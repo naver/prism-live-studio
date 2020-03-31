@@ -1,0 +1,358 @@
+/*******rtmp view***********/
+
+PLSRtmpChannelView {
+	background-color: #272727;
+	qproperty-minimumSize: 719px 550px;
+	qproperty-maximumSize: 719px 550px;
+	border: 1px solid #111111;
+}
+
+	PLSRtmpChannelView * {
+		font-size: 14px;
+		font-weight: normal;
+		font-style: normal;
+		color: #ffffff;
+	}
+
+	PLSRtmpChannelView #MenuFrame {
+		max-height: 40px;
+		min-height: 40px;
+		margin: 0px;
+		padding: 0px;
+	}
+
+	PLSRtmpChannelView #TitleLabel {
+		margin-left: 17px;
+		max-height: 16px;
+		font-size: 12px;
+		font-weight: normal;
+		font-style: normal;
+		color: #ffffff;
+	}
+
+	PLSRtmpChannelView #CloseBtn {
+		margin: 0px;
+		padding: 5px;
+		border: none;
+		image: url(:/Images/skin/close-btn.png);
+		background-color: transparent;
+		color: transparent;
+		qproperty-minimumSize: 40px 40px;
+		qproperty-maximumSize: 40px 40px;
+	}
+
+		PLSRtmpChannelView #CloseBtn:hover {
+			image: url(:/Images/skin/close-btn-over.png);
+		}
+
+		PLSRtmpChannelView #CloseBtn:pressed {
+			image: url(:/Images/skin/close-btn-click.png);
+		}
+
+	PLSRtmpChannelView #CategoryFrame {
+		margin: 30px 30px 20px 25px;
+		padding: 0px;
+	}
+
+	PLSRtmpChannelView #CategoryLabel {
+		max-width: 136px;
+		max-height: 27px;
+		font-size: 20px;
+		font-weight: bold;
+		font-style: normal;
+		color: #ffffff;
+		border: none;
+	}
+
+	PLSRtmpChannelView #EditAreaFrame {
+		margin: 0px 30px 0px 25px;
+		padding: 0px;
+		border: none;
+	}
+
+	PLSRtmpChannelView #LeftFrame {
+		margin: 0px;
+		margin-right: 5px;
+		padding: 0px;
+		max-width: 146px;
+		max-height: 290px;
+		min-width: 146px;
+		min-height: 290px;
+		background-color: transparent;
+		border: none;
+		/*border: 1px solid blue;*/
+	}
+
+	PLSRtmpChannelView #RightFrame {
+		margin: 0px;
+		padding: 0px;
+		max-width: 499px;
+		max-height: 290px;
+		min-width: 499px;
+		min-height: 290px;
+		background-color: transparent;
+		/*border: 1px solid blue;*/
+		border: none;
+	}
+
+	PLSRtmpChannelView #EditAreaFrame QLabel {
+		max-width: 166px;
+		min-width: 0px;
+		margin: 0px;
+		padding: 0px;
+		border: none;
+	}
+
+	PLSRtmpChannelView #LeftFrame QFrame {
+		min-height: 40px;
+		max-height: 40px;
+		qproperty-minimumSize: 0px 40px;
+		qproperty-maximumSize: 146px 40px;
+		border: none;
+		/*border: 1px solid blue;*/
+		background-color: transparent;
+		margin: 0px;
+		padding: 0px;
+		border: none;
+	}
+
+	PLSRtmpChannelView QLineEdit, #StreamKeyComplexEditor, #PasswordComplexEditor {
+		margin: 0px;
+		padding: 0px;
+		padding-left: 10px;
+		background-color: #222222;
+		border: none;
+		min-height: 40px;
+		max-height: 40px;
+		max-width: 499px;
+		min-width: 499px;
+		qproperty-minimumSize: 499px 40px;
+		qproperty-maximumSize: 499px 40px;
+		border: 1px solid transparent;
+	}
+
+	PLSRtmpChannelView #PlatformCombbox {
+		background-color: #444444;
+		border: none;
+		min-height: 40px;
+		max-height: 40px;
+		min-width: 499px;
+		max-width: 499px;
+		padding: 0px;
+		margin: 0px;
+		qproperty-minimumSize: 499px 40px;
+		qproperty-maximumSize: 499px 40px;
+		border-radius: 3px;
+		padding-left: 12px;
+		font-size: 14px;
+		font-weight: normal;
+		font-style: normal;
+		color: #ffffff;
+	}
+
+		PLSRtmpChannelView #PlatformCombbox:hover {
+			background-color: #555555;
+		}
+
+		PLSRtmpChannelView #PlatformCombbox:on {
+			background-color: #222222;
+		}
+
+		PLSRtmpChannelView #PlatformCombbox:disabled {
+			background-color: #373737;
+			color: #666666;
+		}
+
+		PLSRtmpChannelView #PlatformCombbox QAbstractItemView {
+			selection-background-color: #2d2d2d;
+			background-color: transparent;
+			show-decoration-selected: 1;
+			border: 1px solid #111111;
+			border-radius: 1px;
+			padding: 0px;
+			margin: 0px;
+		}
+
+			PLSRtmpChannelView #PlatformCombbox QAbstractItemView:focus {
+				outline: none;
+			}
+
+			PLSRtmpChannelView #PlatformCombbox QAbstractItemView::item {
+				min-height: 40px;
+				height: 40px;
+				border: none;
+				padding-left: 12px;
+				color: #ffffff;
+				background-color: #2d2d2d;
+			}
+
+
+				PLSRtmpChannelView #PlatformCombbox QAbstractItemView::item:hover {
+					background-color: #373737;
+					color: #ffffff;
+				}
+
+				PLSRtmpChannelView #PlatformCombbox QAbstractItemView::item:selected:active {
+					/*background-color: #373737;*/
+					color: #effc35;
+				}
+
+				PLSRtmpChannelView #PlatformCombbox QAbstractItemView::item:selected:!active {
+					/*background-color: #373737;*/
+					color: #ffffff;
+				}
+
+
+		PLSRtmpChannelView #PlatformCombbox::drop-down {
+			subcontrol-origin: padding;
+			subcontrol-position: center right;
+			width: 30px;
+			height: 30px;
+			border: none;
+		}
+
+		PLSRtmpChannelView #PlatformCombbox::down-arrow {
+			image: url(:/Images/skin/txt-dropbox-open-normal.png);
+		}
+
+			PLSRtmpChannelView #PlatformCombbox::down-arrow:on {
+				image: url(:/Images/skin/txt-dropbox-open-click.png);
+			}
+
+	PLSRtmpChannelView #NameLabel, PLSRtmpChannelView #StreamKeyLabel, PLSRtmpChannelView #UserIDLabel, PLSRtmpChannelView #UserPasswordLabel, PLSRtmpChannelView #PlatformLabel {
+		background-color: transparent;
+		max-width: 136px;
+		min-height: 18px;
+		font-size: 14px;
+		font-weight: bold;
+		font-style: normal;
+		color: #bababa;
+	}
+
+	PLSRtmpChannelView #MustBeLabel, PLSRtmpChannelView #MustBeLabelStreamKey, PLSRtmpChannelView #NameMustbeLabel {
+		background-color: transparent;
+		max-width: 136px;
+		min-height: 18px;
+		font-size: 14px;
+		font-weight: bold;
+		font-style: normal;
+		color: #c34151;
+	}
+
+	PLSRtmpChannelView #PasswordComplexEditor, PLSRtmpChannelView #StreamKeyComplexEditor {
+		background-color: #222222;
+		border: 0px;
+		padding: 0px;
+		margin: 0px;
+		border-radius: 3px;
+	}
+
+
+	PLSRtmpChannelView #OpenLink {
+		padding: 0px;
+		margin: 0px;
+		margin-left: 3px;
+		background-color: transparent;
+		border-image: none;
+		border: none;
+		color: lightblue;
+		min-width: 28px;
+		min-height: 18px;
+		max-height: 18px;
+		max-width: 58px;
+		font-size: 14px;
+		font-weight: normal;
+		font-style: normal;
+		color: #0091ff;
+		qproperty-minimumSize: 28px 18px;
+		qproperty-maximumSize: 56px 18px;
+	}
+
+		PLSRtmpChannelView #OpenLink:hover {
+			color: white;
+		}
+
+		PLSRtmpChannelView #OpenLink:disabled {
+			color: transparent;
+		}
+
+	PLSRtmpChannelView #RTMPUrlEdit:disabled {
+		color: #666666;
+	}
+
+	PLSRtmpChannelView #StreamKeyEdit, PLSRtmpChannelView #UserPasswordEdit {
+		margin: 1px;
+		padding: 0px;
+		padding-left: 10px;
+		qproperty-minimumSize: 400px 36px;
+		qproperty-maximumSize: 469px 36px;
+	}
+
+	PLSRtmpChannelView #UserPasswordEdit, PLSRtmpChannelView #UserIDEdit {
+		color: #666666;
+	}
+
+	PLSRtmpChannelView #StreamKeyVisible, PLSRtmpChannelView #PasswordVisible {
+		qproperty-minimumSize: 30px 30px;
+		qproperty-maximumSize: 30px 30px;
+		background-color: transparent;
+		border-image: url(:/Images/skin/visible.png);
+		color: transparent;
+	}
+
+		PLSRtmpChannelView #StreamKeyVisible:checked, PLSRtmpChannelView #PasswordVisible:checked {
+			border-image: url(:/Images/skin/invisible.png);
+		}
+
+
+
+	PLSRtmpChannelView #ButtonsFrame {
+		padding: 20px 30px 20px 25px;
+		max-height: 80px;
+		border-top: 1px solid #222222;
+		qproperty-minimumSize: 720px 80px;
+		qproperty-maximumSize: 720px 80px;
+	}
+
+	PLSRtmpChannelView #SaveBtn, PLSRtmpChannelView #CancelBtn {
+		min-height: 40px;
+		max-height: 40px;
+		min-width: 128px;
+		max-width: 128px;
+		font-size: 14px;
+		margin: 0px;
+		margin-left: 10px;
+		padding: 0px;
+		qproperty-minimumSize: 128px 40px;
+		qproperty-maximumSize: 128px 40px;
+		border-radius: 3px;
+		color: #ffffff;
+		border: none;
+		background-color: #444444;
+		font-size: 14px;
+		font-weight: bold;
+		font-style: normal;
+		color: #ffffff;
+	}
+
+		PLSRtmpChannelView #SaveBtn:default, PLSRtmpChannelView #CancelBtn:default {
+			background-color: #effc35;
+			color: black;
+		}
+
+		PLSRtmpChannelView #SaveBtn:hover, PLSRtmpChannelView #CancelBtn:hover {
+			background-color: #effc35;
+			color: black;
+		}
+
+		PLSRtmpChannelView #SaveBtn:disabled, PLSRtmpChannelView #CancelBtn:disabled {
+			color: #888888;
+		}
+
+	PLSRtmpChannelView #RTMPUrlEdit:focus, PLSRtmpChannelView #NameEdit:focus, PLSRtmpChannelView #UserIDEdit:focus, PLSRtmpChannelView #StreamKeyComplexEditor:isFocus, PLSRtmpChannelView #PasswordComplexEditor:isFocus {
+		border: 1px solid #effc35;
+	}
+
+	PLSRtmpChannelView #StreamKeyComplexEditor[isFocus="true"], PLSRtmpChannelView #PasswordComplexEditor[isFocus="true"] {
+		border: 1px solid #effc35;
+	}

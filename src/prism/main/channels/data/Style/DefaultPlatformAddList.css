@@ -1,0 +1,41 @@
+DefaultPlatformsAddList
+{
+    border:none;
+    padding:0px;
+    margin:0px;
+    min-width:400px;
+}
+
+	DefaultPlatformsAddList QToolButton {
+		margin: 0px;
+		margin-left: 5px;
+		margin-right: 5px;
+		padding: 0px;
+		background-color: transparent;
+		border: none;
+		border-image: none;
+		min-height: 40px;
+		max-height: 40px;
+		min-width: 115px;
+		min-width: 115px;
+		qproperty-iconSize: 115px 40px;
+	}
+
+	DefaultPlatformsAddList #hoverBtn {
+		margin: 0px;
+		margin-left: 5px;
+		margin-right: 5px;
+		padding: 0px;
+		background-color: transparent;
+		border: none;
+		border-image: url(:/Images/skin/btn-addch-mauseover-normal.png);
+		min-height: 40px;
+		max-height: 40px;
+		min-width: 115px;
+		min-width: 115px;
+		qproperty-iconSize: 115px 40px;
+	}
+
+DefaultPlatformsAddList #hoverBtn:pressed {
+	border-image: url(:/Images/skin/btn-addch-mauseover-click.png);
+}

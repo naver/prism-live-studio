@@ -1,0 +1,116 @@
+
+ChannelsAddWin {
+	border: 1px solid #111111;
+	min-width: 477px;
+	max-width: 477px;
+	min-height: 261px;
+	max-height: 261px;
+	background-color: #272727;
+	border-image: none;
+	margin: 0px;
+	padding: 0px;
+	qproperty-maximumSize: 477px 261px;
+	qproperty-minimumSize: 477px 261px;
+}
+
+	ChannelsAddWin #TitleFrame {
+		padding: 10px;
+		max-height: 40px;
+	}
+
+	ChannelsAddWin #ClosePtn {
+		margin: 0px;
+		padding: 0px;
+		min-width: 22px;
+		max-width: 22px;
+		min-height: 22px;
+		max-height: 22px;
+		border-image: url(:/Images/skin/btn-close-normal.png);
+		color: transparent;
+		background-color: transparent;
+	}
+
+		ChannelsAddWin #ClosePtn:hover {
+			border-image: url(:/Images/skin/btn-close-over.png);
+		}
+
+		ChannelsAddWin #ClosePtn:pressed {
+			border-image: url(:/Images/skin/btn-close-click.png);
+		}
+	
+		ChannelsAddWin #ContentFrame {
+			background-color: #272727;
+			padding: 0px;
+			margin: 0px;
+			border: none;
+		}
+
+	ChannelsAddWin #TitleLable {
+		margin: 0px;
+		min-height: 27px;
+		min-width: 80px;
+		background-color: transparent;
+		font-size: 20px;
+		font-weight: bold;
+		font-style: normal;
+		text-align: center;
+		color: #effc35;
+	}
+
+	ChannelsAddWin #PrismNoteLabel {
+		margin-top: 10px;
+		min-width: 340px;
+		min-height: 16px;
+		max-height: 16px;
+		font-size: 12px;
+		font-weight: normal;
+		font-style: normal;
+		text-align: center;
+		color: #a3a3a3;
+	}
+
+	ChannelsAddWin #ChannelsListWid {
+		background-color: transparent;
+		border: none;
+		margin: 30px 20px 40px 20px;
+		padding: 0px;
+		max-height: 108px;
+	}
+
+#ChannelsListWid #scrollAreaWidgetContents {
+	margin: 0px;
+	padding: 0px;
+}
+
+ChannelsAddWin QToolButton {
+	margin: 0;
+	padding: 18px 12px 17px 12px;
+	border-image: none;
+	background-color: #1e1e1e;
+	qproperty-iconSize: 115px 40px;
+	qproperty-minimumSize: 139px 98px;
+	qproperty-maximumSize: 139px 98px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: normal;
+	font-style: normal;
+	text-align: center;
+	color: #bababa;
+}
+
+ChannelsAddWin #hoverBtn {
+	margin: 0px;
+	padding: 0px;
+	min-width: 139px;
+	max-width: 139px;
+	min-height: 98px;
+	max-height: 98px;
+	border-image: url(:/Images/skin/btn-addch-large-mauseover-normal.png);
+	background-color: transparent;
+	color: transparent;
+	qproperty-iconSize: 115px 40px;
+}
+
+	ChannelsAddWin #hoverBtn:pressed {
+		border-image: url(:/Images/skin/btn-addch-large-mauseover-click.png);
+	}

@@ -1,0 +1,91 @@
+PLSShareDialog {
+	border-radius: 6px;
+	border: solid 10px #111111;
+	background-color: #2c2c2c;
+	min-height: 369px;
+	max-height: 369px;
+	min-width: 480px;
+	max-width: 480px;
+}
+
+	PLSShareDialog #scrollArea {
+		background-color: transparent;
+		color: #2c2c2c;
+		border: none;
+		margin: 15px 25px 15px 25px;
+	}
+
+	PLSShareDialog #scrollAreaWidgetContents {
+		background-color: transparent;
+	}
+
+	PLSShareDialog QLabel, PLSShareDialog QPushButton {
+		color: white;
+		border: none;
+		background: transparent;
+	}
+
+		PLSShareDialog QPushButton[buttonFlag ="1"] {
+			min-width: 213px;
+			min-height: 60px;
+			max-width: 213px;
+			max-height: 60px;
+			border-radius: 2px;
+			background-color: #363636;
+			
+			font-size: 12px;
+			font-weight: bold;
+			color: rgba(255, 255, 255, 0.9);
+		}
+
+			PLSShareDialog QPushButton[buttonFlag ="1"]:hover {
+				min-width: 213px;
+				min-height: 60px;
+				max-width: 213px;
+				max-height: 60px;
+				border-radius: 2px;
+				background-color: #55666666;
+				
+				font-size: 12px;
+				font-weight: bold;
+				color: rgba(255, 255, 255, 0.9);
+			}
+
+
+	PLSShareDialog #titleLabel {
+		min-width: 137.9px;
+		min-height: 19px;
+		max-width: 137.9px;
+		max-height: 19px;
+		
+		font-size: 16px;
+		font-weight: bold;
+		font-style: normal;
+		line-height: normal;
+		text-align: center;
+		color: #effc35;
+		margin: 25px 181px 0px 161px;
+		background-color: transparent;
+	}
+
+	PLSShareDialog #tipLabel {
+		min-width: 200px;
+		min-height: 23px;
+		max-width: 200px;
+		max-height: 23px;
+		
+		font-size: 11px;
+		font-weight: normal;
+		color: rgba(153, 153, 153, 0.9);
+		margin: 0px 255px 25px 25px;
+		background-color: transparent;
+	}
+
+	PLSShareDialog QToolTip {
+		background-color: #2c2c2c;
+		
+		font-size: 12px;
+		color: #ffffff;
+		border: 1px solid #2c2c2c;
+		border-radius: 1px;
+	}

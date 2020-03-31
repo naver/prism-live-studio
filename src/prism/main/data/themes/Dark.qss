@@ -1,0 +1,5760 @@
+/******************************************************************************/
+/*   Copyright (C) 2014-2015 by Philippe Groarke <philippe.groarke@gmail.com> */
+/*                                                                            */
+/*                                                                            */
+/*   This program is free software: you can redistribute it and/or modify     */
+/*   it under the terms of the GNU General Public License as published by     */
+/*   the Free Software Foundation, either version 2 of the License, or        */
+/*   (at your option) any later version.                                      */
+/*                                                                            */
+/*   This program is distributed in the hope that it will be useful,          */
+/*   but WITHOUT ANY WARRANTY; without even the implied warranty of           */
+/*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            */
+/*   GNU General Public License for more details.                             */
+/*                                                                            */
+/*   You should have received a copy of the GNU General Public License        */
+/*   along with this program.  If not, see <http://www.gnu.org/licenses/>.    */
+/******************************************************************************/
+
+/* Custom theme information.  This will set the application's QPalette, as
+ * well as pass to QML via the PLSTheme object.
+ * Can also use PLSTheme::disabled, PLSTheme::active, and PLSTheme::inactive.
+ * Using it without will set all three (making 'active' a bit redundant) */
+
+QWidget:disabled {
+    color: #666666;
+}
+
+QWidget {
+    color: #ffffff;
+    font-family: "Segoe UI","MalgunGothic","Malgun Gothic","Dotum","Gulim";
+}
+
+* [frameShape="1"], * [frameShape="2"], * [frameShape="3"], * [frameShape="4"], * [frameShape="5"], * [frameShape="6"] {
+    border: 1px solid #111111;
+}
+
+QToolTip {
+    background-color: #111111;
+    border: none;
+    padding: 5px;
+    font-size: 11px;
+    color: #bababa;
+}
+
+QMenu {
+    font-size: 14px; /* Warning: here must be defined and should be same with QMenu::item */
+    border: 1px solid #111111;
+    background: #2d2d2d;
+	padding-top: 8px;
+	padding-bottom: 8px;
+	padding-left: 0px;
+	padding-right: 0px;
+}
+QMenu::right-arrow {
+    padding: 0px 10px 0px 0px;
+    image: url(./Dark/btn-txtlayer-close-normal.png);
+}
+QMenu::icon {
+    padding-left: 10px;
+    min-width: 50px;
+    max-width: 50px;
+    min-height: 30px;
+    max-height: 30px;
+}
+QMenu::item {
+    font-size: 14px;
+    padding: 0px 20px 0px 20px;
+    min-height: 40px;
+    max-height: 40px;
+	min-width: 190px;
+    color: #ffffff;
+    background: #2d2d2d;
+}
+QMenu::item:selected { /* apply to mouse hover */
+    background: #373737;
+}
+QMenu::item:checked{
+    color: #effc35;
+}
+QMenu::item::!enabled{
+	color: #666666;
+}
+QMenu::separator {
+    height: 1px;
+    background: #111111;
+}
+QMenu::indicator{
+	border:none;
+}
+
+PLSBasicSourceSelect QListWidget,
+PLSBasicSourceSelect QLineEdit,
+PLSBasicSourceSelect QCheckBox,
+PLSBasicProperties QRadioButton {
+    font-size: 14px;
+    font-weight: normal;
+}
+
+PLSBasicSourceSelect QRadioButton,
+PLSPropertiesView QLabel { /* Here cann't use PLSBasicProperties to avoid conflict with alert window */
+	font-size: 14px;
+    font-weight: bold;
+}
+
+PLSBasicFilters PLSPopupMenu#basicFilterMenu{
+	min-width: 180px;
+	max-width: 180px;
+}
+
+PLSBasicFilters PLSPopupMenu#basicFilterMenu PLSPopupMenu{
+	min-width: 260px;
+	max-width: 260px;
+}
+
+PLSBasicFilters PLSPopupMenu#basicFilterMenu QLabel{
+	background-color: transparent;
+}
+
+PLSBasicFilters PLSPopupMenu#basicFilterMenu PLSPopupMenuItem[selected="true"] {
+    background-color: #444444;
+}
+
+PLSBasic #sceneMenu, PLSBasic #sceneMenu QMenu{
+	padding-top: 8px;
+	padding-bottom: 8px;
+    background-color: #2d2d2d;
+    border: 1px solid #111111;
+	color:#ffffff;
+	font-size: 14px;
+}
+
+PLSBasic #sceneMenu::item:selected ,PLSBasic #sceneMenu QMenu::selected{
+    background-color: #373737;
+    color: #ffffff;
+}
+
+PLSBasic #sceneMenu::item::!enabled{
+	color: #666666;
+}
+
+SourceTree{
+	outline: none;
+}
+
+SourceTree:focus {
+    outline: none;
+}
+
+QListWidget::item,SourceTree::item{
+	height: 40px;
+	outline: none;
+	border:none;
+}
+
+SourceTreeItem,SourceTreeItem[status="normal"] {
+	background-color: #272727;
+}
+
+SourceTreeItem[status="hover"] {
+	background-color: #444444;
+}
+
+SourceTreeItem[status="pressed"] {
+	background-color: #2d2d2d;
+}
+
+PLSBasicProperties QLineEdit,
+QListWidget QLineEdit,
+SourceTree QLineEdit {
+    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-right: 0;
+    padding-left: 2px;
+    border: none;
+    border-radius: none;
+	min-height: 20px;
+	max-height: 20px;
+	background-color: #1e1e1e;
+    font-size: 14px;
+}
+
+PLSSceneItemView QLineEdit,
+PLSFiltersItemView QLineEdit,
+PLSSceneTransitionsView QLineEdit {
+    font-size: 14px;
+}
+
+/* Dock Widget */
+PLSDockTitle {
+    qproperty-captionHeight: 40;
+    qproperty-marginLeft: 14;
+    qproperty-marginRight: 14;
+    qproperty-contentSpacing: 2;
+    background-color: #272727;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+}
+PLSDockTitle #titleLabel {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+}
+PLSDockTitle #advButton {
+	background: transparent;
+    image: url(./Dark/icon-more-default.png);
+}
+
+PLSDockTitle #advButton:hover{
+    border-image:url("./Dark/icon-more-over.png");
+}
+
+PLSDockTitle #advButton:pressed{
+    border-image:url("./Dark/icon-more-click.png");
+}
+
+PLSDockTitle #advButton:!enabled{
+    border-image:url("./Dark/icon-more-disable.png");
+}
+
+
+PLSDockTitle QToolButton {
+    border: none;
+    border-image: none;
+    background-color: #272727;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+}
+PLSDockTitle QToolButton:hover {
+    border-image: none;
+    background-color: #363636;
+    border-radius: 3px;
+}
+PLSDockTitle QToolButton:pressed {
+    border-image: none;
+    background-color: #111111;
+}
+PLSDock {
+    qproperty-contentMarginLeft: 15;
+    qproperty-contentMarginRight: 15;
+    qproperty-contentMarginBottom: 15;
+    border: 1px solid #111111;
+    background-color: #1e1e1f;
+}
+PLSDock #content {
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+PLSDock .QWidget,
+PLSDock .QToolBar,
+PLSDock .QScrollArea,
+PLSDock .QFrame,
+PLSDock .QLabel,
+PLSDock QListWidget,
+PLSDock QListView,
+PLSDock QToolBar .QToolButton {
+    background-color: #272727;
+    border: none;
+    border-radius: 0;
+}
+PLSDock QToolButton {
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+}
+PLSDock QToolButton:hover {
+    background-color: #363636;
+}
+PLSDock QToolButton:pressed {
+    background-color: #111111;
+}
+PLSDock[moving="true"] PLSDockTitle {
+    border-left: 1px solid #effc35;
+    border-top: 1px solid #effc35;
+    border-right: 1px solid #effc35;
+}
+PLSDock[moving="true"] #content {
+    border-left: 1px solid #effc35;
+    border-right: 1px solid #effc35;
+    border-bottom: 1px solid #effc35;
+}
+PLSDock[movingAndFloating="true"] {
+    border: 1px solid #effc35;
+}
+PLSDock[movingAndFloating="true"] PLSDockTitle, PLSDock[movingAndFloating="true"] #content {
+    border: none;
+}
+PLSDock[floating="true"] {
+    background-color: #272727;
+}
+PLSDock QFrame[frameShape="1"],
+PLSDock QFrame[frameShape="2"],
+PLSDock QFrame[frameShape="3"],
+PLSDock QFrame[frameShape="4"],
+PLSDock QFrame[frameShape="5"],
+PLSDock QFrame[frameShape="6"] {
+    border: none;
+}
+
+/* Group Box */
+QGroupBox {
+    border: none;
+    padding-top: 27px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffffff;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: -4px;
+    top: 1px;
+}
+QGroupBox[useFor="GroupBoxLevel2"] {
+    border: none;
+    padding-top: 17px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+}
+QGroupBox[useFor="GroupBoxLevel2"]::title {
+    subcontrol-origin: margin;
+    left: -2px;
+    top: 1px;
+}
+QLabel[useFor="QGroupBox"] {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+/* ScrollBars */
+
+::corner {
+    background-color: #272727;
+    border: none;
+}
+
+QScrollBar:vertical {
+    background-color: #272727;
+    width: 10px;
+    margin: 0px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #444444;
+    min-height: 20px;
+    border-radius: 3px;
+    border: none;
+    margin: 0 2px;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    border: none;
+    background: none;
+    height: 0px;
+}
+
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical, QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    border: none;
+    background: none;
+    color: none;
+}
+
+QScrollBar:horizontal {
+    background-color: #272727;
+    height: 10px;
+    margin: 0px;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #444444;
+    min-width: 20px;
+    border-radius: 3px;
+    border: none;
+    margin: 2px 0;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    border: none;
+    background: none;
+    width: 0px;
+}
+
+QScrollBar::left-arrow:horizontal, QScrollBar::right-arrow:horizontal, QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    border: none;
+    background: none;
+    color: none;
+}
+
+
+* [themeID="addIconSmall"] {
+    qproperty-icon: url(./Dark/icon-addsource-default.png);
+}
+
+* [themeID="removeIconSmall"] {
+    qproperty-icon: url(./Dark/ic-delete-default.png);
+}
+
+* [themeID="propertiesIconSmall"] {
+    qproperty-icon: url(./Dark/settings/ic-setting-s-normal.png);
+}
+
+* [themeID="configIconSmall"] {
+    qproperty-icon: url(./Dark/settings/general.svg);
+}
+
+* [themeID="refreshIconSmall"] {
+    qproperty-icon: url(./Dark/refresh.svg);
+}
+
+* [themeID="upArrowIconSmall"] {
+    qproperty-icon: url(./Dark/ic-top-normal.png);
+}
+
+* [themeID="downArrowIconSmall"] {
+    qproperty-icon: url(./Dark/ic-down-normal.png);
+}
+
+* [themeID="pauseIconSmall"] {
+    qproperty-icon: url(./Dark/media-pause.svg);
+}
+
+* [borders="top-only"] {
+    border: none;
+    border-top: 1px solid #111111;
+}
+
+
+/* Tab Widget */
+
+QTabWidget::pane { /* The tab widget frame */
+    border-top: 1px solid rgb(31,30,31); /* veryDark */
+}
+
+QTabWidget::tab-bar {
+    alignment: left;
+}
+
+QTabBar::tab {
+    background-color: rgb(76,76,76);
+    border: none;
+    padding: 5px;
+    min-width: 50px;
+    margin: 1px;
+}
+
+QTabBar::tab:top {
+    border-bottom: 1px transparent;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+
+}
+
+QTabBar::tab:bottom {
+    padding-top: 1px;
+    margin-bottom: 4px;
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+    height: 14px;
+}
+
+QTabBar::tab:selected {
+    background-color: rgb(31,30,31); /* veryDark */
+}
+
+QTabBar::tab:hover {
+    background-color: rgb(122,121,122); /* light */
+}
+
+QTabBar::tab:pressed {
+    background-color: rgb(31,30,31); /* veryDark */
+}
+
+QFontDialog QFontListView {
+    show-decoration-selected: 1;
+    background-color: #222222;
+    font-size: 14px;
+    color: #ffffff;
+    border: 1px solid #111111;
+    border-radius: 3px;
+}
+QFontDialog QGroupBox {
+    border: 1px solid #111111;
+    padding-top: 20px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+}
+QFontDialog QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 4px;
+    top: 2px;
+}
+QFontDialog QGroupBox QLineEdit {
+   max-width: 10000px;
+   max-height: 10000px;
+}
+
+QColorDialog QColorLuminancePicker {
+   background-color: #2c2c2c;
+}
+
+/* QCheckBox */
+QCheckBox {
+    outline: none;
+}
+QCheckBox::indicator:checked {
+    image: url(./Dark/check-box-normal.png);
+}
+QCheckBox::indicator:checked:hover {
+    image: url(./Dark/check-box-over.png);
+}
+QCheckBox::indicator:checked:pressed {
+    image: url(./Dark/check-box-clicked.png);
+}
+QCheckBox::indicator:checked:disabled {
+    image: url(./Dark/check-box-disable.png);
+}
+QCheckBox::indicator:unchecked {
+    image: url(./Dark/check-box-uncheked-normal.png);
+}
+QCheckBox::indicator:unchecked:hover {
+    image: url(./Dark/check-box-uncheked-over.png);
+}
+QCheckBox::indicator:unchecked:disabled {
+    image: url(./Dark/check-box-uncheked-disable.png);
+}
+
+/* QRadioButton */
+QRadioButton {
+    outline: none;
+}
+QRadioButton::indicator:checked {
+    image: url(./Dark/radio-nutton-on.png);
+}
+QRadioButton::indicator:checked:disabled {
+    image: url(./Dark/radio-nutton-on-disable.png);
+}
+QRadioButton::indicator:unchecked {
+    image: url(./Dark/radio-nutton-off.png);
+}
+
+/* Textedits etc */
+QPlainTextEdit{
+	border: none;
+	border-radius: 3px;
+	background-color: #222222;
+	padding: 2px 2px 3px 7px;
+	font-size: 14px;
+	color: #ffffff;
+}
+
+QTextEdit {
+    background-color: #2c2c2c;
+    border: none;
+    padding: 2px 2px 3px 7px;
+}
+QLineEdit {
+    background-color: #222222;
+    border: none;
+    border-radius: 3px;
+    padding-left: 12px;
+    min-height: 40px;
+    max-height: 40px;
+}
+QLineEdit[For="SelectPath"] {
+    background-color: #222222;
+    border: none;
+    border-radius: 3px;
+    padding-left: 12px;
+    min-height: 40px;
+    max-height: 40px;
+}
+
+/* QToolButton */
+QToolButton[For="SelectPath"] {
+    border-image: url(./Dark/browser-normal.png);
+    min-width: 40px;
+    max-width: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    border-radius: 3px;
+}
+QToolButton[For="SelectPath"]:hover {
+    border-image: url(./Dark/browser-over.png);
+}
+QToolButton[For="SelectPath"]:pressed {
+    border-image: url(./Dark/browser-clicked.png);
+}
+QToolButton[For="SelectPath"]:disabled {
+    border-image: url(./Dark/browser-disable.png);
+}
+
+QToolButton[For="SelectPathClear"] {
+    background-color: #444444;
+    min-width: 40px;
+    max-width: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    border: none;
+}
+QToolButton[For="SelectPathClear"]:hover {
+    background-color: #222222;
+}
+QToolButton[For="SelectPathClear"]:pressed {
+    background-color: #111111;
+}
+
+
+/* Spinbox and DoubleSpinbox */
+QSpinBox, QDoubleSpinBox {
+    background-color: #222222;
+    border: none;
+    border-radius: 3px;
+    padding-left: 12px;
+    min-height: 40px;
+    max-height: 40px;
+    font-size: 14px;
+    color: #ffffff;
+}
+QSpinBox::up-button, QDoubleSpinBox::up-button {
+    subcontrol-origin: margin;
+    subcontrol-position: top right;
+
+    background-color: #444444;
+    width: 25px;
+    border-top-right-radius: 3px;
+}
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
+    image: url(./Dark/txt-dropbox-close-normal.png);
+    width: 11px;
+    height: 6px;
+}
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover {
+    background-color: #555555;
+}
+QSpinBox::up-arrow:hover, QDoubleSpinBox::up-arrow:hover {
+    image: url(./Dark/txt-dropbox-close-over.png);
+    width: 11px;
+    height: 6px;
+}
+QSpinBox::up-button:pressed, QDoubleSpinBox::up-button:pressed {
+    background-color: #2d2d2d;
+}
+QSpinBox::up-arrow:pressed, QDoubleSpinBox::up-arrow:pressed {
+    image: url(./Dark/txt-dropbox-close-click.png);
+}
+QSpinBox::up-arrow:disabled, QDoubleSpinBox::up-arrow:disabled {
+    image: url(./Dark/txt-dropbox-close-disable.png);
+}
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+    subcontrol-origin: margin;
+    subcontrol-position: bottom right;
+    background-color: #444444;
+    width: 25px;
+    border-bottom-right-radius: 3px;
+}
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+    image: url(./Dark/txt-dropbox-open-normal.png);
+    width: 11px;
+    height: 6px;
+}
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
+    background-color: #555555;
+}
+QSpinBox::down-arrow:hover, QDoubleSpinBox::down-arrow:hover {
+    image: url(./Dark/txt-dropbox-open-over.png);
+    width: 11px;
+    height: 6px;
+}
+QSpinBox::down-button:pressed, QDoubleSpinBox::down-button:pressed {
+    background-color: #2d2d2d;
+}
+QSpinBox::down-arrow:pressed, QDoubleSpinBox::down-arrow:pressed {
+    image: url(./Dark/txt-dropbox-open-click.png);
+}
+QSpinBox::down-arrow:disabled, QDoubleSpinBox::down-arrow:disabled {
+    image: url(./Dark/txt-dropbox-open-disable.png);
+}
+
+/* Buttons */
+QPushButton:focus
+{
+	outline:none;
+}
+QPushButton {
+    background-color: #444444;
+    border-radius: 3px;
+    min-height: 40px;
+    max-height: 40px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+    padding: 0;
+}
+QPushButton:hover {
+    background-color: #555555;
+}
+QPushButton:pressed {
+    background-color: #2d2d2d;
+}
+QPushButton:disable {
+    background-color: #444444;
+    color: #777777;
+}
+/* Highlight Buttons */
+QPushButton[highlight="true"] {
+    background-color: #effc35;
+    border-radius: 3px;
+    min-height: 48px;
+    max-height: 48px;
+    font-size: 14px;
+    font-weight: bold;
+    color: black;
+    padding: 0 50px;
+}
+QPushButton[highlight="true"]:hover {
+    background-color: #f1fa75;
+}
+QPushButton[highlight="true"]:pressed {
+    background-color: #7a7f34;
+}
+QPushButton[highlight="true"]:disable {
+    background-color: #444444;
+    color: #666666;
+}
+
+/*
+PLSDialogButtonBox QPushButton {
+    min-width: 128px;
+    max-width: 128px;
+    min-height: 40px;
+    max-height: 40px;
+}*/
+
+QPushButton[useFor="QToolButton"] {
+    border: none;
+    border-image: none;
+    background-color: #2c2c2c;
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 30px;
+    max-height: 30px;
+    margin: 0;
+    padding: 0;
+}
+QPushButton[useFor="QToolButton"]:hover {
+    border-image: none;
+    background-color: #363636;
+}
+QPushButton[useFor="QToolButton"]:pressed {
+    border-image: none;
+    background-color: #111111;
+}
+
+QPushButton[For="SelectPath"] {
+    background-color: #333333;
+    border-image: url(./Dark/browser-normal.png);
+    min-width: 32px;
+    max-width: 32px;
+    min-height: 32px;
+    max-height: 32px;
+    padding: 0;
+}
+QPushButton[For="SelectPath"]:hover {
+    border-image: url(./Dark/browser-over.png);
+}
+QPushButton[For="SelectPath"]:pressed {
+    border-image: url(./Dark/browser-clicked.png);
+}
+QPushButton[For="SelectPath"]:disabled {
+    border-image: url(./Dark/browser-disable.png);
+}
+
+PLSFontDialogView QPushButton[useFor="Ok"],
+PLSFontDialogView QPushButton[useFor="Cancel"],
+PLSColorDialogView QPushButton[useFor="Ok"],
+PLSColorDialogView QPushButton[useFor="Cancel"] {
+    font-weight: bold;
+	font-size: 14px;
+	color: #FFFFFF;
+}
+
+QPushButton[useFor="Ok"],
+QPushButton[useFor="Save"],
+QPushButton[useFor="SaveAll"],
+QPushButton[useFor="Open"],
+QPushButton[useFor="Yes"],
+QPushButton[useFor="YesToAll"],
+QPushButton[useFor="No"],
+QPushButton[useFor="NoToAll"],
+QPushButton[useFor="Abort"],
+QPushButton[useFor="Retry"],
+QPushButton[useFor="Ignore"],
+QPushButton[useFor="Close"],
+QPushButton[useFor="Cancel"],
+QPushButton[useFor="Discard"],
+QPushButton[useFor="Help"],
+QPushButton[useFor="Apply"],
+QPushButton[useFor="Reset"],
+QPushButton[useFor="RestoreDefaults"] {
+    min-width: 128px;
+    max-width: 128px;
+    min-height: 40px;
+    max-height: 40px;
+}
+
+/* Sliders */
+QSlider::groove:horizontal {
+    background-color: #1e1e1f;
+    height: 4px;
+    border: none;
+}
+QSlider::handle:horizontal {
+	border-image: url(./Dark/img-handle-normal.png);
+    height: 14px;
+    width: 14px;
+    margin: -5px 0px -5px 0px;
+}
+
+QSlider::handle:horizontal[handle="false"], QSlider::handle:horizontal[handle="false"][enter="false"]
+, QSlider::handle:horizontal[handle="false"][enter="true"]{
+    width: 0px;
+}
+
+QSlider::handle:horizontal[enter="false"], QSlider::handle:horizontal[enter="false"][handle="true"] {
+	border-image: url(./Dark/img-handle-normal.png);
+    height: 14px;
+    width: 14px;
+    margin: -5px 0px -5px 0px;
+}
+
+QSlider::handle:horizontal[enter="true"], QSlider::handle:horizontal[enter="true"][handle="true"] {
+	border-image: url(./Dark/img-handle-over.png);
+    height: 18px;
+    width: 18px;
+    margin: -7px 0px -7px 0px;
+}
+
+QSlider::sub-page:horizontal {
+    background-color: #effc35;
+}
+QSlider::sub-page:horizontal:disabled {
+    background-color: #2c2c2c;
+}
+QSlider::groove:vertical {
+    background-color: #555555;
+    width: 2px;
+    border: none;
+}
+QSlider::handle:vertical {
+    border-image: url(./Dark/SliderPanel/thumb.png);
+    height: 8px;
+    width: 8px;
+    margin: 0 -3px;
+}
+QSlider::add-page:vertical {
+    background-color: #ffffff;
+}
+QSlider::add-page:vertical:disabled {
+    background-color: #2c2c2c;
+}
+QSlider::handle:disabled {
+    border-image: none;
+}
+
+
+/* Table View */
+
+QTableView {
+    gridline-color: rgb(88,87,88); /* kindaDark */
+}
+
+QHeaderView::section {
+    background-color: #333333;
+    color: rgb(225,224,225); /* veryLight */
+    border: 1px solid rgb(31,30,31); /* veryDark */;
+    border-radius: 5px;
+}
+
+/* Mute CheckBox */
+MuteCheckBox {
+    outline: none;
+	qproperty-minimumSize:22px 22px;
+	qproperty-maximumSize:22px 22px;
+}
+MuteCheckBox::indicator:checked {
+    image: url(./Dark/sound-off-normal.png);
+}
+MuteCheckBox::indicator:checked:hover {
+    image: url(./Dark/sound-off-over-btn.png);
+}
+MuteCheckBox::indicator:checked:pressed {
+    image: url(./Dark/sound-off-clicked.png);
+}
+MuteCheckBox::indicator:unchecked {
+    image: url(./Dark/sound-on-normal.png);
+}
+MuteCheckBox::indicator:unchecked:hover {
+    image: url(./Dark/sound-on-over.png);
+}
+MuteCheckBox::indicator:unchecked:pressed {
+    image: url(./Dark/sound-on-clicked.png);
+}
+
+PLSHotkeyLabel[hotkeyPairHover=true] {
+    color: red;
+}
+
+/* Pause */
+PauseCheckBox {
+    outline: none;
+}
+
+PauseCheckBox::indicator:checked {
+    image: url(:/res/images/media-pause.svg);
+}
+
+PauseCheckBox::indicator:unchecked {
+    image: url(:/res/images/media-play.svg);
+}
+
+/* Group Collapse Checkbox */
+
+SourceTreeSubItemCheckBox {
+    background: transparent;
+    outline: none;
+}
+
+SourceTreeSubItemCheckBox::indicator {
+    min-width: 12px;
+	max-width: 12px;
+    min-height: 13px;
+    max-height: 13px;
+}
+
+SourceTreeSubItemCheckBox::indicator:checked,
+SourceTreeSubItemCheckBox::indicator:checked:hover {
+    image: url(./Dark/sources/ic-group-normal.png);
+}
+
+SourceTreeSubItemCheckBox::indicator:unchecked,
+SourceTreeSubItemCheckBox::indicator:unchecked:hover {
+    image: url(./Dark/sources/ic-group-open-normal.png);
+}
+
+
+/* Label warning/error */
+
+QLabel#warningLabel {
+    color: rgb(192, 128, 0);
+    font-weight: bold;
+}
+
+QLabel#errorLabel {
+    color: rgb(192, 0, 0);
+    font-weight: bold;
+}
+
+* [themeID="warning"] {
+    color: rgb(192, 128, 0);
+    font-weight: bold;
+}
+
+* [themeID="error"] {
+    color: rgb(192, 0, 0);
+    font-weight: bold;
+}
+
+* [themeID="good"] {
+    color: rgb(0, 192, 0);
+    font-weight: bold;
+}
+
+/* About dialog */
+
+* [themeID="aboutName"] {
+    font-size: 36px;
+    font-weight: bold;
+}
+
+* [themeID="aboutVersion"] {
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+
+* [themeID="aboutInfo"] {
+    margin-bottom: 20px;
+}
+
+* [themeID="aboutHLayout"] {
+    background-color: rgb(31, 30, 31); /* veryDark */
+}
+
+/* Preview background color */
+
+PLSQTDisplay {
+    qproperty-displayBackgroundColor: #151515;
+}
+
+/* Preview/Program labels */
+
+* [themeID="previewProgramLabels"] {
+    font-size: 18px;
+    font-weight: bold;
+    color: rgb(122,121,122);
+}
+
+/* Locked CheckBox */
+
+LockedCheckBox {
+    outline: none;
+    background: transparent;
+}
+
+LockedCheckBox::indicator:unchecked
+{
+	image:url(./Dark/sources/ic-source-unlock-normal.png);
+}
+
+LockedCheckBox::indicator:unchecked:hover
+{
+	image:url(./Dark/sources/ic-source-unlock-over.png);
+}
+
+LockedCheckBox::indicator:unchecked:pressed
+{
+	image:url(./Dark/sources/ic-source-unlock-click.png);
+}
+
+LockedCheckBox::indicator:checked
+{
+	image:url(./Dark/sources/ic-source-lock-normal.png);
+}
+
+LockedCheckBox::indicator:checked:hover
+{
+	image:url(./Dark/sources/ic-source-lock-over.png);
+}
+
+LockedCheckBox::indicator:checked:pressed
+{
+	image:url(./Dark/sources/ic-source-lock-click.png);
+}
+
+/* Visibility CheckBox */
+
+VisibilityCheckBox {
+    outline: none;
+    background: transparent;
+}
+
+VisibilityCheckBox::indicator:unchecked
+{
+	image:url(./Dark/sources/icon-source-view-off-normal.png);
+}
+
+VisibilityCheckBox::indicator:unchecked:hover
+{
+	image:url(./Dark/sources/icon-source-view-off-over.png);
+}
+
+VisibilityCheckBox::indicator:unchecked:pressed
+{
+	image:url(./Dark/sources/icon-source-view-off-click.png);
+}
+
+VisibilityCheckBox::indicator:checked
+{
+	image:url(./Dark/sources/ic-source-view-normal.png);
+}
+
+VisibilityCheckBox::indicator:checked:hover
+{
+	image:url(./Dark/sources/ic-source-view-over.png);
+}
+
+VisibilityCheckBox::indicator:checked:pressed
+{
+	image:url(./Dark/sources/ic-source-view-click.png);
+}
+
+* [themeID="trashIcon"] {
+    qproperty-icon: url(./Dark/trash.svg);
+}
+
+* [themeID="revertIcon"] {
+    qproperty-icon: url(./Dark/revert.svg);
+}
+
+QPushButton#extraPanelDelete {
+    background-color: rgb(31, 30, 31);
+}
+
+QPushButton#extraPanelDelete:hover {
+    background-color: rgb(122,121,122);
+}
+
+QPushButton#extraPanelDelete:pressed {
+    background-color: rgb(31,30,31);
+}
+
+/* Source Icons */
+PLSBasic
+{
+	qproperty-imageIcon : url(./Dark/sources/icon-source-image.png);
+	qproperty-colorIcon : url(./Dark/sources/icon-source-color-normal.png);
+	qproperty-slideshowIcon : url(./Dark/sources/icon-source-imageslide-normal.png);
+	qproperty-audioInputIcon : url(./Dark/sources/icon-source-audio.png);
+	qproperty-audioOutputIcon : url(./Dark/sources/icon-source-audio-normal.png);
+	qproperty-desktopCapIcon : url(./Dark/sources/icon-source-display);
+	qproperty-windowCapIcon : url(./Dark/sources/icon-source-window.png);
+	qproperty-gameCapIcon : url(./Dark/sources/icon-source-game.png);
+	qproperty-cameraIcon : url(./Dark/sources/icon-source-camera.png);
+	qproperty-textIcon : url(./Dark/sources/icon-source-text.png);
+	qproperty-mediaIcon : url(./Dark/sources/icon-source-media.png);
+	qproperty-browserIcon : url(./Dark/sources/icon-source-url.png);
+	qproperty-groupIcon : url(./Dark/sources/icon-source-group-normal.png);
+	qproperty-sceneIcon : url(./Dark/sources/icon-source-scene-normal.png);
+	/* qproperty-defaultIcon : url(./Dark/sources/); */
+}
+
+PLSMainView {
+    qproperty-logo: url(./Dark/main-logo.png);
+    qproperty-captionHeight: 40;
+    qproperty-captionButtonSize: 22;
+    qproperty-captionButtonMargin: 10;
+    qproperty-menuButtonMarginLeft: 15;
+    qproperty-menuButtonSize: 20px 18px;
+    qproperty-logoMarginLeft: 50;
+    qproperty-closeButtonMarginRight: 7;
+    qproperty-rightAreaWidth: 60;
+    qproperty-bottomAreaHeight: 50;
+    qproperty-channelsAreaHeight: 70;
+}
+PLSMainView > #titleBar {
+    background-color: #272727;
+}
+PLSMainView > #body > #channelsArea {
+    padding-left: 5px;
+    background-color: #272727;
+    border-left: 1px solid #111111;
+    border-bottom: 1px solid #111111;
+}
+PLSMainView > #hline {
+    background-color: #111111;
+}
+PLSMainView > #titleBar > #logo {
+    qproperty-pixmap: url(./Dark/main-logo.png);
+    margin-left: 14px;
+    min-width: 140px;
+    max-width: 140px;
+    min-height: 18px;
+    max-height: 18px;
+}
+PLSMainView > #titleBar > #menu {
+    background-color: #272727;
+    border-image: url(./Dark/icon-setting-normal.png);
+    min-width: 20px;
+    max-width: 20px;
+    min-height: 18px;
+    max-height: 18px;
+    padding: 0;
+}
+PLSMainView > #titleBar > #menu:hover {
+    border-image: url(./Dark/icon-setting-over.png);
+}
+PLSMainView > #titleBar > #menu:pressed {
+    border-image: url(./Dark/icon-setting-click.png);
+}
+PLSMainView > #titleBar > #menu:disabled {
+    border-image: url(./Dark/icon-setting-disable.png);
+}
+PLSMainView > #titleBar > #menu::menu-indicator {
+    image: none;
+}
+
+PLSMainView > #titleBar > #min, PLSMainView > #titleBar > #maxres, PLSMainView > #titleBar > #close {
+    background-color: #272727;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+}
+
+PLSMainView > #titleBar > #min {
+    border-image: url(./Dark/btn-min-normal.png);
+}
+PLSMainView > #titleBar > #min:hover {
+    border-image: url(./Dark/btn-min-over.png);
+}
+PLSMainView > #titleBar > #min:pressed {
+    border-image: url(./Dark/btn-min-click.png);
+}
+PLSMainView > #titleBar > #min:disabled {
+    border-image: url(./Dark/btn-min-disable.png);
+}
+
+PLSMainView[maxState="false"] > #titleBar > #maxres, PLSMainView[fullScreenState="false"] > #titleBar > #maxres {
+    border-image: url(./Dark/btn-max-normal.png);
+}
+PLSMainView[maxState="false"] > #titleBar > #maxres:hover, PLSMainView[fullScreenState="false"] > #titleBar > #maxres:hover {
+    border-image: url(./Dark/btn-max-over.png);
+}
+PLSMainView[maxState="false"] > #titleBar > #maxres:pressed, PLSMainView[fullScreenState="false"] > #titleBar > #maxres:pressed {
+    border-image: url(./Dark/btn-max-click.png);
+}
+PLSMainView[maxState="false"] > #titleBar > #maxres:disabled, PLSMainView[fullScreenState="false"] > #titleBar > #maxres:disabled {
+    border-image: url(./Dark/btn-max-disable.png);
+}
+
+PLSMainView[maxState="true"] > #titleBar > #maxres, PLSMainView[fullScreenState="true"] > #titleBar > #maxres {
+    border-image: url(./Dark/btn-maxres-normal.png);
+}
+PLSMainView[maxState="true"] > #titleBar > #maxres:hover, PLSMainView[fullScreenState="true"] > #titleBar > #maxres:hover {
+    border-image: url(./Dark/btn-maxres-over.png);
+}
+PLSMainView[maxState="true"] > #titleBar > #maxres:pressed, PLSMainView[fullScreenState="true"] > #titleBar > #maxres:pressed {
+    border-image: url(./Dark/btn-maxres-click.png);
+}
+PLSMainView[maxState="true"] > #titleBar > #maxres:disabled, PLSMainView[fullScreenState="true"] > #titleBar > #maxres:disabled {
+    border-image: url(./Dark/btn-maxres-disable.png);
+}
+
+PLSMainView > #titleBar > #close {
+    border-image: url(./Dark/btn-close-normal.png);
+}
+PLSMainView > #titleBar > #close:hover {
+    border-image: url(./Dark/btn-close-over.png);
+}
+PLSMainView > #titleBar > #close:pressed {
+    border-image: url(./Dark/btn-close-click.png);
+}
+PLSMainView > #titleBar > #close:disabled {
+    border-image: url(./Dark/btn-close-disable.png);
+}
+
+PLSPopupMenu {
+    border: 1px solid #111111;
+    background-color: #2d2d2d;
+    qproperty-marginLeft: 1;
+    qproperty-marginTop: 7;
+    qproperty-marginRight: 1;
+    qproperty-marginBottom: 7;
+}
+PLSPopupMenu PLSPopupMenuItem {
+    min-height: 40px;
+    max-height: 40px;
+    border: none;
+    padding-left: 20px;
+}
+PLSPopupMenu PLSPopupMenuItem[selected="true"] {
+    background-color: #444444;
+}
+PLSPopupMenu PLSPopupMenuItemAction {
+    color: #ffffff;
+    font-size: 14px;
+}
+PLSPopupMenu PLSPopupMenuItem QLabel[menuItemRole="text"] {
+    color: #ffffff;
+    font-size: 14px;
+}
+PLSPopupMenu PLSPopupMenuItem QLabel[menuItemRole="disabled-text"] {
+    color: #666666;
+    font-size: 14px;
+}
+PLSPopupMenu PLSPopupMenuItem[checked="false"] QLabel[menuItemRole="text"] {
+    color: #ffffff;
+}
+PLSPopupMenu PLSPopupMenuItem[checked="true"] QLabel[menuItemRole="text"] {
+    color: #effc35;
+}
+PLSPopupMenu PLSPopupMenuItem QLabel[menuItemRole="shortcut"] {
+    margin-right: 20px;
+    color: #666666;
+    font-size: 14px;
+}
+PLSPopupMenu PLSPopupMenuItem QLabel[menuItemRole="arrow-normal"] {
+    qproperty-pixmap: url(./Dark/ic-menu-next-normal.png);
+    margin-right: 15px;
+    min-width: 8px;
+    max-width: 8px;
+    min-height: 13px;
+    max-height: 13px;
+}
+PLSPopupMenu PLSPopupMenuItem QLabel[menuItemRole="arrow-over"] {
+    qproperty-pixmap: url(./Dark/ic-menu-next-over.png);
+    margin-right: 15px;
+    min-width: 8px;
+    max-width: 8px;
+    min-height: 13px;
+    max-height: 13px;
+}
+PLSPopupMenu PLSPopupMenuItem QLabel[menuItemRole="arrow-click"] {
+    qproperty-pixmap: url(./Dark/ic-menu-next-click.png);
+    margin-right: 15px;
+    min-width: 8px;
+    max-width: 8px;
+    min-height: 13px;
+    max-height: 13px;
+}
+PLSPopupMenu PLSPopupMenuItem QLabel[menuItemRole="arrow-disable"] {
+    qproperty-pixmap: url(./Dark/ic-menu-next-disable.png);
+    margin-right: 15px;
+    min-width: 8px;
+    max-width: 8px;
+    min-height: 13px;
+    max-height: 13px;
+}
+PLSPopupMenu PLSPopupMenuItemSeparator {
+    min-height: 1px;
+    max-height: 1px;
+    background-color: #1e1e1e;
+}
+
+PLSMainView PLSPopupMenu#mainMenu {
+    min-width: 180px;
+    max-width: 180px;
+}
+PLSMainView PLSPopupMenu#menuFile, PLSMainView PLSPopupMenu#menuFile PLSPopupMenu,
+PLSMainView PLSPopupMenu#viewMenu, PLSMainView PLSPopupMenu#viewMenu PLSPopupMenu,
+PLSMainView PLSPopupMenu#menuEdit, PLSMainView PLSPopupMenu#menuEdit PLSPopupMenu,
+PLSMainView PLSPopupMenu#sceneCollectionMenu, PLSMainView PLSPopupMenu#sceneCollectionMenu PLSPopupMenu,
+PLSMainView PLSPopupMenu#profileMenu, PLSMainView PLSPopupMenu#profileMenu PLSPopupMenu,
+PLSMainView PLSPopupMenu#menuTools, PLSMainView PLSPopupMenu#menuTools PLSPopupMenu,
+PLSMainView PLSPopupMenu#menuHelp, PLSMainView PLSPopupMenu {
+    min-width: 260px;
+    max-width: 260px;
+}
+PLSPopupMenu PLSPopupMenuItem#actionShowAbout {
+    qproperty-isLeftIcon: false;
+}
+PLSPopupMenu PLSPopupMenuItem#actionShowAbout QLabel[menuItemRole="icon"] {
+    qproperty-pixmap: url(./Dark/ic-badge-new.png);
+    margin-left: 10px;
+}
+
+PLSMainView > #body {
+    background-color: #1e1e1f;
+    border-left: 1px solid #111111;
+}
+
+PLSMainView #rightArea {
+    border: 1px solid #111111;
+    border-top: none;
+    background-color: #272727;
+    padding-left: 4px;
+}
+PLSMainView #rightArea QPushButton[useFor="QToolButton"] {
+    background-color: #272727;
+}
+PLSMainView #rightArea QPushButton[useFor="QToolButton"]:hover {
+    background-color: #272727;
+}
+PLSMainView #rightArea QPushButton[useFor="QToolButton"]:pressed {
+    background-color: #272727;
+}
+PLSMainView #rightArea #user {
+    image: url(./Dark/prism_profile.png);
+    min-width: 34px;
+    max-width: 34px;
+    min-height: 34px;
+    max-height: 34px;
+	border-radius: 17px;
+}
+PLSMainView #rightArea #chat {
+    image: url(./Dark/ic-chat-off-normal.png);
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+}
+PLSMainView #rightArea #chat[hasShowChat="false"] {
+    image: url(./Dark/ic-chat-off-normal.png);
+}
+
+PLSMainView #rightArea #chat[hasShowChat="false"]:hover {
+    image: url(./Dark/ic-chat-off-over.png);
+}
+
+PLSMainView #rightArea #chat[hasShowChat="false"]:pressed {
+    image: url(./Dark/ic-chat-off-click.png);
+}
+
+PLSMainView #rightArea #chat[hasShowChat="true"]
+{
+	image: url(./Dark/ic-chat-on-normal.png);
+}
+PLSMainView #rightArea #chat[hasShowChat="true"]:hover
+{
+	image: url(./Dark/ic-chat-on-over.png);
+}
+PLSMainView #rightArea #chat[hasShowChat="true"]:pressed
+{
+	image: url(./Dark/ic-chat-on-click.png);
+}
+
+PLSMainView #rightArea #studioMode {
+    image: url(./Dark/ic-studiomode-off-normal.png);
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+}
+
+PLSMainView #rightArea #studioMode:hover {
+    image: url(./Dark/ic-studiomode-off-over.png);
+}
+
+PLSMainView #rightArea #studioMode:pressed {
+    image: url(./Dark/ic-studiomode-off-click.png);
+}
+
+PLSMainView #rightArea #studioMode:checked {
+    image: url(./Dark/ic-studiomode-on-normal.png);
+}
+
+PLSMainView #rightArea #studioMode:checked:hover {
+    image: url(./Dark/ic-studiomode-on-over.png);
+}
+
+PLSMainView #rightArea #studioMode:checked:pressed {
+    image: url(./Dark/ic-studiomode-on-click.png);
+}
+
+PLSMainView #rightArea #alert {
+    min-width: 50px;
+    max-width: 50px;
+    min-height: 50px;
+    max-height: 50px;
+    font-size:11px;
+    font-weight:bold;
+    image: url(./Dark/ic-error-off-normal.png);
+    background-color:transparent;
+}
+
+PLSMainView #rightArea #alert[hasToast="false"]
+{
+	image: url(./Dark/ic-error-off-normal.png);
+}
+
+PLSMainView #rightArea #alert[hasToast="false"]:hover
+{
+	image: url(./Dark/ic-error-off-over.png);
+}
+
+PLSMainView #rightArea #alert[hasToast="false"]:pressed
+{
+	image: url(./Dark/ic-error-off-click.png);
+}
+
+PLSMainView #rightArea #alert[hasToast="true"]
+{
+	image: url(./Dark/ic-error-on-normal.png);
+}
+
+PLSMainView #rightArea #alert[hasToast="true"]:hover
+{
+	image: url(./Dark/ic-error-on-over.png);
+}
+
+PLSMainView #rightArea #alert[hasToast="true"]:pressed
+{
+	image: url(./Dark/ic-error-on-click.png);
+}
+
+PLSMainView #rightArea #alertState {
+    background-color: #c32828;
+    border-radius: 2px;
+    border: none;
+}
+
+PLSMainView #rightArea #help {
+    image: url(./Dark/ic-help-normal.png);
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+}
+
+PLSMainView #rightArea #help:hover {
+    image: url(./Dark/ic-help-off-over.png);
+}
+
+PLSMainView #rightArea #help:pressed {
+    image: url(./Dark/ic-help-off-click.png);
+}
+
+PLSMainView #rightArea #help:checked {
+    image: url(./Dark/ic-help-on-normal.png);
+}
+
+PLSMainView #rightArea #help:checked:hover {
+    image: url(./Dark/ic-help-on-over.png);
+}
+
+PLSMainView #rightArea #help:checked:pressed {
+    image: url(./Dark/ic-help-on-click.png);
+}
+
+PLSMainView #rightArea #settings {
+    image: url(./Dark/ic-setting-normal.png);
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 23px;
+    max-height: 23px;
+}
+
+PLSMainView #rightArea #settings:hover {
+    image: url(./Dark/ic-setting-off-over.png);
+}
+
+PLSMainView #rightArea #settings:pressed {
+    image: url(./Dark/ic-setting-off-click.png);
+}
+
+PLSMainView #rightArea #settings:checked {
+    image: url(./Dark/ic-setting-on-normal.png);
+}
+PLSMainView #rightArea #settings:disabled {
+    image: url(./Dark/ic-setting-off-disable.png);
+}
+
+PLSMainView #bottomArea {
+    border: 1px solid #111111;
+    border-right: none;
+    background-color: #272727;
+    padding-top: 4px;
+}
+PLSBasicStatusBar #encodesPt {
+    background-color: #666666;
+    border-radius: 1px;
+    border: none;
+}
+PLSBasicStatusBar #encodingSettingIcon {
+    background-color: #272727;
+    qproperty-pixmap: url(./Dark/ic-setting-s-normal.png);
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border: none;
+}
+
+PLSBasicStatusBar QLabel[encodingText="true"] {
+    font-size: 14px;
+    color: #eeeeee;
+    font-weight: bold;
+}
+PLSBasicStatusBar #frameDropState {
+    background-color: #01cb06;
+    min-width: 10px;
+    max-width: 10px;
+    min-height: 10px;
+    max-height: 10px;
+    border-radius: 5px;
+}
+PLSBasicStatusBar QLabel[statsText="true"] {
+    font-size: 12px;
+    color: #bababa;
+}
+PLSBasicStatusBar #statsDropIcon[open="false"] {
+    image: url(./Dark/btn-mastervolume-open-nomal.png);
+    min-width: 11px;
+    min-height: 6px;
+}
+PLSBasicStatusBar #statsDropIcon[open="true"] {
+    image: url(./Dark/btn-mastervolume-close-nomal.png);
+}
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[active="false"] QLabel[encodingText="true"] {
+    color: #666666;
+}
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[active="false"] #encodesPt {
+    background-color: #666666;
+}
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[active="false"] #encodingSettingIcon {
+    qproperty-pixmap: url(./Dark/ic-setting-s-disable.png);
+}
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="hover"] QLabel[encodingText="true"] {
+    color: #ffffff;
+}
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="hover"] #encodesPt {
+    background-color: #ffffff;
+}
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="hover"] #encodingSettingIcon {
+    qproperty-pixmap: url(./Dark/ic-setting-s-over.png);
+}
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="pressed"] QLabel[encodingText="true"] {
+    color: #1e1e1e;
+}
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="pressed"] #encodesPt {
+    background-color: #1e1e1e;
+}
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="pressed"] #encodingSettingIcon {
+    qproperty-pixmap: url(./Dark/ic-setting-s-click.png);
+}
+
+PLSBasicStats #renderingFramedropState, PLSBasicStats #encodingFramedropState, PLSBasicStats #networkFramedropState {
+    min-width: 8px;
+    max-width: 8px;
+    min-height: 8px;
+    max-height: 8px;
+    border-radius: 4px;
+    background-color: #01cb06;
+    margin-right: 10px;
+}
+PLSBasicStats #resourcesHdr, PLSBasicStats #frameHdr, PLSBasicStats #bitrateHdr {
+    font-size: 14px;
+    font-weight: bold;
+    color: #eeeeee;
+}
+PLSBasicStats #cpuUsageLabel, PLSBasicStats #diskAvailableLabel, PLSBasicStats #memoryUsageLabel,
+PLSBasicStats #renderingFramedropLabel, PLSBasicStats #encodingFramedropLabel, PLSBasicStats #networkFramedropLabel,
+PLSBasicStats #streamBitrateLabel, PLSBasicStats #recordingBitrateLabel {
+    font-size: 14px;
+    color: #eeeeee;
+}
+PLSBasicStats #cpuUsage, PLSBasicStats #diskAvailable, PLSBasicStats #memoryUsage,
+PLSBasicStats #renderingFramedrop, PLSBasicStats #encodingFramedrop, PLSBasicStats #networkFramedrop,
+PLSBasicStats #streamBitrate, PLSBasicStats #recordingBitrate {
+    font-size: 14px;
+    color: #bababa;
+}
+PLSBasicStats #networkFramedropLabel[active="false"], PLSBasicStats #streamBitrateLabel[active="false"], PLSBasicStats #recordingBitrateLabel[active="false"],
+PLSBasicStats #networkFramedrop[active="false"], PLSBasicStats #streamBitrate[active="false"], PLSBasicStats #recordingBitrate[active="false"] {
+    color: #666666;
+}
+PLSBasicStats #renderingFramedropState[state="error"],
+PLSBasicStats #encodingFramedropState[state="error"],
+PLSBasicStats #networkFramedropState[state="error"] {
+    background-color: #c34151;
+}
+PLSBasicStats #renderingFramedropState[state="warning"],
+PLSBasicStats #encodingFramedropState[state="warning"],
+PLSBasicStats #networkFramedropState[state="warning"] {
+    background-color: #effc35;
+}
+PLSBasicStats #renderingFramedropState[state="disabled"],
+PLSBasicStats #encodingFramedropState[state="disabled"],
+PLSBasicStats #networkFramedropState[state="disabled"] {
+    background-color: #147916;
+}
+
+PLSMainView QPushButton[useFor="QToolButton"] {
+    background-color: #1e1e1f;
+}
+PLSMainView QPushButton[useFor="QToolButton"]:hover {
+    background-color: #363636;
+}
+PLSMainView QPushButton[useFor="QToolButton"]:pressed {
+    background-color: #111111;
+}
+
+QMainWindow QMenuBar, QMainWindow #centralwidget {
+    background-color: #1e1e1f;
+}
+QMainWindow::separator {
+    background-color: #1e1e1f;
+    width: 5px;
+    height: 5px;
+}
+QMainWindow::separator:hover {
+    background-color: #1e1e1f;
+}
+
+/* Mixer Dock */
+QMainWindow #mixerDock HScrollArea, QMainWindow #mixerDock VScrollArea, QMainWindow #mixerDock VolControl {
+    background-color: #272727;
+}
+QMainWindow #mixerDock VolControl QToolButton {
+    border: none;
+    border-image: none;
+    background-color: #272727;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+}
+QMainWindow #mixerDock VolControl QToolButton:hover {
+    border-image: none;
+    background-color: #363636;
+}
+QMainWindow #mixerDock VolControl QToolButton:pressed {
+    border-image: none;
+    background-color: #111111;
+}
+QMainWindow #mixerDock PLSPopupMenu PLSPopupMenuItem QLabel, QMainWindow #sourcesDock PLSPopupMenu PLSPopupMenuItem QLabel,
+QMainWindow #scenesDock PLSPopupMenu PLSPopupMenuItem QLabel{
+    background-color: transparent;
+}
+QMainWindow #scenesDock PLSPopupMenu, QMainWindow #sourcesDock PLSPopupMenu, QMainWindow #mixerDock PLSPopupMenu {
+    min-width: 180px;
+	max-width: 180px;
+}
+
+/* Transitions Dock */
+QMainWindow #transitionsDock PLSSpinBox {
+    background-color: #1c1c1c;
+    border: none;
+    border-radius: 1px;
+    padding-left: 12px;
+    min-height: 32px;
+    max-height: 32px;
+}
+
+/* Status Bar */
+QMainWindow QStatusBar, QMainWindow QStatusBar::item, QMainWindow QStatusBar QWidget {
+    border-top: #111111;
+    background-color: #1e1e1f;
+}
+
+PLSDialogView {
+    qproperty-captionHeight: 40;
+    qproperty-captionButtonSize: 22;
+    qproperty-textMarginLeft: 17;
+    qproperty-closeButtonMarginRight: 8;
+    qproperty-captionButtonMargin: 9;
+    background-color: #272727;
+}
+PLSDialogView > #hline {
+    background-color: #111111;
+}
+PLSDialogView > #titleBar {
+    border: 1px solid #111111;
+    border-bottom: none;
+}
+PLSDialogView > #titleBar > #titleLabel, PLSDialogView > #titleBar > #min, PLSDialogView > #titleBar > #maxres, PLSDialogView > #titleBar > #close {
+    background-color: #272727;
+}
+PLSDialogView > #titleBar > #titleLabel {
+    font-size: 12px;
+    color: #ffffff;
+}
+PLSDialogView > #titleBar > #min {
+    border-image: url(./Dark/btn-min-normal.png);
+}
+PLSDialogView > #titleBar > #min:hover {
+    border-image: url(./Dark/btn-min-over.png);
+}
+PLSDialogView > #titleBar > #min:pressed {
+    border-image: url(./Dark/btn-min-click.png);
+}
+PLSDialogView > #titleBar > #min:disabled {
+    border-image: url(./Dark/btn-min-disable.png);
+}
+
+PLSDialogView[maxState="false"] > #titleBar > #maxres {
+    border-image: url(./Dark/btn-max-normal.png);
+}
+PLSDialogView[maxState="false"] > #titleBar > #maxres:hover {
+    border-image: url(./Dark/btn-max-over.png);
+}
+PLSDialogView[maxState="false"] > #titleBar > #maxres:pressed {
+    border-image: url(./Dark/btn-max-click.png);
+}
+PLSDialogView[maxState="false"] > #titleBar > #maxres:disabled {
+    border-image: url(./Dark/btn-max-disable.png);
+}
+
+PLSDialogView[maxState="true"] > #titleBar > #maxres {
+    border-image: url(./Dark/btn-maxres-normal.png);
+}
+PLSDialogView[maxState="true"] > #titleBar > #maxres:hover {
+    border-image: url(./Dark/btn-maxres-over.png);
+}
+PLSDialogView[maxState="true"] > #titleBar > #maxres:pressed {
+    border-image: url(./Dark/btn-maxres-click.png);
+}
+PLSDialogView[maxState="true"] > #titleBar > #maxres:disabled {
+    border-image: url(./Dark/btn-maxres-disable.png);
+}
+
+PLSDialogView > #titleBar > #close {
+    border-image: url(./Dark/btn-close-normal.png);
+}
+PLSDialogView > #titleBar > #close:hover {
+    border-image: url(./Dark/btn-close-over.png);
+}
+PLSDialogView > #titleBar > #close:pressed {
+    border-image: url(./Dark/btn-close-click.png);
+}
+PLSDialogView > #titleBar > #close:disabled {
+    border-image: url(./Dark/btn-close-disable.png);
+}
+
+PLSDialogView .QWidget,
+PLSDialogView .QLabel,
+PLSDialogView .QFrame,
+PLSDialogView .QCheckBox,
+PLSDialogView .QRadioButton,
+PLSDialogView .QToolButton,
+PLSDialogView .QTableView,
+PLSDialogView .QHeaderView,
+PLSDialogView .QScrollArea,
+PLSDialogView QPushButton[useFor="QToolButton"] {
+    background-color: #272727;
+}
+PLSDialogView QLineEdit {
+    background-color: #222222;
+}
+PLSDialogView PLSSpinBox, PLSDialogView PLSDoubleSpinBox {
+    background-color: #222222;
+}
+PLSDialogView #contentBorder {
+    border: 1px solid #111111;
+    border-top: none;
+}
+
+PLSAlertView #message, PLSAlertView #nameLabel {
+    font-size: 14px;
+    color: #ffffff;
+    margin: 0;
+    padding: 0;
+}
+
+PLSAlertView #nameLabel{
+	min-width: 360px;
+	max-width: 360px;
+}
+PLSAlertView #widget > #buttonBox {
+    min-height: 0;
+    max-height: 99999px;
+    margin: 0;
+    padding: 0;
+}
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Ok"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Save"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="SaveAll"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Open"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Yes"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="YesToAll"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="No"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="NoToAll"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Abort"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Retry"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Ignore"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Close"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Cancel"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Discard"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Help"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Apply"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="Reset"],
+PLSAlertView #widget > #buttonBox QPushButton[useFor="RestoreDefaults"] {
+    min-width: 0;
+    max-width: 10000px;
+    margin: 0;
+    padding: 0;
+}
+
+PLSBasicSettings #vline, PLSBasicSettings #hline {
+    background-color: #111111;
+}
+PLSBasicSettings > #close {
+    background-color: #272727;
+}
+/*
+PLSBasicSettings {
+    qproperty-generalIcon: url(./Dark/settings/general.svg);
+    qproperty-streamIcon: url(./Dark/settings/stream.svg);
+    qproperty-outputIcon: url(./Dark/settings/output.svg);
+    qproperty-audioIcon: url(./Dark/settings/audio.svg);
+    qproperty-videoIcon: url(./Dark/settings/video.svg);
+    qproperty-hotkeysIcon: url(./Dark/settings/hotkeys.svg);
+    qproperty-advancedIcon: url(./Dark/settings/advanced.svg);
+    qproperty-hasBorder: false;
+}*/
+PLSBasicSettings QListWidget {
+    background-color: #272727;
+    border: none;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+}
+PLSBasicSettings QListWidget::item {
+    height: 40px;
+    border-radius: 3px;
+    padding-left: 9px;
+}
+PLSBasicSettings QListWidget::item:selected {
+    background-color: #effc35;
+    color: black;
+}
+PLSBasicSettings QListWidget::item:selected:!active {
+    background-color: #effc35;
+    color: black;
+}
+PLSBasicSettings QListWidget::item:hover {
+    background-color: #272727;
+}
+PLSBasicSettings QListWidget::item:selected:hover {
+    background-color: #effc35;
+    color: black;
+}
+PLSBasicSettings QListWidget:focus {
+    outline: none;
+}
+PLSBasicSettings QLineEdit, PLSBasicSettings QComboBox, PLSBasicSettings QSpinBox, PLSBasicSettings QDoubleSpinBox, PLSBasicSettings QRadioButton {
+    color: #ffffff;
+    font-size: 14px;
+}
+PLSBasicSettings QCheckBox {
+    color: #e1e1e1;
+    font-size: 14px;
+}
+PLSBasicSettings QLabel {
+    color: #bababa;
+    font-size: 14px;
+}
+PLSBasicSettings QLabel[useFor="FormLabelRole"] {
+    font-weight: bold;
+}
+PLSBasicSettings PLSHotkeyLabel {
+    font-weight: bold;
+}
+PLSBasicSettings QCheckBox {
+    margin: 0;
+    padding: 0;
+    min-height: 18px;
+    max-height: 18px;
+}
+PLSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs #outputSettingsAdvTabsHLine {
+    background-color: #111111;
+}
+PLSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton {
+    min-height: 0;
+    max-height: 10000;
+    background-color: transparent;
+    color: #666666;
+    border: none;
+    border-radius: 0;
+    border-bottom: 3px solid transparent;
+    font-weight: normal;
+}
+PLSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="false"] {
+    color: #666666;
+    font-weight: normal;
+}
+PLSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="false"]:hover {
+    color: #ffffff;
+}
+PLSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="false"]:pressed {
+    color: #444444;
+}
+PLSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="true"] {
+    color: #effc35;
+    border-bottom: 3px solid #effc35;
+    font-weight: bold;
+}
+PLSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="true"]:hover {
+    color: #f1fa75;
+    border-bottom: 3px solid #f1fa75;
+    font-weight: bold;
+}
+PLSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="true"]:pressed {
+    color: #7a7f34;
+    border-bottom: 3px solid #7a7f34;
+    font-weight: bold;
+}
+PLSBasicSettings #outputPage #groupBox_23 #advOutputEndLine {
+    background-color: #111111;
+}
+PLSBasicSettings PLSHotkeyWidget PLSHotkeyEdit {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+PLSBasicSettings PLSHotkeyWidget QPushButton {
+    qproperty-icon: url(./Dark/btn-ic-delete.png);
+    padding: 0;
+    min-width: 40px;
+    max-width: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+PLSBasicSettings PLSHotkeyWidget QPushButton[enabled="false"] {
+    qproperty-icon: url(./Dark/btn-ic-delete-disable.png);
+    background-color: #373737;
+}
+PLSBasicSettings #hotkeyFilterLineEdit[editing="true"], PLSBasicSettings QLineEdit[editing="true"] {
+    border: 1px solid #effc35;
+}
+PLSBasicSettings #hotkeyFilterLineEdit {
+    border: none;
+}
+PLSBasicSettings #buttonBox QPushButton {
+    min-width: 128px;
+    max-width: 128px;
+    min-height: 40px;
+    max-height: 40px;
+}
+PLSBasicSettings #simpleOutputBrowse, PLSBasicSettings #advOutFFPathBrowse, PLSBasicSettings #advOutRecPathBrowse {
+    padding: 0px;
+    min-height: 40px;
+    max-height: 40px;
+    min-width: 136px;
+    max-width: 136px;
+}
+PLSBasicSettings PLSPropertiesView #formLabel {
+    font-size: 14px;
+    font-weight: bold;
+    color: #bababa;
+    background-color: #272727;
+    min-height: 40px;
+    max-height: 40px;
+    min-width: 170px;
+    max-width: 170px;
+}
+PLSBasicSettings #alertMessageFrame {
+    background-color: rgba(30, 30, 30, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    font-size: 14px;
+    padding: 12px 20px 12px 20px;
+}
+PLSBasicSettings #alertMessageFrame > #alertMessageLabel[alertMessageType="Error"] {
+    background-color: transparent;
+    font-size: 14px;
+    color: #b33e4c;
+    padding: 0;
+}
+PLSBasicSettings #alertMessageFrame > #alertMessageLabel[alertMessageType="Warning"] {
+    background-color: transparent;
+    font-size: 14px;
+    color: #bababa;
+    padding: 0;
+}
+PLSBasicSettings #buttonBox {
+   min-height: 0;
+   max-height: 99999px;
+}
+PLSCompleter {
+    background-color: #2d2d2d;
+    border: 1px solid #111111;
+    margin-top: 3px;
+    border-radius: 3px;
+}
+PLSCompleter QScrollArea {
+    border-radius: 3px;
+}
+PLSCompleter QLabel {
+    min-height: 40px;
+    max-height: 40px;
+    padding-left: 12px;
+    background-color: #2d2d2d;
+    font-size: 14px;
+    color: #ffffff;
+}
+PLSCompleter QLabel[state="selected"] {
+    color: #effc35;
+    background-color: #373737;
+}
+PLSCompleter QLabel[state="hover"] {
+    background-color: #555555;
+}
+
+NameDialog {
+    qproperty-minimumSize: 410px 243px;
+    qproperty-maximumSize: 410px 243px;
+}
+
+NameDialog #content{
+	min-height: 203px;
+	max-height: 203px;
+}
+
+NameDialog #titleLabel{
+	background: transparent;
+	min-height: 20px;
+	max-height: 20px;
+	font-size: 14px;
+	color: #ffffff;
+}
+
+NameDialog QToolButton{
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
+}
+
+NameDialog #buttonBox{
+	min-height: 40px;
+	max-height: 40px;
+}
+
+NameDialog #buttonBox QPushButton{
+    qproperty-minimumSize: 140px 40px;
+    qproperty-maximumSize: 140px 40px;
+	border-radius: 3px;
+	background-color: #444444;
+	padding: 0px;
+}
+
+NameDialog #userText{
+	background-color: #1e1e1f;
+	border-radius: 3px;
+	min-height: 40px;
+	max-height: 40px;
+	font-size: 14px;
+	color: #ffffff;
+}
+
+NameDialog #userText[status=editing]{
+	  border: 1px solid #effc35;
+}
+
+NameDialog #userText[status=editingFinish]{
+	  border: none;
+}
+
+NameDialog #buttonBox QPushButton:hover {
+    background-color: #555555;
+}
+
+NameDialog #buttonBox QPushButton:pressed {
+    background-color: #2d2d2d;
+}
+NameDialog #buttonBox QPushButton:disable {
+    background-color: #444444;
+    color: #777777;
+}
+
+PLSBasicFilters {
+    qproperty-minimumSize: 667px 435px;
+    qproperty-maximumSize: 910px 700px;
+	border: 1px solid #111111;
+	background-color: #272727;
+}
+
+PLSBasicFilters > #close{
+	background: transparent;
+}
+
+PLSBasicFilters #content{
+	background-color: #272727;
+}
+
+PLSBasicFilters #hSeperatorLabel{
+	background-color: #111111;
+	min-width: 1px;
+	max-width: 1px;
+}
+
+PLSBasicFilters #vSeperatorLabel{
+	background-color: #111111;
+	min-height: 1px;
+	max-height: 1px;
+}
+
+PLSBasicFilters #buttonBox{
+	min-height: 80px;
+	max-height: 80px;
+	background-color: #272727;
+}
+
+PLSBasicFilters #buttonBox QPushButton{
+	padding: 0px;
+	min-height: 40px;
+	max-height: 40px;
+}
+
+PLSBasicFilters #buttonBox QPushButton[useFor="Reset"]{
+	min-width: 142px;
+	max-width: 142px;
+}
+
+PLSBasicFilters #buttonBox QPushButton[useFor="Close"]{
+	min-width: 128px;
+	max-width: 128px;
+}
+
+PLSBasicFilters QListWidget{
+    background-color: #272727;
+    border: none;
+    font-size: 14px;
+}
+
+PLSBasicFilters QListWidget::item{
+    height: 40px;
+	margin-top: 1px;
+	margin-bottom: 1px;
+    font-weight: normal;
+	color : #ffffff;
+}
+PLSBasicFilters QListWidget::item:selected {
+    background-color: #545454;
+    font-weight: bold;
+	color : #effc35;
+}
+PLSBasicFilters QListWidget::item:selected:!active {
+    background-color: #545454;
+}
+PLSBasicFilters QListWidget::item:hover {
+    background-color: #444444;
+}
+PLSBasicFilters QListWidget::item:selected:hover {
+    background-color: #545454;
+}
+
+PLSBasicFilters QListWidget:focus {
+    outline: none;
+}
+
+PLSBasicFilters #asyncLabel{
+	font-size: 14px;
+	font-weight: bold;
+}
+
+PLSBasicFilters #titleWidget, #asyncLabel{
+    qproperty-minimumSize: 190px 50px;
+    qproperty-maximumSize: 190px 50px;
+}
+
+PLSBasicFilters #titleWidget, PLSBasicFilters #asyncLabel, PLSBasicFilters #addFilterButton{
+    background-color: #272727;
+}
+
+PLSBasicFilters #emptyDesLabel{
+    background-color: #272727;
+	font-size: 14px;
+	color: #666666;
+}
+
+PLSBasicFilters #preview{
+    qproperty-minimumSize: 448px 150px;
+    qproperty-maximumSize: 690px 319px;
+}
+
+PLSBasicFilters #addFilterButton{
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
+	border-style: none;
+    border-image:url("./Dark/icon-addsource-default.png");
+}
+
+PLSBasicFilters #addFilterButton:hover{
+    border-image:url("./Dark/icon-addsource-over.png");
+}
+
+PLSBasicFilters #addFilterButton:pressed{
+    border-image:url("./Dark/icon-addsource-click.png");
+}
+
+PLSBasicFilters #addFilterButton:!enabled{
+    border-image:url("./Dark/icon-addsource-disable.png");
+}
+
+PLSBasicFilters NameDialog{
+	min-width: 410px;
+	max-width: 410px;
+	min-height: 243px;
+	max-height: 243px;
+}
+
+PLSBasicFilters NameDialog #content{
+	min-height: 203px;
+	max-height: 203px;
+}
+
+PLSBasicFilters NameDialog #titleLabel{
+	background: transparent;
+	font-size: 14px;
+	color: #ffffff;
+	min-height: 20px;
+	max-height: 20px;
+}
+
+PLSBasicFilters NameDialog #buttonBox{
+	min-height: 40px;
+	max-height: 40px;
+}
+
+PLSBasicFilters NameDialog #userText{
+	background-color: #1e1e1f;
+	border-radius: 3px;
+	min-height: 40px;
+	max-height: 40px;
+}
+
+PLSBasicFilters NameDialog #buttonBox QPushButton{
+	min-width: 140px;
+	max-width: 140px;
+	min-height: 40px;
+	max-height: 40px;
+	border-radius: 3px;
+	background-color: #444444;
+	padding: 0px;
+}
+
+PLSBasicFilters NameDialog{
+	qproperty-hasCloseButton: false;
+}
+
+PLSBasicFilters NameDialog #close{
+    background: transparent;
+}
+
+PLSBasicFilters NameDialog #buttonBox QPushButton:hover {
+    background-color: #555555;
+}
+
+PLSBasicFilters NameDialog #buttonBox QPushButton:pressed {
+    background-color: #2d2d2d;
+}
+PLSBasicFilters NameDialog #buttonBox QPushButton:disable {
+    background-color: #444444;
+    color: #777777;
+}
+
+PLSFiltersItemView{
+	background-color: #272727;
+	min-width: 190px;
+	max-width: 190px;
+}
+
+PLSFiltersItemView,PLSFiltersItemView[status="normal"] {
+	background-color: #272727;
+}
+
+PLSFiltersItemView[status="hover"] {
+	background-color: #444444;
+}
+
+PLSFiltersItemView[status="pressed"] {
+	background-color: #2d2d2d;
+}
+
+PLSFiltersItemView #nameLabel{
+	background: transparent;
+	font-size: 14px;
+	color: #ffffff;
+}
+
+PLSFiltersItemView #nameLabel[selected=false]{
+	color: #ffffff;
+}
+
+PLSFiltersItemView #nameLabel[selected=true]{
+	color: #effc35;
+}
+
+PLSFiltersItemView #advButton, PLSFiltersItemView #visibleButton{
+	padding: 0px;
+	min-width: 22px;
+	max-width: 22px;
+	min-height: 22px;
+	max-height: 22px;
+	background: transparent;
+}
+
+PLSFiltersItemView #advButton {
+    border-image: url(./Dark/icon-more-default.png);
+}
+
+PLSFiltersItemView #advButton:hover{
+    border-image:url("./Dark/icon-more-over.png");
+}
+
+PLSFiltersItemView #advButton:pressed{
+    border-image:url("./Dark/icon-more-click.png");
+}
+
+PLSFiltersItemView #advButton:!enabled{
+    border-image:url("./Dark/icon-more-disable.png");
+}
+
+PLSFiltersItemView PLSPopupMenu#filterItemMenu{
+	min-width: 180px;
+	max-width: 180px;
+}
+
+PLSFiltersItemView PLSPopupMenu#filterItemMenu QLabel{
+	background-color: transparent;
+}
+
+PLSFiltersItemView PLSPopupMenu#filterItemMenu PLSPopupMenuItem[selected="true"] {
+    background-color: #444444;
+}
+
+PLSBrowserView {
+    qproperty-minimumSize: 800px 600px;
+    background-color: white;
+	qproperty-captionHeight:30px;
+	qproperty-hasHLine:false;
+}
+PLSBrowserView > #close, PLSBrowserView QWidget {
+    background-color: white;
+}
+
+
+/******loading **********/
+#loadingBtn {
+    background-color: #1e1e1f;
+    qproperty-maximumSize:24px 24px;
+    qproperty-minimumSize:24px 24px;
+    border-image: url("./Default/login/loading-1.png");
+}
+
+#loadingBtn[status="1"] {
+    border-image: url("./Dark/login/loading-1.png");
+}
+
+#loadingBtn[status="2"] {
+    border-image: url("./Dark/login/loading-2.png");
+}
+
+#loadingBtn[status="3"] {
+    border-image: url("./Dark/login/loading-3.png");
+}
+
+#loadingBtn[status="4"] {
+    border-image: url("./Dark/login/loading-4.png");
+}
+
+#loadingBtn[status="5"] {
+    border-image: url("./Dark/login/loading-5.png");
+}
+
+#loadingBtn[status="6"] {
+    border-image: url("./Dark/login/loading-6.png");
+}
+#loadingBtn[status="7"] {
+    border-image: url("./Dark/login/loading-7.png");
+}
+#loadingBtn[status="8"] {
+    border-image: url("./Dark/login/loading-8.png");
+}
+
+/*****setting general******/
+
+
+ PLSComplexHeaderIcon {
+
+	qproperty-minimumSize:127px 110px;
+	qproperty-maximumSize:127px 110px;
+	border-radius:55px;
+	color:transparent;
+	background-color:transparent;
+	background-repeat: no-repeat;
+	background-position:left;
+	background-image:url("./Dark/img-setting-profile-blank.png")
+}
+
+PLSComplexHeaderIcon #userIconLabel{
+	border:none;
+
+
+}
+
+PLSSettingGeneralView PLSComplexHeaderIcon #PlatformLabel {
+		min-width: 34px;
+		min-height: 34px;
+		max-height: 34px;
+		max-width: 34px;
+		background-color: transparent;
+		background-repeat: no-repeat;
+		background-position: center;
+		border-radius: 17px;
+		border: none;
+
+	}
+PLSSettingGeneralView
+{
+	min-height:110px;
+	max-height:110px;
+}
+PLSSettingGeneralView:disabled ,
+PLSBasicSettings #groupBox_21:disabled,
+PLSBasicSettings #groupBox_19:disabled,
+PLSBasicSettings PLSSettingGeneralView #nickName:disabled{
+    color: #666666;
+}
+PLSBasicSettings PLSSettingGeneralView #nickName
+{
+	min-height:29px;
+	max-height:29px;
+	font-size:20px;
+	font-weight:bold;
+	color:white;
+}
+PLSBasicSettings PLSSettingGeneralView #label_3, PLSBasicSettings PLSSettingGeneralView #label_6, PLSBasicSettings PLSSettingGeneralView #userCode
+{
+	min-height:18px;
+	max-height:18px;
+	font-size:14px;
+	font-weight:normal;
+	color:#666666;
+}
+PLSBasicSettings PLSSettingGeneralView #email
+{
+	font-size:14px;
+	font-weight:normal;
+	color:#666666;
+}
+PLSBasicSettings #pushButton_logout,#pushButton_del_account,#pushButton_change_pwd
+{
+	qproperty-minimumSize:110px 27px;
+	qproperty-maximumSize:110px 27px;
+	border-image:none;
+	border:1px solid #3d3d3d;
+	padding:0px;
+	background-color:transparent;
+	color:#bababa;
+	font-size:12px;
+	font-weight:normal;
+}
+PLSBasicSettings #pushButton_logout:disabled,#pushButton_del_account:disabled,#pushButton_change_pwd:disabled
+{
+	qproperty-minimumSize:110px 27px;
+	qproperty-maximumSize:110px 27px;
+	border-image:none;
+	border:1px solid #3d3d3d;
+	padding:0px;
+	background-color:transparent;
+	color:#3d3d3d;
+	font-size:12px;
+	font-weight:normal;
+}
+PLSBasicSettings #pushButton_change_pwd:hover, PLSBasicSettings #pushButton_del_account:hover, PLSBasicSettings #pushButton_logout:hover
+{
+	background-color:transparent;
+	border:1px solid #ffffff;
+	color:#ffffff;
+}
+PLSBasicSettings #pushButton_change_pwd:pressed, PLSBasicSettings #pushButton_del_account:pressed, PLSBasicSettings #pushButton_logout:pressed
+{
+	background-color:transparent;
+	border:1px solid #1e1e1e;
+	color:#1e1e1e;
+}
+
+PLSBasicSettings #label
+{
+	min-width:134px;
+	max-width:134px;
+}
+
+PLSSceneListView{
+    background-color: #272727;
+}
+
+PLSSceneListView #titleFrame{
+    min-width: 182px;
+    min-height: 50px;
+    max-height: 50px;
+	background-color: #272727;
+	border: none;
+}
+
+PLSMainView #addBtn{
+    min-width: 22px;
+	max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border-style: none;
+    border-image:url("./Dark/icon-addsource-default.png");
+}
+
+PLSMainView #addBtn:hover{
+    background-color: #272727;
+    border-image:url("./Dark/icon-addsource-over.png");
+}
+
+PLSMainView #addBtn:pressed{
+    border-image:url("./Dark/icon-addsource-click.png");
+}
+
+PLSMainView #addBtn:!enabled{
+    border-image:url("./Dark/icon-addsource-disable.png");
+}
+
+PLSMainView #switchEffectBtn{
+    min-width: 22px;
+	max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border-style: none;
+	background: transparent;
+	border-image:url("./Dark/ic-transition-normal.png");
+}
+
+PLSMainView #switchEffectBtn:hover{
+	border-image:url("./Dark/ic-transition-over.png");
+}
+
+PLSMainView #switchEffectBtn:pressed{
+	border-image:url("./Dark/ic-transition-click.png");
+}
+
+PLSMainView #switchEffectBtn:!enabled{
+	border-image:url("./Dark/ic-transition-disable.png");
+}
+
+
+PLSMainView #seperateBtn{
+    min-width: 22px;
+	max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border-style: none;
+}
+
+PLSMainView #seperateBtn:hover{
+    background-color: #272727;
+    border-image:url("./Dark/icon-more-over.png");
+}
+
+PLSMainView #seperateBtn:pressed{
+    border-image:url("./Dark/icon-more-click.png");
+}
+
+PLSMainView #seperateBtn:!enabled{
+    border-image:url("./Dark/icon-more-disable.png");
+}
+
+PLSSceneListView #sceneLabel{
+    font-size: 13px;
+    font-weight: bold;
+    color: #ffffff;
+	background-color: #272727;
+}
+
+PLSSceneListView #scrollAreaWidgetContents, PLSSceneListView #scrollArea{
+    background-color: #272727;
+	min-width: 140px;
+    min-height: 138px;
+}
+
+#tableWidget::item{
+    min-width: 81px;
+    min-height: 68px;
+    background-color: #2c2c2c;
+}
+
+PLSSceneItemView{
+    min-width: 112px;
+    min-height: 155px;
+	max-width: 112px;
+    max-height: 155px;
+	border-radius: 3px;
+    background-color: #222222;
+}
+
+PLSSceneItemView #widget{
+    min-width: 112px;
+    min-height: 112px;
+	max-width: 112px;
+    max-height: 112px;
+	border-radius: 3px;
+    background-color: #222222;
+}
+
+PLSSceneItemView #widget[enter=true]{
+    background-color: #333333;
+}
+
+PLSSceneItemView #widget[enter=false]{
+    background-color: #222222;
+}
+
+PLSSceneItemView #widget[clicked=true]{
+	min-width: 108px;
+	max-width: 108px;
+	min-height: 108px;
+	max-height: 108px;
+    border: 2px solid #effc35;
+}
+
+PLSSceneItemView #widget[clicked=false]{
+	min-width: 112px;
+	max-width: 112px;
+	min-height: 112px;
+	max-height: 112px;
+    border: none;
+}
+
+PLSSceneItemView #imageLabel{
+	background: #222222;
+	min-height: 64px;
+	max-height: 64px;
+}
+
+PLSSceneItemView #imageLabel #image{
+    min-height: 64px;
+	max-height: 64px;
+	min-width: 72px;
+	max-width: 72px;
+}
+
+PLSSceneItemView #imageLabel #image[showImage=true]{
+    image: url("./Dark/img-scene-default.png");
+}
+
+PLSSceneItemView #imageLabel #image[showImage=false]{
+    border-image: none;
+}
+
+PLSSceneItemView #editWidget{
+    min-height: 43px;
+    max-height: 43px;
+    background-color: #272727;
+}
+
+PLSSceneItemView #nameLabel{
+    color: #666666;
+    font-size: 14px;
+	background-color: #272727;
+}
+
+PLSSceneItemView #nameLabel[enter=true]{
+	color: white;
+}
+
+PLSSceneItemView #nameLabel[enter=false]{
+	color: #6a6a6a;
+}
+
+PLSSceneItemView #nameLineEdit{
+	min-height: 24px;
+	max-height: 24px;
+	background-color: #1e1e1e;
+	margin: 0;
+	padding:0;
+	padding-left: 5px;
+	padding-right: 5px;
+}
+
+PLSSceneItemView #modifyBtn[enter=true]{
+	background-color: #272727;
+}
+
+PLSSceneItemView #modifyBtn[enter=false]{
+	background-color: #272727;
+}
+
+PLSSceneItemView #modifyBtn{
+	background: transparent;
+    qproperty-maximumSize:16px 16px;
+    qproperty-minimumSize:16px 16px;
+    border-style: none;
+    border-image: url("./Dark/icon-scene-rename-normal.png");
+}
+
+PLSSceneItemView #modifyBtn:hover{
+    border-image: url("./Dark/icon-scene-rename-over.png");
+}
+
+PLSSceneItemView #modifyBtn:pressed{
+    border-image: url("./Dark/icon-scene-rename-clicked.png");
+}
+
+PLSSceneItemView #deleteBtn{
+    qproperty-maximumSize:16px 16px;
+    qproperty-minimumSize:16px 16px;
+	border-style: none;
+	background: transparent;
+    border-image: url("./Dark/ic-scene-delete-normal.png");
+}
+
+PLSSceneItemView #deleteBtn:hover{
+    border-image: url("./Dark/ic-scene-delete-over.png");
+}
+
+PLSSceneItemView #deleteBtn:pressed{
+    border-image: url("./Dark/ic-scene-delete-click.png");
+}
+
+PLSSceneItemView #deleteBtn:!enabled{
+    border-image: url("./Dark/ic-scene-delete-disable.png");
+}
+
+PLSSceneItemView #liveBtn{
+    qproperty-maximumSize:40px 20px;
+    qproperty-minimumSize:40px 20px;
+	background-color: black;
+	border-style: none;
+    border-image: url("./Dark/badge-live-on.png");
+}
+
+PLSMainView #scenesDock PLSDockTitle{
+    qproperty-marginLeft: 23;
+    qproperty-marginRight: 5;
+    qproperty-contentSpacing: 10;
+	qproperty-captionHeight: 50;
+}
+
+PLSMainView #scenesDock {
+    qproperty-contentMarginLeft: 10;
+	background-color: #272727;
+	background-color: #272727;
+    min-width: 186px;
+    min-height: 218px;
+}
+
+PLSMainView PLSPopupMenu#scenesContextMenu, PLSMainView PLSPopupMenu#scenesContextMenu PLSPopupMenu {
+    min-width: 277px;
+    max-width: 277px;
+}
+PLSMainView PLSPopupMenu#scenesContextMenu PLSPopupMenu {
+   qproperty-marginBottom: 0;
+}
+PLSMainView PLSPopupMenu#scenesContextMenu PLSPopupMenuItemWidgetAction {
+    margin: 10px;
+}
+PLSMainView PLSPopupMenu#scenesContextMenu PLSPopupMenuItemWidgetAction#colorSelect {
+    min-height: 95px;
+}
+
+ColorSelect{
+    min-height: 105px;
+	max-height: 105px;
+}
+
+ColorSelect QPushButton{
+	min-height: 30px;
+	max-height: 30px;
+	min-width: 30px;
+	max-width: 30px;
+}
+
+PLSSceneTransitionsView{
+    qproperty-maximumSize:410px 280px;
+    qproperty-minimumSize:410px 280px;
+	border: 1px solid #111111;
+	background-color: #2c2c2c;
+}
+
+PLSSceneTransitionsView #transitionAdd{
+    qproperty-maximumSize:22px 22px;
+    qproperty-minimumSize:22px 22px;
+	border-style: none;
+	background:transparent;
+    border-image:url("./Dark/icon-addsource-default.png");
+}
+
+PLSSceneTransitionsView #transitionAdd:hover{
+    border-image:url("./Dark/icon-addsource-over.png");
+}
+
+PLSSceneTransitionsView #transitionAdd:pressed{
+    border-image:url("./Dark/icon-addsource-click.png");
+}
+
+PLSSceneTransitionsView #transitionAdd:!enabled{
+    border-image:url("./Dark/icon-addsource-disable.png");
+}
+
+PLSSceneTransitionsView #transitionDurationLabel{
+	min-height: 22px;
+	min-width: 76px;
+	max-height: 22px;
+	font-size: 14px;
+	font-weight: bold;
+	color: #ffffff;
+}
+
+PLSSceneTransitionsView #transitionDuration{
+    min-height: 40px;
+    max-height: 40px;
+}
+
+PLSSceneTransitionsView #transitions{
+    min-height: 40px;
+    max-height: 40px;
+}
+
+PLSSceneTransitionsView #closeBtn{
+    qproperty-maximumSize:22px 22px;
+    qproperty-minimumSize:22px 22px;
+	border-style: none;
+	background:transparent;
+    border-image:url("./Dark/btn-close-normal.png");
+}
+
+PLSSceneTransitionsView #closeBtn:hover{
+    border-image:url("./Dark/btn-close-over.png");
+}
+
+PLSSceneTransitionsView #closeBtn:pressed{
+    border-image:url("./Dark/btn-close-click.png");
+}
+
+PLSSceneTransitionsView #closeBtn:!enabled{
+    border-image:url("./Dark/btn-close-disable.png");
+}
+
+PLSSceneTransitionsView #sceneLabel{
+	font-size: 12px;
+	color: #ffffff;
+}
+
+PLSSceneTransitionsView #sceneNameLabel{
+	font-size: 14px;
+	color: #ffffff;
+	font-weight: bold;
+}
+
+PLSSceneTransitionsView #seperatorLabel{
+    min-height: 1px;
+    max-height: 1px;
+	background-color: #1f1f1f;
+}
+
+PLSSceneTransitionsView #transitions QListView::item{
+    min-height: 40px;
+    max-height: 40px;
+}
+
+PLSSceneTransitionsView #transitions QListView::item:selected{
+    color: #effc35;
+}
+
+PLSSceneTransitionsView #transitionRemove{
+    qproperty-maximumSize:22px 22px;
+    qproperty-minimumSize:22px 22px;
+    border-style: none;
+    background-color: #2c2c2c;
+    border-image:url("./Dark/ic-delete-default.png");
+}
+
+PLSSceneTransitionsView #transitionRemove:hover{
+    background-color: #2c2c2c;
+    border-image:url("./Dark/ic-delete-over.png");
+}
+
+PLSSceneTransitionsView #transitionRemove:pressed{
+    border-image:url("./Dark/ic-delete-click.png");
+}
+
+PLSSceneTransitionsView #transitionRemove:!enabled{
+    border-image:url("./Dark/ic-delete-disable.png");
+}
+
+PLSSceneTransitionsView #transitionProps{
+    qproperty-maximumSize:22px 22px;
+    qproperty-minimumSize:22px 22px;
+    border-style: none;
+    background-color: #2c2c2c;
+    border-image:url("./Dark/icon-more-default.png");
+}
+
+PLSSceneTransitionsView #transitionProps:hover{
+    background-color: #2c2c2c;
+    border-image:url("./Dark/icon-more-over.png");
+}
+
+PLSSceneTransitionsView #transitionProps:pressed{
+    border-image:url("./Dark/icon-more-click.png");
+}
+
+PLSSceneTransitionsView #transitionProps:!enabled{
+    border-image:url("./Dark/icon-more-disable.png");
+}
+
+PLSSceneTransitionsView #okBtn{
+    qproperty-maximumSize:140px 40px;
+    qproperty-minimumSize:140px 40px;
+    background-color: #444444;
+    border-radius: 3px;
+}
+
+/******update **********/
+
+PLSUpdateView {
+    qproperty-hasHLine: true;
+    qproperty-hasMinButton: false;
+    qproperty-hasCloseButton: false;
+    qproperty-isMoveInContent: true;
+    qproperty-hasBorder: true;
+    qproperty-hasCaption: false;
+}
+
+PLSUpdateView, PLSUpdateView QWidget {
+    background-color: #111111;
+}
+
+PLSUpdateView #middleWidget QWidget {
+    background-color:#1e1e1e;
+}
+
+PLSUpdateView #lineView {
+    background-color:#151515;
+}
+
+PLSUpdateView #updateTopDescription {
+    color:#effc35;
+    font-size:20px;
+    font-weight: bold;
+}
+
+PLSUpdateView #nextUpdateBtn {
+    font-size:14px;
+    font-weight:bold;
+    border-radius:3px;
+    padding:0px;
+    color:white;
+    background-color:#444444;
+}
+
+PLSUpdateView #nextUpdateBtn:hover {
+    background-color:#555555;
+}
+
+PLSUpdateView #nextUpdateBtn:pressed {
+    background-color:#1e1e1f;
+}
+
+PLSUpdateView #nowUpdateBtn {
+    font-size:14px;
+    font-weight:bold;
+    border-radius:3px;
+    padding:0px;
+    color:white;
+    background-color:#444444;
+}
+
+PLSUpdateView #nowUpdateBtn:hover {
+    background-color:#555555;
+}
+
+PLSUpdateView #nowUpdateBtn:pressed {
+    background-color:#1e1e1f;
+}
+
+/******notice **********/
+
+PLSNoticeView {
+    qproperty-hasHLine: true;
+    qproperty-hasMinButton: false;
+    qproperty-hasCloseButton: false;
+    qproperty-isMoveInContent: true;
+    qproperty-hasBorder: true;
+    qproperty-hasCaption: false;
+}
+
+PLSNoticeView, PLSNoticeView QWidget {
+    background-color: #111111;
+}
+
+PLSNoticeView #lineView {
+    background-color:#272727;
+}
+
+PLSNoticeView #topLabel {
+    color:#effc35;
+    font-size:20px;
+}
+
+PLSNoticeView #confirmButton {
+    font-size:14px;
+    font-weight:bold;
+    border-radius:3px;
+    padding:0px;
+    color:white;
+    background-color:#444444;
+}
+
+PLSNoticeVieww #confirmButton:hover {
+    background-color:#555555;
+}
+
+PLSNoticeView #confirmButton:pressed {
+    background-color:#1e1e1f;
+}
+
+PLSNoticeView #learnMoreButton {
+    font-size:14px;
+    font-weight:bold;
+    border-radius:3px;
+    padding:0px;
+    color:white;
+    background-color:#444444;
+}
+
+PLSNoticeVieww #learnMoreButton:hover {
+    background-color:#555555;
+}
+
+PLSNoticeView #learnMoreButton:pressed {
+    background-color:#1e1e1f;
+}
+
+PLSQTDisplay QLabel#displaySourceInvalid {
+    background-color:#1e1e1f;
+    color: #666666;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+PLSQTDisplay QLabel#displayResizeScreen {
+    background-color:#151515;
+}
+
+PLSQTDisplay QLabel#displayResizeCenter {
+    background-color:#000000;
+}
+
+/******help right bar **********/
+
+QMenu#helpMenu {
+    border: 1px solid #111111;
+    background: #2d2d2d;
+    min-height: 176px;
+    max-height: 176px;
+    min-width: 180px;
+    max-width: 180px;
+    padding:0px;
+}
+
+PLSMainView #helpListWidget {
+    border:none;
+    background-color:transparent;
+    min-height: 176px;
+    max-height: 176px;
+    min-width: 180px;
+    max-width: 180px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+PLSMainView #helpListWidget::item {
+    padding: 0px 20px 0px 20px;
+    min-height: 40px;
+    min-width: 180px;
+}
+
+PLSMainView #helpListWidget::item:hover {
+    background-color: #444444;
+}
+
+PLSMainView #helpListWidget::item:selected {
+    background-color: transparent;
+}
+
+PLSMainView #helpListWidget::item:selected:!active {
+    background-color: transparent;
+}
+
+PLSMainView #helpListWidget:focus {
+    outline:none;
+}
+
+CustomHelpMenuItem #titleLabel {
+    color: white;
+    font-size:14px;
+}
+
+CustomHelpMenuItem #badgeNew {
+    border-image:url("./Dark/ic-badge-new.png");
+    min-width:34px;
+    min-height:16px;
+    max-width:34px;
+    max-height:16px;
+}
+
+/******contacUs **********/
+
+PLSContactView {
+    background-color: #333333;
+    qproperty-hasHLine: true;
+    qproperty-hasMinButton: false;
+    qproperty-hasCloseButton: false;
+    qproperty-isMoveInContent: true;
+    qproperty-hasBorder: false;
+    qproperty-hasCaption: false;
+}
+
+PLSContactView #titleLabel {
+    color: #f1fd56;
+    font-size: 16px;
+    font-weight: bold;
+    min-height: 20px;
+    max-height: 20px;
+}
+
+PLSContactView #emailLabel {
+    color: white;
+    font-size: 13px;
+    min-height: 17px;
+    max-height: 17px;
+    font-weight: bold;
+}
+
+PLSContactView #identificationLabel {
+    color: white;
+    font-size: 12px;
+    padding-top: 2px;
+    min-height: 15px;
+    max-height: 15px;
+}
+
+PLSContactView #emailLineEdit {
+    background-color: #222222;
+    color: white;
+    font-size: 12px;
+    min-height: 32px;
+    max-height: 32px;
+    padding-left: 15px;
+    padding-right: 15px;
+    border:none;
+}
+
+PLSContactView #emailLineEdit:focus {
+    border:none;
+}
+
+PLSContactView #emailTipLabel {
+    color:#d32f2f;
+    font-size:11px;
+    min-height: 13px;
+    max-height: 13px;
+    background-color:transparent;
+}
+
+PLSContactView #inquiryLabel {
+    background-color:transparent;
+    color:white;
+    min-height: 20px;
+    max-height: 20px;
+    font-size:13px;
+    font-weight:bold;
+}
+
+PLSContactView #fileButton {
+    background-color:transparent;
+    min-height: 16px;
+    max-height: 16px;
+}
+
+PLSContactView #fileButton #fileTitleLabel {
+    color:#a3a3a3;
+    font-size:12px;
+}
+
+PLSContactView #fileButton[status="normal"] #fileTitleLabel {
+    color:#a3a3a3;
+}
+
+PLSContactView #fileButton[status="hover"] #fileTitleLabel {
+    color:white;
+}
+
+PLSContactView #fileButton[status="clicked"] #fileTitleLabel {
+    color:#effc35;
+}
+
+PLSContactView #fileButton[status="disable"] #fileTitleLabel {
+    color:#6a6a6a;
+}
+
+
+PLSContactView #fileButton #fileIconLabel {
+    border-image:url("./Dark/ic-fileupload-normal.png");
+}
+
+PLSContactView #fileButton[status="normal"] #fileIconLabel {
+    border-image:url("./Dark/ic-fileupload-normal.png");
+}
+
+PLSContactView #fileButton[status="hover"] #fileIconLabel {
+    border-image:url("./Dark/ic-fileupload-over.png");
+}
+
+PLSContactView #fileButton[status="clicked"] #fileIconLabel {
+    border-image:url("./Dark/ic-fileupload-click.png");
+}
+
+PLSContactView #fileButton[status="disable"] #fileIconLabel {
+    border-image:url("./Dark/ic-fileupload-disable.png");
+}
+
+PLSContactView #textEdit {
+    background-color:#222222;
+    min-height: 100px;
+    max-height: 100px;
+    color:white;
+    font-size:12px;
+    border:none;
+}
+
+PLSContactView #textEdit:focus {
+    border:none;
+}
+
+PLSContactView #tagListWidget {
+    border-radius: 1px;
+    border-color:transparent;
+    background-color: #222222;
+    max-width:376px;
+    min-width:376px;
+}
+
+PLSContactView #tagTextEdit {
+    background-color:#222222;
+    font-size:12px;
+    border:none;
+}
+
+PLSContactView #inquryTipLabel {
+    color:#d32f2f;
+    font-size:11px;
+    min-height: 13px;
+    max-height: 13px;
+}
+
+PLSContactView #sendButton {
+    padding:0px;
+    color:white;
+    border-radius:1px;
+    background-color:#444444;
+    font-size:14px;
+    min-height: 34px;
+    max-height: 34px;
+}
+
+PLSContactView #sendButton:disabled {
+    color:#888888;
+    background-color:#222222;
+}
+
+PLSContactView #sendButton:hover {
+    background-color:#545454;
+}
+
+PLSContactView #sendButton:pressed {
+    background-color:#111111;
+}
+
+PLSContactView #cancelButton {
+    padding:0px;
+    color:white;
+    border-radius:1px;
+    background-color:#444444;
+    font-size:14px;
+    min-height: 34px;
+    max-height: 34px;
+}
+
+PLSContactView #cancelButton:hover {
+    background-color:#545454;
+}
+
+PLSContactView #cancelButton:pressed {
+    background-color:#111111;
+}
+
+PLSFileItemView {
+    background-color:#444444;
+}
+
+PLSFileItemView #fileNameLabel {
+    font-size:12px;
+    color:white;
+    background-color:transparent;
+}
+
+PLSFileItemView #deleteIcon {
+    padding:0px;
+    qproperty-icon:url("./Dark/effect-close-normal.png");
+    background-color:transparent;
+    border-radius:0px;
+    min-height: 12px;
+    max-height: 12px;
+    min-width: 12px;
+    max-width: 12px;
+}
+
+PLSFileItemView #deleteIcon[status="normal"] {
+    qproperty-icon:url("./Dark/effect-close-normal.png");
+}
+
+
+PLSFileItemView #deleteIcon[status="hover"] {
+    qproperty-icon:url("./Dark/effect-close-over.png");
+}
+
+/* audio mixer adv */
+
+PLSBasicAdvAudio > #titleBar, PLSBasicAdvAudio > #titleBar > #titleLabel, PLSBasicAdvAudio > #titleBar > #maxres, PLSBasicAdvAudio > #titleBar > #close {
+    background-color: #2c2c2c;
+}
+
+PLSBasicAdvAudio PLSComboBox#advMonitoringType {
+    background-color: #444444;
+    border-radius: 3px;
+    padding-left: 12px;
+    font-size: 14px;
+    color: #ffffff;
+}
+
+PLSBasicAdvAudio PLSComboBox#advMonitoringType:hover {
+    background-color: #555555;
+}
+
+PLSBasicAdvAudio PLSComboBox#advMonitoringType:disabled {
+    background-color: #373737;
+    color: #666666;
+}
+
+PLSBasicAdvAudio PLSComboBox#advMonitoringType:on {
+    background-color: #222222;
+}
+
+PLSBasicAdvAudio PLSComboBox#advMonitoringType::down-arrow {
+    border: none;
+    image: url(./Dark/txt-dropbox-open-normal.png);
+    width: 35px;
+}
+
+PLSBasicAdvAudio PLSComboBox#advMonitoringType::down-arrow:on {
+    image: url(./Dark/audio-mixer-dropbox-open-on.png);
+}
+
+PLSBasicAdvAudio PLSComboBox#advMonitoringType::down-arrow:hover {
+    image: url(./Dark/txt-dropbox-open-over.png);
+}
+
+PLSBasicAdvAudio PLSComboBox#advMonitoringType::down-arrow:!enabled {
+    image: url(./Dark/txt-dropbox-open-disable.png);
+}
+
+PLSBasicAdvAudio PLSComboBoxListView {
+    show-decoration-selected: 1;
+    font-size: 14px;
+    color: #ffffff;
+    border: 1px solid #111111;
+    border-radius: 3px;
+    padding:0px;
+    margin:0px;
+}
+
+PLSBasicAdvAudio PLSComboBoxListView:focus {
+    outline: none;
+}
+
+PLSBasicAdvAudio PLSComboBoxListView::item {
+    height: 40px;
+    padding-left: 8px;
+    background-color: #2d2d2d;
+}
+
+PLSBasicAdvAudio PLSComboBoxListView::item:selected {
+    color: #effc35;
+    background-color: #373737;
+}
+
+PLSBasicAdvAudio PLSComboBoxListView::item:hover {
+    background-color: #666666;
+}
+
+PLSBasicAdvAudio QLabel#advLeftBalanceLabel,QLabel#advRightBalanceLabel {
+    color:#666666;
+    font-size:12px;
+    font-weight:bold;
+    min-width:7px;
+    max-width:7px;
+    min-height:16px;
+    max-height:16px;
+    background-color:transparent;
+}
+
+PLSBasicAdvAudio QLabel#advRightBalanceLabel {
+    min-width:8px;
+    max-width:8px;
+}
+
+PLSBasicAdvAudio BalanceSlider#advBalanceSlider {
+    background-color:transparent;
+    height:40px;
+    padding:0px;
+    margin:0px;
+}
+
+PLSBasicAdvAudio BalanceSlider#advBalanceSlider::groove:horizontal {
+    subcontrol-origin:content;
+    height:10px;
+    background-color:transparent;
+}
+
+PLSBasicAdvAudio BalanceSlider#advBalanceSlider::handle:horizontal {
+    background-color:white;
+    width:10px;
+    margin:0px;
+    border-radius:5px;
+}
+
+PLSBasicAdvAudio BalanceSlider#advBalanceSlider::sub-page:horizontal {
+    background-color:#effc35;
+    border-radius:2px;
+    margin-top:3px;
+    margin-bottom:3px;
+}
+
+PLSBasicAdvAudio BalanceSlider#advBalanceSlider::add-page:horizontal {
+    background-color:#444444;
+    border-radius:2px;
+    margin-top:3px;
+    margin-bottom:3px;
+}
+
+PLSBasicAdvAudio QScrollArea#advScrollArea::handle {
+    subcontrol-origin: margin;
+    subcontrol-position: right top;
+}
+
+/* open source */
+
+PLSOpenSourceView {
+    qproperty-hasHLine: false;
+    qproperty-hasMinButton: false;
+    qproperty-hasCloseButton: false;
+    qproperty-isMoveInContent: true;
+    qproperty-hasBorder: true;
+    qproperty-hasCaption: false;
+}
+
+PLSOpenSourceView, PLSOpenSourceView QWidget {
+    background-color: #272727;
+}
+
+PLSOpenSourceView #lineView {
+    background-color:#151515;
+}
+
+PLSOpenSourceView #topTitleLabel {
+    color:#effc35;
+    font-size:20px;
+    font-weight: bold;
+    min-height:30px;
+    max-height:30px;
+}
+
+PLSOpenSourceView #textEdit {
+    background-color:#1e1e1e;
+    border:none;
+    color:#bababa;
+    font-size:14px;
+}
+
+PLSOpenSourceView #textEdit:focus {
+    background-color:#1e1e1e;
+    border:none;
+}
+
+PLSOpenSourceView #confirmButton {
+    font-size:14px;
+    font-weight:bold;
+    border-radius:3px;
+    padding:0px;
+    color:white;
+    background-color:#444444;
+}
+
+PLSOpenSourceView #confirmButton:hover {
+    background-color:#555555;
+}
+
+PLSOpenSourceView #confirmButton:pressed {
+    background-color:#1e1e1f;
+}
+
+
+
+QLabel#displayText {
+    background-color:#1e1e1f;
+    color: #666666;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+PLSMainView #sourcesDock{
+	min-width: 186px;
+	min-height: 218px;
+	qproperty-contentMarginLeft: 1;
+	qproperty-contentMarginRight: 1;
+    qproperty-contentMarginBottom: 1;
+	background-color: #272727;
+}
+
+PLSMainView #sourcesDock QListView:focus{
+	outline: none;
+}
+
+PLSMainView #sourcesDock PLSDockTitle{
+    qproperty-marginLeft: 18;
+    qproperty-marginRight: 5;
+    qproperty-contentSpacing: 10;
+	qproperty-captionHeight: 50;
+}
+
+PLSMainView #sourcesDock #addSourceBtn{
+    min-width: 22px;
+	max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border-style: none;
+    border-image:url("./Dark/icon-addsource-default.png");
+}
+
+PLSMainView #sourcesDock #addSourceBtn:hover{
+    background-color: #272727;
+    border-image:url("./Dark/icon-addsource-over.png");
+}
+
+PLSMainView #sourcesDock #addSourceBtn:pressed{
+    border-image:url("./Dark/icon-addsource-click.png");
+}
+
+PLSMainView #sourcesDock #addSourceBtn:!enabled{
+    border-image:url("./Dark/icon-addsource-disable.png");
+}
+
+PLSMainView #sourcesDock #seperateSourceBtn{
+    min-width: 22px;
+	max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border-style: none;
+}
+
+PLSMainView #mixerDock{
+	min-width: 186px;
+	min-height: 218px;
+	qproperty-contentMarginLeft: 1;
+	qproperty-contentMarginRight: 1;
+    qproperty-contentMarginBottom: 1;
+	background-color: #272727;
+}
+
+PLSMainView #mixerDock PLSDockTitle{
+    qproperty-marginLeft: 23;
+    qproperty-marginRight: 8;
+    qproperty-contentSpacing: 10;
+	qproperty-captionHeight: 50;
+}
+PLSMainView #mixerDock #content #dockWidgetContents_7,
+PLSMainView #mixerDock #content #dockWidgetContents_7 #stackedMixerArea,
+PLSMainView #mixerDock #content #dockWidgetContents_7 #stackedMixerArea #hMixerScrollArea {
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+PLSMainView #mixerDock #audioAdvanced
+{
+	min-width: 22px;
+	max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border-style: none;
+    border-image:url("./Dark/ic-setting-s-normal.png");
+}
+PLSMainView #mixerDock #audioAdvanced:hover
+{
+	background-color: #272727;
+    border-image:url("./Dark/ic-setting-s-over.png");
+}
+PLSMainView #mixerDock #audioAdvanced:pressed
+{
+	border-image:url("./Dark/ic-setting-s-click.png");
+}
+PLSMainView #mixerDock #audioAdvanced:disable
+{
+	border-image:url("./Dark/ic-setting-s-disable.png");
+}
+
+PLSMainView #sourceIconViewCheckbox, PLSMainView #sourceLockCheckbox{
+	min-width: 22px;
+	max-width: 22px;
+	min-height: 22px;
+	max-height: 22px;
+	background: none;
+}
+
+PLSMainView #sourceNameLabel{
+	min-width: 40px;
+	font-size: 14px;
+	color: #ffffff;
+	padding-left: 5px;
+    font-weight: normal;
+}
+
+PLSMainView #sourceRenameEditor {
+	padding-left: 5px;
+	min-height: 24px;
+	max-height: 24px;
+}
+
+PLSMainView #sourceNameLabel[status="visible.unselect"]{
+	color: #ffffff;
+    font-weight: normal;
+}
+PLSMainView #sourceNameLabel[status="visible.select"]{
+	color: #effc35;
+    font-weight: bold;
+}
+PLSMainView #sourceNameLabel[status="invisible.unselect"]{
+	color: #666666;
+    font-weight: normal;
+}
+PLSMainView #sourceNameLabel[status="invisible.select"]{
+	color: #7a7f34;
+    font-weight: bold;
+}
+
+PLSBasicSourceSelect{
+	min-width: 408px;
+	max-width: 408px;
+	min-height: 411px;
+	max-height: 411px;
+	background-color: #272727;
+	border: 1px solid #111111;
+}
+
+PLSBasicSourceSelect #content{
+	background-color: #272727;
+}
+
+PLSBasicSourceSelect #close{
+	background: transparent;
+}
+
+PLSBasicSourceSelect #sourceList{
+	min-width: 370px;
+	max-width: 370px;
+	min-height: 80px;
+	max-height: 80px;
+	background-color: #1e1e1e;
+	border-radius: 3px;
+	border: none;
+}
+
+PLSBasicSourceSelect #sourceName{
+	background-color: #1e1e1e;
+}
+
+PLSBasicSourceSelect #sourceList::item{
+    height: 40px;
+    padding-left: 12px;
+	color: #ffffff;
+    background-color: #1e1e1e;
+}
+
+PLSBasicSourceSelect #sourceList::item:hover{
+    background-color: #444444;
+}
+
+PLSBasicSourceSelect #sourceList::item:selected {
+    outline: none;
+}
+
+PLSBasicSourceSelect #buttonBox{
+	background-color: #444444;
+	border-radius: 3px;
+}
+
+PLSBasicSourceSelect #buttonBox QPushButton{
+	padding: 0px;
+	min-width: 140px;
+	max-width: 140px;
+	min-height: 40px;
+	max-height: 40px;
+	margin-left: 5px;
+}
+
+PLSBasicSourceSelect #createNew{
+	min-height: 18px;
+	max-height: 18px;
+	spacing: 10px;
+	color: #bababa;
+	font-size: 14px;
+	font-weight: bold;
+	background: transparent;
+}
+
+PLSBasicSourceSelect #selectExisting{
+	min-height: 18px;
+	max-height: 18px;
+	spacing: 10px;
+	color: #bababa;
+	font-size: 14px;
+	font-weight: bold;
+	background: transparent;
+}
+
+PLSBasicSourceSelect #sourceVisible{
+	min-height: 18px;
+	max-height: 18px;
+	spacing: 10px;
+	color: #e1e1e1;
+	font-size: 14px;
+	background: transparent;
+}
+
+PLSBasicSourceSelect #close{
+	qproperty-minimumSize: 22px;
+	qproperty-maximumSize: 22px;
+	min-height: 22px;
+	max-height: 22px;
+	min-width: 22px;
+	max-width: 22px;
+}
+PLSBasicSourceSelect #buttonBox {
+	min-height: 0;
+	max-height: 99999px;
+}
+
+PLSBasicProperties QWidget, PLSPropertiesView QWidget{
+	background-color: #272727;
+}
+
+PLSBasicProperties{
+	min-height: 425px;
+	max-height: 875px;
+	min-width: 478px;
+	max-width: 720px;
+	background-color: #272727;
+}
+
+PLSBasicProperties #propertyWindowSplitter::handle:vertical {
+    height: 15px;
+	background-color: #272727;
+}
+
+#propertyPreview{
+	min-height: 150px;
+	max-height: 368px;
+	min-width: 448px;
+	background-color: #000000;
+}
+
+PLSBasicProperties #previewBtn{
+	padding: 0px;
+  	min-height: 40px;
+	max-height: 40px;
+	min-width: 128px;
+	max-width: 128px;
+	border-radius: 3px;
+	background-color: #444444;
+}
+
+PLSBasicProperties #previewBtn:hover{
+	background-color: #555555;
+}
+
+PLSBasicProperties #seperatorLabel{
+	background-color: #151515;
+  	min-height: 1px;
+	max-height: 1px;
+}
+
+PLSPropertiesView #content{
+	background-color: #272727;
+}
+
+PLSPropertiesView #lineedit{
+	min-height: 40px;
+	max-height: 40px;
+	background-color: #1e1e1e;
+}
+
+PLSPropertiesView #checkbox{
+	min-height: 18px;
+	max-height: 18px;
+	font-size: 14px;
+	color: #e1e1e1;
+	background-color: #272727;
+}
+
+PLSPropertiesView #combobox{
+	background-color: #444444;
+}
+
+PLSPropertiesView #browse{
+	padding: 0px;
+	min-height: 40px;
+	max-height: 40px;
+	min-width: 136px;
+	max-width: 136px;
+}
+
+PLSPropertiesView #editableList{
+	border-radius: 3px;
+	min-height: 138px;
+	max-height: 138px;
+	background-color: #1e1e1e;
+}
+
+PLSPropertiesView #propertyFileListContrl {
+	min-width: 40px;
+	max-width: 40px;
+	min-height: 138px;
+	max-height: 138px;
+	background-color: #1e1e1e;
+}
+
+PLSPropertiesView #editableList QPushButton{
+	background-color: #222222;
+	min-width: 22px;
+	max-width: 22px;
+	min-height: 22px;
+	max-height: 22px;
+}
+
+PLSPropertiesView #fontLabel{
+	min-height: 38px;
+	max-height: 38px;
+	font-size: 14px;
+}
+
+PLSPropertiesView #spaceLabel{
+	background-color: #272727;
+}
+
+PLSPropertiesView #button{
+	padding-left: 50px;
+	padding-right: 50px;
+	min-height: 40px;
+	max-height: 40px;
+}
+
+PLSPropertiesView QPushButton{
+	font-weight: normal;
+	background-color: #444444;
+}
+
+PLSPropertiesView #spinBox, PLSPropertiesView #plainTextEdit{
+	background-color: #1e1e1e;
+}
+
+PLSPropertiesView #spinBox{
+	min-width: 49px;
+}
+
+PLSPropertiesView #button1{
+	padding: 0px;
+	min-height: 40px;
+	max-height: 40px;
+	max-width: 150px;
+	color: #ffffff;
+	font-weight: normal;
+	font-size: 14px;
+}
+
+PLSPropertiesView #button2{
+	padding: 0px;
+	min-height: 40px;
+	max-height: 40px;
+	max-width: 169px;
+	color: #ffffff;
+	font-weight: normal;
+	font-size: 14px;
+}
+
+PLSPropertiesView #button3{
+	padding: 0px;
+	min-height: 40px;
+	max-height: 40px;
+	max-width: 183px;
+	color: #ffffff;
+	font-weight: normal;
+	font-size: 14px;
+}
+
+PLSPropertiesView #formLabel{
+	font-size: 14px;
+	font-weight: bold;
+	color: #bababa;
+	background-color: #272727;
+	min-height: 40px;
+	max-height: 40px;
+}
+
+QDialogButtonBox{
+	min-height: 78px;
+	max-height: 78px;
+}
+
+PLSBasicProperties > #close{
+	background: transparent;
+}
+
+QDialogButtonBox QPushButton{
+	background-color: #444444;
+}
+
+QDialogButtonBox QPushButton[useFor="OK"] {
+	padding: 0;
+	qproperty-maximumSize: 128px 40px;
+	qproperty-minimumSize: 128px 40px;
+}
+
+QDialogButtonBox QPushButton[useFor="OK"]:hover {
+	background-color: #363636;
+}
+
+QDialogButtonBox QPushButton[useFor="Cancel"] {
+	margin: 0 5px;
+	padding: 0;
+	qproperty-maximumSize: 138px 40px;
+	qproperty-minimumSize: 138px 40px;
+}
+
+QDialogButtonBox QPushButton[useFor="RestoreDefaults"] {
+	padding: 0;
+	qproperty-maximumSize: 142px 40px;
+	qproperty-minimumSize: 142px 40px;
+}
+
+QLabel#sourceIconLabel{
+	min-height: 30px;
+	max-height: 30px;
+	min-width: 30px;
+	max-width: 30px;
+	background: none;
+}
+
+/* icons of scene and group */
+QLabel#sourceIconLabel[type="visible.unselect.scene"] {
+    image: url(./Dark/sources/icon-source-scene-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.unselect.group"] {
+    image: url(./Dark/sources/icon-source-group-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.select.scene"] {
+    image: url(./Dark/sources/icon-source-scene-select.png);
+}
+QLabel#sourceIconLabel[type="visible.select.group"] {
+    image: url(./Dark/sources/icon-source-group-select-normal.png);
+}
+
+/* valid unselect */
+QLabel#sourceIconLabel[type="visible.valid.unselect.image"] {
+    image: url(./Dark/sources/icon-source-image.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.color"] {
+    image: url(./Dark/sources/icon-source-color-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.slideshow"] {
+    image: url(./Dark/sources/icon-source-imageslide-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.audioinput"] {
+    image: url(./Dark/sources/icon-source-audio.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.audiooutput"] {
+    image: url(./Dark/sources/icon-source-audio-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.monitor"] {
+    image: url(./Dark/sources/icon-source-display.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.window"] {
+    image: url(./Dark/sources/icon-source-window.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.game"] {
+    image: url(./Dark/sources/icon-source-game.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.camera"] {
+    image: url(./Dark/sources/icon-source-camera.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.text"] {
+    image: url(./Dark/sources/icon-source-text.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.media"] {
+    image: url(./Dark/sources/icon-source-media.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.browser"] {
+    image: url(./Dark/sources/icon-source-url.png);
+}
+
+/* valid select */
+QLabel#sourceIconLabel[type="visible.valid.select.image"] {
+    image: url(./Dark/sources/icon-source-image-select.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.color"] {
+    image: url(./Dark/sources/icon-source-color-select-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.slideshow"] {
+    image: url(./Dark/sources/icon-source-imageslide-select-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.audioinput"] {
+    image: url(./Dark/sources/icon-source-audio-select.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.audiooutput"] {
+    image: url(./Dark/sources/icon-source-audio-select-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.monitor"] {
+    image: url(./Dark/sources/icon-source-display-select.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.window"] {
+    image: url(./Dark/sources/icon-source-window-select.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.game"] {
+    image: url(./Dark/sources/icon-source-game-select.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.camera"] {
+    image: url(./Dark/sources/icon-source-camera-select.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.text"] {
+    image: url(./Dark/sources/icon-source-text-select.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.media"] {
+    image: url(./Dark/sources/icon-source-media-select.png);
+}
+QLabel#sourceIconLabel[type="visible.valid.select.browser"] {
+    image: url(./Dark/sources/icon-source-url-select.png);
+}
+
+/* invalid unselect */
+QLabel#sourceIconLabel[type="visible.invalid.unselect.image"] {
+    image: url(./Dark/sources/erroricon-source-image.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.unselect.slideshow"] {
+    image: url(./Dark/sources/erroricon-source-imageslide-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.unselect.audioinput"] {
+    image: url(./Dark/sources/erroricon-source-audio.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.unselect.audiooutput"] {
+    image: url(./Dark/sources/erroricon-source-audio-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.unselect.window"] {
+    image: url(./Dark/sources/erroricon-source-window.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.unselect.game"] {
+    image: url(./Dark/sources/erroricon-source-game.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.unselect.camera"] {
+    image: url(./Dark/sources/erroricon-source-camera.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.unselect.media"] {
+    image: url(./Dark/sources/erroricon-source-media.png);
+}
+
+/* invalid select */
+QLabel#sourceIconLabel[type="visible.invalid.select.image"] {
+    image: url(./Dark/sources/erroricon-source-image-select.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.select.slideshow"] {
+    image: url(./Dark/sources/erroricon-source-imageslide-select.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.select.audioinput"] {
+    image: url(./Dark/sources/erroricon-source-audio-select.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.select.audiooutput"] {
+    image: url(./Dark/sources/erroricon-source-audio-select-normal.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.select.window"] {
+    image: url(./Dark/sources/erroricon-source-window-select.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.select.game"] {
+    image: url(./Dark/sources/erroricon-source-game-select.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.select.camera"] {
+    image: url(./Dark/sources/erroricon-source-camera-select.png);
+}
+QLabel#sourceIconLabel[type="visible.invalid.select.media"] {
+    image: url(./Dark/sources/erroricon-source-media-select.png);
+}
+
+/* disable icons of scene and group */
+QLabel#sourceIconLabel[type="invisible.unselect.scene"] {
+    image: url(./Dark/sources/icon-source-scene-normal-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.unselect.group"] {
+    image: url(./Dark/sources/icon-source-group-normal-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.select.scene"] {
+    image: url(./Dark/sources/icon-source-scene-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.select.group"] {
+    image: url(./Dark/sources/icon-source-group-select--disable.png);
+}
+
+/* disable invalid unselect */
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.image"] {
+    image: url(./Dark/sources/erroricon-source-image-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.slideshow"] {
+    image: url(./Dark/sources/erroricon-source-imageslide-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.audioinput"] {
+    image: url(./Dark/sources/erroricon-source-audio-input-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.audiooutput"] {
+    image: url(./Dark/sources/erroricon-source-audio-output-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.window"] {
+    image: url(./Dark/sources/erroricon-source-window-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.game"] {
+    image: url(./Dark/sources/erroricon-source-game-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.camera"] {
+    image: url(./Dark/sources/erroricon-source-camera-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.media"] {
+    image: url(./Dark/sources/erroricon-source-media-disabled.png);
+}
+
+/* disable invalid select */
+QLabel#sourceIconLabel[type="invisible.invalid.select.image"] {
+    image: url(./Dark/sources/erroricon-source-image-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.select.slideshow"] {
+    image: url(./Dark/sources/erroricon-source-imageslide-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.select.audioinput"] {
+    image: url(./Dark/sources/erroricon-source-audio-input-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.select.audiooutput"] {
+    image: url(./Dark/sources/erroricon-source-audio-output-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.select.window"] {
+    image: url(./Dark/sources/erroricon-source-window-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.select.game"] {
+    image: url(./Dark/sources/erroricon-source-game-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.select.camera"] {
+    image: url(./Dark/sources/erroricon-source-camera-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.invalid.select.media"] {
+    image: url(./Dark/sources/erroricon-source-media-select-disable.png);
+}
+
+/* disable valid select */
+QLabel#sourceIconLabel[type="invisible.valid.select.image"] {
+    image: url(./Dark/sources/icon-source-image-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.color"] {
+    image: url(./Dark/sources/icon-source-color-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.slideshow"] {
+    image: url(./Dark/sources/icon-source-imageslide-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.audioinput"] {
+    image: url(./Dark/sources/icon-source-audio-in-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.audiooutput"] {
+    image: url(./Dark/sources/icon-source-audio-out-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.monitor"] {
+    image: url(./Dark/sources/icon-source-display-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.window"] {
+    image: url(./Dark/sources/icon-source-window-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.game"] {
+    image: url(./Dark/sources/icon-source-game-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.camera"] {
+    image: url(./Dark/sources/icon-source-camera-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.text"] {
+    image: url(./Dark/sources/icon-source-text-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.media"] {
+    image: url(./Dark/sources/icon-source-media-select-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.browser"] {
+    image: url(./Dark/sources/icon-source-url-select-disable.png);
+}
+
+/* disable valid unselect */
+QLabel#sourceIconLabel[type="invisible.valid.unselect.image"] {
+    image: url(./Dark/sources/icon-source-image-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.color"] {
+    image: url(./Dark/sources/icon-source-color-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.slideshow"] {
+    image: url(./Dark/sources/icon-source-imageslide-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.audioinput"] {
+    image: url(./Dark/sources/icon-source-audio-in-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.audiooutput"] {
+    image: url(./Dark/sources/icon-source-audio-out-disable.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.monitor"] {
+    image: url(./Dark/sources/icon-source-display-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.window"] {
+    image: url(./Dark/sources/icon-source-window-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.game"] {
+    image: url(./Dark/sources/icon-source-game-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.camera"] {
+    image: url(./Dark/sources/icon-source-camera-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.text"] {
+    image: url(./Dark/sources/icon-source-text-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.media"] {
+    image: url(./Dark/sources/icon-source-media-disabled.png);
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.browser"] {
+    image: url(./Dark/sources/icon-source-url-disabled.png);
+}
+
+PLSLiveInfoBase > #contentBorder > #content #labelCaption {
+	font-size: 20px;
+	font-weight: bold;
+	color: white;
+	background-color: transparent;
+}
+
+PLSLiveInfoBase > #contentBorder > #content > QLabel {
+	font-size: 14px;
+	font-weight: bold;
+
+	color: #bababa;
+	background-color: transparent;
+}
+
+PLSLiveInfoBase > #contentBorder > #content QLineEdit {
+	background-color: #1e1e1e;
+}
+
+PLSLiveInfoBase > #contentBorder > #content QLineEdit:focus {
+	border: 1px solid #effc35;
+}
+
+PLSLiveInfoBase QPushButton[useFor="Ok"][prepareLive=true] {
+	background-color: #effc35;
+    color: black;
+}
+
+PLSLiveInfoBase QPushButton[useFor="Ok"][prepareLive=true]:hover {
+	background-color: #f1fa75;
+}
+
+PLSLiveInfoBase QPushButton[useFor="Ok"][prepareLive=true]:pressed {
+	background-color: #7a7f34;
+}
+
+PLSLiveInfoBase QPushButton[useFor="Ok"][prepareLive=true]:disabled {
+	background-color: #444444;
+	color: #666666;
+}
+
+PLSLiveInfoBase QLineEdit {
+	font-size: 14px;
+}
+
+PLSLiveInfoBase QListWidget {
+	background: #2d2d2d;
+    border: 1px solid #111111;
+    border-radius: 3px;
+    outline: none;
+
+    font-size: 14px;
+    color: white;
+}
+
+PLSLiveInfoBase QListWidget::item {
+    background-color: #2d2d2d;
+	height: 56px;
+}
+
+PLSLiveInfoBase QListWidget::item:selected {
+    color: white;
+    background-color: #373737;
+}
+
+PLSLiveInfoBase QListWidget::item:hover {
+    background-color: #373737;
+}
+
+PLSLiveInfoBase QListWidget .QWidget {
+    background-color: #2d2d2d;
+	height: 56px;
+}
+
+PLSLiveInfoBase QListWidget .QWidget:selected {
+    color: white;
+    background-color: #373737;
+}
+
+PLSLiveInfoBase QListWidget .QWidget:hover {
+    background-color: #373737;
+}
+
+PLSLiveInfoBase QListWidget .QWidget QLabel {
+    background-color: transparent;
+}
+
+PLSLiveInfoBase #lineEditCategory {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    padding-right: 28px;
+}
+
+PLSLiveInfoBase #pushButtonSearch {
+    qproperty-maximumSize:40px 40px;
+    qproperty-minimumSize:40px 40px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    background-color: #444444;
+    background-image: url(./Dark/liveinfo/btn-search-normal.png);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+PLSLiveInfoBase #pushButtonClear{
+    qproperty-maximumSize:16px 16px;
+    qproperty-minimumSize:16px 16px;
+	border-style: none;
+	background-color: transparent;
+    border-image: url(./Dark/liveinfo/ic-scene-delete-normal.png);
+}
+
+PLSLiveInfoBase #pushButtonClear:hover{
+    border-image: url("./Dark/liveinfo/ic-scene-delete-over.png");
+}
+
+PLSLiveInfoBase #pushButtonClear:pressed{
+   border-image: url("./Dark/liveinfo/ic-scene-delete-click.png");
+}
+
+PLSLiveInfoBase #pushButtonClear:!enabled{
+    border-image: url("./Dark/liveinfo/ic-scene-delete-disable.png");
+}
+
+PLSLiveInfoBase #loadingBG{
+    background-color:rgba(39, 39, 39, 0.8);
+}
+
+PLSLiveInfoBase #loadingBtn{
+    background-color: transparent;
+}
+
+/******about **********/
+
+PLSAboutView {
+    qproperty-hasHLine: false;
+    qproperty-hasMinButton: false;
+    qproperty-isMoveInContent: false;
+    qproperty-hasBorder: true;
+}
+
+PLSAboutView, PLSAboutView QWidget {
+    background-color: #272727;
+}
+
+PLSAboutView #logoLabel {
+    border-image:url("./Dark/about-symbol.png");
+    background-color:transparent;
+}
+
+PLSAboutView #logoInfoLabel {
+    border-image:url("./Dark/about-logo-info.png");
+    background-color:transparent;
+}
+
+PLSAboutView #versionLabel {
+    color:#bababa;
+    font-size:12px;
+}
+
+PLSAboutView #checkUpdateButton {
+    padding:0px;
+    color:#000000;
+    border-radius:3px;
+    background-color:#effc35;
+    font-size:14px;
+}
+
+PLSAboutView #checkUpdateButton:disabled {
+    background-color:#7a7f34;
+}
+
+PLSAboutView #rightLabel {
+    color:#666666;
+    font-size:11px;
+}
+
+/*PLSLiveEndDialog*/
+PLSLiveEndDialog * {
+    margin: 0px;
+    padding: 0px;
+    border-radius: 0px;
+    border: none;
+}
+
+PLSLiveEndDialog QToolTip{
+    padding: 5px;
+}
+
+PLSLiveEndDialog .QFrame,
+PLSLiveEndDialog .QScrollArea{
+    border: none;
+}
+
+PLSLiveEndDialog{
+    border-radius: 6px;
+    qproperty-contentBkgColor: #272727;
+}
+
+PLSLiveEndDialog #topFrame {
+    max-height: 57px;
+    min-height: 57px;
+    background: transparent;
+}
+
+PLSLiveEndDialog #titleLabel {
+    font-size: 20px;
+    font-weight: bold;
+    color: #f1fd56;
+    background: transparent;
+}
+
+PLSLiveEndDialog #channelScroll {
+    border-radius: 3px;
+    margin: 0px 15px 10px 0px;
+    background-color: transparent;
+}
+
+PLSLiveEndDialog #bottomViewFrame {
+    min-height: 138px;
+    max-height: 138px;
+    background-color: transparent;
+}
+
+PLSLiveEndDialog #saveFrame {
+    min-height: 20;
+    max-height: 20;
+    margin: 0px 0px 0px 0px;
+}
+
+PLSLiveEndDialog #saveInLabel{
+    margin: 0px 0px 0px 0px;
+    background-color: transparent;
+    border-style:none;
+    color: #cccccc;
+    font-size: 12px;
+    font-weight: normal;
+}
+
+PLSLiveEndDialog #savePushButton{
+     min-width: 18px;
+    min-height: 20px;
+    max-height: 20px;
+    image:url(:/liveend/end/folder-icon-normal.png);
+    margin: 0px 0px 0px 4px;
+    border-style:none;
+    padding: 0px;
+    background-color: transparent;
+    border-image: none;
+    font-size: 12px;
+    font-weight: normal;
+    text-align: left;
+    color: #cccccc;
+    image:url(:/liveend/end/folder-icon-normal.png);
+    image-position: right;
+}
+
+PLSLiveEndDialog #savePushButton:hover {
+    color: #effc35;
+    image:url(:/liveend/end/folder-icon-over.png);
+}
+
+PLSLiveEndDialog #savePushButton:pressed {
+    color: #788023;
+    image:url(:/liveend/end/folder-icon-clicked.png);
+}
+
+
+PLSLiveEndDialog #lineView {
+    min-height: 1px;
+    max-height: 1px;
+    background-color: #151515;
+    margin: 0px 0px 18px 0px;
+}
+
+PLSLiveEndDialog #okButton {
+    min-width:128px;
+    max-width:128px;
+    min-height:40px;
+    max-height:40px;
+    margin-bottom: 20px;
+}
+
+PLSLiveEndItem * {
+    margin: 0px;
+    padding: 0px;
+    border-radius: 0px;
+    border: none;
+}
+
+PLSLiveEndItem .QFrame {
+    border: none;
+}
+
+PLSLiveEndItem .QLabel,
+PLSLiveEndItem .QWidget,
+PLSLiveEndItem .QFrame {
+    background-color: transparent;
+}
+
+PLSLiveEndItem {
+    border-radius: 3px;
+    background-color: #363636;
+    min-height:70px;
+    max-height:70px;
+    min-width:660px;
+    max-width:660px;
+    margin: 0px 15px 0px 29px;
+}
+
+PLSLiveEndItem #channelIcon {
+    min-width: 34px;
+    max-width: 34px;
+    max-height: 34px;
+    min-height: 34px;
+    margin-left: 14px;
+    margin-right: 13px;
+}
+
+PLSLiveEndItem #channelLabel {
+  font-size: 12px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+PLSLiveEndItem #dotLabel {
+    min-width:  3px;
+    max-width:  3px;
+    max-height: 3px;
+    min-height: 3px;
+    image: url(./Dark/img-bullet.png);
+    margin: 0px 6px 0px 6px;
+}
+
+PLSLiveEndItem #liveTitleLabel {
+  font-size: 12px;
+  font-weight: normal;
+  color: #ffffff;
+}
+
+PLSLiveEndItem #errorIcon {
+    min-width: 15px;
+    max-width: 15px;
+    max-height: 15px;
+    min-height: 15px;
+    margin-right: 20px;
+    margin-left: 6px;
+}
+
+PLSLiveEndItem #statusWidget {
+    margin-left: 3px;
+    margin-top: 6px;
+}
+
+PLSLiveEndItem #statusImage1, #statusImage2, #statusImage3 {
+    min-width: 15px;
+    max-width: 15px;
+    max-height: 15px;
+    min-height: 15px;
+}
+
+PLSLiveEndItem #statusLabel1, #statusLabel2, #statusLabel3 {
+    margin-right: 4px;
+    font-size: 12px;
+    color: #999999;
+}
+
+/** PLSChatDialog **/
+
+PLSChatDialog * {
+    border: none;
+}
+PLSChatDialog {
+    min-height: 400px;
+    min-width: 300px;
+}
+
+PLSChatDialog #widgetButtons {
+    background-color: transparent;
+    min-height: 49px;
+    max-height: 49px;
+}
+
+PLSChatDialog #lineView {
+       min-height: 1px;
+      max-height: 1px;
+      background-color: #111111;
+}
+
+PLSChatDialog #widgetButtons > QPushButton {
+    min-height: 41px;
+    max-height: 41px;
+    margin: 4px 0px 3px 0px;
+    background-color: transparent;
+    color: #bababa;
+    font-weight: normal;
+    border-radius: 0px;
+    border-bottom: 3px solid transparent;
+    font-size: 14px;
+}
+
+PLSChatDialog #allButton {
+    font-weight: normal;
+    min-width: 40px;
+    max-width: 40px;
+}
+
+PLSChatDialog #twitchButton {
+    font-weight: normal;
+    min-width: 66;
+    max-width: 66;
+}
+
+PLSChatDialog #youtubeButton {
+    min-width: 79;
+    max-width: 79;
+
+}
+PLSChatDialog #facebookButton {
+    min-width: 86;
+    max-width: 86;
+}
+
+PLSChatDialog #widgetButtons > .QPushButton:disable {
+    font-weight: bold;
+    color: #666666;
+    border-bottom: 3px solid transparent;
+}
+
+PLSChatDialog #widgetButtons > .QPushButton[status="select"] {
+     font-weight: bold;
+     color: #effc35;
+     border-bottom: 3px solid #effc35;
+}
+
+PLSChatDialog #widgetButtons > .QPushButton[status="select"]:hover {
+     font-weight: bold;
+     color: #f1fa75;
+     border-bottom: 3px solid #f1fa75;
+}
+
+PLSChatDialog #widgetButtons > .QPushButton[status="select"]:pressed {
+     font-weight: bold;
+     color: #7a7f34;
+     border-bottom: 3px solid #7a7f34;
+}
+
+PLSChatDialog #widgetButtons > .QPushButton[status="nomarl"]:hover {
+    font-weight: bold;
+    color: #ffffff;
+    border-bottom: 3px solid transparent;
+}
+
+PLSChatDialog #widgetButtons > .QPushButton[status="nomarl"]:pressed {
+    font-weight: bold;
+    color: #444444;
+    border-bottom: 3px solid transparent;
+}
+
+PLSChatDialog #widgetButtons > .QPushButton[status="onlyOne"],
+PLSChatDialog #widgetButtons > .QPushButton[status="onlyOne"]:hover,
+PLSChatDialog #widgetButtons > .QPushButton[status="onlyOne"]:pressed {
+    margin-left: 3px;
+    font-weight: bold;
+     color: #ffffff;
+     text-align: left;
+     border-bottom: 3px solid transparent;
+}
+
+PLSChatDialog #rtmpWidget {
+    background-color: #1E1E1F;
+}
+
+PLSChatDialog #chatPlaceImageLabel {
+    min-height: 90px;
+    max-height: 90px;
+    background-color: transparent;
+    image: url(./Dark/ic-chat-zero.png);
+}
+
+PLSChatDialog #rtmpPlaceTextLabel {
+    background-color: transparent;
+    margin: 20px 20px 20px 20px;
+    font-size: 14px;
+    font-weight: normal;
+    color: #666666;
+}
+
+/**  PLSLiveInfoYoutube  */
+PLSLiveInfoYoutube {
+    min-width: 720px;
+    max-width: 720px;
+    min-height: 550px;
+    max-height: 550px;
+}
+
+PLSLiveInfoYoutube .QFrame,
+PLSLiveInfoYoutube .QScrollArea{
+    border: none;
+}
+
+PLSLiveInfoYoutube #titleFrame {
+    margin-top: 23px;
+    margin-bottom: 15px;
+    min-height: 40px;
+    max-height: 40px;
+    background-color: transparent;
+}
+
+PLSLiveInfoYoutube #titleFrame #titleLabel {
+    margin: 0px 0px 0px 0px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: transparent;
+}
+
+PLSLiveInfoYoutube #midframe > .QLabel {
+    min-width: 96;
+    max-width: 96;
+
+    font-size: 14px;
+    font-weight: bold;
+    color: #bababa;
+    background-color: transparent;
+}
+
+PLSLiveInfoYoutube #textEditDescribe {
+    min-height: 120;
+    max-height: 120;
+}
+
+PLSLiveInfoYoutube #bottomFrame {
+    min-height: 80px;
+    max-height: 80px;
+}
+
+PLSLiveInfoYoutube #lineView {
+    min-height: 1px;
+    max-height: 1px;
+    background-color: #151515;
+    margin-bottom: 2px;
+}
+
+PLSLiveInfoYoutube #textEditDescribe,
+PLSLiveInfoYoutube #lineEditTitle {
+      font-size: 14px;
+      border-radius: 3px;
+}
+
+PLSLiveInfoYoutube #sPushButton .QLabel {
+      background-color: transparent;
+}
+
+PLSLiveInfoYoutube .QTextEdit {
+    border: none;
+    background-color: #1e1e1e;
+}
+
+PLSLiveInfoYoutube #bottomButtonFrame {
+    padding-right: 30px;
+}
+
+/*PLSScheduleButton*/
+
+PLSScheduleButton > .QLabel {
+     font-size: 14px;
+     font-weight: normal;
+     color: #ffffff;
+     background-color: transparent;
+}
+PLSScheduleButton #scheduletTitleLabel {
+    padding-left: 10px;
+}
+
+PLSScheduleButton #dropLabel {
+    image: url(./Dark/txt-dropbox-open-normal.png);
+    min-width: 14px;
+    max-width: 14px;
+    min-height: 14px;
+    max-height: 14px;
+    padding-right: 12px;
+}
+
+PLSScheduleButton #scheduleListWidget {
+    background-color: #2d2d2d;
+}
+
+PLSScheduleButton #scheduleListWidget::item {
+    padding: 0px 10px 0px 0px;
+    min-height: 70px;
+    max-height: 70px;
+}
+
+PLSScheduleButton QMenu
+{
+    background-color: #111111;
+    border:none;
+    min-width: 10px;
+    max-width: 999999px;
+    padding: 0px;
+    background: transparent;
+}
+
+PLSScheduleButton QMenu::item
+{
+    background-color: transparent;
+    padding: 0px;
+    min-height: 10px;
+    max-height: 4000px;
+    font-size: 14px;
+    color: #ffffff;
+}
+
+PLSScheduleMenuItem #titleLabel,
+PLSScheduleMenuItem #loadingDetailLabel {
+     font-size: 14px;
+     font-weight: normal;
+     color: #ffffff;
+     background-color: transparent;
+}
+
+PLSScheduleMenuItem #detailLabel {
+  font-size: 12px;
+  font-weight: normal;
+  color: #777777;
+  background-color: transparent;
+}
+
+PLSScheduleButton #scheduleListWidget::item:hover {
+    background-color: #373737;
+}
+
+PLSScheduleButton #scheduleListWidget::item:selected {
+    background-color: #373737;
+}
+
+PLSScheduleButton #scheduleListWidget::item:selected:!active {
+    background-color: #transparent;
+}
+
+PLSScheduleButton #scheduleListWidget:focus {
+    outline:none;
+}
+
+PLSScheduleButton #scheduleListWidget .QLabel {
+    background-color: transparent;
+}
+#PLSLivingMsgView
+{
+	min-width:300px;
+    min-height:400px;
+    qproperty-hasHLine: true;
+    qproperty-hasMinButton: false;
+}
+#PLSLivingMsgView > #label, #PLSLivingMsgView > #min, #PLSLivingMsgView > #close, #PLSLivingMsgView > #maxres {
+    background-color: #272727;
+}
+#PLSLivingMsgView > #contentBorder > #content {
+    background-color: #1e1e1f;
+}
+#PLSLivingMsgView QScrollArea
+{
+	border:none;
+}
+#PLSLivingMsgView #stackedWidget QWidget
+{
+	background-color: #1e1e1f;
+}
+#PLSLivingMsgView #labelNoMsgIcon
+{
+	min-width:90px;
+	max-width:90px;
+	min-height:90px;
+	max-height:90px;
+	image: url(./Dark/ic-alert.png);
+}
+#PLSLivingMsgView #label_NoMsgInfo
+{
+	min-width:139px;
+	max-width:139px;
+	min-height:18px;
+	max-height:18px;
+	font-size: 14px;
+	font-weight: normal;
+	color: #666666;
+}
+
+PLSLivingMsgItem #label_icon
+{
+	margin-top:4px;
+	qproperty-minimumSize:15px 19px;
+	qproperty-maximumSize:15px 19px;
+	background-color:transparent;
+}
+
+PLSLivingMsgItem #label_icon[type="1"]
+{
+	border-image: url(./Dark/icon-error-3.png);
+}
+PLSLivingMsgItem #label_icon[type="2"]
+{
+	border-image: url(./Dark/icon-replaybuffer.png);
+}
+PLSLivingMsgItem #label_icon[type="3"]
+{
+	border-image: url(./Dark/icon-noti.png);
+}
+
+
+PLSLivingMsgItem #label_msg
+{
+	font-size:14px;
+	color:#ffffff;
+}
+PLSLivingMsgItem #label_time
+{
+	min-height:15px;
+	max-height:15px;
+  font-size: 11px;
+  font-weight: normal;
+  color: #666666;
+}
+
+PLSColorFilterView{
+	min-height: 70px;
+	max-height: 70px;
+}
+
+PLSBasicFilters #rightScrollBtn, PLSBasicFilters #leftScrollBtn{
+	min-width: 50px;
+	max-width: 50px;
+	min-height: 50px;
+	max-height: 50px;
+	background: transparent;
+	padding: 0px;
+}
+
+PLSBasicFilters #rightScrollBtn:hover, PLSBasicFilters #leftScrollBtn:hover{
+	background: transparent;
+}
+
+PLSBasicFilters #leftScrollBtn{
+	border-image:url("./Dark/btn-pre-normal.png");
+}
+
+PLSBasicFilters #leftScrollBtn:hover{
+	border-image:url("./Dark/btn-pre-over.png");
+}
+
+PLSBasicFilters #leftScrollBtn:pressed{
+	border-image:url("./Dark/btn-pre-click.png");
+}
+
+PLSBasicFilters #leftScrollBtn:!enable{
+	border-image:url("./Dark/btn-pre-disable.png");
+}
+
+PLSBasicFilters #rightScrollBtn{
+	border-image:url("./Dark/btn-next-normal.png");
+}
+
+PLSBasicFilters #rightScrollBtn:hover{
+	border-image:url("./Dark/btn-next-over.png");
+}
+
+PLSBasicFilters #rightScrollBtn:pressed{
+	border-image:url("./Dark/btn-next-click.png");
+}
+
+PLSBasicFilters #rightScrollBtn:!enable{
+	border-image:url("./Dark/btn-next-disable.png");
+}
+
+PLSBasicFilters #preview{
+	padding:15px 15px 15px 0;
+}
+
+PLSColorFilterImage{
+	min-width: 60px;
+	max-width: 60px;
+	min-height: 60px;
+	max-height: 60px;
+	background: transparent;
+	border-radius: 3px;
+}
+
+PLSColorFilterImage:hover{
+	background: transparent;
+}
+
+PLSColorFilterImage[clicked=true]{
+	min-width: 56px;
+	max-width: 56px;
+	min-height: 56px;
+	max-height: 56px;
+	border: 2px solid #effc35;
+}
+
+PLSColorFilterImage[clicked=false]{
+	border: none;
+}
+
+PLSMainView #PLSToastMsgPopup
+{
+	padding:12px;
+	qproperty-minimumSize:325px 68px;
+}
+PLSMainView #PLSToastMsgPopup[toastWaning="true"]
+{
+	qproperty-minimumSize:325px 68px;
+	background-color:#666666;
+	border-radius:3px;
+	font-size: 14px;
+	font-weight: normal;
+	color: #ffffff;
+}
+PLSMainView #PLSToastMsgPopup[toastWaning="false"]
+{
+	qproperty-minimumSize:325px 68px;
+	border-radius: 3px;
+	background-color: #c34151;
+	font-size: 14px;
+	font-weight: normal;
+	color: #ffffff;
+
+}
+
+QLineEdit#propertyEditItemEdit {
+    background-color: #222222;
+}
+
+QPushButton#propertyEditItemBrowser{
+    background-color: #444444;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+QPushButton#propertyEditItemBrowser:hover {
+    background-color: #555555;
+}
+
+QPushButton#propertyEditItemBrowser:pressed {
+    background-color: #2d2d2d;
+}
+
+QPushButton#propertyEditItemButtonBoxCancel {
+	margin: 0px 5px;
+	min-width: 128px;
+    max-width: 128px;
+}
+
+#previewTitleLabel{
+    font-size: 14px;
+	font-weight: bold;
+    color: #666666;
+}
+
+#previewTitleLabel[status="false"] {
+    color: #666666;
+}
+
+#previewTitleLabel[status="true"] {
+    color: #ff273b;
+}
+
+#previewLiveRecTime {
+    font-size: 14px;
+    font-weight: normal;
+    color: #84ffffff;
+}
+
+#previewLiveRecSpace {
+	image: url(./Dark/img-bullet.png);
+}
+
+#transitionApplyButton {
+	padding: 0px;
+	margin: 0px;
+	min-width: 34px;
+    max-width: 34px;
+    min-height: 34px;
+    max-height: 34px;
+	background: transparent;
+	image: url(./Dark/btn-apply-normal.png);
+}
+
+#transitionApplyButton:hover {
+	image: url(./Dark/btn-apply-over.png);
+}
+#transitionApplyButton:pressed {
+	image: url(./Dark/btn-apply-click.png);
+}
+#transitionApplyButton:disable {
+	image: url(./Dark/btn-apply-disable.png);
+}
+
+#enablePreviewLabel {
+    font-size: 14px;
+	font-weight: bold;
+    color: #666666;
+}
+
+#enablePreviewButton {
+    font-size: 14px;
+	font-weight: bold;
+    color: #FFFFFF;
+	min-width: 201px;
+    max-width: 201px;
+    min-height: 40px;
+    max-height: 40px;
+}
+
+QPushButton#propertyButtonAdd {
+	background-color: transparent;
+	image: url(./Dark/property/icon-addsource-default.png);
+}
+QPushButton#propertyButtonAdd:hover {
+	image: url(./Dark/property/icon-addsource-over.png);
+}
+QPushButton#propertyButtonAdd:pressed {
+	image: url(./Dark/property/icon-addsource-click.png);
+}
+QPushButton#propertyButtonAdd:disable {
+	image: url(./Dark/property/icon-addsource-disable.png);
+}
+
+QPushButton#propertyButtonRemove {
+	background-color: transparent;
+	image: url(./Dark/property/ic-delete-default.png);
+}
+QPushButton#propertyButtonRemove:hover {
+	image: url(./Dark/property/ic-delete-over.png);
+}
+QPushButton#propertyButtonRemove:pressed {
+	image: url(./Dark/property/ic-delete-click.png);
+}
+QPushButton#propertyButtonRemove:disable {
+	image: url(./Dark/property/ic-delete-disable.png);
+}
+
+QPushButton#propertyButtonConfige {
+	background-color: transparent;
+	image: url(./Dark/property/ic-setting-s-normal.png);
+}
+QPushButton#propertyButtonConfige:hover {
+	image: url(./Dark/property/ic-setting-s-over.png);
+}
+QPushButton#propertyButtonConfige:pressed {
+	image: url(./Dark/property/ic-setting-s-click.png);
+}
+QPushButton#propertyButtonConfige:disable {
+	image: url(./Dark/property/ic-setting-s-disable.png);
+}
+
+QPushButton#propertyButtonMoveUp {
+	background-color: transparent;
+	image: url(./Dark/property/ic-top-normal.png);
+}
+QPushButton#propertyButtonMoveUp:hover {
+	image: url(./Dark/property/ic-top-over.png);
+}
+QPushButton#propertyButtonMoveUp:pressed {
+	image: url(./Dark/property/ic-top-click.png);
+}
+QPushButton#propertyButtonMoveUp:disable {
+	image: url(./Dark/property/ic-top-disable.png);
+}
+
+QPushButton#propertyButtonMoveDown {
+	background-color: transparent;
+	image: url(./Dark/property/ic-down-normal.png);
+}
+QPushButton#propertyButtonMoveDown:hover {
+	image: url(./Dark/property/ic-down-over.png);
+}
+QPushButton#propertyButtonMoveDown:pressed {
+	image: url(./Dark/property/ic-down-click.png);
+}
+QPushButton#propertyButtonMoveDown:disable {
+	image: url(./Dark/property/ic-down-disable.png);
+}
+
+SceneSwitcher#SceneSwitcher #switches, ScriptsTool#ScriptsTool #scripts {
+    background-color: #1e1e1f;
+    border: none;
+    font-size: 14px;
+    color: #ffffff;
+}
+SceneSwitcher#SceneSwitcher #switches::item, ScriptsTool#ScriptsTool #scripts::item {
+    height: 40px;
+    padding-left: 8px;
+}
+SceneSwitcher#SceneSwitcher #switches::item:selected, ScriptsTool#ScriptsTool #scripts::item:selected {
+    background-color: #444444;
+    color: #ffffff;
+}
+SceneSwitcher#SceneSwitcher #switches::item:selected:!active, ScriptsTool#ScriptsTool #scripts::item:selected:!active {
+    background-color: #444444;
+    color: #ffffff;
+}
+SceneSwitcher#SceneSwitcher #switches::item:hover, ScriptsTool#ScriptsTool #scripts::item:hover {
+    background-color: #1e1e1f;
+    color: #ffffff;
+}
+SceneSwitcher#SceneSwitcher #switches::item:selected:hover, ScriptsTool#ScriptsTool #scripts::item:selected:hover {
+    background-color: #444444;
+    color: #ffffff;
+}
+SceneSwitcher#SceneSwitcher #switches:focus, ScriptsTool#ScriptsTool #scripts:focus {
+    outline: none;
+}
+ScriptsTool#ScriptsTool #scripts {
+    min-width: 330px;
+    max-width: 330px;
+}
+SceneSwitcher#SceneSwitcher #add, ScriptsTool#ScriptsTool #addScripts {
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border-image: url(./Dark/icon-addsource-default.png);
+    background-color: transparent;
+}
+SceneSwitcher#SceneSwitcher #add:hover, ScriptsTool#ScriptsTool #addScripts:hover {
+    border-image: url(./Dark/icon-addsource-over.png);
+    background-color: transparent;
+}
+SceneSwitcher#SceneSwitcher #add:pressed, ScriptsTool#ScriptsTool #addScripts:pressed {
+    border-image: url(./Dark/icon-addsource-click.png);
+    background-color: transparent;
+}
+SceneSwitcher#SceneSwitcher #add:disable, ScriptsTool#ScriptsTool #addScripts:disable {
+    border-image: url(./Dark/icon-addsource-disable.png);
+    background-color: transparent;
+}
+SceneSwitcher#SceneSwitcher #remove, ScriptsTool#ScriptsTool #removeScripts {
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border-image: url(./Dark/ic-delete-default.png);
+    background-color: transparent;
+}
+SceneSwitcher#SceneSwitcher #remove:hover, ScriptsTool#ScriptsTool #removeScripts:hover {
+    border-image: url(./Dark/ic-delete-over.png);
+    background-color: transparent;
+}
+SceneSwitcher#SceneSwitcher #remove:pressed, ScriptsTool#ScriptsTool #removeScripts:pressed {
+    border-image: url(./Dark/ic-delete-click.png);
+    background-color: transparent;
+}
+SceneSwitcher#SceneSwitcher #remove:disable, ScriptsTool#ScriptsTool #removeScripts:disable {
+    border-image: url(./Dark/ic-delete-disable.png);
+    background-color: transparent;
+}
+
+ScriptsTool#ScriptsTool #reloadScripts {
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border-image: url(./Dark/ic-reroad-large-normal.png);
+    background-color: transparent;
+}
+ScriptsTool#ScriptsTool #reloadScripts:hover {
+    border-image: url(./Dark/ic-reroad-large-normal.png);
+    background-color: transparent;
+}
+ScriptsTool#ScriptsTool #reloadScripts:pressed {
+    border-image: url(./Dark/ic-reroad-large-normal.png);
+    background-color: transparent;
+}
+ScriptsTool#ScriptsTool #reloadScripts:disable {
+    border-image: url(./Dark/ic-reroad-large-normal.png);
+    background-color: transparent;
+}
+
+SceneSwitcher#SceneSwitcher *, OutputTimer#OutputTimer *, DecklinkOutputUI#Output * {
+    color: #ffffff;
+    font-size: 14px;
+}
+SceneSwitcher#SceneSwitcher QLabel,
+OutputTimer#OutputTimer QLabel,
+DecklinkOutputUI#Output QLabel {
+    color: #bababa;
+    font-size: 14px;
+}
+SceneSwitcher#SceneSwitcher QLabel[useFor="FormLabelRole"],
+OutputTimer#OutputTimer QLabel[useFor="FormLabelRole"],
+DecklinkOutputUI#Output QLabel[useFor="FormLabelRole"] {
+    font-weight: bold;
+}
+DecklinkOutputUI#Output #label, DecklinkOutputUI#Output #label_2 {
+    font-weight: bold;
+    color: #ffffff;
+    font-size: 14px;
+}
+DecklinkOutputUI#Output #keyerLabel {
+    font-weight: normal;
+    color: #bababa;
+    font-size: 12px;
+}
+DecklinkOutputUI#Output PLSPropertiesView #noPropertiesLabel {
+    color: #ffffff;
+    font-size: 14px;
+}
+ScriptsTool#ScriptsTool #tabButtons #tabButtonsHLine {
+    background-color: #111111;
+}
+ScriptsTool#ScriptsTool #tabButtons QPushButton {
+    min-width: 100px;
+    min-height: 0;
+    max-height: 10000;
+    background-color: transparent;
+    color: #666666;
+    border: none;
+    border-radius: 0;
+    border-bottom: 3px solid transparent;
+    font-weight: normal;
+}
+ScriptsTool#ScriptsTool #tabButtons QPushButton[selected="false"] {
+    color: #666666;
+}
+ScriptsTool#ScriptsTool #tabButtons QPushButton[selected="false"]:hover {
+    color: #ffffff;
+}
+ScriptsTool#ScriptsTool #tabButtons QPushButton[selected="false"]:pressed {
+    color: #444444;
+}
+ScriptsTool#ScriptsTool #tabButtons QPushButton[selected="true"] {
+    color: #effc35;
+    border-bottom: 3px solid #effc35;
+    font-weight: bold;
+}
+ScriptsTool#ScriptsTool #tabButtons QPushButton[selected="true"]:hover {
+    color: #f1fa75;
+    border-bottom: 3px solid #f1fa75;
+    font-weight: bold;
+}
+ScriptsTool#ScriptsTool #tabButtons QPushButton[selected="true"]:pressed {
+    color: #7a7f34;
+    border-bottom: 3px solid #7a7f34;
+    font-weight: bold;
+}
+ScriptsTool#ScriptsTool #description {
+    font-size: 14px;
+    color: #ffffff;
+}
+ScriptsTool#ScriptsTool PLSPropertiesView #noPropertiesLabel {
+    color: #ffffff;
+    font-size: 14px;
+}
+ScriptsTool#ScriptsTool PLSPropertiesView #button,
+ScriptsTool#ScriptsTool PLSPropertiesView #spinBox,
+ScriptsTool#ScriptsTool PLSPropertiesView #combobox,
+ScriptsTool#ScriptsTool PLSPropertiesView #lineedit {
+    max-width: 10000px;
+    min-width: 0;
+}
+ScriptsTool#ScriptsTool PLSPropertiesView #button {
+    font-weight: bold;
+}
+ScriptsTool#ScriptsTool #pythonPathBrowse {
+    padding: 0px;
+    min-height: 40px;
+    max-height: 40px;
+    min-width: 136px;
+    max-width: 136px;
+}
+ScriptsTool#ScriptsTool #label_2, ScriptsTool#ScriptsTool #label_3 {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+}
+ScriptsTool#ScriptsTool #pythonPathLabel {
+    font-size: 14px;
+    font-weight: bold;
+    color: #bababa;
+}
+ScriptLogWindow QPushButton {
+    min-width: 128px;
+    max-width: 128px;
+}
+OutputTimer#OutputTimer[language="en-US"] #streamingLabel, OutputTimer#OutputTimer[language="en-US"] #recordingLabel {
+    min-width: 143px;
+    max-width: 143px;
+}
+OutputTimer#OutputTimer[language="en-US"] #hoursLabel,
+OutputTimer#OutputTimer[language="en-US"] #hoursLabel_2,
+OutputTimer#OutputTimer[language="en-US"] #minutesLabel,
+OutputTimer#OutputTimer[language="en-US"] #minutesLabel_2,
+OutputTimer#OutputTimer[language="en-US"] #secondsLabel,
+OutputTimer#OutputTimer[language="en-US"] #secondsLabel_2 {
+    margin-left: 9px;
+    margin-right: 20px;
+}
+OutputTimer#OutputTimer[language="en-US"] #outputTimerStream,
+OutputTimer#OutputTimer[language="en-US"] #outputTimerRecord {
+    min-width: 118px;
+    max-width: 118px;
+}
+OutputTimer#OutputTimer[language="ko-KR"] #streamingLabel,
+OutputTimer#OutputTimer[language="ko-KR"] #recordingLabel {
+    min-width: 145px;
+    max-width: 145px;
+}
+OutputTimer#OutputTimer[language="ko-KR"] #hoursLabel,
+OutputTimer#OutputTimer[language="ko-KR"] #hoursLabel_2,
+OutputTimer#OutputTimer[language="ko-KR"] #minutesLabel,
+OutputTimer#OutputTimer[language="ko-KR"] #minutesLabel_2,
+OutputTimer#OutputTimer[language="ko-KR"] #secondsLabel,
+OutputTimer#OutputTimer[language="ko-KR"] #secondsLabel_2 {
+    margin-left: 9px;
+    margin-right: 15px;
+}
+OutputTimer#OutputTimer[language="ko-KR"] #outputTimerStream,
+OutputTimer#OutputTimer[language="ko-KR"] #outputTimerRecord {
+    min-width: 109px;
+    max-width: 109px;
+}
+OutputTimer#OutputTimer #streamingTimerHours,
+OutputTimer#OutputTimer #streamingTimerMinutes,
+OutputTimer#OutputTimer #streamingTimerSeconds,
+OutputTimer#OutputTimer #recordingTimerHours,
+OutputTimer#OutputTimer #recordingTimerMinutes,
+OutputTimer#OutputTimer #recordingTimerSeconds {
+    font-size: 14px;
+    color: #ffffff;
+}
+OutputTimer#OutputTimer #autoStartStreamTimer,
+OutputTimer#OutputTimer #streamStoppingIn,
+OutputTimer#OutputTimer #streamTime,
+OutputTimer#OutputTimer #autoStartRecordTimer,
+OutputTimer#OutputTimer #pauseRecordTimer,
+OutputTimer#OutputTimer #recordStoppingIn,
+OutputTimer#OutputTimer #recordTime {
+    font-size: 14px;
+    color: #e1e1e1;
+}
+
+PLSBasic #centralwidget #previewContainer {
+	min-height: 208px;
+}
+
+PLSBasicPreview {
+	min-width: 270px;
+	min-height: 158px;
+}
+
+PLSPropertiesView QListWidget {
+    background-color: #1e1e1e;
+    border: none;
+    outline: none;
+    font-size: 14px;
+}
+
+PLSPropertiesView QListWidget::item {
+    height: 40px;
+	margin-top: 1px;
+	margin-bottom: 1px;
+    font-weight: normal;
+	color : #ffffff;
+	padding-right: 12px;
+    padding-left: 12px;
+}
+
+PLSPropertiesView QListWidget::item:selected {
+    background-color: #545454;
+    font-weight: bold;
+	color : #effc35;
+}
+
+PLSPropertiesView QListWidget::item:hover {
+    background-color: #444444;
+}
+
+PLSPropertiesView QListWidget::item:selected:hover {
+    background-color: #545454;
+}
+
+#noSourceTipsLabel {
+	font-size: 12px;
+    font-weight: normal;
+	background-color: transparent;
+}
+
+PLSFontDialogView,
+PLSColorDialogView {
+	min-height: 425px;
+	max-height: 875px;
+	min-width: 478px;
+	max-width: 720px;
+	background-color: #111111;
+}
+
+PLSFontDialogView QLabel,
+PLSColorDialogView QLabel {
+    alignment: left;
+	height: 40px;
+	background-color: transparent;
+    font-size: 14px;
+    font-weight: bold;
+    color: #bababa;
+}
+
+PLSFontDialogView QCheckBox,
+PLSColorDialogView QCheckBox {
+	background-color: transparent;
+    font-size: 14px;
+    font-weight: normal;
+    color: #e1e1e1;
+}
+
+PLSFontDialogView QListWidget,
+PLSFontDialogView QListView,
+PLSColorDialogView QListWidget,
+PLSColorDialogView QListView {
+    border: none;
+	outline: none;
+    border-radius: 0;
+    background-color: #1e1e1f;
+}
+
+PLSFontDialogView QListWidget::item,
+PLSFontDialogView QListView::item,
+PLSColorDialogView QListWidget::item,
+PLSColorDialogView QListView::item {
+    border: none;
+	outline: none;
+	height: 40px;
+	padding-right: 12px;
+    padding-left: 12px;
+	font-size: 14px;
+    font-weight: normal;
+    background-color: #1e1e1f;
+    color: #ffffff;
+}
+
+PLSFontDialogView QListWidget::item:selected,
+PLSFontDialogView QListView::item:selected,
+PLSColorDialogView QListWidget::item:selected,
+PLSColorDialogView QListView::item:selected {
+	color : #effc35;
+}
+
+PLSFontDialogView QListWidget::item:hover,
+PLSFontDialogView QListView::item:hover,
+PLSColorDialogView QListWidget::item:hover,
+PLSColorDialogView QListView::item:hover {
+    background-color: #373737;
+}
+
+PLSFontDialogView QSpinBox, 
+PLSFontDialogView QDoubleSpinBox,
+PLSColorDialogView QLineEdit, 
+PLSColorDialogView QSpinBox, 
+PLSColorDialogView QDoubleSpinBox{
+	font-size: 14px;
+    font-weight: normal;
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border-radius: 2px;
+}
+
+PLSFontDialogView QLineEdit {
+	height： 40px;
+	font-size: 14px;
+    font-weight: bold;
+    background-color: transparent;
+    color: #bababa;
+    border-radius: 2px;
+}
+
+PLSFontDialogView QGroupBox::title,
+PLSColorDialogView QGroupBox::title {
+    background-color: transparent;
+    color: #bababa;
+}
+
+/* ComboBox */
+QComboBox {
+    /*border: 1px solid #363636;*/
+    background-color: #444444;
+    border-radius: 3px;
+    padding-left: 12px;
+    min-height: 40px;
+    max-height: 40px;
+    font-size: 14px;
+    color: #ffffff;
+}
+QComboBox:hover {
+    background-color: #555555;
+}
+QComboBox:disable {
+    background-color: #373737;
+    color: #666666;
+}
+QComboBox::drop-down {
+    border: none;
+    width: 30px;
+}
+QComboBox::down-arrow {
+    image: url(./Dark/txt-dropbox-open-normal.png);
+    width: 100%;
+    margin-right: 12px;
+}
+QComboBox::down-arrow:hover {
+    image: url(./Dark/txt-dropbox-open-over.png);
+}
+QComboBox::down-arrow:!enabled {
+    image: url(./Dark/txt-dropbox-open-disable.png);
+}
+QComboBox::down-arrow:on {
+    image: url(./Dark/txt-dropbox-open-click.png);
+}
+QComboBox:on, QComboBox:editable {
+    background-color: #222222;
+}
+QComboBox QListView,
+PLSComboBoxListView {
+    show-decoration-selected: 1;
+    background-color: #2d2d2d;
+    font-size: 14px;
+    color: #ffffff;
+    border: 1px solid #111111;
+	margin-top: 3px;
+    border-radius: 3px;
+}
+QComboBox QListView:focus,
+PLSComboBoxListView:focus {
+    outline: none;
+}
+QComboBox QListView::item,
+PLSComboBoxListView::item {
+    height: 40px;
+    padding-left: 12px;
+    background-color: #2d2d2d;
+}
+QComboBox QListView::item:selected,
+PLSComboBoxListView::item:selected {
+    color: #effc35;
+    background-color: #373737;
+}
+QComboBox QListView::item:hover,
+PLSComboBoxListView::item:hover {
+    background-color: #373737;
+}
+
+QPlainTextEdit::focus,
+PLSBasicProperties QLineEdit:focus,
+PLSBasicSourceSelect QLineEdit:focus {    
+	border: 1px solid #EFFC35;
+}
+
+QPlainTextEdit:!focus,
+PLSBasicProperties QLineEdit:!focus,
+PLSBasicSourceSelect QLineEdit:!focus {
+    border: 1px solid transparent;
+}

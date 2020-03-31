@@ -1,0 +1,190 @@
+
+/*config pannel */
+ChannelConfigPannel {
+	min-height: 55px;
+	max-height: 55px;
+	min-width: 200px;
+	max-width: 200px;
+	margin: 0px;
+	padding: 0px;
+	padding-left: 20px;
+	padding-right: 20px;
+	border: none;
+	border-radius: 3px;
+	background-color: rgb(68, 68, 68);
+	qproperty-minimumSize: 200px 55px;
+	qproperty-maximumSize: 200px 55px;
+}
+
+	ChannelConfigPannel * {
+		padding: 0px;
+		margin: 0px;
+	}
+
+	ChannelConfigPannel #ConfigWidget {
+		border: none;
+		padding: 0px;
+		margin: 0px;
+	}
+
+	ChannelConfigPannel #EnableSwitch {
+		min-height: 17px;
+		max-height: 17px;
+		max-width: 28px;
+		min-width: 28px;
+		border-image: url(:/Images/skin/slider-on.png);
+		background-color: transparent;
+		color: transparent;
+		qproperty-maximumSize: 28px 17px;
+	}
+	ChannelConfigPannel #EnableSwitch:checked {
+
+		border-image: url(:/Images/skin/slider-on.png);
+	}
+
+		ChannelConfigPannel #EnableSwitch:checked:hover {
+			border-image: url(:/Images/skin/slider-on-over.png);
+		}
+		ChannelConfigPannel #EnableSwitch:checked:disabled {
+			border-image: url(:/Images/skin/slider-on-disable.png);
+		}
+
+		ChannelConfigPannel #EnableSwitch:checked:pressed {
+			border-image: url(:/Images/skin/slider-on-click.png);
+		}
+
+	ChannelConfigPannel #EnableSwitch:!checked {
+		border-image: url(:/Images/skin/slider-off-default.png);
+	}
+
+		ChannelConfigPannel #EnableSwitch:!checked:hover {
+			border-image: url(:/Images/skin/slider-off-over.png);
+		}
+
+		ChannelConfigPannel #EnableSwitch:!checked:pressed {
+			border-image: url(:/Images/skin/slider-off-click.png);
+		}
+
+		ChannelConfigPannel #EnableSwitch:!checked:disabled {
+			border-image: url(:/Images/skin/slider-off-disable.png);
+		}
+
+
+	ChannelConfigPannel #showInfoBtn {
+		min-height: 22px;
+		max-height: 22px;
+		max-width: 22px;
+		min-width: 22px;
+		background-color: transparent;
+		color: transparent;
+		border-image: url(:/Images/skin/ic-liveinfo-normal.png);
+	}
+
+		ChannelConfigPannel #showInfoBtn:hover {
+			border-image: url(:/Images/skin/ic-liveinfo-over.png);
+		}
+
+		ChannelConfigPannel #showInfoBtn:pressed {
+			border-image: url(:/Images/skin/ic-liveinfo-click.png);
+		}
+
+		ChannelConfigPannel #showInfoBtn:disabled {
+			border-image: url(:/Images/skin/ic-liveinfo-disable.png);
+		}
+
+		ChannelConfigPannel #showInfoBtn[data_type="3"] {
+			border-image: url(:/Images/skin/ic-edit-l-normal.png);
+		}
+
+			ChannelConfigPannel #showInfoBtn[data_type="3"]:hover {
+				border-image: url(:/Images/skin/ic-edit-l-over.png);
+			}
+
+			ChannelConfigPannel #showInfoBtn[data_type="3"]:pressed {
+				border-image: url(:/Images/skin/ic-edit-l-click.png);
+			}
+
+			ChannelConfigPannel #showInfoBtn[data_type="3"]:disabled {
+				border-image: url(:/Images/skin/ic-edit-l-disable.png);
+			}
+
+
+	ChannelConfigPannel #ShareBtn {
+		min-height: 22px;
+		max-height: 22px;
+		max-width: 22px;
+		min-width: 22px;
+		background-color: transparent;
+		color: transparent;
+		border-image: url(:/Images/skin/ic-share-normal.png);
+	}
+
+		ChannelConfigPannel #ShareBtn:hover {
+			border-image: url(:/Images/skin/ic-share-over.png);
+		}
+
+		ChannelConfigPannel #ShareBtn:pressed {
+			border-image: url(:/Images/skin/ic-share-click.png);
+		}
+
+		ChannelConfigPannel #ShareBtn:disabled {
+			border-image: url(:/Images/skin/ic-share-disable.png);
+		}
+
+
+	ChannelConfigPannel #ConfigBtn {
+		min-height: 22px;
+		max-height: 22px;
+		max-width: 22px;
+		min-width: 22px;
+		background-color: transparent;
+		color: transparent;
+		border-image: url(:/Images/skin/ic-large-more-normal.png);
+	}
+		ChannelConfigPannel #ConfigBtn:hover {
+			border-image: url(:/Images/skin/ic-large-more-over.png);
+		}
+		ChannelConfigPannel #ConfigBtn:pressed {
+			border-image: url(:/Images/skin/ic-large-more-click.png);
+		}
+		ChannelConfigPannel #ConfigBtn:disabled {
+			border-image: url(:/Images/skin/ic-large-more-disable.png);
+		}
+
+	ChannelConfigPannel QMenu {
+		max-width: 178px;
+		min-height: 56px;
+		margin: 0px;
+		padding: 8px 0px 8px 0px;
+		border: 1px solid #111111;
+		background-color: #2d2d2d;
+		qproperty-minimumSize: 180px 56px;
+		qproperty-maximumSize: 180px 96px;
+	}
+
+		ChannelConfigPannel QMenu::item {
+			padding: 0px;
+			padding-left: 20px;
+			margin: 0px;
+			background-color: transparent;
+			border: none;
+			min-height: 40px;
+			max-height: 40px;
+			max-width: 157px;
+			min-width: 157px;
+
+			
+			font-size: 14px;
+			font-weight: normal;
+			font-style: normal;
+			color: #ffffff;
+		
+		}
+
+			ChannelConfigPannel QMenu::item:selected {
+				background-color: #444444;
+				color: #ffffff;
+			}
+
+/*config pannel end*/
+
