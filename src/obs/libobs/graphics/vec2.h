@@ -151,6 +151,15 @@ static inline void vec2_max(struct vec2 *dst, const struct vec2 *v,
 		dst->y = max_v->y;
 }
 
+//PRISM/Wangshaohui/20200713/#3402/check invalid params
+static inline bool vec2_valid(const struct vec2 *values)
+{
+	if (!values || isnan(values->x) || isnan(values->y))
+		return false;
+	else
+		return true;
+}
+
 EXPORT void vec2_abs(struct vec2 *dst, const struct vec2 *v);
 EXPORT void vec2_floor(struct vec2 *dst, const struct vec2 *v);
 EXPORT void vec2_ceil(struct vec2 *dst, const struct vec2 *v);

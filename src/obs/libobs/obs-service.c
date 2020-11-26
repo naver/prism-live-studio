@@ -325,7 +325,8 @@ void obs_service_addref(obs_service_t *service)
 	if (!service)
 		return;
 
-	obs_ref_addref(&service->control->ref);
+	//PRISM/WangShaohui/20201030/#5529/monitor invalid reference
+	obs_ref_addref(&service->control->ref, service->info.id, NULL);
 }
 
 void obs_service_release(obs_service_t *service)

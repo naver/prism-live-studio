@@ -75,14 +75,10 @@ typedef void (*pls_ui_step_log_handler_t)(const char *module_name, const pls_tim
   *     [in] project_name: project name
   *     [in] project_version: project version
   *     [in] log_source: log source
-  *     [in] log_type: log type
-  *     [in] server_addr: nelo server address
-  *     [in] server_port: nelo server port
-  *     [in] https: true for https, false for http
   * return:
   *     true for success, false for failed
   */
-LIBLOG_API bool pls_log_init(const char *project_name, const char *project_version, const char *log_source, const char *log_type, const char *server_addr, int server_port, bool https = false);
+LIBLOG_API void pls_log_init(const char *project_name, const char *project_version, const char *log_source);
 /**
   * log cleanup
   */
@@ -127,12 +123,6 @@ LIBLOG_API void pls_get_action_log_handler(pls_action_log_handler_t *handler, vo
 LIBLOG_API void pls_reset_action_log_handler();
 
 /**
-  * get nelo log user id
-  * return:
-  *     const char*: user id
-  */
-LIBLOG_API const char *pls_get_user_id();
-/**
   * set nelo log user id
   * param:
   *     [in] user_id: log user id
@@ -147,27 +137,14 @@ LIBLOG_API void pls_set_user_id(const char *user_id);
   * return:
   *     true for success, false for failed
   */
-LIBLOG_API bool pls_add_global_field(const char *key, const char *value);
+LIBLOG_API void pls_add_global_field(const char *key, const char *value);
+
 /**
   * remove nelo log global field
   * param:
   *     [in] key: field name
   */
 LIBLOG_API void pls_remove_global_field(const char *key);
-
-/**
-  * get nelo report log level
-  * return:
-  *     nelo report log level
-  */
-LIBLOG_API pls_log_level_t pls_get_report_log_level();
-/**
-  * set nelo report log level
-  * param:
-  *     [in] log_level: nelo report log level
-  */
-LIBLOG_API void pls_set_report_log_level(pls_log_level_t log_level);
-
 /**
   * print log
   * param:

@@ -179,6 +179,10 @@ static void luma_wipe_callback(void *data, gs_texture_t *a, gs_texture_t *b,
 
 void luma_wipe_video_render(void *data, gs_effect_t *effect)
 {
+	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
+	if (!data)
+		return;
+
 	struct luma_wipe_info *lwipe = data;
 	obs_transition_video_render(lwipe->source, luma_wipe_callback);
 	UNUSED_PARAMETER(effect);
@@ -200,6 +204,10 @@ bool luma_wipe_audio_render(void *data, uint64_t *ts_out,
 			    struct obs_source_audio_mix *audio, uint32_t mixers,
 			    size_t channels, size_t sample_rate)
 {
+	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
+	if (!data)
+		return false;
+
 	struct luma_wipe_info *lwipe = data;
 	return obs_transition_audio_render(lwipe->source, ts_out, audio, mixers,
 					   channels, sample_rate, mix_a, mix_b);

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1086</width>
-    <height>790</height>
+    <height>566</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -25,9 +25,12 @@
   <property name="windowTitle">
    <string>Settings</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="1,0,0">
    <property name="spacing">
     <number>0</number>
+   </property>
+   <property name="sizeConstraint">
+    <enum>QLayout::SetNoConstraint</enum>
    </property>
    <property name="leftMargin">
     <number>0</number>
@@ -46,6 +49,9 @@
      <property name="spacing">
       <number>0</number>
      </property>
+     <property name="sizeConstraint">
+      <enum>QLayout::SetNoConstraint</enum>
+     </property>
      <property name="leftMargin">
       <number>0</number>
      </property>
@@ -59,6 +65,9 @@
       <layout class="QVBoxLayout" name="verticalLayout_6">
        <property name="spacing">
         <number>0</number>
+       </property>
+       <property name="sizeConstraint">
+        <enum>QLayout::SetNoConstraint</enum>
        </property>
        <property name="leftMargin">
         <number>24</number>
@@ -75,7 +84,7 @@
        <item>
         <widget class="QListWidget" name="listWidget">
          <property name="sizePolicy">
-          <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+          <sizepolicy hsizetype="Fixed" vsizetype="Ignored">
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
@@ -165,10 +174,16 @@
        <property name="spacing">
         <number>0</number>
        </property>
+       <property name="sizeConstraint">
+        <enum>QLayout::SetNoConstraint</enum>
+       </property>
        <item>
         <layout class="QVBoxLayout" name="verticalLayout_57">
          <property name="spacing">
           <number>0</number>
+         </property>
+         <property name="sizeConstraint">
+          <enum>QLayout::SetNoConstraint</enum>
          </property>
          <property name="leftMargin">
           <number>25</number>
@@ -184,10 +199,22 @@
          </property>
          <item>
           <widget class="QStackedWidget" name="settingsPages">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="currentIndex">
-            <number>7</number>
+            <number>0</number>
            </property>
            <widget class="QWidget" name="generalPage">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="uistep" stdset="0">
              <string notr="true">General</string>
             </property>
@@ -223,8 +250,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>853</width>
-                  <height>661</height>
+                  <width>836</width>
+                  <height>524</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_19">
@@ -283,7 +310,7 @@
                         <number>0</number>
                        </property>
                        <item>
-                        <widget class="PLSSettingGeneralView" name="accountView" native="true"/>
+                        <widget class="QWidget" name="accountView" native="true"/>
                        </item>
                       </layout>
                      </widget>
@@ -427,6 +454,53 @@
                      </widget>
                     </item>
                     <item>
+                     <widget class="QGroupBox" name="groupBox_19">
+                      <property name="title">
+                       <string>setting.static.text.watermark</string>
+                      </property>
+                      <layout class="QHBoxLayout" name="horizontalLayout_27" stretch="0,1">
+                       <property name="spacing">
+                        <number>20</number>
+                       </property>
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>20</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>0</number>
+                       </property>
+                       <item>
+                        <widget class="QLabel" name="label_21">
+                         <property name="text">
+                          <string/>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QCheckBox" name="checkBox">
+                         <property name="text">
+                          <string>setting.static.text.watermark.enable</string>
+                         </property>
+                         <property name="checkable">
+                          <bool>true</bool>
+                         </property>
+                         <property name="checked">
+                          <bool>true</bool>
+                         </property>
+                         <property name="uistep" stdset="0">
+                          <string notr="true">Watermark</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
+                    </item>
+                    <item>
                      <widget class="QGroupBox" name="groupBox_13">
                       <property name="title">
                        <string>Basic.Settings.General.SysTray</string>
@@ -512,6 +586,12 @@
             </layout>
            </widget>
            <widget class="QWidget" name="outputPage">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="uistep" stdset="0">
              <string notr="true">Output</string>
             </property>
@@ -547,8 +627,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>931</width>
-                  <height>3760</height>
+                  <width>836</width>
+                  <height>3721</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_21" stretch="0,0,0,0,0,0">
@@ -810,7 +890,7 @@
                             <number>1</number>
                            </property>
                            <property name="maximum">
-                            <number>1000000</number>
+                            <number>120</number>
                            </property>
                            <property name="value">
                             <number>30</number>
@@ -836,7 +916,7 @@
                             <number>1</number>
                            </property>
                            <property name="maximum">
-                            <number>1000000</number>
+                            <number>120</number>
                            </property>
                           </widget>
                          </item>
@@ -1050,10 +1130,10 @@
                              <item row="0" column="1">
                               <widget class="PLSSpinBox" name="simpleOutputVBitrate">
                                <property name="minimum">
-                                <number>200</number>
+                                <number>50</number>
                                </property>
                                <property name="maximum">
-                                <number>1000000</number>
+                                <number>60000</number>
                                </property>
                                <property name="value">
                                 <number>2000</number>
@@ -1940,7 +2020,7 @@
                              <widget class="QWidget" name="advOutputStreamTab" native="true">
                               <layout class="QVBoxLayout" name="verticalLayout_12">
                                <property name="spacing">
-                                <number>0</number>
+                                <number>10</number>
                                </property>
                                <property name="leftMargin">
                                 <number>0</number>
@@ -2185,9 +2265,9 @@
                                      </item>
                                      <item row="3" column="0">
                                       <widget class="QWidget" name="widget_14" native="true">
-                                       <layout class="QHBoxLayout" name="horizontalLayout_19" stretch="1,0">
+                                       <layout class="QHBoxLayout" name="horizontalLayout_19" stretch="0,0,1">
                                         <property name="spacing">
-                                         <number>10</number>
+                                         <number>5</number>
                                         </property>
                                         <property name="leftMargin">
                                          <number>0</number>
@@ -2238,6 +2318,19 @@
                                            <string notr="true">Rescale Output</string>
                                           </property>
                                          </widget>
+                                        </item>
+                                        <item>
+                                         <spacer name="horizontalSpacer">
+                                          <property name="orientation">
+                                           <enum>Qt::Horizontal</enum>
+                                          </property>
+                                          <property name="sizeHint" stdset="0">
+                                           <size>
+                                            <width>0</width>
+                                            <height>5</height>
+                                           </size>
+                                          </property>
+                                         </spacer>
                                         </item>
                                        </layout>
                                       </widget>
@@ -2410,7 +2503,7 @@
                                   <item>
                                    <widget class="QWidget" name="advOutRecTopContainer" native="true">
                                     <property name="sizePolicy">
-                                     <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                                     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                                       <horstretch>0</horstretch>
                                       <verstretch>0</verstretch>
                                      </sizepolicy>
@@ -2891,9 +2984,9 @@
                                          <verstretch>0</verstretch>
                                         </sizepolicy>
                                        </property>
-                                       <layout class="QHBoxLayout" name="horizontalLayout_2">
+                                       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1">
                                         <property name="spacing">
-                                         <number>10</number>
+                                         <number>5</number>
                                         </property>
                                         <property name="leftMargin">
                                          <number>0</number>
@@ -2945,6 +3038,19 @@
                                           </property>
                                          </widget>
                                         </item>
+                                        <item>
+                                         <spacer name="horizontalSpacer_2">
+                                          <property name="orientation">
+                                           <enum>Qt::Horizontal</enum>
+                                          </property>
+                                          <property name="sizeHint" stdset="0">
+                                           <size>
+                                            <width>0</width>
+                                            <height>5</height>
+                                           </size>
+                                          </property>
+                                         </spacer>
+                                        </item>
                                        </layout>
                                       </widget>
                                      </item>
@@ -2974,24 +3080,6 @@
                                        </item>
                                       </layout>
                                      </item>
-                                    </layout>
-                                   </widget>
-                                  </item>
-                                  <item alignment="Qt::AlignTop">
-                                   <widget class="QWidget" name="widget_7" native="true">
-                                    <layout class="QVBoxLayout" name="verticalLayout_15">
-                                     <property name="leftMargin">
-                                      <number>0</number>
-                                     </property>
-                                     <property name="topMargin">
-                                      <number>0</number>
-                                     </property>
-                                     <property name="rightMargin">
-                                      <number>0</number>
-                                     </property>
-                                     <property name="bottomMargin">
-                                      <number>0</number>
-                                     </property>
                                     </layout>
                                    </widget>
                                   </item>
@@ -3175,10 +3263,10 @@
                                   <item row="6" column="1">
                                    <widget class="PLSSpinBox" name="advOutFFVBitrate">
                                     <property name="minimum">
-                                     <number>0</number>
+                                     <number>50</number>
                                     </property>
                                     <property name="maximum">
-                                     <number>1000000000</number>
+                                     <number>60000</number>
                                     </property>
                                     <property name="value">
                                      <number>2500</number>
@@ -3222,9 +3310,9 @@
                                       <verstretch>0</verstretch>
                                      </sizepolicy>
                                     </property>
-                                    <layout class="QHBoxLayout" name="horizontalLayout_32">
+                                    <layout class="QHBoxLayout" name="horizontalLayout_32" stretch="0,0,1">
                                      <property name="spacing">
-                                      <number>10</number>
+                                      <number>5</number>
                                      </property>
                                      <property name="leftMargin">
                                       <number>0</number>
@@ -3272,6 +3360,19 @@
                                         <string/>
                                        </property>
                                       </widget>
+                                     </item>
+                                     <item>
+                                      <spacer name="horizontalSpacer_4">
+                                       <property name="orientation">
+                                        <enum>Qt::Horizontal</enum>
+                                       </property>
+                                       <property name="sizeHint" stdset="0">
+                                        <size>
+                                         <width>0</width>
+                                         <height>5</height>
+                                        </size>
+                                       </property>
+                                      </spacer>
                                      </item>
                                     </layout>
                                    </widget>
@@ -5060,78 +5161,21 @@
                       <property name="leftMargin">
                        <number>0</number>
                       </property>
+                      <property name="topMargin">
+                       <number>5</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="bottomMargin">
+                       <number>0</number>
+                      </property>
                       <item>
-                       <layout class="QHBoxLayout" name="horizontalLayout_14" stretch="0,1,0">
-                        <property name="spacing">
-                         <number>10</number>
+                       <widget class="QLineEdit" name="simpleRBPrefix">
+                        <property name="maxLength">
+                         <number>30</number>
                         </property>
-                        <property name="leftMargin">
-                         <number>0</number>
-                        </property>
-                        <property name="topMargin">
-                         <number>5</number>
-                        </property>
-                        <property name="rightMargin">
-                         <number>0</number>
-                        </property>
-                        <property name="bottomMargin">
-                         <number>0</number>
-                        </property>
-                        <item>
-                         <widget class="QLineEdit" name="simpleRBPrefix">
-                          <property name="minimumSize">
-                           <size>
-                            <width>175</width>
-                            <height>0</height>
-                           </size>
-                          </property>
-                          <property name="maximumSize">
-                           <size>
-                            <width>175</width>
-                            <height>16777215</height>
-                           </size>
-                          </property>
-                         </widget>
-                        </item>
-                        <item>
-                         <widget class="QLabel" name="label_58">
-                          <property name="sizePolicy">
-                           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-                            <horstretch>0</horstretch>
-                            <verstretch>0</verstretch>
-                           </sizepolicy>
-                          </property>
-                          <property name="text">
-                           <string>Basic.Settings.Output.ReplayBuffer.Suffix</string>
-                          </property>
-                          <property name="alignment">
-                           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                          </property>
-                          <property name="wordWrap">
-                           <bool>true</bool>
-                          </property>
-                          <property name="buddy">
-                           <cstring>simpleRBSuffix</cstring>
-                          </property>
-                         </widget>
-                        </item>
-                        <item>
-                         <widget class="QLineEdit" name="simpleRBSuffix">
-                          <property name="minimumSize">
-                           <size>
-                            <width>175</width>
-                            <height>0</height>
-                           </size>
-                          </property>
-                          <property name="maximumSize">
-                           <size>
-                            <width>175</width>
-                            <height>16777215</height>
-                           </size>
-                          </property>
-                         </widget>
-                        </item>
-                       </layout>
+                       </widget>
                       </item>
                      </layout>
                     </item>
@@ -5180,6 +5224,35 @@
                        <widget class="QLineEdit" name="filenameFormatting"/>
                       </item>
                      </layout>
+                    </item>
+                    <item row="7" column="0">
+                     <widget class="QLabel" name="label_58">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="text">
+                       <string>Basic.Settings.Output.ReplayBuffer.Suffix</string>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                      <property name="buddy">
+                       <cstring>simpleRBSuffix</cstring>
+                      </property>
+                      <property name="useFor" stdset="0">
+                       <string notr="true">FormLabelRole</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="7" column="1">
+                     <widget class="QLineEdit" name="simpleRBSuffix">
+                      <property name="maxLength">
+                       <number>30</number>
+                      </property>
+                     </widget>
                     </item>
                    </layout>
                   </widget>
@@ -5417,7 +5490,7 @@
                     <item row="2" column="0">
                      <widget class="QLabel" name="label_22">
                       <property name="sizePolicy">
-                       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
                         <horstretch>0</horstretch>
                         <verstretch>0</verstretch>
                        </sizepolicy>
@@ -5606,6 +5679,12 @@
             </layout>
            </widget>
            <widget class="QWidget" name="audioPage">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="uistep" stdset="0">
              <string notr="true">Audio</string>
             </property>
@@ -5642,7 +5721,7 @@
                   <x>0</x>
                   <y>0</y>
                   <width>642</width>
-                  <height>742</height>
+                  <height>731</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_50">
@@ -6329,6 +6408,12 @@
             </layout>
            </widget>
            <widget class="QWidget" name="viewPage">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="uistep" stdset="0">
              <string notr="true">Visual</string>
             </property>
@@ -6362,7 +6447,7 @@
                   <x>0</x>
                   <y>0</y>
                   <width>927</width>
-                  <height>1028</height>
+                  <height>1021</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_34">
@@ -7142,6 +7227,12 @@
             </layout>
            </widget>
            <widget class="QWidget" name="sourcePage">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="uistep" stdset="0">
              <string notr="true">Source</string>
             </property>
@@ -7172,7 +7263,7 @@
                   <x>0</x>
                   <y>0</y>
                   <width>502</width>
-                  <height>368</height>
+                  <height>367</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_40">
@@ -7403,6 +7494,12 @@
             </layout>
            </widget>
            <widget class="QWidget" name="hotkeyPage">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="uistep" stdset="0">
              <string notr="true">Hotkeys</string>
             </property>
@@ -7435,8 +7532,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>100</width>
-                  <height>30</height>
+                  <width>853</width>
+                  <height>439</height>
                  </rect>
                 </property>
                 <layout class="QFormLayout" name="hotkeyLayout">
@@ -7471,6 +7568,12 @@
             </layout>
            </widget>
            <widget class="QWidget" name="streamPage">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <layout class="QVBoxLayout" name="verticalLayout_5" stretch="0,1">
              <property name="spacing">
               <number>10</number>
@@ -7973,6 +8076,12 @@
             </layout>
            </widget>
            <widget class="QWidget" name="advancedPage">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <layout class="QVBoxLayout" name="verticalLayout_16">
              <property name="leftMargin">
               <number>0</number>
@@ -8003,7 +8112,7 @@
                   <x>0</x>
                   <y>0</y>
                   <width>853</width>
-                  <height>601</height>
+                  <height>379</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_23">
@@ -8214,6 +8323,12 @@
                        </property>
                        <item row="0" column="0">
                         <widget class="QLabel" name="hotkeyFocusTypeLabel">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="text">
                           <string>Basic.Settings.Advanced.Hotkeys.HotkeyFocusBehavior</string>
                          </property>
@@ -8305,6 +8420,9 @@
          <property name="spacing">
           <number>0</number>
          </property>
+         <property name="sizeConstraint">
+          <enum>QLayout::SetNoConstraint</enum>
+         </property>
          <property name="leftMargin">
           <number>20</number>
          </property>
@@ -8319,6 +8437,12 @@
          </property>
          <item>
           <widget class="QFrame" name="alertMessageFrame">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="minimumSize">
             <size>
              <width>0</width>
@@ -8373,12 +8497,12 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_26" stretch="1,0">
+    <layout class="QHBoxLayout" name="horizontalLayout_26" stretch="0,1,0">
      <property name="spacing">
       <number>10</number>
      </property>
      <property name="leftMargin">
-      <number>8</number>
+      <number>30</number>
      </property>
      <property name="topMargin">
       <number>19</number>
@@ -8389,6 +8513,16 @@
      <property name="bottomMargin">
       <number>19</number>
      </property>
+     <item>
+      <widget class="QPushButton" name="resetButton">
+       <property name="text">
+        <string>Reset</string>
+       </property>
+       <property name="useFor" stdset="0">
+        <string notr="true">Reset</string>
+       </property>
+      </widget>
+     </item>
      <item>
       <spacer name="horizontalSpacer_26">
        <property name="orientation">
@@ -8441,12 +8575,6 @@
    <class>PLSDialogButtonBox</class>
    <extends>QDialogButtonBox</extends>
    <header>dialogbuttonbox.hpp</header>
-  </customwidget>
-  <customwidget>
-   <class>PLSSettingGeneralView</class>
-   <extends>QWidget</extends>
-   <header>pls-setting-general-view.hpp</header>
-   <container>1</container>
   </customwidget>
   <customwidget>
    <class>PLSEditableComboBox</class>
@@ -8582,8 +8710,6 @@
   <tabstop>resetOSXVSync</tabstop>
   <tabstop>overwriteIfExists</tabstop>
   <tabstop>autoRemux</tabstop>
-  <tabstop>simpleRBPrefix</tabstop>
-  <tabstop>simpleRBSuffix</tabstop>
   <tabstop>streamDelayEnable</tabstop>
   <tabstop>streamDelaySec</tabstop>
   <tabstop>streamDelayPreserve</tabstop>

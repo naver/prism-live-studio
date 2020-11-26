@@ -35,7 +35,6 @@ static void set_info(struct obs_watermark *watermark,
 		     const struct obs_watermark_info *info)
 {
 	watermark->first_show = true;
-	watermark->updated = false;
 	os_atomic_set_bool(&watermark->need_update, false);
 	watermark->next_timestamp = 0;
 	watermark->policy = info->policy;
@@ -46,11 +45,9 @@ static void set_info(struct obs_watermark *watermark,
 	watermark->fade_in_time_nsec = info->fade_in_time_usec * USEC_TO_NSEC;
 	watermark->fade_out_time_nsec = info->fade_out_time_usec * USEC_TO_NSEC;
 	watermark->interval_nsec = info->interval_usec * USEC_TO_NSEC;
-	if (!watermark->file_path.array ||
-	    !dstr_cmp(&watermark->file_path, info->file_path)) {
-		dstr_copy(&watermark->file_path, info->file_path);
-		os_atomic_set_bool(&watermark->updated, true);
-	}
+	dstr_free(&watermark->file_path);
+	dstr_copy(&watermark->file_path, info->file_path);
+	os_atomic_set_bool(&watermark->updated, true);
 }
 
 static enum obs_watermark_show_type
@@ -199,14 +196,10 @@ static void release_texture_and_effect(obs_watermark_t *watermark)
 	gs_leave_context();
 }
 
-static const char *render_watermark_name = "render_watermark";
 static gs_texture_t *obs_watermark_render_internal(obs_watermark_t *watermark,
 						   gs_texture_t *texture,
 						   float opacity)
 {
-	profile_start(render_watermark_name);
-	GS_DEBUG_MARKER_BEGIN(GS_DEBUG_COLOR_MAIN_TEXTURE,
-			      render_watermark_name);
 	uint32_t target_width = gs_texture_get_width(watermark->render_texture);
 	uint32_t target_height =
 		gs_texture_get_height(watermark->render_texture);
@@ -231,31 +224,30 @@ static gs_texture_t *obs_watermark_render_internal(obs_watermark_t *watermark,
 	gs_technique_begin_pass(tech, 0);
 
 	param = gs_effect_get_param_by_name(effect, "image");
-
 	gs_effect_set_texture(param, texture);
-	gs_draw_sprite(texture, 0, 0, 0);
 
-	gs_technique_end_pass(tech);
-	gs_technique_end(tech);
+	gs_blend_state_push();
+	gs_enable_blending(false);
+
+	gs_draw_sprite(texture, 0, 0, 0);
 
 	param = gs_effect_get_param_by_name(effect, "opacity");
 	gs_effect_set_float(param, opacity);
-
-	gs_technique_begin(tech);
-	gs_technique_begin_pass(tech, 0);
 
 	gs_set_viewport(watermark->left_margin, watermark->top_margin,
 			base_width, base_height);
 
 	param = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(param, watermark->texture);
+
+	gs_reset_blend_state();
+
 	gs_draw_sprite(watermark->texture, 0, target_width, target_height);
+
+	gs_blend_state_pop();
 
 	gs_technique_end_pass(tech);
 	gs_technique_end(tech);
-
-	GS_DEBUG_MARKER_END();
-	profile_end(render_watermark_name);
 
 	return watermark->render_texture;
 }

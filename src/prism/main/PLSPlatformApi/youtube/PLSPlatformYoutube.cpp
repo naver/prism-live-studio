@@ -1,28 +1,37 @@
 #include "PLSPlatformYoutube.h"
 #include <QObject>
 
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QJsonArray>
 
-#include "pls-app.hpp"
-#include "log.h"
-#include "alert-view.hpp"
-#include "window-basic-main.hpp"
-#include "frontend-api.h"
-#include "pls-common-define.hpp"
-#include "PLSHttpApi\PLSHttpHelper.h"
-#include "../PLSPlatformApi.h"
-#include "../PLSLiveInfoDialogs.h"
-#include "PLSChannelDataAPI.h"
-#include "pls-net-url.hpp"
-#include <QTimer>
-#include <QDebug>
 #include <PLSChannelDataHandler.h>
+#include <QDebug>
+#include <QTimer>
+#include <QDesktopServices>
+#include <QUrl>
 #include <cassert>
+#include "../PLSLiveInfoDialogs.h"
+#include "../PLSPlatformApi.h"
+#include "../common/PLSDateFormate.h"
+#include "PLSAPIYoutube.h"
+#include "PLSChannelDataAPI.h"
+#include "PLSChannelDataHandlerFunctions.h"
+#include "PLSHttpApi\PLSHttpHelper.h"
+#include "alert-view.hpp"
+#include "frontend-api.h"
+#include "log.h"
+#include "pls-app.hpp"
+#include "pls-common-define.hpp"
+#include "pls-net-url.hpp"
+#include "window-basic-main.hpp"
 
-PLSPlatformYoutube::PLSPlatformYoutube() : m_bTempSchedule(false)
+const static QString kDefaultCategoryID = "22"; //People & Blogs
+
+PLSPlatformYoutube::PLSPlatformYoutube()
 {
+	setSingleChannel(true);
+
 	m_vecLocalPrivacy.clear();
 	m_vecLocalPrivacy.push_back(QObject::tr("youtube.privacy.public"));
 	m_vecLocalPrivacy.push_back(QObject::tr("youtube.privacy.unlisted"));
@@ -33,13 +42,49 @@ PLSPlatformYoutube::PLSPlatformYoutube() : m_bTempSchedule(false)
 	m_vecEnglishPrivacy.push_back(QObject::tr("youtube.privacy.unlisted.en"));
 	m_vecEnglishPrivacy.push_back(QObject::tr("youtube.privacy.private.en"));
 
+	static int requestStatusCount = 0;
 	m_statusTimer = new QTimer(this);
-	connect(m_statusTimer, &QTimer::timeout, this, &PLSPlatformYoutube::requestStatisticsInfo);
+	m_statusTimer->setInterval(5000);
+	connect(m_statusTimer, &QTimer::timeout, this, [=]() {
+		requestStatusCount += 1;
+		requestStatisticsInfo();
+		if (requestStatusCount % 3 == 0) {
+			//This api request is not frequent, so every 15 seconds
+			requestLiveBroadcastStatus();
+		}
+	});
+
+	connect(PLS_PLATFORM_API, &PLSPlatformApi::channelRemoved, this, [=](const QVariantMap &info) {
+		QString platformName = info.value(ChannelData::g_channelName, "").toString();
+		auto dataType = info.value(ChannelData::g_data_type, ChannelData::RTMPType).toInt();
+
+		if (dataType == ChannelData::ChannelType && platformName == YOUTUBE) {
+			reInitLiveInfo();
+		}
+	});
 }
 
 PLSServiceType PLSPlatformYoutube::getServiceType() const
 {
 	return PLSServiceType::ST_YOUTUBE;
+}
+
+void PLSPlatformYoutube::liveInfoisShowing()
+{
+
+	if (getSelectData().isNormalLive && getSelectData().title.isEmpty()) {
+		createNewNormalData();
+	}
+	setTempSelectID(getSelectData()._id);
+	m_tempNoramlData = m_noramlData;
+}
+
+void PLSPlatformYoutube::reInitLiveInfo()
+{
+	m_bTempSelectID = "";
+	createNewNormalData();
+	setSelectData(m_noramlData);
+	m_tempNoramlData = PLSYoutubeLiveinfoData();
 }
 
 const QString PLSPlatformYoutube::getSelectID()
@@ -56,53 +101,38 @@ const vector<QString> PLSPlatformYoutube::getPrivacyEnglishDatas()
 	return m_vecEnglishPrivacy;
 }
 
-const vector<PLSYoutubeCategory> PLSPlatformYoutube::getCategoryDatas()
+const vector<PLSYoutubeCategory> &PLSPlatformYoutube::getCategoryDatas()
 {
 	return m_vecCategorys;
 }
 
-const vector<PLSScheduleData> PLSPlatformYoutube::getScheduleDatas()
+const vector<PLSYoutubeLiveinfoData> &PLSPlatformYoutube::getScheduleDatas()
 {
 	return m_vecSchedules;
 }
 
-const PLSScheduleData PLSPlatformYoutube::getNomalLiveDatas()
+const PLSYoutubeLiveinfoData &PLSPlatformYoutube::getNomalLiveData()
 {
 	return m_noramlData;
 }
-const PLSScheduleData PLSPlatformYoutube::getTempSelectDatas()
+const PLSYoutubeLiveinfoData &PLSPlatformYoutube::getTempSelectData()
 {
-	PLSScheduleData *data = nullptr;
-	if (!m_bTempSchedule) {
-		data = &m_noramlData;
-	} else {
-		for (auto scheuleData : getScheduleDatas()) {
-			if (0 == getTempSelectID().compare(scheuleData._id)) {
-				data = &scheuleData;
-				break;
-			}
+	for (auto &scheuleData : getScheduleDatas()) {
+		if (0 == getTempSelectID().compare(scheuleData._id)) {
+			return scheuleData;
 		}
 	}
-
-	if (data == nullptr && 0 == getTempSelectID().compare(m_selectData._id)) {
-		data = &m_selectData;
-	}
-
-	if (nullptr == data) {
-		data = &m_noramlData;
-	}
-
-	return *data;
+	return m_tempNoramlData;
 }
 
-const PLSScheduleData PLSPlatformYoutube::getSelectDatas()
+const PLSYoutubeLiveinfoData &PLSPlatformYoutube::getSelectData()
 {
 	return m_selectData;
 }
 
-void PLSPlatformYoutube::setSelectData(PLSScheduleData data)
+void PLSPlatformYoutube::setSelectData(PLSYoutubeLiveinfoData data)
 {
-	m_bTempSchedule = !data.isNormalLive;
+	m_bTempSelectID = data._id;
 	m_selectData = data;
 	if (!data.isNormalLive) {
 		for (auto &scheduleData : m_vecSchedules) {
@@ -110,27 +140,43 @@ void PLSPlatformYoutube::setSelectData(PLSScheduleData data)
 				scheduleData = data;
 			}
 		}
+	} else {
+		m_noramlData = data;
+		m_tempNoramlData = data;
 	}
 	const QString &uuid = getChannelUUID();
-	PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_shareUrl, getShareUrl());
+
+	PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_shareUrlTemp, getShareUrl(PLS_PLATFORM_API->isLiving()));
 
 	for (int i = 0; i < m_vecEnglishPrivacy.size(); i++) {
 		if (m_selectData.privacyStatus.compare(m_vecEnglishPrivacy[i], Qt::CaseInsensitive) != 0) {
 			continue;
 		}
 		PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_catogryTemp, m_vecEnglishPrivacy[i]);
-		PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_shareUrlTemp, getShareUrl());
-		PLSCHANNELS_API->channelModified(uuid);
+		if (!PLS_PLATFORM_API->isGoLive()) {
+			PLSCHANNELS_API->channelModified(uuid);
+		} else if (PLS_PLATFORM_API->isGoLive() && PLS_PLATFORM_API->isPrepareLive()) {
+			PLSCHANNELS_API->channelModified(uuid);
+		}
 		break;
 	}
-	setTitle(data.title.toStdString());
+	__super::setTitle(m_selectData.title.toStdString());
+	__super::setStreamKey(m_selectData.streamKey.toStdString());
+	__super::setStreamServer(m_selectData.streamUrl.toStdString());
+
 	emit selectIDChanged();
+	if (PLS_PLATFORM_API->isLiving()) {
+		emit privacyChangedWhenliving();
+	}
 }
 
-bool PLSPlatformYoutube::isModifiedWithNewData(QString title, QString description, int categotyIndex, int privacyIndex, PLSScheduleData *uiData)
+bool PLSPlatformYoutube::isModifiedWithNewData(QString title, QString description, int categotyIndex, int privacyIndex, bool isKidSelect, bool isNotKidSelect, PLSYoutubeLiveinfoData *uiData)
 {
 	bool isModified = false;
-	PLSScheduleData sData = getTempSelectDatas();
+	PLSYoutubeLiveinfoData sData = getTempSelectData();
+	if (sData.isNormalLive) {
+		sData = getNomalLiveData();
+	}
 	if (getPrivacyEnglishDatas().size() <= privacyIndex || privacyIndex < 0) {
 		isModified = false;
 	} else if (getCategoryDatas().size() <= categotyIndex || categotyIndex < 0) {
@@ -145,43 +191,132 @@ bool PLSPlatformYoutube::isModifiedWithNewData(QString title, QString descriptio
 		isModified = true;
 	}
 
+	//else {
+	//	if (sData.iskidsUserSelect) {
+	//		if (sData.isForKids != isKidSelect) {
+	//			isModified = true;
+	//		}
+	//	} else {
+	//		if (isKidSelect || isNotKidSelect) {
+	//			isModified = true;
+	//		}
+	//	}
+	//}
+
 	if (isModified && uiData != NULL) {
 		*uiData = sData;
 		uiData->title = title;
 		uiData->description = description;
 		uiData->categoryID = getCategoryDatas()[categotyIndex]._id;
 		uiData->privacyStatus = getPrivacyEnglishDatas()[privacyIndex];
+		//uiData->iskidsUserSelect = true;
+		//uiData->isForKids = isKidSelect;
 	}
 
 	return isModified;
 }
 
-void PLSPlatformYoutube::saveSettings(function<void(bool)> onNext, bool isNeedUpdate, PLSScheduleData uiData)
+void PLSPlatformYoutube::saveSettings(function<void(bool)> onNext, bool isNeedUpdate, PLSYoutubeLiveinfoData uiData)
 {
+	m_trySaveData = uiData;
+
 	PLS_INFO(MODULE_PlatformService, "Youtube call saveSettings");
-	auto _onNext = [=](bool isSucceed) {
-		onNext(isSucceed);
+	auto _onUpdateNext = [=](bool isSucceed) {
 		if (!isSucceed) {
+			onNext(isSucceed);
 			return;
 		}
 
-		if (!getIsTempSchedule()) {
-			m_noramlData = uiData;
-		}
-
-		setSelectData(uiData);
+		setSelectData(m_trySaveData);
+		onNext(isSucceed);
 	};
 
-	if (!isNeedUpdate) {
-		_onNext(true);
+	if (!m_trySaveData.isNormalLive) {
+		saveTheScheduleSetting(_onUpdateNext, isNeedUpdate);
 		return;
 	}
-	requestUpdateData(_onNext, uiData);
+
+	if (PLS_PLATFORM_API->isPrepareLive()) {
+		requestStartToInsertLiveBroadcasts(_onUpdateNext);
+		return;
+	}
+
+	if (PLS_PLATFORM_API->isLiving() && !m_trySaveData._id.isEmpty() && isNeedUpdate) {
+		requestUpdateVideoData(_onUpdateNext, m_trySaveData);
+		return;
+	}
+
+	_onUpdateNext(true);
 }
 
-QString PLSPlatformYoutube::getShareUrl()
+void PLSPlatformYoutube::requestCurrentSelectData(function<void(bool)> onNext, QWidget *widget)
 {
-	return QString(g_plsYoutubeShareUrl).arg(m_selectData._id);
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
+		auto doc = QJsonDocument::fromJson(data);
+		if (!doc.isObject()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+
+			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
+
+			if (nullptr != onNext) {
+				onNext(false);
+			}
+			return;
+		}
+
+		auto root = doc.object();
+		auto items = root["items"].toArray();
+		if (items.size() <= 0) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, item count is zero");
+			if (nullptr != onNext) {
+				onNext(false);
+			}
+			return;
+		}
+
+		bool isNorNoramLive = m_selectData.isNormalLive;
+		//auto data = ;
+		PLSYoutubeLiveinfoData currentData = PLSYoutubeLiveinfoData(items[0].toObject());
+		m_selectData = currentData;
+		m_selectData.isNormalLive = isNorNoramLive;
+		requestCategoryID(onNext, false, widget);
+	};
+
+	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+
+		setupApiFailedWithCode(getApiResult(code, error, data));
+
+		if (nullptr != onNext) {
+			onNext(false);
+		}
+	};
+	PLSAPIYoutube::requestCurrentSelectData(widget, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+}
+
+QString PLSPlatformYoutube::getShareUrl(bool isLiving)
+{
+	if (!m_selectData.isNormalLive) {
+		return QString(g_plsYoutubeShareUrl).arg(m_selectData._id);
+	}
+
+	if (isLiving) {
+		return QString(g_plsYoutubeShareUrl).arg(m_selectData._id);
+	}
+
+	const QString &uuid = getChannelUUID();
+	const auto &info = PLSCHANNELS_API->getChanelInfoRef(uuid);
+	if (info.isEmpty()) {
+		return "";
+	}
+	QString homeUrl = info.value(ChannelData::g_shareUrl, "").toString();
+	return homeUrl;
 }
 
 void PLSPlatformYoutube::onPrepareLive(bool value)
@@ -192,182 +327,85 @@ void PLSPlatformYoutube::onPrepareLive(bool value)
 	}
 
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ "show liveinfo");
-	value = pls_exec_live_Info_youtube(getChannelUUID()) == QDialog::Accepted;
+	value = pls_exec_live_Info_youtube(getChannelUUID(), getInitData()) == QDialog::Accepted;
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ "liveinfo closed with:%d", value);
-	if (!value) {
-		prepareLiveCallback(value);
+	prepareLiveCallback(value);
+}
+
+void PLSPlatformYoutube::requestCategoryID(function<void(bool)> onNext, bool isAllList, QWidget *widget)
+{
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		Q_UNUSED(code)
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
+		if (context != reinterpret_cast<void *>(m_iContext)) {
+			return;
+		}
+		auto doc = QJsonDocument::fromJson(data);
+		if (!doc.isObject()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
+			if (nullptr != onNext) {
+				onNext(false);
+			}
+			return;
+		}
+		auto root = doc.object();
+		auto items = root["items"].toArray();
+		if (items.size() <= 0) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, item count is zero");
+			onNext(false);
+			return;
+		}
+		if (isAllList) {
+			for (int i = 0; i < items.size(); i++) {
+				auto originData = items[i].toObject();
+				auto itemID = originData["id"].toString();
+				for (auto &scheduleData : m_vecSchedules) {
+					if (scheduleData._id == itemID) {
+						scheduleData.categoryID = originData["snippet"].toObject()["categoryId"].toString();
+					}
+				}
+			}
+		} else {
+			auto itemFirst = items[0].toObject();
+			auto snippet = itemFirst["snippet"].toObject();
+			m_selectData.categoryID = snippet["categoryId"].toString();
+			setSelectData(m_selectData);
+		}
+		onNext(true);
+	};
+
+	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+		if (context != reinterpret_cast<void *>(m_iContext)) {
+			return;
+		}
+		setupApiFailedWithCode(getApiResult(code, error, data));
+		if (nullptr != onNext) {
+			onNext(false);
+		}
+	};
+	PLSAPIYoutube::requestCategoryID(nullptr != widget ? static_cast<QObject *>(widget) : static_cast<QObject *>(this), _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh, isAllList,
+					 m_iContext);
+}
+
+void PLSPlatformYoutube::requestCategoryList(function<void(bool)> onNext, QWidget *widget)
+{
+	if (!m_vecCategorys.empty()) {
+		emit onGetCategorys();
+		if (nullptr != onNext) {
+			onNext(true);
+		}
 		return;
 	}
-
-	auto _onToeknNext = [=](bool value) { prepareLiveCallback(value); };
-
-	auto _onAPINext = [=](bool value) {
-		if (value == true) {
-			PLS_PLATFORM_API->saveStreamSettings(getNameForSettingId(), getStreamServer(), getStreamKey());
-		}
-		if (value == true) {
-			//when start live will force to update youtube token. because prism server will update token each hour.
-			forceToRefreshToken(_onToeknNext);
-		} else {
-			_onToeknNext(true);
-		}
-	};
-
-	if (m_selectData.isNormalLive) {
-		//update broadcast id now, otherwise maybe will get last broadcast address.
-		requestLiveStreamKey(_onAPINext);
-	} else {
-		//schedule live
-		requestDisabelMonitor(_onAPINext);
-	}
-}
-
-void PLSPlatformYoutube::requestUserInfo(function<void(bool)> onNext, bool isStartLive)
-{
 	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
-		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
-		auto doc = QJsonDocument::fromJson(data);
-		if (doc.isObject()) {
-			auto root = doc.object();
-			auto itemFirst = root["items"].toArray().first().toObject();
-			if (root["items"].toArray().size() <= 0) {
-				PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, item count is zero");
-			}
-			auto snippet = itemFirst["snippet"].toObject();
-
-			m_noramlData.isNormalLive = true;
-			m_noramlData._id = itemFirst["id"].toString();
-			m_noramlData.privacyStatus = itemFirst["status"].toObject()["privacyStatus"].toString();
-			m_noramlData.title = snippet["title"].toString();
-			m_noramlData.description = snippet["description"].toString();
-			m_noramlData.boundStreamId = itemFirst["contentDetails"].toObject()["boundStreamId"].toString();
-
-			if (isStartLive) {
-				setSelectData(m_noramlData);
-				requestLiveStreamKey(onNext);
-			} else {
-				emit onGetTitleDescription();
-				requestVideo(onNext, false, nullptr);
-			}
-
-		} else {
-			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
-
-			if (nullptr != onNext) {
-				onNext(false);
-			}
-		}
-	};
-
-	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
-		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
-		setupApiFailedWithCode(getApiResult(code, error, data));
-
-		if (nullptr != onNext) {
-			onNext(false);
-		}
-	};
-	auto _getNetworkReply = [=] {
-		PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE)
-			.setQuerys({{"access_token", getChannelToken()}, {"broadcastType", "persistent"}, {"maxResults", 50}, {"mine", true}, {"part", "contentDetails, snippet, status"}});
-		return builder.get();
-	};
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	refreshYoutubeTokenBeforeRequest(false, _getNetworkReply, this, _onSucceed, _onFail);
-}
-
-void PLSPlatformYoutube::requestVideo(function<void(bool)> onNext, bool isSchedule, QWidget *widget)
-{
-	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
-		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
-		if (context != reinterpret_cast<void *>(m_iContext)) {
-			return;
-		}
-		auto doc = QJsonDocument::fromJson(data);
-		if (doc.isObject()) {
-			auto root = doc.object();
-			auto items = root["items"].toArray();
-			if (items.size() <= 0) {
-				PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, item count is zero");
-			}
-			if (isSchedule) {
-				for (int i = 0; i < items.size(); i++) {
-					auto originData = items[i].toObject();
-					auto &scheduleData = m_vecSchedules[i];
-					scheduleData.categoryID = originData["snippet"].toObject()["categoryId"].toString();
-				}
-				onNext(true);
-			} else {
-				if (items.size() > 0) {
-					auto itemFirst = items[0].toObject();
-					auto snippet = itemFirst["snippet"].toObject();
-					m_noramlData.categoryID = snippet["categoryId"].toString();
-					m_noramlData.channelID = snippet["channelId"].toString();
-				}
-				requestCategory(onNext);
-			}
-		} else {
-			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
-
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
-
-			if (nullptr != onNext) {
-				onNext(false);
-			}
-		}
-	};
-
-	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
-		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
-		if (context != reinterpret_cast<void *>(m_iContext)) {
-			return;
-		}
-
-		setupApiFailedWithCode(getApiResult(code, error, data));
-
-		if (nullptr != onNext) {
-			onNext(false);
-		}
-	};
-	auto _getNetworkReply = [=] {
-		const char *lang = static_cast<PLSApp *>(QCoreApplication::instance())->GetLocale();
-		QString currentLangure(lang);
-		bool isKr = 0 == currentLangure.compare(KO_KR, Qt::CaseInsensitive);
-		QString langStr = isKr ? "ko-kr" : "en-us";
-
-		QString liveID = m_noramlData._id;
-		if (isSchedule) {
-			liveID = "";
-			for (int i = 0; i < m_vecSchedules.size(); i++) {
-				auto sche = m_vecSchedules[i];
-				liveID = liveID.append("%1").arg(i == 0 ? "" : ",").append(sche._id);
-			}
-		}
-		PLS_INFO(MODULE_PlatformService, "Youtube requestVideo start");
-		PLSNetworkReplyBuilder builder(QString("%1/videos").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"access_token", getChannelToken()}, {"id", liveID}, {"part", "snippet"}});
-		return builder.get();
-	};
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	refreshYoutubeTokenBeforeRequest(false, _getNetworkReply, nullptr != widget ? static_cast<QObject *>(widget) : static_cast<QObject *>(this), _onSucceed, _onFail, nullptr,
-					 reinterpret_cast<void *>(m_iContext));
-}
-
-void PLSPlatformYoutube::requestCategory(function<void(bool)> onNext)
-{
-	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
+		Q_UNUSED(code)
 		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
 		m_vecCategorys.clear();
 		auto doc = QJsonDocument::fromJson(data);
@@ -422,31 +460,22 @@ void PLSPlatformYoutube::requestCategory(function<void(bool)> onNext)
 		}
 		return;
 	}
-	auto _getNetworkReply = [=] {
-		const char *lang = static_cast<PLSApp *>(QCoreApplication::instance())->GetLocale();
-		QString currentLangure(lang);
-		bool isKr = 0 == currentLangure.compare(KO_KR, Qt::CaseInsensitive);
-		QString langStr = isKr ? "ko-kr" : "en-us";
-		PLSNetworkReplyBuilder builder(QString("%1/videoCategories").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"access_token", getChannelToken()}, {"hl", langStr}, {"regionCode", "kr"}, {"part", "snippet"}});
-		return builder.get();
-	};
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	refreshYoutubeTokenBeforeRequest(false, _getNetworkReply, this, _onSucceed, _onFail);
+	PLSAPIYoutube::requestCategoryList(widget, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
 }
 
-void PLSPlatformYoutube::requestSchedule(function<void(bool)> onNext, QWidget *widget)
+void PLSPlatformYoutube::requestScheduleList(function<void(bool)> onNext, QWidget *widget)
 {
 	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
+		Q_UNUSED(code)
 		if (context != reinterpret_cast<void *>(m_iContext)) {
 			return;
 		}
 
 		auto doc = QJsonDocument::fromJson(data);
 		if (doc.isObject()) {
-			PLSScheduleData selectData = getTempSelectDatas();
+			PLSYoutubeLiveinfoData selectData = getTempSelectData();
 			bool isContainSelectData = false;
 
 			m_vecSchedules.clear();
@@ -456,21 +485,12 @@ void PLSPlatformYoutube::requestSchedule(function<void(bool)> onNext, QWidget *w
 			QString boundStreamIDNils = "";
 			for (int i = 0; i < items.size(); i++) {
 				auto data = items[i].toObject();
-				auto snippet = data["snippet"].toObject();
-				auto contentDetails = data["contentDetails"].toObject();
 
-				PLSScheduleData scheduleDta = PLSScheduleData();
-				scheduleDta.boundStreamId = contentDetails["boundStreamId"].toString();
-				scheduleDta._id = data["id"].toString();
-				scheduleDta.title = snippet["title"].toString();
-				scheduleDta.description = snippet["description"].toString();
-				scheduleDta.startTimeOrigin = snippet["scheduledStartTime"].toString();
-				int timeStamp = timeStringToStamp(scheduleDta.startTimeOrigin);
-				scheduleDta.startTimeShort = timeStampToShortString(timeStamp);
-				scheduleDta.startTimeUTC = timeStampToUTCString(timeStamp);
-				scheduleDta.privacyStatus = data["status"].toObject()["privacyStatus"].toString();
-				scheduleDta.liveChatId = snippet["liveChatId"].toString();
-				scheduleDta.enableMonitorStream = contentDetails["monitorStream"].toObject()["enableMonitorStream"].toBool();
+				if (data["snippet"].toObject()["isDefaultBroadcast"].toBool()) {
+					continue;
+				}
+				PLSYoutubeLiveinfoData scheduleDta = PLSYoutubeLiveinfoData(data);
+
 				if (scheduleDta.boundStreamId.isEmpty()) {
 					//if boundStreamId is nil, then call get streamkey and url will failed.
 					boundStreamIDNils.append(scheduleDta.title).append(",   ");
@@ -488,17 +508,16 @@ void PLSPlatformYoutube::requestSchedule(function<void(bool)> onNext, QWidget *w
 			}
 
 			PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed with itemCount:%i", items.count());
-			if (isContainSelectData = false && !selectData.isNormalLive) {
+			if (isContainSelectData == false && !selectData.isNormalLive) {
 				//if the remote not found selected schedule, so add it.
 				m_vecSchedules.push_back(selectData);
 			}
 
-			requestVideo(onNext, true, widget);
+			requestCategoryID(onNext, true, widget);
 		} else {
 			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
 
 			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
-
 			if (nullptr != onNext) {
 				onNext(false);
 			}
@@ -519,15 +538,122 @@ void PLSPlatformYoutube::requestSchedule(function<void(bool)> onNext, QWidget *w
 			onNext(false);
 		}
 	};
-	auto _getNetworkReply = [=] {
-		PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE)
-			.setQuerys({{"access_token", getChannelToken()}, {"part", "contentDetails,snippet,status"}, {"broadcastStatus", "upcoming"}, {"maxResults", "50"}, {"pageToken", "@"}});
+	PLSAPIYoutube::requestScheduleList(widget, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh, ++m_iContext);
+}
 
-		return builder.get();
+void PLSPlatformYoutube::requestStartToInsertLiveBroadcasts(function<void(bool)> onNext)
+{
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
+		auto doc = QJsonDocument::fromJson(data);
+		if (!doc.isObject()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+
+			showApiCreateError(PLSPlatformApiResult::PAR_API_FAILED);
+
+			if (nullptr != onNext) {
+				onNext(false);
+			}
+			return;
+		}
+		auto root = doc.object();
+		m_trySaveData._id = root["id"].toString();
+		requestStartToInsertLiveStreams(onNext);
 	};
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	refreshYoutubeTokenBeforeRequest(false, _getNetworkReply, widget, _onSucceed, _onFail, nullptr, reinterpret_cast<void *>(++m_iContext));
+
+	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+		showApiCreateError(getApiResult(code, error, data));
+
+		if (nullptr != onNext) {
+			onNext(false);
+		}
+	};
+	PLSAPIYoutube::requestLiveBroadcastsInsert(this, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+}
+
+void PLSPlatformYoutube::requestStartToInsertLiveStreams(function<void(bool)> onNext)
+{
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
+		auto doc = QJsonDocument::fromJson(data);
+		if (!doc.isObject()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+
+			showApiCreateError(PLSPlatformApiResult::PAR_API_FAILED);
+
+			if (nullptr != onNext) {
+				onNext(false);
+			}
+			return;
+		}
+		auto root = doc.object();
+		m_trySaveData.boundStreamId = root["id"].toString();
+		auto info = root["cdn"].toObject()["ingestionInfo"].toObject();
+		m_trySaveData.streamKey = info["streamName"].toString();
+		m_trySaveData.streamUrl = info["ingestionAddress"].toString();
+		m_trySaveData.streamAPIData = root;
+
+		requestStartToBindTwo(onNext);
+	};
+
+	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+		showApiCreateError(getApiResult(code, error, data));
+
+		if (nullptr != onNext) {
+			onNext(false);
+		}
+	};
+	PLSAPIYoutube::requestLiveStreamsInsert(this, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+}
+
+void PLSPlatformYoutube::requestStartToBindTwo(function<void(bool)> onNext)
+{
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
+		auto doc = QJsonDocument::fromJson(data);
+		if (!doc.isObject()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+
+			showApiCreateError(PLSPlatformApiResult::PAR_API_FAILED);
+
+			if (nullptr != onNext) {
+				onNext(false);
+			}
+			return;
+		}
+
+		if (m_trySaveData.isNormalLive) {
+			requestUpdateVideoData(onNext, m_trySaveData);
+		} else {
+			if (nullptr != onNext) {
+				onNext(true);
+			}
+		}
+	};
+
+	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+		showApiCreateError(getApiResult(code, error, data));
+
+		if (nullptr != onNext) {
+			onNext(false);
+		}
+	};
+	PLSAPIYoutube::requestLiveBroadcastsBind(this, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::requestLiveStreamKey(function<void(bool)> onNext)
@@ -535,25 +661,10 @@ void PLSPlatformYoutube::requestLiveStreamKey(function<void(bool)> onNext)
 	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
+		Q_UNUSED(code)
 		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
 		auto doc = QJsonDocument::fromJson(data);
-		if (doc.isObject()) {
-			auto root = doc.object();
-			auto firstItem = root["items"].toArray().first().toObject();
-			if (root["items"].toArray().size() <= 0) {
-				PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, item count is zero");
-			}
-			auto info = firstItem["cdn"].toObject()["ingestionInfo"].toObject();
-			m_selectData.streamKey = info["streamName"].toString();
-			m_selectData.streamUrl = info["ingestionAddress"].toString();
-
-			setStreamKey(m_selectData.streamKey.toStdString());
-			setStreamServer(m_selectData.streamUrl.toStdString());
-
-			if (nullptr != onNext) {
-				onNext(true);
-			}
-		} else {
+		if (!doc.isObject()) {
 			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
 
 			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
@@ -561,6 +672,42 @@ void PLSPlatformYoutube::requestLiveStreamKey(function<void(bool)> onNext)
 			if (nullptr != onNext) {
 				onNext(false);
 			}
+			return;
+		}
+		auto root = doc.object();
+		auto items = root["items"].toArray();
+		auto itermCount = items.size();
+		if (itermCount <= 0) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, item count is zero");
+		}
+		QString currentStreamStatus = "active";
+		for (int i = 0; i < itermCount; i++) {
+			auto item = items[i].toObject();
+			for (auto &scheduleData : m_vecSchedules) {
+				auto info = item["cdn"].toObject()["ingestionInfo"].toObject();
+				if (item["id"].toString() == scheduleData.boundStreamId) {
+					scheduleData.streamKey = info["streamName"].toString();
+					scheduleData.streamUrl = info["ingestionAddress"].toString();
+					scheduleData.streamAPIData = item;
+				}
+				if (item["id"].toString() == m_trySaveData.boundStreamId) {
+					currentStreamStatus = item["status"].toObject()["streamStatus"].toString();
+					m_trySaveData.streamKey = info["streamName"].toString();
+					m_trySaveData.streamUrl = info["ingestionAddress"].toString();
+					m_trySaveData.streamAPIData = item;
+				}
+			}
+		}
+
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "streamStatus=%s", currentStreamStatus.toStdString().c_str());
+		bool isCanLived = !(currentStreamStatus == "active" || currentStreamStatus == "error");
+		if (isCanLived) {
+			setIsSubChannelStartApiCall(true);
+		} else {
+			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other);
+		}
+		if (nullptr != onNext) {
+			onNext(isCanLived);
 		}
 	};
 
@@ -574,23 +721,15 @@ void PLSPlatformYoutube::requestLiveStreamKey(function<void(bool)> onNext)
 			onNext(false);
 		}
 	};
-
-	auto _getNetworkReply = [=] {
-		QString boundStreamID = m_selectData.boundStreamId;
-		PLSNetworkReplyBuilder builder(QString("%1/liveStreams").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"access_token", getChannelToken()}, {"part", "cdn"}, {"id", boundStreamID}, {"maxResults", "50"}});
-		return builder.get();
-	};
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-
-	refreshYoutubeTokenBeforeRequest(false, _getNetworkReply, this, _onSucceed, _onFail);
+	PLSAPIYoutube::requestLiveStreamKey(this, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
 }
 
-void PLSPlatformYoutube::requestUpdateData(function<void(bool)> onNext, PLSScheduleData data)
+void PLSPlatformYoutube::requestUpdateVideoData(function<void(bool)> onNext, PLSYoutubeLiveinfoData data)
 {
 	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
+		Q_UNUSED(code)
 		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
 		auto doc = QJsonDocument::fromJson(data);
 		if (doc.isObject()) {
@@ -619,135 +758,99 @@ void PLSPlatformYoutube::requestUpdateData(function<void(bool)> onNext, PLSSched
 			onNext(false);
 		}
 	};
-	auto _getNetworkReply = [=] {
-		PLSNetworkReplyBuilder builder(QString("%1/videos").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"access_token", getChannelToken()}, {"part", "snippet,status"}});
-		builder.addJsonObject("status", QVariantMap({{"privacyStatus", data.privacyStatus}}));
-		builder.addJsonObject("id", data._id);
-		builder.addJsonObject("snippet", QVariantMap({{"description", data.description}, {"title", data.title}, {"categoryId", data.categoryID}}));
-		return builder.put();
-	};
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	refreshYoutubeTokenBeforeRequest(false, _getNetworkReply, this, _onSucceed, _onFail);
-}
-
-void PLSPlatformYoutube::requestDisabelMonitor(function<void(bool)> onNext)
-{
-	requestLiveStreamKey(onNext);
-	return;
-	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
-		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
-		requestLiveStreamKey(onNext);
-	};
-
-	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
-		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
-		setupApiFailedWithCode(getApiResult(code, error, data));
-
-		if (nullptr != onNext) {
-			onNext(false);
-		}
-	};
-
-	auto _getNetworkReply = [=] {
-		QVariant monitorStream = QVariantMap({{"broadcastStreamDelayMs", 0}, {"enableMonitorStream", false}});
-		QVariant contentDetails = QVariantMap(
-			{{"enableEmbed", false}, {"enableDvr", false}, {"enableContentEncryption", false}, {"recordFromStart", true}, {"startWithSlate", false}, {"monitorStream", monitorStream}});
-
-		PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
-		builder.setQuerys({{"access_token", getChannelToken()}, {"part", "contentDetails"}});
-		builder.addJsonObject("id", m_selectData._id);
-		builder.addJsonObject("contentDetails", contentDetails);
-		return builder.put();
-	};
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-
-	refreshYoutubeTokenBeforeRequest(false, _getNetworkReply, this, _onSucceed, _onFail);
-}
-
-void PLSPlatformYoutube::openScheduleStatus(function<void(bool)> onNext)
-{
-	QTimer::singleShot(5000, this, [=] { requestOpenScheduleStatus(onNext); });
-}
-
-void PLSPlatformYoutube::requestOpenScheduleStatus(function<void(bool)> onNext)
-{
-	const static int youtubeMaxCount = 5;
-	static int youtubeStartTryCount = youtubeMaxCount;
-	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
-		Q_UNUSED(code)
-		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed with leftCount:%d", youtubeMaxCount);
-		youtubeStartTryCount = youtubeMaxCount;
-		if (nullptr != onNext) {
-			onNext(true);
-		}
-	};
-
-	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
-		Q_UNUSED(code);
-
-		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed with leftCount:%d", youtubeStartTryCount);
-		if (youtubeStartTryCount > 0) {
-			youtubeStartTryCount--;
-			openScheduleStatus(onNext);
-		} else {
-			youtubeStartTryCount = youtubeMaxCount;
-			auto result = getApiResult(code, error, data);
-			setupApiFailedWithCode(result);
-			if (nullptr != onNext) {
-				onNext(false);
-			}
-		}
-	};
-
-	auto _getNetworkReply = [=] {
-		PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts/transition").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
-		builder.setQuerys({{"access_token", getChannelToken()}, {"broadcastStatus", "live"}, {"id", m_selectData._id}, {"part", "status"}});
-		return builder.post();
-	};
-
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	refreshYoutubeTokenBeforeRequest(false, _getNetworkReply, this, _onSucceed, _onFail);
+	PLSAPIYoutube::requestUpdateVideoData(this, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh, data);
 }
 
 void PLSPlatformYoutube::requestStopLive(function<void()> onNext)
 {
+	PLS_PLATFORM_YOUTUBE->setIsSubChannelStartApiCall(false);
+	PLSAPIYoutube::requestStopLive(this, onNext);
+}
+
+void PLSPlatformYoutube::requestLiveBroadcastStatus()
+{
 	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
 		Q_UNUSED(code)
 		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
-		if (nullptr != onNext) {
-			onNext();
+		auto doc = QJsonDocument::fromJson(data);
+
+		if (!doc.isObject()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+		}
+		auto root = doc.object();
+		if (root["items"].toArray().size() <= 0) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, item count is zero");
+			return;
+		}
+		auto itemFirst = root["items"].toArray().first().toObject();
+
+		auto lifeCycleStatus = itemFirst["status"].toObject()["lifeCycleStatus"].toString();
+		if (lifeCycleStatus == "complete" || lifeCycleStatus == "revoked") {
+			m_statusTimer->stop();
+			if (LiveStatus::LiveStarted <= PLS_PLATFORM_API->getLiveStatus() && PLS_PLATFORM_API->getLiveStatus() < LiveStatus::LiveStoped) {
+				PLS_INFO(MODULE_PlatformService, __FUNCTION__ ": toStopBroadcast with status:%s", lifeCycleStatus.toStdString().c_str());
+				PLSCHANNELS_API->toStopBroadcast();
+			}
+			PLSAlertView::warning(getAlertParent(), QTStr("Live.Check.Alert.Title"), tr("LiveInfo.live.error.stoped.byRemote").arg(getChannelName()));
 		}
 	};
 
-	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
-		Q_UNUSED(code)
+	auto _onFail = [=](QNetworkReply *, int, QByteArray, QNetworkReply::NetworkError, void *) {};
+	PLSAPIYoutube::requestLiveBroadcastStatus(this, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::NotRefresh);
+}
 
-		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
-
-		if (nullptr != onNext) {
-			onNext();
+void PLSPlatformYoutube::checkDuplicateStreamKey(function<void(bool)> onNext)
+{
+	auto _onStremNext = [=](bool isSucceed) {
+		if (!isSucceed) {
+			onNext(isSucceed);
+			return;
 		}
+
+		bool isContainSameStream = false;
+
+		for (const PLSYoutubeLiveinfoData &scheduleData : getScheduleDatas()) {
+			if (m_trySaveData._id == scheduleData._id) {
+				continue;
+			}
+			if (m_trySaveData.streamKey == scheduleData.streamKey && m_trySaveData.streamUrl == scheduleData.streamUrl) {
+				isContainSameStream = true;
+				break;
+			}
+		}
+
+		if (isContainSameStream) {
+			PLS_INFO(MODULE_PlatformService, __FUNCTION__, "boundStreamID:", m_trySaveData.boundStreamId.toStdString());
+			requestStartToInsertLiveStreams(onNext);
+			return;
+		}
+		onNext(true);
 	};
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts/transition").arg(g_plsYoutubeAPIHost));
-	builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
-	builder.setQuerys({{"access_token", getChannelToken()}, {"broadcastStatus", "complete"}, {"id", m_selectData._id}, {"part", "status"}});
-	PLS_HTTP_HELPER->connectFinished(builder.post(), this, _onSucceed, _onFail);
+
+	requestLiveStreamKey(_onStremNext);
+}
+
+void PLSPlatformYoutube::saveTheScheduleSetting(function<void(bool)> onNext, bool isNeedUpdate)
+{
+	auto _onUpdateNext = [=](bool isSucceed) {
+		if (!isSucceed) {
+			onNext(isSucceed);
+			return;
+		}
+		if (PLS_PLATFORM_API->isPrepareLive()) {
+			checkDuplicateStreamKey(onNext);
+			return;
+		}
+		onNext(isSucceed);
+	};
+
+	if (isNeedUpdate) {
+		requestUpdateVideoData(_onUpdateNext, m_trySaveData);
+	} else {
+		_onUpdateNext(true);
+	}
 }
 
 void PLSPlatformYoutube::requestStatisticsInfo()
@@ -755,6 +858,7 @@ void PLSPlatformYoutube::requestStatisticsInfo()
 	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
+		Q_UNUSED(code)
 
 		auto doc = QJsonDocument::fromJson(data);
 		if (doc.isObject()) {
@@ -775,15 +879,17 @@ void PLSPlatformYoutube::requestStatisticsInfo()
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
 		Q_UNUSED(code)
+		Q_UNUSED(data)
+		Q_UNUSED(error)
 
 		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+		if (getApiResult(code, error, data) == PLSPlatformApiResult::PAR_TOKEN_EXPIRED) {
+			m_statusTimer->stop();
+			PLSCHANNELS_API->setChannelStatus(getChannelUUID(), ChannelData::Expired);
+			pls_toast_message(pls_toast_info_type::PLS_TOAST_ERROR, QTStr("MQTT.Token.Expired").arg(getChannelName()));
+		}
 	};
-
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	PLSNetworkReplyBuilder builder(QString("%1/videos").arg(g_plsYoutubeAPIHost));
-	builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
-	builder.setQuerys({{"access_token", getChannelToken()}, {"part", "statistics, liveStreamingDetails"}, {"id", m_selectData._id}});
-	PLS_HTTP_HELPER->connectFinished(builder.get(), this, _onSucceed, _onFail);
+	PLSAPIYoutube::requestVideoStatus(this, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::forceToRefreshToken(function<void(bool)> onNext)
@@ -806,47 +912,7 @@ void PLSPlatformYoutube::forceToRefreshToken(function<void(bool)> onNext)
 	};
 
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	refreshYoutubeTokenBeforeRequest(true, nullptr, this, _onSucceed, _onFail);
-}
-
-QString PLSPlatformYoutube::timeStampToUTCString(long timeStamp)
-{
-	if (timeStamp <= 0) {
-		return "";
-	}
-
-	QDateTime dateTime = QDateTime::fromSecsSinceEpoch(timeStamp);
-
-	int timeOffsest = dateTime.offsetFromUtc() / 3600;
-	QString timeZoneString = QString(" UTC%1%2").arg(timeOffsest < 0 ? "" : "+").arg(timeOffsest);
-
-	dateTime.setTimeSpec(Qt::UTC);
-
-	QLocale local = QLocale::English;
-	QString formateStr = "MM/dd/yyyy hh:mm AP";
-	QString enTimeStr = local.toString(dateTime, formateStr) + timeZoneString;
-
-	return enTimeStr;
-}
-
-QString PLSPlatformYoutube::timeStampToShortString(long timeStamp)
-{
-	if (timeStamp <= 0) {
-		return "";
-	}
-	QDateTime dateTime = QDateTime::fromSecsSinceEpoch(timeStamp);
-	dateTime.setTimeSpec(Qt::UTC);
-	QLocale local = QLocale::English;
-	QString formateStr = "MM/dd hh:mm AP";
-	QString enTimeStr = local.toString(dateTime, formateStr);
-
-	return enTimeStr;
-}
-
-long PLSPlatformYoutube::timeStringToStamp(QString time)
-{
-	QDateTime stDTime = QDateTime::fromString(time, "yyyy-MM-dd'T'HH:mm:ss.zzz'Z'");
-	return stDTime.toTime_t() + QDateTime::currentDateTime().offsetFromUtc();
+	PLSAPIYoutube::refreshYoutubeTokenBeforeRequest(PLSAPIYoutube::RefreshType::ForceRefresh, nullptr, this, _onSucceed, _onFail);
 }
 
 PLSPlatformApiResult PLSPlatformYoutube::getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data)
@@ -859,6 +925,20 @@ PLSPlatformApiResult PLSPlatformYoutube::getApiResult(int code, QNetworkReply::N
 		result = PLSPlatformApiResult::PAR_NETWORK_ERROR;
 	} else {
 		switch (code) {
+		case 400: {
+			auto doc = QJsonDocument::fromJson(data);
+			if (!doc.isObject()) {
+				result = PLSPlatformApiResult::PAR_API_FAILED;
+				break;
+			}
+			auto root = doc.object();
+			auto errorMsg = root["error"].toString();
+			if (errorMsg.contains("invalid_grant", Qt::CaseInsensitive)) {
+				result = PLSPlatformApiResult::PAR_TOKEN_EXPIRED;
+			} else {
+				result = PLSPlatformApiResult::PAR_API_FAILED;
+			}
+		} break;
 		case 401:
 			result = PLSPlatformApiResult::PAR_TOKEN_EXPIRED;
 			break;
@@ -870,17 +950,18 @@ PLSPlatformApiResult PLSPlatformYoutube::getApiResult(int code, QNetworkReply::N
 			}
 			auto root = doc.object();
 			auto errorMsg = root["error"].toObject()["message"].toString();
-			if (errorMsg.compare("The user is not enabled for live streaming.") == 0) {
+			if (errorMsg.startsWith("The user is not enabled for live streaming.")) {
 				result = PLSPlatformApiResult::YOUTUBE_API_ERROR_NO_CHANNEL;
-			} else if (errorMsg.compare("Redundant transition") == 0) {
+			} else if (errorMsg.startsWith("Redundant transition")) {
 				result = PLSPlatformApiResult::YOUTUBE_API_ERROR_REDUNDANT_TRANSITION;
-			} else if (errorMsg.compare("Invalid transition") == 0) {
+			} else if (errorMsg.startsWith("Invalid transition")) {
 				result = PLSPlatformApiResult::YOUTUBE_API_ERROR_INVALID_TRANSITION;
-			} else if (errorMsg.compare("Live broadcast not found") == 0 ||
-				   errorMsg.compare(
-					   "The video that you are trying to update cannot be found. Check the value of the <code>id</code> field in the request body to ensure that it is correct.") ==
-					   0) {
-				result = PLSPlatformApiResult::YOUTUBE_API_ERROR_LIVE_BROADCAST_NOT_FOUND;
+			} else if (errorMsg.startsWith("Live broadcast not found") ||
+				   errorMsg.startsWith(
+					   "The video that you are trying to update cannot be found. Check the value of the <code>id</code> field in the request body to ensure that it is correct.")) {
+				result = PLSPlatformApiResult::PAR_API_ERROR_LIVE_BROADCAST_NOT_FOUND;
+			} else if (errorMsg.startsWith("The user is blocked from live streaming.")) {
+				result = PLSPlatformApiResult::PAR_API_ERROR_StartLive_User_Blocked;
 			} else {
 				result = PLSPlatformApiResult::PAR_API_FAILED;
 			}
@@ -907,11 +988,18 @@ void PLSPlatformYoutube::showApiRefreshError(PLSPlatformApiResult value)
 	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
 		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Network.Error"));
 		break;
-	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Youtube.Expired"));
+	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED: {
+		emit toShowLoading(true);
+		auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
+		auto channelName = info.value(ChannelData::g_channelName).toString();
+		PLSAlertView::Button button = PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
+
 		emit closeDialogByExpired();
-		PLSCHANNELS_API->channelExpired(getChannelUUID());
-		break;
+		if (button == PLSAlertView::Button::Ok) {
+			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+		}
+		emit toShowLoading(false);
+	} break;
 	case PLSPlatformApiResult::YOUTUBE_API_ERROR_NO_CHANNEL:
 		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Youtube_No_Channel_Alert"));
 		break;
@@ -919,18 +1007,62 @@ void PLSPlatformYoutube::showApiRefreshError(PLSPlatformApiResult value)
 		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Youtube.Redundant.Broadcast"));
 		break;
 	case PLSPlatformApiResult::YOUTUBE_API_ERROR_INVALID_TRANSITION:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Youtube.Failed"));
+		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
 		break;
-	case PLSPlatformApiResult::YOUTUBE_API_ERROR_LIVE_BROADCAST_NOT_FOUND:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Youtube.Broadcast.Delete"));
+	case PLSPlatformApiResult::PAR_API_ERROR_LIVE_BROADCAST_NOT_FOUND:
+		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Broadcast.Error.Delete"));
+		break;
+	case PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other: {
+		const auto channelName = getInitData().value(ChannelData::g_channelName).toString();
+		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.live.error.remote.have.lived").arg(channelName));
+	} break;
+	case PLSPlatformApiResult::PAR_API_ERROR_StartLive_User_Blocked:
+		if (PLS_PLATFORM_API->getActivePlatforms().size() > 1) {
+			PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.User.blocked.MultiChannel").arg(getChannelName()));
+		} else {
+			PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.User.blocked.SingleChannel").arg(getChannelName()));
+		}
 		break;
 	default:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Youtube.Failed"));
+		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
 		break;
 	}
 }
 
 void PLSPlatformYoutube::showApiUpdateError(PLSPlatformApiResult value)
+{
+
+	auto alertParent = getAlertParent();
+	auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
+	auto channelName = info.value(ChannelData::g_channelName).toString();
+
+	switch (value) {
+	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
+		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Network.Error"));
+		break;
+	case PLSPlatformApiResult::PAR_API_ERROR_StartLive_User_Blocked:
+		if (PLS_PLATFORM_API->getActivePlatforms().size() > 1) {
+			PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.User.blocked.MultiChannel").arg(getChannelName()));
+		} else {
+			PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.User.blocked.SingleChannel").arg(getChannelName()));
+		}
+		break;
+	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED: {
+		emit toShowLoading(true);
+		PLSAlertView::Button button = PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
+		emit closeDialogByExpired();
+		if (button == PLSAlertView::Button::Ok) {
+			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+		}
+		emit toShowLoading(false);
+	} break;
+	default:
+		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Error.Failed").arg(channelName));
+		break;
+	}
+}
+
+void PLSPlatformYoutube::showApiCreateError(PLSPlatformApiResult value)
 {
 	auto alertParent = getAlertParent();
 
@@ -938,29 +1070,37 @@ void PLSPlatformYoutube::showApiUpdateError(PLSPlatformApiResult value)
 	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
 		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Network.Error"));
 		break;
-	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Youtube.Expired"));
+	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED: {
+		emit toShowLoading(true);
+		PLSAlertView::Button button = PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(getChannelName()));
+		emit closeDialogByExpired();
+		if (button == PLSAlertView::Button::Ok) {
+			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+		}
+		emit toShowLoading(false);
+	} break;
+	case PLSPlatformApiResult::PAR_API_ERROR_StartLive_User_Blocked:
+		if (PLS_PLATFORM_API->getActivePlatforms().size() > 1) {
+			PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.User.blocked.MultiChannel").arg(getChannelName()));
+		} else {
+			PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.User.blocked.SingleChannel").arg(getChannelName()));
+		}
 		break;
-	default:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Youtube.Failed"));
-		break;
+	default: {
+		if (PLS_PLATFORM_API->getActivePlatforms().size() > 1) {
+			PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Create.Failed.MultiChannel").arg(getChannelName()));
+		} else {
+			PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Create.Failed.SingleChannel").arg(getChannelName()));
+		}
+	} break;
 	}
 }
 
 void PLSPlatformYoutube::onLiveStopped()
 {
-	if (PLS_PLATFORM_API->isPrismLive() || !isActive()) {
-		if (isActive() && !m_selectData.isNormalLive) {
-			setTempSchedule(false);
-			setSelectData(m_noramlData);
-			setTempSelectID(m_noramlData._id);
-		}
-		liveStoppedCallback();
-		return;
-	}
-
+	setIsSubChannelStartApiCall(false);
 	auto _onNext = [=]() {
-		setTempSchedule(false);
+		createNewNormalData();
 		setSelectData(m_noramlData);
 		setTempSelectID(m_noramlData._id);
 		liveStoppedCallback();
@@ -973,79 +1113,216 @@ void PLSPlatformYoutube::onLiveStopped()
 	requestStopLive(_onNext);
 }
 
+void PLSPlatformYoutube::onAllPrepareLive(bool value)
+{
+	if (!value && getSelectData().isNormalLive && !getSelectData()._id.isEmpty()) {
+		m_noramlData._id = m_noramlData.boundStreamId = m_noramlData.streamKey = m_noramlData.streamUrl = "";
+		setSelectData(m_noramlData);
+	}
+
+	if (!value && getIsSubChannelStartApiCall()) {
+		// cancel or fail
+		requestStopLive(nullptr);
+	}
+
+	PLSPlatformBase::onAllPrepareLive(value);
+}
+
 void PLSPlatformYoutube::onAlLiveStarted(bool value)
 {
-	if (value && !getSelectDatas().isNormalLive) {
-		pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QTStr("MQTT.Youtube.Schedule.OnBroadcast"));
-	}
-
-	if (!value || PLS_PLATFORM_API->isPrismLive() || !isActive()) {
+	if (!value || !isActive()) {
 		return;
 	}
+	const QString &uuid = getChannelUUID();
+	PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_shareUrlTemp, getShareUrl(true));
+	PLSCHANNELS_API->channelModified(uuid);
 
 	if (m_statusTimer && !m_statusTimer->isActive()) {
-		m_statusTimer->start(5000);
+		m_statusTimer->start();
 	}
 }
-void PLSPlatformYoutube::refreshYoutubeTokenBeforeRequest(
-	bool forceRefresh, function<QNetworkReply *()> originNetworkReplay, const QObject *originReceiver,
-	function<void(QNetworkReply *networkReplay, int code, QByteArray data, void *const context)> originOnSucceed,
-	function<void(QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *const context)> originOnFailed,
-	function<void(QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *const context)> originOnFinished, void *const originContext)
-{
-	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
 
-		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
-		auto doc = QJsonDocument::fromJson(data);
-		if (doc.isObject()) {
-			auto root = doc.object();
-			auto access_token = root["access_token"].toString();
-			PLSCHANNELS_API->setValueOfChannel(getChannelUUID(), ChannelData::g_channelToken, access_token);
-			PLSCHANNELS_API->setValueOfChannel(getChannelUUID(), ChannelData::g_createTime, QDateTime::currentDateTime());
-			PLSCHANNELS_API->channelModified(getChannelUUID());
-			if (originNetworkReplay != nullptr) {
-				PLS_HTTP_HELPER->connectFinished(originNetworkReplay(), originReceiver, originOnSucceed, originOnFailed, originOnFinished, originContext);
-			} else if (nullptr != originOnSucceed) {
-				originOnSucceed(networkReplay, code, data, context);
+void PLSPlatformYoutube::createNewNormalData()
+{
+	m_noramlData = PLSYoutubeLiveinfoData();
+	auto info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
+	if (info.isEmpty()) {
+		return;
+	}
+	m_noramlData.description = tr("LiveInfo.Youtube.description.default.add");
+	auto channelName = info.value(ChannelData::g_nickName, "").toString();
+	m_noramlData.title = channelName.append(tr("LiveInfo.live.title.suffix"));
+	m_noramlData.privacyStatus = getPrivacyEnglishDatas()[0];
+	m_noramlData.categoryID = kDefaultCategoryID;
+}
+
+QJsonObject PLSPlatformYoutube::getLiveStartParams()
+{
+	QJsonObject platform(__super::getLiveStartParams());
+
+	platform["refreshToken"] = getChannelRefreshToken();
+	auto &data = getSelectData();
+	platform["broadcastId"] = data._id;
+	platform["privacyStatus"] = data.privacyStatus.toUpper();
+	platform["scheduled"] = !data.isNormalLive;
+	const auto &channelData = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
+	platform["simulcastChannel"] = channelData.value(ChannelData::g_nickName, "").toString();
+	return platform;
+}
+
+QJsonObject PLSPlatformYoutube::getWebChatParams()
+{
+	auto info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
+	QJsonObject platform;
+	platform["name"] = getNameForLiveStart();
+	platform["isPrivate"] = isPrivateStatus();
+	return platform;
+}
+
+QString PLSPlatformYoutube::getServiceLiveLink()
+{
+	return getShareUrl(PLS_PLATFORM_API->isLiving());
+}
+
+bool PLSPlatformYoutube::isPrivateStatus()
+{
+	const auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
+	QString category_en = info.value(ChannelData::g_catogryTemp, "").toString();
+	if (category_en.isEmpty()) {
+		category_en = info.value(ChannelData::g_catogry, "").toString();
+	}
+	bool isPrivate = tr("youtube.privacy.private.en") == category_en;
+	return isPrivate;
+}
+
+void PLSPlatformYoutube::showAutoStartFalseAlertIfNeeded()
+{
+	struct YoutubeStartShowData {
+		QString showStr;
+		bool isMutiLive = false;
+		bool isContainChannel = false;
+		bool isContainRtmp = false;
+
+		QString redirectUrl;
+		QString redirectKey = QTStr("LiveInfo.live.Check.AutoStart.pressKey").arg(YOUTUBE);
+	};
+
+	auto _getShowData = [=](YoutubeStartShowData &model) {
+		QString channelStr = YOUTUBE;
+
+		auto platformActived = PLS_PLATFORM_ACTIVIED;
+
+		model.isMutiLive = platformActived.size() > 1;
+
+		for (auto item : platformActived) {
+			if (YOUTUBE != item->getChannelName()) {
+				continue;
 			}
-		} else {
-			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
-			if (nullptr != originOnFailed) {
-				originOnFailed(networkReplay, 1999, data, QNetworkReply::InternalServerError, context);
+			if (PLSServiceType::ST_RTMP == item->getServiceType()) {
+				model.isContainRtmp = true;
+				continue;
+			}
+			if (PLSServiceType::ST_YOUTUBE == item->getServiceType()) {
+				model.isContainChannel = true;
+				continue;
 			}
 		}
+
+		if (model.isContainRtmp && !model.isContainChannel) {
+			//only youtube rtmp
+			model.showStr = QTStr("LiveInfo.live.Check.AutoStart.Rrmp").arg(channelStr);
+			return;
+		}
+
+		auto yotubeItem = PLS_PLATFORM_API->getPlatformYoutube(false);
+		if (yotubeItem == nullptr) {
+			return;
+		}
+
+		bool isAutoStart = yotubeItem->getSelectData().enableAutoStart;
+		if (isAutoStart == true) {
+			if (model.isContainRtmp) {
+				//channel not need start.
+				model.showStr = QTStr("LiveInfo.live.Check.AutoStart.Rrmp").arg(channelStr);
+			}
+			return;
+		}
+
+		model.redirectUrl = g_plsYoutubeStudioManagerUrl.arg(yotubeItem->getSelectData()._id);
+
+		if (isAutoStart == false && !model.isContainRtmp) {
+			//only channel need start by hand;
+			model.showStr = QTStr("LiveInfo.live.Check.AutoStart.Channel").arg(channelStr);
+			return;
+		}
+
+		//both need start by hand;
+		model.showStr = QTStr("LiveInfo.live.Check.AutoStart.Both.ChannelAndRtmp").arg(channelStr);
 	};
 
-	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
-		Q_UNUSED(networkReplay)
-		Q_UNUSED(context)
-		Q_UNUSED(code)
-		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
-		originOnFailed(networkReplay, code, data, error, context);
-	};
+	auto model = YoutubeStartShowData();
 
-	assert(!getChannelUUID().isEmpty());
-	if (!forceRefresh && isTokenValid(getChannelUUID())) {
-		if (originNetworkReplay != nullptr) {
-			PLS_HTTP_HELPER->connectFinished(originNetworkReplay(), originReceiver, originOnSucceed, originOnFailed, originOnFinished, originContext);
-		} else if (nullptr != originOnSucceed) {
-			originOnSucceed(nullptr, 200, nullptr, originContext);
+	_getShowData(model);
+
+	if (model.showStr.isEmpty()) {
+		return;
+	}
+
+	if (PLS_PLATFORM_API->getUuidOnStarted().size() <= 1) {
+		PLSAlertView::Button ret = PLSAlertView::Button::Ok;
+
+		QMap<PLSAlertView::Button, QString> buttons = {{PLSAlertView::Button::Ok, tr("OK")}};
+
+		if (!model.redirectUrl.isEmpty()) {
+			buttons.insert(PLSAlertView::Button::Open, tr("Live.Check.youtube.gotoPage"));
+		}
+
+		ret = PLSAlertView::warning(nullptr, QTStr("Live.Check.Alert.Title"), model.showStr, buttons);
+
+		if (ret == PLSAlertView::Button::Open) {
+			QDesktopServices::openUrl(QUrl(model.redirectUrl));
 		}
 		return;
 	}
 
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
+	if (model.redirectUrl.isEmpty()) {
+		model.redirectKey = "";
+	} else {
+		int index = model.showStr.indexOf(model.redirectKey);
+		model.showStr.replace(index, model.redirectKey.length(), model.redirectUrl);
+	}
+	pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, model.showStr, model.redirectUrl, model.redirectKey);
+}
 
-	auto &channelData = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
-	auto token = channelData.value(ChannelData::g_refreshToken).toString();
+PLSYoutubeLiveinfoData::PLSYoutubeLiveinfoData() {}
 
-	QString bodyStr(QString("refresh_token=%0&client_id=%1&client_secret=%2&grant_type=refresh_token").arg(token).arg(YOUTUBE_CLIENT_ID).arg(YOUTUBE_CLIENT_KEY));
+PLSYoutubeLiveinfoData::PLSYoutubeLiveinfoData(const QJsonObject &data)
+{
+	auto snippet = data["snippet"].toObject();
+	auto contentDetails = data["contentDetails"].toObject();
 
-	QByteArray bodyByte = bodyStr.toUtf8();
-	PLSNetworkReplyBuilder builder(QString("%1/token").arg(g_plsYoutubeAPIHostV4));
-	builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE);
-	builder.setBody(bodyByte);
-	PLS_HTTP_HELPER->connectFinished(builder.post(), originReceiver, _onSucceed, _onFail);
+	this->isNormalLive = false;
+	this->boundStreamId = contentDetails["boundStreamId"].toString();
+	this->_id = data["id"].toString();
+	this->title = snippet["title"].toString();
+	this->description = snippet["description"].toString();
+	if (snippet.contains("scheduledStartTime")) {
+		this->startTimeOrigin = snippet["scheduledStartTime"].toString();
+	} else {
+		this->startTimeOrigin = snippet["publishedAt"].toString();
+	}
+	if (this->startTimeOrigin == "1970-01-01T00:00:00Z") {
+		this->startTimeOrigin = "";
+	}
+	int timeStamp = PLSDateFormate::timeStringToStamp(this->startTimeOrigin);
+	this->startTimeShort = PLSDateFormate::timeStampToShortString(timeStamp);
+	this->startTimeUTC = PLSDateFormate::timeStampToUTCString(timeStamp);
+	this->privacyStatus = data["status"].toObject()["privacyStatus"].toString();
+	this->liveChatId = snippet["liveChatId"].toString();
+
+	this->iskidsUserSelect = true;
+	this->isForKids = data["status"].toObject()["madeForKids"].toBool();
+	this->enableAutoStart = contentDetails["enableAutoStart"].toBool();
+	this->enableAutoStop = contentDetails["enableAutoStop"].toBool();
+	this->contentDetails = contentDetails;
 }

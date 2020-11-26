@@ -1,6 +1,10 @@
 #ifndef PLSTOPLEVELVIEW_HPP
 #define PLSTOPLEVELVIEW_HPP
 
+#include <functional>
+#include <list>
+#include <memory>
+
 #include <QWidget>
 #include <QTimer>
 #include <QDateTime>
@@ -12,15 +16,21 @@
 #include <QTextEdit>
 #include <QListWidget>
 #include <QAbstractSpinBox>
+#include <QDebug>
+#include <QScreen>
+#include <QDataStream>
 
 #include "frontend-api.h"
+#include "PLSDpiHelper.h"
+#include "PLSWidgetDpiAdapter.hpp"
 
-template<typename ParentWidget> class PLSToplevelView : public ParentWidget {
-	using Widget = ParentWidget;
-	using ToplevelView = PLSToplevelView<ParentWidget>;
-
+template<typename ParentWidget> class PLSToplevelView : public PLSWidgetDpiAdapterHelper<ParentWidget> {
 public:
-	PLSToplevelView(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags()) : ParentWidget(parent, f)
+	using ToplevelView = PLSToplevelView<ParentWidget>;
+	using WidgetDpiAdapter = PLSWidgetDpiAdapterHelper<ParentWidget>;
+
+protected:
+	PLSToplevelView(QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags()) : WidgetDpiAdapter(parent, f)
 	{
 		resizePausedCheckTimer.setSingleShot(true);
 		resizePausedCheckTimer.setInterval(200);
@@ -37,9 +47,9 @@ public:
 
 public:
 	enum class CursorPosition { None, Top, Bottom, Left, Right, TopLeft, TopRight, BottomLeft, BottomRight, TitleBar, Content };
-	static const int BORDER_WIDTH = 1;
-	static const int RESIZE_BORDER_WIDTH = 5;
-	static const int CORNER_WIDTH = 5;
+	static const int ORIGINAL_BORDER_WIDTH = 1;
+	static const int ORIGINAL_RESIZE_BORDER_WIDTH = 5;
+	static const int ORIGINAL_CORNER_WIDTH = 5;
 
 	class InActiveHelper {
 		ToplevelView *tlv;
@@ -50,6 +60,16 @@ public:
 	};
 
 public:
+	int BORDER_WIDTH() { return BORDER_WIDTH(this); }
+	int RESIZE_BORDER_WIDTH() { return RESIZE_BORDER_WIDTH(this); }
+	int CORNER_WIDTH() { return CORNER_WIDTH(this); }
+
+public:
+	static int BORDER_WIDTH(QWidget *widget) { return PLSDpiHelper::calculate(widget, ORIGINAL_BORDER_WIDTH); }
+	static int RESIZE_BORDER_WIDTH(QWidget *widget) { return PLSDpiHelper::calculate(widget, ORIGINAL_RESIZE_BORDER_WIDTH); }
+	static int CORNER_WIDTH(QWidget *widget) { return PLSDpiHelper::calculate(widget, ORIGINAL_CORNER_WIDTH); }
+
+public:
 	void checkCursorPosition(const QPoint &globalPos)
 	{
 		if (!isActive) {
@@ -58,7 +78,7 @@ public:
 		}
 
 		QPoint pos = mapFromGlobal(globalPos);
-		if (!isResizeEnabled || isMaxState || isFullScreenState) {
+		if (!isResizeEnabled || !isWidthResizeEnabled && !isHeightResizeEnabled || isMaxState || isFullScreenState) {
 			if (titleBarRect().contains(pos)) {
 				cursorPosition = CursorPosition::TitleBar;
 			} else if (rect().contains(pos)) {
@@ -69,6 +89,7 @@ public:
 			return;
 		}
 
+		int RESIZE_BORDER_WIDTH = this->RESIZE_BORDER_WIDTH();
 		QRect centralRect(RESIZE_BORDER_WIDTH, RESIZE_BORDER_WIDTH, width() - RESIZE_BORDER_WIDTH * 2, height() - RESIZE_BORDER_WIDTH * 2);
 		if (pos.x() <= centralRect.left() && pos.y() <= centralRect.top()) {
 			cursorPosition = CursorPosition::TopLeft;
@@ -79,13 +100,13 @@ public:
 		} else if (pos.x() <= centralRect.left() && pos.y() >= centralRect.bottom()) {
 			cursorPosition = CursorPosition::BottomLeft;
 		} else if (pos.x() <= centralRect.left()) {
-			cursorPosition = CursorPosition::Left;
+			cursorPosition = isWidthResizeEnabled ? CursorPosition::Left : CursorPosition::None;
 		} else if (pos.x() >= centralRect.right()) {
-			cursorPosition = CursorPosition::Right;
+			cursorPosition = isWidthResizeEnabled ? CursorPosition::Right : CursorPosition::None;
 		} else if (pos.y() <= centralRect.top()) {
-			cursorPosition = CursorPosition::Top;
+			cursorPosition = isHeightResizeEnabled ? CursorPosition::Top : CursorPosition::None;
 		} else if (pos.y() >= centralRect.bottom()) {
-			cursorPosition = CursorPosition::Bottom;
+			cursorPosition = isHeightResizeEnabled ? CursorPosition::Bottom : CursorPosition::None;
 		} else if (titleBarRect().contains(pos)) {
 			cursorPosition = CursorPosition::TitleBar;
 		} else if (centralRect.contains(pos)) {
@@ -120,7 +141,7 @@ public:
 	}
 	void mousePress(QMouseEvent *event)
 	{
-		QPoint globalPos = event->globalPos();
+		globalPos = event->globalPos();
 		QPoint pos = mapFromGlobal(globalPos);
 		if (isActive && rect().contains(pos) && (event->button() == Qt::LeftButton) && !isMouseButtonDown) {
 			checkCursorPosition(globalPos);
@@ -134,11 +155,11 @@ public:
 				return;
 			}
 
-			grabMouse(cursor());
 			isMouseButtonDown = true;
 			isResizing = false;
 
 			globalPosMousePress = globalPos;
+			relativePosMousePress = mapFromGlobal(globalPos);
 			geometryOfMousePress = geometry();
 			globalPosMouseMoveForResize = globalPos;
 		}
@@ -153,10 +174,11 @@ public:
 			}
 
 			isMouseButtonDown = false;
-			releaseMouse();
 
 			cursorPosition = CursorPosition::None;
 			updateCursor();
+
+			onSaveNormalGeometry();
 		}
 	}
 	void mouseDbClick(QMouseEvent *event)
@@ -165,7 +187,11 @@ public:
 			return;
 		} else if (!canMaximized()) {
 			return;
+		} else if ((QDateTime::currentMSecsSinceEpoch() - lastDbClickTime) <= qint64(100)) {
+			return;
 		}
+
+		lastDbClickTime = QDateTime::currentMSecsSinceEpoch();
 
 		checkCursorPosition(event->globalPos());
 		updateCursor();
@@ -180,7 +206,7 @@ public:
 	}
 	void mouseMove(QMouseEvent *event)
 	{
-		QPoint globalPos = event->globalPos();
+		globalPos = event->globalPos();
 
 		isMouseButtonDown = isMouseButtonDown && (event->buttons() & Qt::LeftButton);
 
@@ -203,7 +229,8 @@ public:
 
 				QRect ng = geometryOfNormal;
 				QPoint pos = mapFromGlobal(globalPos);
-				ng.moveTo(globalPos.x() - pos.x() * ng.width() / g.width(), g.y());
+				relativePosMousePress = QPoint(pos.x() * ng.width() / g.width(), pos.y());
+				ng.moveTo(globalPos - relativePosMousePress);
 				setGeometry(ng);
 
 				globalPosMousePress = globalPos;
@@ -211,26 +238,13 @@ public:
 
 				onMaxFullScreenStateChanged();
 			} else {
-				QRect g = geometryOfMousePress;
-				g.moveTo(geometryOfMousePress.topLeft() + globalPos - globalPosMousePress);
+				QRect g(globalPos - relativePosMousePress, geometryOfMousePress.size());
 				if (g != geometry()) {
+					geometryOfNormal = g;
 					setGeometry(g);
 				}
 			}
 		} else if (isForResize()) {
-			if (globalPosMouseMoveForResize != globalPos) {
-				globalPosMouseMoveForResize = globalPos;
-
-				if (!isResizing) {
-					isResizing = true;
-					resizePausedCheckTimer.start();
-					emit beginResizeSignal();
-				} else {
-					resizePausedCheckTimer.stop();
-					resizePausedCheckTimer.start();
-				}
-			}
-
 			QSize maxSize = maximumSize(), minSize = minimumSize();
 			int mpw = geometryOfMousePress.width(), mph = geometryOfMousePress.height(), ox = globalPos.x() - globalPosMousePress.x(), oy = globalPos.y() - globalPosMousePress.y();
 			QRect g = geometry();
@@ -264,6 +278,20 @@ public:
 			}
 
 			if (g != geometry()) {
+				if (globalPosMouseMoveForResize != globalPos) {
+					globalPosMouseMoveForResize = globalPos;
+
+					if (!isResizing) {
+						isResizing = true;
+						resizePausedCheckTimer.start();
+						emit beginResizeSignal();
+					} else {
+						resizePausedCheckTimer.stop();
+						resizePausedCheckTimer.start();
+					}
+				}
+
+				geometryOfNormal = g;
 				setGeometry(g);
 			}
 		}
@@ -275,6 +303,12 @@ public:
 
 	bool getResizeEnabled() const { return isResizeEnabled; }
 	void setResizeEnabled(bool isResizeEnabled) { this->isResizeEnabled = isResizeEnabled; }
+
+	bool getWidthResizeEnabled() const { return isWidthResizeEnabled; }
+	void setWidthResizeEnabled(bool isResizeEnabled) { this->isWidthResizeEnabled = isResizeEnabled; }
+
+	bool getHeightResizeEnabled() const { return isHeightResizeEnabled; }
+	void setHeightResizeEnabled(bool isResizeEnabled) { this->isHeightResizeEnabled = isResizeEnabled; }
 
 	bool getMaxState() const { return isMaxState; }
 	bool getFullScreenState() const { return isFullScreenState; }
@@ -354,10 +388,115 @@ protected:
 	QRect fromTopRightSize(const QPoint &topRight, const QSize &size) { return QRect(topRight.x() - size.width(), topRight.y(), size.width(), size.height()); }
 	QRect fromBottomLeftSize(const QPoint &bottomLeft, const QSize &size) { return QRect(bottomLeft.x(), bottomLeft.y() - size.height(), size.width(), size.height()); }
 	QRect fromBottomRightSize(const QPoint &bottomRight, const QSize &size) { return QRect(bottomRight.x() - size.width(), bottomRight.y() - size.height(), size.width(), size.height()); }
+	QRect onDpiChanged(double dpi, double oldDpi, const QRect &suggested, bool firstShow) override
+	{
+		extern QScreen *getScreen(QWidget * widget);
+		extern QRect fullscreenShowForce(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
+		extern QRect maximizeShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
+		extern QRect normalShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
+
+		if (firstShow || isForResize() || isManualSetPos || (oldDpi == 0.0)) {
+			geometryOfNormal = suggested.isValid() ? suggested : geometryOfNormal;
+			return suggested;
+		}
+
+		QRect retval = geometryOfNormal;
+		if (isForMove()) {
+			relativePosMousePress = (QPointF(relativePosMousePress) * dpi / oldDpi).toPoint();
+			geometryOfMousePress.setSize((QSizeF(geometryOfMousePress.size()) * dpi / oldDpi).toSize().expandedTo(minimumSize()).boundedTo(maximumSize()));
+
+			QRect g(globalPos - relativePosMousePress, geometryOfMousePress.size());
+			if (g != geometry()) {
+				geometryOfNormal = g;
+				setGeometry(g);
+				retval = geometryOfNormal;
+			}
+		} else if (suggested.isValid()) {
+			if (isMaxState || isFullScreenState) {
+				InActiveHelper helper(this);
+
+				flushMaxFullScreenStateStyle();
+				onMaxFullScreenStateChanged();
+
+				geometryOfNormal.setSize((QSizeF(geometryOfNormal.size()) * dpi / oldDpi).toSize().expandedTo(minimumSize()).boundedTo(maximumSize()));
+				if (isFullScreenState) {
+					retval = fullscreenShowForce(this, geometryOfNormal);
+				} else {
+					retval = maximizeShow(this, geometryOfNormal);
+				}
+			} else {
+				QRect g(geometryOfNormal.isValid() ? geometryOfNormal.topLeft() : suggested.topLeft(), suggested.size().expandedTo(minimumSize()).boundedTo(maximumSize()));
+				geometryOfNormal = g;
+				retval = normalShow(this, geometryOfNormal);
+			}
+
+			onSaveNormalGeometry();
+		} else /*if (isMinimizedDpiChanged)*/ {
+			if (isMaxState || isFullScreenState) {
+				InActiveHelper helper(this);
+
+				flushMaxFullScreenStateStyle();
+				onMaxFullScreenStateChanged();
+
+				geometryOfNormal.setSize((QSizeF(geometryOfNormal.size()) * dpi / oldDpi).toSize().expandedTo(minimumSize()).boundedTo(maximumSize()));
+				if (isFullScreenState) {
+					retval = fullscreenShowForce(this, geometryOfNormal);
+				} else {
+					retval = maximizeShow(this, geometryOfNormal);
+				}
+			} else {
+				QRect g(geometryOfNormal.topLeft(), (QSizeF(geometryOfNormal.size()) * dpi / oldDpi).toSize().expandedTo(minimumSize()).boundedTo(maximumSize()));
+				geometryOfNormal = g;
+				retval = normalShow(this, geometryOfNormal);
+			}
+
+			onSaveNormalGeometry();
+		}
+		return retval;
+	}
+	void onScreenAvailableGeometryChanged(const QRect &screenAvailableGeometry) override
+	{
+		extern QRect fullscreenShowForce(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
+		extern QRect maximizeShow(PLSWidgetDpiAdapter * adapter, const QRect &screenAvailableRect, QRect &geometryOfNormal);
+		extern QRect normalShow(PLSWidgetDpiAdapter * adapter, const QRect &screenAvailableGeometry, QRect &geometryOfNormal);
+
+		if (isFullScreenState) {
+			fullscreenShowForce(this, geometryOfNormal);
+		} else if (isMaxState) {
+			maximizeShow(this, screenAvailableGeometry, geometryOfNormal);
+		} else {
+			normalShow(this, screenAvailableGeometry, geometryOfNormal);
+		}
+
+		onSaveNormalGeometry();
+	}
+	QRect getSuggestedRect(const QRect &suggested) const override { return geometryOfNormal; }
+	bool nativeEvent(const QByteArray &eventType, void *message, long *result) override
+	{
+		extern bool toplevelViewNativeEvent(PLSWidgetDpiAdapter * adapter, const QByteArray &eventType, void *message, long *result,
+						    std::function<bool(const QByteArray &, void *, long *)> baseNativeEvent, bool isMaxState, bool isFullScreenState);
+
+		return toplevelViewNativeEvent(
+			this, eventType, message, result, [this](const QByteArray &eventType, void *message, long *result) { return WidgetDpiAdapter::nativeEvent(eventType, message, result); },
+			isMaxState, isFullScreenState);
+	}
+	bool event(QEvent *event) override
+	{
+		if (event->type() == QEvent::Resize) {
+			QResizeEvent *resizeEvent = reinterpret_cast<QResizeEvent *>(event);
+			if (!isMaxState && !isFullScreenState && geometryOfNormal.size() != resizeEvent->size()) {
+				geometryOfNormal = geometry();
+			}
+		}
+
+		return WidgetDpiAdapter::event(event);
+	}
 
 public:
 	void showMaximized()
 	{
+		extern QRect maximizeShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
+
 		if (!isMaxState) {
 			InActiveHelper helper(this);
 
@@ -366,16 +505,14 @@ public:
 			onMaxFullScreenStateChanged();
 
 			geometryOfNormal = geometry();
+			maximizeShow(this, geometryOfNormal);
 			onSaveNormalGeometry();
-
-			extern QRect getScreenAvailableRect(QWidget * widget);
-			QRect rcsa = getScreenAvailableRect(this);
-			setGeometry(rcsa.x(), rcsa.y(), rcsa.width(), rcsa.height());
-			activateWindow();
 		}
 	}
 	void showFullScreen()
 	{
+		extern QRect fullscreenShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
+
 		if (!isFullScreenState) {
 			InActiveHelper helper(this);
 
@@ -385,17 +522,16 @@ public:
 
 			if (!isMaxState) {
 				geometryOfNormal = geometry();
-				onSaveNormalGeometry();
 			}
 
-			extern QRect getScreenRect(QWidget * widget);
-			QRect rcsa = getScreenRect(this);
-			setGeometry(rcsa.x(), rcsa.y(), rcsa.width(), rcsa.height());
-			activateWindow();
+			fullscreenShow(this, geometryOfNormal);
+			onSaveNormalGeometry();
 		}
 	}
 	void showNormal()
 	{
+		extern QRect maximizeShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
+
 		if (isMaxState && isFullScreenState) {
 			InActiveHelper helper(this);
 
@@ -403,10 +539,8 @@ public:
 			flushMaxFullScreenStateStyle();
 			onMaxFullScreenStateChanged();
 
-			extern QRect getScreenAvailableRect(QWidget * widget);
-			QRect rcsa = getScreenAvailableRect(this);
-			setGeometry(rcsa.x(), rcsa.y(), rcsa.width(), rcsa.height());
-			activateWindow();
+			maximizeShow(this, geometryOfNormal);
+			onSaveNormalGeometry();
 		} else if (isMaxState || isFullScreenState) {
 			InActiveHelper helper(this);
 
@@ -419,12 +553,38 @@ public:
 			activateWindow();
 		}
 	}
+	void setPos(int x, int y) { setPos(QPoint(x, y)); }
+	void setPos(const QPoint &pos)
+	{
+		isManualSetPos = true;
+		geometryOfNormal.moveTopLeft(pos);
+		move(pos.x(), pos.y());
+		isManualSetPos = false;
+	}
+	QByteArray saveGeometry() const { return PLSWidgetDpiAdapter::saveGeometry(selfWidget(), geometryOfNormal); }
+	bool restoreGeometry(const QByteArray &geometry)
+	{
+		extern void setGeometrySys(QWidget * widget, const QRect &geometry);
+
+		bool result = PLSWidgetDpiAdapter::restoreGeometry(this, geometry);
+		if (result) {
+			geometryOfNormal = this->geometry();
+			setGeometrySys(this, geometryOfNormal);
+		}
+		return result;
+	}
+	void resize(const QSize &size) { resize(size.width(), size.height()); }
+	void resize(int width, int height)
+	{
+		geometryOfNormal.setSize(QSize(width, height));
+		WidgetDpiAdapter::resize(width, height);
+	}
 
 protected:
 	virtual QRect titleBarRect() const = 0;
 	virtual bool canMaximized() const = 0;
 	virtual bool canFullScreen() const = 0;
-	virtual bool isInCustomControl(QWidget *child) const { return false; }
+	virtual bool isInCustomControl(QWidget * /*child*/) const { return false; }
 
 	virtual void beginResizeSignal() = 0;
 	virtual void endResizeSignal() = 0;
@@ -436,12 +596,18 @@ protected:
 	bool isActive = true;
 	bool isMoveInContent = false;
 	bool isResizeEnabled = true;
+	bool isWidthResizeEnabled = true;
+	bool isHeightResizeEnabled = true;
 	bool isMaxState = false;
 	bool isFullScreenState = false;
 	bool isMouseButtonDown = false;
 	bool isResizing = false;
+	bool isManualSetPos = false;
 	CursorPosition cursorPosition = CursorPosition::None;
+	qint64 lastDbClickTime = 0;
+	QPoint globalPos;
 	QPoint globalPosMousePress;
+	QPoint relativePosMousePress;
 	QRect geometryOfMousePress;
 	QPoint globalPosMouseMoveForResize;
 	QTimer resizePausedCheckTimer;

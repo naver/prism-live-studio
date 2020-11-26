@@ -1,3 +1,14 @@
+/*
+ * @fine      PLSNetworkAccessManager
+ * @brief     https request and response control manager;
+                Create different requests based on request type ,
+ * @date      2019-09-27
+ * @author    Bing Cheng
+ * @attention
+
+ * @version   v1.0
+ * @modify
+ */
 
 #ifndef PLSNETWORKACCESSMANAGER_H
 #define PLSNETWORKACCESSMANAGER_H
@@ -23,7 +34,8 @@ public:
      * @param headData: head params
      * @param sendData: data params
      */
-	void createHttpRequest(Operation op, const QString &url, bool isEncode = false, const QVariantMap &headData = QVariantMap(), const QVariantMap &sendData = QVariantMap(), bool isGcc = true);
+	QNetworkReply *createHttpRequest(Operation op, const QString &url, bool isEncode = false, const QVariantMap &headData = QVariantMap(), const QVariantMap &sendData = QVariantMap(),
+					 bool isGcc = true);
 	/**
      * @brief getCookieForUrl: get cookies with url
      * @param url

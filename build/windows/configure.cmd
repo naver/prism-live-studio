@@ -11,11 +11,13 @@ set OBS_SRC_DIR=%OBS_DIR%
 set PRISM_SRC_DIR=%PRISM_DIR%
 set OBS_BUILD_DIR=%OBS_DIR%\build
 set PRISM_BUILD_DIR=%PRISM_DIR%\build
+set /p PRISM_VER=<%~dp0version_win.txt
+
 rem set DEBUG_API=DEBUG_API
 set NOT "%1"=="" set MULTI_ARCH=%1
 
-if "%QTDIR32%"=="" set QTDIR32=D:\soft\Qt\5.12.5\msvc2017
-if "%QTDIR64%"=="" set QTDIR64=D:\soft\Qt\5.12.5\msvc2017_64
+if "%QTDIR32%"=="" set QTDIR32=C:\Qt\Qt5.12.6\5.12.6\msvc2017
+if "%QTDIR64%"=="" set QTDIR64=C:\Qt\Qt5.12.6\5.12.6\msvc2017_64
 rem ARCH=Win32/x64
 if NOT "%MULTI_ARCH%"=="" (
     set ARCH=%MULTI_ARCH%
@@ -36,13 +38,17 @@ if "%BUILD_CONFIG%"=="Debug" (
 @echo %BUILD_TYPE%
 @echo %BUILD_RANGE%
 if "%GENERATOR_VS%"=="" (
-    set GENERATOR=Visual Studio 15 2017
+    set GENERATOR=Visual Studio 16 2019
 ) else (
     set GENERATOR=%GENERATOR_VS%
 )
 rem set TOOLSET=v141
 if "%VERSION%"=="" (
-    set RELEASE_CANDIDATE=2.0.0.0
+    if "%PRISM_VER%"=="" (
+        set RELEASE_CANDIDATE = 2.0.0.0
+    ) else (
+        set RELEASE_CANDIDATE=%PRISM_VER%
+    )
 ) else (
     set RELEASE_CANDIDATE=%VERSION%
 )
@@ -52,7 +58,6 @@ if NOT "%ARCH%"=="Win32" (
         set ARCH=x64
     )
 )
-
 
 if "%ARCH%"=="Win32" (
     set QTDIR=%QTDIR32%

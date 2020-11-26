@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Marshall A. Greenblatt. All rights reserved.
+// Copyright (c) 2020 Marshall A. Greenblatt. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -35,13 +35,13 @@
 #ifndef CEF_INCLUDE_CEF_VERSION_H_
 #define CEF_INCLUDE_CEF_VERSION_H_
 
-#define CEF_VERSION "75.1.14+gc81164e+chromium-75.0.3770.100"
+#define CEF_VERSION "75.1.16+g16a67c4+chromium-75.0.3770.100"
 #define CEF_VERSION_MAJOR 75
 #define CEF_VERSION_MINOR 1
-#define CEF_VERSION_PATCH 14
-#define CEF_COMMIT_NUMBER 2023
-#define CEF_COMMIT_HASH "c81164e2ce84574410706e460d6aadaf8616d46c"
-#define COPYRIGHT_YEAR 2019
+#define CEF_VERSION_PATCH 16
+#define CEF_COMMIT_NUMBER 2025
+#define CEF_COMMIT_HASH "16a67c450724f60708b8b6af32bd7d547392c485"
+#define COPYRIGHT_YEAR 2020
 
 #define CHROME_VERSION_MAJOR 75
 #define CHROME_VERSION_MINOR 0

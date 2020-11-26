@@ -2,20 +2,42 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <Windows.h>
 #include <process.h>
 #include <malloc.h>
+#include <Windows.h>
+#include <Shlwapi.h>
 
-enum class log_type_t { GENERIC_LOG, ACTION_LOG };
+#pragma comment(lib, "shlwapi.lib")
+
+#define LIBLOG_MODULE "liblog"
 
 #pragma pack(push, 1)
+enum class message_type_t : int { MT_SET_USER_ID, MT_ADD_GLOBAL_FIELD, MT_REMOVE_GLOBAL_FIELD, MT_LOG, MT_EXIT };
+
+struct message_t {
+	message_type_t type;
+	int total_length;
+};
+
+struct add_global_field_t {
+	message_t message;
+	int key_offset;
+	int value_offset;
+};
+
+enum class log_type_t : int { GENERIC_LOG, ACTION_LOG };
+
 struct list_t {
 	list_t *prev;
 	list_t *next;
 };
 struct log_info_t {
-	list_t listpos;
+	union {
+		message_t message;
+		list_t listpos;
+	};
 	log_type_t type;
+	int total_length;
 };
 struct generic_log_info_t {
 	log_info_t log_info;
@@ -24,10 +46,19 @@ struct generic_log_info_t {
 	uint32_t tid;
 	int field_count;
 	pls_time_t time;
-	char *module_name;
-	char *file_name;
-	char ***fields;
-	char *message;
+	int module_name_offset;
+	int file_name_offset;
+	int fields_offset;
+	int message_offset;
+	//char *module_name;
+	//char *file_name;
+	//char ***fields;
+	//char *message;
+};
+struct generic_log_field_t {
+	int key_offset;
+	int value_offset;
+	int next_offset;
 };
 struct action_log_info_t {
 	log_info_t log_info;
@@ -68,6 +99,9 @@ static void def_action_log_handler(const char *module_name, const pls_time_t &ti
 
 static bool is_initialized = false;
 
+static PROCESS_INFORMATION logger_process_info = {NULL, NULL, 0, 0};
+static HANDLE named_pipe = nullptr;
+static HANDLE named_pipe_send_mutex = nullptr;
 static pls_log_handler_t log_handler = def_log_handler;
 static void *log_param = nullptr;
 static pls_action_log_handler_t action_log_handler = def_action_log_handler;
@@ -78,6 +112,21 @@ static HANDLE async_thread = nullptr;
 static HANDLE log_queue_sem = nullptr;
 static HANDLE log_queue_mutex = nullptr;
 static list_t log_queue = {&log_queue, &log_queue};
+static HANDLE log_process_mutex = nullptr;
+static generic_log_info_t *last_log_info = nullptr;
+static int last_same_log_count = 0;
+static const char repeat_log_message_format[] = "same log message, count: %d";
+static const int repeat_log_message_length = sizeof(repeat_log_message_format) + 20;
+
+namespace {
+class MutexGuard {
+	HANDLE mutex;
+
+public:
+	MutexGuard(HANDLE mutex_) : mutex(mutex_) { WaitForSingleObject(mutex, INFINITE); }
+	~MutexGuard() { ReleaseMutex(mutex); }
+};
+}
 
 static const char *get_file_name(const char *path)
 {
@@ -105,6 +154,31 @@ static void get_time(pls_time_t &time)
 	time.timezone = tzi.Bias;
 }
 
+static inline char *get_log_info_module_name(generic_log_info_t *log_info)
+{
+	return ((char *)log_info) + log_info->module_name_offset;
+}
+
+static inline char *get_log_info_file_name(generic_log_info_t *log_info)
+{
+	return log_info->file_name_offset > 0 ? (((char *)log_info) + log_info->file_name_offset) : nullptr;
+}
+
+static inline char *get_log_info_message(generic_log_info_t *log_info)
+{
+	return ((char *)log_info) + log_info->message_offset;
+}
+
+static inline bool is_equal_string(const char *str1, const char *str2)
+{
+	if (str1 == str2) {
+		return true;
+	} else if (str1 && str2 && !strcmp(str1, str2)) {
+		return true;
+	}
+	return false;
+}
+
 static log_info_t *new_generic_log_info(pls_log_level_t log_level, const char *module_name, const pls_time_t &time, uint32_t tid, const char *file_name, int file_line, const char *fields[][2],
 					int field_count, const char *format, va_list args)
 {
@@ -126,7 +200,7 @@ static log_info_t *new_generic_log_info(pls_log_level_t log_level, const char *m
 	if (field_count > 0) {
 		field_count = (field_count < 100) ? field_count : 100;
 
-		fields_length = sizeof(char **) * field_count + sizeof(char *) * 2 * field_count;
+		fields_length = sizeof(generic_log_field_t) * field_count;
 		total_length += fields_length;
 
 		for (int i = 0; i < field_count; ++i) {
@@ -138,6 +212,7 @@ static log_info_t *new_generic_log_info(pls_log_level_t log_level, const char *m
 	}
 
 	message_length = vsnprintf(nullptr, 0, format, args) + 1;
+	message_length = message_length > repeat_log_message_length ? message_length : repeat_log_message_length;
 	total_length += message_length;
 
 	generic_log_info_t *generic_log_info = (generic_log_info_t *)malloc(total_length);
@@ -148,6 +223,7 @@ static log_info_t *new_generic_log_info(pls_log_level_t log_level, const char *m
 	memset(generic_log_info, 0, total_length);
 
 	generic_log_info->log_info.type = log_type_t::GENERIC_LOG;
+	generic_log_info->log_info.total_length = total_length;
 
 	generic_log_info->log_level = log_level;
 	generic_log_info->file_line = file_line;
@@ -157,32 +233,41 @@ static log_info_t *new_generic_log_info(pls_log_level_t log_level, const char *m
 
 	char *buffer = (char *)(generic_log_info + 1);
 
-	strcpy(generic_log_info->module_name = buffer, module_name);
+	generic_log_info->module_name_offset = buffer - (char *)generic_log_info;
+	strcpy(buffer, module_name);
 	buffer += module_name_length;
 
 	if (file_name) {
-		strcpy(generic_log_info->file_name = buffer, file_name);
+		generic_log_info->file_name_offset = buffer - (char *)generic_log_info;
+		strcpy(buffer, file_name);
 		buffer += file_name_length;
+	} else {
+		generic_log_info->file_name_offset = 0;
 	}
 
 	if (field_count > 0) {
-		generic_log_info->fields = (char ***)buffer;
-		buffer += sizeof(char **) * field_count;
+		generic_log_info->fields_offset = buffer - (char *)generic_log_info;
 
 		for (int i = 0; i < field_count; ++i) {
-			generic_log_info->fields[i] = (char **)buffer;
-			buffer += sizeof(char *) * 2;
-		}
+			generic_log_field_t *field = (generic_log_field_t *)buffer;
 
-		for (int i = 0; i < field_count; ++i) {
-			for (int j = 0; j < 2; ++j) {
-				strcpy(generic_log_info->fields[i][j] = buffer, fields[i][j]);
-				buffer += filed_lengths[i][j];
-			}
+			buffer += sizeof(generic_log_field_t);
+			field->key_offset = buffer - (char *)generic_log_info;
+			strcpy(buffer, fields[i][0]);
+
+			buffer += filed_lengths[i][0];
+			field->value_offset = buffer - (char *)generic_log_info;
+			strcpy(buffer, fields[i][1]);
+
+			buffer += filed_lengths[i][1];
+			field->next_offset = buffer - (char *)generic_log_info;
 		}
+	} else {
+		generic_log_info->fields_offset = 0;
 	}
 
-	vsnprintf(generic_log_info->message = buffer, message_length, format, args);
+	generic_log_info->message_offset = buffer - (char *)generic_log_info;
+	vsnprintf(buffer, message_length, format, args);
 
 	return &generic_log_info->log_info;
 }
@@ -280,23 +365,118 @@ static log_info_t *pop_log_info(uint32_t timeout = INFINITE)
 	}
 	return nullptr;
 }
+static void send_n_i(char *buffer, int count)
+{
+	if (named_pipe) {
+		int byte_write = 0;
+		for (DWORD written = 0; count > 0; count -= written, byte_write += written) {
+			if (!WriteFile(named_pipe, buffer + byte_write, count, &written, NULL)) {
+				CloseHandle(named_pipe);
+				named_pipe = nullptr;
+				return;
+			}
+		}
+	}
+}
+static void send_n(char *buffer, int count)
+{
+	WaitForSingleObject(named_pipe_send_mutex, INFINITE);
+	send_n_i(buffer, count);
+	ReleaseMutex(named_pipe_send_mutex);
+}
+
+static bool is_same_log_info(generic_log_info_t *log_info1, generic_log_info_t *log_info2)
+{
+	// log level
+	if (log_info1->log_level != log_info2->log_level) {
+		return false;
+	}
+
+	// thread id
+	if (log_info1->tid != log_info2->tid) {
+		return false;
+	}
+
+	// module name
+	if (!is_equal_string(get_log_info_module_name(log_info1), get_log_info_module_name(log_info2))) {
+		return false;
+	}
+
+	// file name
+	if (!is_equal_string(get_log_info_file_name(log_info1), get_log_info_file_name(log_info2))) {
+		return false;
+	}
+
+	// file line
+	if (log_info1->file_line != log_info2->file_line) {
+		return false;
+	}
+
+	// message
+	if (!is_equal_string(get_log_info_message(log_info1), get_log_info_message(log_info2))) {
+		return false;
+	}
+	return true;
+}
+
+static void log_process_i(generic_log_info_t *log_info)
+{
+	char *module_name = get_log_info_module_name(log_info);
+	char *file_name = get_log_info_file_name(log_info);
+	char *message = get_log_info_message(log_info);
+
+	log_handler(log_info->log_level, module_name, log_info->time, log_info->tid, file_name, log_info->file_line, message, log_param);
+
+	if (named_pipe) {
+		log_info->log_info.message.type = message_type_t::MT_LOG;
+		log_info->log_info.message.total_length = log_info->log_info.total_length;
+		send_n((char *)log_info, log_info->log_info.total_length);
+	}
+}
 
 static void log_process(generic_log_info_t *log_info)
 {
-	log_handler(log_info->log_level, log_info->module_name, log_info->time, log_info->tid, log_info->file_name, log_info->file_line, log_info->message, log_param);
+	MutexGuard guard(log_process_mutex);
+
+	if (last_log_info) {
+		if (is_same_log_info(last_log_info, log_info)) {
+			++last_same_log_count;
+			free(log_info);
+			return;
+		} else if (last_same_log_count > 0) {
+			get_time(last_log_info->time);
+			snprintf(get_log_info_message(last_log_info), repeat_log_message_length - 1, repeat_log_message_format, last_same_log_count);
+			log_process_i(last_log_info);
+			free(last_log_info);
+		}
+	}
+
+	last_log_info = log_info;
+	last_same_log_count = 0;
+	log_process_i(log_info);
 }
 static void log_process(action_log_info_t *log_info)
 {
+	MutexGuard guard(log_process_mutex);
+
 	action_log_handler(log_info->module_name, log_info->time, log_info->tid, log_info->controls, log_info->action, log_info->file_name, log_info->file_line, log_param);
+
+	free(log_info);
 }
 
 static void generic_logva(pls_log_level_t log_level, const char *module_name, const pls_time_t &time, uint32_t tid, const char *file_name, int file_line, const char *fields[][2], int field_count,
 			  const char *format, va_list args)
 {
-	if (is_initialized) {
-		log_info_t *log_info = new_generic_log_info(log_level, module_name, time, tid, file_name, file_line, fields, field_count, format, args);
-		if (log_info) {
+	if (!is_initialized) {
+		return;
+	}
+
+	log_info_t *log_info = new_generic_log_info(log_level, module_name, time, tid, file_name, file_line, fields, field_count, format, args);
+	if (log_info) {
+		if (async_thread) {
 			push_log_info(log_info);
+		} else {
+			log_process((generic_log_info_t *)log_info);
 		}
 	}
 }
@@ -310,10 +490,16 @@ static void generic_log(pls_log_level_t log_level, const char *module_name, cons
 }
 static void action_log(const char *module_name, const pls_time_t &time, uint32_t tid, const char *controls, const char *action, const char *file_name, int file_line)
 {
-	if (is_initialized) {
-		log_info_t *log_info = new_action_log_info(module_name, time, tid, controls, action, file_name, file_line);
-		if (log_info) {
+	if (!is_initialized) {
+		return;
+	}
+
+	log_info_t *log_info = new_action_log_info(module_name, time, tid, controls, action, file_name, file_line);
+	if (log_info) {
+		if (async_thread) {
 			push_log_info(log_info);
+		} else {
+			log_process((action_log_info_t *)log_info);
 		}
 	}
 }
@@ -329,10 +515,11 @@ static unsigned __stdcall async_thread_proc(void *param)
 		switch (log_info->type) {
 		case log_type_t::GENERIC_LOG:
 			log_process((generic_log_info_t *)log_info);
-			free(log_info);
 			break;
 		case log_type_t::ACTION_LOG:
 			log_process((action_log_info_t *)log_info);
+			break;
+		default:
 			free(log_info);
 			break;
 		}
@@ -342,13 +529,19 @@ static unsigned __stdcall async_thread_proc(void *param)
 		switch (log_info->type) {
 		case log_type_t::GENERIC_LOG:
 			log_process((generic_log_info_t *)log_info);
-			free(log_info);
 			break;
 		case log_type_t::ACTION_LOG:
 			log_process((action_log_info_t *)log_info);
+			break;
+		default:
 			free(log_info);
 			break;
 		}
+	}
+
+	if (last_log_info) {
+		free(last_log_info);
+		last_log_info = nullptr;
 	}
 	return 0;
 }
@@ -373,27 +566,109 @@ static void log_cleanup()
 		CloseHandle(log_queue_mutex);
 		log_queue_mutex = nullptr;
 	}
+
+	if (log_process_mutex) {
+		CloseHandle(log_process_mutex);
+		log_process_mutex = nullptr;
+	}
+
+	if (named_pipe) {
+		message_t message = {message_type_t::MT_EXIT, sizeof(message_t)};
+		send_n((char *)&message, sizeof(message));
+	}
+
+	if (logger_process_info.hProcess) {
+		WaitForSingleObject(logger_process_info.hProcess, 1000);
+		CloseHandle(logger_process_info.hProcess);
+		logger_process_info.hProcess = nullptr;
+	}
+
+	if (logger_process_info.hThread) {
+		CloseHandle(logger_process_info.hThread);
+		logger_process_info.hThread = nullptr;
+	}
+
+	if (named_pipe) {
+		CloseHandle(named_pipe);
+		named_pipe = nullptr;
+	}
+
+	if (named_pipe_send_mutex) {
+		CloseHandle(named_pipe_send_mutex);
+		named_pipe_send_mutex = nullptr;
+	}
+
+	if (last_log_info) {
+		free(last_log_info);
+		last_log_info = nullptr;
+	}
 }
 
-LIBLOG_API bool pls_log_init(const char *project_name, const char *project_version, const char *log_source, const char *log_type, const char *server_addr, int server_port, bool https)
+LIBLOG_API void pls_log_init(const char *project_name, const char *project_version, const char *log_source)
 {
 	if (is_initialized) {
-		return true;
+		return;
+	}
+
+	if (!(log_process_mutex = CreateMutexW(nullptr, FALSE, nullptr))) {
+		log_cleanup();
+		return;
 	}
 
 	if (!(log_queue_sem = CreateSemaphoreW(nullptr, 0, INT_MAX, nullptr)) || !(log_queue_mutex = CreateMutexW(nullptr, FALSE, nullptr))) {
 		log_cleanup();
-		return false;
+		return;
 	}
 
 	async_thread_running = true;
 	if (!(async_thread = (HANDLE)_beginthreadex(nullptr, 0, &async_thread_proc, nullptr, 0, nullptr))) {
 		log_cleanup();
-		return false;
+		return;
 	}
 
 	is_initialized = true;
-	return true;
+
+	uint32_t pid = GetCurrentProcessId();
+
+	char loggerApp[512];
+	GetModuleFileNameA(NULL, loggerApp, 512);
+	PathRemoveFileSpecA(loggerApp);
+	strcat_s(loggerApp, "\\PRISMLogger.exe");
+
+	char commandLine[1024];
+	sprintf_s(commandLine, "\"%s\" \"%s\" \"%s\" \"%s\" \"%u\"", loggerApp, project_name, project_version, log_source, pid);
+
+	STARTUPINFOA si;
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	si.lpTitle = "PRISMLogger";
+
+	char loggerRunEventName[128];
+	sprintf_s(loggerRunEventName, "PRISMLoggerRunEvent%u", pid);
+	HANDLE logger_run_event = CreateEventA(NULL, TRUE, FALSE, loggerRunEventName);
+	if (!logger_run_event) {
+		return;
+	}
+
+	if (!CreateProcessA(NULL, commandLine, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &logger_process_info)) {
+		CloseHandle(logger_run_event);
+		return;
+	}
+
+	WaitForSingleObject(logger_run_event, 5000);
+	CloseHandle(logger_run_event);
+
+	char pipeName[128];
+	sprintf_s(pipeName, "\\\\.\\pipe\\PRISMLoggerPipe%u", pid);
+	if ((named_pipe = CreateFileA(pipeName, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL)) == INVALID_HANDLE_VALUE) {
+		log_cleanup();
+		return;
+	}
+
+	if (!(named_pipe_send_mutex = CreateMutexW(nullptr, FALSE, nullptr))) {
+		log_cleanup();
+		return;
+	}
 }
 LIBLOG_API void pls_log_cleanup()
 {
@@ -445,28 +720,84 @@ LIBLOG_API void pls_reset_action_log_handler()
 	action_log_param = nullptr;
 }
 
-LIBLOG_API const char *pls_get_user_id()
-{
-	return "";
-}
 LIBLOG_API void pls_set_user_id(const char *user_id)
 {
+	if (!user_id) {
+		return;
+	}
+
+	if (named_pipe) {
+		int total_length = sizeof(message_t) + strlen(user_id) + 1;
+		message_t *msg = (message_t *)malloc(total_length);
+		if (msg) {
+			msg->type = message_type_t::MT_SET_USER_ID;
+			msg->total_length = total_length;
+			strcpy((char *)(msg + 1), user_id);
+			send_n((char *)msg, total_length);
+			free(msg);
+		} else {
+			PLS_ERROR(LIBLOG_MODULE, "nelo2 set user id failed, because malloc memory failed.");
+		}
+	} else {
+		PLS_ERROR(LIBLOG_MODULE, "nelo2 set user id failed, because named pipe invalid failed.");
+	}
 }
 
-LIBLOG_API bool pls_add_global_field(const char *key, const char *value)
+LIBLOG_API void pls_add_global_field(const char *key, const char *value)
 {
-	return false;
+	if (!key || !value) {
+		return;
+	}
+
+	if (named_pipe) {
+		int key_length = strlen(key) + 1;
+		int value_length = strlen(value) + 1;
+		int total_length = sizeof(add_global_field_t) + key_length + value_length;
+		add_global_field_t *msg = (add_global_field_t *)malloc(total_length);
+		if (msg) {
+			msg->message.type = message_type_t::MT_ADD_GLOBAL_FIELD;
+			msg->message.total_length = total_length;
+
+			char *buffer = (char *)(msg + 1);
+
+			msg->key_offset = buffer - (char *)msg;
+			strcpy(buffer, key);
+			buffer += key_length;
+
+			msg->value_offset = buffer - (char *)msg;
+			strcpy(buffer, value);
+
+			send_n((char *)msg, total_length);
+			free(msg);
+		} else {
+			PLS_ERROR(LIBLOG_MODULE, "nelo2 add global field failed, because malloc memory failed.");
+		}
+	} else {
+		PLS_ERROR(LIBLOG_MODULE, "nelo2 add global field failed, because named pipe invalid failed.");
+	}
 }
+
 LIBLOG_API void pls_remove_global_field(const char *key)
 {
-}
+	if (!key) {
+		return;
+	}
 
-LIBLOG_API pls_log_level_t pls_get_report_log_level()
-{
-	return PLS_LOG_DEBUG;
-}
-LIBLOG_API void pls_set_report_log_level(pls_log_level_t log_level)
-{
+	if (named_pipe) {
+		int total_length = sizeof(message_t) + strlen(key) + 1;
+		message_t *msg = (message_t *)malloc(total_length);
+		if (msg) {
+			msg->type = message_type_t::MT_REMOVE_GLOBAL_FIELD;
+			msg->total_length = total_length;
+			strcpy((char *)(msg + 1), key);
+			send_n((char *)msg, total_length);
+			free(msg);
+		} else {
+			PLS_ERROR(LIBLOG_MODULE, "nelo2 remove global field failed, because malloc memory failed.");
+		}
+	} else {
+		PLS_ERROR(LIBLOG_MODULE, "nelo2 remove global field failed, because named pipe invalid failed.");
+	}
 }
 
 LIBLOG_API void pls_logva(pls_log_level_t log_level, const char *module_name, const char *file_name, int file_line, const char *format, va_list args)

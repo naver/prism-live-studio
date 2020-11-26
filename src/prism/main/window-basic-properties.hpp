@@ -24,6 +24,7 @@
 
 #include "dialog-view.hpp"
 #include "qt-display.hpp"
+#include "dialogbuttonbox.hpp"
 
 class PLSPropertiesView;
 class PLSBasic;
@@ -45,7 +46,7 @@ private:
 	OBSSignal updatePropertiesSignal;
 	OBSData oldSettings;
 	PLSPropertiesView *view;
-	QDialogButtonBox *buttonBox;
+	PLSDialogButtonBox *buttonBox;
 	QSplitter *windowSplitter;
 
 	OBSSource sourceA;
@@ -66,21 +67,29 @@ private:
 
 private slots:
 	void on_buttonBox_clicked(QAbstractButton *button);
-	void AddPreviewButton();
 
 public:
-	explicit PLSBasicProperties(QWidget *parent, OBSSource source_, unsigned flags = OPERATION_NONE);
+	static void SetOwnerWindow(OBSSource source, long long hwnd);
+
+	explicit PLSBasicProperties(QWidget *parent, OBSSource source_, unsigned flags = OPERATION_NONE, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSBasicProperties();
 
 	void Init();
 	OBSSource GetSource();
 	void OnButtonBoxCancelClicked(OBSSource source);
+	void ReloadProperties();
+	void AddPreviewButton(QWidget *widget);
+	void UpdateOldSettings(obs_source_t *source);
 
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
+	virtual bool eventFilter(QObject *watcher, QEvent *event) override;
 	virtual void reject() override;
 
 signals:
-	void propertiesChanged(OBSSource source);
-	void OpenFilters();
+	void OpenMusicButtonClicked();
+
+	void OpenFilters(OBSSource source);
+	void OpenStickers(OBSSource source);
+	void AboutToClose();
 };

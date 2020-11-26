@@ -1,18 +1,22 @@
 #include "ChannelsAddWin.h"
-#include "ui_ChannelsAddWin.h"
-#include <QToolButton>
 #include <QListWidget>
 #include <QListWidgetItem>
-#include "ChannelConst.h"
+#include <QToolButton>
 #include "ChannelCommonFunctions.h"
-#include "PLSChannelsVirualAPI.h"
+#include "ChannelConst.h"
 #include "LogPredefine.h"
+#include "PLSChannelDataAPI.h"
+#include "PLSChannelsVirualAPI.h"
+#include "PLSDpiHelper.h"
+#include "ui_ChannelsAddWin.h"
 
 using namespace ChannelData;
 
-ChannelsAddWin::ChannelsAddWin(QWidget *parent) : QFrame(parent), ui(new Ui::ChannelsAddWin)
+ChannelsAddWin::ChannelsAddWin(QWidget *parent) : WidgetDpiAdapter(parent), ui(new Ui::ChannelsAddWin)
 {
 	ui->setupUi(this);
+	PLSDpiHelper dpiHelper;
+	dpiHelper.setCss(this, {PLSCssIndex::ChannelsAddWin});
 	initDefault();
 	updateUi();
 }
@@ -24,14 +28,14 @@ ChannelsAddWin::~ChannelsAddWin()
 
 void ChannelsAddWin::updateUi()
 {
-	for (int i = 0; i < ui->scrollAreaWidgetContents->layout()->count(); ++i) {
+	for (int i = 0; i < ui->ItemGridLayout->count(); ++i) {
 		updateItem(i);
 	}
 }
 
 void ChannelsAddWin::updateItem(int index)
 {
-	auto item = ui->scrollAreaWidgetContents->layout()->itemAt(index);
+	auto item = ui->ItemGridLayout->itemAt(index);
 	auto widget = dynamic_cast<QToolButton *>(item->widget());
 	if (widget) {
 		QString platForm = getInfoOfObject(widget, g_channelName.toStdString().c_str(), QString());
@@ -88,21 +92,30 @@ void ChannelsAddWin::appendItem(const QString &text)
 	btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
 	btn->setObjectName(text);
 	btn->setText(text);
-
-	QString iconPath, disablePath;
-	if (text.contains(CUSTOM_RTMP)) {
-		iconPath = ":/Images/skin/btn-custom-rtmp-normal.png";
-		disablePath = iconPath;
-		btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
-	} else {
-		iconPath = getPlatformImageFromName(text, "btn.+-", "\\.png");
-		disablePath = getPlatformImageFromName(text, "btn.+-", "-on");
-	}
-	QIcon Icon(iconPath);
-	Icon.addPixmap(QPixmap(disablePath), QIcon::Disabled);
-
-	btn->setIcon(Icon);
 	btn->installEventFilter(this);
+
+	if (text.contains(CUSTOM_RTMP)) {
+		btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
+	}
+
+	PLSDpiHelper dpiHelper;
+	dpiHelper.notifyDpiChanged(btn, [=](double dpi) {
+		extern QPixmap paintSvg(const QString &pixmapPath, const QSize &pixSize);
+
+		QString iconPath, disablePath;
+		if (text.contains(CUSTOM_RTMP)) {
+			iconPath = g_defaultRTMPAddButtonIcon;
+			disablePath = iconPath;
+		} else {
+			iconPath = getPlatformImageFromName(text, "btn.+", "\\.svg");
+			disablePath = getPlatformImageFromName(text, "btn.+", "\\-on.svg");
+		}
+
+		QIcon Icon;
+		Icon.addPixmap(paintSvg(iconPath, PLSDpiHelper::calculate(dpi, QSize(115, 40))), QIcon::Normal);
+		Icon.addPixmap(paintSvg(disablePath, PLSDpiHelper::calculate(dpi, QSize(115, 40))), QIcon::Disabled);
+		btn->setIcon(Icon);
+	});
 
 	auto hoverBtn = new QToolButton(btn);
 	hoverBtn->setObjectName("hoverBtn");
@@ -111,9 +124,10 @@ void ChannelsAddWin::appendItem(const QString &text)
 	hoverBtn->hide();
 	connect(hoverBtn, &QToolButton::clicked, this, &ChannelsAddWin::runBtnCMD, Qt::QueuedConnection);
 
-	auto layout = dynamic_cast<QGridLayout *>(ui->scrollAreaWidgetContents->layout());
-	int row = layout->count() / 4;
-	int column = layout->count() % 5;
+	static int countOfRow = 4;
+	auto layout = ui->ItemGridLayout;
+	int row = layout->count() / countOfRow;
+	int column = layout->count() % countOfRow;
 	layout->addWidget(btn, row, column);
 }
 
@@ -127,6 +141,7 @@ void ChannelsAddWin::initDefault()
 	for (const QString &platform : getDefaultPlatforms()) {
 		appendItem(platform);
 	}
+	ui->ChannelsListWid->adjustSize();
 }
 
 void ChannelsAddWin::runBtnCMD()

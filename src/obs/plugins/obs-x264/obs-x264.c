@@ -181,13 +181,15 @@ static obs_properties_t *obs_x264_props(void *unused)
 
 	obs_property_set_modified_callback(list, rate_control_modified);
 
-	p = obs_properties_add_int(props, "bitrate", TEXT_BITRATE, 50, 10000000,
+	//PRISM/LiuHaibin/20200328/#/change default value
+	p = obs_properties_add_int(props, "bitrate", TEXT_BITRATE, 50, 60000,
 				   50);
 	obs_property_int_set_suffix(p, " Kbps");
 
 	p = obs_properties_add_bool(props, "use_bufsize", TEXT_CUSTOM_BUF);
 	obs_property_set_modified_callback(p, use_bufsize_modified);
-	obs_properties_add_int(props, "buffer_size", TEXT_BUF_SIZE, 0, 10000000,
+	//PRISM/LiuHaibin/20200328/#/change default value
+	obs_properties_add_int(props, "buffer_size", TEXT_BUF_SIZE, 0, 60000,
 			       1);
 
 	obs_properties_add_int(props, "crf", TEXT_CRF, 0, 51, 1);

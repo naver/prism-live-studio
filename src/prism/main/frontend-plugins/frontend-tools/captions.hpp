@@ -12,7 +12,7 @@ class CaptionsDialog : public PLSDialogView {
 	std::unique_ptr<Ui_CaptionsDialog> ui;
 
 public:
-	CaptionsDialog(QWidget *parent);
+	CaptionsDialog(QWidget *parent, PLSDpiHelper dpiHelper = PLSDpiHelper());
 
 public slots:
 	void on_source_currentIndexChanged(int idx);

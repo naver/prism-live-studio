@@ -30,7 +30,12 @@ struct gs_exports {
 						      uint32_t),
 				     void *);
 	const char *(*device_preprocessor_name)(void);
-	int (*device_create)(gs_device_t **device, uint32_t adapter);
+
+	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+	int (*device_create)(gs_device_t **device, uint32_t adapter,
+			     void (*callback)(bool render_working));
+	void (*device_rebuild)(gs_device_t *device);
+
 	void (*device_destroy)(gs_device_t *device);
 	void (*device_enter_context)(gs_device_t *device);
 	void (*device_leave_context)(gs_device_t *device);
@@ -310,7 +315,27 @@ struct gs_exports {
 	gs_stagesurf_t *(*device_stagesurface_create_nv12)(gs_device_t *device,
 							   uint32_t width,
 							   uint32_t height);
+	void (*device_register_loss_callbacks)(
+		gs_device_t *device, const struct gs_device_loss *callbacks);
+	void (*device_unregister_loss_callbacks)(gs_device_t *device,
+						 void *data);
 #endif
+	//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+	uint64_t (*device_texture_get_max_size)(gs_device_t *device);
+
+	//PRISM/Wangshaohui/20200710/#3370/for take photo
+	gs_stagesurf_t *(*device_canvas_map)(gs_device_t *device, uint32_t *cx,
+					     uint32_t *cy,
+					     enum gs_color_format *fmt,
+					     uint8_t **data,
+					     uint32_t *linesize);
+
+	//PRISM/Wangshaohui/20200710/#3370/for take photo
+	void (*device_canvas_unmap)(gs_device_t *device,
+				    gs_stagesurf_t *surface);
+
+	//PRISM/Liu.Haibin/20200708/#3296/for adapter check
+	bool (*adapter_get_luid)(gs_device_t *device, struct gs_luid *luid);
 };
 
 struct blend_state {

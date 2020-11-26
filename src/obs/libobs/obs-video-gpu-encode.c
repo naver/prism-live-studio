@@ -101,6 +101,10 @@ static void *gpu_encode_thread(void *unused)
 				encoder->context.data, tf.handle,
 				encoder->cur_pts, lock_key, &next_key, &pkt,
 				&received);
+
+			//PRISM/LiuHaibin/20200703/#None/gpu encoder deadlock
+			os_atomic_set_bool(&encoder->gpu_encoder_error,
+					   !success);
 			send_off_encoder_packet(encoder, success, received,
 						&pkt);
 
@@ -215,8 +219,14 @@ void free_gpu_encoding(struct obs_core_video *video)
 		while (x.size) {                                        \
 			struct obs_tex_frame frame;                     \
 			circlebuf_pop_front(&x, &frame, sizeof(frame)); \
-			gs_texture_destroy(frame.tex);                  \
-			gs_texture_destroy(frame.tex_uv);               \
+			if (frame.tex) {                                \
+				gs_texture_destroy(frame.tex);          \
+				frame.tex = NULL;                       \
+			}                                               \
+			if (frame.tex_uv) {                             \
+				gs_texture_destroy(frame.tex_uv);       \
+				frame.tex_uv = NULL;                    \
+			}                                               \
 		}                                                       \
 		circlebuf_free(&x);                                     \
 	} while (false)

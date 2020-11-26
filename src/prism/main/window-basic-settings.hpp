@@ -147,6 +147,8 @@ private:
 
 	QWidget *outputSettingsAdvCurrentTab = nullptr;
 
+	QList<std::tuple<bool, QLabel *, QWidget *, QWidget *>> hotkeyRows;
+
 	void SaveCombo(QComboBox *widget, const char *section, const char *value);
 	void SaveComboData(QComboBox *widget, const char *section, const char *value);
 	void SaveCheckBox(QAbstractButton *widget, const char *section, const char *value, bool invert = false);
@@ -195,7 +197,7 @@ private:
 	void LoadAdvancedSettings();
 	void LoadSettings(bool changedOnly);
 
-	PLSPropertiesView *CreateEncoderPropertyView(const char *encoder, const char *path, bool changed = false);
+	void CreateEncoderPropertyView(PLSPropertiesView *&view, QWidget *parent, const char *encoder, const char *path, bool changed = false);
 
 	/* general */
 	void LoadLanguageList();
@@ -251,6 +253,8 @@ private:
 	void SaveAdvancedSettings();
 	void SaveSettings();
 
+	void ResetSettings();
+
 	void UpdateSimpleOutStreamDelayEstimate();
 	void UpdateAdvOutStreamDelayEstimate();
 
@@ -259,6 +263,7 @@ private:
 	void FillAudioMonitoringDevices();
 
 	void RecalcOutputResPixels(const char *resText);
+	void updateLabelSize(double dpi);
 
 	QIcon generalIcon;
 	QIcon streamIcon;
@@ -305,6 +310,8 @@ private slots:
 	void on_baseResolution_editTextChanged(const QString &text);
 
 	void on_disableOSXVSync_clicked();
+
+	void on_resetButton_clicked();
 
 	void GeneralChanged();
 	void AudioChanged();
@@ -356,8 +363,9 @@ protected:
 	virtual bool eventFilter(QObject *watched, QEvent *event);
 
 public:
-	explicit PLSBasicSettings(QWidget *parent);
+	explicit PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSBasicSettings();
+	int returnValue() { return m_doneValue; }
 
 public:
 	void switchTo(const QString &tab, const QString &group);
@@ -369,7 +377,7 @@ public:
 	virtual void done(int type);
 
 signals:
-	void updateStreamEncoderPropsSize();
+	void updateStreamEncoderPropsSize(PLSPropertiesView *view);
 	void asyncUpdateReplayBufferHotkeyMessage(void *output, PLSHotkeyWidget *hw);
 	void asyncNotifyComponentValueChanged(QWidget *page, QObject *sender);
 };

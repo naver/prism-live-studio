@@ -14,10 +14,10 @@ public:
 	PLSFontDialogImpl(PLSFontDialogView *cdv, const QFont &initial, QWidget *parent) : QFontDialog(initial, parent), fontDialogView(cdv)
 	{
 		setWindowFlags(Qt::Widget);
+
 		if (QDialogButtonBox *buttonBox = findChild<QDialogButtonBox *>(); buttonBox) {
 			PLSDialogButtonBox::updateStandardButtonsStyle(buttonBox);
 		}
-
 		for (auto &child : findChildren<QComboBox *>()) {
 			child->setView(new PLSComboBoxListView());
 		}
@@ -37,10 +37,13 @@ private:
 	PLSFontDialogView *fontDialogView;
 };
 
-PLSFontDialogView::PLSFontDialogView(QWidget *parent) : PLSFontDialogView(parent->font(), parent) {}
+PLSFontDialogView::PLSFontDialogView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSFontDialogView(parent->font(), parent, dpiHelper) {}
 
-PLSFontDialogView::PLSFontDialogView(const QFont &initial, QWidget *parent) : PLSDialogView(parent)
+PLSFontDialogView::PLSFontDialogView(const QFont &initial, QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::QFontDialog, PLSCssIndex::PLSFontDialogView});
+	dpiHelper.setInitSize(this, QSize(630, 638));
+
 	impl = new PLSFontDialogImpl(this, initial, this->content());
 
 	QHBoxLayout *l = new QHBoxLayout(this->content());
@@ -132,7 +135,6 @@ void PLSFontDialogView::done(int result)
 
 void PLSFontDialogView::showEvent(QShowEvent *event)
 {
-	sizeToContent(QSize(630, 638));
 	moveToCenter();
 	PLSDialogView::showEvent(event);
 }

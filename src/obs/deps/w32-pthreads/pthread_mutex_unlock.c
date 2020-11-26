@@ -48,6 +48,11 @@ pthread_mutex_unlock (pthread_mutex_t * mutex)
   /*
    * Let the system deal with invalid pointers.
    */
+  //PRISM/LiuHaibin/20201026/#/add protection
+  if (*mutex == NULL)
+    {
+      return EINVAL;
+    }
 
   mx = *mutex;
 

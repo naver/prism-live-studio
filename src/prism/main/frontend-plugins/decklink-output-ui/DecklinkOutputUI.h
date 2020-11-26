@@ -4,6 +4,8 @@
 
 #include "ui_output.h"
 #include "../../main/properties-view.hpp"
+#include "../main/themes/PLSThemeManager.h"
+#include "PLSDpiHelper.h"
 
 class DecklinkOutputUI : public PLSDialogView {
 	Q_OBJECT
@@ -12,17 +14,18 @@ private:
 	PLSPropertiesView *previewPropertiesView;
 
 public slots:
-	void StartOutput();
-	void StopOutput();
+	// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+	void on_outputButton_clicked();
 	void PropertiesChanged();
+	void OutputStateChanged(bool active);
 
-	void StartPreviewOutput();
-	void StopPreviewOutput();
+	void on_previewOutputButton_clicked();
 	void PreviewPropertiesChanged();
+	void PreviewOutputStateChanged(bool active);
 
 public:
 	std::unique_ptr<Ui_Output> ui;
-	DecklinkOutputUI(QWidget *parent);
+	DecklinkOutputUI(QWidget *parent, PLSDpiHelper dpiHelper = PLSDpiHelper());
 
 	void ShowHideDialog();
 

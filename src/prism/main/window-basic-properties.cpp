@@ -25,7 +25,6 @@
 #include "PLSAction.h"
 
 #include <QCloseEvent>
-#include <QScreen>
 #include <QWindow>
 #include <QLayout>
 #include <QSpacerItem>
@@ -34,13 +33,52 @@ using namespace std;
 static void CreateTransitionScene(OBSSource scene, const char *text, uint32_t color);
 
 #define PROPERTY_WINDOW_DEFAULT_W 720
-#define PROPERTY_WINDOW_DEFAULT_H 700
+#define PROPERTY_WINDOW_DEFAULT_H 720
 
 // this key is from dshow plugin
 #define LAST_RESOLUTION "last_resolution"
 
-PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsigned flags)
-	: PLSDialogView(parent),
+namespace {
+class CustomPropertiesView : public PLSPropertiesView {
+	bool isTransition;
+	PLSBasicProperties *basicProperties;
+
+public:
+	explicit CustomPropertiesView(PLSBasicProperties *basicProperties_, bool isTransition_, OBSData settings, void *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback,
+				      int minSize = 0, int maxSize = -1, bool showFiltersBtn = false, bool showColorFilterPath = true, bool colorFilterOriginalPressed = false,
+				      PLSDpiHelper dpiHelper = PLSDpiHelper())
+		: PLSPropertiesView(settings, obj, reloadCallback, callback, minSize, maxSize, showFiltersBtn, showColorFilterPath, colorFilterOriginalPressed, dpiHelper),
+		  isTransition(isTransition_),
+		  basicProperties(basicProperties_)
+	{
+	}
+
+	void RefreshProperties()
+	{
+		PLSPropertiesView::RefreshProperties(
+			[this](QWidget *widget) {
+				if (isTransition) {
+					basicProperties->AddPreviewButton(widget);
+				}
+
+				PLSDpiHelper::dpiDynamicUpdate(widget, false);
+			},
+			false);
+	}
+};
+}
+
+void PLSBasicProperties::SetOwnerWindow(OBSSource source, long long hwnd)
+{
+	obs_data_t *data = obs_data_create();
+	obs_data_set_string(data, "method", "owner");
+	obs_data_set_int(data, "hwnd", hwnd);
+	obs_source_set_private_data(source, data);
+	obs_data_release(data);
+}
+
+PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsigned flags, PLSDpiHelper dpiHelper)
+	: PLSDialogView(parent, dpiHelper),
 	  preview(new PLSQTDisplay(this)),
 	  acceptClicked(false),
 	  source(source_),
@@ -49,38 +87,43 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 	  oldSettings(obs_data_create()),
 	  operationFlags(flags)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::PLSBasicProperties});
+	dpiHelper.setInitSize(this, {PROPERTY_WINDOW_DEFAULT_W, PROPERTY_WINDOW_DEFAULT_H});
+
+	obs_source_properties_edit_start(source);
+
 	signal_handler_connect_ref(obs_source_get_signal_handler(source), "capture_state", PLSQTDisplay::OnSourceCaptureState, preview);
 	preview->UpdateSourceState(source);
 	preview->AttachSource(source);
 	preview->setObjectName(OBJECT_NAME_PROPERTYVIEW);
+	preview->setMouseTracking(true);
 
 	enum obs_source_type type = obs_source_get_type(source);
 	const char *id = obs_source_get_id(source);
-	if (id)
+	if (id) {
 		PLS_INFO(PROPERTY_MODULE, "Property window for %s is openned", id);
+		setProperty("sourceId", id);
+
+		if (!strcmp(id, PRISM_CHAT_SOURCE_ID) || !strcmp(id, PRISM_TEXT_MOTION_ID)) {
+			setWidthResizeEnabled(false);
+		}
+	}
 
 	uint32_t caps = obs_source_get_output_flags(source);
 	bool drawable_type = type == OBS_SOURCE_TYPE_INPUT || type == OBS_SOURCE_TYPE_SCENE;
 	bool drawable_preview = (caps & OBS_SOURCE_VIDEO) != 0;
 
 	buttonBox = new PLSDialogButtonBox(this->content());
-	buttonBox->setContentsMargins(30, 0, 30, 0);
+	buttonBox->setMouseTracking(true);
+	dpiHelper.setContentsMargins(buttonBox, {25, 0, 25, 0});
 	buttonBox->setObjectName(QStringLiteral(OBJECT_NAME_BUTTON_BOX));
 	buttonBox->setStandardButtons(QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::RestoreDefaults);
+	buttonBox->setProperty("owner", "PLSBasicProperties");
 
 	buttonBox->button(QDialogButtonBox::Ok)->setText(QTStr("OK"));
-	buttonBox->button(QDialogButtonBox::Ok)->setFixedSize(128, 40);
-
-	QPushButton *cancelBtn = buttonBox->button(QDialogButtonBox::Cancel);
 	buttonBox->button(QDialogButtonBox::Cancel)->setText(QTStr("Cancel"));
-	buttonBox->button(QDialogButtonBox::Cancel)->setStyleSheet("QPushButton{padding: 0px;margin-left: 5px;}");
-	cancelBtn->setFixedSize(133, 40);
 
 	buttonBox->button(QDialogButtonBox::RestoreDefaults)->setText(QTStr("Defaults"));
-	buttonBox->button(QDialogButtonBox::RestoreDefaults)->setFixedSize(142, 40);
-	buttonBox->button(QDialogButtonBox::RestoreDefaults)->setStyleSheet("QPushButton{padding: 0px;}");
-
-	this->resize(PROPERTY_WINDOW_DEFAULT_W, PROPERTY_WINDOW_DEFAULT_H);
 
 	QMetaObject::connectSlotsByName(this);
 
@@ -91,44 +134,85 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 	obs_data_apply(oldSettings, settings);
 	obs_data_release(settings);
 
-	view = new PLSPropertiesView(settings, source, (PropertiesReloadCallback)obs_source_properties, (PropertiesUpdateCallback)obs_source_update, 0, -1, drawable_type);
-	view->setMinimumHeight(150);
-	connect(view, &PLSPropertiesView::OpenFilters, this, [this]() { emit OpenFilters(); });
+	bool isChatSource = id && id[0] ? (strcmp(id, PRISM_CHAT_SOURCE_ID) == 0) : false;
+	extern bool hasActivedChatChannel();
+	extern bool isOutputExceed1080p(config_t * config);
+	if (isChatSource && obs_frontend_streaming_active()) {
+		if (!hasActivedChatChannel()) {
+			preview->showGuideText(tr("Chat.Property.ChatSource.NoSupportChannel.InStreaming"));
+		} else if (isOutputExceed1080p(PLSBasic::Get()->Config())) { // exceed 1080p streaming
+			preview->showGuideText(tr("Chat.Property.ChatSource.WhenStreaming.Exceed1080p"));
+		}
+	}
 
-	preview->setMinimumSize(20, 150);
+	view = new CustomPropertiesView(this, type == OBS_SOURCE_TYPE_TRANSITION, settings, source, (PropertiesReloadCallback)obs_source_properties, (PropertiesUpdateCallback)obs_source_update, 0, -1,
+					drawable_type);
+	dpiHelper.setMinimumHeight(view, 150);
+	view->SetForProperty(true);
+	view->SetCustomContentMargins(true);
+	view->setMouseTracking(true);
+	// modify by xiewei issue #5324
+	view->setCursor(Qt::ArrowCursor);
+
+	if (0 == strcmp(id, GDIP_TEXT_SOURCE_ID)) {
+		view->SetCustomContentWidth(true);
+	}
+	view->RefreshProperties();
+
+	connect(view, &PLSPropertiesView::OpenFilters, this, [this]() { emit OpenFilters(source); });
+	connect(view, &PLSPropertiesView::OpenStickers, this, [this]() { emit OpenStickers(source); });
+	connect(view, &PLSPropertiesView::OpenMusicButtonClicked, this, [=](OBSSource source) { emit OpenMusicButtonClicked(); });
+	connect(view, &PLSPropertiesView::okButtonControl, buttonBox->button(QDialogButtonBox::Ok), &QAbstractButton::setEnabled);
+
+	dpiHelper.setMinimumSize(preview, {20, 150});
 	preview->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding));
 
+	this->setMouseTracking(true);
 	// Create a QSplitter to keep a unified workflow here.
 	windowSplitter = new QSplitter(Qt::Orientation::Vertical, this->content());
+	windowSplitter->setMouseTracking(true);
 	windowSplitter->setObjectName(OBJECT_NAME_PROPERTY_SPLITTER);
-	windowSplitter->setContentsMargins(15, 15, 15, 0);
+	dpiHelper.setContentsMargins(windowSplitter, {0, 0, 0, 0});
 	windowSplitter->addWidget(preview);
-	windowSplitter->addWidget(view);
+
+	QWidget *view_contianter = new QWidget(this->content());
+	view_contianter->setFocusPolicy(Qt::NoFocus);
+	view_contianter->setObjectName(OBJECT_NAME_PROPERTY_VIEW_CONTAINER);
+	view_contianter->setMouseTracking(true);
+	// commented by xiewei issue #5324
+	//view_contianter->setCursor(Qt::ArrowCursor);
+	QVBoxLayout *layout_view = new QVBoxLayout(view_contianter);
+	layout_view->setContentsMargins(15, 0, 10, 0);
+	layout_view->setSpacing(0);
+	layout_view->addWidget(view);
+	windowSplitter->addWidget(view_contianter);
 	windowSplitter->setStretchFactor(0, 1);
 	windowSplitter->setStretchFactor(1, 1);
 	windowSplitter->setChildrenCollapsible(false);
-	windowSplitter->setSizes(QList<int>({DISPLAY_VIEW_DEFAULT_HEIGHT, DISPLAY_LABEL_DEFAULT_HEIGHT}));
+	dpiHelper.notifyDpiChanged(windowSplitter, [=](double dpi) {
+		windowSplitter->setSizes(QList<int>({PLSDpiHelper::calculate(dpi, DISPLAY_VIEW_DEFAULT_HEIGHT), PLSDpiHelper::calculate(dpi, DISPLAY_LABEL_DEFAULT_HEIGHT)}));
+	});
 
 	QLabel *seperatorLabel = new QLabel(this);
 	seperatorLabel->setObjectName(OBJECT_NAME_SEPERATOR_LABEL);
 
 	QHBoxLayout *hLayoutSplitter = new QHBoxLayout;
-	hLayoutSplitter->setContentsMargins(RESIZE_BORDER_WIDTH, 0, RESIZE_BORDER_WIDTH, 0);
+	hLayoutSplitter->setContentsMargins(0, 0, 0, 0);
 	hLayoutSplitter->addWidget(windowSplitter);
 
 	QHBoxLayout *hLayoutBtnBox = new QHBoxLayout;
-	hLayoutBtnBox->setContentsMargins(RESIZE_BORDER_WIDTH, 0, RESIZE_BORDER_WIDTH, 0);
+	hLayoutBtnBox->setContentsMargins(ORIGINAL_RESIZE_BORDER_WIDTH, ORIGINAL_RESIZE_BORDER_WIDTH, ORIGINAL_RESIZE_BORDER_WIDTH, ORIGINAL_RESIZE_BORDER_WIDTH);
 	hLayoutBtnBox->addWidget(buttonBox);
 
 	QVBoxLayout *hLayout = new QVBoxLayout(this->content());
-	hLayout->setContentsMargins(0, 0, 0, RESIZE_BORDER_WIDTH);
+	hLayout->setContentsMargins(0, 0, 0, 0);
 	hLayout->setSpacing(0);
 	hLayout->addLayout(hLayoutSplitter);
 
-	if (type == OBS_SOURCE_TYPE_TRANSITION) {
-		AddPreviewButton();
-		connect(view, SIGNAL(PropertiesRefreshed()), this, SLOT(AddPreviewButton()));
-	}
+	// if (type == OBS_SOURCE_TYPE_TRANSITION) {
+	// 	AddPreviewButton();
+	// 	connect(view, SIGNAL(PropertiesRefreshed()), this, SLOT(AddPreviewButton()));
+	// }
 
 	hLayout->addWidget(seperatorLabel);
 	hLayout->addLayout(hLayoutBtnBox);
@@ -199,14 +283,20 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 		connect(preview.data(), &PLSQTDisplay::DisplayCreated, addTransitionDrawCallback);
 
 	} else {
+		preview->setProperty("forceHidden", true);
 		preview->hide();
+		layout_view->setContentsMargins(15, 25, 15, 0);
 	}
 
-	connect(view, &PLSPropertiesView::Changed, this, [=]() { emit propertiesChanged(source); });
+	SetOwnerWindow(source, window()->winId());
 }
 
 PLSBasicProperties::~PLSBasicProperties()
 {
+	SetOwnerWindow(source, 0);
+
+	Cleanup();
+
 	signal_handler_disconnect(obs_source_get_signal_handler(source), "capture_state", PLSQTDisplay::OnSourceCaptureState, preview);
 	if (sourceClone) {
 		obs_source_dec_active(sourceClone);
@@ -218,26 +308,20 @@ PLSBasicProperties::~PLSBasicProperties()
 
 	view->CheckValues();
 
-	if (acceptClicked) {
-		OBSData srcSettings = obs_source_get_settings(source);
-		action::CheckPropertyAction(obs_source_get_id(source), oldSettings, srcSettings, operationFlags);
-		obs_data_release(srcSettings);
-	}
-
 	const char *id = obs_source_get_id(source);
 	if (id)
 		PLS_INFO(PROPERTY_MODULE, "Property window for %s is closed", id);
 }
 
-void PLSBasicProperties::AddPreviewButton()
+void PLSBasicProperties::AddPreviewButton(QWidget *widget)
 {
 	QPushButton *playButton = new QPushButton(QTStr("PreviewTransition"), this);
-	VScrollArea *area = view;
 	QSpacerItem *item = new QSpacerItem(1, PROPERTIES_VIEW_VERTICAL_SPACING_MAX, QSizePolicy::Fixed);
-	area->widget()->layout()->addItem(item);
-	area->widget()->layout()->addWidget(playButton);
+	widget->layout()->addItem(item);
+	widget->layout()->addWidget(playButton);
 
-	playButton->setFixedSize(FILTERS_TRANSITION_VIEW_FIXED_WIDTH, FILTERS_TRANSITION_VIEW_FIXED_HEIGHT);
+	PLSDpiHelper dpiHelper;
+	dpiHelper.setFixedSize(playButton, {FILTERS_TRANSITION_VIEW_FIXED_WIDTH, FILTERS_TRANSITION_VIEW_FIXED_HEIGHT});
 	playButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
 	auto play = [=]() {
@@ -264,6 +348,15 @@ void PLSBasicProperties::AddPreviewButton()
 	};
 
 	connect(playButton, &QPushButton::clicked, play);
+}
+
+void PLSBasicProperties::UpdateOldSettings(obs_source_t *source)
+{
+	if (!source) {
+		return;
+	}
+	obs_data_t *settings = obs_source_get_settings(source);
+	obs_data_apply(oldSettings, settings);
 }
 
 static obs_source_t *CreateLabel(const char *name, size_t h)
@@ -357,7 +450,6 @@ void PLSBasicProperties::UpdateProperties(void *data, calldata_t *)
 void PLSBasicProperties::on_buttonBox_clicked(QAbstractButton *button)
 {
 	QDialogButtonBox::ButtonRole val = buttonBox->buttonRole(button);
-
 	if (val == QDialogButtonBox::AcceptRole) {
 		acceptClicked = true;
 		close();
@@ -365,16 +457,36 @@ void PLSBasicProperties::on_buttonBox_clicked(QAbstractButton *button)
 		if (view->DeferUpdate())
 			view->UpdateSettings();
 
+		obs_source_properties_edit_end(source);
+
 	} else if (val == QDialogButtonBox::RejectRole) {
 		OnButtonBoxCancelClicked(source);
 
 	} else if (val == QDialogButtonBox::ResetRole) {
+		const char *id = obs_source_get_id(source);
+		//add by xiewei, gipy sticker source dosen't provide reset operation.
+		if (id && 0 == strcmp(id, PRISM_STICKER_SOURCE_ID))
+			return;
+
+		//add by zengqin, ffmepg source disable defaults when media is loading.
+		if (id && 0 == strcmp(id, MEDIA_SOURCE_ID)) {
+			obs_data_t *loadData = obs_data_create();
+			obs_data_set_string(loadData, "method", "media_load");
+			obs_source_get_private_data(source, loadData);
+			bool loading = obs_data_get_bool(loadData, "media_load");
+			obs_data_release(loadData);
+			if (loading)
+				return;
+		}
+
 		obs_data_t *settings = obs_source_get_settings(source);
 		obs_data_clear(settings);
 		obs_data_release(settings);
 
 		if (!view->DeferUpdate())
 			obs_source_update(source, nullptr);
+
+		obs_source_properties_edit_start(source);
 
 		view->ReloadProperties();
 	}
@@ -392,6 +504,28 @@ void PLSBasicProperties::OnButtonBoxCancelClicked(OBSSource source)
 		obs_source_update(source, oldSettings);
 
 	close();
+
+	obs_source_properties_edit_end(source);
+}
+
+void PLSBasicProperties::ReloadProperties()
+{
+	if (!view) {
+		return;
+	}
+
+	view->ReloadProperties();
+}
+
+static inline void GetChatScaleAndCenterPos(double dpi, int baseCX, int baseCY, int windowCX, int windowCY, int &x, int &y, float &scale)
+{
+	float WIDTH = 365 * dpi;
+
+	int newCX = int(WIDTH);
+	int newCY = int(float(WIDTH * baseCY) / float(baseCX));
+	scale = newCX / float(baseCX);
+	x = windowCX / 2 - newCX / 2;
+	y = windowCY - newCY;
 }
 
 void PLSBasicProperties::DrawPreview(void *data, uint32_t cx, uint32_t cy)
@@ -403,12 +537,17 @@ void PLSBasicProperties::DrawPreview(void *data, uint32_t cx, uint32_t cy)
 
 	uint32_t sourceCX = max(obs_source_get_width(window->source), 1u);
 	uint32_t sourceCY = max(obs_source_get_height(window->source), 1u);
+	const char *sourceId = obs_source_get_id(window->source);
 
 	int x, y;
 	int newCX, newCY;
 	float scale;
 
-	GetScaleAndCenterPos(sourceCX, sourceCY, cx, cy, x, y, scale);
+	if (sourceId && sourceId[0] && !strcmp(sourceId, PRISM_CHAT_SOURCE_ID)) {
+		GetChatScaleAndCenterPos(window->dpi, sourceCX, sourceCY, cx, cy, x, y, scale);
+	} else {
+		GetScaleAndCenterPos(sourceCX, sourceCY, cx, cy, x, y, scale);
+	}
 
 	newCX = int(scale * float(sourceCX));
 	newCY = int(scale * float(sourceCY));
@@ -471,7 +610,9 @@ void PLSBasicProperties::reject()
 		}
 	}
 
+	obs_source_properties_edit_end(source);
 	Cleanup();
+	emit AboutToClose();
 	done(0);
 }
 
@@ -489,6 +630,18 @@ void PLSBasicProperties::closeEvent(QCloseEvent *event)
 		return;
 
 	Cleanup();
+}
+
+bool PLSBasicProperties::eventFilter(QObject *watcher, QEvent *event)
+{
+	if (watcher == content()) {
+		switch (event->type()) {
+		case QEvent::ChildAdded:
+			// to avoid setting cursor in father
+			return false;
+		}
+	}
+	return PLSDialogView::eventFilter(watcher, event);
 }
 
 void PLSBasicProperties::Init()
@@ -542,8 +695,10 @@ bool PLSBasicProperties::ConfirmQuit()
 		// Do nothing because the settings are already updated
 		break;
 	case PLSAlertView::Button::Discard:
+		acceptClicked = true; //#4341 by zengqin
 		obs_source_update(source, oldSettings);
 		break;
+	case PLSAlertView::Button::NoButton: //#4186 by zengqin
 	case PLSAlertView::Button::Cancel:
 		return false;
 		break;

@@ -240,16 +240,11 @@ static inline gs_effect_t *get_scale_effect(struct obs_core_video *video,
 	}
 }
 
-static const char *render_outro_internal_name = "render_outro_internal";
 static gs_texture_t *render_outro_internal(obs_outro_t *outro)
 {
 	if (outro) {
 		if (!reset_texture(outro))
 			return NULL;
-
-		profile_start(render_outro_internal_name);
-		GS_DEBUG_MARKER_BEGIN(GS_DEBUG_COLOR_MAIN_TEXTURE,
-				      render_outro_texture_name);
 
 		struct vec4 clear_color;
 		vec4_set(&clear_color, 0.0f, 0.0f, 0.0f, 0.0f);
@@ -267,9 +262,6 @@ static gs_texture_t *render_outro_internal(obs_outro_t *outro)
 				obs_source_video_render(source);
 			}
 		}
-
-		GS_DEBUG_MARKER_END();
-		profile_end(render_outro_internal_name);
 
 		return obs->video.outro->texture;
 	}
@@ -418,14 +410,6 @@ void *obs_outro_thread(void *param)
 			stop_outputs();
 		}
 
-		if (!output_stopped() &&
-		    !os_atomic_load_bool(&outro->stopping_output) &&
-		    obs_source_stopped(outro->source)) {
-			blog(LOG_INFO,
-			     "Outro source is finished, try to stop outputs");
-			stop_outputs();
-		}
-
 		if (output_stopped() && obs_outro_active(outro)) {
 			blog(LOG_INFO, "Output is stopped, deactivate outro");
 			deactivate_outro(outro);
@@ -438,13 +422,12 @@ void *obs_outro_thread(void *param)
 	return NULL;
 }
 
-static const char *render_outro_name = "render_outro";
 gs_texture_t *obs_outro_render(struct obs_core_video *video)
 {
 	if (video && video->outro) {
 		if (!reset_texture(video->outro))
 			return NULL;
-
+		
 		uint32_t base_width = video->outro->render_width;
 		uint32_t base_height = video->outro->render_height;
 
@@ -528,9 +511,6 @@ gs_texture_t *obs_outro_render(struct obs_core_video *video)
 		}
 		gs_technique_end(tech);
 		gs_enable_blending(true);
-
-		GS_DEBUG_MARKER_END();
-		profile_end(render_outro_name);
 
 		return target;
 	}

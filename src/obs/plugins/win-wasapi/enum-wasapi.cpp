@@ -8,6 +8,9 @@
 
 using namespace std;
 
+//PRISM/WangShaohui/20200414/#2224/for lost audio device
+#define AUDIO_STRING_SPT "AudioInfoSeparator"
+
 string GetDeviceName(IMMDevice *device)
 {
 	string device_name;
@@ -94,5 +97,43 @@ void GetWASAPIAudioDevices(vector<AudioDeviceInfo> &devices, bool input)
 	} catch (HRError &error) {
 		blog(LOG_WARNING, "[GetWASAPIAudioDevices] %s: %lX", error.str,
 		     error.hr);
+	}
+}
+
+//PRISM/WangShaohui/20200414/#2224/for lost audio device
+std::string EncodeAudioString(const char *name, const char *id)
+{
+	std::string ret = "";
+
+	if (name)
+		ret += name;
+
+	ret += AUDIO_STRING_SPT;
+
+	if (id)
+		ret += id;
+
+	return ret;
+}
+
+//PRISM/WangShaohui/20200414/#2224/for lost audio device
+void DecodeAudioString(const char *str, std::string &name, std::string &id)
+{
+	name = "";
+	id = "";
+
+	if (!str)
+		return;
+
+	std::string temp = str;
+
+	int pos = temp.find(AUDIO_STRING_SPT);
+	if (pos == std::string::npos)
+	{
+		name = "";
+		id = temp;
+	} else {
+		name = temp.substr(0, pos);
+		id = temp.substr(pos + strlen(AUDIO_STRING_SPT));
 	}
 }

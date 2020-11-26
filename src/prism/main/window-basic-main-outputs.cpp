@@ -22,16 +22,6 @@ volatile bool replaybuf_active = false;
 //PRISM/LiuHaibin/20200320/#865/for outro
 static bool StartOutro(void)
 {
-	QString path;
-	uint timeOut = 0;
-	/*if (PLSGpopData::instance()->getOutroInfo(path, &timeOut)) {
-		if (obs_outro_activate(path.toStdString().c_str(), timeOut * 1000))
-			return true;
-		else
-			blog(LOG_WARNING, "Activate Outro Failed, path %s, timeout %d (ms)", path.toStdString().c_str(), timeOut);
-	} else
-		blog(LOG_WARNING, "No available Outro file");*/
-
 	return false;
 }
 
@@ -181,7 +171,7 @@ static void PLSStopRecording(void *data, calldata_t *params)
 	QMetaObject::invokeMethod(output->main, "RecordingStop", Q_ARG(int, code), Q_ARG(QString, arg_last_error));
 
 	//PRISM/LiuHaibin/20200320/#865/for outro
-	if (!IsOnlyStopRecording() && OBS_OUTPUT_SUCCESS == code)
+	if (!IsOnlyStopRecording() && OBS_OUTPUT_SUCCESS == code && !obs_output_stopped_internal(output->fileOutput))
 		AsyncStopStreaming(output->streamOutput);
 
 	//PRISM/LiuHaibin/20200320/#none/for watermark
@@ -819,7 +809,8 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 	bool reconnect = config_get_bool(main->Config(), "Output", "Reconnect");
 	int retryDelay = config_get_uint(main->Config(), "Output", "RetryDelay");
 	int maxRetries = config_get_uint(main->Config(), "Output", "MaxRetries");
-	bool useDelay = config_get_bool(main->Config(), "Output", "DelayEnable");
+	// Zhangdewen remove stream delay feature issue: 2231
+	bool useDelay = false; // config_get_bool(main->Config(), "Output", "DelayEnable");
 	int delaySec = config_get_int(main->Config(), "Output", "DelaySec");
 	bool preserveDelay = config_get_bool(main->Config(), "Output", "DelayPreserve");
 	const char *bindIP = config_get_string(main->Config(), "Output", "BindIP");
@@ -1554,7 +1545,8 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 	bool reconnect = config_get_bool(main->Config(), "Output", "Reconnect");
 	int retryDelay = config_get_int(main->Config(), "Output", "RetryDelay");
 	int maxRetries = config_get_int(main->Config(), "Output", "MaxRetries");
-	bool useDelay = config_get_bool(main->Config(), "Output", "DelayEnable");
+	// Zhangdewen remove stream delay feature issue: 2231
+	bool useDelay = false; // config_get_bool(main->Config(), "Output", "DelayEnable");
 	int delaySec = config_get_int(main->Config(), "Output", "DelaySec");
 	bool preserveDelay = config_get_bool(main->Config(), "Output", "DelayPreserve");
 	const char *bindIP = config_get_string(main->Config(), "Output", "BindIP");

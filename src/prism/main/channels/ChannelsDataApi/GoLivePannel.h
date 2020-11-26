@@ -2,8 +2,8 @@
 #define GOLIVEPANNEL_H
 
 #include <QFrame>
-#include <QStateMachine>
 #include <QMenu>
+#include <QStateMachine>
 
 class PLSAddingFrame;
 

@@ -1,26 +1,21 @@
 #include "ChannelCommonFunctions.h"
-#include "CommonDefine.h"
-#include <QUrl>
-#include <QJsonDocument>
-#include <QFile>
+#include <QCoreApplication>
 #include <QDatastream>
 #include <QDir>
-#include <QCoreApplication>
-#include "ChannelConst.h"
+#include <QFile>
+#include <QJsonDocument>
 #include <QRegularExpression>
+#include <QSvgRenderer>
 #include <QUUid>
-#include "frontend-api.h"
+#include <QUrl>
+#include "ChannelConst.h"
+
+#include "PLSChannelDataAPI.h"
 #include "PLSChannelsVirualAPI.h"
-#include "pls-net-url.hpp"
+#include "frontend-api.h"
 
+#define QRCPATH ":/images"
 using namespace ChannelData;
-
-QVariantMap &removePointerKey(QVariantMap &src)
-{
-	src.remove(g_channelWidget);
-	src.remove(g_channelHandler);
-	return src;
-}
 
 QString findFileInResources(const QString &dirPath, const QString &key)
 {
@@ -59,39 +54,6 @@ void deleteItem(QListWidgetItem *item)
 	delete item;
 }
 
-const QVariantMap createDefaultHeaderMap()
-{
-	QVariantMap ret;
-	ret[HTTP_HEAD_CONTENT_TYPE] = HTTP_CONTENT_TYPE_URL_ENCODED_VALUE;
-	QString userAgent = QString(PRISM_LIVE_STUDIO)
-				    .append(SLASH)
-				    .append("1.0version") //to be done get version
-				    .append(PRISM_BUILD)
-				    .append("")
-				    .append(PRISM_ARCHITECTURE)
-				    .append("")
-				    .append(PRISM_LANGUAGE)
-				    .append("EN_US"); //to be done get language
-
-	ret[HTTP_USER_AGENT] = userAgent;
-
-	return ret;
-}
-
-const QVariantMap createDefaultUrlMap()
-{
-	QVariantMap m_urlParamMap;
-	m_urlParamMap[HTTP_DEVICE_ID] = QUrl::toPercentEncoding(getHostMacAddress());
-	m_urlParamMap[HTTP_GCC] = "gcc";
-
-	m_urlParamMap[HTTP_VERSION] = "1";
-
-	m_urlParamMap[HTTP_WITH_ACTIVITY_INFO] = STATUS_FALSE;
-
-	return m_urlParamMap;
-}
-
-static long order = 100;
 QVariantMap createDefaultChannelInfoMap(const QString &channelName, int defaultType)
 {
 	QVariantMap channelInfo;
@@ -105,13 +67,15 @@ QVariantMap createDefaultChannelInfoMap(const QString &channelName, int defaultT
 	channelInfo.insert(g_channelUserStatus, Disabled);
 	channelInfo.insert(g_createTime, QDateTime::currentDateTime());
 	channelInfo.insert(g_isUpdated, false);
+	channelInfo.insert(g_displayState, true);
+	channelInfo.insert(g_isLeader, true);
 
 	int index = -1;
 	if (defaultType == ChannelType) {
 		auto defaultPlatforms = getDefaultPlatforms();
 		index = defaultPlatforms.indexOf(channelName);
 	} else if (defaultType == RTMPType) {
-		channelInfo.insert(g_userID, "");
+		channelInfo.insert(g_rtmpUserID, "");
 		channelInfo.insert(g_password, "");
 		channelInfo.insert(g_channelName, RTMPT_DEFAULT_TYPE);
 	}
@@ -127,11 +91,7 @@ const QString getPlatformImageFromName(const QString &channelName, const QString
 {
 	auto searchKey = prefix + channelName + surfix;
 	searchKey.remove(" ");
-	auto platformIcon = findFileInResources(":/Images/skin", searchKey);
-	if (platformIcon.isEmpty()) {
-		platformIcon = g_defualtPlatformIcon;
-	}
-	return platformIcon;
+	return findFileInResources(QRCPATH, searchKey);
 }
 
 QString getYoutubeShareUrl(const QString &broadCastID)
@@ -167,6 +127,49 @@ bool writeFile(const QByteArray &array, const QString &path)
 	return true;
 }
 
+QPixmap paintSvg(QSvgRenderer &renderer, const QSize &pixSize)
+{
+	QPixmap pixmap(pixSize);
+	pixmap.fill(Qt::transparent);
+	QPainter painter(&pixmap);
+	renderer.render(&painter);
+	return pixmap;
+}
+
+QPixmap paintSvg(const QString &pixmapPath, const QSize &pixSize)
+{
+	QSvgRenderer renderer(pixmapPath);
+	return paintSvg(renderer, pixSize);
+}
+
+void loadPixmap(QPixmap &pix, const QString &pixmapPath, const QSize &pixSize)
+{
+	if (pixmapPath.isEmpty()) {
+		pix = QPixmap();
+		return;
+	}
+
+	if (pixmapPath.toLower().endsWith(".svg")) {
+		QSvgRenderer renderer(pixmapPath);
+		pix = paintSvg(renderer, pixSize);
+	} else {
+		if (!pix.load(pixmapPath)) {
+			pix.load(pixmapPath, "PNG");
+			PRE_LOG_MSG(QString("error when load image: " + pixmapPath + " , may be the image suffix is not right").toStdString().c_str(), INFO)
+		}
+	}
+}
+
+QPixmap &getCubePix(QPixmap &mBigPix)
+{
+	int width = mBigPix.width();
+	int height = mBigPix.height();
+	int cube = qMin(width, height);
+	QRect cubeRec((width - cube) / 2, (height - cube) / 2, cube, cube);
+	mBigPix = mBigPix.copy(cubeRec);
+	return mBigPix;
+}
+
 void getComplexImageOfChannel(const QString &uuid, QString &userIcon, QString &platformIcon, const QString &prefix, const QString &surfix)
 {
 	const auto &srcData = PLSCHANNELS_API->getChanelInfoRef(uuid);
@@ -178,6 +181,9 @@ void getComplexImageOfChannel(const QString &uuid, QString &userIcon, QString &p
 	int type = getInfo(srcData, g_data_type, NoType);
 	if (type == RTMPType) {
 		userIcon = getPlatformImageFromName(platformName);
+		if (userIcon.isEmpty()) {
+			userIcon = g_defualtPlatformIcon;
+		}
 		platformIcon = g_defualtPlatformSmallIcon;
 	} else {
 		userIcon = getInfo(srcData, g_userIconCachePath, g_defaultHeaderIcon);
@@ -191,72 +197,14 @@ void formatJson(QByteArray &array)
 	array = document.toJson(QJsonDocument::Indented);
 }
 
-QDataStream &operator<<(QDataStream &out, const ChannelDataHandlerPtr &)
-{
-	out << "ChannelDataHandlerPtr";
-	return out;
-}
-
-QDataStream &operator<<(QDataStream &out, ChannelDataType type)
-{
-	out << char(type);
-	return out;
-}
-
-int getReplyStatusCode(ReplyPtrs reply)
-{
-	return reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-}
-
 void requestStartLog(const QString &url, const QString &requestType)
 {
 	PLS_INFO("Channels", "%s", QString("http request start:%1, url = " + url + ".").arg(requestType).toStdString().c_str());
 }
 
-void formatNetworkLogs(ReplyPtrs reply, const QByteArray &data)
-{
-	int code = 0;
-	auto doc = QJsonDocument::fromJson(data);
-	if (!doc.isNull()) {
-		auto obj = doc.object();
-		if (!obj.isEmpty()) {
-			code = obj.value("code").toInt();
-		}
-	}
-	QString msg = reply->url().toString() + " statusCode = " + QString::number(getReplyStatusCode(reply)) + " code = " + QString::number(code) + ".";
-	if (code != QNetworkReply::NoError) {
-		msg.prepend("http request error! url = ");
-		msg += "\n error string :" + reply->errorString();
-		PLS_ERROR("Channels", "%s", msg.toStdString().c_str());
-		PRE_LOG_MSG(("reply content :" + reply->readAll()).constData(), INFO);
-	} else {
-		msg.prepend("http request successfull! url = ");
-		PLS_INFO("Channels", "%s", msg.toStdString().c_str());
-	}
-}
-
-void ChannelsNetWorkPretestWithAlerts(ReplyPtrs reply, const QByteArray &data, bool notify)
-{
-	formatNetworkLogs(reply, data);
-	if (!notify) {
-		return;
-	}
-	QVariantMap errormap;
-	auto errorValue = reply->error();
-	if (errorValue <= QNetworkReply::UnknownNetworkError || errorValue == QNetworkReply::UnknownServerError) {
-		errormap.insert(g_errorTitle, CHANNELS_TR(Check.Alert.Title));
-		errormap.insert(g_errorString, CHANNELS_TR(Check.Network.Error));
-
-	} else {
-		return;
-	}
-	PLSCHANNELS_API->addError(errormap);
-	PLSCHANNELS_API->networkInvalidOcurred();
-}
-
 const QString getChannelCacheFilePath()
 {
-	return getChannelCacheDir() + "/" + g_channelCacheFile;
+	return getChannelCacheDir() + QDir::separator() + g_channelCacheFile;
 }
 
 const QString getChannelCacheDir()
@@ -266,17 +214,28 @@ const QString getChannelCacheDir()
 	if (!dir.exists(ret)) {
 		dir.mkpath(ret);
 	}
-	return ret;
+	return dir.toNativeSeparators(ret);
 }
 
 const QString getChannelSettingsFilePath()
 {
-	return getChannelCacheDir() + "/" + g_channelSettingsFile;
+	return getChannelCacheDir() + QDir::separator() + g_channelSettingsFile;
 }
 
 const QStringList getDefaultPlatforms()
 {
 	return gDefaultPlatform;
+}
+
+const QString guessPlatformFromRTMP(const QString &rtmpUrl)
+{
+	auto rtmpInfos = PLSCHANNELS_API->getRTMPInfos();
+	auto isUrlMatched = [&](const QString &url) { return rtmpUrl.compare(url, Qt::CaseInsensitive) == 0; };
+	auto retIte = std::find_if(rtmpInfos.constBegin(), rtmpInfos.constEnd(), isUrlMatched);
+	if (retIte != rtmpInfos.constEnd()) {
+		return retIte.key();
+	}
+	return QString(CUSTOM_RTMP);
 }
 
 QPropertyAnimation *createShowAnimation(QWidget *wid, int msSec)
@@ -335,6 +294,9 @@ void refreshStyle(QWidget *widget)
 
 QString getElidedText(QWidget *widget, const QString &srcTxt, double minWidth, Qt::TextElideMode mode, int flag)
 {
+	if (srcTxt.isEmpty()) {
+		return srcTxt;
+	}
 	return widget->fontMetrics().elidedText(srcTxt, mode, minWidth, flag);
 }
 

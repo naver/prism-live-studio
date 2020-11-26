@@ -17,7 +17,6 @@ public:
 	OBSSource GetFilter();
 	bool GetCurrentState();
 	void SetCurrentItemState(bool state);
-	void SetSelectStyle(bool selected);
 	void OnRenameActionTriggered();
 	void SetText(const QString &text);
 
@@ -37,6 +36,8 @@ private:
 	void OnMouseStatusChanged(const QString &status);
 	void OnFinishingEditName();
 	void CreatePopupMenu();
+	void UpdateNameStyle();
+	void SetProperty(QWidget *widget, const char *property, const QVariant &value);
 
 private slots:
 	void OnVisibilityButtonClicked(bool visible);

@@ -39,7 +39,7 @@ OAuthLogin::OAuthLogin(QWidget *parent, const std::string &url, bool token)
 
 	OBSBasic::InitBrowserPanelSafeBlock();
 
-	cefWidget = cef->create_widget(nullptr, url, panel_cookies);
+	cefWidget = cef->create_widget(nullptr, url, "", panel_cookies);
 	if (!cefWidget) {
 		fail = true;
 		return;

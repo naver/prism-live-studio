@@ -189,7 +189,8 @@ int gs_create(graphics_t **pgraphics, const char *module, uint32_t adapter)
 				   module))
 		goto error;
 
-	errcode = graphics->exports.device_create(&graphics->device, adapter);
+	errcode = graphics->exports.device_create(&graphics->device, adapter,
+						  NULL);
 	if (errcode != GS_SUCCESS)
 		goto error;
 
@@ -204,6 +205,52 @@ int gs_create(graphics_t **pgraphics, const char *module, uint32_t adapter)
 error:
 	gs_destroy(graphics);
 	return errcode;
+}
+
+//PRISM/Wang.Chuanjing/20200408/for device rebuild
+int gs_create_cb(graphics_t **pgraphics, const char *module, uint32_t adapter,
+		 void (*callback)(bool render_working))
+{
+	int errcode = GS_ERROR_FAIL;
+
+	graphics_t *graphics = bzalloc(sizeof(struct graphics_subsystem));
+	pthread_mutex_init_value(&graphics->mutex);
+	pthread_mutex_init_value(&graphics->effect_mutex);
+
+	graphics->module = os_dlopen(module);
+	if (!graphics->module) {
+		errcode = GS_ERROR_MODULE_NOT_FOUND;
+		goto error;
+	}
+
+	if (!load_graphics_imports(&graphics->exports, graphics->module,
+				   module))
+		goto error;
+
+	errcode = graphics->exports.device_create(&graphics->device, adapter,
+						  callback);
+	if (errcode != GS_SUCCESS)
+		goto error;
+
+	if (!graphics_init(graphics)) {
+		errcode = GS_ERROR_FAIL;
+		goto error;
+	}
+
+	*pgraphics = graphics;
+	return errcode;
+
+error:
+	gs_destroy(graphics);
+	return errcode;
+}
+
+EXPORT void gs_device_rebuild(graphics_t *graphics)
+{
+	if (!ptr_valid(graphics, "gs_device_rebuild"))
+		return;
+
+	graphics->exports.device_rebuild(graphics->device);
 }
 
 extern void gs_effect_actually_destroy(gs_effect_t *effect);
@@ -2952,4 +2999,88 @@ gs_stagesurf_t *gs_stagesurface_create_nv12(uint32_t width, uint32_t height)
 	return NULL;
 }
 
+void gs_register_loss_callbacks(const struct gs_device_loss *callbacks)
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid("gs_register_loss_callbacks"))
+		return;
+
+	if (graphics->exports.device_register_loss_callbacks)
+		graphics->exports.device_register_loss_callbacks(
+			graphics->device, callbacks);
+}
+
+void gs_unregister_loss_callbacks(void *data)
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid("gs_unregister_loss_callbacks"))
+		return;
+
+	if (graphics->exports.device_unregister_loss_callbacks)
+		graphics->exports.device_unregister_loss_callbacks(
+			graphics->device, data);
+}
+
 #endif
+
+//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+uint64_t gs_texture_get_max_size()
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid("gs_texture_get_max_size"))
+		return 0;
+
+	if (graphics->exports.device_texture_get_max_size)
+		return graphics->exports.device_texture_get_max_size(
+			graphics->device);
+
+	return 0;
+}
+
+//PRISM/Wangshaohui/20200710/#3370/for take photo
+gs_stagesurf_t *gs_device_canvas_map(uint32_t *cx, uint32_t *cy,
+			  enum gs_color_format *fmt, uint8_t **data,
+			  uint32_t *linesize)
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid("gs_device_canvas_map"))
+		return NULL;
+
+	if (graphics->exports.device_canvas_map)
+		return graphics->exports.device_canvas_map(graphics->device,
+							   cx, cy, fmt, data, linesize);
+
+	return NULL;
+}
+
+//PRISM/Wangshaohui/20200710/#3370/for take photo
+void gs_device_canvas_unmap(gs_stagesurf_t *surface)
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid("gs_device_canvas_unmap"))
+		return;
+
+	if (graphics->exports.device_canvas_unmap)
+		graphics->exports.device_canvas_unmap(graphics->device,
+							     surface);
+}
+
+//PRISM/Liu.Haibin/20200708/#3296/for adapter check
+bool gs_adapter_get_luid(struct gs_luid *luid)
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid("gs_adapter_get_luid"))
+		return false;
+
+	if (graphics->exports.adapter_get_luid)
+		return graphics->exports.adapter_get_luid(graphics->device,
+							  luid);
+
+	return false;
+}

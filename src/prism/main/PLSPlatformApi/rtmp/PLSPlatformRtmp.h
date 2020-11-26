@@ -20,5 +20,7 @@ public:
 	void onPrepareLive(bool value) override;
 	void onAlLiveStarted(bool) override;
 
+	QJsonObject getLiveStartParams() override;
+
 private:
 };

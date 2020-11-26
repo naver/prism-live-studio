@@ -58,8 +58,15 @@ enum obs_data_number_type {
 	OBS_DATA_NUM_DOUBLE
 };
 
+//PRISM/Wangshaohui/20200927/#4868/for property UI
+#define PROPERTY_FLAG_NO_LABEL_HEADER 0x00000001
+
 /* ------------------------------------------------------------------------- */
 /* Main usage functions */
+
+//PRISM/Wangshaohui/20200927/#4868/for property UI
+EXPORT void obs_data_set_flags(obs_data_t *data, unsigned value);
+EXPORT unsigned obs_data_get_flags(obs_data_t *data);
 
 EXPORT obs_data_t *obs_data_create();
 EXPORT obs_data_t *obs_data_create_from_json(const char *json_string);
@@ -125,6 +132,8 @@ EXPORT void obs_data_set_autoselect_obj(obs_data_t *data, const char *name,
  * Get functions
  */
 EXPORT const char *obs_data_get_string(obs_data_t *data, const char *name);
+EXPORT const char *obs_data_get_string_by_index(obs_data_t *data, size_t index);
+
 EXPORT long long obs_data_get_int(obs_data_t *data, const char *name);
 EXPORT double obs_data_get_double(obs_data_t *data, const char *name);
 EXPORT bool obs_data_get_bool(obs_data_t *data, const char *name);
@@ -198,6 +207,7 @@ EXPORT obs_data_item_t *obs_data_item_byname(obs_data_t *data,
 EXPORT bool obs_data_item_next(obs_data_item_t **item);
 EXPORT void obs_data_item_release(obs_data_item_t **item);
 EXPORT void obs_data_item_remove(obs_data_item_t **item);
+EXPORT size_t obs_data_item_count(obs_data_t *data);
 
 /* Gets Item type */
 EXPORT enum obs_data_type obs_data_item_gettype(obs_data_item_t *item);

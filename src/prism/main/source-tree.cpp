@@ -11,11 +11,12 @@
 #include "action.h"
 #include "liblog.h"
 #include "log/module_names.h"
+#include "ChannelCommonFunctions.h"
+#include "PLSDpiHelper.h"
 
 #include <frontend-api.h>
 #include <obs.h>
 #include <string>
-
 #include <QLabel>
 #include <QLineEdit>
 #include <QSpacerItem>
@@ -23,6 +24,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QMouseEvent>
+#include <QPainter>
 
 #include <QStylePainter>
 #include <QStyleOptionFocusRect>
@@ -33,10 +35,10 @@ static inline OBSScene GetCurrentScene()
 	return main->GetCurrentScene();
 }
 
-#define SOURCEITEM_MARGIN_UNNORMAL_LONG 30  // while scroll is hiden and mouse status is unnormal
+#define SOURCEITEM_MARGIN_UNNORMAL_LONG 30 // while scroll is hiden and mouse status is unnormal
 #define SOURCEITEM_MARGIN_UNNORMAL_SHORT 20 // while scroll is shown and mouse status is unnormal
 
-#define SOURCEITEM_MARGIN_NORMAL_LONG 20  // while scroll is hiden and mouse status is normal
+#define SOURCEITEM_MARGIN_NORMAL_LONG 20 // while scroll is hiden and mouse status is normal
 #define SOURCEITEM_MARGIN_NORMAL_SHORT 10 // while scroll is shown and mouse status is normal
 
 #define SOURCEITEM_SPACE_BEFORE_VIS 5
@@ -45,8 +47,24 @@ static inline OBSScene GetCurrentScene()
 /* ========================================================================= */
 void SourceLabel::resizeEvent(QResizeEvent *event)
 {
-	__super::setText(SnapSourceName());
+	//__super::setText(SnapSourceName());
+	update();
 	__super::resizeEvent(event);
+}
+
+void SourceLabel::paintEvent(QPaintEvent *event)
+{
+	QPainter dc(this);
+	int padding = PLSDpiHelper::calculate(this, 5);
+	dc.setFont(font());
+
+	QStyleOption opt;
+	opt.init(this);
+	auto textColor = opt.palette.color(QPalette::Text);
+
+	dc.setPen(textColor);
+	dc.drawText(QRect(padding, 0, width() - padding, height()), SnapSourceName(), Qt::AlignLeft | Qt::AlignVCenter);
+	QLabel::paintEvent(event);
 }
 
 QString SourceLabel::SnapSourceName()
@@ -55,8 +73,8 @@ QString SourceLabel::SnapSourceName()
 		return currentText;
 
 	QFontMetrics fontWidth(font());
-	if (fontWidth.width(currentText) > width())
-		return fontWidth.elidedText(currentText, Qt::ElideRight, width());
+	if (fontWidth.width(currentText) > width() - PLSDpiHelper::calculate(this, 5)) // padding-left : 5px;
+		return fontWidth.elidedText(currentText, Qt::ElideRight, width() - PLSDpiHelper::calculate(this, 5));
 	else
 		return currentText;
 }
@@ -64,13 +82,20 @@ QString SourceLabel::SnapSourceName()
 void SourceLabel::setText(const QString &text)
 {
 	currentText = text;
-	__super::setText(SnapSourceName());
+	//__super::setText(SnapSourceName());
+	update();
 }
 
 void SourceLabel::setText(const char *text)
 {
 	currentText = text ? text : "";
-	__super::setText(SnapSourceName());
+	//__super::setText(SnapSourceName());
+	update();
+}
+
+QString SourceLabel::GetText()
+{
+	return currentText;
 }
 
 void SourceTreeItem::OnSourceCaptureState(void *data, calldata_t *calldata)
@@ -78,6 +103,20 @@ void SourceTreeItem::OnSourceCaptureState(void *data, calldata_t *calldata)
 	// This callback maybe invoked from kinds of threads, such as libobsGraphicThread, source plugin.
 	// So it is not safe to pass obs_source_t by shared pointer named OBSSource.
 	QMetaObject::invokeMethod((SourceTree *)data, "OnSourceStateChanged", Q_ARG(unsigned long long, (unsigned long long)calldata_ptr(calldata, "source")));
+}
+
+void SourceTreeItem::BeautySourceStatusChanged(void *data, calldata_t *params)
+{
+	SourceTree *window = static_cast<SourceTree *>(data);
+
+	obs_source_t *source = (obs_source_t *)calldata_ptr(params, "source");
+	if (!source) {
+		return;
+	}
+
+	QString name = obs_source_get_name(source);
+	bool status = calldata_bool(params, "image_status");
+	QMetaObject::invokeMethod(window, "OnBeautySourceStatusChanged", Qt::QueuedConnection, Q_ARG(const QString &, name), Q_ARG(bool, status));
 }
 
 SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_) : tree(tree_), sceneitem(sceneitem_), selected(false), isItemNormal(true), editing(false)
@@ -92,6 +131,7 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_) : tre
 	const char *name = obs_source_get_name(source);
 
 	signal_handler_connect_ref(obs_source_get_signal_handler(source), "capture_state", OnSourceCaptureState, tree_);
+	signal_handler_connect_ref(obs_source_get_signal_handler(source), "source_image_status", BeautySourceStatusChanged, tree_);
 
 	iconLabel = new QLabel();
 	iconLabel->setObjectName("sourceIconLabel");
@@ -110,14 +150,17 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_) : tre
 	label->setText(name);
 	label->setToolTip(name);
 	label->setObjectName("sourceNameLabel");
-	label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+	label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 	label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 	label->setAttribute(Qt::WA_TranslucentBackground);
 
+	double dpi = PLSDpiHelper::getDpi(tree_);
+
 	aboveIndicator = new QLabel(this);
 	belowIndicator = new QLabel(this);
-	aboveIndicator->setFixedHeight(1);
-	belowIndicator->setFixedHeight(1);
+
+	aboveIndicator->setFixedHeight(PLSDpiHelper::calculate(dpi, 1));
+	belowIndicator->setFixedHeight(PLSDpiHelper::calculate(dpi, 1));
 	UpdateIndicator(IndicatorNormal);
 
 #ifdef __APPLE__
@@ -125,12 +168,15 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_) : tre
 	lock->setAttribute(Qt::WA_LayoutUsesWidgetRect);
 #endif
 
-	spaceBeforeVis = new QSpacerItem(SOURCEITEM_SPACE_BEFORE_VIS, 1);
-	spaceBeforeLock = new QSpacerItem(SOURCEITEM_SPACE_BEFORE_LOCK, 1);
-	rightMargin = new QSpacerItem(SOURCEITEM_MARGIN_NORMAL_LONG, 1);
+	spaceBeforeVis = new QSpacerItem(PLSDpiHelper::calculate(dpi, SOURCEITEM_SPACE_BEFORE_VIS), 1);
+	spaceBeforeLock = new QSpacerItem(PLSDpiHelper::calculate(dpi, SOURCEITEM_SPACE_BEFORE_LOCK), 1);
+	rightMargin = new QSpacerItem(PLSDpiHelper::calculate(dpi, SOURCEITEM_MARGIN_NORMAL_LONG), 1);
 
 	boxLayout = new QHBoxLayout();
-	boxLayout->setContentsMargins(16, 0, 0, 0);
+	PLSDpiHelper::setDynamicSpacerItem(boxLayout, spaceBeforeVis, true);
+	PLSDpiHelper::setDynamicSpacerItem(boxLayout, spaceBeforeLock, true);
+	PLSDpiHelper::setDynamicSpacerItem(boxLayout, rightMargin, true);
+	boxLayout->setContentsMargins(18, 0, 0, 0);
 	boxLayout->addWidget(iconLabel);
 	boxLayout->addWidget(label);
 	boxLayout->addItem(spaceBeforeVis);
@@ -167,32 +213,36 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_) : tre
 	Update(false);
 
 	/* --------------------------------------------------------- */
-
-	auto setItemVisible = [this](bool checked) {
-		PLS_UI_STEP(SOURCE_MODULE, "source visible", ACTION_CLICK);
-		SignalBlocker sourcesSignalBlocker(this);
-		obs_sceneitem_set_visible(sceneitem, checked);
-		UpdateIcon();
-		UpdateNameColor(selected, checked);
-	};
-
 	auto setItemLocked = [this](bool checked) {
-		PLS_UI_STEP(SOURCE_MODULE, "source lock", ACTION_CLICK);
+		QString checkedString = checked ? "checked" : "unchecked";
+		PLS_UI_STEP(SOURCE_MODULE, QString("source[%1] lock %2").arg(label->GetText()).arg(checkedString).toStdString().c_str(), ACTION_CLICK);
 		SignalBlocker sourcesSignalBlocker(this);
 		obs_sceneitem_set_locked(sceneitem, checked);
 	};
 
-	connect(vis, &QAbstractButton::clicked, setItemVisible);
+	connect(vis, &QAbstractButton::clicked, this, &SourceTreeItem::OnVisibleClicked);
 	connect(lock, &QAbstractButton::clicked, setItemLocked);
 
 	OnSelectChanged(obs_sceneitem_selected(sceneitem_));
 	OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
+
+	PLSDpiHelper dpiHelper;
+	dpiHelper.notifyDpiChanged(this, [=](double dpi) {
+		UpdateRightMargin();
+		aboveIndicator->setFixedHeight(PLSDpiHelper::calculate(dpi, 1));
+		belowIndicator->setFixedHeight(PLSDpiHelper::calculate(dpi, 1));
+	});
 }
 
 SourceTreeItem::~SourceTreeItem()
 {
-	obs_source_t *source = obs_sceneitem_get_source(sceneitem);
-	signal_handler_disconnect(obs_source_get_signal_handler(source), "capture_state", OnSourceCaptureState, tree);
+	if (sceneitem) {
+		obs_source_t *source = obs_sceneitem_get_source(sceneitem);
+		if (source) {
+			signal_handler_disconnect(obs_source_get_signal_handler(source), "capture_state", OnSourceCaptureState, tree);
+			signal_handler_disconnect(obs_source_get_signal_handler(source), "source_image_status", BeautySourceStatusChanged, tree);
+		}
+	}
 }
 
 void SourceTreeItem::paintEvent(QPaintEvent *event)
@@ -236,11 +286,11 @@ void SourceTreeItem::ReconnectSignals()
 		obs_sceneitem_t *curItem = (obs_sceneitem_t *)calldata_ptr(cd, "item");
 
 		if (curItem == this_->sceneitem) {
-			QMetaObject::invokeMethod(this_->tree, "Remove", Q_ARG(OBSSceneItem, curItem));
+			QMetaObject::invokeMethod(this_->tree, "Remove", Qt::QueuedConnection, Q_ARG(OBSSceneItem, curItem));
 			curItem = nullptr;
 		}
 		if (!curItem)
-			QMetaObject::invokeMethod(this_, "Clear");
+			QMetaObject::invokeMethod(this_, "Clear", Qt::QueuedConnection);
 	};
 
 	auto itemVisible = [](void *data, calldata_t *cd) {
@@ -249,7 +299,7 @@ void SourceTreeItem::ReconnectSignals()
 		bool visible = calldata_bool(cd, "visible");
 
 		if (curItem == this_->sceneitem)
-			QMetaObject::invokeMethod(this_, "VisibilityChanged", Q_ARG(bool, visible));
+			QMetaObject::invokeMethod(this_, "VisibilityChanged", Qt::QueuedConnection, Q_ARG(bool, visible));
 	};
 
 	auto itemLocked = [](void *data, calldata_t *cd) {
@@ -258,7 +308,7 @@ void SourceTreeItem::ReconnectSignals()
 		bool locked = calldata_bool(cd, "locked");
 
 		if (curItem == this_->sceneitem)
-			QMetaObject::invokeMethod(this_, "LockedChanged", Q_ARG(bool, locked));
+			QMetaObject::invokeMethod(this_, "LockedChanged", Qt::QueuedConnection, Q_ARG(bool, locked));
 	};
 
 	auto itemDeselect = [](void *data, calldata_t *cd) {
@@ -266,12 +316,12 @@ void SourceTreeItem::ReconnectSignals()
 		obs_sceneitem_t *curItem = (obs_sceneitem_t *)calldata_ptr(cd, "item");
 
 		if (curItem == this_->sceneitem)
-			QMetaObject::invokeMethod(this_, "Deselect");
+			QMetaObject::invokeMethod(this_, "Deselect", Qt::QueuedConnection);
 	};
 
 	auto reorderGroup = [](void *data, calldata_t *) {
 		SourceTreeItem *this_ = reinterpret_cast<SourceTreeItem *>(data);
-		QMetaObject::invokeMethod(this_->tree, "ReorderItems");
+		QMetaObject::invokeMethod(this_->tree, "ReorderItems", Qt::QueuedConnection);
 	};
 
 	obs_scene_t *scene = obs_sceneitem_get_scene(sceneitem);
@@ -303,6 +353,7 @@ void SourceTreeItem::ReconnectSignals()
 
 	auto removeSource = [](void *data, calldata_t *) {
 		SourceTreeItem *this_ = reinterpret_cast<SourceTreeItem *>(data);
+		QMetaObject::invokeMethod(this_->tree, "OnSourceItemRemove", Q_ARG(unsigned long long, (unsigned long long)this_->sceneitem.get()));
 		this_->DisconnectSignals();
 		this_->sceneitem = nullptr;
 	};
@@ -318,10 +369,10 @@ void SourceTreeItem::mouseDoubleClickEvent(QMouseEvent *event)
 	QWidget::mouseDoubleClickEvent(event);
 
 	if (expand) {
-		PLS_UI_STEP(SOURCE_MODULE, "group item", ACTION_DBCLICK);
+		PLS_UI_STEP(SOURCE_MODULE, QString("group[%1] item").arg(label->GetText()).toStdString().c_str(), ACTION_DBCLICK);
 		expand->setChecked(!expand->isChecked());
 	} else {
-		PLS_UI_STEP(SOURCE_MODULE, "source item", ACTION_DBCLICK);
+		PLS_UI_STEP(SOURCE_MODULE, QString("source[%1] item").arg(label->GetText()).toStdString().c_str(), ACTION_DBCLICK);
 		obs_source_t *source = obs_sceneitem_get_source(sceneitem);
 		PLSBasic *main = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
 		if (source && main) {
@@ -333,8 +384,7 @@ void SourceTreeItem::mouseDoubleClickEvent(QMouseEvent *event)
 void SourceTreeItem::mousePressEvent(QMouseEvent *event)
 {
 	QWidget::mousePressEvent(event);
-
-	PLS_UI_STEP(SOURCE_MODULE, "source item", ACTION_CLICK);
+	PLS_UI_STEP(SOURCE_MODULE, QString("source[%1] item").arg(label->GetText()).toStdString().c_str(), ACTION_CLICK);
 
 	if (!editing)
 		OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_PRESSED);
@@ -461,7 +511,7 @@ void SourceTreeItem::ExitEditMode(bool save)
 	PLSBasic *main = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
 	OBSScene scene = main->GetCurrentScene();
 
-	std::string newName = QT_TO_UTF8(editor->text());
+	std::string newName = QT_TO_UTF8(editor->text().simplified());
 
 	setFocusProxy(nullptr);
 	boxLayout->removeWidget(editor);
@@ -485,7 +535,14 @@ void SourceTreeItem::ExitEditMode(bool save)
 	/* Check for same name                       */
 
 	obs_source_t *source = obs_sceneitem_get_source(sceneitem);
-	if (newName == obs_source_get_name(source))
+	if (!source)
+		return;
+
+	const char *tempName = obs_source_get_name(source);
+	if (!tempName)
+		return;
+
+	if (strcmp(newName.c_str(), tempName) == 0)
 		return;
 
 	/* ----------------------------------------- */
@@ -528,6 +585,13 @@ bool SourceTreeItem::eventFilter(QObject *object, QEvent *event)
 
 void SourceTreeItem::VisibilityChanged(bool visible)
 {
+	//PRISM/ZengQin/20200818/#4026/for all sources
+	UpdateIcon();
+	UpdateNameColor(selected, visible);
+
+	//PRISM/ZengQin/20200811/#4026/for media controller
+	tree->OnVisibleItemChanged(sceneitem, visible);
+
 	vis->setChecked(visible);
 }
 
@@ -579,8 +643,7 @@ void SourceTreeItem::Update(bool force)
 	ReconnectSignals();
 
 	if (spacer) {
-		boxLayout->removeItem(spacer);
-		delete spacer;
+		PLSDpiHelper::dynamicDeleteSpacerItem(boxLayout, spacer);
 		spacer = nullptr;
 	}
 
@@ -599,8 +662,6 @@ void SourceTreeItem::Update(bool force)
 	} else if (type == Type::Group) {
 		expand = new SourceTreeSubItemCheckBox();
 		expand->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-		expand->setMaximumSize(12, 16);
-		expand->setMinimumSize(12, 0);
 #ifdef __APPLE__
 		expand->setAttribute(Qt::WA_LayoutUsesWidgetRect);
 #endif
@@ -674,24 +735,26 @@ void SourceTreeItem::OnSelectChanged(bool isSelected)
 
 	UpdateIcon();
 	UpdateNameColor(isSelected, obs_sceneitem_visible(sceneitem));
+	emit SelectItemChanged(sceneitem, isSelected);
 }
 
 void SourceTreeItem::UpdateRightMargin()
 {
+	double dpi = PLSDpiHelper::getDpi(this);
 	if (isItemNormal) {
 		spaceBeforeVis->changeSize(0, 0);
 		spaceBeforeLock->changeSize(0, 0);
 		if (isScrollShowed)
-			rightMargin->changeSize(SOURCEITEM_MARGIN_NORMAL_SHORT, 1);
+			rightMargin->changeSize(PLSDpiHelper::calculate(dpi, SOURCEITEM_MARGIN_NORMAL_SHORT), 1);
 		else
-			rightMargin->changeSize(SOURCEITEM_MARGIN_NORMAL_LONG, 1);
+			rightMargin->changeSize(PLSDpiHelper::calculate(dpi, SOURCEITEM_MARGIN_NORMAL_LONG), 1);
 	} else {
-		spaceBeforeVis->changeSize(SOURCEITEM_SPACE_BEFORE_VIS, 1);
-		spaceBeforeLock->changeSize(SOURCEITEM_SPACE_BEFORE_LOCK, 1);
+		spaceBeforeVis->changeSize(PLSDpiHelper::calculate(dpi, SOURCEITEM_SPACE_BEFORE_VIS), 1);
+		spaceBeforeLock->changeSize(PLSDpiHelper::calculate(dpi, SOURCEITEM_SPACE_BEFORE_LOCK), 1);
 		if (isScrollShowed)
-			rightMargin->changeSize(SOURCEITEM_MARGIN_UNNORMAL_SHORT, 1);
+			rightMargin->changeSize(PLSDpiHelper::calculate(dpi, SOURCEITEM_MARGIN_UNNORMAL_SHORT), 1);
 		else
-			rightMargin->changeSize(SOURCEITEM_MARGIN_UNNORMAL_LONG, 1);
+			rightMargin->changeSize(PLSDpiHelper::calculate(dpi, SOURCEITEM_MARGIN_UNNORMAL_LONG), 1);
 	}
 
 	boxLayout->invalidate();
@@ -753,16 +816,45 @@ QString SourceTreeItem::GetErrorTips(const char *id, enum obs_source_error error
 			return QTStr("Source.ErrorTips.Game.Error");
 		}
 	}
+	case OBS_ICON_TYPE_BGM: {
+		switch (error) {
+		case OBS_SOURCE_ERROR_UNKNOWN:
+			return QTStr("Source.ErrorTips.Bgm.Error");
+		default:
+			return QTStr("Source.ErrorTips.Bgm.Error");
+		}
+	}
 
-	default:
-		assert(false);
+	case OBS_ICON_TYPE_GIPHY: {
+		switch (error) {
+		case OBS_SOURCE_ERROR_NOT_FOUND:
+			return QTStr("Source.ErrorTips.Giphy.NotFound");
+		default:
+			return QTStr("Source.ErrorTips.Giphy.Error");
+		}
+	}
+
+	case OBS_ICON_TYPE_REGION: {
+		switch (error) {
+		case OBS_SOURCE_ERROR_NOT_FOUND:
+			return QTStr("Source.ErrorTips.Region.NotFound");
+		default:
+			assert(false && "lost string for invalid state");
+			return "";
+		}
+	}
+
+	case OBS_ICON_TYPE_CUSTOM:
+	default: {
+		assert(false && "plugin is invalid but there is no string");
 		return "";
+	}
 	}
 }
 
 void SourceTreeItem::ExpandClicked(bool checked)
 {
-	PLS_UI_STEP(SOURCE_MODULE, "group item expand", ACTION_CLICK);
+	PLS_UI_STEP(SOURCE_MODULE, QString("group[%1] item expand").arg(label->GetText()).toStdString().c_str(), ACTION_CLICK);
 
 	OBSData data = obs_sceneitem_get_private_settings(sceneitem);
 	obs_data_release(data);
@@ -801,7 +893,12 @@ void SourceTreeItem::Deselect()
 #define SOURCE_ICON_TEXT "text"
 #define SOURCE_ICON_MEDIA "media"
 #define SOURCE_ICON_BROWSER "browser"
+#define SOURCE_ICON_GIPHY "giphy"
 #define SOURCE_ICON_DEFAULT "default"
+#define SOURCE_ICON_BGM "bgm"
+#define SOURCE_ICON_NDI "ndi"
+#define SOURCE_ICON_TEXT_MOTION "textmotion"
+#define SOURCE_ICON_CHAT "chat"
 
 QString GetIconKey(obs_icon_type type)
 {
@@ -817,6 +914,7 @@ QString GetIconKey(obs_icon_type type)
 	case OBS_ICON_TYPE_AUDIO_OUTPUT:
 		return SOURCE_ICON_AUDIOOUTPUT;
 	case OBS_ICON_TYPE_DESKTOP_CAPTURE:
+	case OBS_ICON_TYPE_REGION:
 		return SOURCE_ICON_MONITOR;
 	case OBS_ICON_TYPE_WINDOW_CAPTURE:
 		return SOURCE_ICON_WINDOW;
@@ -830,6 +928,16 @@ QString GetIconKey(obs_icon_type type)
 		return SOURCE_ICON_MEDIA;
 	case OBS_ICON_TYPE_BROWSER:
 		return SOURCE_ICON_BROWSER;
+	case OBS_ICON_TYPE_BGM:
+		return SOURCE_ICON_BGM;
+	case OBS_ICON_TYPE_GIPHY:
+		return SOURCE_ICON_GIPHY;
+	case OBS_ICON_TYPE_NDI:
+		return SOURCE_ICON_NDI;
+	case OBS_ICON_TYPE_TEXT_MOTION:
+		return SOURCE_ICON_TEXT_MOTION;
+	case OBS_ICON_TYPE_CHAT:
+		return SOURCE_ICON_CHAT;
 	default:
 		return SOURCE_ICON_DEFAULT;
 	}
@@ -870,12 +978,42 @@ void SourceTreeItem::UpdateIcon()
 			QString value = visibleStr + QString(".") + QString(SOURCE_ICON_VALID) + QString(".") + selectStr + QString(".") + GetIconKey(obs_source_get_icon_type(id));
 			OnIconTypeChanged(value);
 			iconLabel->setToolTip("");
+
 		} else {
 			QString value = visibleStr + QString(".") + QString(SOURCE_ICON_INVALID) + QString(".") + selectStr + QString(".") + GetIconKey(obs_source_get_icon_type(id));
 			OnIconTypeChanged(value);
 			iconLabel->setToolTip(GetErrorTips(id, error));
 		}
 	}
+}
+
+bool SourceTreeItem::isDshowSourceChangedState(obs_source_t *source)
+{
+	if (!source) {
+		return false;
+	}
+	const char *id = obs_source_get_id(source);
+	if (!id)
+		return false;
+
+	return 0 == strcmp(id, DSHOW_SOURCE_ID);
+}
+
+void SourceTreeItem::OnVisibleClicked(bool visible)
+{
+	auto setItemVisible = [this](bool checked) {
+		QString visibleString = checked ? "visible" : "invisible";
+		PLS_UI_STEP(SOURCE_MODULE, QString("source[%1] %2").arg(label->GetText()).arg(visibleString).toStdString().c_str(), ACTION_CLICK);
+		SignalBlocker sourcesSignalBlocker(this);
+		obs_sceneitem_set_visible(sceneitem, checked);
+		//PRISM/ZengQin/20200818/#4026/for all sources
+		//UpdateIcon();
+		//UpdateNameColor(selected, checked);
+	};
+
+	setItemVisible(visible);
+	//PRISM/ZengQin/20200811/#4026/for media controller
+	//emit VisibleItemChanged(sceneitem, visible);
 }
 
 void SourceTreeItem::OnSourceScrollShow(bool isShow)
@@ -928,6 +1066,24 @@ static bool enumItem(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
 	}
 
 	items.insert(0, item);
+	return true;
+}
+
+struct ChildAndParent {
+	std::map<obs_sceneitem_t *, std::pair<obs_sceneitem_t *, bool>> childAndParent;
+	std::pair<obs_sceneitem_t *, bool> parent;
+};
+static bool enumItemForParent(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
+{
+	ChildAndParent &sourceParents = *reinterpret_cast<ChildAndParent *>(ptr);
+	sourceParents.childAndParent.insert(std::make_pair(item, sourceParents.parent));
+	if (obs_sceneitem_is_group(item)) {
+
+		std::pair<obs_sceneitem_t *, bool> parentTemp = sourceParents.parent;
+		sourceParents.parent = std::make_pair(item, obs_sceneitem_visible(item));
+		obs_sceneitem_group_enum_items(item, enumItemForParent, &sourceParents);
+		sourceParents.parent = parentTemp;
+	}
 	return true;
 }
 
@@ -1032,6 +1188,7 @@ void SourceTreeModel::ReorderItems()
 			MoveItem(items, idx1Old, to);
 		}
 		endMoveRows();
+		emit itemReorder();
 	}
 }
 
@@ -1048,11 +1205,13 @@ void SourceTreeModel::Add(obs_sceneitem_t *item)
 	}
 }
 
-void SourceTreeModel::Remove(obs_sceneitem_t *item)
+void SourceTreeModel::Remove(void *itemPointer)
 {
 	int idx = -1;
+	OBSSceneItem item;
 	for (int i = 0; i < items.count(); i++) {
-		if (items[i] == item) {
+		if (items[i].get() == itemPointer) {
+			item = items[i];
 			idx = i;
 			break;
 		}
@@ -1079,10 +1238,15 @@ void SourceTreeModel::Remove(obs_sceneitem_t *item)
 		}
 	}
 
+	QVector<OBSSceneItem> tmpitems;
+	for (int i = startIdx; i <= endIdx; i++) {
+		tmpitems.push_back(items[i]);
+	}
+	emit itemRemoves(tmpitems);
+
 	beginRemoveRows(QModelIndex(), startIdx, endIdx);
 	items.remove(idx, endIdx - startIdx + 1);
 	endRemoveRows();
-
 	if (is_group)
 		UpdateGroupState(true);
 }
@@ -1192,7 +1356,7 @@ void SourceTreeModel::GroupSelectedItems(QModelIndexList &indices)
 	}
 
 	for (obs_sceneitem_t *item : item_order)
-		obs_sceneitem_select(item, false);
+		obs_sceneitem_select(item, true);
 
 	int newIdx = indices[0].row();
 
@@ -1218,6 +1382,29 @@ void SourceTreeModel::GroupSelectedItems(QModelIndexList &indices)
 	QMetaObject::invokeMethod(st, "Edit", Qt::QueuedConnection, Q_ARG(int, newIdx));
 }
 
+static bool enumDshowItem(obs_scene_t *, obs_sceneitem_t *item, void *param)
+{
+	QVector<OBSSceneItem> &items = *reinterpret_cast<QVector<OBSSceneItem> *>(param);
+	obs_source_t *source = obs_sceneitem_get_source(item);
+	if (!source) {
+		return true;
+	}
+	const char *id = obs_source_get_id(source);
+	if (!id) {
+		return true;
+	}
+
+	enum obs_source_error error;
+	if (0 != strcmp(id, DSHOW_SOURCE_ID) && 0 != strcmp(id, BGM_SOURCE_ID)) {
+		return true;
+	}
+
+	const char *name = obs_source_get_name(source);
+	items.push_back(item);
+
+	return true;
+}
+
 void SourceTreeModel::UngroupSelectedGroups(QModelIndexList &indices)
 {
 	if (indices.count() == 0)
@@ -1227,6 +1414,16 @@ void SourceTreeModel::UngroupSelectedGroups(QModelIndexList &indices)
 
 	for (int i = indices.count() - 1; i >= 0; i--) {
 		obs_sceneitem_t *item = items[indices[i].row()];
+
+		// scene item was released when ungroup
+		QVector<OBSSceneItem> itemsList;
+		if (obs_sceneitem_is_group(item)) {
+			obs_sceneitem_group_enum_items(item, enumDshowItem, &itemsList);
+			if (0 != itemsList.size()) {
+				emit itemRemoves(itemsList);
+			}
+		}
+
 		obs_sceneitem_group_ungroup(item);
 	}
 
@@ -1312,9 +1509,14 @@ QVector<OBSSceneItem> SourceTreeModel::GetItems()
 
 /* ========================================================================= */
 
-SourceTree::SourceTree(QWidget *parent_) : QListView(parent_)
+SourceTree::SourceTree(QWidget *parent_, PLSDpiHelper dpiHelper) : QListView(parent_)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::PLSSource, PLSCssIndex::VisibilityCheckBox});
+
 	SourceTreeModel *stm_ = new SourceTreeModel(this);
+	connect(stm_, &SourceTreeModel::itemRemoves, this, [=](QVector<OBSSceneItem> items) { emit itemsRemove(items); });
+	connect(stm_, &SourceTreeModel::itemReorder, this, [=] { emit itemsReorder(); });
+
 	setModel(stm_);
 
 	scrollBar = new QSourceScrollBar(this);
@@ -1363,6 +1565,209 @@ void SourceTree::ResetDragOver()
 	preDragOver = NULL;
 }
 
+bool SourceTree::GetDestGroupItem(QPoint pos, obs_sceneitem_t *&item_output)
+{
+	OBSScene scene = GetCurrentScene();
+	SourceTreeModel *stm = GetStm();
+	auto &items = stm->items;
+	QModelIndexList indices = selectedIndexes();
+
+	DropIndicatorPosition indicator = dropIndicatorPosition();
+	int row = indexAt(pos).row();
+	bool emptyDrop = row == -1;
+
+	if (emptyDrop) {
+		if (!items.size()) {
+			return false;
+		}
+
+		row = items.size() - 1;
+		indicator = QAbstractItemView::BelowItem;
+	}
+
+	/* --------------------------------------- */
+	/* store destination group if moving to a  */
+	/* group                                   */
+
+	obs_sceneitem_t *dropItem = items[row]; /* item being dropped on */
+	bool itemIsGroup = obs_sceneitem_is_group(dropItem);
+
+	obs_sceneitem_t *dropGroup = itemIsGroup ? dropItem : obs_sceneitem_get_group(scene, dropItem);
+
+	/* not a group if moving above the group */
+	if (indicator == QAbstractItemView::AboveItem && itemIsGroup) {
+		dropGroup = nullptr;
+	}
+	if (emptyDrop)
+		dropGroup = nullptr;
+
+	/* --------------------------------------- */
+	/* remember to remove list items if        */
+	/* dropping on collapsed group             */
+
+	bool dropOnCollapsed = false;
+	if (dropGroup) {
+		obs_data_t *data = obs_sceneitem_get_private_settings(dropGroup);
+		dropOnCollapsed = obs_data_get_bool(data, "collapsed");
+		obs_data_release(data);
+	}
+
+	if (indicator == QAbstractItemView::BelowItem || indicator == QAbstractItemView::OnItem || indicator == QAbstractItemView::OnViewport)
+		row++;
+
+	if (row < 0 || row > stm->items.count()) {
+		return false;
+	}
+
+	/* --------------------------------------- */
+	/* determine if any base group is selected */
+
+	bool hasGroups = false;
+	for (int i = 0; i < indices.size(); i++) {
+		obs_sceneitem_t *item = items[indices[i].row()];
+		if (obs_sceneitem_is_group(item)) {
+			hasGroups = true;
+			break;
+		}
+	}
+
+	/* --------------------------------------- */
+	/* if dropping a group, detect if it's     */
+	/* below another group                     */
+
+	obs_sceneitem_t *itemBelow;
+	if (row == stm->items.count())
+		itemBelow = nullptr;
+	else
+		itemBelow = stm->items[row];
+
+	if (hasGroups) {
+		if (!itemBelow || obs_sceneitem_get_group(scene, itemBelow) != dropGroup) {
+			indicator = QAbstractItemView::BelowItem;
+			dropGroup = nullptr;
+			dropOnCollapsed = false;
+		}
+	}
+
+	item_output = dropGroup;
+	return true;
+}
+
+struct CheckChildHelper {
+	obs_source_t *destChild;
+	bool includeChild;
+};
+
+static bool enumChildInclude(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
+{
+	CheckChildHelper *helper = (CheckChildHelper *)ptr;
+
+	obs_source_t *source = obs_sceneitem_get_source(item);
+	if (source) {
+		if (source == helper->destChild) {
+			helper->includeChild = true;
+			return false;
+		}
+
+		if (obs_sceneitem_is_group(item)) {
+			obs_sceneitem_group_enum_items(item, enumChildInclude, ptr);
+		} else {
+			const char *id = obs_source_get_id(source);
+			if (id && 0 == strcmp(id, SCENE_SOURCE_ID)) {
+				obs_scene_t *sceneTemp = obs_scene_from_source(source);
+				obs_scene_enum_items(sceneTemp, enumChildInclude, ptr);
+			}
+		}
+	}
+
+	return true;
+}
+
+// return false : invalid drag
+bool SourceTree::CheckDragSceneToGroup(obs_sceneitem_t *dragItem, obs_sceneitem_t *destGroupItem)
+{
+	assert(destGroupItem);
+	obs_source_t *groupSource = obs_sceneitem_get_source(destGroupItem);
+	if (!groupSource) {
+		return true;
+	}
+
+	if (!dragItem) {
+		return false;
+	}
+
+	obs_source_t *dragSource = obs_sceneitem_get_source(dragItem);
+	if (!dragSource) {
+		return false;
+	}
+
+	const char *id = obs_source_get_id(dragSource);
+	if (!id) {
+		return false;
+	}
+
+	if (0 != strcmp(id, SCENE_SOURCE_ID)) {
+		return true;
+	}
+
+	CheckChildHelper helper;
+	helper.destChild = groupSource;
+	helper.includeChild = false;
+
+	obs_scene_t *dragScene = obs_scene_from_source(dragSource);
+	obs_scene_enum_items(dragScene, enumChildInclude, &helper);
+
+	if (helper.includeChild) {
+		return false;
+	} else {
+		return true;
+	}
+}
+
+bool SourceTree::IsValidDrag(obs_sceneitem_t *destGroupItem, QVector<OBSSceneItem> items)
+{
+	std::map<obs_sceneitem_t *, std::pair<obs_sceneitem_t *, bool>> selectedSource;
+
+	ChildAndParent childParents;
+	childParents.parent = std::make_pair(nullptr, true);
+	obs_scene_enum_items(GetCurrentScene(), enumItemForParent, &childParents);
+
+	QModelIndexList indexs = selectedIndexes();
+	for (int i = 0; i < indexs.size(); i++) {
+		obs_sceneitem_t *item = items[indexs[i].row()];
+		selectedSource.insert(std::make_pair(item, childParents.childAndParent[item]));
+	}
+
+	bool isDragValid = true;
+	bool isDestGroup = obs_sceneitem_is_group(destGroupItem);
+	bool isDestVisible = obs_sceneitem_visible(destGroupItem);
+
+	auto iter = selectedSource.begin();
+	while (iter != selectedSource.end()) {
+		if (iter->second.first != destGroupItem) {
+			if (iter->second.first != nullptr && obs_sceneitem_is_group(iter->second.first) && !iter->second.second) {
+				isDragValid = false; // cann't drag out of invisible group
+				break;
+			}
+
+			if (destGroupItem && isDestGroup) {
+				if (!isDestVisible) {
+					isDragValid = false; // cann't drag into invisible group
+					break;
+				}
+
+				if (!CheckDragSceneToGroup(iter->first, destGroupItem)) {
+					isDragValid = false; // cann't drag scene into group which is included in scene
+					break;
+				}
+			}
+		}
+		iter++;
+	}
+
+	return isDragValid;
+}
+
 void SourceTree::ResetWidgets()
 {
 	OBSScene scene = GetCurrentScene();
@@ -1373,14 +1778,20 @@ void SourceTree::ResetWidgets()
 	for (int i = 0; i < stm->items.count(); i++) {
 		QModelIndex index = stm->createIndex(i, 0, nullptr);
 		SourceTreeItem *uiItem = new SourceTreeItem(this, stm->items[i]);
+		connect(uiItem, &SourceTreeItem::SelectItemChanged, this, &SourceTree::OnSelectItemChanged, Qt::QueuedConnection);
+		connect(uiItem, &SourceTreeItem::VisibleItemChanged, this, &SourceTree::OnVisibleItemChanged, Qt::QueuedConnection);
 		setIndexWidget(index, uiItem);
 	}
+	PLSDpiHelper::dpiDynamicUpdate(this);
 }
 
 void SourceTree::UpdateWidget(const QModelIndex &idx, obs_sceneitem_t *item)
 {
 	SourceTreeItem *uiItem = new SourceTreeItem(this, item);
+	connect(uiItem, &SourceTreeItem::SelectItemChanged, this, &SourceTree::OnSelectItemChanged, Qt::QueuedConnection);
+	connect(uiItem, &SourceTreeItem::VisibleItemChanged, this, &SourceTree::OnVisibleItemChanged, Qt::QueuedConnection);
 	setIndexWidget(idx, uiItem);
+	PLSDpiHelper::dpiDynamicUpdate(this);
 }
 
 void SourceTree::UpdateWidgets(bool force)
@@ -1397,6 +1808,7 @@ void SourceTree::UpdateWidgets(bool force)
 			widget->Update(force);
 		}
 	}
+	PLSDpiHelper::dpiDynamicUpdate(this);
 }
 
 void SourceTree::NotifyItemSelect(obs_sceneitem_t *sceneitem, bool select)
@@ -1435,22 +1847,12 @@ Q_DECLARE_METATYPE(OBSSceneItem);
 
 void SourceTree::mouseDoubleClickEvent(QMouseEvent *event)
 {
-	PLS_UI_STEP(SOURCE_MODULE, "source tree", ACTION_DBCLICK);
 	if (event->button() == Qt::LeftButton)
 		QListView::mouseDoubleClickEvent(event);
 }
 
 bool TravelGroupChilds(obs_scene_t *, obs_sceneitem_t *item, void *val)
 {
-	obs_source_t *source = obs_sceneitem_get_source(item);
-	const char *id = obs_source_get_id(source);
-	QString actionID = action::GetActionSourceID(id);
-
-	if (!actionID.isEmpty()) {
-		std::vector<QString> *output = (std::vector<QString> *)val;
-		output->push_back(actionID);
-	}
-
 	return true;
 }
 
@@ -1477,6 +1879,18 @@ void SourceTree::dragMoveEvent(QDragMoveEvent *event)
 		auto &items = GetStm()->items;
 		if (!items.size())
 			break;
+
+		obs_sceneitem_t *destGroupItem = nullptr;
+		if (!GetDestGroupItem(event->pos(), destGroupItem)) {
+			break;
+		}
+
+		if (!IsValidDrag(destGroupItem, items)) {
+			ResetDragOver();
+			QListView::dragMoveEvent(event);
+			event->ignore();
+			return;
+		}
 
 		DropIndicatorPosition indicator = dropIndicatorPosition();
 		int row = indexAt(event->pos()).row();
@@ -1585,7 +1999,7 @@ void SourceTree::dropEvent(QDropEvent *event)
 		obs_data_release(data);
 	}
 
-	if (indicator == QAbstractItemView::BelowItem || indicator == QAbstractItemView::OnItem)
+	if (indicator == QAbstractItemView::BelowItem || indicator == QAbstractItemView::OnItem || indicator == QAbstractItemView::OnViewport)
 		row++;
 
 	if (row < 0 || row > stm->items.count()) {
@@ -1621,6 +2035,12 @@ void SourceTree::dropEvent(QDropEvent *event)
 			dropGroup = nullptr;
 			dropOnCollapsed = false;
 		}
+	}
+
+	if (!IsValidDrag(dropGroup, items)) {
+		blog(LOG_INFO, "There is an invalid drag in dropEvent");
+		QListView::dropEvent(event);
+		return;
 	}
 
 	/* --------------------------------------- */
@@ -1802,12 +2222,7 @@ void SourceTree::dropEvent(QDropEvent *event)
 	event->accept();
 	event->setDropAction(Qt::CopyAction);
 
-	if (dropGroup && obs_sceneitem_is_group(dropGroup)) {
-		obs_sceneitem_group_enum_items(dropGroup, TravelGroupChilds, (void *)&destChilds);
-		if (srcChilds.size() != destChilds.size())
-			action::OnGroupChildAdded(destChilds);
-	}
-
+	emit itemsReorder();
 	QListView::dropEvent(event);
 }
 
@@ -1893,11 +2308,42 @@ void SourceTree::OnSourceStateChanged(unsigned long long srcPtr)
 		obs_source_t *source = obs_sceneitem_get_source(sceneItem);
 		if ((unsigned long long)source == srcPtr) {
 			item->UpdateIcon();
-			return; // success to find item
+			// Even we success to find item, we should not return or break.
+			// Because maybe more than one scene item are holding same obs_source
+			obs_source_t *source = obs_sceneitem_get_source(sceneItem);
+			if (!source)
+				continue;
+
+			const char *id = obs_source_get_id(source);
+			if (!id)
+				continue;
+
+			enum obs_source_error error;
+			if (0 == strcmp(id, DSHOW_SOURCE_ID)) {
+				emit DshowSourceStatusChanged(obs_source_get_name(source), sceneItem, obs_source_get_capture_valid(source, &error));
+			}
 		}
 	}
+}
 
-	//assert(false && "Failed to find item in source list which pushed event from libobs");
+void SourceTree::OnBeautySourceStatusChanged(const QString &sourceName, bool status)
+{
+	emit beautyStatusChanged(sourceName, status);
+}
+
+void SourceTree::OnSourceItemRemove(unsigned long long sceneItemPtr)
+{
+	GetStm()->Remove((void *)sceneItemPtr);
+}
+
+void SourceTree::OnSelectItemChanged(OBSSceneItem item, bool selected)
+{
+	emit SelectItemChanged(item, selected);
+}
+
+void SourceTree::OnVisibleItemChanged(OBSSceneItem item, bool visible)
+{
+	emit VisibleItemChanged(item, visible);
 }
 
 bool SourceTree::MultipleBaseSelected() const
@@ -1979,6 +2425,7 @@ void SourceTree::Remove(OBSSceneItem item)
 		obs_source_t *sceneSource = obs_scene_get_source(scene);
 		obs_source_t *itemSource = obs_sceneitem_get_source(item);
 		main->DeletePropertiesWindow(itemSource);
+		main->DeleteFiltersWindow(itemSource);
 		blog(LOG_INFO, "User Removed source '%s' (%s) from scene '%s'", obs_source_get_name(itemSource), obs_source_get_id(itemSource), obs_source_get_name(sceneSource));
 	}
 }
@@ -2010,11 +2457,12 @@ void SourceTree::paintEvent(QPaintEvent *event)
 		QTextOption option(Qt::AlignHCenter | Qt::AlignVCenter);
 		option.setWrapMode(QTextOption::WordWrap);
 
+		double dpi = PLSDpiHelper::getDpi(this);
 		QWidget *dockTitleWidget = PLSBasic::Get()->ui->sourcesDock->titleBarWidget();
 		int dockCaptionHeight = dockTitleWidget ? dockTitleWidget->size().height() : 0;
 		int height = size().height() - dockCaptionHeight;
-		int left = NO_SOURCE_TIPS_MARGIN;
-		int width = size().width() - 2 * NO_SOURCE_TIPS_MARGIN;
+		int left = PLSDpiHelper::calculate(dpi, NO_SOURCE_TIPS_MARGIN);
+		int width = size().width() - 2 * PLSDpiHelper::calculate(dpi, NO_SOURCE_TIPS_MARGIN);
 
 		QPainter p(viewport());
 		p.setPen(QColor(102, 102, 102));

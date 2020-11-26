@@ -1,3 +1,5 @@
+#include <Windows.h>
+
 #include "PLSLiveInfoBase.h"
 
 #include <QPushButton>
@@ -7,10 +9,23 @@
 #include "PLSPlatformApi.h"
 #include "PLSLiveInfoDialogs.h"
 
-PLSLiveInfoBase::PLSLiveInfoBase(PLSPlatformBase *pPlatformBase, QWidget *parent) : PLSDialogView(parent), m_pPlatformBase(pPlatformBase), m_pWidgetLoadingBG(nullptr)
+PLSLiveInfoBase::PLSLiveInfoBase(PLSPlatformBase *pPlatformBase, QWidget *parent, PLSDpiHelper dpiHelper)
+	: PLSDialogView(parent, dpiHelper), m_pPlatformBase(pPlatformBase), m_pWidgetLoadingBG(nullptr)
 {
+	App()->DisableHotkeys();
+	dpiHelper.setCss(this, {PLSCssIndex::PLSLoadingBtn, PLSCssIndex::PLSLiveInfoBase});
+	dpiHelper.notifyDpiChanged(this, [=]() {
+		if (m_pWidgetLoadingBG != nullptr && m_pWidgetLoadingBG->isVisible()) {
+			m_pWidgetLoadingBG->setGeometry(m_pWidgetLoadingBG->parentWidget()->geometry());
+		}
+	});
 	setHasCloseButton(false);
 	setResizeEnabled(false);
+}
+
+PLSLiveInfoBase::~PLSLiveInfoBase()
+{
+	App()->UpdateHotkeyFocusSetting();
 }
 
 void PLSLiveInfoBase::updateStepTitle(QPushButton *button)
@@ -35,7 +50,8 @@ void PLSLiveInfoBase::updateStepTitle(QPushButton *button)
 
 void PLSLiveInfoBase::showLoading(QWidget *parent)
 {
-	m_pWidgetLoadingBG = new QWidget(parent->parentWidget());
+	hideLoading();
+	m_pWidgetLoadingBG = new QWidget(parent);
 	m_pWidgetLoadingBG->setObjectName("loadingBG");
 	m_pWidgetLoadingBG->setGeometry(parent->geometry());
 	m_pWidgetLoadingBG->show();
@@ -56,5 +72,14 @@ void PLSLiveInfoBase::hideLoading()
 
 		delete m_pWidgetLoadingBG;
 		m_pWidgetLoadingBG = nullptr;
+	}
+}
+
+void PLSLiveInfoBase::closeEvent(QCloseEvent *event)
+{
+	if ((GetAsyncKeyState(VK_MENU) < 0) && (GetAsyncKeyState(VK_F4) < 0)) { // ALT+F4
+		event->ignore();
+	} else {
+		PLSDialogView::closeEvent(event);
 	}
 }

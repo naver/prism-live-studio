@@ -10,16 +10,18 @@
 #include "output-timer.hpp"
 #include "log.h"
 #include "action.h"
-
+#include "frontend-api.h"
 using namespace std;
 
 OutputTimer *ot;
 
-OutputTimer::OutputTimer(QWidget *parent) : PLSDialogView(parent), ui(new Ui_OutputTimer)
+OutputTimer::OutputTimer(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui_OutputTimer)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::OutputTimer});
+	dpiHelper.setFixedSize(this, {720, 700});
 	setResizeEnabled(false);
 	ui->setupUi(this->content());
-	setFixedSize(720, 700);
+
 	QMetaObject::connectSlotsByName(this);
 	setSizeGripEnabled(false);
 
@@ -36,12 +38,7 @@ OutputTimer::OutputTimer(QWidget *parent) : PLSDialogView(parent), ui(new Ui_Out
 	QObject::connect(ui->autoStartStreamTimer, &QPushButton::clicked, this, [this]() { PLS_PLUGIN_UI_STEP("Output Timer > Enable streaming timer every time CheckBox", ACTION_CLICK); });
 	QObject::connect(ui->autoStartRecordTimer, &QPushButton::clicked, this, [this]() { PLS_PLUGIN_UI_STEP("Output Timer > Enable recording timer every time CheckBox", ACTION_CLICK); });
 	QObject::connect(ui->pauseRecordTimer, &QPushButton::clicked, this, [this]() { PLS_PLUGIN_UI_STEP("Output Timer > Pause timer when recording is paused CheckBox", ACTION_CLICK); });
-
-	streamingTimer = new QTimer(this);
-	streamingTimerDisplay = new QTimer(this);
-
-	recordingTimer = new QTimer(this);
-	recordingTimerDisplay = new QTimer(this);
+	initializeTimers();
 }
 
 void OutputTimer::closeEvent(QCloseEvent *)
@@ -54,13 +51,13 @@ void OutputTimer::StreamingTimerButton()
 	PLS_PLUGIN_UI_STEP("Output Timer > Streaming Start Button", ACTION_CLICK);
 	if (!obs_frontend_streaming_active()) {
 		blog(LOG_INFO, "Starting stream due to OutputTimer");
-		obs_frontend_streaming_start();
+		pls_start_broadcast(true);
+
 	} else if (streamingAlreadyActive) {
 		StreamTimerStart();
 		streamingAlreadyActive = false;
 	} else if (obs_frontend_streaming_active()) {
-		blog(LOG_INFO, "Stopping stream due to OutputTimer");
-		obs_frontend_streaming_stop();
+		EventStopStreaming();
 	}
 }
 
@@ -69,13 +66,12 @@ void OutputTimer::RecordingTimerButton()
 	PLS_PLUGIN_UI_STEP("Output Timer > Recording Start Button", ACTION_CLICK);
 	if (!obs_frontend_recording_active()) {
 		blog(LOG_INFO, "Starting recording due to OutputTimer");
-		obs_frontend_recording_start();
+		pls_start_record(true);
 	} else if (recordingAlreadyActive) {
 		RecordTimerStart();
 		recordingAlreadyActive = false;
 	} else if (obs_frontend_recording_active()) {
-		blog(LOG_INFO, "Stopping recording due to OutputTimer");
-		obs_frontend_recording_stop();
+		EventStopRecording();
 	}
 }
 
@@ -96,19 +92,29 @@ void OutputTimer::StreamTimerStart()
 		total = 1000;
 
 	streamingTimer->setInterval(total);
-	streamingTimer->setSingleShot(true);
-
-	QObject::connect(streamingTimer, SIGNAL(timeout()), SLOT(EventStopStreaming()));
-
-	QObject::connect(streamingTimerDisplay, SIGNAL(timeout()), this, SLOT(UpdateStreamTimerDisplay()));
-
 	streamingTimer->start();
+
 	streamingTimerDisplay->start(1000);
 	ui->outputTimerStream->setText(obs_module_text("Stop"));
 
 	UpdateStreamTimerDisplay();
-
 	ui->outputTimerStream->setChecked(true);
+}
+void OutputTimer::initializeTimers()
+{
+	//stream
+	streamingTimer = new QTimer(this);
+	streamingTimerDisplay = new QTimer(this);
+	streamingTimer->setSingleShot(true);
+	QObject::connect(streamingTimer, SIGNAL(timeout()), SLOT(EventStopStreaming()), Qt::UniqueConnection);
+	QObject::connect(streamingTimerDisplay, SIGNAL(timeout()), this, SLOT(UpdateStreamTimerDisplay()), Qt::UniqueConnection);
+
+	//record
+	recordingTimer = new QTimer(this);
+	recordingTimerDisplay = new QTimer(this);
+	recordingTimer->setSingleShot(true);
+	QObject::connect(recordingTimer, SIGNAL(timeout()), SLOT(EventStopRecording()), Qt::UniqueConnection);
+	QObject::connect(recordingTimerDisplay, SIGNAL(timeout()), this, SLOT(UpdateRecordTimerDisplay()), Qt::UniqueConnection);
 }
 
 void OutputTimer::RecordTimerStart()
@@ -128,18 +134,11 @@ void OutputTimer::RecordTimerStart()
 		total = 1000;
 
 	recordingTimer->setInterval(total);
-	recordingTimer->setSingleShot(true);
-
-	QObject::connect(recordingTimer, SIGNAL(timeout()), SLOT(EventStopRecording()));
-
-	QObject::connect(recordingTimerDisplay, SIGNAL(timeout()), this, SLOT(UpdateRecordTimerDisplay()));
 
 	recordingTimer->start();
 	recordingTimerDisplay->start(1000);
 	ui->outputTimerRecord->setText(obs_module_text("Stop"));
-
 	UpdateRecordTimerDisplay();
-
 	ui->outputTimerRecord->setChecked(true);
 }
 
@@ -232,6 +231,13 @@ void OutputTimer::UnpauseRecordingTimer()
 		recordingTimer->start(recordingTimeLeft);
 }
 
+void OutputTimer::showEvent(QShowEvent *event)
+{
+	updateStreamButtonState();
+	updateRecordButtonState();
+	PLSDialogView::showEvent(event);
+}
+
 void OutputTimer::ShowHideDialog()
 {
 	if (!isVisible()) {
@@ -246,13 +252,27 @@ void OutputTimer::ShowHideDialog()
 void OutputTimer::EventStopStreaming()
 {
 	blog(LOG_INFO, "Stopping stream due to OutputTimer timeout");
-	obs_frontend_streaming_stop();
+	pls_start_broadcast(false);
 }
 
 void OutputTimer::EventStopRecording()
 {
 	blog(LOG_INFO, "Stopping recording due to OutputTimer timeout");
-	obs_frontend_recording_stop();
+	pls_start_record(false);
+}
+
+void OutputTimer::updateStreamButtonState()
+{
+	bool isStreaming = obs_frontend_streaming_active();
+	ui->outputTimerStream->setText(isStreaming ? obs_module_text("Stop") : obs_module_text("Start"));
+	ui->outputTimerStream->setChecked(isStreaming);
+}
+
+void OutputTimer::updateRecordButtonState()
+{
+	bool isRecording = obs_frontend_recording_active();
+	ui->outputTimerRecord->setText(isRecording ? obs_module_text("Stop") : obs_module_text("Start"));
+	ui->outputTimerRecord->setChecked(isRecording);
 }
 
 static void SaveOutputTimer(obs_data_t *save_data, bool saving, void *)

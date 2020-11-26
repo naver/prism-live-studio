@@ -461,7 +461,8 @@ obs_hotkey_pair_id obs_hotkey_pair_register_source(
 	obs_hotkey_active_func func0, obs_hotkey_active_func func1, void *data0,
 	void *data1)
 {
-	if (!source)
+	//PRISM/Liuying/20200904/#4943 don't register hotkey for private source
+	if (!source || source->context.private)
 		return OBS_INVALID_HOTKEY_PAIR_ID;
 	return register_hotkey_pair_internal(OBS_HOTKEY_REGISTERER_SOURCE,
 					     source, weak_source_ref,

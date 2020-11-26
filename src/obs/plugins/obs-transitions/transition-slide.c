@@ -105,6 +105,9 @@ static void slide_callback(void *data, gs_texture_t *a, gs_texture_t *b,
 
 void slide_video_render(void *data, gs_effect_t *effect)
 {
+	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
+	if (!data)
+		return;
 	struct slide_info *slide = data;
 	obs_transition_video_render(slide->source, slide_callback);
 	UNUSED_PARAMETER(effect);
@@ -126,6 +129,9 @@ bool slide_audio_render(void *data, uint64_t *ts_out,
 			struct obs_source_audio_mix *audio, uint32_t mixers,
 			size_t channels, size_t sample_rate)
 {
+	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
+	if (!data)
+		return false;
 	struct slide_info *slide = data;
 	return obs_transition_audio_render(slide->source, ts_out, audio, mixers,
 					   channels, sample_rate, mix_a, mix_b);

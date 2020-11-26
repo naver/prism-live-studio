@@ -38,3 +38,7 @@ struct AudioDeviceInfo {
 
 std::string GetDeviceName(IMMDevice *device);
 void GetWASAPIAudioDevices(std::vector<AudioDeviceInfo> &devices, bool input);
+
+//PRISM/WangShaohui/20200414/#2224/for lost audio device
+std::string EncodeAudioString(const char *name, const char *id);
+void DecodeAudioString(const char *str, std::string &name, std::string &id);

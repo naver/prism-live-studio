@@ -11,7 +11,7 @@ class PLSLiveEndItem : public QFrame {
 	Q_OBJECT
 
 public:
-	explicit PLSLiveEndItem(const QString &uuid, QWidget *parent = nullptr);
+	explicit PLSLiveEndItem(const QString &uuid, QWidget *parent = nullptr, int superWidth = 599);
 	~PLSLiveEndItem();
 
 	void combineTwoImage();
@@ -20,6 +20,7 @@ public:
 private:
 	Ui::PLSLiveEndItem *ui;
 	const QVariantMap &mSourceData;
+	int m_superWidth = 0;
 	void setupData();
 	QString PLSLiveEndItem::toThousandsNum(QString numString);
 };

@@ -1,19 +1,19 @@
 #ifndef SHAREVIEWCONST_H
 #define SHAREVIEWCONST_H
-#include <QString>
 #include <QSize>
+#include <QString>
 namespace shareView {
 
 #define SHARE_TYPE "shareType"
 const QString DEFAULT_URL = "";
-#define DEFAULT_HEAD_PIC "icon-source-img-off.png"
-#define STEAM_PIC "stremsetting-vlive-s.png"
-#define YOUTUBE_PIC "img-youtube-profile.png"
-#define LIVE_PIC "badge-live-on.png"
-#define FACEBOOK_HOVER_PIC "icon-share-fb-over.png"
-#define FACEBOOK_PIC "icon-share-fb-normal.png"
+#define DEFAULT_HEAD_PIC "icon-source-img-off.svg"
+#define STEAM_PIC "stremsetting-vlive-s.svg"
+#define YOUTUBE_PIC "img-youtube-profile.svg"
+#define LIVE_PIC "badge-live-on.svg"
+#define FACEBOOK_HOVER_PIC "icon-share-fb-over.svg"
+#define FACEBOOK_PIC "icon-share-fb-normal.svg"
 
-#define IMAGE_PATH ":/Images/skin/"
+#define IMAGE_PATH ":/images"
 
 #define PIC_PATH(pic)                                    \
 	{                                                \

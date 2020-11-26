@@ -41,11 +41,17 @@ public:
 
 	void requestChannel(bool showAlert);
 	void requestCategory(const QString &query);
+
+	bool isSendChatToMqtt() const override { return true; }
+
+	QJsonObject getLiveStartParams() override;
+	QJsonObject getWebChatParams() override;
+	QString getServiceLiveLink() override;
 signals:
 	void onGetChannel(PLSPlatformApiResult);
 	void onGetServer(PLSPlatformApiResult);
 	void onUpdateChannel(PLSPlatformApiResult);
-	void onGetCategory(QJsonObject content);
+	void onGetCategory(QJsonObject content, const QString &request);
 	void closeDialogByExpired();
 
 private:
@@ -54,6 +60,7 @@ private:
 	void requestServer(bool showAlert);
 	void requestUpdateChannel(const string &title, const string &category);
 	void requestStatisticsInfo();
+	void requestVideos();
 
 	static PLSPlatformApiResult getApiResult(int code, QNetworkReply::NetworkError error);
 	void showApiRefreshError(PLSPlatformApiResult value);
@@ -66,4 +73,5 @@ private:
 	vector<TwitchServer> m_vecTwitchServers;
 	string m_strOriginalTitle;
 	QTimer m_statusTimer;
+	QString m_strEndUrl;
 };

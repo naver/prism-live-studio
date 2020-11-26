@@ -34,9 +34,15 @@ private slots:
 private:
 	void shiftState(const QVariantMap &info);
 
+	void doChildrenExclusive(bool &retflag);
+
+	void checkExclusiveChannel(bool &retflag);
+
 private:
 	Ui::ChannelConfigPannel *ui;
 	QString mChannelID;
 };
 
 #endif // CHANNELCONFIGPANNEL_H
+
+void childExclusive();

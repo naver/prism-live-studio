@@ -58,13 +58,7 @@
       </spacer>
      </item>
      <item>
-      <widget class="QFrame" name="frame">
-       <property name="frameShape">
-        <enum>QFrame::StyledPanel</enum>
-       </property>
-       <property name="frameShadow">
-        <enum>QFrame::Raised</enum>
-       </property>
+      <widget class="QWidget" name="widget" native="true">
        <layout class="QHBoxLayout" name="horizontalLayout_3">
         <property name="spacing">
          <number>0</number>
@@ -99,6 +93,9 @@
          <widget class="QLabel" name="liveTitleLabel">
           <property name="text">
            <string>TextLabel</string>
+          </property>
+          <property name="indent">
+           <number>0</number>
           </property>
          </widget>
         </item>
@@ -211,13 +208,6 @@
       </spacer>
      </item>
     </layout>
-   </item>
-   <item>
-    <widget class="QLabel" name="errorIcon">
-     <property name="text">
-      <string>err</string>
-     </property>
-    </widget>
    </item>
   </layout>
  </widget>

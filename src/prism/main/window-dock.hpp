@@ -9,6 +9,9 @@
 #include <QAction>
 #include <QTimer>
 
+#include "PLSDpiHelper.h"
+#include "PLSToplevelView.hpp"
+
 class QMenu;
 class QWidgetResizeHandler;
 class PLSPopupMenu;
@@ -54,6 +57,7 @@ private:
 protected:
 	void mousePressEvent(QMouseEvent *event);
 	void mouseReleaseEvent(QMouseEvent *event);
+	bool eventFilter(QObject *watched, QEvent *event) override;
 
 	QSize sizeHint() const override { return minimumSizeHint(); }
 	QSize minimumSizeHint() const override;
@@ -85,13 +89,16 @@ private:
 	PLSDock *dock;
 	QWidgetResizeHandler *resizeHandler;
 	bool isForResize;
+	bool isForMove;
 	bool isResizing;
 	QSize dockSizeMousePress;
 	QPoint globalPosMouseMoveForResize;
 	QTimer resizePausedCheckTimer;
+
+	friend class PLSDock;
 };
 
-class PLSDock : public QDockWidget {
+class PLSDock : public PLSWidgetDpiAdapterHelper<QDockWidget> {
 	Q_OBJECT
 	Q_PROPERTY(bool moving READ isMoving WRITE setMoving)
 	Q_PROPERTY(bool movingAndFloating READ isMovingAndFloating)
@@ -101,7 +108,7 @@ class PLSDock : public QDockWidget {
 	Q_PROPERTY(int contentMarginBottom READ getContentMarginBottom WRITE setContentMarginBottom)
 
 public:
-	explicit PLSDock(QWidget *parent = nullptr);
+	explicit PLSDock(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 
 public:
 	bool isMoving() const;
@@ -132,6 +139,7 @@ signals:
 	void beginResizeSignal();
 	void endResizeSignal();
 	void initResizeHandlerProxySignal(QObject *child);
+	void visibleSignal(bool visible);
 
 private slots:
 	void beginResizeSlot();
@@ -141,6 +149,8 @@ protected:
 	void closeEvent(QCloseEvent *event);
 	void paintEvent(QPaintEvent *event);
 	bool event(QEvent *event);
+	QRect onDpiChanged(double dpi, double oldDpi, const QRect &suggested, bool firstShow);
+	void onScreenAvailableGeometryChanged(const QRect &screenAvailableGeometry);
 
 private:
 	PLSDockTitle *dockTitle;
@@ -153,6 +163,8 @@ private:
 	QHBoxLayout *contentLayout;
 	QWidget *owidget;
 	PLSWidgetResizeHandler *resizeHandlerProxy;
+	QRect geometryOfNormal;
 
 	friend class PLSDockTitle;
+	friend class PLSWidgetResizeHandler;
 };

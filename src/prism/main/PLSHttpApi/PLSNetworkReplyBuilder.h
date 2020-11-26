@@ -23,6 +23,7 @@ public:
 
 	PLSNetworkReplyBuilder &setUrl(const QString &value);
 	PLSNetworkReplyBuilder &setUrl(const QUrl &value);
+	const QUrl &getUrl() { return url; };
 
 	PLSNetworkReplyBuilder &addKnownHeader(const QNetworkRequest::KnownHeaders &key, const QVariant &value);
 	PLSNetworkReplyBuilder &setKnownHeaders(const QMap<QNetworkRequest::KnownHeaders, QVariant> &headers);
@@ -52,6 +53,7 @@ public:
 	QNetworkReply *get(QNetworkAccessManager *networkAccessManager = nullptr);
 	QNetworkReply *post(QNetworkAccessManager *networkAccessManager = nullptr);
 	QNetworkReply *put(QNetworkAccessManager *networkAccessManager = nullptr);
+	QNetworkReply *del(QNetworkAccessManager *networkAccessManager = nullptr);
 
 protected:
 	virtual QUrl buildUrl(const QUrl &url);

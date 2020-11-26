@@ -7,6 +7,9 @@ static unique_ptr<obs_frontend_callbacks> c;
 
 TPrsimInvokedByWeb prism_frontend_web_invoked = nullptr;
 TPrsimDispatchJSEvent prism_frontend_dispatch_js_event = nullptr;
+//PRISM/Zhangdewen/20200901/#/chat source
+TPrsimDispatchJSEventToSource prism_frontend_dispatch_js_event_to_source =
+	nullptr;
 
 void obs_frontend_set_callbacks_internal(obs_frontend_callbacks *callbacks)
 {

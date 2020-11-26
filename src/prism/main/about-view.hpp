@@ -2,6 +2,7 @@
 #define PLSABOUTVIEW_HPP
 
 #include <dialog-view.hpp>
+#include "PLSDpiHelper.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -13,7 +14,7 @@ class PLSAboutView : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	PLSAboutView(QWidget *parent = nullptr);
+	PLSAboutView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSAboutView();
 
 private slots:

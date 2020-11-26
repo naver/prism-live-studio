@@ -22,6 +22,7 @@
 
 #include "dialog-view.hpp"
 #include "ui_PLSBasicSourceSelect.h"
+#include "PLSDpiHelper.h"
 
 class PLSBasic;
 
@@ -46,7 +47,7 @@ private slots:
 	void SourceRemoved(OBSSource source);
 
 public:
-	explicit PLSBasicSourceSelect(PLSBasic *parent, const char *id);
+	explicit PLSBasicSourceSelect(PLSBasic *parent, const char *id, PLSDpiHelper dpiHelper = PLSDpiHelper());
 
 	OBSSource newSource;
 	QModelIndex previousIndex;

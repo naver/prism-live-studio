@@ -16,85 +16,33 @@ class CustomPropertiesView : public PLSPropertiesView {
 
 public:
 	explicit CustomPropertiesView(DecklinkOutputUI *output, OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize = 0, int maxSize = -1)
-		: PLSPropertiesView(settings, type, reloadCallback, minSize, maxSize), m_output(output)
+		: PLSPropertiesView(output, settings, type, reloadCallback, minSize, maxSize), m_output(output)
 	{
 		RefreshProperties();
 	}
 
 	void RefreshProperties()
 	{
-		lastPropertyType = OBS_PROPERTY_INVALID;
-		PLSPropertiesView::RefreshProperties();
-		QScrollArea::widget()->setContentsMargins(0, 0, 0, 0);
-		if (obs_property_t *property = obs_properties_first(properties.get()); !property) {
-			dynamic_cast<QFormLayout *>(QScrollArea::widget()->layout())->setHorizontalSpacing(0);
-		}
-	}
-
-	void AddSpacer(const obs_property_type &currentType, QFormLayout *layout)
-	{
-		if (lastPropertyType != OBS_PROPERTY_INVALID) {
-			QLabel *spaceLabel = new QLabel(this);
-			spaceLabel->setObjectName(OBJECT_NAME_SPACELABEL);
-			if (isSamePropertyType(lastPropertyType, currentType)) {
-				spaceLabel->setFixedSize(10, PROPERTIES_VIEW_VERTICAL_SPACING_MIN);
-			} else {
-				spaceLabel->setFixedSize(10, PROPERTIES_VIEW_VERTICAL_SPACING_MAX);
-			}
-			layout->addRow(spaceLabel, spaceLabel);
-		}
-		lastPropertyType = currentType;
-	}
-
-	bool isSamePropertyType(obs_property_type a, obs_property_type b)
-	{
-		switch (a) {
-		case OBS_PROPERTY_BOOL:
-			switch (b) {
-			case OBS_PROPERTY_BOOL:
-				return true;
-			default:
-				return false;
-			}
-			break;
-		case OBS_PROPERTY_INT:
-		case OBS_PROPERTY_FLOAT:
-		case OBS_PROPERTY_TEXT:
-		case OBS_PROPERTY_PATH:
-		case OBS_PROPERTY_LIST:
-		case OBS_PROPERTY_COLOR:
-		case OBS_PROPERTY_BUTTON:
-		case OBS_PROPERTY_FONT:
-		case OBS_PROPERTY_EDITABLE_LIST:
-		case OBS_PROPERTY_FRAME_RATE:
-			switch (b) {
-			case OBS_PROPERTY_INT:
-			case OBS_PROPERTY_FLOAT:
-			case OBS_PROPERTY_TEXT:
-			case OBS_PROPERTY_PATH:
-			case OBS_PROPERTY_LIST:
-			case OBS_PROPERTY_COLOR:
-			case OBS_PROPERTY_BUTTON:
-			case OBS_PROPERTY_FONT:
-			case OBS_PROPERTY_EDITABLE_LIST:
-			case OBS_PROPERTY_FRAME_RATE:
-				return true;
-			default:
-				return false;
-			}
-		default:
-			break;
-		}
-		return true;
+		PLSPropertiesView::RefreshProperties(
+			[=](QWidget *widget) {
+				widget->setContentsMargins(0, 0, 0, 0);
+				PLSDpiHelper::dpiDynamicUpdate(widget, false);
+				if (obs_property_t *property = obs_properties_first(properties.get()); !property) {
+					dynamic_cast<QFormLayout *>(widget->layout())->setHorizontalSpacing(0);
+				}
+			},
+			false);
 	}
 };
 }
 
-DecklinkOutputUI::DecklinkOutputUI(QWidget *parent) : PLSDialogView(parent), ui(new Ui_Output)
+DecklinkOutputUI::DecklinkOutputUI(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui_Output)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::DecklinkOutputUI});
+	dpiHelper.setFixedSize(this, {720, 700});
+
 	setResizeEnabled(false);
 	ui->setupUi(this->content());
-	setFixedSize(720, 700);
 	QMetaObject::connectSlotsByName(this);
 	setSizeGripEnabled(false);
 
@@ -102,12 +50,6 @@ DecklinkOutputUI::DecklinkOutputUI(QWidget *parent) : PLSDialogView(parent), ui(
 
 	propertiesView = nullptr;
 	previewPropertiesView = nullptr;
-
-	connect(ui->startOutput, SIGNAL(released()), this, SLOT(StartOutput()));
-	connect(ui->stopOutput, SIGNAL(released()), this, SLOT(StopOutput()));
-
-	connect(ui->startPreviewOutput, SIGNAL(released()), this, SLOT(StartPreviewOutput()));
-	connect(ui->stopPreviewOutput, SIGNAL(released()), this, SLOT(StopPreviewOutput()));
 }
 
 void DecklinkOutputUI::ShowHideDialog()
@@ -182,17 +124,12 @@ void DecklinkOutputUI::SavePreviewSettings()
 		obs_data_save_json_safe(settings, path, "tmp", "bak");
 }
 
-void DecklinkOutputUI::StartOutput()
+// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+void DecklinkOutputUI::on_outputButton_clicked()
 {
-	PLS_PLUGIN_UI_STEP("Decklink Output > Output Start Button", ACTION_CLICK);
+	PLS_PLUGIN_UI_STEP("Decklink Output > Output Start/Stop Button", ACTION_CLICK);
 	SaveSettings();
-	output_start();
-}
-
-void DecklinkOutputUI::StopOutput()
-{
-	PLS_PLUGIN_UI_STEP("Decklink Output > Output Stop Button", ACTION_CLICK);
-	output_stop();
+	output_toggle();
 }
 
 void DecklinkOutputUI::PropertiesChanged()
@@ -200,20 +137,44 @@ void DecklinkOutputUI::PropertiesChanged()
 	SaveSettings();
 }
 
-void DecklinkOutputUI::StartPreviewOutput()
+// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+void DecklinkOutputUI::OutputStateChanged(bool active)
 {
-	PLS_PLUGIN_UI_STEP("Decklink Output > Preview Output Start Button", ACTION_CLICK);
-	SavePreviewSettings();
-	preview_output_start();
+	QString text;
+	if (active) {
+		text = QString::fromUtf8(obs_module_text("Stop"));
+	} else {
+		text = QString::fromUtf8(obs_module_text("Start"));
+	}
+
+	ui->outputButton->setChecked(active);
+	ui->outputButton->setText(text);
 }
 
-void DecklinkOutputUI::StopPreviewOutput()
+// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+void DecklinkOutputUI::on_previewOutputButton_clicked()
 {
-	PLS_PLUGIN_UI_STEP("Decklink Output > Preview Output Stop Button", ACTION_CLICK);
-	preview_output_stop();
+	PLS_PLUGIN_UI_STEP("Decklink Output > Preview Output Start/Stop Button", ACTION_CLICK);
+	SavePreviewSettings();
+	preview_output_toggle();
 }
 
 void DecklinkOutputUI::PreviewPropertiesChanged()
 {
 	SavePreviewSettings();
+}
+
+// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+void DecklinkOutputUI::PreviewOutputStateChanged(bool active)
+
+{
+	QString text;
+	if (active) {
+		text = QString::fromUtf8(obs_module_text("Stop"));
+	} else {
+		text = QString::fromUtf8(obs_module_text("Start"));
+	}
+
+	ui->previewOutputButton->setChecked(active);
+	ui->previewOutputButton->setText(text);
 }

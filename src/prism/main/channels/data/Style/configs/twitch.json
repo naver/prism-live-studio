@@ -1,6 +1,6 @@
 {
 	"channel":"twitch",
-    "_id":"user_id",
+    "_id":"sub_channel_id", 
     "app_client_id": "app_client_id",
     "broadcaster_language": "broadcaster_language",
     "broadcaster_software": "unknown_rtmp",

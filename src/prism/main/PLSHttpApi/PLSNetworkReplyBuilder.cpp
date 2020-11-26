@@ -149,7 +149,6 @@ QNetworkReply *PLSNetworkReplyBuilder::get(QNetworkAccessManager *networkAccessM
 		networkAccessManager = PLS_HTTP_HELPER->getNetworkAccessManager();
 	}
 
-	PLS_INFO(MODULE_PLSHttpHelper, "http request start:Get, url = %s.", url.toString().toStdString().c_str());
 	return networkAccessManager->get(buildRequest());
 }
 
@@ -159,7 +158,6 @@ QNetworkReply *PLSNetworkReplyBuilder::post(QNetworkAccessManager *networkAccess
 		networkAccessManager = PLS_HTTP_HELPER->getNetworkAccessManager();
 	}
 
-	PLS_INFO(MODULE_PLSHttpHelper, "http request start:Post, url = %s.", url.toString().toStdString().c_str());
 	return networkAccessManager->post(buildRequest(), buildBody());
 }
 
@@ -169,8 +167,16 @@ QNetworkReply *PLSNetworkReplyBuilder::put(QNetworkAccessManager *networkAccessM
 		networkAccessManager = PLS_HTTP_HELPER->getNetworkAccessManager();
 	}
 
-	PLS_INFO(MODULE_PLSHttpHelper, "http request start:Put, url = %s.", url.toString().toStdString().c_str());
 	return networkAccessManager->put(buildRequest(), buildBody());
+}
+
+QNetworkReply *PLSNetworkReplyBuilder::del(QNetworkAccessManager *networkAccessManager)
+{
+	if (nullptr == networkAccessManager) {
+		networkAccessManager = PLS_HTTP_HELPER->getNetworkAccessManager();
+	}
+
+	return networkAccessManager->deleteResource(buildRequest());
 }
 
 QUrl PLSNetworkReplyBuilder::buildUrl(const QUrl &url)
@@ -200,7 +206,7 @@ QUrlQuery PLSNetworkReplyBuilder::buildQuery(const QVariantMap &value)
 	QUrlQuery urlQuery;
 
 	for (auto iter = value.cbegin(); iter != value.cend(); ++iter) {
-		urlQuery.addQueryItem(iter.key(), iter.value().toString());
+		urlQuery.addQueryItem(iter.key(), QUrl::toPercentEncoding(iter.value().toString()));
 	}
 
 	return urlQuery;
@@ -213,7 +219,7 @@ QByteArray PLSNetworkReplyBuilder::buildBody()
 	if (!body.isEmpty()) {
 		buffer = body;
 	} else if (!fields.isEmpty()) {
-		buffer = buildQuery(fields).toString().toUtf8();
+		buffer = buildQuery(fields).toString(QUrl::FullyEncoded).toUtf8();
 	} else if (!jsonObject.isEmpty()) {
 		buffer = QJsonDocument(jsonObject).toJson();
 	} else if (!jsonArray.isEmpty()) {
@@ -231,6 +237,7 @@ QNetworkRequest PLSNetworkReplyBuilder::buildRequest()
 
 	QNetworkRequest request(buildUrl(url));
 	request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::SameOriginRedirectPolicy);
+	request.setAttribute(QNetworkRequest::CookieLoadControlAttribute, QNetworkRequest::Manual);
 	buildHeader(&request);
 
 	return request;

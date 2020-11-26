@@ -37,6 +37,7 @@
 #include "pls/outro.h"
 #include "pls/watermark.h"
 #include "pls/thumbnail.h"
+#include "pls/media-info.h"
 
 #include "obs.h"
 
@@ -238,6 +239,11 @@ struct obs_tex_frame {
 	bool released;
 };
 
+struct obs_task_info {
+	obs_task_t task;
+	void *param;
+};
+
 struct obs_core_video {
 	graphics_t *graphics;
 	gs_stagesurf_t *copy_surfaces[NUM_TEXTURES][NUM_CHANNELS];
@@ -311,6 +317,9 @@ struct obs_core_video {
 
 	struct obs_video_info ovi;
 
+	pthread_mutex_t task_mutex;
+	struct circlebuf tasks;
+
 	//PRISM/LiuHaibin/20200117/#214/for outro
 	obs_outro_t *outro;
 
@@ -319,6 +328,12 @@ struct obs_core_video {
 
 	//PRISM/LiuHaibin/20200217/#215/for thumbnail
 	obs_thumbnail_t *thumbnail;
+
+	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+	volatile bool render_working;
+
+	//PRISM/WangChuanjing/20200825/#3423/for main view load delay
+	volatile bool system_initialized;
 };
 
 struct audio_monitor;
@@ -340,6 +355,10 @@ struct obs_core_audio {
 	DARRAY(struct audio_monitor *) monitors;
 	char *monitoring_device_name;
 	char *monitoring_device_id;
+
+	//PRISM/LiuHaibin/20200908/#4748/add mp3 info
+	pthread_mutex_t id3v2_mutex;
+	DARRAY(struct mi_id3v2) id3v2_array;
 };
 
 /* user sources, output channels, and displays */
@@ -433,6 +452,8 @@ struct obs_core {
 	struct obs_core_audio audio;
 	struct obs_core_data data;
 	struct obs_core_hotkeys hotkeys;
+
+	obs_task_handler_t ui_task_handler;
 };
 
 extern struct obs_core *obs;
@@ -500,8 +521,18 @@ struct obs_weak_ref {
 	volatile long weak_refs;
 };
 
-static inline void obs_ref_addref(struct obs_weak_ref *ref)
+//PRISM/WangShaohui/20201030/#5529/monitor invalid reference
+static inline void obs_ref_addref(struct obs_weak_ref *ref,
+				  const char *plugin_id,
+				  const char *source_name)
 {
+	if (ref->refs < 0) {
+		blog(LOG_ERROR,
+		     "A crash must happen later because object will be deleted again. plugin:%s name:%s",
+		     plugin_id ? plugin_id : "unknown",
+		     source_name ? source_name : "unknown");
+		assert(false && "A crash must happen and you must fix it!");
+	}
 	os_atomic_inc_long(&ref->refs);
 }
 
@@ -606,6 +637,10 @@ struct obs_source {
 	   default value is set with true in obs_source_init(struct obs_source *source) */
 	bool capture_valid;
 	enum obs_source_error capture_errorcode;
+
+	//PRISM/WangChuanjing/20200429/#2516/for beauty
+	/*used to indecate that whether the source capture image success, default false*/
+	bool image_capture_success;
 
 	/* timing (if video is present, is based upon video) */
 	volatile bool timing_set;
@@ -737,6 +772,26 @@ struct obs_source {
 	enum obs_monitoring_type monitoring_type;
 
 	obs_data_t *private_settings;
+
+	/* camera effect */
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	struct obs_source_frame *cam_frame;
+	int cam_frame_state;
+	gs_texture_t *cam_shared_texture;
+	gs_texture_t *cam_result_texture;
+	bool cam_shared_texture_ready;
+	bool cam_result_texture_ready;
+	uint32_t cam_result_texture_null_count;
+	uint32_t cam_current_shared_handle;
+	uint32_t cam_result_texture_width;
+	uint32_t cam_result_texture_height;
+	struct gs_luid cam_adapter_luid;
+
+	//PRISM/LiuHaibin/20200716/#None/clear video
+	bool async_clear_video;
+
+	//PRISM/Liuying/20200904/#None/for Music PlayList
+	struct obs_source *parent;
 };
 
 extern struct obs_source_info *get_source_info(const char *id);
@@ -973,6 +1028,9 @@ struct obs_output {
 	char *last_error_message;
 
 	float audio_data[MAX_AUDIO_CHANNELS][AUDIO_OUTPUT_FRAMES];
+
+	//PRISM/LiuHaibin/20200703/#3195/for force stop
+	bool stopped_internal;
 };
 
 static inline void do_output_signal(struct obs_output *output,
@@ -1078,6 +1136,12 @@ struct obs_encoder {
 	struct pause_data pause;
 
 	const char *profile_encoder_encode_name;
+
+	//PRISM/LiuHaibin/20200701/#2440/support NOW
+	uint64_t base_timestamp;
+
+	//PRISM/LiuHaibin/20200703/#None/gpu encoder deadlock
+	volatile bool gpu_encoder_error;
 };
 
 extern struct obs_encoder_info *find_encoder(const char *id);
@@ -1201,3 +1265,11 @@ extern bool obs_thumbnail_requested();
 
 //End
 /* ------------------------------------------------------------------------- */
+
+//PRISM/Liu.Haibin/20200409/#2321/for device rebuild
+/** returns true if render is working, false otherwise */
+extern bool is_render_working(void);
+
+//PRISM/LiuHaibin/20200609/#/camera effect
+/* return true if camera effect is on, false otherwise */
+extern bool obs_source_cam_effect_on(const obs_source_t *source);

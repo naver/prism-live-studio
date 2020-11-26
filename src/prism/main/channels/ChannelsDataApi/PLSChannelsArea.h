@@ -8,6 +8,7 @@
 class QPushButton;
 class PLSAddingFrame;
 class GoLivePannel;
+class QToolButton;
 
 namespace Ui {
 class ChannelsArea;
@@ -20,11 +21,12 @@ public:
 	explicit PLSChannelsArea(QWidget *parent = nullptr);
 	~PLSChannelsArea();
 
-	void initChannels();
-
-	void appendTailWidget(QWidget *widget);
+	void beginInitChannels();
 
 	void holdOnChannelArea(bool holdOn);
+
+signals:
+	void sigNextInitialize();
 
 private slots:
 
@@ -38,11 +40,13 @@ private slots:
 
 	void showChannelsAdd();
 
-	void switchAllChannelsState(bool on = true);
-
 	void clearAll();
 
 	void clearAllRTMP();
+
+	void initializeNextStep();
+
+	void endInitialize();
 
 protected:
 	void changeEvent(QEvent *e);
@@ -52,28 +56,49 @@ protected:
 	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-	void addChannel(const QVariantMap &channelInfo);
+	enum ScrollDirection { NOScroll, ForwardScroll, BackScroll };
+
+private:
+	ChannelData::ChannelCapsulePtr addChannel(const QVariantMap &channelInfo);
+
+	QHash<void *, QTimer *> mTimerContainer;
+	template<typename FunctionType> void delayTask(FunctionType function, int tick = 200)
+	{
+		auto pointer = getMemberPointer<void *>(function);
+		QTimer *delayTimer = mTimerContainer.value(pointer);
+		if (delayTimer == nullptr) {
+			delayTimer = new QTimer(this);
+			delayTimer->setSingleShot(true);
+			auto func = std::bind(function, this);
+			delayTimer->connect(delayTimer, &QTimer::timeout, this, [=]() { func(); });
+			mTimerContainer.insert(pointer, delayTimer);
+		}
+		delayTimer->start(tick);
+	}
 
 	bool checkIsEmptyUi();
 	void updateUi();
+	void delayUpdateUi();
+	void updateAllChannelsUi();
+	void delayUpdateAllChannelsUi();
+	void hideLoading();
+
+	void initScollButtons();
+	void checkScrollButtonsState(ScrollDirection direction = ForwardScroll);
+	bool isScrollButtonsNeeded();
+	void displayScrollButtons(bool isShow = true);
+	void enabledScrollButtons(bool isEnabled = true);
+	void scrollNext(bool forwartStep = true);
+	void ensureCornerChannelVisible(bool forwartStep = true);
+	void buttonLimitCheck();
 
 	void insertChannelCapsule(QWidget *wid, int index = -1);
 
-	void scrollNext(bool forwartStep = true);
-
-	void displayScrollButtons(bool isShow = true);
-
-	void holdOnChannel(const QString &uuid, bool holdOn);
-
-	int getRTMPInsertIndex();
-
-	int getChannelInsertIndex(const QString &platformName);
-
 	void refreshOrder();
 
-	void initScollButtons();
+	void initializeMychannels();
 
-	bool isScrollButtonsNeeded();
+	int visibleCount();
 
 private:
 	Ui::ChannelsArea *ui;
@@ -84,14 +109,17 @@ private:
 
 	QPushButton *mRightButton;
 
-	QPushButton *addBtn;
-
 	PLSAddingFrame *mbusyFrame;
 
 	GoLivePannel *goliveWid;
 
 	bool isHolding;
-	QTimer mCheckTimer;
+	bool isUiInitialized;
+
+	QList<QVariantMap> mInitializeInfos;
+
+	QToolButton *myChannelsIconBtn;
+	QPushButton *myChannelsTxtBtn;
 };
 
 #endif // CHANNELSAREA_H

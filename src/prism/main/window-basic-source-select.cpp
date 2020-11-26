@@ -23,10 +23,39 @@
 #include "action.h"
 #include "liblog.h"
 #include "log/module_names.h"
+#include "pls-common-define.hpp"
 
 struct AddSourceData {
 	obs_source_t *source;
 	bool visible;
+
+	//zhangdewen, chat source, set source position
+	bool setpos;
+	vec2 pos;
+
+	AddSourceData(obs_source_t *source, bool visible)
+	{
+		this->source = source;
+		this->visible = visible;
+		this->setpos = false;
+		this->pos.x = this->pos.y = 0.0f;
+	}
+
+	void centerShow()
+	{
+		setpos = true;
+
+		obs_video_info ovi;
+		vec3 center;
+		obs_get_video_info(&ovi);
+		vec3_set(&center, float(ovi.base_width), float(ovi.base_height), 0.0f);
+		vec3_mulf(&center, &center, 0.5f);
+
+		auto width = obs_source_get_width(source);
+		auto height = obs_source_get_height(source);
+		pos.x = center.x - width / 2.0f;
+		pos.y = center.y - height / 2.0f;
+	}
 };
 
 bool PLSBasicSourceSelect::EnumSources(void *data, obs_source_t *source)
@@ -109,6 +138,11 @@ static void AddSource(void *_data, obs_scene_t *scene)
 
 	sceneitem = obs_scene_add(scene, data->source);
 	obs_sceneitem_set_visible(sceneitem, data->visible);
+
+	if (data->setpos) {
+		obs_sceneitem_set_pos(sceneitem, &data->pos);
+		//obs_sceneitem_set_scale(sceneitem, &chat->scale);
+	}
 }
 
 static char *get_new_source_name(const char *name)
@@ -151,9 +185,12 @@ static void AddExisting(const char *name, bool visible, bool duplicate)
 				return;
 		}
 
-		AddSourceData data;
-		data.source = source;
-		data.visible = visible;
+		AddSourceData data(source, visible);
+
+		const char *id = obs_source_get_id(source);
+		if (id && !strcmp(id, PRISM_CHAT_SOURCE_ID)) {
+			data.centerShow();
+		}
 
 		obs_enter_graphics();
 		obs_scene_atomic_update(scene, AddSource, &data);
@@ -179,9 +216,12 @@ bool AddNew(QWidget *parent, const char *id, const char *name, const bool visibl
 		source = obs_source_create(id, name, NULL, nullptr);
 
 		if (source) {
-			AddSourceData data;
-			data.source = source;
-			data.visible = visible;
+			AddSourceData data(source, visible);
+
+			const char *id = obs_source_get_id(source);
+			if (id && !strcmp(id, PRISM_CHAT_SOURCE_ID)) {
+				data.centerShow();
+			}
 
 			obs_enter_graphics();
 			obs_scene_atomic_update(scene, AddSource, &data);
@@ -215,12 +255,12 @@ void PLSBasicSourceSelect::on_buttonBox_accepted()
 
 		AddExisting(item->text().toStdString().c_str(), visible, false);
 	} else {
-		if (ui->sourceName->text().isEmpty()) {
+		if (ui->sourceName->text().simplified().isEmpty()) {
 			PLSMessageBox::warning(this, QTStr("NoNameEntered.Title"), QTStr("NoNameEntered.Text"));
 			return;
 		}
 
-		if (!AddNew(this, id, ui->sourceName->text().toStdString().c_str(), visible, newSource))
+		if (!AddNew(this, id, ui->sourceName->text().simplified().toStdString().c_str(), visible, newSource))
 			return;
 	}
 
@@ -246,8 +286,9 @@ template<typename T> static inline T GetPLSRef(QListWidgetItem *item)
 	return item->data(static_cast<int>(QtDataRole::PLSRef)).value<T>();
 }
 
-PLSBasicSourceSelect::PLSBasicSourceSelect(PLSBasic *parent, const char *id_) : PLSDialogView(parent), ui(new Ui::PLSBasicSourceSelect), id(id_), previousIndex()
+PLSBasicSourceSelect::PLSBasicSourceSelect(PLSBasic *parent, const char *id_, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSBasicSourceSelect), id(id_), previousIndex()
 {
+	dpiHelper.setCss(this, {PLSCssIndex::PLSBasicSourceSelect});
 	ui->setupUi(this->content());
 
 	QMetaObject::connectSlotsByName(this);
@@ -281,6 +322,11 @@ PLSBasicSourceSelect::PLSBasicSourceSelect(PLSBasic *parent, const char *id_) : 
 	});
 
 	QString placeHolderText{QT_UTF8(GetSourceDisplayName(id))};
+	if (0 == strcmp(id, SCENE_SOURCE_ID)) {
+		placeHolderText = QTStr("Basic.Scene");
+	} else if (0 == strcmp(id, GROUP_SOURCE_ID)) {
+		placeHolderText = QTStr("Group");
+	}
 
 	QString text{placeHolderText};
 	int i = 2;

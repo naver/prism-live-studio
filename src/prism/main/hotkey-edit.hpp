@@ -122,6 +122,7 @@ public:
 	void GetCombinations(std::vector<obs_key_combination_t> &) const;
 	void Save();
 	void Save(std::vector<obs_key_combination_t> &combinations);
+	void Clear();
 
 	void enterEvent(QEvent *event) override;
 	void leaveEvent(QEvent *event) override;

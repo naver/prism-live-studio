@@ -112,4 +112,6 @@ private:
 	static mfxU16 g_numEncodersOpen;
 	static mfxHDL
 		g_DX_Handle; // we only want one handle for all instances to use;
+	//PRISM/LiuHaibin/20201027/#5451/mark if qsv encoder is correctly initialized.
+	bool m_bInitialized;
 };

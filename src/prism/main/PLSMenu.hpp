@@ -4,6 +4,9 @@
 #include <QFrame>
 #include <QIcon>
 
+#include "PLSToplevelView.hpp"
+#include "PLSDpiHelper.h"
+
 class QMenu;
 class QPushButton;
 class QHBoxLayout;
@@ -29,7 +32,7 @@ protected:
 class PLSPopupMenuItem : public QFrame {
 	Q_OBJECT
 public:
-	explicit PLSPopupMenuItem(QAction *action, PLSPopupMenu *menu);
+	explicit PLSPopupMenuItem(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSPopupMenuItem() override;
 
 public:
@@ -56,7 +59,7 @@ protected:
 class PLSPopupMenuItemSeparator : public PLSPopupMenuItem {
 	Q_OBJECT
 public:
-	explicit PLSPopupMenuItemSeparator(QAction *action, PLSPopupMenu *menu);
+	explicit PLSPopupMenuItemSeparator(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSPopupMenuItemSeparator() override;
 
 public:
@@ -68,7 +71,7 @@ class PLSPopupMenuItemContent : public PLSPopupMenuItem {
 	Q_PROPERTY(bool hasIcon READ getHasIcon WRITE setHasIcon)
 	Q_PROPERTY(bool isLeftIcon READ getIsLeftIcon WRITE setIsLeftIcon)
 public:
-	explicit PLSPopupMenuItemContent(QAction *action, PLSPopupMenu *menu);
+	explicit PLSPopupMenuItemContent(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSPopupMenuItemContent() override;
 
 public:
@@ -102,7 +105,7 @@ protected:
 class PLSPopupMenuItemAction : public PLSPopupMenuItemContent {
 	Q_OBJECT
 public:
-	explicit PLSPopupMenuItemAction(QAction *action, PLSPopupMenu *menu);
+	explicit PLSPopupMenuItemAction(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSPopupMenuItemAction() override;
 
 public:
@@ -123,7 +126,7 @@ protected:
 class PLSPopupMenuItemWidgetAction : public PLSPopupMenuItem {
 	Q_OBJECT
 public:
-	explicit PLSPopupMenuItemWidgetAction(QWidgetAction *action, PLSPopupMenu *menu);
+	explicit PLSPopupMenuItemWidgetAction(QWidgetAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSPopupMenuItemWidgetAction() override;
 
 public:
@@ -142,7 +145,7 @@ protected:
 class PLSPopupMenuItemMenu : public PLSPopupMenuItemContent {
 	Q_OBJECT
 public:
-	explicit PLSPopupMenuItemMenu(QAction *action, PLSPopupMenu *menu);
+	explicit PLSPopupMenuItemMenu(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSPopupMenuItemMenu() override;
 
 public:
@@ -160,7 +163,7 @@ protected:
 	QLabel *m_arrow;
 };
 
-class PLSPopupMenu : public QFrame {
+class PLSPopupMenu : public PLSWidgetDpiAdapterHelper<QFrame> {
 	Q_OBJECT
 	Q_PROPERTY(QIcon icon READ icon WRITE setIcon)
 	Q_PROPERTY(int marginLeft READ getMarginLeft WRITE setMarginLeft)
@@ -169,17 +172,17 @@ class PLSPopupMenu : public QFrame {
 	Q_PROPERTY(int marginBottom READ getMarginBottom WRITE setMarginBottom)
 
 public:
-	explicit PLSPopupMenu(QWidget *parent = nullptr);
-	explicit PLSPopupMenu(bool toolTipsVisible, QWidget *parent = nullptr);
-	explicit PLSPopupMenu(const QString &title, bool toolTipsVisible, QWidget *parent = nullptr);
-	explicit PLSPopupMenu(const QIcon &icon, const QString &title, bool toolTipsVisible, QWidget *parent = nullptr);
-	explicit PLSPopupMenu(QAction *menuAction, QWidget *parent = nullptr);
-	explicit PLSPopupMenu(QAction *menuAction, bool toolTipsVisible, QWidget *parent = nullptr);
-	explicit PLSPopupMenu(QMenu *menu, QWidget *parent = nullptr);
-	explicit PLSPopupMenu(QMenu *menu, bool toolTipsVisible, QWidget *parent = nullptr);
-	explicit PLSPopupMenu(PLSMenu *menu, QWidget *parent = nullptr);
-	explicit PLSPopupMenu(PLSMenu *menu, bool toolTipsVisible, QWidget *parent = nullptr);
-	explicit PLSPopupMenu(const QIcon &icon, const QString &title, QAction *menuAction, bool toolTipsVisible, QWidget *parent = nullptr);
+	explicit PLSPopupMenu(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSPopupMenu(bool toolTipsVisible, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSPopupMenu(const QString &title, bool toolTipsVisible, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSPopupMenu(const QIcon &icon, const QString &title, bool toolTipsVisible, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSPopupMenu(QAction *menuAction, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSPopupMenu(QAction *menuAction, bool toolTipsVisible, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSPopupMenu(QMenu *menu, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSPopupMenu(QMenu *menu, bool toolTipsVisible, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSPopupMenu(PLSMenu *menu, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSPopupMenu(PLSMenu *menu, bool toolTipsVisible, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSPopupMenu(const QIcon &icon, const QString &title, QAction *menuAction, bool toolTipsVisible, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSPopupMenu() override;
 
 	PLSPopupMenu *owner() const;
@@ -296,7 +299,9 @@ protected:
 	bool event(QEvent *event) override;
 	void showEvent(QShowEvent *event) override;
 	void hideEvent(QHideEvent *event) override;
-	bool nativeEvent(const QByteArray &eventType, void *message, long *result) override;
+	bool needQtProcessDpiChangedEvent() const override;
+	bool needProcessScreenChangedEvent() const override;
+	void onDpiChanged(double dpi, double oldDpi, bool firstShow) override;
 
 private:
 	PLSPopupMenu *m_owner;

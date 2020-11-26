@@ -21,4 +21,7 @@ protected:
 
 private:
 	void SetSliderValue(const QPoint &position);
+
+signals:
+	void mouseReleaseSignal();
 };

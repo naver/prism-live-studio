@@ -782,8 +782,17 @@ bool os_is_file_exist(const char *utf_path)
 	if (!unicode_path)
 		return false;
 
-	bool isExist = ((_waccess(unicode_path, 0)) != -1);
+	bool file_exist = os_is_file_exist_ex(unicode_path);
 	bfree(unicode_path);
 
-	return isExist;
+	return file_exist;
+}
+
+//PRISM/WangShaohui/20200305/#281#1086/for check file exist
+EXPORT bool os_is_file_exist_ex(const wchar_t *unicode_path)
+{
+	if (!unicode_path)
+		return false;
+	else
+		return ((_waccess(unicode_path, 0)) != -1);
 }

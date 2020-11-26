@@ -18,6 +18,9 @@ struct scroll_filter_data {
 
 	struct vec2 size_i;
 	struct vec2 offset;
+
+	//PRISM/Wang.Chuanjing/20200826/NoIssue for reset scroll offset
+	bool offset_reset;
 };
 
 static const char *scroll_filter_get_name(void *unused)
@@ -90,6 +93,9 @@ static void scroll_filter_update(void *data, obs_data_t *settings)
 		filter->offset.x = 0.0f;
 	if (filter->scroll_speed.y == 0.0f)
 		filter->offset.y = 0.0f;
+
+	//PRISM/Wang.Chuanjing/20200826/NoIssue for reset scroll offset
+	filter->offset_reset = obs_data_get_bool(settings, "offset_reset");
 }
 
 static bool limit_cx_clicked(obs_properties_t *props, obs_property_t *p,
@@ -145,11 +151,21 @@ static void scroll_filter_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, "limit_size", false);
 	obs_data_set_default_int(settings, "cx", 100);
 	obs_data_set_default_int(settings, "cy", 100);
+
+	//PRISM/Wang.Chuanjing/20200826/NoIssue for reset scroll offset
+	obs_data_set_bool(settings, "offset_reset", false);
 }
 
 static void scroll_filter_tick(void *data, float seconds)
 {
 	struct scroll_filter_data *filter = data;
+
+	//PRISM/Wang.Chuanjing/20200826/NoIssue for reset scroll offset
+	if (filter->offset_reset) {
+		filter->offset.x = 0.f;
+		filter->offset.y = 0.f;
+		filter->offset_reset = false;
+	}
 
 	filter->offset.x += filter->size_i.x * filter->scroll_speed.x * seconds;
 	filter->offset.y += filter->size_i.y * filter->scroll_speed.y * seconds;

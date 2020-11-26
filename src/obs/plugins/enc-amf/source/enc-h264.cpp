@@ -279,9 +279,11 @@ obs_properties_t* Plugin::Interface::H264Interface::get_properties(void* data) n
 
 #pragma region Parameters
 	/// Bitrate Constraints
-	p = obs_properties_add_int(props, "bitrate", P_TRANSLATE(P_BITRATE_TARGET), 0, 1, 1);
+	//PRISM/LiuHaibin/20200328/#/change default value
+	p = obs_properties_add_int(props, "bitrate", P_TRANSLATE(P_BITRATE_TARGET), 0, 60000, 1);
 	obs_property_set_long_description(p, P_TRANSLATE(P_DESC(P_BITRATE_TARGET)));
-	p = obs_properties_add_int(props, P_BITRATE_PEAK, P_TRANSLATE(P_BITRATE_PEAK), 0, 1, 1);
+	//PRISM/LiuHaibin/20200328/#/change default value
+	p = obs_properties_add_int(props, P_BITRATE_PEAK, P_TRANSLATE(P_BITRATE_PEAK), 0, 60000, 1);
 	obs_property_set_long_description(p, P_TRANSLATE(P_DESC(P_BITRATE_PEAK)));
 
 	/// Minimum QP, Maximum QP
@@ -363,7 +365,8 @@ obs_properties_t* Plugin::Interface::H264Interface::get_properties(void* data) n
 #pragma endregion VBV Buffer Strictness
 
 #pragma region VBV Buffer Size
-	p = obs_properties_add_int_slider(props, P_VBVBUFFER_SIZE, P_TRANSLATE(P_VBVBUFFER_SIZE), 1, 1000000, 1);
+	//PRISM/LiuHaibin/20200328/#/change default value
+	p = obs_properties_add_int_slider(props, P_VBVBUFFER_SIZE, P_TRANSLATE(P_VBVBUFFER_SIZE), 1, 60000, 1);
 	obs_property_set_long_description(p, P_TRANSLATE(P_DESC(P_VBVBUFFER_SIZE)));
 #pragma endregion VBV Buffer Size
 
@@ -654,11 +657,15 @@ bool Plugin::Interface::H264Interface::properties_modified(obs_properties_t* pro
 		auto tmp_l = enc.func();                                                    \
 		obs_property_int_set_limits(tmp_p, (int)tmp_l.first, (int)tmp_l.second, 1); \
 	}
+	//PRISM/LiuHaibin/20200330/#/limit max value if it's too big
 #define TEMP_LIMIT_SLIDER_BITRATE(func, prop)                                                     \
 	{                                                                                             \
 		auto tmp_p = obs_properties_get(props, prop);                                             \
 		auto tmp_l = enc.func();                                                                  \
-		obs_property_int_set_limits(tmp_p, (int)tmp_l.first / 1000, (int)tmp_l.second / 1000, 1); \
+		int  maxBitrate = (int)tmp_l.second / 1000;					\
+		if (maxBitrate > 60000)								\
+			maxBitrate = 60000;							\
+		obs_property_int_set_limits(tmp_p, (int)tmp_l.first / 1000, maxBitrate, 1); \
 	}
 
 			//TEMP_LIMIT_DROPDOWN(CapsUsage, AMD::Usage, P_USAGE);

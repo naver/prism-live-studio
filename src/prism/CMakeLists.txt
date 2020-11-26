@@ -6,7 +6,6 @@ set(DepsPath32 $ENV{OBS_DIR}/dependencies/win32/include)
 set(DepsPath64 $ENV{OBS_DIR}/dependencies/win64/include)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "$ENV{PRISM_DIR}/cmake/Modules" "$ENV{OBS_DIR}/cmake/Modules")
 
-
 include(ObsHelpers)
 include(ObsCpack)
 include(GNUInstallDirs)
@@ -66,6 +65,20 @@ function(copy_prism_plugin_target target)
 	    VERBATIM)
 endfunction()
 
+function(copy_prism_theme_target target)
+    add_custom_command(TARGET ${target}
+	    POST_BUILD
+	    COMMAND "${CMAKE_COMMAND}"
+		    "-DCONFIG=$<CONFIGURATION>"
+		    "-DPRISM_DIR=$ENV{PRISM_DIR}"
+		    "-DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+		    "-DBIN_DIR=$ENV{BIN_DIR}"
+		    "-DARCH=$ENV{ARCH}"
+		    "-DTARGET=${target}"
+		    -P "$ENV{PRISM_DIR}/cmake/copy_prism_theme_target.cmake"
+	    VERBATIM)
+endfunction()
+
 function(add_obs_dependency target)
     add_dependencies(${target} obs-build obs-copy)
 endfunction()
@@ -79,16 +92,15 @@ function(link_jansson target)
 endfunction()
 
 function(link_nelo target)
+    target_link_libraries(${target}
+	debug "$ENV{PRISM_DIR}/main/deps/nelo/lib/Debug/$ENV{ARCH}/libnelo2d.lib"
+	optimized "$ENV{PRISM_DIR}/main/deps/nelo/lib/Release/$ENV{ARCH}/libnelo2.lib")
 endfunction()
 
 function(link_hmac target)
-endfunction()
-
-function(link_mosquitto target)
     target_link_libraries(${target}
-		"$ENV{PRISM_DIR}/main/deps/mosquitto/lib/$ENV{ARCH}/mosquitto.lib"
-		"$ENV{PRISM_DIR}/main/deps/mosquitto/lib/$ENV{ARCH}/mosquittopp.lib"
-	)
+	debug "$ENV{PRISM_DIR}/libs/HMAC/lib/Debug/$ENV{ARCH}/libApiGateway-MAC.lib"
+	optimized "$ENV{PRISM_DIR}/libs/HMAC/lib/Release/$ENV{ARCH}/libApiGateway-MAC.lib")
 endfunction()
 
 execute_process(COMMAND $ENV{ComSpec} /c ${CMAKE_CURRENT_SOURCE_DIR}/obs-configure)
@@ -164,6 +176,9 @@ add_custom_command(TARGET obs-copy
 add_subdirectory(common)
 add_subdirectory(main)
 add_subdirectory(plugins)
+if(EXISTS $ENV{PRISM_DIR}/sub/PRISMLogger/CMakeLists.txt)
+	add_subdirectory(sub/PRISMLogger)
+endif()
 
 add_executable(prism-copy build.cpp)
 add_dependencies(prism-copy

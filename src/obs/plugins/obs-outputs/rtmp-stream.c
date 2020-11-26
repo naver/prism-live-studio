@@ -16,6 +16,8 @@
 ******************************************************************************/
 
 #include "rtmp-stream.h"
+//PRISM/LiuHaibin/20200908/#4748/add mp3 info
+#include <pls/media-info.h>
 
 #ifndef SEC_TO_NSEC
 #define SEC_TO_NSEC 1000000000ULL
@@ -34,6 +36,9 @@
 #define DBR_TRIGGER_USEC (200ULL * MSEC_TO_USEC)
 #define MIN_ESTIMATE_DURATION_MS 1000
 #define MAX_ESTIMATE_DURATION_MS 2000
+
+//PRISM/LiuHaibin/20200810/#None/rtmp heartbeat
+#define RTMP_HEART_BEAT_INTERVAL (30ULL * SEC_TO_NSEC)
 
 static const char *rtmp_stream_getname(void *unused)
 {
@@ -552,6 +557,28 @@ static void dbr_add_frame(struct rtmp_stream *stream, struct dbr_frame *back)
 }
 
 static void dbr_set_bitrate(struct rtmp_stream *stream);
+//PRISM/LiuHaibin/20200810/#None/rtmp heartbeat
+static float rtmp_stream_congestion(void *data);
+
+//PRISM/LiuHaibin/20200915/#4748/add id3v2
+static bool insert_id3v2(struct rtmp_stream *stream, int64_t dts,
+			 int32_t timebase_den, size_t idx)
+{
+	uint8_t *id3v2;
+	size_t id3v2_size;
+	bool success = true;
+
+	success = flv_id3v2(&id3v2, &id3v2_size, dts, stream->start_dts_offset,
+			    timebase_den);
+
+	if (success) {
+		success = RTMP_Write(&stream->rtmp, (char *)id3v2,
+				     (int)id3v2_size, (int)idx) >= 0;
+		bfree(id3v2);
+	}
+
+	return success;
+}
 
 static void *send_thread(void *data)
 {
@@ -559,9 +586,23 @@ static void *send_thread(void *data)
 
 	os_set_thread_name("rtmp-stream: send_thread");
 
+	//PRISM/LiuHaibin/20200810/#None/rtmp heartbeat
+	stream->tick_time_ns = os_gettime_ns();
+
 	while (os_sem_wait(stream->send_sem) == 0) {
 		struct encoder_packet packet;
 		struct dbr_frame dbr_frame;
+		//PRISM/LiuHaibin/20200810/#None/rtmp heartbeat
+		uint64_t current_time = os_gettime_ns();
+		if (current_time - stream->tick_time_ns >=
+		    RTMP_HEART_BEAT_INTERVAL) {
+			info("stream [%s]: total sent bytes %llu, dropped frames %d, congestion %.3f, bitrate cur/orig: %d/%d",
+			     stream->path.array, stream->total_bytes_sent,
+			     stream->dropped_frames,
+			     rtmp_stream_congestion(stream),
+			     stream->dbr_cur_bitrate, stream->dbr_orig_bitrate);
+			stream->tick_time_ns = current_time;
+		}
 
 		if (stopping(stream) && stream->stop_ts == 0) {
 			break;
@@ -583,6 +624,11 @@ static void *send_thread(void *data)
 				break;
 			}
 		}
+
+		//PRISM/LiuHaibin/20200915/#4748/add id3v2
+		if (packet.type == OBS_ENCODER_AUDIO && mi_id3v2_queued())
+			insert_id3v2(stream, packet.dts, packet.timebase_den,
+				     packet.track_idx);
 
 		if (stream->dbr_enabled) {
 			dbr_frame.send_beg = os_gettime_ns();
@@ -624,6 +670,23 @@ static void *send_thread(void *data)
 	set_output_error(stream);
 	RTMP_Close(&stream->rtmp);
 
+	//PRISM/LiuHaibin/20200810/#None/rtmp heartbeat
+	info("rtmp thread for [%s] EXIT: total sent bytes %llu, dropped frames %d, congestion %.3f, bitrate cur/orig: %d/%d",
+	     stream->path.array, stream->total_bytes_sent,
+	     stream->dropped_frames, rtmp_stream_congestion(stream),
+	     stream->dbr_cur_bitrate, stream->dbr_orig_bitrate);
+
+	//PRISM/LiuHaibin/20200805/#3721&#3715/deal with encoder crash
+	/* moving code block here to make sure dbr_set_bitrate is called
+	 * before the encoder is destroyed inside end_data_capture_thread */
+	/* reset bitrate on stop */
+	if (stream->dbr_enabled) {
+		if (stream->dbr_cur_bitrate != stream->dbr_orig_bitrate) {
+			stream->dbr_cur_bitrate = stream->dbr_orig_bitrate;
+			dbr_set_bitrate(stream);
+		}
+	}
+
 	if (!stopping(stream)) {
 		pthread_detach(stream->send_thread);
 		obs_output_signal_stop(stream->output, OBS_OUTPUT_DISCONNECTED);
@@ -636,15 +699,20 @@ static void *send_thread(void *data)
 	free_packets(stream);
 	os_event_reset(stream->stop_event);
 	os_atomic_set_bool(&stream->active, false);
+
+	//PRISM/LiuHaibin/20200928/#None/clear id3v2 queue after stream stopped..
+	mi_clear_id3v2_queue();
+
 	stream->sent_headers = false;
 
-	/* reset bitrate on stop */
-	if (stream->dbr_enabled) {
-		if (stream->dbr_cur_bitrate != stream->dbr_orig_bitrate) {
-			stream->dbr_cur_bitrate = stream->dbr_orig_bitrate;
-			dbr_set_bitrate(stream);
-		}
-	}
+	//PRISM/LiuHaibin/20200805/#3721&#3715/deal with encoder crash
+	///* reset bitrate on stop */
+	//if (stream->dbr_enabled) {
+	//	if (stream->dbr_cur_bitrate != stream->dbr_orig_bitrate) {
+	//		stream->dbr_cur_bitrate = stream->dbr_orig_bitrate;
+	//		dbr_set_bitrate(stream);
+	//	}
+	//}
 
 	return NULL;
 }
@@ -854,15 +922,22 @@ static int init_send(struct rtmp_stream *stream)
 		stream->rtmp.m_customSendParam = stream;
 	}
 
+	//PRISM/LiuHaibin/20200915/#4748/add id3v2
+	// clear id3v2 queue before stream started.
+	mi_clear_id3v2_queue();
+
 	os_atomic_set_bool(&stream->active, true);
-	while (next) {
-		if (!send_meta_data(stream, idx++, &next)) {
-			warn("Disconnected while attempting to connect to "
-			     "server.");
-			set_output_error(stream);
-			return OBS_OUTPUT_DISCONNECTED;
-		}
-	}
+
+	//PRISM/LiuHaibin/20200701/#2440/support NOW
+	//while (next) {
+	//	if (!send_meta_data(stream, idx++, &next)) {
+	//		warn("Disconnected while attempting to connect to "
+	//		     "server.");
+	//		set_output_error(stream);
+	//		return OBS_OUTPUT_DISCONNECTED;
+	//	}
+	//}
+
 	obs_output_begin_data_capture(stream->output, 0);
 
 	return OBS_OUTPUT_SUCCESS;
@@ -1022,6 +1097,7 @@ static bool init_connect(struct rtmp_stream *stream)
 	stream->dropped_frames = 0;
 	stream->min_priority = 0;
 	stream->got_first_video = false;
+	stream->tick_time_ns = 0;
 
 	settings = obs_output_get_settings(stream->output);
 	dstr_copy(&stream->path, obs_service_get_url(service));
@@ -1402,6 +1478,19 @@ static void rtmp_stream_data(void *data, struct encoder_packet *packet)
 			stream->start_dts_offset =
 				get_ms_time(packet, packet->dts);
 			stream->got_first_video = true;
+
+			//PRISM/LiuHaibin/20200701/#2440/support NOW
+			size_t idx = 0;
+			bool next = true;
+			while (next) {
+				if (!send_meta_data(stream, idx++, &next)) {
+					warn("Disconnected while attempting to connect to "
+					     "server.");
+					set_output_error(stream);
+					os_sem_post(stream->send_sem);
+					return;
+				}
+			}
 		}
 
 		obs_parse_avc_packet(&new_packet, packet);
@@ -1498,6 +1587,13 @@ static int rtmp_stream_connect_time(void *data)
 	return stream->rtmp.connect_time_ms;
 }
 
+//PRISM/Liu.Haibin/20201109/#None/get current dbr bitrate
+static long rtmp_stream_dbr_bitrate(void *data)
+{
+	struct rtmp_stream *stream = data;
+	return stream->dbr_cur_bitrate;
+}
+
 struct obs_output_info rtmp_output_info = {
 	.id = "rtmp_output",
 	.flags = OBS_OUTPUT_AV | OBS_OUTPUT_ENCODED | OBS_OUTPUT_SERVICE |
@@ -1516,4 +1612,6 @@ struct obs_output_info rtmp_output_info = {
 	.get_congestion = rtmp_stream_congestion,
 	.get_connect_time_ms = rtmp_stream_connect_time,
 	.get_dropped_frames = rtmp_stream_dropped_frames,
+	//PRISM/Liu.Haibin/20201109/#None/get current dbr bitrate
+	.dbr_bitrate = rtmp_stream_dbr_bitrate,
 };

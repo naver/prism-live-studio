@@ -51,6 +51,7 @@ public:
 	// Reason: store request headers
 	// Solution: modify request headers
 	QCefWidgetInternal(QWidget *parent, const std::string &url,
+			   const std::string &script,
 			   CefRefPtr<CefRequestContext> rqc,
 			   const std::map<std::string, std::string> &headers);
 	~QCefWidgetInternal();
@@ -73,13 +74,14 @@ public:
 	virtual QPaintEngine *paintEngine() const override;
 
 	virtual void setURL(const std::string &url) override;
-	virtual void setStartupScript(const std::string &script) override;
 	virtual void allowAllPopups(bool allow) override;
 	virtual void closeBrowser() override;
+	virtual void closeEvent(QCloseEvent *event) override;
 
-	void Resize();
+	void Resize(bool bImmediately);
 
-	void ExecuteOnBrowser(std::function<void(CefRefPtr<CefBrowser>)> func);
+	void ExecuteOnBrowser(std::function<void(CefRefPtr<CefBrowser>)> func,
+			      bool async);
 public slots:
 	void Init();
 };

@@ -5,7 +5,7 @@
 
 class PLSWizardImpl : public QWizard {
 public:
-	PLSWizardImpl(PLSWizardView *wv, QWidget *parent) : QWizard(parent), wizardView(wv) { setWindowFlags(Qt::Widget); }
+	PLSWizardImpl(PLSWizardView *wv, QWidget *parent, PLSDpiHelper dpiHelper) : QWizard(parent), wizardView(wv) { setWindowFlags(Qt::Widget); }
 	~PLSWizardImpl() {}
 
 	bool wizard_validateCurrentPage() { return QWizard::validateCurrentPage(); }
@@ -22,9 +22,9 @@ private:
 	PLSWizardView *wizardView;
 };
 
-PLSWizardView::PLSWizardView(QWidget *parent) : PLSDialogView(parent)
+PLSWizardView::PLSWizardView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper)
 {
-	impl = new PLSWizardImpl(this, this->content());
+	impl = new PLSWizardImpl(this, this->content(), dpiHelper);
 
 	QHBoxLayout *l = new QHBoxLayout(this->content());
 	l->setSpacing(0);

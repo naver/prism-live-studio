@@ -26,7 +26,6 @@
 #include <vector>
 #include <memory>
 #include "window-main.hpp"
-#include "window-basic-interaction.hpp"
 #include "window-basic-properties.hpp"
 #include "window-basic-transform.hpp"
 #include "window-basic-adv-audio.hpp"
@@ -48,6 +47,9 @@ class VolControl;
 class PLSBasicStats;
 class PLSApp;
 class PLSDialogView;
+struct QCefCookieManager;
+struct GiphyData;
+struct TaskResponData;
 
 #include "ui_PLSBasic.h"
 #include "ui_ColorSelect.h"
@@ -66,11 +68,36 @@ class PLSDialogView;
 #define SIMPLE_ENCODER_AMD "amd"
 
 #define PREVIEW_EDGE_SIZE 25
+#define APP_INSTALL_ACCEPT 200
 
 extern std::vector<QString> presetColorList;
 struct BasicOutputHandler;
 class PLSMainView;
 class PLSPopupMenu;
+class PLSBeautyFilterView;
+class PLSBackgroundMusicView;
+class PLSBackgroundMusicPlayer;
+//zq
+class PLSMediaController;
+class PLSGipyStickerView;
+
+class PLSChatDialog;
+class PLSPlatformApi;
+class PLSRegionCapture;
+
+using DShowSourceVecType = std::vector<std::pair<QString, OBSSceneItem>>;
+using BgmSourceVecType = std::vector<std::pair<QString, quint64>>;
+
+struct AudioStatus {
+	int audioSourceCount = 0; //audio device or audio source
+	bool isAllAudioMuted = true;
+};
+
+enum class MainCheckUpdateResult {
+	Failed,
+	HasUpdate,
+	NoUpdate,
+};
 
 enum class QtDataRole {
 	PLSRef = Qt::UserRole,
@@ -82,29 +109,6 @@ struct SavedProjectorInfo {
 	int monitor;
 	std::string geometry;
 	std::string name;
-};
-
-struct QuickTransition {
-	QPushButton *button = nullptr;
-	OBSSource source;
-	obs_hotkey_id hotkey = OBS_INVALID_HOTKEY_ID;
-	int duration = 0;
-	int id = 0;
-	bool fadeToBlack = false;
-
-	inline QuickTransition() {}
-	inline QuickTransition(OBSSource source_, int duration_, int id_, bool fadeToBlack_ = false)
-		: source(source_),
-		  duration(duration_),
-		  id(id_),
-		  fadeToBlack(fadeToBlack_),
-		  renamedSignal(std::make_shared<OBSSignal>(obs_source_get_signal_handler(source), "rename", SourceRenamed, this))
-	{
-	}
-
-private:
-	static void SourceRenamed(void *param, calldata_t *data);
-	std::shared_ptr<OBSSignal> renamedSignal;
 };
 
 class ColorSelect : public QWidget {
@@ -136,7 +140,12 @@ class PLSBasic : public PLSMainWindow {
 	Q_PROPERTY(QIcon browserIcon READ GetBrowserIcon WRITE SetBrowserIcon DESIGNABLE true)
 	Q_PROPERTY(QIcon groupIcon READ GetGroupIcon WRITE SetGroupIcon DESIGNABLE true)
 	Q_PROPERTY(QIcon sceneIcon READ GetSceneIcon WRITE SetSceneIcon DESIGNABLE true)
+	Q_PROPERTY(QIcon bgmIcon READ GetBgmIcon WRITE SetBgmIcon DESIGNABLE true)
+	Q_PROPERTY(QIcon stickerIcon READ GetStickerIcon WRITE SetStickerIcon DESIGNABLE true)
+	Q_PROPERTY(QIcon textMotionIcon READ GetTextMotionIcon WRITE SetTextMotionIcon DESIGNABLE true)
+	Q_PROPERTY(QIcon chatIcon READ GetChatIcon WRITE SetChatIcon DESIGNABLE true)
 	Q_PROPERTY(QIcon defaultIcon READ GetDefaultIcon WRITE SetDefaultIcon DESIGNABLE true)
+	Q_PROPERTY(QIcon ndiIcon READ GetNdiIcon WRITE SetNdiIcon DESIGNABLE true)
 
 	friend class PLSAbout;
 	friend class PLSBasicPreview;
@@ -152,6 +161,8 @@ class PLSBasic : public PLSMainWindow {
 	friend struct PLSStudioAPI;
 	friend class PLSApp;
 	friend class SourceTree;
+	friend class PLSChatDialog;
+	friend class PLSPlatformApi;
 
 	enum class MoveDir { Up, Down, Left, Right };
 
@@ -178,10 +189,13 @@ private:
 	long disableSaving = 1;
 	bool projectChanged = false;
 	bool previewEnabled = true;
-
-	const char *copyString;
-	const char *copyFiltersString = nullptr;
+	bool isSelected = false;
+	bool isCopyScene = false;
+	//#4606 crash /const char * to QString / by zengqin
+	QString copyString;
+	QString copyFiltersString;
 	bool copyVisible = true;
+	bool loadingScene = false;
 
 	QAction *actionSeperateScene;
 	QAction *actionSeperateSource;
@@ -189,7 +203,6 @@ private:
 
 	QScopedPointer<QThread> logUploadThread;
 
-	QPointer<PLSBasicInteraction> interaction;
 	QPointer<PLSBasicProperties> properties;
 	QPointer<PLSBasicTransform> transformWindow;
 	QPointer<PLSBasicAdvAudio> advAudioWindow;
@@ -227,8 +240,10 @@ private:
 	QPair<QPointer<PLSDialogView>, PLSProjector *> projectors[10];
 	QList<QPair<QPointer<PLSDialogView>, PLSProjector *>> windowProjectors;
 
-	QPointer<QWidget> stats;
+	QPointer<PLSDialogView> stats;
 	QPointer<QWidget> remux;
+	//add by zq
+	QPointer<PLSMediaController> mediaController{nullptr};
 
 	QPointer<QMenu> startStreamMenu;
 
@@ -259,14 +274,27 @@ private:
 
 	QScopedPointer<QThread> patronJsonThread;
 	std::string patronJson;
+	bool m_requestUpdate;
 
 	PLSMainView *mainView;
 	PLSPopupMenu *mainMenu;
+	QPointer<PLSBeautyFilterView> beautyFilterView{nullptr};
+	PLSBackgroundMusicView *backgroundMusicView{nullptr};
+	QPointer<PLSGipyStickerView> giphyStickerView{nullptr};
+	QPointer<PLSRegionCapture> regionCapture{nullptr};
+
 	bool m_isUpdateLanguage;
 	bool m_isSessionExpired; //session expired
 
 	//Fast to stop core if click "Close" title button
 	bool m_bFastStop = false;
+	bool *m_allMuted{nullptr};
+
+	void *interaction_sceneitem_pointer = NULL;
+
+	std::map<unsigned long long, QString> stickerSourceMap;
+	bool isCreateSouceInLoading = true;
+	bool isAudioMonitorToastDisplay = false;
 
 	void UpdateMultiviewProjectorMenu();
 
@@ -302,19 +330,24 @@ private:
 
 	void OnFirstLoad();
 
+	//add by zq
+	void CreateMediaController();
+	void ResizeMediaController();
+
 	OBSSceneItem GetSceneItem(QListWidgetItem *item);
-	OBSSceneItem GetCurrentSceneItemData();
 
 	void GetFPSCommon(uint32_t &num, uint32_t &den) const;
 	void GetFPSInteger(uint32_t &num, uint32_t &den) const;
 	void GetFPSFraction(uint32_t &num, uint32_t &den) const;
 	void GetFPSNanoseconds(uint32_t &num, uint32_t &den) const;
-	void GetConfigFPS(uint32_t &num, uint32_t &den) const;
 
 	void UpdatePreviewScalingMenu();
 
 	void LoadSceneListOrder(obs_data_array_t *array, const char *file);
 	obs_data_array_t *SaveSceneListOrder();
+
+	void LoadBeautyConfig(obs_data_t *obj);
+	obs_data_t *SaveBeautyConfig();
 
 	void TempFileOutput(const char *path, int vBitrate, int aBitrate);
 	void TempStreamOutput(const char *url, const char *key, int vBitrate, int aBitrate);
@@ -332,9 +365,9 @@ private:
 	void ToggleVolControlLayout();
 	void ToggleMixerLayout(bool vertical);
 
-	void UpdateSceneCollection(QAction *action, bool needLoad = false);
+	void UpdateSceneCollection(QAction *action);
 	void ChangeSceneCollection();
-	void LoadSceneCollection(QAction *action, bool needLoad = false);
+	void LoadSceneCollection(QAction *action);
 	void LogScenes();
 
 	void LoadProfile();
@@ -347,17 +380,15 @@ private:
 
 	void SaveProjectNow();
 
-	int GetTopSelectedSourceItem();
-
-	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys, pauseHotkeys, replayBufHotkeys, togglePreviewHotkeys;
+	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys, pauseHotkeys, replayBufHotkeys, togglePreviewHotkeys, toggleMuteAllHotkeys;
+	obs_hotkey_id selectRegionHotkey;
 	obs_hotkey_id forceStreamingStopHotkey;
 
 	void InitDefaultTransitions();
 
-	obs_source_t *fadeTransition;
+	obs_source_t *cutTransition;
 	void CreateProgramDisplay();
 
-	void CreateDefaultQuickTransitions();
 	QMenu *CreatePerSceneTransitionMenu();
 
 	void SetPreviewProgramMode(bool enabled);
@@ -365,7 +396,6 @@ private:
 	void SetCurrentScene(obs_scene_t *scene, bool force = false);
 	static void RenderProgram(void *data, uint32_t cx, uint32_t cy);
 
-	std::vector<QuickTransition> quickTransitions;
 	QPointer<PLSQTDisplay> program;
 	OBSWeakSource lastScene;
 	OBSWeakSource swapScene;
@@ -411,6 +441,13 @@ private:
 	QList<QDialog *> modalDialogs;
 	QList<PLSDialogView *> visMsgBoxes;
 
+	QString m_updateGcc;
+	QString m_updatevVersion;
+	QString m_updateFileUrl;
+	QString m_updateInfoUrl;
+	bool m_updateForceUpdate;
+	MainCheckUpdateResult m_checkUpdateResult;
+	bool m_checkLastesVersiontResult;
 
 	QList<QPoint> visDlgPositions;
 
@@ -420,6 +457,11 @@ private:
 	void LoadSavedProjectors(obs_data_array_t *savedProjectors);
 
 	bool NoSourcesConfirmation();
+
+	void ClearStickerCache();
+	void DownloadStickerForSource(OBSSource source, unsigned long long uniqueId);
+	void SetStickerSourceSetting(OBSSource source, const QString &file, const GiphyData &giphyData);
+	GiphyData GetStickerSourceData(OBSSource source);
 
 #ifdef BROWSER_AVAILABLE
 	QList<QSharedPointer<QDockWidget>> extraBrowserDocks;
@@ -446,7 +488,12 @@ private:
 	QIcon browserIcon;
 	QIcon groupIcon;
 	QIcon sceneIcon;
+	QIcon stickerIcon;
 	QIcon defaultIcon;
+	QIcon bgmIcon;
+	QIcon ndiIcon;
+	QIcon textMotionIcon;
+	QIcon chatIcon;
 
 	QIcon GetImageIcon() const;
 	QIcon GetColorIcon() const;
@@ -460,12 +507,17 @@ private:
 	QIcon GetTextIcon() const;
 	QIcon GetMediaIcon() const;
 	QIcon GetBrowserIcon() const;
+	QIcon GetBgmIcon() const;
+	QIcon GetStickerIcon() const;
+	QIcon GetNdiIcon() const;
+	QIcon GetTextMotionIcon() const;
+	QIcon GetChatIcon() const;
 	QIcon GetDefaultIcon() const;
 public slots:
 	void DeferSaveBegin();
 	void DeferSaveEnd();
 
-	void StartStreaming();
+	bool StartStreaming();
 	void StopStreaming();
 	void ForceStopStreaming();
 
@@ -500,7 +552,7 @@ public slots:
 	void TransitionToScene(OBSScene scene, bool force = false);
 	void TransitionToScene(OBSSource scene, bool force = false, bool quickTransition = false, int quickDuration = 0, bool black = false);
 	void SetCurrentScene(OBSSource scene, bool force = false);
-	void SetFadeTransition(obs_source_t *source);
+	void SetCutTransition(obs_source_t *source);
 
 	void OnTransitionAdded();
 	void onTransitionRemoved(OBSSource source);
@@ -520,9 +572,9 @@ public slots:
 	bool GetSceneDockSeperated();
 	void SetSourceDockSeperated(bool state);
 	bool GetSourceDockSeperated();
-	void OnMultiviewLayoutChanged(int layout);
 
 	void toastMessage(pls_toast_info_type type, const QString &message, int autoClose);
+	void toastMessage(pls_toast_info_type type, const QString &message, const QString &url, const QString &replaceStr, int autoClose);
 	void toastClear();
 
 	void OnSceneDockTopLevelChanged();
@@ -530,18 +582,42 @@ public slots:
 	void onMixerDockLocationChanged();
 
 	void onUpdateChatActionText(bool shown);
-	void RefreshSceneCollections(bool needLoad = false);
+	void RefreshSceneCollections();
+
+	void GetSelectDshowSourceAndList(QString &selectSourceName, OBSSceneItem &item, DShowSourceVecType &dshowList);
+	void OnBeautyCurrentSourceChanged(const QString &name, OBSSceneItem item);
+	bool ExistSameSource(OBSSceneItem item, OBSScene sceneCurrent);
+	BgmSourceVecType EnumAllBgmSource();
 
 private slots:
+	void AddSceneUI(const QString &name, OBSScene scene, SignalContainer<OBSScene> handler);
+
+	// from signals of libobs
 	void AddSceneItem(OBSSceneItem item);
+	void RemoveSceneItem(OBSSceneItem item);
+
+	void OnRemoveSourceTreeItem(OBSSceneItem item);
+	void AddBeautyItem(OBSSceneItem item, bool existConfig, bool isCurrent);
+
+	void SceneItemSetVisible(OBSSceneItem item, bool isVisible);
 	void AddScene(OBSSource source);
 	void RemoveScene(OBSSource source);
 	void RenameSources(OBSSource source, QString newName, QString prevName);
 
-	void SelectSceneItem(OBSScene scene, OBSSceneItem item, bool select);
+	//bgm
+	void AddBgmItem(obs_scene_item *item);
+	void RemoveBgmItem(obs_scene_item *item);
+	void RemoveBgmList(obs_scene_t *scene);
+	void SetBgmItemSelected(obs_scene_item *item, bool isSelected);
+	void SetBgmItemVisible(obs_scene_item *item, bool isVisible);
+	void RenameBgmSourceName(obs_sceneitem_t *sceneItem, const QString &newName, const QString &prevName);
 
+	void SelectSceneItem(OBSScene scene, OBSSceneItem item, bool select);
+	void SelectSceneItemForBeauty(OBSScene scene, OBSSceneItem item, bool select);
+	void OnBeautySourceStatusChanged(const QString &sourceName, bool status);
 	void ActivateAudioSource(OBSSource source);
 	void DeactivateAudioSource(OBSSource source);
+	void RemoveAudioControl(OBSSource source);
 
 	void DuplicateSelectedScene();
 	void RemoveSelectedScene();
@@ -586,12 +662,13 @@ private slots:
 	void OnSceneDockSeperatedBtnClicked();
 	void onMixerDockSeperateBtnClicked();
 
+	void OnSourceNotifyAsync(QString name, int msg, int code);
+
 	void SetDocksMovePolicy(PLSDock *dock);
 	void ColorChange();
 
 	SourceTreeItem *GetItemWidgetFromSceneItem(obs_sceneitem_t *sceneItem);
 
-	void on_actionShowAbout_triggered();
 	void on_actionOpenSourceLicense_triggered();
 
 	void AudioMixerCopyFilters();
@@ -599,6 +676,9 @@ private slots:
 
 	void EnablePreview();
 	void DisablePreview();
+
+	void MuteAllAudio();
+	void UnmuteAllAudio();
 
 	void SceneCopyFilters();
 	void ScenePasteFilters();
@@ -610,6 +690,26 @@ private slots:
 	void ResetStatsHotkey();
 
 	void onPopupSettingView(const QString &tab, const QString &group);
+	void OnBeautyClicked();
+	void OnStickerClicked();
+	void OnSetBeautyVisible(bool state);
+	void InitBeautyView();
+	void InitGiphyStickerView();
+	void InitGiphyStickerViewVisible();
+	void CreateBeautyView();
+	void SetBeautyViewVisible(bool visible);
+	void ReorderBeautySourceList();
+	void CleanBeautySourceConfig(obs_scene_t *scene);
+	void UpdateBeautySourceStatus(obs_source_t *source, OBSSceneItem item, bool status);
+	bool LoadBeautyConfigFromSource(OBSSceneItem item, bool &isCurrent);
+
+	// bgm
+	void OnBgmClicked();
+	void createBackgroundMusicView();
+	void SetBgmViewVisible(bool visible);
+	void OnSetBgmViewVisible(bool state);
+	void ReorderBgmSourceList();
+	bool GetBgmViewVisible();
 
 	void SetImageIcon(const QIcon &icon);
 	void SetColorIcon(const QIcon &icon);
@@ -625,14 +725,25 @@ private slots:
 	void SetBrowserIcon(const QIcon &icon);
 	void SetGroupIcon(const QIcon &icon);
 	void SetSceneIcon(const QIcon &icon);
+	void SetStickerIcon(const QIcon &icon);
 	void SetDefaultIcon(const QIcon &icon);
+	void SetBgmIcon(const QIcon &icon);
+	void SetNdiIcon(const QIcon &icon);
+	void SetTextMotionIcon(const QIcon &icon);
+	void SetChatIcon(const QIcon &icon);
+
+	void CreateStickerDownloader(OBSSource source);
+	void VolumeMuted(const QString &sourceName, bool muted);
+	void OpenRegionCapture();
 
 private:
 	/* PLS Callbacks */
 	static void SceneReordered(void *data, calldata_t *params);
 	static void SceneItemAdded(void *data, calldata_t *params);
+	static void SceneItemRemoved(void *data, calldata_t *params);
 	static void SceneItemSelected(void *data, calldata_t *params);
 	static void SceneItemDeselected(void *data, calldata_t *params);
+	static void OnSourceNotify(void *data, calldata_t *calldata);
 	static void SourceCreated(void *data, calldata_t *params);
 	static void SourceRemoved(void *data, calldata_t *params);
 	static void SourceActivated(void *data, calldata_t *params);
@@ -642,19 +753,30 @@ private:
 	static void SourceRenamed(void *data, calldata_t *params);
 	static void RenderMain(void *data, uint32_t cx, uint32_t cy);
 
+	//bgm
+	static void MediaStateChanged(void *data, calldata_t *calldata);
+	static void MediaLoad(void *data, calldata_t *calldata);
+	static void PropertiesChanged(void *param, calldata_t *data);
+	//audio source
+	static void PLSVolumeMuted(void *data, calldata_t *calldata);
+
 	static void frontendEventHandler(enum obs_frontend_event event, void *private_data);
 	static void frontendEventHandler(pls_frontend_event event, const QVariantList &params, void *context);
 	static void LogoutCallback(pls_frontend_event event, const QVariantList &params, void *context);
 
 	void ResizePreview(uint32_t cx, uint32_t cy);
 
-	void AddSource(const char *id);
-	void BindActionData(QAction *popupItem, const char *type);
-	QMenu *CreateAddSourcePopupMenu();
-	void AddSourcePopupMenu(const QPoint &pos);
+	void AddStickerSource(const char *id, const QString &file, const GiphyData &giphyData);
+	void SetFileForStickerSource(OBSSource source, const QString &file);
+	void BindActionData(QWidgetAction *popupItem, const char *type);
+	QMenu *CreateAddSourcePopupMenu(QWidget *parent);
+	bool AddMonitorSourceMenu(QMenu *popup, std::map<QString, bool> monitors);
+	void AddMonitorSourceAction(QMenu *monitorMenu, QString id, QString displayName);
+	void AddSourcePopupMenu(const QPoint &pos, QWidget *parent);
 	void copyActionsDynamicProperties();
 
-	void GetSourceTypeList(std::vector<std::vector<QString>> &preset, std::vector<QString> &other);
+	void GetSourceTypeList(std::vector<std::vector<QString>> &preset, std::vector<QString> &other, std::map<QString, bool> &monitors);
+	QPushButton *CreateSourcePopupMenuCustomWidget(const char *id, const QString &display, const QSize &iconSize);
 
 	static void HotkeyTriggered(void *data, obs_hotkey_id id, bool pressed);
 
@@ -669,11 +791,27 @@ private:
 	void SetAttachWindowBtnText(QAction *action, bool isFloating);
 	OBSSource prevFTBSource = nullptr;
 
+	bool CheckMasterAudioStatus(obs_data_t *data);
+	void UpdateMasterSwitch(bool mute);
+	bool ConfigAllMuted();
+	void UpdateMixer(obs_source_t *source);
+
+	AudioStatus GetMasterAudioStatusCurrent(obs_source_t *ignoreSource = nullptr, obs_source_t *ignoreDevice = nullptr);
+	AudioStatus GetDeviceAudioStatusCurrent(obs_source_t *ignoreDevice);
+	AudioStatus GetSourceAudioStatusCurrent(obs_source_t *ignoreSource);
+
+	AudioStatus GetMasterAudioStatusPrevious();
+	AudioStatus GetDeviceAudioStatusPrevious();
+	AudioStatus GetSourceAudioStatusPrevious();
+	bool hasSourceMonitor();
+	void AddSelectRegionSource(const char *id, const QRect &rectSelected);
+
 public:
-	void resetWindowGeometry(const QPoint prismLoginViewCenterPoint);
+	void resetWindowGeometry(QWidget *loginView, const QPoint prismLoginViewCenterPoint);
 	OBSSource GetProgramSource();
 	OBSScene GetCurrentScene();
 	PLSSceneItemView *GetCurrentSceneItem();
+	void AddSource(const char *id);
 
 	void SysTrayNotify(const QString &text, QSystemTrayIcon::MessageIcon n);
 
@@ -732,7 +870,7 @@ public:
 	QMenu *AddDeinterlacingMenu(QMenu *menu, obs_source_t *source);
 	QMenu *AddScaleFilteringMenu(QMenu *menu, obs_sceneitem_t *item);
 	QMenu *AddBackgroundColorMenu(QMenu *menu, QWidgetAction *widgetAction, ColorSelect *select, obs_sceneitem_t *item);
-	void CreateSourcePopupMenu(int idx, bool preview);
+	void CreateSourcePopupMenu(int idx, bool preview, QWidget *parent);
 
 	void UpdateTitleBar();
 	void UpdateSceneSelection(OBSSource source);
@@ -742,8 +880,10 @@ public:
 
 	void OpenSavedProjectors();
 
-	void CreateInteractionWindow(obs_source_t *source);
+	void DeletePropertiesWindowInScene(obs_scene_t *scene);
+	void DeleteFiltersWindowInScene(obs_scene_t *scene);
 	void DeletePropertiesWindow(obs_source_t *source);
+	void DeleteFiltersWindow(obs_source_t *source);
 	void CreatePropertiesWindow(obs_source_t *source, unsigned flags = OPERATION_NONE, QWidget *parent = nullptr);
 	void CreateFiltersWindow(obs_source_t *source);
 
@@ -751,8 +891,7 @@ public:
 
 	static PLSBasic *Get();
 
-	void delAllCookie();
-	void delSpecificUrlCookie(const QString &url);
+	void delSpecificUrlCookie(const QString &url, const QString &cookieName);
 	const char *GetCurrentOutputPath();
 	bool QueryRemoveSourceWithNoNotifier(obs_source_t *source);
 	bool QueryRemoveSource(obs_source_t *source);
@@ -764,6 +903,18 @@ public:
 
 	void mainViewClose(QCloseEvent *event);
 
+	// update
+	void CheckUpdate();
+	void CheckLastVersion();
+	bool ShowUpdateView(QWidget *parent);
+	void ShowLoginView();
+	MainCheckUpdateResult getUpdateResult() const;
+	const QString &getUpdateFileUrl() const;
+	const QString &getUpdateGcc() const;
+	bool getCheckLastVersionResult() const;
+	bool needShowUpdateView() const;
+	void setActionShowAboutHasIcon(bool hasIcon);
+
 	void showEncodingInStatusBar();
 
 	QIcon GetSourceIcon(const char *id) const;
@@ -773,6 +924,20 @@ public:
 	void popupStats(bool show, const QPoint &pos);
 	QWidget *getChannelsContainer() const;
 	void docksMovePolicy(PLSDock *dock, const QPoint &pre);
+	bool isDshowSourceBySourceId(OBSSceneItem &item);
+	bool isBgmSourceBySourceId(obs_scene_item *item);
+	int GetTopSelectedSourceItem();
+	std::vector<int> GetAllSelectedSourceItem();
+	OBSSceneItem GetCurrentSceneItemData();
+	//add by zq
+	int CountSelectedItem();
+	void GetConfigFPS(uint32_t &num, uint32_t &den) const;
+	//add by xw
+	void InitSourceAudioStatus(obs_source_t *source);
+
+	bool CheckHideInteraction(OBSSceneItem items);
+	void HideAllInteraction(obs_source_t *except_source);
+	void ShowInteractionUI(obs_source_t *source, bool show);
 
 protected:
 	virtual void showEvent(QShowEvent *event) override;
@@ -785,6 +950,7 @@ private slots:
 	void on_actionRemux_triggered();
 	void on_action_Settings_triggered();
 	void on_actionAdvAudioProperties_triggered();
+	void on_actionAudioMasterControl_triggered();
 	void on_advAudioProps_clicked();
 	void on_advAudioProps_destroyed();
 
@@ -835,6 +1001,10 @@ private slots:
 	void on_recordButton_clicked();
 	void on_settingsButton_clicked();
 
+	void on_actionPrismFAQ_triggered();
+	void on_actionPrismWebsite_triggered();
+	void on_actionObsFAQPortal_triggered();
+
 	void on_preview_customContextMenuRequested(const QPoint &pos);
 	void on_program_customContextMenuRequested(const QPoint &pos);
 	void PreviewDisabledMenu(const QPoint &pos);
@@ -867,6 +1037,7 @@ private slots:
 	void on_lockUI_toggled(bool lock);
 
 	void on_actionStudioMode_triggered();
+	void on_actionChat_triggered();
 
 	void PauseToggled();
 
@@ -907,23 +1078,39 @@ private slots:
 	void ResizeOutputSizeOfSource();
 
 	void singletonWakeup();
+	void OnDshowSourceStatusChanged(const QString &name, OBSSceneItem item, bool valid);
+	void OnSelectItemChanged(OBSSceneItem item, bool selected);
+	void OnVisibleItemChanged(OBSSceneItem item, bool visible);
+	void OnSourceItemsRemove(QVector<OBSSceneItem> items);
+	void OnStickerDownloadCallback(const TaskResponData &responData);
 
 public slots:
+
+	// bgm
+	BgmSourceVecType GetCurrentSceneBgmSourceList();
+	obs_sceneitem_t *GetCurrentSceneItemBySourceName(const QString &name);
+	obs_sceneitem_t *GetSceneItemBySourceName(const QString &name);
+	bool GetSelectBgmSourceName(QString &selectSourceName, quint64 &item);
+
 	void on_actionResetTransform_triggered();
 	void OnScenesCurrentItemChanged();
 	void OnScenesCustomContextMenuRequested(PLSSceneItemView *item);
 	void OnScenesItemDoubleClicked();
 	void OpenFilters();
+	void OpenSourceFilters(OBSSource source);
+	void OpenSourceStickers(OBSSource source);
+	void OnPropertiesWindowClose();
 
 	bool StreamingActive();
 	bool RecordingActive();
 	bool ReplayBufferActive();
 
 	void showSettingVideo();
-	void OnLogoutEvent();
+	void OnStickerApply(const QString &fileName, const GiphyData &taskData, const QVariant &extra);
+	void OnBeautySourceDownloadFinished();
 
 public:
-	explicit PLSBasic(PLSMainView *mainView);
+	explicit PLSBasic(PLSMainView *mainView, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	virtual ~PLSBasic();
 
 	virtual bool PLSInit() override;
@@ -935,15 +1122,32 @@ public:
 	virtual PLSMainView *getMainView() const override;
 
 	static void InitBrowserPanelSafeBlock();
+
+	static QCefCookieManager *getBrowserPannelCookieMgr(const QString &pannelName);
+
+	static void delPannelCookies(const QString &pannelName);
+
 	pls_frontend_callbacks *getApi() { return api; }
 
 signals:
 	void propertiesChaned(OBSSource source);
 	void mainMenuPopupSubmenu(PLSMenu *submenu);
 	void statusBarDataChanged();
+	void beautyViewVisibleChanged(bool);
+	void bgmViewVisibleChanged(bool);
+	void RefreshSourceProperty(const QString &name, bool disable = false);
 
 private:
 	std::unique_ptr<Ui::PLSBasic> ui;
+	bool m_isPopUpdateView;
+
+	/**
+	* Author: WuLongyue
+	* Date: 2020-03-28
+	* Desc: The stream/recording can't be stoped if choice some `Advanced` settting
+	*       So invoke force stop after 5 seconds
+	**/
+	QTimer m_timerStreamIn5s, m_timerRecordIn5s, m_timerRelayBufferIn5s;
 };
 
 class SceneRenameDelegate : public QStyledItemDelegate {

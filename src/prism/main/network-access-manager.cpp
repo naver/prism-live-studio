@@ -23,7 +23,7 @@ PLSNetworkAccessManager *PLSNetworkAccessManager::getInstance()
 	return instance;
 }
 
-void PLSNetworkAccessManager::createHttpRequest(QNetworkAccessManager::Operation op, const QString &url, bool isEncode, const QVariantMap &headData, const QVariantMap &sendData, bool isGcc)
+QNetworkReply *PLSNetworkAccessManager::createHttpRequest(QNetworkAccessManager::Operation op, const QString &url, bool isEncode, const QVariantMap &headData, const QVariantMap &sendData, bool isGcc)
 {
 	QString operation;
 	QNetworkReply *reply = nullptr;
@@ -57,8 +57,17 @@ void PLSNetworkAccessManager::createHttpRequest(QNetworkAccessManager::Operation
 		break;
 	}
 	PLS_INFO(HTTP_REQUEST, "http request start:%s, url = %s.", operation.toUtf8().data(), reply->url().toString().toUtf8().constData());
-
+	if (url.contains("/auth/session")) {
+		QVariantMap headMap;
+		pls_http_request_head(headMap);
+		QString headStr;
+		for (auto firstHead = headMap.begin(); firstHead != headMap.end(); ++firstHead) {
+			headStr += QString("\n         %1 = %2").arg(firstHead.key()).arg(firstHead.value().toString());
+		}
+		PLS_INFO(HTTP_REQUEST, QString("http requeset head:%1").arg(headStr).toUtf8().data());
+	}
 	httpResponseHandler(reply, url);
+	return reply;
 }
 
 QList<QNetworkCookie> PLSNetworkAccessManager::getCookieForUrl(const QString &url)
@@ -176,10 +185,10 @@ QNetworkReply *PLSNetworkAccessManager::httpPutRequest(const QVariantMap &sendDa
 void PLSNetworkAccessManager::httpResponseHandler(QNetworkReply *reply, const QString &requestHttpUrl)
 {
 	QTimer *t = new QTimer();
-	connect(t, &QTimer::timeout, [=]() { reply->abort(); });
+	connect(t, &QTimer::timeout, this, [=]() { reply->abort(); });
 	t->start(PRISM_NET_REQUEST_TIMEOUT);
 	if (reply) {
-		connect(reply, &QNetworkReply::finished, [=]() {
+		connect(reply, &QNetworkReply::finished, this, [=]() {
 			t->stop();
 			FreeNetworkReplyGuard guard(reply, t, m_multiPart);
 			int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -187,12 +196,11 @@ void PLSNetworkAccessManager::httpResponseHandler(QNetworkReply *reply, const QS
 			QByteArray body = reply->readAll();
 			PLSJsonDataHandler::getValueFromByteArray(body, "code", code);
 			if (reply->error() != QNetworkReply::NoError) {
-				PLS_INFO(HTTP_REQUEST, "http response error! url = %s statusCode = %d code = %d.", reply->url().toString().toUtf8().data(), statusCode, code.toInt());
+				PLS_WARN(HTTP_REQUEST, "http response error! url = %s statusCode = %d code = %d.", reply->url().toString().toUtf8().data(), statusCode, code.toInt());
 				emit replyErrorDataWithSatusCode(statusCode, requestHttpUrl, body, reply->errorString());
 				emit replyErrorData(requestHttpUrl, reply->errorString());
 
 			} else {
-				PLS_INFO(HTTP_REQUEST, "http response success! url = %s statusCode = %d code = %d.", reply->url().toString().toUtf8().data(), statusCode, code.toInt());
 				m_cookies.insert(requestHttpUrl, reply->header(QNetworkRequest::SetCookieHeader).value<QList<QNetworkCookie>>());
 				emit replyResultData(statusCode, requestHttpUrl, body);
 			}

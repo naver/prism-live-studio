@@ -28,6 +28,9 @@
   <property name="wordWrap">
    <bool>true</bool>
   </property>
+  <property name="openExternalLinks">
+   <bool>true</bool>
+  </property>
  </widget>
  <resources/>
  <connections/>

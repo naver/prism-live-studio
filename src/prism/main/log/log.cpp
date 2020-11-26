@@ -72,16 +72,15 @@ static void def_pls_action_log_handler(const char *module_name, const pls_time_t
 	Q_UNUSED(param)
 }
 
-bool log_init()
+bool log_init(const char *session_id)
 {
 	base_get_log_handler(&log_handler, &log_param);
 	base_set_log_handler(def_obs_log_handler, nullptr);
 
 	base_set_crash_handler(def_obs_crash_handler, nullptr);
 
-	if (!pls_log_init("PRISMLiveStudio", PLS_VERSION, "", "", "", 0)) {
-		return false;
-	}
+	pls_log_init("PRISMLiveStudio", PLS_VERSION, "prism-log");
+	pls_add_global_field("prismSession", session_id);
 
 	pls_set_log_handler(def_pls_log_handler, nullptr);
 	pls_set_action_log_handler(def_pls_action_log_handler, nullptr);

@@ -76,6 +76,7 @@ PLSDockTitle::PLSDockTitle(PLSDock *parent) : QFrame(parent), dock(parent)
 	l->addWidget(advButton);
 
 	advButton->hide();
+	titleLabel->installEventFilter(this);
 
 	connect(parent, &QWidget::windowTitleChanged, titleLabel, &QLabel::setText);
 	connect(advButton, &QToolButton::clicked, [this]() {
@@ -114,6 +115,7 @@ void PLSDockTitle::setMarginLeft(int marginLeft)
 {
 	this->marginLeft = marginLeft;
 	setContentsMargins(marginLeft, 0, marginRight, 0);
+	PLSDpiHelper::setDynamicContentsMargins(this, true);
 	update();
 }
 
@@ -126,6 +128,7 @@ void PLSDockTitle::setMarginRight(int marginRight)
 {
 	this->marginRight = marginRight;
 	setContentsMargins(marginLeft, 0, marginRight, 0);
+	PLSDpiHelper::setDynamicContentsMargins(this, true);
 	update();
 }
 
@@ -237,7 +240,16 @@ void PLSDockTitle::mouseReleaseEvent(QMouseEvent *event)
 	QFrame::mouseReleaseEvent(event);
 }
 
-PLSWidgetResizeHandler::PLSWidgetResizeHandler(PLSDock *dock_, QWidgetResizeHandler *resizeHandler_) : QObject(dock_), dock(dock_), resizeHandler(resizeHandler_), isForResize(false), isResizing(false)
+bool PLSDockTitle::eventFilter(QObject *watched, QEvent *event)
+{
+	if (titleLabel == watched && event->type() == QEvent::Resize) {
+		titleLabel->setText(titleLabel->fontMetrics().elidedText(dock->windowTitle(), Qt::ElideRight, dynamic_cast<QResizeEvent *>(event)->size().width()));
+	}
+	return QFrame::eventFilter(watched, event);
+}
+
+PLSWidgetResizeHandler::PLSWidgetResizeHandler(PLSDock *dock_, QWidgetResizeHandler *resizeHandler_)
+	: QObject(dock_), dock(dock_), resizeHandler(resizeHandler_), isForResize(false), isForMove(false), isResizing(false)
 {
 	dock->removeEventFilter(resizeHandler);
 	dock->installEventFilter(this);
@@ -263,12 +275,14 @@ bool PLSWidgetResizeHandler::eventFilter(QObject *watched, QEvent *event)
 	case QEvent::MouseButtonPress: {
 		bool retval = resizeHandlerObj->eventFilter(watched, event);
 		isForResize = resizeHandler->isButtonDown() && resizeHandler->isActive(QWidgetResizeHandler::Resize);
+		isForMove = resizeHandler->isButtonDown() && resizeHandler->isActive(QWidgetResizeHandler::Move);
 		isResizing = false;
 		dockSizeMousePress = dock->size();
 		globalPosMouseMoveForResize = static_cast<QMouseEvent *>(event)->globalPos();
 		return retval;
 	}
 	case QEvent::MouseButtonRelease: {
+		dock->geometryOfNormal = dock->geometry();
 		if (isResizing) {
 			isResizing = false;
 			resizePausedCheckTimer.stop();
@@ -276,6 +290,9 @@ bool PLSWidgetResizeHandler::eventFilter(QObject *watched, QEvent *event)
 		}
 		if (isForResize) {
 			isForResize = false;
+		}
+		if (isForMove) {
+			isForMove = false;
 		}
 		return resizeHandlerObj->eventFilter(watched, event);
 	}
@@ -301,9 +318,14 @@ bool PLSWidgetResizeHandler::eventFilter(QObject *watched, QEvent *event)
 	}
 }
 
-PLSDock::PLSDock(QWidget *parent) : QDockWidget(parent), moving(false), contentMarginLeft(0), contentMarginTop(0), contentMarginRight(0), contentMarginBottom(0)
+PLSDock::PLSDock(QWidget *parent, PLSDpiHelper dpiHelper) : WidgetDpiAdapter(parent), moving(false), contentMarginLeft(0), contentMarginTop(0), contentMarginRight(0), contentMarginBottom(0)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::QCheckBox, PLSCssIndex::QLineEdit, PLSCssIndex::QMenu, PLSCssIndex::QPlainTextEdit, PLSCssIndex::QPushButton, PLSCssIndex::QRadioButton,
+				PLSCssIndex::QScrollBar, PLSCssIndex::QSlider, PLSCssIndex::QSpinBox, PLSCssIndex::QTableView, PLSCssIndex::QTabWidget, PLSCssIndex::QTextEdit,
+				PLSCssIndex::QToolButton, PLSCssIndex::QToolTip, PLSCssIndex::QComboBox, PLSCssIndex::PLSDock});
+
 	setTitleBarWidget(dockTitle = new PLSDockTitle(this));
+
 	// remove dock title context menu
 	setContextMenuPolicy(Qt::PreventContextMenu);
 
@@ -314,20 +336,26 @@ PLSDock::PLSDock(QWidget *parent) : QDockWidget(parent), moving(false), contentM
 	contentLayout = new QHBoxLayout(content);
 	contentLayout->setMargin(0);
 	contentLayout->setContentsMargins(contentMarginLeft, contentMarginTop, contentMarginRight, contentMarginBottom);
-	QDockWidget::setWidget(content);
+	WidgetDpiAdapter::setWidget(content);
 	owidget = nullptr;
 
 	resizeHandlerProxy = nullptr;
 
-	connect(this, &PLSDock::topLevelChanged, this, [this]() {
+	connect(this, &PLSDock::topLevelChanged, this, [this](bool toplevel) {
 		pls_flush_style(this);
 		pls_flush_style(dockTitle);
 		pls_flush_style(content);
+
+		if (toplevel) {
+			QMetaObject::invokeMethod(
+				this, [this] { geometryOfNormal = geometry(); }, Qt::QueuedConnection);
+		}
 	});
 
 	QWidget *toplevelView = pls_get_toplevel_view(this);
 	connect(toplevelView, SIGNAL(beginResizeSignal()), this, SLOT(beginResizeSlot()));
 	connect(toplevelView, SIGNAL(endResizeSignal()), this, SLOT(endResizeSlot()));
+	connect(toplevelView, SIGNAL(visibleSignal(bool)), this, SIGNAL(visibleSignal(bool)));
 
 	connect(
 		this, &PLSDock::initResizeHandlerProxySignal, this,
@@ -459,7 +487,8 @@ void PLSDock::closeEvent(QCloseEvent *event)
 		QMetaObject::invokeMethod(App(), "Exec", Qt::QueuedConnection, Q_ARG(VoidFunc, msgBox));
 	}
 
-	QDockWidget::closeEvent(event);
+	event->ignore();
+	hide();
 }
 
 void PLSDock::paintEvent(QPaintEvent *event)
@@ -477,25 +506,50 @@ bool PLSDock::event(QEvent *event)
 	switch (event->type()) {
 	case QEvent::MouseButtonRelease:
 		setMoving(false);
-		return QDockWidget::event(event);
+		return WidgetDpiAdapter::event(event);
 	case QEvent::MouseButtonDblClick: {
 		setMoving(false);
 		if (!isFloating()) {
 			PLSBasic *basic = PLSBasic::Get();
 			QPoint pre = basic->mapToGlobal(pos());
-			bool result = QDockWidget::event(event);
+			bool result = WidgetDpiAdapter::event(event);
 			basic->docksMovePolicy(this, pre);
 			return result;
 		} else {
-			return QDockWidget::event(event);
+			return WidgetDpiAdapter::event(event);
 		}
 	}
 	case QEvent::ChildAdded: {
 		if (!resizeHandlerProxy) {
 			emit initResizeHandlerProxySignal(static_cast<QChildEvent *>(event)->child());
 		}
+		return WidgetDpiAdapter::event(event);
+	}
+	case QEvent::Show: {
+		PLSDpiHelper::dpiDynamicUpdate(this, true);
+		return WidgetDpiAdapter::event(event);
 	}
 	default:
-		return QDockWidget::event(event);
+		return WidgetDpiAdapter::event(event);
 	}
+}
+
+QRect PLSDock::onDpiChanged(double dpi, double oldDpi, const QRect &suggested, bool firstShow)
+{
+	extern QRect normalShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
+
+	if (firstShow || !isFloating() || !resizeHandlerProxy || resizeHandlerProxy->isForMove || resizeHandlerProxy->isForResize) {
+		return suggested;
+	}
+
+	geometryOfNormal.setSize((QSizeF(geometryOfNormal.size()) * dpi / oldDpi).toSize());
+	normalShow(this, geometryOfNormal);
+	return geometryOfNormal;
+}
+
+void PLSDock::onScreenAvailableGeometryChanged(const QRect &screenAvailableGeometry)
+{
+	extern QRect normalShow(PLSWidgetDpiAdapter * adapter, const QRect &screenAvailableGeometry, QRect &geometryOfNormal);
+
+	normalShow(this, screenAvailableGeometry, geometryOfNormal);
 }

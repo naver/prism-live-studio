@@ -73,7 +73,11 @@ void PLSDialogButtonBox::onButtonClicked(QAbstractButton *button)
 	}
 
 	if (dialog) {
-		PLS_UI_STEP(dialog->getModuleName(), (dialog->getViewName() + "'s " + button->property("useFor").toString().toUtf8().constData() + " Button").c_str(), ACTION_CLICK);
+		QString btnName = button->property("useFor").toString();
+		if (btnName.isEmpty()) {
+			btnName = ("\"" + button->text() + "\"");
+		}
+		PLS_UI_STEP(dialog->getModuleName(), (dialog->getViewName() + "'s " + btnName.toStdString() + " Button").c_str(), ACTION_CLICK);
 	}
 }
 

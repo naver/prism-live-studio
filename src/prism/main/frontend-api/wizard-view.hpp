@@ -12,7 +12,7 @@ class FRONTEND_API PLSWizardView : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	explicit PLSWizardView(QWidget *parent = nullptr);
+	explicit PLSWizardView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSWizardView();
 
 public:

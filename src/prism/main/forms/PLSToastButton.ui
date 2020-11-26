@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>PLSToastButton</class>
- <widget class="QPushButton" name="PLSToastButton">
+ <widget class="QWidget" name="PLSToastButton">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>94</width>
-    <height>25</height>
+    <width>453</width>
+    <height>198</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,21 +19,30 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <property name="styleSheet">
-   <string notr="true">background-image: url(:/ic-error-on-normal.png);
-	background-repeat: no-repeat;
-	background-position:center;
-</string>
-  </property>
-  <property name="autoDefault">
-   <bool>false</bool>
-  </property>
-  <property name="default">
-   <bool>false</bool>
-  </property>
-  <property name="flat">
-   <bool>true</bool>
-  </property>
+  <layout class="QHBoxLayout" name="horizontalLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>5</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item alignment="Qt::AlignHCenter|Qt::AlignVCenter">
+    <widget class="QPushButton" name="pushButton">
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+   </item>
+  </layout>
  </widget>
  <resources/>
  <connections/>

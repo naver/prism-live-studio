@@ -48,6 +48,11 @@ pthread_mutex_trylock (pthread_mutex_t * mutex)
   /*
    * Let the system deal with invalid pointers.
    */
+  //PRISM/LiuHaibin/20201026/#/add protection
+  if (*mutex == NULL)
+    {
+      return EINVAL;
+    }
 
   /*
    * We do a quick check to see if we need to do more work

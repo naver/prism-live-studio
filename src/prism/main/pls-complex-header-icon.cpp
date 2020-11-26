@@ -2,6 +2,7 @@
 #include "ui_PLSComplexHeaderIcon.h"
 
 #include "channels/ChannelsDataApi/ChannelCommonFunctions.h"
+#include <qsvgrenderer.h>
 
 PLSComplexHeaderIcon::PLSComplexHeaderIcon(QWidget *parent) : QLabel(parent), ui(new Ui::PLSComplexHeaderIcon)
 {
@@ -17,24 +18,43 @@ PLSComplexHeaderIcon::~PLSComplexHeaderIcon()
 void PLSComplexHeaderIcon::setPixmap(const QString &pix)
 {
 	QPixmap pixmap(pix);
+
 	circleMaskImage(pixmap);
 	this->QLabel::setPixmap(pixmap);
 }
 
-void PLSComplexHeaderIcon::setPixmap(const QPixmap &pix, const QSize &size)
+void PLSComplexHeaderIcon::setPixmap(const QString &pix, const QSize &size)
 {
-	QPixmap pixmap(pix);
+	QPixmap pixmap(size);
+	if (pix.contains(".svg")) {
+		//svg handler
+		QSvgRenderer svgRenderer(pix);
+		pixmap.fill(Qt::transparent);
+		QPainter painter(&pixmap);
+		svgRenderer.render(&painter);
+	} else {
+		pixmap.load(pix);
+	}
+	if (pixmap.size().width() < 110 && pixmap.height() < 110) {
+		pixmap = pixmap.scaled(QSize(300, 300), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+	}
 	circleMaskImage(pixmap);
 	this->QLabel::setPixmap(pixmap.scaled(size, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 }
 
-void PLSComplexHeaderIcon::setPlatformPixmap(const QString &pix)
+void PLSComplexHeaderIcon::setPlatformPixmap(const QString &pix, const QSize &size)
 {
-	setPlatformPixmap(QPixmap(pix));
+	QSvgRenderer svgRenderer(pix);
+	QPixmap pixmap(size);
+	pixmap.fill(Qt::transparent);
+	QPainter painter(&pixmap);
+	svgRenderer.render(&painter);
+	setPlatformPixmap(pixmap);
 }
 
 void PLSComplexHeaderIcon::setPlatformPixmap(const QPixmap &pix)
 {
+
 	ui->PlatformLabel->setPixmap(pix);
 	ui->PlatformLabel->show();
 }

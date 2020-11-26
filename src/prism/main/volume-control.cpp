@@ -14,6 +14,7 @@
 #include <qcheckbox.h>
 #include "log/log.h"
 #include "window-basic-main.hpp"
+#include "PLSDpiHelper.h"
 
 using namespace std;
 
@@ -69,6 +70,7 @@ void VolControl::SetMuted(bool checked)
 	true == checked ? mute->setToolTip(QTStr("Unmute")) : mute->setToolTip(QTStr("Mute"));
 	obs_source_set_muted(source, checked);
 	slider->setEnabled(!checked);
+	mute->setChecked(checked);
 	PLS_UI_STEP(AUDIO_MIXER, "mute control", ACTION_CLICK);
 }
 
@@ -144,8 +146,9 @@ void VolControl::SetName(const QString &newName)
 {
 	currentDisplayName = newName;
 	QFontMetrics fontWidth(nameLabel->font());
-	if (fontWidth.horizontalAdvance(currentDisplayName) > width() - 148) {
-		nameLabel->setText(fontWidth.elidedText(newName, Qt::ElideRight, width() - 148));
+	int space = PLSDpiHelper::calculate(this, 148);
+	if (fontWidth.horizontalAdvance(currentDisplayName) > width() - space) {
+		nameLabel->setText(fontWidth.elidedText(newName, Qt::ElideRight, width() - space));
 	} else {
 		nameLabel->setText(newName);
 	}
@@ -191,7 +194,7 @@ bool VolControl::eventFilter(QObject *watched, QEvent *e)
 {
 	if (e->type() == QEvent::Resize) {
 		if (watched == this) {
-			SetName(currentDisplayName);
+			QTimer::singleShot(0, this, [=]() { SetName(currentDisplayName); });
 			return true;
 		}
 	}
@@ -208,10 +211,12 @@ void VolControl::monitorChange(pls_frontend_event event, const QVariantList &par
 		control->monitorStateChangeFromAdv(static_cast<Qt::CheckState>(obs_source_get_monitoring_type(control->source)));
 	}
 }
-VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
+VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical, PLSDpiHelper dpiHelper)
 	: source(std::move(source_)), levelTotal(0.0f), levelCount(0.0f), obs_fader(obs_fader_create(OBS_FADER_LOG)), obs_volmeter(obs_volmeter_create(OBS_FADER_LOG)), vertical(vertical)
 {
 	Q_UNUSED(vertical)
+	dpiHelper.setCss(this, {PLSCssIndex::PrismAudioMixer});
+
 	pls_frontend_add_event_callback(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_VOLUME_MONTY, VolControl::monitorChange, this);
 
 	nameLabel = new QLabel();
@@ -229,13 +234,13 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 
 	QString sourceName = obs_source_get_name(source);
 	setObjectName(sourceName);
-
+	double dpi = PLSDpiHelper::getDpi(this);
 	if (showConfig) {
 		//config button is show right menu
 		config = new QPushButton(this);
 		//config->setProperty("themeID", "configIconSmall");
 		config->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-		config->setMaximumSize(22, 22);
+		config->setMaximumSize(PLSDpiHelper::calculate(dpi, 22), PLSDpiHelper::calculate(dpi, 22));
 
 		config->setAccessibleName(QTStr("VolControl.Properties").arg(sourceName));
 		config->setObjectName("volumeMenuButton");
@@ -315,7 +320,7 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 	signal_handler_connect(obs_source_get_signal_handler(source), "mute", PLSVolumeMuted, this);
 
 	QWidget::connect(slider, SIGNAL(valueChanged(int)), this, SLOT(SliderChanged(int)));
-	QWidget::connect(mute, SIGNAL(clicked(bool)), this, SLOT(SetMuted(bool)));
+	QWidget::connect(mute, &MuteCheckBox::clicked, [=](bool cliked) { SetMuted(cliked); });
 
 	obs_fader_attach_source(obs_fader, source);
 	obs_volmeter_attach_source(obs_volmeter, source);
@@ -334,13 +339,10 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 
 	/* Call volume changed once to init the slider position and label */
 	VolumeChanged();
-
-	pls_load_stylesheet(this, {":/login/PrismLogin/PrismAudioMixer.css"});
 }
 
 VolControl::~VolControl()
 {
-
 	pls_frontend_remove_event_callback(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_VOLUME_MONTY, VolControl::monitorChange, this);
 
 	obs_fader_remove_callback(obs_fader, PLSVolumeChanged, this);
@@ -590,7 +592,8 @@ VolumeMeter::VolumeMeter(QWidget *parent, obs_volmeter_t *obs_volmeter, bool ver
 {
 	// Use a font that can be rendered small.
 	tickFont = QFont("Arial");
-	tickFont.setPixelSize(7);
+	double dpi = PLSDpiHelper::getDpi(this);
+	tickFont.setPixelSize(7 * dpi);
 	// Default meter color settings, they only show if
 	// there is no stylesheet, do not remove.
 	backgroundNominalColor.setRgb(0x26, 0x7f, 0x26); // Dark green
@@ -615,7 +618,9 @@ VolumeMeter::VolumeMeter(QWidget *parent, obs_volmeter_t *obs_volmeter, bool ver
 
 	channels = (int)audio_output_get_channels(obs_get_audio());
 
-	handleChannelCofigurationChange();
+	PLSDpiHelper dpiHelper;
+	dpiHelper.notifyDpiChanged(this, [=](double dpi) { handleChannelCofigurationChange(dpi, true); });
+
 	updateTimerRef = updateTimer.toStrongRef();
 	if (!updateTimerRef) {
 		updateTimerRef = QSharedPointer<VolumeMeterTimer>::create();
@@ -667,19 +672,21 @@ inline void VolumeMeter::resetLevels()
 	}
 }
 
-inline void VolumeMeter::handleChannelCofigurationChange()
+inline void VolumeMeter::handleChannelCofigurationChange(double dpi, bool dpiChanged)
 {
 	QMutexLocker locker(&dataMutex);
 
 	int currentNrAudioChannels = obs_volmeter_get_nr_channels(obs_volmeter);
-	if (displayNrAudioChannels != currentNrAudioChannels) {
-		displayNrAudioChannels = currentNrAudioChannels;
-
+	if (dpiChanged || displayNrAudioChannels != currentNrAudioChannels) {
 		// Make room for 3 pixels meter, with one pixel between each.
 		// Then 9/13 pixels for ticks and numbers.
-		setMinimumSize(130, (displayNrAudioChannels - 1) * 7 + 12);
 
-		resetLevels();
+		if (displayNrAudioChannels != currentNrAudioChannels) {
+			displayNrAudioChannels = currentNrAudioChannels;
+			setMinimumSize(130 * dpi, (displayNrAudioChannels - 1) * 7 * dpi + 12 * dpi);
+			resetLevels();
+		} else
+			setMinimumSize(130 * dpi, (displayNrAudioChannels - 1) * 7 * dpi + 12 * dpi);
 	}
 }
 
@@ -785,6 +792,8 @@ void VolumeMeter::ClipEnding()
 
 void VolumeMeter::paintHMeter(QPainter &painter, int x, int y, int width, int height, float magnitude, float peak, float peakHold)
 {
+	double dpi = PLSDpiHelper::getDpi(this);
+
 	qreal scale = width / minimumLevel;
 
 	QMutexLocker locker(&dataMutex);
@@ -834,21 +843,22 @@ void VolumeMeter::paintHMeter(QPainter &painter, int x, int y, int width, int he
 		painter.fillRect(minimumPosition, y, end, height, QBrush(foregroundErrorColor));
 	}
 
-	if (peakHoldPosition - 3 < minimumPosition)
+	if (peakHoldPosition - 3 * dpi < minimumPosition)
 		; // Peak-hold below minimum, no drawing.
 	else if (peakHoldPosition < warningPosition)
-		painter.fillRect(peakHoldPosition - 3, y, 3, height, foregroundNominalColor);
+		painter.fillRect(peakHoldPosition - 3 * dpi, y, 3 * dpi, height, foregroundNominalColor);
 	else if (peakHoldPosition < errorPosition)
-		painter.fillRect(peakHoldPosition - 3, y, 3, height, foregroundWarningColor);
+		painter.fillRect(peakHoldPosition - 3 * dpi, y, 3 * dpi, height, foregroundWarningColor);
 	else
-		painter.fillRect(peakHoldPosition - 3, y, 3, height, foregroundErrorColor);
+		painter.fillRect(peakHoldPosition - 3 * dpi, y, 3 * dpi, height, foregroundErrorColor);
 
 	if (magnitudePosition - 3 >= minimumPosition)
-		painter.fillRect(magnitudePosition - 3, y, 3, height, magnitudeColor);
+		painter.fillRect(magnitudePosition - 3 * dpi, y, 3 * dpi, height, magnitudeColor);
 }
 
 void VolumeMeter::paintEvent(QPaintEvent *event)
 {
+	double dpi = PLSDpiHelper::getDpi(this);
 	uint64_t ts = os_gettime_ns();
 	qreal timeSinceLastRedraw = (ts - lastRedrawTime) * 0.000000001;
 
@@ -856,7 +866,7 @@ void VolumeMeter::paintEvent(QPaintEvent *event)
 	int width = rect.width();
 	int height = rect.height();
 
-	handleChannelCofigurationChange();
+	handleChannelCofigurationChange(dpi);
 	calculateBallistics(ts, timeSinceLastRedraw);
 	bool idle = detectIdle(ts);
 
@@ -867,7 +877,7 @@ void VolumeMeter::paintEvent(QPaintEvent *event)
 
 		int channelNrFixed = (displayNrAudioChannels == 1 && channels > 2) ? 2 : channelNr;
 
-		paintHMeter(painter, 0, channelNr * 7 + 10, width - 4, 2, displayMagnitude[channelNrFixed], displayPeak[channelNrFixed], displayPeakHold[channelNrFixed]);
+		paintHMeter(painter, 0, channelNr * 7 * dpi + 10 * dpi, width - 4 * dpi, 2 * dpi, displayMagnitude[channelNrFixed], displayPeak[channelNrFixed], displayPeakHold[channelNrFixed]);
 
 		if (idle)
 			continue;
@@ -875,7 +885,7 @@ void VolumeMeter::paintEvent(QPaintEvent *event)
 		// By not drawing the input meter boxes the user can
 		// see that the audio stream has been stopped, without
 		// having too much visual impact.
-		paintInputMeter(painter, 0, channelNr * 7 + 10, 3, 2, displayInputPeakHold[channelNrFixed]);
+		paintInputMeter(painter, 0, channelNr * 7 * dpi + 10 * dpi, 3 * dpi, 2 * dpi, displayInputPeakHold[channelNrFixed]);
 	}
 
 	lastRedrawTime = ts;

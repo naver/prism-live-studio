@@ -2,6 +2,8 @@
 #define CHANNELSADDWIN_H
 
 #include <QFrame>
+#include "PLSWidgetDpiAdapter.hpp"
+
 class QListWidgetItem;
 class QListWidget;
 
@@ -9,7 +11,7 @@ namespace Ui {
 class ChannelsAddWin;
 }
 
-class ChannelsAddWin : public QFrame {
+class ChannelsAddWin : public PLSWidgetDpiAdapterHelper<QFrame> {
 	Q_OBJECT
 
 public:

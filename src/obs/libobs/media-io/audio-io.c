@@ -23,6 +23,8 @@
 #include "../util/circlebuf.h"
 #include "../util/platform.h"
 #include "../util/profiler.h"
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include "../util/util_uint64.h"
 
 #include "audio-io.h"
 #include "audio-resampler.h"
@@ -81,11 +83,13 @@ struct audio_output {
 
 static inline double ts_to_frames(const audio_t *audio, uint64_t ts)
 {
-	double audio_offset_d = (double)ts;
-	audio_offset_d /= 1000000000.0;
-	audio_offset_d *= (double)audio->info.samples_per_sec;
+	//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+	//double audio_offset_d = (double)ts;
+	//audio_offset_d /= 1000000000.0;
+	//audio_offset_d *= (double)audio->info.samples_per_sec;
 
-	return audio_offset_d;
+	//return audio_offset_d;
+	return util_mul_div64(ts, audio->info.samples_per_sec, 1000000000ULL);
 }
 
 static inline double positive_round(double val)
@@ -412,8 +416,12 @@ bool audio_output_connect(audio_t *audio, size_t mi,
 				audio->info.samples_per_sec;
 
 		success = audio_input_init(&input, audio);
-		if (success)
+		if (success) {
 			da_push_back(mix->inputs, &input);
+			blog(LOG_INFO,
+			     "[audio-io] audio_output_connect: mixer index %d, callback %p, params %p; inputs count %d",
+			     mi, callback, param, mix->inputs.num);
+		}
 	}
 
 	pthread_mutex_unlock(&audio->input_mutex);
@@ -434,6 +442,14 @@ void audio_output_disconnect(audio_t *audio, size_t mix_idx,
 		struct audio_mix *mix = &audio->mixes[mix_idx];
 		audio_input_free(mix->inputs.array + idx);
 		da_erase(mix->inputs, idx);
+		blog(LOG_INFO,
+		     "[audio-io] audio_output_disconnect: mixer index %d, callback %p, params %p; inputs count %d",
+		     mix_idx, callback, param, mix->inputs.num);
+	} else {
+		blog(LOG_WARNING,
+		     "[audio-io] audio_output_disconnect (NOT FOUND): mixer index %d, callback %p, params %p; inputs count %d",
+		     mix_idx, callback, param,
+		     audio->mixes[mix_idx].inputs.num);
 	}
 
 	pthread_mutex_unlock(&audio->input_mutex);

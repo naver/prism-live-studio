@@ -54,10 +54,11 @@ static void bi_def_bitmap_modified(void *bitmap)
 	UNUSED_PARAMETER(bitmap);
 }
 
-static inline int get_full_decoded_gif_size(gs_image_file_t *image)
+//PRISM/Wangshaohui/20201021/#5327/fail open gif
+static inline uint64_t get_full_decoded_gif_size(gs_image_file_t *image)
 {
-	return image->gif.width * image->gif.height * 4 *
-	       image->gif.frame_count;
+	return (uint64_t)image->gif.width * (uint64_t)image->gif.height * 4 *
+	       (uint64_t)image->gif.frame_count;
 }
 
 static inline void *alloc_mem(gs_image_file_t *image, uint64_t *mem_usage,

@@ -47,6 +47,9 @@ bool load_graphics_imports(struct gs_exports *exports, void *module,
 	GRAPHICS_IMPORT_OPTIONAL(device_enum_adapters);
 	GRAPHICS_IMPORT(device_preprocessor_name);
 	GRAPHICS_IMPORT(device_create);
+
+	//PRISM/Wang.Chuanjing/20200408/for device rebuild
+	GRAPHICS_IMPORT(device_rebuild);
 	GRAPHICS_IMPORT(device_destroy);
 	GRAPHICS_IMPORT(device_enter_context);
 	GRAPHICS_IMPORT(device_leave_context);
@@ -213,7 +216,17 @@ bool load_graphics_imports(struct gs_exports *exports, void *module,
 	GRAPHICS_IMPORT_OPTIONAL(device_texture_release_sync);
 	GRAPHICS_IMPORT_OPTIONAL(device_texture_create_nv12);
 	GRAPHICS_IMPORT_OPTIONAL(device_stagesurface_create_nv12);
+	GRAPHICS_IMPORT_OPTIONAL(device_register_loss_callbacks);
+	GRAPHICS_IMPORT_OPTIONAL(device_unregister_loss_callbacks);
 #endif
+	//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+	GRAPHICS_IMPORT(device_texture_get_max_size);
+	//PRISM/Liu.Haibin/20200708/#3296/for adapter check
+	GRAPHICS_IMPORT_OPTIONAL(adapter_get_luid);
 
+	//PRISM/Wangshaohui/20200710/#3370/for take photo
+	GRAPHICS_IMPORT(device_canvas_map);
+	GRAPHICS_IMPORT(device_canvas_unmap);
+	 
 	return success;
 }

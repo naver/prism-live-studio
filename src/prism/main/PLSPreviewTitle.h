@@ -3,6 +3,7 @@
 #include <QWidget>
 #include <QLabel>
 #include <QPushButton>
+#include "PLSDpiHelper.h"
 
 class PLSTimerDisplay : public QWidget {
 	Q_OBJECT
@@ -10,9 +11,11 @@ public:
 	enum TimerType {
 		TimerLive = 0,
 		TimerRecord,
+		TimerRehearsal,
 	};
 	explicit PLSTimerDisplay(TimerType type, QWidget *parent);
 
+	void SetTimerType(TimerType type);
 	void OnStatus(bool isStarted);
 
 protected:
@@ -36,7 +39,7 @@ class PLSPreviewTitle : public QWidget {
 	friend class PLSBasic;
 
 public:
-	explicit PLSPreviewTitle(QWidget *parent = nullptr);
+	explicit PLSPreviewTitle(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 
 	void OnLiveStatus(bool isStarted);
 	void OnRecordStatus(bool isStarted);

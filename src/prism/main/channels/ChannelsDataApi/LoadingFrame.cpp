@@ -1,7 +1,9 @@
 #include "LoadingFrame.h"
-#include "ui_LoadingFrame.h"
 #include <QDebug>
 #include <QPainter>
+#include "ui_LoadingFrame.h"
+
+#include "PLSDpiHelper.h"
 
 LoadingFrame::LoadingFrame(QWidget *parent) : QFrame(parent), ui(new Ui::LoadingFrame), mTick(300), mStepCount(0)
 {
@@ -84,5 +86,6 @@ void LoadingFrame::paintEvent(QPaintEvent *event)
 	QPainter painter(this);
 	painter.setPen(Qt::transparent);
 	painter.setBrush(background);
-	painter.drawRoundedRect(this->rect(), 2, 2);
+	double dpi = PLSDpiHelper::getDpi(this);
+	painter.drawRoundedRect(this->rect(), PLSDpiHelper::calculate(dpi, 2), PLSDpiHelper::calculate(dpi, 2));
 }

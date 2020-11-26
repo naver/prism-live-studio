@@ -6,10 +6,12 @@
 #include <windows.h>
 #include <dxgi.h>
 #include <emmintrin.h>
+#include <util/util_uint64.h>
 #include <ipc-util/pipe.h>
 #include "obfuscate.h"
 #include "inject-library.h"
 #include "graphics-hook-info.h"
+#include "graphics-hook-ver.h"
 #include "window-helpers.h"
 #include "cursor-capture.h"
 #include "app-helpers.h"
@@ -700,7 +702,9 @@ static inline bool init_keepalive(struct game_capture *gc)
 	_snwprintf(new_name, 64, L"%s%lu", WINDOW_HOOK_KEEPALIVE,
 		   gc->process_id);
 
-	gc->keepalive_mutex = CreateMutexW(NULL, false, new_name);
+	gc->keepalive_mutex = gc->is_app
+				      ? create_app_mutex(gc->app_sid, new_name)
+				      : CreateMutexW(NULL, false, new_name);
 	if (!gc->keepalive_mutex) {
 		warn("Failed to create keepalive mutex: %lu", GetLastError());
 		return false;
@@ -751,7 +755,10 @@ static inline void reset_frame_interval(struct game_capture *gc)
 	uint64_t interval = 0;
 
 	if (obs_get_video_info(&ovi)) {
-		interval = ovi.fps_den * 1000000000ULL / ovi.fps_num;
+		//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+		//interval = ovi.fps_den * 1000000000ULL / ovi.fps_num;
+		interval =
+			util_mul_div64(ovi.fps_den, 1000000000ULL, ovi.fps_num);
 
 		/* Always limit capture framerate to some extent.  If a game
 		 * running at 900 FPS is being captured without some sort of
@@ -917,23 +924,22 @@ static inline bool create_inject_process(struct game_capture *gc,
 	return success;
 }
 
+extern char *get_hook_path(bool b64);
+
 static inline bool inject_hook(struct game_capture *gc)
 {
 	bool matching_architecture;
 	bool success = false;
-	const char *hook_dll;
 	char *inject_path;
 	char *hook_path;
 
 	if (gc->process_is_64bit) {
-		hook_dll = "graphics-hook64.dll";
 		inject_path = obs_module_file("inject-helper64.exe");
 	} else {
-		hook_dll = "graphics-hook32.dll";
 		inject_path = obs_module_file("inject-helper32.exe");
 	}
 
-	hook_path = obs_module_file(hook_dll);
+	hook_path = get_hook_path(gc->process_is_64bit);
 
 	if (!check_file_integrity(gc, inject_path, "inject helper")) {
 		goto cleanup;
@@ -954,7 +960,7 @@ static inline bool inject_hook(struct game_capture *gc)
 	} else {
 		info("using helper (%s hook)",
 		     use_anticheat(gc) ? "compatibility" : "direct");
-		success = create_inject_process(gc, inject_path, hook_dll);
+		success = create_inject_process(gc, inject_path, hook_path);
 	}
 
 cleanup:
@@ -1262,6 +1268,17 @@ static inline bool init_events(struct game_capture *gc)
 
 enum capture_result { CAPTURE_FAIL, CAPTURE_RETRY, CAPTURE_SUCCESS };
 
+static inline bool init_data_map(struct game_capture *gc, HWND window)
+{
+	wchar_t name[64];
+	swprintf(name, 64, SHMEM_TEXTURE "_%" PRIu64 "_",
+		 (uint64_t)(uintptr_t)window);
+
+	gc->hook_data_map =
+		open_map_plus_id(gc, name, gc->global_hook_info->map_id);
+	return !!gc->hook_data_map;
+}
+
 static inline enum capture_result init_capture_data(struct game_capture *gc)
 {
 	gc->cx = gc->global_hook_info->cx;
@@ -1275,10 +1292,19 @@ static inline enum capture_result init_capture_data(struct game_capture *gc)
 
 	CloseHandle(gc->hook_data_map);
 
-	gc->hook_data_map = open_map_plus_id(gc, SHMEM_TEXTURE,
-					     gc->global_hook_info->map_id);
+	DWORD error = 0;
+	if (!init_data_map(gc, gc->window)) {
+		HWND retry_hwnd = (HWND)(uintptr_t)gc->global_hook_info->window;
+		error = GetLastError();
+
+		/* if there's an error, just override.  some windows don't play
+		 * nice. */
+		if (init_data_map(gc, retry_hwnd)) {
+			error = 0;
+		}
+	}
+
 	if (!gc->hook_data_map) {
-		DWORD error = GetLastError();
 		if (error == 2) {
 			return CAPTURE_RETRY;
 		} else {
@@ -1630,6 +1656,17 @@ static bool start_capture(struct game_capture *gc)
 {
 	debug("Starting capture");
 
+	/* prevent from using a DLL version that's higher than current */
+	if (gc->global_hook_info->hook_ver_major > HOOK_VER_MAJOR) {
+		warn("cannot initialize hook, DLL hook version is "
+		     "%" PRIu32 ".%" PRIu32
+		     ", current plugin hook major version is %d.%d",
+		     gc->global_hook_info->hook_ver_major,
+		     gc->global_hook_info->hook_ver_minor, HOOK_VER_MAJOR,
+		     HOOK_VER_MINOR);
+		return false;
+	}
+
 	if (gc->global_hook_info->type == CAPTURE_TYPE_MEMORY) {
 		if (!init_shmem_capture(gc)) {
 			return false;
@@ -1943,7 +1980,11 @@ static bool on_game_window_changed_handle(obs_properties_t *ppts,
 					  obs_property_t *p,
 					  obs_data_t *settings)
 {
-	return on_window_changed(ppts, p, settings, SETTING_CAPTURE_WINDOW, 1);
+	//return on_window_changed(ppts, p, settings, SETTING_CAPTURE_WINDOW, 1);
+
+	//PRISM/Liuying/20201113/#5692/for refresh property warning ui when window changed
+	on_window_changed(ppts, p, settings, SETTING_CAPTURE_WINDOW, 1);
+	return true;
 }
 
 static const double default_scale_vals[] = {1.25, 1.5, 2.0, 2.5, 3.0};

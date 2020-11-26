@@ -18,15 +18,18 @@
 #define TIMER_INTERVAL 2000
 #define REC_TIME_LEFT_INTERVAL 30000
 
-PLSBasicStats::PLSBasicStats(PLSDialogView *dialogView, QWidget *parent) : QWidget(parent), ui(new Ui::PLSBasicStats), cpu_info(os_cpu_usage_info_start()), timer(this)
+extern double getProcessCurrentCPUUsage();
+
+PLSBasicStats::PLSBasicStats(PLSDialogView *dialogView, QWidget *parent, PLSDpiHelper dpiHelper) : QWidget(parent), ui(new Ui::PLSBasicStats), cpu_info(os_cpu_usage_info_start()), timer(this)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::PLSBasicStats});
+
 	this->dialogView = dialogView;
 	if (dialogView) {
 		dialogView->installEventFilter(this);
 	}
 
 	ui->setupUi(this);
-	resize(885, 184);
 
 	outputLabels.push_back(OutputLabels());
 	outputLabels.push_back(OutputLabels());
@@ -71,8 +74,8 @@ void PLSBasicStats::Update()
 
 	QString str;
 
-	double usage = os_cpu_usage_info_query(cpu_info);
-	str = QString::number(usage, 'g', 2) + QStringLiteral("%");
+	double usage = getProcessCurrentCPUUsage(); // os_cpu_usage_info_query(cpu_info);
+	str = QString::number(usage, 'f', 1) + QStringLiteral("%");
 	ui->cpuUsage->setText(str);
 
 	const char *path = main->GetCurrentOutputPath();

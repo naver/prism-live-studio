@@ -31,9 +31,9 @@
 #include <memory>
 #include <vector>
 #include <deque>
+#include <QPluginLoader>
 
 #include "window-main.hpp"
-#include "PLSColorFilterWebHandler.h"
 
 class PLSMainView;
 
@@ -42,6 +42,19 @@ std::string CurrentDateTimeString();
 std::string GenerateTimeDateFilename(const char *extension, bool noSpace = false);
 std::string GenerateSpecifiedFilename(const char *extension, bool noSpace, const char *format);
 QObject *CreateShortcutFilter();
+
+typedef std::function<bool(QObject *, QEvent *)> EventFilterFunc;
+class PLSEventFilter : public QObject {
+	Q_OBJECT
+public:
+	explicit PLSEventFilter(EventFilterFunc filter_) : filter(filter_) {}
+
+protected:
+	bool eventFilter(QObject *obj, QEvent *event) { return filter(obj, event); }
+
+private:
+	EventFilterFunc filter;
+};
 
 struct BaseLexer {
 	lexer lex;
@@ -70,6 +83,7 @@ private:
 	std::string locale;
 	std::string theme;
 	ConfigFile globalConfig;
+	ConfigFile cookieConfig;
 	ConfigFile updateConfig;
 	TextLookup textLookup;
 	OBSContext obsContext;
@@ -77,7 +91,6 @@ private:
 	profiler_name_store_t *profilerNameStore = nullptr;
 	PLSMainView *mainView = nullptr;
 	bool appRunning = false;
-	PLSColorFilterWebHandler handlers;
 
 	os_inhibit_t *sleepInhibitor = nullptr;
 	int sleepInhibitRefs = 0;
@@ -86,6 +99,8 @@ private:
 	bool enableHotkeysOutOfFocus = true;
 
 	std::deque<obs_frontend_translate_ui_cb> translatorHooks;
+
+	QPluginLoader themePlugin;
 
 	bool UpdatePre22MultiviewLayout(const char *layout);
 
@@ -119,6 +134,8 @@ public:
 	inline PLSMainView *getMainView() const { return mainView; }
 
 	inline config_t *GlobalConfig() const { return globalConfig; }
+	inline config_t *CookieConfig() const { return cookieConfig; }
+
 	inline config_t *UpdateConfig() const { return updateConfig; }
 
 	inline const char *GetLocale() const { return locale.c_str(); }
@@ -176,7 +193,6 @@ public:
 
 public slots:
 	void Exec(VoidFunc func);
-	void sessionExpiredhandler();
 signals:
 	void StyleChanged();
 };
@@ -215,10 +231,13 @@ static inline int GetProfilePath(char *path, size_t size, const char *file)
 	return window->GetProfilePath(path, size, file);
 }
 
+extern std::string prismSession;
+
 extern bool portable_mode;
 
 extern bool remuxAfterRecord;
 extern std::string remuxFilename;
+extern std::string logUserID;
 
 extern bool opt_start_streaming;
 extern bool opt_start_recording;

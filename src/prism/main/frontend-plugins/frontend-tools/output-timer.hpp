@@ -5,6 +5,7 @@
 #include <dialog-view.hpp>
 
 #include "ui_output-timer.h"
+#include "PLSDpiHelper.h"
 
 class QCloseEvent;
 
@@ -13,11 +14,13 @@ class OutputTimer : public PLSDialogView {
 
 public:
 	std::unique_ptr<Ui_OutputTimer> ui;
-	OutputTimer(QWidget *parent);
+	OutputTimer(QWidget *parent, PLSDpiHelper dpiHelper = PLSDpiHelper());
 
 	void closeEvent(QCloseEvent *event) override;
 	void PauseRecordingTimer();
 	void UnpauseRecordingTimer();
+
+	void showEvent(QShowEvent *event) override;
 
 public slots:
 	void StreamingTimerButton();
@@ -31,6 +34,12 @@ public slots:
 	void ShowHideDialog();
 	void EventStopStreaming();
 	void EventStopRecording();
+
+	void updateStreamButtonState();
+	void updateRecordButtonState();
+
+private:
+	void initializeTimers();
 
 private:
 	bool streamingAlreadyActive = false;

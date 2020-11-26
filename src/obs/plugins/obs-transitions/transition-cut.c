@@ -30,6 +30,9 @@ static void cut_destroy(void *data)
 
 static void cut_video_render(void *data, gs_effect_t *effect)
 {
+	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
+	if (!data)
+		return;
 	struct cut_info *cut = data;
 	obs_transition_video_render(cut->source, NULL);
 	UNUSED_PARAMETER(effect);
@@ -52,6 +55,10 @@ static bool cut_audio_render(void *data, uint64_t *ts_out,
 			     uint32_t mixers, size_t channels,
 			     size_t sample_rate)
 {
+	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
+	if (!data)
+		return false;
+
 	struct cut_info *cut = data;
 	return obs_transition_audio_render(cut->source, ts_out, audio, mixers,
 					   channels, sample_rate, mix_a, mix_b);

@@ -17,7 +17,10 @@ set(frontend-api_SOURCES
 	font-dialog-view.cpp
 	combobox.cpp
 	pls-net-url.cpp
-	)
+	qcolordialog.cpp
+	PLSWidgetDpiAdapter.cpp
+	../themes/PLSThemeManager.cpp
+	../themes/PLSDpiHelper.cpp)
 
 set(frontend-api_HEADERS
 	frontend-internal.hpp
@@ -31,7 +34,12 @@ set(frontend-api_HEADERS
 	color-dialog-view.hpp
 	font-dialog-view.hpp
 	combobox.hpp
-	cancel.hpp)
+	cancel.hpp
+	qcolordialog.hpp
+	PLSToplevelView.hpp
+	PLSWidgetDpiAdapter.hpp
+	../themes/PLSThemeManager.h
+	../themes/PLSDpiHelper.h)
 
 set(frontend-api_UI
 	forms/PLSDialogView.ui

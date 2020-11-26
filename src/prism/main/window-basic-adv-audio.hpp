@@ -33,7 +33,7 @@ public slots:
 	void SourceRemoved(OBSSource source);
 
 public:
-	explicit PLSBasicAdvAudio(QWidget *parent);
+	explicit PLSBasicAdvAudio(QWidget *parent, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSBasicAdvAudio();
 
 protected:

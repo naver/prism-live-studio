@@ -12,8 +12,8 @@ class FRONTEND_API PLSFontDialogView : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	explicit PLSFontDialogView(QWidget *parent = nullptr);
-	explicit PLSFontDialogView(const QFont &initial, QWidget *parent = nullptr);
+	explicit PLSFontDialogView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSFontDialogView(const QFont &initial, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSFontDialogView();
 
 public:

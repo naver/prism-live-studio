@@ -3,12 +3,15 @@
 
 #include <QPushButton>
 #include <QApplication>
+#include <QHBoxLayout>
 
 #include <log.h>
 
 #ifdef Q_OS_WINDOWS
 #include <Windows.h>
 #endif // Q_OS_WINDOWS
+
+#include "PLSThemeManager.h"
 
 #define APPEND_SPACE_WIDTH 10
 #define MESSAGE_LABEL_FIX_WIDTH 360
@@ -31,38 +34,99 @@ static int getButtonCount(PLSAlertView::Buttons buttons)
 	}
 	return count;
 }
-static void setButtonWidth(QDialogButtonBox *buttonBox, int minWidth, int maxWidth)
+static void setDefaultButton(QDialogButtonBox *buttonBox, PLSAlertView::Button defaultButton)
 {
-	int buttonCount = 0;
-	QPushButton *buttons[32] = {};
-
-	int width = minWidth;
 	for (int i = 0; i < 32; ++i) {
 		if (QPushButton *button = buttonBox->button(static_cast<PLSAlertView::Button>(1 << i)); button) {
-			buttons[buttonCount++] = button;
-			width = qMax(width, qMin(button->width(), maxWidth));
+			button->setAutoDefault(false);
+			button->setDefault(false);
 		}
 	}
 
-	for (int i = 0; i < buttonCount; ++i) {
-		buttons[i]->setFixedWidth(width);
-		buttons[i]->setAutoDefault(false);
-		buttons[i]->setDefault(false);
+	if (QPushButton *button = buttonBox->button(defaultButton)) {
+		button->setDefault(true);
+	}
+}
+static void resetButtonWidth(QDialogButtonBox *buttonBox, int minWidth, int maxWidth)
+{
+	for (int i = 0; i < 32; ++i) {
+		if (QPushButton *button = buttonBox->button(static_cast<PLSAlertView::Button>(1 << i)); button) {
+			button->setMinimumWidth(minWidth);
+			button->setMaximumWidth(maxWidth);
+			button->resize(button->fontMetrics().size(Qt::TextShowMnemonic, button->text()));
+		}
+	}
+}
+static int calcButtonWidth(QDialogButtonBox *buttonBox, int minWidth, int maxWidth)
+{
+	int width = minWidth;
+	for (int i = 0; i < 32; ++i) {
+		if (QPushButton *button = buttonBox->button(static_cast<PLSAlertView::Button>(1 << i)); button) {
+			width = qMax(width, qMin(button->width(), maxWidth));
+		}
+	}
+	return width;
+}
+static int calcButtonWidth(PLSDialogButtonBox *buttonBox, double dpi)
+{
+	resetButtonWidth(buttonBox, 0, QWIDGETSIZE_MAX);
+	switch (getButtonCount(buttonBox->standardButtons())) {
+	case 1:
+		return calcButtonWidth(buttonBox, PLSDpiHelper::calculate(dpi, 140), PLSDpiHelper::calculate(dpi, 180));
+	case 2:
+		return calcButtonWidth(buttonBox, PLSDpiHelper::calculate(dpi, 140), PLSDpiHelper::calculate(dpi, 180));
+	case 3:
+	default:
+		return calcButtonWidth(buttonBox, PLSDpiHelper::calculate(dpi, 117), PLSDpiHelper::calculate(dpi, 117));
 	}
 }
 
 // class PLSAlertView Implements
-PLSAlertView::PLSAlertView(QWidget *parent, Icon icon_, const QString &title, const QString &message, const QString &checkbox, const Buttons &buttons, Button defaultButton, const QSize &sugsize_)
-	: PLSDialogView(parent), ui(new Ui::PLSAlertView), icon(Icon::NoIcon), checkBox(nullptr), sugsize(sugsize_)
+PLSAlertView::PLSAlertView(QWidget *parent, Icon icon_, const QString &title, const QString &message, const QString &checkbox, const Buttons &buttons, Button defaultButton, const QSize &sugsize_,
+			   PLSDpiHelper dpiHelper)
+	: PLSDialogView(parent, dpiHelper), ui(new Ui::PLSAlertView), icon(Icon::NoIcon), checkBox(nullptr), sugsize(sugsize_)
 {
-	PLS_INFO("alert-view", "UI: [ALERT] %s", message.toUtf8().constData());
+	dpiHelper.setCss(this, {PLSThemeManager::PLSAlertView});
+	dpiHelper.setFixedWidth(this, 411);
+	dpiHelper.setDynamicStyleSheet(this, [=](double dpi, bool) -> QString {
+		QString css = "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Ok\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Save\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"SaveAll\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Open\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Yes\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"YesToAll\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"No\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"NoToAll\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Abort\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Retry\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Ignore\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Close\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Cancel\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Discard\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Help\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Apply\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"Reset\"],"
+			      "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"RestoreDefaults\"] {"
+			      "	min-width: %1px;"
+			      "	max-width: %1px;"
+			      "	margin: 0;"
+			      "	padding: 0;"
+			      "}";
+		int width = calcButtonWidth(ui->buttonBox, dpi);
+		return css.arg(width);
+	});
+	dpiHelper.notifyDpiChanged(this, [=](double dpi, double, bool firstShow) {
+		if (firstShow) {
+			updateGeometry();
+		}
+
+		activateWindow();
+	});
 
 	setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
 	setEscapeCloseEnabled(true);
 	setResizeEnabled(false);
 
-	resize(410, 188);
-	setFixedWidth(410);
 	QWidget *content = this->content();
 	ui->setupUi(content);
 
@@ -81,31 +145,18 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon_, const QString &title, co
 	ui->message->setText(message);
 	ui->buttonBox->setStandardButtons(buttons);
 	connect(ui->buttonBox, &QDialogButtonBox::clicked, this, &PLSAlertView::onButtonClicked);
+	ui->buttonBox->findChild<QHBoxLayout *>(QString(), Qt::FindDirectChildrenOnly)->setSpacing(10);
 
 	if (!checkbox.isEmpty()) {
 		checkBox = new QCheckBox(checkbox, this);
+		ui->contentLayout->addSpacing(15);
 		ui->contentLayout->addWidget(checkBox);
 	} else {
 		checkBox = nullptr;
 	}
 
-	switch (getButtonCount(buttons)) {
-	case 1:
-		setButtonWidth(ui->buttonBox, 140, 180);
-		break;
-	case 2:
-		setButtonWidth(ui->buttonBox, 140, 180);
-		break;
-	case 3:
-	default:
-		setButtonWidth(ui->buttonBox, 117, 117);
-		break;
-	}
-
+	setDefaultButton(ui->buttonBox, defaultButton);
 	adjustSize();
-	if (QPushButton *button = ui->buttonBox->button(defaultButton)) {
-		button->setDefault(true);
-	}
 
 #define TranslateButtonText(name, text)                                                        \
 	do {                                                                                   \
@@ -131,8 +182,8 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon_, const QString &title, co
 }
 
 PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton,
-			   const QSize &sugsize)
-	: PLSAlertView(parent, icon, title, message, checkbox, getButtons(buttons), defaultButton, sugsize)
+			   const QSize &sugsize, PLSDpiHelper dpiHelper)
+	: PLSAlertView(parent, icon, title, message, checkbox, getButtons(buttons), defaultButton, sugsize, dpiHelper)
 {
 	for (auto iter = buttons.begin(); iter != buttons.end(); ++iter) {
 		if (auto button = ui->buttonBox->button(iter.key())) {
@@ -141,17 +192,21 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, con
 	}
 }
 
-PLSAlertView::PLSAlertView(Icon icon, const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, PLSAlertView::Buttons buttons,
-			   Button defaultButton /*= Button::NoButton*/, const QSize &sugsize /*= QSize()*/)
-	: PLSAlertView(parent, icon, title, messageTitle, QString(), buttons, defaultButton, sugsize)
+PLSAlertView::PLSAlertView(Icon icon, const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, PLSAlertView::Buttons buttons, Button defaultButton,
+			   const QSize &sugsize, PLSDpiHelper dpiHelper)
+	: PLSAlertView(parent, icon, title, !messageTitle.isEmpty() ? messageTitle.left(1) : QString(), QString(), buttons, defaultButton, sugsize, dpiHelper)
 {
-	ui->message->setFixedWidth(MESSAGE_LABEL_FIX_WIDTH);
-	ui->message->setText(GetNameElideString(messageTitle, ui->message));
+	dpiHelper.notifyDpiChanged(this, [=](double dpi, double oldDpi, bool firstShow) {
+		Q_UNUSED(oldDpi)
+		Q_UNUSED(firstShow)
 
-	QString name = GetNameElideString(messageContent, ui->nameLabel) + "?";
-	ui->nameLabel->show();
-	ui->nameLabel->setText(name);
+		ui->message->setFixedWidth(PLSDpiHelper::calculate(dpi, MESSAGE_LABEL_FIX_WIDTH));
+		ui->message->setText(GetNameElideString(messageTitle, ui->message));
+		ui->nameLabel->setText(GetNameElideString(messageContent, ui->nameLabel) + "?");
+	});
+
 	ui->nameLabel->setAlignment(Qt::AlignCenter);
+	ui->nameLabel->show();
 }
 
 QString PLSAlertView::GetNameElideString(const QString &name, QWidget *widget)
@@ -362,8 +417,6 @@ void PLSAlertView::onButtonClicked(QAbstractButton *button)
 
 void PLSAlertView::showEvent(QShowEvent *event)
 {
-	adjustSize();
-	setHeightForFixedWidth();
-	moveToCenter();
+	PLS_INFO("alert-view", "UI: [ALERT] %s%s", ui->message->text().toUtf8().constData(), ui->nameLabel->text().toUtf8().constData());
 	PLSDialogView::showEvent(event);
 }

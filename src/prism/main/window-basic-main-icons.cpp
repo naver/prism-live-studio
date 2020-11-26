@@ -1,5 +1,7 @@
 #include <window-basic-main.hpp>
+#include <pls-common-define.hpp>
 
+// icon for add source menu
 QIcon PLSBasic::GetSourceIcon(const char *id) const
 {
 	obs_icon_type type = obs_source_get_icon_type(id);
@@ -16,6 +18,7 @@ QIcon PLSBasic::GetSourceIcon(const char *id) const
 	case OBS_ICON_TYPE_AUDIO_OUTPUT:
 		return GetAudioOutputIcon();
 	case OBS_ICON_TYPE_DESKTOP_CAPTURE:
+	case OBS_ICON_TYPE_REGION:
 		return GetDesktopCapIcon();
 	case OBS_ICON_TYPE_WINDOW_CAPTURE:
 		return GetWindowCapIcon();
@@ -29,11 +32,26 @@ QIcon PLSBasic::GetSourceIcon(const char *id) const
 		return GetMediaIcon();
 	case OBS_ICON_TYPE_BROWSER:
 		return GetBrowserIcon();
+	case OBS_ICON_TYPE_BGM:
+		return GetBgmIcon();
+	case OBS_ICON_TYPE_GIPHY:
+		return GetStickerIcon();
+	case OBS_ICON_TYPE_NDI:
+		return GetNdiIcon();
+	case OBS_ICON_TYPE_TEXT_MOTION:
+		return GetTextMotionIcon();
+	case OBS_ICON_TYPE_CHAT:
+		return GetChatIcon();
 	case OBS_ICON_TYPE_CUSTOM:
-		//TODO: Add ability for sources to define custom icons
-		return GetDefaultIcon();
 	default:
-		return GetDefaultIcon();
+		//TODO: Add ability for sources to define custom icons
+		if (0 == strcmp(id, SCENE_SOURCE_ID)) {
+			return GetSceneIcon();
+		} else if (0 == strcmp(id, GROUP_SOURCE_ID)) {
+			return GetGroupIcon();
+		} else {
+			return GetDefaultIcon();
+		}
 	}
 }
 
@@ -107,9 +125,34 @@ void PLSBasic::SetSceneIcon(const QIcon &icon)
 	sceneIcon = icon;
 }
 
+void PLSBasic::SetStickerIcon(const QIcon &icon)
+{
+	stickerIcon = icon;
+}
+
 void PLSBasic::SetDefaultIcon(const QIcon &icon)
 {
 	defaultIcon = icon;
+}
+
+void PLSBasic::SetBgmIcon(const QIcon &icon)
+{
+	bgmIcon = icon;
+}
+
+void PLSBasic::SetTextMotionIcon(const QIcon &icon)
+{
+	textMotionIcon = icon;
+}
+
+void PLSBasic::SetChatIcon(const QIcon &icon)
+{
+	chatIcon = icon;
+}
+
+void PLSBasic::SetNdiIcon(const QIcon &icon)
+{
+	ndiIcon = icon;
 }
 
 QIcon PLSBasic::GetImageIcon() const
@@ -170,6 +213,31 @@ QIcon PLSBasic::GetMediaIcon() const
 QIcon PLSBasic::GetBrowserIcon() const
 {
 	return browserIcon;
+}
+
+QIcon PLSBasic::GetBgmIcon() const
+{
+	return bgmIcon;
+}
+
+QIcon PLSBasic::GetStickerIcon() const
+{
+	return stickerIcon;
+}
+
+QIcon PLSBasic::GetTextMotionIcon() const
+{
+	return textMotionIcon;
+}
+
+QIcon PLSBasic::GetChatIcon() const
+{
+	return chatIcon;
+}
+
+QIcon PLSBasic::GetNdiIcon() const
+{
+	return ndiIcon;
 }
 
 QIcon PLSBasic::GetGroupIcon() const

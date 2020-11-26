@@ -29,11 +29,17 @@ QUrl PLSHmacNetworkReplyBuilder::buildUrl(const QUrl &url)
 
 	QString hmacKey;
 	switch (hmacType) {
-	case HmacType::HT_PRISM:
+	case HmacType::HT_PRISM: {
 		hmacKey = PLS_HMAC_KEY;
 		QVariantMap headers;
 		pls_http_request_head(headers, true);
 		setRawHeaders(headers);
+	} break;
+	case HmacType::HT_VLIVE:
+		hmacKey = PLS_VLIVE_HMAC_KEY;
+		break;
+	default:
+		break;
 	}
 
 	if (!hmacKey.isEmpty()) {

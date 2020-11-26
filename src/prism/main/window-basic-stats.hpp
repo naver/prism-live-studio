@@ -11,6 +11,7 @@
 #include <dialog-view.hpp>
 
 #include "ui_PLSBasicStats.h"
+#include "PLSDpiHelper.h"
 
 class QGridLayout;
 class QCloseEvent;
@@ -46,7 +47,7 @@ class PLSBasicStats : public QWidget {
 	void Update();
 
 public:
-	explicit PLSBasicStats(PLSDialogView *dialogView, QWidget *parent = nullptr);
+	explicit PLSBasicStats(PLSDialogView *dialogView, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSBasicStats();
 
 	static void InitializeValues();

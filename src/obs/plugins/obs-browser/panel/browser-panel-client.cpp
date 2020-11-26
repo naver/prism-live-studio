@@ -4,6 +4,8 @@
 
 #include <QUrl>
 #include <QDesktopServices>
+#include <QApplication>
+#include <QSettings>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -171,11 +173,12 @@ bool QCefBrowserClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
 	if (event.type != KEYEVENT_RAWKEYDOWN)
 		return false;
 
-	if (event.windows_key_code == 'R' &&
+	//RENJINBO ignore refresh key, because chat local html can't reload.
+	/*if (event.windows_key_code == 'R' &&
 	    (event.modifiers & EVENTFLAG_CONTROL_DOWN) != 0) {
 		browser->ReloadIgnoreCache();
 		return true;
-	}
+	}*/
 #endif
 	return false;
 }
@@ -212,4 +215,70 @@ bool QCefBrowserClient::OnProcessMessageReceived(
 	}
 
 	return true;
+}
+
+/*CefContextMenuHandler*/
+CefRefPtr<CefContextMenuHandler> QCefBrowserClient::GetContextMenuHandler()
+{
+	return this;
+}
+
+enum UserDefineEnum {
+	MENU_ID_USER_SHOWDEVTOOLS = MENU_ID_USER_FIRST + 300,
+};
+
+void QCefBrowserClient::OnBeforeContextMenu(
+	CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+	CefRefPtr<CefContextMenuParams> params, CefRefPtr<CefMenuModel> model)
+{
+	model->Clear();
+
+	QSettings setting("PrismLive", QApplication::applicationName());
+	const QString KEY_DEV_SERVER = QStringLiteral("DevServer");
+	bool devServer = setting.value(KEY_DEV_SERVER, false).toBool();
+	if (!devServer) {
+		return;
+	}
+
+	model->AddItem(MENU_ID_BACK, "Back");
+	model->SetEnabled(MENU_ID_BACK, browser->CanGoBack());
+
+	model->AddItem(MENU_ID_FORWARD, "Forward");
+	model->SetEnabled(MENU_ID_FORWARD, browser->CanGoForward());
+
+	model->AddItem(MENU_ID_RELOAD_NOCACHE, "Reload");
+	model->SetEnabled(MENU_ID_RELOAD_NOCACHE, true);
+
+	if ((params->GetTypeFlags() & (CM_TYPEFLAG_PAGE | CM_TYPEFLAG_FRAME)) !=
+	    0) {
+		model->AddItem(MENU_ID_USER_SHOWDEVTOOLS, "Show DevTools");
+	}
+}
+
+bool QCefBrowserClient::OnContextMenuCommand(
+	CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+	CefRefPtr<CefContextMenuParams> params, int command_id,
+	EventFlags event_flags)
+{
+	switch (command_id) {
+	case MENU_ID_USER_SHOWDEVTOOLS: {
+		ShowDevelopTools(browser);
+		return true;
+	}
+	default:
+		break;
+	}
+	return false;
+}
+
+void QCefBrowserClient::ShowDevelopTools(CefRefPtr<CefBrowser> browser)
+{
+	CefWindowInfo windowInfo;
+	CefBrowserSettings settings;
+
+#if defined(OS_WIN)
+	windowInfo.SetAsPopup(NULL, "DevTools");
+#endif
+	browser->GetHost()->ShowDevTools(windowInfo, this, settings,
+					 CefPoint());
 }

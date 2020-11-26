@@ -41,8 +41,8 @@ using namespace std;
 
 Q_DECLARE_METATYPE(OBSSource);
 
-PLSBasicFilters::PLSBasicFilters(QWidget *parent, OBSSource source_)
-	: PLSDialogView(parent),
+PLSBasicFilters::PLSBasicFilters(QWidget *parent, OBSSource source_, PLSDpiHelper dpiHelper)
+	: PLSDialogView(parent, dpiHelper),
 	  ui(new Ui::PLSBasicFilters),
 	  source(source_),
 	  addSignal(obs_source_get_signal_handler(source), "filter_add", PLSBasicFilters::OBSSourceFilterAdded, this),
@@ -51,9 +51,10 @@ PLSBasicFilters::PLSBasicFilters(QWidget *parent, OBSSource source_)
 	  removeSourceSignal(obs_source_get_signal_handler(source), "remove", PLSBasicFilters::SourceRemoved, this),
 	  renameSourceSignal(obs_source_get_signal_handler(source), "rename", PLSBasicFilters::SourceRenamed, this)
 {
-	this->setBaseSize(FILTERS_VIEW_DEFAULT_WIDTH, FILTERS_VIEW_DEFAULT_HEIGHT);
+	dpiHelper.setCss(this, {PLSCssIndex::PLSBasicFilters});
+	dpiHelper.setInitSize(this, {FILTERS_VIEW_DEFAULT_WIDTH, FILTERS_VIEW_DEFAULT_HEIGHT});
+
 	ui->setupUi(this->content());
-	ui->rightContainerLayout->setAlignment(Qt::AlignTop | Qt::AlignLeft);
 	ui->emptyDesLabel->hide();
 	ui->rightLayout->setAlignment(Qt::AlignTop | Qt::AlignLeft);
 	QMetaObject::connectSlotsByName(this);
@@ -63,7 +64,6 @@ PLSBasicFilters::PLSBasicFilters(QWidget *parent, OBSSource source_)
 	signal_handler_connect_ref(obs_source_get_signal_handler(source), "capture_state", PLSQTDisplay::OnSourceCaptureState, ui->preview);
 	ui->preview->UpdateSourceState(source);
 	ui->preview->AttachSource(source);
-	ui->preview->setFixedHeight(FILTERS_DISPLAY_VIEW_MAX_HEIGHT);
 	ui->filtersListWidget->SetSource(source);
 
 	const char *name = obs_source_get_name(source);
@@ -102,12 +102,14 @@ PLSBasicFilters::PLSBasicFilters(QWidget *parent, OBSSource source_)
 
 	if ((caps & OBS_SOURCE_VIDEO) != 0) {
 		ui->preview->show();
-		ui->preview->setFixedSize(DISPLAY_VIEW_DEFAULT_WIDTH, DISPLAY_VIEW_DEFAULT_HEIGHT);
 		if (drawable_type)
 			connect(ui->preview, &PLSQTDisplay::DisplayCreated, addDrawCallback);
+		dpiHelper.setMaximumHeight(ui->widget_container, FILTERS_PROPERTIES_VIEW_MAX_HEIGHT);
 	} else {
+		ui->preview->setProperty("forceHidden", true);
 		ui->preview->hide();
-		ui->rightContainerLayout->insertSpacerItem(2, new QSpacerItem(2, 10, QSizePolicy::Expanding, QSizePolicy::Expanding));
+		ui->widget_container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+		ui->widget_container->resize(this->size());
 	}
 
 	QAction *renameAsync = new QAction(ui->filtersWidget);
@@ -125,6 +127,7 @@ PLSBasicFilters::PLSBasicFilters(QWidget *parent, OBSSource source_)
 
 PLSBasicFilters::~PLSBasicFilters()
 {
+	obs_display_remove_draw_callback(ui->preview->GetDisplay(), PLSBasicFilters::DrawPreview, this);
 	signal_handler_disconnect(obs_source_get_signal_handler(source), "capture_state", PLSQTDisplay::OnSourceCaptureState, ui->preview);
 	ClearListItems(ui->filtersListWidget);
 }
@@ -134,11 +137,16 @@ void PLSBasicFilters::Init()
 	show();
 }
 
+OBSSource PLSBasicFilters::GetSource()
+{
+	return source;
+}
+
 void PLSBasicFilters::UpdatePropertiesView(int row)
 {
 	if (view) {
 		updatePropertiesSignal.Disconnect();
-		ui->rightLayout->removeWidget(view);
+		ui->hLayout_property_view->removeWidget(view);
 		view->hide();
 		view->deleteLater();
 		view = nullptr;
@@ -159,17 +167,28 @@ void PLSBasicFilters::UpdatePropertiesView(int row)
 
 	view = new PLSPropertiesView(settings, filter, (PropertiesReloadCallback)obs_source_properties, (PropertiesUpdateCallback)obs_source_update, 0, -1, false, !showColorFiltersPath,
 				     colorFilterOriginalPressed);
+	view->SetCustomContentMargins(true);
+	view->RefreshProperties();
+
+	connect(view, &PLSPropertiesView::ColorFilterValueChanged, this, &PLSBasicFilters::OnColorFilterValueChanged);
 	connect(this, &PLSBasicFilters::colorFilterOriginalPressedSignal, view, &PLSPropertiesView::OnColorFilterOriginalPressed);
 	updatePropertiesSignal.Connect(obs_source_get_signal_handler(filter), "update_properties", PLSBasicFilters::UpdateProperties, this);
 	obs_data_release(settings);
-
-	ui->horizontalLayout_6->addWidget(view);
+	ui->hLayout_property_view->addWidget(view);
 	view->show();
+
+	PLSDpiHelper::dpiDynamicUpdate(view);
 }
 
 void PLSBasicFilters::UpdateProperties(void *data, calldata_t *)
 {
-	QMetaObject::invokeMethod(static_cast<PLSBasicFilters *>(data)->view, "ReloadProperties");
+	PLSPropertiesView *view = static_cast<PLSBasicFilters *>(data)->view;
+	if (!view) {
+		return;
+	}
+
+	view->SetCustomContentMargins(true);
+	QMetaObject::invokeMethod(view, "ReloadProperties");
 }
 
 void PLSBasicFilters::AddFilter(OBSSource filter, bool reorder)
@@ -186,6 +205,7 @@ void PLSBasicFilters::AddFilter(OBSSource filter, bool reorder)
 void PLSBasicFilters::RemoveFilter(OBSSource filter)
 {
 	ui->filtersListWidget->RemoveFilterItemView(filter);
+	ui->filtersListWidget->SetCurrentItem(0);
 
 	const char *filterName = obs_source_get_name(filter);
 	const char *sourceName = obs_source_get_name(source);
@@ -278,7 +298,6 @@ void PLSBasicFilters::UpdateFilters()
 		ui->emptyDesLabel->show();
 	}
 
-	displayFixed = true;
 	UpdatePropertiesView(ui->filtersListWidget->count() - 1);
 
 	PLSBasic *main = PLSBasic::Get();
@@ -293,7 +312,8 @@ bool PLSBasicFilters::UpdateColorFilters(obs_source_t *filter)
 	if (id) {
 		if (0 == strcmp(id, FILTER_TYPE_ID_APPLYLUT)) {
 			//add color filter
-			ui->rightLayout->addWidget(CreateColorFitlersView(filter));
+			//ui->rightLayout->addWidget(CreateColorFitlersView(filter));
+			ui->verticalLayout_container->insertWidget(0, CreateColorFitlersView(filter));
 			return true;
 		} else {
 			for (auto iter = colorFilterMap.begin(); iter != colorFilterMap.end(); iter++) {
@@ -337,6 +357,8 @@ QWidget *PLSBasicFilters::CreateColorFitlersView(obs_source_t *filter)
 	if (!isFind) {
 		PLSColorFilterView *colorFiltersView = new PLSColorFilterView(filter, this);
 		connect(colorFiltersView, &PLSColorFilterView::OriginalPressed, this, &PLSBasicFilters::OnColorFilterOriginalPressed);
+		connect(colorFiltersView, &PLSColorFilterView::ColorFilterValueChanged, this, &PLSBasicFilters::UpdatePropertyColorFilterValue);
+
 		colorFilterMap[name] = colorFiltersView;
 		colorFiltersView->show();
 		return colorFiltersView;
@@ -350,7 +372,7 @@ void PLSBasicFilters::CleanColorFiltersView()
 	for (auto iter = colorFilterMap.begin(); iter != colorFilterMap.end();) {
 		PLSColorFilterView *colorFiltersView = iter->second;
 		if (colorFiltersView) {
-			ui->rightLayout->removeWidget(colorFiltersView);
+			ui->verticalLayout_container->removeWidget(colorFiltersView);
 			colorFiltersView->deleteLater();
 			colorFiltersView = nullptr;
 		}
@@ -358,121 +380,12 @@ void PLSBasicFilters::CleanColorFiltersView()
 	}
 }
 
-static bool filter_compatible(bool async, uint32_t sourceFlags, uint32_t filterFlags)
-{
-	bool filterVideo = (filterFlags & OBS_SOURCE_VIDEO) != 0;
-	bool filterAsync = (filterFlags & OBS_SOURCE_ASYNC) != 0;
-	bool filterAudio = (filterFlags & OBS_SOURCE_AUDIO) != 0;
-	bool audio = (sourceFlags & OBS_SOURCE_AUDIO) != 0;
-	bool audioOnly = (sourceFlags & OBS_SOURCE_VIDEO) == 0;
-	bool asyncSource = (sourceFlags & OBS_SOURCE_ASYNC) != 0;
-
-	if (async && ((audioOnly && filterVideo) || (!audio && !asyncSource)))
-		return false;
-
-	return (async && (filterAudio || filterAsync)) || (!async && !filterAudio && !filterAsync);
-}
-
-//TODO: translate tooltip
-static bool ReorderFilterType(bool async, const QString &type, std::map<int, QString> &filterTypeMap, std::map<QString, QString> &tooltipMap)
-{
-	if (async) {
-		if (type == FILTER_TYPE_ID_NOISEGATE) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_ZERO, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.noise.gate");
-			return true;
-		} else if (type == FILTER_TYPE_ID_NOISE_SUPPRESSION) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_ONE, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.noise.suppression");
-			return true;
-		} else if (type == FILTER_TYPE_ID_COMPRESSOR) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_TWO, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.compressor");
-			return true;
-		} else if (type == FILTER_TYPE_ID_LIMITER) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_THREE, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.limiter");
-			return true;
-		} else if (type == FILTER_TYPE_ID_EXPANDER) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_FOUR, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.expander");
-			return true;
-		} else if (type == FILTER_TYPE_ID_GAIN) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_FIVE, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.gain");
-			return true;
-		} else if (type == FILTER_TYPE_ID_INVERT_POLARITY) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_SIX, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.invert.polarity");
-			return true;
-		} else if (type == FILTER_TYPE_ID_VIDEODELAY_ASYNC) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_SEVEN, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.video.delay");
-			return true;
-		} else if (type == FILTER_TYPE_ID_VSTPLUGIN) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_EIGHT, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.vst.plugin");
-			return true;
-		}
-	} else {
-		if (type == FILTER_TYPE_ID_CHROMAKEY) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_ZERO, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.chromakey");
-			return true;
-		} else if (type == FILTER_TYPE_ID_COLOR_KEY_FILTER) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_ONE, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.colorkey");
-			return true;
-		} else if (type == FILTER_TYPE_ID_LUMAKEY) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_TWO, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.lumakey");
-			return true;
-		} else if (type == FILTER_TYPE_ID_APPLYLUT) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_THREE, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.colorfilter");
-			return true;
-		} else if (type == FILTER_TYPE_ID_COLOR_FILTER) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_FOUR, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.colorcorrection");
-			return true;
-		} else if (type == FILTER_TYPE_ID_SHARPEN) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_FIVE, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.sharpen");
-			return true;
-		} else if (type == FILTER_TYPE_ID_SCALING_ASPECTRATIO) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_SIX, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.scale.aspectradio");
-			return true;
-		} else if (type == FILTER_TYPE_ID_CROP_PAD) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_SEVEN, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.corp.pad");
-			return true;
-		} else if (type == FILTER_TYPE_ID_SCROLL) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_EIGHT, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.scroll");
-			return true;
-		} else if (type == FILTER_TYPE_ID_IMAGEMASK_BLEND) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_NINE, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.image.mask");
-			return true;
-		} else if (type == FILTER_TYPE_ID_RENDER_DELAY) {
-			filterTypeMap.insert(std::map<int, QString>::value_type(SOURCE_TYPE_INDEX_TEN, type));
-			tooltipMap[type] = QTStr("Filter.tooptip.render.delay");
-			return true;
-		}
-	}
-	return false;
-}
-
-void PLSBasicFilters::AddFilterAction(QMenu *popup, const char *type, const std::map<QString, QString> &tooltipMap)
+void PLSBasicFilters::AddFilterAction(QMenu *popup, const char *type, const QString &tooltip)
 {
 	const char *name = obs_source_get_display_name(type);
 
 	QAction *popupItem = new QAction(QT_UTF8(name), this);
-	auto iter = tooltipMap.find(type);
-	if (iter != tooltipMap.end()) {
-		popupItem->setToolTip(iter->second);
-	}
+	popupItem->setToolTip(tooltip);
 	popupItem->setData(QT_UTF8(type));
 	connect(popupItem, SIGNAL(triggered(bool)), this, SLOT(AddFilterFromAction()));
 	popup->addAction(popupItem);
@@ -481,60 +394,29 @@ void PLSBasicFilters::AddFilterAction(QMenu *popup, const char *type, const std:
 QMenu *PLSBasicFilters::CreateAddFilterPopupMenu(QMenu *popup, bool async)
 {
 	uint32_t sourceFlags = obs_source_get_output_flags(source);
-	const char *type_str;
+
+	std::vector<std::vector<FilterTypeInfo>> presetTypeList;
+	std::vector<QString> otherTypeList;
+	GetFilterTypeList(async, sourceFlags, presetTypeList, otherTypeList);
+
+	// add preset source type
+	for (auto iter = presetTypeList.begin(); iter != presetTypeList.end(); ++iter) {
+		std::vector<FilterTypeInfo> &subList = *iter;
+		for (unsigned i = 0; i < subList.size(); ++i) {
+			QString id = subList[i].id;
+			QString tooptip = subList[i].tooltip;
+			AddFilterAction(popup, id.toStdString().c_str(), tooptip);
+		}
+	}
+
+	//add other source type
+	if (!otherTypeList.empty()) {
+		for (int i = 0; i < otherTypeList.size(); i++) {
+			AddFilterAction(popup, otherTypeList[i].toStdString().c_str(), "");
+		}
+	}
 	bool foundValues = false;
-	size_t idx = 0;
-
-	struct FilterInfo {
-		QString type;
-		QString name;
-
-		inline FilterInfo(const char *type_, const char *name_) : type(type_), name(name_) {}
-	};
-
-	vector<FilterInfo> types;
-	while (obs_enum_filter_types(idx++, &type_str)) {
-		const char *name = obs_source_get_display_name(type_str);
-		uint32_t caps = obs_get_source_output_flags(type_str);
-
-		if ((caps & OBS_SOURCE_DEPRECATED) != 0)
-			continue;
-		if ((caps & OBS_SOURCE_CAP_DISABLED) != 0)
-			continue;
-
-		auto it = types.begin();
-		for (; it != types.end(); ++it) {
-			if (it->name >= name)
-				break;
-		}
-
-		types.emplace(it, type_str, name);
-	}
-
-	std::map<int, QString> filterTypeMap;
-	std::vector<QString> otherFilterType;
-	std::map<QString, QString> tooltipMap;
-	for (FilterInfo &type : types) {
-		uint32_t filterFlags = obs_get_source_output_flags(type.type.toStdString().c_str());
-
-		if (!filter_compatible(async, sourceFlags, filterFlags))
-			continue;
-
-		//reorder filter type
-		if (!ReorderFilterType(async, type.type, filterTypeMap, tooltipMap)) {
-			otherFilterType.push_back(type.type);
-		}
-	}
-
-	// add filter
-	for (auto iter = filterTypeMap.begin(); iter != filterTypeMap.end(); ++iter) {
-		AddFilterAction(popup, iter->second.toStdString().c_str(), tooltipMap);
-	}
-
-	for (auto otherFilter : otherFilterType) {
-		AddFilterAction(popup, otherFilter.toStdString().c_str(), tooltipMap);
-	}
-	if (!filterTypeMap.empty() || !otherFilterType.empty()) {
+	if (!presetTypeList.empty() || !otherTypeList.empty()) {
 		foundValues = true;
 	}
 
@@ -560,6 +442,7 @@ void PLSBasicFilters::AddNewFilter(const char *id)
 		if (!success)
 			return;
 
+		name = QString(name.c_str()).simplified().toStdString();
 		if (name.empty()) {
 			PLSMessageBox::warning(this, QTStr("NoNameEntered.Title"), QTStr("NoNameEntered.Text"));
 			AddNewFilter(id);
@@ -609,19 +492,6 @@ void PLSBasicFilters::closeEvent(QCloseEvent *event)
 	PLSBasic *main = PLSBasic::Get();
 	if (main)
 		main->SaveProject();
-}
-
-void PLSBasicFilters::resizeEvent(QResizeEvent *event)
-{
-	if (displayFixed) {
-		ui->preview->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding));
-		ui->preview->setMinimumSize(FILTERS_DISPLAY_VIEW_MIN_WIDTH, FILTERS_DISPLAY_VIEW_MIN_HEIGHT);
-		ui->preview->setMaximumSize(FILTERS_DISPLAY_VIEW_MAX_WIDTH, FILTERS_DISPLAY_VIEW_MAX_HEIGHT);
-		displayFixed = false;
-
-		ui->preview->resize(DISPLAY_VIEW_DEFAULT_WIDTH, DISPLAY_VIEW_DEFAULT_HEIGHT);
-	}
-	PLSDialogView::resizeEvent(event);
 }
 
 /* PLS Signals */
@@ -771,9 +641,6 @@ void PLSBasicFilters::OnAddFilterButtonClicked()
 
 void PLSBasicFilters::OnCurrentItemChanged(const int &row)
 {
-	displayFixed = true;
-	ui->preview->setFixedSize(DISPLAY_VIEW_DEFAULT_WIDTH, DISPLAY_VIEW_DEFAULT_HEIGHT);
-
 	UpdatePropertiesView(row);
 }
 
@@ -781,6 +648,30 @@ void PLSBasicFilters::OnColorFilterOriginalPressed(bool state)
 {
 	colorFilterOriginalPressed = state;
 	emit colorFilterOriginalPressedSignal(state);
+}
+
+void PLSBasicFilters::OnColorFilterValueChanged(int value)
+{
+	int row = ui->filtersListWidget->GetCurrentRow();
+	OBSSource filter = ui->filtersListWidget->GetFilter(row);
+
+	if (!filter)
+		return;
+
+	for (auto iter = colorFilterMap.begin(); iter != colorFilterMap.end(); iter++) {
+		PLSColorFilterView *colorFiltersView = iter->second;
+		if (colorFiltersView && colorFiltersView->GetSource() == filter) {
+			colorFiltersView->UpdateColorFilterValue(value);
+			break;
+		}
+	}
+}
+
+void PLSBasicFilters::UpdatePropertyColorFilterValue(int value, bool isOriginal)
+{
+	if (view) {
+		view->UpdateColorFilterValue(value, isOriginal);
+	}
 }
 
 void PLSBasicFilters::ResetFilters()
@@ -798,6 +689,7 @@ void PLSBasicFilters::ResetFilters()
 	if (!view->DeferUpdate())
 		obs_source_update(filter, nullptr);
 
+	view->SetCustomContentMargins(true);
 	view->ReloadProperties();
 	for (auto iter = colorFilterMap.begin(); iter != colorFilterMap.end(); iter++) {
 		PLSColorFilterView *colorFiltersView = iter->second;

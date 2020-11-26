@@ -21,55 +21,333 @@
 
 #if defined(Q_OS_WINDOWS)
 #include <Windows.h>
+#include <shellscalingapi.h>
+#pragma comment(lib, "Shcore.lib")
 #endif // Q_OS_WINDOWS
 
 #include "frontend-api.h"
 
-const int BORDER_WIDTH = 1;
-const int CORNER_WIDTH = 5;
+#define TOPLEVELVIEW_MODULE "ToplevelView"
+
 const QString CONTENT = QStringLiteral("content");
 
-FRONTEND_API float getDevicePixelRatio()
+extern PLSWidgetDpiAdapter *getDpiAdapter(QWidget *widget);
+
+static QRect toRect(const RECT &rc)
 {
-	QScreen *screen = QApplication::screenAt(QCursor::pos());
-	return screen ? screen->devicePixelRatio() : QApplication::primaryScreen()->devicePixelRatio();
+	return QRect(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
 }
 
-FRONTEND_API float getDevicePixelRatio(QWidget *widget)
+FRONTEND_API int getScreenIndex(const QPoint &point)
 {
-	int screenNumber = QApplication::desktop()->screenNumber(widget);
-	QScreen *screen = screenNumber >= 0 ? QApplication::screens()[screenNumber] : QApplication::primaryScreen();
-	return screen->devicePixelRatio();
+	QList<QScreen *> screens = QApplication::screens();
+	for (int i = 0, count = screens.count(); i < count; ++i) {
+		if (screens[i]->geometry().contains(point)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+FRONTEND_API int getScreenIndex(PLSWidgetDpiAdapter *adapter)
+{
+	HMONITOR monitor = MonitorFromWindow((HWND)adapter->selfWidget()->winId(), MONITOR_DEFAULTTOPRIMARY);
+
+	MONITORINFOEXW mi;
+	ZeroMemory(&mi, sizeof(mi));
+	mi.cbSize = sizeof(mi);
+	GetMonitorInfoW(monitor, &mi);
+
+	QRect rcMonitor = toRect(mi.rcMonitor);
+	QList<QScreen *> screens = QApplication::screens();
+	for (int i = 0, count = screens.count(); i < count; ++i) {
+		QScreen *screen = screens[i];
+		if (screen->geometry() == rcMonitor) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+FRONTEND_API int getScreenIndex(QWidget *widget)
+{
+	PLSWidgetDpiAdapter *adapter = getDpiAdapter(widget);
+	if (adapter) {
+		return getScreenIndex(adapter);
+	}
+	return -1;
+}
+
+FRONTEND_API int getPrimaryScreenIndex()
+{
+	return QApplication::screens().indexOf(QApplication::primaryScreen());
+}
+
+FRONTEND_API QScreen *getScreen(const QPoint &point)
+{
+	int screenNumber = getScreenIndex(point);
+	return screenNumber >= 0 ? QApplication::screens()[screenNumber] : QApplication::primaryScreen();
+}
+
+FRONTEND_API QScreen *getScreen(PLSWidgetDpiAdapter *adapter)
+{
+	int screenNumber = getScreenIndex(adapter);
+	return screenNumber >= 0 ? QApplication::screens()[screenNumber] : QApplication::primaryScreen();
+}
+
+FRONTEND_API QScreen *getScreen(QWidget *widget)
+{
+	int screenNumber = getScreenIndex(widget);
+	return screenNumber >= 0 ? QApplication::screens()[screenNumber] : QApplication::primaryScreen();
+}
+
+static BOOL CALLBACK getPrimaryMonitorEnumMonitorCallback(HMONITOR monitor, HDC, LPRECT, LPARAM lParam)
+{
+	MONITORINFO mi;
+	ZeroMemory(&mi, sizeof(mi));
+	mi.cbSize = sizeof(mi);
+	GetMonitorInfoW(monitor, &mi);
+	if (mi.dwFlags & MONITORINFOF_PRIMARY) {
+		*(HMONITOR *)lParam = monitor;
+		return false;
+	}
+	return true;
+}
+
+FRONTEND_API HMONITOR getPrimaryMonitor()
+{
+	HMONITOR monitor = nullptr;
+	EnumDisplayMonitors(nullptr, nullptr, &getPrimaryMonitorEnumMonitorCallback, (LPARAM)&monitor);
+	return monitor;
+}
+
+FRONTEND_API HMONITOR getMonitor(const QPoint &point)
+{
+	return MonitorFromPoint({point.x(), point.y()}, MONITOR_DEFAULTTOPRIMARY);
+}
+
+FRONTEND_API HMONITOR getMonitor(PLSWidgetDpiAdapter *adapter)
+{
+	return MonitorFromWindow((HWND)adapter->selfWidget()->winId(), MONITOR_DEFAULTTOPRIMARY);
+}
+
+FRONTEND_API HMONITOR getMonitor(QWidget *widget)
+{
+	PLSWidgetDpiAdapter *adapter = getDpiAdapter(widget);
+	if (adapter) {
+		return getMonitor(adapter);
+	}
+	return getPrimaryMonitor();
+}
+
+FRONTEND_API double getMonitorDpi(HMONITOR monitor)
+{
+	UINT dpiX, dpiY;
+	GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY);
+	return dpiX / 96.0;
+}
+
+FRONTEND_API QRect getMonitorRect(HMONITOR monitor)
+{
+	MONITORINFO mi;
+	ZeroMemory(&mi, sizeof(mi));
+	mi.cbSize = sizeof(mi);
+	GetMonitorInfoW(monitor, &mi);
+	return toRect(mi.rcMonitor);
+}
+
+FRONTEND_API QRect getMonitorAvailableRect(HMONITOR monitor)
+{
+	MONITORINFO mi;
+	ZeroMemory(&mi, sizeof(mi));
+	mi.cbSize = sizeof(mi);
+	GetMonitorInfoW(monitor, &mi);
+	return toRect(mi.rcWork);
 }
 
 FRONTEND_API QRect getScreenRect(QWidget *widget)
 {
-	int screenNumber = QApplication::desktop()->screenNumber(widget);
-	QScreen *screen = screenNumber >= 0 ? QApplication::screens()[screenNumber] : QApplication::primaryScreen();
-	return screen->geometry();
+	return getMonitorRect(getMonitor(widget));
 }
 
 FRONTEND_API QRect getScreenAvailableRect(QWidget *widget)
 {
-	int screenNumber = QApplication::desktop()->screenNumber(widget);
-	QScreen *screen = screenNumber >= 0 ? QApplication::screens()[screenNumber] : QApplication::primaryScreen();
-	return screen->availableGeometry();
+	return getMonitorAvailableRect(getMonitor(widget));
 }
 
 FRONTEND_API QRect getScreenAvailableRect(const QPoint &pt)
 {
-	QScreen *screen = QApplication::screenAt(pt);
-	return screen ? screen->availableGeometry() : QApplication::primaryScreen()->availableGeometry();
+	return getMonitorAvailableRect(getMonitor(pt));
 }
 
-FRONTEND_API QRect getScreenAvailableVirtualRect(const QPoint &pt)
+FRONTEND_API QRect getScreenAvailableRect(PLSWidgetDpiAdapter *adapter)
 {
-	QScreen *screen = QApplication::screenAt(pt);
-	return screen ? screen->availableVirtualGeometry() : QApplication::primaryScreen()->availableVirtualGeometry();
+	return getMonitorAvailableRect(getMonitor(adapter));
 }
 
-PLSDialogView::PLSDialogView(QWidget *parent) : PLSToplevelView<QDialog>(parent, Qt::Dialog | Qt::FramelessWindowHint), ui(new Ui::PLSDialogView)
+FRONTEND_API QRect getScreenRect(PLSWidgetDpiAdapter *adapter)
 {
+	return getMonitorRect(getMonitor(adapter));
+}
+
+FRONTEND_API void normalGeometry(PLSWidgetDpiAdapter *adapter, const QRect &screenAvailableGeometry, QRect &geometryOfNormal)
+{
+	extern void rectLimitTo(QRect & target, const QRect &limited);
+
+	if (geometryOfNormal.left() < screenAvailableGeometry.left()) {
+		geometryOfNormal.moveLeft(screenAvailableGeometry.left());
+	}
+	if (geometryOfNormal.top() < screenAvailableGeometry.top()) {
+		geometryOfNormal.moveTop(screenAvailableGeometry.top());
+	}
+
+	if (geometryOfNormal.width() <= screenAvailableGeometry.width() && geometryOfNormal.height() <= screenAvailableGeometry.height()) {
+		rectLimitTo(geometryOfNormal, screenAvailableGeometry);
+	} else if (QRect geometry = adapter->showAsDefaultSize(geometryOfNormal, screenAvailableGeometry); geometry.isValid()) {
+		geometryOfNormal = geometry;
+		rectLimitTo(geometryOfNormal, screenAvailableGeometry);
+	} else {
+		rectLimitTo(geometryOfNormal, screenAvailableGeometry);
+	}
+}
+
+FRONTEND_API void centerGeometry(const QRect &screenAvailableGeometry, QRect &geometryOfNormal)
+{
+	extern void rectLimitTo(QRect & target, const QRect &limited);
+
+	geometryOfNormal = QRect(screenAvailableGeometry.x() + (screenAvailableGeometry.width() - geometryOfNormal.width()) / 2,
+				 screenAvailableGeometry.y() + (screenAvailableGeometry.height() - geometryOfNormal.height()) / 2, geometryOfNormal.width(), geometryOfNormal.height());
+	rectLimitTo(geometryOfNormal, screenAvailableGeometry);
+}
+
+FRONTEND_API QRect fullscreenShow(PLSWidgetDpiAdapter *adapter, const QRect &screenRect, QRect &geometryOfNormal)
+{
+	normalGeometry(adapter, getScreenAvailableRect(adapter), geometryOfNormal);
+	adapter->selfWidget()->setGeometry(screenRect);
+	QWidget *widget = adapter->selfWidget();
+	PLS_DEBUG(TOPLEVELVIEW_MODULE, "fullscreen show, className: %s, objectName: %s, screenRect: (%d, %d, %d, %d), geometryOfNormal: (%d, %d, %d, %d)", widget->metaObject()->className(),
+		  widget->objectName().toUtf8().constData(), screenRect.x(), screenRect.y(), screenRect.width(), screenRect.height(), geometryOfNormal.x(), geometryOfNormal.y(),
+		  geometryOfNormal.width(), geometryOfNormal.height());
+	return screenRect;
+}
+
+FRONTEND_API QRect fullscreenShow(PLSWidgetDpiAdapter *adapter, QRect &geometryOfNormal)
+{
+	return fullscreenShow(adapter, getScreenRect(adapter), geometryOfNormal);
+}
+
+FRONTEND_API QRect fullscreenShowForce(PLSWidgetDpiAdapter *adapter, QRect &geometryOfNormal)
+{
+	QRect screenRect = getScreenRect(adapter);
+	normalGeometry(adapter, getScreenAvailableRect(adapter), geometryOfNormal);
+	QWidget *widget = adapter->selfWidget();
+	widget->setGeometry(screenRect.adjusted(1, 1, -1, -1));
+	widget->setGeometry(screenRect);
+	PLS_DEBUG(TOPLEVELVIEW_MODULE, "force fullscreen show, className: %s, objectName: %s, screenRect: (%d, %d, %d, %d), geometryOfNormal: (%d, %d, %d, %d)", widget->metaObject()->className(),
+		  widget->objectName().toUtf8().constData(), screenRect.x(), screenRect.y(), screenRect.width(), screenRect.height(), geometryOfNormal.x(), geometryOfNormal.y(),
+		  geometryOfNormal.width(), geometryOfNormal.height());
+	return screenRect;
+}
+
+FRONTEND_API QRect maximizeShow(PLSWidgetDpiAdapter *adapter, const QRect &screenAvailableRect, QRect &geometryOfNormal)
+{
+	normalGeometry(adapter, screenAvailableRect, geometryOfNormal);
+	QWidget *widget = adapter->selfWidget();
+	widget->setGeometry(screenAvailableRect);
+	PLS_DEBUG(TOPLEVELVIEW_MODULE, "maximize show, className: %s, objectName: %s, screenAvailableRect: (%d, %d, %d, %d), geometryOfNormal: (%d, %d, %d, %d)", widget->metaObject()->className(),
+		  widget->objectName().toUtf8().constData(), screenAvailableRect.x(), screenAvailableRect.y(), screenAvailableRect.width(), screenAvailableRect.height(), geometryOfNormal.x(),
+		  geometryOfNormal.y(), geometryOfNormal.width(), geometryOfNormal.height());
+	return screenAvailableRect;
+}
+
+FRONTEND_API QRect maximizeShow(PLSWidgetDpiAdapter *adapter, QRect &geometryOfNormal)
+{
+	return maximizeShow(adapter, getScreenAvailableRect(adapter), geometryOfNormal);
+}
+
+FRONTEND_API QRect normalShow(PLSWidgetDpiAdapter *adapter, const QRect &screenAvailableGeometry, QRect &geometryOfNormal)
+{
+	QWidget *widget = adapter->selfWidget();
+	normalGeometry(adapter, screenAvailableGeometry, geometryOfNormal);
+	widget->setGeometry(geometryOfNormal);
+	PLS_DEBUG(TOPLEVELVIEW_MODULE, "normal show, className: %s, objectName: %s, screenAvailableGeometry: (%d, %d, %d, %d), geometryOfNormal: (%d, %d, %d, %d)", widget->metaObject()->className(),
+		  widget->objectName().toUtf8().constData(), screenAvailableGeometry.x(), screenAvailableGeometry.y(), screenAvailableGeometry.width(), screenAvailableGeometry.height(),
+		  geometryOfNormal.x(), geometryOfNormal.y(), geometryOfNormal.width(), geometryOfNormal.height());
+	return geometryOfNormal;
+}
+
+FRONTEND_API QRect normalShow(PLSWidgetDpiAdapter *adapter, QRect &geometryOfNormal)
+{
+	return normalShow(adapter, getScreenAvailableRect(adapter), geometryOfNormal);
+}
+
+FRONTEND_API void setGeometrySys(PLSWidgetDpiAdapter *adapter, const QRect &geometry)
+{
+	QWidget *widget = adapter->selfWidget();
+	widget->setGeometry(geometry);
+	MoveWindow((HWND)widget->winId(), geometry.x(), geometry.y(), geometry.width(), geometry.height(), TRUE);
+}
+
+FRONTEND_API void setGeometrySys(QWidget *widget, const QRect &geometry)
+{
+	if (PLSWidgetDpiAdapter *adapter = getDpiAdapter(widget); adapter) {
+		setGeometrySys(adapter, geometry);
+	} else {
+		widget->setGeometry(geometry);
+	}
+}
+
+FRONTEND_API QRect centerShow(PLSWidgetDpiAdapter *adapter, const QRect &screenAvailableGeometry, QRect &geometryOfNormal)
+{
+	QWidget *widget = adapter->selfWidget();
+	normalGeometry(adapter, screenAvailableGeometry, geometryOfNormal);
+	centerGeometry(screenAvailableGeometry, geometryOfNormal);
+	widget->setGeometry(geometryOfNormal);
+	PLS_DEBUG(TOPLEVELVIEW_MODULE, "center show, className: %s, objectName: %s, screenAvailableGeometry: (%d, %d, %d, %d), geometryOfNormal: (%d, %d, %d, %d)", widget->metaObject()->className(),
+		  widget->objectName().toUtf8().constData(), screenAvailableGeometry.x(), screenAvailableGeometry.y(), screenAvailableGeometry.width(), screenAvailableGeometry.height(),
+		  geometryOfNormal.x(), geometryOfNormal.y(), geometryOfNormal.width(), geometryOfNormal.height());
+	return geometryOfNormal;
+}
+
+FRONTEND_API QRect centerShow(PLSWidgetDpiAdapter *adapter, QRect &geometryOfNormal)
+{
+	return centerShow(adapter, getScreenAvailableRect(adapter), geometryOfNormal);
+}
+
+FRONTEND_API bool toplevelViewNativeEvent(PLSWidgetDpiAdapter *adapter, const QByteArray &eventType, void *message, long *result,
+					  std::function<bool(const QByteArray &, void *, long *)> baseNativeEvent, bool isMaxState, bool isFullScreenState)
+{
+	QWidget *widget = adapter->selfWidget();
+
+	bool retval = baseNativeEvent(eventType, message, result);
+
+	MSG *msg = (MSG *)message;
+	if (msg->message == WM_SIZE) {
+		if (isFullScreenState) {
+			QRect screenRect = getScreenRect(adapter);
+			screenRect.setSize(screenRect.size().expandedTo(widget->minimumSize()).boundedTo(widget->maximumSize()));
+			QSize currentSize = QSize(LOWORD(msg->lParam), HIWORD(msg->lParam));
+			if (currentSize != screenRect.size()) {
+				setGeometrySys(adapter, screenRect);
+			}
+		} else if (isMaxState) {
+			QRect screenAvailableRect = getScreenAvailableRect(adapter);
+			screenAvailableRect.setSize(screenAvailableRect.size().expandedTo(widget->minimumSize()).boundedTo(widget->maximumSize()));
+			QSize currentSize = QSize(LOWORD(msg->lParam), HIWORD(msg->lParam));
+			if (currentSize != screenAvailableRect.size()) {
+				setGeometrySys(adapter, screenAvailableRect);
+			}
+		}
+	}
+	return retval;
+}
+
+PLSDialogView::PLSDialogView(QWidget *parent, PLSDpiHelper dpiHelper) : ToplevelView(parent, Qt::Dialog | Qt::FramelessWindowHint), ui(new Ui::PLSDialogView)
+{
+	dpiHelper.setCss(this, {PLSCssIndex::Common, PLSCssIndex::QCheckBox, PLSCssIndex::QLineEdit, PLSCssIndex::QMenu, PLSCssIndex::QPlainTextEdit, PLSCssIndex::QPushButton,
+				PLSCssIndex::QRadioButton, PLSCssIndex::QScrollBar, PLSCssIndex::QSlider, PLSCssIndex::QSpinBox, PLSCssIndex::QTableView, PLSCssIndex::QTabWidget,
+				PLSCssIndex::QTextEdit, PLSCssIndex::QToolButton, PLSCssIndex::QToolTip, PLSCssIndex::QComboBox, PLSCssIndex::PLSDialogView});
+
 	ui->setupUi(this);
 	setMouseTracking(true);
 	ui->titleBar->setMouseTracking(true);
@@ -107,6 +385,7 @@ PLSDialogView::PLSDialogView(QWidget *parent) : PLSToplevelView<QDialog>(parent,
 		reject();
 	});
 	QObject::connect(ui->maxres, &QToolButton::clicked, [this]() {
+		PLS_UI_STEP(getModuleName(), (getViewName() + "'s Maximized Button").c_str(), ACTION_CLICK);
 		if (!isMaxState && !isFullScreenState) {
 			showMaximized();
 		} else {
@@ -140,30 +419,27 @@ static QContiguousCache<widgetPtr> widgetStack(20);
 
 int PLSDialogView::exec()
 {
-	widgetPtr lastAvailable;
+	widgetPtr lastAvailable = nullptr;
 	QWidget *lastParent = this->parentWidget();
-	for (int i = widgetStack.count() - 1; i >= 0; --i) {
-		auto last = widgetStack.at(i);
-		if (!last.isNull() && last->isVisible() && last->isModal()) {
+	if (lastParent == nullptr && !this->objectName().contains("PLSLoginView")) {
+		lastAvailable = pls_get_main_view();
+	}
+
+	if (!widgetStack.isEmpty()) {
+		auto last = widgetStack.last();
+		if (last != lastAvailable) {
 			lastAvailable = last;
-			break;
 		}
 	}
+
 	auto lastFlags = this->windowFlags();
 	if (!lastAvailable.isNull()) {
-		this->setParent(lastAvailable);
-		this->setWindowFlags(lastFlags);
-		this->setStyleSheet("QPushButton { min-width: 128px;}");
+		this->setParent(lastAvailable, lastFlags);
 	}
 
 	widgetStack.append(widgetPtr(this));
-	int ret = PLSToplevelView<QDialog>::exec();
-
-	if (!lastAvailable.isNull()) {
-		this->setParent(lastParent);
-		this->setWindowFlags(lastFlags);
-	}
-
+	int ret = ToplevelView::exec();
+	widgetStack.removeLast();
 	return ret;
 }
 
@@ -197,7 +473,7 @@ int PLSDialogView::getCaptionHeight() const
 
 void PLSDialogView::setCaptionHeight(int captionHeight)
 {
-	int borderWidth = hasBorder ? BORDER_WIDTH : 0;
+	int borderWidth = hasBorder ? BORDER_WIDTH() : 0;
 	this->captionHeight = captionHeight - borderWidth;
 	ui->titleBar->setFixedHeight(this->captionHeight);
 }
@@ -237,6 +513,7 @@ void PLSDialogView::setTextMarginLeft(int textMarginLeft)
 	QMargins margins = ui->titleBarLayout->contentsMargins();
 	margins.setLeft(textMarginLeft);
 	ui->titleBarLayout->setContentsMargins(margins);
+	PLSDpiHelper::setDynamicContentsMargins(ui->titleBarLayout, true);
 }
 
 int PLSDialogView::getCloseButtonMarginRight() const
@@ -250,6 +527,7 @@ void PLSDialogView::setCloseButtonMarginRight(int closeButtonMarginRight)
 	QMargins margins = ui->titleBarLayout->contentsMargins();
 	margins.setRight(closeButtonMarginRight);
 	ui->titleBarLayout->setContentsMargins(margins);
+	PLSDpiHelper::setDynamicContentsMargins(ui->titleBarLayout, true);
 }
 
 bool PLSDialogView::getHasCaption() const
@@ -330,6 +608,19 @@ void PLSDialogView::setEscapeCloseEnabled(bool enabled)
 	isEscapeCloseEnabled = enabled;
 }
 
+void PLSDialogView::setHasBackgroundTransparent(bool isTransparent)
+{
+	if (isTransparent) {
+		setAttribute(Qt::WA_TranslucentBackground, true);
+		ui->content->setAttribute(Qt::WA_TranslucentBackground, true);
+		ui->contentBorder->setAttribute(Qt::WA_TranslucentBackground, true);
+	} else {
+		setAttribute(Qt::WA_TranslucentBackground, false);
+		ui->content->setAttribute(Qt::WA_TranslucentBackground, false);
+		ui->contentBorder->setAttribute(Qt::WA_TranslucentBackground, false);
+	}
+}
+
 void PLSDialogView::setCloseEventCallback(std::function<bool(QCloseEvent *)> closeEventCallback)
 {
 	this->closeEventCallback = closeEventCallback;
@@ -338,7 +629,7 @@ void PLSDialogView::setCloseEventCallback(std::function<bool(QCloseEvent *)> clo
 void PLSDialogView::callBaseCloseEvent(QCloseEvent *event)
 {
 	if (event) {
-		QDialog::closeEvent(event);
+		ToplevelView::closeEvent(event);
 	}
 }
 
@@ -350,13 +641,17 @@ void PLSDialogView::sizeToContent(const QSize &size)
 		newSize.setHeight(qMax(size.height(), newSize.height()));
 	}
 
-	if (hasCaption) {
-		newSize.setHeight(newSize.height() + captionHeight + (hasHLine && hasBorder ? BORDER_WIDTH : 0));
-	}
+	if (hasCaption || hasBorder) {
+		int BORDER_WIDTH = this->BORDER_WIDTH();
 
-	if (hasBorder) {
-		newSize.setWidth(newSize.width() + BORDER_WIDTH * 2);
-		newSize.setHeight(newSize.height() + BORDER_WIDTH * 2);
+		if (hasCaption) {
+			newSize.setHeight(newSize.height() + captionHeight + (hasHLine && hasBorder ? BORDER_WIDTH : 0));
+		}
+
+		if (hasBorder) {
+			newSize.setWidth(newSize.width() + BORDER_WIDTH * 2);
+			newSize.setHeight(newSize.height() + BORDER_WIDTH * 2);
+		}
 	}
 
 	resize(newSize);
@@ -394,7 +689,7 @@ std::string PLSDialogView::getViewName() const
 void PLSDialogView::done(int result)
 {
 	if (closeEventCallback(nullptr)) {
-		QDialog::done(result);
+		ToplevelView::done(result);
 	}
 }
 
@@ -426,13 +721,13 @@ void PLSDialogView::closeEvent(QCloseEvent *event)
 void PLSDialogView::showEvent(QShowEvent *event)
 {
 	emit shown();
-	QDialog::showEvent(event);
+	ToplevelView::showEvent(event);
 }
 
 void PLSDialogView::keyPressEvent(QKeyEvent *event)
 {
 	if (event->key() != Qt::Key_Escape) {
-		QDialog::keyPressEvent(event);
+		ToplevelView::keyPressEvent(event);
 	} else if (isEscapeCloseEnabled) {
 		event->accept();
 		close();
@@ -444,7 +739,7 @@ void PLSDialogView::keyPressEvent(QKeyEvent *event)
 void PLSDialogView::keyReleaseEvent(QKeyEvent *event)
 {
 	if (event->key() != Qt::Key_Escape) {
-		QDialog::keyReleaseEvent(event);
+		ToplevelView::keyReleaseEvent(event);
 	} else {
 		event->ignore();
 	}
@@ -502,10 +797,10 @@ bool PLSDialogView::eventFilter(QObject *watcher, QEvent *event)
 	if (watcher == ui->titleLabel) {
 		switch (event->type()) {
 		case QEvent::Resize:
-			ui->titleLabel->setText(QFontMetrics(font()).elidedText(windowTitle(), Qt::ElideRight, static_cast<QResizeEvent *>(event)->size().width()));
+			ui->titleLabel->setText(QFontMetrics(ui->titleLabel->font()).elidedText(windowTitle(), Qt::ElideRight, static_cast<QResizeEvent *>(event)->size().width()));
 			break;
 		}
 	}
 
-	return QDialog::eventFilter(watcher, event);
+	return ToplevelView::eventFilter(watcher, event);
 }

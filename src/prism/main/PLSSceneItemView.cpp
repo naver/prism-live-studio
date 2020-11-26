@@ -23,6 +23,9 @@
 #include <QResizeEvent>
 #include <QScreen>
 #include <QPainter>
+#include <QDir>
+#include <ctime>
+#include "obs.hpp"
 
 static void RefreshUi(QWidget *widget)
 {
@@ -74,6 +77,13 @@ void PLSSceneDisplay::SetRenderFlag(bool state)
 {
 	if (state != render) {
 		render = state;
+
+		if (!render) {
+			setVisible(false);
+		} else if (toplevelVisible) {
+			setVisible(true);
+		}
+
 		emit RenderChanged(state);
 	}
 }
@@ -88,6 +98,27 @@ void PLSSceneDisplay::SetCurrentFlag(bool state)
 void PLSSceneDisplay::SetSceneData(OBSScene scene)
 {
 	this->scene = scene;
+}
+
+void PLSSceneDisplay::SetDragingState(bool state)
+{
+	isDraging = state;
+}
+
+bool PLSSceneDisplay::GetRenderState() const
+{
+	return render;
+}
+
+void PLSSceneDisplay::visibleSlot(bool visible)
+{
+	toplevelVisible = visible;
+
+	if (!visible) {
+		setVisible(false);
+	} else if (render) {
+		setVisible(true);
+	}
 }
 
 void PLSSceneDisplay::mousePressEvent(QMouseEvent *event)
@@ -141,6 +172,11 @@ void PLSSceneDisplay::OnDisplayCreated()
 	}
 }
 
+void PLSSceneDisplay::CaptureImageFinished(const QString &path)
+{
+	emit CaptureImageFinishedSignal(path);
+}
+
 void PLSSceneDisplay::AddRenderCallback()
 {
 	obs_display_add_draw_callback(GetDisplay(), RenderScene, this);
@@ -189,6 +225,7 @@ PLSSceneItemView::PLSSceneItemView(const QString &name_, OBSScene scene_, QWidge
 	connect(ui->modifyBtn, &QPushButton::clicked, this, &PLSSceneItemView::OnModifyButtonClicked);
 	connect(deleteBtn, &QPushButton::clicked, this, &PLSSceneItemView::OnDeleteButtonClicked);
 	connect(ui->display, &PLSSceneDisplay::MouseLeftButtonClicked, this, &PLSSceneItemView::OnMouseButtonClicked);
+	connect(ui->display, &PLSSceneDisplay::CaptureImageFinishedSignal, this, &PLSSceneItemView::OnCaptureImageFinished);
 }
 
 PLSSceneItemView::~PLSSceneItemView()
@@ -227,13 +264,7 @@ void PLSSceneItemView::SetRenderFlag(bool state)
 	ui->display->SetRenderFlag(state);
 	ui->image->setProperty(PROPERTY_NAME_SHOW_IMAGE, !state);
 	RefreshUi(ui->image);
-	if (!state) {
-		ui->display->hide();
-		ui->imageLabel->show();
-	} else {
-		ui->display->show();
-		ui->imageLabel->hide();
-	}
+	ui->imageLabel->setVisible(!state);
 }
 
 OBSScene PLSSceneItemView::GetData()
@@ -286,11 +317,16 @@ void PLSSceneItemView::mousePressEvent(QMouseEvent *event)
 void PLSSceneItemView::mouseMoveEvent(QMouseEvent *event)
 {
 	QFrame::mouseMoveEvent(event);
-	if (!startPos.isNull()) {
+	if (!startPos.isNull() && (event->buttons() & Qt::LeftButton)) {
 		int distance = (mapToParent(event->pos()) - startPos).manhattanLength();
 		if (distance < QApplication::startDragDistance())
 			return;
-		CreateDrag(startPos);
+
+		if (ui->display->GetRenderState()) {
+			ui->display->SetDragingState(true);
+		} else {
+			CreateDrag(startPos, "");
+		}
 	}
 }
 
@@ -318,10 +354,10 @@ bool PLSSceneItemView::eventFilter(QObject *object, QEvent *event)
 	}
 
 	if (object == ui->nameLabel && event->type() == QEvent::Resize) {
-		ui->nameLabel->setText(GetNameElideString());
+		QMetaObject::invokeMethod(
+			this, [=]() { ui->nameLabel->setText(GetNameElideString()); }, Qt::QueuedConnection);
 		return true;
 	}
-
 	return QFrame::eventFilter(object, event);
 }
 
@@ -333,7 +369,8 @@ void PLSSceneItemView::resizeEvent(QResizeEvent *event)
 
 void PLSSceneItemView::enterEvent(QEvent *event)
 {
-	deleteBtn->setGeometry(this->width() - deleteBtn->width() - 4, 4, deleteBtn->width(), deleteBtn->height());
+	int margin = PLSDpiHelper::calculate(this, 4);
+	deleteBtn->setGeometry(this->width() - deleteBtn->width() - margin, margin, deleteBtn->width(), deleteBtn->height());
 	deleteBtn->show();
 	setEnterPropertyState(true, ui->editWidget);
 	setEnterPropertyState(true, ui->nameLabel);
@@ -384,7 +421,8 @@ void PLSSceneItemView::OnDeleteButtonClicked()
 void PLSSceneItemView::OnMouseEnterEvent()
 {
 	ui->nameLabel->setText(GetNameElideString());
-	deleteBtn->setGeometry(this->width() - deleteBtn->width() - 4, 4, deleteBtn->width(), deleteBtn->height());
+	int margin = PLSDpiHelper::calculate(this, 4);
+	deleteBtn->setGeometry(this->width() - deleteBtn->width() - margin, margin, deleteBtn->width(), deleteBtn->height());
 	deleteBtn->show();
 	setEnterPropertyState(true, ui->editWidget);
 	setEnterPropertyState(true, ui->nameLabel);
@@ -424,7 +462,46 @@ void PLSSceneItemView::setEnterPropertyState(bool state, QWidget *widget)
 	RefreshUi(widget);
 }
 
-void PLSSceneItemView::CreateDrag(const QPoint &startPos)
+static QString GetTempImageFilePath(const QString &suffix)
+{
+	QDir temp = QDir::temp();
+	temp.mkdir("cropedImages");
+	temp.cd("cropedImages");
+	QString tempImageFilePath = temp.absoluteFilePath(QString("cropedImage-%1").arg(std::time(nullptr)) + suffix);
+	return tempImageFilePath;
+}
+
+static QString CaptureImage(uint32_t width, uint32_t height, enum gs_color_format format, uint8_t **data, uint32_t *linesize)
+{
+	if (format != gs_color_format::GS_BGRA) {
+		return QString();
+	}
+
+	uchar *buffer = (uchar *)malloc(width * height * 4);
+	if (!buffer) {
+		return QString();
+	}
+
+	memset(buffer, 0, width * height * 4);
+
+	if (width * 4 == linesize[0]) {
+		memmove(buffer, data[0], linesize[0] * height);
+	} else {
+		for (uint32_t i = 0; i < height; i++) {
+			memmove(buffer + i * width * 4, data[0] + i * linesize[0], width * 4);
+		}
+	}
+
+	QImage image(buffer, width, height, QImage::Format_ARGB32);
+
+	QString ipath = GetTempImageFilePath(".png");
+	image.save(ipath);
+
+	free(buffer);
+	return ipath;
+}
+
+void PLSSceneItemView::CreateDrag(const QPoint &startPos, const QString &path)
 {
 	QMimeData *mimeData = new QMimeData;
 	QString data =
@@ -434,7 +511,34 @@ void PLSSceneItemView::CreateDrag(const QPoint &startPos)
 	QDrag *drag = new QDrag(this);
 	drag->setMimeData(mimeData);
 
-	QPixmap pixmap = QGuiApplication::primaryScreen()->grabWindow(ui->widget->winId());
+	QPixmap pixmap(ui->widget->width(), ui->widget->height());
+	if (!path.isEmpty()) {
+		QPainter painter(&pixmap);
+
+		PLSDpiHelper dpiHelper;
+		painter.fillRect(ui->widget->rect(), QColor("#333333"));
+		int topMargin = dpiHelper.calculate(this, 24);
+		int borderWidth = dpiHelper.calculate(this, 4);
+		painter.drawImage(QRect(0, topMargin, ui->widget->width(), ui->widget->height() - 2 * topMargin), QImage(path));
+
+		QSvgRenderer renderer(QString(":/images/btn-close-normal.svg"));
+		QPixmap delPixmap(deleteBtn->width(), deleteBtn->height());
+		delPixmap.fill(Qt::transparent);
+		QPainter delPainter(&delPixmap);
+		renderer.render(&delPainter);
+
+		int margin = PLSDpiHelper::calculate(this, 4);
+		painter.drawPixmap(QRect(this->width() - deleteBtn->width() - margin, margin, deleteBtn->width(), deleteBtn->height()), delPixmap);
+
+		QPen pen(QColor("#effc35"));
+		pen.setWidth(borderWidth);
+		painter.setPen(pen);
+		painter.drawRect(ui->widget->rect());
+		QFile::remove(path);
+	} else {
+		pixmap = this->grab(ui->widget->rect());
+	}
+
 	drag->setHotSpot(QPoint(pixmap.width() / 2, pixmap.height() / 2));
 	drag->setPixmap(pixmap);
 	drag->exec();
@@ -448,20 +552,32 @@ QString PLSSceneItemView::GetNameElideString()
 	return name;
 }
 
+void PLSSceneItemView::SetContentMargins(bool state)
+{
+	double dpi = PLSDpiHelper::getDpi(this);
+
+	if (!state) {
+		ui->widget->setContentsMargins(0, 0, 0, 0);
+	} else {
+		ui->widget->setContentsMargins(PLSDpiHelper::calculate(dpi, 2), 0, PLSDpiHelper::calculate(dpi, 2), 0);
+	}
+
+	ui->widget->setProperty(STATUS_CLICKED, state);
+	RefreshUi(ui->widget);
+}
+
+void PLSSceneItemView::OnCaptureImageFinished(const QString &path)
+{
+	CreateDrag(startPos, path);
+}
+
 void PLSSceneItemView::OnCurrentItemChanged(bool state)
 {
 	setEnterPropertyState(state, ui->editWidget);
 	setEnterPropertyState(state, ui->modifyBtn);
 	setEnterPropertyState(state, ui->nameLabel);
 
-	if (!state) {
-		ui->widget->setContentsMargins(0, 0, 0, 0);
-	} else {
-		ui->widget->setContentsMargins(2, 0, 2, 0);
-	}
-
-	ui->widget->setProperty(STATUS_CLICKED, state);
-	RefreshUi(ui->widget);
+	QMetaObject::invokeMethod(this, "SetContentMargins", Qt::QueuedConnection, Q_ARG(bool, state));
 }
 
 void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
@@ -476,6 +592,10 @@ void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
 	} else {
 		window->SetDisplayBackgroundColor(QColor(22, 22, 22));
 	}
+
+	if (!obs_get_system_initialized())
+		return;
+
 	OBSSource source = obs_scene_get_source(window->scene);
 
 	uint32_t targetCX;
@@ -505,4 +625,16 @@ void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
 		obs_source_video_render(source);
 	}
 	endRegion();
+
+	if (window->isDraging) {
+		uint32_t width, height;
+		enum gs_color_format format;
+		texture_map_info tmi;
+		if (auto ss = gs_device_canvas_map(&width, &height, &format, tmi.data, tmi.linesize); ss) {
+			QString path = CaptureImage(width, height, format, tmi.data, tmi.linesize);
+			gs_device_canvas_unmap(ss);
+			window->isDraging = false;
+			QMetaObject::invokeMethod(window, "CaptureImageFinished", Qt::QueuedConnection, Q_ARG(const QString &, path));
+		}
+	}
 }

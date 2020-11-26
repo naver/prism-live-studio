@@ -30,17 +30,27 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QLabel" name="labelCaption">
-     <property name="text">
-      <string>LiveInfo.Twitch.Caption</string>
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <property name="spacing">
+      <number>0</number>
      </property>
-     <property name="alignment">
-      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-     </property>
-     <property name="indent">
+     <property name="leftMargin">
       <number>25</number>
      </property>
-    </widget>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="labelCaption">
+       <property name="text">
+        <string>LiveInfo.Twitch.Caption</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <spacer name="verticalSpacer_2">
@@ -53,7 +63,7 @@
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>26</height>
+       <height>20</height>
       </size>
      </property>
     </spacer>
@@ -72,17 +82,17 @@
      <property name="verticalSpacing">
       <number>10</number>
      </property>
-     <item row="2" column="0">
-      <widget class="QLabel" name="labelServer">
-       <property name="text">
-        <string>LiveInfo.Twitch.Server</string>
-       </property>
-      </widget>
-     </item>
      <item row="1" column="0">
       <widget class="QLabel" name="labelCategory">
        <property name="text">
         <string>LiveInfo.Base.Category</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="labelServer">
+       <property name="text">
+        <string>LiveInfo.Twitch.Server</string>
        </property>
       </widget>
      </item>
@@ -100,40 +110,35 @@
       </widget>
      </item>
      <item row="1" column="1">
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <widget class="QLineEdit" name="lineEditCategory">
-         <property name="maximumSize">
-          <size>
-           <width>16777215</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="maxLength">
-          <number>100</number>
-         </property>
-         <property name="placeholderText">
-          <string>LiveInfo.Twitch.Category.Placeholder</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="pushButtonSearch">
-         <property name="focusPolicy">
-          <enum>Qt::NoFocus</enum>
-         </property>
-         <property name="styleSheet">
-          <string notr="true"/>
-         </property>
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-      </layout>
+      <widget class="QLineEdit" name="lineEditCategory">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="maxLength">
+        <number>100</number>
+       </property>
+       <property name="placeholderText">
+        <string>LiveInfo.Twitch.Category.Placeholder</string>
+       </property>
+      </widget>
      </item>
      <item row="0" column="1">
       <widget class="QLineEdit" name="lineEditTitle">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="maximumSize">
         <size>
          <width>16777215</width>

@@ -88,6 +88,19 @@ struct video_data {
 	uint64_t timestamp;
 };
 
+//PRISM/WangShaohui/20200424/NoIssue/for reading texture
+struct texture_map_param {
+	uint32_t width;
+	uint32_t height;
+	enum gs_color_format format; // support format : GS_RGBA/GS_BGRA/GS_BGRX
+};
+
+//PRISM/WangShaohui/20200424/NoIssue/for reading texture
+struct texture_map_info {
+	uint8_t *data[MAX_AV_PLANES];
+	uint32_t linesize[MAX_AV_PLANES];
+};
+
 struct video_output_info {
 	const char *name;
 

@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QVariantMap>
+#include "PLSWidgetDpiAdapter.hpp"
 
 namespace Ui {
 class RtmpChannelView;
@@ -10,7 +11,7 @@ class RtmpChannelView;
 
 class PLSLoginInfo;
 
-class PLSRtmpChannelView : public QDialog {
+class PLSRtmpChannelView : public PLSWidgetDpiAdapterHelper<QDialog> {
 	Q_OBJECT
 
 public:
@@ -48,6 +49,8 @@ private:
 	bool checkIsModified();
 	void updateRtmpInfos();
 	bool isRtmUrlRight();
+
+	void updatePlatform(const QString &platform);
 
 private:
 	Ui::RtmpChannelView *ui;

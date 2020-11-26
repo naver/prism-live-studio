@@ -54,6 +54,9 @@ struct ffmpeg_muxer {
 	volatile bool stopping;
 	volatile bool capturing;
 
+	//PRISM/LiuHaibin/20200616/#3195/for force stop
+	pthread_mutex_t deactive_mutex;
+
 	/* replay buffer */
 	struct circlebuf packets;
 	int64_t cur_size;
@@ -103,6 +106,9 @@ static void ffmpeg_mux_destroy(void *data)
 	da_free(stream->mux_packets);
 
 	os_process_pipe_destroy(stream->pipe);
+	//PRISM/LiuHaibin/20200702/#3195/for force stop
+	if (stream->deactive_mutex)
+		pthread_mutex_destroy(&stream->deactive_mutex);
 	dstr_free(&stream->path);
 	bfree(stream);
 }
@@ -111,6 +117,13 @@ static void *ffmpeg_mux_create(obs_data_t *settings, obs_output_t *output)
 {
 	struct ffmpeg_muxer *stream = bzalloc(sizeof(*stream));
 	stream->output = output;
+
+	//PRISM/LiuHaibin/20200703/#3195/for force stop
+	if (pthread_mutex_init(&stream->deactive_mutex, NULL) != 0) {
+		warn("Failed to initialize deactive mutex");
+		ffmpeg_mux_destroy(stream);
+		return NULL;
+	}
 
 	UNUSED_PARAMETER(settings);
 	return stream;
@@ -322,6 +335,7 @@ static bool ffmpeg_mux_start(void *data)
 	/* write headers and start capture */
 	os_atomic_set_bool(&stream->active, true);
 	os_atomic_set_bool(&stream->capturing, true);
+
 	stream->total_bytes = 0;
 	obs_output_begin_data_capture(stream->output, 0);
 
@@ -331,6 +345,9 @@ static bool ffmpeg_mux_start(void *data)
 
 static int deactivate(struct ffmpeg_muxer *stream, int code)
 {
+	//PRISM/LiuHaibin/20200703/#3195/for force stop
+	pthread_mutex_lock(&stream->deactive_mutex);
+
 	int ret = -1;
 
 	if (active(stream)) {
@@ -350,6 +367,10 @@ static int deactivate(struct ffmpeg_muxer *stream, int code)
 	}
 
 	os_atomic_set_bool(&stream->stopping, false);
+
+	//PRISM/LiuHaibin/20200703/#3195/for force stop
+	pthread_mutex_unlock(&stream->deactive_mutex);
+
 	return ret;
 }
 
@@ -479,6 +500,8 @@ static void ffmpeg_mux_data(void *data, struct encoder_packet *packet)
 
 	/* encoder failure */
 	if (!packet) {
+		warn("encoder error for output of file '%s', deactivate muxer",
+		     stream->path.array);
 		deactivate(stream, OBS_OUTPUT_ENCODE_ERROR);
 		return;
 	}
@@ -492,6 +515,8 @@ static void ffmpeg_mux_data(void *data, struct encoder_packet *packet)
 
 	if (stopping(stream)) {
 		if (packet->sys_dts_usec >= stream->stop_ts) {
+			info("deactivate output of file '%s', stop_ts %lld.",
+			     stream->path.array, stream->stop_ts);
 			deactivate(stream, 0);
 			return;
 		}
@@ -517,6 +542,19 @@ static uint64_t ffmpeg_mux_total_bytes(void *data)
 	return stream->total_bytes;
 }
 
+//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
+static void ffmpeg_mux_force_stop(void *data)
+{
+	struct ffmpeg_muxer *stream = data;
+	if (!stream)
+		return;
+
+	ffmpeg_mux_stop(stream, 0);
+
+	info("Force deactive output of file '%s'.", stream->path.array);
+	deactivate(stream, OBS_OUTPUT_SUCCESS);
+}
+
 struct obs_output_info ffmpeg_muxer = {
 	.id = "ffmpeg_muxer",
 	.flags = OBS_OUTPUT_AV | OBS_OUTPUT_ENCODED | OBS_OUTPUT_MULTI_TRACK |
@@ -529,6 +567,8 @@ struct obs_output_info ffmpeg_muxer = {
 	.encoded_packet = ffmpeg_mux_data,
 	.get_total_bytes = ffmpeg_mux_total_bytes,
 	.get_properties = ffmpeg_mux_properties,
+	//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
+	.force_stop = ffmpeg_mux_force_stop,
 };
 
 /* ------------------------------------------------------------------------ */
@@ -619,6 +659,7 @@ static bool replay_buffer_start(void *data)
 
 	os_atomic_set_bool(&stream->active, true);
 	os_atomic_set_bool(&stream->capturing, true);
+
 	stream->total_bytes = 0;
 	obs_output_begin_data_capture(stream->output, 0);
 
@@ -889,12 +930,16 @@ static void replay_buffer_data(void *data, struct encoder_packet *packet)
 
 	/* encoder failure */
 	if (!packet) {
+		warn("encoder error for output of file '%s', deactivate replay buffer",
+		     stream->path.array);
 		deactivate_replay_buffer(stream, OBS_OUTPUT_ENCODE_ERROR);
 		return;
 	}
 
 	if (stopping(stream)) {
 		if (packet->sys_dts_usec >= stream->stop_ts) {
+			info("deactivate output of file '%s', stop_ts %lld.",
+			     stream->path.array, stream->stop_ts);
 			deactivate_replay_buffer(stream, 0);
 			return;
 		}

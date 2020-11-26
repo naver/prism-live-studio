@@ -196,6 +196,26 @@ vec3 PLSBasicPreview::GetSnapOffset(const vec3 &tl, const vec3 &br)
 	return clampOffset;
 }
 
+bool PLSBasicPreview::CountSelectedSource(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
+{
+
+	if (obs_sceneitem_locked(item))
+		return true;
+
+	if (!SceneItemHasVideo(item))
+		return true;
+
+	if (obs_sceneitem_is_group(item)) {
+		obs_sceneitem_group_enum_items(item, CountSelectedSource, param);
+	}
+
+	bool selected = obs_sceneitem_selected(item);
+	if (selected)
+		(*reinterpret_cast<int *>(param))++;
+
+	return true;
+}
+
 OBSSceneItem PLSBasicPreview::GetItemAtPos(const vec2 &pos, bool selectBelow)
 {
 	PLSBasic *main = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
@@ -572,6 +592,20 @@ void PLSBasicPreview::ProcessClick(const vec2 &pos)
 		DoCtrlSelect(pos);
 	else
 		DoSelect(pos);
+}
+
+bool PLSBasicPreview::isMultiSelectedSource()
+{
+	PLSBasic *main = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
+	OBSScene scene = main->GetCurrentScene();
+	int32_t count = 0;
+
+	if (scene) {
+		count = 0;
+		obs_scene_enum_items(scene, CountSelectedSource, &count);
+	}
+
+	return (count > 1) ? true : false;
 }
 
 void PLSBasicPreview::mouseReleaseEvent(QMouseEvent *event)
@@ -1382,7 +1416,7 @@ static void DrawSquareAtPos(float x, float y)
 	gs_matrix_identity();
 	gs_matrix_translate(&pos);
 
-	gs_matrix_translate3f((x == 1.0f) ? -(SQUARE_SIZE + 1.0f) / 2 : -(SQUARE_SIZE - 1.0f) / 2, (y == 1.0f) ? -(SQUARE_SIZE + 1.0f) / 2 : -(SQUARE_SIZE - 1.0f) / 2, 0.0f);
+	gs_matrix_translate3f((x == 1.0f || x == 0.5f) ? -(SQUARE_SIZE + 1.0f) / 2 : -(SQUARE_SIZE - 1.0f) / 2, (y == 1.0f || y == 0.5f) ? -(SQUARE_SIZE + 1.0f) / 2 : -(SQUARE_SIZE - 1.0f) / 2, 0.0f);
 	gs_matrix_scale3f(SQUARE_SIZE, SQUARE_SIZE, 1.0f);
 	gs_draw(GS_TRISTRIP, 0, 0);
 	gs_matrix_pop();
@@ -1629,6 +1663,7 @@ bool PLSBasicPreview::DrawSelectedItem(obs_scene_t *scene, obs_sceneitem_t *item
 	DrawLine(x1, y1, x2, y2, BODER_LINE, boxScale); \
 	gs_effect_set_vec4(colParam, &yellow);
 
+		gs_effect_set_vec4(colParam, &yellow);
 		DRAW_SIDE(left, 0.0f, 0.0f, 0.0f, 1.0f);
 		DRAW_SIDE(top, 0.0f, 0.0f, 1.0f, 0.0f);
 		DRAW_SIDE(right, 1.0f, 0.0f, 1.0f, 1.0f);
@@ -1656,6 +1691,23 @@ bool PLSBasicPreview::DrawSelectedItem(obs_scene_t *scene, obs_sceneitem_t *item
 		DrawSquareAtPos(0.0f, 0.5f);
 		DrawSquareAtPos(0.5f, 1.0f);
 		DrawSquareAtPos(1.0f, 0.5f);
+
+		if (!prev->isMultiSelectedSource()) {
+			gs_viewport_push();
+			gs_projection_push();
+
+			gs_ortho(0.0f, main->previewCX, 0.0f, main->previewCY, -100.0f, 100.0f);
+			gs_set_viewport(main->previewX, main->previewY, main->previewCX, main->previewCY);
+
+			float distance = SHRT_MAX / (abs(boxScale.x) < abs(boxScale.y) ? abs(boxScale.x) : abs(boxScale.y));
+			DrawLine(0.5f, 0.0f, 0.5f, -distance, BODER_LINE, boxScale);
+			DrawLine(0.5f, 1.0f, 0.5f, distance, BODER_LINE, boxScale);
+			DrawLine(1.0f, 0.5f, distance, 0.5f, BODER_LINE, boxScale);
+			DrawLine(0.0f, 0.5f, -distance, 0.5f, BODER_LINE, boxScale);
+
+			gs_projection_pop();
+			gs_viewport_pop();
+		}
 	}
 
 	gs_matrix_pop();

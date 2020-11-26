@@ -9,9 +9,7 @@ class PLSScrollAreaContent : public QWidget {
 public:
 	explicit PLSScrollAreaContent(QWidget *parent = nullptr);
 	~PLSScrollAreaContent();
-	void Refresh();
-	void SetRenderNum(const int &renderNumber);
-	int GetRenderNum();
+	int Refresh();
 	void SetIsDraging(bool state);
 
 protected:
@@ -26,13 +24,12 @@ private:
 	void GetRowColByPos(const int &x, const int &y, const int &width, const int &height, int &row, int &col);
 	void GetDirectionByPos(const int &x, const int &y, const int &width, const int &height, const int &row, int &col);
 	void SetLinePos(const int &startX, const int &startY, const int &endX, const int &endY);
-	void SetDefaultRenderNum();
 signals:
 	void DragFinished();
+	void resizeEventChanged(bool);
 
 private:
 	QPoint lineStart;
 	QPoint lineEnd;
 	bool isDrag{false};
-	int renderNumber{0};
 };

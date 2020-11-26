@@ -1,8 +1,9 @@
 #include "PLSSummaryDialog.h"
-#include "ui_PLSSummaryDialog.h"
 #include "PLSSummaryItem.h"
+#include "ui_PLSSummaryDialog.h"
 
-PLSSummaryDialog::PLSSummaryDialog(const QMap<QString, QVariantMap> &sourceLst, QWidget *parent) : PLSDialogView(parent), ui(new Ui::PLSSummaryDialog), mChannelsLst(sourceLst)
+PLSSummaryDialog::PLSSummaryDialog(const QMap<QString, QVariantMap> &sourceLst, QWidget *parent, PLSDpiHelper dpiHelper)
+	: PLSDialogView(parent, dpiHelper), ui(new Ui::PLSSummaryDialog), mChannelsLst(sourceLst)
 {
 	setupFirstUI();
 }
@@ -19,9 +20,6 @@ void PLSSummaryDialog::setupFirstUI()
 	setIsMoveInContent(true);
 	setHasMinButton(false);
 	setHasHLine(false);
-
-	//shareView::setStyleSheetFromFile(this, ":/Style/PLSSummaryDialog.css"
-	//				       , ":/Style/PLSSummaryItem.css");
 
 	setupData();
 

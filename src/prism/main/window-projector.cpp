@@ -2,7 +2,6 @@
 #include <QGuiApplication>
 #include <QMouseEvent>
 #include <QMenu>
-#include <QScreen>
 #include "pls-app.hpp"
 #include "window-basic-main.hpp"
 #include "display-helpers.hpp"

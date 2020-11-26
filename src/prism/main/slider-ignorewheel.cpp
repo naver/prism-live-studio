@@ -44,7 +44,6 @@ void SliderIgnoreScroll::leaveEvent(QEvent *event)
 void SliderIgnoreScroll::mousePressEvent(QMouseEvent *event)
 {
 	SetSliderValue(event->pos());
-	QSlider::mousePressEvent(event);
 }
 
 void SliderIgnoreScroll::mouseMoveEvent(QMouseEvent *event)
@@ -55,6 +54,7 @@ void SliderIgnoreScroll::mouseMoveEvent(QMouseEvent *event)
 
 void SliderIgnoreScroll::mouseReleaseEvent(QMouseEvent *event)
 {
+	emit mouseReleaseSignal();
 	QSlider::mouseReleaseEvent(event);
 }
 

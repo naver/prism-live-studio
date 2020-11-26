@@ -25,6 +25,24 @@
 #include "config-file.h"
 #include "text-lookup.h"
 
+//----------------------------------------------------------------
+//PRISM/WangShaohui/20200619/NoIssue/for common utility start ----
+#define ARRAY_COUNT(x) sizeof(x) / sizeof(x[0])
+
+#define SAFE_DELETE_PTR(x) \
+	if (x) {           \
+		delete x;  \
+		x = 0;     \
+	}
+
+#define SAFE_DELETE_ARRARY(x) \
+	if (x) {              \
+		delete[] x;   \
+		x = 0;        \
+	}
+//PRISM/WangShaohui/20200619/NoIssue/for common utility end ------
+//----------------------------------------------------------------
+
 /* RAII wrappers */
 
 template<typename T> class BPtr {

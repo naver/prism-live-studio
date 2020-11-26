@@ -7,7 +7,8 @@
 PLSToastMsgPopup::PLSToastMsgPopup(QWidget *parent) : QLabel(parent), ui(new Ui::PLSToastMsgPopup), m_timer(new QTimer(this))
 {
 	ui->setupUi(this);
-	setFixedWidth(325);
+	PLSDpiHelper dpiHelper;
+	dpiHelper.setFixedWidth(this, 325);
 	connect(m_timer, &QTimer::timeout, [=]() {
 		m_timer->stop();
 		this->hide();

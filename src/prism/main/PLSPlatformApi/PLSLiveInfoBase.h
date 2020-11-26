@@ -19,7 +19,8 @@ class PLSPlatformBase;
 class PLSLiveInfoBase : public PLSDialogView {
 	Q_OBJECT
 public:
-	PLSLiveInfoBase(PLSPlatformBase *pPlatformBase, QWidget *parent = nullptr);
+	PLSLiveInfoBase(PLSPlatformBase *pPlatformBase, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	~PLSLiveInfoBase();
 
 	void setPlatformBase(PLSPlatformBase *pPlatformBase) { m_pPlatformBase = pPlatformBase; }
 
@@ -28,6 +29,9 @@ protected:
 
 	void showLoading(QWidget *parent);
 	void hideLoading();
+
+protected:
+	void closeEvent(QCloseEvent *event);
 
 protected:
 	PLSPlatformBase *m_pPlatformBase;

@@ -108,6 +108,9 @@ static bool reset_thumbnail(obs_thumbnail_t *thumbnail, uint32_t width,
 
 static void save_texture(obs_thumbnail_t *thumbnail, gs_texture_t *texture)
 {
+	if (!thumbnail->data || !texture)
+		return;
+
 	uint8_t *data[8] = {0};
 	uint32_t line_size[8] = {0};
 
@@ -177,7 +180,6 @@ bool obs_thumbnail_requested()
 	return false;
 }
 
-static const char *render_thumbnail_texture_name = "render_thumbnail_texture";
 void obs_thumbnail_save(struct obs_core_video *video)
 {
 	gs_texture_t *target = video->thumbnail->texture;
@@ -200,8 +202,6 @@ void obs_thumbnail_save(struct obs_core_video *video)
 
 		tech = gs_effect_get_technique(effect, "Draw");
 	}
-
-	profile_start(render_thumbnail_texture_name);
 
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_eparam_t *bres =
@@ -237,8 +237,6 @@ void obs_thumbnail_save(struct obs_core_video *video)
 	}
 	gs_technique_end(tech);
 	gs_enable_blending(true);
-
-	profile_end(render_thumbnail_texture_name);
 
 	save_texture(video->thumbnail, target);
 }

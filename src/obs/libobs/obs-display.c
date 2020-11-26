@@ -55,6 +55,9 @@ obs_display_t *obs_display_create(const struct gs_init_data *graphics_data,
 {
 	struct obs_display *display = bzalloc(sizeof(struct obs_display));
 
+	//PRISM/WangShaohui/20201104/NoIssue/for debugging
+	blog(LOG_INFO, "obs_display is created : %p", display);
+
 	gs_enter_context(obs->video.graphics);
 
 	display->background_color = background_color;
@@ -92,6 +95,9 @@ void obs_display_free(obs_display_t *display)
 void obs_display_destroy(obs_display_t *display)
 {
 	if (display) {
+		//PRISM/WangShaohui/20201104/NoIssue/for debugging
+		blog(LOG_INFO, "obs_display is to be deleted : %p", display);
+
 		pthread_mutex_lock(&obs->data.displays_mutex);
 		if (display->prev_next)
 			*display->prev_next = display->next;

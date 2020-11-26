@@ -81,6 +81,10 @@ typedef struct obs_weak_service obs_weak_service_t;
 #include "obs-audio-controls.h"
 #include "obs-hotkey.h"
 
+//PRISM/WangShaohui/20201015/NoIssue/for debugging log
+#define TRACE_INPUT_SOURCE "[TRACE-SOURCE] "
+#define TRACE_OUTPUT_EVENT "[TRACE-OUTPUT] "
+
 /**
  * @file
  * @brief Main libobs header used by applications.
@@ -139,6 +143,15 @@ enum obs_bounds_type {
 	OBS_BOUNDS_SCALE_TO_WIDTH,  /**< scales to the width  */
 	OBS_BOUNDS_SCALE_TO_HEIGHT, /**< scales to the height */
 	OBS_BOUNDS_MAX_ONLY,        /**< no scaling, maximum size only */
+};
+
+//PRISM/WangShaohui/20200707/#3254/notify source event
+enum obs_source_exception_type {
+	OBS_SOURCE_EXCEPTION_NONE = 0,
+	OBS_SOURCE_EXCEPTION_SENSETIME,
+	OBS_SOURCE_EXCEPTION_D3D,
+	OBS_SOURCE_EXCEPTION_NO_FILE,
+	OBS_SOURCE_EXCEPTION_PROCESS_EXIT,
 };
 
 struct obs_transform_info {
@@ -248,6 +261,13 @@ struct obs_source_frame {
 	/* used internally by libobs */
 	volatile long refs;
 	bool prev_frame;
+
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	bool ori_img_flip;
+	uint64_t sys_timestamp;
+
+	//PRISM/LiuHaibin/20200924/#2174/cover for audio, mark if current frame is cover of audio file
+	bool is_cover;
 };
 
 struct obs_source_frame2 {
@@ -263,6 +283,10 @@ struct obs_source_frame2 {
 	float color_range_min[3];
 	float color_range_max[3];
 	bool flip;
+
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	bool ori_img_flip;
+	uint64_t sys_timestamp;
 };
 
 /** Access to the argc/argv used to start OBS. What you see is what you get. */
@@ -585,6 +609,10 @@ EXPORT obs_source_t *obs_get_output_source(uint32_t channel);
 EXPORT void obs_enum_sources(bool (*enum_proc)(void *, obs_source_t *),
 			     void *param);
 
+//PRISM/Liuying/20200828/#4617
+EXPORT void obs_enum_all_sources(bool (*enum_proc)(void *, obs_source_t *),
+				 void *param);
+
 /** Enumerates scenes */
 EXPORT void obs_enum_scenes(bool (*enum_proc)(void *, obs_source_t *),
 			    void *param);
@@ -750,6 +778,19 @@ EXPORT void obs_apply_private_data(obs_data_t *settings);
 EXPORT void obs_set_private_data(obs_data_t *settings);
 EXPORT obs_data_t *obs_get_private_data(void);
 
+typedef void (*obs_task_t)(void *param);
+
+enum obs_task_type {
+	OBS_TASK_UI,
+	OBS_TASK_GRAPHICS,
+};
+
+EXPORT void obs_queue_task(enum obs_task_type type, obs_task_t task,
+			   void *param, bool wait);
+
+typedef void (*obs_task_handler_t)(obs_task_t task, void *param, bool wait);
+EXPORT void obs_set_ui_task_handler(obs_task_handler_t handler);
+
 /* ------------------------------------------------------------------------- */
 /* View context */
 
@@ -886,6 +927,14 @@ EXPORT bool obs_is_source_configurable(const char *id);
 
 EXPORT bool obs_source_configurable(const obs_source_t *source);
 
+//PRISM/WangChuanjing/20200414/#2330/for beauty
+EXPORT bool obs_source_set_private_data(obs_source_t *source, obs_data_t *data);
+EXPORT void obs_source_get_private_data(obs_source_t *source, obs_data_t *data);
+
+//PRISM/Wangshaohui/20200827/#2330/for beauty
+EXPORT void obs_plugin_set_private_data(const char *id, obs_data_t *data);
+EXPORT void obs_plugin_get_private_data(const char *id, obs_data_t *data);
+
 /**
  * Returns the properties list for a specific existing source.  Free with
  * obs_properties_destroy
@@ -894,6 +943,10 @@ EXPORT obs_properties_t *obs_source_properties(const obs_source_t *source);
 
 /** Updates settings for this source */
 EXPORT void obs_source_update(obs_source_t *source, obs_data_t *settings);
+//PRISM/Zhangdewen/20200921/#/chat source
+EXPORT void obs_source_properties_edit_start(obs_source_t *source);
+//PRISM/Zhangdewen/20200921/#/chat source
+EXPORT void obs_source_properties_edit_end(obs_source_t *source);
 
 /** Renders a video source. */
 EXPORT void obs_source_video_render(obs_source_t *source);
@@ -903,15 +956,6 @@ EXPORT uint32_t obs_source_get_width(obs_source_t *source);
 
 /** Gets the height of a source (if it has video) */
 EXPORT uint32_t obs_source_get_height(obs_source_t *source);
-
-/* ----------------------------------------------------------------- */
-//PRISM/LiuHaibin/20200117/#214/for outro
-
-/** Returns if the source has stopped (if it is "ffmpeg_source") */
-EXPORT bool obs_source_stopped(const obs_source_t *source);
-
-//End
-/* ----------------------------------------------------------------- */
 
 /**
  * If the source is a filter, returns the parent source of the filter.  Only
@@ -1340,6 +1384,50 @@ EXPORT void obs_source_set_audio_active(obs_source_t *source, bool show);
 EXPORT bool obs_source_audio_active(const obs_source_t *source);
 
 EXPORT uint32_t obs_source_get_last_obs_version(const obs_source_t *source);
+
+//PRISM/Liuying/20200904/#None/for Music PlayList
+EXPORT void obs_source_set_parent(obs_source_t *source, obs_source_t *parent);
+
+//PRISM/Liuying/20200904/#4943
+EXPORT bool obs_source_is_private(obs_source_t *source);
+
+/** Media controls */
+EXPORT void obs_source_media_play_pause(obs_source_t *source, bool pause);
+EXPORT void obs_source_media_restart(obs_source_t *source);
+EXPORT void obs_source_media_stop(obs_source_t *source);
+EXPORT void obs_source_media_next(obs_source_t *source);
+EXPORT void obs_source_media_previous(obs_source_t *source);
+EXPORT int64_t obs_source_media_get_duration(obs_source_t *source);
+EXPORT int64_t obs_source_media_get_time(obs_source_t *source);
+EXPORT void obs_source_media_set_time(obs_source_t *source, int64_t ms);
+EXPORT enum obs_media_state obs_source_media_get_state(obs_source_t *source);
+EXPORT void obs_source_media_started(obs_source_t *source);
+EXPORT void obs_source_media_ended(obs_source_t *source);
+
+//PRISM/ZengQin/20200616/#3179/for media controller
+EXPORT bool obs_source_media_is_update_done(obs_source_t *source);
+//PRISM/ZengQin/20200706/#3179/for media controller
+EXPORT void obs_source_media_eof(obs_source_t *source);
+
+//PRISM/ZengQin/20200723/#3179/for media controller and free bgm
+EXPORT void obs_source_media_load(obs_source_t *source, bool load);
+//PRISM/ZengQin/20200729/#3179/for media controller
+EXPORT void obs_source_media_state_changed(obs_source_t *source);
+//PRISM/ZengQin/20200630/#3179/for media controller
+EXPORT void obs_source_properties_changed(obs_source_t *source);
+//PRISM/ZengQin/20200818/#4283/for media controller
+//pos is the ratio of the current position of the progress bar to the total length
+EXPORT void obs_source_media_restart_to_pos(obs_source_t *source, bool pause,
+					    int64_t pos);
+//PRISM/ZengQin/20200911/#4670/for media controller
+EXPORT void obs_source_network_state_changed(obs_source_t *source, bool off);
+
+//PRISM/LiuHaibin/20200804/#3736/for media controller
+EXPORT void obs_source_clear_video_cache(obs_source_t *source);
+//PRISM/LiuHaibin/20200804/#3800/for media controller
+EXPORT void obs_source_sync_clear(obs_source_t *source);
+//PRISM/LiuHaibin/20201029/#None/media skipped message for BGM
+EXPORT void obs_source_media_skipped(obs_source_t *source, const char *url);
 
 /* ------------------------------------------------------------------------- */
 /* Transition-specific functions */
@@ -1904,6 +1992,14 @@ EXPORT void obs_output_signal_stop(obs_output_t *output, int code);
 
 EXPORT uint64_t obs_output_get_pause_offset(obs_output_t *output);
 
+//PRISM/LiuHaibin/20200701/#2440/support NOW
+/* Retrieve base timestamp for NOW */
+EXPORT uint64_t obs_output_get_base_timestamp(obs_output_t *output);
+
+//PRISM/LiuHaibin/20200703/#3195/for force stop
+/* return true if output is stopped inside libobs, false otherwise */
+EXPORT bool obs_output_stopped_internal(obs_output_t *output);
+
 /* ------------------------------------------------------------------------- */
 /* Encoders */
 
@@ -2204,6 +2300,18 @@ EXPORT bool obs_source_get_capture_valid(const obs_source_t *source,
 EXPORT void obs_source_set_capture_valid(obs_source_t *source, bool valid,
 					 enum obs_source_error error);
 
+//PRISM/WangShaohui/20200707/#3254/notify source event
+EXPORT void obs_source_send_notify(obs_source_t *source,
+				   enum obs_source_exception_type type,
+				   int sub_code);
+
+////PRISM/WangChuanjing/20200429/#2516/for beauty
+/*signal image state to UI, source valid not equal to getting image success*/
+/*when get image successfully, image_get_success=true, otherwise, false*/
+EXPORT void obs_source_set_image_status(obs_source_t *source,
+					bool image_get_success);
+EXPORT bool obs_source_get_image_status(obs_source_t *source);
+
 //PRISM/LiuHaibin/20200117/#214/for outro
 /**
  * activate outro
@@ -2268,6 +2376,25 @@ EXPORT bool obs_thumbnail_retrieve(void **data, uint32_t *width,
 
 /** free thumbnail data when thumbnail is retrieved */
 EXPORT void obs_thumbnail_free();
+
+//PRISM/WangShaohui/20200424/NoIssue/for reading texture
+// source: input param
+// map_params: input param
+// map_info: output param
+EXPORT bool obs_source_map_texture(obs_source_t *source,
+				   struct texture_map_param *map_params,
+				   struct texture_map_info *map_info);
+
+//PRISM/WangShaohui/20200424/NoIssue/for reading texture
+// map_info: input param
+EXPORT void obs_source_unmap_texture(struct texture_map_info *map_info);
+
+//PRISM/WangChuanjing/20200825/#3423/for main view load delay
+EXPORT void obs_set_system_initialized(bool initialized);
+EXPORT bool obs_get_system_initialized();
+
+//PRISM/Liu.Haibin/20201109/#None/get current dbr bitrate
+EXPORT long obs_output_get_dbr_bitrate(obs_output_t *output);
 
 //End
 /* ------------------------------------------------------------------------- */

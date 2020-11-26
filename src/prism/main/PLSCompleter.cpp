@@ -9,67 +9,11 @@
 
 const int ItemHeight = 40;
 
-float getDevicePixelRatio(QWidget *widget);
-
-namespace {
-PLSCompleter *g_activeCompleter = nullptr;
-
-class HookNativeEvent {
-public:
-	HookNativeEvent() { m_mouseHook = SetWindowsHookExW(WH_MOUSE, &mouseHookProc, GetModuleHandleW(nullptr), GetCurrentThreadId()); }
-	~HookNativeEvent()
-	{
-		if (m_mouseHook) {
-			UnhookWindowsHookEx(m_mouseHook);
-			m_mouseHook = nullptr;
-		}
-	}
-
-protected:
-	static LRESULT CALLBACK mouseHookProc(_In_ int code, _In_ WPARAM wParam, _In_ LPARAM lParam)
-	{
-		if ((code < 0) || !g_activeCompleter) {
-			return CallNextHookEx(nullptr, code, wParam, lParam);
-		}
-
-		if ((wParam == WM_LBUTTONDOWN) || (wParam == WM_LBUTTONUP) || (wParam == WM_LBUTTONDBLCLK) || (wParam == WM_RBUTTONDOWN) || (wParam == WM_RBUTTONUP) || (wParam == WM_RBUTTONDBLCLK) ||
-		    (wParam == WM_MBUTTONDOWN) || (wParam == WM_MBUTTONUP) || (wParam == WM_MBUTTONDBLCLK) || (wParam == WM_NCLBUTTONDOWN) || (wParam == WM_NCLBUTTONUP) ||
-		    (wParam == WM_NCLBUTTONDBLCLK) || (wParam == WM_NCRBUTTONDOWN) || (wParam == WM_NCRBUTTONUP) || (wParam == WM_NCRBUTTONDBLCLK) || (wParam == WM_NCMBUTTONDOWN) ||
-		    (wParam == WM_NCMBUTTONUP) || (wParam == WM_NCMBUTTONDBLCLK)) {
-			LPMOUSEHOOKSTRUCT mhs = (LPMOUSEHOOKSTRUCT)lParam;
-			if (!isInCompleter(mhs->pt)) {
-				g_activeCompleter->hide();
-			}
-		}
-
-		return CallNextHookEx(nullptr, code, wParam, lParam);
-	}
-	static bool isInCompleter(const POINT &pt)
-	{
-		RECT rc;
-		GetWindowRect((HWND)g_activeCompleter->winId(), &rc);
-		if (PtInRect(&rc, pt)) {
-			return true;
-		}
-		return false;
-	}
-
-	HHOOK m_keyboardHook;
-	HHOOK m_mouseHook;
-};
-
-void installNativeEventFilter()
+PLSCompleterPopupList::PLSCompleterPopupList(QWidget *toplevel, QLineEdit *lineEdit, const QStringList &completions, PLSDpiHelper dpiHelper)
+	: WidgetDpiAdapter(toplevel, Qt::Popup | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint)
 {
-	static std::unique_ptr<HookNativeEvent> hookNativeEvent;
-	if (!hookNativeEvent) {
-		hookNativeEvent.reset(new HookNativeEvent);
-	}
-}
-}
+	dpiHelper.setCss(this, {PLSCssIndex::QScrollBar, PLSCssIndex::PLSCompleterPopupList});
 
-PLSCompleter::PLSCompleter(QLineEdit *lineEdit, const QStringList &completions) : QFrame(lineEdit, Qt::Tool | Qt::FramelessWindowHint)
-{
-	installNativeEventFilter();
 	setMouseTracking(true);
 
 	this->lineEdit = lineEdit;
@@ -83,6 +27,7 @@ PLSCompleter::PLSCompleter(QLineEdit *lineEdit, const QStringList &completions) 
 	layout1->addWidget(scrollArea);
 
 	QWidget *widget = new QWidget();
+	widget->setObjectName("scrollAreaWidget");
 	this->scrollArea->setWidget(widget);
 
 	QVBoxLayout *layout2 = new QVBoxLayout(widget);
@@ -97,62 +42,51 @@ PLSCompleter::PLSCompleter(QLineEdit *lineEdit, const QStringList &completions) 
 		labels.append(label);
 	}
 
-	connect(qApp, &QApplication::applicationStateChanged, this, &PLSCompleter::hide);
-
-	connect(lineEdit, &QLineEdit::textChanged, this, [this](const QString &text) {
-		if (!this->lineEdit->hasFocus()) {
-			return;
-		}
-
-		int showCount = 0;
-		for (auto &label : labels) {
-			if (label->text().contains(text)) {
-				label->show();
-				++showCount;
-			} else {
-				label->hide();
-			}
-		}
-
-		if (showCount <= 0) {
-			hide();
-			return;
-		}
-
-		float pixelRatio = getDevicePixelRatio(this);
-		setFixedSize(this->lineEdit->width(), (showCount > 5 ? 5 : showCount) * ItemHeight + 5);
-		scrollArea->widget()->adjustSize();
-		ensurePolished();
-		move(this->lineEdit->mapToGlobal(QPoint(0, int(this->lineEdit->height()))));
-		show();
-	});
-
-	connect(this, &PLSCompleter::activated, lineEdit, &QLineEdit::setText);
+	connect(qApp, &QApplication::applicationStateChanged, this, &PLSCompleterPopupList::hide);
+	connect(lineEdit, &QLineEdit::textEdited, this, &PLSCompleterPopupList::showPopup);
 }
 
-PLSCompleter::~PLSCompleter()
+PLSCompleterPopupList::~PLSCompleterPopupList() {}
+
+bool PLSCompleterPopupList::isInCompleter(const QPoint &globalPos)
 {
-	if (g_activeCompleter == this) {
-		g_activeCompleter = nullptr;
+	if (this->geometry().contains(globalPos)) {
+		return true;
 	}
+	if (QRect(lineEdit->mapToGlobal(QPoint(0, 0)), lineEdit->size()).contains(globalPos)) {
+		return true;
+	}
+	return false;
 }
 
-bool PLSCompleter::event(QEvent *event)
+void PLSCompleterPopupList::showPopup(const QString &text)
 {
-	switch (event->type()) {
-	case QEvent::Show:
-		g_activeCompleter = this;
-		break;
-	case QEvent::Hide:
-		if (g_activeCompleter == this) {
-			g_activeCompleter = nullptr;
+	int showCount = 0;
+	for (auto &label : labels) {
+		if (label->text().contains(text)) {
+			label->show();
+			pls_flush_style(label);
+			++showCount;
+		} else {
+			label->hide();
 		}
-		break;
 	}
-	return QFrame::event(event);
+
+	if (showCount <= 0) {
+		hide();
+		return;
+	}
+
+	PLSDpiHelper::Screen *screen = nullptr;
+	double dpi = PLSDpiHelper::getDpi(this->lineEdit, screen);
+	setFixedSize(this->lineEdit->width(), (showCount > 5 ? 5 : showCount) * PLSDpiHelper::calculate(dpi, ItemHeight) + PLSDpiHelper::calculate(dpi, 5));
+	move(this->lineEdit->mapToGlobal(QPoint(0, int(this->lineEdit->height()))));
+	PLSWidgetDpiAdapter *adapter = this;
+	PLSDpiHelper::checkStatusChanged(adapter, screen);
+	show();
 }
 
-bool PLSCompleter::eventFilter(QObject *watched, QEvent *event)
+bool PLSCompleterPopupList::eventFilter(QObject *watched, QEvent *event)
 {
 	switch (event->type()) {
 	case QEvent::Enter:
@@ -173,5 +107,91 @@ bool PLSCompleter::eventFilter(QObject *watched, QEvent *event)
 		}
 		break;
 	}
-	return QFrame::eventFilter(watched, event);
+	return WidgetDpiAdapter::eventFilter(watched, event);
+}
+
+PLSCompleter::PLSCompleter(QWidget *toplevel, QLineEdit *lineEdit_, const QStringList &completions) : QObject(lineEdit_), lineEdit(lineEdit_)
+{
+	popupList = new PLSCompleterPopupList(toplevel, lineEdit, completions);
+	connect(popupList, &PLSCompleterPopupList::activated, this, [=](const QString &text) {
+		if (lineEdit->text() != text) {
+			lineEdit->setText(text);
+			emit activated(text);
+		}
+	});
+
+	auto focusPolicy = lineEdit->focusPolicy();
+	popupList->setFocusPolicy(Qt::NoFocus);
+	popupList->setFocusProxy(lineEdit);
+	lineEdit->setFocusPolicy(focusPolicy);
+
+	lineEdit->installEventFilter(this);
+	popupList->installEventFilter(this);
+}
+
+PLSCompleter::~PLSCompleter()
+{
+	delete popupList;
+}
+
+#define QLINEEDIT_ATTACHED_KEY "__QLineEdit_attached_PLSCompleter"
+
+PLSCompleter *PLSCompleter::attachLineEdit(QWidget *toplevel, QLineEdit *lineEdit, const QStringList &completions)
+{
+	PLSCompleter *completer = (PLSCompleter *)lineEdit->property(QLINEEDIT_ATTACHED_KEY).value<void *>();
+	if (completer) {
+		return nullptr;
+	}
+
+	completer = new PLSCompleter(toplevel, lineEdit, completions);
+	lineEdit->setProperty(QLINEEDIT_ATTACHED_KEY, QVariant::fromValue<void *>(completer));
+	return completer;
+}
+
+void PLSCompleter::detachLineEdit(QLineEdit *lineEdit)
+{
+	if (PLSCompleter *completer = (PLSCompleter *)lineEdit->property(QLINEEDIT_ATTACHED_KEY).value<void *>(); completer) {
+		delete completer;
+	}
+}
+
+bool PLSCompleter::eventFilter(QObject *watched, QEvent *event)
+{
+	if (eatFocusOut && watched == lineEdit && event->type() == QEvent::FocusOut && popupList->isVisible()) {
+		return true;
+	}
+	if (watched == lineEdit && ((event->type() == QEvent::FocusIn) || (event->type() == QEvent::MouseButtonPress)) && !popupList->isVisible()) {
+		popupList->showPopup(lineEdit->text());
+	}
+
+	if (watched == lineEdit && ((event->type() == QEvent::FocusOut) || (event->type() == QEvent::FocusIn))) {
+		lineEdit->setProperty("focusState", event->type() == QEvent::FocusIn ? "FocusIn" : "FocusOut");
+		pls_flush_style(lineEdit);
+	}
+
+	if (watched != popupList) {
+		return QObject::eventFilter(watched, event);
+	}
+
+	switch (event->type()) {
+	case QEvent::KeyPress: {
+		eatFocusOut = false;
+		(static_cast<QObject *>(lineEdit))->event(event);
+		eatFocusOut = true;
+		return true;
+	}
+	case QEvent::KeyRelease: {
+		eatFocusOut = false;
+		static_cast<QObject *>(lineEdit)->event(event);
+		eatFocusOut = true;
+		return true;
+	}
+	case QEvent::InputMethod:
+	case QEvent::ShortcutOverride:
+		QApplication::sendEvent(lineEdit, event);
+		break;
+	default:
+		return false;
+	}
+	return false;
 }

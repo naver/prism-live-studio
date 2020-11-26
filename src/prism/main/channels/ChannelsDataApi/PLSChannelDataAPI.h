@@ -1,16 +1,20 @@
 #pragma once
 
-#include <QObject>
-#include "PLSChannelPublicAPI.h"
-#include <QStack>
-#include <QSemaphore>
-#include <QMutex>
-#include <QReadWriteLock>
-#include <QReadLocker>
-#include <QWriteLocker>
 #include <QDateTime>
+#include <QMutex>
+#include <QObject>
+#include <QReadLocker>
+#include <QReadWriteLock>
+#include <QSemaphore>
+#include <QStack>
+#include <QTimer>
+#include <QWriteLocker>
+#include "PLSChannelPublicAPI.h"
 
-class NetWorkAPI;
+class QNetworkAccessManager;
+class ChannelDataBaseHandler;
+using PlatformHandlerPtrs = QSharedPointer<ChannelDataBaseHandler>;
+using InfosList = QList<QVariantMap>;
 
 class PLSChannelDataAPI final : public QObject, public PLSChannelPublicAPI {
 	Q_OBJECT
@@ -22,8 +26,15 @@ public:
 
 	static PLSChannelDataAPI *getInstance();
 
-	bool isOnlyRecordStop() { return IsOnlyStopRecording; };
-	void setIsOnlyStopRecord(bool isOnly) { IsOnlyStopRecording = isOnly; };
+	bool isOnlyRecordStop() { return mIsOnlyStopRecording; };
+	void setIsOnlyStopRecord(bool isOnly) { mIsOnlyStopRecording = isOnly; };
+
+	void beginTransactions(const QVariantMap &varMap = QVariantMap());
+	void addTransaction(const QString &key, const QVariant &value);
+	void addTask(const QVariant &function, const QVariant &parameters);
+	int currentTransactionCMDType();
+	int currentTaskQueueCount();
+	void endTransactions();
 
 	QSemaphore &getSourceSemaphore() { return mSemap; }
 	void release();
@@ -39,11 +50,13 @@ public:
 	/*add one channel*/
 	void addChannelInfo(const QVariantMap &Infos, bool notify = true) override;
 
+	//for rollback data when failed
 	void backupInfo(const QString &uuid);
-
 	void recoverInfo(const QString &uuid);
-
 	void clearBackup(const QString &uuid);
+
+	//for hold expired channel and resolve later
+	void recordExpiredInfo(const QVariantMap &info);
 
 	/* check if channel exists */
 	bool isChannelInfoExists(const QString &);
@@ -63,8 +76,10 @@ public:
 
 	/*get current selected channels number*/
 	int currentSelectedCount();
-
+	//get current selected channel which can broadcast
 	int currentSelectedValidCount();
+
+	const ChannelsMap getCurrentSelectedPlatformChannels(const QString &platform, int Type = 0);
 
 	/*get the channel of given name */
 	const QVariantMap getChannelInfo(const QString &channelUUID);
@@ -74,25 +89,37 @@ public:
 
 	QVariantMap &getChanelInfoRefByPlatformName(const QString &channelName, int type = 0);
 
+	InfosList getChanelInfosByPlatformName(const QString &channelName, int type = 0);
+
+	bool isChannelSelectedDisplay(const QString &uuid);
+
+	//to check if the platform is enbaled
+	bool isPlatformEnabled(const QString &platformName);
+	void updatePlatformsStates();
+
+	void updateRtmpGpopInfos();
+
 	/*to check the status of channel */
 	int getChannelStatus(const QString &channelUUID);
 	void setChannelStatus(const QString &uuid, int state);
 
 	/*to get channel user state if enabled */
-	void setChannelUserStatus(const QString &channelUuid, int state);
+	void setChannelUserStatus(const QString &channelUuid, int state, bool notify = true);
 	int getChannelUserStatus(const QString &channelUUID);
 
+	//to set all kind values of channel
 	template<typename ValueType> inline bool setValueOfChannel(const QString &channelUUID, const QString &key, const ValueType &value)
 	{
 		QWriteLocker lokcer(&mInfosLocker);
 		auto ite = mChannelInfos.find(channelUUID);
 		if (ite != mChannelInfos.end()) {
-			(*ite)[key] = value;
+			(*ite)[key] = QVariant::fromValue(value);
 			return true;
 		}
 		return false;
 	}
 
+	//to get all kind values of channel
 	template<typename ValueType> inline auto getValueOfChannel(const QString &channelUUID, const QString &key, const ValueType &defaultValue = ValueType()) -> ValueType
 	{
 		QReadLocker lokcer(&mInfosLocker);
@@ -109,27 +136,26 @@ public:
 	/* get all channels info for reference */
 	ChannelsMap &getAllChannelInfoReference();
 
-	/* delete channel info of name ,the widget will be deleted later */
+	//remove channel routered by platform
+	void tryRemoveChannel(const QString &channelUUID, bool notify = true, bool notifyServer = true);
+	/* delete channel info of name ,the widget will be deleted later  it maybe RTMP */
 	void removeChannelInfo(const QString &channelUUID, bool notify = true, bool notifyServer = true);
+	//delte channel by platform ,it may be channel logined
+	void removeChannelsByPlatformName(const QString &platformName, int type = 0, bool notify = true, bool notifyServer = true);
 
 	/*get the sorted order of channels */
 	QStringList getCurrentSortedChannelsUUID();
 
+	InfosList sortAllChannels();
+
 	/*delete all channels info and widgets will be deleted later */
 	void clearAll();
 
-	void clearAllRTMPs();
-
-	void abortAll();
-
-	/* save channels data*/
-	void saveData();
+	bool isExit() { return mIsExit; }
+	void setExitState(bool isExi = true) { mIsExit = isExi; }
 
 	/* load channels data of uer */
 	void reloadData();
-
-	/*just for  using default data */
-	void createDefaultData();
 
 	//click stop record button to stop record;
 	uint getIsClickToStopRecord() { return m_isClickToStopRecord; };
@@ -148,32 +174,29 @@ public:
 	void setRecordState(int state);
 	int currentReocrdState() const;
 
+	void setRehearsal(bool isRehearsal = true) { mIsRehearsal = isRehearsal; }
+	bool isRehearsaling() { return mIsRehearsal; }
+
 	/*set and get current broadcast */
 	void setBroadcastState(int state);
 	int currentBroadcastState() const;
 
 	void resetInitializeState(bool);
-	bool isInitilized() { return Initilized; }
+	bool isInitilized() { return mInitilized; }
 
-	/*send request of handler */
-	void sendRequest(const QString &channelUUID);
+	bool isResetNeed() { return mIsResetNeed; }
+	void setResetNeed(bool isNeed = false) { mIsResetNeed = isNeed; }
 
 	/*get network*/
-	NetWorkAPI *getNetWorkAPI() { return mNetWorkAPI; }
+	QNetworkAccessManager *getNetWorkAPI() { return mNetWorkAPI; }
 
-	/*to get token of channel*/
-	const QString getTokenOf(const QString &channelUUID);
+	void registerPlatformHandler(ChannelDataBaseHandler *handler);
+	PlatformHandlerPtrs getPlatformHandler(const QString &platformName);
 
-	/* get channel network handler */
-	QVariant getHandler(const QString &channelUUID);
+	bool isPlatformMultiChildren(const QString &platformName);
+	bool isChannelMultiChildren(const QString &uuid);
 
-	/*add channel network handler */
-	void addHandler(QVariant handler);
-	void removeHandler(const QString &uuid);
-
-	void updateRtmpInfos();
-
-	const QStringList &getRTMPsName() { return mPlatforms; }
+	const QStringList &getRTMPsName() { return mRtmpPlatforms; }
 
 	const QMap<QString, QString> &getRTMPInfos() { return mRtmps; }
 
@@ -191,13 +214,16 @@ public slots:
 	void exitApi();
 	void finishAdding(const QString &uuid);
 	void moveToNewThread(QThread *newThread);
+	/* save channels data*/
+	void saveData();
+	void delaySave();
 
 signals:
 
 	void channelAdded(const QString &channelUUID);
 	void channelRemoved(const QString &channelUUID);
 	void channelModified(const QString &channelUUID);
-	void channelExpired(const QString &channelUUID);
+	void channelExpired(const QString &channelUUID, bool toAsk = true);
 	void channelGoToInitialize(const QString &channelUUID);
 
 	/*recording sigs*/
@@ -205,6 +231,7 @@ signals:
 	void toStopRecord();
 	void recordingChanged(int);
 
+	void sigTrySetRecordState(int);
 	void recordReady();
 	void canRecord();
 	void recordStarting();
@@ -217,7 +244,9 @@ signals:
 	/*broadcast sigs*/
 	void toStartBroadcast();
 	void toStopBroadcast();
+	void rehearsalBegin();
 
+	void sigTrySetBroadcastState(int state);
 	void inReady();
 	void broadcastGo(); //
 	void canBroadcast();
@@ -232,8 +261,6 @@ signals:
 
 	void channelActiveChanged(const QString &channelUUID, bool enable);
 
-	void holdOnChannel(const QString &channelUUID, bool hold = true);
-
 	void holdOnChannelArea(bool hold = true);
 
 	void lockerReleased();
@@ -246,7 +273,7 @@ signals:
 
 	void toDoinitialize();
 
-	void currentSelectedChanged();
+	void sigChannelAreaInialized();
 
 	void networkInvalidOcurred();
 
@@ -264,43 +291,57 @@ signals:
 
 	void sigRefreshAllChannels();
 
-	//void sigSendRequest(const QString &uuid);
-
 	void sigRefreshToken(const QString &uuid, bool isForce = false);
 
 	void tokenRefreshed(const QString &uuid, int returnCode);
 
-private slots:
-
-	void handleNetTaskFinished(const QString &taskID);
-
-	void tryToRefreshToken(const QString &uuid, bool isForce);
+	void sigAllChannelRefreshDone();
 
 private:
-	void connectNetwork();
+	void registerEnumsForStream();
+	void connectSignals();
+	void reCheckExpiredChannels();
+
+	//delete function to copy
 	PLSChannelDataAPI(const PLSChannelDataAPI &) = delete;
 	PLSChannelDataAPI &operator=(const PLSChannelDataAPI &) = delete;
 
 private:
 	ChannelsMap mChannelInfos; // all curretn channels info
 	ChannelsMap mBackupInfos;
+	ChannelsMap mExpiredChannels;
 
 	QStack<QVariantMap> mErrorStack;
-	QVariantMap mHandlers;
-	NetWorkAPI *mNetWorkAPI;
-	static PLSChannelDataAPI *mInstance;
+
+	QNetworkAccessManager *mNetWorkAPI;
+	//flags to handle
+
+	bool mIsOnlyStopRecording;          //when record is stopped by click button,the flag is set
 	bool m_isClickToStopRecord = false; //click stop record button to stop record;
-	bool Initilized;
-	bool isRTMPUpdateOk;
-	QSemaphore mSemap;
+	bool mInitilized;                   //to set data is initialized
+	bool mIsExit;                       //when app to be quit ,the flag is set
+	bool mIsResetNeed;                  //when refresh,the flag is set
+	bool mIsRehearsal;                  //when channel is rehearsal,the flag is set
+
+	QSemaphore mSemap; //semaphore for hold task count
 	QReadWriteLock mInfosLocker;
+	QReadWriteLock mFileLocker;
+
 	int mBroadcastState;
 	int mRecordState;
 
+	//update fro gpop
 	QMap<QString, QString> mRtmps;
-	QStringList mPlatforms;
+	QStringList mRtmpPlatforms;
+	QMap<QString, bool> mPlatformStates;
 
-	bool IsOnlyStopRecording;
+	//use for update platform
+	QMap<QString, PlatformHandlerPtrs> mPlatformHandler;
+
+	QTimer *mSaveDelayTimer;
+	QVariantMap mTransactions;
+
+	static PLSChannelDataAPI *mInstance;
 };
 #define PLSCHANNELS_API PLSChannelDataAPI::getInstance()
 

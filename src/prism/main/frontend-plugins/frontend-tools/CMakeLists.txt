@@ -2,6 +2,7 @@ project(frontend-tools)
 
 include_directories("$ENV{OBS_DIR}/deps/obs-scripting")
 include_directories("$ENV{PRISM_BUILD_DIR}/$ENV{MULTI_ARCH}/config")
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 link_directories("$ENV{OBS_BUILD_DIR}/$ENV{MULTI_ARCH}/deps/obs-scripting")
 add_definitions(-D_PRISM_PLUGIN)
 
@@ -15,6 +16,10 @@ set(frontend-tools_HEADERS
 	auto-scene-switcher.hpp
 	output-timer.hpp
 	tool-helpers.hpp
+	../../PLSLabel.hpp
+	../../PLSRegionCapture.h
+	../../PLSPushButton.h
+	../../PLSCommonScrollBar.h
 	../../properties-view.hpp
 	../../properties-view.moc.hpp
 	../../horizontal-scroll-area.hpp
@@ -29,6 +34,10 @@ set(frontend-tools_SOURCES
 	auto-scene-switcher.cpp
 	frontend-tools.c
 	output-timer.cpp
+	../../PLSLabel.cpp
+	../../PLSRegionCapture.cpp
+	../../PLSPushButton.cpp
+	../../PLSCommonScrollBar.cpp
 	../../properties-view.cpp
 	../../horizontal-scroll-area.cpp
 	../../vertical-scroll-area.cpp
@@ -39,8 +48,7 @@ set(frontend-tools_SOURCES
 set(frontend-tools_UI
 	${frontend-tools_UI}
 	forms/auto-scene-switcher.ui
-	forms/output-timer.ui
-	)
+	forms/output-timer.ui)
 
 if(SCRIPTING_ENABLED)
 	set(frontend-tools_HEADERS

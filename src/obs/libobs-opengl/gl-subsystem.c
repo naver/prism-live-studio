@@ -215,7 +215,8 @@ const char *device_preprocessor_name(void)
 	return "_OPENGL";
 }
 
-int device_create(gs_device_t **p_device, uint32_t adapter)
+int device_create(gs_device_t **p_device, uint32_t adapter,
+		  void (*callback)(bool render_working))
 {
 	struct gs_device *device = bzalloc(sizeof(struct gs_device));
 	int errorcode = GS_ERROR_FAIL;
@@ -242,10 +243,14 @@ int device_create(gs_device_t **p_device, uint32_t adapter)
 	const char *glShadingLanguage =
 		(const char *)glGetString(GL_SHADING_LANGUAGE_VERSION);
 
+	//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+	GLint size;
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &size);
+	device->max_texture_size = size;
 	blog(LOG_INFO,
 	     "OpenGL loaded successfully, version %s, shading "
-	     "language %s",
-	     glVersion, glShadingLanguage);
+	     "language %s, max texture size: %llu",
+	     glVersion, glShadingLanguage, size);
 
 	gl_enable(GL_CULL_FACE);
 	gl_gen_vertex_arrays(1, &device->empty_vao);
@@ -260,7 +265,6 @@ int device_create(gs_device_t **p_device, uint32_t adapter)
 		       "features used to maximize capture performance.  "
 		       "The Direct3D 11 renderer is recommended instead.");
 #endif
-
 	*p_device = device;
 	return GS_SUCCESS;
 
@@ -1532,3 +1536,14 @@ bool gs_timer_range_get_data(gs_timer_range_t *range, bool *disjoint,
 	*frequency = 1000000000;
 	return true;
 }
+
+//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+uint64_t device_texture_get_max_size(gs_device_t *device)
+{
+	if (device)
+		return device->max_texture_size;
+	return 0;
+}
+
+//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+void device_rebuild(gs_device_t *device) {}

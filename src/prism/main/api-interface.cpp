@@ -1,6 +1,7 @@
 #include <frontend-internal.hpp>
 #include <util/windows/win-version.h>
 
+#include "PLSNetworkMonitor.h"
 #include "pls-app.hpp"
 #include "qt-wrappers.hpp"
 #include "window-basic-main.hpp"
@@ -12,11 +13,12 @@
 #include <functional>
 #include "window-dock-browser.hpp"
 #include "pls-common-define.hpp"
-#include "pls-notice-handler.hpp"
-#include "notice-view.hpp"
+#include "pls-gpop-data.hpp"
 #include "PLSSceneDataMgr.h"
 #include "window-dock-browser.hpp"
 #include "PLSPlatformApi.h"
+#include "PLSChannelDataAPI.h"
+#include "TextMotionTemplateDataHelper.h"
 
 #include <QDir>
 #include <QFile>
@@ -34,7 +36,7 @@ template<typename T> static T GetPLSRef(QListWidgetItem *item)
 void EnumProfiles(function<bool(const char *, const char *)> &&cb);
 void EnumSceneCollections(function<bool(const char *, const char *)> &&cb);
 
-void restartApp();
+int getActivedChatChannelCount();
 
 extern volatile bool streaming_active;
 extern volatile bool recording_active;
@@ -412,28 +414,90 @@ struct PLSStudioAPI : pls_frontend_callbacks {
 			cb.callback(event, cb.private_data);
 		}
 	}
-	
-	void pls_del_specific_url_cookie(const QString &url) { main->delSpecificUrlCookie(url); }
+
+	bool pls_register_login_info(PLSLoginInfo *login_info)
+	{
+		loginInfos.append(login_info);
+		return true;
+	}
+
+	void pls_unregister_login_info(PLSLoginInfo *login_info) { loginInfos.removeOne(login_info); }
+
+	int pls_get_login_info_count() { return loginInfos.size(); }
+
+	PLSLoginInfo *pls_get_login_info(int index)
+	{
+		if ((index >= 0) && (index < loginInfos.size())) {
+			return loginInfos.at(index);
+		}
+		return nullptr;
+	}
+
+	void del_pannel_cookies(const QString &pannelName) { PLSBasic::delPannelCookies(pannelName); }
+
+	void pls_del_specific_url_cookie(const QString &url, const QString &cookieName) { main->delSpecificUrlCookie(url, cookieName); }
+
+	QJsonObject pls_ssmap_to_json(const QMap<QString, QString> &ssmap)
+	{
+		QJsonObject result;
+		for (auto iter = ssmap.begin(), endIter = ssmap.end(); iter != endIter; ++iter) {
+			result.insert(iter.key(), iter.value());
+		}
+		return result;
+	}
 
 	bool pls_browser_view(QJsonObject &result, const QUrl &url, pls_result_checking_callback_t callback, QWidget *parent)
 	{
-		PLSBrowserView bv(result, url, callback, parent);
+		PLSBrowserView bv(&result, url, callback, parent);
 		bv.update();
 		return bv.exec() == QDialog::Accepted;
 	}
 
-	bool pls_browser_view(QJsonObject &result, const QUrl &url, const std::map<std::string, std::string> &headers, pls_result_checking_callback_t callback, QWidget *parent)
+	bool pls_browser_view(QJsonObject &result, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelName, pls_result_checking_callback_t callback,
+			      QWidget *parent)
 	{
-		PLSBrowserView bv(result, url, headers, callback, parent);
-		return bv.exec() == QDialog::Accepted;
+		PLSBrowserView bv(&result, url, headers, pannelName, callback, parent);
+		// 2020.08.03 cheng.bing
+		//disable hotkey,able hotkey
+
+		App()->DisableHotkeys();
+		bool isOk = (bv.exec() == QDialog::Accepted);
+		App()->UpdateHotkeyFocusSetting();
+		return isOk;
 	}
-	
+
+	bool pls_rtmp_view(QJsonObject &result, PLSLoginInfo *login_info, QWidget *parent)
+	{
+		/*PLSRtmpChannelView rclv(login_info, result, parent);
+		return rclv.exec() == QDialog::Accepted;*/
+		return false;
+	}
+
+	bool pls_channel_login(QJsonObject &result, QWidget *parent) { return false; }
+	bool pls_sns_user_info(QJsonObject &result, const QList<QNetworkCookie> &cookies, const QString &urlStr) { return false; }
 	bool pls_network_environment_reachable()
 	{
 		NetworkEnvironment environment;
 		return environment.getNetWorkEnvironment();
 	}
-	
+
+	bool pls_prism_token_is_vaild(const QString &urlStr) { return false; }
+	void pls_prism_change_over_login_view() { return; }
+	void pls_prism_logout() { return; }
+	QString pls_prism_user_thumbnail_path() { return QString(); }
+	Common pls_get_common() { return PLSGpopData::instance()->getCommon(); }
+	VliveNotice pls_get_vlive_notice() { return PLSGpopData::instance()->getVliveNotice(); }
+	QMap<QString, SnsCallbackUrl> pls_get_snscallback_urls() { return QMap<QString, SnsCallbackUrl>(); }
+	Connection pls_get_connection() { return PLSGpopData::instance()->getConnection(); }
+	QMap<int, RtmpDestination> pls_get_rtmpDestination() { return PLSGpopData::instance()->getRtmpDestination(); };
+
+	QString pls_get_gcc_data() { return QString(); }
+	QString pls_get_prism_token() { return QString(); }
+	QString pls_get_prism_email() { return QString(); }
+	QString pls_get_prism_thmbanilurl() { return QString(); }
+	QString pls_get_prism_nickname() { return QString(); }
+	QString pls_get_prism_usercode() { return QString(); }
+
 	QWidget *pls_get_main_view() { return main->getMainView(); }
 	QWidget *pls_get_toplevel_view(QWidget *widget)
 	{
@@ -451,6 +515,7 @@ struct PLSStudioAPI : pls_frontend_callbacks {
 		return main->getMainView();
 	}
 
+	QByteArray pls_get_prism_cookie() { return QByteArray(); }
 
 	void pls_frontend_add_event_callback(pls_frontend_event_cb callback, void *context) { eventCallbacks.append(make_tuple(QList<pls_frontend_event>{}, callback, context)); }
 	void pls_frontend_add_event_callback(pls_frontend_event event, pls_frontend_event_cb callback, void *context)
@@ -480,6 +545,10 @@ struct PLSStudioAPI : pls_frontend_callbacks {
 	{
 		QMetaObject::invokeMethod(main, "toastMessage", Q_ARG(pls_toast_info_type, type), Q_ARG(QString, message), Q_ARG(int, auto_close));
 	}
+	void pls_toast_message(pls_toast_info_type type, const QString &message, const QString &url, const QString &replaceStr, int auto_close)
+	{
+		QMetaObject::invokeMethod(main, "toastMessage", Q_ARG(pls_toast_info_type, type), Q_ARG(QString, message), Q_ARG(QString, url), Q_ARG(QString, replaceStr), Q_ARG(int, auto_close));
+	}
 	void pls_toast_clear() { QMetaObject::invokeMethod(main, "toastClear"); }
 
 	void pls_set_main_view_side_bar_user_button_icon(const QIcon &icon) { main->getMainView()->setUserButtonIcon(icon); }
@@ -505,13 +574,10 @@ struct PLSStudioAPI : pls_frontend_callbacks {
 		chat->setWindowTitle(objectName);
 		chat->setAllowedAreas(Qt::AllDockWidgetAreas);
 
-		QCefWidget *browser = cef->create_widget(nullptr, url, panel_cookies);
+		QCefWidget *browser = cef->create_widget(nullptr, url, startup_script, panel_cookies);
 		chat->SetWidget(browser);
 		if (!white_popup_url.empty()) {
 			cef->add_force_popup_url(white_popup_url, chat.data());
-		}
-		if (!startup_script.empty()) {
-			browser->setStartupScript(startup_script);
 		}
 
 		main->addDockWidget(Qt::RightDockWidgetArea, chat.data());
@@ -531,13 +597,26 @@ struct PLSStudioAPI : pls_frontend_callbacks {
 	int64_t pls_basic_config_get_int(const char *section, const char *name, int64_t) { return config_get_int(main->Config(), section, name); }
 	uint64_t pls_basic_config_get_uint(const char *section, const char *name, uint64_t) { return config_get_uint(main->Config(), section, name); }
 	bool pls_basic_config_get_bool(const char *section, const char *name, bool) { return config_get_bool(main->Config(), section, name); }
-	double pls_basic_config_get_double(const char *section, const char *name, double) { return config_get_double(main->Config(), section, name); }	
+	double pls_basic_config_get_double(const char *section, const char *name, double) { return config_get_double(main->Config(), section, name); }
 
+	pls_check_update_result_t pls_check_update(QString &gcc, bool &is_force, QString &version, QString &file_url, QString &update_info_url)
+	{ return pls_check_update_result_t::Failed;
+	}
+
+	bool pls_check_lastest_version(QString &update_info_url) { return false; }
+	pls_upload_file_result_t pls_upload_contactus_files(const QString &email, const QString &question, const QList<QFileInfo> files) { return pls_upload_file_result_t::NetworkError; }
+	bool pls_show_update_info_view(bool is_force, const QString &version, const QString &file_url, const QString &update_info_url, bool is_manual, QWidget *parent)
+	{ return false;
+	}
+	bool pls_download_update(QString &local_file_path, const QString &file_url, PLSCancel &cancel, const std::function<void(qint64 download_bytes, qint64 total_bytes)> &progress)
+	{ return false;
+	}
+	bool pls_install_update(const QString &file_path) { return false; }
+
+	QVariantMap pls_get_new_notice_Info() { return QVariantMap(); }
 	QString pls_get_win_os_version()
 	{
-		win_version_info wvi;
-		get_win_ver(&wvi);
-		return QString("Windows %1.%2.%3.%4").arg(wvi.major).arg(wvi.minor).arg(wvi.build).arg(wvi.revis);
+	return QString();
 	}
 
 	bool pls_is_living_or_recording() { return PLS_PLATFORM_API->isGoLiveOrRecording(); }
@@ -549,6 +628,34 @@ struct PLSStudioAPI : pls_frontend_callbacks {
 			main->ui->menuTools->addSeparator();
 		}
 	}
+	void pls_start_broadcast(bool toStart = true)
+	{
+		if (toStart) {
+			PLSCHANNELS_API->toStartBroadcast();
+		} else {
+			PLSCHANNELS_API->toStopBroadcast();
+		}
+	}
+
+	void pls_start_record(bool toStart = true)
+	{
+		if (toStart) {
+			PLSCHANNELS_API->toStartRecord();
+		} else {
+			PLSCHANNELS_API->toStopRecord();
+		}
+	}
+
+	ITextMotionTemplateHelper *pls_get_text_motion_template_helper_instance() override { return new TextMotionTemplateDataHelper(); }
+
+	virtual QString pls_get_curreng_language() override { return QString::fromUtf8(App()->GetLocale()); }
+
+	virtual int pls_get_actived_chat_channel_count() override { return getActivedChatChannelCount(); }
+	virtual int pls_get_prism_live_seq() override { return 0; }
+	virtual bool pls_is_create_souce_in_loading() override { return main->isCreateSouceInLoading; }
+
+	virtual void pls_network_state_monitor(std::function<void(bool)> &&callback) override { QObject::connect(PLSNetworkMonitor::Instance(), &PLSNetworkMonitor::OnNetWorkStateChanged, callback); }
+	virtual bool pls_get_network_state() override { return PLSNetworkMonitor::Instance()->IsInternetAvailable(); }
 };
 
 pls_frontend_callbacks *InitializeAPIInterface(PLSBasic *main)

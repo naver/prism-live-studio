@@ -22,6 +22,7 @@
 
 #include "dialog-view.hpp"
 #include "ui_NameDialog.h"
+#include "PLSDpiHelper.h"
 
 class NameDialog : public PLSDialogView {
 	Q_OBJECT
@@ -38,7 +39,7 @@ protected:
 	virtual bool eventFilter(QObject *watcher, QEvent *event) override;
 
 public:
-	explicit NameDialog(QWidget *parent);
+	explicit NameDialog(QWidget *parent, PLSDpiHelper dpiHelper = PLSDpiHelper());
 
 	static bool AskForName(QWidget *parent, const QString &title, const QString &text, std::string &str, const QString &placeHolder = QString(""), int maxSize = 170);
 };

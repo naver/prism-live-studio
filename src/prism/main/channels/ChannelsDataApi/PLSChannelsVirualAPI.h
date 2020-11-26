@@ -1,10 +1,11 @@
 #pragma once
 #include <QJsonDocument>
-#include <QVariantMap>
 #include <QString>
+#include <QVariantMap>
 class QNetworkReply;
 using ReplyPtrs = QSharedPointer<QNetworkReply>;
 class LoadingFrame;
+using InfosList = QList<QVariantMap>;
 
 /* macro just for develop tip when any function in progress */
 #define API_TIP                                                \
@@ -19,27 +20,51 @@ void showChannelInfo(const QString &uuid);
 /* API for show share view */
 void showShareView(const QString &channelUUID);
 
-void showEndView(bool isRecord);
 int showSummaryView();
 void showChatView(bool isRebackLogin = false, bool isOnlyShow = false, bool isOnlyInit = false);
 
 void addLoginChannel(const QJsonObject &retJson);
 bool updateChannelInfoFromNet(const QString &uuid);
+
+void sortInfosByNickName(InfosList &infos);
+
+bool handleChannelStatus(const QVariantMap &info);
 bool updateChannelTypeFromNet(const QString &uuid);
+bool updateRTMPTypeFromNet(const QString &uuid);
+
+QVariantMap createErrorMap(int errorType);
+void addErrorForType(int errorType);
 
 void refreshChannel(const QString &uuid);
-void resetRTMPState(const QString &uuid);
-void resetChannel(const QString &uuid);
-void resetExpiredChannel(const QString &uuid);
 
-bool isPrismReplyExpired(ReplyPtrs reply, const QByteArray &data);
+void resetChannel(const QString &uuid);
+void resetExpiredChannel(const QString &uuid, bool toAsk = true);
+void reloginChannel(const QString &platformName, bool toAsk = true);
+
+template<typename ReplyType> bool isPrismReplyExpired(ReplyType reply, const QByteArray &data)
+{
+	int netCode = getReplyStatusCode(reply);
+	auto doc = QJsonDocument::fromJson(data);
+	int code = 0;
+	if (!doc.isNull()) {
+		auto obj = doc.object();
+		if (!obj.isEmpty()) {
+			code = obj.value("code").toInt();
+		}
+	}
+	if (netCode == 401 && code == 3000) {
+		return true;
+	}
+	return false;
+}
+
 void reloginPrismExpired();
 
 void resetAllChannels();
 
 void refreshAllChannels();
 
-void gotuYoutube(const QString &uuid);
+void handleEmptyChannel(const QString &uuid);
 
 void addRTMP();
 void editRTMP(const QString &uuid);
@@ -57,19 +82,25 @@ bool startRecordCheck();
 bool toRecord();
 
 bool stopRecordCheck();
-bool stopRecord();
+bool toTryStopRecord();
 
-bool isNowChannel(const QString &uuid);
-bool isNowChannel(const QVariantMap &info);
-bool isEnabledNowExist();
-QString findExistEnabledNow();
+void childExclusive(const QString &channelID);
 
-void nowCheckAndVerify(const QVariantMap &Newinfo);
+bool isExclusiveChannel(const QString &uuid);
+bool isExclusiveChannel(const QVariantMap &info);
+bool isEnabledExclusiveChannelExist();
+
+QString findExistEnabledExclusiveChannel();
+
+void exclusiveChannelCheckAndVerify(const QVariantMap &Newinfo);
 
 void disableAll();
 
 /* API for create and  show Busy view */
 LoadingFrame *createBusyFrame(QWidget *parent = nullptr);
-long getMaxRTMPcount();
 
 void showNetworkErrorAlert();
+
+void showChannelsSetting(int index = 0);
+
+void showChannelsSetting(const QString &platform);

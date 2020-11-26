@@ -279,12 +279,13 @@ static obs_properties_t *obs_qsv_props(void *unused)
 	obs_property_set_modified_callback(list, rate_control_modified);
 
 	obs_property_t *p;
+	//PRISM/LiuHaibin/20200328/#/change default value
 	p = obs_properties_add_int(props, "bitrate", TEXT_TARGET_BITRATE, 50,
-				   10000000, 50);
+				   60000, 50);
 	obs_property_int_set_suffix(p, " Kbps");
-
+	//PRISM/LiuHaibin/20200328/#/change default value
 	p = obs_properties_add_int(props, "max_bitrate", TEXT_MAX_BITRATE, 50,
-				   10000000, 50);
+				   60000, 50);
 	obs_property_int_set_suffix(p, " Kbps");
 
 	obs_properties_add_int(props, "accuracy", TEXT_ACCURACY, 0, 10000, 1);
@@ -474,20 +475,30 @@ static void load_headers(struct obs_qsv *obsqsv)
 
 static bool obs_qsv_update(void *data, obs_data_t *settings)
 {
-	struct obs_qsv *obsqsv = data;
-	bool success = update_settings(obsqsv, settings);
-	int ret;
+	struct obs_qsv *obsqsv = (struct obs_qsv *)data;
+	//PRISM/LiuHaibin/20200805/#3721&#3715/deal with encoder crash
+	if (obsqsv) {
+		bool success = update_settings(obsqsv, settings);
+		int ret;
 
-	if (success) {
-		EnterCriticalSection(&g_QsvCs);
+		if (success) {
+			EnterCriticalSection(&g_QsvCs);
+			//PRISM/LiuHaibin/20200805/#3721&#3715/deal with encoder crash
+			if (!obsqsv->context) {
+				LeaveCriticalSection(&g_QsvCs);
+				warn("encoder already destroyed when obs_qsv_update is called.");
+				return false;
+			}
 
-		ret = qsv_encoder_reconfig(obsqsv->context, &obsqsv->params);
-		if (ret != 0)
-			warn("Failed to reconfigure: %d", ret);
+			ret = qsv_encoder_reconfig(obsqsv->context,
+						   &obsqsv->params);
+			if (ret != 0)
+				warn("Failed to reconfigure: %d", ret);
 
-		LeaveCriticalSection(&g_QsvCs);
+			LeaveCriticalSection(&g_QsvCs);
 
-		return ret == 0;
+			return ret == 0;
+		}
 	}
 
 	return false;

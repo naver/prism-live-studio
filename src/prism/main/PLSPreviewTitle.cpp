@@ -1,6 +1,7 @@
 #include "PLSPreviewTitle.h"
 #include "window-basic-main.hpp"
 #include "pls-common-define.hpp"
+#include "PLSChannelDataAPI.h"
 
 #include <QHBoxLayout>
 
@@ -16,21 +17,13 @@
 #define PREVIEW_TITLE_STATUS_START "true"
 #define PREVIEW_TITLE_STATUS_END "false"
 
+#define PREVIEW_TITLE_TIMERTYPE "timerType"
+
 PLSTimerDisplay::PLSTimerDisplay(TimerType type, QWidget *parent) : QWidget(parent), started(false), timerID(INTERNAL_ERROR), startTime(0)
 {
 	title = new QLabel(this);
 	title->setObjectName(PREVIEW_TITLE_LABEL);
-
-	switch (type) {
-	case PLSTimerDisplay::TimerRecord:
-		title->setText("REC");
-		break;
-
-	case PLSTimerDisplay::TimerLive:
-	default:
-		title->setText("LIVE");
-		break;
-	}
+	SetTimerType(type);
 
 	time = new QLabel(this);
 	time->setText("00:00:00");
@@ -43,6 +36,25 @@ PLSTimerDisplay::PLSTimerDisplay(TimerType type, QWidget *parent) : QWidget(pare
 	layout->addWidget(time);
 
 	OnStatus(false);
+}
+
+void PLSTimerDisplay::SetTimerType(TimerType type)
+{
+	switch (type) {
+	case PLSTimerDisplay::TimerRecord:
+		title->setText("REC");
+		title->setProperty(PREVIEW_TITLE_TIMERTYPE, "TimerRecord");
+		break;
+	case PLSTimerDisplay::TimerRehearsal:
+		title->setText("Rehearsal");
+		title->setProperty(PREVIEW_TITLE_TIMERTYPE, "TimerRehearsal");
+		break;
+	case PLSTimerDisplay::TimerLive:
+	default:
+		title->setText("LIVE");
+		title->setProperty(PREVIEW_TITLE_TIMERTYPE, "TimerLive");
+		break;
+	}
 }
 
 void PLSTimerDisplay::OnStatus(bool isStarted)
@@ -99,9 +111,10 @@ void PLSTimerDisplay::UpdateProperty(bool isStarted)
 }
 
 //-------------------------------------------------------------------
-PLSPreviewTitle::PLSPreviewTitle(QWidget *parent) : QWidget(parent)
+PLSPreviewTitle::PLSPreviewTitle(QWidget *parent, PLSDpiHelper dpiHelper) : QWidget(parent)
 {
-	setFixedHeight(40);
+	dpiHelper.setFixedHeight(this, 40);
+	//setFixedHeight(40);
 
 	//---------------------------------------------------
 	leftContainer = new QWidget(this);
@@ -157,6 +170,7 @@ PLSPreviewTitle::PLSPreviewTitle(QWidget *parent) : QWidget(parent)
 
 void PLSPreviewTitle::OnLiveStatus(bool isStarted)
 {
+	liveUI->SetTimerType(isStarted && PLSCHANNELS_API->isRehearsaling() ? PLSTimerDisplay::TimerRehearsal : PLSTimerDisplay::TimerLive);
 	liveUI->OnStatus(isStarted);
 }
 

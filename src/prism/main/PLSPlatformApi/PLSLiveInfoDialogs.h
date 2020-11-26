@@ -12,10 +12,13 @@
 
 #include "window-basic-main.hpp"
 
-bool isInPreStream();
-void setInPreStream(bool bInPreStream);
+class PLSPlatformNaverTV;
 
 int pls_exec_live_Info(const QVariantMap &info, QWidget *parent = PLSBasic::Get());
 
-int pls_exec_live_Info_twitch(const QString &which, const QVariantMap &info = QVariantMap(), QWidget *parent = PLSBasic::Get());
-int pls_exec_live_Info_youtube(const QString &which, const QVariantMap &info = QVariantMap(), QWidget *parent = PLSBasic::Get());
+int pls_exec_live_Info_twitch(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::Get());
+int pls_exec_live_Info_youtube(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::Get());
+int pls_exec_live_Info_vlive(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::Get());
+int pls_exec_live_Info_band(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::Get());
+int pls_exec_live_Info_afreecatv(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::Get());
+int pls_exec_live_Info_facebook(const QString &which, const QVariantMap &info, QWidget *parent = PLSBasic::Get());

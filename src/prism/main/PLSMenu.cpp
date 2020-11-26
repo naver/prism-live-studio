@@ -22,8 +22,7 @@
 #include "log.h"
 #include "frontend-api.h"
 #include "platform.hpp"
-
-float getDevicePixelRatio(QWidget *widget);
+#include "ChannelCommonFunctions.h"
 
 namespace {
 const unsigned int altBit = 0x20000000;
@@ -147,6 +146,17 @@ protected:
 	}
 	static LRESULT CALLBACK mouseHookProc(_In_ int code, _In_ WPARAM wParam, _In_ LPARAM lParam)
 	{
+#if 0
+		if (wParam == WM_LBUTTONDOWN) {
+			QWidget *widget = QApplication::widgetAt(QCursor::pos());
+			if (widget) {
+				for (QWidget* p = widget; p; p = p->parentWidget()) {
+					qDebug() << p->metaObject()->className() << p->objectName();
+				}
+			}
+		}
+#endif
+
 		if ((code < 0) || g_menuList.isEmpty()) {
 			return CallNextHookEx(nullptr, code, wParam, lParam);
 		}
@@ -196,14 +206,8 @@ protected:
 			return false;
 		}
 
-		QRect rcqt(g_menuButton->mapToGlobal(QPoint(0, 0)), g_menuButton->size());
-		QRect rc(mapToGlobal(g_menuButton, rcqt));
+		QRect rc(g_menuButton->mapToGlobal(QPoint(0, 0)), g_menuButton->size());
 		return rc.contains(pt.x, pt.y);
-	}
-	static QRect mapToGlobal(QWidget *widget, const QRect &rect)
-	{
-		float pixelRatio = getDevicePixelRatio(widget);
-		return QRect(int(rect.x() * pixelRatio), int(rect.y() * pixelRatio), int(rect.width() * pixelRatio), int(rect.height() * pixelRatio));
 	}
 
 	HHOOK m_keyboardHook;
@@ -263,7 +267,8 @@ QRect actionBoundingRect(QAction *action)
 {
 	ActionUserdata *userData = ActionUserdata::getActionUserData(action);
 	if (userData) {
-		return QRect(userData->m_menuItem->mapToGlobal(QPoint(0, 0)), QSize(userData->m_menu->width(), userData->m_menuItem->height()));
+		return QRect(QPoint(userData->m_menu->mapToGlobal(QPoint(0, 0)).x(), userData->m_menuItem->mapToGlobal(QPoint(0, 0)).y()),
+			     QSize(userData->m_menu->width(), userData->m_menuItem->height()));
 	}
 	return QRect(0, 0, 0, 0);
 }
@@ -282,7 +287,7 @@ void popupSubmenu(PLSPopupMenu *menu, QAction *selected)
 		}
 
 		if (action == selected) {
-			userData->m_submenu->popup(actionBoundingRect(selected).topRight(), action);
+			userData->m_submenu->popup(actionBoundingRect(selected).topRight() + QPoint(1, 0), action);
 		} else {
 			userData->m_submenu->hide();
 		}
@@ -475,7 +480,7 @@ bool PLSMenu::event(QEvent *event)
 	return QMenu::event(event);
 }
 
-PLSPopupMenuItem::PLSPopupMenuItem(QAction *action, PLSPopupMenu *menu) : QFrame(menu), m_action(action), m_menu(menu)
+PLSPopupMenuItem::PLSPopupMenuItem(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper) : QFrame(menu), m_action(action), m_menu(menu)
 {
 	setObjectName(action->objectName());
 	setActionUserData(action, false, menu, nullptr, this);
@@ -508,7 +513,7 @@ QString PLSPopupMenuItem::getText(int &shortcutKey, const QFont &font, int width
 	return elidedText;
 }
 
-PLSPopupMenuItemSeparator::PLSPopupMenuItemSeparator(QAction *action, PLSPopupMenu *menu) : PLSPopupMenuItem(action, menu) {}
+PLSPopupMenuItemSeparator::PLSPopupMenuItemSeparator(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper) : PLSPopupMenuItem(action, menu, dpiHelper) {}
 
 PLSPopupMenuItemSeparator::~PLSPopupMenuItemSeparator() {}
 
@@ -517,8 +522,8 @@ PLSPopupMenuItem::Type PLSPopupMenuItemSeparator::type() const
 	return Type::Separator;
 }
 
-PLSPopupMenuItemContent::PLSPopupMenuItemContent(QAction *action, PLSPopupMenu *menu)
-	: PLSPopupMenuItem(action, menu), m_hasIcon(false), m_isLeftIcon(true), m_isElidedTextProcessed(false), m_layout(), m_icon(), m_text(), m_shortcutKey()
+PLSPopupMenuItemContent::PLSPopupMenuItemContent(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper)
+	: PLSPopupMenuItem(action, menu, dpiHelper), m_hasIcon(false), m_isLeftIcon(true), m_isElidedTextProcessed(false), m_layout(), m_icon(), m_text(), m_shortcutKey()
 {
 	m_layout = new QHBoxLayout(this);
 	m_layout->setSpacing(0);
@@ -547,6 +552,11 @@ PLSPopupMenuItemContent::PLSPopupMenuItemContent(QAction *action, PLSPopupMenu *
 
 	connect(menu, &PLSPopupMenu::hovered, this, [this](QAction *action) { pls_flush_style_recursive(this, "selected", m_action == action); });
 	connect(menu, &PLSPopupMenu::triggered, this, [this](QAction *action) { pls_flush_style_recursive(this, "selected", m_action == action); });
+
+	dpiHelper.notifyDpiChanged(this, [=]() {
+		m_isElidedTextProcessed = false;
+		m_text->setText(decodeMenuItemText(m_action->text(), m_shortcutKey));
+	});
 }
 
 PLSPopupMenuItemContent::~PLSPopupMenuItemContent() {}
@@ -638,7 +648,7 @@ void PLSPopupMenuItemContent::mouseReleaseEvent(QMouseEvent *event)
 	PLSPopupMenuItem::mouseReleaseEvent(event);
 }
 
-PLSPopupMenuItemAction::PLSPopupMenuItemAction(QAction *action, PLSPopupMenu *menu) : PLSPopupMenuItemContent(action, menu)
+PLSPopupMenuItemAction::PLSPopupMenuItemAction(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper) : PLSPopupMenuItemContent(action, menu, dpiHelper)
 {
 	m_shortcut = new QLabel(action->shortcut().toString(), this);
 	m_shortcut->setProperty("menuItemRole", "shortcut");
@@ -686,7 +696,7 @@ void PLSPopupMenuItemAction::mouseReleaseEvent(QMouseEvent *event)
 	PLSPopupMenuItemContent::mouseReleaseEvent(event);
 }
 
-PLSPopupMenuItemWidgetAction::PLSPopupMenuItemWidgetAction(QWidgetAction *action, PLSPopupMenu *menu) : PLSPopupMenuItem(action, menu)
+PLSPopupMenuItemWidgetAction::PLSPopupMenuItemWidgetAction(QWidgetAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper) : PLSPopupMenuItem(action, menu, dpiHelper)
 {
 	QWidget *widget = action->defaultWidget();
 	widget->setParent(this);
@@ -736,7 +746,7 @@ void PLSPopupMenuItemWidgetAction::mouseReleaseEvent(QMouseEvent *event)
 	PLSPopupMenuItem::mouseReleaseEvent(event);
 }
 
-PLSPopupMenuItemMenu::PLSPopupMenuItemMenu(QAction *action, PLSPopupMenu *menu) : PLSPopupMenuItemContent(action, menu)
+PLSPopupMenuItemMenu::PLSPopupMenuItemMenu(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper) : PLSPopupMenuItemContent(action, menu, dpiHelper)
 {
 	m_arrow = new QLabel(this);
 	m_arrow->setProperty("menuItemRole", "arrow-normal");
@@ -793,17 +803,21 @@ void PLSPopupMenuItemMenu::mouseReleaseEvent(QMouseEvent *event)
 	PLSPopupMenuItemContent::mouseReleaseEvent(event);
 }
 
-PLSPopupMenu::PLSPopupMenu(QWidget *parent) : PLSPopupMenu(false, parent) {}
+PLSPopupMenu::PLSPopupMenu(QWidget *parent, PLSDpiHelper dpiHelper) : PLSPopupMenu(false, parent, dpiHelper) {}
 
-PLSPopupMenu::PLSPopupMenu(bool toolTipsVisible, QWidget *parent) : PLSPopupMenu(QString(), toolTipsVisible, parent) {}
+PLSPopupMenu::PLSPopupMenu(bool toolTipsVisible, QWidget *parent, PLSDpiHelper dpiHelper) : PLSPopupMenu(QString(), toolTipsVisible, parent, dpiHelper) {}
 
-PLSPopupMenu::PLSPopupMenu(const QString &title, bool toolTipsVisible, QWidget *parent) : PLSPopupMenu(QIcon(), title, toolTipsVisible, parent) {}
+PLSPopupMenu::PLSPopupMenu(const QString &title, bool toolTipsVisible, QWidget *parent, PLSDpiHelper dpiHelper) : PLSPopupMenu(QIcon(), title, toolTipsVisible, parent, dpiHelper) {}
 
-PLSPopupMenu::PLSPopupMenu(const QIcon &icon, const QString &title, bool toolTipsVisible, QWidget *parent) : PLSPopupMenu(icon, title, new QAction(icon, title), toolTipsVisible, parent) {}
+PLSPopupMenu::PLSPopupMenu(const QIcon &icon, const QString &title, bool toolTipsVisible, QWidget *parent, PLSDpiHelper dpiHelper)
+	: PLSPopupMenu(icon, title, new QAction(icon, title), toolTipsVisible, parent, dpiHelper)
+{
+}
 
-PLSPopupMenu::PLSPopupMenu(QAction *menuAction, QWidget *parent) : PLSPopupMenu(menuAction, menuAction->menu()->toolTipsVisible(), parent) {}
+PLSPopupMenu::PLSPopupMenu(QAction *menuAction, QWidget *parent, PLSDpiHelper dpiHelper) : PLSPopupMenu(menuAction, menuAction->menu()->toolTipsVisible(), parent, dpiHelper) {}
 
-PLSPopupMenu::PLSPopupMenu(QAction *menuAction, bool toolTipsVisible, QWidget *parent) : PLSPopupMenu(menuAction->icon(), menuAction->text(), menuAction, toolTipsVisible, parent)
+PLSPopupMenu::PLSPopupMenu(QAction *menuAction, bool toolTipsVisible, QWidget *parent, PLSDpiHelper dpiHelper)
+	: PLSPopupMenu(menuAction->icon(), menuAction->text(), menuAction, toolTipsVisible, parent, dpiHelper)
 {
 	QMenu *menu = menuAction->menu();
 	setObjectName(menu->objectName());
@@ -811,27 +825,29 @@ PLSPopupMenu::PLSPopupMenu(QAction *menuAction, bool toolTipsVisible, QWidget *p
 	bindPLSMenu(dynamic_cast<PLSMenu *>(menu));
 }
 
-PLSPopupMenu::PLSPopupMenu(QMenu *menu, QWidget *parent) : PLSPopupMenu(menu, menu->toolTipsVisible(), parent) {}
+PLSPopupMenu::PLSPopupMenu(QMenu *menu, QWidget *parent, PLSDpiHelper dpiHelper) : PLSPopupMenu(menu, menu->toolTipsVisible(), parent, dpiHelper) {}
 
-PLSPopupMenu::PLSPopupMenu(QMenu *menu, bool toolTipsVisible, QWidget *parent) : PLSPopupMenu(menu->icon(), menu->title(), toolTipsVisible, parent)
+PLSPopupMenu::PLSPopupMenu(QMenu *menu, bool toolTipsVisible, QWidget *parent, PLSDpiHelper dpiHelper) : PLSPopupMenu(menu->icon(), menu->title(), toolTipsVisible, parent, dpiHelper)
 {
 	setObjectName(menu->objectName());
 	addActions(menu->actions());
 	bindPLSMenu(dynamic_cast<PLSMenu *>(menu));
 }
 
-PLSPopupMenu::PLSPopupMenu(PLSMenu *menu, QWidget *parent) : PLSPopupMenu(menu, menu->toolTipsVisible(), parent) {}
+PLSPopupMenu::PLSPopupMenu(PLSMenu *menu, QWidget *parent, PLSDpiHelper dpiHelper) : PLSPopupMenu(menu, menu->toolTipsVisible(), parent, dpiHelper) {}
 
-PLSPopupMenu::PLSPopupMenu(PLSMenu *menu, bool toolTipsVisible, QWidget *parent) : PLSPopupMenu(menu->icon(), menu->title(), toolTipsVisible, parent)
+PLSPopupMenu::PLSPopupMenu(PLSMenu *menu, bool toolTipsVisible, QWidget *parent, PLSDpiHelper dpiHelper) : PLSPopupMenu(menu->icon(), menu->title(), toolTipsVisible, parent, dpiHelper)
 {
 	setObjectName(menu->objectName());
 	addActions(menu->actions());
 	bindPLSMenu(menu);
 }
 
-PLSPopupMenu::PLSPopupMenu(const QIcon &icon, const QString &title, QAction *menuAction, bool toolTipsVisible, QWidget *parent)
-	: QFrame(parent, Qt::Tool | Qt::FramelessWindowHint), m_owner(), m_menuAction(menuAction), m_selectedAction(), m_layout(), m_toolTipsVisible(toolTipsVisible)
+PLSPopupMenu::PLSPopupMenu(const QIcon &icon, const QString &title, QAction *menuAction, bool toolTipsVisible, QWidget *parent, PLSDpiHelper dpiHelper)
+	: WidgetDpiAdapter(parent, Qt::Tool | Qt::FramelessWindowHint), m_owner(), m_menuAction(menuAction), m_selectedAction(), m_layout(), m_toolTipsVisible(toolTipsVisible)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::PLSPopupMenu});
+
 	setActionUserData(m_menuAction, true, nullptr, this, nullptr);
 	setMouseTracking(true);
 	m_layout = new QVBoxLayout(this);
@@ -993,6 +1009,7 @@ void PLSPopupMenu::setMarginLeft(int left)
 	int _left = 0, top = 0, right = 0, bottom = 0;
 	m_layout->getContentsMargins(&_left, &top, &right, &bottom);
 	m_layout->setContentsMargins(left, top, right, bottom);
+	PLSDpiHelper::setDynamicContentsMargins(m_layout, true);
 }
 
 int PLSPopupMenu::getMarginTop() const
@@ -1007,6 +1024,7 @@ void PLSPopupMenu::setMarginTop(int top)
 	int left = 0, _top = 0, right = 0, bottom = 0;
 	m_layout->getContentsMargins(&left, &_top, &right, &bottom);
 	m_layout->setContentsMargins(left, top, right, bottom);
+	PLSDpiHelper::setDynamicContentsMargins(m_layout, true);
 }
 
 int PLSPopupMenu::getMarginRight() const
@@ -1021,6 +1039,7 @@ void PLSPopupMenu::setMarginRight(int right)
 	int left = 0, top = 0, _right = 0, bottom = 0;
 	m_layout->getContentsMargins(&left, &top, &_right, &bottom);
 	m_layout->setContentsMargins(left, top, right, bottom);
+	PLSDpiHelper::setDynamicContentsMargins(m_layout, true);
 }
 
 int PLSPopupMenu::getMarginBottom() const
@@ -1035,6 +1054,7 @@ void PLSPopupMenu::setMarginBottom(int bottom)
 	int left = 0, top = 0, right = 0, _bottom = 0;
 	m_layout->getContentsMargins(&left, &top, &right, &_bottom);
 	m_layout->setContentsMargins(left, top, right, bottom);
+	PLSDpiHelper::setDynamicContentsMargins(m_layout, true);
 }
 
 void PLSPopupMenu::asButtonPopupMenu(QPushButton *button, const QPoint &offset)
@@ -1042,6 +1062,7 @@ void PLSPopupMenu::asButtonPopupMenu(QPushButton *button, const QPoint &offset)
 	connect(button, &QPushButton::clicked, this, [button, offset, this]() {
 		if (!isVisible()) {
 			g_menuButton = button;
+			onHideAllPopupMenu();
 			exec(button, offset);
 		} else {
 			g_menuButton = nullptr;
@@ -1068,11 +1089,11 @@ static PLSPopupMenu *getIntersectsMenu(PLSPopupMenu *menu, const QRect &menuRect
 
 static QPoint calcPopupPos(PLSPopupMenu *menu, const QPoint &pos, QAction *action)
 {
-	extern QRect getScreenAvailableVirtualRect(const QPoint &pt);
+	extern QRect getScreenAvailableRect(const QPoint &pt);
 
 	menu->adjustSize();
 
-	QRect savr = getScreenAvailableVirtualRect(pos);
+	QRect savr = getScreenAvailableRect(pos);
 	QSize size = menu->size();
 
 	QPoint newPos(pos);
@@ -1327,13 +1348,13 @@ bool PLSPopupMenu::event(QEvent *event)
 	}
 	}
 
-	return QFrame::event(event);
+	return WidgetDpiAdapter::event(event);
 }
 
 void PLSPopupMenu::showEvent(QShowEvent *event)
 {
 	emit shown();
-	QFrame::showEvent(event);
+	WidgetDpiAdapter::showEvent(event);
 }
 
 void PLSPopupMenu::hideEvent(QHideEvent *event)
@@ -1349,15 +1370,24 @@ void PLSPopupMenu::hideEvent(QHideEvent *event)
 	// hide all submenus when menu hide
 	hideSubmenu(this);
 
-	QFrame::hideEvent(event);
+	WidgetDpiAdapter::hideEvent(event);
 	emit hidden();
 }
 
-bool PLSPopupMenu::nativeEvent(const QByteArray &eventType, void *message, long *result)
+bool PLSPopupMenu::needQtProcessDpiChangedEvent() const
 {
-	bool retval = QFrame::nativeEvent(eventType, message, result);
+	return false;
+}
+
+bool PLSPopupMenu::needProcessScreenChangedEvent() const
+{
+	return false;
+}
+
+void PLSPopupMenu::onDpiChanged(double dpi, double oldDpi, bool firstShow)
+{
+	WidgetDpiAdapter::onDpiChanged(dpi, oldDpi, firstShow);
 	adjustSize();
-	return retval;
 }
 
 #include "PLSMenu.moc"

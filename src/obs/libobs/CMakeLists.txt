@@ -249,11 +249,13 @@ set(libobs_config_HEADERS
 set(libobs_pls_SOURCES
 	pls/outro.c
 	pls/watermark.c
-	pls/thumbnail.c)
+	pls/thumbnail.c
+	pls/media-info.c)
 set(libobs_pls_HEADERS
 	pls/outro.h
 	pls/watermark.h
-	pls/thumbnail.h)
+	pls/thumbnail.h
+	pls/media-info.h)
 
 set(libobs_callback_SOURCES
 	callback/calldata.c
@@ -357,6 +359,7 @@ set(libobs_util_HEADERS
 	util/vc/vc_stdint.h
 	util/bmem.h
 	util/c99defs.h
+	util/util_uint64.h
 	util/util_uint128.h
 	util/cf-parser.h
 	util/threading.h

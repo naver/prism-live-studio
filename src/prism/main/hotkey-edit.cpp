@@ -247,6 +247,13 @@ void PLSHotkeyWidget::Save(std::vector<obs_key_combination_t> &combinations)
 	obs_hotkey_update_atomic([](void *d) { (*static_cast<AtomicUpdate_t>(d))(); }, static_cast<void *>(&AtomicUpdate));
 }
 
+void PLSHotkeyWidget::Clear()
+{
+	for (auto &edit : edits) {
+		edit->ClearKey();
+	}
+}
+
 void PLSHotkeyWidget::AddEdit(obs_key_combination combo, int idx)
 {
 	auto edit = new PLSHotkeyEdit(combo);

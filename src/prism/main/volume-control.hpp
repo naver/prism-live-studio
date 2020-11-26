@@ -8,6 +8,7 @@
 #include <QMutex>
 #include <QList>
 #include "frontend-api.h"
+#include "PLSDpiHelper.h"
 
 class QToolButton;
 class VolumeMeterTimer;
@@ -52,7 +53,7 @@ private:
 	QSharedPointer<VolumeMeterTimer> updateTimerRef;
 
 	inline void resetLevels();
-	inline void handleChannelCofigurationChange();
+	inline void handleChannelCofigurationChange(double dpi, bool dpiChanged = false);
 	inline bool detectIdle(uint64_t ts);
 	inline void calculateBallistics(uint64_t ts, qreal timeSinceLastRedraw = 0.0);
 	inline void calculateBallisticsForChannel(int channelNr, uint64_t ts, qreal timeSinceLastRedraw);
@@ -200,11 +201,13 @@ private:
 
 	void monitorStateChangeFromAdv(Qt::CheckState state);
 
+public slots:
+	void SetMuted(bool checked);
+
 private slots:
 	void VolumeChanged();
 	void VolumeMuted(bool muted);
 
-	void SetMuted(bool checked);
 	void SliderChanged(int vol);
 	void updateText();
 	void monitorCheckChange(int index);
@@ -213,7 +216,7 @@ signals:
 	void ConfigClicked();
 
 public:
-	explicit VolControl(OBSSource source, bool showConfig = false, bool vertical = false);
+	explicit VolControl(OBSSource source, bool showConfig = false, bool vertical = false, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~VolControl();
 
 	inline obs_source_t *GetSource() const { return source; }

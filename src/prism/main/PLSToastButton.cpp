@@ -1,16 +1,33 @@
 #include "PLSToastButton.hpp"
 #include "ui_PLSToastButton.h"
 #include "login-common-helper.hpp"
-
+#include <qdebug.h>
 #include <QPainter>
+#include <QStyleOption>
+#include "PLSDpiHelper.h"
+
 #define RADIU 10
 #define OFFSET_X 14
 #define OFFSET_Y 6
 #define MAXNUM 9
-PLSToastButton::PLSToastButton(QWidget *parent) : QPushButton(parent), ui(new Ui::PLSToastButton), m_num(0)
+PLSToastButton::PLSToastButton(QWidget *parent) : QWidget(parent), ui(new Ui::PLSToastButton), m_num(0)
 {
 	ui->setupUi(this);
+	this->installEventFilter(this);
+	connect(ui->pushButton, &QPushButton::clicked, this, &PLSToastButton::clickButton);
+	m_numLabel = new QLabel(this);
+	m_numLabel->setObjectName("alertNumLabel");
+	m_numLabel->setAlignment(Qt::AlignCenter);
+	m_numLabel->setProperty("maxNum", false);
+	LoginCommonHelpers::refreshStyle(m_numLabel);
+	m_numLabel->raise();
+	ui->pushButton->lower();
+	m_numLabel->hide();
+
 	//updateIconStyle(m_num);
+	PLSDpiHelper dpiHelper;
+	setNumLabelPositon(dpiHelper.getDpi(this));
+	dpiHelper.notifyDpiChanged(this, [=](double dpi) { setNumLabelPositon(dpi); });
 }
 
 PLSToastButton::~PLSToastButton()
@@ -20,6 +37,21 @@ PLSToastButton::~PLSToastButton()
 
 void PLSToastButton::setNum(const int num)
 {
+	qDebug() << "num =" << num;
+	if (num > 0) {
+		m_numLabel->setProperty("maxNum", false);
+		LoginCommonHelpers::refreshStyle(m_numLabel);
+		m_numLabel->setNum(num);
+
+		if (num >= 9) {
+			m_numLabel->setProperty("maxNum", true);
+			LoginCommonHelpers::refreshStyle(m_numLabel);
+			m_numLabel->setText("9+");
+		}
+		m_numLabel->show();
+	} else {
+		m_numLabel->hide();
+	}
 	m_num = num;
 	//updateIconStyle(m_num);
 	update();
@@ -39,44 +71,24 @@ QString PLSToastButton::getNumText() const
 	}
 }
 
-void PLSToastButton::paintEvent(QPaintEvent *event)
+void PLSToastButton::setNumLabelPositon(const double dpi)
 {
-	QPushButton::paintEvent(event);
-	QPainter p(this);
-	QPen pen;
-	QRectF textRec;
-
-	pen.setWidthF(0.5);
-	pen.setColor("#c34151");
-	p.setBrush(QBrush("#c34151"));
-	p.setPen(pen);
-	p.setRenderHint(QPainter::Antialiasing);
-	QPoint f = this->rect().center();
-	if (m_num > MAXNUM) {
-		//4 is rect length
-		p.drawEllipse(QPointF(f.rx() + OFFSET_X - 1, f.ry() - OFFSET_Y), RADIU, RADIU);
-		p.drawRect(QRectF(QPointF(f.rx() + OFFSET_X - 1, f.ry() - OFFSET_Y - RADIU / 2), QSize(4, RADIU)));
-		p.drawEllipse(QPointF(f.rx() + OFFSET_X + 3 - 1, f.ry() - OFFSET_Y), RADIU, RADIU);
-
-	} else if (m_num > 0 && m_num <= MAXNUM) {
-		p.drawEllipse(QPointF(f.rx() + OFFSET_X, f.ry() - OFFSET_Y), RADIU, RADIU);
-	}
-
-	pen.setColor(Qt::white);
-	p.setPen(pen);
-
-	if (m_num > MAXNUM) {
-		textRec = QRectF(f.rx() + OFFSET_X + 2 - RADIU, f.ry() - OFFSET_Y - RADIU - 2, RADIU * 2, RADIU * 2);
-		p.drawText(textRec, Qt::AlignCenter, getNumText());
-
-	} else if (m_num > 0 && m_num <= MAXNUM) {
-		textRec = QRectF(f.rx() + OFFSET_X - RADIU, f.ry() - OFFSET_Y - RADIU - 2, RADIU * 2, RADIU * 2);
-		p.drawText(textRec, Qt::AlignCenter, getNumText());
-	}
+	QPointF center(this->rect().center());
+	m_numLabel->move(center.x(), center.y() - PLSDpiHelper::calculate(dpi, 18));
 }
 
-void PLSToastButton::updateIconStyle(bool num)
+bool PLSToastButton::eventFilter(QObject *o, QEvent *e)
 {
-	false == num ? setProperty("hasToast", false) : setProperty("hasToast", true);
-	LoginCommonHelpers::refreshStyle(this);
+	QMouseEvent *event = static_cast<QMouseEvent *>(e);
+	if (o == this && event->type() == QMouseEvent::MouseButtonPress && event->button() == Qt::LeftButton) {
+		ui->pushButton->clicked();
+		return true;
+	}
+	return QWidget::eventFilter(o, e);
+}
+
+void PLSToastButton::setShowAlert(bool showAlert)
+{
+	ui->pushButton->setProperty("showAlert", showAlert);
+	LoginCommonHelpers::refreshStyle(ui->pushButton);
 }

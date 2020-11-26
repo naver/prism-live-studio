@@ -17,6 +17,15 @@
 
 #include "obs.h"
 #include "obs-internal.h"
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include "util/util_uint64.h"
+
+//PRISM/LiuHaibin/20200701/#2440/support NOW
+#ifdef WIN32
+#include <Windows.h>
+#else
+#include <time.h>
+#endif
 
 #define encoder_active(encoder) os_atomic_load_bool(&encoder->active)
 #define set_encoder_active(encoder, val) \
@@ -514,6 +523,10 @@ void obs_encoder_shutdown(obs_encoder_t *encoder)
 {
 	pthread_mutex_lock(&encoder->init_mutex);
 	if (encoder->context.data) {
+		if (encoder->info.type == OBS_ENCODER_AUDIO)
+			blog(LOG_INFO,
+			     "[obs-encoder] obs_encoder_shutdown: index %d, param %p",
+			     encoder->mixer_idx, encoder);
 		encoder->info.destroy(encoder->context.data);
 		encoder->context.data = NULL;
 		encoder->paired_encoder = NULL;
@@ -890,6 +903,8 @@ void full_stop(struct obs_encoder *encoder)
 		pthread_mutex_lock(&encoder->outputs_mutex);
 		for (size_t i = 0; i < encoder->outputs.num; i++) {
 			struct obs_output *output = encoder->outputs.array[i];
+			//PRISM/LiuHaibin/20200703/#3195/for force stop
+			output->stopped_internal = true;
 			obs_output_force_stop(output);
 
 			pthread_mutex_lock(&output->interleaved_mutex);
@@ -1065,8 +1080,10 @@ static inline size_t calc_offset_size(struct obs_encoder *encoder,
 				      uint64_t v_start_ts, uint64_t a_start_ts)
 {
 	uint64_t offset = v_start_ts - a_start_ts;
-	offset = (uint64_t)offset * (uint64_t)encoder->samplerate /
-		 1000000000ULL;
+	//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+	//offset = (uint64_t)offset * (uint64_t)encoder->samplerate /
+	//	 1000000000ULL;
+	offset = util_mul_div64(offset, encoder->samplerate, 1000000000ULL);
 	return (size_t)offset * encoder->blocksize;
 }
 
@@ -1113,8 +1130,11 @@ static bool buffer_audio(struct obs_encoder *encoder, struct audio_data *data)
 
 		/* audio starting point still not synced with video starting
 		 * point, so don't start audio */
-		end_ts += (uint64_t)data->frames * 1000000000ULL /
-			  (uint64_t)encoder->samplerate;
+		//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+		//end_ts += (uint64_t)data->frames * 1000000000ULL /
+		//	  (uint64_t)encoder->samplerate;
+		end_ts += util_mul_div64(data->frames, 1000000000ULL,
+					 encoder->samplerate);
 		if (end_ts <= v_start_ts) {
 			success = false;
 			goto fail;
@@ -1252,6 +1272,34 @@ static void receive_audio(void *param, size_t mix_idx, struct audio_data *in)
 
 	if (!encoder->first_received) {
 		encoder->first_raw_ts = audio.timestamp;
+
+		/* ------------------------------------------------------------------------- */
+		//PRISM/LiuHaibin/20200701/#2440/support NOW
+		uint64_t timestamp;
+#ifdef WIN32
+		const int64_t UNIX_TIME_START = 0x019DB1DED53E8000;
+		const int64_t TICKS_PER_MS = 10000;
+
+		FILETIME ft;
+		GetSystemTimeAsFileTime(&ft);
+
+		LARGE_INTEGER li;
+		li.LowPart = ft.dwLowDateTime;
+		li.HighPart = ft.dwHighDateTime;
+
+		// convert FILETIME to UNIX timestamp
+		timestamp = (li.QuadPart - UNIX_TIME_START) / TICKS_PER_MS;
+#else
+		struct timespec ts;
+		clock_gettime(CLOCK_REALTIME, &ts);
+		timestamp = ts.tv_sec * 1000;
+		timestamp += ts.tv_nsec / 1000 / 1000;
+#endif
+		encoder->base_timestamp = timestamp;
+
+		//End
+		/* ------------------------------------------------------------------------- */
+
 		encoder->first_received = true;
 		clear_audio(encoder);
 	}
@@ -1371,7 +1419,8 @@ void obs_encoder_addref(obs_encoder_t *encoder)
 	if (!encoder)
 		return;
 
-	obs_ref_addref(&encoder->control->ref);
+	//PRISM/WangShaohui/20201030/#5529/monitor invalid reference
+	obs_ref_addref(&encoder->control->ref, encoder->info.id, NULL);
 }
 
 void obs_encoder_release(obs_encoder_t *encoder)

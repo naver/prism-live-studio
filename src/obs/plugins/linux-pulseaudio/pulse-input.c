@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <util/platform.h>
 #include <util/bmem.h>
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include <util/util_uint64.h>
 #include <obs-module.h>
 
 #include "pulse-wrapper.h"
@@ -166,7 +168,9 @@ static inline uint64_t samples_to_ns(size_t frames, uint_fast32_t rate)
 
 static inline uint64_t get_sample_time(size_t frames, uint_fast32_t rate)
 {
-	return os_gettime_ns() - samples_to_ns(frames, rate);
+    //PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+	//return os_gettime_ns() - samples_to_ns(frames, rate);
+    return util_mul_div64(frames, NSEC_PER_SEC, rate);
 }
 
 #define STARTUP_TIMEOUT_NS (500 * NSEC_PER_MSEC)

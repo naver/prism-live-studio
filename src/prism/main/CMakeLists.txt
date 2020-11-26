@@ -49,6 +49,7 @@ find_package(Qt5Svg REQUIRED)
 find_package(Qt5Network REQUIRED)
 
 find_package(FFmpeg REQUIRED COMPONENTS avcodec avutil avformat)
+find_package(Qt5 COMPONENTS Multimediawidgets Multimedia REQUIRED)
 
 if(APPLE)
 	find_package(Qt5MacExtras REQUIRED)
@@ -70,6 +71,23 @@ include_directories(SYSTEM "frontend-api")
 include_directories(SYSTEM "$ENV{OBS_DIR}/libobs")
 include_directories(SYSTEM "$ENV{OBS_DIR}/deps/libff")
 include_directories(SYSTEM "$ENV{OBS_DIR}/deps/json11")
+#channels config
+include_directories(
+	.
+	"$ENV{PRISM_DIR}/main"
+	"$ENV{PRISM_DIR}/main/channels/ChannelsDataApi"
+	"$ENV{PRISM_DIR}/main/channels/ShareView"
+	"$ENV{PRISM_DIR}/main/channels/LiveEnd-Summary"
+	"$ENV{PRISM_DIR}/main/channels/Chat"
+	"$ENV{PRISM_DIR}/main/channels/PlatformApi"
+	"$ENV{PRISM_DIR}/main/channels/ChannelsSetting"
+	"$ENV{PRISM_DIR}/main/PLSPlatformApi"
+	"$ENV{PRISM_DIR}/main/PLSPlatformApi/common"
+	"$ENV{PRISM_DIR}/main/themes"
+	"$ENV{PRISM_DIR}/main/PLSPlatformApi/afreecatv"
+	"$ENV{PRISM_DIR}/main/PLSPlatformApi/facebook"
+	"${CMAKE_CURRENT_BINARY_DIR}"
+	)
 if(BROWSER_AVAILABLE_INTERNAL)
 	include_directories(SYSTEM "$ENV{OBS_DIR}/plugins/obs-browser/panel")
 endif()
@@ -159,6 +177,7 @@ endif()
 add_subdirectory(frontend-plugins)
 add_subdirectory(channels)
 add_subdirectory(PLSPlatformApi)
+add_subdirectory(themes)
 if(WIN32)
 #add_subdirectory(win - update / updater)
 endif()
@@ -178,13 +197,9 @@ if(WIN32)
 
 	set(pls_PLATFORM_SOURCES
 		platform-windows.cpp
-		win-update/win-update.cpp
-		win-update/update-view.cpp
 		"${CMAKE_CURRENT_BINARY_DIR}/pls.rc")
-	set(pls_PLATFORM_HEADERS
-		win-update/update-view.hpp)
-	set(pls_PLATFORM_UIS
-		win-update/forms/PLSUpdateView.ui)
+	set(pls_PLATFORM_HEADERS)
+	set(pls_PLATFORM_UIS)
 	set(pls_PLATFORM_LIBRARIES
 		crypt32
 		blake2)
@@ -294,7 +309,6 @@ set(pls_SOURCES
 	window-basic-stats.cpp
 	window-basic-filters.cpp
 	window-basic-settings.cpp
-	window-basic-interaction.cpp
 	window-basic-properties.cpp
 	window-basic-auto-config.cpp
 	window-basic-main-outputs.cpp
@@ -345,19 +359,16 @@ set(pls_SOURCES
 	main-view.cpp
 	spinbox.cpp
 	browser-view.cpp
-	login-common-helper.cpp
-	json-data-handler.cpp
 	network-access-manager.cpp
 	network-environment.cpp
 	loading-event.cpp
-	pls-setting-general-view.cpp
+	json-data-handler.cpp
+	login-common-helper.cpp
+	pls-gpop-data.cpp
 	pls-complex-header-icon.cpp
-	pls-notice-handler.cpp
 	color-circle.cpp
-	notice-view.cpp
 	about-view.cpp
 	custom-help-menu-item.cpp
-	PLSContactView.cpp
 	PLSFileButton.cpp
 	PLSFileItemView.cpp
 	PLSOpenSourceView.cpp
@@ -374,15 +385,45 @@ set(pls_SOURCES
 	PLSHttpApi/PLSNetworkReplyBuilder.cpp
 	PLSHttpApi/PLSHmacNetworkReplyBuilder.cpp
 	PLSMenu.cpp
-	PLSColorFilterWebHandler.cpp
 	PLSLivingMsgView.cpp
 	PLSLivingMsgItem.cpp
 	PLSToastButton.cpp
 	PLSToastMsgPopup.cpp
 	PLSPreviewTitle.cpp
 	PLSSourceTypeList.cpp
+	PLSFilterTypeList.cpp
 	PLSCompleter.cpp
-	PLSAudioMixerScrollBar.cpp
+	PLSCommonScrollBar.cpp
+	unzip.cpp
+	PLSBeautyFilterView.cpp
+	PLSBeautySlider.cpp
+	PLSBeautyFaceItemView.cpp
+	PLSBeautyDataMgr.cpp
+	layout/flowlayout.cpp
+	PLSBackgroundMusicView.cpp
+	window-basic-main-bgm.cpp
+	PLSBgmDataManager.cpp
+	PLSBgmItemView.cpp
+	PLSScrollingLabel.cpp
+	PLSBgmDragView.cpp
+	PLSBgmItemCoverView.cpp
+	PLSLabel.cpp
+	media-slider.cpp
+	PLSMediaController.cpp
+	PLSGipyStickerView.cpp
+	GiphyDownloader.cpp
+	GiphyWebHandler.cpp
+	PLSSearchPopupMenu.cpp
+	PLSPushButton.cpp
+	PLSFloatScrollBarScrollArea.cpp
+	PLSNetworkMonitor.cpp
+	TextMotionTemplateButton.cpp
+	TextMotionTemplateDataHelper.cpp
+	PLSBgmLibraryView.cpp
+	PLSToastMsgFrame.cpp
+	PLSBlockDump.cpp
+	PLSRegionCapture.cpp
+	PLSBgmItemDelegate.cpp
 	)
 
 set(pls_HEADERS
@@ -397,7 +438,6 @@ set(pls_HEADERS
 	window-basic-stats.hpp
 	window-basic-filters.hpp
 	window-basic-settings.hpp
-	window-basic-interaction.hpp
 	window-basic-properties.hpp
 	window-basic-auto-config.hpp
 	window-basic-main-outputs.hpp
@@ -450,21 +490,19 @@ set(pls_HEADERS
 	browser-view.hpp
 	pls-common-define.hpp
 	pls-net-url.hpp
-	login-common-helper.hpp
 	free-network-reply-guard.hpp
 	json-data-handler.hpp
+	login-common-helper.hpp
 	network-access-manager.hpp
 	pls-common-language.hpp
 	network-environment.hpp
 	loading-event.hpp
-	pls-setting-general-view.hpp
+	pls-gpop-data.hpp
+	pls-gpop-data-struct.hpp
 	pls-complex-header-icon.hpp
-	pls-notice-handler.hpp
 	color-circle.hpp
-	notice-view.hpp
 	about-view.hpp
 	custom-help-menu-item.hpp
-	PLSContactView.hpp
 	PLSFileButton.hpp
 	PLSFileItemView.hpp
 	PLSOpenSourceView.h
@@ -481,15 +519,46 @@ set(pls_HEADERS
 	PLSHttpApi/PLSNetworkReplyBuilder.h
 	PLSHttpApi/PLSHmacNetworkReplyBuilder.h
 	PLSMenu.hpp
-	PLSColorFilterWebHandler.h
 	PLSLivingMsgItem.hpp
 	PLSLivingMsgView.hpp
 	PLSToastButton.hpp
 	PLSToastMsgPopup.hpp
 	PLSPreviewTitle.h
 	PLSCompleter.hpp
-	PLSAudioMixerScrollBar.h
+	PLSCommonScrollBar.h
+	unzip.h
+	PLSBeautyFilterView.h
+	PLSBeautySlider.h
+	PLSBeautyFaceItemView.h
+	PLSBeautyDataMgr.h
+	PLSBeautyDefine.h
+	layout/flowlayout.h
+	PLSBackgroundMusicView.h
+	PLSBgmDataManager.h
+	PLSBgmItemView.h
+	PLSScrollingLabel.h
+	PLSBgmDragView.h
+	PLSBgmItemCoverView.h
+	PLSLabel.hpp
+	media-slider.h
+	PLSMediaController.h
+	PLSGipyStickerView.h
+	GiphyDefine.h
+	GiphyDownloader.h
+	GiphyWebHandler.h
+	PLSSearchPopupMenu.h
+	PLSPushButton.h
+	PLSFloatScrollBarScrollArea.h
+	PLSNetworkMonitor.h
+	TextMotionTemplateButton.h
+	TextMotionTemplateDataHelper.h
+	PLSBgmLibraryView.h
+	PLSToastMsgFrame.h
+	PLSBlockDump.h
+	PLSRegionCapture.h
+	PLSBgmItemDelegate.h
 	)
+
 
 set(pls_UI
 	forms/NameDialog.ui
@@ -504,19 +573,14 @@ set(pls_UI
 	forms/PLSBasicFilters.ui
 	forms/PLSBasicSettings.ui
 	forms/PLSBasicSourceSelect.ui
-	forms/PLSBasicInteraction.ui
 	forms/PLSExtraBrowsers.ui
-	forms/PLSUpdate.ui
 	forms/PLSRemux.ui
 	forms/PLSAbout.ui
 	forms/PLSMainView.ui
 	forms/PLSBrowserView.ui
-	forms/PLSSettingGeneralView.ui
 	forms/PLSComplexHeaderIcon.ui
-	forms/PLSNoticeView.ui
 	forms/PLSAboutView.ui
 	forms/PLSCustomHelpMenuItem.ui
-	forms/PLSContactView.ui
 	forms/PLSFileButton.ui
 	forms/PLSFileItemView.ui
 	forms/PLSOpenSourceView.ui
@@ -533,8 +597,20 @@ set(pls_UI
 	forms/PLSLivingMsgItem.ui
 	forms/PLSLivingMsgView.ui
 	forms/PLSToastButton.ui
-	forms/PLSToastMsgPopup.ui)
-
+	forms/PLSToastMsgPopup.ui
+	forms/PLSBeautyFilterView.ui
+	forms/PLSBeautyFaceItemView.ui
+	forms/PLSBackgroundMusicView.ui
+	forms/PLSBgmItemView.ui
+	forms/PLSBgmItemCoverView.ui
+	forms/PLSMediaController.ui
+	forms/PLSBeautyFaceItemView.ui
+	forms/PLSGipyStickerView.ui
+	forms/PLSSearchPopupMenu.ui
+	forms/TextMotionTemplateButton.ui
+        forms/PLSBgmLibraryView.ui
+        forms/PLSBgmLibraryItem.ui
+	)
 
 set(pls_QRC
 	forms/PLSPrismLogin.qrc
@@ -566,6 +642,7 @@ if (MSVC)
 		Qt5::Widgets
 		Qt5::Network
 		Qt5::Svg
+		Qt5::Multimedia
 		frontend-api
 		liblog
 		Version
@@ -575,7 +652,6 @@ if (MSVC)
 		)
     link_obs(PRISMLiveStudio)
     link_jansson(PRISMLiveStudio)
-    link_nelo(PRISMLiveStudio)
     link_hmac(PRISMLiveStudio)
 else()
 	target_link_libraries(PRISMLiveStudio
@@ -603,27 +679,6 @@ if (APPLE)
 	set_target_properties(PRISMLiveStudio PROPERTIES LINK_FLAGS "-pagezero_size 10000 -image_base 100000000")
 endif()
 
-#channels config
-include_directories(
-	.
-	"$ENV{PRISM_DIR}/main"
-	"$ENV{PRISM_DIR}/main/channels/ChannelsDataApi"
-	"$ENV{PRISM_DIR}/main/channels/ShareView"
-	"$ENV{PRISM_DIR}/main/channels/LiveEnd-Summary"
-	"$ENV{PRISM_DIR}/main/channels/Chat"
-	"$ENV{PRISM_DIR}/main/channels/PlatformApi"
-	"$ENV{PRISM_DIR}/main/channels/common"
-	"$ENV{PRISM_DIR}/common/networkmanager-library"
-	"$ENV{PRISM_DIR}/main/PLSPlatformApi"
-	"${CMAKE_CURRENT_BINARY_DIR}"
-	)
-
-target_link_libraries(PRISMLiveStudio
- networkmanager-library)
-
-
-add_dependencies(PRISMLiveStudio
-    networkmanager-library)
 
 #channels config end
 

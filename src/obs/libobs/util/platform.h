@@ -198,6 +198,14 @@ EXPORT uint64_t os_get_proc_virtual_size(void);
 
 //PRISM/WangShaohui/20200305/#281#1086/for check file exist
 EXPORT bool os_is_file_exist(const char *utf_path);
+EXPORT bool os_is_file_exist_ex(const wchar_t *wpath);
+
+//PRISM/WangShaohui/20200619/NoIssue/for debugging texture
+#ifdef WIN32
+EXPORT bool save_as_bitmap_file(char *path, uint8_t *data, int linesize,
+				int width, int height, int per_pixel_byte,
+				bool flip);
+#endif
 
 #ifdef _MSC_VER
 #define strtoll _strtoi64

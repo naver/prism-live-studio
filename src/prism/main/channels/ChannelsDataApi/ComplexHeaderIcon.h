@@ -11,18 +11,30 @@ public:
 	explicit ComplexHeaderIcon(QWidget *parent = nullptr);
 	~ComplexHeaderIcon() override;
 
-	void setPixmap(const QString &pix, bool sharp = true);
-	void setPlatformPixmap(const QString &pix, bool sharp = true);
+	void setPixmap(const QString &pix, const QSize &pixSize, bool sharp = true);
+	void setPlatformPixmap(const QString &pix, const QSize &pixSize, bool sharp = true);
 	void setActive(bool isActive = true);
 	bool isActive() { return mActive; }
+	void setUseContentsRect(bool isUseContentsRect = true);
+	bool isUseContentsRect() { return mUseContentsRect; }
+	void setPadding(int padding);
+	int getPadding() { return mPadding; }
 
 protected:
 	void paintEvent(QPaintEvent *event) override;
 
 private:
+	QString mPixPath;
+	QString mPlatPixPath;
+	QSize mPixSize;
+	QSize mPlatPixSize;
+	bool mPixSharp = true;
+	bool mPlatPixSharp = true;
 	QPixmap mBigPix;
 	QPixmap mSmallPix;
-	bool mActive;
+	bool mActive = false;
+	bool mUseContentsRect = false;
+	int mPadding = 6;
 };
 
 #endif // COMPLEXHEADERICON_H

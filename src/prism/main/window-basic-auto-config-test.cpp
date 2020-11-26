@@ -4,6 +4,8 @@
 
 #include <obs.hpp>
 #include <util/platform.h>
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include <util/util_uint64.h>
 #include <graphics/vec4.h>
 #include <graphics/graphics.h>
 #include <graphics/math-extra.h>
@@ -388,7 +390,9 @@ void AutoConfigTestPage::TestBandwidthThread()
 		uint64_t total_time = os_gettime_ns() - t_start;
 
 		int total_bytes = (int)obs_output_get_total_bytes(output) - start_bytes;
-		uint64_t bitrate = (uint64_t)total_bytes * 8 * 1000000000 / total_time / 1000;
+		//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+		//uint64_t bitrate = (uint64_t)total_bytes * 8 * 1000000000 / total_time / 1000;
+		uint64_t bitrate = util_mul_div64(total_bytes, 8ULL * 1000000000ULL / 1000ULL, total_time);
 
 		if (obs_output_get_frames_dropped(output) || (int)bitrate < (wiz->startingBitrate * 75 / 100)) {
 			server.bitrate = (int)bitrate * 70 / 100;

@@ -9,7 +9,7 @@
 
 #include "PLSNetworkReplyBuilder.h"
 
-enum class HmacType { HT_NONE, HT_PRISM };
+enum class HmacType { HT_NONE, HT_PRISM, HT_VLIVE };
 
 using namespace std;
 

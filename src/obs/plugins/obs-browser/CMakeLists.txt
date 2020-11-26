@@ -92,6 +92,12 @@ if(MSVC)
 endif()
 
 set(obs-browser_SOURCES
+	interaction/interaction_main.cpp
+	interaction/interaction_view.cpp
+	interaction/interaction_button.cpp
+	interaction/interaction_manager.cpp
+	interaction/interaction_image.cpp
+	interaction/osr_ime_handler_win.cc
 	obs-browser-source.cpp
 	obs-browser-source-audio.cpp
 	obs-browser-plugin.cpp
@@ -101,8 +107,17 @@ set(obs-browser_SOURCES
 	deps/json11/json11.cpp
 	deps/base64/base64.cpp
 	deps/wide-string.cpp
+	text-motion-source.cpp
 	)
 set(obs-browser_HEADERS
+	interaction/interaction_util.hpp
+	interaction/interaction_hdc.hpp
+	interaction/interaction_main.h
+	interaction/interaction_view.h
+	interaction/interaction_button.h
+	interaction/interaction_manager.h
+	interaction/interaction_image.h
+	interaction/osr_ime_handler_win.h
 	obs-browser-source.hpp
 	browser-scheme.hpp
 	browser-client.hpp
@@ -112,6 +127,7 @@ set(obs-browser_HEADERS
 	deps/base64/base64.hpp
 	deps/wide-string.hpp
 	cef-headers.hpp
+	text-motion-source.hpp
 	)
 
 # only allow browser panels on win32 for now -- other operating systems

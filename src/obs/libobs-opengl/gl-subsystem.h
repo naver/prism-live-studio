@@ -611,6 +611,9 @@ struct gs_device {
 	DARRAY(struct matrix4) proj_stack;
 
 	struct fbo_info *cur_fbo;
+
+	//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+	uint64_t max_texture_size;
 };
 
 extern struct fbo_info *get_fbo(gs_texture_t *tex, uint32_t width,

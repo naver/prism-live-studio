@@ -1,15 +1,16 @@
 #ifndef PLSLIVEINFOYOUTUBE_H
 #define PLSLIVEINFOYOUTUBE_H
 
-#include "..\PLSLiveInfoBase.h"
 #include <vector>
+#include "..\PLSLiveInfoBase.h"
 
-#include <QMenu>
-#include <QTimer>
 #include <QLabel>
 #include <QListWidgetItem>
-#include "PLSScheduleMenuItem.h"
-#include "PLSScheduleMenu.h"
+#include <QMenu>
+#include <QTimer>
+
+#include "PLSScheduleCombox.h"
+#include "PLSScheduleComboxMenu.h"
 
 using namespace std;
 
@@ -21,7 +22,7 @@ class PLSLiveInfoYoutube : public PLSLiveInfoBase {
 	Q_OBJECT
 
 public:
-	explicit PLSLiveInfoYoutube(PLSPlatformBase *pPlatformBase, QWidget *parent = nullptr);
+	explicit PLSLiveInfoYoutube(PLSPlatformBase *pPlatformBase, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSLiveInfoYoutube();
 
 protected:
@@ -33,7 +34,7 @@ protected:
 private:
 	Ui::PLSLiveInfoYoutube *ui;
 	void setupFirstUI();
-	vector<ComplexItemData> m_vecItemDatas;
+	vector<PLSScheComboxItemData> m_vecItemDatas;
 
 	void refreshUI();
 
@@ -46,6 +47,9 @@ private:
 	* for example, the user input another title
 	*/
 	bool isModified();
+
+	void saveTempNormalDataWhenSwitch();
+
 private slots:
 	void okButtonClicked();
 	void cancelButtonClicked();
@@ -66,6 +70,10 @@ private slots:
 	* 3. if user didn't modify any content, same as 1.
 	*/
 	void doUpdateOkState();
+
+	void refreshRadios();
+	void setKidsRadioButtonClick(bool checked = false);
+	void setNotKidsRadioButtonClick(bool checked = false);
 };
 
 #endif // PLSLIVEINFOYOUTUBE_H

@@ -32,6 +32,11 @@ extern HWND find_window(enum window_search_mode mode,
 			enum window_priority priority, const char *class,
 			const char *title, const char *exe);
 
+extern HWND find_window_top_level(enum window_search_mode mode,
+				  enum window_priority priority,
+				  const char *class, const char *title,
+				  const char *exe);
+
 //PRISM/WangShaohui/20200302/#420/for not found window
 extern bool on_window_changed(obs_properties_t *ppts, obs_property_t *p,
 			      obs_data_t *settings, const char *key,

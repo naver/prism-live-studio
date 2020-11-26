@@ -5,6 +5,8 @@
 #include <QLabel>
 #include <QVBoxLayout>
 
+#include "PLSDpiHelper.h"
+
 #define GREY_COLOR_BACKGROUND 0xFF4C4C4C
 #define OBJECT_MAIN_PREVIEW "mainPreviewDisplay"
 
@@ -19,6 +21,7 @@ class PLSQTDisplay : public QWidget {
 	OBSSource source;
 	bool isResizing = false;
 	bool isDisplayActive = false;
+	bool displayTextAsGuide = false;
 
 	void CreateDisplay();
 	void AdjustResizeUI();
@@ -38,11 +41,12 @@ public slots:
 	void UpdateSourceState(obs_source_t *source);
 	void beginResizeSlot();
 	void endResizeSlot();
+	virtual void visibleSlot(bool visible);
 
 public:
 	static void OnSourceCaptureState(void *data, calldata_t *calldata);
 
-	explicit PLSQTDisplay(QWidget *parent = nullptr, Qt::WindowFlags flags = nullptr);
+	explicit PLSQTDisplay(QWidget *parent = nullptr, Qt::WindowFlags flags = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	virtual ~PLSQTDisplay();
 
 	virtual QPaintEngine *paintEngine() const override;
@@ -56,4 +60,7 @@ public:
 	void UpdateDisplayBackgroundColor();
 
 	void AttachSource(OBSSource src) { source = src; }
+
+	void showGuideText(const QString &guideText);
+	void setDisplayTextVisible(bool visible);
 };

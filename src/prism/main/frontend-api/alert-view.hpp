@@ -43,11 +43,11 @@ public:
 	* @param[in]  sugsize          : the window sugsize
 	*/
 	explicit PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const Buttons &buttons, Button defaultButton = Button::NoButton,
-			      const QSize &sugsize = QSize());
+			      const QSize &sugsize = QSize(), PLSDpiHelper dpiHelper = PLSDpiHelper());
 	explicit PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons,
-			      Button defaultButton = Button::NoButton, const QSize &sugsize = QSize());
+			      Button defaultButton = Button::NoButton, const QSize &sugsize = QSize(), PLSDpiHelper dpiHelper = PLSDpiHelper());
 	explicit PLSAlertView(Icon icon, const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, PLSAlertView::Buttons buttons,
-			      Button defaultButton = Button::NoButton, const QSize &sugsize = QSize());
+			      Button defaultButton = Button::NoButton, const QSize &sugsize = QSize(), PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSAlertView();
 
 public:
@@ -227,7 +227,7 @@ private slots:
 	QString GetNameElideString(const QString &name, QWidget *widget);
 
 protected:
-	void showEvent(QShowEvent *event);
+	void showEvent(QShowEvent *event) override;
 
 private:
 	Ui::PLSAlertView *ui;

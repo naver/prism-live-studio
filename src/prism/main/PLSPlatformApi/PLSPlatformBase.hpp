@@ -24,8 +24,8 @@ using namespace std;
 
 #define MODULE_PlatformService "PlatformService"
 
-#define PLATFORM_SIZE 6
-enum class PLSServiceType { ST_RTMP, ST_TWITCH, ST_YOUTUBE, ST_FACEBOOK, ST_VLIVE, ST_NAVERTV };
+#define PLATFORM_SIZE 8
+enum class PLSServiceType { ST_RTMP, ST_TWITCH, ST_YOUTUBE, ST_FACEBOOK, ST_VLIVE, ST_NAVERTV, ST_BAND, ST_AFREECATV };
 enum class PLSTokenRequestStatus { PLS_GOOD, PLS_ING, PLS_BAD };
 
 extern const char *const NamesForChannelType[PLATFORM_SIZE];
@@ -43,10 +43,16 @@ enum class PLSPlatformApiResult {
 	YOUTUBE_API_ERROR_NO_CHANNEL,
 	YOUTUBE_API_ERROR_REDUNDANT_TRANSITION,
 	YOUTUBE_API_ERROR_INVALID_TRANSITION,
-	YOUTUBE_API_ERROR_LIVE_BROADCAST_NOT_FOUND,
-	TWITCH_API_ERROR_FORBIDDEN,
+	PAR_API_ERROR_LIVE_BROADCAST_NOT_FOUND,
+	PAR__API_ERROR_FORBIDDEN,
+	VLIVE_API_ERROR_NO_PERMISSION,
+	PAR_API_ERROR_Live_Invalid,
+	PAR_API_ERROR_Scheduled_Time,
+	BAND_API_ERROR_NO_PERMISSION,
+	PAR_API_ERROR_Upload_Image,
+	PAR_API_ERROR_StartLive_Other,
+	PAR_API_ERROR_StartLive_User_Blocked
 };
-
 
 class PLSPlatformBase : public QObject {
 	Q_OBJECT
@@ -69,13 +75,15 @@ public:
 	const ChannelData::ChannelDataType getChannelType() const;
 	const QString getChannelName() const;
 	const int getChannelOrder() const;
+	const QString getChannelCookie() const;
 
 	PLSPlatformBase &setInitData(const QVariantMap &value)
 	{
 		m_mapInitData = value;
+		onInitDataChanged();
 		return *this;
 	}
-	const QVariantMap &getInitData() const { return m_mapInitData; }
+	const QVariantMap &getInitData();
 
 	PLSPlatformBase &setActive(bool value)
 	{
@@ -83,6 +91,15 @@ public:
 		return *this;
 	}
 	bool isActive() const { return m_bActive; }
+
+	PLSPlatformBase &setSingleChannel(bool value)
+	{
+		m_bSingleChannel = value;
+		return *this;
+	}
+	bool isSingleChannel() const { return m_bSingleChannel; }
+
+	virtual bool isSendChatToMqtt() const { return false; }
 
 	PLSPlatformBase &setChannelId(const string &value)
 	{
@@ -152,6 +169,8 @@ public:
 	bool isApiPrepared() const { return m_bApiPrepared; };
 
 	bool isApiStarted() const { return m_bApiStarted; };
+	bool getIsSubChannelStartApiCall() const { return m_bSubChannelStartApiCall; };
+	void setIsSubChannelStartApiCall(bool isCalled) { m_bSubChannelStartApiCall = isCalled; };
 
 	PLSPlatformBase &setAlertParent(QWidget *value)
 	{
@@ -247,8 +266,19 @@ public:
 	**/
 	virtual void onLiveEnded() { liveEndedCallback(); }
 
-
 	virtual QString getShareUrl() { return QString(); }
+	virtual QString getServiceLiveLink() { return QString(); }
+
+	virtual QJsonObject getWebChatParams();
+	virtual QJsonObject getMqttChatParams();
+	virtual QJsonObject getLiveStartParams();
+	virtual QJsonObject getLiveEndParams() { return QJsonObject(); }
+	virtual QJsonObject getDirectStartParams() { return QJsonObject(); }
+	virtual QMap<QString, QString> getDirectEndParams() { return {}; }
+
+	virtual void onInitDataChanged() {}
+
+	virtual bool isMqttChatCanShow(const QJsonObject &);
 
 protected:
 	void activateCallback(bool);
@@ -262,13 +292,14 @@ protected:
 
 protected:
 	bool m_bActive = false;
+	bool m_bSingleChannel = false;
 
 	QVariantMap m_mapInitData;
 
 	string m_strChannelId;
 	string m_strUserName;
 	string m_strDisplayName;
-	string m_strTitle = "PRISM Live";
+	string m_strTitle;
 	string m_strCategory;
 	string m_strStreamServer;
 	string m_strStreamKey;
@@ -288,4 +319,6 @@ protected:
 
 	//When live stoped will clear the status;
 	PLSTokenRequestStatus m_tokenRequestStatus;
+
+	bool m_bSubChannelStartApiCall = false;
 };

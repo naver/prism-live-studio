@@ -133,7 +133,15 @@ bool mp_decode_init(mp_media_t *m, enum AVMediaType type, bool hw)
 	ret = av_find_best_stream(m->fmt, type, -1, -1, NULL, 0);
 	if (ret < 0)
 		return false;
+	//PRISM/ZengQin/20200706/#3179/for media controller
+	m->fmt->streams[ret]->discard = AVDISCARD_DEFAULT;
 	stream = d->stream = m->fmt->streams[ret];
+
+	//PRISM/LiuHaibin/20200827/#/mark video stream is only a cover
+	if (!d->audio)
+		d->is_cover = stream->disposition & AV_DISPOSITION_ATTACHED_PIC;
+	else
+		d->is_cover = false;
 
 #if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(57, 40, 101)
 	id = stream->codecpar->codec_id;
@@ -215,7 +223,9 @@ void mp_decode_free(struct mp_decode *d)
 
 	if (d->hw_frame) {
 		av_frame_unref(d->hw_frame);
-		av_free(d->hw_frame);
+		//PRISM/ZengQin/20200811/#3983/for media controller
+		//av_free(d->hw_frame);
+		av_freep(&d->hw_frame);
 	}
 	if (d->decoder) {
 #if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(57, 40, 101)
@@ -226,7 +236,9 @@ void mp_decode_free(struct mp_decode *d)
 	}
 	if (d->sw_frame) {
 		av_frame_unref(d->sw_frame);
-		av_free(d->sw_frame);
+		//PRISM/ZengQin/20200811/#3983/for media controller
+		//av_free(d->sw_frame);
+		av_freep(&d->sw_frame);
 	}
 
 #ifdef USE_NEW_HARDWARE_CODEC_METHOD
@@ -420,6 +432,10 @@ bool mp_decode_next(struct mp_decode *d)
 						(AVRational){1, 100});
 		}
 
+		//PRISM/ZengQin/20200814/#3795/for media controller
+		if (d->m->speed_changing)
+			d->speed_changed = true;
+
 		d->last_duration = duration;
 		d->next_pts = d->frame_pts + duration;
 	}
@@ -434,4 +450,6 @@ void mp_decode_flush(struct mp_decode *d)
 	d->eof = false;
 	d->frame_pts = 0;
 	d->frame_ready = false;
+	//PRISM/LiuHaibin/20200902/#None/for media controller
+	d->next_pts = 0;
 }

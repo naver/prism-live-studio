@@ -83,77 +83,24 @@ class CustomPropertiesView : public PLSPropertiesView {
 	ScriptsTool *m_scripts;
 
 public:
-	explicit CustomPropertiesView(ScriptsTool *scripts, OBSData settings, void *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, int minSize = 0, int maxSize = -1)
-		: PLSPropertiesView(settings, obj, reloadCallback, callback, minSize, maxSize), m_scripts(scripts)
+	explicit CustomPropertiesView(ScriptsTool *scripts, QWidget *parent, OBSData settings, void *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, int minSize = 0,
+				      int maxSize = -1)
+		: PLSPropertiesView(parent, settings, obj, reloadCallback, callback, minSize, maxSize), m_scripts(scripts)
 	{
 		RefreshProperties();
 	}
 
 	void RefreshProperties()
 	{
-		lastPropertyType = OBS_PROPERTY_INVALID;
-		PLSPropertiesView::RefreshProperties();
-		QScrollArea::widget()->setContentsMargins(0, 0, 0, 0);
-		if (obs_property_t *property = obs_properties_first(properties.get()); !property) {
-			dynamic_cast<QFormLayout *>(QScrollArea::widget()->layout())->setHorizontalSpacing(0);
-		}
-	}
-
-	void AddSpacer(const obs_property_type &currentType, QFormLayout *layout)
-	{
-		if (lastPropertyType != OBS_PROPERTY_INVALID) {
-			QLabel *spaceLabel = new QLabel(this);
-			spaceLabel->setObjectName(OBJECT_NAME_SPACELABEL);
-			if (isSamePropertyType(lastPropertyType, currentType)) {
-				spaceLabel->setFixedSize(10, PROPERTIES_VIEW_VERTICAL_SPACING_MIN);
-			} else {
-				spaceLabel->setFixedSize(10, PROPERTIES_VIEW_VERTICAL_SPACING_MAX);
-			}
-			layout->addRow(spaceLabel, spaceLabel);
-		}
-		lastPropertyType = currentType;
-	}
-
-	bool isSamePropertyType(obs_property_type a, obs_property_type b)
-	{
-		switch (a) {
-		case OBS_PROPERTY_BOOL:
-			switch (b) {
-			case OBS_PROPERTY_BOOL:
-				return true;
-			default:
-				return false;
-			}
-			break;
-		case OBS_PROPERTY_INT:
-		case OBS_PROPERTY_FLOAT:
-		case OBS_PROPERTY_TEXT:
-		case OBS_PROPERTY_PATH:
-		case OBS_PROPERTY_LIST:
-		case OBS_PROPERTY_COLOR:
-		case OBS_PROPERTY_BUTTON:
-		case OBS_PROPERTY_FONT:
-		case OBS_PROPERTY_EDITABLE_LIST:
-		case OBS_PROPERTY_FRAME_RATE:
-			switch (b) {
-			case OBS_PROPERTY_INT:
-			case OBS_PROPERTY_FLOAT:
-			case OBS_PROPERTY_TEXT:
-			case OBS_PROPERTY_PATH:
-			case OBS_PROPERTY_LIST:
-			case OBS_PROPERTY_COLOR:
-			case OBS_PROPERTY_BUTTON:
-			case OBS_PROPERTY_FONT:
-			case OBS_PROPERTY_EDITABLE_LIST:
-			case OBS_PROPERTY_FRAME_RATE:
-				return true;
-			default:
-				return false;
-			}
-		default:
-			break;
-		}
-		return true;
+		PLSPropertiesView::RefreshProperties(
+			[=](QWidget *widget) {
+				widget->setContentsMargins(0, 0, 0, 0);
+				PLSDpiHelper::dpiDynamicUpdate(widget, false);
+				if (obs_property_t *property = obs_properties_first(properties.get()); !property) {
+					dynamic_cast<QFormLayout *>(widget->layout())->setHorizontalSpacing(0);
+				}
+			},
+			false);
 	}
 };
 }
@@ -168,12 +115,12 @@ template<typename Current, typename... Others> static void setTabBtnSelected(Cur
 
 template<typename Current, typename... Others> static void setWidgetShow(Current show, Others... hides)
 {
-	show->show();
-
 	QWidget *all[] = {hides...};
 	for (size_t i = 0, count = sizeof...(hides); i < count; ++i) {
 		all[i]->hide();
 	}
+
+	show->show();
 };
 
 static ScriptData *scriptData = nullptr;
@@ -183,8 +130,11 @@ static QPlainTextEdit *scriptLogWidget = nullptr;
 
 /* ----------------------------------------------------------------- */
 
-ScriptLogWindow::ScriptLogWindow() : PLSDialogView(nullptr)
+ScriptLogWindow::ScriptLogWindow(PLSDpiHelper dpiHelper) : PLSDialogView(nullptr, dpiHelper)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::ScriptLogWindow});
+	dpiHelper.setFixedSize(this, {600, 400});
+
 	setResizeEnabled(false);
 	const QFont fixedFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
 
@@ -214,8 +164,6 @@ ScriptLogWindow::ScriptLogWindow() : PLSDialogView(nullptr)
 
 	this->content()->setLayout(layout);
 	scriptLogWidget = edit;
-
-	setFixedSize(600, 400);
 
 	config_t *global_config = obs_frontend_get_global_config();
 	const char *geom = config_get_string(global_config, "ScriptLogWindow", "geometry");
@@ -283,11 +231,12 @@ void ScriptLogWindow::Clear()
 
 /* ----------------------------------------------------------------- */
 
-ScriptsTool::ScriptsTool() : PLSDialogView(nullptr), ui(new Ui_ScriptsTool)
+ScriptsTool::ScriptsTool(PLSDpiHelper dpiHelper) : PLSDialogView(nullptr, dpiHelper), ui(new Ui_ScriptsTool)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::ScriptsTool});
+	dpiHelper.setFixedSize(this, {720, 700});
 	setResizeEnabled(false);
 	ui->setupUi(this->content());
-	setFixedSize(720, 700);
 	QMetaObject::connectSlotsByName(this);
 	RefreshLists();
 	connect(ui->close, &QPushButton::clicked, this, [this]() {
@@ -486,6 +435,7 @@ void ScriptsTool::on_reloadScripts_clicked()
 void ScriptsTool::on_scriptLog_clicked()
 {
 	PLS_PLUGIN_UI_STEP("Scripts > Scrpits > Script Log Button", ACTION_CLICK);
+
 	scriptLogWindow->show();
 	scriptLogWindow->raise();
 }
@@ -549,8 +499,8 @@ void ScriptsTool::on_scripts_currentRowChanged(int row)
 	OBSData settings = obs_script_get_settings(script);
 	obs_data_release(settings);
 
-	propertiesView = new CustomPropertiesView(this, settings, script, (PropertiesReloadCallback)obs_script_get_properties, (PropertiesUpdateCallback)obs_script_update, 128, 128);
-	ui->propertiesLayout->addWidget(propertiesView);
+	propertiesView = new CustomPropertiesView(this, ui->scriptsTab, settings, script, (PropertiesReloadCallback)obs_script_get_properties, (PropertiesUpdateCallback)obs_script_update, 128, 128);
+	ui->propertiesLayout->addWidget(propertiesView, 1);
 	ui->description->setText(obs_script_get_description(script));
 }
 

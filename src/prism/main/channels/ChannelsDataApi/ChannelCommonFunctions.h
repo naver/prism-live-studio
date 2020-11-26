@@ -1,26 +1,68 @@
 #ifndef CHANELCOMMONFUNCTION_H
 #define CHANELCOMMONFUNCTION_H
 
-#include <QMap>
-#include <QString>
-#include <QVariantMap>
+#include <QBitmap>
+#include <QDesktopServices>
+#include <QDir>
+#include <QJsonDocument>
 #include <QListWidget>
 #include <QListWidgetItem>
+#include <QMap>
 #include <QNetworkInterface>
-#include <QJsonDocument>
-#include "ChannelConst.h"
-#include "PLSChannelDataHandler.h"
-#include "ChannelDefines.h"
-#include <QBitmap>
-#include <QPixmap>
 #include <QPainter>
-#include <QDir>
-#include <QDesktopServices>
+#include <QPixmap>
 #include <QPropertyAnimation>
+#include <QSemaphore>
+#include <QString>
+#include <QVariantMap>
+#include "ChannelConst.h"
+#include "ChannelDefines.h"
 #include "LogPredefine.h"
+
+#include "PLSChannelDataAPI.h"
+#include "PLSChannelDataHandler.h"
 #include "alert-view.hpp"
 #include "frontend-api.h"
-#include "NetWorkCommonDefines.h"
+
+#define ADD_CHANNELS_H(str) "Channels." #str
+
+#ifdef QT_DEBUG
+#define REGISTERSTR(str) PLSCHANNELS_API->RegisterStr(ADD_CHANNELS_H(str))
+#else
+#define REGISTERSTR(str) 0
+#endif
+
+#define CHANNELS_TR(str) (REGISTERSTR(str), QObject::tr(ADD_CHANNELS_H(str)))
+
+#ifdef QT_DEBUG
+
+/*for debug view json or map data */
+#define ViewJsonByteArray(arrayData)                               \
+	{                                                          \
+		QString path = QDir::homePath() + "/tmpTest.json"; \
+		writeFile(arrayData, path);                        \
+		QDesktopServices::openUrl(path);                   \
+	}
+
+#define ViewMapData(MapData)                                        \
+	{                                                           \
+		auto jsonDoc = QJsonDocument::fromVariant(MapData); \
+		auto arrayData = jsonDoc.toJson();                  \
+		ViewJsonByteArray(arrayData);                       \
+	}
+
+#define ViewJsonDoc(JsonDoc)                       \
+	{                                          \
+		auto arrayData = JsonDoc.toJson(); \
+		ViewJsonByteArray(arrayData);      \
+	}
+
+#else
+
+#define ViewMapData(MapData)
+#define ViewJsonDoc(JsonDoc)
+
+#endif // DEBUG
 
 /* function for get and Type value of any QvariantMap */
 template<typename RetType = QString> inline auto getInfo(const QVariantMap &source, const QString &key, const RetType &defaultData = RetType()) -> RetType
@@ -48,7 +90,6 @@ template<typename RetType> inline RetType getInfoOfObject(const QObject *obj, co
 	}
 	return variantV.value<RetType>();
 }
-QVariantMap &removePointerKey(QVariantMap &src);
 
 /* to find matched key file in dir path recursive */
 QString findFileInResources(const QString &dirPath, const QString &key);
@@ -69,12 +110,6 @@ template<typename SRCType> inline QObject *convertToObejct(SRCType *srcPt)
 	return dynamic_cast<QObject *>(srcPt);
 }
 
-/*create default prism rule header data for http */
-const QVariantMap createDefaultHeaderMap();
-
-/*create default prism rule url data for http */
-const QVariantMap createDefaultUrlMap();
-
 QVariantMap createDefaultChannelInfoMap(const QString &channelName, int defaultType = ChannelData::ChannelType);
 const QString createUUID();
 const QString getPlatformImageFromName(const QString &channelName, const QString &prefix = "", const QString &surfix = ".*profile");
@@ -86,6 +121,8 @@ const QString getHostMacAddress();
 
 /*write json array to file */
 bool writeFile(const QByteArray &array, const QString &path);
+
+void loadPixmap(QPixmap &pix, const QString &pixmapPath, const QSize &pixSize);
 
 /* to create a circle mask for user header */
 template<typename SourceType> QBitmap createImageCircleMask(const SourceType &source)
@@ -107,7 +144,7 @@ template<typename SourceType> QBitmap createImageCircleMask(const SourceType &so
 	QBrush brush(Qt::black, Qt::SolidPattern);
 	painter.setPen(tmpPen);
 	painter.setBrush(brush);
-	painter.setRenderHint(QPainter::Antialiasing);
+	painter.setRenderHint(QPainter::HighQualityAntialiasing);
 
 	QPointF center(size.width() / 2.0, size.height() / 2.0);
 	painter.translate(center);
@@ -116,6 +153,9 @@ template<typename SourceType> QBitmap createImageCircleMask(const SourceType &so
 	painter.end();
 	return mask;
 }
+
+QPixmap &getCubePix(QPixmap &src);
+
 template<typename SourceType> SourceType &circleMaskImage(SourceType &source)
 {
 	auto mask = createImageCircleMask(source);
@@ -176,9 +216,29 @@ template<typename MapType> auto addToMap(MapType &destMap, const MapType &srcMap
 	return destMap;
 }
 
-QDataStream &operator<<(QDataStream &out, const ChannelDataHandlerPtr &);
+template<typename EnumType> QDataStream &operator<<(QDataStream &out, const EnumType &src)
+{
+	out << int(src);
+	return out;
+}
 
-QDataStream &operator<<(QDataStream &out, ChannelData::ChannelDataType type);
+template<typename EnumType> QDataStream &operator>>(QDataStream &in, EnumType &target)
+{
+	int value;
+	in >> value;
+	target = EnumType(value);
+	return in;
+}
+
+#define RegisterEnum(x)                                                       \
+	template QDataStream &operator<<<x>(QDataStream &out, const x &type); \
+	template QDataStream &operator>><x>(QDataStream &in, x &type);
+
+RegisterEnum(ChannelData::ChannelStatus);
+RegisterEnum(ChannelData::ChannelUserStatus);
+RegisterEnum(ChannelData::ChannelDataType);
+RegisterEnum(ChannelData::LiveState);
+RegisterEnum(ChannelData::RecordState);
 
 template<typename DataType> bool saveDataXToFile(const DataType &srcData, const QString &path)
 {
@@ -204,8 +264,6 @@ template<typename DataType> bool loadDataFromFile(DataType &destData, const QStr
 	return false;
 }
 
-using HoldOnPf = void (PLSChannelDataAPI::*)(bool);
-
 template<typename FunctionType, typename ClassPtr = PLSChannelDataAPI *> struct HolderReleaser {
 	HolderReleaser(FunctionType function, ClassPtr objPtr = PLSCHANNELS_API) : mpf(function), mObjPtr(objPtr) { (*mObjPtr.*mpf)(true); }
 	~HolderReleaser() { (*mObjPtr.*mpf)(false); }
@@ -221,16 +279,59 @@ private:
 	QSemaphore &mSem;
 };
 
-int getReplyStatusCode(ReplyPtrs reply);
+template<typename ReplyPt> int getReplyStatusCode(ReplyPt reply)
+{
+	return reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+}
 
 void requestStartLog(const QString &url, const QString &requestType);
-void formatNetworkLogs(ReplyPtrs reply, const QByteArray &data);
-void ChannelsNetWorkPretestWithAlerts(ReplyPtrs reply, const QByteArray &data, bool notify = true);
+
+template<typename ReplyType> void formatNetworkLogs(ReplyType reply, const QByteArray &data)
+{
+	int code = 0;
+	auto doc = QJsonDocument::fromJson(data);
+	if (!doc.isNull()) {
+		auto obj = doc.object();
+		if (!obj.isEmpty()) {
+			code = obj.value("code").toInt();
+		}
+	}
+	QString msg = reply->url().toString() + " statusCode = " + QString::number(getReplyStatusCode(reply)) + " code = " + QString::number(code) + ".";
+	if (code != QNetworkReply::NoError) {
+		msg.prepend("http request error! url = ");
+		msg += "\n error string :" + reply->errorString();
+		PLS_ERROR("Channels", "%s", msg.toStdString().c_str());
+		PRE_LOG_MSG(("reply content :" + reply->readAll()).constData(), INFO);
+	} else {
+		msg.prepend("http request successfull! url = ");
+		PLS_INFO("Channels", "%s", msg.toStdString().c_str());
+	}
+}
+
+template<typename ReplyType> void ChannelsNetWorkPretestWithAlerts(ReplyType reply, const QByteArray &data, bool notify = true)
+{
+	formatNetworkLogs(reply, data);
+	if (!notify) {
+		return;
+	}
+	QVariantMap errormap;
+	auto errorValue = reply->error();
+	if (errorValue <= QNetworkReply::UnknownNetworkError || errorValue == QNetworkReply::UnknownServerError) {
+		errormap.insert(g_errorTitle, CHANNELS_TR(Check.Alert.Title));
+		errormap.insert(g_errorString, CHANNELS_TR(Check.Network.Error));
+
+	} else {
+		return;
+	}
+	PLSCHANNELS_API->addError(errormap);
+	PLSCHANNELS_API->networkInvalidOcurred();
+}
 
 const QString getChannelCacheFilePath();
 const QString getChannelCacheDir();
 const QString getChannelSettingsFilePath();
 const QStringList getDefaultPlatforms();
+const QString guessPlatformFromRTMP(const QString &rtmpUrl);
 
 QPropertyAnimation *createShowAnimation(QWidget *wid, int msSec = 250);
 void displayWidgetWithAnimation(QWidget *wid, int msSec = 250, bool show = true);
@@ -263,44 +364,22 @@ template<typename... Args> void setStyleSheetFromFile(QWidget *wid, Args... args
 	}
 }
 
-#define ADD_CHANNELS_H(str) "Channels." #str
-
-#ifdef QT_DEBUG
-#define REGISTERSTR(str) PLSCHANNELS_API->RegisterStr(ADD_CHANNELS_H(str))
-#else
-#define REGISTERSTR(str) 0
-#endif
-
-#define CHANNELS_TR(str) (REGISTERSTR(str), QObject::tr(ADD_CHANNELS_H(str)))
-
-#ifdef QT_DEBUG
-
-/*for debug view json or map data */
-#define ViewJsonByteArray(arrayData)                               \
-	{                                                          \
-		QString path = QDir::homePath() + "/tmpTest.json"; \
-		writeFile(arrayData, path);                        \
-		QDesktopServices::openUrl(path);                   \
+template<typename ParentType = QWidget *, typename ChildType = QWidget *> auto findParent(ChildType child) -> ParentType
+{
+	auto tmpP = child->parent();
+	if (tmpP == nullptr) {
+		return nullptr;
 	}
-
-#define ViewMapData(MapData)                                        \
-	{                                                           \
-		auto jsonDoc = QJsonDocument::fromVariant(MapData); \
-		auto arrayData = jsonDoc.toJson();                  \
-		ViewJsonByteArray(arrayData);                       \
+	auto retP = dynamic_cast<ParentType>(tmpP);
+	if (retP == nullptr) {
+		return findParent<ParentType>(tmpP);
 	}
+	return retP;
+}
 
-#define ViewJsonDoc(JsonDoc)                       \
-	{                                          \
-		auto arrayData = JsonDoc.toJson(); \
-		ViewJsonByteArray(arrayData);      \
-	}
-
-#else
-
-#define ViewMapData(MapData)
-#define ViewJsonDoc(JsonDoc)
-
-#endif // DEBUG
+template<typename DestType, typename FunctionType> auto getMemberPointer(FunctionType func) -> DestType
+{
+	return *static_cast<DestType *>((reinterpret_cast<void *>(&func)));
+}
 
 #endif //CHANELCOMMONFUNCTION_H

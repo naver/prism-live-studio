@@ -16,6 +16,8 @@
 #include <util/base.h>
 #include <thread>
 #include <algorithm>
+#include <qeventloop.h>
+#include <qevent.h>
 
 extern bool QueueCEFTask(std::function<void()> task);
 extern "C" void obs_browser_initialize(void);
@@ -69,18 +71,26 @@ class CookieRead : public CefCookieVisitor {
 public:
 	QCefCookieManager::read_cookie_cb cookie_cb;
 	void *context;
+	bool has_cookie;
 
 	inline CookieRead(QCefCookieManager::read_cookie_cb cookie_cb_,
 			  void *context_)
-		: cookie_cb(cookie_cb_), context(context_)
+		: cookie_cb(cookie_cb_), context(context_), has_cookie(false)
 	{
 	}
 
-	virtual ~CookieRead() {}
+	virtual ~CookieRead()
+	{
+		if (!has_cookie) {
+			cookie_cb(nullptr, nullptr, nullptr, nullptr, true,
+				  context);
+		}
+	}
 
 	virtual bool Visit(const CefCookie &cookie, int index, int total,
 			   bool &deleteCookie) override
 	{
+		has_cookie = true;
 		cookie_cb(CefString(cookie.name.str).ToString().c_str(),
 			  CefString(cookie.value.str).ToString().c_str(),
 			  CefString(cookie.domain.str).ToString().c_str(),
@@ -173,7 +183,7 @@ struct QCefCookieManagerInternal : QCefCookieManager {
 			return;
 
 		CefRefPtr<CookieCheck> c = new CookieCheck(callback, cookie);
-		cm->VisitUrlCookies(site, false, c);
+		cm->VisitUrlCookies(site, true, c);
 	}
 
 	virtual void ReadCookies(const std::string &site,
@@ -184,7 +194,48 @@ struct QCefCookieManagerInternal : QCefCookieManager {
 			return;
 
 		CefRefPtr<CookieRead> c = new CookieRead(cookie_cb, context);
-		cm->VisitUrlCookies(site, false, c);
+		cm->VisitUrlCookies(site, true, c);
+	}
+	// OBS Modification:
+	// Cheng Bing / 20200513 /
+	// Reason: naverTv chat need cookie information to login;cef have not save the cookies;
+	// Solution: app init Manual set naverTv cookies into cef
+	virtual bool SetCookie(const std::string &url, const std::string &name,
+			       const std::string &value,
+			       const std::string &domain,
+			       const std::string &path, bool isOnlyHttp)
+	{
+		if (!cm)
+			return false;
+
+		CefCookie cookie;
+		cef_string_utf8_to_utf16(name.c_str(), name.size(),
+					 &cookie.name);
+		cef_string_utf8_to_utf16(value.c_str(), value.size(),
+					 &cookie.value);
+		cef_string_utf8_to_utf16(domain.c_str(), domain.size(),
+					 &cookie.domain);
+		cef_string_utf8_to_utf16(path.c_str(), path.size(),
+					 &cookie.path);
+
+		if (isOnlyHttp) {
+			cookie.httponly = true;
+		} else {
+			cookie.secure = true;
+		}
+
+		return cm->SetCookie(url, cookie, nullptr);
+	}
+	// OBS Modification:
+	// Cheng Bing / 20200518/
+	// Reason: get cef all cookies infomation
+
+	virtual void visitAllCookies(read_cookie_cb cookie_cb, void *context)
+	{
+		if (!cm)
+			return;
+		CefRefPtr<CookieRead> c = new CookieRead(cookie_cb, context);
+		cm->VisitAllCookies(c);
 	}
 };
 
@@ -195,10 +246,14 @@ struct QCefCookieManagerInternal : QCefCookieManager {
 // Reason: store request headers
 // Solution: modify request headers
 QCefWidgetInternal::QCefWidgetInternal(
-	QWidget *parent, const std::string &url_,
+	QWidget *parent, const std::string &url_, const std::string &script_,
 	CefRefPtr<CefRequestContext> rqc_,
 	const std::map<std::string, std::string> &headers_)
-	: QCefWidget(parent), url(url_), rqc(rqc_), headers(headers_)
+	: QCefWidget(parent),
+	  url(url_),
+	  script(script_),
+	  rqc(rqc_),
+	  headers(headers_)
 {
 	setAttribute(Qt::WA_PaintOnScreen);
 	setAttribute(Qt::WA_StaticContents);
@@ -210,6 +265,9 @@ QCefWidgetInternal::QCefWidgetInternal(
 	setFocusPolicy(Qt::ClickFocus);
 
 	g_lstCefWidget.push_back(this);
+
+	obs_browser_initialize();
+	Init();
 }
 
 QCefWidgetInternal::~QCefWidgetInternal()
@@ -221,21 +279,20 @@ QCefWidgetInternal::~QCefWidgetInternal()
 
 void QCefWidgetInternal::closeBrowser()
 {
+	auto destroyBrowser = [](CefRefPtr<CefBrowser> cefBrowser) {
+		CefRefPtr<CefClient> client =
+			cefBrowser->GetHost()->GetClient();
+		QCefBrowserClient *bc =
+			reinterpret_cast<QCefBrowserClient *>(client.get());
+
+		cefBrowser->GetHost()->WasHidden(true);
+		cefBrowser->GetHost()->CloseBrowser(true);
+
+		bc->widget = nullptr;
+	};
+
 	CefRefPtr<CefBrowser> browser = cefBrowser;
 	if (!!browser) {
-		auto destroyBrowser = [](CefRefPtr<CefBrowser> cefBrowser) {
-			CefRefPtr<CefClient> client =
-				cefBrowser->GetHost()->GetClient();
-			QCefBrowserClient *bc =
-				reinterpret_cast<QCefBrowserClient *>(
-					client.get());
-
-			cefBrowser->GetHost()->WasHidden(true);
-			cefBrowser->GetHost()->CloseBrowser(true);
-
-			bc->widget = nullptr;
-		};
-
 #ifdef _WIN32
 		/* So you're probably wondering what's going on here.  If you
 		 * call CefBrowserHost::CloseBrowser, and it fails to unload
@@ -260,8 +317,31 @@ void QCefWidgetInternal::closeBrowser()
 		}
 #endif
 
-		destroyBrowser(browser);
+		ExecuteOnBrowser(destroyBrowser, false);
 		cefBrowser = nullptr;
+	} else {
+		QEventLoop loop;
+		auto waitForInit = [this, &loop]() {
+			/* WuLongyue/2020-05-19/#2669
+			 * Nothing to do,
+			 * Only post a task to cef runloop, then wait this task to finish
+			 * It's used for waiting previous QCefWidgetInternal::Init() to finish
+			 * Because Init() runs on cef thread.
+			 * Reason: If likes `QCefWidget *cefWidget = cef->create_widget` on first line,
+			 * then `delete cefWidget` on second line immedately,
+			 * The `Init` method on cef thread may not be finished, So need to wait it.
+			*/
+			QMetaObject::invokeMethod(&loop, &QEventLoop::quit);
+		};
+
+		if (QueueCEFTask(waitForInit)) {
+			loop.exec(QEventLoop::ExcludeUserInputEvents);
+		}
+
+		CefRefPtr<CefBrowser> browser = cefBrowser;
+		if (!!browser) {
+			closeBrowser();
+		}
 	}
 }
 
@@ -269,13 +349,16 @@ void QCefWidgetInternal::Init()
 {
 	QSize size = this->size() * devicePixelRatio();
 	WId id = winId();
+	QEventLoop loop;
 
-	bool success = QueueCEFTask([this, size, id]() {
+	bool success = QueueCEFTask([this, size, id, &loop]() {
 		CefWindowInfo windowInfo;
 
 		/* Make sure Init isn't called more than once. */
-		if (cefBrowser)
+		if (cefBrowser) {
+			QMetaObject::invokeMethod(&loop, &QEventLoop::quit);
 			return;
+		}
 
 #ifdef _WIN32
 		RECT rc = {0, 0, size.width(), size.height()};
@@ -302,34 +385,45 @@ void QCefWidgetInternal::Init()
 #endif
 			rqc);
 #ifdef _WIN32
-		Resize();
+		Resize(true);
 #endif
+		QMetaObject::invokeMethod(&loop, &QEventLoop::quit);
 	});
 
-	if (success)
-		timer.stop();
+	if (success) {
+		loop.exec();
+	}
+	//timer.stop();
 }
 
 void QCefWidgetInternal::resizeEvent(QResizeEvent *event)
 {
 	QWidget::resizeEvent(event);
-	Resize();
+	Resize(false);
 }
 
-void QCefWidgetInternal::Resize()
+void QCefWidgetInternal::Resize(bool bImmediately)
 {
 #ifdef _WIN32
 	QSize size = this->size() * devicePixelRatio();
 
-	QueueCEFTask([this, size]() {
+	auto func = [this, size]() {
 		if (!cefBrowser)
 			return;
+
 		HWND hwnd = cefBrowser->GetHost()->GetWindowHandle();
 		SetWindowPos(hwnd, nullptr, 0, 0, size.width(), size.height(),
 			     SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER);
 		SendMessage(hwnd, WM_SIZE, 0,
 			    MAKELPARAM(size.width(), size.height()));
-	});
+	};
+
+	if (bImmediately) {
+		func();
+	} else {
+		QueueCEFTask(func);
+	}
+
 #endif
 }
 
@@ -338,11 +432,17 @@ void QCefWidgetInternal::showEvent(QShowEvent *event)
 	QWidget::showEvent(event);
 
 	if (!cefBrowser) {
-		obs_browser_initialize();
-		connect(&timer, SIGNAL(timeout()), this, SLOT(Init()));
-		timer.start(500);
-		Init();
+		//obs_browser_initialize();
+		//connect(&timer, SIGNAL(timeout()), this, SLOT(Init()));
+		//timer.start(500);
+		//Init();
 	}
+}
+void QCefWidgetInternal::closeEvent(QCloseEvent *event)
+{
+	//renjinbo, #5053 because chat widget when start to load cef, this widget will cauch alt+f4 to close this cef widget instead of chat dialog.
+	event->ignore();
+	this->window()->hide();
 }
 
 QPaintEngine *QCefWidgetInternal::paintEngine() const
@@ -358,43 +458,75 @@ void QCefWidgetInternal::setURL(const std::string &url_)
 	}
 }
 
-void QCefWidgetInternal::setStartupScript(const std::string &script_)
-{
-	script = script_;
-}
-
 void QCefWidgetInternal::allowAllPopups(bool allow)
 {
 	allowAllPopups_ = allow;
 }
 
 void QCefWidgetInternal::ExecuteOnBrowser(
-	std::function<void(CefRefPtr<CefBrowser>)> func)
+	std::function<void(CefRefPtr<CefBrowser>)> func, bool async)
 {
-	CefRefPtr<CefBrowser> browser = cefBrowser;
-	if (!!browser) {
+	if (!async) {
 #ifdef USE_QT_LOOP
-		QueueBrowserTask(cefBrowser, func);
-#else
-		QueueCEFTask([=]() { func(browser); });
+		if (QThread::currentThread() == qApp->thread()) {
+			if (!!cefBrowser)
+				func(cefBrowser);
+			return;
+		}
 #endif
+		QEventLoop loop;
+		bool success = QueueCEFTask([&]() {
+			if (!!cefBrowser)
+				func(cefBrowser);
+			QMetaObject::invokeMethod(&loop, &QEventLoop::quit);
+		});
+		if (success) {
+			loop.exec(QEventLoop::ExcludeUserInputEvents);
+		}
+	} else {
+		CefRefPtr<CefBrowser> browser = cefBrowser;
+		if (!!browser) {
+#ifdef USE_QT_LOOP
+			QueueBrowserTask(cefBrowser, func);
+#else
+			QueueCEFTask([=]() { func(browser); });
+#endif
+		}
 	}
 }
 
+extern void DispatchJSEvent(std::string eventName, std::string jsonString);
+//PRISM/Zhangdewen/20200921/#/fix jsonString must be keep problem
+extern void DispatchJSEvent(obs_source_t *source, std::string eventName,
+			    std::string jsonString);
+
 void DispatchPrismEvent(const char *eventName, const char *jsonString)
 {
-	auto func = ([=](CefRefPtr<CefBrowser> browser) {
+	std::string event = eventName;
+	std::string json = jsonString ? jsonString : "{}";
+
+	auto func = [event, json](CefRefPtr<CefBrowser> browser) {
 		CefRefPtr<CefProcessMessage> msg =
 			CefProcessMessage::Create("DispatchJSEvent");
 		CefRefPtr<CefListValue> args = msg->GetArgumentList();
 
-		args->SetString(0, eventName);
-		args->SetString(1, nullptr == jsonString ? "{}" : jsonString);
+		args->SetString(0, event);
+		args->SetString(1, json);
 		SendBrowserProcessMessage(browser, PID_RENDERER, msg);
-	});
+	};
 
 	std::for_each(begin(g_lstCefWidget), end(g_lstCefWidget),
-		      [&](auto item) { item->ExecuteOnBrowser(func); });
+		      [&](auto item) { item->ExecuteOnBrowser(func, true); });
+
+	//PRISM/Zhangdewen/20200921/#/fix event not notify web source
+	DispatchJSEvent(event, json);
+}
+
+//PRISM/Zhangdewen/20200901/#/for chat source
+void DispatchPrismEvent(obs_source_t *source, const char *eventName,
+			const char *jsonString)
+{
+	DispatchJSEvent(source, eventName, jsonString);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -410,7 +542,7 @@ struct QCefInternal : QCef {
 	// Solution: modify request headers
 	virtual QCefWidget *create_widget(
 		QWidget *parent, const std::string &url,
-		QCefCookieManager *cookie_manager,
+		const std::string &script, QCefCookieManager *cookie_manager,
 		const std::map<std::string, std::string> &headers) override;
 
 	virtual QCefCookieManager *
@@ -451,14 +583,14 @@ bool QCefInternal::wait_for_browser_init(void)
 // Solution: modify request headers
 QCefWidget *
 QCefInternal::create_widget(QWidget *parent, const std::string &url,
-			    QCefCookieManager *cm,
+			    const std::string &script, QCefCookieManager *cm,
 			    const std::map<std::string, std::string> &headers)
 {
 	QCefCookieManagerInternal *cmi =
 		reinterpret_cast<QCefCookieManagerInternal *>(cm);
 
-	return new QCefWidgetInternal(parent, url, cmi ? cmi->rc : nullptr,
-				      headers);
+	return new QCefWidgetInternal(parent, url, script,
+				      cmi ? cmi->rc : nullptr, headers);
 }
 
 QCefCookieManager *

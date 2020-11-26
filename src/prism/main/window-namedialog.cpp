@@ -63,19 +63,17 @@ bool NameDialog::eventFilter(QObject *watcher, QEvent *event)
 	return PLSDialogView::eventFilter(watcher, event);
 }
 
-NameDialog::NameDialog(QWidget *parent) : PLSDialogView(parent), ui(new Ui::NameDialog)
+NameDialog::NameDialog(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::NameDialog)
 {
 	ui->setupUi(this->content());
-
+	dpiHelper.setCss(this, {PLSCssIndex::NameDialog});
 	installEventFilter(CreateShortcutFilter());
 	ui->userText->installEventFilter(this);
 	connect(ui->userText, &QLineEdit::textEdited, this, &NameDialog::OnTextEditd);
 	connect(ui->userText, &QLineEdit::editingFinished, this, &NameDialog::OnTextEditingFinished);
 
-	ui->buttonBox->button(QDialogButtonBox::Ok)->setFixedSize(140, 40);
-	ui->buttonBox->button(QDialogButtonBox::Cancel)->setStyleSheet("QPushButton{padding: 0px;margin: 0 5px;}");
-	ui->buttonBox->button(QDialogButtonBox::Ok)->setStyleSheet("QPushButton{padding: 0px;}");
-	ui->buttonBox->button(QDialogButtonBox::Cancel)->setFixedSize(150, 40);
+	ui->buttonBox->button(QDialogButtonBox::Cancel)->setObjectName("Cancel");
+	ui->buttonBox->button(QDialogButtonBox::Ok)->setObjectName("Ok");
 
 	connect(ui->buttonBox->button(QDialogButtonBox::Ok), &QPushButton::clicked, this, &NameDialog::accept);
 	connect(ui->buttonBox->button(QDialogButtonBox::Cancel), &QPushButton::clicked, this, &NameDialog::reject);

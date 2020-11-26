@@ -1,8 +1,8 @@
 #pragma once
 
+#include <QDateTime>
 #include <QDebug>
 #include <QString>
-#include <QDateTime>
 #include <typeinfo>
 
 #include "log.h"

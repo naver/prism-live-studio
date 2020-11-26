@@ -24,7 +24,7 @@ public:
 	Q_ENUM(Icon)
 
 public:
-	explicit PLSToastView(QWidget *parent = nullptr);
+	explicit PLSToastView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSToastView();
 
 public:

@@ -6,6 +6,22 @@
 #include <QDoubleSpinBox>
 #include "balance-slider.hpp"
 
+#define NAME_LABEL_WIDTH 130
+#define MONITOR_LABEL_SPACE 20
+#define MONITOR_LABEL_LEFT_SPACE 3
+#define MONITOR_TYPE_WIDTH 200
+#define VOLUME_SPINBOX_SPACE 10
+#define VOLUME_SPINBOX_WIDTH 110
+#define BALANCE_SPACE 25
+#define BALANCE_WIDTH 159
+#define MONO_LEFT_SPACE 10
+#define MONO_TITLE_WIDTH 95
+#define MONO_CONTAINER_WIDTH 120
+#define SYNC_OFFSET_SPACE 15
+#define TRACKS_SPACE 25
+#define TRACKS_MAX_CONTAINER_WIDTH 268
+#define TRACKS_MIN_CONTAINER_WIDTH 258
+
 class QGridLayout;
 class QLabel;
 class QSpinBox;
@@ -22,6 +38,10 @@ private:
 	QPointer<QWidget> mixerContainer;
 	QPointer<QWidget> balanceContainer;
 	QPointer<QLabel> nameLabel;
+	QPointer<QLabel> monitoringTypeSpacer;
+	QPointer<QLabel> volumeSpacer;
+	QPointer<QLabel> balanceSpacer;
+	QPointer<QLabel> trackSpacer;
 	QPointer<QDoubleSpinBox> volume;
 	QPointer<QCheckBox> forceMono;
 	QPointer<BalanceSlider> balance;
@@ -40,7 +60,6 @@ private:
 	OBSSignal syncOffsetSignal;
 	OBSSignal flagsSignal;
 	OBSSignal mixersSignal;
-	int m_row;
 
 	static void OBSSourceFlagsChanged(void *param, calldata_t *calldata);
 	static void OBSSourceVolumeChanged(void *param, calldata_t *calldata);
@@ -49,7 +68,7 @@ private:
 	static void monitorControlChange(pls_frontend_event event, const QVariantList &params, void *context);
 
 public:
-	explicit PLSAdvAudioCtrl(QGridLayout *layout, obs_source_t *source_);
+	explicit PLSAdvAudioCtrl(QWidget *parent, obs_source_t *source_);
 	virtual ~PLSAdvAudioCtrl();
 
 	inline obs_source_t *GetSource() const { return source; }

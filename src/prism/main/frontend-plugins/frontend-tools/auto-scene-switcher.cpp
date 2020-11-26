@@ -78,12 +78,14 @@ static inline QString MakeSwitchName(const QString &scene, const QString &window
 	return QStringLiteral("[") + scene + QStringLiteral("]: ") + window;
 }
 
-SceneSwitcher::SceneSwitcher(QWidget *parent) : PLSDialogView(parent), ui(new Ui_SceneSwitcher)
+SceneSwitcher::SceneSwitcher(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui_SceneSwitcher)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::SceneSwitcher});
+	dpiHelper.setFixedSize(this, {720, 700});
+
 	setResizeEnabled(false);
 	ui->setupUi(this->content());
 	QMetaObject::connectSlotsByName(this);
-	setFixedSize(720, 700);
 	setSizeGripEnabled(false);
 
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);

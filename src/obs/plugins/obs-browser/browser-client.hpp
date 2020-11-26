@@ -22,9 +22,16 @@
 #include "cef-headers.hpp"
 #include "browser-config.h"
 
+//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+#include "interaction/interaction_main.h"
+
 #define USE_TEXTURE_COPY 0
 
 struct BrowserSource;
+struct TextMotionSource;
+
+//PRISM/Wangshaohui/20200917/#3714/for check client
+void SetValidClient(void *pointer, bool valid);
 
 class BrowserClient : public CefClient,
 		      public CefDisplayHandler,
@@ -34,7 +41,8 @@ class BrowserClient : public CefClient,
 #if CHROME_VERSION_BUILD >= 3683
 		      public CefAudioHandler,
 #endif
-		      public CefLoadHandler {
+		      public CefLoadHandler,
+		      public CefRequestHandler {
 
 #if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED
 #if USE_TEXTURE_COPY
@@ -50,17 +58,26 @@ public:
 	CefRect popupRect;
 	CefRect originalPopupRect;
 
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+	INTERACTION_WEAK_PTR interaction_weak;
+
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
 	inline BrowserClient(BrowserSource *bs_, bool sharing_avail,
-			     bool reroute_audio_)
+			     bool reroute_audio_, INTERACTION_WEAK_PTR itr)
 		: bs(bs_),
 		  sharing_available(sharing_avail),
-		  reroute_audio(reroute_audio_)
+		  reroute_audio(reroute_audio_),
+		  interaction_weak(itr)
 	{
+		//PRISM/Wangshaohui/20200917/#3714/for check client
+		SetValidClient(this, true);
 	}
 
 	virtual ~BrowserClient();
 
 	/* CefClient */
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+	virtual CefRefPtr<CefRequestHandler> GetRequestHandler() override;
 	virtual CefRefPtr<CefLoadHandler> GetLoadHandler() override;
 	virtual CefRefPtr<CefRenderHandler> GetRenderHandler() override;
 	virtual CefRefPtr<CefDisplayHandler> GetDisplayHandler() override;
@@ -88,19 +105,26 @@ public:
 				      const CefString &source,
 				      int line) override;
 
+	/* CefRequestHandler */
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+	virtual bool OnOpenURLFromTab(
+		CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+		const CefString &target_url,
+		CefRequestHandler::WindowOpenDisposition target_disposition,
+		bool user_gesture) override;
+
 	/* CefLifeSpanHandler */
-	virtual bool
-	OnBeforePopup(CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
-		      const CefString &target_url,
-		      const CefString &target_frame_name,
-		      WindowOpenDisposition target_disposition,
-		      bool user_gesture, const CefPopupFeatures &popupFeatures,
-		      CefWindowInfo &windowInfo, CefRefPtr<CefClient> &client,
-		      CefBrowserSettings &settings,
+	virtual bool OnBeforePopup(
+		CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+		const CefString &target_url, const CefString &target_frame_name,
+		CefLifeSpanHandler::WindowOpenDisposition target_disposition,
+		bool user_gesture, const CefPopupFeatures &popupFeatures,
+		CefWindowInfo &windowInfo, CefRefPtr<CefClient> &client,
+		CefBrowserSettings &settings,
 #if CHROME_VERSION_BUILD >= 3770
-		      CefRefPtr<CefDictionaryValue> &extra_info,
+		CefRefPtr<CefDictionaryValue> &extra_info,
 #endif
-		      bool *no_javascript_access) override;
+		bool *no_javascript_access) override;
 
 	/* CefContextMenuHandler */
 	virtual void
@@ -116,6 +140,11 @@ public:
 	virtual bool GetViewRect(
 #endif
 		CefRefPtr<CefBrowser> browser, CefRect &rect) override;
+
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+	virtual bool GetScreenPoint(CefRefPtr<CefBrowser> browser, int viewX,
+				    int viewY, int &screenX,
+				    int &screenY) OVERRIDE;
 	virtual void OnPaint(CefRefPtr<CefBrowser> browser,
 			     PaintElementType type, const RectList &dirtyRects,
 			     const void *buffer, int width,
@@ -126,6 +155,18 @@ public:
 					const RectList &dirtyRects,
 					void *shared_handle) override;
 #endif
+
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+	virtual void OnCursorChange(CefRefPtr<CefBrowser> browser,
+				    CefCursorHandle cursor,
+				    CefRenderHandler::CursorType type,
+				    const CefCursorInfo &custom_cursor_info);
+
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+	virtual void OnImeCompositionRangeChanged(
+		CefRefPtr<CefBrowser> browser, const CefRange &selection_range,
+		const CefRenderHandler::RectList &character_bounds);
+
 #if CHROME_VERSION_BUILD >= 3683
 	virtual void OnAudioStreamPacket(CefRefPtr<CefBrowser> browser,
 					 int audio_stream_id,

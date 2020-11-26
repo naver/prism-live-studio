@@ -9,6 +9,7 @@
 #include "libdshowcapture/dshowcapture.hpp"
 #include "ffmpeg-decode.h"
 #include "encode-dstr.hpp"
+#include "pls-cam-effect/prism-cam-effect.h"
 
 #include <algorithm>
 #include <limits>
@@ -46,6 +47,8 @@ using namespace DShow;
 #define COLOR_SPACE       "color_space"
 #define COLOR_RANGE       "color_range"
 #define DEACTIVATE_WNS    "deactivate_when_not_showing"
+#define CAMERA_BEAUTY	  "camera_beauty"
+#define BUTTON_GROUP_TYPE   "button group"
 
 #define TEXT_INPUT_NAME     obs_module_text("VideoCaptureDevice")
 #define TEXT_DEVICE         obs_module_text("Device")
@@ -79,6 +82,10 @@ using namespace DShow;
 #define TEXT_RANGE_PARTIAL  obs_module_text("ColorRange.Partial")
 #define TEXT_RANGE_FULL     obs_module_text("ColorRange.Full")
 #define TEXT_DWNS           obs_module_text("DeactivateWhenNotShowing")
+#define TEXT_BEAUTY         obs_module_text("CameraBeauty")
+#define TEXT_BEAUTY_CUTE    obs_module_text("Beauty.cute")
+#define TEXT_BEAUTY_NATURAL obs_module_text("Beauty.natural")
+#define TEXT_BEAUTY_SHARP   obs_module_text("Beauty.sharp")
 
 /* clang-format on */
 
@@ -165,12 +172,20 @@ enum Action {
 	OnRetry = 0x00000400,
 };
 
+enum CamOperation {
+	OptNone = 0,
+	SwitchEffect,
+	SwitchActive,
+};
+
 //PRISM/WangShaohui/20200117/#281/for source unavailable
 #define INIT_DEVICE_FLAGS                                          \
 	(Action::OnInserted | Action::OnRetry | Action::Activate | \
 	 Action::ActivateBlock)
 
 static DWORD CALLBACK DShowThread(LPVOID ptr);
+
+static DWORD CALLBACK render_dest_capture(LPVOID ptr);
 
 struct DShowInput {
 	obs_source_t *source;
@@ -199,6 +214,13 @@ struct DShowInput {
 	WinHandle thread;
 	CriticalSection mutex;
 	vector<Action> actions;
+
+	//PRISM/Wang.Chuanjing/20200313/#990/for camera effect
+	PLSCamEffect cam_effect;
+	CamOperation previous_operation;
+
+	//PRISM/WangShaohui/20200709/#3244/open camera's window as model window
+	HWND property_hwnd;
 
 	inline void QueueAction(Action action)
 	{
@@ -249,7 +271,8 @@ struct DShowInput {
 
 	inline DShowInput(obs_source_t *source_, obs_data_t *settings)
 		: source(source_),
-		  //PRISM/WangShaohui/20200117/#281/for source unavailable
+		  previous_operation(OptNone),
+		  property_hwnd(0),
 		  device(InitGraph::False,
 			 std::bind(&DShowInput::OnDShowEvent, this,
 				   placeholders::_1, placeholders::_2))
@@ -299,11 +322,19 @@ struct DShowInput {
 		released = true;
 		ReleaseSemaphore(semaphore, 1, nullptr);
 
+		//PRISM/WangShaohui/20200612/NoIssue/for checking delete source
+		blog(LOG_INFO, "[DShow Device: '%s'] Wait thread end",
+		     obs_source_get_name(source));
+
 		WaitForSingleObject(thread, INFINITE);
+
+		//PRISM/WangShaohui/20200612/NoIssue/for checking delete source
+		blog(LOG_INFO, "[DShow Device: '%s'] deleted completely",
+		     obs_source_get_name(source));
 	}
 
 	void OnEncodedVideoData(enum AVCodecID id, unsigned char *data,
-				size_t size, long long ts);
+				size_t size, long long ts, uint64_t sys_time);
 	void OnEncodedAudioData(enum AVCodecID id, unsigned char *data,
 				size_t size, long long ts);
 
@@ -314,13 +345,15 @@ struct DShowInput {
 	void OnAudioData(const AudioConfig &config, unsigned char *data,
 			 size_t size, long long startTime, long long endTime);
 
-	bool UpdateVideoConfig(obs_data_t *settings);
+	//PRISM/WangShaohui/20201013/NoIssue/adjust log number
+	bool UpdateVideoConfig(obs_data_t *settings, bool saveLog);
 	bool UpdateAudioConfig(obs_data_t *settings);
 	void SetActive(bool active);
 	inline enum video_colorspace GetColorSpace(obs_data_t *settings) const;
 	inline enum video_range_type GetColorRange(obs_data_t *settings) const;
 	//PRISM/WangShaohui/20200210/#281/for source unavailable
-	inline enum obs_source_error Activate(obs_data_t *settings);
+	inline enum obs_source_error Activate(obs_data_t *settings,
+					      bool saveLog);
 	inline void Deactivate();
 
 	inline void SetupBuffering(obs_data_t *settings);
@@ -329,6 +362,8 @@ struct DShowInput {
 
 	//PRISM/WangShaohui/20200210/#281/for source unavailable
 	bool IsDevceExist();
+
+	//PRISM/Wang.Chuanjing/20200313/#990/for camera effect
 };
 
 static DWORD CALLBACK DShowThread(LPVOID ptr)
@@ -386,8 +421,10 @@ void DShowInput::DShowLoop()
 			continue;
 		} else if (ret != WAIT_OBJECT_0) {
 			//PRISM/WangShaohui/20200117/#281/for source unavailable
-			if (released)
+			if (released) {
+				device.ShutdownGraph();
 				break;
+			}
 		}
 
 		Action action = Action::None;
@@ -405,9 +442,18 @@ void DShowInput::DShowLoop()
 			obs_source_output_video2(source, nullptr);
 			obs_source_set_capture_valid(
 				source, false, OBS_SOURCE_ERROR_NOT_FOUND);
+
+			//PRISM/WangChuanjing/20200507/for beauty
+			obs_source_set_image_status(source, false);
+			cam_effect.SetCaptureState(false);
+
 			break;
 
 		case Action::OnRetry:
+			if (!active) {
+				break;
+			}
+
 		case Action::OnInserted:
 		case Action::Activate:
 		case Action::ActivateBlock: {
@@ -415,8 +461,14 @@ void DShowInput::DShowLoop()
 
 			//PRISM/WangShaohui/20200117/#281/for source unavailable
 			obs_data_t *settings = obs_source_get_settings(source);
-			enum obs_source_error error = Activate(settings);
+			//PRISM/WangShaohui/20201013/NoIssue/adjust log number
+			enum obs_source_error error =
+				Activate(settings, action != Action::OnRetry);
 			if (error != OBS_SOURCE_ERROR_OK) {
+				//PRISM/WangShaohui/20200507/#2570/for uninit device
+				device.ResetGraph();
+				cam_effect.SetCaptureState(false);
+
 				obs_source_output_video2(source, nullptr);
 				if (error == OBS_SOURCE_ERROR_BE_USING) {
 					obs_source_set_capture_valid(
@@ -463,19 +515,27 @@ void DShowInput::DShowLoop()
 			return;
 
 		case Action::ConfigVideo:
-			device.OpenDialog(nullptr, DialogType::ConfigVideo);
+			//PRISM/WangShaohui/20200709/#3244/open camera's window as model window
+			device.OpenDialog(property_hwnd,
+					  DialogType::ConfigVideo);
 			break;
 
 		case Action::ConfigAudio:
-			device.OpenDialog(nullptr, DialogType::ConfigAudio);
+			//PRISM/WangShaohui/20200709/#3244/open camera's window as model window
+			device.OpenDialog(property_hwnd,
+					  DialogType::ConfigAudio);
 			break;
 
 		case Action::ConfigCrossbar1:
-			device.OpenDialog(nullptr, DialogType::ConfigCrossbar);
+			//PRISM/WangShaohui/20200709/#3244/open camera's window as model window
+			device.OpenDialog(property_hwnd,
+					  DialogType::ConfigCrossbar);
 			break;
 
 		case Action::ConfigCrossbar2:
-			device.OpenDialog(nullptr, DialogType::ConfigCrossbar2);
+			//PRISM/WangShaohui/20200709/#3244/open camera's window as model window
+			device.OpenDialog(property_hwnd,
+					  DialogType::ConfigCrossbar2);
 			break;
 
 		case Action::None:
@@ -602,7 +662,8 @@ static inline void CheckResetDecoder(Decoder &dec, enum AVCodecID id)
 #define MAX_SW_RES_INT (1920 * 1080)
 
 void DShowInput::OnEncodedVideoData(enum AVCodecID id, unsigned char *data,
-				    size_t size, long long ts)
+				    size_t size, long long ts,
+				    uint64_t sys_time)
 {
 	//PRISM/WangShaohui/20200117/#281/for source unavailable
 	CheckResetDecoder(video_decoder, id);
@@ -627,6 +688,8 @@ void DShowInput::OnEncodedVideoData(enum AVCodecID id, unsigned char *data,
 	}
 
 	if (got_output) {
+		//PRISM/LiuHaibin/20200609/#3174/camera effect
+		frame.sys_timestamp = sys_time;
 		frame.timestamp = (uint64_t)ts * 100;
 		if (flip)
 			frame.flip = !frame.flip;
@@ -641,6 +704,7 @@ void DShowInput::OnEncodedVideoData(enum AVCodecID id, unsigned char *data,
 void DShowInput::OnDShowEvent(DShowEvent evt, void *params)
 {
 	switch (evt) {
+	case DShow::DShowEvent::DeviceErrorAbort:
 	case DShow::DShowEvent::DeviceRemoved:
 		QueueAction(Action::OnRemoved);
 		break;
@@ -659,13 +723,22 @@ void DShowInput::OnVideoData(const VideoConfig &config, unsigned char *data,
 			     size_t size, long long startTime,
 			     long long endTime)
 {
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	uint64_t sys_time = os_gettime_ns();
+
+	//PRISM/Wang.Chuanjing/20200506/for camera effect
+	obs_source_set_image_status(source, true);
+	cam_effect.SetCaptureState(true);
+
 	if (videoConfig.format == VideoFormat::H264) {
-		OnEncodedVideoData(AV_CODEC_ID_H264, data, size, startTime);
+		OnEncodedVideoData(AV_CODEC_ID_H264, data, size, startTime,
+				   sys_time);
 		return;
 	}
 
 	if (videoConfig.format == VideoFormat::MJPEG) {
-		OnEncodedVideoData(AV_CODEC_ID_MJPEG, data, size, startTime);
+		OnEncodedVideoData(AV_CODEC_ID_MJPEG, data, size, startTime,
+				   sys_time);
 		return;
 	}
 
@@ -676,8 +749,11 @@ void DShowInput::OnVideoData(const VideoConfig &config, unsigned char *data,
 	frame.width = config.cx;
 	frame.height = config.cy;
 	frame.format = ConvertVideoFormat(config.format);
-	frame.flip = (config.format == VideoFormat::XRGB ||
-		      config.format == VideoFormat::ARGB);
+
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	frame.flip = frame.ori_img_flip = (config.format == VideoFormat::XRGB ||
+					   config.format == VideoFormat::ARGB);
+	frame.sys_timestamp = sys_time;
 
 	if (flip)
 		frame.flip = !frame.flip;
@@ -686,6 +762,13 @@ void DShowInput::OnVideoData(const VideoConfig &config, unsigned char *data,
 	    videoConfig.format == VideoFormat::ARGB) {
 		frame.data[0] = data;
 		frame.linesize[0] = cx * 4;
+
+		//PRISM/WangShaohui/20200424/#2317/for checking "Iriun Webcam"
+		int expect_size = cx * cy * 4;
+		if (size < expect_size) {
+			// #2317 Iriun Webcam will push incorrect buffer, so we have to check its buffer size here.
+			return;
+		}
 
 	} else if (videoConfig.format == VideoFormat::YVYU ||
 		   videoConfig.format == VideoFormat::YUY2 ||
@@ -993,7 +1076,7 @@ inline void DShowInput::SetupBuffering(obs_data_t *settings)
 
 static DStr GetVideoFormatName(VideoFormat format);
 
-bool DShowInput::UpdateVideoConfig(obs_data_t *settings)
+bool DShowInput::UpdateVideoConfig(obs_data_t *settings, bool saveLog)
 {
 	string video_device_id = obs_data_get_string(settings, VIDEO_DEVICE_ID);
 	deactivateWhenNotShowing = obs_data_get_bool(settings, DEACTIVATE_WNS);
@@ -1001,8 +1084,12 @@ bool DShowInput::UpdateVideoConfig(obs_data_t *settings)
 
 	DeviceId id;
 	if (!DecodeDeviceId(id, video_device_id.c_str())) {
-		blog(LOG_WARNING, "%s: DecodeDeviceId failed",
-		     obs_source_get_name(source));
+		//PRISM/WangShaohui/20201013/NoIssue/adjust log number
+		if (saveLog) {
+			blog(LOG_WARNING,
+			     "%s: DecodeDeviceId failed (cannot parse device id)",
+			     obs_source_get_name(source));
+		}
 		return false;
 	}
 
@@ -1010,8 +1097,12 @@ bool DShowInput::UpdateVideoConfig(obs_data_t *settings)
 	Device::EnumVideoDevices(data.devices);
 	VideoDevice dev;
 	if (!data.GetDevice(dev, video_device_id.c_str())) {
-		blog(LOG_WARNING, "%s: data.GetDevice failed",
-		     obs_source_get_name(source));
+		//PRISM/WangShaohui/20201013/NoIssue/adjust log number
+		if (saveLog) {
+			blog(LOG_WARNING,
+			     "%s: data.GetDevice failed (cannot find device)",
+			     obs_source_get_name(source));
+		}
 		return false;
 	}
 
@@ -1024,8 +1115,11 @@ bool DShowInput::UpdateVideoConfig(obs_data_t *settings)
 		bool has_autosel_val;
 		string resolution = obs_data_get_string(settings, RESOLUTION);
 		if (!ResolutionValid(resolution, cx, cy)) {
-			blog(LOG_WARNING, "%s: ResolutionValid failed",
-			     obs_source_get_name(source));
+			//PRISM/WangShaohui/20201013/NoIssue/adjust log number
+			if (saveLog) {
+				blog(LOG_WARNING, "%s: ResolutionValid failed",
+				     obs_source_get_name(source));
+			}
 			return false;
 		}
 
@@ -1050,8 +1144,12 @@ bool DShowInput::UpdateVideoConfig(obs_data_t *settings)
 			FrameRateMatcher(interval));
 
 		if (!caps_match && !video_format_match) {
-			blog(LOG_WARNING, "%s: Video format match failed",
-			     obs_source_get_name(source));
+			//PRISM/WangShaohui/20201013/NoIssue/adjust log number
+			if (saveLog) {
+				blog(LOG_WARNING,
+				     "%s: Video format match failed",
+				     obs_source_get_name(source));
+			}
 			return false;
 		}
 
@@ -1081,8 +1179,11 @@ bool DShowInput::UpdateVideoConfig(obs_data_t *settings)
 	videoConfig.format = videoConfig.internalFormat;
 
 	if (!device.SetVideoConfig(&videoConfig)) {
-		blog(LOG_WARNING, "%s: device.SetVideoConfig failed",
-		     obs_source_get_name(source));
+		//PRISM/WangShaohui/20201013/NoIssue/adjust log number
+		if (saveLog) {
+			blog(LOG_WARNING, "%s: device.SetVideoConfig failed",
+			     obs_source_get_name(source));
+		}
 		return false;
 	}
 
@@ -1223,22 +1324,33 @@ DShowInput::GetColorRange(obs_data_t *settings) const
 }
 
 //PRISM/WangShaohui/20200210/#281/for source unavailable
-inline enum obs_source_error DShowInput::Activate(obs_data_t *settings)
+inline enum obs_source_error DShowInput::Activate(obs_data_t *settings,
+						  bool saveLog)
 {
+	//PRISM/Wang.Chuanjing/20200511//for camera image state
+	obs_source_set_image_status(source, false);
+
 	if (!device.ResetGraph())
 		return OBS_SOURCE_ERROR_UNKNOWN;
 
-	if (!UpdateVideoConfig(settings)) {
-		blog(LOG_WARNING, "%s: Video configuration failed",
-		     obs_source_get_name(source));
+	if (!UpdateVideoConfig(settings, saveLog)) {
+		//PRISM/WangShaohui/20201013/NoIssue/adjust log number
+		if (saveLog) {
+			blog(LOG_WARNING, "%s: Video configuration failed",
+			     obs_source_get_name(source));
+		}
 		return OBS_SOURCE_ERROR_UNKNOWN;
 	}
 
-	if (!UpdateAudioConfig(settings))
-		blog(LOG_WARNING,
-		     "%s: Audio configuration failed, ignoring "
-		     "audio",
-		     obs_source_get_name(source));
+	if (!UpdateAudioConfig(settings)) {
+		//PRISM/WangShaohui/20201013/NoIssue/adjust log number
+		if (saveLog) {
+			blog(LOG_WARNING,
+			     "%s: Audio configuration failed, ignoring "
+			     "audio",
+			     obs_source_get_name(source));
+		}
+	}
 
 	if (!device.ConnectFilters())
 		return OBS_SOURCE_ERROR_UNKNOWN;
@@ -1261,10 +1373,13 @@ inline enum obs_source_error DShowInput::Activate(obs_data_t *settings)
 						   frame.color_range_min,
 						   frame.color_range_max);
 	if (!success) {
-		blog(LOG_ERROR,
-		     "Failed to get video format parameters for "
-		     "video format %u",
-		     cs);
+		//PRISM/WangShaohui/20201013/NoIssue/adjust log number
+		if (saveLog) {
+			blog(LOG_ERROR,
+			     "Failed to get video format parameters for "
+			     "video format %u",
+			     cs);
+		}
 	}
 
 	//PRISM/WangShaohui/20200210/#281/for source unavailable
@@ -1275,6 +1390,10 @@ inline void DShowInput::Deactivate()
 {
 	device.ResetGraph();
 	obs_source_output_video2(source, nullptr);
+
+	//PRISM/WangChuanjing/20200429/#2516/for beauty
+	obs_source_set_image_status(source, false);
+	cam_effect.SetCaptureState(false);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1288,6 +1407,8 @@ static void *CreateDShowInput(obs_data_t *settings, obs_source_t *source)
 {
 	//PRISM/WangShaohui/20200117/#281/for source unavailable
 	obs_source_set_capture_valid(source, true, OBS_SOURCE_ERROR_OK);
+	//PRISM/WangChuanjing/20200429/#2517/for beauty
+	obs_source_set_image_status(source, false);
 
 	DShowInput *dshow = nullptr;
 
@@ -1969,13 +2090,16 @@ static bool CustomAudioClicked(obs_properties_t *props, obs_property_t *p,
 static bool ActivateClicked(obs_properties_t *, obs_property_t *p, void *data)
 {
 	DShowInput *input = reinterpret_cast<DShowInput *>(data);
+	input->previous_operation = SwitchActive;
 
 	if (input->active) {
 		input->SetActive(false);
-		obs_property_set_description(p, TEXT_ACTIVATE);
+		//PRISM/Liuying/20200617/No issue/for the same row of buttons
+		obs_property_button_group_set_item_text(p, 0, TEXT_ACTIVATE);
 	} else {
 		input->SetActive(true);
-		obs_property_set_description(p, TEXT_DEACTIVATE);
+		//PRISM/Liuying/20200617/No issue/for the same row of buttons
+		obs_property_button_group_set_item_text(p, 0, TEXT_DEACTIVATE);
 	}
 
 	return true;
@@ -2008,12 +2132,16 @@ static obs_properties_t *GetDShowProperties(void *obj)
 			activateText = TEXT_DEACTIVATE;
 	}
 
-	obs_properties_add_button(ppts, "activate", activateText,
-				  ActivateClicked);
-	obs_properties_add_button(ppts, "video_config", TEXT_CONFIG_VIDEO,
-				  VideoConfigClicked);
-	obs_properties_add_button(ppts, "xbar_config", TEXT_CONFIG_XBAR,
-				  CrossbarConfigClicked);
+	//PRISM/Liuying/20200617/No issue/for the same row of buttons
+	p = obs_properties_add_button_group(ppts, BUTTON_GROUP_TYPE,
+					    BUTTON_GROUP_TYPE);
+
+	obs_property_button_group_add_item(p, "activate", activateText,
+					   ActivateClicked);
+	obs_property_button_group_add_item(p, "video_config", TEXT_CONFIG_VIDEO,
+					   VideoConfigClicked);
+	obs_property_button_group_add_item(p, "xbar_config", TEXT_CONFIG_XBAR,
+					   CrossbarConfigClicked);
 
 	obs_properties_add_bool(ppts, DEACTIVATE_WNS, TEXT_DWNS);
 
@@ -2147,6 +2275,122 @@ static void ShowDShowInput(void *data)
 		input->QueueAction(Action::Activate);
 }
 
+//PRISM/Wang.Chuanjing/20200409/#2330/for beauty
+static bool SetPrivateData(void *data, obs_data_t *private_data)
+{
+	if (!private_data)
+		return false;
+
+	if (!data) {
+		return PLSCamEffect::SetGlobalParam(private_data);
+	}
+
+	const char *method = obs_data_get_string(private_data, "method");
+	if (!method) {
+		return false;
+	}
+
+	DShowInput *input = reinterpret_cast<DShowInput *>(data);
+
+	if (0 == strcmp(method, "owner")) {
+		input->property_hwnd =
+			(HWND)obs_data_get_int(private_data, "hwnd");
+		return true;
+	} else {
+		bool effect_onoff_changed = false;
+		bool ret = input->cam_effect.SetEffectParam(
+			method, private_data, effect_onoff_changed);
+
+		if (effect_onoff_changed) {
+			input->previous_operation = SwitchEffect;
+		}
+		return ret;
+	}
+}
+
+//PRISM/LiuHaibin/20200609/#3174/camera effect
+static void OnSharedHandle(void *data, uint32_t shared_handle,
+			   struct gs_luid *luid, bool flip, uint64_t sys_time)
+{
+	if (data) {
+		shared_handle_header hdr = {};
+		hdr.flip = flip;
+		hdr.push_time = GetTickCount();
+
+		shared_handle_sample body = {};
+		body.handle = shared_handle;
+		memcpy(&body.luid, luid, sizeof(shared_handle_adapter_luid));
+
+		DShowInput *input = reinterpret_cast<DShowInput *>(data);
+		input->cam_effect.SetInputVideo(hdr, body);
+	}
+}
+
+//PRISM/LiuHaibin/20200609/#3174/camera effect
+static bool IsCamEffectOn(void *data)
+{
+	if (data) {
+		DShowInput *input = reinterpret_cast<DShowInput *>(data);
+		return input->cam_effect.UseVideoEffect();
+	}
+	return false;
+}
+
+//PRISM/Wangshaohui/20200609/#3174/camera effect
+static void CamAsyncTick(void *data)
+{
+	if (data) {
+		DShowInput *input = reinterpret_cast<DShowInput *>(data);
+		if (input->cam_effect.UseVideoEffect()) {
+			input->cam_effect.EffectTick();
+		}
+
+		std::vector<PLSExceptionInfo> exceptions;
+		size_t count = input->cam_effect.PopExceptions(exceptions);
+		for (size_t i = 0; i < count; i++) {
+			PLSExceptionInfo &temp = exceptions[i];
+			obs_source_send_notify(input->source, temp.type,
+					       temp.sub_code);
+		}
+	}
+}
+
+//PRISM/LiuHaibin/20200618/#3174/camera effect
+static gs_texture_t *RetrieveTexture(void *data)
+{
+	// if we return NULL, libobs will render original texture directly.
+	if (data) {
+		DShowInput *input = reinterpret_cast<DShowInput *>(data);
+		return input->cam_effect.GetOutputVideo();
+	}
+	return NULL;
+}
+
+//PRISM/Wangshaohui/20200701/#3174/camera effect
+static bool IsEffectSwitching(void *data)
+{
+	if (data) {
+		DShowInput *input = reinterpret_cast<DShowInput *>(data);
+		return (SwitchEffect == input->previous_operation);
+	}
+	return false;
+}
+
+//PRISM/Wangshaohui/20200701/#3174/camera effect
+static unsigned SourceStateFlags(void *data)
+{
+	unsigned flags = 0;
+
+	if (data) {
+		DShowInput *input = reinterpret_cast<DShowInput *>(data);
+		if (input->active && input->cam_effect.IsCaptureNormal()) {
+			flags |= OBS_SOURCE_STATE_ACTIVE;
+		}
+	}
+
+	return flags;
+}
+
 void RegisterDShowSource()
 {
 	SetLogCallback(DShowModuleLogCallback, nullptr);
@@ -2164,6 +2408,13 @@ void RegisterDShowSource()
 	info.update = UpdateDShowInput;
 	info.get_defaults = GetDShowDefaults;
 	info.get_properties = GetDShowProperties;
+	info.set_private_data = SetPrivateData;
+	info.push_shared_handle = OnSharedHandle;
+	info.cam_effect_on = IsCamEffectOn;
+	info.on_async_tick = CamAsyncTick;
+	info.retrieve_texture = RetrieveTexture;
+	info.cam_effect_switching = IsEffectSwitching;
+	info.source_state_flags = SourceStateFlags;
 	info.icon_type = OBS_ICON_TYPE_CAMERA;
 	obs_register_source(&info);
 }

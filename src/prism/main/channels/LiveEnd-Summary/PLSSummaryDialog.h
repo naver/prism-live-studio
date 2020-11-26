@@ -1,8 +1,8 @@
 #ifndef PLSSUMMARYDIALOG_H
 #define PLSSUMMARYDIALOG_H
 
-#include <dialog-view.hpp>
 #include <QVBoxLayout>
+#include <dialog-view.hpp>
 
 namespace Ui {
 class PLSSummaryDialog;
@@ -12,7 +12,7 @@ class PLSSummaryDialog : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	explicit PLSSummaryDialog(const QMap<QString, QVariantMap> &sourceLst, QWidget *parent = nullptr);
+	explicit PLSSummaryDialog(const QMap<QString, QVariantMap> &sourceLst, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSSummaryDialog();
 
 private:

@@ -24,6 +24,11 @@
 #include "media-io/format-conversion.h"
 #include "media-io/video-frame.h"
 
+#ifdef _WIN32
+#define WIN32_MEAN_AND_LEAN
+#include <windows.h>
+#endif
+
 static uint64_t tick_sources(uint64_t cur_time, uint64_t last_time)
 {
 	struct obs_core_data *data = &obs->data;
@@ -34,6 +39,10 @@ static uint64_t tick_sources(uint64_t cur_time, uint64_t last_time)
 	if (!last_time)
 		last_time = cur_time -
 			    video_output_get_frame_time(obs->video.video);
+
+	if (!is_render_working()) {
+		return cur_time;
+	}
 
 	delta_time = cur_time - last_time;
 	seconds = (float)((double)delta_time / 1000000000.0);
@@ -54,6 +63,10 @@ static uint64_t tick_sources(uint64_t cur_time, uint64_t last_time)
 	/* ------------------------------------- */
 	/* call the tick function of each source */
 
+	//PRISM/WangShaohui/20201028/NoIssue/while accessing source list, cann't release source
+	DARRAY(struct obs_source *) delay_release_list;
+	da_init(delay_release_list);
+
 	pthread_mutex_lock(&data->sources_mutex);
 
 	source = data->first_source;
@@ -63,11 +76,20 @@ static uint64_t tick_sources(uint64_t cur_time, uint64_t last_time)
 
 		if (cur_source) {
 			obs_source_video_tick(cur_source, seconds);
-			obs_source_release(cur_source);
+
+			//PRISM/WangShaohui/20201028/NoIssue/while accessing source list, cann't release source
+			da_push_back(delay_release_list, &cur_source);
 		}
 	}
 
 	pthread_mutex_unlock(&data->sources_mutex);
+
+	//PRISM/WangShaohui/20201028/NoIssue/while accessing source list, cann't release source
+	for (size_t i = 0; i < delay_release_list.num; i++) {
+		struct obs_source *source = *(delay_release_list.array + i);
+		obs_source_release(source);
+	}
+	da_free(delay_release_list);
 
 	return cur_time;
 }
@@ -88,7 +110,8 @@ static inline void render_displays(void)
 	pthread_mutex_lock(&obs->data.displays_mutex);
 
 	display = obs->data.first_display;
-	while (display) {
+	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+	while (display && is_render_working()) {
 		render_display(display);
 		display = display->next;
 	}
@@ -144,7 +167,9 @@ static inline void render_main_texture(struct obs_core_video *video)
 
 	pthread_mutex_unlock(&obs->data.draw_callbacks_mutex);
 
-	obs_view_render(&obs->data.main_view);
+	//PRISM/WangChuanjing/20200825/#3423/for main view load delay
+	if (os_atomic_load_bool(&obs->video.system_initialized))
+		obs_view_render(&obs->data.main_view);
 
 	video->texture_rendered = true;
 
@@ -833,11 +858,116 @@ static void clear_gpu_frame_data(void)
 }
 #endif
 
+extern THREAD_LOCAL bool is_graphics_thread;
+
+static void execute_graphics_tasks(void)
+{
+	struct obs_core_video *video = &obs->video;
+	bool tasks_remaining = true;
+
+	while (tasks_remaining) {
+		pthread_mutex_lock(&video->task_mutex);
+		if (video->tasks.size) {
+			struct obs_task_info info;
+			circlebuf_pop_front(&video->tasks, &info, sizeof(info));
+			info.task(info.param);
+		}
+		tasks_remaining = !!video->tasks.size;
+		pthread_mutex_unlock(&video->task_mutex);
+	}
+}
+
+#ifdef _WIN32
+
+struct winrt_exports {
+	void (*winrt_initialize)();
+	void (*winrt_uninitialize)();
+	struct winrt_disaptcher *(*winrt_dispatcher_init)();
+	void (*winrt_dispatcher_free)(struct winrt_disaptcher *dispatcher);
+	void (*winrt_capture_thread_start)();
+	void (*winrt_capture_thread_stop)();
+};
+
+#define WINRT_IMPORT(func)                                        \
+	do {                                                      \
+		exports->func = os_dlsym(module, #func);          \
+		if (!exports->func) {                             \
+			success = false;                          \
+			blog(LOG_ERROR,                           \
+			     "Could not load function '%s' from " \
+			     "module '%s'",                       \
+			     #func, module_name);                 \
+		}                                                 \
+	} while (false)
+
+static bool load_winrt_imports(struct winrt_exports *exports, void *module,
+			       const char *module_name)
+{
+	bool success = true;
+
+	WINRT_IMPORT(winrt_initialize);
+	WINRT_IMPORT(winrt_uninitialize);
+	WINRT_IMPORT(winrt_dispatcher_init);
+	WINRT_IMPORT(winrt_dispatcher_free);
+	WINRT_IMPORT(winrt_capture_thread_start);
+	WINRT_IMPORT(winrt_capture_thread_stop);
+
+	return success;
+}
+
+struct winrt_state {
+	bool loaded;
+	void *winrt_module;
+	struct winrt_exports exports;
+	struct winrt_disaptcher *dispatcher;
+};
+
+static void init_winrt_state(struct winrt_state *winrt)
+{
+	static const char *const module_name = "libobs-winrt";
+
+	winrt->winrt_module = os_dlopen(module_name);
+	winrt->loaded = winrt->winrt_module &&
+			load_winrt_imports(&winrt->exports, winrt->winrt_module,
+					   module_name);
+	winrt->dispatcher = NULL;
+	if (winrt->loaded) {
+		winrt->exports.winrt_initialize();
+		winrt->dispatcher = winrt->exports.winrt_dispatcher_init();
+
+		gs_enter_context(obs->video.graphics);
+		winrt->exports.winrt_capture_thread_start();
+		gs_leave_context();
+	}
+}
+
+static void uninit_winrt_state(struct winrt_state *winrt)
+{
+	if (winrt->winrt_module) {
+		if (winrt->loaded) {
+			winrt->exports.winrt_capture_thread_stop();
+			if (winrt->dispatcher)
+				winrt->exports.winrt_dispatcher_free(
+					winrt->dispatcher);
+			winrt->exports.winrt_uninitialize();
+		}
+
+		os_dlclose(winrt->winrt_module);
+	}
+}
+
+#endif // #ifdef _WIN32
+
 static const char *tick_sources_name = "tick_sources";
 static const char *render_displays_name = "render_displays";
 static const char *output_frame_name = "output_frame";
 void *obs_graphics_thread(void *param)
 {
+#ifdef _WIN32
+	struct winrt_state winrt;
+	init_winrt_state(&winrt);
+#endif // #ifdef _WIN32
+
 	uint64_t last_time = 0;
 	uint64_t interval = video_output_get_frame_time(obs->video.video);
 	uint64_t frame_time_total_ns = 0;
@@ -848,6 +978,8 @@ void *obs_graphics_thread(void *param)
 #endif
 	bool raw_was_active = false;
 	bool was_active = false;
+
+	is_graphics_thread = true;
 
 	obs->video.video_time = os_gettime_ns();
 	obs->video.video_frame_interval_ns = interval;
@@ -892,13 +1024,28 @@ void *obs_graphics_thread(void *param)
 		last_time = tick_sources(obs->video.video_time, last_time);
 		profile_end(tick_sources_name);
 
-		profile_start(output_frame_name);
-		output_frame(raw_active, gpu_active);
-		profile_end(output_frame_name);
+		execute_graphics_tasks();
 
-		profile_start(render_displays_name);
-		render_displays();
-		profile_end(render_displays_name);
+#ifdef _WIN32
+		MSG msg;
+		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+#endif
+
+		//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+		if (is_render_working()) {
+			profile_start(output_frame_name);
+			output_frame(raw_active, gpu_active);
+			profile_end(output_frame_name);
+
+			profile_start(render_displays_name);
+			render_displays();
+			profile_end(render_displays_name);
+		} else {
+			gs_device_rebuild(obs->video.graphics);
+		}
 
 		frame_time_ns = os_gettime_ns() - frame_start;
 
@@ -926,6 +1073,10 @@ void *obs_graphics_thread(void *param)
 			fps_total_frames = 0;
 		}
 	}
+
+#ifdef _WIN32
+	uninit_winrt_state(&winrt);
+#endif
 
 	UNUSED_PARAMETER(param);
 	return NULL;

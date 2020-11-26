@@ -2,10 +2,11 @@
 #include "ui_PLSAboutView.h"
 #include "ui-config.h"
 
-PLSAboutView::PLSAboutView(QWidget *parent) : PLSDialogView(parent), ui(new Ui::PLSAboutView)
+PLSAboutView::PLSAboutView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSAboutView)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::PLSAboutView});
+	dpiHelper.setFixedSize(this, {342, 360});
 	ui->setupUi(this->content());
-	setFixedSize(342, 360);
 	QString version = QString::asprintf("Current Version %s", PLS_VERSION);
 	ui->versionLabel->setText(version);
 	bool disabled = pls_is_living_or_recording();

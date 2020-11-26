@@ -1,17 +1,15 @@
 #include "window-basic-main.hpp"
 #include "pls-common-define.hpp"
 
-void PLSBasic::GetSourceTypeList(std::vector<std::vector<QString>> &preset, std::vector<QString> &other)
-{
-	static bool typeInited = false;
-	static std::vector<std::vector<QString>> presetList;
-	static std::vector<QString> otherList;
+#define UseFreeMusic
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
 
-	if (typeInited) {
-		preset = presetList;
-		other = otherList;
-		return;
-	}
+void PLSBasic::GetSourceTypeList(std::vector<std::vector<QString>> &preset, std::vector<QString> &other, std::map<QString, bool> &monitors)
+{
+	std::vector<std::vector<QString>> presetList;
+	std::vector<QString> otherList;
 
 	//------------------------ define preset type list ------------------------
 	struct SourceTypeInfo {
@@ -21,26 +19,29 @@ void PLSBasic::GetSourceTypeList(std::vector<std::vector<QString>> &preset, std:
 	};
 
 	std::vector<std::vector<SourceTypeInfo>> presetSourceList = {
-		{
-			SourceTypeInfo(DSHOW_SOURCE_ID),
-			SourceTypeInfo(AUDIO_INPUT_SOURCE_ID),
-		},
+		{SourceTypeInfo(DSHOW_SOURCE_ID), SourceTypeInfo(AUDIO_INPUT_SOURCE_ID), SourceTypeInfo(PRISM_NDI_SOURCE_ID)},
 		{
 			SourceTypeInfo(GAME_SOURCE_ID),
-			SourceTypeInfo(PRISM_MONITOR_SOURCE_ID),
+			SourceTypeInfo(PRISM_MONITOR_REGION_MENU, true),
 			SourceTypeInfo(WINDOW_SOURCE_ID),
 		},
 		{
 			SourceTypeInfo(BROWSER_SOURCE_ID),
 		},
 		{
+			SourceTypeInfo(PRISM_CHAT_SOURCE_ID),
+			SourceTypeInfo(PRISM_STICKER_SOURCE_ID),
 			SourceTypeInfo(MEDIA_SOURCE_ID),
+#ifdef UseFreeMusic
+			SourceTypeInfo(BGM_SOURCE_ID),
+#endif // UseFreeMusic
 			SourceTypeInfo(IMAGE_SOURCE_ID),
 			SourceTypeInfo(SLIDESHOW_SOURCE_ID),
 			SourceTypeInfo(COLOR_SOURCE_ID),
 		},
 		{
 			SourceTypeInfo(GDIP_TEXT_SOURCE_ID),
+			SourceTypeInfo(PRISM_TEXT_MOTION_ID),
 			SourceTypeInfo(SCENE_SOURCE_ID, true),
 			SourceTypeInfo(AUDIO_OUTPUT_SOURCE_ID),
 		},
@@ -56,6 +57,11 @@ void PLSBasic::GetSourceTypeList(std::vector<std::vector<QString>> &preset, std:
 
 		if (!id || (*id) == 0)
 			continue;
+
+		if (monitors.find(id) != monitors.end()) {
+			monitors[id] = true;
+			continue;
+		}
 
 		bool isPresetDefined = false;
 
@@ -88,7 +94,61 @@ void PLSBasic::GetSourceTypeList(std::vector<std::vector<QString>> &preset, std:
 			presetList.push_back(typeList);
 	}
 
-	typeInited = true;
 	preset = presetList;
 	other = otherList;
+}
+
+QPushButton *PLSBasic::CreateSourcePopupMenuCustomWidget(const char *id, const QString &display, const QSize &iconSize)
+{
+	QString qid = QString::fromUtf8(id);
+	if (!strcmp(id, PRISM_STICKER_SOURCE_ID) || !strcmp(id, BGM_SOURCE_ID) || !strcmp(id, PRISM_CHAT_SOURCE_ID) || !strcmp(id, PRISM_TEXT_MOTION_ID)) {
+		QPushButton *widget = new QPushButton();
+		widget->setObjectName("sourcePopupMenuCustomWidget");
+		widget->setProperty("sourceId", qid);
+		widget->setProperty("hasBadge", true);
+		widget->setMouseTracking(true);
+		QLabel *icon = new QLabel(widget);
+		icon->setObjectName("icon");
+		icon->setMouseTracking(true);
+		icon->setPixmap(GetSourceIcon(id).pixmap(iconSize));
+		QLabel *text = new QLabel(display, widget);
+		text->setObjectName("text");
+		text->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+		text->setMouseTracking(true);
+		QLabel *badge = new QLabel(widget);
+		badge->setObjectName("badge");
+		badge->setAlignment(Qt::AlignCenter);
+		badge->setMouseTracking(true);
+		QHBoxLayout *layout = new QHBoxLayout(widget);
+		layout->setSizeConstraint(QLayout::SetMinimumSize);
+		layout->setMargin(0);
+		layout->setSpacing(0);
+		layout->addWidget(icon);
+		layout->addWidget(text);
+		layout->addWidget(badge);
+		layout->addStretch(1);
+		return widget;
+	} else {
+		QPushButton *widget = new QPushButton();
+		widget->setObjectName("sourcePopupMenuCustomWidget");
+		widget->setProperty("sourceId", qid);
+		widget->setProperty("hasBadge", false);
+		widget->setMouseTracking(true);
+		QLabel *icon = new QLabel(widget);
+		icon->setObjectName("icon");
+		icon->setMouseTracking(true);
+		icon->setPixmap(GetSourceIcon(id).pixmap(iconSize));
+		QLabel *text = new QLabel(display, widget);
+		text->setObjectName("text");
+		text->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+		text->setMouseTracking(true);
+		QHBoxLayout *layout = new QHBoxLayout(widget);
+		layout->setSizeConstraint(QLayout::SetMinimumSize);
+		layout->setMargin(0);
+		layout->setSpacing(0);
+		layout->addWidget(icon);
+		layout->addWidget(text);
+		layout->addStretch(1);
+		return widget;
+	}
 }

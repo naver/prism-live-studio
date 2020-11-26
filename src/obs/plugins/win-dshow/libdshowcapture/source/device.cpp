@@ -117,7 +117,7 @@ bool HDevice::ReadAllEvents()
 	while (SUCCEEDED(events->GetEvent(&eventCode, &param1, &param2, 0))) {
 		if (EC_DEVICE_LOST == eventCode) {
 			if (FLAG_REMOVE_DEVICE == param2) {
-				Info(L"device removed");
+				Warning(L"device removed");
 				if (evtCallback)
 					evtCallback(DShowEvent::DeviceRemoved,
 						    NULL);
@@ -127,6 +127,10 @@ bool HDevice::ReadAllEvents()
 					evtCallback(DShowEvent::DeviceInserted,
 						    NULL);
 			}
+		} else if (EC_ERRORABORT == eventCode) {
+			Warning(L"device error abort");
+			if (evtCallback)
+				evtCallback(DShowEvent::DeviceErrorAbort, NULL);
 		}
 
 		events->FreeEventParams(eventCode, param1, param2);

@@ -18,6 +18,9 @@ PLSLoadingEvent::~PLSLoadingEvent() {}
 void PLSLoadingEvent::startLoadingTimer(QWidget *loadingButton, const int timeout)
 {
 	m_loadingButton = loadingButton;
+	if (INTERNAL_ERROR != m_loadingTimer) {
+		return;
+	}
 	m_loadingTimer = this->startTimer(timeout);
 	emit startLoading();
 }

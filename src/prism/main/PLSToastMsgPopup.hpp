@@ -6,6 +6,8 @@
 #include <QWidget>
 #include "PLSLivingMsgView.hpp"
 #include <QMouseEvent>
+#include "PLSDpiHelper.h"
+
 namespace Ui {
 class PLSToastMsgPopup;
 }

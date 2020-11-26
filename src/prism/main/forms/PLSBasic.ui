@@ -51,7 +51,7 @@
      <number>20</number>
     </property>
     <property name="bottomMargin">
-     <number>20</number>
+     <number>35</number>
     </property>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -273,7 +273,7 @@
      <x>0</x>
      <y>0</y>
      <width>1079</width>
-     <height>23</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="PLSMenu" name="menuFile">
@@ -286,6 +286,15 @@
     <addaction name="actionShowVideosFolder"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
+   </widget>
+   <widget class="PLSMenu" name="menuHelp">
+    <property name="title">
+     <string>Basic.MainMenu.Help</string>
+    </property>
+    <addaction name="actionPrismWebsite"/>
+    <addaction name="actionPrismFAQ"/>
+    <addaction name="separator"/>
+    <addaction name="actionObsFAQPortal"/>
    </widget>
    <widget class="PLSMenu" name="menuEdit">
     <property name="title">
@@ -393,6 +402,9 @@
      <addaction name="actionMixerAttachOrDetach"/>
     </widget>
     <action name="actionFullscreenInterface">
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
      <property name="text">
       <string>Basic.MainMenu.View.Fullscreen.Interface</string>
      </property>
@@ -405,6 +417,8 @@
     <addaction name="actionAlwaysOnTop"/>
     <addaction name="separator"/>
     <addaction name="actionStudioMode"/>
+    <addaction name="separator"/>
+    <addaction name="actionChat"/>
     <addaction name="separator"/>
     <addaction name="menuScenes"/>
     <addaction name="separator"/>
@@ -425,6 +439,7 @@
    <addaction name="sceneCollectionMenu"/>
    <addaction name="profileMenu"/>
    <addaction name="menuTools"/>
+   <addaction name="menuHelp"/>
   </widget>
   <widget class="PLSDock" name="scenesDock">
    <property name="features">
@@ -584,6 +599,9 @@
           <property name="selectionMode">
            <enum>QAbstractItemView::ExtendedSelection</enum>
           </property>
+          <property name="verticalScrollMode">
+           <enum>QAbstractItemView::ScrollPerPixel</enum>
+          </property>
           <addaction name="actionRemoveSource"/>
          </widget>
         </item>
@@ -662,7 +680,7 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>210</width>
+           <width>206</width>
            <height>16</height>
           </rect>
          </property>

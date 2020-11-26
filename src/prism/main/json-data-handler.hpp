@@ -1,3 +1,13 @@
+/*
+ * @fine      PLSJsonDataHandler
+ * @brief     json parsing and json generation module
+ * @date      2019-09-30
+ * @author    Bing Cheng
+ * @attention
+
+ * @version   v1.0
+ * @modify
+ */
 
 #ifndef COMMON_HTTP_JSONDATAHANDLER_H
 #define COMMON_HTTP_JSONDATAHANDLER_H

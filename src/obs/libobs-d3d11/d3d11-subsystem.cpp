@@ -146,6 +146,12 @@ void gs_swap_chain::Resize(uint32_t cx, uint32_t cy)
 	InitZStencilBuffer(cx, cy);
 }
 
+//PRISM/Wang.Chuanjing/20200403/#2322/for device reset crash
+void gs_swap_chain::ResizeBuffer()
+{
+	Resize(initData.cx, initData.cy);
+}
+
 void gs_swap_chain::Init()
 {
 	target.device = device;
@@ -212,7 +218,8 @@ void gs_device::InitCompiler()
 	      "DirectX components</a> that OBS Studio requires.";
 }
 
-void gs_device::InitFactory(uint32_t adapterIdx)
+//PRISM/LiuHaibin/20200630/#3174/camera effect
+void gs_device::InitFactory(uint32_t &adapterIdx)
 {
 	HRESULT hr;
 	IID factoryIID = (GetWinVer() >= 0x602) ? dxgiFactory2
@@ -222,9 +229,65 @@ void gs_device::InitFactory(uint32_t adapterIdx)
 	if (FAILED(hr))
 		throw UnsupportedHWError("Failed to create DXGIFactory", hr);
 
+	int index = 0;
+
+	//PRISM/LiuHaibin/20200630/#3174/camera effect
+	while (factory->EnumAdapters1(index++, &adapter) == S_OK) {
+		DXGI_ADAPTER_DESC desc;
+		hr = adapter->GetDesc(&desc);
+		if (FAILED(hr))
+			continue;
+
+		/* ignore microsoft's 'basic' renderer */
+		if (desc.VendorId == 0x1414 && desc.DeviceId == 0x8c)
+			continue;
+
+		wstring adapterName = desc.Description;
+		BPtr<char> adapterNameUTF8;
+		os_wcs_to_utf8_ptr(adapterName.c_str(), 0, &adapterNameUTF8);
+
+		/* ignore adapters that has wrong dedicated video memory size */
+		if (desc.DedicatedVideoMemory <= 1) {
+			blog(LOG_INFO,
+			     "Adapter %s (%" PRIu32
+			     "): dedicated video memory is smaller than 1: %llu",
+			     adapterNameUTF8.Get(), index - 1,
+			     desc.DedicatedVideoMemory);
+			continue;
+		}
+
+		adapterIdx = index - 1;
+
+		blog(LOG_INFO, "Building D3D11 on adapter %s (%" PRIu32 ")",
+		     adapterNameUTF8.Get(), adapterIdx);
+		break;
+	}
+
 	hr = factory->EnumAdapters1(adapterIdx, &adapter);
 	if (FAILED(hr))
 		throw UnsupportedHWError("Failed to enumerate DXGIAdapter", hr);
+
+	//PRISM/Liu.Haibin/20200708/#3296/for adapter check
+	memset(&adapterLuid, 0, sizeof(adapterLuid));
+	DXGI_ADAPTER_DESC desc;
+	hr = adapter->GetDesc(&desc);
+	if (FAILED(hr))
+		blog(LOG_WARNING,
+		     "Failed to get adapter (index %d) LUID, err %ld",
+		     adapterIdx, hr);
+	else {
+		wstring adapterName = desc.Description;
+		BPtr<char> adapterNameUTF8;
+		os_wcs_to_utf8_ptr(adapterName.c_str(), 0, &adapterNameUTF8);
+
+		blog(LOG_INFO,
+		     "LUID for adapter %s (%" PRIu32
+		     "): LowPart %lu, HighPart %ld.",
+		     adapterNameUTF8.Get(), adapterIdx,
+		     desc.AdapterLuid.LowPart, desc.AdapterLuid.HighPart);
+		adapterLuid.low_part = desc.AdapterLuid.LowPart;
+		adapterLuid.high_part = desc.AdapterLuid.HighPart;
+	}
 }
 
 const static D3D_FEATURE_LEVEL featureLevels[] = {
@@ -441,8 +504,17 @@ void gs_device::InitDevice(uint32_t adapterIdx)
 	if (FAILED(hr))
 		throw UnsupportedHWError("Failed to create device", hr);
 
-	blog(LOG_INFO, "D3D11 loaded successfully, feature level used: %x",
-	     (unsigned int)levelUsed);
+	//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+	if (levelUsed == D3D_FEATURE_LEVEL_11_0 ||
+	    levelUsed == D3D_FEATURE_LEVEL_11_1) {
+		maxTextureSize = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+	} else {
+		maxTextureSize = D3D10_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+	}
+
+	blog(LOG_INFO,
+	     "D3D11 loaded successfully, feature level used: %x, max texture size: %llu",
+	     (unsigned int)levelUsed, maxTextureSize);
 
 	/* adjust gpu thread priority */
 #if USE_GPU_PRIORITY
@@ -501,6 +573,23 @@ void gs_device::InitDevice(uint32_t adapterIdx)
 	}
 
 	nv12Supported = true;
+}
+
+//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+uint64_t gs_device::GetMaxTextureSize()
+{
+	return maxTextureSize;
+}
+
+//PRISM/Liu.Haibin/20200708/#3296/for adapter check
+bool gs_device::GetAdapterLuid(struct gs_luid *luid)
+{
+	if (luid) {
+		memcpy(luid, &adapterLuid, sizeof(adapterLuid));
+		return true;
+	}
+
+	return false;
 }
 
 static inline void ConvertStencilSide(D3D11_DEPTH_STENCILOP_DESC &desc,
@@ -857,17 +946,20 @@ static inline void LogD3DAdapters()
 	}
 }
 
-int device_create(gs_device_t **p_device, uint32_t adapter)
+//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild, add callback
+int device_create(gs_device_t **p_device, uint32_t adapter,
+		  void (*callback)(bool render_working))
 {
 	gs_device *device = NULL;
 	int errorcode = GS_SUCCESS;
 
 	try {
-		blog(LOG_INFO, "---------------------------------");
 		blog(LOG_INFO, "Initializing D3D11...");
 		LogD3DAdapters();
 
 		device = new gs_device(adapter);
+		if (device)
+			device->render_working_cb = callback;
 
 	} catch (const UnsupportedHWError &error) {
 		blog(LOG_ERROR, "device_create (D3D11): %s (%08lX)", error.str,
@@ -947,6 +1039,11 @@ void device_resize(gs_device_t *device, uint32_t cx, uint32_t cy)
 		blog(LOG_ERROR, "device_resize (D3D11): %s (%08lX)", error.str,
 		     error.hr);
 		LogD3D11ErrorDetails(error, device);
+		//PRISM/Wang.Chuanjing/20200527/for device remove
+		if (error.hr == DXGI_ERROR_DEVICE_REMOVED ||
+		    error.hr == DXGI_ERROR_DEVICE_RESET) {
+			device->RebuildDevice();
+		}
 	}
 }
 
@@ -2647,4 +2744,97 @@ device_stagesurface_create_nv12(gs_device_t *device, uint32_t width,
 	}
 
 	return surf;
+}
+
+extern "C" EXPORT void
+device_register_loss_callbacks(gs_device_t *device,
+			       const gs_device_loss *callbacks)
+{
+	device->loss_callbacks.emplace_back(*callbacks);
+}
+
+extern "C" EXPORT void device_unregister_loss_callbacks(gs_device_t *device,
+							void *data)
+{
+	for (auto iter = device->loss_callbacks.begin();
+	     iter != device->loss_callbacks.end(); ++iter) {
+		if (iter->data == data) {
+			device->loss_callbacks.erase(iter);
+			break;
+		}
+	}
+}
+
+//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+extern "C" EXPORT uint64_t device_texture_get_max_size(gs_device_t *device)
+{
+	if (device)
+		return device->GetMaxTextureSize();
+	return 0;
+}
+
+//PRISM/Wangshaohui/20200710/#3370/for take photo
+extern "C" EXPORT gs_stagesurf_t *
+device_canvas_map(gs_device_t *device, uint32_t *out_cx, uint32_t *out_cy,
+		  enum gs_color_format *out_fmt, uint8_t **out_data,
+		  uint32_t *out_linesize)
+{
+	if (!device->curRenderTarget) {
+		return NULL;
+	}
+
+	uint32_t cx = gs_texture_get_width(device->curRenderTarget);
+	uint32_t cy = gs_texture_get_height(device->curRenderTarget);
+	enum gs_color_format fmt =
+		gs_texture_get_color_format(device->curRenderTarget);
+	if (cx <= 0 || cy <= 0 || fmt == GS_UNKNOWN) {
+		return NULL;
+	}
+
+	gs_stagesurf_t *surface = gs_stagesurface_create(cx, cy, fmt);
+	if (!surface) {
+		return NULL;
+	}
+
+	gs_stage_texture(surface, device->curRenderTarget);
+
+	uint8_t *data = NULL;
+	uint32_t linesize;
+	if (!gs_stagesurface_map(surface, &data, &linesize)) {
+		gs_stagesurface_destroy(surface);
+		return NULL;
+	}
+
+	*out_cx = cx;
+	*out_cy = cy;
+	*out_fmt = fmt;
+	*out_data = data;
+	*out_linesize = linesize;
+	return surface;
+}
+
+//PRISM/Wangshaohui/20200710/#3370/for take photo
+extern "C" EXPORT void device_canvas_unmap(gs_device_t *device,
+					   gs_stagesurf_t *surface)
+{
+	if (surface) {
+		gs_stagesurface_unmap(surface);
+		gs_stagesurface_destroy(surface);
+	}
+}
+
+//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+void device_rebuild(gs_device_t *device)
+{
+	if (device)
+		device->RebuildDevice();
+}
+
+//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+extern "C" EXPORT bool adapter_get_luid(gs_device_t *device,
+					struct gs_luid *luid)
+{
+	if (device)
+		return device->GetAdapterLuid(luid);
+	return 0;
 }

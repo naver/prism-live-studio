@@ -464,11 +464,13 @@ obs_properties_t *nvenc_properties_internal(bool ffmpeg)
 
 	obs_property_set_modified_callback(p, rate_control_modified);
 
+	//PRISM/LiuHaibin/20200328/#/change default value
 	p = obs_properties_add_int(props, "bitrate", obs_module_text("Bitrate"),
-				   50, 300000, 50);
+				   50, 60000, 50);
 	obs_property_int_set_suffix(p, " Kbps");
+	//PRISM/LiuHaibin/20200328/#/change default value
 	p = obs_properties_add_int(props, "max_bitrate",
-				   obs_module_text("MaxBitrate"), 50, 300000,
+				   obs_module_text("MaxBitrate"), 50, 60000,
 				   50);
 	obs_property_int_set_suffix(p, " Kbps");
 

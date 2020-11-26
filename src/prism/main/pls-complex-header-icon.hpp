@@ -20,8 +20,8 @@ public:
 	~PLSComplexHeaderIcon() override;
 
 	void setPixmap(const QString &pix);
-	void setPixmap(const QPixmap &pix, const QSize &size);
-	void setPlatformPixmap(const QString &pix);
+	void setPixmap(const QString &pix, const QSize &size);
+	void setPlatformPixmap(const QString &pix, const QSize &size);
 	void setPlatformPixmap(const QPixmap &pix);
 
 protected:

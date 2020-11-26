@@ -38,6 +38,9 @@ using namespace Gdiplus;
 
 #define MAX_AREA (4096LL * 4096LL)
 
+//PRISM/WangShaohui/20201026/#5402/limite text length
+#define MAX_TEXT_LENGTH 10000
+
 /* ------------------------------------------------------------------------- */
 
 /* clang-format off */
@@ -651,6 +654,11 @@ void TextSource::LoadFileText()
 	BPtr<char> file_text = os_quick_read_utf8_file(file.c_str());
 	text = to_wide(GetMainString(file_text));
 
+	//PRISM/WangShaohui/20201026/#5402/limite text length
+	if (text.length() > MAX_TEXT_LENGTH) {
+		text = text.substr(0, MAX_TEXT_LENGTH);
+	}
+
 	if (!text.empty() && text.back() != '\n')
 		text.push_back('\n');
 }
@@ -760,6 +768,11 @@ inline void TextSource::Update(obs_data_t *s)
 
 	} else {
 		text = to_wide(GetMainString(new_text));
+
+		//PRISM/WangShaohui/20201026/#5402/limite text length
+		if (text.length() > MAX_TEXT_LENGTH) {
+			text = text.substr(0, MAX_TEXT_LENGTH);
+		}
 
 		/* all text should end with newlines due to the fact that GDI+
 		 * treats strings without newlines differently in terms of
@@ -940,7 +953,10 @@ static obs_properties_t *get_properties(void *data)
 			path.resize(slash - path.c_str() + 1);
 	}
 
-	obs_properties_add_text(props, S_TEXT, T_TEXT, OBS_TEXT_MULTILINE);
+	//PRISM/WangShaohui/20201029/#5497/limite text length
+	p = obs_properties_add_text(props, S_TEXT, T_TEXT, OBS_TEXT_MULTILINE);
+	obs_property_set_length_limit(p, MAX_TEXT_LENGTH);
+
 	obs_properties_add_path(props, S_FILE, T_FILE, OBS_PATH_FILE,
 				filter.c_str(), path.c_str());
 

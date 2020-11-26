@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
-    <g fill="none" fill-rule="evenodd">
-        <path stroke="#BABABA" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.5 10.5l11-7M3.5 10.5l11 7"/>
-        <circle cx="15" cy="3.5" r="3" fill="#BABABA"/>
-        <circle cx="15" cy="17.5" r="3" fill="#BABABA"/>
-        <circle cx="4" cy="10.5" r="3" fill="#BABABA"/>
-    </g>
-</svg>

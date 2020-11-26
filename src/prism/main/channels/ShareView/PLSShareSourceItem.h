@@ -2,13 +2,14 @@
 #define SHARESOURCEITEM_H
 
 #include <QFrame>
+#include "PLSWidgetDpiAdapter.hpp"
 #include "ui_PLSShareSourceItem.h"
 
 namespace Ui {
 class ShareSourceItem;
 }
 
-class PLSShareSourceItem : public QFrame {
+class PLSShareSourceItem : public PLSWidgetDpiAdapterHelper<QFrame> {
 	Q_OBJECT
 
 public:

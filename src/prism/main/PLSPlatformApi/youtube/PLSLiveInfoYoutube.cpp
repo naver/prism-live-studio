@@ -1,46 +1,50 @@
 #include "PLSLiveInfoYoutube.h"
-#include "ui_PLSLiveInfoYoutube.h"
-#include "../PLSPlatformApi.h"
 #include <frontend-api.h>
-#include "CommonDefine.h"
 #include <QDebug>
-#include <Vector>
-#include "PLSScheduleMenuItem.h"
-#include <QWidgetAction>
+#include <QHBoxLayout>
 #include <QImage>
 #include <QPixmap>
-#include <QHBoxLayout>
-#include "PLSScheduleButton.h"
+#include <QWidgetAction>
+#include <qradiobutton.h>
+#include <Vector>
 #include "../PLSLiveInfoDialogs.h"
-#include "log/log.h"
+#include "../PLSPlatformApi.h"
+#include "ChannelCommonFunctions.h"
+
 #include "alert-view.hpp"
+#include "log/log.h"
+#include "ui_PLSLiveInfoYoutube.h"
 
 static const char *liveInfoMoudule = "PLSLiveInfoYoutube";
 
-PLSLiveInfoYoutube::PLSLiveInfoYoutube(PLSPlatformBase *pPlatformBase, QWidget *parent) : PLSLiveInfoBase(pPlatformBase, parent), ui(new Ui::PLSLiveInfoYoutube)
+PLSLiveInfoYoutube::PLSLiveInfoYoutube(PLSPlatformBase *pPlatformBase, QWidget *parent, PLSDpiHelper dpiHelper) : PLSLiveInfoBase(pPlatformBase, parent, dpiHelper), ui(new Ui::PLSLiveInfoYoutube)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::PLSLiveInfoYoutube});
+	dpiHelper.setFixedSize(this, {720, 550});
+
 	PLS_INFO(liveInfoMoudule, "Youtube liveinfo Will show");
 	ui->setupUi(this->content());
 
-	sizeToContent({720, 550});
 	setHasCloseButton(false);
+	setHasBorder(true);
 
 	ui->sPushButton->setFocusPolicy(Qt::NoFocus);
 	content()->setFocusPolicy(Qt::StrongFocus);
 
+	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
+	pPlatformYoutube->liveInfoisShowing();
+	m_enteredID = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
 	setupFirstUI();
-	m_enteredID = PLS_PLATFORM_YOUTUBE->getSelectDatas()._id;
 
 	connect(ui->okButton, &QPushButton::clicked, this, &PLSLiveInfoYoutube::okButtonClicked);
 	connect(ui->cancelButton, &QPushButton::clicked, this, &PLSLiveInfoYoutube::cancelButtonClicked);
 
-	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
 	pPlatformYoutube->setAlertParent(this);
 
 	updateStepTitle(ui->okButton);
 
 	if (PLS_PLATFORM_API->isPrepareLive()) {
-		ui->horizontalLayout_3->addWidget(ui->okButton);
+		ui->bottomButtonWidget->layout()->addWidget(ui->okButton);
 	}
 
 	ui->sPushButton->setButtonEnable(!PLS_PLATFORM_API->isLiving());
@@ -55,10 +59,11 @@ PLSLiveInfoYoutube::~PLSLiveInfoYoutube()
 
 void PLSLiveInfoYoutube::setupFirstUI()
 {
-	/*auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
-	if (nullptr == pPlatformYoutube) {
-		return;
-	}*/
+	ui->kidsLabel->setHidden(true);
+	ui->kidsRadioButton->setHidden(true);
+	ui->notKidsRadioButton->setHidden(true);
+	ui->hiddenRadioButton->setHidden(true);
+
 	ui->lineEditTitle->setText("");
 	ui->textEditDescribe->setText("");
 
@@ -67,7 +72,6 @@ void PLSLiveInfoYoutube::setupFirstUI()
 	ui->comboBoxCategory->clear();
 
 	refreshUI();
-
 	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
 	if (nullptr != pPlatformYoutube) {
 		connect(pPlatformYoutube, &PLSPlatformYoutube::onGetTitleDescription, this, &PLSLiveInfoYoutube::refreshTitleDescri);
@@ -76,15 +80,32 @@ void PLSLiveInfoYoutube::setupFirstUI()
 		connect(pPlatformYoutube, &PLSPlatformYoutube::onGetCategorys, this, &PLSLiveInfoYoutube::refreshCategory);
 	}
 
-	connect(ui->sPushButton, &PLSScheduleButton::pressed, this, &PLSLiveInfoYoutube::scheduleButtonClicked);
-	connect(ui->sPushButton, &PLSScheduleButton::menuItemClicked, this, &PLSLiveInfoYoutube::scheduleItemClick);
-
+	connect(ui->sPushButton, &PLSScheduleCombox::pressed, this, &PLSLiveInfoYoutube::scheduleButtonClicked);
+	connect(ui->sPushButton, &PLSScheduleCombox::menuItemClicked, this, &PLSLiveInfoYoutube::scheduleItemClick);
+	connect(ui->kidsRadioButton, &QRadioButton::clicked, this, &PLSLiveInfoYoutube::setKidsRadioButtonClick);
+	connect(ui->notKidsRadioButton, &QRadioButton::clicked, this, &PLSLiveInfoYoutube::setNotKidsRadioButtonClick);
 	connect(ui->lineEditTitle, &QLineEdit::textChanged, this, &PLSLiveInfoYoutube::titleEdited);
 	connect(ui->textEditDescribe, &QTextEdit::textChanged, this, &PLSLiveInfoYoutube::descriptionEdited);
 	connect(ui->comboBoxPublic, SIGNAL(currentIndexChanged(int)), this, SLOT(doUpdateOkState()));
 	connect(ui->comboBoxCategory, SIGNAL(currentIndexChanged(int)), this, SLOT(doUpdateOkState()));
 	connect(
-		pPlatformYoutube, &PLSPlatformYoutube::closeDialogByExpired, this, [=]() { reject(); }, Qt::DirectConnection);
+		pPlatformYoutube, &PLSPlatformYoutube::closeDialogByExpired, this,
+		[=]() {
+			hideLoading();
+			reject();
+		},
+		Qt::DirectConnection);
+	connect(
+		pPlatformYoutube, &PLSPlatformYoutube::toShowLoading, this,
+		[=](bool isShow) {
+			if (isShow) {
+				showLoading(this->content());
+			} else {
+
+				hideLoading();
+			}
+		},
+		Qt::DirectConnection);
 }
 
 void PLSLiveInfoYoutube::showEvent(QShowEvent *event)
@@ -92,20 +113,33 @@ void PLSLiveInfoYoutube::showEvent(QShowEvent *event)
 	Q_UNUSED(event)
 	showLoading(content());
 
-	auto _onNext = [=](bool value) {
+	auto _onNextVideo = [=](bool value) {
+		refreshUI();
 		hideLoading();
 
 		if (!value && !PLS_PLATFORM_API->isPrepareLive()) {
 			reject();
 		}
 	};
-
-	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
-	pPlatformYoutube->requestUserInfo(_onNext, false);
+	PLS_PLATFORM_YOUTUBE->requestCategoryList(
+		[=](bool value) {
+			if (!value) {
+				_onNextVideo(false);
+				return;
+			}
+			if (PLS_PLATFORM_YOUTUBE->getSelectData()._id.isEmpty()) {
+				_onNextVideo(true);
+				return;
+			}
+			PLS_PLATFORM_YOUTUBE->requestCurrentSelectData(_onNextVideo, this);
+		},
+		this);
+	PLSLiveInfoBase::showEvent(event);
 }
 
 void PLSLiveInfoYoutube::refreshUI()
 {
+	refreshRadios();
 	refreshTitleDescri();
 	refreshPrivacy();
 	refreshSchedulePopButton();
@@ -115,9 +149,10 @@ void PLSLiveInfoYoutube::refreshUI()
 void PLSLiveInfoYoutube::refreshTitleDescri()
 {
 	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
-	auto data = pPlatformYoutube->getTempSelectDatas();
+	auto &data = pPlatformYoutube->getTempSelectData();
 
 	ui->lineEditTitle->setText(data.title);
+	ui->lineEditTitle->setCursorPosition(0);
 	QString des = data.description;
 	if (PLS_PLATFORM_API->isPrepareLive()) {
 		QString add_str = tr("LiveInfo.Youtube.description.default.add");
@@ -134,7 +169,7 @@ void PLSLiveInfoYoutube::refreshTitleDescri()
 void PLSLiveInfoYoutube::refreshPrivacy()
 {
 	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
-	auto data = pPlatformYoutube->getTempSelectDatas();
+	auto data = pPlatformYoutube->getTempSelectData();
 	ui->comboBoxPublic->clear();
 	for (int i = 0; i < pPlatformYoutube->getPrivacyDatas().size(); i++) {
 		auto lcoalString = pPlatformYoutube->getPrivacyDatas()[i];
@@ -150,7 +185,7 @@ void PLSLiveInfoYoutube::refreshPrivacy()
 void PLSLiveInfoYoutube::refreshCategory()
 {
 	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
-	auto data = pPlatformYoutube->getTempSelectDatas();
+	auto data = pPlatformYoutube->getTempSelectData();
 
 	ui->comboBoxCategory->clear();
 	for (int i = 0; i < pPlatformYoutube->getCategoryDatas().size(); i++) {
@@ -169,13 +204,24 @@ void PLSLiveInfoYoutube::refreshSchedulePopButton()
 {
 
 	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
-	auto data = pPlatformYoutube->getTempSelectDatas();
+	auto data = pPlatformYoutube->getTempSelectData();
 
 	QString title(data.title);
 	if (data.isNormalLive) {
 		title = tr("LiveInfo.Schedule.PopUp.New");
 	}
 	ui->sPushButton->setupButton(title, data.startTimeShort);
+}
+
+void PLSLiveInfoYoutube::saveTempNormalDataWhenSwitch()
+{
+	PLSYoutubeLiveinfoData &tempData = PLS_PLATFORM_YOUTUBE->getTempNormalData();
+	tempData.title = ui->lineEditTitle->text();
+	tempData.description = ui->textEditDescribe->toPlainText();
+	tempData.categoryID = PLS_PLATFORM_YOUTUBE->getCategoryDatas()[ui->comboBoxCategory->currentIndex()]._id;
+	tempData.privacyStatus = PLS_PLATFORM_YOUTUBE->getPrivacyEnglishDatas()[ui->comboBoxPublic->currentIndex()];
+	//tempData.iskidsUserSelect = ui->kidsRadioButton->isChecked() || ui->notKidsRadioButton->isChecked();
+	//tempData.isForKids = ui->kidsRadioButton->isChecked();
 }
 
 void PLSLiveInfoYoutube::okButtonClicked()
@@ -193,9 +239,9 @@ void PLSLiveInfoYoutube::okButtonClicked()
 
 	showLoading(content());
 
-	PLSScheduleData uiData = pPlatformYoutube->getTempSelectDatas();
+	PLSYoutubeLiveinfoData uiData = pPlatformYoutube->getTempSelectData();
 	bool isNeedUpdate = PLS_PLATFORM_YOUTUBE->isModifiedWithNewData(ui->lineEditTitle->text(), ui->textEditDescribe->toPlainText(), ui->comboBoxCategory->currentIndex(),
-									ui->comboBoxPublic->currentIndex(), &uiData);
+									ui->comboBoxPublic->currentIndex(), ui->kidsRadioButton->isChecked(), ui->notKidsRadioButton->isChecked(), &uiData);
 
 	if (PLS_PLATFORM_API->isPrepareLive()) {
 		QString add_str = tr("LiveInfo.Youtube.description.default.add");
@@ -226,11 +272,11 @@ void PLSLiveInfoYoutube::scheduleButtonClicked()
 
 	m_vecItemDatas.clear();
 	for (int i = 0; i < 1; i++) {
-		ComplexItemData data = ComplexItemData();
+		PLSScheComboxItemData data = PLSScheComboxItemData();
 		data.title = "";
 		data.time = tr("LiveInfo.Youtube.loading.scheduled");
 		data._id = "";
-		data.type = PLSScheduleItemType::Ty_Loading;
+		data.type = PLSScheComboxItemType::Ty_Loading;
 		m_vecItemDatas.push_back(data);
 	}
 
@@ -243,31 +289,31 @@ void PLSLiveInfoYoutube::scheduleButtonClicked()
 		m_vecItemDatas.clear();
 
 		for (auto data : pPlatformYoutube->getScheduleDatas()) {
-			ComplexItemData scheData = ComplexItemData();
+			PLSScheComboxItemData scheData = PLSScheComboxItemData();
 			scheData.title = data.title;
 			scheData._id = data._id;
-			scheData.type = PLSScheduleItemType::Ty_Schedule;
+			scheData.type = PLSScheComboxItemType::Ty_Schedule;
 			scheData.time = data.startTimeUTC;
-			if ((0 != data._id.compare(pPlatformYoutube->getTempSelectID()))) {
+			if (data._id != pPlatformYoutube->getTempSelectID()) {
 				m_vecItemDatas.push_back(scheData);
 			}
 		}
 
-		if (pPlatformYoutube->getIsTempSchedule()) {
-			ComplexItemData nomarlData = ComplexItemData();
+		if (!pPlatformYoutube->getTempSelectData().isNormalLive) {
+			PLSScheComboxItemData nomarlData = PLSScheComboxItemData();
 			nomarlData._id = "";
 			nomarlData.title = tr("LiveInfo.Schedule.PopUp.New");
 			nomarlData.time = tr("LiveInfo.Schedule.PopUp.New");
-			nomarlData.type = PLSScheduleItemType::Ty_NormalLive;
+			nomarlData.type = PLSScheComboxItemType::Ty_NormalLive;
 			m_vecItemDatas.insert(m_vecItemDatas.begin(), nomarlData);
 		}
 
 		if (m_vecItemDatas.size() == 0) {
-			ComplexItemData nomarlData = ComplexItemData();
+			PLSScheComboxItemData nomarlData = PLSScheComboxItemData();
 			nomarlData._id = "";
-			nomarlData.title = pPlatformYoutube->getNomalLiveDatas().title;
+			nomarlData.title = tr("LiveInfo.Schedule.PopUp.New");
 			nomarlData.time = tr("LiveInfo.Youtube.no.scheduled");
-			nomarlData.type = PLSScheduleItemType::Ty_Placehoder;
+			nomarlData.type = PLSScheComboxItemType::Ty_Placehoder;
 			m_vecItemDatas.insert(m_vecItemDatas.begin(), nomarlData);
 		}
 
@@ -275,7 +321,7 @@ void PLSLiveInfoYoutube::scheduleButtonClicked()
 	};
 
 	if (nullptr != pPlatformYoutube) {
-		pPlatformYoutube->requestSchedule(_onNext, ui->sPushButton);
+		pPlatformYoutube->requestScheduleList(_onNext, ui->sPushButton);
 	}
 
 	ui->sPushButton->showScheduleMenu(m_vecItemDatas);
@@ -289,8 +335,8 @@ void PLSLiveInfoYoutube::scheduleItemClick(const QString selectID)
 			continue;
 		}
 
-		PLSScheduleItemType type = data.type;
-		if (type != PLSScheduleItemType::Ty_Schedule && type != PLSScheduleItemType::Ty_NormalLive) {
+		PLSScheComboxItemType type = data.type;
+		if (type != PLSScheComboxItemType::Ty_Schedule && type != PLSScheComboxItemType::Ty_NormalLive) {
 			break;
 		}
 
@@ -300,11 +346,15 @@ void PLSLiveInfoYoutube::scheduleItemClick(const QString selectID)
 			break;
 		}
 
-		bool isSchedule = type == PLSScheduleItemType::Ty_Schedule;
+		if (data._id != selectID) {
+			continue;
+		}
 
-		pPlatformYoutube->setTempSchedule(isSchedule);
+		if (pPlatformYoutube->getTempSelectData().isNormalLive && type == PLSScheComboxItemType::Ty_Schedule) {
+			//normal to schedule, temp saved.
+			saveTempNormalDataWhenSwitch();
+		}
 		pPlatformYoutube->setTempSelectID(selectID);
-
 		refreshUI();
 		break;
 	}
@@ -312,22 +362,53 @@ void PLSLiveInfoYoutube::scheduleItemClick(const QString selectID)
 
 void PLSLiveInfoYoutube::doUpdateOkState()
 {
-	if (ui->lineEditTitle->text().isEmpty()) {
+	if (ui->lineEditTitle->text().trimmed().isEmpty()) {
 		ui->okButton->setEnabled(false);
 		return;
 	}
-
+	/*if (!ui->kidsRadioButton->isChecked() && !ui->notKidsRadioButton->isChecked()) {
+		ui->okButton->setEnabled(false);
+		return;
+	}*/
 	ui->okButton->setEnabled(PLS_PLATFORM_API->isPrepareLive() || isModified());
+}
+
+void PLSLiveInfoYoutube::refreshRadios()
+{
+	return;
+	auto data = PLS_PLATFORM_YOUTUBE->getTempSelectData();
+
+	if (!data.iskidsUserSelect) {
+		ui->hiddenRadioButton->setChecked(true);
+	} else {
+		if (data.isForKids) {
+			ui->kidsRadioButton->setChecked(true);
+		} else {
+			ui->notKidsRadioButton->setChecked(true);
+		}
+	}
+}
+
+void PLSLiveInfoYoutube::setKidsRadioButtonClick(bool checked)
+{
+	PLS_UI_STEP(liveInfoMoudule, __FUNCTION__, BOOL2STR(checked), ACTION_CLICK);
+	doUpdateOkState();
+}
+
+void PLSLiveInfoYoutube::setNotKidsRadioButtonClick(bool checked)
+{
+	PLS_UI_STEP(liveInfoMoudule, __FUNCTION__, BOOL2STR(checked), ACTION_CLICK);
+	doUpdateOkState();
 }
 
 bool PLSLiveInfoYoutube::isModified()
 {
 	bool isModified = PLS_PLATFORM_YOUTUBE->isModifiedWithNewData(ui->lineEditTitle->text(), ui->textEditDescribe->toPlainText(), ui->comboBoxCategory->currentIndex(),
-								      ui->comboBoxPublic->currentIndex(), nullptr);
+								      ui->comboBoxPublic->currentIndex(), ui->kidsRadioButton->isChecked(), ui->notKidsRadioButton->isChecked(), nullptr);
 	if (!isModified) {
-		if (m_enteredID.isEmpty() && PLS_PLATFORM_YOUTUBE->getTempSelectDatas().isNormalLive) {
+		if (m_enteredID.isEmpty() && PLS_PLATFORM_YOUTUBE->getTempSelectData().isNormalLive) {
 			isModified = false;
-		} else if (m_enteredID.compare(PLS_PLATFORM_YOUTUBE->getTempSelectDatas()._id, Qt::CaseInsensitive) != 0) {
+		} else if (m_enteredID.compare(PLS_PLATFORM_YOUTUBE->getTempSelectData()._id, Qt::CaseInsensitive) != 0) {
 			isModified = true;
 		}
 	}
@@ -361,7 +442,7 @@ void PLSLiveInfoYoutube::titleEdited()
 	const auto channelName = pPlatformYoutube->getInitData().value(ChannelData::g_channelName).toString();
 
 	if (isLargeToMax) {
-		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.Youtube.Title.Length.Check.arg").arg(YoutubeTitleLengthLimit).arg(channelName));
+		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(YoutubeTitleLengthLimit).arg(channelName));
 	}
 
 	if (isContainSpecial) {

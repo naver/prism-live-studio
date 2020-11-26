@@ -1,8 +1,8 @@
 #include "PLSSummaryItem.h"
-#include "ui_PLSSummaryItem.h"
-#include "QPainter"
-#include "ChannelConst.h"
 #include "ChannelCommonFunctions.h"
+#include "ChannelConst.h"
+#include "QPainter"
+#include "ui_PLSSummaryItem.h"
 
 int const summaryYoutubeDetailNameWidth = 255;
 int const summaryTwitchDetailNameWidth = 270;

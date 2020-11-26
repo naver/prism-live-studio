@@ -20,7 +20,6 @@
 #include <wchar.h>
 #include <chrono>
 #include <ratio>
-#include <string>
 #include <sstream>
 #include <mutex>
 #include <util/bmem.h>
@@ -38,7 +37,9 @@
 #include <QPushButton>
 #include <QDir>
 #include <QFile>
-#include "pls-net-url.hpp"
+#include <QSettings>
+#include <QJsonDocument>
+
 #include "qt-wrappers.hpp"
 #include "pls-app.hpp"
 #include "window-basic-main.hpp"
@@ -48,11 +49,17 @@
 #include "main-view.hpp"
 #include "log/log.h"
 #include "alert-view.hpp"
-#include "notice-view.hpp"
 #include "PLSChannelsEntrance.h"
 #include <fstream>
 #include <QThread>
 #include <curl/curl.h>
+
+#include <dbghelp.h>
+#include <shellapi.h>
+#include <shlobj.h>
+#include <tchar.h>
+
+#define UseFreeMusic
 
 #ifdef _WIN32
 #include <windows.h>
@@ -71,12 +78,20 @@
 #include "pls-common-language.hpp"
 #include "PLSMenu.hpp"
 #include "window-basic-status-bar.hpp"
-#include <qsettings.h>
+#include "PLSChatHelper.h"
+#include "PLSNetworkMonitor.h"
+#include "obs.hpp"
+
+#pragma comment(lib, "dbghelp.lib")
+
+#define IS_CHAT_IS_HIDDEN_FIRST_SETTED "isChatIsHiddenFirstSetted"
 
 using namespace std;
 
 static log_handler_t def_log_handler;
+std::string logUserID;
 
+std::string prismSession;
 static string currentLogFile;
 static string lastLogFile;
 static string lastCrashLogFile;
@@ -106,6 +121,7 @@ extern "C" __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 #endif
 
 extern bool file_exists(const char *path);
+int pls_auto_dump();
 
 QObject *CreateShortcutFilter()
 {
@@ -115,12 +131,6 @@ QObject *CreateShortcutFilter()
 				obj->eventFilter(obj, &event);
 			}
 
-			if (!App()->HotkeysEnabledInFocus())
-				return true;
-
-			obs_key_combination_t hotkey = {0, OBS_KEY_NONE};
-			bool pressed = event.type() == QEvent::MouseButtonPress;
-
 			switch (event.button()) {
 			case Qt::NoButton:
 			case Qt::LeftButton:
@@ -128,7 +138,15 @@ QObject *CreateShortcutFilter()
 			case Qt::AllButtons:
 			case Qt::MouseButtonMask:
 				return false;
+			}
 
+			if (!App()->HotkeysEnabledInFocus())
+				return true;
+
+			obs_key_combination_t hotkey = {0, OBS_KEY_NONE};
+			bool pressed = event.type() == QEvent::MouseButtonPress;
+
+			switch (event.button()) {
 			case Qt::MidButton:
 				hotkey.key = OBS_KEY_MOUSE3;
 				break;
@@ -496,10 +514,7 @@ static bool MakeUserDirs()
 		return false;
 	if (!do_mkdir(path))
 		return false;
-	if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/user") <= 0)
-		return false;
-	if (!do_mkdir(path))
-		return false;
+
 
 #ifdef _WIN32
 	//if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/crashes") <= 0)
@@ -514,6 +529,11 @@ static bool MakeUserDirs()
 #endif
 
 	if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/plugin_config") <= 0)
+		return false;
+	if (!do_mkdir(path))
+		return false;
+
+	if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/Cache") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
@@ -683,6 +703,18 @@ bool PLSApp::InitGlobalConfig()
 		PLSErrorBox(NULL, "Failed to open update.ini: %d", errorcode);
 		return false;
 	}
+	//open the cookie init file
+	len = GetConfigPath(path, sizeof(path), "PRISMLiveStudio/Cache/cookies.ini");
+	if (len <= 0) {
+		return false;
+	}
+
+	//open the update init file
+	errorcode = cookieConfig.Open(path, CONFIG_OPEN_ALWAYS);
+	if (errorcode != CONFIG_SUCCESS) {
+		PLSErrorBox(NULL, "Failed to open cookies.ini: %d", errorcode);
+		return false;
+	}
 
 	if (!opt_starting_collection.empty()) {
 		string path = GetSceneCollectionFileFromName(opt_starting_collection.c_str());
@@ -771,9 +803,8 @@ bool PLSApp::InitLocale()
 		return false;
 	}
 
-	const int EnglishLID = 0x0409;
-	const int KoreaLID = 0x0412;
-
+	const int EnglishLID = 0x0409; // 1033 for English
+	const int KoreaLID = 0x0412;   // 1042 for Korea
 	QSettings settings("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PRISM Live Studio", QSettings::NativeFormat);
 	int language = settings.value("InstallLanguage").toInt();
 	switch (language) {
@@ -999,6 +1030,13 @@ bool PLSApp::SetTheme(std::string name, std::string path)
 {
 	theme = name;
 
+	QString themePath = QApplication::applicationDirPath() + "/themes/" + "dark-theme.dll";
+	themePlugin.setFileName(themePath);
+
+	if (!themePlugin.load()) {
+		return false;
+	}
+
 	/* Check user dir first, then preinstalled themes. */
 	if (path == "") {
 		char userDir[512];
@@ -1060,14 +1098,51 @@ bool PLSApp::GetCurrentThemePath(std::string &themePath)
 	return true;
 }
 
-void PLSApp::sessionExpiredhandler()
+void QtMessageCallback(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
-	PLSAlertView::warning(getMainView(), tr("live.toast.title"), tr("main.message.prism.login.session.expired"));
-	pls_prism_change_over_login_view();
+	QByteArray localMsg = msg.toLocal8Bit();
+
+	// Check log which we care about.
+	if (type == QtWarningMsg) {
+		if (msg.contains("QMetaObject::invokeMethod: No such method") || msg.contains("QMetaMethod::invoke: Unable to handle unregistered datatype")) {
+			blog(LOG_WARNING, "%s", localMsg.constData());
+			assert(false && "invokeMethod exception");
+			return;
+		}
+	}
+
+	switch (type) {
+	case QtDebugMsg:
+		blog(LOG_DEBUG, "[QT::Debug] %s", localMsg.constData());
+		break;
+	case QtInfoMsg:
+		blog(LOG_DEBUG, "[QT::Info] %s", localMsg.constData());
+		break;
+	case QtWarningMsg:
+		blog(LOG_DEBUG, "[QT::Warning] %s", localMsg.constData());
+		break;
+	case QtCriticalMsg:
+		blog(LOG_DEBUG, "[QT::Critical] %s", localMsg.constData());
+		break;
+	case QtFatalMsg:
+		blog(LOG_DEBUG, "[QT::Fatal] %s", localMsg.constData());
+		break;
+	}
 }
 
 PLSApp::PLSApp(int &argc, char **argv, profiler_name_store_t *store) : QApplication(argc, argv), profilerNameStore(store)
 {
+	// force modify current work directory
+	QDir::setCurrent(QApplication::applicationDirPath());
+
+	CoInitialize(nullptr);
+
+	qInstallMessageHandler(QtMessageCallback);
+
+#ifdef _WIN32
+	PLSNetworkMonitor::Instance()->StartListen();
+#endif
+
 	sleepInhibitor = os_inhibit_sleep_create("PLS Video/audio");
 
 	setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/PRISMLiveStudio.ico")));
@@ -1084,7 +1159,9 @@ PLSApp::PLSApp(int &argc, char **argv, profiler_name_store_t *store) : QApplicat
 PLSApp::~PLSApp()
 {
 #ifdef _WIN32
-	bool disableAudioDucking = config_get_bool(globalConfig, "Audio", "DisableAudioDucking");
+	PLSNetworkMonitor::Instance()->StopListen();
+
+	bool disableAudioDucking = globalConfig && config_get_bool(globalConfig, "Audio", "DisableAudioDucking");
 	if (disableAudioDucking)
 		DisableAudioDucking(false);
 #endif
@@ -1098,6 +1175,8 @@ PLSApp::~PLSApp()
 
 	os_inhibit_sleep_set_active(sleepInhibitor, false);
 	os_inhibit_sleep_destroy(sleepInhibitor);
+
+	CoUninitialize();
 }
 
 static void move_basic_to_profiles(void)
@@ -1227,6 +1306,7 @@ void PLSApp::AppInit()
 		throw "Failed to create profile directories";
 
 	PLS_PLATFORM_API;
+	PLS_HTTP_HELPER;
 }
 
 const char *PLSApp::GetRenderModule() const
@@ -1282,6 +1362,24 @@ void PLSApp::Exec(VoidFunc func)
 	func();
 }
 
+static void ui_task_handler(obs_task_t task, void *param, bool wait)
+{
+	auto doTask = [=]() {
+		/* to get clang-format to behave */
+		task(param);
+	};
+	QMetaObject::invokeMethod(App(), "Exec", wait ? WaitConnection() : Qt::AutoConnection, Q_ARG(VoidFunc, doTask));
+}
+
+static PLSBasic *newMainView(PLSMainView *&mainView, QPointer<PLSMainWindow> &mainWindow)
+{
+	PLSDpiHelper dpiHelper;
+	mainView = new PLSMainView(nullptr, dpiHelper);
+	PLSBasic *basic = new PLSBasic(mainView, dpiHelper);
+	mainWindow = basic;
+	return basic;
+}
+
 bool PLSApp::PLSInit()
 {
 	ProfileScope("PLSApp::PLSInit");
@@ -1292,6 +1390,8 @@ bool PLSApp::PLSInit()
 
 	if (!StartupPLS(locale.c_str(), GetProfilerNameStore()))
 		return false;
+
+	obs_set_ui_task_handler(ui_task_handler);
 
 #ifdef _WIN32
 	bool browserHWAccel = config_get_bool(globalConfig, "General", "BrowserHWAccel");
@@ -1310,52 +1410,114 @@ bool PLSApp::PLSInit()
 
 	setQuitOnLastWindowClosed(false);
 
-	PLSMainView *mw = new PLSMainView();
-	mainView = mw;
+	PLSBasic *basic = newMainView(mainView, mainWindow);
 
-	PLSBasic *bsc = new PLSBasic(mw);
+	basic->menuBar()->hide();
+	mainView->setCloseEventCallback(std::bind(&PLSBasic::mainViewClose, basic, std::placeholders::_1));
 
-	bsc->menuBar()->hide();
-	mw->setCloseEventCallback(std::bind(&PLSBasic::mainViewClose, bsc, std::placeholders::_1));
-	mainWindow = bsc;
+	connect(mainView, &PLSMainView::popupSettingView, basic, &PLSBasic::onPopupSettingView);
+	connect(mainView, &PLSMainView::beautyClicked, basic, &PLSBasic::OnBeautyClicked);
+	connect(mainView, &PLSMainView::setBeautyViewVisible, basic, &PLSBasic::OnSetBeautyVisible);
+	connect(basic, &PLSBasic::beautyViewVisibleChanged, mainView, &PLSMainView::OnBeautyViewVisibleChanged);
 
-	connect(mw, &PLSMainView::popupSettingView, bsc, &PLSBasic::onPopupSettingView);
-	connect(PLSNetworkAccessManager::getInstance(), &PLSNetworkAccessManager::sessionExpired, this, &PLSApp::sessionExpiredhandler);
-	QHBoxLayout *hl = new QHBoxLayout(mw->content());
+	connect(mainView, &PLSMainView::bgmClicked, basic, &PLSBasic::OnBgmClicked);
+	connect(mainView, &PLSMainView::setBgmViewVisible, basic, &PLSBasic::OnSetBgmViewVisible);
+	connect(basic, &PLSBasic::bgmViewVisibleChanged, mainView, &PLSMainView::OnBgmViewVisibleChanged);
+
+	QHBoxLayout *hl = new QHBoxLayout(mainView->content());
 	hl->setContentsMargins(5, 0, 5, 5);
 	hl->setSpacing(0);
 	hl->addWidget(mainWindow, 1);
 
-	mw->setAttribute(Qt::WA_DeleteOnClose, true);
-	connect(mw, SIGNAL(destroyed()), this, SLOT(quit()));
+	mainView->setAttribute(Qt::WA_DeleteOnClose, true);
+	connect(mainView, SIGNAL(destroyed()), this, SLOT(quit()));
 
 	bool initialized = mainWindow->PLSInit();
 
-	mw->installEventFilter(mw->statusBar());
+	mainView->installEventFilter(mainView->statusBar());
 	PLS_PLATFORM_API->initialize();
 
 	connect(this, &QGuiApplication::applicationStateChanged, [this](Qt::ApplicationState state) { ResetHotkeyState(state == Qt::ApplicationActive); });
 	ResetHotkeyState(applicationState() == Qt::ApplicationActive);
 
 	if (initialized) {
-		bsc->mainMenu = new PLSPopupMenu(mw);
-		bsc->mainMenu->setObjectName("mainMenu");
-		bsc->mainMenu->addActions(mainWindow->menuBar()->actions());
-		bsc->mainMenu->asButtonPopupMenu(mw->menuButton(), QPoint(0, 1));
-		bsc->initMainMenu();
-		pls_flush_style(bsc->mainMenu);
+		basic->mainMenu = new PLSPopupMenu(mainView);
+		basic->mainMenu->setObjectName("mainMenu");
+		basic->mainMenu->addActions(mainWindow->menuBar()->actions());
+		basic->mainMenu->asButtonPopupMenu(mainView->menuButton(), QPoint(0, 1));
+		basic->initMainMenu();
+		pls_flush_style(basic->mainMenu);
 
-		bool isChatHidden = config_get_bool(App()->GlobalConfig(), "Basic", "chatIsHidden");
-		if (!isChatHidden) {
-			//show chat view
-			extern void showChatView(bool isRebackLogin = false, bool isOnlyShow = false, bool isOnlyInit = false);
-			showChatView(false, false, false);
+		PLS_CHAT_HELPER;
+		auto initChat = []() {
+			bool isChatHidden = config_get_bool(App()->GlobalConfig(), "Basic", "chatIsHidden");
+			if (!isChatHidden) {
+				//show chat view
+				extern void showChatView(bool isRebackLogin = false, bool isOnlyShow = false, bool isOnlyInit = false);
+				showChatView(false, false, false);
+			}
+		};
+
+		if (mainView->isVisible()) {
+			initChat();
+			mainView->initToastMsgView();
+		} else {
+			connect(
+				mainView, &PLSMainView::isshowSignal, mainView,
+				[=](bool isShow) {
+					if (isShow && !mainView->property(IS_CHAT_IS_HIDDEN_FIRST_SETTED).toBool()) {
+						mainView->setProperty(IS_CHAT_IS_HIDDEN_FIRST_SETTED, true);
+						initChat();
+						mainView->initToastMsgView(isShow);
+					}
+				},
+				Qt::QueuedConnection);
 		}
-		//download color filter img
-		handlers.GetSyncResourcesRequest();
+
+		// beauty init
+		// modified by xiewei,move beauty window construction into PLSInit function,here we just set its visibility.
+		if (mainView->isVisible()) {
+			mainView->InitBeautyView();
+		} else {
+			connect(
+				mainView, &PLSMainView::isshowSignal, mainView,
+				[=](bool isShow) {
+					if (isShow) {
+						mainView->InitBeautyView();
+					}
+				},
+				Qt::QueuedConnection);
+		}
+
+		// sticker init
+		if (mainView->isVisible()) {
+			basic->InitGiphyStickerViewVisible();
+#ifdef UseFreeMusic
+			mainView->InitBgmView();
+
+#endif // FreeMusic
+
+		} else {
+			connect(
+				mainView, &PLSMainView::isshowSignal, mainView,
+				[=](bool isShow) {
+					if (isShow) {
+#ifdef UseFreeMusic
+						mainView->InitBgmView();
+#endif // FreeMusic
+						basic->InitGiphyStickerViewVisible();
+					}
+				},
+				Qt::QueuedConnection);
+		}
+		PLSBasic ::Get()->getApi()->on_event(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGIN);
+
+		//PRISM/WangChuanjing/20200825/#3423/for main view load delay
+		obs_set_system_initialized(true);
+		PLS_INFO(MAINFRAME_MODULE, "System has been initialized.");
 
 	} else {
-		mw->close();
+		mainView->close();
 	}
 	return true;
 }
@@ -1443,10 +1605,21 @@ bool PLSApp::TranslateString(const char *lookupVal, const char **out) const
 
 QString PLSTranslator::translate(const char *context, const char *sourceText, const char *disambiguation, int n) const
 {
-	const char *out = nullptr;
-	if (!App()->TranslateString(sourceText, &out))
-		return QString(sourceText);
+	int sourceTextLen = (int)strlen(sourceText) + 1;
+	char *sourceTextCopy = (char *)_malloca(sourceTextLen);
+	for (int i = 0, j = 0; i < sourceTextLen; ++i) {
+		if (sourceText[i] != '&' && !::isspace(sourceText[i])) {
+			sourceTextCopy[j++] = sourceText[i];
+		}
+	}
 
+	const char *out = nullptr;
+	if (!App()->TranslateString(sourceTextCopy, &out)) {
+		_freea(sourceTextCopy);
+		return QString(sourceText);
+	}
+
+	_freea(sourceTextCopy);
 	UNUSED_PARAMETER(context);
 	UNUSED_PARAMETER(disambiguation);
 	UNUSED_PARAMETER(n);
@@ -1595,7 +1768,8 @@ string GenerateTimeDateFilename(const char *extension, bool noSpace)
 string GenerateSpecifiedFilename(const char *extension, bool noSpace, const char *format)
 {
 	PLSBasic *main = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
-	bool autoRemux = config_get_bool(main->Config(), "Video", "AutoRemux");
+	// Zhangdewen remove auto remux to mp4
+	bool autoRemux = false; // config_get_bool(main->Config(), "Video", "AutoRemux");
 
 	if ((strcmp(extension, "mp4") == 0) && autoRemux)
 		extension = "mkv";
@@ -1768,6 +1942,8 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 {
 	int ret = -1;
 
+	pls_auto_dump();
+
 	pls_set_config_path(&GetConfigPath);
 
 	auto profilerNameStore = CreateNameStore();
@@ -1795,7 +1971,10 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 
 		create_log_file(logFile);
 
-		PLS_INFO(MAINFRAME_MODULE, "start PRISMLiveStudio, version: " PLS_VERSION);
+		logUserID = "";
+		pls_set_user_id(logUserID.c_str());
+
+		PLS_INFO(MAINFRAME_MODULE, "start PRISMLiveStudio, version: " PLS_VERSION ", userId: %s", logUserID.c_str());
 
 		program.AppInit();
 		// delete_oldest_file(false, "PRISMLiveStudio/profiler_data");
@@ -2003,7 +2182,7 @@ bool GetFileSafeName(const char *name, std::string &file)
 		return false;
 
 	wfile.resize(len);
-	os_utf8_to_wcs(name, base_len, &wfile[0], len);
+	os_utf8_to_wcs(name, base_len, &wfile[0], len + 1);
 
 	for (size_t i = wfile.size(); i > 0; i--) {
 		size_t im1 = i - 1;
@@ -2023,7 +2202,7 @@ bool GetFileSafeName(const char *name, std::string &file)
 		return false;
 
 	file.resize(len);
-	os_wcs_to_utf8(wfile.c_str(), wfile.size(), &file[0], len);
+	os_wcs_to_utf8(wfile.c_str(), wfile.size(), &file[0], len + 1);
 	return true;
 }
 
@@ -2305,6 +2484,17 @@ void ctrlc_handler(int s)
 	main->close();
 }
 
+const char *generate_guid()
+{
+	static char buf[64] = {0};
+	GUID guid;
+	if (S_OK == ::CoCreateGuid(&guid)) {
+		_snprintf(buf, sizeof(buf), "{%08X-%04X-%04x-%02X%02X-%02X%02X%02X%02X%02X%02X}", guid.Data1, guid.Data2, guid.Data3, guid.Data4[0], guid.Data4[1], guid.Data4[2], guid.Data4[3],
+			  guid.Data4[4], guid.Data4[5], guid.Data4[6], guid.Data4[7]);
+	}
+	return (const char *)buf;
+}
+
 int main(int argc, char *argv[])
 {
 #ifndef _WIN32
@@ -2338,8 +2528,9 @@ int main(int argc, char *argv[])
 #endif
 
 	base_get_log_handler(&def_log_handler, nullptr);
+	prismSession = generate_guid();
 
-	log_init();
+	log_init(prismSession.c_str());
 
 #if defined(USE_XDG) && defined(IS_UNIX)
 	move_to_xdg();
@@ -2436,4 +2627,118 @@ int main(int argc, char *argv[])
 	blog(LOG_INFO, "Number of memory leaks: %ld", bnum_allocs());
 	log_cleanup();
 	return ret;
+}
+
+bool send_to_nelo(char *data, size_t len)
+{
+	QByteArray ba;
+	ba.append(data, len);
+	QString base64Dump = ba.toBase64();
+	//qDebug() << base64Dump;
+	QString neloUrl = "http://nelo2-col.navercorp.com:80/_store";
+	//
+	QJsonObject neloInfo;
+	neloInfo.insert("projectName", "PRISMLiveStudio");
+	neloInfo.insert("projectVersion", PLS_VERSION);
+	neloInfo.insert("prismSession", prismSession.c_str());
+	neloInfo.insert("body", "Crash Dump File");
+
+	neloInfo.insert("logLevel", "FATAL");
+	neloInfo.insert("logSource", "CrashDump");
+	neloInfo.insert("platform", "Windows 10(x64)");
+	neloInfo.insert("logType", "nelo2-app");
+	neloInfo.insert("UserID", logUserID.c_str());
+	neloInfo.insert("DmpData", base64Dump);
+	neloInfo.insert("DmpFormat", "bin");
+	neloInfo.insert("DmpSymbol", "Required");
+
+	QJsonDocument doc;
+	doc.setObject(neloInfo);
+	QByteArray postData = doc.toJson(QJsonDocument::Compact);
+	//
+	QNetworkAccessManager *accessManager = new QNetworkAccessManager();
+	QNetworkRequest request;
+	request.setUrl(QUrl(neloUrl));
+	QEventLoop eventLoop;
+	QObject::connect(accessManager, &QNetworkAccessManager::finished, &eventLoop, &QEventLoop::quit);
+	blog(LOG_INFO, "Post Crash Dump file to nelo");
+
+	QNetworkReply *reply = accessManager->post(request, postData);
+	eventLoop.exec();
+
+	if (reply->error() == QNetworkReply::NoError) {
+		QByteArray bytes = reply->readAll();
+		blog(LOG_INFO, "Nelo reply ok");
+		return true;
+	} else {
+		QByteArray bytes = reply->readAll();
+		blog(LOG_INFO, "Nelo reply error:%d", reply->error());
+	}
+	return false;
+}
+
+bool PostDumpToServer(QString strDump)
+{
+	QFile file(strDump);
+	if (!file.open(QIODevice::ReadOnly)) {
+		return false;
+	}
+	QDataStream in(&file);
+	QString strDumpData;
+	qint64 len = file.size();
+	if (len == 0) {
+		return false;
+	}
+	char *data = new char[len];
+	file.read(data, len);
+	if (send_to_nelo(data, len)) {
+		file.close();
+		file.remove();
+		blog(LOG_INFO, "Remove dump file : %s", strDump.toStdString().c_str());
+	} else {
+		file.close();
+		blog(LOG_INFO, "Dump file stay in: %s", strDump.toStdString().c_str());
+	}
+	delete[] data;
+	data = nullptr;
+	return true;
+}
+
+LONG WINAPI PrismUnhandledExceptionFilter(struct _EXCEPTION_POINTERS *pExceptionPointers)
+{
+	SYSTEMTIME st;
+	::GetLocalTime(&st);
+	blog(LOG_INFO, "Crash happened");
+
+	QString strUserPath = pls_get_user_path("PRISMLiveStudio\\logs\\");
+	wchar_t path[MAX_PATH] = {0};
+	swprintf_s(path, _T("%s%04d_%02d_%02d_%02d_%02d_%02d.dmp"), strUserPath.toStdWString().c_str(), st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+	blog(LOG_INFO, "Crash Dump file will write into :%s", strUserPath.toStdString().c_str());
+
+	HANDLE lhDumpFile = CreateFileW(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (lhDumpFile && (lhDumpFile != INVALID_HANDLE_VALUE)) {
+		MINIDUMP_EXCEPTION_INFORMATION loExceptionInfo;
+		loExceptionInfo.ExceptionPointers = pExceptionPointers;
+		loExceptionInfo.ThreadId = GetCurrentThreadId();
+		loExceptionInfo.ClientPointers = TRUE;
+
+		int nDumpType = MiniDumpWithFullMemoryInfo;
+		MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), lhDumpFile, (MINIDUMP_TYPE)nDumpType, &loExceptionInfo, NULL, NULL);
+		CloseHandle(lhDumpFile);
+
+		QString dumpPath = QString::fromWCharArray(path);
+		blog(LOG_INFO, "Write Crash Dump file:%s", dumpPath.toStdString().c_str());
+
+		PostDumpToServer(dumpPath);
+	} else {
+		blog(LOG_INFO, "Write Crash Dump file failed:(%d)", GetLastError());
+	}
+
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+
+int pls_auto_dump()
+{
+	SetUnhandledExceptionFilter(PrismUnhandledExceptionFilter);
+	return 0;
 }

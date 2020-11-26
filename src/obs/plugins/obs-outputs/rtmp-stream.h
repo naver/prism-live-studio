@@ -127,6 +127,9 @@ struct rtmp_stream {
 	os_event_t *buffer_has_data_event;
 	os_event_t *socket_available_event;
 	os_event_t *send_thread_signaled_exit;
+
+	//PRISM/LiuHaibin/20200810/#None/rtmp heartbeat
+	uint64_t tick_time_ns;
 };
 
 #ifdef _WIN32

@@ -43,9 +43,11 @@ void PLSQTDisplay::OnSourceCaptureState(void *data, calldata_t *calldata)
 	QMetaObject::invokeMethod(static_cast<PLSQTDisplay *>(data), "OnSourceStateChanged");
 }
 
-PLSQTDisplay::PLSQTDisplay(QWidget *parent, Qt::WindowFlags flags) : QWidget(parent, flags)
+PLSQTDisplay::PLSQTDisplay(QWidget *parent, Qt::WindowFlags flags, PLSDpiHelper dpiHelper) : QWidget(parent, flags)
 {
 	PLS_INFO(DISPLAY_MODULE, "[%p] display is created", this);
+
+	dpiHelper.setCss(this, {PLSCssIndex::PLSQTDisplay});
 
 	setAttribute(Qt::WA_PaintOnScreen);
 	setAttribute(Qt::WA_StaticContents);
@@ -78,6 +80,7 @@ PLSQTDisplay::PLSQTDisplay(QWidget *parent, Qt::WindowFlags flags) : QWidget(par
 	displayText->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	displayText->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
 	displayText->setObjectName(INVALID_SOURCE_ERROR_TEXT_BUTTON);
+	displayText->setWordWrap(true);
 	displayText->hide();
 
 	resizeScreen = new QLabel(this);
@@ -99,10 +102,12 @@ PLSQTDisplay::PLSQTDisplay(QWidget *parent, Qt::WindowFlags flags) : QWidget(par
 	if (QWidget *dock = getDock(this)) {
 		connect(dock, SIGNAL(beginResizeSignal()), this, SLOT(beginResizeSlot()));
 		connect(dock, SIGNAL(endResizeSignal()), this, SLOT(endResizeSlot()));
+		connect(dock, SIGNAL(visibleSignal(bool)), this, SLOT(visibleSlot(bool)), Qt::QueuedConnection);
 	} else {
 		QWidget *toplevelView = pls_get_toplevel_view(this);
 		connect(toplevelView, SIGNAL(beginResizeSignal()), this, SLOT(beginResizeSlot()));
 		connect(toplevelView, SIGNAL(endResizeSignal()), this, SLOT(endResizeSlot()));
+		connect(toplevelView, SIGNAL(visibleSignal(bool)), this, SLOT(visibleSlot(bool)), Qt::QueuedConnection);
 	}
 
 	resizeScreen->installEventFilter(this);
@@ -233,19 +238,20 @@ void PLSQTDisplay::UpdateSourceState(obs_source_t *source)
 {
 	const char *id = obs_source_get_id(source);
 	if (!id) {
-		displayText->hide();
+		setDisplayTextVisible(false);
 		return;
 	}
 
 	enum obs_source_error error;
 	if (obs_source_get_capture_valid(source, &error)) {
-		displayText->hide();
+		setDisplayTextVisible(false);
 		return;
 	}
 
-	displayText->setText(SourceTreeItem::GetErrorTips(id, error));
+	if (!displayTextAsGuide)
+		displayText->setText(SourceTreeItem::GetErrorTips(id, error));
 	if (!isResizing)
-		displayText->show();
+		setDisplayTextVisible(true);
 }
 
 void PLSQTDisplay::beginResizeSlot()
@@ -259,8 +265,12 @@ void PLSQTDisplay::beginResizeSlot()
 	isDisplayActive = obs_display_enabled(display);
 
 	obs_display_set_enabled(display, false);
-	displayText->hide();
-	resizeScreen->show();
+
+	enum obs_source_error error;
+	if (obs_source_get_capture_valid(source, &error))
+		setDisplayTextVisible(false);
+	if (!displayText->isVisible())
+		resizeScreen->show();
 }
 
 void PLSQTDisplay::endResizeSlot()
@@ -277,6 +287,29 @@ void PLSQTDisplay::endResizeSlot()
 	if (source) {
 		enum obs_source_error error;
 		if (!obs_source_get_capture_valid(source, &error))
-			displayText->show();
+			setDisplayTextVisible(true);
+	}
+}
+
+void PLSQTDisplay::showGuideText(const QString &guideText)
+{
+	displayTextAsGuide = true;
+	displayText->setText(guideText);
+	displayText->show();
+}
+
+void PLSQTDisplay::setDisplayTextVisible(bool visible)
+{
+	if (!displayTextAsGuide) {
+		displayText->setVisible(visible);
+	}
+}
+
+void PLSQTDisplay::visibleSlot(bool visible)
+{
+	if (property("forceHidden").toBool()) {
+		setVisible(false);
+	} else {
+		setVisible(visible);
 	}
 }

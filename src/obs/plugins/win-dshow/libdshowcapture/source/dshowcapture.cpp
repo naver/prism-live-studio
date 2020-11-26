@@ -148,10 +148,24 @@ void Device::OpenDialog(void *hwnd, DialogType type) const
 	ComPtr<IUnknown> ptr;
 	HRESULT hr;
 
+	//PRISM/WangShaohui/20200910/NoIssue/for check NULL
+	if (!context) {
+		Warning(L"Could not find context to open dialog type: %d with",
+			(int)type);
+		return;
+	}
+
 	if (type == DialogType::ConfigVideo) {
 		ptr = context->videoFilter;
 	} else if (type == DialogType::ConfigCrossbar ||
 		   type == DialogType::ConfigCrossbar2) {
+		//PRISM/WangShaohui/20200910/NoIssue/for check NULL
+		if (!context->builder) {
+			Warning(L"Could not find builder to open dialog type: %d with",
+				(int)type);
+			return;
+		}
+
 		hr = context->builder->FindInterface(NULL, NULL,
 						     context->videoFilter,
 						     IID_IAMCrossbar,

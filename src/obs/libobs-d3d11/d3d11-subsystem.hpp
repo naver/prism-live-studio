@@ -465,6 +465,8 @@ struct gs_texture_2d : gs_texture {
 	void GetSharedHandle(IDXGIResource *dxgi_res);
 
 	void RebuildSharedTextureFallback();
+	//PRISM/LiuHaibin/20200629/#3174/camera effect
+	void RebuildSharedTexture(ID3D11Device *dev);
 	void Rebuild(ID3D11Device *dev);
 	void RebuildNV12_Y(ID3D11Device *dev);
 	void RebuildNV12_UV(ID3D11Device *dev);
@@ -709,6 +711,9 @@ struct gs_swap_chain : gs_obj {
 	void InitTarget(uint32_t cx, uint32_t cy);
 	void InitZStencilBuffer(uint32_t cx, uint32_t cy);
 	void Resize(uint32_t cx, uint32_t cy);
+
+	//PRISM/Wang.Chuanjing/20200403/#2322/for device reset crash
+	void ResizeBuffer();
 	void Init();
 
 	void Rebuild(ID3D11Device *dev);
@@ -851,6 +856,9 @@ struct mat4float {
 	float mat[16];
 };
 
+//PRISM/Wang.Chuanjing/20200408/for device rebuild
+typedef void (*set_render_working)(bool);
+
 struct gs_device {
 	ComPtr<IDXGIFactory1> factory;
 	ComPtr<IDXGIAdapter1> adapter;
@@ -900,10 +908,15 @@ struct gs_device {
 	matrix4 curViewMatrix;
 	matrix4 curViewProjMatrix;
 
+	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+	set_render_working render_working_cb = nullptr;
+
+	vector<gs_device_loss> loss_callbacks;
 	gs_obj *first_obj = nullptr;
 
 	void InitCompiler();
-	void InitFactory(uint32_t adapterIdx);
+	//PRISM/LiuHaibin/20200630/#3174/camera effect
+	void InitFactory(uint32_t &adapterIdx);
 	void InitDevice(uint32_t adapterIdx);
 
 	ID3D11DepthStencilState *AddZStencilState();
@@ -927,6 +940,12 @@ struct gs_device {
 
 	gs_device(uint32_t adapterIdx);
 	~gs_device();
+
+	//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+	uint64_t maxTextureSize = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+	uint64_t GetMaxTextureSize();
+	bool GetAdapterLuid(struct gs_luid* luid);
+	struct gs_luid adapterLuid = {0};
 };
 
 extern "C" EXPORT int device_texture_acquire_sync(gs_texture_t *tex,

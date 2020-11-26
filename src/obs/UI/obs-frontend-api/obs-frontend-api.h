@@ -11,6 +11,10 @@
 // Solution: override this function to receive message
 typedef const char *(*TPrsimInvokedByWeb)(const char *data);
 typedef void (*TPrsimDispatchJSEvent)(const char *type, const char *detail);
+//PRISM/Zhangdewen/20200901/#/chat source
+typedef void (*TPrsimDispatchJSEventToSource)(obs_source_t *source,
+					      const char *type,
+					      const char *detail);
 
 #ifdef obs_frontend_api_EXPORTS
 #define OBS_FRONTEND_API __declspec(dllexport)
@@ -29,6 +33,14 @@ extern
 	"C"
 #endif
 	OBS_FRONTEND_API TPrsimDispatchJSEvent prism_frontend_dispatch_js_event;
+
+//PRISM/Zhangdewen/20200901/#/chat source
+extern
+#ifdef __cplusplus
+	"C"
+#endif
+	OBS_FRONTEND_API TPrsimDispatchJSEventToSource
+		prism_frontend_dispatch_js_event_to_source;
 /******************************************************************************/
 #endif
 
@@ -52,6 +64,10 @@ enum obs_frontend_event {
 	OBS_FRONTEND_EVENT_RECORDING_STOPPING,
 	OBS_FRONTEND_EVENT_RECORDING_STOPPED,
 	OBS_FRONTEND_EVENT_SCENE_CHANGED,
+	OBS_FRONTEND_EVENT_SCENE_COPY,
+	OBS_FRONTEND_EVENT_SCENE_LIST_ADD,
+	OBS_FRONTEND_EVENT_SCENE_LIST_DELETE,
+	OBS_FRONTEND_EVENT_SCENE_LIST_CURRENT_CHANGED,
 	OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED,
 	OBS_FRONTEND_EVENT_TRANSITION_CHANGED,
 	OBS_FRONTEND_EVENT_TRANSITION_STOPPED,

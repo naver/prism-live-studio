@@ -36,6 +36,7 @@
 #include <QResizeEvent>
 #include <algorithm>
 #include <QSignalBlocker>
+#include <QSettings>
 
 #include "audio-encoders.hpp"
 #include "hotkey-edit.hpp"
@@ -54,10 +55,13 @@
 #include "pls-common-define.hpp"
 #include "frontend-api.h"
 #include "PLSCompleter.hpp"
-#include <qsettings.h>
+#include "ChannelCommonFunctions.h"
 
-#define RESOLUTION_SIZE_MIN 2
-#define RESOLUTION_SIZE_MAX (32 * 1024)
+//PRISM/Liu.Haibin/20200420/#None/limit min resolution to 4
+#define RESOLUTION_SIZE_MIN 4
+//PRISM/Liu.Haibin/20200410/#None/Refer to OBS, limit max resolution to 16384
+#define RESOLUTION_SIZE_MAX 16384
+static uint64_t g_maxRolutionSize = 0;
 
 using namespace std;
 
@@ -101,77 +105,35 @@ class CustomPropertiesView : public PLSPropertiesView {
 	PLSBasicSettings *m_basicSettings;
 
 public:
-	explicit CustomPropertiesView(PLSBasicSettings *basicSettings, OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize = 0, int maxSize = -1)
-		: PLSPropertiesView(settings, type, reloadCallback, minSize, maxSize), m_basicSettings(basicSettings)
+	explicit CustomPropertiesView(PLSBasicSettings *basicSettings, PLSPropertiesView *&rview, QWidget *parent, OBSData settings, const char *type, PropertiesReloadCallback reloadCallback,
+				      int minSize = 0, int maxSize = -1)
+		: PLSPropertiesView(parent, settings, type, reloadCallback, minSize, maxSize), m_basicSettings(basicSettings)
 	{
+		rview = this;
 		RefreshProperties();
 	}
 
 	void RefreshProperties()
 	{
-		lastPropertyType = OBS_PROPERTY_INVALID;
-		PLSPropertiesView::RefreshProperties();
-		QScrollArea::widget()->setContentsMargins(0, 10, 0, 0);
-		emit m_basicSettings->updateStreamEncoderPropsSize();
-	}
+		PLSPropertiesView::RefreshProperties(
+			[](QWidget *widget) {
+				widget->setContentsMargins(0, 0, 0, 0);
+				PLSDpiHelper::dpiDynamicUpdate(widget, false);
+			},
+			false);
 
-	void AddSpacer(const obs_property_type &currentType, QFormLayout *layout)
-	{
-		if (lastPropertyType != OBS_PROPERTY_INVALID) {
-			QLabel *spaceLabel = new QLabel(this);
-			spaceLabel->setObjectName(OBJECT_NAME_SPACELABEL);
-			if (isSamePropertyType(lastPropertyType, currentType)) {
-				spaceLabel->setFixedSize(10, PROPERTIES_VIEW_VERTICAL_SPACING_MIN);
-			} else {
-				spaceLabel->setFixedSize(10, PROPERTIES_VIEW_VERTICAL_SPACING_MAX);
-			}
-			layout->addRow(spaceLabel, spaceLabel);
-		}
-		lastPropertyType = currentType;
-	}
-
-	bool isSamePropertyType(obs_property_type a, obs_property_type b)
-	{
-		switch (a) {
-		case OBS_PROPERTY_BOOL:
-			switch (b) {
-			case OBS_PROPERTY_BOOL:
-				return true;
-			default:
-				return false;
-			}
-			break;
-		case OBS_PROPERTY_INT:
-		case OBS_PROPERTY_FLOAT:
-		case OBS_PROPERTY_TEXT:
-		case OBS_PROPERTY_PATH:
-		case OBS_PROPERTY_LIST:
-		case OBS_PROPERTY_COLOR:
-		case OBS_PROPERTY_BUTTON:
-		case OBS_PROPERTY_FONT:
-		case OBS_PROPERTY_EDITABLE_LIST:
-		case OBS_PROPERTY_FRAME_RATE:
-			switch (b) {
-			case OBS_PROPERTY_INT:
-			case OBS_PROPERTY_FLOAT:
-			case OBS_PROPERTY_TEXT:
-			case OBS_PROPERTY_PATH:
-			case OBS_PROPERTY_LIST:
-			case OBS_PROPERTY_COLOR:
-			case OBS_PROPERTY_BUTTON:
-			case OBS_PROPERTY_FONT:
-			case OBS_PROPERTY_EDITABLE_LIST:
-			case OBS_PROPERTY_FRAME_RATE:
-				return true;
-			default:
-				return false;
-			}
-		default:
-			break;
-		}
-		return true;
+		emit m_basicSettings->updateStreamEncoderPropsSize(this);
 	}
 };
+bool isChild(QWidget *parent, QWidget *child)
+{
+	for (; child; child = child->parentWidget()) {
+		if (child == parent) {
+			return true;
+		}
+	}
+	return false;
+}
 }
 
 Q_DECLARE_METATYPE(FormatDesc)
@@ -197,10 +159,6 @@ static bool ConvertResText(const char *res, uint32_t &cx, uint32_t &cy)
 		return false;
 	}
 
-	if (cx < RESOLUTION_SIZE_MIN || cx > RESOLUTION_SIZE_MAX) {
-		return false;
-	}
-
 	/* parse 'x' */
 	if (!lexer_getbasetoken(lex, &token, IGNORE_WHITESPACE))
 		return false;
@@ -219,7 +177,16 @@ static bool ConvertResText(const char *res, uint32_t &cx, uint32_t &cy)
 		return false;
 	}
 
-	if (cy < RESOLUTION_SIZE_MIN || cy > RESOLUTION_SIZE_MAX) {
+	//PRISM/Liu.Haibin/20200410/#None/limit resolution
+	//Get max resolution limit from graphics engine,
+	//While we also keep using the min resolution limit
+	obs_enter_graphics();
+	g_maxRolutionSize = gs_texture_get_max_size();
+	obs_leave_graphics();
+	if (!g_maxRolutionSize)
+		g_maxRolutionSize = RESOLUTION_SIZE_MAX;
+	if (cy < RESOLUTION_SIZE_MIN || cy > g_maxRolutionSize || cx < RESOLUTION_SIZE_MIN || cx > g_maxRolutionSize) {
+		cx = cy = 0;
 		return false;
 	}
 
@@ -317,14 +284,15 @@ template<typename Current, typename... Others> static void setOutputSettingsAdvS
 	}
 };
 
-template<typename Current, typename... Others> static void setWidgetShow(Current show, Others... hides)
+template<typename Current, typename... Others> static void setWidgetShow(QWidget *scrollContent, Current show, Others... hides)
 {
-	show->show();
-
 	QWidget *all[] = {hides...};
 	for (size_t i = 0, count = sizeof...(hides); i < count; ++i) {
 		all[i]->hide();
 	}
+
+	show->show();
+	scrollContent->adjustSize();
 };
 
 template<typename Widget> static void setLabelFixedWidth(int fixedWidth, const QList<Widget *> &labels)
@@ -336,16 +304,13 @@ template<typename Widget> static void setLabelFixedWidth(int fixedWidth, const Q
 	}
 }
 
-template<typename Widget0, typename Widget1> static void setLabelFixedWidth(int fixedWidth, const QList<Widget0 *> &labels0, const QList<Widget1 *> &labels1)
+template<typename Widget> static void setLabelNoLimitedWidth(const QList<Widget *> &labels)
 {
-	for (QWidget *label : labels0) {
+	for (QWidget *label : labels) {
 		if (label) {
-			label->setFixedWidth(fixedWidth);
-		}
-	}
-	for (QWidget *label : labels1) {
-		if (label) {
-			label->setFixedWidth(fixedWidth);
+			label->setMinimumWidth(0);
+			label->setMaximumWidth(QWIDGETSIZE_MAX);
+			label->adjustSize();
 		}
 	}
 }
@@ -373,6 +338,7 @@ template<typename Widget0, typename Widget1> static int calcLabelFixedWidth(int 
 
 template<typename Widget> static void setLabelLimited(const char *page, int maxWidth, const QList<Widget *> &labels)
 {
+	setLabelNoLimitedWidth(labels);
 	int fixedWidth = calcLabelFixedWidth(maxWidth, labels);
 	PLS_INFO(SETTING_MODULE, "%s label flexible width: %d", page, fixedWidth);
 	setLabelFixedWidth(fixedWidth, labels);
@@ -380,9 +346,20 @@ template<typename Widget> static void setLabelLimited(const char *page, int maxW
 
 template<typename Widget0, typename Widget1> static void setLabelLimited(const char *page, int maxWidth, const QList<Widget0 *> &labels0, const QList<Widget1 *> &labels1)
 {
+	setLabelNoLimitedWidth(labels0);
+	setLabelNoLimitedWidth(labels1);
 	int fixedWidth = calcLabelFixedWidth(maxWidth, labels0, labels1);
 	PLS_INFO(SETTING_MODULE, "%s label flexible width: %d", page, fixedWidth);
-	setLabelFixedWidth(fixedWidth, labels0, labels1);
+	setLabelFixedWidth(fixedWidth, labels0);
+	setLabelFixedWidth(fixedWidth, labels1);
+}
+
+template<typename Widget0, typename Widget1> static void setLabelLimitedExclude(const char *page, int maxWidth, const QList<Widget0 *> &labels, const QList<Widget1 *> &excludes)
+{
+	setLabelNoLimitedWidth(labels);
+	int fixedWidth = calcLabelFixedWidth(maxWidth, labels, excludes);
+	PLS_INFO(SETTING_MODULE, "%s label flexible width: %d", page, fixedWidth);
+	setLabelFixedWidth(fixedWidth, labels);
 }
 
 static void componentValueChanged(QWidget *page, QObject *sender)
@@ -432,7 +409,9 @@ static void componentValueChanged(QWidget *page, QObject *sender)
 	}
 
 	for (QObject *component = sender->parent(), *end = page->parent(); component != end; component = component->parent()) {
-		if (component->dynamicPropertyNames().contains("uistep")) {
+		if (!component) {
+			return;
+		} else if (component->dynamicPropertyNames().contains("uistep")) {
 			componentName = QStringLiteral("%1 > %2").arg(component->property("uistep").toString(), componentName);
 		}
 	}
@@ -457,6 +436,14 @@ static void lineEditYellowBorder(QLineEdit *lineEdit)
 		lineEdit->setProperty("editing", false);
 		pls_flush_style(lineEdit);
 	});
+}
+
+static void layoutRemoveWidget(QFormLayout *layout, QWidget *widget)
+{
+	if (widget) {
+		layout->removeWidget(widget);
+		widget->hide();
+	}
 }
 
 #ifdef _WIN32
@@ -518,7 +505,7 @@ void PLSBasicSettings::HookWidget(QWidget *widget, const char *signal, const cha
 #define ADV_RESTART     SLOT(AdvancedChangedRestart())
 /* clang-format on */
 
-#define GENERAL_PAGE_FORMLABELS ui->label, ui->label_45
+#define GENERAL_PAGE_FORMLABELS ui->label_21, ui->label_45
 
 #define OUTPUT_PAGE_FORMLABELS                                                                                                                                                                   \
 	ui->label_71, ui->label_68, ui->fpsType, ui->outputModeLabel, ui->label_19, ui->simpleOutRecEncoderLabel_2, ui->label_20, ui->label_24, ui->label_23, ui->label_18, ui->label_26,        \
@@ -535,8 +522,11 @@ void PLSBasicSettings::HookWidget(QWidget *widget, const char *signal, const cha
 
 #define SOURCE_PAGE_FORMLABELS ui->label_9, ui->label_76
 
-PLSBasicSettings::PLSBasicSettings(QWidget *parent) : PLSDialogView(parent), main(nullptr), ui(new Ui::PLSBasicSettings)
+PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), main(nullptr), ui(new Ui::PLSBasicSettings)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::PLSBasicSettings});
+	dpiHelper.setInitSize(this, {940, 700});
+
 	main = PLSBasic::Get();
 	setCloseEventCallback([this](QCloseEvent *e) { return onCloseEvent(e); });
 
@@ -546,8 +536,6 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent) : PLSDialogView(parent), mai
 
 	ui->setupUi(this->content());
 	QMetaObject::connectSlotsByName(this);
-	resize(940, 760);
-	setMinimumSize(720, 555);
 
 	initGeneralView();
 	main->EnableOutputs(false);
@@ -564,13 +552,13 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent) : PLSDialogView(parent), mai
 		switch (index) {
 		case 0:
 		default:
-			setWidgetShow(ui->fpsCommon, ui->fpsInteger, ui->fpsDenNumWidget);
+			setWidgetShow(ui->scrollAreaWidgetContents_3, ui->fpsCommon, ui->fpsInteger, ui->fpsDenNumWidget);
 			break;
 		case 1:
-			setWidgetShow(ui->fpsInteger, ui->fpsCommon, ui->fpsDenNumWidget);
+			setWidgetShow(ui->scrollAreaWidgetContents_3, ui->fpsInteger, ui->fpsCommon, ui->fpsDenNumWidget);
 			break;
 		case 2:
-			setWidgetShow(ui->fpsDenNumWidget, ui->fpsCommon, ui->fpsInteger);
+			setWidgetShow(ui->scrollAreaWidgetContents_3, ui->fpsDenNumWidget, ui->fpsCommon, ui->fpsInteger);
 			break;
 		}
 	});
@@ -582,8 +570,11 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent) : PLSDialogView(parent), mai
 
 	ui->advOutputModeContainer->hide();
 	connect(ui->outputMode, currentIndexChanged_int, this, [this](int index) {
-		ui->simpleOutputModeContainer->setVisible(index == 0);
-		ui->advOutputModeContainer->setVisible(index == 1);
+		if (index == 0) {
+			setWidgetShow(ui->scrollAreaWidgetContents_3, ui->simpleOutputModeContainer, ui->advOutputModeContainer);
+		} else {
+			setWidgetShow(ui->scrollAreaWidgetContents_3, ui->advOutputModeContainer, ui->simpleOutputModeContainer);
+		}
 		SimpleRecordingEncoderChanged();
 		SimpleReplayBufferChanged();
 		AdvOutRecCheckWarnings();
@@ -591,69 +582,94 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent) : PLSDialogView(parent), mai
 
 	outputSettingsAdvCurrentTab = ui->outputSettingsAdvStreamTab;
 	setOutputSettingsAdvStreamTabBtnSelected(ui->outputSettingsAdvStreamTabBtn, ui->outputSettingsAdvRecordTabBtn, ui->outputSettingsAdvAudioTabBtn, ui->outputSettingsAdvReplayBufTabBtn);
-	setWidgetShow(ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvReplayBufTab);
+	setWidgetShow(ui->scrollAreaWidgetContents_3, ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvReplayBufTab);
 
 	connect(ui->outputSettingsAdvStreamTabBtn, &QPushButton::clicked, this, [this]() {
 		outputSettingsAdvCurrentTab = ui->outputSettingsAdvStreamTab;
 		setOutputSettingsAdvStreamTabBtnSelected(ui->outputSettingsAdvStreamTabBtn, ui->outputSettingsAdvRecordTabBtn, ui->outputSettingsAdvAudioTabBtn, ui->outputSettingsAdvReplayBufTabBtn);
-		setWidgetShow(ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvReplayBufTab);
+		setWidgetShow(ui->scrollAreaWidgetContents_3, ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvReplayBufTab);
 		AdvOutRecCheckWarnings();
 		componentValueChanged(getPageOfSender(ui->outputSettingsAdvStreamTabBtn), ui->outputSettingsAdvStreamTabBtn);
 	});
 	connect(ui->outputSettingsAdvRecordTabBtn, &QPushButton::clicked, this, [this]() {
 		outputSettingsAdvCurrentTab = ui->outputSettingsAdvRecordTab;
 		setOutputSettingsAdvStreamTabBtnSelected(ui->outputSettingsAdvRecordTabBtn, ui->outputSettingsAdvStreamTabBtn, ui->outputSettingsAdvAudioTabBtn, ui->outputSettingsAdvReplayBufTabBtn);
-		setWidgetShow(ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvReplayBufTab);
+		setWidgetShow(ui->scrollAreaWidgetContents_3, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvReplayBufTab);
 		AdvOutRecCheckWarnings();
 		componentValueChanged(getPageOfSender(ui->outputSettingsAdvRecordTabBtn), ui->outputSettingsAdvRecordTabBtn);
 	});
 	connect(ui->outputSettingsAdvAudioTabBtn, &QPushButton::clicked, this, [this]() {
 		outputSettingsAdvCurrentTab = ui->outputSettingsAdvAudioTab;
 		setOutputSettingsAdvStreamTabBtnSelected(ui->outputSettingsAdvAudioTabBtn, ui->outputSettingsAdvRecordTabBtn, ui->outputSettingsAdvStreamTabBtn, ui->outputSettingsAdvReplayBufTabBtn);
-		setWidgetShow(ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvReplayBufTab);
+		setWidgetShow(ui->scrollAreaWidgetContents_3, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvReplayBufTab);
 		AdvOutRecCheckWarnings();
 		componentValueChanged(getPageOfSender(ui->outputSettingsAdvAudioTabBtn), ui->outputSettingsAdvAudioTabBtn);
 	});
 	connect(ui->outputSettingsAdvReplayBufTabBtn, &QPushButton::clicked, this, [this]() {
 		outputSettingsAdvCurrentTab = ui->outputSettingsAdvReplayBufTab;
 		setOutputSettingsAdvStreamTabBtnSelected(ui->outputSettingsAdvReplayBufTabBtn, ui->outputSettingsAdvAudioTabBtn, ui->outputSettingsAdvRecordTabBtn, ui->outputSettingsAdvStreamTabBtn);
-		setWidgetShow(ui->outputSettingsAdvReplayBufTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvStreamTab);
+		setWidgetShow(ui->scrollAreaWidgetContents_3, ui->outputSettingsAdvReplayBufTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvStreamTab);
 		AdvReplayBufferChanged();
 		AdvOutRecCheckWarnings();
 		componentValueChanged(getPageOfSender(ui->outputSettingsAdvReplayBufTabBtn), ui->outputSettingsAdvReplayBufTabBtn);
 	});
 
-	setWidgetShow(ui->advOutRecStandard, ui->advOutRecFFmpeg);
+	setWidgetShow(ui->scrollAreaWidgetContents_3, ui->advOutRecStandard, ui->advOutRecFFmpeg);
 	ui->advOutRecType->removeItem(1); // remove custom ffmpeg
 	connect(ui->advOutRecType, currentIndexChanged_int, this, [this](int index) {
 		switch (index) {
 		case 0:
 		default:
-			setWidgetShow(ui->advOutRecStandard, ui->advOutRecFFmpeg);
+			setWidgetShow(ui->scrollAreaWidgetContents_3, ui->advOutRecStandard, ui->advOutRecFFmpeg);
 			break;
 		case 1:
-			setWidgetShow(ui->advOutRecFFmpeg, ui->advOutRecStandard);
+			setWidgetShow(ui->scrollAreaWidgetContents_3, ui->advOutRecFFmpeg, ui->advOutRecStandard);
 			break;
 		}
 	});
 
-	connect(this, &PLSBasicSettings::updateStreamEncoderPropsSize, this,
-		[this]() {
-			QList<QWidget *> labels;
+	connect(this, &PLSBasicSettings::updateStreamEncoderPropsSize, this, [this](PLSPropertiesView *view) {
+		QList<QWidget *> labels{OUTPUT_PAGE_FORMLABELS};
+		if (streamEncoderProps) {
+			labels.append(streamEncoderProps->findChildren<QWidget *>(OBJECT_NAME_FORMLABEL));
+		}
+		if (recordEncoderProps) {
+			labels.append(recordEncoderProps->findChildren<QWidget *>(OBJECT_NAME_FORMLABEL));
+		}
+		setLabelLimited("output page", PLSDpiHelper::calculate(this, 170), labels);
+	});
+
+	connect(
+		this, &PLSBasicSettings::updateStreamEncoderPropsSize, this,
+		[this](PLSPropertiesView *view) {
 			if (streamEncoderProps) {
-				streamEncoderProps->setMinimumSize(streamEncoderProps->QScrollArea::widget()->minimumSizeHint());
-				labels.append(streamEncoderProps->findChildren<QWidget *>(OBJECT_NAME_FORMLABEL));
+				int minimumHeight = streamEncoderProps->QScrollArea::widget()->minimumSizeHint().height();
+				streamEncoderProps->setMinimumHeight(minimumHeight);
 			}
-
 			if (recordEncoderProps) {
-				recordEncoderProps->setMinimumSize(recordEncoderProps->QScrollArea::widget()->minimumSizeHint());
-				labels.append(streamEncoderProps->findChildren<QWidget *>(OBJECT_NAME_FORMLABEL));
+				int minimumHeight = recordEncoderProps->QScrollArea::widget()->minimumSizeHint().height();
+				recordEncoderProps->setMinimumHeight(minimumHeight);
 			}
-
-			labels.append({OUTPUT_PAGE_FORMLABELS});
-			setLabelLimited("output page", 170, labels);
 		},
 		Qt::QueuedConnection);
+
+	dpiHelper.notifyDpiChanged(this, [=](double dpi, double /*oldDpi*/, bool firstShow) {
+		ui->streamDelaySec->setFixedWidth(PLSDpiHelper::calculate(dpi, 180));
+		ui->colorSpace->setFixedWidth(PLSDpiHelper::calculate(dpi, 185));
+		ui->colorRange->setFixedWidth(PLSDpiHelper::calculate(dpi, 185));
+
+		if (firstShow) {
+			activateWindow();
+			return;
+		}
+
+		updateLabelSize(dpi);
+		if (ui->alertMessageFrame->isVisible()) {
+			ui->alertMessageLayout->setContentsMargins(PLSDpiHelper::calculate(dpi, QMargins(20, 0, 20, 20)));
+		} else {
+			ui->alertMessageLayout->setMargin(0);
+		}
+	});
 
 	PopulateAACBitrates(
 		{ui->simpleOutputABitrate, ui->advOutTrack1Bitrate, ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate, ui->advOutTrack4Bitrate, ui->advOutTrack5Bitrate, ui->advOutTrack6Bitrate});
@@ -663,8 +679,10 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent) : PLSDialogView(parent), mai
 	ui->replayBufferHotkeyMessage2->setText(text);
 	connect(this, &PLSBasicSettings::asyncUpdateReplayBufferHotkeyMessage, this, &PLSBasicSettings::onAsyncUpdateReplayBufferHotkeyMessage, Qt::QueuedConnection);
 
-	ui->replayWhileStreaming->hide();
-	ui->keepReplayStreamStops->hide();
+	layoutRemoveWidget(ui->formLayout_17, ui->replayWhileStreaming);
+	layoutRemoveWidget(ui->formLayout_17, ui->keepReplayStreamStops);
+	ui->formLayout_17->removeRow(1);
+	ui->formLayout_17->removeRow(1);
 
 	ui->listWidget->setAttribute(Qt::WA_MacShowFocusRect, false);
 
@@ -675,20 +693,43 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent) : PLSDialogView(parent), mai
 	ui->sourcePage->installEventFilter(this);
 	ui->hotkeyPage->installEventFilter(this);
 
-	connect(this, &PLSBasicSettings::asyncNotifyComponentValueChanged, this, [](QWidget *page, QObject *sender) { componentValueChanged(page, sender); }, Qt::QueuedConnection);
+	connect(
+		this, &PLSBasicSettings::asyncNotifyComponentValueChanged, this, [](QWidget *page, QObject *sender) { componentValueChanged(page, sender); }, Qt::QueuedConnection);
 
-	lineEditYellowBorder(ui->simpleOutCustom);
-	lineEditYellowBorder(ui->simpleOutMuxCustom);
-	lineEditYellowBorder(ui->advOutMuxCustom);
-	lineEditYellowBorder(ui->advOutTrack1Name);
-	lineEditYellowBorder(ui->advOutTrack2Name);
-	lineEditYellowBorder(ui->advOutTrack3Name);
-	lineEditYellowBorder(ui->advOutTrack4Name);
-	lineEditYellowBorder(ui->advOutTrack5Name);
-	lineEditYellowBorder(ui->advOutTrack6Name);
-	lineEditYellowBorder(ui->filenameFormatting);
-	lineEditYellowBorder(ui->simpleRBPrefix);
-	lineEditYellowBorder(ui->simpleRBSuffix);
+	// lineEditYellowBorder(ui->simpleOutCustom);
+	// lineEditYellowBorder(ui->simpleOutMuxCustom);
+	// lineEditYellowBorder(ui->advOutMuxCustom);
+	// lineEditYellowBorder(ui->advOutTrack1Name);
+	// lineEditYellowBorder(ui->advOutTrack2Name);
+	// lineEditYellowBorder(ui->advOutTrack3Name);
+	// lineEditYellowBorder(ui->advOutTrack4Name);
+	// lineEditYellowBorder(ui->advOutTrack5Name);
+	// lineEditYellowBorder(ui->advOutTrack6Name);
+	// lineEditYellowBorder(ui->filenameFormatting);
+	// lineEditYellowBorder(ui->simpleRBPrefix);
+	// lineEditYellowBorder(ui->simpleRBSuffix);
+
+	// Zhangdewen remove stream delay feature issue: 2231
+	ui->groupBox_5->hide();
+	// Zhangdewen remove Auto remux to mp4
+	ui->formLayout_17->removeWidget(ui->autoRemux);
+	ui->autoRemux->hide();
+
+	typedef void (QSpinBox::*QSpinBox_valueChanged_int)(int);
+	QSpinBox_valueChanged_int fpsNumeratorValueChanged = &QSpinBox::valueChanged;
+	connect(ui->fpsNumerator, fpsNumeratorValueChanged, ui->fpsDenominator, [this](int value) {
+		int curValue = ui->fpsDenominator->value();
+		ui->fpsDenominator->setMaximum(value);
+		if (curValue > value) {
+			ui->fpsDenominator->setValue(value);
+		}
+	});
+
+	dpiHelper.setDynamicContentsMargins(ui->alertMessageLayout, true);
+
+	if (pls_is_living_or_recording()) {
+		ui->resetButton->setEnabled(false);
+	}
 
 	/* clang-format off */
 	HookWidget(ui->language,             COMBO_CHANGED,  GENERAL_CHANGED);
@@ -723,6 +764,7 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent) : PLSDialogView(parent), mai
 	HookWidget(ui->multiviewDrawNames,   CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->multiviewDrawAreas,   CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->multiviewLayout,      COMBO_CHANGED,  GENERAL_CHANGED);
+	HookWidget(ui->checkBox,             CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->service,              COMBO_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->server,               COMBO_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->customServer,         EDIT_CHANGED,   STREAM1_CHANGED);
@@ -966,6 +1008,7 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent) : PLSDialogView(parent), mai
 	connect(ui->advOutTrack4Bitrate, SIGNAL(currentIndexChanged(int)), this, SLOT(UpdateStreamDelayEstimate()));
 	connect(ui->advOutTrack5Bitrate, SIGNAL(currentIndexChanged(int)), this, SLOT(UpdateStreamDelayEstimate()));
 	connect(ui->advOutTrack6Bitrate, SIGNAL(currentIndexChanged(int)), this, SLOT(UpdateStreamDelayEstimate()));
+	connect(ui->checkBox, &QCheckBox::stateChanged, [=](int state) {});
 	//Apply button disabled until change.
 	EnableApplyButton(false);
 
@@ -1359,6 +1402,8 @@ void PLSBasicSettings::LoadThemeList()
 void PLSBasicSettings::initGeneralView()
 {
 	ui->groupBox_15->setVisible(false);
+	ui->groupBox_20->setVisible(false);
+	ui->groupBox_19->setVisible(false);
 }
 
 void PLSBasicSettings::LoadGeneralSettings()
@@ -1456,6 +1501,7 @@ void PLSBasicSettings::LoadGeneralSettings()
 	bool multiviewDrawAreas = config_get_bool(GetGlobalConfig(), "BasicWindow", "MultiviewDrawAreas");
 	ui->multiviewDrawAreas->setChecked(multiviewDrawAreas);
 
+	ui->multiviewLayout->clear();
 	ui->multiviewLayout->addItem(QTStr("Basic.Settings.General.MultiviewLayout.Horizontal.Top"), static_cast<int>(MultiviewLayout::HORIZONTAL_TOP_8_SCENES));
 	ui->multiviewLayout->addItem(QTStr("Basic.Settings.General.MultiviewLayout.Horizontal.Bottom"), static_cast<int>(MultiviewLayout::HORIZONTAL_BOTTOM_8_SCENES));
 	ui->multiviewLayout->addItem(QTStr("Basic.Settings.General.MultiviewLayout.Vertical.Left"), static_cast<int>(MultiviewLayout::VERTICAL_LEFT_8_SCENES));
@@ -1464,14 +1510,18 @@ void PLSBasicSettings::LoadGeneralSettings()
 
 	ui->multiviewLayout->setCurrentIndex(config_get_int(GetGlobalConfig(), "BasicWindow", "MultiviewLayout"));
 
+	ui->checkBox->setChecked(config_get_bool(GetGlobalConfig(), "General", "Watermark"));
+
 	if (pls_is_living_or_recording()) {
 
 		//add account disenable
 		ui->groupBox_20->setEnabled(false);
 		ui->groupBox_21->setEnabled(false);
+		ui->groupBox_19->setEnabled(false);
 
 		ui->accountView->setEnabled(false);
 		ui->language->setEnabled(false);
+		ui->checkBox->setEnabled(false);
 	}
 
 	loading = false;
@@ -1482,6 +1532,7 @@ void PLSBasicSettings::LoadRendererList()
 #ifdef _WIN32
 	const char *renderer = config_get_string(GetGlobalConfig(), "Video", "Renderer");
 
+	ui->renderer->clear();
 	ui->renderer->addItem(QT_UTF8("Direct3D 11"));
 	if (opt_allow_opengl || strcmp(renderer, "OpenGL") == 0)
 		ui->renderer->addItem(QT_UTF8("OpenGL"));
@@ -1642,26 +1693,39 @@ void PLSBasicSettings::ResetDownscales(uint32_t cx, uint32_t cy)
 
 	string res = ResString(cx, cy);
 
-	float baseAspect = float(cx) / float(cy);
-	float outputAspect = float(out_cx) / float(out_cy);
+	if ((out_cx * out_cy) > (cx * cy)) {
+		RecalcOutputResPixels(res.c_str());
 
-	bool closeAspect = close_float(baseAspect, outputAspect, 0.01f);
-	if (closeAspect) {
-		ui->outputResolution->lineEdit()->setText(oldOutputRes);
-		ui->outputResolution_2->lineEdit()->setText(oldOutputRes);
+		ui->outputResolution->lineEdit()->setText(res.c_str());
+		ui->outputResolution_2->lineEdit()->setText(res.c_str());
+
+		ui->outputResolution->setProperty("changed", QVariant(true));
+		ui->outputResolution_2->setProperty("changed", QVariant(true));
+		videoChanged = true;
 	} else {
-		ui->outputResolution->lineEdit()->setText(bestScale.c_str());
-		ui->outputResolution_2->lineEdit()->setText(bestScale.c_str());
+		float baseAspect = float(cx) / float(cy);
+		float outputAspect = float(out_cx) / float(out_cy);
+
+		bool closeAspect = close_float(baseAspect, outputAspect, 0.01f);
+		if (closeAspect) {
+			ui->outputResolution->lineEdit()->setText(oldOutputRes);
+			ui->outputResolution_2->lineEdit()->setText(oldOutputRes);
+		} else {
+			RecalcOutputResPixels(res.c_str());
+
+			ui->outputResolution->lineEdit()->setText(bestScale.c_str());
+			ui->outputResolution_2->lineEdit()->setText(bestScale.c_str());
+		}
+
+		if (!closeAspect) {
+			ui->outputResolution->setProperty("changed", QVariant(true));
+			ui->outputResolution_2->setProperty("changed", QVariant(true));
+			videoChanged = true;
+		}
 	}
 
 	ui->outputResolution->blockSignals(false);
 	ui->outputResolution_2->blockSignals(false);
-
-	if (!closeAspect) {
-		ui->outputResolution->setProperty("changed", QVariant(true));
-		ui->outputResolution_2->setProperty("changed", QVariant(true));
-		videoChanged = true;
-	}
 
 	if (advRescale.isEmpty())
 		advRescale = res.c_str();
@@ -1677,6 +1741,7 @@ void PLSBasicSettings::ResetDownscales(uint32_t cx, uint32_t cy)
 
 void PLSBasicSettings::LoadDownscaleFilters()
 {
+	ui->downscaleFilter->clear();
 	ui->downscaleFilter->addItem(QTStr("Basic.Settings.Video.DownscaleFilter.Bilinear"), QT_UTF8("bilinear"));
 	ui->downscaleFilter->addItem(QTStr("Basic.Settings.Video.DownscaleFilter.Area"), QT_UTF8("area"));
 	ui->downscaleFilter->addItem(QTStr("Basic.Settings.Video.DownscaleFilter.Bicubic"), QT_UTF8("bicubic"));
@@ -1895,8 +1960,15 @@ void PLSBasicSettings::LoadAdvOutputStreamingSettings()
 	ui->advOutRescale->setCurrentText(rescaleRes);
 
 	QStringList specList = QTStr("FilenameFormatting.completer").split(QRegularExpression("\n"));
-	PLSCompleter *completer = new PLSCompleter(ui->filenameFormatting, specList);
 	ui->filenameFormatting->setToolTip(QTStr("FilenameFormatting.TT"));
+	if (PLSCompleter *completer = PLSCompleter::attachLineEdit(this, ui->filenameFormatting, specList); completer) {
+		connect(completer, &PLSCompleter::activated, this, [=]() {
+			advancedChanged = true;
+			ui->filenameFormatting->setProperty("changed", true);
+			componentValueChanged(ui->outputPage, ui->filenameFormatting);
+			EnableApplyButton(true);
+		});
+	}
 
 	switch (trackIndex) {
 	case 1:
@@ -1920,7 +1992,7 @@ void PLSBasicSettings::LoadAdvOutputStreamingSettings()
 	}
 }
 
-PLSPropertiesView *PLSBasicSettings::CreateEncoderPropertyView(const char *encoder, const char *path, bool changed)
+void PLSBasicSettings::CreateEncoderPropertyView(PLSPropertiesView *&rview, QWidget *parent, const char *encoder, const char *path, bool changed)
 {
 	obs_data_t *settings = obs_encoder_defaults(encoder);
 	PLSPropertiesView *view;
@@ -1935,12 +2007,11 @@ PLSPropertiesView *PLSBasicSettings::CreateEncoderPropertyView(const char *encod
 		}
 	}
 
-	view = new CustomPropertiesView(this, settings, encoder, (PropertiesReloadCallback)obs_get_encoder_properties);
+	view = new CustomPropertiesView(this, rview, parent, settings, encoder, (PropertiesReloadCallback)obs_get_encoder_properties);
 	view->setProperty("changed", QVariant(changed));
 	QObject::connect(view, SIGNAL(Changed()), this, SLOT(OutputsChanged()));
 
 	obs_data_release(settings);
-	return view;
 }
 
 void PLSBasicSettings::LoadAdvOutputStreamingEncoderProperties()
@@ -1948,7 +2019,9 @@ void PLSBasicSettings::LoadAdvOutputStreamingEncoderProperties()
 	const char *type = config_get_string(main->Config(), "AdvOut", "Encoder");
 
 	delete streamEncoderProps;
-	streamEncoderProps = CreateEncoderPropertyView(type, "streamEncoder.json");
+	streamEncoderProps = nullptr;
+
+	CreateEncoderPropertyView(streamEncoderProps, ui->advOutputStreamTab, type, "streamEncoder.json");
 	ui->advOutputStreamTab->layout()->addWidget(streamEncoderProps);
 
 	connect(streamEncoderProps, SIGNAL(Changed()), this, SLOT(UpdateStreamDelayEstimate()));
@@ -2032,7 +2105,7 @@ void PLSBasicSettings::LoadAdvOutputRecordingEncoderProperties()
 	recordEncoderProps = nullptr;
 
 	if (astrcmpi(type, "none") != 0) {
-		recordEncoderProps = CreateEncoderPropertyView(type, "recordEncoder.json");
+		CreateEncoderPropertyView(recordEncoderProps, ui->advOutRecStandard, type, "recordEncoder.json");
 		ui->advOutRecStandard->layout()->addWidget(recordEncoderProps);
 		connect(recordEncoderProps, SIGNAL(Changed()), this, SLOT(AdvReplayBufferChanged()));
 	}
@@ -2190,6 +2263,8 @@ void PLSBasicSettings::LoadOutputSettings()
 		ui->outputModeLabel->setEnabled(false);
 		ui->simpleRecordingGroupBox->setEnabled(false);
 		ui->replayBufferGroupBox->setEnabled(false);
+		ui->advReplayBuf->setEnabled(false);
+		ui->advReplayBufferGroupBox->setEnabled(false);
 		ui->advOutTopContainer->setEnabled(false);
 		ui->advOutRecTopContainer->setEnabled(false);
 		ui->advOutRecTypeContainer->setEnabled(false);
@@ -2235,6 +2310,8 @@ static inline void LoadListValue(QComboBox *widget, const char *text, const char
 
 void PLSBasicSettings::LoadListValues(QComboBox *widget, obs_property_t *prop, int index)
 {
+	widget->clear();
+
 	size_t count = obs_property_list_item_count(prop);
 
 	obs_source_t *source = obs_get_output_source(index);
@@ -2388,6 +2465,8 @@ void PLSBasicSettings::LoadAudioSources()
 		label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 		label->setProperty("useFor", "FormLabelRole");
 		label->setWordWrap(true);
+		label->setMinimumSize(ui->label_67->minimumSize());
+		label->setMaximumSize(ui->label_67->maximumSize());
 		connect(label, &OBSSourceLabel::Removed, [=]() { LoadAudioSources(); });
 		connect(label, &OBSSourceLabel::Destroyed, [=]() { LoadAudioSources(); });
 
@@ -2572,6 +2651,7 @@ template<typename Func> static inline void LayoutHotkey(obs_hotkey_id id, obs_ho
 	label->setObjectName("hotkeyHotkeyFormLabel");
 	label->setWordWrap(true);
 	label->setText(QT_UTF8(obs_hotkey_get_description(key)));
+	label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 
 	PLSHotkeyWidget *hw = nullptr;
 
@@ -2600,7 +2680,48 @@ template<typename Func> static QLabel *makeLabel(const OBSSource &source, Func &
 	return label;
 }
 
-template<typename Func, typename T> static inline void AddHotkeys(QFormLayout &layout, Func &&getName, std::vector<std::tuple<T, QPointer<QLabel>, QPointer<QWidget>>> &hotkeys)
+static QLabel *makeGroupBoxStart()
+{
+	QLabel *start = new QLabel();
+	start->setFixedHeight(30);
+	return start;
+}
+
+static QLabel *makeGroupBoxEnd()
+{
+	QLabel *start = new QLabel();
+	start->setFixedHeight(0);
+	return start;
+}
+
+static void layoutAddGroup(QFormLayout *layout, QWidget *start, QWidget *label, QWidget *end)
+{
+	if (start) {
+		layout->setWidget(layout->rowCount(), QFormLayout::SpanningRole, start);
+		start->show();
+	}
+
+	if (label) {
+		layout->addRow(label);
+		label->show();
+	}
+
+	if (end) {
+		layout->setWidget(layout->rowCount(), QFormLayout::SpanningRole, end);
+		end->show();
+	}
+}
+
+static void layoutAddRow(QFormLayout *layout, QWidget *label, QWidget *widget)
+{
+	layout->addRow(label, widget);
+	label->show();
+	widget->show();
+}
+
+template<typename Func, typename T>
+static inline void AddHotkeys(QList<std::tuple<bool, QLabel *, QWidget *, QWidget *>> &hotkeyRows, QFormLayout &layout, Func &&getName,
+			      std::vector<std::tuple<T, QPointer<QLabel>, QPointer<QWidget>>> &hotkeys, PLSBasicSettings *bscSettings)
 {
 	if (hotkeys.empty())
 		return;
@@ -2619,25 +2740,32 @@ template<typename Func, typename T> static inline void AddHotkeys(QFormLayout &l
 		const char *name = getName(o);
 		if (prevName != name) {
 			prevName = name;
-			layout.setItem(layout.rowCount(), QFormLayout::SpanningRole, new QSpacerItem(0, 30));
+			QLabel *groupBoxStart = makeGroupBoxStart();
+			layout.setWidget(layout.rowCount(), QFormLayout::SpanningRole, groupBoxStart);
 			QLabel *groupBoxlabel = makeLabel(o, getName);
 			groupBoxlabel->setProperty("useFor", QStringLiteral("QGroupBox"));
+			groupBoxlabel->setProperty("groupName", QString(name));
+			groupBoxlabel->installEventFilter(bscSettings);
 			layout.addRow(groupBoxlabel);
-			layout.setItem(layout.rowCount(), QFormLayout::SpanningRole, new QSpacerItem(0, 0));
+			QLabel *groupBoxEnd = makeGroupBoxEnd();
+			layout.setWidget(layout.rowCount(), QFormLayout::SpanningRole, groupBoxEnd);
+			hotkeyRows.append(std::tuple<bool, QLabel *, QWidget *, QWidget *>(true, groupBoxlabel, groupBoxStart, groupBoxEnd));
 		}
 
 		auto hlabel = get<1>(hotkey);
 		auto widget = get<2>(hotkey);
 		widget->setProperty("uistep", name);
 		layout.addRow(hlabel, widget);
+		hotkeyRows.append(std::tuple<bool, QLabel *, QWidget *, QWidget *>(false, hlabel, widget, nullptr));
 	}
 }
 
 void PLSBasicSettings::LoadHotkeySettings(obs_hotkey_id ignoreKey)
 {
 	hotkeys.clear();
-	ui->hotkeyScrollArea->takeWidget()->deleteLater();
+
 	replayBufferHotkeyWidget = nullptr;
+	hotkeyRows.clear();
 
 	using keys_t = map<obs_hotkey_id, vector<obs_key_combination_t>>;
 	keys_t keys;
@@ -2658,9 +2786,8 @@ void PLSBasicSettings::LoadHotkeySettings(obs_hotkey_id ignoreKey)
 	layout->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
 	layout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
-	auto widget = new QWidget();
+	auto widget = new QWidget(ui->hotkeyScrollArea);
 	widget->setLayout(layout);
-	ui->hotkeyScrollArea->setWidget(widget);
 
 	ui->hotkeyFocusTypeLabel->setParent(widget);
 	ui->hotkeyFocusType->setParent(widget);
@@ -2669,37 +2796,65 @@ void PLSBasicSettings::LoadHotkeySettings(obs_hotkey_id ignoreKey)
 
 	hotkeyFilterLabel = new QLabel(QTStr("Basic.Settings.Hotkeys.Filter"));
 	hotkeyFilterLabel->setProperty("useFor", QStringLiteral("FormLabelRole"));
+	hotkeyFilterLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
 	auto filter = new QLineEdit();
 	filter->setObjectName("hotkeyFilterLineEdit");
-	lineEditYellowBorder(filter);
+	// lineEditYellowBorder(filter);
 
-	auto setRowVisible = [=](int row, bool visible, QLayoutItem *label) {
-		label->widget()->setVisible(visible);
+	layout->addRow(hotkeyFilterLabel, filter);
 
-		auto field = layout->itemAt(row, QFormLayout::FieldRole);
-		if (field)
-			field->widget()->setVisible(visible);
-	};
+	int commonCount = layout->rowCount();
+
+	QLabel *groupBoxStart = new QLabel();
+	groupBoxStart->setFixedHeight(30);
+	layout->setWidget(layout->rowCount(), QFormLayout::SpanningRole, groupBoxStart);
+	hotkeyRows.append(std::tuple<bool, QLabel *, QWidget *, QWidget *>(true, nullptr, groupBoxStart, nullptr));
 
 	auto searchFunction = [=](const QString &text) {
-		for (int i = 0; i < layout->rowCount(); i++) {
-			auto label = layout->itemAt(i, QFormLayout::LabelRole);
-			if (label) {
-				PLSHotkeyLabel *item = qobject_cast<PLSHotkeyLabel *>(label->widget());
-				if (item) {
-					if (item->text().toLower().contains(text.toLower()))
-						setRowVisible(i, true, label);
-					else
-						setRowVisible(i, false, label);
+		for (int i = 0; i < hotkeyRows.count(); ++i) {
+			auto &r = hotkeyRows.at(i);
+			layoutRemoveWidget(layout, std::get<1>(r));
+			layoutRemoveWidget(layout, std::get<2>(r));
+			layoutRemoveWidget(layout, std::get<3>(r));
+		}
+
+		while (layout->rowCount() > commonCount) {
+			layout->removeRow(layout->rowCount() - 1);
+		}
+
+		for (int i = 0; i < hotkeyRows.count();) {
+			auto &r1 = hotkeyRows.at(i);
+			if (std::get<0>(r1)) {
+				// group box
+				bool groupAdd = false;
+				for (i += 1; i < hotkeyRows.count();) {
+					auto &r2 = hotkeyRows.at(i);
+					if (std::get<0>(r2)) {
+						break;
+					}
+
+					++i;
+					PLSHotkeyLabel *label = dynamic_cast<PLSHotkeyLabel *>(std::get<1>(r2));
+					if (label && label->text().toLower().contains(text.toLower())) {
+						if (!groupAdd) {
+							groupAdd = true;
+							layoutAddGroup(layout, std::get<2>(r1), std::get<1>(r1), std::get<3>(r1));
+						}
+
+						layoutAddRow(layout, std::get<1>(r2), std::get<2>(r2));
+					}
+				}
+			} else {
+				++i;
+				PLSHotkeyLabel *label = dynamic_cast<PLSHotkeyLabel *>(std::get<1>(r1));
+				if (label && label->text().toLower().contains(text.toLower())) {
+					layoutAddRow(layout, std::get<1>(r1), std::get<2>(r1));
 				}
 			}
 		}
 	};
 
 	connect(filter, &QLineEdit::textChanged, this, searchFunction);
-
-	layout->addRow(hotkeyFilterLabel, filter);
-	layout->setItem(layout->rowCount(), QFormLayout::SpanningRole, new QSpacerItem(0, 30));
 
 	using namespace std;
 	using encoders_elem_t = tuple<OBSEncoder, QPointer<QLabel>, QPointer<QWidget>>;
@@ -2756,7 +2911,11 @@ void PLSBasicSettings::LoadHotkeySettings(obs_hotkey_id ignoreKey)
 		auto weak_source = static_cast<obs_weak_source_t *>(registerer);
 		auto source = OBSGetStrongRef(weak_source);
 
+		// zhangdewen fix crash 20200916
 		if (!source)
+			return true;
+
+		if (obs_source_is_private(source))
 			return true;
 
 		if (obs_scene_from_source(source))
@@ -2782,6 +2941,7 @@ void PLSBasicSettings::LoadHotkeySettings(obs_hotkey_id ignoreKey)
 		switch (registerer_type) {
 		case OBS_HOTKEY_REGISTERER_FRONTEND: {
 			layout->addRow(label, hw);
+			hotkeyRows.append(std::tuple<bool, QLabel *, QWidget *, QWidget *>(false, label, hw, nullptr));
 			break;
 		}
 		case OBS_HOTKEY_REGISTERER_ENCODER:
@@ -2856,11 +3016,15 @@ void PLSBasicSettings::LoadHotkeySettings(obs_hotkey_id ignoreKey)
 		Update(label2, name2, label1, name1);
 	}
 
-	AddHotkeys(*layout, obs_output_get_name, outputs);
-	AddHotkeys(*layout, obs_source_get_name, scenes);
-	AddHotkeys(*layout, obs_source_get_name, sources);
-	AddHotkeys(*layout, obs_encoder_get_name, encoders);
-	AddHotkeys(*layout, obs_service_get_name, services);
+	AddHotkeys(hotkeyRows, *layout, obs_output_get_name, outputs, this);
+	AddHotkeys(hotkeyRows, *layout, obs_source_get_name, scenes, this);
+	AddHotkeys(hotkeyRows, *layout, obs_source_get_name, sources, this);
+	AddHotkeys(hotkeyRows, *layout, obs_encoder_get_name, encoders, this);
+	AddHotkeys(hotkeyRows, *layout, obs_service_get_name, services, this);
+
+	PLSDpiHelper::dpiDynamicUpdate(widget, false);
+	ui->hotkeyScrollArea->takeWidget()->deleteLater();
+	ui->hotkeyScrollArea->setWidget(widget);
 }
 
 void PLSBasicSettings::LoadSettings(bool changedOnly)
@@ -2919,6 +3083,11 @@ void PLSBasicSettings::SaveGeneralSettings()
 	if (WidgetChanged(ui->enableAutoUpdates))
 		config_set_bool(GetGlobalConfig(), "General", "EnableAutoUpdates", ui->enableAutoUpdates->isChecked());
 #endif
+	if (WidgetChanged(ui->checkBox)) {
+		bool value = ui->checkBox->isChecked();
+		obs_watermark_set_enabled(value);
+		config_set_bool(App()->GlobalConfig(), "General", "Watermark", value);
+	}
 
 	if (WidgetChanged(ui->openStatsOnStartup))
 		config_set_bool(main->Config(), "General", "OpenStatsOnStartup", ui->openStatsOnStartup->isChecked());
@@ -3148,6 +3317,15 @@ static void WriteJsonData(PLSPropertiesView *view, const char *path)
 		if (settings) {
 			obs_data_save_json_safe(settings, full_path, "tmp", "bak");
 		}
+	}
+}
+
+static void removeJsonData(const char *path)
+{
+	char full_path[512];
+	int ret = GetProfilePath(full_path, sizeof(full_path), path);
+	if (ret > 0) {
+		QFile::remove(full_path);
 	}
 }
 
@@ -3513,14 +3691,276 @@ void PLSBasicSettings::SaveSettings()
 	main->showEncodingInStatusBar();
 }
 
+void PLSBasicSettings::ResetSettings()
+{
+	auto config = main->Config();
+	auto globalConfig = GetGlobalConfig();
+
+	// reset general settings
+#if defined(_WIN32) || defined(__APPLE__)
+	config_remove_value(globalConfig, "General", "EnableAutoUpdates");
+#endif
+
+	obs_watermark_set_enabled(true);
+	config_set_bool(globalConfig, "General", "Watermark", true);
+
+	config_remove_value(config, "General", "OpenStatsOnStartup");
+	config_remove_value(globalConfig, "BasicWindow", "SnappingEnabled");
+	config_remove_value(globalConfig, "BasicWindow", "ScreenSnapping");
+	config_remove_value(globalConfig, "BasicWindow", "CenterSnapping");
+	config_remove_value(globalConfig, "BasicWindow", "SourceSnapping");
+	config_remove_value(globalConfig, "BasicWindow", "SnapDistance");
+	config_remove_value(globalConfig, "BasicWindow", "OverflowAlwaysVisible");
+	config_remove_value(globalConfig, "BasicWindow", "OverflowHidden");
+	config_remove_value(globalConfig, "BasicWindow", "OverflowSelectionHidden");
+	config_remove_value(globalConfig, "BasicWindow", "TransitionOnDoubleClick");
+
+	config_remove_value(globalConfig, "BasicWindow", "WarnBeforeStartingStream");
+	config_remove_value(globalConfig, "BasicWindow", "WarnBeforeStoppingStream");
+	config_remove_value(globalConfig, "BasicWindow", "WarnBeforeStoppingRecord");
+
+	config_remove_value(globalConfig, "BasicWindow", "HideProjectorCursor");
+	config_remove_value(globalConfig, "BasicWindow", "ProjectorAlwaysOnTop");
+
+	config_remove_value(globalConfig, "BasicWindow", "RecordWhenStreaming");
+	config_remove_value(globalConfig, "BasicWindow", "KeepRecordingWhenStreamStops");
+
+	config_remove_value(globalConfig, "BasicWindow", "ReplayBufferWhileStreaming");
+	config_remove_value(globalConfig, "BasicWindow", "KeepReplayBufferStreamStops");
+
+	config_remove_value(globalConfig, "BasicWindow", "SysTrayEnabled");
+	config_remove_value(globalConfig, "BasicWindow", "SysTrayWhenStarted");
+	config_remove_value(globalConfig, "BasicWindow", "SysTrayMinimizeToTray");
+
+	config_remove_value(globalConfig, "BasicWindow", "SaveProjectors");
+	config_remove_value(globalConfig, "BasicWindow", "StudioPortraitLayout");
+	config_remove_value(globalConfig, "BasicWindow", "StudioModeLabels");
+
+	config_remove_value(globalConfig, "BasicWindow", "MultiviewMouseSwitch");
+	config_remove_value(globalConfig, "BasicWindow", "MultiviewDrawNames");
+	config_remove_value(globalConfig, "BasicWindow", "MultiviewDrawAreas");
+	config_remove_value(globalConfig, "BasicWindow", "MultiviewLayout");
+
+	// reset output settings
+	config_remove_value(config, "Output", "Mode");
+	config_remove_value(config, "SimpleOutput", "VBitrate");
+	config_remove_value(config, "SimpleOutput", "StreamEncoder");
+	config_remove_value(config, "SimpleOutput", "ABitrate");
+	config_remove_value(config, "SimpleOutput", "FilePath");
+	config_remove_value(config, "SimpleOutput", "FileNameWithoutSpace");
+	config_remove_value(config, "SimpleOutput", "RecFormat");
+	config_remove_value(config, "SimpleOutput", "UseAdvanced");
+	config_remove_value(config, "SimpleOutput", "EnforceBitrate");
+	config_remove_value(config, "SimpleOutput", "QSVPreset");
+	config_remove_value(config, "SimpleOutput", "NVENCPreset");
+	config_remove_value(config, "SimpleOutput", "AMDPreset");
+	config_remove_value(config, "SimpleOutput", "Preset");
+	config_remove_value(config, "SimpleOutput", "x264Settings");
+	config_remove_value(config, "SimpleOutput", "RecQuality");
+	config_remove_value(config, "SimpleOutput", "RecEncoder");
+	config_remove_value(config, "SimpleOutput", "MuxerCustom");
+	config_remove_value(config, "SimpleOutput", "RecRB");
+	config_remove_value(config, "SimpleOutput", "RecRBTime");
+	config_remove_value(config, "SimpleOutput", "RecRBSize");
+
+	config_remove_value(config, "AdvOut", "ApplyServiceSettings");
+	config_remove_value(config, "AdvOut", "Encoder");
+	config_remove_value(config, "AdvOut", "Rescale");
+	config_remove_value(config, "AdvOut", "RescaleRes");
+	config_remove_value(config, "AdvOut", "TrackIndex");
+
+	config_remove_value(config, "AdvOut", "RecType");
+
+	config_remove_value(config, "AdvOut", "RecFilePath");
+	config_remove_value(config, "AdvOut", "RecFileNameWithoutSpace");
+	config_remove_value(config, "AdvOut", "RecFormat");
+	config_remove_value(config, "AdvOut", "RecEncoder");
+	config_remove_value(config, "AdvOut", "RecRescale");
+	config_remove_value(config, "AdvOut", "RecRescaleRes");
+	config_remove_value(config, "AdvOut", "RecMuxerCustom");
+
+	config_remove_value(config, "AdvOut", "RecTracks");
+
+	config_remove_value(config, "AdvOut", "FLVTrack");
+
+	config_remove_value(config, "AdvOut", "FFOutputToFile");
+	config_remove_value(config, "AdvOut", "FFFilePath");
+	config_remove_value(config, "AdvOut", "FFFileNameWithoutSpace");
+	config_remove_value(config, "AdvOut", "FFURL");
+	config_remove_value(config, "AdvOut", "FFFormat");
+	config_remove_value(config, "AdvOut", "FFFormatMimeType");
+	config_remove_value(config, "AdvOut", "FFExtension");
+
+	config_remove_value(config, "AdvOut", "FFMCustom");
+	config_remove_value(config, "AdvOut", "FFVBitrate");
+	config_remove_value(config, "AdvOut", "FFVGOPSize");
+	config_remove_value(config, "AdvOut", "FFRescale");
+	config_remove_value(config, "AdvOut", "FFIgnoreCompat");
+	config_remove_value(config, "AdvOut", "FFRescaleRes");
+	config_remove_value(config, "AdvOut", "FFVEncoderId");
+	config_remove_value(config, "AdvOut", "FFVEncoder");
+	config_remove_value(config, "AdvOut", "FFVCustom");
+	config_remove_value(config, "AdvOut", "FFABitrate");
+	config_remove_value(config, "AdvOut", "FFAEncoderId");
+	config_remove_value(config, "AdvOut", "FFAEncoder");
+	config_remove_value(config, "AdvOut", "FFACustom");
+	config_remove_value(config, "AdvOut", "FFAudioMixes");
+	config_remove_value(config, "AdvOut", "Track1Bitrate");
+	config_remove_value(config, "AdvOut", "Track2Bitrate");
+	config_remove_value(config, "AdvOut", "Track3Bitrate");
+	config_remove_value(config, "AdvOut", "Track4Bitrate");
+	config_remove_value(config, "AdvOut", "Track5Bitrate");
+	config_remove_value(config, "AdvOut", "Track6Bitrate");
+	config_remove_value(config, "AdvOut", "Track1Name");
+	config_remove_value(config, "AdvOut", "Track2Name");
+	config_remove_value(config, "AdvOut", "Track3Name");
+	config_remove_value(config, "AdvOut", "Track4Name");
+	config_remove_value(config, "AdvOut", "Track5Name");
+	config_remove_value(config, "AdvOut", "Track6Name");
+
+	config_remove_value(config, "AdvOut", "RecRB");
+	config_remove_value(config, "AdvOut", "RecRBTime");
+	config_remove_value(config, "AdvOut", "RecRBSize");
+
+	removeJsonData("streamEncoder.json");
+	removeJsonData("recordEncoder.json");
+
+	// reset video settings
+	config_remove_value(config, "Video", "BaseCX");
+	config_remove_value(config, "Video", "BaseCY");
+
+	config_remove_value(config, "Video", "OutputCX");
+	config_remove_value(config, "Video", "OutputCY");
+
+	config_remove_value(config, "Video", "FPSType");
+
+	config_remove_value(config, "Video", "FPSCommon");
+	config_remove_value(config, "Video", "FPSInt");
+	config_remove_value(config, "Video", "FPSNum");
+	config_remove_value(config, "Video", "FPSDen");
+	config_remove_value(config, "Video", "ScaleType");
+
+#ifdef _WIN32
+	config_remove_value(config, "Video", "DisableAero");
+#endif
+
+	// reset audio settings
+	config_remove_value(config, "Audio", "SampleRate");
+	config_remove_value(config, "Audio", "ChannelSetup");
+	config_remove_value(config, "Audio", "MeterDecayRate");
+	config_remove_value(config, "Audio", "PeakMeterType");
+
+	for (auto &audioSource : audioSources) {
+		auto source = OBSGetStrongRef(get<0>(audioSource));
+		if (source) {
+			obs_source_enable_push_to_mute(source, false);
+			obs_source_set_push_to_mute_delay(source, 0);
+
+			obs_source_enable_push_to_talk(source, false);
+			obs_source_set_push_to_talk_delay(source, 0);
+		}
+	}
+
+	auto resetAudioDevice = [this](bool input, const char *value, const char *name, int index) {
+		main->ResetAudioDevice(input ? App()->InputAudioSource() : App()->OutputAudioSource(), value, Str(name), index);
+	};
+
+	resetAudioDevice(false, "default", "Basic.DesktopDevice1", 1);
+	resetAudioDevice(false, "default", "Basic.DesktopDevice2", 2);
+	resetAudioDevice(true, "default", "Basic.AuxDevice1", 3);
+	resetAudioDevice(true, "disabled", "Basic.AuxDevice2", 4);
+	resetAudioDevice(true, "disabled", "Basic.AuxDevice3", 5);
+	resetAudioDevice(true, "disabled", "Basic.AuxDevice4", 6);
+
+	// reset advanced settings
+	config_remove_value(config, "Audio", "MonitoringDeviceId");
+
+	config_remove_value(globalConfig, "Video", "Renderer");
+
+	config_remove_value(globalConfig, "General", "ProcessPriority");
+	SetProcessPriority(config_get_default_string(globalConfig, "General", "ProcessPriority"));
+
+	config_remove_value(config, "Output", "NewSocketLoopEnable");
+	config_remove_value(config, "Output", "LowLatencyEnable");
+
+	config_remove_value(globalConfig, "General", "BrowserHWAccel");
+
+	config_remove_value(globalConfig, "General", "HotkeyFocusType");
+
+	config_remove_value(config, "Video", "ColorFormat");
+	config_remove_value(config, "Video", "ColorSpace");
+	config_remove_value(config, "Video", "ColorRange");
+
+	config_remove_value(config, "Audio", "MonitoringDeviceName");
+	config_remove_value(config, "Audio", "MonitoringDeviceId");
+
+	config_remove_value(globalConfig, "Audio", "DisableAudioDucking");
+
+	config_remove_value(config, "Output", "FilenameFormatting");
+	config_remove_value(config, "SimpleOutput", "RecRBPrefix");
+	config_remove_value(config, "SimpleOutput", "RecRBSuffix");
+	config_remove_value(config, "Output", "OverwriteIfExists");
+	config_remove_value(config, "Output", "DelayEnable");
+	config_remove_value(config, "Output", "DelaySec");
+	config_remove_value(config, "Output", "DelayPreserve");
+	config_remove_value(config, "Output", "Reconnect");
+	config_remove_value(config, "Output", "RetryDelay");
+	config_remove_value(config, "Output", "MaxRetries");
+	config_remove_value(config, "Output", "BindIP");
+	config_remove_value(config, "Video", "AutoRemux");
+	config_remove_value(config, "Output", "DynamicBitrate");
+
+	ui->monitoringDevice->setCurrentIndex(0);
+	QString newDevice = ui->monitoringDevice->currentData().toString();
+	obs_set_audio_monitoring_device(QT_TO_UTF8(ui->monitoringDevice->currentText()), QT_TO_UTF8(newDevice));
+	blog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s", QT_TO_UTF8(ui->monitoringDevice->currentText()), QT_TO_UTF8(newDevice));
+
+	// reset hotkey settings
+	for (auto &hotkey : hotkeys) {
+		hotkey.second->Clear();
+	}
+
+	SaveHotkeySettings();
+
+	config_set_string(config, "Hotkeys", "ReplayBuffer", "{\"ReplayBuffer.Save\":[{\"alt\":true,\"key\":\"OBS_KEY_R\"}]}");
+	config_set_string(config, "Others", "Hotkeys.ReplayBuffer", "Alt+R");
+
+	main->InitBasicConfigDefaults();
+
+	DisableAudioDucking(config_get_default_bool(globalConfig, "Audio", "DisableAudioDucking"));
+	main->UpdateVolumeControlsDecayRate();
+	main->UpdateVolumeControlsPeakMeterType();
+
+	main->ResetUI();
+	PLSProjector::UpdateMultiviewProjectors();
+
+	main->ResetOutputs();
+
+	main->ResetVideo();
+
+	main->SaveProject();
+
+	config_save_safe(config, "tmp", nullptr);
+	config_save_safe(globalConfig, "tmp", nullptr);
+
+	main->showEncodingInStatusBar();
+}
+
 bool PLSBasicSettings::QueryChanges()
 {
 	PLSAlertView::Button button = PLSMessageBox::question(this, QTStr("Basic.Settings.ConfirmTitle"), QTStr("Basic.Settings.Confirm"),
 							      PLSAlertView::Button::Yes | PLSAlertView::Button::No | PLSAlertView::Button::Cancel);
 
-	if (button == PLSAlertView::Button::Cancel) {
+	if (button == PLSAlertView::Button::Cancel || button == PLSAlertView::Button::NoButton) {
 		return false;
 	} else if (button == PLSAlertView::Button::Yes) {
+		if ((ui->language->currentIndex() != m_currentLanguageIndex) &&
+		    PLSAlertView::Button::Yes ==
+			    PLSAlertView::warning(this, QTStr("Basic.Settings.ConfirmTitle"), QTStr("Basic.Settings.General.language.changed"), PLSAlertView::Button::Yes | PLSAlertView::Button::No)) {
+			m_doneValue = Qt::UserRole + 1024;
+		} else {
+			ui->language->setCurrentIndex(m_currentLanguageIndex);
+		}
 		SaveSettings();
 	} else {
 		LoadSettings(true);
@@ -3537,19 +3977,12 @@ bool PLSBasicSettings::QueryChanges()
 bool PLSBasicSettings::onCloseEvent(QCloseEvent *event)
 {
 	bool result = true;
-	if (Changed() && !QueryChanges()) {
-		result = false;
-		if (event) {
-			event->ignore();
-		}
-	}
 
 	if (forceAuthReload) {
 		main->auth->Save();
 		main->auth->Load();
 		forceAuthReload = false;
 	}
-
 	callBaseCloseEvent(event);
 	return result;
 }
@@ -3570,21 +4003,26 @@ bool PLSBasicSettings::eventFilter(QObject *watched, QEvent *event)
 		switch (event->type()) {
 		case QEvent::Resize: {
 			QSize size = dynamic_cast<QResizeEvent *>(event)->size();
-			outputSettingsAdvTabsHLine->setGeometry(0, size.height() - 2, size.width(), 1);
+			outputSettingsAdvTabsHLine->setGeometry(0, size.height() - PLSDpiHelper::calculate(this, 2), size.width(), PLSDpiHelper::calculate(this, 1));
 			break;
 		}
 		}
 	} else if (watched == ui->generalPage) {
-		if (event->type() == QEvent::Show) {
-			setLabelLimited<QWidget>("general page", 170, {GENERAL_PAGE_FORMLABELS});
-		}
+		// if (event->type() == QEvent::Show) {
+		// 	QMetaObject::invokeMethod(
+		// 		this, [=]() { setLabelLimitedExclude<QWidget, QWidget>("general page", PLSDpiHelper::calculate(dpi, 170), {GENERAL_PAGE_FORMLABELS}, {ui->label}); },
+		// 		Qt::QueuedConnection);
+		// }
 	} else if (watched == ui->outputPage) {
 		if (event->type() == QEvent::Show) {
-			QList<QWidget *> labels = {OUTPUT_PAGE_FORMLABELS};
+			QList<QWidget *> labels{OUTPUT_PAGE_FORMLABELS};
 			if (streamEncoderProps) {
 				labels.append(streamEncoderProps->findChildren<QWidget *>(OBJECT_NAME_FORMLABEL));
 			}
-			setLabelLimited("output page", 170, labels);
+			if (recordEncoderProps) {
+				labels.append(recordEncoderProps->findChildren<QWidget *>(OBJECT_NAME_FORMLABEL));
+			}
+			setLabelLimited("output page", PLSDpiHelper::calculate(this, 170), labels);
 
 			QString text =
 				tr("Basic.Settings.Output.ReplayBuffer.HotkeyMessage")
@@ -3594,20 +4032,27 @@ bool PLSBasicSettings::eventFilter(QObject *watched, QEvent *event)
 		}
 	} else if (watched == ui->audioPage) {
 		if (event->type() == QEvent::Show) {
-			setLabelLimited<OBSSourceLabel, QWidget>("audio page", 170, ui->audioPage->findChildren<OBSSourceLabel *>("audioHotkeyFormLabel"), {AUDIO_PAGE_FORMLABELS});
+			setLabelLimited<OBSSourceLabel, QWidget>("audio page", PLSDpiHelper::calculate(this, 170), ui->audioPage->findChildren<OBSSourceLabel *>("audioHotkeyFormLabel"),
+								 {AUDIO_PAGE_FORMLABELS});
 		}
 	} else if (watched == ui->viewPage) {
 		if (event->type() == QEvent::Show) {
-			setLabelLimited<QWidget>("view page", 170, {VIEW_PAGE_FORMLABELS});
+			setLabelLimited<QWidget>("view page", PLSDpiHelper::calculate(this, 170), {VIEW_PAGE_FORMLABELS});
 		}
 	} else if (watched == ui->sourcePage) {
 		if (event->type() == QEvent::Show) {
-			setLabelLimited<QWidget>("source page", 170, {SOURCE_PAGE_FORMLABELS});
+			QMetaObject::invokeMethod(
+				this, [=]() { setLabelLimited<QWidget>("source page", PLSDpiHelper::calculate(this, 170), {SOURCE_PAGE_FORMLABELS}); }, Qt::QueuedConnection);
 		}
 	} else if (watched == ui->hotkeyPage) {
 		if (event->type() == QEvent::Show) {
-			setLabelLimited<PLSHotkeyLabel, QWidget>("hotkey page", 170, ui->hotkeyPage->findChildren<PLSHotkeyLabel *>("hotkeyHotkeyFormLabel"),
+			setLabelLimited<PLSHotkeyLabel, QWidget>("hotkey page", PLSDpiHelper::calculate(this, 170), ui->hotkeyPage->findChildren<PLSHotkeyLabel *>("hotkeyHotkeyFormLabel"),
 								 {ui->hotkeyFocusTypeLabel, hotkeyFilterLabel});
+		}
+	} else if (QLabel *label = dynamic_cast<QLabel *>(watched); label && isChild(ui->hotkeyPage, label) && watched->dynamicPropertyNames().contains("groupName")) {
+		if (event->type() == QEvent::Resize) {
+			QFontMetrics fontWidth(label->font());
+			label->setText(fontWidth.elidedText(label->property("groupName").toString(), Qt::ElideRight, ui->hotkeyPage->width() - PLSDpiHelper::calculate(this, 50)));
 		}
 	}
 	return PLSDialogView::eventFilter(watched, event);
@@ -3643,11 +4088,12 @@ void PLSBasicSettings::on_buttonBox_clicked(QAbstractButton *button)
 				SaveSettings();
 				ClearChanged();
 				done(Qt::UserRole + 1024);
+				return;
 			} else {
 				ui->language->setCurrentIndex(m_currentLanguageIndex);
 			}
 		}
-
+		this->setFocus();
 		SaveSettings();
 		ClearChanged();
 	}
@@ -3705,7 +4151,9 @@ void PLSBasicSettings::on_advOutEncoder_currentIndexChanged(int idx)
 		bool loadSettings = encoder == curAdvStreamEncoder;
 
 		delete streamEncoderProps;
-		streamEncoderProps = CreateEncoderPropertyView(QT_TO_UTF8(encoder), loadSettings ? "streamEncoder.json" : nullptr, true);
+		streamEncoderProps = nullptr;
+
+		CreateEncoderPropertyView(streamEncoderProps, ui->advOutputStreamTab, QT_TO_UTF8(encoder), loadSettings ? "streamEncoder.json" : nullptr, true);
 		ui->advOutputStreamTab->layout()->addWidget(streamEncoderProps);
 	}
 
@@ -3732,11 +4180,22 @@ void PLSBasicSettings::on_advOutRecEncoder_currentIndexChanged(int idx)
 		recordEncoderProps = nullptr;
 	}
 
+	auto setRescaleVisible = [=](bool visible) {
+		if (visible) {
+			ui->formLayout_16->setWidget(5, QFormLayout::LabelRole, ui->advOutRecUseRescaleContainer);
+			ui->formLayout_16->setWidget(5, QFormLayout::FieldRole, ui->advOutRecRescaleContainer);
+			ui->advOutRecUseRescaleContainer->show();
+			ui->advOutRecRescaleContainer->show();
+		} else {
+			layoutRemoveWidget(ui->formLayout_16, ui->advOutRecUseRescaleContainer);
+			layoutRemoveWidget(ui->formLayout_16, ui->advOutRecRescaleContainer);
+		}
+	};
+
 	if (idx <= 0) {
 		ui->advOutRecUseRescale->setChecked(false);
 		ui->advOutRecUseRescale->setVisible(false);
-		ui->advOutRecUseRescaleContainer->setVisible(false);
-		ui->advOutRecRescaleContainer->setVisible(false);
+		setRescaleVisible(false);
 		return;
 	}
 
@@ -3744,7 +4203,7 @@ void PLSBasicSettings::on_advOutRecEncoder_currentIndexChanged(int idx)
 	bool loadSettings = encoder == curAdvRecordEncoder;
 
 	if (!loading) {
-		recordEncoderProps = CreateEncoderPropertyView(QT_TO_UTF8(encoder), loadSettings ? "recordEncoder.json" : nullptr, true);
+		CreateEncoderPropertyView(recordEncoderProps, ui->advOutRecStandard, QT_TO_UTF8(encoder), loadSettings ? "recordEncoder.json" : nullptr, true);
 		ui->advOutRecStandard->layout()->addWidget(recordEncoderProps);
 		connect(recordEncoderProps, SIGNAL(Changed()), this, SLOT(AdvReplayBufferChanged()));
 	}
@@ -3754,12 +4213,10 @@ void PLSBasicSettings::on_advOutRecEncoder_currentIndexChanged(int idx)
 	if (caps & OBS_ENCODER_CAP_PASS_TEXTURE) {
 		ui->advOutRecUseRescale->setChecked(false);
 		ui->advOutRecUseRescale->setVisible(false);
-		ui->advOutRecUseRescaleContainer->setVisible(false);
-		ui->advOutRecRescaleContainer->setVisible(false);
+		setRescaleVisible(false);
 	} else {
 		ui->advOutRecUseRescale->setVisible(true);
-		ui->advOutRecUseRescaleContainer->setVisible(true);
-		ui->advOutRecRescaleContainer->setVisible(true);
+		setRescaleVisible(true);
 	}
 }
 
@@ -3834,14 +4291,18 @@ static bool ValidResolutions(PLSBasicSettings *settings, Ui::PLSBasicSettings *u
 
 	uint32_t cx, cy;
 	if (!ConvertResText(QT_TO_UTF8(ui->baseResolution->lineEdit()->text()), cx, cy) || !ConvertResText(QT_TO_UTF8(ui->outputResolution->lineEdit()->text()), cx, cy)) {
-		settings->updateAlertMessage(PLSBasicSettings::AlertMessageType::Error, ui->baseResolution, QTStr(INVALID_RES_STR));
+		//PRISM/Liu.Haibin/20200413/#None/limit resolution
+		QString text = QTStr(INVALID_RES_STR).arg(g_maxRolutionSize ? QString::number(g_maxRolutionSize).toStdString().c_str() : QString::number(RESOLUTION_SIZE_MAX).toStdString().c_str());
+		settings->updateAlertMessage(PLSBasicSettings::AlertMessageType::Error, ui->baseResolution, text);
 		result = false;
 	} else {
 		settings->clearAlertMessage(PLSBasicSettings::AlertMessageType::Error, ui->baseResolution);
 	}
 
 	if (!ConvertResText(QT_TO_UTF8(ui->outputResolution_2->lineEdit()->text()), cx, cy)) {
-		settings->updateAlertMessage(PLSBasicSettings::AlertMessageType::Error, ui->outputResolution_2, QTStr(INVALID_RES_STR));
+		//PRISM/Liu.Haibin/20200413/#None/limit resolution
+		QString text = QTStr(INVALID_RES_STR).arg(g_maxRolutionSize ? QString::number(g_maxRolutionSize).toStdString().c_str() : QString::number(RESOLUTION_SIZE_MAX).toStdString().c_str());
+		settings->updateAlertMessage(PLSBasicSettings::AlertMessageType::Error, ui->outputResolution_2, text);
 		result = false;
 	} else {
 		settings->clearAlertMessage(PLSBasicSettings::AlertMessageType::Error, ui->outputResolution_2);
@@ -3858,6 +4319,46 @@ void PLSBasicSettings::RecalcOutputResPixels(const char *resText)
 	if (newCX && newCY) {
 		outputCX = newCX;
 		outputCY = newCY;
+	}
+}
+
+void PLSBasicSettings::updateLabelSize(double dpi)
+{
+	{
+		// setLabelLimitedExclude<QWidget, QWidget>("general page", PLSDpiHelper::calculate(dpi, 170), {GENERAL_PAGE_FORMLABELS}, {ui->label});
+	}
+
+	{
+		QList<QWidget *> labels{OUTPUT_PAGE_FORMLABELS};
+		if (streamEncoderProps) {
+			int minimumHeight = streamEncoderProps->QScrollArea::widget()->minimumSizeHint().height();
+			streamEncoderProps->setMinimumHeight(minimumHeight);
+			labels.append(streamEncoderProps->findChildren<QWidget *>(OBJECT_NAME_FORMLABEL));
+		}
+		if (recordEncoderProps) {
+			int minimumHeight = recordEncoderProps->QScrollArea::widget()->minimumSizeHint().height();
+			recordEncoderProps->setMinimumHeight(minimumHeight);
+			labels.append(recordEncoderProps->findChildren<QWidget *>(OBJECT_NAME_FORMLABEL));
+		}
+		setLabelLimited("output page", PLSDpiHelper::calculate(dpi, 170), labels);
+	}
+
+	{
+		setLabelLimited<OBSSourceLabel, QWidget>("audio page", PLSDpiHelper::calculate(dpi, 170), ui->audioPage->findChildren<OBSSourceLabel *>("audioHotkeyFormLabel"),
+							 {AUDIO_PAGE_FORMLABELS});
+	}
+
+	{
+		setLabelLimited<QWidget>("view page", PLSDpiHelper::calculate(dpi, 170), {VIEW_PAGE_FORMLABELS});
+	}
+
+	{
+		setLabelLimited<QWidget>("source page", PLSDpiHelper::calculate(dpi, 170), {SOURCE_PAGE_FORMLABELS});
+	}
+
+	{
+		setLabelLimited<PLSHotkeyLabel, QWidget>("hotkey page", PLSDpiHelper::calculate(dpi, 170), ui->hotkeyPage->findChildren<PLSHotkeyLabel *>("hotkeyHotkeyFormLabel"),
+							 {ui->hotkeyFocusTypeLabel, hotkeyFilterLabel});
 	}
 }
 
@@ -4235,7 +4736,6 @@ void PLSBasicSettings::FillSimpleRecordingValues()
 {
 #define ADD_QUALITY(str) ui->simpleOutRecQuality->addItem(QTStr("Basic.Settings.Output.Simple.RecordingQuality." str), QString(str));
 #define ENCODER_STR(str) QTStr("Basic.Settings.Output.Simple.Encoder." str)
-
 	ADD_QUALITY("Stream");
 	ADD_QUALITY("Small");
 	ADD_QUALITY("HQ");
@@ -4421,6 +4921,8 @@ void PLSBasicSettings::SimpleReplayBufferChanged()
 				       .arg(replayBufferHotkeyWidget ? replayBufferHotkeyWidget->getHotkeyText().remove(' ') : config_get_string(main->Config(), "Others", "Hotkeys.ReplayBuffer"));
 		ui->replayBufferHotkeyMessage1->setText(text);
 	}
+
+	ui->scrollAreaWidgetContents_3->adjustSize();
 }
 
 void PLSBasicSettings::AdvReplayBufferChanged()
@@ -4492,7 +4994,7 @@ void PLSBasicSettings::AdvReplayBufferChanged()
 		ui->advRBEstimate->setText(QTStr(ESTIMATE_UNKNOWN_STR));
 
 	ui->advReplayBufferGroupBox->setVisible(!lossless && replayBufferEnabled);
-	ui->advReplayBuf->setEnabled(!lossless);
+	ui->advReplayBuf->setEnabled(!pls_is_living_or_recording() && !lossless);
 
 	UpdateAutomaticReplayBufferCheckboxes();
 
@@ -4501,6 +5003,10 @@ void PLSBasicSettings::AdvReplayBufferChanged()
 				       .arg(replayBufferHotkeyWidget ? replayBufferHotkeyWidget->getHotkeyText().remove(' ') : config_get_string(main->Config(), "Others", "Hotkeys.ReplayBuffer"));
 		ui->replayBufferHotkeyMessage2->setText(text);
 	}
+
+	ui->advOutputReplayTab->adjustSize();
+	ui->outputSettingsAdvReplayBufTab->adjustSize();
+	ui->scrollAreaWidgetContents_3->adjustSize();
 }
 
 #define SIMPLE_OUTPUT_WARNING(str) QTStr("Basic.Settings.Output.Simple.Warn." str)
@@ -4638,6 +5144,21 @@ void PLSBasicSettings::on_disableOSXVSync_clicked()
 		ui->resetOSXVSync->setEnabled(disable);
 	}
 #endif
+}
+
+void PLSBasicSettings::on_resetButton_clicked()
+{
+	PLS_UI_STEP(SETTING_MODULE, "Reset Button", ACTION_CLICK);
+
+	if (PLSAlertView::question(this, tr("Basic.Settings.Reset.Title"), tr("Basic.Settings.Reset.Question"), PLSAlertView::Button::Yes | PLSAlertView::Button::No) != PLSAlertView::Button::Yes) {
+		return;
+	}
+
+	ResetSettings();
+	LoadSettings(false);
+	ClearChanged();
+
+	updateLabelSize(PLSDpiHelper::getDpi(this));
 }
 
 QIcon PLSBasicSettings::GetGeneralIcon() const
@@ -4882,7 +5403,7 @@ void PLSBasicSettings::updateAlertMessage()
 	::updateAlertMessage(warningAlertMessages, alertMessageCount, ui.get(), getPageOfSender, outputSettingsAdvCurrentTab);
 	if (alertMessageCount > 0) {
 		ui->alertMessageFrame->show();
-		ui->alertMessageLayout->setContentsMargins(20, 0, 20, 20);
+		ui->alertMessageLayout->setContentsMargins(PLSDpiHelper::calculate(this, QMargins(20, 0, 20, 20)));
 	} else {
 		ui->alertMessageFrame->hide();
 		ui->alertMessageLayout->setMargin(0);

@@ -3,7 +3,7 @@
 
 #include "PLSSceneItemView.h"
 #include "PLSSceneTransitionsView.h"
-
+#include "PLSDpiHelper.h"
 #include <QFrame>
 
 namespace Ui {
@@ -17,9 +17,9 @@ public:
 	explicit PLSSceneListView(QWidget *parent = nullptr);
 	~PLSSceneListView();
 
-	void AddScene(const QString &name, OBSScene scene, SignalContainer<OBSScene> handler);
+	void AddScene(const QString &name, OBSScene scene, SignalContainer<OBSScene> handler, bool loadingScene = false);
 	void DeleteScene(const QString &name);
-	void RefreshScene();
+	void RefreshScene(bool scrollToCurrent = true);
 	void MoveSceneToUp();
 	void MoveSceneToDown();
 	void MoveSceneToTop();
@@ -50,9 +50,6 @@ public slots:
 	void OnAddSceneButtonClicked();
 	void OnSceneSwitchEffectBtnClicked();
 	void OnDragFinished();
-	void RefreshMultiviewLayout(int layout);
-	void DeleteAllScene();
-	void OnLogoutEvent();
 	void OnDeleteSceneButtonClicked(PLSSceneItemView *item);
 
 protected:
@@ -70,7 +67,6 @@ private:
 	void CreateSceneTransitionsView();
 signals:
 	void SceneRenameFinished();
-	void LogoutEvent();
 
 private:
 	Ui::PLSSceneListView *ui;

@@ -11,25 +11,20 @@
 #include "frontend-api.h"
 #include "window-basic-main.hpp"
 #include "login-common-helper.hpp"
+#include "PLSDpiHelper.h"
 
 #ifndef NSEC_PER_MSEC
 #define NSEC_PER_MSEC 1000000
 #endif
 
-#define NAME_LABEL_WIDTH 100
-#define MONITOR_TYPE_WIDTH 200
-#define VOLUME_SPINBOX_WIDTH 110
-#define MONO_CONTAINER_WIDTH 80
-#define BALANCE_WIDTH 159
-#define TRACKS_MAX_CONTAINER_WIDTH 268
-#define TRACKS_MIN_CONTAINER_WIDTH 258
 #define NAME_LABEL_HEIGHT 40
 
 #define MIN_DB -96.0
 #define MAX_DB 26.0
 
-PLSAdvAudioCtrl::PLSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(source_)
+PLSAdvAudioCtrl::PLSAdvAudioCtrl(QWidget *parent, obs_source_t *source_) : source(source_)
 {
+	PLSDpiHelper dpiHelper;
 
 	QHBoxLayout *hlayout;
 	signal_handler_t *handler = obs_source_get_signal_handler(source);
@@ -51,17 +46,17 @@ PLSAdvAudioCtrl::PLSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(
 	pls_frontend_add_event_callback(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_VOLUME_MONTY_BACK, PLSAdvAudioCtrl::monitorControlChange, this);
 
 	// source name label
-	nameLabel = new QLabel();
+	nameLabel = new QLabel(parent);
 	nameLabel->setObjectName("sourceNameLabel");
 	const char *sourceName = obs_source_get_name(source);
 	nameLabel->setToolTip(QT_UTF8(sourceName));
-	nameLabel->setStyleSheet("#sourceNameLabel{ min-width:100px; min-height:40px; font-size:14px; font-weight:bold; color:#bababa; padding:0px; }");
+	dpiHelper.setStyleSheet(nameLabel, "#sourceNameLabel{ min-width: /*hdpi*/130px; min-height: /*hdpi*/40px; font-size: /*hdpi*/14px; font-weight:bold; color:#bababa; padding:0px; }");
 	nameLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
 	// audio monitor combox
 #if defined(_WIN32) || defined(__APPLE__) || HAVE_PULSEAUDIO
 	int idx;
-	monitoringType = new PLSComboBox();
+	monitoringType = new PLSComboBox(parent);
 	monitoringType->setObjectName(QTStr("advMonitoringType"));
 	monitoringType->addItem(QTStr("Basic.AdvAudio.Monitoring.None"), (int)OBS_MONITORING_TYPE_NONE);
 	monitoringType->addItem(QTStr("Basic.AdvAudio.Monitoring.MonitorOnly"), (int)OBS_MONITORING_TYPE_MONITOR_ONLY);
@@ -69,12 +64,32 @@ PLSAdvAudioCtrl::PLSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(
 	int mt = (int)obs_source_get_monitoring_type(source);
 	idx = monitoringType->findData(mt);
 	monitoringType->setCurrentIndex(idx);
-	monitoringType->setFixedSize(MONITOR_TYPE_WIDTH, NAME_LABEL_HEIGHT);
+	dpiHelper.setFixedSize(monitoringType, {MONITOR_TYPE_WIDTH, NAME_LABEL_HEIGHT});
 	QWidget::connect(monitoringType, SIGNAL(currentIndexChanged(int)), this, SLOT(monitoringTypeChanged(int)));
 #endif
 
+	//init monitor type space
+	monitoringTypeSpacer = new QLabel(parent);
+	dpiHelper.setFixedSize(monitoringTypeSpacer, {MONITOR_LABEL_SPACE, NAME_LABEL_HEIGHT});
+	monitoringTypeSpacer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+	//init volumn type space
+	volumeSpacer = new QLabel(parent);
+	dpiHelper.setFixedSize(volumeSpacer, {VOLUME_SPINBOX_SPACE, NAME_LABEL_HEIGHT});
+	volumeSpacer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+	//init balance type space
+	balanceSpacer = new QLabel(parent);
+	dpiHelper.setFixedSize(balanceSpacer, {BALANCE_SPACE, NAME_LABEL_HEIGHT});
+	balanceSpacer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+	//init track type space
+	trackSpacer = new QLabel(parent);
+	dpiHelper.setFixedSize(trackSpacer, {TRACKS_SPACE, NAME_LABEL_HEIGHT});
+	trackSpacer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
 	// audio volume spin box
-	volume = new PLSDoubleSpinBox();
+	volume = new PLSDoubleSpinBox(parent);
 	volume->setObjectName(QTStr("advVolumnSpinBox"));
 	volume->setMinimum(MIN_DB - 0.1);
 	volume->setMaximum(MAX_DB);
@@ -82,21 +97,21 @@ PLSAdvAudioCtrl::PLSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(
 	volume->setDecimals(1);
 	volume->setSuffix(" dB");
 	volume->setValue(obs_mul_to_db(vol));
-	volume->setMinimumSize(VOLUME_SPINBOX_WIDTH, NAME_LABEL_HEIGHT);
+	dpiHelper.setMinimumSize(volume, {VOLUME_SPINBOX_WIDTH, NAME_LABEL_HEIGHT});
 	volume->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 	if (volume->value() < MIN_DB)
 		volume->setSpecialValueText("-inf dB");
 	QWidget::connect(volume, SIGNAL(valueChanged(double)), this, SLOT(volumeChanged(double)));
 
 	// balance slider
-	balanceContainer = new QWidget();
+	balanceContainer = new QWidget(parent);
 
 	hlayout = new QHBoxLayout();
 	hlayout->setContentsMargins(0, 0, 0, 0);
 	hlayout->setSpacing(10);
 
 	balanceContainer->setLayout(hlayout);
-	balanceContainer->setFixedWidth(BALANCE_WIDTH);
+	dpiHelper.setFixedWidth(balanceContainer, BALANCE_WIDTH);
 
 	labelL = new QLabel();
 	labelL->setObjectName("advLeftBalanceLabel");
@@ -132,7 +147,7 @@ PLSAdvAudioCtrl::PLSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(
 	QWidget::connect(balance, SIGNAL(doubleClicked()), this, SLOT(ResetBalance()));
 
 	// mono checkbox control
-	forceMonoContainer = new QWidget();
+	forceMonoContainer = new QWidget(parent);
 
 	hlayout = new QHBoxLayout();
 	hlayout->setContentsMargins(0, 0, 0, 0);
@@ -141,49 +156,47 @@ PLSAdvAudioCtrl::PLSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(
 
 	forceMono = new QCheckBox();
 	forceMono->setChecked((flags & OBS_SOURCE_FLAG_FORCE_MONO) != 0);
-
 	forceMonoContainer->layout()->addWidget(forceMono);
 	forceMonoContainer->layout()->setAlignment(forceMono, Qt::AlignVCenter | Qt::AlignHCenter);
-	forceMonoContainer->setFixedWidth(MONO_CONTAINER_WIDTH);
+	dpiHelper.setFixedWidth(forceMonoContainer, MONO_CONTAINER_WIDTH);
 	QWidget::connect(forceMono, SIGNAL(clicked(bool)), this, SLOT(downmixMonoChanged(bool)));
 
 	// sync offset spin box
-	syncOffset = new PLSSpinBox();
+	syncOffset = new PLSSpinBox(parent);
 	int64_t cur_sync = obs_source_get_sync_offset(source);
 	syncOffset->setMinimum(-950);
 	syncOffset->setMaximum(20000);
 	syncOffset->setSuffix(" ms");
 	syncOffset->setValue(int(cur_sync / NSEC_PER_MSEC));
-	syncOffset->setMinimumSize(VOLUME_SPINBOX_WIDTH, NAME_LABEL_HEIGHT);
+	dpiHelper.setMinimumSize(syncOffset, {VOLUME_SPINBOX_WIDTH, NAME_LABEL_HEIGHT});
 	syncOffset->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 	QWidget::connect(syncOffset, SIGNAL(valueChanged(int)), this, SLOT(syncOffsetChanged(int)));
 
 	// audio mixer tracks container
-	mixerContainer = new QWidget();
-	//mixerContainer->setStyleSheet("background-color:red;");
+	mixerContainer = new QWidget(parent);
 
 	hlayout = new QHBoxLayout();
 	hlayout->setContentsMargins(0, 0, 0, 0);
 	hlayout->setSpacing(0);
 	hlayout->setAlignment(Qt::AlignLeft);
 	mixerContainer->setLayout(hlayout);
-	mixerContainer->setMinimumSize(TRACKS_MIN_CONTAINER_WIDTH, NAME_LABEL_HEIGHT);
-	mixerContainer->setMaximumSize(TRACKS_MAX_CONTAINER_WIDTH, NAME_LABEL_HEIGHT);
+	dpiHelper.setMinimumSize(mixerContainer, {TRACKS_MIN_CONTAINER_WIDTH, NAME_LABEL_HEIGHT});
+	dpiHelper.setMaximumSize(mixerContainer, {TRACKS_MAX_CONTAINER_WIDTH, NAME_LABEL_HEIGHT});
 	mixerContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
 
-	QString checkBoxSheet = "font-size:14px; spacing:5px; min-width:43px; max-width:43px;";
+	QString checkBoxSheet = "font-size: /*hdpi*/14px; spacing: /*hdpi*/5px; min-width: /*hdpi*/43px; max-width: /*hdpi*/43px;";
 	mixer1 = new QCheckBox();
-	mixer1->setStyleSheet(checkBoxSheet);
+	dpiHelper.setStyleSheet(mixer1, checkBoxSheet);
 	mixer2 = new QCheckBox();
-	mixer2->setStyleSheet(checkBoxSheet);
+	dpiHelper.setStyleSheet(mixer2, checkBoxSheet);
 	mixer3 = new QCheckBox();
-	mixer3->setStyleSheet(checkBoxSheet);
+	dpiHelper.setStyleSheet(mixer3, checkBoxSheet);
 	mixer4 = new QCheckBox();
-	mixer4->setStyleSheet(checkBoxSheet);
+	dpiHelper.setStyleSheet(mixer4, checkBoxSheet);
 	mixer5 = new QCheckBox();
-	mixer5->setStyleSheet(checkBoxSheet);
+	dpiHelper.setStyleSheet(mixer5, checkBoxSheet);
 	mixer6 = new QCheckBox();
-	mixer6->setStyleSheet(checkBoxSheet);
+	dpiHelper.setStyleSheet(mixer6, checkBoxSheet);
 	mixer1->setText("1");
 	mixer1->setChecked(mixers & (1 << 0));
 	mixer2->setText("2");
@@ -217,6 +230,7 @@ PLSAdvAudioCtrl::PLSAdvAudioCtrl(QGridLayout *, obs_source_t *source_) : source(
 PLSAdvAudioCtrl::~PLSAdvAudioCtrl()
 {
 
+	//cheng.bing add remove event
 	pls_frontend_remove_event_callback(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_VOLUME_MONTY_BACK, PLSAdvAudioCtrl::monitorControlChange, this);
 
 	nameLabel->deleteLater();
@@ -226,46 +240,54 @@ PLSAdvAudioCtrl::~PLSAdvAudioCtrl()
 	syncOffset->deleteLater();
 #if defined(_WIN32) || defined(__APPLE__) || HAVE_PULSEAUDIO
 	monitoringType->deleteLater();
+	monitoringTypeSpacer->deleteLater();
 #endif
 	mixerContainer->deleteLater();
+	volumeSpacer->deleteLater();
+	balanceSpacer->deleteLater();
+	trackSpacer->deleteLater();
 }
 
 void PLSAdvAudioCtrl::ShowAudioControl(QGridLayout *layout)
 {
 	int lastRow = layout->rowCount();
-	m_row = lastRow;
+	QSpacerItem *horizontalSpacer;
 	int idx = 0;
 
 	// the first column is the source name
 	layout->addWidget(nameLabel, lastRow, idx++);
-	idx++;
+
+	//add horizon space item
+	layout->addWidget(monitoringTypeSpacer, lastRow, idx++);
 
 	// the second column is the monitor
 #if defined(_WIN32) || defined(__APPLE__) || HAVE_PULSEAUDIO
 	layout->addWidget(monitoringType, lastRow, idx++);
-	idx++;
+
+	//add horizon space item
+	layout->addWidget(volumeSpacer, lastRow, idx++);
 #endif
 
 	// the third column is the volumn
 	layout->addWidget(volume, lastRow, idx++);
-	idx++;
+
+	//add horizon space item
+	layout->addWidget(balanceSpacer, lastRow, idx++);
 
 	// the four column is balance
 	layout->addWidget(balanceContainer, lastRow, idx++);
-	idx++;
 
 	// the fifth column is mono
 	layout->addWidget(forceMonoContainer, lastRow, idx++);
-	idx++;
 
 	//the six column is sync offset
 	layout->addWidget(syncOffset, lastRow, idx++);
-	idx++;
+
+	//add horizon space item
+	layout->addWidget(trackSpacer, lastRow, idx++);
 
 	//the seven column is track
 	layout->addWidget(mixerContainer, lastRow, idx++);
-
-	layout->layout()->setAlignment(mixerContainer, Qt::AlignVCenter);
 }
 
 void PLSAdvAudioCtrl::setSourceName()

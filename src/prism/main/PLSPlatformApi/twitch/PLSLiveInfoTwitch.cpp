@@ -13,11 +13,20 @@
 #include "../PLSLiveInfoDialogs.h"
 #include "alert-view.hpp"
 #include "PLSChannelDataAPI.h"
+#include "ChannelCommonFunctions.h"
 
-PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *parent) : PLSLiveInfoBase(pPlatformBase, parent), ui(new Ui::PLSLiveInfoTwitch())
+PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *parent, PLSDpiHelper dpiHelper) : PLSLiveInfoBase(pPlatformBase, parent, dpiHelper), ui(new Ui::PLSLiveInfoTwitch())
 {
+	dpiHelper.setCss(this, {PLSCssIndex::PLSLiveInfoTwitch});
+	dpiHelper.setFixedSize(this, {720, 550});
+	dpiHelper.notifyDpiChanged(this, [this](double, double, bool firstShow) {
+		if (firstShow) {
+			QMetaObject::invokeMethod(
+				this, [this] { pls_flush_style(ui->lineEditCategory); }, Qt::QueuedConnection);
+		}
+	});
+
 	ui->setupUi(content());
-	setFixedSize(720, 550);
 
 	connect(ui->pushButtonOk, &QPushButton::clicked, this, &PLSLiveInfoTwitch::doOk);
 	connect(ui->pushButtonCancel, &QPushButton::clicked, this, &QDialog::reject);
@@ -28,22 +37,31 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 	pushButtonClear = new QPushButton(ui->lineEditCategory);
 	pushButtonClear->setObjectName("pushButtonClear");
 	pushButtonClear->setCursor(Qt::ArrowCursor);
+	pushButtonClear->setFocusPolicy(Qt::NoFocus);
+
+	pushButtonSearch = new QPushButton(ui->lineEditCategory);
+	pushButtonSearch->setObjectName("pushButtonSearch");
+	pushButtonSearch->setFocusPolicy(Qt::NoFocus);
 
 	auto layoutCategory = new QHBoxLayout(ui->lineEditCategory);
+	layoutCategory->setSpacing(9);
+	layoutCategory->setContentsMargins(0, 0, 9, 0);
 	layoutCategory->addStretch();
+
 	layoutCategory->addWidget(pushButtonClear);
+	layoutCategory->addWidget(pushButtonSearch);
 	pushButtonClear->hide();
 
-	listCategory = new QListWidget(content());
+	ui->lineEditCategory->installEventFilter(this);
+
+	listCategory = new PLSLiveInfoTwitchListWidget(this);
+	listCategory->setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowDoesNotAcceptFocus);
+	listCategory->setAttribute(Qt::WA_ShowWithoutActivating, true);
 	listCategory->hide();
-	listCategory->setIconSize({38, 52});
+	dpiHelper.notifyDpiChanged(listCategory, [=](double dpi) { listCategory->setIconSize(PLSDpiHelper::calculate(dpi, QSize(38, 52))); });
 
 	content()->setFocusPolicy(Qt::StrongFocus);
 	connect(qApp, &QApplication::focusChanged, listCategory, [this](const QWidget *old, const QWidget *now) {
-		if (nullptr == now || nullptr == old) {
-			return;
-		}
-
 		if (ui->lineEditCategory == now) {
 			if (!ui->lineEditCategory->text().isEmpty()) {
 				pushButtonClear->show();
@@ -51,14 +69,12 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 			if (listCategory->count() > 0) {
 				showListCategory();
 			}
-		} else if (ui->lineEditCategory == old || listCategory == old || ui->lineEditCategory == old->parent()) {
-			if (ui->lineEditCategory != now && listCategory != now && ui->lineEditCategory != now->parent()) {
-				pushButtonClear->hide();
-				listCategory->hide();
-			}
+		} else if (nullptr == now || (listCategory != now && listCategory != now->parent())) {
+			pushButtonClear->hide();
+			listCategory->hide();
+			ui->lineEditCategory->clearFocus();
 		}
 	});
-
 	connect(ui->lineEditCategory, &QLineEdit::textChanged, this, [this](const QString &text) {
 		if (text.isEmpty()) {
 			pushButtonClear->hide();
@@ -122,6 +138,7 @@ void PLSLiveInfoTwitch::refreshChannel(PLSPlatformApiResult value)
 	ui->lineEditCategory->setText(category);
 	auto uuid = pPlatformTwitch->getChannelUUID();
 	PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_catogry, category);
+	ui->lineEditTitle->setCursorPosition(0);
 }
 
 void PLSLiveInfoTwitch::refreshServer(PLSPlatformApiResult value)
@@ -153,8 +170,8 @@ void PLSLiveInfoTwitch::refreshServer(PLSPlatformApiResult value)
 
 void PLSLiveInfoTwitch::showListCategory()
 {
-	listCategory->move(ui->lineEditCategory->x(), ui->lineEditCategory->y() + ui->lineEditCategory->height());
-	listCategory->resize(ui->lineEditCategory->width() + ui->pushButtonSearch->width(), ui->pushButtonOk->y() - listCategory->y() + ui->pushButtonOk->height() / 2);
+	listCategory->move(content()->mapToGlobal({ui->lineEditCategory->x(), ui->lineEditCategory->y() + ui->lineEditCategory->height()}));
+	listCategory->resize(ui->lineEditCategory->width(), PLSDpiHelper::calculate(this, 56) * min(5, listCategory->count()) + PLSDpiHelper::calculate(this, 3));
 	listCategory->show();
 }
 
@@ -173,9 +190,9 @@ void PLSLiveInfoTwitch::doOk()
 	accept();
 }
 
-void PLSLiveInfoTwitch::doGetCategory(QJsonObject root)
+void PLSLiveInfoTwitch::doGetCategory(QJsonObject root, const QString &request)
 {
-	if (root.isEmpty()) {
+	if (root.isEmpty() || ui->lineEditCategory->text() != request) {
 		return;
 	}
 
@@ -196,9 +213,6 @@ void PLSLiveInfoTwitch::doGetCategory(QJsonObject root)
 	};
 
 	listCategory->clear();
-	if (qApp->focusWidget() == ui->lineEditCategory && listCategory->isHidden()) {
-		showListCategory();
-	}
 
 	auto games = root["games"].toArray();
 	for (auto item : games) {
@@ -213,21 +227,30 @@ void PLSLiveInfoTwitch::doGetCategory(QJsonObject root)
 		auto layout = new QHBoxLayout(root);
 
 		layout->setContentsMargins(QMargins());
-		layout->setSpacing(10);
+		layout->setSpacing(PLSDpiHelper::calculate(PLSDpiHelper::getDpi(this), 10));
+
 		auto icon = new QLabel();
+		icon->setObjectName("categoryIconLabel");
 		icon->setAttribute(Qt::WA_Hover, false);
 		icon->setFixedSize(listCategory->iconSize());
 		icon->setScaledContents(true);
 		static QPixmap tmp("data/prism-studio/images/404_boxart-52x72.jpg");
 		icon->setPixmap(tmp);
 		layout->addWidget(icon);
-		layout->addWidget(new QLabel(name));
+
+		auto textLbael = new QLabel(name);
+		textLbael->setObjectName("categoryLabel");
+		layout->addWidget(textLbael);
 
 		listCategory->addItem(item);
 		listCategory->setItemWidget(item, root);
 
 		PLSNetworkReplyBuilder builder(url);
 		PLS_HTTP_HELPER->connectFinished(builder.get(), icon, _onSucceed, nullptr, nullptr, icon);
+	}
+
+	if (qApp->focusWidget() == ui->lineEditCategory) {
+		showListCategory();
 	}
 }
 
@@ -238,7 +261,22 @@ void PLSLiveInfoTwitch::showEvent(QShowEvent *event)
 	showLoading(content());
 
 	PLS_PLATFORM_TWITCH->requestChannel(true);
+
+	PLSLiveInfoBase::showEvent(event);
 };
+
+bool PLSLiveInfoTwitch::eventFilter(QObject *watched, QEvent *event)
+{
+	if (watched == ui->lineEditCategory) {
+		if (event->type() == QEvent::FocusIn) {
+			pushButtonSearch->setStyleSheet("image: url(:/images/btn-search-on-normal.svg);");
+		} else if (event->type() == QEvent::FocusOut) {
+			pushButtonSearch->setStyleSheet(QString());
+		}
+	}
+
+	return __super::eventFilter(watched, event);
+}
 
 void PLSLiveInfoTwitch::doUpdateChannel(PLSPlatformApiResult value)
 {
@@ -258,7 +296,7 @@ bool PLSLiveInfoTwitch::isModified()
 
 void PLSLiveInfoTwitch::doUpdateOkState()
 {
-	if (ui->lineEditTitle->text().isEmpty() || ui->comboBoxServers->currentIndex() == -1) {
+	if (ui->lineEditTitle->text().trimmed().isEmpty() || ui->comboBoxServers->currentIndex() == -1) {
 		ui->pushButtonOk->setEnabled(false);
 		return;
 	}
@@ -277,7 +315,7 @@ void PLSLiveInfoTwitch::titleEdited()
 	if (isLargeToMax) {
 		auto pPlatformTwitch = PLS_PLATFORM_TWITCH;
 		const auto channelName = pPlatformTwitch->getInitData().value(ChannelData::g_channelName).toString();
-		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.Youtube.Title.Length.Check.arg").arg(TwitchTitleLengthLimit).arg(channelName));
+		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TwitchTitleLengthLimit).arg(channelName));
 	}
 
 	doUpdateOkState();

@@ -884,5 +884,6 @@
 #define SETTING_STATIC_TEXT_CONVERGENCE "setting.static.text.convergence"
 #define SETTING_STATIC_TEXT_ASYNCDEP "setting.static.text.asyncdep"
 #define SETTING_STATIC_TEXT_RECORDFORMAT "setting.static.text.recordformat"
+#define MIAN_GIPHY_STICKER_TITLE "main.giphy.title"
 
 #endif

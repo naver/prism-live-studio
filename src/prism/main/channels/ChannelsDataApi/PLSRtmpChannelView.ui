@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>552</width>
-    <height>288</height>
+    <height>295</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -591,9 +591,6 @@
               </property>
               <property name="focusPolicy">
                <enum>Qt::StrongFocus</enum>
-              </property>
-              <property name="maxLength">
-               <number>255</number>
               </property>
               <property name="frame">
                <bool>false</bool>

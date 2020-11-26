@@ -2,9 +2,9 @@
 #define CHANNELCAPSULE_H
 
 #include <QFrame>
-#include <QVariantMap>
 #include <QStateMachine>
 #include <QTimer>
+#include <QVariantMap>
 class QLabel;
 class ChannelConfigPannel;
 
@@ -18,17 +18,15 @@ public:
 	explicit ChannelCapsule(QWidget *parent = nullptr);
 	~ChannelCapsule();
 	/*init ui and state */
-	void initialize(const QVariantMap &srcData);
+	void setChannelID(const QString &uuid);
 	/*update ui */
 	void updateUi();
-	/* update viewers and likes */
-	void updateInfo();
-	/*start update viewers and likes */
-	void switchUpdateInfo(bool on = true);
+
 	/*get if is active by user */
-	bool isActive();
-	/*switch busy state*/
-	void holdOn(bool hold);
+	bool isOnLine();
+	void setOnLine(bool isActive = true);
+
+	bool isSelectedDisplay();
 
 	const QString &getChannelID() { return mInfoID; }
 
@@ -38,7 +36,16 @@ protected:
 	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-	void shiftState(const QVariantMap &info);
+	/* update viewers and likes */
+	bool updateStatisticInfo();
+	/*start update viewers and likes */
+	bool switchUpdateStatisticInfo(bool on = true);
+
+	void updateTextFrames(const QVariantMap &srcData);
+	void delayUpdateText();
+	void updateIcons(const QVariantMap &srcData);
+
+	void shiftState(const QVariantMap &srcData);
 
 	void RTMPTypeState(const QVariantMap &info);
 	void channelTypeState(const QVariantMap &info);
@@ -47,26 +54,24 @@ private:
 	void errorState(const QVariantMap &info);
 	void unInitializeState(const QVariantMap &info);
 	void waitingState(const QVariantMap &info);
-
-	void nextPixmap();
+	void updateErrorLabel(const QVariantMap &info);
 
 	bool isPannelOutOfView();
+
+	void initializeConfigPannel();
 
 private slots:
 	void showConfigPannel();
 	void hideConfigPannel();
-	void checkConfigVisible();
 
 private:
 	Ui::ChannelCapsule *ui;
-	QStateMachine mMachine;
+
 	QString mInfoID;
 	ChannelConfigPannel *mConfigPannel;
 	QTimer mUpdateTimer;
-	QLabel *mLoadingFrame;
-	QTimer mbusyTimer;
-	int mBusyCount;
-	QTimer mConfigTimer;
+
+	QVariantMap mLastMap;
 };
 
 #endif // CHANNELCAPSULE_H

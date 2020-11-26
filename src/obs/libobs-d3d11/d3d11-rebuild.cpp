@@ -55,6 +55,49 @@ void gs_texture_2d::RebuildSharedTextureFallback()
 	isShared = false;
 }
 
+//PRISM/LiuHaibin/20200629/#3174/camera effect
+void gs_texture_2d::RebuildSharedTexture(ID3D11Device *dev)
+{
+	HRESULT hr = dev->CreateTexture2D(
+		&td, data.size() ? srd.data() : nullptr, &texture);
+	if (FAILED(hr))
+		throw HRError("Failed to create shared 2D texture", hr);
+
+	ComPtr<IDXGIResource> dxgi_res;
+
+	texture->SetEvictionPriority(DXGI_RESOURCE_PRIORITY_MAXIMUM);
+
+	hr = texture->QueryInterface(__uuidof(IDXGIResource),
+				     (void **)&dxgi_res);
+	if (FAILED(hr)) {
+		blog(LOG_WARNING,
+		     "InitTexture: Failed to query "
+		     "interface: %08lX",
+		     hr);
+	} else {
+		uint32_t old_shared_handle = sharedHandle;
+		GetSharedHandle(dxgi_res);
+
+		blog(LOG_INFO,
+		     "Shared texture rebuilt: new handle %u, old handle %u",
+		     sharedHandle, old_shared_handle);
+
+		if (flags & GS_SHARED_KM_TEX) {
+			ComPtr<IDXGIKeyedMutex> km;
+			hr = texture->QueryInterface(__uuidof(IDXGIKeyedMutex),
+						     (void **)&km);
+			if (FAILED(hr)) {
+				throw HRError("Failed to query "
+					      "IDXGIKeyedMutex",
+					      hr);
+			}
+
+			km->AcquireSync(0, INFINITE);
+			acquired = true;
+		}
+	}
+}
+
 void gs_texture_2d::Rebuild(ID3D11Device *dev)
 {
 	HRESULT hr;
@@ -64,9 +107,12 @@ void gs_texture_2d::Rebuild(ID3D11Device *dev)
 					     (void **)&texture);
 		if (FAILED(hr)) {
 			blog(LOG_WARNING,
-			     "Failed to rebuild shared texture: ", "0x%08lX",
-			     hr);
-			RebuildSharedTextureFallback();
+			     "Failed to open original shared texture: ",
+			     "0x%08lX", hr);
+
+			//PRISM/LiuHaibin/20200629/#3174/camera effect
+			//RebuildSharedTextureFallback();
+			RebuildSharedTexture(dev);
 		}
 	}
 
@@ -178,10 +224,15 @@ void gs_vertex_shader::Rebuild(ID3D11Device *dev)
 	if (FAILED(hr))
 		throw HRError("Failed to create vertex shader", hr);
 
-	hr = dev->CreateInputLayout(layoutData.data(), (UINT)layoutData.size(),
-				    data.data(), data.size(), &layout);
-	if (FAILED(hr))
-		throw HRError("Failed to create input layout", hr);
+	//PRISM/Wang.Chuanjing/20200402/#2322/for device reset crash
+	const UINT layoutSize = (UINT)layoutData.size();
+	if (layoutSize > 0) {
+		hr = dev->CreateInputLayout(layoutData.data(),
+					    (UINT)layoutData.size(),
+					    data.data(), data.size(), &layout);
+		if (FAILED(hr))
+			throw HRError("Failed to create input layout", hr);
+	}
 
 	if (constantSize) {
 		hr = dev->CreateBuffer(&bd, NULL, &constants);
@@ -222,6 +273,7 @@ void gs_swap_chain::Rebuild(ID3D11Device *dev)
 	HRESULT hr = device->factory->CreateSwapChain(dev, &swapDesc, &swap);
 	if (FAILED(hr))
 		throw HRError("Failed to create swap chain", hr);
+
 	Init();
 }
 
@@ -285,6 +337,9 @@ try {
 
 	/* ----------------------------------------------------------------- */
 
+	for (gs_device_loss &callback : loss_callbacks)
+		callback.device_loss_release(callback.data);
+
 	gs_obj *obj = first_obj;
 
 	while (obj) {
@@ -337,7 +392,11 @@ try {
 	for (auto &state : blendStates)
 		state.Release();
 
-	context->ClearState();
+	//PRISM/Wang.Chuanjing/20200608/if create device failed, context will be nullptr
+	if (context) {
+		context->ClearState();
+		context->Flush();
+	}
 
 	context.Release();
 	device.Release();
@@ -412,6 +471,14 @@ try {
 		obj = obj->next;
 	}
 
+	//PRISM/Wang.Chuanjing/20200403/#2322/for device reset crash
+	obj = first_obj;
+	while (obj) {
+		if (obj->obj_type == gs_type::gs_swap_chain)
+			((gs_swap_chain *)obj)->ResizeBuffer();
+		obj = obj->next;
+	}
+
 	curRenderTarget = nullptr;
 	curZStencilBuffer = nullptr;
 	curRenderSide = 0;
@@ -437,9 +504,25 @@ try {
 	for (auto &state : blendStates)
 		state.Rebuild(dev);
 
+	for (gs_device_loss &callback : loss_callbacks)
+		callback.device_loss_rebuild(device.Get(), callback.data);
+
+	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+	if (render_working_cb)
+		render_working_cb(true);
+
 } catch (const char *error) {
+	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+	if (render_working_cb)
+		render_working_cb(false);
+	blog(LOG_WARNING, "Device Rebuild failed: %s", error);
 	bcrash("Failed to recreate D3D11: %s", error);
 
 } catch (const HRError &error) {
+	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+	if (render_working_cb)
+		render_working_cb(false);
+	blog(LOG_WARNING, "Failed to recreate D3D11: %s (%08lX)", error.str,
+	     error.hr);
 	bcrash("Failed to recreate D3D11: %s (%08lX)", error.str, error.hr);
 }

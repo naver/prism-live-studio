@@ -61,6 +61,7 @@ struct list_data {
 	DARRAY(struct list_item) items;
 	enum obs_combo_type type;
 	enum obs_combo_format format;
+	bool readonly;
 };
 
 struct editable_list_data {
@@ -71,6 +72,17 @@ struct editable_list_data {
 
 struct button_data {
 	obs_property_clicked_t callback;
+};
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+struct button_group_item {
+	char *name;
+	char *text;
+	obs_property_clicked_t callback;
+};
+
+struct button_group_data {
+	DARRAY(struct button_group_item) items;
 };
 
 struct frame_rate_option {
@@ -92,6 +104,64 @@ struct group_data {
 	enum obs_group_type type;
 	obs_properties_t *content;
 };
+
+struct bool_data {
+	char *name;
+	char *text;
+	obs_property_clicked_t callback;
+};
+
+struct bool_group_data {
+	DARRAY(struct bool_data) items;
+};
+
+struct music_data {
+	char *name;
+	char *producer;
+	char *url;
+	int duration;
+	int duration_type;
+	obs_property_clicked_t callback;
+};
+
+struct music_group_data {
+	DARRAY(struct music_data) items;
+};
+
+//PRISM/Zhangdewen/20200901/feature/for chat source
+struct chat_font_size_data {
+	int min, max, step;
+};
+
+//PRISM/Chengbing/20200901/feature/for text motion source
+struct tm_text_data {
+	int min, max, step;
+};
+
+//PRISM/Liuying/20200624/No issue/for the same row of buttons
+static inline void bool_group_data_free(struct bool_group_data *data)
+{
+	for (size_t i = 0; i < data->items.num; i++) {
+		struct bool_data *item = data->items.array + i;
+		bfree(item->name);
+		bfree(item->text);
+	}
+
+	da_free(data->items);
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+static inline void music_group_free(struct music_group_data *data)
+{
+	for (size_t i = 0; i < data->items.num; i++) {
+		struct music_data *item = data->items.array + i;
+		bfree(item->name);
+		bfree(item->producer);
+		bfree(item->url);
+	}
+
+	da_free(data->items);
+}
 
 static inline void path_data_free(struct path_data *data)
 {
@@ -164,16 +234,32 @@ static inline void float_data_free(struct float_data *data)
 		bfree(data->suffix);
 }
 
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+static inline void button_group_data_free(struct button_group_data *data)
+{
+	for (size_t i = 0; i < data->items.num; i++) {
+		struct button_group_item *item = data->items.array + i;
+		bfree(item->name);
+		bfree(item->text);
+	}
+
+	da_free(data->items);
+}
+
 struct obs_properties;
 
 struct obs_property {
 	char *name;
 	char *desc;
 	char *long_desc;
+	char *placeholder; //PRISM/Zhangdewen/20200909/new ndi ux
 	void *priv;
 	enum obs_property_type type;
 	bool visible;
 	bool enabled;
+
+	//PRISM/WangShaohui/20201029/#5497/Limite text length for editor. It is valid if more than 0.
+	int length_limit;
 
 	struct obs_properties *parent;
 
@@ -254,10 +340,15 @@ static void obs_property_destroy(struct obs_property *property)
 		int_data_free(get_property_data(property));
 	else if (property->type == OBS_PROPERTY_FLOAT)
 		float_data_free(get_property_data(property));
+	else if (property->type == OBS_PROPERTY_BGM_MUSIC_LIST)
+		music_group_free(get_property_data(property));
+	else if (property->type == OBS_PROPERTY_BOOL_GROUP)
+		bool_group_data_free(get_property_data(property));
 
 	bfree(property->name);
 	bfree(property->desc);
 	bfree(property->long_desc);
+	bfree(property->placeholder); //PRISM/Zhangdewen/20200911/new ndi ux
 	bfree(property);
 }
 
@@ -392,6 +483,11 @@ static inline size_t get_property_size(enum obs_property_type type)
 		return 0;
 	case OBS_PROPERTY_BOOL:
 		return 0;
+	//PRISM/Liuying/20200713/new bgm ux
+	case OBS_PROPERTY_TIPS:
+		return 0;
+	case OBS_PROPERTY_BOOL_GROUP:
+		return sizeof(struct bool_group_data);
 	case OBS_PROPERTY_INT:
 		return sizeof(struct int_data);
 	case OBS_PROPERTY_FLOAT:
@@ -402,10 +498,16 @@ static inline size_t get_property_size(enum obs_property_type type)
 		return sizeof(struct path_data);
 	case OBS_PROPERTY_LIST:
 		return sizeof(struct list_data);
+	//PRISM/Liuying/20200706/new bgm ux
+	case OBS_PROPERTY_BGM_MUSIC_LIST:
+		return sizeof(struct music_data);
 	case OBS_PROPERTY_COLOR:
 		return 0;
 	case OBS_PROPERTY_BUTTON:
 		return sizeof(struct button_data);
+	//PRISM/Liuying/20200617/No issue/for the same row of buttons
+	case OBS_PROPERTY_BUTTON_GROUP:
+		return sizeof(struct button_group_data);
 	case OBS_PROPERTY_FONT:
 		return 0;
 	case OBS_PROPERTY_EDITABLE_LIST:
@@ -414,6 +516,12 @@ static inline size_t get_property_size(enum obs_property_type type)
 		return sizeof(struct frame_rate_data);
 	case OBS_PROPERTY_GROUP:
 		return sizeof(struct group_data);
+	case OBS_PROPERTY_TM_TEXT: //PRISM/Chengbing/20200901/feature/for text motion source
+	case OBS_PROPERTY_TM_COLOR:
+	case OBS_PROPERTY_TM_MOTION:
+		return sizeof(struct tm_text_data);
+	case OBS_PROPERTY_CHAT_FONT_SIZE: //PRISM/Zhangdewen/20200901/feature/for chat source
+		return sizeof(struct chat_font_size_data);
 	}
 
 	return 0;
@@ -433,6 +541,10 @@ static inline struct obs_property *new_prop(struct obs_properties *props,
 	p->type = type;
 	p->name = bstrdup(name);
 	p->desc = bstrdup(desc);
+
+	//PRISM/WangShaohui/20201029/#5497/limite text length
+	p->length_limit = 0;
+
 	propertes_add(props, p);
 
 	return p;
@@ -497,6 +609,38 @@ obs_property_t *obs_properties_add_bool(obs_properties_t *props,
 	if (!props || has_prop(props, name))
 		return NULL;
 	return new_prop(props, name, desc, OBS_PROPERTY_BOOL);
+}
+
+static inline struct bool_data *get_bool_group_data(struct obs_property *p)
+{
+	if (!p || p->type != OBS_PROPERTY_BOOL_GROUP) {
+		return NULL;
+	}
+	return get_property_data(p);
+}
+
+obs_property_t *obs_properties_add_bool_group(obs_properties_t *props,
+					      const char *name,
+					      const char *desc)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, desc, OBS_PROPERTY_BOOL_GROUP);
+}
+
+size_t obs_properties_add_bool_group_item(obs_property_t *p, const char *name,
+					  const char *description,
+					  obs_property_clicked_t callback)
+{
+	struct bool_group_data *data = get_bool_group_data(p);
+	if (data) {
+		struct bool_data *item = bzalloc(sizeof(struct bool_data));
+		item->name = bstrdup(name);
+		item->text = bstrdup(description);
+		item->callback = callback;
+		return da_push_back(data->items, item);
+	}
+	return 0;
 }
 
 static obs_property_t *add_int(obs_properties_t *props, const char *name,
@@ -616,8 +760,150 @@ obs_property_t *obs_properties_add_list(obs_properties_t *props,
 	struct list_data *data = get_property_data(p);
 	data->format = format;
 	data->type = type;
+	data->readonly = false;
 
 	return p;
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+static inline bool is_music_group(struct obs_property *p)
+{
+	return p->type == OBS_PROPERTY_BGM_MUSIC_LIST;
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+static inline struct button_data *get_music_group_data(struct obs_property *p)
+{
+	if (!p || !is_music_group(p))
+		return NULL;
+
+	return get_property_data(p);
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+static size_t add_music_item(struct music_group_data *data, const char *name,
+			     const char *producer, const char *url,
+			     int duration, int duration_type,
+			     obs_property_clicked_t callback)
+{
+	struct music_data *item = bzalloc(sizeof(struct button_group_item));
+	item->name = bstrdup(name);
+	item->producer = bstrdup(producer);
+	item->url = bstrdup(url);
+	item->duration_type = duration_type;
+	item->duration = duration;
+	item->callback = callback;
+
+	return da_push_back(data->items, item);
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+size_t obs_property_music_group_add_item(obs_property_t *p, const char *name,
+					 const char *producer, const char *url,
+					 int duration, int duration_type,
+					 obs_property_clicked_t callback)
+{
+	struct music_group_data *data = get_music_group_data(p);
+	if (data)
+		return add_music_item(data, name, producer, url, duration,
+				      duration_type, callback);
+	return 0;
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+void obs_property_music_group_clear(obs_property_t *p)
+{
+	struct music_group_data *data = get_music_group_data(p);
+	if (!data) {
+		return;
+	}
+	for (size_t i = 0; i < data->items.num; i++) {
+		struct music_data *item = data->items.array + i;
+		bfree(item->name);
+		bfree(item->producer);
+		bfree(item->url);
+	}
+	da_free(data->items);
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+size_t obs_property_music_group_item_count(obs_property_t *p)
+{
+	struct music_group_data *data = get_music_group_data(p);
+	return data ? data->items.num : 0;
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+const char *obs_property_music_group_item_name(obs_property_t *p, size_t idx)
+{
+	struct music_group_data *data = get_music_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].name
+					       : NULL;
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+const char *obs_property_music_group_item_producer(obs_property_t *p,
+						   size_t idx)
+{
+	struct music_group_data *data = get_music_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].producer
+					       : NULL;
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+const char *obs_property_music_group_item_url(obs_property_t *p, size_t idx)
+{
+	struct music_group_data *data = get_music_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].url
+					       : NULL;
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+int obs_property_music_group_item_duration(obs_property_t *p, size_t idx)
+{
+	struct music_group_data *data = get_music_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].duration
+					       : 0;
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+int obs_property_music_group_item_duration_type(obs_property_t *p, size_t idx)
+{
+	struct music_group_data *data = get_music_group_data(p);
+	return (data && idx < data->items.num)
+		       ? data->items.array[idx].duration_type
+		       : -1;
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+obs_property_t *obs_properties_add_bgm_music_list(obs_properties_t *props,
+						  const char *name,
+						  const char *desc)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	return new_prop(props, name, desc, OBS_PROPERTY_BGM_MUSIC_LIST);
+}
+
+//PRISM/Liuying/20200706/new bgm ux
+obs_property_t *obs_properties_add_tips(obs_properties_t *props,
+					const char *name,
+					const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, description, OBS_PROPERTY_TIPS);
+}
+
+//PRISM/Wangshaohui/20200914/Noissue/region source
+obs_property_t *obs_properties_add_region_select(obs_properties_t *props,
+						 const char *name,
+						 const char *desc)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, desc, OBS_PROPERTY_REGION_SELECT);
 }
 
 obs_property_t *obs_properties_add_color(obs_properties_t *props,
@@ -655,6 +941,274 @@ obs_property_t *obs_properties_add_button2(obs_properties_t *props,
 	struct button_data *data = get_property_data(p);
 	data->callback = callback;
 	p->priv = priv;
+	return p;
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+static inline bool is_button_group(struct obs_property *p)
+{
+	return p->type == OBS_PROPERTY_BUTTON_GROUP;
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+static inline struct button_data *get_button_group_data(struct obs_property *p)
+{
+	if (!p || !is_button_group(p))
+		return NULL;
+
+	return get_property_data(p);
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+obs_property_t *obs_properties_add_button_group(obs_properties_t *props,
+						const char *name,
+						const char *desc)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, desc, OBS_PROPERTY_BUTTON_GROUP);
+	struct button_group_data *data = get_property_data(p);
+	return p;
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+obs_property_t *obs_properties_add_button2_group(obs_properties_t *props,
+						 const char *name,
+						 const char *desc, void *priv)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, desc, OBS_PROPERTY_BUTTON_GROUP);
+	struct button_group_data *data = get_property_data(p);
+	p->priv = priv;
+	return p;
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+static size_t add_group_item(struct button_group_data *data, const char *name,
+			     const char *text, obs_property_clicked_t callback)
+{
+	struct button_group_item *item =
+		bzalloc(sizeof(struct button_group_item));
+	item->name = bstrdup(name);
+	item->text = bstrdup(text);
+	item->callback = callback;
+
+	return da_push_back(data->items, item);
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+size_t obs_property_button_group_add_item(obs_property_t *p, const char *name,
+					  const char *text,
+					  obs_property_clicked_t callback)
+{
+	struct button_group_data *data = get_button_group_data(p);
+	if (data)
+		return add_group_item(data, name, text, callback);
+	return 0;
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+void obs_property_button_group_clear(obs_property_t *p)
+{
+	struct button_group_data *data = get_button_group_data(p);
+	if (!data) {
+		return;
+	}
+	for (size_t i = 0; i < data->items.num; i++) {
+		struct button_group_item *item = data->items.array + i;
+		bfree(item->name);
+		bfree(item->text);
+	}
+	da_free(data->items);
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+size_t obs_property_button_group_item_count(obs_property_t *p)
+{
+	struct button_group_data *data = get_button_group_data(p);
+	return data ? data->items.num : 0;
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+const char *obs_property_button_group_item_name(obs_property_t *p, size_t idx)
+{
+	struct button_group_data *data = get_button_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].name
+					       : NULL;
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+const char *obs_property_button_group_item_text(obs_property_t *p, size_t idx)
+{
+	struct button_group_data *data = get_button_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].text
+					       : NULL;
+}
+
+//PRISM/Liuying/20200707/#3266/add new interface
+int obs_property_button_group_get_idx_by_name(obs_property_t *p,
+					      const char *name)
+{
+	struct button_group_data *data = get_button_group_data(p);
+	if (!data) {
+		return -1;
+	}
+	for (size_t i = 0; i < data->items.num; i++) {
+		struct button_group_item *item = data->items.array + i;
+		if (0 == strcmp(item->name, name)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+void obs_property_button_group_set_item_text(obs_property_t *p, size_t idx,
+					     const char *text)
+{
+	struct button_group_data *data = get_button_group_data(p);
+	if (!data) {
+		return;
+	}
+
+	bfree(data->items.array[idx].text);
+
+	data->items.array[idx].text = bstrdup(text);
+}
+
+//PRISM/Zhangdewen/20200901/feature/for chat source
+obs_property_t *obs_properties_add_chat_template_list(obs_properties_t *props,
+						      const char *name,
+						      const char *desc)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, desc, OBS_PROPERTY_CHAT_TEMPLATE_LIST);
+	return p;
+}
+
+//PRISM/Zhangdewen/20200901/feature/for chat source
+obs_property_t *obs_properties_add_chat_font_size(obs_properties_t *props,
+						  const char *name,
+						  const char *desc, int min,
+						  int max, int step)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, desc, OBS_PROPERTY_CHAT_FONT_SIZE);
+
+	struct chat_font_size_data *data = get_property_data(p);
+	data->min = min;
+	data->max = max;
+	data->step = step;
+	return p;
+}
+
+//PRISM/Chengbing/20200907/feature/for text motion source
+obs_property_t *obs_properties_add_tm_content(obs_properties_t *props,
+					      const char *name,
+					      const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p = new_prop(props, name, description,
+					  OBS_PROPERTY_TM_TEXT_CONTENT);
+	return p;
+}
+
+//PRISM/Chengbing/20200907/feature/for text motion source
+obs_property_t *obs_properties_add_tm_tab(obs_properties_t *props,
+					  const char *name)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p = new_prop(props, name, "", OBS_PROPERTY_TM_TAB);
+	return p;
+}
+//PRISM/Chengbing/20200907/feature/for text motion source
+obs_property_t *obs_properties_add_tm_template_tab(obs_properties_t *props,
+						   const char *name)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, "", OBS_PROPERTY_TM_TEMPLATE_TAB);
+	return p;
+}
+//PRISM/Chengbing/20200907/feature/for text motion source
+obs_property_t *obs_properties_add_tm_template_list(obs_properties_t *props,
+						    const char *name)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, "", OBS_PROPERTY_TM_TEMPLATE_LIST);
+	return p;
+}
+
+//PRISM/Chengbing/20200902/feature/for text motion source
+obs_property_t *obs_properties_add_tm_text(obs_properties_t *props,
+					   const char *name, const char *desc,
+					   int min, int max, int step)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, desc, OBS_PROPERTY_TM_TEXT);
+
+	struct tm_text_data *data = get_property_data(p);
+	data->min = min;
+	data->max = max;
+	data->step = step;
+	return p;
+}
+
+//PRISM/Chengbing/20200907/feature/for text motion source
+obs_property_t *obs_properties_add_tm_color(obs_properties_t *props,
+					    const char *name, const char *desc,
+					    int min, int max, int step)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, desc, OBS_PROPERTY_TM_COLOR);
+	struct tm_text_data *data = get_property_data(p);
+	data->min = min;
+	data->max = max;
+	data->step = step;
+	return p;
+}
+
+//PRISM/Chengbing/20200907/feature/for text motion source
+obs_property_t *obs_properties_add_tm_motion(obs_properties_t *props,
+					     const char *name,
+					     const char *description, int min,
+					     int max, int step)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, description, OBS_PROPERTY_TM_MOTION);
+	struct tm_text_data *data = get_property_data(p);
+	data->min = min;
+	data->max = max;
+	data->step = step;
 	return p;
 }
 
@@ -852,6 +1406,72 @@ bool obs_property_button_clicked(obs_property_t *p, void *obj)
 	return false;
 }
 
+bool obs_property_button_group_clicked(obs_property_t *p, void *obj, size_t idx)
+{
+	struct obs_context_data *context = obj;
+	if (p) {
+		struct button_group_data *data =
+			get_type_data(p, OBS_PROPERTY_BUTTON_GROUP);
+		if (!data) {
+			return false;
+		}
+
+		if (idx >= obs_property_button_group_item_count(p)) {
+			return false;
+		}
+
+		struct button_group_item item = data->items.array[idx];
+		if (item.callback) {
+			obs_properties_t *top = get_topmost_parent(p->parent);
+			if (p->priv)
+				return item.callback(top, p, p->priv);
+			return item.callback(top, p,
+					     (context ? context->data : NULL));
+		}
+	}
+
+	return false;
+}
+bool obs_property_bool_group_clicked(obs_property_t *p, void *obj, size_t idx)
+{
+	struct obs_context_data *context = obj;
+	if (p) {
+		struct bool_group_data *data =
+			get_type_data(p, OBS_PROPERTY_BOOL_GROUP);
+
+		if (!data) {
+			return false;
+		}
+
+		if (idx >= obs_property_bool_group_item_count(p)) {
+			return false;
+		}
+
+		struct bool_data item = data->items.array[idx];
+		if (item.callback) {
+			obs_properties_t *top = get_topmost_parent(p->parent);
+			if (p->priv)
+				return item.callback(top, p, p->priv);
+			return item.callback(top, p,
+					     (context ? context->data : NULL));
+		}
+	}
+
+	return false;
+}
+
+//PRISM/Liuying/20200707/#3266/add new interface
+void obs_property_button_group_clicked_by_name(obs_property_t *p, void *obj,
+					       const char *name)
+{
+	int index = obs_property_button_group_get_idx_by_name(p, name);
+	if (-1 == index) {
+		return;
+	}
+
+	obs_property_button_group_clicked(p, obj, index);
+}
+
 void obs_property_set_visible(obs_property_t *p, bool visible)
 {
 	if (p)
@@ -882,6 +1502,17 @@ void obs_property_set_long_description(obs_property_t *p, const char *long_desc)
 	}
 }
 
+//PRISM/Zhangdewen/20200909/new ndi ux
+void obs_property_set_placeholder(obs_property_t *p, const char *placeholder)
+{
+	if (p) {
+		bfree(p->placeholder);
+		p->placeholder = placeholder && *placeholder
+					 ? bstrdup(placeholder)
+					 : NULL;
+	}
+}
+
 const char *obs_property_name(obs_property_t *p)
 {
 	return p ? p->name : NULL;
@@ -895,6 +1526,12 @@ const char *obs_property_description(obs_property_t *p)
 const char *obs_property_long_description(obs_property_t *p)
 {
 	return p ? p->long_desc : NULL;
+}
+
+//PRISM/Zhangdewen/20200909/new ndi ux
+const char *obs_property_placeholder(obs_property_t *p)
+{
+	return p ? p->placeholder : NULL;
 }
 
 enum obs_property_type obs_property_get_type(obs_property_t *p)
@@ -1006,6 +1643,22 @@ enum obs_combo_format obs_property_list_format(obs_property_t *p)
 {
 	struct list_data *data = get_list_data(p);
 	return data ? data->format : OBS_COMBO_FORMAT_INVALID;
+}
+
+//PRISM/Zhangdewen/20200916/new ndi ux
+void obs_property_set_list_readonly(obs_property_t *p, bool readonly)
+{
+	struct list_data *data = get_list_data(p);
+	if (data) {
+		data->readonly = readonly;
+	}
+}
+
+//PRISM/Zhangdewen/20200916/new ndi ux
+bool obs_property_list_readonly(obs_property_t *p)
+{
+	struct list_data *data = get_list_data(p);
+	return data ? data->readonly : false;
 }
 
 void obs_property_int_set_limits(obs_property_t *p, int min, int max, int step)
@@ -1383,4 +2036,81 @@ obs_properties_t *obs_property_group_content(obs_property_t *p)
 {
 	struct group_data *data = get_type_data(p, OBS_PROPERTY_GROUP);
 	return data ? data->content : NULL;
+}
+
+size_t obs_property_bool_group_item_count(obs_property_t *p)
+{
+	struct bool_group_data *data = get_bool_group_data(p);
+	return data ? data->items.num : 0;
+}
+
+const char *obs_property_bool_group_item_name(obs_property_t *p, size_t idx)
+{
+	struct bool_group_data *data = get_bool_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].name
+					       : NULL;
+}
+
+const char *obs_property_bool_group_item_text(obs_property_t *p, size_t idx)
+{
+	struct bool_group_data *data = get_bool_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].text
+					       : NULL;
+}
+
+//PRISM/Zhangdewen/20200901/feature/for chat source
+int obs_property_chat_font_size_min(obs_property_t *p)
+{
+	struct chat_font_size_data *data =
+		get_type_data(p, OBS_PROPERTY_CHAT_FONT_SIZE);
+	return data ? data->min : 0;
+}
+
+//PRISM/Zhangdewen/20200901/feature/for chat source
+int obs_property_chat_font_size_max(obs_property_t *p)
+{
+	struct chat_font_size_data *data =
+		get_type_data(p, OBS_PROPERTY_CHAT_FONT_SIZE);
+	return data ? data->max : 0;
+}
+
+//PRISM/Zhangdewen/20200901/feature/for chat source
+int obs_property_chat_font_size_step(obs_property_t *p)
+{
+	struct chat_font_size_data *data =
+		get_type_data(p, OBS_PROPERTY_CHAT_FONT_SIZE);
+	return data ? data->step : 0;
+}
+
+//PRISM/Chengbing/20200902/feature/for text motion source
+int obs_property_tm_text_min(obs_property_t *p, size_t propertyType)
+{
+	struct tm_text_data *data = get_type_data(p, propertyType);
+	return data ? data->min : 0;
+}
+
+//PRISM/Chengbing/20200902/feature/for text motion source
+int obs_property_tm_text_max(obs_property_t *p, size_t propertyType)
+{
+	struct tm_text_data *data = get_type_data(p, propertyType);
+	return data ? data->max : 0;
+}
+
+//PRISM/Chengbing/20200902/feature/for text motion source
+int obs_property_tm_text_step(obs_property_t *p, size_t propertyType)
+{
+	struct tm_text_data *data = get_type_data(p, propertyType);
+	return data ? data->step : 0;
+}
+
+//PRISM/WangShaohui/20201029/#5497/limite text length
+void obs_property_set_length_limit(obs_property_t *p, int max_length)
+{
+	p->length_limit = max_length;
+}
+
+//PRISM/WangShaohui/20201029/#5497/limite text length
+int obs_property_get_length_limit(obs_property_t *p)
+{
+	return p->length_limit;
 }

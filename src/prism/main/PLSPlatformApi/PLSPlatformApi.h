@@ -11,6 +11,7 @@
 #include <list>
 #include <QObject>
 #include <QTimer>
+#include <QMutex>
 
 #include "obs.hpp"
 #include "PLSPlatformBase.hpp"
@@ -18,6 +19,8 @@
 #include "twitch/PLSPlatformTwitch.h"
 #include "youtube/PLSPlatformYoutube.h"
 #include "facebook/PLSPlatformFacebook.h"
+#include "vlive/PLSPlatformVLive.h"
+#include "PLSPlatformAfreecaTV.h"
 
 enum class LiveStatus { Normal, PrepareLive, ToStart, LiveStarted, Living, PrepareFinish, ToStop, LiveStoped, LiveEnded };
 
@@ -81,13 +84,19 @@ public:
 	const list<PLSPlatformBase *> &getAllPlatforms() const { return platformList; };
 	list<PLSPlatformBase *> getActivePlatforms() const;
 
-	PLSPlatformBase *getPlatformByType(PLSServiceType type);
-	PLSPlatformBase *getPlatformById(const QString &which, const QVariantMap &info);
+	bool isPlatformActived(PLSServiceType) const;
+
+	PLSPlatformBase *getPlatformByType(PLSServiceType type, bool froceCreate = true);
+	list<PLSPlatformBase *> getPlatformsByType(PLSServiceType type);
+	PLSPlatformBase *getPlatformById(const QString &which, const QVariantMap &info, bool bRemove = false);
 	PLSPlatformBase *getPlatformByName(const QString &name);
+	PLSPlatformBase *getActivePlatformByName(const QString &name);
 
 	PLSPlatformTwitch *getPlatformTwitch();
-	PLSPlatformYoutube *getPlatformYoutube();
+	PLSPlatformYoutube *getPlatformYoutube(bool froceCreate = true);
 	PLSPlatformFacebook *getPlatformFacebook();
+	PLSPlatformVLive *getPlatformVLive();
+	PLSPlatformAfreecaTV *getPlatformAfreecaTV();
 
 	void activateCallback(PLSPlatformBase *, bool);
 	void deactivateCallback(PLSPlatformBase *, bool);
@@ -97,6 +106,8 @@ public:
 	void prepareFinishCallback();
 	void liveStoppedCallback();
 	void liveEndedCallback();
+
+	void showEndView(bool isRecord);
 signals:
 
 	void channelActive(const QString &uuid, bool value);
@@ -141,16 +152,12 @@ signals:
 	void outputStopped();
 
 	/**
-	* The cef browser event is not in main thread
-	* different thread, should use value param, not ref
-	**/
-	void onWebRequest(const QString data);
-
-	/**
 	* when click golive button, emit isEnterd=true
 	* when start live failed or succeed, emit isEnterd=false
 	**/
 	void enterLivePrepareState(bool isEnterd);
+
+	void liveEndPageShowComplected(bool isRecordEnd);
 
 public slots:
 	void onActive(const QString &which);
@@ -172,6 +179,7 @@ public slots:
 	void onUpdateChannel(const QString &which);
 	void onClearChannel();
 
+	void doChannelInitialized();
 private:
 	void saveStreamSettings(OBSData settings) const;
 
@@ -181,11 +189,15 @@ private:
 
 	void setLiveStatus(LiveStatus);
 
+	static bool isContainVliveChannel();
 	static bool isValidChannel(const QVariantMap &info);
 
 	static void onFrontendEvent(enum obs_frontend_event event, void *private_data);
 
+	void showStartMessageIfNeeded();
+
 private:
+	mutable QMutex platformListMutex;
 	list<PLSPlatformBase *> platformList;
 	list<QString> uuidOnStarted;
 
@@ -211,3 +223,5 @@ private:
 #define PLS_PLATFORM_TWITCH PLS_PLATFORM_API->getPlatformTwitch()
 #define PLS_PLATFORM_YOUTUBE PLS_PLATFORM_API->getPlatformYoutube()
 #define PLS_PLATFORM_FACEBOOK PLS_PLATFORM_API->getPlatformFacebook()
+#define PLS_PLATFORM_VLIVE PLS_PLATFORM_API->getPlatformVLive()
+#define PLS_PLATFORM_AFREECATV PLS_PLATFORM_API->getPlatformAfreecaTV()

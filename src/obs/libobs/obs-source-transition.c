@@ -16,6 +16,8 @@
 ******************************************************************************/
 
 #include "obs-internal.h"
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include "util/util_uint64.h"
 
 #define lock_transition(transition) \
 	pthread_mutex_lock(&transition->transition_mutex);
@@ -821,8 +823,11 @@ static inline float get_sample_time(obs_source_t *transition,
 				    size_t sample_rate, size_t sample,
 				    uint64_t ts)
 {
+	//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+	//uint64_t sample_ts_offset =
+	//	(uint64_t)sample * 1000000000ULL / (uint64_t)sample_rate;
 	uint64_t sample_ts_offset =
-		(uint64_t)sample * 1000000000ULL / (uint64_t)sample_rate;
+		util_mul_div64(sample, 1000000000ULL, sample_rate);
 	uint64_t i_ts = ts + sample_ts_offset;
 	return calc_time(transition, i_ts);
 }

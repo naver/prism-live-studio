@@ -2,6 +2,8 @@
 #include <util/bmem.h>
 #include <util/threading.h>
 #include <util/platform.h>
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include <util/util_uint64.h>
 #include <obs.h>
 
 struct sync_pair_aud {
@@ -53,8 +55,11 @@ static void *sync_pair_aud_thread(void *pdata)
 			last_time = obs_get_video_frame_time();
 
 		for (uint64_t i = 0; i < frames; i++) {
-			uint64_t ts =
-				last_time + i * 1000000000ULL / sample_rate;
+            //PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+			//uint64_t ts =
+			//	last_time + i * 1000000000ULL / sample_rate;
+            last_time +
+				util_mul_div64(i, 1000000000ULL, sample_rate);
 
 			if (whitelist_time(ts, interval, fps_num, fps_den)) {
 				cos_val += rate * M_PI_X2;

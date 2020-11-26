@@ -75,6 +75,13 @@ struct obs_output_info {
 
 	/* raw audio callback for multi track outputs */
 	void (*raw_audio2)(void *data, size_t idx, struct audio_data *frames);
+
+	//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
+	/* force stop output */
+	void (*force_stop)(void *data);
+
+	//PRISM/Liu.Haibin/20201109/#None/get current dbr bitrate
+	long (*dbr_bitrate)(void *data);
 };
 
 EXPORT void obs_register_output_s(const struct obs_output_info *info,

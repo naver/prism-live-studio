@@ -166,35 +166,7 @@
         </size>
        </property>
        <property name="styleSheet">
-        <string notr="true">QListWidget {
-    background-color: #1e1e1e;
-    border: none;
-    outline: none;
-    font-size: 14px;
-	padding-left: 2px;
-}
-
-QListWidget::item {
-    background-color: #1e1e1e;
-    height: 40px;
-	margin-top: 2px;
-	margin-bottom: 2px;
-	padding-right: 12px;
-    padding-left: 12px;
-	font-size: 14px;
-    font-weight: normal;
-	color : #ffffff;
-}
-
-QListWidget::item:selected {
-    font-weight: bold;
-	color : #effc35;
-}
-
-QListWidget::item:hover {
-    background-color: #444444;
-}
-</string>
+        <string notr="true"/>
        </property>
        <property name="frameShape">
         <enum>QFrame::NoFrame</enum>

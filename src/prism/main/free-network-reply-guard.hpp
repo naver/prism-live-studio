@@ -1,3 +1,13 @@
+/*
+ * @fine      FreeNetworkReplyGuard
+ * @brief     QNetworkReply object uninitialize and delete
+ * @date      2019-10-10
+ * @author    Bing Cheng
+ * @attention
+
+ * @version   v1.0
+ * @modify
+ */
 
 #ifndef FREENETWORKREPLYGUARD_H
 #define FREENETWORKREPLYGUARD_H

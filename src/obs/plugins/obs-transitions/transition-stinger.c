@@ -102,6 +102,10 @@ static void stinger_destroy(void *data)
 
 static void stinger_video_render(void *data, gs_effect_t *effect)
 {
+	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
+	if (!data)
+		return;
+
 	struct stinger_info *s = data;
 
 	float t = obs_transition_get_time(s->source);
@@ -169,6 +173,9 @@ static bool stinger_audio_render(void *data, uint64_t *ts_out,
 				 uint32_t mixers, size_t channels,
 				 size_t sample_rate)
 {
+	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
+	if (!data)
+		return false;
 	struct stinger_info *s = data;
 	uint64_t ts = 0;
 

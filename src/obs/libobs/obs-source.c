@@ -23,12 +23,15 @@
 #include "media-io/audio-io.h"
 #include "util/threading.h"
 #include "util/platform.h"
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include "util/util_uint64.h"
 #include "callback/calldata.h"
 #include "graphics/matrix3.h"
 #include "graphics/vec3.h"
 
 #include "obs.h"
 #include "obs-internal.h"
+#include "media-io/video-scaler.h"
 
 static inline bool data_valid(const struct obs_source *source, const char *f)
 {
@@ -80,8 +83,30 @@ static const char *source_signals[] = {
 	"void transition_start(ptr source)",
 	"void transition_video_stop(ptr source)",
 	"void transition_stop(ptr source)",
+	"void media_play(ptr source)",
+	"void media_pause(ptr source)",
+	"void media_restart(ptr source)",
+	"void media_stopped(ptr source)",
+	"void media_next(ptr source)",
+	"void media_previous(ptr source)",
+	"void media_started(ptr source)",
+	"void media_ended(ptr source)",
 	//PRISM/WangShaohui/20200117/#281/for source unavailable
 	"void capture_state(ptr source, bool valid)",
+	//PRISM/WangShaohui/20200707/#3254/notify source event
+	"void source_notify(ptr source, int message, int sub_code)",
+	//PRISM/WangChuanjing/20200429/#281/for beauty status
+	"void source_image_status(ptr source, bool get_image_success)",
+	//PRISM/ZengQin/20200630/#3179/for media controller
+	"void media_properties_changed(ptr source)",
+	//PRISM/ZengQin/20200706/#3179/for media controller
+	"void media_eof(ptr source)",
+	//PRISM/ZengQin/20200723/#3179/for media controller and free bgm
+	"void media_load(ptr source, bool load)",
+	//PRISM/ZengQin/20200729/#3179/for media controller
+	"void media_state_changed(ptr source)",
+	//PRISM/LiuHaibin/20201029/#None/media skipped message for BGM
+	"void media_skipped(ptr source, string url)",
 	NULL,
 };
 
@@ -155,6 +180,9 @@ static bool obs_source_init(struct obs_source *source)
 	//PRISM/WangShaohui/20200117/#281/for source unavailable
 	source->capture_valid = true;
 	source->capture_errorcode = OBS_SOURCE_ERROR_OK;
+
+	//PRISM/WangChuanjing/20200429/#2517/for beauty
+	source->image_capture_success = false;
 
 	source->user_volume = 1.0f;
 	source->volume = 1.0f;
@@ -374,6 +402,11 @@ obs_source_create_internal(const char *id, const char *name,
 	blog(LOG_DEBUG, "%ssource '%s' (%s) created", private ? "private " : "",
 	     name, id);
 
+	//PRISM/WangShaohui/20201015/NoIssue/for debugging log
+	bool input_source = (info && info->type == OBS_SOURCE_TYPE_INPUT);
+	blog(LOG_INFO, "%ssource created. [%s] id:%s obs_source:%p",
+	     input_source ? TRACE_INPUT_SOURCE : "", name, id, source);
+
 	source->flags = source->default_flags;
 	source->enabled = true;
 
@@ -590,9 +623,13 @@ void obs_source_destroy(struct obs_source *source)
 	obs_context_data_remove(&source->context);
 
 	//PRISM/WangShaohui/20200319/NoIssue/for debugging log
-	blog(LOG_INFO, "%ssource '%s' destroyed id:%s obs_source:%p thread:%u",
+	bool input_source = (source->info.type == OBS_SOURCE_TYPE_INPUT);
+	blog(LOG_INFO,
+	     "%s%ssource destroyed. [%s] id:%s obs_source:%p plugin_source:%p",
+	     input_source ? TRACE_INPUT_SOURCE : "",
 	     source->context.private ? "private " : "", source->context.name,
-	     source->info.id ? source->info.id : "noID", source, GetCurrentThreadId());
+	     source->info.id ? source->info.id : "noID", source,
+	     source->context.data);
 
 	obs_source_dosignal(source, "source_destroy", "destroy");
 
@@ -621,6 +658,14 @@ void obs_source_destroy(struct obs_source *source)
 	}
 	if (source->filter_texrender)
 		gs_texrender_destroy(source->filter_texrender);
+
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	if (source->cam_shared_texture)
+		gs_texture_destroy(source->cam_shared_texture);
+
+	if (source->cam_result_texture)
+		gs_texture_destroy(source->cam_result_texture);
+
 	gs_leave_context();
 
 	for (i = 0; i < MAX_AV_PLANES; i++)
@@ -632,6 +677,9 @@ void obs_source_destroy(struct obs_source *source)
 	bfree(source->audio_mix_buf[0]);
 
 	obs_source_frame_destroy(source->async_preload_frame);
+
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	obs_source_frame_destroy(source->cam_frame);
 
 	if (source->info.type == OBS_SOURCE_TYPE_TRANSITION)
 		obs_transition_free(source);
@@ -654,6 +702,9 @@ void obs_source_destroy(struct obs_source *source)
 		bfree((void *)source->info.id);
 
 	bfree(source);
+
+	//PRISM/WangShaohui/20200415/NoIssue/for debugging log
+	blog(LOG_INFO, "Finish deleting source : %p", source);
 }
 
 void obs_source_addref(obs_source_t *source)
@@ -661,7 +712,9 @@ void obs_source_addref(obs_source_t *source)
 	if (!source)
 		return;
 
-	obs_ref_addref(&source->control->ref);
+	//PRISM/WangShaohui/20201030/#5529/monitor invalid reference
+	obs_ref_addref(&source->control->ref, source->info.id,
+		       obs_source_get_name(source));
 }
 
 void obs_source_release(obs_source_t *source)
@@ -829,6 +882,45 @@ obs_properties_t *obs_source_properties(const obs_source_t *source)
 	return NULL;
 }
 
+//PRISM/WangChuanjing/20200414/#2330/for beauty
+EXPORT bool obs_source_set_private_data(obs_source_t *source, obs_data_t *data)
+{
+	if (source->context.data && source->info.set_private_data) {
+		return source->info.set_private_data(source->context.data,
+						     data);
+	}
+	return false;
+}
+
+//PRISM/Wangshaohui/20200609/#2330/for beauty
+EXPORT void obs_source_get_private_data(obs_source_t *source,
+					obs_data_t *data_output)
+{
+	if (source->context.data && source->info.get_private_data) {
+		source->info.get_private_data(source->context.data,
+					      data_output);
+	}
+}
+
+//PRISM/Wangshaohui/20200609/#2330/for beauty
+EXPORT void obs_plugin_set_private_data(const char *id, obs_data_t *data)
+{
+	const struct obs_source_info *info = get_source_info(id);
+	assert(info && info->set_private_data);
+	if (info && info->set_private_data) {
+		info->set_private_data(NULL, data);
+	}
+}
+
+//PRISM/Wangshaohui/20200609/#2330/for beauty
+EXPORT void obs_plugin_get_private_data(const char *id, obs_data_t *data_output)
+{
+	const struct obs_source_info *info = get_source_info(id);
+	if (info && info->get_private_data) {
+		info->get_private_data(NULL, data_output);
+	}
+}
+
 uint32_t obs_source_get_output_flags(const obs_source_t *source)
 {
 	return obs_source_valid(source, "obs_source_get_output_flags")
@@ -864,6 +956,29 @@ void obs_source_update(obs_source_t *source, obs_data_t *settings)
 	} else if (source->context.data && source->info.update) {
 		source->info.update(source->context.data,
 				    source->context.settings);
+	}
+}
+
+//PRISM/Zhangdewen/20200921/#/chat source
+void obs_source_properties_edit_start(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_properties_edit_start"))
+		return;
+
+	if (source->context.data && source->info.properties_edit_start) {
+		source->info.properties_edit_start(source->context.data,
+						   source->context.settings);
+	}
+}
+//PRISM/Zhangdewen/20200921/#/chat source
+void obs_source_properties_edit_end(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_properties_edit_end"))
+		return;
+
+	if (source->context.data && source->info.properties_edit_end) {
+		source->info.properties_edit_end(source->context.data,
+						 source->context.settings);
 	}
 }
 
@@ -1047,29 +1162,157 @@ static inline struct obs_source_frame *get_closest_frame(obs_source_t *source,
 bool set_async_texture_size(struct obs_source *source,
 			    const struct obs_source_frame *frame);
 
+//PRISM/LiuHaibin/20200715/#3174/camera effect
+enum cam_frame_state {
+	CAM_FRAME_IDLE,
+	CAM_FRAME_READY,
+	CAM_FRAME_PROCESSING,
+};
+
+//PRISM/LiuHaibin/20200715/#3174/camera effect
+static bool lock_cam_frame(obs_source_t *source, bool write)
+{
+	/* the lock is actually lock the cam_frame_state, not the frame itself	*/
+	bool lock_result = true;
+	pthread_mutex_lock(&source->async_mutex);
+	if (write) {
+		if (source->cam_frame_state != CAM_FRAME_PROCESSING) {
+			source->cam_frame_state = CAM_FRAME_IDLE;
+			lock_result = true;
+		} else
+			lock_result = false;
+	} else {
+		if (source->cam_frame_state != CAM_FRAME_IDLE) {
+			source->cam_frame_state = CAM_FRAME_PROCESSING;
+			lock_result = true;
+		} else
+			lock_result = false;
+	}
+
+	pthread_mutex_unlock(&source->async_mutex);
+	return lock_result;
+}
+
+//PRISM/LiuHaibin/20200715/#3174/camera effect
+static void unlock_cam_frame(obs_source_t *source)
+{
+	pthread_mutex_lock(&source->async_mutex);
+	/* unlock always set state to CAM_FRAME_READY, because
+	 * render loop may re-use this frame in conditions that
+	 * camera (for example, has a low fps) may not push
+	 * new frames in time. */
+	source->cam_frame_state = CAM_FRAME_READY;
+	pthread_mutex_unlock(&source->async_mutex);
+}
+
+//PRISM/LiuHaibin/20200715/#3174/camera effect
+static void reset_cam_frame_state(obs_source_t *source)
+{
+	pthread_mutex_lock(&source->async_mutex);
+	source->cam_frame_state = CAM_FRAME_IDLE;
+	pthread_mutex_unlock(&source->async_mutex);
+}
+
+//PRISM/LiuHaibin/20200716/#None/clear video
+static inline void free_async_cache(struct obs_source *source);
+static void clear_video(obs_source_t *source)
+{
+	pthread_mutex_lock(&source->async_mutex);
+	free_async_cache(source);
+	source->last_frame_ts = 0;
+	source->cam_frame_state = CAM_FRAME_IDLE;
+	pthread_mutex_unlock(&source->async_mutex);
+
+	source->cam_shared_texture_ready = false;
+	source->cam_result_texture_ready = false;
+
+	gs_enter_context(obs->video.graphics);
+
+	for (size_t c = 0; c < MAX_AV_PLANES; c++) {
+		gs_texture_destroy(source->async_textures[c]);
+		source->async_textures[c] = NULL;
+		gs_texture_destroy(source->async_prev_textures[c]);
+		source->async_prev_textures[c] = NULL;
+	}
+
+	gs_texrender_destroy(source->async_texrender);
+	gs_texrender_destroy(source->async_prev_texrender);
+	source->async_texrender = NULL;
+	source->async_prev_texrender = NULL;
+
+	gs_texture_destroy(source->cam_shared_texture);
+	source->cam_shared_texture = NULL;
+
+	gs_texture_destroy(source->cam_result_texture);
+	source->cam_result_texture = NULL;
+
+	gs_leave_context();
+}
+
+static void retrieve_cam_result_texture(struct obs_source *source);
 static void async_tick(obs_source_t *source)
 {
 	uint64_t sys_time = obs->video.video_time;
 
-	pthread_mutex_lock(&source->async_mutex);
-
-	if (deinterlacing_enabled(source)) {
-		deinterlace_process_last_frame(source, sys_time);
-	} else {
-		if (source->cur_async_frame) {
-			remove_async_frame(source, source->cur_async_frame);
-			source->cur_async_frame = NULL;
-		}
-
-		source->cur_async_frame = get_closest_frame(source, sys_time);
+	//PRISM/LiuHaibin/20200716/#None/clear video
+	if (source && source->async_clear_video) {
+		clear_video(source);
+		source->async_clear_video = false;
 	}
 
-	source->last_sys_timestamp = sys_time;
-	pthread_mutex_unlock(&source->async_mutex);
+	//PRISM/Wangshaohui/20200609/#3174/camera effect
+	if (source && source->info.on_async_tick)
+		source->info.on_async_tick(source->context.data);
 
-	if (source->cur_async_frame)
-		source->async_update_texture =
-			set_async_texture_size(source, source->cur_async_frame);
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	if (obs_source_cam_effect_on(source)) {
+		if (source->async_frames.num > 0 ||
+		    source->async_cache.num > 0) {
+			pthread_mutex_lock(&source->async_mutex);
+			blog(LOG_INFO,
+			     "[Cam Effect][source %s] cam effect enabled, clear async cache.",
+			     obs_source_get_name(source));
+			free_async_cache(source);
+			source->last_frame_ts = 0;
+			pthread_mutex_unlock(&source->async_mutex);
+		}
+		if (lock_cam_frame(source, false))
+			/* the unlock_cam_frame will be called after upload to texture */
+			source->async_update_texture = set_async_texture_size(
+				source, source->cam_frame);
+		retrieve_cam_result_texture(source);
+	} else {
+		pthread_mutex_lock(&source->async_mutex);
+
+		if (deinterlacing_enabled(source)) {
+			deinterlace_process_last_frame(source, sys_time);
+		} else {
+			//PRISM/LiuHaibin/20200924/#2174/cover for audio
+			if (source->cur_async_frame) {
+				/* If current async frame is a cover of audio file,
+				 * we delay remove_async_frame operation,
+				 * and do not set it to NULL here.*/
+				if (!source->cur_async_frame->is_cover) {
+					remove_async_frame(
+						source,
+						source->cur_async_frame);
+					source->cur_async_frame =
+						get_closest_frame(source,
+								  sys_time);
+				}
+			} else {
+				source->cur_async_frame =
+					get_closest_frame(source, sys_time);
+			}
+		}
+
+		source->last_sys_timestamp = sys_time;
+		pthread_mutex_unlock(&source->async_mutex);
+
+		if (source->cur_async_frame)
+			source->async_update_texture = set_async_texture_size(
+				source, source->cur_async_frame);
+	}
 }
 
 void obs_source_video_tick(obs_source_t *source, float seconds)
@@ -1130,13 +1373,17 @@ static inline uint64_t conv_frames_to_time(const size_t sample_rate,
 	if (!sample_rate)
 		return 0;
 
-	return (uint64_t)frames * 1000000000ULL / (uint64_t)sample_rate;
+	//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+	//return (uint64_t)frames * 1000000000ULL / (uint64_t)sample_rate;
+	return util_mul_div64(frames, 1000000000ULL, sample_rate);
 }
 
 static inline size_t conv_time_to_frames(const size_t sample_rate,
 					 const uint64_t duration)
 {
-	return (size_t)(duration * (uint64_t)sample_rate / 1000000000ULL);
+	//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+	//return (size_t)(duration * (uint64_t)sample_rate / 1000000000ULL);
+	return (size_t)util_mul_div64(duration, sample_rate, 1000000000ULL);
 }
 
 /* maximum buffer size */
@@ -1200,7 +1447,9 @@ static inline uint64_t uint64_diff(uint64_t ts1, uint64_t ts2)
 static inline size_t get_buf_placement(audio_t *audio, uint64_t offset)
 {
 	uint32_t sample_rate = audio_output_get_sample_rate(audio);
-	return (size_t)(offset * (uint64_t)sample_rate / 1000000000ULL);
+	//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+	//return (size_t)(offset * (uint64_t)sample_rate / 1000000000ULL);
+	return (size_t)util_mul_div64(offset, sample_rate, 1000000000ULL);
 }
 
 static void source_output_audio_place(obs_source_t *source,
@@ -1658,7 +1907,8 @@ bool set_async_texture_size(struct obs_source *source,
 	enum convert_type cur =
 		get_convert_type(frame->format, frame->full_range);
 
-	if (source->async_width == frame->width &&
+	//PRISM/LiuHaibin/20200723/#None/clear video, add judge async_textures[0]
+	if (source->async_textures[0] && source->async_width == frame->width &&
 	    source->async_height == frame->height &&
 	    source->async_format == frame->format &&
 	    source->async_full_range == frame->full_range)
@@ -1683,6 +1933,10 @@ bool set_async_texture_size(struct obs_source *source,
 	source->async_texrender = NULL;
 	source->async_prev_texrender = NULL;
 
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	gs_texture_destroy(source->cam_shared_texture);
+	source->cam_shared_texture = NULL;
+
 	const enum gs_color_format format = convert_video_format(frame->format);
 	const bool async_gpu_conversion = (cur != CONVERT_NONE) &&
 					  init_gpu_conversion(source, frame);
@@ -1702,6 +1956,10 @@ bool set_async_texture_size(struct obs_source *source,
 			gs_texture_create(frame->width, frame->height, format,
 					  1, NULL, GS_DYNAMIC);
 	}
+
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	source->cam_shared_texture = gs_texture_create(
+		frame->width, frame->height, format, 1, NULL, GS_SHARED_TEX);
 
 	if (deinterlacing_enabled(source))
 		set_deinterlace_texture_size(source);
@@ -1984,9 +2242,198 @@ static inline void check_to_swap_bgrx_bgra(obs_source_t *source,
 	}
 }
 
+//PRISM/LiuHaibin/20200701/#3174/camera effect
+static void copy_cam_result_texture(obs_source_t *source, gs_texture_t *texture)
+{
+	gs_enter_context(obs->video.graphics);
+
+	uint32_t width = gs_texture_get_width(texture);
+	uint32_t height = gs_texture_get_height(texture);
+	enum gs_color_format format = gs_texture_get_color_format(texture);
+
+	uint32_t current_width =
+		gs_texture_get_width(source->cam_result_texture);
+	uint32_t current_height =
+		gs_texture_get_height(source->cam_result_texture);
+	enum gs_color_format current_format =
+		gs_texture_get_color_format(source->cam_result_texture);
+
+	if (!source->cam_result_texture || width != current_width ||
+	    height != current_height || format != current_format) {
+		gs_texture_t *old_tex = source->cam_result_texture;
+		gs_texture_destroy(source->cam_result_texture);
+		source->cam_result_texture = NULL;
+
+		source->cam_result_texture = gs_texture_create(
+			width, height, format, 1, NULL, GS_DYNAMIC);
+		if (source->cam_result_texture) {
+			// only update width&height when texture successfully created
+			blog(LOG_INFO,
+			     "[Cam Effect][source %s] Cam result texture changed, new(%p): [fmt %d, res %d x %d]; old(%p): [fmt %d, res %d x %d]",
+			     obs_source_get_name(source),
+			     source->cam_result_texture, format, width, height,
+			     old_tex, current_format, current_width,
+			     current_height);
+
+			source->cam_result_texture_width = width;
+			source->cam_result_texture_height = height;
+		} else
+			blog(LOG_WARNING,
+			     "[Cam Effect][source %s] Fail to create cam result texture, new(%p): [fmt %d, res %d x %d]; old(%p): [fmt %d, res %d x %d]",
+			     obs_source_get_name(source),
+			     source->cam_result_texture, format, width, height,
+			     old_tex, current_format, current_width,
+			     current_height);
+	}
+
+	if (source->cam_result_texture) {
+		gs_copy_texture(source->cam_result_texture, texture);
+		source->cam_result_texture_ready = true;
+	}
+
+	gs_leave_context(obs->video.graphics);
+}
+
+//PRISM/LiuHaibin/20200618/#3174/camera effect
+static const char *retrieve_result_texture_name = "retrieve_result_texture";
+static void retrieve_cam_result_texture(struct obs_source *source)
+{
+	if (obs_source_cam_effect_on(source) && source->info.retrieve_texture) {
+		profile_start(retrieve_result_texture_name);
+		obs_enter_graphics(); // for retrieve_texture
+		gs_texture_t *texture =
+			source->info.retrieve_texture(source->context.data);
+		if (texture) {
+			if (source->cam_result_texture_null_count) {
+				blog(LOG_INFO,
+				     "[Cam Effect][source %s] %d null texture retrieved before result texture ready.",
+				     obs_source_get_name(source),
+				     source->cam_result_texture_null_count);
+				source->cam_result_texture_null_count = 0;
+			}
+			copy_cam_result_texture(source, texture);
+		} else {
+			if (!source->cam_result_texture_null_count)
+				blog(LOG_WARNING,
+				     "[Cam Effect][source %s] result texture still not ready.",
+				     obs_source_get_name(source));
+			source->cam_result_texture_null_count++;
+			source->cam_result_texture_ready = false;
+		}
+		obs_leave_graphics();
+		profile_end(retrieve_result_texture_name);
+	} else
+		source->cam_result_texture_ready = false;
+}
+
+//PRISM/LiuHaibin/20200618/#3174/camera effect
+static inline void
+push_shared_texture_handle(struct obs_source *source, gs_texture_t *texture,
+			   const struct obs_source_frame *frame)
+{
+	if (texture) {
+		gs_copy_texture(source->cam_shared_texture, texture);
+		source->cam_shared_texture_ready = true;
+		uint32_t shared_handle = gs_texture_get_shared_handle(
+			source->cam_shared_texture);
+
+		if (shared_handle == GS_INVALID_HANDLE) {
+			blog(LOG_WARNING,
+			     "[Cam Effect][source %s] invalid shared handle for shared texture %p.",
+			     obs_source_get_name(source),
+			     source->cam_shared_texture);
+			return;
+		} else if (!shared_handle)
+			blog(LOG_WARNING,
+			     "[Cam Effect][source %s] shared handle for shared texture %p is ZERO.",
+			     obs_source_get_name(source),
+			     source->cam_shared_texture);
+
+		if (source->cam_current_shared_handle != shared_handle) {
+			memset(&source->cam_adapter_luid, 0,
+			       sizeof(source->cam_adapter_luid));
+			gs_adapter_get_luid(&source->cam_adapter_luid);
+			blog(LOG_INFO,
+			     "[Cam Effect][source %s] shared handle changed, new %u (with adapter LUID[LowPart %lu, HighPart %ld), old %u",
+			     obs_source_get_name(source), shared_handle,
+			     source->cam_adapter_luid.low_part,
+			     source->cam_adapter_luid.high_part,
+			     source->cam_current_shared_handle);
+			source->cam_current_shared_handle = shared_handle;
+		}
+
+		if (source->info.push_shared_handle)
+			source->info.push_shared_handle(
+				source->context.data, shared_handle,
+				&source->cam_adapter_luid, frame->ori_img_flip,
+				frame->sys_timestamp);
+	}
+}
+
+//PRISM/LiuHaibin/20200616/#3174/camera effect
+static const char *prepare_shared_texture_name = "prepare_shared_texture";
+static void prepare_shared_texture(obs_source_t *source)
+{
+	if (lock_cam_frame(source, false)) {
+		profile_start(prepare_shared_texture_name);
+		struct obs_source_frame *frame =
+			filter_async_video(source, source->cam_frame);
+		if (source->async_update_texture) {
+			check_to_swap_bgrx_bgra(source, frame);
+
+			if (!source->async_decoupled ||
+			    !source->async_unbuffered) {
+				source->timing_adjust = obs->video.video_time -
+							frame->timestamp;
+				source->timing_set = true;
+			}
+
+			if (source->cam_shared_texture &&
+			    update_async_textures(source, frame,
+						  source->async_textures,
+						  source->async_texrender)) {
+				gs_texture_t *tex = NULL;
+				if (source->async_gpu_conversion &&
+				    source->async_texrender)
+					tex = gs_texrender_get_texture(
+						source->async_texrender);
+				else {
+					tex = source->async_textures[0];
+				}
+
+				push_shared_texture_handle(source, tex, frame);
+			}
+			source->async_update_texture = false;
+		}
+
+		unlock_cam_frame(source);
+		profile_end(prepare_shared_texture_name);
+	}
+}
+
+//PRISM/LiuHaibin/20200701/#3174/camera effect
+static inline void reset_cam_effect_status(obs_source_t *source)
+{
+	reset_cam_frame_state(source);
+
+	source->cam_shared_texture_ready = false;
+	source->cam_result_texture_ready = false;
+	source->cam_current_shared_handle = 0;
+	source->cam_result_texture_null_count = 0;
+}
+
 static void obs_source_update_async_video(obs_source_t *source)
 {
 	if (!source->async_rendered) {
+		//PRISM/LiuHaibin/20200616/#3174/camera effect
+		if (obs_source_cam_effect_on(source)) {
+			prepare_shared_texture(source);
+			source->async_rendered = true;
+			return;
+		}
+
+		reset_cam_effect_status(source);
+
 		struct obs_source_frame *frame = obs_source_get_frame(source);
 
 		if (frame)
@@ -2015,9 +2462,105 @@ static void obs_source_update_async_video(obs_source_t *source)
 	}
 }
 
+//PRISM/LiuHaibin/20200618/#3174/camera effect
+static bool render_cam_result_texture(struct obs_source *source,
+				      gs_effect_t *effect)
+{
+	if (source && source->cam_result_texture_ready) {
+		gs_eparam_t *param;
+
+		param = gs_effect_get_param_by_name(effect, "image");
+		gs_effect_set_texture(param, source->cam_result_texture);
+
+		gs_draw_sprite(source->cam_result_texture,
+			       source->async_flip ? GS_FLIP_V : 0, 0, 0);
+		return true;
+	}
+
+	return false;
+}
+
+//PRISM/LiuHaibin/20200701/#3174/camera effect
+static bool is_cam_effect_switching(obs_source_t *source)
+{
+	if (source && source->info.cam_effect_switching)
+		return source->info.cam_effect_switching(source->context.data);
+	return false;
+}
+
+//PRISM/LiuHaibin/20200702/#3174/camera effect
+static bool is_cam_active(obs_source_t *source)
+{
+	if (source && source->info.source_state_flags)
+		return source->info.source_state_flags(source->context.data) &
+		       OBS_SOURCE_STATE_ACTIVE;
+	return false;
+}
+
+//PRISM/LiuHaibin/20200616/#3174/camera effect
+static const char *render_cam_effect_name = "render_cam_effect";
+static void render_cam_effect(obs_source_t *source)
+{
+	profile_start(render_cam_effect_name);
+	gs_effect_t *effect = gs_get_effect();
+	bool def_draw = (!effect);
+	gs_technique_t *tech = NULL;
+
+	if (def_draw) {
+		effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+		tech = gs_effect_get_technique(effect, "Draw");
+		gs_technique_begin(tech);
+		gs_technique_begin_pass(tech, 0);
+	}
+
+	// deal with custom render failed
+	if (!render_cam_result_texture(source, effect) &&
+	    is_cam_effect_switching(source) && is_cam_active(source)) {
+		/* the following render step should only happens
+		 * when cam effect is switching on */
+		gs_eparam_t *param;
+		param = gs_effect_get_param_by_name(effect, "image");
+		gs_texture_t *tex = NULL;
+		if (source->cam_shared_texture_ready) {
+			/* shared texture ready, but beauty result is not return */
+			tex = source->cam_shared_texture;
+#ifdef _DEBUG
+			blog(LOG_WARNING,
+			     "[Cam Effect][source %s] beauty result is not return, render shared texture directly",
+			     obs_source_get_name(source));
+#endif
+		} else if (source->async_textures[0] && source->async_active) {
+			/* shared texture not ready, try last frame */
+			tex = source->async_texrender
+				      ? gs_texrender_get_texture(
+						source->async_texrender)
+				      : source->async_textures[0];
+#ifdef _DEBUG
+			blog(LOG_WARNING,
+			     "[Cam Effect][source %s] camera frame is not ready, render last texture",
+			     obs_source_get_name(source));
+#endif
+		}
+		if (tex) {
+			gs_effect_set_texture(param, tex);
+			gs_draw_sprite(tex, source->async_flip ? GS_FLIP_V : 0,
+				       0, 0);
+		}
+	}
+
+	if (def_draw) {
+		gs_technique_end_pass(tech);
+		gs_technique_end(tech);
+	}
+	profile_end(render_cam_effect_name);
+}
+
 static inline void obs_source_render_async_video(obs_source_t *source)
 {
-	if (source->async_textures[0] && source->async_active)
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	if (obs_source_cam_effect_on(source))
+		render_cam_effect(source);
+	else if (source->async_textures[0] && source->async_active)
 		obs_source_draw_async_texture(source);
 }
 
@@ -2157,7 +2700,14 @@ static uint32_t get_base_width(const obs_source_t *source)
 		return get_base_width(source->filter_target);
 	}
 
-	return source->async_active ? source->async_width : 0;
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	if (obs_source_cam_effect_on(source))
+		return source->cam_result_texture_ready
+			       ? source->cam_result_texture_width
+			       : (source->async_active ? source->async_width
+						       : 0);
+	else
+		return source->async_active ? source->async_width : 0;
 }
 
 static uint32_t get_base_height(const obs_source_t *source)
@@ -2175,7 +2725,14 @@ static uint32_t get_base_height(const obs_source_t *source)
 		return get_base_height(source->filter_target);
 	}
 
-	return source->async_active ? source->async_height : 0;
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	if (obs_source_cam_effect_on(source))
+		return source->cam_result_texture_ready
+			       ? source->cam_result_texture_height
+			       : (source->async_active ? source->async_height
+						       : 0);
+	else
+		return source->async_active ? source->async_height : 0;
 }
 
 static uint32_t get_recurse_width(obs_source_t *source)
@@ -2607,6 +3164,13 @@ static void copy_frame_data(struct obs_source_frame *dst,
 	dst->flip = src->flip;
 	dst->full_range = src->full_range;
 	dst->timestamp = src->timestamp;
+
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	dst->ori_img_flip = src->ori_img_flip;
+	dst->sys_timestamp = src->sys_timestamp;
+	//PRISM/LiuHaibin/20200924/#2174/cover for audio
+	dst->is_cover = src->is_cover;
+
 	memcpy(dst->color_matrix, src->color_matrix, sizeof(float) * 16);
 	if (!dst->full_range) {
 		size_t const size = sizeof(float) * 3;
@@ -2778,6 +3342,8 @@ obs_source_output_video_internal(obs_source_t *source,
 		return;
 
 	if (!frame) {
+		//PRISM/LiuHaibin/20200716/#None/clear video
+		source->async_clear_video = true;
 		source->async_active = false;
 		return;
 	}
@@ -2814,6 +3380,43 @@ void obs_source_output_video(obs_source_t *source,
 	obs_source_output_video_internal(source, &new_frame);
 }
 
+//PRISM/LiuHaibin/20200618/#3174/camera effect
+static const char *on_cam_effect_frame_name = "on_cam_effect_frame";
+static void on_cam_effect_frame(obs_source_t *source,
+				const struct obs_source_frame *frame)
+{
+	if (!obs_source_valid(source, "obs_source_cam_effect_frame"))
+		return;
+
+	if (!frame)
+		return;
+
+	profile_start(on_cam_effect_frame_name);
+
+	if (lock_cam_frame(source, true)) {
+		if (!source->cam_frame ||
+		    source->cam_frame->format != frame->format ||
+		    source->cam_frame->width != frame->width ||
+		    source->cam_frame->height != frame->height) {
+			obs_source_frame_destroy(source->cam_frame);
+			source->cam_frame = obs_source_frame_create(
+				frame->format, frame->width, frame->height);
+
+			blog(LOG_INFO,
+			     "[Cam Effect][source %s] cam frame updated, %p, res %d x %d, fmt %d.",
+			     obs_source_get_name(source), source->cam_frame,
+			     source->cam_frame->width,
+			     source->cam_frame->height,
+			     source->cam_frame->format);
+		}
+
+		copy_frame_data(source->cam_frame, frame);
+		source->async_active = true;
+		unlock_cam_frame(source);
+	}
+	profile_end(on_cam_effect_frame_name);
+}
+
 void obs_source_output_video2(obs_source_t *source,
 			      const struct obs_source_frame2 *frame)
 {
@@ -2822,7 +3425,7 @@ void obs_source_output_video2(obs_source_t *source,
 		return;
 	}
 
-	struct obs_source_frame new_frame;
+	struct obs_source_frame new_frame = {0};
 	enum video_range_type range =
 		resolve_video_range(frame->format, frame->range);
 
@@ -2838,6 +3441,10 @@ void obs_source_output_video2(obs_source_t *source,
 	new_frame.full_range = range == VIDEO_RANGE_FULL;
 	new_frame.flip = frame->flip;
 
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	new_frame.ori_img_flip = frame->ori_img_flip;
+	new_frame.sys_timestamp = frame->sys_timestamp;
+
 	memcpy(&new_frame.color_matrix, &frame->color_matrix,
 	       sizeof(frame->color_matrix));
 	memcpy(&new_frame.color_range_min, &frame->color_range_min,
@@ -2845,7 +3452,11 @@ void obs_source_output_video2(obs_source_t *source,
 	memcpy(&new_frame.color_range_max, &frame->color_range_max,
 	       sizeof(frame->color_range_max));
 
-	obs_source_output_video_internal(source, &new_frame);
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	if (obs_source_cam_effect_on(source))
+		on_cam_effect_frame(source, &new_frame);
+	else
+		obs_source_output_video_internal(source, &new_frame);
 }
 
 static inline bool preload_frame_changed(obs_source_t *source,
@@ -2924,6 +3535,9 @@ void obs_source_preload_video2(obs_source_t *source,
 	new_frame.format = frame->format;
 	new_frame.full_range = range == VIDEO_RANGE_FULL;
 	new_frame.flip = frame->flip;
+
+	//PRISM/LiuHaibin/20200629/#3174/camera effect
+	new_frame.ori_img_flip = frame->ori_img_flip;
 
 	memcpy(&new_frame.color_matrix, &frame->color_matrix,
 	       sizeof(frame->color_matrix));
@@ -3129,6 +3743,30 @@ static void process_audio(obs_source_t *source,
 		downmix_to_mono_planar(source, frames);
 }
 
+//PRISM/LiuHaibin/20200803/#3179/clear audio buffer
+static void clear_audio_buffer(obs_source_t *source)
+{
+	pthread_mutex_lock(&source->audio_buf_mutex);
+	source->timing_set = false;
+	reset_audio_data(source, 0);
+	pthread_mutex_unlock(&source->audio_buf_mutex);
+}
+
+//PRISM/LiuHaibin/20200804/#3800/clear audio buffer
+static void clear_audio(obs_source_t *source)
+{
+	pthread_mutex_lock(&source->audio_mutex);
+	clear_audio_buffer(source);
+	pthread_mutex_unlock(&source->audio_mutex);
+
+	/* The sound may be abnormal if we do not reset audio monitor */
+	pthread_mutex_lock(&obs->audio.monitoring_mutex);
+	if (source->monitoring_type != OBS_MONITORING_TYPE_NONE &&
+	    source->monitor)
+		audio_monitor_reset(source->monitor);
+	pthread_mutex_unlock(&obs->audio.monitoring_mutex);
+}
+
 void obs_source_output_audio(obs_source_t *source,
 			     const struct obs_source_audio *audio)
 {
@@ -3136,8 +3774,16 @@ void obs_source_output_audio(obs_source_t *source,
 
 	if (!obs_source_valid(source, "obs_source_output_audio"))
 		return;
-	if (!obs_ptr_valid(audio, "obs_source_output_audio"))
+	if (!audio) {
+		//PRISM/LiuHaibin/20200803/#None/clear audio buffer
+		clear_audio(source);
 		return;
+	}
+
+	//PRISM/Liuying/20200904/#None/for Music PlayList
+	if (source->parent &&
+	    !astrcmpi("prism_bgm_source", obs_source_get_id(source->parent)))
+		return obs_source_output_audio(source->parent, audio);
 
 	process_audio(source, audio);
 
@@ -4149,7 +4795,7 @@ static void source_signal_push_to_delay(obs_source_t *source,
 	//OBS Modification:
 	//Zhang dewen / 20200323 / Related Issue #2022
 	//Reason: Settings > Audio > Hotkeys > Set value of Push to mute / talk delay cannot saved
-	//Solution: 
+	//Solution:
 	calldata_set_int(&data, "delay", delay);
 
 	signal_handler_signal(source->context.signals, signal, &data);
@@ -4801,10 +5447,274 @@ uint32_t obs_source_get_last_obs_version(const obs_source_t *source)
 		       : 0;
 }
 
+void obs_source_set_parent(obs_source_t *source, obs_source_t *parent)
+{
+	if (!obs_source_valid(source, "obs_source_set_parent"))
+		return;
+
+	source->parent = parent;
+}
+
+bool obs_source_is_private(obs_source_t *source)
+{
+	return source && source->context.private;
+}
+
 enum obs_icon_type obs_source_get_icon_type(const char *id)
 {
 	const struct obs_source_info *info = get_source_info(id);
 	return (info) ? info->icon_type : OBS_ICON_TYPE_UNKNOWN;
+}
+
+void obs_source_media_play_pause(obs_source_t *source, bool pause)
+{
+	if (!obs_source_valid(source, "obs_source_media_play_pause"))
+		return;
+
+	if (!source->info.media_play_pause)
+		return;
+
+	source->info.media_play_pause(source->context.data, pause);
+
+	if (pause)
+		obs_source_dosignal(source, NULL, "media_pause");
+	else
+		obs_source_dosignal(source, NULL, "media_play");
+}
+
+void obs_source_media_restart(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_restart"))
+		return;
+
+	if (!source->info.media_restart)
+		return;
+
+	source->info.media_restart(source->context.data);
+
+	obs_source_dosignal(source, NULL, "media_restart");
+}
+
+void obs_source_media_stop(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_stop"))
+		return;
+
+	if (!source->info.media_stop)
+		return;
+
+	source->info.media_stop(source->context.data);
+
+	obs_source_dosignal(source, NULL, "media_stopped");
+}
+
+void obs_source_media_next(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_next"))
+		return;
+
+	if (!source->info.media_next)
+		return;
+
+	source->info.media_next(source->context.data);
+
+	obs_source_dosignal(source, NULL, "media_next");
+}
+
+void obs_source_media_previous(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_previous"))
+		return;
+
+	if (!source->info.media_previous)
+		return;
+
+	source->info.media_previous(source->context.data);
+
+	obs_source_dosignal(source, NULL, "media_previous");
+}
+
+int64_t obs_source_media_get_duration(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_get_duration"))
+		return 0;
+
+	if (source->info.media_get_duration)
+		return source->info.media_get_duration(source->context.data);
+	else
+		return 0;
+}
+
+int64_t obs_source_media_get_time(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_get_time"))
+		return 0;
+
+	if (source->info.media_get_time)
+		return source->info.media_get_time(source->context.data);
+	else
+		return 0;
+}
+
+void obs_source_media_set_time(obs_source_t *source, int64_t ms)
+{
+	if (!obs_source_valid(source, "obs_source_media_set_time"))
+		return;
+
+	if (source->info.media_set_time)
+		source->info.media_set_time(source->context.data, ms);
+}
+
+enum obs_media_state obs_source_media_get_state(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_get_state"))
+		return OBS_MEDIA_STATE_NONE;
+
+	if (source->info.media_get_state)
+		return source->info.media_get_state(source->context.data);
+	else
+		return OBS_MEDIA_STATE_NONE;
+}
+
+void obs_source_media_started(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_started"))
+		return;
+
+	obs_source_dosignal(source, NULL, "media_started");
+}
+
+void obs_source_media_ended(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_ended"))
+		return;
+
+	obs_source_dosignal(source, NULL, "media_ended");
+}
+
+//PRISM/WangShaohui/20200511/NoSource/for checking source's lifetime
+bool obs_source_alive(obs_source_t *source)
+{
+	if (!source) {
+		return false;
+	}
+
+	obs_weak_source_t *control = source->control;
+	if (!control) {
+		return false;
+	}
+
+	return (control->ref.refs >= 0); // default refs is 0
+}
+
+//PRISM/ZengQin/20200616/#3179/for media controller
+bool obs_source_media_is_update_done(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_is_update_done"))
+		return false;
+
+	if (source->info.is_update_done)
+		return source->info.is_update_done(source->context.data);
+}
+
+//PRISM/ZengQin/20200706/#3179/for media controller
+void obs_source_media_eof(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_eof"))
+		return;
+
+	if (!obs_source_alive(source)) {
+		blog(LOG_INFO,
+		     "[%s:%s] Source is not alive and ignore media eof signal.",
+		     source->info.id ? source->info.id : "Unknown",
+		     source->context.name ? source->context.name : "NoName");
+		return;
+	}
+
+	obs_source_dosignal(source, NULL, "media_eof");
+}
+
+//PRISM/ZengQin/20200723/#3179/for media controller and free bgm
+void obs_source_media_load(obs_source_t *source, bool load)
+{
+	if (!obs_source_valid(source, "obs_source_media_load"))
+		return;
+
+	if (!obs_source_alive(source)) {
+		blog(LOG_INFO,
+		     "[%s:%s] Source is not alive and ignore media load signal.",
+		     source->info.id ? source->info.id : "Unknown",
+		     source->context.name ? source->context.name : "NoName");
+		return;
+	}
+
+	struct calldata data;
+	uint8_t stack[128];
+
+	calldata_init_fixed(&data, stack, sizeof(stack));
+	calldata_set_ptr(&data, "source", source);
+	calldata_set_bool(&data, "load", load);
+
+	signal_handler_signal(source->context.signals, "media_load", &data);
+}
+
+//PRISM/ZengQin/20200729/#3179/for media controller
+void obs_source_media_state_changed(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_media_state_changed"))
+		return;
+
+	if (!obs_source_alive(source)) {
+		blog(LOG_INFO,
+		     "[%s:%s] Source is not alive and ignore media state changed signal.",
+		     source->info.id ? source->info.id : "Unknown",
+		     source->context.name ? source->context.name : "NoName");
+		return;
+	}
+
+	obs_source_dosignal(source, NULL, "media_state_changed");
+}
+
+//PRISM/ZengQin/20200818/#4283/for media controller
+void obs_source_media_restart_to_pos(obs_source_t *source, bool pause,
+				     int64_t pos)
+{
+	if (!obs_source_valid(source, "obs_source_media_restart_to_pos"))
+		return;
+
+	if (!source->info.media_restart_to_pos)
+		return;
+
+	source->info.media_restart_to_pos(source->context.data, pause, pos);
+}
+
+//PRISM/ZengQin/20200630/#3179/for media controller
+void obs_source_properties_changed(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_properties_changed"))
+		return;
+
+	if (!obs_source_alive(source)) {
+		blog(LOG_INFO,
+		     "[%s:%s] Source is not alive and ignore properties changed signal.",
+		     source->info.id ? source->info.id : "Unknown",
+		     source->context.name ? source->context.name : "NoName");
+		return;
+	}
+
+	obs_source_dosignal(source, NULL, "media_properties_changed");
+}
+
+//PRISM/ZengQin/20200911/#4670/for media controller
+void obs_source_network_state_changed(obs_source_t *source, bool off)
+{
+	if (!obs_source_valid(source, "obs_source_network_state_changed"))
+		return;
+
+	if (!source->info.network_state_changed)
+		return;
+
+	source->info.network_state_changed(source->context.data, off);
 }
 
 //PRISM/WangShaohui/20200117/#281/for source unavailable
@@ -4847,6 +5757,15 @@ void obs_source_set_capture_valid(obs_source_t *source, bool valid,
 		source->capture_valid = valid;
 		source->capture_errorcode = realError;
 
+		if (!obs_source_alive(source)) {
+			blog(LOG_INFO,
+			     "[%s:%s] Source is not alive and ignore push valid state",
+			     source->info.id ? source->info.id : "Unknown",
+			     source->context.name ? source->context.name
+						  : "NoName");
+			return;
+		}
+
 		struct calldata data;
 		uint8_t stack[128];
 
@@ -4859,20 +5778,324 @@ void obs_source_set_capture_valid(obs_source_t *source, bool valid,
 	}
 }
 
-/* ----------------------------------------------------------------- */
-//PRISM/LiuHaibin/20200117/#214/for outro
-
-bool obs_source_stopped(const obs_source_t *source)
+//PRISM/WangShaohui/20200707/#3254/notify source event
+void obs_source_send_notify(obs_source_t *source,
+			    enum obs_source_exception_type type, int sub_code)
 {
-	if (!data_valid(source, "obs_source_stopped"))
+	if (!source || !obs_source_alive(source)) {
+		return;
+	}
+
+	struct calldata data;
+	uint8_t stack[512];
+
+	calldata_init_fixed(&data, stack, sizeof(stack));
+	calldata_set_ptr(&data, "source", source);
+	calldata_set_int(&data, "message", type);
+	calldata_set_int(&data, "sub_code", sub_code);
+
+	signal_handler_signal(source->context.signals, "source_notify", &data);
+}
+
+//PRISM/WangChuanjing/2020429/#2516/for beauty
+EXPORT void obs_source_set_image_status(obs_source_t *source,
+					bool image_get_success)
+{
+	if (!source)
+		return;
+
+	if (source->image_capture_success != image_get_success) {
+		source->image_capture_success = image_get_success;
+
+		if (!obs_source_alive(source)) {
+			blog(LOG_INFO,
+			     "[%s:%s] Source is not alive and ignore push image status",
+			     source->info.id ? source->info.id : "Unknown",
+			     source->context.name ? source->context.name
+						  : "NoName");
+			return;
+		}
+
+		struct calldata data;
+		uint8_t stack[128];
+
+		calldata_init_fixed(&data, stack, sizeof(stack));
+		calldata_set_ptr(&data, "source", source);
+		calldata_set_bool(&data, "image_status", image_get_success);
+
+		signal_handler_signal(source->context.signals,
+				      "source_image_status", &data);
+	}
+}
+
+//PRISM/WangChuanjing/2020429/#2516/for beauty
+bool obs_source_get_image_status(obs_source_t *source)
+{
+	if (!source)
 		return false;
+	return source->image_capture_success;
+}
 
-	// only available for "ffmpeg source" for now
-	if (strcmp(source->info.id, "ffmpeg_source") == 0)
-		return source->info.has_stopped(source->context.data);
+//PRISM/WangShaohui/20200424/NoIssue/for reading texture
+bool is_map_format_supported(enum gs_color_format fmt)
+{
+	switch (fmt) {
+	case GS_RGBA:
+	case GS_BGRX:
+	case GS_BGRA:
+		return true;
 
+	default:
+		return false;
+	}
+}
+
+//PRISM/WangShaohui/20200424/NoIssue/for reading texture
+enum video_format trans_gsformat_to_videoformat(enum gs_color_format fmt)
+{
+	switch (fmt) {
+	case GS_RGBA:
+		return VIDEO_FORMAT_RGBA;
+
+	case GS_BGRX:
+		return VIDEO_FORMAT_BGRX;
+
+	case GS_BGRA:
+		return VIDEO_FORMAT_BGRA;
+
+	default:
+		return VIDEO_FORMAT_NONE;
+	}
+}
+
+//PRISM/WangShaohui/20200424/NoIssue/for reading texture
+bool check_map_params(obs_source_t *source,
+		      struct texture_map_param *map_params,
+		      struct texture_map_info *map_info)
+{
+	if (!source || !map_params || !map_info) {
+		blog(LOG_ERROR, "Trying to map invalid pointer.");
+		assert(false);
+		return false;
+	}
+
+	blog(LOG_INFO, "Read texture of source. %ux%u fmt:%d",
+	     map_params->width, map_params->height, map_params->format);
+
+	if (map_params->width <= 0 || map_params->height <= 0 ||
+	    !is_map_format_supported(map_params->format)) {
+		blog(LOG_ERROR, "Unsupported param for reading texture.");
+		assert(false);
+		return false;
+	}
+
+	if (source->info.type != OBS_SOURCE_TYPE_INPUT) {
+		blog(LOG_ERROR, "Trying to map invalid source type.");
+		assert(false);
+		return false;
+	}
+
+	bool is_async = (source->info.output_flags & OBS_SOURCE_ASYNC);
+	if (!is_async) {
+		blog(LOG_WARNING, "Trying to map unsupported sync source.");
+		return false; // For this kind of source, we should access its texture in plugin.
+	}
+
+	return true;
+}
+
+//PRISM/WangShaohui/20200424/NoIssue/for reading texture
+bool scale_map_data(struct texture_map_param *src_param, uint8_t *map_data,
+		    uint32_t map_linesize, struct texture_map_param *map_params,
+		    struct texture_map_info *map_info)
+{
+	video_scaler_t *scaler = NULL;
+	struct video_scale_info src;
+	struct video_scale_info dst;
+
+	src.colorspace = VIDEO_CS_DEFAULT;
+	src.range = VIDEO_RANGE_DEFAULT;
+	src.width = src_param->width;
+	src.height = src_param->height;
+	src.format = trans_gsformat_to_videoformat(src_param->format);
+
+	dst.colorspace = VIDEO_CS_DEFAULT;
+	dst.range = VIDEO_RANGE_DEFAULT;
+	dst.width = map_params->width;
+	dst.height = map_params->height;
+	dst.format = trans_gsformat_to_videoformat(map_params->format);
+
+	if (VIDEO_SCALER_SUCCESS !=
+	    video_scaler_create(&scaler, &dst, &src, VIDEO_SCALE_DEFAULT)) {
+		blog(LOG_ERROR, "Failed to invoke video_scaler_create()");
+		return false;
+	}
+
+	uint8_t *scale_buf = malloc(map_linesize * src_param->height);
+	uint8_t *output[MAX_AV_PLANES] = {scale_buf};
+	uint32_t out_linesize[MAX_AV_PLANES] = {map_linesize};
+
+	uint8_t *input[MAX_AV_PLANES] = {map_data};
+	uint32_t in_linesize[MAX_AV_PLANES] = {map_linesize};
+	bool scale_ok = video_scaler_scale(scaler, output, out_linesize, input,
+					   in_linesize);
+	if (scale_ok) {
+		map_info->linesize[0] = out_linesize[0];
+		map_info->data[0] = scale_buf;
+	} else {
+		free(scale_buf);
+		blog(LOG_ERROR, "Failed to invoke video_scaler_scale()");
+	}
+
+	video_scaler_destroy(scaler);
+	return scale_ok;
+}
+
+//PRISM/WangShaohui/20200424/NoIssue/for reading texture
+bool obs_source_map_texture(obs_source_t *source,
+			    struct texture_map_param *map_params,
+			    struct texture_map_info *map_info)
+{
+	if (!check_map_params(source, map_params, map_info)) {
+		return false;
+	}
+
+	gs_texture_t *tex = source->async_textures[0];
+	if (source->async_texrender) {
+		tex = gs_texrender_get_texture(source->async_texrender);
+	}
+	if (!tex) {
+		blog(LOG_WARNING, "Texture is not ready for reading.");
+		return false;
+	}
+
+	obs_enter_graphics();
+
+	struct texture_map_param src_param;
+	src_param.width = gs_texture_get_width(tex);
+	src_param.height = gs_texture_get_height(tex);
+	src_param.format = gs_texture_get_color_format(tex);
+
+	if (src_param.width <= 0 || src_param.height <= 0 ||
+	    !is_map_format_supported(src_param.format)) {
+		blog(LOG_ERROR, "Unsupported param from source. %ux%u fmt:%d",
+		     src_param.width, src_param.height, src_param.format);
+
+		obs_leave_graphics();
+		assert(false);
+		return false;
+	}
+
+	uint8_t *data = NULL;
+	uint32_t linesize;
+	gs_stagesurf_t *surface = gs_stagesurface_create(
+		src_param.width, src_param.height, src_param.format);
+	if (!surface) {
+		blog(LOG_ERROR, "Failed to create surface. %ux%u fmt:%d",
+		     src_param.width, src_param.height, src_param.format);
+
+		obs_leave_graphics();
+		assert(false);
+		return false;
+	}
+
+	gs_stage_texture(surface, tex);
+	if (!gs_stagesurface_map(surface, &data, &linesize)) {
+		blog(LOG_ERROR, "Failed to map surface. %ux%u fmt:%d",
+		     src_param.width, src_param.height, src_param.format);
+
+		gs_stagesurface_destroy(surface);
+		obs_leave_graphics();
+		assert(false);
+		return false;
+	}
+
+	uint8_t *map_data = malloc(linesize * src_param.height);
+	if (map_data) {
+		memcpy(map_data, data, linesize * src_param.height);
+	}
+	gs_stagesurface_unmap(surface);
+	gs_stagesurface_destroy(surface);
+	obs_leave_graphics();
+
+	if (!map_data) {
+		blog(LOG_ERROR, "Failed to malloc memory. BYTE:%d",
+		     linesize * src_param.height);
+		return false;
+	}
+
+	if (map_params->width == src_param.width &&
+	    map_params->height == src_param.height &&
+	    map_params->format == src_param.format) {
+		map_info->linesize[0] = linesize;
+		map_info->data[0] = map_data;
+		return true;
+	} else {
+		bool is_ok = scale_map_data(&src_param, map_data, linesize,
+					    map_params, map_info);
+		free(map_data);
+		return is_ok;
+	}
+}
+
+//PRISM/WangShaohui/20200424/NoIssue/for reading texture
+void obs_source_unmap_texture(struct texture_map_info *map_info)
+{
+	if (map_info && map_info->data && map_info->data[0]) {
+		free(map_info->data[0]);
+	}
+}
+
+//PRISM/LiuHaibin/20200609/#3174/camera effect
+bool obs_source_cam_effect_on(const obs_source_t *source)
+{
+	if (source && source->info.cam_effect_on)
+		return source->info.cam_effect_on(source->context.data);
 	return false;
 }
 
-//End
-/* ----------------------------------------------------------------- */
+//PRISM/LiuHaibin/20200804/#3736/for media controller
+void obs_source_clear_video_cache(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_clear_video_cache"))
+		return;
+
+	pthread_mutex_lock(&source->async_mutex);
+	free_async_cache(source);
+	source->last_frame_ts = 0;
+	source->cam_frame_state = CAM_FRAME_IDLE;
+	pthread_mutex_unlock(&source->async_mutex);
+}
+
+//PRISM/LiuHaibin/20200804/#3800/for media controller
+void obs_source_sync_clear(obs_source_t *source)
+{
+	if (!obs_source_valid(source, "obs_source_sync_clear"))
+		return;
+	clear_video(source);
+	clear_audio(source);
+}
+
+//PRISM/LiuHaibin/20201029/#None/media skipped message for BGM
+void obs_source_media_skipped(obs_source_t *source, const char *url)
+{
+	if (!obs_source_valid(source, "obs_source_media_state_changed"))
+		return;
+
+	if (!obs_source_alive(source)) {
+		blog(LOG_INFO,
+		     "[%s:%s] Source is not alive and ignore media skipped signal for %s.",
+		     source->info.id ? source->info.id : "Unknown",
+		     source->context.name ? source->context.name : "NoName",
+		     url);
+		return;
+	}
+
+	struct calldata data;
+	calldata_init(&data);
+
+	calldata_set_ptr(&data, "source", source);
+	calldata_set_string(&data, "media_url", url);
+
+	signal_handler_signal(source->context.signals, "media_skipped", &data);
+}

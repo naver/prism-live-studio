@@ -58,31 +58,45 @@ enum obs_icon_type {
 	OBS_ICON_TYPE_MEDIA,
 	OBS_ICON_TYPE_BROWSER,
 	OBS_ICON_TYPE_CUSTOM,
+
+	//extension source, from 3000
+	OBS_ICON_TYPE_EXTENSION_SOURCE = 3000,
+
+	//PRISM/Liuying/20200801/Noissue/bgm
+	OBS_ICON_TYPE_BGM,
+
+	//PRISM/zhangdewen/20200921/Noissue/ndi
+	OBS_ICON_TYPE_NDI,
+
+	//PRISM/chengbing/20200810/Noissue/textmotion
+	OBS_ICON_TYPE_TEXT_MOTION,
+	//PRISM/Zhangdewen/20200810/#/chat source
+	OBS_ICON_TYPE_CHAT,
+
+	//PRISM/Wangshaohui/20200914/#4868/region source
+	OBS_ICON_TYPE_REGION,
+
+	//PRISM/Wangshaohui/20200914/NoIssue/giphy source
+	OBS_ICON_TYPE_GIPHY,
+};
+
+enum obs_media_state {
+	OBS_MEDIA_STATE_NONE,
+	OBS_MEDIA_STATE_PLAYING,
+	OBS_MEDIA_STATE_OPENING,
+	OBS_MEDIA_STATE_BUFFERING,
+	OBS_MEDIA_STATE_PAUSED,
+	OBS_MEDIA_STATE_STOPPED,
+	OBS_MEDIA_STATE_ENDED,
+	OBS_MEDIA_STATE_ERROR,
+};
+
+//PRISM/Wangshaohui/20200701/#3174/camera effect
+enum obs_source_state_flag {
+	OBS_SOURCE_STATE_ACTIVE = 0X00000001,
 };
 
 //PRISM/WangShaohui/20200210/#281/for source unavailable
-/*
-game》
-not find
-failed to capture
-window》
-not find
-camera》
-not find
-in use
-unknown
-audio》
-not find
-unknown
-image》
-not find
-fail to open
-image slide show》
-all images not success
-media》
-not find
-fail to open
-*/
 enum obs_source_error {
 	OBS_SOURCE_ERROR_OK = 0,
 	OBS_SOURCE_ERROR_UNKNOWN,
@@ -194,6 +208,11 @@ enum obs_source_error {
 
 /** Used internally for audio submixing */
 #define OBS_SOURCE_SUBMIX (1 << 12)
+
+/**
+ * Source type can be controlled by media controls
+ */
+#define OBS_SOURCE_CONTROLLABLE_MEDIA (1 << 13)
 
 /** @} */
 
@@ -497,7 +516,7 @@ struct obs_source_info {
 
 	/**
 	 * Gets the default settings for this source
-	 * 
+	 *
 	 * If get_defaults is also defined both will be called, and the first
 	 * call will be to get_defaults, then to get_defaults2.
 	 *
@@ -521,14 +540,59 @@ struct obs_source_info {
 	/** Icon type for the source */
 	enum obs_icon_type icon_type;
 
-	/* ----------------------------------------------------------------- */
-	//PRISM/LiuHaibin/20200117/#214/for outro
+	/** Media controls */
+	void (*media_play_pause)(void *data, bool pause);
+	void (*media_restart)(void *data);
+	void (*media_stop)(void *data);
+	void (*media_next)(void *data);
+	void (*media_previous)(void *data);
+	int64_t (*media_get_duration)(void *data);
+	int64_t (*media_get_time)(void *data);
+	void (*media_set_time)(void *data, int64_t miliseconds);
+	enum obs_media_state (*media_get_state)(void *data);
+	//PRISM/ZengQin/20200616/#3179/for media controller
+	bool (*is_update_done)(void *data);
 
-	/** Returns if the source has stopped. Required if this is a "ffmpeg_source" */
-	bool (*has_stopped)(void *data);
+	//PRISM/ZengQin/20200818/#4283/for media controller
+	void (*media_restart_to_pos)(void *data, bool pause, int64_t pos);
 
-	//End
+	//PRISM/ZengQin/20200911/#4670/for media controller
+	void (*network_state_changed)(void *data, bool off);
+
+	//PRISM/Wang.Chuanjing/20200409/#2330/for beauty
+	//set related data to source from UI except source properties
+	bool (*set_private_data)(void *data, obs_data_t *private_data);
+	void (*get_private_data)(void *data, obs_data_t *data_output);
+
 	/* ----------------------------------------------------------------- */
+	//PRISM/LiuHaibin/20200609/#/camera effect
+	/* optional, only for camera source (dshow plugin) */
+
+	/* push shared handle back to dshow plugin */
+	void (*push_shared_handle)(void *data, uint32_t shared_handle,
+				   struct gs_luid *luid, bool flip,
+				   uint64_t sys_time);
+
+	/* return true if camera effect is on, false otherwise */
+	bool (*cam_effect_on)(void *data);
+
+	void (*on_async_tick)(void *data);
+
+	/* retrieve the beauty result texture from dshow plugin */
+	gs_texture_t *(*retrieve_texture)(void *data);
+
+	/* return true if previous operation is changing beauty */
+	bool (*cam_effect_switching)(void *data);
+
+	/* get state set of enum obs_source_state_flag for source */
+	unsigned (*source_state_flags)(void *data);
+
+	/* ----------------------------------------------------------------- */
+	//PRISM/Zhangdewen/20200921/#/chat source
+	// source properties window open
+	void (*properties_edit_start)(void *data, obs_data_t *settings);
+	// source properties window close
+	void (*properties_edit_end)(void *data, obs_data_t *settings);
 };
 
 EXPORT void obs_register_source_s(const struct obs_source_info *info,

@@ -398,10 +398,15 @@ void PLSBasic::on_actionRemoveProfile_triggered()
 	if (newPath.empty())
 		return;
 
-	QString text = QTStr("ConfirmRemove.Text");
-	text.replace("%1", QT_UTF8(oldName.c_str()));
+	QString text = QTStr("ConfirmRemove.Text.title");
+	PLSAlertView::Button button = PLSAlertView::Button::NoButton;
+	if (0 == strcmp(App()->GetLocale(), "ko-KR")) {
+		button = PLSMessageBox::question(this, QTStr("ConfirmRemove.Title"), QString::fromStdString(oldName), text, PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel);
+	} else {
+		button = PLSMessageBox::question(this, QTStr("ConfirmRemove.Title"), text, QString::fromStdString(oldName), PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel);
+	}
 
-	if (PLSMessageBox::question(this, QTStr("ConfirmRemove.Title"), text) != PLSAlertView::Button::Yes) {
+	if (PLSAlertView::Button::Ok != button) {
 		return;
 	}
 

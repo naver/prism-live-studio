@@ -1070,3 +1070,48 @@ uint64_t os_get_free_disk_space(const char *dir)
 
 	return success ? free.QuadPart : 0;
 }
+
+//PRISM/WangShaohui/20200619/NoIssue/for debugging texture
+bool save_as_bitmap_file(char *path, uint8_t *data, int linesize, int width,
+		    int height, int per_pixel_byte, bool flip)
+{
+	if (!path || !data)
+		return false;
+
+	FILE *fp = NULL;
+	errno_t err = fopen_s(&fp, path, "wb+");
+	if (err != 0)
+		return false;
+
+	unsigned dest_stride = width * per_pixel_byte;
+
+	BITMAPFILEHEADER file_head;
+	memset(&file_head, 0, sizeof(file_head));
+	file_head.bfType = 'MB';
+	file_head.bfOffBits =
+		sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
+	file_head.bfSize = file_head.bfOffBits + height * dest_stride;
+
+	BITMAPINFOHEADER info_head;
+	memset(&info_head, 0, sizeof(info_head));
+	info_head.biSize = sizeof(BITMAPINFOHEADER);
+	info_head.biWidth = width;
+	info_head.biHeight = height;
+	info_head.biPlanes = 1;
+	info_head.biBitCount = per_pixel_byte * 8;
+	info_head.biCompression = 0; // 0表示无压缩
+	info_head.biSizeImage = height * dest_stride;
+
+	fwrite(&file_head, 1, sizeof(BITMAPFILEHEADER), fp);
+	fwrite(&info_head, 1, sizeof(BITMAPINFOHEADER), fp);
+	for (int i = 0; i < height; ++i) {
+		if (flip)
+			fwrite(data + (height - 1 - i) * linesize, 1,
+			       dest_stride, fp);
+		else
+			fwrite(data + i * linesize, 1, dest_stride, fp);
+	}
+
+	fclose(fp);
+	return true;
+}

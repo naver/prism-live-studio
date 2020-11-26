@@ -59,12 +59,11 @@ void PLSSceneDataMgr::CopySrcToDest(const QString &srcName, const QString &destN
 
 void PLSSceneDataMgr::MoveSrcToDest(const QString &srcName, const QString &destName)
 {
-
 	auto iterMap = sceneDisplay.find(srcName);
 	if (iterMap != sceneDisplay.end()) {
 		SceneDisplayVector vec = iterMap->second;
-		sceneDisplay[destName] = vec;
 		sceneDisplay.erase(iterMap);
+		sceneDisplay[destName] = vec;
 	}
 }
 
@@ -278,18 +277,14 @@ SceneDisplayMap PLSSceneDataMgr::GetAllData()
 	return sceneDisplay;
 }
 
-int PLSSceneDataMgr::ConvertMultiviewLayoutToInt(const MultiviewLayout &layout)
+QStringList PLSSceneDataMgr::GetAllSceneName()
 {
-	switch (layout) {
-	case MultiviewLayout::HORIZONTAL_TOP_24_SCENES:
-		return 24;
-	case MultiviewLayout::HORIZONTAL_TOP_8_SCENES:
-	case MultiviewLayout::HORIZONTAL_BOTTOM_8_SCENES:
-	case MultiviewLayout::VERTICAL_LEFT_8_SCENES:
-	case MultiviewLayout::VERTICAL_RIGHT_8_SCENES:
-	default:
-		return 8;
+	QStringList list{};
+	SceneDisplayVector vec = GetDisplayVector();
+	for (auto iter = vec.begin(); iter != vec.end(); ++iter) {
+		list << iter->first;
 	}
+	return list;
 }
 
 QString PLSSceneDataMgr::GetCurrentSceneCollectionName()

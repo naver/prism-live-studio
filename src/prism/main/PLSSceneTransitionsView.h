@@ -5,7 +5,8 @@
 #include <QSpinBox>
 #include <QComboBox>
 #include <QString>
-
+#include "PLSDpiHelper.h"
+#include "frontend-api/dialog-view.hpp"
 #include "obs.hpp"
 
 namespace Ui {
@@ -14,11 +15,11 @@ class PLSSceneTransitionsView;
 
 class PLSBasic;
 
-class PLSSceneTransitionsView : public QDialog {
+class PLSSceneTransitionsView : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	explicit PLSSceneTransitionsView(QWidget *parent = nullptr);
+	explicit PLSSceneTransitionsView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSSceneTransitionsView();
 
 	void InitLoadTransition(obs_data_array_t *transitions, obs_source_t *fadeTransition, const int &transitionDuration, const QString &crrentTransition);
@@ -50,16 +51,11 @@ public slots:
 	void OnCurrentTextChanged(const QString &text);
 
 protected:
-	void mouseReleaseEvent(QMouseEvent *event);
-	void mousePressEvent(QMouseEvent *event);
-	void mouseMoveEvent(QMouseEvent *event);
 	void showEvent(QShowEvent *event);
 
 private:
 	Ui::PLSSceneTransitionsView *ui;
 	PLSBasic *main{};
-	bool pressed{false};
-	QPoint point;
 	QString currentText{};
 };
 

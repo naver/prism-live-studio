@@ -4,12 +4,13 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
-#include <QCoreApplication>
+#include <QApplication>
 #include <QString>
 
 #include "log.h"
 #include "frontend-api.h"
 #include "alert-view.hpp"
+#include "ChannelConst.h"
 #include "window-basic-main.hpp"
 #include "PLSLiveInfoDialogs.h"
 #include "twitch/PLSLiveInfoTwitch.h"
@@ -17,7 +18,12 @@
 #include "channels/ChannelsDataApi/ChannelConst.h"
 #include "channels/ChannelsDataApi/PLSChannelDataAPI.h"
 #include "pls-net-url.hpp"
-#include <QJsonDocument>
+#include "band/PLSPlatformBand.h"
+#include "PLSLiveEndDialog.h"
+#include "qwidget.h"
+#include "main-view.hpp"
+#include "youtube/PLSAPIYoutube.h"
+#include "window-basic-main.hpp"
 
 #define PRISM_MAX_OUT_Y 1080
 
@@ -29,7 +35,12 @@ PLSPlatformApi *PLSPlatformApi::instance()
 
 	if (nullptr == _instance) {
 		_instance = new PLSPlatformApi();
-		QObject::connect(qApp, &QCoreApplication::aboutToQuit, [] { delete _instance; });
+		_instance->moveToThread(qApp->thread()); //zhangdewen force move to main thread
+		prism_frontend_web_invoked = [](const char *) { return ""; };
+		QObject::connect(qApp, &QCoreApplication::aboutToQuit, [] {
+			delete _instance;
+			_instance = nullptr;
+		});
 	}
 
 	return _instance;
@@ -39,19 +50,25 @@ PLSPlatformApi::PLSPlatformApi()
 {
 }
 
-PLSPlatformApi::~PLSPlatformApi() {}
+PLSPlatformApi::~PLSPlatformApi()
+{
+	for (auto item : platformList) {
+		delete item;
+	}
+	platformList.clear();
+}
 
 bool PLSPlatformApi::initialize()
 {
 	obs_frontend_add_event_callback(onFrontendEvent, this);
 
-	for (auto &item : PLSCHANNELS_API->getCurrentSelectedChannels()) {
+	/*for (auto &item : PLSCHANNELS_API->getCurrentSelectedChannels()) {
 		auto uuid = item.value(ChannelData::g_channelUUID).toString();
 
 		if (isValidChannel(item)) {
 			onActive(uuid);
 		}
-	}
+	}*/
 
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelActiveChanged, this, [=](const QString &channelUUID, bool enable) {
 		if (enable) {
@@ -105,7 +122,7 @@ void PLSPlatformApi::saveStreamSettings(const string &platform, const string &se
 		return;
 	}
 
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ ": %s, %s, %s", platform.c_str(), server.c_str(), key.c_str());
+	PLS_INFO(MODULE_PlatformService, __FUNCTION__ ": Platform=%s, StreamUrl=%s, StreamKey=%s", platform.c_str(), server.c_str(), key.c_str());
 
 	OBSData settings = obs_data_create();
 	obs_data_release(settings);
@@ -121,9 +138,16 @@ list<PLSPlatformBase *> PLSPlatformApi::getActivePlatforms() const
 {
 	list<PLSPlatformBase *> lst;
 
+	QMutexLocker locker(&platformListMutex);
 	copy_if(platformList.begin(), platformList.end(), back_inserter(lst), [](const auto v) { return v->isActive(); });
 
 	return lst;
+}
+
+bool PLSPlatformApi::isPlatformActived(PLSServiceType serviceType) const
+{
+	QMutexLocker locker(&platformListMutex);
+	return any_of(platformList.begin(), platformList.end(), [=](auto item) { return item->isActive() && item->getServiceType() == serviceType; });
 }
 
 PLSPlatformTwitch *PLSPlatformApi::getPlatformTwitch()
@@ -131,14 +155,24 @@ PLSPlatformTwitch *PLSPlatformApi::getPlatformTwitch()
 	return dynamic_cast<PLSPlatformTwitch *>(getPlatformByType(PLSServiceType::ST_TWITCH));
 }
 
-PLSPlatformYoutube *PLSPlatformApi::getPlatformYoutube()
+PLSPlatformYoutube *PLSPlatformApi::getPlatformYoutube(bool froceCreate)
 {
-	return dynamic_cast<PLSPlatformYoutube *>(getPlatformByType(PLSServiceType::ST_YOUTUBE));
+	return dynamic_cast<PLSPlatformYoutube *>(getPlatformByType(PLSServiceType::ST_YOUTUBE, froceCreate));
 }
 
 PLSPlatformFacebook *PLSPlatformApi::getPlatformFacebook()
 {
 	return dynamic_cast<PLSPlatformFacebook *>(getPlatformByType(PLSServiceType::ST_FACEBOOK));
+}
+
+PLSPlatformVLive *PLSPlatformApi::getPlatformVLive()
+{
+	return dynamic_cast<PLSPlatformVLive *>(getPlatformByType(PLSServiceType::ST_VLIVE));
+}
+
+PLSPlatformAfreecaTV *PLSPlatformApi::getPlatformAfreecaTV()
+{
+	return dynamic_cast<PLSPlatformAfreecaTV *>(getPlatformByType(PLSServiceType::ST_AFREECATV));
 }
 
 void PLSPlatformApi::onActive(const QString &which)
@@ -162,7 +196,10 @@ void PLSPlatformApi::onActive(const QString &which)
 
 	auto platform = getPlatformById(which, info);
 	if (nullptr != platform) {
-		platform->onActive();
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ ": %p %s", platform, which.toStdString().c_str());
+		if (!platform->isActive()) {
+			platform->onActive();
+		}
 	}
 }
 
@@ -179,7 +216,10 @@ void PLSPlatformApi::onInactive(const QString &which)
 
 	auto platform = getPlatformById(which, info);
 	if (nullptr != platform) {
-		platform->onInactive();
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ ": %p %s", platform, which.toStdString().c_str());
+		if (platform->isActive()) {
+			platform->onInactive();
+		}
 	}
 }
 
@@ -207,10 +247,11 @@ void PLSPlatformApi::onPrepareLive()
 
 	m_bPrismLive = true;
 	uint32_t out_cy = config_get_uint(PLSBasic::Get()->Config(), "Video", "OutputCY");
-	if (out_cy > PRISM_MAX_OUT_Y) {
+	if (out_cy > PRISM_MAX_OUT_Y || PLSPlatformApi::isContainVliveChannel()) {
 		m_bPrismLive = false;
 	}
 
+	QSet<QString> setChannelsFromDashboard;
 	for (auto &info : PLSCHANNELS_API->getCurrentSelectedChannels()) {
 		const auto channelUUID = info.value(ChannelData::g_channelUUID).toString();
 		const auto channelType = info.value(ChannelData::g_data_type).toInt();
@@ -218,24 +259,36 @@ void PLSPlatformApi::onPrepareLive()
 		const auto displayOrder = info.value(ChannelData::g_displayOrder).toInt();
 
 		if (isValidChannel(info)) {
+			setChannelsFromDashboard.insert(channelUUID);
+
 			auto platform = getPlatformById(channelUUID, info);
-			if (!platform->isActive()) {
+			if (nullptr != platform && !platform->isActive()) {
 				onActive(channelUUID);
 			}
 
-			PLS_INFO(MODULE_PlatformService, __FUNCTION__ ".SelectedChannels: %s %d %s", channelUUID.toStdString().c_str(), channelType, channelName.toStdString().c_str());
+			PLS_INFO(MODULE_PlatformService, __FUNCTION__ ".SelectedChannels: %p type=%d, name=%s, order=%d, uuid=%s", platform, channelType, channelName.toStdString().c_str(),
+				 displayOrder, channelUUID.toStdString().c_str());
 		} else {
-			PLS_INFO(MODULE_PlatformService, __FUNCTION__ ".InvalidChannels: %s %d %s", channelUUID.toStdString().c_str(), channelType, channelName.toStdString().c_str());
+			PLS_INFO(MODULE_PlatformService, __FUNCTION__ ".InvalidChannels: type=%d, name=%s, uuid=%s", channelType, channelName.toStdString().c_str(), channelUUID.toStdString().c_str());
 		}
 	}
 
-	platformList.sort([](PLSPlatformBase *lValue, PLSPlatformBase *rValue) { return lValue->getChannelOrder() < rValue->getChannelOrder(); });
+	{
+		QMutexLocker locker(&platformListMutex);
+		platformList.sort([](PLSPlatformBase *lValue, PLSPlatformBase *rValue) { return lValue->getChannelOrder() < rValue->getChannelOrder(); });
+	}
 
 	uuidOnStarted.clear();
 	auto platformActived = PLS_PLATFORM_ACTIVIED;
 	for (auto &info : platformActived) {
-		uuidOnStarted.push_back(info->getChannelUUID());
-		PLS_INFO(MODULE_PlatformService, __FUNCTION__ ".ActivedPlatform: %s %s", info->getChannelUUID().toStdString().c_str(), info->getNameForChannelType());
+		if (!setChannelsFromDashboard.contains(info->getChannelUUID())) {
+			onInactive(info->getChannelUUID());
+		}
+	}
+	platformActived = PLS_PLATFORM_ACTIVIED;
+	for (auto &item : platformActived) {
+		uuidOnStarted.push_back(item->getChannelUUID());
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ ".ActivedPlatform: %p %s %s", item, item->getChannelUUID().toStdString().c_str(), item->getNameForChannelType());
 	}
 
 	if (platformActived.empty()) {
@@ -244,32 +297,17 @@ void PLSPlatformApi::onPrepareLive()
 	}
 
 	if (!m_bPrismLive) {
-		bool bInternalPlatform = false;
-		for (auto item : platformActived) {
-			if (PLSServiceType::ST_NAVERTV == item->getServiceType() || PLSServiceType::ST_VLIVE == item->getServiceType()) {
-				bInternalPlatform = true;
-				break;
-			} else if (PLSServiceType::ST_RTMP == item->getServiceType()) {
-				auto channelName = item->getChannelName();
-				if (channelName == NamesForChannelType[static_cast<int>(PLSServiceType::ST_NAVERTV)] ||
-				    channelName == NamesForChannelType[static_cast<int>(PLSServiceType::ST_VLIVE)]) {
-					bInternalPlatform = true;
-					break;
-				}
-			}
-		}
-
-		if (bInternalPlatform) {
-			PLSAlertView::warning(PLSBasic::Get(), QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.Internal.Greater.1080"));
-			prepareLiveCallback(false);
-			PLSBasic::Get()->showSettingVideo();
-			return;
-		}
-
 		if (PLS_PLATFORM_ACTIVIED.size() > 1) {
-			PLSAlertView::warning(PLSBasic::Get(), QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.Multicast.Greater.1080"));
+			auto alertResult = QDialogButtonBox::Cancel;
+			if (isRecording()) {
+				PLSAlertView::warning(PLSBasic::Get(), QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.Internal.Greater.1080.Recording"));
+			} else {
+				alertResult = PLSAlertView::warning(PLSBasic::Get(), QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.Multicast.Greater.1080"));
+			}
 			prepareLiveCallback(false);
-			PLSBasic::Get()->showSettingVideo();
+			if (QDialogButtonBox::Ok == alertResult) {
+				PLSBasic::Get()->showSettingVideo();
+			}
 			return;
 		}
 	}
@@ -327,10 +365,16 @@ void PLSPlatformApi::onLiveStopped()
 {
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__);
 
+	if (m_liveStatus < LiveStatus::ToStart || m_liveStatus >= LiveStatus::LiveStoped) {
+		PLS_WARN(MODULE_PlatformService, __FUNCTION__, ".Unexpected status, %d", m_liveStatus);
+		return;
+	}
+
 	setLiveStatus(LiveStatus::LiveStoped);
 
-	if (isPrismLive()) {
-		prism_frontend_dispatch_js_event("prism_events", "{\"type\": \"end\"}");
+	if (nullptr != prism_frontend_dispatch_js_event) {
+		const char *pszTypeEnd = "{\"type\": \"end\"}";
+		prism_frontend_dispatch_js_event("prism_events", pszTypeEnd);
 	}
 
 	auto platformActived = PLS_PLATFORM_ACTIVIED;
@@ -391,8 +435,6 @@ void PLSPlatformApi::deactivateCallback(PLSPlatformBase *platform, bool value)
 	}
 
 	m_bDuringDeactivate = false;
-	if (value && PLSServiceType::ST_RTMP != platform->getServiceType()) {
-	}
 	emit channelDeactive(platform->getChannelUUID(), value);
 }
 
@@ -444,10 +486,25 @@ void PLSPlatformApi::liveStartedCallback(bool value)
 		info->onAlLiveStarted(value);
 	}
 
-	if (value && isPrismLive()) {
-
+	for (auto uuid : getUuidOnStarted()) {
+		auto mSourceData = PLSCHANNELS_API->getChanelInfoRef(uuid);
+		if (mSourceData.contains(ChannelData::g_viewers)) {
+			PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_viewers, QString("0"));
+		}
+		if (mSourceData.contains(ChannelData::g_likes)) {
+			PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_likes, QString("0"));
+		}
+		if (mSourceData.contains(ChannelData::g_comments)) {
+			PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_comments, QString("0"));
+		}
+		if (mSourceData.contains(ChannelData::g_totalViewers)) {
+			PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_totalViewers, QString("0"));
+		}
 	}
 
+	if (value) {
+		QMetaObject::invokeMethod(this, &PLSPlatformApi::showStartMessageIfNeeded, Qt::QueuedConnection);
+	}
 	emit liveStarted(value);
 }
 
@@ -537,8 +594,6 @@ void PLSPlatformApi::onUpdateChannel(const QString &which)
 		return;
 	}
 
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ ": %d %s %s", channelType, channelName.toStdString().c_str(), which.toStdString().c_str());
-
 	auto platform = getPlatformById(which, info);
 	if (nullptr != platform) {
 		platform->setInitData(info);
@@ -560,11 +615,12 @@ void PLSPlatformApi::onRemoveChannel(const QString &which)
 		}
 	}
 
-	auto platform = getPlatformById(which, {});
+	auto platform = getPlatformById(which, {}, true);
 	if (nullptr != platform) {
 		platform->setActive(false);
 		emit channelRemoved(platform->getInitData());
-		if (PLSServiceType::ST_RTMP == platform->getServiceType()) {
+		if (!platform->isSingleChannel()) {
+			QMutexLocker locker(&platformListMutex);
 			platformList.remove(platform);
 			delete platform;
 		}
@@ -573,13 +629,14 @@ void PLSPlatformApi::onRemoveChannel(const QString &which)
 
 void PLSPlatformApi::onClearChannel()
 {
+	QMutexLocker locker(&platformListMutex);
 	for (auto iter = platformList.begin(); iter != platformList.end();) {
 		auto platform = *iter;
 		platform->setActive(false);
 
-		if (PLSServiceType::ST_RTMP == platform->getServiceType()) {
-			delete platform;
+		if (!platform->isSingleChannel()) {
 			iter = platformList.erase(iter);
+			delete platform;
 		} else {
 			++iter;
 		}
@@ -591,9 +648,8 @@ PLSServiceType PLSPlatformApi::getServiceType(const QVariantMap &info) const
 	if (info.isEmpty()) {
 		auto text = QString(__FUNCTION__ " info is empty");
 		PLS_ERROR(MODULE_PlatformService, text.toStdString().c_str());
-		PLSAlertView::critical(PLSBasic::Get(), QTStr("Live.Check.Alert.Title"), text);
-		//throw text.toStdString();
 
+		assert(false);
 		return PLSServiceType::ST_RTMP;
 	}
 
@@ -613,8 +669,6 @@ PLSServiceType PLSPlatformApi::getServiceType(const QVariantMap &info) const
 
 	auto text = QString(__FUNCTION__ " unmatched channel type: %1, %2").arg(type).arg(name);
 	PLS_ERROR(MODULE_PlatformService, text.toStdString().c_str());
-	PLSAlertView::critical(PLSBasic::Get(), QTStr("Live.Check.Alert.Title"), text);
-	//throw text.toStdString();
 
 	return PLSServiceType::ST_RTMP;
 }
@@ -636,62 +690,113 @@ PLSPlatformBase *PLSPlatformApi::buildPlatform(PLSServiceType type)
 	case PLSServiceType::ST_FACEBOOK:
 		platform = new PLSPlatformFacebook();
 		break;
+	case PLSServiceType::ST_NAVERTV:
+		throw;
+		break;
+	case PLSServiceType::ST_VLIVE:
+		platform = new PLSPlatformVLive();
+		break;
+	case PLSServiceType::ST_BAND:
+		platform = new PLSPlatformBand();
+		break;
+	case PLSServiceType::ST_AFREECATV:
+		platform = new PLSPlatformAfreecaTV();
+		break;
 	default:
 		assert(false);
 		break;
 	}
 
 	if (nullptr != platform) {
+		platform->moveToThread(this->thread());
+
+		QMutexLocker locker(&platformListMutex);
 		platformList.push_back(platform);
+	} else {
+		assert(false);
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ ".null %d", type);
 	}
 
 	return platform;
 }
 
-PLSPlatformBase *PLSPlatformApi::getPlatformByType(PLSServiceType type)
+PLSPlatformBase *PLSPlatformApi::getPlatformByType(PLSServiceType type, bool froceCreate)
 {
 	PLSPlatformBase *platform = nullptr;
 
-	for (auto item : platformList) {
-		if (type == item->getServiceType()) {
-			platform = item;
-			break;
+	{
+		QMutexLocker locker(&platformListMutex);
+		for (auto item : platformList) {
+			if (type == item->getServiceType()) {
+				platform = item;
+				break;
+			}
 		}
 	}
 
-	if (nullptr == platform) {
+	if (nullptr == platform && froceCreate) {
 		platform = buildPlatform(type);
 	}
 
 	return platform;
 }
 
-PLSPlatformBase *PLSPlatformApi::getPlatformById(const QString &which, const QVariantMap &info)
+list<PLSPlatformBase *> PLSPlatformApi::getPlatformsByType(PLSServiceType type)
 {
-	PLSPlatformBase *platform = nullptr;
+	list<PLSPlatformBase *> lst;
 
-	for (auto item : platformList) {
-		if (which == item->getChannelUUID()) {
-			platform = item;
-			break;
+	QMutexLocker locker(&platformListMutex);
+	for (auto platform : platformList) {
+		if (platform->getServiceType() == type) {
+			lst.push_back(platform);
 		}
 	}
 
-	if (nullptr == platform && !info.isEmpty()) {
-		auto serviceType = getServiceType(info);
-		if (PLSServiceType::ST_RTMP == serviceType) {
+	return lst;
+}
+
+PLSPlatformBase *PLSPlatformApi::getPlatformById(const QString &which, const QVariantMap &info, bool bRemove)
+{
+	const auto channelUUID = info.value(ChannelData::g_channelUUID).toString().toUtf8();
+	const auto channelType = info.value(ChannelData::g_data_type).toInt();
+	const auto channelName = info.value(ChannelData::g_channelName).toString().toUtf8();
+	const auto displayOrder = info.value(ChannelData::g_displayOrder).toInt();
+
+	PLSPlatformBase *platform = nullptr;
+	auto serviceType = PLSServiceType::ST_RTMP;
+	if (!info.isEmpty()) {
+		serviceType = getServiceType(info);
+	}
+
+	{
+		QMutexLocker locker(&platformListMutex);
+		for (auto item : platformList) {
+			if (which == item->getChannelUUID() || (item->isSingleChannel() && item->getServiceType() == serviceType)) {
+				platform = item;
+				break;
+			}
+		}
+	}
+
+	if (nullptr == platform && !info.isEmpty() && !bRemove) {
+		platform = buildPlatform(serviceType);
+		/*if (PLSServiceType::ST_RTMP == serviceType) {
 			platform = buildPlatform(serviceType);
 		} else {
 			platform = getPlatformByType(getServiceType(info));
-		}
+		}*/
 	}
 
 	if (nullptr != platform && !info.isEmpty()) {
 		platform->setInitData(info);
 	}
 
-	if (nullptr == platform) {
+	if (nullptr == platform && !bRemove) {
+		assert(false);
 		PLS_WARN(MODULE_PlatformService, __FUNCTION__ ".null: %s", which.toStdString().c_str());
+	}
+	if (!bRemove) {
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ ": %p type=%d, name=%s, order=%d, uuid=%s", platform, channelType, channelName.constData(), displayOrder, channelUUID.constData());
 	}
 
 	return platform;
@@ -702,8 +807,25 @@ PLSPlatformBase *PLSPlatformApi::getPlatformByName(const QString &name)
 
 	PLSPlatformBase *platform = nullptr;
 
+	QMutexLocker locker(&platformListMutex);
 	for (auto item : platformList) {
 		if (name == item->getNameForLiveStart()) {
+			platform = item;
+			break;
+		}
+	}
+
+	return platform;
+}
+
+PLSPlatformBase *PLSPlatformApi::getActivePlatformByName(const QString &name)
+{
+
+	PLSPlatformBase *platform = nullptr;
+
+	QMutexLocker locker(&platformListMutex);
+	for (auto item : platformList) {
+		if (item->isActive() && name == item->getNameForLiveStart()) {
 			platform = item;
 			break;
 		}
@@ -716,6 +838,7 @@ PLSPlatformBase *PLSPlatformApi::getPlatformBySimulcastSeq(int simulcastSeq)
 {
 	PLSPlatformBase *platform = nullptr;
 
+	QMutexLocker locker(&platformListMutex);
 	for (auto item : platformList) {
 		if (item->getChannelLiveSeq() == simulcastSeq) {
 			platform = item;
@@ -724,6 +847,21 @@ PLSPlatformBase *PLSPlatformApi::getPlatformBySimulcastSeq(int simulcastSeq)
 	}
 
 	return platform;
+}
+
+bool PLSPlatformApi::isContainVliveChannel()
+{
+	bool conatinVlive = false;
+	for (auto &info : PLSCHANNELS_API->getCurrentSelectedChannels()) {
+		const auto channelType = info.value(ChannelData::g_data_type).toInt();
+		const auto channelName = info.value(ChannelData::g_channelName).toString();
+
+		if (channelType == ChannelData::ChannelType && channelName == VLIVE) {
+			conatinVlive = true;
+			break;
+		}
+	}
+	return conatinVlive;
 }
 
 bool PLSPlatformApi::isValidChannel(const QVariantMap &info)
@@ -766,7 +904,7 @@ void PLSPlatformApi::ensureStopOutput()
 			PLSCHANNELS_API->toStopBroadcast();
 		}
 
-		QTimer::singleShot(5000, &loop, &QEventLoop::quit);
+		QTimer::singleShot(10000, &loop, &QEventLoop::quit);
 
 		loop.exec();
 		PLS_INFO(MODULE_PlatformService, __FUNCTION__ ".end: %d %d", m_bRecording, m_liveStatus);
@@ -800,4 +938,111 @@ void PLSPlatformApi::onFrontendEvent(enum obs_frontend_event event, void *privat
 	default:
 		break;
 	}
+}
+
+void PLSPlatformApi::showEndView(bool isRecord)
+{
+	bool isClickToStopRecord = PLSCHANNELS_API->getIsClickToStopRecord();
+	bool isLivingAndRecording = false;
+	//when stoping live sometime later but not stop complected, then start record, the keepRecordingWhenStreamStops is true.
+	bool isRecordingButNotToStop = PLSCHANNELS_API->currentReocrdState() == ChannelData::RecordStarted || PLSCHANNELS_API->currentReocrdState() == ChannelData::RecordStarting;
+	if (isRecord && PLS_PLATFORM_API->isLiving()) {
+		isLivingAndRecording = true;
+	} else if (!isRecord && PLS_PLATFORM_API->isRecording()) {
+		isLivingAndRecording = true;
+	}
+
+	bool recordWhenStreaming = config_get_bool(GetGlobalConfig(), "BasicWindow", "RecordWhenStreaming");
+	bool keepRecordingWhenStreamStops = config_get_bool(GetGlobalConfig(), "BasicWindow", "KeepRecordingWhenStreamStops");
+	//when stop streaming will stop record sametime.
+	bool isStreamingRecordStopAuto = recordWhenStreaming && !keepRecordingWhenStreamStops;
+	bool isRehearsal = PLSCHANNELS_API->isRehearsaling();
+	//when live and record stop sametime, will ignore record end page show and toast.
+	static bool isIgnoreNextRecordShow = false;
+	if (isStreamingRecordStopAuto && !isClickToStopRecord) {
+		if (isRecord) {
+			isIgnoreNextRecordShow = true;
+		} else if (!isRecord && isLivingAndRecording && !isRecordingButNotToStop) {
+			isIgnoreNextRecordShow = true;
+		}
+	}
+
+	PLS_INFO(
+		END_MODULE,
+		"Show end with parameter \n\tisLivingAndRecording:%s, \n\tisShowRecordEnd:%s, \n\tisClickToStopRecord:%s, \n\tisStreamingRecordStopAuto:%s, \n\tisIgnoreNextRecordShow:%s, \n\tisRehaersaling:%s, \n\isRecordingButNotToStop:%s",
+		BOOL2STR(isLivingAndRecording), BOOL2STR(isRecord), BOOL2STR(isClickToStopRecord), BOOL2STR(isStreamingRecordStopAuto), BOOL2STR(isIgnoreNextRecordShow), BOOL2STR(isRehearsal),
+		BOOL2STR(isRecordingButNotToStop));
+
+	if (isRecord) {
+		if (isIgnoreNextRecordShow) {
+			//ignore this end page;
+			PLS_INFO(END_MODULE, "Show end with parameter ignore this record end page");
+			isIgnoreNextRecordShow = false;
+		} else if (isLivingAndRecording) {
+			//record stoped, but live still streaming
+			if (!isRehearsal) {
+				// not rehaersal mode
+				pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QObject::tr("main.message.error.recordwhenbroadcasting"));
+			} else {
+				// rehaersal mode
+				pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QObject::tr("Live.Toast.Rehaersal.Record.Ended"));
+			}
+		} else {
+			pls_toast_clear();
+			//only record and live all stoped, to clear toast.
+			if (PLSBasic::Get()->getMainView() != nullptr && PLSBasic::Get()->getMainView()->isVisible()) {
+				auto mainwindw = PLSBasic::Get();
+				PLSLiveEndDialog *dialog = new PLSLiveEndDialog(isRecord, mainwindw);
+				dialog->exec();
+				delete dialog;
+			}
+		}
+		PLSCHANNELS_API->setIsClickToStopRecord(false);
+		emit liveEndPageShowComplected(isRecord);
+		return;
+	}
+
+	if (isLivingAndRecording && !isStreamingRecordStopAuto) {
+		//live ended, but still recording
+		if (isRehearsal) {
+			pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QObject::tr("broadcast.end.rehearsal"));
+		} else {
+			pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QObject::tr("broadcast.end.live"));
+		}
+	} else {
+		pls_toast_clear();
+		//only record and live all stoped, to clear toast.
+		if (!isRehearsal) {
+			if (PLSBasic::Get()->getMainView() != nullptr && PLSBasic::Get()->getMainView()->isVisible()) {
+				auto mainwindw = PLSBasic::Get();
+				PLSLiveEndDialog *dialog = new PLSLiveEndDialog(isRecord, mainwindw);
+				dialog->exec();
+				delete dialog;
+			}
+		}
+	}
+	emit liveEndPageShowComplected(isRecord);
+}
+
+void PLSPlatformApi::doChannelInitialized()
+{
+	for (auto &info : PLSCHANNELS_API->getCurrentSelectedChannels()) {
+		const auto channelUUID = info.value(ChannelData::g_channelUUID).toString();
+		const auto channelType = info.value(ChannelData::g_data_type).toInt();
+		const auto channelName = info.value(ChannelData::g_channelName).toString();
+		const auto displayOrder = info.value(ChannelData::g_displayOrder).toInt();
+
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ ": type=%d, name=%s, order=%d, uuid=%s", channelType, channelName.toStdString().c_str(), displayOrder, channelUUID.toStdString().c_str());
+
+		if (isValidChannel(info)) {
+			onActive(channelUUID);
+		} else {
+			PLS_INFO(MODULE_PlatformService, __FUNCTION__ ".InvalidChannels: type=%d, name=%s, uuid=%s", channelType, channelName.toStdString().c_str(), channelUUID.toStdString().c_str());
+		}
+	}
+}
+
+void PLSPlatformApi::showStartMessageIfNeeded()
+{
+	PLSPlatformYoutube::showAutoStartFalseAlertIfNeeded();
 }

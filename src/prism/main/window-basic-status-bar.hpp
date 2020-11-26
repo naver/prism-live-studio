@@ -34,6 +34,11 @@ private:
 class PLSBasicStatusBar : public QFrame {
 	Q_OBJECT
 
+	struct RealBitrateHelper {
+		uint64_t lastBytesSent = 0;
+		uint64_t lastBytesSentTime = 0;
+	};
+
 private:
 	PLSBasicStatusBarButtonFrame *encodes;
 	QLabel *encoding;
@@ -71,9 +76,13 @@ private:
 	float lastCongestion = 0.0f;
 
 	QPointer<QTimer> refreshTimer;
+	QPointer<QTimer> uploadTimer;
 
 	void Activate();
 	void Deactivate();
+
+	int GetRealTimeBitrate(OBSOutput output, RealBitrateHelper &helper);
+	int GetExpectOutputBitrate(OBSOutput output);
 
 	void UpdateBandwidth();
 	void UpdateDroppedFrames();
@@ -87,9 +96,11 @@ private slots:
 	void UpdateStatusBar();
 	void UpdateCPUUsage();
 	void popupStats();
+	void UploadStatus();
 
 public:
 	explicit PLSBasicStatusBar(QWidget *parent);
+	virtual ~PLSBasicStatusBar();
 
 	void StreamDelayStarting(int sec);
 	void StreamDelayStopping(int sec);
@@ -106,6 +117,7 @@ public:
 	void setStatsOpen(bool open);
 	void setEncodingEnabled(bool enabled);
 	void UpdateDelayMsg();
+	void StartStatusMonitor();
 
 protected:
 	bool eventFilter(QObject *watched, QEvent *event);

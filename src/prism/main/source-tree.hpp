@@ -8,6 +8,7 @@
 #include <QSvgRenderer>
 #include <QAbstractListModel>
 #include <QScrollBar>
+#include "PLSDpiHelper.h"
 
 class QLabel;
 class QCheckBox;
@@ -28,12 +29,15 @@ class SourceLabel : public QLabel {
 
 public:
 	SourceLabel(QWidget *p) : QLabel(p) {}
+	virtual ~SourceLabel() {}
 
 	void setText(const QString &text);
 	void setText(const char *text);
+	QString GetText();
 
 protected:
 	void resizeEvent(QResizeEvent *event) override;
+	virtual void paintEvent(QPaintEvent *event) override;
 
 	QString SnapSourceName();
 
@@ -72,9 +76,14 @@ class SourceTreeItem : public QWidget {
 	void ReconnectSignals();
 
 	Type type = Type::Unknown;
+signals:
+	void SelectItemChanged(OBSSceneItem item, bool selected);
+	void VisibleItemChanged(OBSSceneItem item, bool visible);
 
 public:
 	static void OnSourceCaptureState(void *data, calldata_t *calldata);
+	static void BeautySourceStatusChanged(void *data, calldata_t *params);
+
 	static QString GetErrorTips(const char *id, enum obs_source_error error);
 
 	explicit SourceTreeItem(SourceTree *tree, OBSSceneItem sceneitem);
@@ -88,7 +97,6 @@ public:
 	void SetBgColor(SourceItemBgType type, void *param);
 
 	void OnMouseStatusChanged(const char *s);
-
 	enum IndicatorType { IndicatorNormal, IndicatorAbove, IndicatorBelow };
 	void UpdateIndicator(IndicatorType type);
 
@@ -145,6 +153,8 @@ private slots:
 
 	void UpdateNameColor(bool selected, bool visible);
 	void UpdateIcon();
+	bool isDshowSourceChangedState(obs_source_t *source);
+	void OnVisibleClicked(bool visible);
 };
 
 class SourceTreeModel : public QAbstractListModel {
@@ -163,7 +173,7 @@ class SourceTreeModel : public QAbstractListModel {
 	void ReorderItems();
 
 	void Add(obs_sceneitem_t *item);
-	void Remove(obs_sceneitem_t *item);
+	void Remove(void *item); // in function we should not use item directly to avoid using deleted memory
 	OBSSceneItem Get(int idx);
 	QString GetNewGroupName();
 	void AddGroup();
@@ -178,6 +188,9 @@ class SourceTreeModel : public QAbstractListModel {
 
 	int Count();
 	QVector<OBSSceneItem> GetItems();
+signals:
+	void itemRemoves(QVector<OBSSceneItem> items);
+	void itemReorder();
 
 public:
 	explicit SourceTreeModel(SourceTree *st);
@@ -231,7 +244,7 @@ public:
 		return reinterpret_cast<SourceTreeItem *>(widget);
 	}
 
-	explicit SourceTree(QWidget *parent = nullptr);
+	explicit SourceTree(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 
 	inline bool IgnoreReorder() const { return ignoreReorder; }
 	inline void Clear() { GetStm()->Clear(); }
@@ -251,6 +264,9 @@ public:
 	QVector<OBSSceneItem> GetItems();
 
 	void ResetDragOver();
+	bool GetDestGroupItem(QPoint pos, obs_sceneitem_t *&item_output);
+	bool CheckDragSceneToGroup(obs_sceneitem_t *dragItem, obs_sceneitem_t *destGroupItem);
+	bool IsValidDrag(obs_sceneitem_t *destGroupItem, QVector<OBSSceneItem> items);
 
 public slots:
 	inline void ReorderItems() { GetStm()->ReorderItems(); }
@@ -260,6 +276,10 @@ public slots:
 	void AddGroup();
 	void Edit(int idx);
 	void OnSourceStateChanged(unsigned long long srcPtr);
+	void OnBeautySourceStatusChanged(const QString &sourceName, bool status);
+	void OnSourceItemRemove(unsigned long long sceneItemPtr);
+	void OnSelectItemChanged(OBSSceneItem item, bool selected);
+	void OnVisibleItemChanged(OBSSceneItem item, bool visible);
 
 protected:
 	virtual void mouseDoubleClickEvent(QMouseEvent *event) override;
@@ -272,4 +292,11 @@ protected:
 	virtual void paintEvent(QPaintEvent *event) override;
 
 	virtual void selectionChanged(const QItemSelection &selected, const QItemSelection &deselected) override;
+signals:
+	void DshowSourceStatusChanged(const QString name, OBSSceneItem item, bool invalid);
+	void SelectItemChanged(OBSSceneItem item, bool selected);
+	void VisibleItemChanged(OBSSceneItem item, bool visible);
+	void itemsRemove(QVector<OBSSceneItem> items);
+	void itemsReorder();
+	void beautyStatusChanged(const QString &sourceName, bool status);
 };

@@ -8,6 +8,7 @@ set(win-capture_HEADERS
 	inject-library.h
 	cursor-capture.h
 	graphics-hook-info.h
+	graphics-hook-ver.h
 	window-helpers.h
 	dc-capture.h)
 
@@ -22,6 +23,7 @@ set(win-capture_SOURCES
 	monitor-capture.c
 	window-capture.c
 	load-graphics-offsets.c
+	game-capture-file-init.c
 	duplicator-monitor-capture.c
 	plugin-main.c)
 
@@ -30,6 +32,7 @@ add_library(win-capture MODULE
 	${win-capture_HEADERS})
 target_link_libraries(win-capture
 	libobs
+	Dwmapi
 	ipc-util
 	psapi)
 

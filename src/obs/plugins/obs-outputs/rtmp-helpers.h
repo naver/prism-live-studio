@@ -53,3 +53,18 @@ static inline void enc_str(char **enc, char *end, const char *str)
 	AVal s;
 	*enc = AMF_EncodeString(*enc, end, flv_str(&s, str));
 }
+
+//PRISM/LiuHaibin/20200915/#4748/add id3v2
+static inline AVal *flv_str_ex(AVal *out, const char *str, int len)
+{
+	out->av_val = (char *)str;
+	out->av_len = len;
+	return out;
+}
+
+//PRISM/LiuHaibin/20200915/#4748/add id3v2
+static inline void enc_str_ex(char **enc, char *end, const char *str, int len)
+{
+	AVal s;
+	*enc = AMF_EncodeString(*enc, end, flv_str_ex(&s, str, len));
+}

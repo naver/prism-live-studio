@@ -23,34 +23,30 @@
 #include <QDirIterator>
 #include <QDir>
 
-void LogoutCallbackFunc(pls_frontend_event event, const QVariantList &params, void *context)
-{
-	PLSSceneListView *view = static_cast<PLSSceneListView *>(context);
-	QMetaObject::invokeMethod(view, "OnLogoutEvent", Qt::AutoConnection);
-}
-
 PLSSceneListView::PLSSceneListView(QWidget *parent) : QFrame(parent), ui(new Ui::PLSSceneListView)
 {
 	ui->setupUi(this);
+	PLSDpiHelper dpiHelper;
+	dpiHelper.setCss(this, {PLSCssIndex::PLSScene});
 	this->setWindowFlags(windowFlags() ^ Qt::FramelessWindowHint);
+
 	connect(ui->scrollAreaWidgetContents, &PLSScrollAreaContent::DragFinished, this, &PLSSceneListView::OnDragFinished);
-	pls_frontend_add_event_callback(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGOUT, LogoutCallbackFunc, this);
+	connect(ui->scrollAreaWidgetContents, &PLSScrollAreaContent::resizeEventChanged, this, &PLSSceneListView::RefreshScene);
 
 	CreateSceneTransitionsView();
 }
 
 PLSSceneListView::~PLSSceneListView()
 {
-	pls_frontend_remove_event_callback(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGOUT, LogoutCallbackFunc, this);
-
 	if (transitionsView) {
 		delete transitionsView;
 		transitionsView = nullptr;
 	}
+
 	delete ui;
 }
 
-void PLSSceneListView::AddScene(const QString &name, OBSScene scene, SignalContainer<OBSScene> handler)
+void PLSSceneListView::AddScene(const QString &name, OBSScene scene, SignalContainer<OBSScene> handler, bool loadingScene)
 {
 	PLSSceneItemView *view = PLSSceneDataMgr::Instance()->FindSceneData(name);
 	if (!view) {
@@ -64,7 +60,9 @@ void PLSSceneListView::AddScene(const QString &name, OBSScene scene, SignalConta
 	}
 
 	PLSSceneDataMgr::Instance()->AddSceneData(name, view);
-	SetCurrentItem(view);
+	if (!loadingScene) {
+		SetCurrentItem(view);
+	}
 }
 
 void PLSSceneListView::DeleteScene(const QString &name)
@@ -72,39 +70,16 @@ void PLSSceneListView::DeleteScene(const QString &name)
 	PLSSceneItemView *view = PLSSceneDataMgr::Instance()->DeleteSceneData(name);
 
 	PLSBasic *main = PLSBasic::Get();
-	if (view && main) {
-		obs_source_t *source = obs_scene_get_source(view->GetData());
-		main->SetCurrentScene(source);
-	}
-	this->RefreshScene();
-	main->SaveProjectDeferred();
-}
-
-void PLSSceneListView::DeleteAllScene()
-{
-	QString path = pls_get_user_path("PRISMLiveStudio/basic/scenes/");
-
-	QDir dir(path);
-	dir.setFilter(QDir::Files);
-	QFileInfoList list = dir.entryInfoList();
-	for (int i = 0; i < list.size(); i++) {
-		QFileInfo fileInfo = list.at(i);
-		if (fileInfo.fileName() == "." | fileInfo.fileName() == "..") {
-			continue;
+	if (nullptr == main->GetCurrentSceneItem()) {
+		if (view) {
+			obs_source_t *source = obs_scene_get_source(view->GetData());
+			main->SetCurrentScene(source);
 		}
-
-		QString name = fileInfo.fileName();
-		name.insert(0, path);
-		os_unlink(name.toStdString().c_str());
-		name += ".bak";
-		os_unlink(name.toStdString().c_str());
 	}
-}
 
-void PLSSceneListView::OnLogoutEvent()
-{
-	DeleteAllScene();
-	emit LogoutEvent();
+	this->RefreshScene();
+	this->setFocus();
+	main->SaveProjectDeferred();
 }
 
 PLSSceneItemView *PLSSceneListView::GetCurrentItem()
@@ -269,9 +244,12 @@ QComboBox *PLSSceneListView::GetTransitionCombobox()
 	return nullptr;
 }
 
-void PLSSceneListView::RefreshScene()
+void PLSSceneListView::RefreshScene(bool scrollToCurrent)
 {
-	ui->scrollAreaWidgetContents->Refresh();
+	int y = ui->scrollAreaWidgetContents->Refresh();
+	if (scrollToCurrent) {
+		ui->scrollArea->verticalScrollBar()->setValue(y);
+	}
 }
 
 void PLSSceneListView::MoveSceneToUp()
@@ -326,6 +304,8 @@ void PLSSceneListView::OnAddSceneButtonClicked()
 
 	bool accepted = NameDialog::AskForName(this, QTStr("Basic.Main.AddSceneDlg.Title"), QTStr("Basic.Main.AddSceneDlg.Text"), name, placeHolderText);
 	if (accepted) {
+
+		name = QString(name.c_str()).simplified().toStdString();
 		if (name.empty()) {
 			PLSMessageBox::warning(this, QTStr("NoNameEntered.Title"), QTStr("NoNameEntered.Text"));
 			OnAddSceneButtonClicked();
@@ -373,16 +353,6 @@ void PLSSceneListView::OnDragFinished()
 	PLSProjector::UpdateMultiviewProjectors();
 }
 
-void PLSSceneListView::RefreshMultiviewLayout(int layout)
-{
-	MultiviewLayout mLayout = static_cast<MultiviewLayout>(layout);
-	int renderNumber = PLSSceneDataMgr::Instance()->ConvertMultiviewLayoutToInt(mLayout);
-	if (ui->scrollAreaWidgetContents->GetRenderNum() != renderNumber) {
-		ui->scrollAreaWidgetContents->SetRenderNum(renderNumber);
-		this->RefreshScene();
-	}
-}
-
 void PLSSceneListView::resizeEvent(QResizeEvent *event)
 {
 	QFrame::resizeEvent(event);
@@ -399,10 +369,79 @@ void PLSSceneListView::OnMouseButtonClicked(PLSSceneItemView *item)
 	PLSBasic *main = PLSBasic::Get();
 	if (main && item) {
 		OBSScene scene = item->GetData();
+		if (scene == main->GetCurrentScene()) {
+			return;
+		}
 		obs_source_t *source = obs_scene_get_source(scene);
 		main->SetCurrentScene(source);
 		main->OnScenesCurrentItemChanged();
 	}
+}
+
+struct DeleteSceneSourceHelper {
+	const char *delete_scene_name;        // input param
+	std::vector<obs_sceneitem_t *> items; // output list
+};
+
+static bool EnumItemForDelScene(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
+{
+	DeleteSceneSourceHelper *helper = (DeleteSceneSourceHelper *)ptr;
+
+	if (obs_sceneitem_is_group(item)) {
+		obs_sceneitem_group_enum_items(item, EnumItemForDelScene, ptr);
+	} else {
+		obs_source_t *source = obs_sceneitem_get_source(item);
+		if (source) {
+			const char *id = obs_source_get_id(source);
+			if (id && 0 == strcmp(id, SCENE_SOURCE_ID)) {
+				const char *name = obs_source_get_name(source);
+				if (name && 0 == strcmp(name, helper->delete_scene_name)) {
+					helper->items.push_back(item);
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+void DeleteRelatedSceneSource(const char *scene_name)
+{
+	if (!scene_name) {
+		return;
+	}
+
+	auto cb = [](void *helper, obs_source_t *src) {
+		obs_scene_t *scene = obs_scene_from_source(src);
+		if (scene) {
+			obs_scene_enum_items(scene, EnumItemForDelScene, (void *)helper);
+		}
+		return true;
+	};
+
+	DeleteSceneSourceHelper helper;
+	helper.delete_scene_name = scene_name;
+	obs_enum_scenes(cb, &helper);
+
+	size_t count = helper.items.size();
+	for (size_t i = 0; i < count; i++) {
+		obs_sceneitem_remove(helper.items[i]);
+	}
+}
+
+static bool EnumItemForInteraction(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
+{
+	if (obs_sceneitem_is_group(item)) {
+		obs_sceneitem_group_enum_items(item, EnumItemForInteraction, ptr);
+	} else {
+		PLSBasic *main = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
+		bool successed = main->CheckHideInteraction(OBSSceneItem(item));
+		if (successed) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 void PLSSceneListView::OnDeleteSceneButtonClicked(PLSSceneItemView *item)
@@ -414,8 +453,11 @@ void PLSSceneListView::OnDeleteSceneButtonClicked(PLSSceneItemView *item)
 	obs_source_t *source = obs_scene_get_source(scene);
 
 	PLSBasic *main = PLSBasic::Get();
-	if (source && main && main->QueryRemoveSource(source))
+	if (source && main && main->QueryRemoveSource(source)) {
+		obs_scene_enum_items(scene, EnumItemForInteraction, NULL);
+		DeleteRelatedSceneSource(obs_source_get_name(source));
 		obs_source_remove(source);
+	}
 }
 
 void PLSSceneListView::OnModifySceneButtonClicked(PLSSceneItemView *item)
@@ -453,21 +495,23 @@ void PLSSceneListView::RenameSceneItem(PLSSceneItemView *item, obs_source_t *sou
 	if (name == prevName || !item)
 		return;
 
-	obs_source_t *foundSource = obs_get_source_by_name(QT_TO_UTF8(name));
-	if (foundSource || name.isEmpty()) {
+	QString trimmedText = QT_TO_UTF8(name.simplified());
+
+	obs_source_t *foundSource = obs_get_source_by_name(QT_TO_UTF8(trimmedText));
+	if (foundSource || trimmedText.isEmpty()) {
 		item->SetName(prevName);
 		PLSBasic *main = PLSBasic::Get();
 		if (foundSource) {
 			PLSMessageBox::warning(main, QTStr("NameExists.Title"), QTStr("NameExists.Text"));
-		} else if (name.isEmpty()) {
+		} else if (trimmedText.isEmpty()) {
 			PLSMessageBox::warning(main, QTStr("NoNameEntered.Title"), QTStr("NoNameEntered.Text"));
 		}
 
 		obs_source_release(foundSource);
 	} else {
-		item->SetName(name);
-		obs_source_set_name(source, name.toStdString().c_str());
-		PLSSceneDataMgr::Instance()->RenameSceneData(prevName, name);
+		item->SetName(trimmedText);
+		obs_source_set_name(source, trimmedText.toStdString().c_str());
+		PLSSceneDataMgr::Instance()->RenameSceneData(prevName, trimmedText);
 		emit SceneRenameFinished();
 	}
 }

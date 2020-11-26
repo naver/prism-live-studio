@@ -1,28 +1,43 @@
 #include "PLSRtmpChannelView.h"
-#include "ui_PLSRtmpChannelView.h"
 #include <QComboBox>
-#include "ChannelConst.h"
-#include "ChannelCommonFunctions.h"
 #include <QListView>
-#include "ChannelConst.h"
-#include <QUrl>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
-#include "LogPredefine.h"
-#include "NetBaseInfo.h"
-#include "pls-app.hpp"
-#include <QRegularExpression>
+#include <QUrl>
 #include <QValidator>
+#include "ChannelCommonFunctions.h"
+#include "ChannelConst.h"
+#include "LogPredefine.h"
+
+#include "PLSChannelDataAPI.h"
+#include "PLSDpiHelper.h"
 #include "combobox.hpp"
+#include "pls-app.hpp"
+#include "pls-gpop-data.hpp"
 #include "pls-net-url.hpp"
+#include "ui_PLSRtmpChannelView.h"
 
 using namespace ChannelData;
 
-PLSRtmpChannelView::PLSRtmpChannelView(QVariantMap &oldData, QWidget *parent) : QDialog(parent), ui(new Ui::RtmpChannelView), mOldData(oldData), isEdit(false)
+PLSRtmpChannelView::PLSRtmpChannelView(QVariantMap &oldData, QWidget *parent) : WidgetDpiAdapter(parent), ui(new Ui::RtmpChannelView), mOldData(oldData), isEdit(false)
 {
+	PLSDpiHelper dpiHelper;
+	dpiHelper.setCss(this, {PLSCssIndex::PLSRTMPChannelView});
+
 	initUi();
-	setStyleSheetFromFile(":/Style/PLSRTMPChannelView.css", this);
 	loadFromData(oldData);
+
+	dpiHelper.notifyDpiChanged(this, [this](double, double, bool firstShow) {
+		if (firstShow) {
+			QMetaObject::invokeMethod(
+				this,
+				[this] {
+					pls_flush_style(ui->UserIDEdit);
+					pls_flush_style(ui->UserPasswordEdit);
+				},
+				Qt::QueuedConnection);
+		}
+	});
 }
 
 PLSRtmpChannelView::~PLSRtmpChannelView()
@@ -52,7 +67,7 @@ QVariantMap PLSRtmpChannelView::SaveResult()
 {
 	auto tmpData = mOldData;
 	tmpData[g_nickName] = ui->NameEdit->text();
-	tmpData[g_channelRtmpUrl] = ui->RTMPUrlEdit->text();
+	tmpData[g_channelRtmpUrl] = ui->RTMPUrlEdit->text().trimmed();
 	tmpData[g_streamKey] = ui->StreamKeyEdit->text();
 	QString platfromName;
 
@@ -65,41 +80,49 @@ QVariantMap PLSRtmpChannelView::SaveResult()
 	tmpData[g_channelName] = platfromName;
 
 	QString userID = ui->UserIDEdit->text();
-	tmpData[g_userID] = userID;
+	tmpData[g_rtmpUserID] = userID;
 	QString password = ui->UserPasswordEdit->text();
 	tmpData[g_password] = password;
 
 	return tmpData;
 }
 
-void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
+void PLSRtmpChannelView::updatePlatform(const QString &platform)
 {
-	QString displayName = getInfo(oldData, g_nickName);
-	if (displayName == SELECT) {
-
-		return;
-	}
-	isEdit = true;
-	ui->TitleLabel->setText(CHANNELS_TR(RTMPEdit));
-	ui->NameEdit->setText(displayName);
-	QString platform = getInfo(oldData, g_channelName);
 	int index = ui->PlatformCombbox->findText(platform, Qt::MatchContains);
 	ui->PlatformCombbox->setDisabled(true);
-
 	if (index != -1) {
 		QSignalBlocker blocker(ui->PlatformCombbox);
 		ui->PlatformCombbox->setCurrentIndex(index);
+
 	} else {
 		QSignalBlocker blocker(ui->PlatformCombbox);
 		ui->PlatformCombbox->setCurrentIndex(ui->PlatformCombbox->count() - 1);
 	}
+}
+
+void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
+{
+	isEdit = getInfo(oldData, g_isUpdated, false);
+	if (!isEdit) {
+		return;
+	}
+
+	QString platform = getInfo(oldData, g_channelName);
+	updatePlatform(platform);
+
+	QString displayName = getInfo(oldData, g_nickName);
+	ui->TitleLabel->setText(CHANNELS_TR(RTMPEdit));
+	ui->NameEdit->setText(displayName);
+	ui->NameEdit->setModified(true);
+
 	ui->RTMPUrlEdit->setEnabled(false);
 	QString rtmpUrl = getInfo(oldData, g_channelRtmpUrl);
 	ui->RTMPUrlEdit->setText(rtmpUrl);
 	QString streamKey = getInfo(oldData, g_streamKey);
 	ui->StreamKeyEdit->setText(streamKey);
 
-	QString userID = getInfo(oldData, g_userID);
+	QString userID = getInfo(oldData, g_rtmpUserID);
 	ui->UserIDEdit->setText(userID);
 	QString password = getInfo(oldData, g_password);
 	ui->UserPasswordEdit->setText(password);
@@ -155,22 +178,26 @@ void PLSRtmpChannelView::on_PasswordVisible_toggled(bool isCheck)
 
 void PLSRtmpChannelView::on_RTMPUrlEdit_textChanged(const QString &rtmpUrl)
 {
-
 	if (ui->PlatformCombbox->currentIndex() == 0) {
 		ui->PlatformCombbox->setCurrentText(CHANNELS_TR(UserInput));
 	}
-	if (ui->PlatformCombbox->currentText() == (ui->PlatformCombbox->count() - 1) && ui->NameEdit->text().isEmpty()) {
-		QString nameStr = "CustomRTMP";
-		int count = ui->PlatformCombbox->count();
-		for (int i = 1; i < count - 1; ++i) {
-			QString indexTxt = ui->PlatformCombbox->itemText(i);
-			if (rtmpUrl.contains(indexTxt, Qt::CaseInsensitive)) {
-				nameStr = indexTxt;
-			}
-		}
-		ui->NameEdit->setText(nameStr);
+
+	auto platformStr = guessPlatformFromRTMP(rtmpUrl.trimmed());
+	if (platformStr != BAND && platformStr != NOW && platformStr != CUSTOM_RTMP) {
+		QSignalBlocker bloker(ui->PlatformCombbox);
+		ui->PlatformCombbox->setCurrentText(platformStr);
+	} else if (platformStr == CUSTOM_RTMP) {
+		QSignalBlocker bloker(ui->PlatformCombbox);
+		ui->PlatformCombbox->setCurrentIndex(ui->PlatformCombbox->count() - 1);
+	} else {
+		platformStr = CUSTOM_RTMP;
+	}
+	if (ui->NameEdit->text().isEmpty() || !ui->NameEdit->isModified()) {
+		QSignalBlocker bloker(ui->NameEdit);
+		ui->NameEdit->setText(platformStr);
 		ui->NameEdit->setModified(false);
 	}
+
 	updateSaveBtnAvailable();
 }
 
@@ -192,12 +219,14 @@ void PLSRtmpChannelView::on_PlatformCombbox_currentIndexChanged(const QString &p
 
 	ui->RTMPUrlEdit->setEnabled(false);
 	if (ui->NameEdit->text().isEmpty() || !ui->NameEdit->isModified()) {
+		QSignalBlocker block(ui->NameEdit);
 		ui->NameEdit->setText(platForm);
 		ui->NameEdit->setModified(false);
 	}
 
 	auto retIte = mRtmps.find(platForm);
 	if (retIte != mRtmps.end()) {
+		QSignalBlocker block(ui->RTMPUrlEdit);
 		ui->RTMPUrlEdit->setText(retIte.value());
 		ui->RTMPUrlEdit->setModified(false);
 	}
@@ -245,7 +274,7 @@ void PLSRtmpChannelView::verify()
 	const auto &infos = PLSCHANNELS_API->getAllChannelInfoReference();
 	auto myName = ui->NameEdit->text();
 	QRegularExpression regx("(-\\d+$)");
-	auto isSameName = [=](const QVariantMap &info) {
+	auto isSameName = [&](const QVariantMap &info) {
 		auto name = getInfo(info, g_nickName);
 		if (isEdit) {
 			auto uuid = getInfo(info, g_channelUUID);
@@ -292,6 +321,6 @@ bool PLSRtmpChannelView::isRtmUrlRight()
 {
 	QRegularExpression reg("^rtmp[s]?://\\w+");
 	reg.setPatternOptions(QRegularExpression::CaseInsensitiveOption);
-	auto matchRe = reg.match(ui->RTMPUrlEdit->text());
+	auto matchRe = reg.match(ui->RTMPUrlEdit->text().trimmed());
 	return matchRe.hasMatch();
 }

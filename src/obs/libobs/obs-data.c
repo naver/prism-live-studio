@@ -43,6 +43,9 @@ struct obs_data_item {
 };
 
 struct obs_data {
+	//PRISM/Wangshaohui/20200927/#4868/for property UI
+	unsigned flags;
+
 	volatile long ref;
 	char *json;
 	struct obs_data_item *first_item;
@@ -622,6 +625,24 @@ static json_t *obs_data_to_json(obs_data_t *data)
 
 /* ------------------------------------------------------------------------- */
 
+//PRISM/Wangshaohui/20200927/#4868/for property UI
+void obs_data_set_flags(obs_data_t *data, unsigned value)
+{
+	if (data) {
+		data->flags = value;
+	}
+}
+
+//PRISM/Wangshaohui/20200927/#4868/for property UI
+unsigned obs_data_get_flags(obs_data_t *data)
+{
+	if (data) {
+		return data->flags;
+	} else {
+		return 0;
+	}
+}
+
 obs_data_t *obs_data_create()
 {
 	struct obs_data *data = bzalloc(sizeof(struct obs_data));
@@ -782,6 +803,26 @@ static struct obs_data_item *get_item(struct obs_data *data, const char *name)
 	}
 
 	return NULL;
+}
+
+static struct obs_data_item *get_item_by_index(struct obs_data *data,
+					       size_t index)
+{
+	if (!data)
+		return NULL;
+
+	size_t count = obs_data_item_count(data);
+	if (index >= count) {
+		return NULL;
+	}
+
+	struct obs_data_item *item = data->first_item;
+
+	while (index--) {
+		item = item->next;
+	}
+
+	return item;
 }
 
 static void set_item_data(struct obs_data *data, struct obs_data_item **item,
@@ -1174,6 +1215,11 @@ const char *obs_data_get_string(obs_data_t *data, const char *name)
 	return obs_data_item_get_string(get_item(data, name));
 }
 
+const char *obs_data_get_string_by_index(obs_data_t *data, size_t index)
+{
+	return obs_data_item_get_string(get_item_by_index(data, index));
+}
+
 long long obs_data_get_int(obs_data_t *data, const char *name)
 {
 	return obs_data_item_get_int(get_item(data, name));
@@ -1502,6 +1548,24 @@ void obs_data_item_remove(obs_data_item_t **item)
 		obs_data_item_detach(*item);
 		obs_data_item_release(item);
 	}
+}
+
+size_t obs_data_item_count(obs_data_t *data)
+{
+	if (!data)
+		return 0;
+
+	obs_data_item_t *item = obs_data_first(data);
+	if (!item) {
+		return 0;
+	}
+
+	size_t count = 0;
+	do {
+		count++;
+	} while (obs_data_item_next(&item));
+
+	return count;
 }
 
 enum obs_data_type obs_data_item_gettype(obs_data_item_t *item)

@@ -4,6 +4,7 @@
 #include <QAction>
 #include <util/util.hpp>
 #include <util/platform.h>
+#include <util/dstr.hpp>
 #include <media-io/video-io.h>
 #include <media-io/video-frame.h>
 #include "DecklinkOutputUI.h"
@@ -50,35 +51,67 @@ OBSData load_settings()
 	return nullptr;
 }
 
-void output_start()
+//PRISM/LiuHaibin/20200416/#2413/for decklink crash
+OBSData load_preview_settings();
+bool is_setting_conflict()
 {
-	if (!main_output_running) {
-		OBSData settings = load_settings();
-
-		if (settings != nullptr) {
-			output = obs_output_create("decklink_output", "decklink_output", settings, NULL);
-
-			//PRISM/LiuHaibin/20200316/#1641/add protection
-			obs_data_release(settings);
-			if (output)
-				return;
-			if (!obs_output_start(output)) {
-				obs_output_stop(output);
-				obs_output_release(output);
-				main_output_running = false;
-			} else
-				main_output_running = true;
+	OBSData previewSettings = load_preview_settings();
+	OBSData mainSettings = load_settings();
+	if (mainSettings && previewSettings) {
+		//It will be crashed in decklink driver if we select same device but with different keyer mode(one with disable, one with internal/external),
+		//and start both main output and preview
+		const char *previewDeviceHash = obs_data_get_string(previewSettings, DEVICE_HASH);
+		const char *mainDeviceHash = obs_data_get_string(mainSettings, DEVICE_HASH);
+		int previewKeyerMode = (int)obs_data_get_int(previewSettings, KEYER);
+		int mainKeyerMode = (int)obs_data_get_int(mainSettings, KEYER);
+		if (!astrcmpi(previewDeviceHash, mainDeviceHash) && mainKeyerMode != previewKeyerMode && !(mainKeyerMode & previewKeyerMode)) {
+			blog(LOG_WARNING, "Using different keyer mode for same device is not safe.");
+			return true;
 		}
 	}
+	return false;
 }
 
 void output_stop()
 {
-	if (main_output_running) {
-		obs_output_stop(output);
-		obs_output_release(output);
-		main_output_running = false;
+	obs_output_stop(output);
+	obs_output_release(output);
+	main_output_running = false;
+	// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+	doUI->OutputStateChanged(false);
+}
+
+void output_start()
+{
+	OBSData settings = load_settings();
+
+	if (settings != nullptr) {
+		//PRISM/LiuHaibin/20200416/#2413/for decklink crash
+		if (preview_output_running && is_setting_conflict())
+			return;
+
+		output = obs_output_create("decklink_output", "decklink_output", settings, NULL);
+
+		bool started = obs_output_start(output);
+		obs_data_release(settings);
+
+		main_output_running = started;
+
+		// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+		doUI->OutputStateChanged(started);
+
+		if (!started)
+			output_stop();
 	}
+}
+
+// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+void output_toggle()
+{
+	if (main_output_running)
+		output_stop();
+	else
+		output_start();
 }
 
 OBSData load_preview_settings()
@@ -99,100 +132,95 @@ OBSData load_preview_settings()
 void on_preview_scene_changed(enum obs_frontend_event event, void *param);
 void render_preview_source(void *param, uint32_t cx, uint32_t cy);
 
+void preview_output_stop()
+{
+	obs_output_stop(context.output);
+	// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+	obs_output_release(context.output);
+	video_output_stop(context.video_queue);
+
+	obs_remove_main_render_callback(render_preview_source, &context);
+	obs_frontend_remove_event_callback(on_preview_scene_changed, &context);
+
+	obs_source_release(context.current_source);
+
+	obs_enter_graphics();
+	gs_stagesurface_destroy(context.stagesurface);
+	gs_texrender_destroy(context.texrender);
+	obs_leave_graphics();
+
+	video_output_close(context.video_queue);
+
+	preview_output_running = false;
+	// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+	doUI->PreviewOutputStateChanged(false);
+}
+
 void preview_output_start()
 {
-	if (!preview_output_running) {
-		OBSData settings = load_preview_settings();
+	OBSData settings = load_preview_settings();
 
-		if (settings != nullptr) {
-			context.output = obs_output_create("decklink_output", "decklink_preview_output", settings, NULL);
+	if (settings != nullptr) {
+		//PRISM/LiuHaibin/20200416/#2413/for decklink crash
+		if (main_output_running && is_setting_conflict())
+			return;
 
-			//PRISM/LiuHaibin/20200316/#1641/add protection
-			obs_data_release(settings);
-			if (!context.output)
-				return;
+		context.output = obs_output_create("decklink_output", "decklink_preview_output", settings, NULL);
 
-			obs_get_video_info(&context.ovi);
+		obs_get_video_info(&context.ovi);
 
-			uint32_t width = context.ovi.base_width;
-			uint32_t height = context.ovi.base_height;
+		uint32_t width = context.ovi.base_width;
+		uint32_t height = context.ovi.base_height;
 
-			obs_enter_graphics();
-			context.texrender = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
-			context.stagesurface = gs_stagesurface_create(width, height, GS_BGRA);
-			obs_leave_graphics();
+		obs_enter_graphics();
+		context.texrender = gs_texrender_create(GS_BGRA, GS_ZS_NONE);
+		context.stagesurface = gs_stagesurface_create(width, height, GS_BGRA);
+		obs_leave_graphics();
 
-			const video_output_info *mainVOI = video_output_get_info(obs_get_video());
+		const video_output_info *mainVOI = video_output_get_info(obs_get_video());
 
-			video_output_info vi = {0};
-			vi.format = VIDEO_FORMAT_BGRA;
-			vi.width = width;
-			vi.height = height;
-			vi.fps_den = context.ovi.fps_den;
-			vi.fps_num = context.ovi.fps_num;
-			vi.cache_size = 16;
-			vi.colorspace = mainVOI->colorspace;
-			vi.range = mainVOI->range;
-			vi.name = "decklink_preview_output";
+		video_output_info vi = {0};
+		vi.format = VIDEO_FORMAT_BGRA;
+		vi.width = width;
+		vi.height = height;
+		vi.fps_den = context.ovi.fps_den;
+		vi.fps_num = context.ovi.fps_num;
+		vi.cache_size = 16;
+		vi.colorspace = mainVOI->colorspace;
+		vi.range = mainVOI->range;
+		vi.name = "decklink_preview_output";
 
-			video_output_open(&context.video_queue, &vi);
+		video_output_open(&context.video_queue, &vi);
 
-			obs_frontend_add_event_callback(on_preview_scene_changed, &context);
-			if (obs_frontend_preview_program_mode_active()) {
-				context.current_source = obs_frontend_get_current_preview_scene();
-			} else {
-				context.current_source = obs_frontend_get_current_scene();
-			}
-			obs_add_main_render_callback(render_preview_source, &context);
-
-			obs_output_set_media(context.output, context.video_queue, obs_get_audio());
-
-			//PRISM/LiuHaibin/20200316/#1641/add protection
-			if (!obs_output_start(context.output)) {
-				obs_output_stop(context.output);
-				video_output_stop(context.video_queue);
-
-				obs_remove_main_render_callback(render_preview_source, &context);
-				obs_frontend_remove_event_callback(on_preview_scene_changed, &context);
-
-				obs_source_release(context.current_source);
-
-				obs_enter_graphics();
-				gs_stagesurface_destroy(context.stagesurface);
-				gs_texrender_destroy(context.texrender);
-				obs_leave_graphics();
-
-				video_output_close(context.video_queue);
-
-				preview_output_running = false;
-				return;
-			}
-
-			preview_output_running = true;
+		obs_frontend_add_event_callback(on_preview_scene_changed, &context);
+		if (obs_frontend_preview_program_mode_active()) {
+			context.current_source = obs_frontend_get_current_preview_scene();
+		} else {
+			context.current_source = obs_frontend_get_current_scene();
 		}
+		obs_add_main_render_callback(render_preview_source, &context);
+
+		obs_output_set_media(context.output, context.video_queue, obs_get_audio());
+
+		bool started = obs_output_start(context.output);
+
+		preview_output_running = started;
+
+		// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+		doUI->PreviewOutputStateChanged(started);
+
+		if (!started)
+			preview_output_stop();
 	}
 }
 
-void preview_output_stop()
+// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
+void preview_output_toggle()
 {
-	if (preview_output_running) {
-		obs_output_stop(context.output);
-		video_output_stop(context.video_queue);
-
-		obs_remove_main_render_callback(render_preview_source, &context);
-		obs_frontend_remove_event_callback(on_preview_scene_changed, &context);
-
-		obs_source_release(context.current_source);
-
-		obs_enter_graphics();
-		gs_stagesurface_destroy(context.stagesurface);
-		gs_texrender_destroy(context.texrender);
-		obs_leave_graphics();
-
-		video_output_close(context.video_queue);
-
-		preview_output_running = false;
-	}
+	if (preview_output_running)
+		preview_output_stop();
+	else
+		preview_output_start();
 }
 
 void on_preview_scene_changed(enum obs_frontend_event event, void *param)

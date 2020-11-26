@@ -4,9 +4,6 @@
 #include "PLSSceneItemView.h"
 #include "window-projector.hpp"
 
-#include <QMutexLocker>
-#include <QMutex>
-
 using SceneDisplayVector = std::vector<std::pair<QString, PLSSceneItemView *>>; // key:scene name , value: scene item
 using SceneDisplayMap = std::map<QString, SceneDisplayVector>;                  // key:scene collection name
 
@@ -33,7 +30,7 @@ public:
 	int GetSceneSize(QString file = "");
 	SceneDisplayVector GetDisplayVector(QString file = "");
 	SceneDisplayMap GetAllData();
-	int ConvertMultiviewLayoutToInt(const MultiviewLayout &layout);
+	QStringList GetAllSceneName();
 
 private:
 	QString GetCurrentSceneCollectionName();

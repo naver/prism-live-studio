@@ -67,3 +67,5 @@ RunOnceMutex GetRunOnceMutex(bool &already_running);
 void EnableOSXVSync(bool enable);
 void EnableOSXDockIcon(bool enable);
 #endif
+
+//fake comment for clang format error

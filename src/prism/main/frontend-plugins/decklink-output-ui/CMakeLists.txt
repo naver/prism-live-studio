@@ -1,8 +1,13 @@
 project(decklink-output-ui)
 
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 add_definitions(-D_PRISM_PLUGIN)
 set(decklink-ouput-ui_HEADERS
 	${decklink-ouput-ui_HEADERS}
+	../../PLSLabel.hpp
+	../../PLSRegionCapture.h
+	../../PLSPushButton.h
+	../../PLSCommonScrollBar.h
 	../../properties-view.hpp
 	../../properties-view.moc.hpp
 	../../vertical-scroll-area.hpp
@@ -14,6 +19,10 @@ set(decklink-ouput-ui_HEADERS
 	decklink-ui-main.h)
 set(decklink-ouput-ui_SOURCES
 	${decklink-ouput-ui_SOURCES}
+	../../PLSLabel.cpp
+	../../PLSRegionCapture.cpp
+	../../PLSPushButton.cpp
+	../../PLSCommonScrollBar.cpp
 	../../properties-view.cpp
 	../../vertical-scroll-area.cpp
 	../../double-slider.cpp

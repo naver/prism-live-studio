@@ -58,6 +58,15 @@
    </property>
    <item>
     <widget class="QFrame" name="widget">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="lineWidth">
+      <number>0</number>
+     </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <property name="spacing">
        <number>0</number>
@@ -75,7 +84,14 @@
        <number>24</number>
       </property>
       <item>
-       <widget class="PLSSceneDisplay" name="display" native="true"/>
+       <widget class="PLSSceneDisplay" name="display" native="true">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
       </item>
       <item>
        <widget class="QWidget" name="imageLabel" native="true">
@@ -143,18 +159,6 @@
    </item>
    <item>
     <widget class="QFrame" name="editWidget">
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>40</height>
-      </size>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>16777215</width>
-       <height>40</height>
-      </size>
-     </property>
      <property name="styleSheet">
       <string notr="true"/>
      </property>

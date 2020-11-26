@@ -63,9 +63,10 @@ const char* Plugin::Interface::H265Interface::get_name(void*) noexcept
 void Plugin::Interface::H265Interface::get_defaults(obs_data_t* data) noexcept
 {
 #pragma region OBS - Enforce Streaming Service Restrictions
-	obs_data_set_default_int(data, "bitrate", 0);
-	obs_data_set_default_int(data, "keyint_sec", 0);
-	obs_data_set_default_string(data, "rate_control", "");
+	//PRISM/LiuHaibin/20200328/#/change default value:bitrate,keyint_sec,rate_control
+	obs_data_set_default_int(data, "bitrate", 6000);
+	obs_data_set_default_int(data, "keyint_sec", 1);
+	obs_data_set_default_string(data, "rate_control", "CBR");
 	obs_data_set_default_string(data, "profile", "");
 	obs_data_set_default_string(data, "preset", "");
 #pragma endregion OBS - Enforce Streaming Service Restrictions
@@ -85,7 +86,8 @@ void Plugin::Interface::H265Interface::get_defaults(obs_data_t* data) noexcept
 	obs_data_set_default_int(data, ("last" P_RATECONTROLMETHOD), -1);
 	obs_data_set_default_int(data, P_RATECONTROLMETHOD, static_cast<int64_t>(RateControlMethod::ConstantBitrate));
 	obs_data_set_default_int(data, P_PREPASSMODE, static_cast<int64_t>(PrePassMode::Disabled));
-	obs_data_set_default_int(data, "bitrate", 3500);
+	//PRISM/LiuHaibin/20200328/#/change default value
+	obs_data_set_default_int(data, "bitrate", 6000);
 	obs_data_set_default_int(data, P_BITRATE_PEAK, 9000);
 	obs_data_set_default_int(data, P_QP_IFRAME, 22);
 	obs_data_set_default_int(data, P_QP_PFRAME, 22);
@@ -109,6 +111,7 @@ void Plugin::Interface::H265Interface::get_defaults(obs_data_t* data) noexcept
 	obs_data_set_default_double(data, P_VBVBUFFER_INITIALFULLNESS, 100);
 
 	// Picture Control
+	//PRISM/LiuHaibin/20200328/#/change default value
 	obs_data_set_default_double(data, P_INTERVAL_KEYFRAME, 2.0);
 	obs_data_set_default_int(data, P_PERIOD_IDR_H265, 0);
 	obs_data_set_default_double(data, P_INTERVAL_IFRAME, 0.0);
@@ -226,9 +229,11 @@ obs_properties_t* Plugin::Interface::H265Interface::get_properties(void* data) n
 
 #pragma region Parameters
 	/// Bitrate Constraints
-	p = obs_properties_add_int(props, "bitrate", P_TRANSLATE(P_BITRATE_TARGET), 0, 1, 1);
+	//PRISM/LiuHaibin/20200328/#/change default value
+	p = obs_properties_add_int(props, "bitrate", P_TRANSLATE(P_BITRATE_TARGET), 0, 60000, 1);
 	obs_property_set_long_description(p, P_TRANSLATE(P_DESC(P_BITRATE_TARGET)));
-	p = obs_properties_add_int(props, P_BITRATE_PEAK, P_TRANSLATE(P_BITRATE_PEAK), 0, 1, 1);
+	//PRISM/LiuHaibin/20200328/#/change default value
+	p = obs_properties_add_int(props, P_BITRATE_PEAK, P_TRANSLATE(P_BITRATE_PEAK), 0, 60000, 1);
 	obs_property_set_long_description(p, P_TRANSLATE(P_DESC(P_BITRATE_PEAK)));
 
 	/// Method: Constant QP
@@ -312,7 +317,8 @@ obs_properties_t* Plugin::Interface::H265Interface::get_properties(void* data) n
 #pragma endregion VBV Buffer Strictness
 
 #pragma region VBV Buffer Size
-	p = obs_properties_add_int_slider(props, P_VBVBUFFER_SIZE, P_TRANSLATE(P_VBVBUFFER_SIZE), 1, 1000000, 1);
+	//PRISM/LiuHaibin/20200328/#/change default value
+	p = obs_properties_add_int_slider(props, P_VBVBUFFER_SIZE, P_TRANSLATE(P_VBVBUFFER_SIZE), 1, 60000, 1);
 	obs_property_set_long_description(p, P_TRANSLATE(P_DESC(P_VBVBUFFER_SIZE)));
 #pragma endregion VBV Buffer Size
 
@@ -325,7 +331,7 @@ obs_properties_t* Plugin::Interface::H265Interface::get_properties(void* data) n
 	// Picture Control
 #pragma region Interval and Periods
 	/// Keyframe, IDR
-	p = obs_properties_add_float(props, P_INTERVAL_KEYFRAME, P_TRANSLATE(P_INTERVAL_KEYFRAME), 0, 100, 0.001);
+	p = obs_properties_add_float(props, P_INTERVAL_KEYFRAME, P_TRANSLATE(P_INTERVAL_KEYFRAME), 1.01, 100, 0.001);
 	obs_property_set_long_description(p, P_TRANSLATE(P_DESC(P_INTERVAL_KEYFRAME)));
 	p = obs_properties_add_int(props, P_PERIOD_IDR_H265, P_TRANSLATE(P_PERIOD_IDR_H265), 0, 1000, 1);
 	obs_property_set_long_description(p, P_TRANSLATE(P_DESC(P_PERIOD_IDR_H265)));
@@ -536,11 +542,15 @@ bool Plugin::Interface::H265Interface::properties_modified(obs_properties_t* pro
 		auto tmp_l = enc.func();                                                    \
 		obs_property_int_set_limits(tmp_p, (int)tmp_l.first, (int)tmp_l.second, 1); \
 	}
+	//PRISM/LiuHaibin/20200330/#/limit max value if it's too big
 #define TEMP_LIMIT_SLIDER_BITRATE(func, prop)                                                     \
 	{                                                                                             \
 		auto tmp_p = obs_properties_get(props, prop);                                             \
 		auto tmp_l = enc.func();                                                                  \
-		obs_property_int_set_limits(tmp_p, (int)tmp_l.first / 1000, (int)tmp_l.second / 1000, 1); \
+		int  maxBitrate = (int)tmp_l.second / 1000;                                               \
+		if (maxBitrate > 60000)                                                                   \
+			maxBitrate = 60000;							\
+		obs_property_int_set_limits(tmp_p, (int)tmp_l.first / 1000, maxBitrate, 1);	\
 	}
 
 			//TEMP_LIMIT_DROPDOWN(CapsUsage, AMD::Usage, P_USAGE);

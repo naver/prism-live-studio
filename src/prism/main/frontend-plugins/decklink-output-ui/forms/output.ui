@@ -80,7 +80,7 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="startOutput">
+      <widget class="QPushButton" name="outputButton">
        <property name="minimumSize">
         <size>
          <width>130</width>
@@ -89,19 +89,6 @@
        </property>
        <property name="text">
         <string>Start</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="stopOutput">
-       <property name="minimumSize">
-        <size>
-         <width>130</width>
-         <height>40</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>Stop</string>
        </property>
       </widget>
      </item>
@@ -146,7 +133,7 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="startPreviewOutput">
+      <widget class="QPushButton" name="previewOutputButton">
        <property name="minimumSize">
         <size>
          <width>130</width>
@@ -155,19 +142,6 @@
        </property>
        <property name="text">
         <string>Start</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="stopPreviewOutput">
-       <property name="minimumSize">
-        <size>
-         <width>130</width>
-         <height>40</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>Stop</string>
        </property>
       </widget>
      </item>

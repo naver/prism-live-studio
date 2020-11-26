@@ -21,6 +21,8 @@
 #include <cinttypes>
 #include "utility.hpp"
 
+/* clang-format off */
+
 #define PREFIX "[H265]<Id: %lld> "
 
 using namespace Plugin;
@@ -1510,3 +1512,6 @@ void Plugin::AMD::EncoderH265::LogProperties()
 #pragma endregion Experimental
 }
 #endif
+
+
+/* clang-format on */

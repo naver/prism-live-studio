@@ -1,7 +1,7 @@
 #ifndef PLSCOLORDIALOGVIEW_HPP
 #define PLSCOLORDIALOGVIEW_HPP
 
-#include <QColorDialog>
+#include "qcolordialog.hpp"
 
 #include "frontend-api-global.h"
 #include "dialog-view.hpp"
@@ -12,8 +12,8 @@ class FRONTEND_API PLSColorDialogView : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	explicit PLSColorDialogView(QWidget *parent = nullptr);
-	explicit PLSColorDialogView(const QColor &initial, QWidget *parent = nullptr);
+	explicit PLSColorDialogView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSColorDialogView(const QColor &initial, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSColorDialogView();
 
 public:

@@ -2,9 +2,9 @@
 #define LOADINGFRAME_H
 
 #include <QFrame>
-#include <QTimer>
-#include <QPixmap>
 #include <QImage>
+#include <QPixmap>
+#include <QTimer>
 
 /* this is UI for busy view while requesting */
 namespace Ui {

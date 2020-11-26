@@ -14,7 +14,9 @@
 #include <QNetworkCookie>
 #include <QVariant>
 #include <QFileInfo>
+#include "../../prism/main/pls-gpop-data.hpp"
 #include "cancel.hpp"
+#include "obs.hpp"
 
 class PLSLoginInfo;
 
@@ -24,16 +26,60 @@ enum class PLSResultCheckingResult { Ok, Continue, Close };
   * browser result check
   * param:
   *     [out] result: project name
-  *     [in] url: url 
+  *     [in] url: url
   *     [in] cookies: cookies
   * return:
   *     true for success
   */
 using pls_result_checking_callback_t = PLSResultCheckingResult (*)(QJsonObject &result, const QString &url, const QMap<QString, QString> &cookies);
 
+/**
+  * register login module info
+  * param:
+  *     [in] login_info: login info
+  * return:
+  *     true for success, false for failed
+  */
+FRONTEND_API bool pls_register_login_info(PLSLoginInfo *login_info);
+/**
+  * unregister login module info
+  * param:
+  *     [in] login_info: login info
+  */
+FRONTEND_API void pls_unregister_login_info(PLSLoginInfo *login_info);
+/**
+  * get registered login module info count
+  * return:
+  *     count
+  */
+FRONTEND_API int pls_get_login_info_count();
+/**
+  * get registered login module info count
+  * param:
+  *     [in] index: index (0 ~ pls_get_login_info_count() - 1)
+  * return:
+  *     login info
+  */
+FRONTEND_API PLSLoginInfo *pls_get_login_info(int index);
 
-FRONTEND_API void pls_delete_specific_url_cookie(const QString &url);
+FRONTEND_API void del_pannel_cookies(const QString &pannelName);
+/**
+  * del all cookie cache
+  */
 
+//FRONTEND_API void pls_del_all_cookie();
+/**
+  * del special url cookie cache
+  */
+FRONTEND_API void pls_delete_specific_url_cookie(const QString &url, const QString &cookieName = QString());
+/**
+  * transfrom map to json
+  * param:
+  *     [in] ssmap: string map
+  * return:
+  *     json object
+  */
+FRONTEND_API QJsonObject pls_ssmap_to_json(const QMap<QString, QString> &ssmap);
 
 /**
   * popup browser view
@@ -57,7 +103,8 @@ FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, pls_res
   * return:
   *     json object
   */
-FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const std::map<std::string, std::string> &headers, pls_result_checking_callback_t callback, QWidget *parent = nullptr);
+FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelName, pls_result_checking_callback_t callback,
+				   QWidget *parent = nullptr);
 /**
   * popup rtmp view
   * param:
@@ -144,14 +191,19 @@ FRONTEND_API QString pls_get_oauth_token_from_url(const QString &url_str);
 /**
 * get youtube code info from url
 */
-FRONTEND_API QString pls_get_youtube_code_from_url(const QString &url_str);
+FRONTEND_API QString pls_get_code_from_url(const QString &url_str);
 /*
-* channel login 
+* channel login
 */
 FRONTEND_API bool pls_channel_login(QJsonObject &result, const QString &accountName, QWidget *parent);
 
+FRONTEND_API Common pls_get_gpop_common();
+FRONTEND_API VliveNotice pls_get_vlive_notice();
 
-
+/*
+* get sns login callback url
+*/
+FRONTEND_API QMap<QString, SnsCallbackUrl> pls_get_gpop_snscallback_urls();
 
 /*
 * get bulid Date
@@ -161,8 +213,12 @@ FRONTEND_API long long pls_get_gpop_bulid_data();
 * get log level
 */
 FRONTEND_API QString pls_get_gpop_log_level();
+/*
+* get connection data include apis and fallback .Connection struct for details.
+*/
+FRONTEND_API Connection pls_get_gpop_connection();
 
-
+FRONTEND_API QMap<int, RtmpDestination> pls_get_rtmpDestination();
 /*
 * get gcc data
 */
@@ -291,6 +347,16 @@ FRONTEND_API void pls_toast_message(pls_toast_info_type type, const QString &mes
 /**
   * get top level widget
   * param:
+  *     [in] type: message type
+  *     [in] message: message content
+  *     [in] url: text url
+  *     [in] replaceStr: replace string
+  *     [in] auto_close: auto close timeout(millisecond)
+  */
+FRONTEND_API void pls_toast_message(pls_toast_info_type type, const QString &message, const QString &url, const QString &replaceStr, int auto_close = 5000);
+/**
+  * get top level widget
+  * param:
   *     [in] widget: child widget
   * return:
   *     top level widget
@@ -330,8 +396,81 @@ FRONTEND_API uint64_t pls_basic_config_get_uint(const char *section, const char 
 FRONTEND_API bool pls_basic_config_get_bool(const char *section, const char *name, bool defaultValue = false);
 FRONTEND_API double pls_basic_config_get_double(const char *section, const char *name, double defaultValue = 0.0);
 
+enum class pls_check_update_result_t {
+	Ok = 0x01,
+	Failed = 0x02,
+	HasUpdate = 0x10,
+	OkNoUpdate = Ok,
+	OkHasUpdate = Ok | HasUpdate,
+};
+
+enum class pls_upload_file_result_t {
+	Ok = 0x01,
+	NetworkError = 0x02,
+};
+
 /**
-  * get new notice url 
+  * check update
+  * param:
+  *     [out] gcc: gcc
+  *     [out] is_force: is force update
+  *     [out] version: new version
+  *     [out] file_url: new file url
+  *     [out] update_info_url: update info url
+  * return:
+  *     check result
+  */
+FRONTEND_API pls_check_update_result_t pls_check_update(QString &gcc, bool &is_force, QString &version, QString &file_url, QString &update_info_url);
+
+/**
+  * check update
+  * param:
+  *     [out] file_url: new file url
+  * return:
+  *     check result
+  */
+FRONTEND_API bool pls_check_lastest_version(QString &update_info_url);
+
+/**
+  * show update info
+  * param:
+  *     [in] email: email address
+  *     [in] question: question
+  *     [in] files: file list
+  */
+FRONTEND_API pls_upload_file_result_t pls_upload_contactus_files(const QString &email, const QString &question, const QList<QFileInfo> files);
+
+/**
+  * show update info
+  * param:
+  *     [in] is_force: is force update
+  *     [in] version: new version
+  *     [in] file_url: new file url
+  *     [in] update_info_url: update info url
+  *     [in] is_manual: is manual update
+  * return:
+  *     true is download update, false other else
+  */
+FRONTEND_API bool pls_show_update_info_view(bool is_force, const QString &version, const QString &file_url, const QString &update_info_url, bool is_manual = false, QWidget *parent = nullptr);
+/**
+  * download update
+  * param:
+  *     [out] local_file_path: saved local file path
+  *     [in] file_url: new file url
+  *     [in] cancel: true for cancel download
+  *     [in] progress: progress callback
+  * return:
+  *     true download success
+  */
+FRONTEND_API bool pls_download_update(QString &local_file_path, const QString &file_url, PLSCancel &cancel, const std::function<void(qint64 download_bytes, qint64 total_bytes)> &progress);
+/**
+  * install update
+  * param:
+  *     [in] file_path: update file path
+  */
+FRONTEND_API bool pls_install_update(const QString &file_path);
+/**
+  * get new notice url
   * return:
   *     url
   */
@@ -386,12 +525,12 @@ FRONTEND_API void pls_flush_style(QWidget *widget, const char *propertyName, con
 */
 FRONTEND_API void pls_flush_style_recursive(QWidget *widget, const char *propertyName, const QVariant &propertyValue);
 /*
-* if the window Right Margin is out of the scrren, then move it to screen right border. 
+* if the window Right Margin is out of the scrren, then move it to screen right border.
 */
 
 FRONTEND_API void pls_window_right_margin_fit(QWidget *widget);
 /*
-* widget style sheet 
+* widget style sheet
 */
 FRONTEND_API void pls_load_stylesheet(QWidget *widget, const QStringList &filePaths);
 
@@ -404,3 +543,64 @@ FRONTEND_API void pls_set_config_path(PfnGetConfigPath getConfigPath);
 FRONTEND_API void pls_http_request_head(QVariantMap &headMap, bool hasGacc = true);
 
 FRONTEND_API std::string pls_get_offline_javaScript();
+FRONTEND_API QString pls_get_md5(const QString &originStr, const QString &prefix = "");
+
+FRONTEND_API void pls_start_broadcast(bool toStart = true);
+FRONTEND_API void pls_start_record(bool toStart = true);
+
+//add by xiewei
+FRONTEND_API OBSSource pls_get_source_by_name(const char *name);
+FRONTEND_API OBSData pls_get_source_setting(const obs_source_t *source);
+FRONTEND_API OBSData pls_get_source_private_setting(const obs_source_t *source);
+FRONTEND_API OBSSource pls_get_source_by_pointer_address(void *pointerAddress);
+FRONTEND_API OBSSceneItem pls_get_sceneitem_by_pointer_address(OBSScene destScene, void *sceneitemAddress);
+FRONTEND_API OBSSceneItem pls_get_sceneitem_by_pointer_address(void *sceneitemAddress);
+
+class QButtonGroup;
+
+struct ITextMotionTemplateHelper {
+
+	virtual ~ITextMotionTemplateHelper() {}
+	virtual void initTemplateButtons() = 0;
+	virtual QMap<int, QString> getTemplateNames() = 0;
+	virtual QButtonGroup *getTemplateButtons(const QString &templateName) = 0;
+	virtual void resetButtonStyle() = 0;
+	virtual QString findTemplateGroupStr(const int &templateId) = 0;
+};
+
+FRONTEND_API ITextMotionTemplateHelper *pls_get_text_motion_template_helper_instance();
+
+/**
+  * get current application language
+  */
+FRONTEND_API QString pls_get_curreng_language();
+
+/**
+  * get actived chat channel count
+  */
+FRONTEND_API int pls_get_actived_chat_channel_count();
+
+/**
+  * get prism liveSeq
+  */
+FRONTEND_API int pls_get_prism_live_seq();
+
+/**
+  * get prism login cookie value
+  */
+FRONTEND_API QByteArray pls_get_prism_cookie_value();
+
+/**
+  * check create source is in app start loading
+  */
+FRONTEND_API bool pls_is_create_souce_in_loading();
+
+/**
+  * monitor network state
+  */
+FRONTEND_API void pls_network_state_monitor(std::function<void(bool)> &&callback);
+
+/**
+  * get network state
+  */
+FRONTEND_API bool pls_get_network_state();

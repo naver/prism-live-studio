@@ -1,13 +1,13 @@
 #pragma once
-#include <QMap>
-#include <QString>
-#include <QVariantMap>
-#include <QPluginLoader>
-#include "ChannelData_global.h"
+#include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
-#include <QCoreApplication>
 #include <QGlobalStatic>
+#include <QMap>
+#include <QPluginLoader>
+#include <QString>
+#include <QVariantMap>
+#include "ChannelData_global.h"
 
 using ChannelsMap = QMap<QString, QVariantMap>;
 Q_DECLARE_METATYPE(ChannelsMap)

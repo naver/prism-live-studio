@@ -80,7 +80,9 @@ QSV_Encoder_Internal::QSV_Encoder_Internal(mfxIMPL &impl, mfxVersion &version)
 	  m_pTaskPool(NULL),
 	  m_nTaskIdx(0),
 	  m_nFirstSyncTask(0),
-	  m_outBitstream()
+	  m_outBitstream(),
+	  //PRISM/LiuHaibin/20201027/#5451/mark if qsv encoder is correctly initialized.
+	  m_bInitialized(false)
 {
 	mfxIMPL tempImpl;
 	mfxStatus sts;
@@ -188,6 +190,11 @@ mfxStatus QSV_Encoder_Internal::Open(qsv_param_t *pParams)
 	if (sts >= MFX_ERR_NONE) {
 		g_numEncodersOpen++;
 	}
+
+	//PRISM/LiuHaibin/20201027/#5451/mark if qsv encoder is correctly initialized.
+	if (sts == MFX_ERR_NONE)
+		m_bInitialized = true;
+
 	return sts;
 }
 
@@ -464,6 +471,10 @@ mfxStatus QSV_Encoder_Internal::Encode(uint64_t ts, uint8_t *pDataY,
 				       uint8_t *pDataUV, uint32_t strideY,
 				       uint32_t strideUV, mfxBitstream **pBS)
 {
+	//PRISM/LiuHaibin/20201027/#5451/do not allow call encode when qsv encoder is not correctly initialized.
+	if (!m_bInitialized)
+		return MFX_ERR_NOT_INITIALIZED;
+
 	mfxStatus sts = MFX_ERR_NONE;
 	*pBS = NULL;
 	int nTaskIdx = GetFreeTaskIndex(m_pTaskPool, m_nTaskPool);
@@ -618,6 +629,8 @@ mfxStatus QSV_Encoder_Internal::ClearData()
 		g_DX_Handle = NULL;
 	}
 	m_session.Close();
+	//PRISM/LiuHaibin/20201027/#5451/mark if qsv encoder is correctly initialized.
+	m_bInitialized = false;
 	return sts;
 }
 

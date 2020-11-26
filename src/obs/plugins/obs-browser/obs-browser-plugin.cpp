@@ -33,6 +33,10 @@
 #include "browser-version.h"
 #include "browser-config.h"
 
+//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+#include "interaction/interaction_manager.h"
+#include "interaction/interaction_image.h"
+
 #include "json11/json11.hpp"
 #include "cef-headers.hpp"
 
@@ -48,6 +52,10 @@
 #include <QThread>
 #endif
 
+//PRISM/Zhangdewen/20201102/#5550/for chat source
+#include <QTimer>
+#include <QApplication>
+
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-browser", "en-US")
 
@@ -61,9 +69,16 @@ os_event_t *cef_started_event = nullptr;
 static int adapterCount = 0;
 static std::wstring deviceId;
 
+//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+static ULONG_PTR gdiplus_token;
+
+void ExecuteOnAllBrowsers(BrowserFunc func);
+
 #if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED
 bool hwaccel = false;
 #endif
+extern void register_prism_text_motion_source();
+extern void release_prism_text_motion_source();
 
 /* ========================================================================= */
 
@@ -101,14 +116,10 @@ bool QueueCEFTask(std::function<void()> task)
 
 /* ========================================================================= */
 
-static const char *default_css = "\
-body { \
-background-color: rgba(0, 0, 0, 0); \
-margin: 0px auto; \
-overflow: hidden; \
-}";
+//PRISM/WangShaohui/20200521/#2888/for default css
+static const char *default_css = "";
 
-static void browser_source_get_defaults(obs_data_t *settings)
+void browser_source_get_defaults(obs_data_t *settings)
 {
 	//PRISM/WangShaohui/20200221/#NoIssue/for default params
 	obs_data_set_default_string(settings, "url",
@@ -125,7 +136,12 @@ static void browser_source_get_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, "shutdown", false);
 	obs_data_set_default_bool(settings, "restart_when_active", false);
 	obs_data_set_default_string(settings, "css", default_css);
-	obs_data_set_default_bool(settings, "reroute_audio", false);
+
+	//PRISM/Liuying/20200602/#NoIssue/New UX: default value: true
+	obs_data_set_default_bool(settings, "reroute_audio", true);
+
+	//PRISM/Wangshaohui/20201021/#5271/for cef hardware accelerate
+	obs_data_set_default_bool(settings, "hardware_accelerate", true);
 }
 
 static bool is_local_file_modified(obs_properties_t *props, obs_property_t *,
@@ -150,13 +166,15 @@ static bool is_fps_custom(obs_properties_t *props, obs_property_t *,
 	return true;
 }
 
-static obs_properties_t *browser_source_get_properties(void *data)
+obs_properties_t *browser_source_get_properties(void *data)
 {
 	obs_properties_t *props = obs_properties_create();
 	BrowserSource *bs = static_cast<BrowserSource *>(data);
 	DStr path;
 
-	obs_properties_set_flags(props, OBS_PROPERTIES_DEFER_UPDATE);
+	// PRISM/WangShaohui/20200408/#1948/for applying browser's settings as soon
+	//obs_properties_set_flags(props, OBS_PROPERTIES_DEFER_UPDATE);
+
 	obs_property_t *prop = obs_properties_add_bool(
 		props, "is_local_file", obs_module_text("LocalFile"));
 
@@ -172,7 +190,7 @@ static obs_properties_t *browser_source_get_properties(void *data)
 
 	obs_property_set_modified_callback(prop, is_local_file_modified);
 	obs_properties_add_path(props, "local_file",
-				obs_module_text("Local file"), OBS_PATH_FILE,
+				obs_module_text("LocalFile"), OBS_PATH_FILE,
 				"*.*", path->array);
 	obs_properties_add_text(props, "url", obs_module_text("URL"),
 				OBS_TEXT_DEFAULT);
@@ -182,6 +200,10 @@ static obs_properties_t *browser_source_get_properties(void *data)
 	obs_properties_add_int(props, "height", obs_module_text("Height"), 1,
 			       4096, 1);
 
+	//PRISM/Liuying/20200602/#NoIssue/New UX: change reroute_audio pos before fps_custom.
+	obs_properties_add_bool(props, "reroute_audio",
+				obs_module_text("RerouteAudio"));
+
 	obs_property_t *fps_set = obs_properties_add_bool(
 		props, "fps_custom", obs_module_text("CustomFrameRate"));
 	obs_property_set_modified_callback(fps_set, is_fps_custom);
@@ -190,9 +212,6 @@ static obs_properties_t *browser_source_get_properties(void *data)
 	obs_property_set_enabled(fps_set, false);
 #endif
 
-	obs_properties_add_bool(props, "reroute_audio",
-				obs_module_text("RerouteAudio"));
-
 	obs_properties_add_int(props, "fps", obs_module_text("FPS"), 1, 60, 1);
 	obs_properties_add_text(props, "css", obs_module_text("CSS"),
 				OBS_TEXT_MULTILINE);
@@ -200,6 +219,13 @@ static obs_properties_t *browser_source_get_properties(void *data)
 				obs_module_text("ShutdownSourceNotVisible"));
 	obs_properties_add_bool(props, "restart_when_active",
 				obs_module_text("RefreshBrowserActive"));
+
+	//PRISM/Wangshaohui/20201021/#5271/for cef hardware accelerate
+	obs_property_t *gpu_set =
+		obs_properties_add_bool(props, "hardware_accelerate",
+					obs_module_text("HardwareAccelerate"));
+	obs_property_set_long_description(
+		gpu_set, obs_module_text("HardwareAccelerateTips"));
 
 	obs_properties_add_button(
 		props, "refreshnocache", obs_module_text("RefreshNoCache"),
@@ -275,7 +301,18 @@ static void BrowserInit(void)
 
 	app = new BrowserApp(tex_sharing_avail);
 	CefExecuteProcess(args, app, nullptr);
+#ifdef _WIN32
+	/* Massive (but amazing) hack to prevent chromium from modifying our
+	 * process tokens and permissions, which caused us problems with winrt,
+	 * used with window capture.  Note, the structure internally is just
+	 * two pointers normally.  If it causes problems with future versions
+	 * we'll just switch back to the static library but I doubt we'll need
+	 * to. */
+	uintptr_t zeroed_memory_lol[32] = {};
+	CefInitialize(args, settings, app, zeroed_memory_lol);
+#else
 	CefInitialize(args, settings, app, nullptr);
+#endif
 #if !ENABLE_LOCAL_FILE_URL_SCHEME
 	/* Register http://absolute/ scheme handler for older
 	 * CEF builds which do not support file:// URLs */
@@ -369,6 +406,9 @@ void RegisterBrowserSource()
 		static_cast<BrowserSource *>(data)->EnumAudioStreams(cb, param);
 	};
 #endif
+
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+	/*
 	info.mouse_click = [](void *data, const struct obs_mouse_event *event,
 			      int32_t type, bool mouse_up,
 			      uint32_t click_count) {
@@ -392,6 +432,12 @@ void RegisterBrowserSource()
 			    bool key_up) {
 		static_cast<BrowserSource *>(data)->SendKeyClick(event, key_up);
 	};
+	*/
+
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+	info.set_private_data = BrowserSource::SetBrowserData;
+	info.get_private_data = BrowserSource::GetBrowserData;
+
 	info.show = [](void *data) {
 		static_cast<BrowserSource *>(data)->SetShowing(true);
 	};
@@ -508,32 +554,22 @@ static const wchar_t *blacklisted_devices[] = {
 #endif
 
 extern void DispatchPrismEvent(const char *eventName, const char *jsonString);
+extern void DispatchPrismEvent(obs_source_t *source, const char *eventName,
+			       const char *jsonString);
 
-bool obs_module_load(void)
+static inline bool is_intel(const std::wstring &str)
 {
-	blog(LOG_INFO, "[obs-browser]: Version %s", OBS_BROWSER_VERSION_STRING);
-
-#ifdef USE_QT_LOOP
-	qRegisterMetaType<MessageTask>("MessageTask");
-#endif
-
-	os_event_init(&cef_started_event, OS_EVENT_TYPE_MANUAL);
-
-	CefEnableHighDPISupport();
-
-#ifdef _WIN32
-	EnumAdapterCount();
-#endif
-	RegisterBrowserSource();
-	obs_frontend_add_event_callback(handle_obs_frontend_event, nullptr);
+	return wstrstri(str.c_str(), L"Intel") != 0;
+}
 
 #if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED
-	obs_data_t *private_data = obs_get_private_data();
-	hwaccel = obs_data_get_bool(private_data, "BrowserHWAccel");
-	if (hwaccel) {
-		/* do not use hardware acceleration if a blacklisted device is
-		 * the default and on 2 or more adapters */
-		const wchar_t **device = blacklisted_devices;
+static void check_hwaccel_support(void)
+{
+	/* do not use hardware acceleration if a blacklisted device is the
+	 * default and on 2 or more adapters */
+	const wchar_t **device = blacklisted_devices;
+
+	if (adapterCount >= 2 || !is_intel(deviceId)) {
 		while (*device) {
 			if (!!wstrstri(deviceId.c_str(), *device)) {
 				hwaccel = false;
@@ -548,16 +584,80 @@ bool obs_module_load(void)
 			device++;
 		}
 	}
+}
+#endif
+
+typedef int(__cdecl *PfnGetConfigPath)(char *path, size_t size,
+				       const char *name);
+PfnGetConfigPath GetConfigPath;
+
+bool obs_module_load(void)
+{
+	blog(LOG_INFO, "[obs-browser]: Version %s", OBS_BROWSER_VERSION_STRING);
+
+	HMODULE hFrontEndApi = GetModuleHandleA("frontend-api.dll");
+	if (hFrontEndApi) {
+		PfnGetConfigPath (*pls_get_config_path)() =
+			(PfnGetConfigPath(*)())GetProcAddress(
+				hFrontEndApi, "pls_get_config_path_c");
+		GetConfigPath = pls_get_config_path();
+		char configPath[512];
+		int ret = GetConfigPath(configPath, sizeof(configPath),
+					"PRISMLiveStudio/textmotion/");
+	}
+
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+	{
+		Gdiplus::GdiplusStartupInput startup_input;
+		GdiplusStartup(&gdiplus_token, &startup_input, NULL);
+
+		ImageManager::Instance();
+		InteractionManager::Instance();
+		InteractionView::RegisterClassName();
+		BrowserInteractionMain::RegisterClassName();
+	}
+
+#ifdef USE_QT_LOOP
+	qRegisterMetaType<MessageTask>("MessageTask");
+#endif
+
+	os_event_init(&cef_started_event, OS_EVENT_TYPE_MANUAL);
+
+	CefEnableHighDPISupport();
+
+#ifdef _WIN32
+	EnumAdapterCount();
+#endif
+	RegisterBrowserSource();
+	register_prism_text_motion_source();
+
+	obs_frontend_add_event_callback(handle_obs_frontend_event, nullptr);
+
+#if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED
+	obs_data_t *private_data = obs_get_private_data();
+	hwaccel = obs_data_get_bool(private_data, "BrowserHWAccel");
+	if (hwaccel) {
+		check_hwaccel_support();
+	}
 	obs_data_release(private_data);
 #endif
 
 	prism_frontend_dispatch_js_event = DispatchPrismEvent;
+	prism_frontend_dispatch_js_event_to_source = DispatchPrismEvent;
 
 	return true;
 }
 
 void obs_module_unload(void)
 {
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+	{
+		ImageManager::Instance()->ClearImage();
+		InteractionView::UnregisterClassName();
+		BrowserInteractionMain::UnregisterClassName();
+		Gdiplus::GdiplusShutdown(gdiplus_token);
+	}
+
 #ifdef USE_QT_LOOP
 	BrowserShutdown();
 #else

@@ -92,6 +92,7 @@ void PLSGdiCapture::draw_window(int offset_x, int offset_y)
 	if (!gdi_data_handle)
 		return;
 
+	memset(gdi_data_handle->buffer, 0, width * 4 * height);
 	::BitBlt(gdi_data_handle->dest_dc, 0, 0, width, height, gdi_data_handle->source_dc, offset_x, offset_y, SRCCOPY);
 }
 

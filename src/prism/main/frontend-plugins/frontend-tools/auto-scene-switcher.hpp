@@ -7,7 +7,7 @@
 #include <dialog-view.hpp>
 
 #include "ui_auto-scene-switcher.h"
-
+#include "PLSDpiHelper.h"
 struct obs_weak_source;
 typedef struct obs_weak_source obs_weak_source_t;
 
@@ -20,7 +20,7 @@ public:
 	std::unique_ptr<Ui_SceneSwitcher> ui;
 	bool loading = true;
 
-	SceneSwitcher(QWidget *parent);
+	SceneSwitcher(QWidget *parent, PLSDpiHelper dpiHelper = PLSDpiHelper());
 
 	void closeEvent(QCloseEvent *event) override;
 

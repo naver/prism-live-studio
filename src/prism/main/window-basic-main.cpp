@@ -36,6 +36,7 @@
 #include <util/profiler.hpp>
 #include <util/dstr.hpp>
 
+#include "PLSBlockDump.h"
 #include "pls-app.hpp"
 #include "platform.hpp"
 #include "visibility-item-widget.hpp"
@@ -67,7 +68,15 @@
 #include "pls-common-language.hpp"
 #include "pls-net-url.hpp"
 #include "PLSChannelsEntrance.h"
-#include "PLSAudioMixerScrollBar.h"
+#include "PLSChannelDataAPI.h"
+#include "PLSCommonScrollBar.h"
+#include "PLSBeautyDataMgr.h"
+#include "PLSBackgroundMusicView.h"
+#include "PLSBgmDataManager.h"
+#include "GiphyDownloader.h"
+#include "GiphyDefine.h"
+#include "PLSRegionCapture.h"
+#include "json-data-handler.hpp"
 #include < fstream >
 #include <sstream>
 
@@ -77,17 +86,17 @@
 #include <fstream>
 #include <sstream>
 
-#include <QScreen>
 #include <QWindow>
 #include <QList>
+#include <Windows.h>
 
-#include <json11.hpp>
+//#include <json11.hpp>//todo : compile error
+#include "pls-gpop-data.hpp"
+#include "pls-common-define.hpp"
 
 #include "pls-common-define.hpp"
 #include "about-view.hpp"
-#include "notice-view.hpp"
 #include "pls-complex-header-icon.hpp"
-#include "pls-notice-handler.hpp"
 
 #include "log.h"
 #include "action.h"
@@ -95,17 +104,27 @@
 #include "PLSAddSourceMenuStyle.hpp"
 #include "PLSAction.h"
 #include "PLSMenu.hpp"
-#include "PLSContactView.hpp"
 #include "PLSOpenSourceView.h"
+#include "PLSBeautyFilterView.h"
+#include "PLSGipyStickerView.h"
+#include "PLSChatDialog.h"
+#include "pls-app.hpp"
 
 #include "PLSPlatformApi.h"
+#include "PLSMediaController.h"
+#include "PLSChatHelper.h"
+#include "obs.hpp"
 
+#define UPDATE_MESSAGE_INFO "UpdateMessageInfo"
+#define UPDATE_VERSION_INFO "UpdateVersionInfo"
 #define CONFIG_BASIC_WINDOW_MODULE "BasicWindow"
 #define CONFIG_PREVIEW_MODE_MODULE "PreviewProgramMode"
 #define MAIN_FRAME "MainFrame"
+#define IS_ALWAYS_ON_TOP_FIRST_SETTED "isAlwaysOnTopFirstSetted"
 
-using namespace json11;
+//using namespace json11;
 using namespace std;
+#define UseFreeMusic
 
 #ifdef BROWSER_AVAILABLE
 #include <browser-panel.hpp>
@@ -114,14 +133,22 @@ using namespace std;
 #include "ui-config.h"
 
 #define RESTARTAPP 1024
+
 struct QCef;
 struct QCefCookieManager;
 
 QCef *cef = nullptr;
 QCefCookieManager *panel_cookies = nullptr;
+QCefCookieManager *pannel_chat_cookies = nullptr;
+
+enum { NdiSuccess = 0, NoNdiRuntimeFound = 1, NDIInitializeFail = 2 };
+int (*loadNDIRuntime)() = nullptr;
 
 void DestroyPanelCookieManager();
-void restartApp();
+
+static bool enumItemToVector(obs_scene_t *, obs_sceneitem_t *item, void *ptr);
+extern QRect normalShow(PLSWidgetDpiAdapter *adapter, const QRect &screenAvailableGeometry, QRect &geometryOfNormal);
+extern QRect getScreenAvailableRect(QWidget *widget);
 namespace {
 
 QDataStream &operator<<(QDataStream &out, const SignalContainer<OBSScene> &sc)
@@ -137,11 +164,19 @@ QDataStream &operator>>(QDataStream &in, SignalContainer<OBSScene> &sc)
 
 	obs_source_t *source = obs_get_source_by_name(QT_TO_UTF8(sceneName));
 	sc.ref = obs_scene_from_source(source);
+	obs_source_release(source);
 
 	in >> sc.handlers;
 
 	return in;
 }
+
+class StatsDialogView : public PLSDialogView {
+public:
+	StatsDialogView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper) {}
+
+	void onScreenAvailableGeometryChanged(const QRect &screenAvailableGeometry) override { Q_UNUSED(screenAvailableGeometry) }
+};
 }
 
 extern volatile long insideEventLoop;
@@ -152,6 +187,7 @@ Q_DECLARE_METATYPE(OBSSceneItem);
 Q_DECLARE_METATYPE(OBSSource);
 Q_DECLARE_METATYPE(obs_order_movement);
 Q_DECLARE_METATYPE(SignalContainer<OBSScene>);
+Q_DECLARE_METATYPE(DShowSourceVecType);
 
 template<typename T> static T GetPLSRef(QListWidgetItem *item)
 {
@@ -223,6 +259,10 @@ void assignDockToggle(PLSBasic *basic, PLSDock *dock, QAction *action, const cha
 		} else {
 			QMetaObject::invokeMethod(basic, "SetDocksMovePolicy", Q_ARG(PLSDock *, dock));
 		}
+
+		if (!dock->isVisible()) {
+			dock->setVisible(true);
+		}
 	});
 	QObject::connect(dock, &QDockWidget::topLevelChanged, [action, dockName](bool isFloating) {
 		PLS_INFO(MAINMENU_MODULE, "%s %s", dockName, isFloating ? "Floating" : "Docking");
@@ -231,13 +271,80 @@ void assignDockToggle(PLSBasic *basic, PLSDock *dock, QAction *action, const cha
 	});
 }
 
+static PLSDialogView *newStatsPopup(QWidget *widget, const QSize &fixSize)
+{
+	PLSDpiHelper dpiHelper;
+	PLSDialogView *statsPopup = new StatsDialogView(widget, dpiHelper);
+	dpiHelper.setFixedSize(statsPopup, fixSize);
+	return statsPopup;
+}
+
+QStringList getActivedChatChannels()
+{
+	auto activedPlatforms = PLS_PLATFORM_ACTIVIED;
+	activedPlatforms.sort([](PLSPlatformBase *a, PLSPlatformBase *b) { return a->getChannelOrder() < b->getChannelOrder(); });
+
+	QStringList activedChatChannels;
+	for (PLSPlatformBase *platform : PLS_PLATFORM_ACTIVIED) {
+		auto index = PLS_CHAT_HELPER->getIndexFromInfo(platform->getInitData());
+		if (!PLS_CHAT_HELPER->isCefWidgetIndex(index)) {
+			continue;
+		} else if (!((index == PLSChatHelper::ChatIndexTwitch) || (index == PLSChatHelper::ChatIndexYoutube) || (index == PLSChatHelper::ChatIndexFacebook) ||
+			     (index == PLSChatHelper::ChatIndexNaverTV) || (index == PLSChatHelper::ChatIndexAfreecaTV))) {
+			continue;
+		} else {
+			activedChatChannels.append(platform->getChannelName());
+		}
+	}
+	return activedChatChannels;
+}
+
+int getActivedChatChannelCount()
+{
+	return getActivedChatChannels().length();
+}
+
+bool hasActivedChatChannel()
+{
+	return getActivedChatChannelCount() > 0;
+}
+
+bool hasChatSource()
+{
+	bool found = false;
+	obs_enum_sources(
+		[](void *param, obs_source_t *source) -> bool {
+			bool *pfound = (bool *)param;
+			const char *id = obs_source_get_id(source);
+			if (id && id[0] && !strcmp(id, PRISM_CHAT_SOURCE_ID)) {
+				*pfound = true;
+				return false;
+			}
+			return true;
+		},
+		&found);
+
+	return found;
+}
+
+bool isOutputExceed1080p(config_t *config)
+{
+	QSize size(config_get_uint(config, "Video", "OutputCX"), config_get_uint(config, "Video", "OutputCY"));
+	if (size.height() > 1080) {
+		return true;
+	}
+	return false;
+}
+
 extern void RegisterTwitchAuth();
 extern void RegisterMixerAuth();
 extern void RegisterRestreamAuth();
 
-PLSBasic::PLSBasic(PLSMainView *mainView) : PLSMainWindow(mainView), ui(new Ui::PLSBasic)
+PLSBasic::PLSBasic(PLSMainView *mainView, PLSDpiHelper dpiHelper) : PLSMainWindow(mainView), ui(new Ui::PLSBasic)
 {
 	m_isUpdateLanguage = false;
+	m_requestUpdate = false;
+	m_isPopUpdateView = false;
 	m_isSessionExpired = false;
 	this->mainView = mainView;
 	this->mainMenu = nullptr;
@@ -262,11 +369,18 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : PLSMainWindow(mainView), ui(new Ui::
 	api = InitializeAPIInterface(this);
 
 	ui->setupUi(this);
+	dpiHelper.setCss(ui->scenesDock, {PLSCssIndex::ScenesDock});
+	dpiHelper.setCss(ui->sourcesDock, {PLSCssIndex::SourcesDock});
+	dpiHelper.setCss(ui->mixerDock, {PLSCssIndex::MixerDock});
 	ui->previewDisabledWidget->setVisible(false);
 
 	startingDockLayout = saveState();
 
 	copyActionsDynamicProperties();
+
+	QSizePolicy sizePolicy = ui->preview->sizePolicy();
+	sizePolicy.setRetainSizeWhenHidden(true);
+	ui->preview->setSizePolicy(sizePolicy);
 
 	char styleSheetPath[512];
 	int ret = GetProfilePath(styleSheetPath, sizeof(styleSheetPath), "stylesheet.qss");
@@ -282,6 +396,9 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : PLSMainWindow(mainView), ui(new Ui::
 	qRegisterMetaType<OBSSource>("OBSSource");
 	qRegisterMetaType<obs_hotkey_id>("obs_hotkey_id");
 	qRegisterMetaType<SignalContainer<OBSScene>>("SignalContainer<OBSScene>");
+	qRegisterMetaType<DShowSourceVecType>("DShowSourceVecType");
+	qRegisterMetaType<TaskResponData>("TaskResponData");
+	qRegisterMetaType<obs_media_state>("obs_media_state");
 
 	qRegisterMetaTypeStreamOperators<std::vector<std::shared_ptr<OBSSignal>>>("std::vector<std::shared_ptr<OBSSignal>>");
 	qRegisterMetaTypeStreamOperators<OBSScene>("OBSScene");
@@ -329,6 +446,8 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : PLSMainWindow(mainView), ui(new Ui::
 	connect(ui->preview, &PLSQTDisplay::DisplayResized, displayResize);
 	connect(ui->preview, &PLSQTDisplay::AdjustResizeView, adjustResize);
 	connect(ui->previewTitle->transApply, &QAbstractButton::clicked, this, &PLSBasic::TransitionClicked);
+	connect(this->mainView, &PLSMainView::stickersClicked, this, &PLSBasic::OnStickerClicked);
+	connect(GiphyDownloader::instance(), &GiphyDownloader::downloadResult, this, &PLSBasic::OnStickerDownloadCallback);
 
 	delete shortcutFilter;
 	shortcutFilter = CreateShortcutFilter();
@@ -387,26 +506,41 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : PLSMainWindow(mainView), ui(new Ui::
 	addNudge(Qt::Key_Left, SLOT(NudgeLeft()));
 	addNudge(Qt::Key_Right, SLOT(NudgeRight()));
 
+	bool hasGeometryStorage = false;
 	//restore parent window geometry
 	const char *geometry = config_get_string(App()->GlobalConfig(), "BasicWindow", "geometry");
-	if (geometry != NULL) {
-		QByteArray byteArray = QByteArray::fromBase64(QByteArray(geometry));
-		mainView->restoreGeometry(byteArray);
+	if (geometry && geometry[0]) {
+		QSize initSize = dpiHelper.getInitSize(mainView);
+		dpiHelper.clearInitSize(mainView);
 
-		QRect windowGeometry = mainView->normalGeometry();
-		if (!WindowPositionValid(windowGeometry)) {
-			QRect rect = App()->desktop()->geometry();
-			mainView->setGeometry(QStyle::alignedRect(Qt::LeftToRight, Qt::AlignCenter, size(), rect));
+		QByteArray byteArray = QByteArray::fromBase64(QByteArray(geometry));
+		if (mainView->restoreGeometry(byteArray)) {
+			hasGeometryStorage = true;
+			if (!WindowPositionValid(mainView->normalGeometry())) {
+				QRect rect = App()->desktop()->geometry();
+				mainView->setGeometry(QStyle::alignedRect(Qt::LeftToRight, Qt::AlignCenter, PLSDpiHelper::calculate(mainView, initSize), rect));
+			}
+		} else {
+			dpiHelper.setInitSize(mainView, initSize);
 		}
 	}
 
-	mainView->geometryOfNormal = mainView->geometry();
-	if (config_get_bool(App()->GlobalConfig(), "BasicWindow", "FullScreenState")) {
-		mainView->isMaxState = config_get_bool(App()->GlobalConfig(), "BasicWindow", "MaximizedState");
-		mainView->showFullScreen();
-	} else if (config_get_bool(App()->GlobalConfig(), "BasicWindow", "MaximizedState")) {
-		mainView->showMaximized();
+	if (!hasGeometryStorage) {
+		dpiHelper.notifyDpiChanged(this, [=](double dpi, double oldDpi, bool firstShow) {
+			extern QRect centerShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
+
+			if (firstShow) {
+				QRect &geometryOfNormal = mainView->getGeometryOfNormal();
+				if (!geometryOfNormal.isValid()) {
+					geometryOfNormal = mainView->geometry();
+					centerShow(mainView, geometryOfNormal);
+				}
+				mainView->onSaveNormalGeometry();
+			}
+		});
 	}
+
+	connect(mainView, &PLSMainView::maxFullScreenStateChanged, this, [this](bool, bool isFullScreenState) { ui->actionFullscreenInterface->setChecked(isFullScreenState); });
 
 	ui->previewDisabledWidget->setContextMenuPolicy(Qt::CustomContextMenu);
 	connect(ui->previewDisabledWidget, SIGNAL(customContextMenuRequested(const QPoint &)), this, SLOT(PreviewDisabledMenu(const QPoint &)));
@@ -418,6 +552,7 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : PLSMainWindow(mainView), ui(new Ui::
 	});
 
 	connect(mainView, &PLSMainView::studioModeChanged, this, &PLSBasic::on_actionStudioMode_triggered);
+	connect(mainView, &PLSMainView::BeautySourceDownloadFinished, this, &PLSBasic::OnBeautySourceDownloadFinished, Qt::DirectConnection);
 
 	// process main menu shortcut
 	connect(
@@ -448,6 +583,7 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : PLSMainWindow(mainView), ui(new Ui::
 	addMainMenuShortcut("Alt+S", ui->sceneCollectionMenu);
 	addMainMenuShortcut("Alt+P", ui->profileMenu);
 	addMainMenuShortcut("Alt+T", ui->menuTools);
+	addMainMenuShortcut("Alt+H", ui->menuHelp);
 
 	obs_frontend_add_event_callback(&frontendEventHandler, this);
 	pls_frontend_add_event_callback(&frontendEventHandler, this);
@@ -457,6 +593,13 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : PLSMainWindow(mainView), ui(new Ui::
 	ui->actionRemoveScene->setShortcutContext(Qt::WidgetWithChildrenShortcut);
 	ui->scenesFrame->addAction(ui->actionRemoveScene);
 	ui->sources->addAction(ui->actionRemoveSource);
+	connect(ui->sources, &SourceTree::DshowSourceStatusChanged, this, &PLSBasic::OnDshowSourceStatusChanged, Qt::QueuedConnection);
+	connect(ui->sources, &SourceTree::SelectItemChanged, this, &PLSBasic::OnSelectItemChanged, Qt::QueuedConnection);
+	connect(ui->sources, &SourceTree::VisibleItemChanged, this, &PLSBasic::OnVisibleItemChanged, Qt::QueuedConnection);
+	connect(ui->sources, &SourceTree::itemsRemove, this, &PLSBasic::OnSourceItemsRemove, Qt::QueuedConnection);
+	connect(ui->sources, &SourceTree::itemsReorder, this, &PLSBasic::ReorderBgmSourceList, Qt::QueuedConnection);
+	connect(ui->sources, &SourceTree::itemsReorder, this, &PLSBasic::ReorderBeautySourceList, Qt::QueuedConnection);
+	connect(ui->sources, &SourceTree::beautyStatusChanged, this, &PLSBasic::OnBeautySourceStatusChanged, Qt::QueuedConnection);
 
 	mainView->addActions({ui->action_Settings, ui->actionExit, ui->actionFullscreenInterface, ui->actionCopySource, ui->actionPasteRef, ui->actionShowAbout, ui->actionPrismWebsite,
 			      ui->actionPrismFAQ, ui->actionContactUs, ui->actionEditTransform, ui->actionFitToScreen, ui->actionStretchToScreen, ui->actionResetTransform, ui->actionCenterToScreen,
@@ -466,17 +609,73 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : PLSMainWindow(mainView), ui(new Ui::
 	ui->previewTitle->OnLiveStatus(false);
 	ui->previewTitle->OnRecordStatus(false);
 
-	ui->hMixerScrollArea->setVerticalScrollBar(new PLSAudioMixerScrollBar());
-	connect(qobject_cast<PLSAudioMixerScrollBar *>(ui->hMixerScrollArea->verticalScrollBar()), &PLSAudioMixerScrollBar::isShowScrollBar, [=](bool isShow) {
-		if (isShow) {
-			ui->hVolControlLayout->setContentsMargins(0, 0, 0, 0);
-		} else {
-			ui->hVolControlLayout->setContentsMargins(0, 0, 10, 0);
-		}
-		ui->hMixerScrollArea->update();
-	});
+	auto verticalScrollBar = new PLSCommonScrollBar(ui->hMixerScrollArea);
+	ui->hMixerScrollArea->setVerticalScrollBar(verticalScrollBar);
+	connect(
+		verticalScrollBar, &PLSCommonScrollBar::isShowScrollBar, this,
+		[=](bool isShow) {
+			if (isShow) {
+				ui->hVolControlLayout->setContentsMargins(0, 0, 0, 0);
+			} else {
+				ui->hVolControlLayout->setContentsMargins(0, 0, PLSDpiHelper::calculate(this, 10), 0);
+			}
+		},
+		Qt::QueuedConnection);
 
 	connect(PLS_PLATFORM_API, &PLSPlatformApi::enterLivePrepareState, this, [=](bool disable) { ui->action_Settings->setEnabled(!disable); });
+
+	m_timerStreamIn5s.setInterval(5000);
+	m_timerStreamIn5s.setSingleShot(true);
+	m_timerRecordIn5s.setInterval(5000);
+	m_timerRecordIn5s.setSingleShot(true);
+	m_timerRelayBufferIn5s.setInterval(5000);
+	m_timerRelayBufferIn5s.setSingleShot(true);
+
+	connect(&m_timerStreamIn5s, &QTimer::timeout, this, [=] {
+		PLS_WARN(MAIN_OUTPUT, "Unfortunately, Can't stop stream in 5 seconds, Force to stop now");
+
+		if (outputHandler->StreamingActive())
+			outputHandler->StopStreaming(true);
+	});
+
+	connect(&m_timerRecordIn5s, &QTimer::timeout, this, [=] {
+		PLS_WARN(MAIN_OUTPUT, "Unfortunately, Can't stop recording in 5 seconds, Force to stop now");
+
+		if (outputHandler->RecordingActive())
+			outputHandler->StopRecording(true);
+	});
+
+	connect(&m_timerRelayBufferIn5s, &QTimer::timeout, this, [=] {
+		PLS_WARN(MAIN_OUTPUT, "Unfortunately, Can't stop replaybuffer in 5 seconds, Force to stop now");
+
+		if (outputHandler->ReplayBufferActive())
+			outputHandler->StopReplayBuffer(true);
+	});
+
+	dpiHelper.notifyDpiChanged(this, [=](double dpi, double oldDpi, bool firstShow) {
+		if (firstShow) {
+			if (config_get_bool(App()->GlobalConfig(), "BasicWindow", "FullScreenState")) {
+				mainView->isMaxState = config_get_bool(App()->GlobalConfig(), "BasicWindow", "MaximizedState");
+				mainView->showFullScreen();
+			} else if (config_get_bool(App()->GlobalConfig(), "BasicWindow", "MaximizedState")) {
+				mainView->showMaximized();
+			}
+
+			const char *dockStateStr = config_get_string(App()->GlobalConfig(), "BasicWindow", "DockState");
+			if (!dockStateStr || !dockStateStr[0]) {
+				on_resetUI_triggered();
+			} else {
+				QByteArray dockState = QByteArray::fromBase64(QByteArray(dockStateStr));
+				if (!restoreState(dockState))
+					on_resetUI_triggered();
+			}
+
+			// maybe invisible sometimes
+			ui->scenesDock->setVisible(true);
+			ui->sourcesDock->setVisible(true);
+			ui->mixerDock->setVisible(true);
+		}
+	});
 }
 
 static void SaveAudioDevice(const char *name, int channel, obs_data_t *parent, vector<OBSSource> &audioSources)
@@ -496,7 +695,7 @@ static void SaveAudioDevice(const char *name, int channel, obs_data_t *parent, v
 }
 
 static obs_data_t *GenerateSaveData(obs_data_array_t *sceneOrder, int transitionDuration, obs_data_array_t *transitions, OBSScene &scene, OBSSource &curProgramScene,
-				    obs_data_array_t *savedProjectorList)
+				    obs_data_array_t *savedProjectorList, obs_data_t *beautyConfigObj)
 {
 	obs_data_t *saveData = obs_data_create();
 
@@ -547,6 +746,7 @@ static obs_data_t *GenerateSaveData(obs_data_array_t *sceneOrder, int transition
 	obs_data_set_array(saveData, "groups", groupsArray);
 	obs_data_set_array(saveData, "transitions", transitions);
 	obs_data_set_array(saveData, "saved_projectors", savedProjectorList);
+	obs_data_set_obj(saveData, "beauty_config", beautyConfigObj);
 	obs_data_array_release(sourcesArray);
 	obs_data_array_release(groupsArray);
 
@@ -678,13 +878,15 @@ void PLSBasic::Save(const char *file)
 	obs_data_array_t *sceneOrder = SaveSceneListOrder();
 	obs_data_array_t *transitions = ui->scenesFrame->SaveTransitions();
 	obs_data_array_t *savedProjectorList = SaveProjectors();
-	obs_data_t *saveData = GenerateSaveData(sceneOrder, ui->scenesFrame->GetTransitionDurationValue(), transitions, scene, curProgramScene, savedProjectorList);
+	obs_data_t *beautyConfigObj = SaveBeautyConfig();
+	obs_data_t *saveData = GenerateSaveData(sceneOrder, ui->scenesFrame->GetTransitionDurationValue(), transitions, scene, curProgramScene, savedProjectorList, beautyConfigObj);
 
 	obs_data_set_bool(saveData, "preview_locked", ui->preview->Locked());
 	obs_data_set_bool(saveData, "scaling_enabled", ui->preview->IsFixedScaling());
 	obs_data_set_int(saveData, "scaling_level", ui->preview->GetScalingLevel());
 	obs_data_set_double(saveData, "scaling_off_x", ui->preview->GetScrollX());
 	obs_data_set_double(saveData, "scaling_off_y", ui->preview->GetScrollY());
+	obs_data_set_bool(saveData, "all_muted", ConfigAllMuted());
 
 	if (api) {
 		obs_data_t *moduleObj = obs_data_create();
@@ -700,6 +902,7 @@ void PLSBasic::Save(const char *file)
 	obs_data_array_release(sceneOrder);
 	obs_data_array_release(transitions);
 	obs_data_array_release(savedProjectorList);
+	obs_data_release(beautyConfigObj);
 }
 
 void PLSBasic::DeferSaveBegin()
@@ -765,9 +968,8 @@ void PLSBasic::CreateDefaultScene(bool firstStart)
 
 	ClearSceneData();
 	InitDefaultTransitions();
-	CreateDefaultQuickTransitions();
 	ui->scenesFrame->SetTransitionDurationValue(SCENE_TRANSITION_DEFAULT_DURATION_VALUE);
-	ui->scenesFrame->SetTransition(fadeTransition);
+	ui->scenesFrame->SetTransition(cutTransition);
 
 	obs_scene_t *scene = obs_scene_create(Str("Basic.Scene.first"));
 
@@ -832,6 +1034,113 @@ void PLSBasic::LoadSavedProjectors(obs_data_array_t *array)
 
 		obs_data_release(data);
 	}
+}
+
+void PLSBasic::LoadBeautyConfig(obs_data_t *obj)
+{
+	// Everytime the application starts up ,we should remain the newnest filter value
+	// in preset beauty json file which is download from gpop.
+	auto loadPresetConfigFromDir = [=](const QString &dirPath) {
+		QDir dir(pls_get_user_path(dirPath));
+		dir.setFilter(QDir::Files);
+		QFileInfoList list = dir.entryInfoList();
+		for (int i = 0; i < list.size(); i++) {
+			QFileInfo fileInfo = list.at(i);
+			QString name = fileInfo.fileName();
+			if (fileInfo.fileName() == "." || fileInfo.fileName() == ".." || fileInfo.isDir() || !fileInfo.fileName().contains(".json")) {
+				continue;
+			}
+
+			QByteArray byteArray;
+			if (PLSJsonDataHandler::getJsonArrayFromFile(byteArray, fileInfo.filePath())) {
+				BeautyConfig config;
+				config.filterType = i;
+				PLSBeautyDataMgr::Instance()->ParseJsonArrayToBeautyConfig(byteArray, config);
+				PLSBeautyDataMgr::Instance()->AddBeautyPresetConfig(config.beautyModel.token.strID, config);
+				continue;
+			}
+			PLS_ERROR(MAIN_BEAUTY_MODULE, "Load %s Failed.", fileInfo.filePath().toStdString().c_str());
+		}
+	};
+	loadPresetConfigFromDir(CONFIGS_BEATURY_USER_PATH);
+
+	if (obj) {
+		obs_data_array_t *customBeautyConfig = obs_data_get_array(obj, "custom_beauty_config");
+
+		auto loadCustomConfig = [=](obs_data_array_t *array) {
+			size_t num = obs_data_array_count(array);
+
+			for (size_t i = 0; i < num; ++i) {
+				BeautyConfig config;
+				obs_data_t *data = obs_data_array_item(array, i);
+
+				config.beautyModel.token.category = obs_data_get_string(data, BASE_ID);
+				config.beautyModel.token.strID = obs_data_get_string(data, FILTER_ID);
+				config.beautyStatus.beauty_enable = obs_data_get_bool(data, BEAUTY_ON);
+				config.filterIndex = obs_data_get_int(data, FILTER_INDEX);
+				config.isCurrent = obs_data_get_bool(data, IS_CURRENT);
+				config.isCustom = obs_data_get_bool(data, IS_CUSTOM);
+				config.filterType = obs_data_get_int(data, FILTER_TYPE);
+
+				obs_data_t *defaultData = obs_data_get_obj(data, DEFAULT_NODE);
+				if (!defaultData) {
+					obs_data_release(data);
+					continue;
+				}
+				config.beautyModel.defaultParam.cheek = obs_data_get_int(defaultData, CHEEK_VALUE);
+				config.beautyModel.defaultParam.cheekbone = obs_data_get_int(defaultData, CHEEKBONE_VALUE);
+				config.beautyModel.defaultParam.chin = obs_data_get_int(defaultData, CHIN_VALUE);
+				config.beautyModel.defaultParam.eyes = obs_data_get_int(defaultData, EYE_VALUE);
+				config.beautyModel.defaultParam.nose = obs_data_get_int(defaultData, NOSE_VALUE);
+				config.smoothModel.default_value = obs_data_get_int(defaultData, SKIN_VALUE);
+				obs_data_release(defaultData);
+				obs_data_release(data);
+
+				PLSBeautyDataMgr::Instance()->AddBeautyCustomConfig(config.beautyModel.token.strID, config);
+			}
+		};
+		loadCustomConfig(customBeautyConfig);
+	}
+}
+
+obs_data_t *PLSBasic::SaveBeautyConfig()
+{
+	// Only save the custom config.
+	BeautyConfigMap customConfig = PLSBeautyDataMgr::Instance()->GetBeautyCustomConfig();
+
+	auto saveConfig = [=](const BeautyConfigMap &configMap, obs_data_array_t *array) {
+		for (auto iter = configMap.cbegin(); iter != configMap.cend(); ++iter) {
+			BeautyConfig config = iter->second;
+			//common value
+			obs_data_t *data = obs_data_create();
+			obs_data_set_string(data, BASE_ID, config.beautyModel.token.category.toStdString().c_str());
+			obs_data_set_bool(data, BEAUTY_ON, config.beautyStatus.beauty_enable);
+			obs_data_set_string(data, FILTER_ID, config.beautyModel.token.strID.toStdString().c_str());
+			obs_data_set_int(data, FILTER_INDEX, config.filterIndex);
+			obs_data_set_int(data, FILTER_TYPE, config.filterType);
+			obs_data_set_bool(data, IS_CURRENT, config.isCurrent);
+			obs_data_set_bool(data, IS_CUSTOM, config.isCustom);
+			obs_data_array_push_back(array, data);
+			obs_data_release(data);
+
+			// default value
+			obs_data_t *defaultData = obs_data_create();
+			obs_data_set_int(defaultData, SKIN_VALUE, config.smoothModel.default_value);
+			obs_data_set_int(defaultData, CHIN_VALUE, config.beautyModel.defaultParam.chin);
+			obs_data_set_int(defaultData, CHEEK_VALUE, config.beautyModel.defaultParam.cheek);
+			obs_data_set_int(defaultData, CHEEKBONE_VALUE, config.beautyModel.defaultParam.cheekbone);
+			obs_data_set_int(defaultData, EYE_VALUE, config.beautyModel.defaultParam.eyes);
+			obs_data_set_int(defaultData, NOSE_VALUE, config.beautyModel.defaultParam.nose);
+			obs_data_set_obj(data, DEFAULT_NODE, defaultData);
+			obs_data_release(defaultData);
+		}
+	};
+	obs_data_t *beautyConfig = obs_data_create();
+	obs_data_array_t *custom = obs_data_array_create();
+	saveConfig(customConfig, custom);
+	obs_data_set_array(beautyConfig, "custom_beauty_config", custom);
+	obs_data_array_release(custom);
+	return beautyConfig;
 }
 
 static void LogFilter(obs_source_t *, obs_source_t *filter, void *v_val)
@@ -907,7 +1216,6 @@ bool obs_load_pld_callback(void *private_data)
 void PLSBasic::Load(const char *file)
 {
 	disableSaving++;
-
 	obs_data_t *data = obs_data_create_from_json_file_safe(file, "bak");
 	if (!data) {
 		disableSaving--;
@@ -928,6 +1236,7 @@ void PLSBasic::Load(const char *file)
 	obs_data_array_t *sources = obs_data_get_array(data, "sources");
 	obs_data_array_t *groups = obs_data_get_array(data, "groups");
 	obs_data_array_t *transitions = obs_data_get_array(data, "transitions");
+	obs_data_t *beautyConfig = obs_data_get_obj(data, "beauty_config");
 	const char *sceneName = obs_data_get_string(data, "current_scene");
 	const char *programSceneName = obs_data_get_string(data, "current_program_scene");
 	const char *transitionName = obs_data_get_string(data, "current_transition");
@@ -943,10 +1252,13 @@ void PLSBasic::Load(const char *file)
 		newDuration = 300;
 
 	if (!transitionName)
-		transitionName = obs_source_get_name(fadeTransition);
+		transitionName = obs_source_get_name(cutTransition);
 
-	ui->scenesFrame->SetLoadTransitionsData(transitions, fadeTransition, newDuration, transitionName);
+	ui->scenesFrame->SetLoadTransitionsData(transitions, cutTransition, newDuration, transitionName);
 	obs_data_array_release(transitions);
+
+	// modified by xiewei, init custom default beauty config.
+	LoadBeautyConfig(beautyConfig);
 
 	const char *curSceneCollection = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
 
@@ -966,6 +1278,9 @@ void PLSBasic::Load(const char *file)
 	config_set_string(App()->GlobalConfig(), "Basic", "SceneCollection", name);
 	config_set_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile", file_base.c_str());
 
+	// must invoke before loading sources
+	bool hasValueAllMuted = CheckMasterAudioStatus(data);
+
 	LoadAudioDevice(DESKTOP_AUDIO_1, 1, data);
 	LoadAudioDevice(DESKTOP_AUDIO_2, 2, data);
 	LoadAudioDevice(AUX_AUDIO_1, 3, data);
@@ -980,10 +1295,23 @@ void PLSBasic::Load(const char *file)
 		obs_data_array_push_back_array(sources, groups);
 	}
 
+	loadingScene = true;
 	obs_load_sources(sources, nullptr, obs_load_pld_callback, nullptr);
 
 	if (sceneOrder) {
 		LoadSceneListOrder(sceneOrder, file);
+	}
+
+	if (!hasValueAllMuted) {
+		auto masterStatus = GetMasterAudioStatusCurrent();
+		bool allMuted = false;
+		if (masterStatus.audioSourceCount > 0)
+			allMuted = masterStatus.isAllAudioMuted;
+		obs_data_set_bool(data, "all_muted", allMuted);
+		UpdateMasterSwitch(allMuted);
+	} else {
+		bool allMuted = obs_data_get_bool(data, "all_muted");
+		UpdateMasterSwitch(allMuted);
 	}
 
 retryScene:
@@ -1088,8 +1416,9 @@ retryScene:
 		opt_start_replaybuffer = false;
 	}
 
-	copyString = nullptr;
-	copyFiltersString = nullptr;
+	//#4606 crash /const char * to QString / by zengqin
+	copyString.clear();
+	copyFiltersString.clear();
 
 	LogScenes();
 
@@ -1099,6 +1428,8 @@ retryScene:
 		api->on_event(OBS_FRONTEND_EVENT_SCENE_CHANGED);
 		api->on_event(OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED);
 	}
+	loadingScene = false;
+	ui->scenesFrame->RefreshScene();
 }
 
 #define SERVICE_PATH "service.json"
@@ -1422,6 +1753,7 @@ void PLSBasic::InitPLSCallbacks()
 	signalHandlers.reserve(signalHandlers.size() + 6);
 	signalHandlers.emplace_back(obs_get_signal_handler(), "source_create", PLSBasic::SourceCreated, this);
 	signalHandlers.emplace_back(obs_get_signal_handler(), "source_remove", PLSBasic::SourceRemoved, this);
+	signalHandlers.emplace_back(obs_get_signal_handler(), "remove", PLSBasic::SourceRemoved, this);
 	signalHandlers.emplace_back(obs_get_signal_handler(), "source_activate", PLSBasic::SourceActivated, this);
 	signalHandlers.emplace_back(obs_get_signal_handler(), "source_deactivate", PLSBasic::SourceDeactivated, this);
 	signalHandlers.emplace_back(obs_get_signal_handler(), "source_audio_activate", PLSBasic::SourceAudioActivated, this);
@@ -1583,6 +1915,12 @@ bool PLSBasic::PLSInit()
 
 	InitPLSCallbacks();
 
+	//init gpop data； check update;
+	PLSGpopData *gpop = PLSGpopData::instance();
+	gpop->getGpopDataRequest();
+
+	PLS_INFO(UPDATE_MODULE, "PLSInit() method check update");
+	CheckUpdate();
 	/**************************/
 	InitHotkeys();
 
@@ -1604,6 +1942,11 @@ bool PLSBasic::PLSInit()
 
 	CheckForSimpleModeX264Fallback();
 
+	// zhangdewen check NDI runtime
+	if (HMODULE hNdiModule = GetModuleHandleA("obs-ndi.dll"); hNdiModule) {
+		loadNDIRuntime = (int (*)())GetProcAddress(hNdiModule, "loadNDIRuntime");
+	}
+
 	blog(LOG_INFO, STARTUP_SEPARATOR);
 
 	ResetOutputs();
@@ -1612,7 +1955,38 @@ bool PLSBasic::PLSInit()
 	if (!InitService())
 		throw "Failed to initialize service";
 
+	QString strUserPath = pls_get_user_path("PRISMLiveStudio");
+	obs_data_t *beautyData = obs_data_create();
+	obs_data_set_string(beautyData, "nelo", prismSession.c_str());
+	obs_data_set_string(beautyData, "version", PLS_VERSION);
+	obs_data_set_string(beautyData, "path", strUserPath.toStdString().c_str());
+	obs_plugin_set_private_data(DSHOW_SOURCE_ID, beautyData);
+	obs_data_release(beautyData);
+
+	int cx = (int)config_get_int(App()->GlobalConfig(), "InteractionWindow", "cx");
+	int cy = (int)config_get_int(App()->GlobalConfig(), "InteractionWindow", "cy");
+
+	obs_data_t *browserData = obs_data_create();
+	obs_data_set_int(browserData, "interaction_cx", cx);
+	obs_data_set_int(browserData, "interaction_cy", cy);
+	obs_data_set_int(browserData, "prism_hwnd", mainView->window()->winId());
+	obs_data_set_string(browserData, "font", this->font().family().toStdString().c_str());
+	obs_plugin_set_private_data(BROWSER_SOURCE_ID, browserData);
+	obs_data_release(browserData);
+
 	InitPrimitives();
+
+	// add by zzc
+	initChannelUI();
+
+#ifdef _WIN32
+	SetWin32DropStyle(this);
+	bool willShow = this->willShow();
+
+#endif
+#ifdef UseFreeMusic
+	createBackgroundMusicView();
+#endif
 
 	/*
 	Because we are using fixed values, so here we ignore the logic about setting values.
@@ -1655,6 +2029,7 @@ bool PLSBasic::PLSInit()
 	}
 
 	loaded = true;
+	isCreateSouceInLoading = false;
 
 	previewEnabled = config_get_bool(App()->GlobalConfig(), "BasicWindow", "PreviewEnabled");
 
@@ -1682,7 +2057,6 @@ bool PLSBasic::PLSInit()
 	};
 
 	connect(ui->preview, &PLSQTDisplay::DisplayCreated, addDisplay);
-	connect(ui->scenesFrame, &PLSSceneListView::LogoutEvent, this, &PLSBasic::OnLogoutEvent);
 
 	// scene action
 	QAction *actionAdd = new QAction();
@@ -1713,12 +2087,18 @@ bool PLSBasic::PLSInit()
 	ui->sourcesDock->titleWidget()->setButtonActions({actionAddSource});
 	connect(ui->sourcesDock, &QDockWidget::topLevelChanged, this, &PLSBasic::OnSourceDockTopLevelChanged);
 
+	//audio master control
+	QList<QAction *> listActions;
+	QAction *actionAudioMasterCtrl = new QAction();
+	actionAudioMasterCtrl->setObjectName("audioMasterControl");
+	connect(actionAudioMasterCtrl, &QAction::triggered, this, &PLSBasic::on_actionAudioMasterControl_triggered);
+	listActions.push_back(actionAudioMasterCtrl);
+
 	//audio mixer
-	QList<QAction *> l;
 	QAction *actionAudioAdvance = new QAction(QTStr("Basic.MainMenu.Edit.AdvAudio"));
 	actionAudioAdvance->setObjectName("audioAdvanced");
 	connect(actionAudioAdvance, &QAction::triggered, this, &PLSBasic::on_actionAdvAudioProperties_triggered, Qt::DirectConnection);
-	l.push_back(actionAudioAdvance);
+	listActions.push_back(actionAudioAdvance);
 
 	actionSperateMixer = new QAction();
 	SetAttachWindowBtnText(actionSperateMixer, ui->mixerDock->isFloating());
@@ -1727,31 +2107,45 @@ bool PLSBasic::PLSInit()
 	connect(ui->mixerDock, &QDockWidget::topLevelChanged, this, &PLSBasic::onMixerDockLocationChanged);
 
 	ui->mixerDock->titleWidget()->setAdvButtonActions({actionSperateMixer});
-	ui->mixerDock->titleWidget()->setButtonActions(l);
-	// add by zzc
-	initChannelUI();
-#ifdef _WIN32
-	SetWin32DropStyle(this);
-	bool willShow = this->willShow();
+	ui->mixerDock->titleWidget()->setButtonActions(listActions);
 
-#endif
+	//audio master config.
+	UpdateMasterSwitch(ConfigAllMuted());
 
-	connect(mainView, &PLSMainView::isshowSignal, mainView, [this](bool isShow) {
-		if (isShow) {
-			bool alwaysOnTop = config_get_bool(App()->GlobalConfig(), "BasicWindow", "AlwaysOnTop");
-			if (alwaysOnTop || opt_always_on_top) {
-				SetAlwaysOnTop(mainView, MAIN_FRAME, true);
-				ui->actionAlwaysOnTop->setChecked(true);
+	/* modified by xiewei,Construct beauty window before initChannelUI called
+	   (since it contains Eventloop and some operations).
+	*/
+	CreateBeautyView();
+
+	// init giphy sticker view
+	bool showSticker = config_get_bool(App()->GlobalConfig(), GIPHY_STICKERS_CONFIG, "showMode");
+	if (showSticker)
+		InitGiphyStickerView();
+
+	// add by zq
+	CreateMediaController();
+
+	connect(
+		mainView, &PLSMainView::isshowSignal, mainView,
+		[this](bool isShow) {
+			if (isShow && !mainView->property(IS_ALWAYS_ON_TOP_FIRST_SETTED).toBool()) {
+				mainView->setProperty(IS_ALWAYS_ON_TOP_FIRST_SETTED, true);
+
+				bool alwaysOnTop = config_get_bool(App()->GlobalConfig(), "BasicWindow", "AlwaysOnTop");
+				if (alwaysOnTop || opt_always_on_top) {
+					SetAlwaysOnTop(mainView, MAIN_FRAME, true);
+					ui->actionAlwaysOnTop->setChecked(true);
+				}
 			}
-		}
-	});
+		},
+		Qt::QueuedConnection);
 
 #ifndef _WIN32
 	bool willShow = willShow();
 #endif
 
 	const char *dockStateStr = config_get_string(App()->GlobalConfig(), "BasicWindow", "DockState");
-	if (!dockStateStr) {
+	if (!dockStateStr || !dockStateStr[0]) {
 		on_resetUI_triggered();
 	} else {
 		QByteArray dockState = QByteArray::fromBase64(QByteArray(dockStateStr));
@@ -1813,7 +2207,7 @@ bool PLSBasic::PLSInit()
 	/* ----------------------- */
 	/* Add multiview menu      */
 	ui->menuMultiview->addAction(QTStr("Windowed"), this, SLOT(OpenMultiviewWindow()));
-	multiviewProjectorMenu = new QMenu(QTStr("Fullscreen"));
+	multiviewProjectorMenu = new QMenu(QTStr("Fullscreen"), this);
 	ui->menuMultiview->addMenu(multiviewProjectorMenu);
 	AddProjectorMenuMonitors(multiviewProjectorMenu, this, SLOT(OpenMultiviewProjector()));
 	connect(ui->menuMultiview->menuAction(), &QAction::hovered, this, &PLSBasic::UpdateMultiviewProjectorMenu);
@@ -1984,7 +2378,7 @@ void PLSBasic::CreateHotkeys()
 	auto cb = [](void *data, obs_hotkey_id, obs_hotkey_t *, bool pressed) {
 		PLSBasic &basic = *static_cast<PLSBasic *>(data);
 		if (basic.outputHandler->StreamingActive() && pressed) {
-			basic.ForceStopStreaming();
+			PLSCHANNELS_API->toStopBroadcast();
 		}
 	};
 
@@ -2001,6 +2395,11 @@ void PLSBasic::CreateHotkeys()
 	// 						 MAKE_CALLBACK(basic.pause && !basic.pause->isChecked(), basic.PauseRecording, "Pausing recording"),
 	// 						 MAKE_CALLBACK(basic.pause && basic.pause->isChecked(), basic.UnpauseRecording, "Unpausing recording"), this, this);
 	// LoadHotkeyPair(pauseHotkeys, "PLSBasic.PauseRecording", "PLSBasic.UnpauseRecording");
+
+	toggleMuteAllHotkeys = obs_hotkey_pair_register_frontend("PLSBasic.MuteAllAudio", Str("Basic.Main.MuteAllAudio"), "PLSBasic.UnmuteAllAudio", Str("Basic.Main.UnmuteAllAudio"),
+								 MAKE_CALLBACK(!basic.ConfigAllMuted(), basic.MuteAllAudio, "Mute All"),
+								 MAKE_CALLBACK(basic.ConfigAllMuted(), basic.UnmuteAllAudio, "Unmute All"), this, this);
+	LoadHotkeyPair(toggleMuteAllHotkeys, "PLSBasic.MuteAllAudio", "PLSBasic.UnmuteAllAudio");
 
 	togglePreviewHotkeys = obs_hotkey_pair_register_frontend("PLSBasic.EnablePreview", Str("Basic.Main.PreviewConextMenu.Enable"), "PLSBasic.DisablePreview", Str("Basic.Main.Preview.Disable"),
 								 MAKE_CALLBACK(!basic.previewEnabled, basic.EnablePreview, "Enabling preview"),
@@ -2032,6 +2431,15 @@ void PLSBasic::CreateHotkeys()
 
 	statsHotkey = obs_hotkey_register_frontend("PLSBasic.ResetStats", Str("Basic.Stats.ResetStats"), resetStats, this);
 	LoadHotkey(statsHotkey, "PLSBasic.ResetStats");
+
+	// register select region global hotkey
+	auto selectRegionCallback = [](void *data, obs_hotkey_id, obs_hotkey_t *, bool pressed) {
+		auto basic = reinterpret_cast<PLSBasic *>(data);
+		if (basic)
+			basic->OpenRegionCapture();
+	};
+	selectRegionHotkey = obs_hotkey_register_frontend("PLSBasic.RegionCapture", Str("RegionCapture.hotkeyName"), selectRegionCallback, this);
+	LoadHotkey(selectRegionHotkey, "PLSBasic.RegionCapture");
 }
 
 void PLSBasic::ClearHotkeys()
@@ -2040,15 +2448,20 @@ void PLSBasic::ClearHotkeys()
 	obs_hotkey_pair_unregister(recordingHotkeys);
 	obs_hotkey_pair_unregister(pauseHotkeys);
 	obs_hotkey_pair_unregister(replayBufHotkeys);
+	obs_hotkey_pair_unregister(toggleMuteAllHotkeys);
 	obs_hotkey_pair_unregister(togglePreviewHotkeys);
 	obs_hotkey_unregister(forceStreamingStopHotkey);
 	obs_hotkey_unregister(togglePreviewProgramHotkey);
 	obs_hotkey_unregister(transitionHotkey);
 	obs_hotkey_unregister(statsHotkey);
+	obs_hotkey_unregister(selectRegionHotkey);
 }
 
 PLSBasic::~PLSBasic()
 {
+	/* clear out UI event queue */
+	QApplication::sendPostedEvents(App());
+
 	delete multiviewProjectorMenu;
 	delete previewProjector;
 	delete studioProgramProjector;
@@ -2065,6 +2478,16 @@ PLSBasic::~PLSBasic()
 	delete shortcutFilter;
 	delete trayMenu;
 	delete program;
+	if (beautyFilterView)
+		delete beautyFilterView;
+	if (nullptr != m_allMuted)
+		delete m_allMuted;
+
+	if (backgroundMusicView)
+		delete backgroundMusicView;
+
+	if (giphyStickerView)
+		delete giphyStickerView;
 
 	/* XXX: any obs data must be released before calling obs_shutdown.
 	 * currently, we can't automate this with C++ RAII because of the
@@ -2080,9 +2503,6 @@ PLSBasic::~PLSBasic()
 
 	service = nullptr;
 	outputHandler.reset();
-
-	if (interaction)
-		delete interaction;
 
 	if (properties)
 		delete properties;
@@ -2202,18 +2622,22 @@ void PLSBasic::SaveProjectDeferred()
 	Save(savePath);
 }
 
-void PLSBasic::resetWindowGeometry(const QPoint prismLoginViewCenterPoint)
+void PLSBasic::resetWindowGeometry(QWidget *loginView, const QPoint prismLoginViewCenterPoint)
 {
-	uint width = 1310;
-	uint height = 802;
-	uint chatWidth = 300;
+	double dpi = PLSDpiHelper::getDpi(loginView);
+	uint width = PLSDpiHelper::calculate(dpi, 1310);
+	uint height = PLSDpiHelper::calculate(dpi, 802);
+	uint chatWidth = PLSDpiHelper::calculate(dpi, 300);
 	config_set_string(App()->GlobalConfig(), "BasicWindow", "geometry", "");
 	config_set_string(App()->GlobalConfig(), "BasicWindow", "DockState", "");
 	config_save(App()->GlobalConfig());
 	for (QScreen *screen : QGuiApplication::screens()) {
-		if (screen->availableGeometry().contains(prismLoginViewCenterPoint)) {
-			QPoint center = screen->availableGeometry().center();
-			pls_get_main_view()->setGeometry(center.x() - width / 2 - chatWidth / 2, center.y() - height / 2, width, height);
+		QRect availableGeometry = screen->availableGeometry();
+		if (availableGeometry.contains(prismLoginViewCenterPoint)) {
+			QPoint center = availableGeometry.center();
+			QRect &geometryOfNormal = mainView->getGeometryOfNormal();
+			geometryOfNormal = QRect(center.x() - width / 2 - chatWidth / 2, center.y() - height / 2, width, height);
+			normalShow(mainView, availableGeometry, mainView->getGeometryOfNormal());
 			break;
 		}
 	}
@@ -2234,6 +2658,24 @@ OBSScene PLSBasic::GetCurrentScene()
 PLSSceneItemView *PLSBasic::GetCurrentSceneItem()
 {
 	return ui->scenesFrame->GetCurrentItem();
+}
+
+void PLSBasic::CreateMediaController()
+{
+	PLSDpiHelper dpiHelper;
+	mediaController = new PLSMediaController(this, dpiHelper);
+	connect(
+		mediaController, &PLSMediaController::RefreshSourceProperty, this,
+		[=](const QString &name) {
+			if (!properties) {
+				return;
+			}
+
+			if (name == obs_source_get_name(properties->GetSource())) {
+				properties->ReloadProperties();
+			}
+		},
+		Qt::QueuedConnection);
 }
 
 OBSSceneItem PLSBasic::GetSceneItem(QListWidgetItem *item)
@@ -2265,14 +2707,39 @@ void PLSBasic::UpdatePreviewScalingMenu()
 	ui->actionScaleOutput->setChecked(scalingAmount == float(ovi.output_width) / float(ovi.base_width));
 }
 
-void PLSBasic::CreateInteractionWindow(obs_source_t *source)
+static bool EnumSourceItemForDelScene(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
 {
-	if (interaction)
-		interaction->close();
+	std::vector<obs_source_t *> &sources = *reinterpret_cast<std::vector<obs_source_t *> *>(ptr);
+	if (obs_sceneitem_is_group(item)) {
+		obs_sceneitem_group_enum_items(item, EnumSourceItemForDelScene, ptr);
+	} else {
+		obs_source_t *source = obs_sceneitem_get_source(item);
+		if (source) {
+			sources.push_back(source);
+		}
+	}
 
-	interaction = new PLSBasicInteraction(this, source);
-	interaction->Init();
-	interaction->setAttribute(Qt::WA_DeleteOnClose, true);
+	return true;
+}
+
+void PLSBasic::DeletePropertiesWindowInScene(obs_scene_t *scene)
+{
+	std::vector<obs_source_t *> sources{};
+	obs_scene_enum_items(scene, EnumSourceItemForDelScene, &sources);
+
+	for (int i = 0; i < sources.size(); i++) {
+		DeletePropertiesWindow(sources[i]);
+	}
+}
+
+void PLSBasic::DeleteFiltersWindowInScene(obs_scene_t *scene)
+{
+	std::vector<obs_source_t *> sources{};
+	obs_scene_enum_items(scene, EnumSourceItemForDelScene, &sources);
+
+	for (int i = 0; i < sources.size(); i++) {
+		DeleteFiltersWindow(sources[i]);
+	}
 }
 
 void PLSBasic::DeletePropertiesWindow(obs_source_t *source)
@@ -2286,23 +2753,46 @@ void PLSBasic::DeletePropertiesWindow(obs_source_t *source)
 	}
 }
 
+void PLSBasic::DeleteFiltersWindow(obs_source_t *source)
+{
+	if (!filters) {
+		return;
+	}
+
+	if (source == filters->GetSource()) {
+		filters->close();
+	}
+}
+
 void PLSBasic::CreatePropertiesWindow(obs_source_t *source, unsigned flags, QWidget *parent)
 {
+	bool closed = true;
 	if (properties)
-		properties->close();
+		closed = properties->close();
+
+	if (!closed)
+		return;
 
 	properties = new PLSBasicProperties(parent, source, flags);
+	PLSDpiHelper::dpiDynamicUpdateBeforeFirstShow(PLSDpiHelper::getDpi(parent), properties);
+
 	properties->Init();
 	properties->setAttribute(Qt::WA_DeleteOnClose, true);
 
-	connect(properties, &PLSBasicProperties::OpenFilters, this, &PLSBasic::OpenFilters);
-	connect(properties, &PLSBasicProperties::propertiesChanged, this, &PLSBasic::onPropertyChanged);
+	connect(properties, &PLSBasicProperties::OpenFilters, this, &PLSBasic::OpenSourceFilters);
+	connect(properties, &PLSBasicProperties::OpenStickers, this, &PLSBasic::OpenSourceStickers);
+	connect(properties, &PLSBasicProperties::AboutToClose, this, &PLSBasic::OnPropertiesWindowClose);
+	connect(properties, &PLSBasicProperties::OpenMusicButtonClicked, this, [=]() { OnSetBgmViewVisible(true); });
 }
 
 void PLSBasic::CreateFiltersWindow(obs_source_t *source)
 {
+	bool closed = true;
 	if (filters)
-		filters->close();
+		closed = filters->close();
+
+	if (!closed)
+		return;
 
 	if (!source) {
 		OBSScene scene = GetCurrentScene();
@@ -2319,8 +2809,6 @@ void PLSBasic::CreateFiltersWindow(obs_source_t *source)
 	filters->resize(FILTERS_VIEW_DEFAULT_WIDTH, FILTERS_VIEW_DEFAULT_HEIGHT);
 	filters->Init();
 	filters->setAttribute(Qt::WA_DeleteOnClose, true);
-
-	connect(properties, &PLSBasicProperties::propertiesChanged, this, &PLSBasic::onPropertyChanged);
 }
 
 /* Qt callbacks for invokeMethod */
@@ -2349,17 +2837,18 @@ void PLSBasic::AddScene(OBSSource source)
 	container.ref = scene;
 	container.handlers.assign({
 		std::make_shared<OBSSignal>(handler, "item_add", PLSBasic::SceneItemAdded, this),
+		std::make_shared<OBSSignal>(handler, "item_remove", PLSBasic::SceneItemRemoved, this),
 		std::make_shared<OBSSignal>(handler, "item_select", PLSBasic::SceneItemSelected, this),
 		std::make_shared<OBSSignal>(handler, "item_deselect", PLSBasic::SceneItemDeselected, this),
 		std::make_shared<OBSSignal>(handler, "reorder", PLSBasic::SceneReordered, this),
 	});
 
-	ui->scenesFrame->AddScene(name, scene, container);
-	ui->scenesFrame->RefreshScene();
+	ui->scenesFrame->AddScene(name, scene, container, loadingScene);
+	ui->scenesFrame->RefreshScene(!loadingScene);
+	PLSDpiHelper::dpiDynamicUpdate(ui->scenesFrame, false);
 
 	/* if the scene already has items (a duplicated scene) add them */
 	auto addSceneItem = [this](obs_sceneitem_t *item) { AddSceneItem(item); };
-
 	using addSceneItem_t = decltype(addSceneItem);
 
 	obs_scene_enum_items(
@@ -2382,9 +2871,59 @@ void PLSBasic::AddScene(OBSSource source)
 	}
 
 	if (api) {
-		api->on_event(OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED);
+		isCopyScene ? api->on_event(OBS_FRONTEND_EVENT_SCENE_COPY) : api->on_event(OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED);
 		api->on_event(OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED);
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_LIST_ADD);
 	}
+}
+
+static bool enumItemToVector(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
+{
+	QVector<OBSSceneItem> &items = *reinterpret_cast<QVector<OBSSceneItem> *>(ptr);
+
+	if (obs_sceneitem_is_group(item)) {
+		obs_data_t *data = obs_sceneitem_get_private_settings(item);
+
+		bool collapse = obs_data_get_bool(data, "collapsed");
+		if (!collapse) {
+			obs_scene_t *scene = obs_sceneitem_group_get_scene(item);
+
+			obs_scene_enum_items(scene, enumItemToVector, &items);
+		}
+
+		obs_data_release(data);
+	}
+
+	items.insert(0, item);
+	return true;
+}
+
+static bool enumDshowItem(obs_scene_t *, obs_sceneitem_t *item, void *param)
+{
+	DShowSourceVecType &items = *reinterpret_cast<DShowSourceVecType *>(param);
+	if (obs_sceneitem_is_group(item)) {
+		obs_scene_t *scene = obs_sceneitem_group_get_scene(item);
+		obs_scene_enum_items(scene, enumDshowItem, &items);
+	}
+
+	obs_source_t *source = obs_sceneitem_get_source(item);
+	if (!source) {
+		return true;
+	}
+	const char *id = obs_source_get_id(source);
+	if (!id) {
+		return true;
+	}
+
+	enum obs_source_error error;
+	if (0 != strcmp(id, DSHOW_SOURCE_ID)) {
+		return true;
+	}
+
+	const char *name = obs_source_get_name(source);
+	items.emplace(items.begin(), DShowSourceVecType::value_type(name, OBSSceneItem(item)));
+
+	return true;
 }
 
 void PLSBasic::RemoveScene(OBSSource source)
@@ -2409,9 +2948,15 @@ void PLSBasic::RemoveScene(OBSSource source)
 	if (sel != nullptr) {
 		if (sel == ui->scenesFrame->GetCurrentItem())
 			ui->sources->Clear();
+		CleanBeautySourceConfig(scene);
+		DeletePropertiesWindowInScene(scene);
+		DeleteFiltersWindowInScene(scene);
 		ui->scenesFrame->DeleteScene(sel->GetName());
+		auto muteStatus = GetMasterAudioStatusCurrent();
+		if (muteStatus.audioSourceCount > 0 && muteStatus.isAllAudioMuted) {
+			UpdateMasterSwitch(true);
+		}
 	}
-
 	SaveProject();
 
 	if (!disableSaving) {
@@ -2420,8 +2965,10 @@ void PLSBasic::RemoveScene(OBSSource source)
 		PLSProjector::UpdateMultiviewProjectors();
 	}
 
-	if (api)
+	if (api) {
 		api->on_event(OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED);
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_LIST_DELETE);
+	}
 }
 
 static bool select_one(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
@@ -2436,21 +2983,195 @@ static bool select_one(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
 	return true;
 }
 
+void PLSBasic::GetSelectDshowSourceAndList(QString &selectSourceName, OBSSceneItem &item, DShowSourceVecType &dshowList)
+{
+	OBSScene scene = GetCurrentScene();
+	obs_scene_enum_items(scene, enumDshowItem, &dshowList);
+
+	OBSSceneItem sceneItem = GetCurrentSceneItemData();
+	obs_source_t *source = obs_sceneitem_get_source(sceneItem);
+	if (source) {
+		QString sourceId = obs_source_get_id(source);
+		if (0 == sourceId.compare(DSHOW_SOURCE_ID)) {
+			selectSourceName = obs_source_get_name(source);
+			item = sceneItem;
+			return;
+		}
+	}
+}
+
+void PLSBasic::OnBeautyCurrentSourceChanged(const QString &name, OBSSceneItem item)
+{
+	std::vector<int> selectItemsVec = GetAllSelectedSourceItem();
+	for (auto &selectItem : selectItemsVec) {
+		if (ui->sources->Get(selectItem) == item) {
+			return;
+		}
+	}
+
+	for (int i = 0; i < ui->sources->Count(); i++) {
+		OBSSceneItem item_ = ui->sources->Get(i);
+		if (!obs_sceneitem_is_group(item_)) {
+			if (item_ == item) {
+				ui->sources->SelectItem(item_, true);
+				continue;
+			}
+			ui->sources->SelectItem(item_, false);
+			continue;
+		}
+
+		DShowSourceVecType dshowList{};
+		obs_sceneitem_group_enum_items(item_, enumDshowItem, &dshowList);
+		for (auto iter = dshowList.begin(); iter != dshowList.end(); ++iter) {
+			if (iter->second == item) {
+				ui->sources->SelectItem(iter->second, true);
+				continue;
+			}
+			ui->sources->SelectItem(iter->second, false);
+			ui->sources->SelectItem(item_, false);
+		}
+	}
+}
+
+bool PLSBasic::ExistSameSource(OBSSceneItem item, OBSScene sceneCurrent)
+{
+	SceneDisplayVector displayVector = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	auto iter = displayVector.begin();
+	while (iter != displayVector.end()) {
+		if (iter->second) {
+			OBSScene scene = iter->second->GetData();
+			if (scene == sceneCurrent) {
+				iter++;
+				continue;
+			}
+			QVector<OBSSceneItem> items;
+			obs_scene_enum_items(scene, enumItemToVector, &items);
+			for (auto iter = items.begin(); iter != items.end(); ++iter) {
+				if (item == *iter)
+					return true;
+			}
+		}
+		iter++;
+	}
+	return false;
+}
+
+void PLSBasic::AddSceneUI(const QString &name, OBSScene scene, SignalContainer<OBSScene> handler) {}
+
 void PLSBasic::AddSceneItem(OBSSceneItem item)
 {
+	bool isCurrent = false;
+	// check if this source has its beauty config.
+	// if not,calling CopyBeautyConfig to initialize its beauty config.
+	bool existConfig = LoadBeautyConfigFromSource(item, isCurrent);
+
 	obs_scene_t *scene = obs_sceneitem_get_scene(item);
 
-	if (GetCurrentScene() == scene)
+	if (GetCurrentScene() == scene) {
 		ui->sources->Add(item);
+		AddBgmItem(item);
+		QMetaObject::invokeMethod(this, "AddBeautyItem", Qt::QueuedConnection, Q_ARG(OBSSceneItem, item), Q_ARG(bool, existConfig), Q_ARG(bool, isCurrent));
+	}
 
 	SaveProject();
+	isSelected = isCurrent & isCopyScene;
 
 	if (!disableSaving) {
 		obs_source_t *sceneSource = obs_scene_get_source(scene);
 		obs_source_t *itemSource = obs_sceneitem_get_source(item);
 		blog(LOG_INFO, "User added source '%s' (%s) to scene '%s'", obs_source_get_name(itemSource), obs_source_get_id(itemSource), obs_source_get_name(sceneSource));
 
-		obs_scene_enum_items(scene, select_one, (obs_sceneitem_t *)item);
+		if (!isSelected) {
+			obs_scene_enum_items(scene, select_one, (obs_sceneitem_t *)item);
+		}
+	}
+}
+
+void PLSBasic::RemoveSceneItem(OBSSceneItem item)
+{
+	CheckHideInteraction(item);
+}
+
+void PLSBasic::OnRemoveSourceTreeItem(OBSSceneItem item)
+{
+	if (!item) {
+		return;
+	}
+
+	obs_source_t *source = obs_sceneitem_get_source(item);
+	uint32_t flags = obs_source_get_output_flags(source);
+	if (flags & OBS_SOURCE_AUDIO) {
+		auto muteStatus = GetMasterAudioStatusCurrent(source);
+		if (muteStatus.audioSourceCount > 0 && muteStatus.isAllAudioMuted) {
+			UpdateMasterSwitch(true);
+		}
+	}
+
+	// If there is a source same with the item which is going to be deleted in other Scene,
+	// we don't delete its Beauty source config.
+	// Beacuase it still be used by other source.
+	auto removeItem = [=](OBSSceneItem item) {
+		if (isDshowSourceBySourceId(item)) {
+			if (!ExistSameSource(item, GetCurrentScene()))
+				PLSBeautyDataMgr::Instance()->DeleteBeautySourceConfig(item);
+		}
+
+		if (isDshowSourceBySourceId(item) && beautyFilterView) {
+			obs_source_t *itemSource = obs_sceneitem_get_source(item);
+			beautyFilterView->RemoveSourceName(obs_source_get_name(itemSource), item);
+			ReorderBeautySourceList();
+		}
+
+		if (mediaController)
+			mediaController->SceneItemRemoveChanged(item);
+	};
+
+	if (obs_sceneitem_is_group(item)) {
+		DShowSourceVecType dshowList{};
+		obs_sceneitem_group_enum_items(item, enumDshowItem, &dshowList);
+		for (auto iter = dshowList.begin(); iter != dshowList.end(); ++iter) {
+			removeItem(iter->second);
+		}
+	} else {
+		removeItem(item);
+	}
+}
+
+void PLSBasic::AddBeautyItem(OBSSceneItem item, bool existConfig, bool isCurrent)
+{
+	obs_source_t *itemSource = obs_sceneitem_get_source(item);
+
+	if (isDshowSourceBySourceId(item)) {
+		if (beautyFilterView)
+			beautyFilterView->AddSourceName(obs_source_get_name(itemSource), item);
+		else if (!existConfig)
+			PLSBeautyDataMgr::Instance()->CopyBeautyConfig(item);
+	} else if (obs_sceneitem_is_group(item)) {
+		if (beautyFilterView) {
+			QString name{};
+			OBSSceneItem item;
+			DShowSourceVecType items;
+			GetSelectDshowSourceAndList(name, item, items);
+			beautyFilterView->UpdateSourceList(name, item, items);
+		}
+	}
+	if (isCurrent) {
+		OnBeautyCurrentSourceChanged(obs_source_get_name(itemSource), item);
+	}
+}
+
+void PLSBasic::SceneItemSetVisible(OBSSceneItem item, bool isVisible)
+{
+	if (!beautyFilterView) {
+		return;
+	}
+	if (isDshowSourceBySourceId(item)) {
+		obs_source_t *itemSource = obs_sceneitem_get_source(item);
+		beautyFilterView->SetSourceVisible(obs_source_get_name(itemSource), item, isVisible);
+	}
+
+	if (mediaController) {
+		mediaController->SceneItemVisibleChanged(item, isVisible);
 	}
 }
 
@@ -2485,6 +3206,8 @@ static void RenameListValues(PLSSceneListView *listWidget, const QString &newNam
 
 	for (int i = 0; i < items.count(); i++)
 		items[i]->SetName(newName);
+
+	PLSSceneDataMgr::Instance()->RenameSceneData(prevName, newName);
 }
 
 void PLSBasic::RenameSources(OBSSource source, QString newName, QString prevName)
@@ -2499,6 +3222,15 @@ void PLSBasic::RenameSources(OBSSource source, QString newName, QString prevName
 	PLSProjector::RenameProjector(prevName, newName);
 
 	SaveProject();
+
+	obs_scene_t *curScene = GetCurrentScene();
+	obs_sceneitem_t *sceneItem = GetCurrentSceneItemBySourceName(newName.toStdString().c_str());
+	if (sceneItem) {
+		if (beautyFilterView) {
+			beautyFilterView->RenameSourceName(sceneItem, prevName, newName);
+		}
+		RenameBgmSourceName(sceneItem, prevName, newName);
+	}
 
 	obs_scene_t *scene = obs_scene_from_source(source);
 	if (scene)
@@ -2517,9 +3249,63 @@ void PLSBasic::SelectSceneItem(OBSScene scene, OBSSceneItem item, bool select)
 	ui->sources->SelectItem(item, select);
 }
 
+void PLSBasic::SelectSceneItemForBeauty(OBSScene scene, OBSSceneItem item, bool select)
+{
+	if (!beautyFilterView) {
+		return;
+	}
+
+	if (!select) {
+		OBSSceneItem topItem = ui->sources->Get(GetTopSelectedSourceItem());
+		if (!isDshowSourceBySourceId(topItem)) {
+			return;
+		}
+
+		obs_source_t *itemSource = obs_sceneitem_get_source(topItem);
+		if (beautyFilterView) {
+			beautyFilterView->SetSourceSelect(obs_source_get_name(itemSource), topItem, !select);
+		}
+		return;
+	}
+
+	if (!isDshowSourceBySourceId(item)) {
+		return;
+	}
+
+	if (item == beautyFilterView->GetCurrentItemData()) {
+		return;
+	}
+
+	obs_source_t *itemSource = obs_sceneitem_get_source(item);
+	beautyFilterView->SetSourceSelect(obs_source_get_name(itemSource), item, select);
+}
+
+void PLSBasic::OnBeautySourceStatusChanged(const QString &sourceName, bool status)
+{
+	obs_source_t *source = obs_get_source_by_name(sourceName.toStdString().c_str());
+	if (!source) {
+		return;
+	}
+
+	for (int i = 0; i < ui->sources->Count(); i++) {
+		OBSSceneItem item = ui->sources->Get(i);
+		if (!obs_sceneitem_is_group(item)) {
+			UpdateBeautySourceStatus(source, item, status);
+		} else {
+			DShowSourceVecType items;
+			obs_sceneitem_group_enum_items(item, enumDshowItem, &items);
+			for (auto iter = items.begin(); iter != items.end(); ++iter) {
+				UpdateBeautySourceStatus(source, iter->second, status);
+			}
+		}
+	}
+
+	obs_source_release(source);
+}
+
 static inline bool SourceMixerHidden(obs_source_t *source)
 {
-	PLS_UI_STEP(AUDIO_MIXER, "SourceMixerHidden", ACTION_CLICK);
+	PLS_INFO(AUDIO_MIXER, "SourceMixerHidden");
 
 	obs_data_t *priv_settings = obs_source_get_private_settings(source);
 	bool hidden = obs_data_get_bool(priv_settings, "mixer_hidden");
@@ -2530,10 +3316,81 @@ static inline bool SourceMixerHidden(obs_source_t *source)
 
 static inline void SetSourceMixerHidden(obs_source_t *source, bool hidden)
 {
-
 	obs_data_t *priv_settings = obs_source_get_private_settings(source);
 	obs_data_set_bool(priv_settings, "mixer_hidden", hidden);
 	obs_data_release(priv_settings);
+}
+
+static inline void SetSourcePreviousMuted(obs_source_t *source, bool muted)
+{
+	obs_data_t *priv_settings = obs_source_get_private_settings(source);
+	obs_data_set_bool(priv_settings, "previous_muted", muted);
+	obs_data_release(priv_settings);
+}
+
+static inline bool SourcePreviousMuted(obs_source_t *source, bool *exist = nullptr)
+{
+	obs_data_t *priv_settings = obs_source_get_private_settings(source);
+	if (nullptr != exist) {
+		*exist = obs_data_has_user_value(priv_settings, "previous_muted");
+	}
+	bool mute = obs_data_get_bool(priv_settings, "previous_muted");
+	obs_data_release(priv_settings);
+
+	return mute;
+}
+
+//@param ignoreDeviceSource;
+//@describe: when counting the audio sources,we do not count the removed one.
+AudioStatus PLSBasic::GetDeviceAudioStatusCurrent(obs_source_t *ignoreDeviceSource)
+{
+	AudioStatus deviceAudioStatus;
+	//tranverse all the audio device sources to judge if all the audio device sources are muted.
+	auto allSourceMute = [&deviceAudioStatus, ignoreDeviceSource](obs_source_t *source) {
+		if (!source)
+			return true;
+
+		if (ignoreDeviceSource && source == ignoreDeviceSource)
+			return true;
+
+		uint32_t flags = obs_source_get_output_flags(source);
+		if (flags & OBS_SOURCE_AUDIO) {
+			if (0 == strcmp(obs_source_get_id(source), App()->InputAudioSource()) || (0 == strcmp(obs_source_get_id(source), App()->OutputAudioSource()))) {
+				deviceAudioStatus.audioSourceCount++;
+				if (!obs_source_muted(source)) {
+					deviceAudioStatus.isAllAudioMuted = false;
+					return false;
+				}
+			}
+		}
+		return true;
+	};
+
+	using allSourceMute_t = decltype(allSourceMute);
+
+	auto preEnum = [](void *param, obs_source_t *source) -> bool /* -- */
+	{ return (*reinterpret_cast<allSourceMute_t *>(param))(source); };
+
+	obs_enum_sources(preEnum, &allSourceMute);
+
+	return deviceAudioStatus;
+}
+
+//Judge all the previous muted status of audio.inlcudeing audio sources and audio devices.
+AudioStatus PLSBasic::GetMasterAudioStatusPrevious()
+{
+	AudioStatus masterAudioStatus;
+
+	bool allSourcesPreviousMuted = true;
+	int count = 0;
+
+	AudioStatus deviceAudio = GetDeviceAudioStatusPrevious();
+	AudioStatus sourceAudio = GetSourceAudioStatusPrevious();
+
+	masterAudioStatus.audioSourceCount += deviceAudio.audioSourceCount + sourceAudio.audioSourceCount;
+	masterAudioStatus.isAllAudioMuted = deviceAudio.isAllAudioMuted && sourceAudio.isAllAudioMuted;
+
+	return masterAudioStatus;
 }
 
 void PLSBasic::GetAudioSourceFilters()
@@ -2541,7 +3398,9 @@ void PLSBasic::GetAudioSourceFilters()
 	PLS_UI_STEP(AUDIO_MIXER, "audio source filters", ACTION_CLICK);
 
 	QAction *action = reinterpret_cast<QAction *>(sender());
-	VolControl *vol = action->property("volControl").value<VolControl *>();
+	QPointer<VolControl> vol = action->property("volControl").value<QPointer<VolControl>>();
+	if (!vol)
+		return;
 	obs_source_t *source = vol->GetSource();
 
 	CreateFiltersWindow(source);
@@ -2552,7 +3411,9 @@ void PLSBasic::GetAudioSourceProperties()
 	PLS_UI_STEP(AUDIO_MIXER, "audio source properties", ACTION_CLICK);
 
 	QAction *action = reinterpret_cast<QAction *>(sender());
-	VolControl *vol = action->property("volControl").value<VolControl *>();
+	QPointer<VolControl> vol = action->property("volControl").value<QPointer<VolControl>>();
+	if (!vol)
+		return;
 	obs_source_t *source = vol->GetSource();
 
 	CreatePropertiesWindow(source, OPERATION_NONE, this);
@@ -2561,13 +3422,15 @@ void PLSBasic::GetAudioSourceProperties()
 void PLSBasic::HideAudioControl()
 {
 	QAction *action = reinterpret_cast<QAction *>(sender());
-	VolControl *vol = action->property("volControl").value<VolControl *>();
+	QPointer<VolControl> vol = action->property("volControl").value<QPointer<VolControl>>();
+	if (!vol)
+		return;
 	PLS_UI_STEP(AUDIO_MIXER, QString("hideAudioControl AudioControl name:" + vol->GetName()).toUtf8().data(), ACTION_CLICK);
 	obs_source_t *source = vol->GetSource();
 
 	if (!SourceMixerHidden(source)) {
 		SetSourceMixerHidden(source, true);
-		DeactivateAudioSource(source);
+		RemoveAudioControl(source);
 	}
 }
 
@@ -2602,7 +3465,7 @@ void PLSBasic::ToggleHideMixer()
 
 	if (!SourceMixerHidden(source)) {
 		SetSourceMixerHidden(source, true);
-		DeactivateAudioSource(source);
+		RemoveAudioControl(source);
 	} else {
 		SetSourceMixerHidden(source, false);
 		ActivateAudioSource(source);
@@ -2613,7 +3476,9 @@ void PLSBasic::MixerRenameSource()
 {
 	PLS_UI_STEP(AUDIO_MIXER, "mixer rename source", ACTION_CLICK);
 	QAction *action = reinterpret_cast<QAction *>(sender());
-	VolControl *vol = action->property("volControl").value<VolControl *>();
+	QPointer<VolControl> vol = action->property("volControl").value<QPointer<VolControl>>();
+	if (!vol)
+		return;
 	OBSSource source = vol->GetSource();
 
 	const char *prevName = obs_source_get_name(source);
@@ -2624,6 +3489,7 @@ void PLSBasic::MixerRenameSource()
 		if (!accepted)
 			return;
 
+		name = QString(name.c_str()).simplified().toStdString();
 		if (name.empty()) {
 			PLSMessageBox::warning(this, QTStr("NoNameEntered.Title"), QTStr("NoNameEntered.Text"));
 			continue;
@@ -2644,8 +3510,7 @@ void PLSBasic::MixerRenameSource()
 
 void PLSBasic::VolControlContextMenu()
 {
-	VolControl *vol = nullptr;
-	vol = qobject_cast<VolControl *>(sender());
+	QPointer<VolControl> vol = qobject_cast<VolControl *>(sender());
 
 	/* ------------------- */
 
@@ -2655,7 +3520,9 @@ void PLSBasic::VolControlContextMenu()
 
 	QAction copyFiltersAction(QTStr("Copy.Filters"), this);
 	QAction pasteFiltersAction(QTStr("Paste.Filters"), this);
-	if (QString(copyFiltersString).isEmpty()) {
+	//#4606 crash /const char * to QString / by zengqin
+	//if (QString(copyFiltersString).isEmpty()) {
+	if (copyFiltersString.isEmpty()) {
 		pasteFiltersAction.setEnabled(false);
 	} else {
 		pasteFiltersAction.setEnabled(true);
@@ -2679,18 +3546,19 @@ void PLSBasic::VolControlContextMenu()
 
 	/* ------------------- */
 
-	hideAction.setProperty("volControl", QVariant::fromValue<VolControl *>(vol));
-	mixerRenameAction.setProperty("volControl", QVariant::fromValue<VolControl *>(vol));
+	hideAction.setProperty("volControl", QVariant::fromValue<QPointer<VolControl>>(vol));
+	mixerRenameAction.setProperty("volControl", QVariant::fromValue<QPointer<VolControl>>(vol));
 
-	copyFiltersAction.setProperty("volControl", QVariant::fromValue<VolControl *>(vol));
-	pasteFiltersAction.setProperty("volControl", QVariant::fromValue<VolControl *>(vol));
+	copyFiltersAction.setProperty("volControl", QVariant::fromValue<QPointer<VolControl>>(vol));
+	pasteFiltersAction.setProperty("volControl", QVariant::fromValue<QPointer<VolControl>>(vol));
 
-	filtersAction.setProperty("volControl", QVariant::fromValue<VolControl *>(vol));
-	propertiesAction.setProperty("volControl", QVariant::fromValue<VolControl *>(vol));
+	filtersAction.setProperty("volControl", QVariant::fromValue<QPointer<VolControl>>(vol));
+	propertiesAction.setProperty("volControl", QVariant::fromValue<QPointer<VolControl>>(vol));
 
 	/* ------------------- */
-
-	if (copyFiltersString == nullptr)
+	//#4606 crash /const char * to QString / by zengqin
+	//if (copyFiltersString == nullptr)
+	if (copyFiltersString.isEmpty())
 		pasteFiltersAction.setEnabled(false);
 	else
 		pasteFiltersAction.setEnabled(true);
@@ -2781,6 +3649,13 @@ void PLSBasic::ActivateAudioSource(OBSSource source)
 	if (!obs_source_audio_active(source))
 		return;
 
+	// when active a audio source, the muted status of it depends on the master muted status.
+	bool muteAll = ConfigAllMuted();
+	if (muteAll) {
+		SetSourcePreviousMuted(source, false);
+		obs_source_set_muted(source, true);
+	}
+
 	bool vertical = config_get_bool(GetGlobalConfig(), "BasicWindow", "VerticalVolControl");
 	VolControl *vol = new VolControl(source, true, vertical);
 
@@ -2816,10 +3691,30 @@ void PLSBasic::ActivateAudioSource(OBSSource source)
 			ui->vVolControlLayout->addWidget(volume);
 		else
 			ui->hVolControlLayout->addWidget(volume);
+
+		PLSDpiHelper::dpiDynamicUpdate(volume, true);
 	}
 }
 
 void PLSBasic::DeactivateAudioSource(OBSSource source)
+{
+	// when aduio source/device was deactived,it will be removed from Audio mixer.
+	RemoveAudioControl(source);
+	const char *id = obs_source_get_id(source);
+	if (id && *id) {
+		// when deactive a audio device(in setting->Audio->device->disable), judge all the audio are muted at present.
+		if (0 == strcmp(id, App()->InputAudioSource()) || (0 == strcmp(id, App()->OutputAudioSource()))) {
+			// ignore disabled device,we do not count disabled one in enum loop.
+			auto currentStatus = GetMasterAudioStatusCurrent(nullptr, source);
+			if (currentStatus.audioSourceCount > 0) {
+				bool allMute = currentStatus.isAllAudioMuted;
+				UpdateMasterSwitch(allMute);
+			}
+		}
+	}
+}
+
+void PLSBasic::RemoveAudioControl(OBSSource source)
 {
 	for (size_t i = 0; i < volumes.size(); i++) {
 		if (volumes[i]->GetSource() == source) {
@@ -2827,6 +3722,64 @@ void PLSBasic::DeactivateAudioSource(OBSSource source)
 			volumes.erase(volumes.begin() + i);
 			break;
 		}
+	}
+}
+
+void PLSBasic::CheckUpdate()
+{
+	return;
+}
+
+void PLSBasic::CheckLastVersion()
+{
+	return;
+}
+
+bool PLSBasic::ShowUpdateView(QWidget *parent)
+{
+	bool updatedResult = false;
+	return updatedResult;
+}
+
+void PLSBasic::ShowLoginView()
+{
+	//restart app
+	return;
+}
+
+MainCheckUpdateResult PLSBasic::getUpdateResult() const
+{
+	return m_checkUpdateResult;
+}
+
+const QString &PLSBasic::getUpdateFileUrl() const
+{
+	return m_updateFileUrl;
+}
+
+const QString &PLSBasic::getUpdateGcc() const
+{
+	return m_updateGcc;
+}
+
+bool PLSBasic::getCheckLastVersionResult() const
+{
+	return m_checkLastesVersiontResult;
+}
+
+bool PLSBasic::needShowUpdateView() const
+{
+	bool result = !m_isPopUpdateView;
+	return result;
+}
+
+void PLSBasic::setActionShowAboutHasIcon(bool hasIcon)
+{
+	if (!mainMenu) {
+		QMetaObject::invokeMethod(
+			this, [=]() { setActionShowAboutHasIcon(hasIcon); }, Qt::QueuedConnection);
+	} else {
+		PLSPopupMenu::setHasIcon(ui->actionShowAbout, hasIcon);
 	}
 }
 
@@ -2857,6 +3810,7 @@ void PLSBasic::DuplicateSelectedScene()
 		if (!accepted)
 			return;
 
+		name = QString(name.c_str()).simplified().toStdString();
 		if (name.empty()) {
 			PLSMessageBox::warning(this, QTStr("NoNameEntered.Title"), QTStr("NoNameEntered.Text"));
 			continue;
@@ -2870,11 +3824,11 @@ void PLSBasic::DuplicateSelectedScene()
 			continue;
 		}
 
+		isCopyScene = true;
 		obs_scene_t *scene = obs_scene_duplicate(curScene, name.c_str(), OBS_SCENE_DUP_REFS);
 		source = obs_scene_get_source(scene);
 		SetCurrentScene(source, true);
 		obs_scene_release(scene);
-
 		break;
 	}
 }
@@ -2908,6 +3862,7 @@ void PLSBasic::ReorderSources(OBSScene scene)
 		return;
 
 	ui->sources->ReorderItems();
+
 	SaveProject();
 }
 
@@ -2919,7 +3874,7 @@ void PLSBasic::SceneReordered(void *data, calldata_t *params)
 
 	obs_scene_t *scene = (obs_scene_t *)calldata_ptr(params, "scene");
 
-	QMetaObject::invokeMethod(window, "ReorderSources", Q_ARG(OBSScene, OBSScene(scene)));
+	QMetaObject::invokeMethod(window, "ReorderSources", Qt::QueuedConnection, Q_ARG(OBSScene, OBSScene(scene)));
 }
 
 void PLSBasic::SceneItemAdded(void *data, calldata_t *params)
@@ -2929,6 +3884,12 @@ void PLSBasic::SceneItemAdded(void *data, calldata_t *params)
 	obs_sceneitem_t *item = (obs_sceneitem_t *)calldata_ptr(params, "item");
 
 	QMetaObject::invokeMethod(window, "AddSceneItem", Q_ARG(OBSSceneItem, OBSSceneItem(item)));
+}
+
+void PLSBasic::SceneItemRemoved(void *data, calldata_t *params)
+{
+	obs_sceneitem_t *item = (obs_sceneitem_t *)calldata_ptr(params, "item");
+	QMetaObject::invokeMethod(static_cast<PLSBasic *>(data), "RemoveSceneItem", Qt::QueuedConnection, Q_ARG(OBSSceneItem, OBSSceneItem(item)));
 }
 
 void PLSBasic::SceneItemSelected(void *data, calldata_t *params)
@@ -2951,11 +3912,56 @@ void PLSBasic::SceneItemDeselected(void *data, calldata_t *params)
 	QMetaObject::invokeMethod(window, "SelectSceneItem", Q_ARG(OBSScene, scene), Q_ARG(OBSSceneItem, item), Q_ARG(bool, false));
 }
 
+void PLSBasic::OnSourceNotify(void *data, calldata_t *params)
+{
+	PLSBasic *main = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
+	if (!main) {
+		return;
+	}
+
+	obs_source_t *source = (obs_source_t *)calldata_ptr(params, "source");
+	if (!source) {
+		return;
+	}
+
+	const char *name = obs_source_get_name(source);
+	if (!name) {
+		return;
+	}
+
+	int type = (int)calldata_int(params, "message");
+	int sub_code = (int)calldata_int(params, "sub_code");
+	QMetaObject::invokeMethod(main, "OnSourceNotifyAsync", Q_ARG(QString, name), Q_ARG(int, type), Q_ARG(int, sub_code));
+}
+
 void PLSBasic::SourceCreated(void *data, calldata_t *params)
 {
 	obs_source_t *source = (obs_source_t *)calldata_ptr(params, "source");
 	if (!source)
 		return;
+
+	signal_handler_connect_ref(obs_source_get_signal_handler(source), "source_notify", OnSourceNotify, NULL);
+
+	if (source && 0 == strcmp(obs_source_get_id(source), BGM_SOURCE_ID)) {
+		obs_source_set_monitoring_type(source, OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT);
+		signal_handler_connect_ref(obs_source_get_signal_handler(source), "media_state_changed", MediaStateChanged, nullptr);
+		signal_handler_connect_ref(obs_source_get_signal_handler(source), "media_load", MediaLoad, nullptr);
+		signal_handler_connect_ref(obs_source_get_signal_handler(source), "media_properties_changed", PropertiesChanged, nullptr);
+	}
+
+	uint32_t flags = obs_source_get_output_flags(source);
+	if (flags & OBS_SOURCE_AUDIO) {
+		auto mainWindow = static_cast<PLSBasic *>(data);
+		mainWindow->InitSourceAudioStatus(source);
+		signal_handler_connect_ref(obs_source_get_signal_handler(source), "mute", PLSVolumeMuted, nullptr);
+	}
+
+	const char *id = obs_source_get_id(source);
+	if (id && *id) {
+		if (0 == strcmp(id, PRISM_STICKER_SOURCE_ID)) {
+			QMetaObject::invokeMethod(static_cast<PLSBasic *>(data), "CreateStickerDownloader", WaitConnection(), Q_ARG(OBSSource, OBSSource(source)));
+		}
+	}
 
 	if (obs_scene_from_source(source) != NULL)
 		QMetaObject::invokeMethod(static_cast<PLSBasic *>(data), "AddScene", WaitConnection(), Q_ARG(OBSSource, OBSSource(source)));
@@ -2965,8 +3971,18 @@ void PLSBasic::SourceRemoved(void *data, calldata_t *params)
 {
 	obs_source_t *source = (obs_source_t *)calldata_ptr(params, "source");
 
+	if (source && 0 == strcmp(obs_source_get_id(source), BGM_SOURCE_ID)) {
+		signal_handler_disconnect(obs_source_get_signal_handler(source), "media_state_changed", MediaStateChanged, nullptr);
+		signal_handler_disconnect(obs_source_get_signal_handler(source), "media_load", MediaLoad, nullptr);
+		signal_handler_disconnect(obs_source_get_signal_handler(source), "media_properties_changed", PropertiesChanged, nullptr);
+	}
+	uint32_t flags = obs_source_get_output_flags(source);
+	if (flags & OBS_SOURCE_AUDIO) {
+		signal_handler_disconnect(obs_source_get_signal_handler(source), "mute", PLSVolumeMuted, nullptr);
+	}
+
 	if (obs_scene_from_source(source) != NULL)
-		QMetaObject::invokeMethod(static_cast<PLSBasic *>(data), "RemoveScene", Q_ARG(OBSSource, OBSSource(source)));
+		QMetaObject::invokeMethod(static_cast<PLSBasic *>(data), "RemoveScene", Qt::QueuedConnection, Q_ARG(OBSSource, OBSSource(source)));
 }
 
 void PLSBasic::SourceActivated(void *data, calldata_t *params)
@@ -3007,7 +4023,7 @@ void PLSBasic::SourceRenamed(void *data, calldata_t *params)
 	const char *newName = calldata_string(params, "new_name");
 	const char *prevName = calldata_string(params, "prev_name");
 
-	QMetaObject::invokeMethod(static_cast<PLSBasic *>(data), "RenameSources", Q_ARG(OBSSource, source), Q_ARG(QString, QT_UTF8(newName)), Q_ARG(QString, QT_UTF8(prevName)));
+	QMetaObject::invokeMethod(static_cast<PLSBasic *>(data), "RenameSources", Qt::QueuedConnection, Q_ARG(OBSSource, source), Q_ARG(QString, QT_UTF8(newName)), Q_ARG(QString, QT_UTF8(prevName)));
 
 	blog(LOG_INFO, "Source '%s' renamed to '%s'", prevName, newName);
 }
@@ -3075,7 +4091,7 @@ void PLSBasic::RenderMain(void *data, uint32_t cx, uint32_t cy)
 	gs_ortho(0.0f, float(ovi.base_width), 0.0f, float(ovi.base_height), -100.0f, 100.0f);
 	gs_set_viewport(window->previewX, window->previewY, window->previewCX, window->previewCY);
 
-	if (window->IsPreviewProgramMode()) {
+	if (window->IsPreviewProgramMode() && obs_get_system_initialized()) {
 		window->DrawBackdrop(float(ovi.base_width), float(ovi.base_height));
 
 		OBSScene scene = window->GetCurrentScene();
@@ -3105,16 +4121,95 @@ void PLSBasic::RenderMain(void *data, uint32_t cx, uint32_t cy)
 	UNUSED_PARAMETER(cy);
 }
 
+void PLSBasic::PLSVolumeMuted(void *data, calldata_t *calldata)
+{
+	PLSBasic *basic = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
+	if (basic) {
+		bool muted = calldata_bool(calldata, "muted");
+		obs_source_t *source = (obs_source_t *)calldata_ptr(calldata, "source");
+		QString sourceName = obs_source_get_name(source);
+		QMetaObject::invokeMethod(basic, "VolumeMuted", Qt::QueuedConnection, Q_ARG(const QString &, sourceName), Q_ARG(bool, muted));
+	}
+}
+
 void PLSBasic::frontendEventHandler(enum obs_frontend_event event, void *private_data)
 {
 	PLSBasic *main = (PLSBasic *)private_data;
 	switch (event) {
-	case OBS_FRONTEND_EVENT_STREAMING_STARTED:
-	case OBS_FRONTEND_EVENT_RECORDING_STARTED:
+	case OBS_FRONTEND_EVENT_STREAMING_STARTED: {
+		QStringList activedChatChannels = getActivedChatChannels();
+		if (!activedChatChannels.isEmpty()) {                         // contains chat channel
+			if (hasChatSource()) {                                // chat source added
+				if (isOutputExceed1080p(main->basicConfig)) { // exceed 1080p streaming
+					pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, tr("Chat.Toast.ChatSource.WhenStreaming.Exceed1080p"));
+				}
+			} else {
+				if (!isOutputExceed1080p(main->basicConfig)) { // no chat source added, less then or equal 1080p
+					pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, tr("Chat.Toast.NoChatSource.WhenStreaming").arg(activedChatChannels.join(',')));
+				}
+			}
+		} else {                       // not contains chat channel
+			if (hasChatSource()) { // chat source added
+				pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, tr("Chat.Toast.ChatSource.NoSupportChannel.WhenStreaming"));
+			}
+		}
+
+		{
+			{
+				// notify chat source
+				QJsonObject json;
+				json.insert("type", "setting");
+
+				QJsonObject data;
+				data.insert("singlePlatform", getActivedChatChannelCount() == 1);
+				data.insert("videoSeq", pls_get_prism_live_seq());
+				data.insert("NEO_SES", QString::fromUtf8(pls_get_prism_cookie_value()));
+				json.insert("data", data);
+
+				if (prism_frontend_dispatch_js_event) {
+					QByteArray jsonString = QJsonDocument(json).toJson(QJsonDocument::Compact);
+
+					PLS_INFO("Chat-Source", "chatEvent: %s", jsonString.constData());
+					prism_frontend_dispatch_js_event("chatEvent", jsonString.constData());
+				}
+			}
+
+			{
+				// notify chat source
+				QJsonObject json;
+				json.insert("type", "liveStart");
+
+				if (prism_frontend_dispatch_js_event) {
+					QByteArray jsonString = QJsonDocument(json).toJson(QJsonDocument::Compact);
+
+					PLS_INFO("Chat-Source", "chatEvent: %s", jsonString.constData());
+					prism_frontend_dispatch_js_event("chatEvent", jsonString.constData());
+				}
+			}
+		}
+	}
+	case OBS_FRONTEND_EVENT_RECORDING_STARTED: {
+		if (main->hasSourceMonitor() && !main->isAudioMonitorToastDisplay) {
+			main->isAudioMonitorToastDisplay = true;
+			pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QTStr("living.rec.has.monitor"));
+		}
 		break;
-	case OBS_FRONTEND_EVENT_STREAMING_STOPPING:
-	case OBS_FRONTEND_EVENT_RECORDING_STOPPING:
+	}
+	case OBS_FRONTEND_EVENT_STREAMING_STOPPED: {
+		{
+			// notify chat source
+			QJsonObject json;
+			json.insert("type", "liveEnd");
+
+			if (prism_frontend_dispatch_js_event) {
+				QByteArray jsonString = QJsonDocument(json).toJson(QJsonDocument::Compact);
+
+				PLS_INFO("Chat-Source", "chatEvent: %s", jsonString.constData());
+				prism_frontend_dispatch_js_event("chatEvent", jsonString.constData());
+			}
+		}
 		break;
+	}
 	case OBS_FRONTEND_EVENT_PROFILE_CHANGED:
 		main->showEncodingInStatusBar();
 		break;
@@ -3141,7 +4236,7 @@ void PLSBasic::frontendEventHandler(pls_frontend_event event, const QVariantList
 		main->ui->profileMenu->menuAction()->setEnabled(true);
 		main->mainView->statusBar()->setEncodingEnabled(true);
 		main->ui->actionLogout->setEnabled(true);
-
+		main->isAudioMonitorToastDisplay = false;
 		if (!pls_is_living_or_recording()) {
 			if (main->outputHandler->ReplayBufferActive()) {
 				PLS_INFO(HOTKEYS_MODULE, "Auto save replay buffer on stream or record stopped");
@@ -3408,10 +4503,14 @@ void PLSBasic::ResizePreview(uint32_t cx, uint32_t cy)
 
 	previewX += float(PREVIEW_EDGE_SIZE);
 	previewY += float(PREVIEW_EDGE_SIZE);
+
+	ResizeMediaController();
 }
 
 void PLSBasic::CloseDialogs()
 {
+	HideAllInteraction(NULL);
+
 	QList<QDialog *> childDialogs = this->findChildren<QDialog *>();
 	if (!childDialogs.isEmpty()) {
 		for (int i = 0; i < childDialogs.size(); ++i) {
@@ -3458,12 +4557,33 @@ void PLSBasic::EnumDialogs()
 
 void PLSBasic::ClearSceneData()
 {
+	blog(LOG_INFO, "%sclear scene data.", TRACE_INPUT_SOURCE);
+
 	disableSaving++;
 
 	CloseDialogs();
 
+	obs_data_t *browserData = obs_data_create();
+	obs_plugin_get_private_data(BROWSER_SOURCE_ID, browserData);
+	int interaction_cx = obs_data_get_int(browserData, "interaction_cx");
+	int interaction_cy = obs_data_get_int(browserData, "interaction_cy");
+	obs_data_release(browserData);
+
+	config_set_int(App()->GlobalConfig(), "InteractionWindow", "cx", interaction_cx);
+	config_set_int(App()->GlobalConfig(), "InteractionWindow", "cy", interaction_cy);
+
 	ClearVolumeControls();
 	PLSSceneDataMgr::Instance()->DeleteAllData();
+	PLSBeautyDataMgr::Instance()->ClearBeautyConfig();
+
+	if (beautyFilterView) {
+		beautyFilterView->Clear();
+	}
+
+	if (backgroundMusicView) {
+		backgroundMusicView->ClearUrlInfo();
+	}
+
 	ui->sources->Clear();
 	ui->scenesFrame->ClearTransition();
 	obs_set_output_source(0, nullptr);
@@ -3492,6 +4612,8 @@ void PLSBasic::ClearSceneData()
 	blog(LOG_INFO, "All scene data cleared");
 	blog(LOG_INFO, "------------------------------------------------");
 }
+
+extern PLSChatDialog *g_dialogChat;
 
 void PLSBasic::mainViewClose(QCloseEvent *event)
 {
@@ -3529,12 +4651,23 @@ void PLSBasic::mainViewClose(QCloseEvent *event)
 		return;
 	}
 
+	PLSBlockDump::Instance()->StopMonitor();
+
 	blog(LOG_INFO, SHUTDOWN_SEPARATOR);
 
 	if (logUploadThread)
 		logUploadThread->wait();
 
 	signalHandlers.clear();
+
+	if (backgroundMusicView) {
+		backgroundMusicView->ClearUrlInfo();
+	}
+
+	if (properties && properties->isVisible()) {
+		properties->close();
+		delete properties; // delete immediately
+	}
 
 	Auth::Save();
 	SaveProjectNow();
@@ -3547,6 +4680,9 @@ void PLSBasic::mainViewClose(QCloseEvent *event)
 	ClearExtraBrowserDocks();
 #endif
 
+	// clear the stickers temporary gif data.
+	ClearStickerCache();
+
 	if (api)
 		api->on_event(OBS_FRONTEND_EVENT_EXIT);
 
@@ -3555,6 +4691,10 @@ void PLSBasic::mainViewClose(QCloseEvent *event)
 	/* Clear all scene data (dialogs, widgets, widget sub-items, scenes,
 	 * sources, etc) so that all references are released before shutdown */
 	ClearSceneData();
+
+	//the cef destory is in cef thread, so must delete the super dialog before App()->quit(), otherwise maybe crash in destory cef.
+	delete g_dialogChat;
+	g_dialogChat = nullptr;
 
 	App()->quit();
 }
@@ -3579,6 +4719,8 @@ bool PLSBasic::eventFilter(QObject *watcher, QEvent *event)
 	if (watcher == mainView) {
 		if (event->type() == QEvent::WindowStateChange && mainView->isMinimized() && trayIcon && trayIcon->isVisible() && sysTrayMinimizeToTray()) {
 			ToggleShowHide();
+		} else if (event->type() == QEvent::Move || event->type() == QEvent::Resize && mediaController && mediaController->isVisible()) {
+			ResizeMediaController();
 		}
 	}
 
@@ -3636,6 +4778,17 @@ void PLSBasic::on_actionAdvAudioProperties_triggered()
 	connect(advAudioWindow, SIGNAL(destroyed()), this, SLOT(on_advAudioProps_destroyed()));
 }
 
+void PLSBasic::on_actionAudioMasterControl_triggered()
+{
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, "Main Menu Audio Master Control", ACTION_CLICK);
+	bool muteAll = ConfigAllMuted();
+	if (muteAll) {
+		UnmuteAllAudio();
+	} else {
+		MuteAllAudio();
+	}
+}
+
 void PLSBasic::on_advAudioProps_clicked()
 {
 	on_actionAdvAudioProperties_triggered();
@@ -3648,8 +4801,11 @@ void PLSBasic::on_advAudioProps_destroyed()
 
 void PLSBasic::OnScenesCurrentItemChanged()
 {
-	if (api)
+	if (api) {
 		api->on_event(OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED);
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED);
+		api->on_event(OBS_FRONTEND_EVENT_SCENE_LIST_CURRENT_CHANGED);
+	}
 }
 
 void PLSBasic::EditSceneName()
@@ -3679,7 +4835,7 @@ static void AddProjectorMenuMonitors(QMenu *parent, QObject *target, const char 
 
 void PLSBasic::OnScenesCustomContextMenuRequested(PLSSceneItemView *item)
 {
-	QMenu popup(this);
+	QMenu popup(ui->scenesFrame);
 
 	if (item) {
 
@@ -3690,19 +4846,19 @@ void PLSBasic::OnScenesCustomContextMenuRequested(PLSSceneItemView *item)
 
 		popup.addAction(QTStr("Filters"), this, SLOT(OpenSceneFilters()));
 		QAction *pasteFilters = new QAction(QTStr("Paste.Filters"), this);
-		pasteFilters->setEnabled(copyFiltersString);
+		pasteFilters->setEnabled(!copyFiltersString.isEmpty());
 		connect(pasteFilters, SIGNAL(triggered()), this, SLOT(ScenePasteFilters()));
 
 		popup.addAction(QTStr("Copy.Filters"), this, SLOT(SceneCopyFilters()));
 		popup.addAction(pasteFilters);
 		popup.addSeparator();
 
-		QMenu *projector = new QMenu(QTStr("Projector"), this);
+		QMenu *projector = new QMenu(QTStr("Projector"), ui->scenesFrame);
 
 		popup.addSeparator();
 
 		delete sceneProjectorMenu;
-		sceneProjectorMenu = new QMenu(QTStr("SceneProjector"), this);
+		sceneProjectorMenu = new QMenu(QTStr("SceneProjector"), ui->scenesFrame);
 		AddProjectorMenuMonitors(sceneProjectorMenu, this, SLOT(OpenSceneProjector()));
 		projector->addMenu(sceneProjectorMenu);
 
@@ -3713,13 +4869,13 @@ void PLSBasic::OnScenesCustomContextMenuRequested(PLSSceneItemView *item)
 
 		/* ---------------------- */
 
-		QMenu *multiviewMenu = new QMenu(QTStr("ShowInMultiview"), this);
+		QMenu *multiviewMenu = new QMenu(QTStr("ShowInMultiview"), ui->scenesFrame);
 		popup.addMenu(multiviewMenu);
 
-		QAction *multiviewShow = new QAction(QTStr("Show"), this);
+		QAction *multiviewShow = new QAction(QTStr("Show"), ui->scenesFrame);
 		multiviewShow->setCheckable(true);
 
-		QAction *multiviewHide = new QAction(QTStr("Hide"), this);
+		QAction *multiviewHide = new QAction(QTStr("Hide"), ui->scenesFrame);
 		multiviewHide->setCheckable(true);
 
 		multiviewMenu->addAction(multiviewShow);
@@ -3917,9 +5073,9 @@ QMenu *PLSBasic::AddBackgroundColorMenu(QMenu *menu, QWidgetAction *widgetAction
 		button << "preset" << i;
 		QPushButton *colorButton = select->findChild<QPushButton *>(button.str().c_str());
 		if (preset == i + 1)
-			colorButton->setStyleSheet("border: 2px solid black");
+			colorButton->setStyleSheet(QString("border: %1px solid black").arg(PLSDpiHelper::calculate(this, 2)));
 		else
-			colorButton->setStyleSheet("border: 2px solid transparent");
+			colorButton->setStyleSheet(QString("border: %1px solid transparent").arg(PLSDpiHelper::calculate(this, 2)));
 
 		colorButton->setProperty("bgColor", i);
 		select->connect(colorButton, SIGNAL(released()), this, SLOT(ColorChange()));
@@ -3935,9 +5091,9 @@ ColorSelect::ColorSelect(QWidget *parent) : QWidget(parent), ui(new Ui::ColorSel
 	ui->setupUi(this);
 }
 
-void PLSBasic::CreateSourcePopupMenu(int idx, bool preview)
+void PLSBasic::CreateSourcePopupMenu(int idx, bool preview, QWidget *parent)
 {
-	QMenu popup(this);
+	QMenu popup(parent);
 	delete previewProjectorSource;
 	delete sourceProjector;
 	delete scaleFilteringMenu;
@@ -3966,7 +5122,8 @@ void PLSBasic::CreateSourcePopupMenu(int idx, bool preview)
 
 		QMenu *previewProjector = previewMenu->addMenu(QTStr("Basic.MainMenu.PreviewProjector"));
 
-		previewProjectorSource = new QMenu(QTStr("Basic.MainMenu.PreviewProjector.Fullscreen"));
+		previewProjectorSource = new QMenu(QTStr("Basic.MainMenu.PreviewProjector.Fullscreen"), parent);
+
 		AddProjectorMenuMonitors(previewProjectorSource, this, SLOT(OpenPreviewProjector()));
 
 		previewProjector->addMenu(previewProjectorSource);
@@ -3978,7 +5135,7 @@ void PLSBasic::CreateSourcePopupMenu(int idx, bool preview)
 		previewMenu->addSeparator();
 	}
 
-	QPointer<QMenu> addSourceMenu = CreateAddSourcePopupMenu();
+	QPointer<QMenu> addSourceMenu = CreateAddSourcePopupMenu(parent);
 	if (addSourceMenu)
 		popup.addMenu(addSourceMenu);
 
@@ -3991,7 +5148,13 @@ void PLSBasic::CreateSourcePopupMenu(int idx, bool preview)
 
 	} else if (ui->sources->GroupsSelected()) {
 		popup.addSeparator();
-		popup.addAction(QTStr("Basic.Main.Ungroup"), ui->sources, SLOT(UngroupSelectedGroups()));
+		popup.addAction(QTStr("Basic.Main.Ungroup"), ui->sources, [=]() {
+			ui->sources->UngroupSelectedGroups();
+			if (api) {
+				api->on_event(OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED);
+				api->on_event(OBS_FRONTEND_EVENT_SCENE_CHANGED);
+			}
+		});
 	}
 
 	popup.addSeparator();
@@ -4000,8 +5163,23 @@ void PLSBasic::CreateSourcePopupMenu(int idx, bool preview)
 	popup.addAction(ui->actionPasteDup);
 	popup.addSeparator();
 
+	//#4189 by zengqin /* Disable the reference paste group option in the same scene */
+	if (!copyString.isEmpty()) {
+		OBSSource source = obs_get_source_by_name(copyString.toStdString().c_str());
+		if (source) {
+			if (obs_source_is_group(source)) {
+				if (!!obs_scene_get_group(GetCurrentScene(), copyString.toStdString().c_str())) {
+					ui->actionPasteRef->setEnabled(false);
+				} else
+					ui->actionPasteRef->setEnabled(true);
+			}
+			obs_source_release(source);
+		}
+	}
+
 	// Advance
-	QMenu *advanceMenu = new QMenu(tr("Basic.MainMenu.Advance"));
+
+	QMenu *advanceMenu = new QMenu(tr("Basic.MainMenu.Advance"), parent);
 	advanceMenu->addAction(ui->actionCopyFilters);
 	advanceMenu->addAction(ui->actionPasteFilters);
 
@@ -4044,7 +5222,7 @@ void PLSBasic::CreateSourcePopupMenu(int idx, bool preview)
 
 		// Set Color
 		OBSSceneItem sceneItem = ui->sources->Get(idx);
-		colorMenu = new QMenu(QTStr("ChangeBG"));
+		colorMenu = new QMenu(QTStr("ChangeBG"), parent);
 		colorWidgetAction = new QWidgetAction(colorMenu);
 		colorWidgetAction->setObjectName("colorSelect");
 		colorSelect = new ColorSelect(colorMenu);
@@ -4064,7 +5242,7 @@ void PLSBasic::CreateSourcePopupMenu(int idx, bool preview)
 		// Deinterlacing
 		bool isAsyncVideo = (flags & OBS_SOURCE_ASYNC_VIDEO) == OBS_SOURCE_ASYNC_VIDEO;
 		if (isAsyncVideo) {
-			deinterlaceMenu = new QMenu(QTStr("Deinterlacing"));
+			deinterlaceMenu = new QMenu(QTStr("Deinterlacing"), parent);
 			advanceMenu->addMenu(AddDeinterlacingMenu(deinterlaceMenu, source));
 		}
 		advanceMenu->addSeparator();
@@ -4081,13 +5259,13 @@ void PLSBasic::CreateSourcePopupMenu(int idx, bool preview)
 			resizeOutput->setEnabled(false);
 
 		// Scale Filtering
-		scaleFilteringMenu = new QMenu(QTStr("ScaleFiltering"));
+		scaleFilteringMenu = new QMenu(QTStr("ScaleFiltering"), parent);
 		advanceMenu->addMenu(AddScaleFilteringMenu(scaleFilteringMenu, sceneItem));
 		advanceMenu->addSeparator();
 
 		// Source Projector
 		QMenu *sourceMenu = popup.addMenu(QTStr("Basic.MainMenu.SourceProjector"));
-		sourceProjector = new QMenu(QTStr("Basic.MainMenu.SourceProjector.Fullscreen"));
+		sourceProjector = new QMenu(QTStr("Basic.MainMenu.SourceProjector.Fullscreen"), parent);
 		AddProjectorMenuMonitors(sourceProjector, this, SLOT(OpenSourceProjector()));
 
 		QAction *sourceWindow = sourceMenu->addAction(QTStr("Basic.MainMenu.SourceProjector.Window"), this, SLOT(OpenSourceWindow()));
@@ -4122,7 +5300,7 @@ void PLSBasic::on_sources_customContextMenuRequested(const QPoint &pos)
 {
 	if (PLSSceneDataMgr::Instance()->GetSceneSize()) {
 		QModelIndex idx = ui->sources->indexAt(pos);
-		CreateSourcePopupMenu(idx.row(), false);
+		CreateSourcePopupMenu(idx.row(), false, ui->sourcesFrame);
 	}
 }
 
@@ -4140,79 +5318,135 @@ void PLSBasic::AddSource(const char *id)
 {
 	if (id && *id) {
 		PLS_UI_STEP(SOURCE_MODULE, "addSourceMenu", ACTION_CLICK);
+		if (!strcmp(id, PRISM_NDI_SOURCE_ID)) {
+			int result = NoNdiRuntimeFound;
+			if (loadNDIRuntime) {
+				result = loadNDIRuntime();
+			}
+
+			if (result != NdiSuccess) {
+				PLSAlertView::warning(this, tr("Alert.Title"), tr(result == NoNdiRuntimeFound ? "Ndi.Source.NoRuntimeFound" : "Ndi.Source.RuntimeInitializeFail"));
+				return;
+			}
+		}
+
+		if (0 == strcmp(id, PRISM_STICKER_SOURCE_ID)) {
+			InitGiphyStickerView();
+			giphyStickerView->SetBindSourcePtr(0);
+			giphyStickerView->show();
+			giphyStickerView->raise();
+			return;
+		}
 		PLSBasicSourceSelect sourceSelect(this, id);
-		if (sourceSelect.exec() == QDialog::Accepted)
-			action::SendActionLog(action::ActionInfo(EVENT_MAIN_ADD, EVENT_SUB_SOURCE_ADDED, EVENT_TYPE_CONFIRMED, action::GetActionSourceID(id)));
+		if (sourceSelect.exec() == QDialog::Accepted) {
+		}
 		if (sourceSelect.newSource && strcmp(id, "group") != 0)
 			CreatePropertiesWindow(sourceSelect.newSource, OPERATION_ADD_SOURCE, this);
 	}
 }
 
-void PLSBasic::BindActionData(QAction *popupItem, const char *type)
+void PLSBasic::SetFileForStickerSource(OBSSource source, const QString &file)
+{
+	if (file.isEmpty())
+		return;
+	OBSData oldSettings(obs_data_create());
+	obs_data_release(oldSettings);
+	OBSData settings = obs_source_get_settings(source);
+	obs_data_apply(oldSettings, settings);
+	obs_data_release(settings);
+
+	obs_data_set_string(settings, "file", QT_TO_UTF8(file));
+
+	obs_source_update(source, settings);
+}
+
+void PLSBasic::BindActionData(QWidgetAction *popupItem, const char *type)
 {
 	popupItem->setData(QT_UTF8(type));
 	connect(popupItem, SIGNAL(triggered(bool)), this, SLOT(AddSourceFromAction()));
 
-	QIcon icon;
-
-	if (strcmp(type, SCENE_SOURCE_ID) == 0)
-		icon = GetSceneIcon();
-	else
-		icon = GetSourceIcon(type);
-
-	popupItem->setIcon(icon);
+	QPushButton *button = dynamic_cast<QPushButton *>(popupItem->defaultWidget());
+	connect(button, SIGNAL(clicked()), popupItem, SLOT(trigger()));
 }
 
-QMenu *PLSBasic::CreateAddSourcePopupMenu()
+QMenu *PLSBasic::CreateAddSourcePopupMenu(QWidget *parent)
 {
-	QMenu *popup = new QMenu(QTStr("Add"), this);
+	QMenu *popup = new QMenu(QTStr("Add"), parent);
 
-	PLSAddSourceMenuStyle *style = new PLSAddSourceMenuStyle;
+	PLSAddSourceMenuStyle *style = new PLSAddSourceMenuStyle(PLSDpiHelper::getDpi(parent));
 	popup->setStyle(style);
-	popup->setStyleSheet("QMenu::item{padding-left:11px;}");
+	popup->setStyleSheet(QString("QMenu::item{padding-left:%1px;}").arg(PLSDpiHelper::calculate(parent, 11)));
 
 	bool foundInputSource = false;
 	std::vector<std::vector<QString>> presetTypeList;
 	std::vector<QString> otherTypeList;
-	GetSourceTypeList(presetTypeList, otherTypeList);
+	std::map<QString, bool> monitorPlugins;
+	monitorPlugins[PRISM_MONITOR_SOURCE_ID] = false;
+	monitorPlugins[PRISM_REGION_SOURCE_ID] = false;
+	GetSourceTypeList(presetTypeList, otherTypeList, monitorPlugins);
+
+	QSize iconSize = PLSDpiHelper::calculate(parent, QSize(30, 30));
 
 	// add preset source type
 	for (auto iter = presetTypeList.begin(); iter != presetTypeList.end(); ++iter) {
+		bool actionInserted = false;
 		std::vector<QString> &subList = *iter;
 		for (unsigned i = 0; i < subList.size(); ++i) {
 			QString id = subList[i];
+			if (strcmp(id.toStdString().c_str(), PRISM_MONITOR_REGION_MENU) == 0) {
+				if (AddMonitorSourceMenu(popup, monitorPlugins)) {
+					actionInserted = true;
+					foundInputSource = true;
+				}
+				continue;
+			}
+
+			QByteArray cid = id.toUtf8();
 			QString displayName;
-			if (strcmp(id.toStdString().c_str(), SCENE_SOURCE_ID) == 0) {
+			if (strcmp(cid.constData(), SCENE_SOURCE_ID) == 0) {
 				displayName = Str("Basic.Scene");
 			} else {
 				foundInputSource = true;
-				displayName = obs_source_get_display_name(id.toStdString().c_str());
+				displayName = obs_source_get_display_name(cid.constData());
 			}
 
-			QAction *action = new QAction(displayName, this);
-			BindActionData(action, id.toStdString().c_str());
+			QPushButton *actioWidget = CreateSourcePopupMenuCustomWidget(cid.constData(), displayName, iconSize);
+			QWidgetAction *action = new QWidgetAction(this);
+			action->setDefaultWidget(actioWidget);
+			BindActionData(action, cid.constData());
 			popup->addAction(action);
+			actionInserted = true;
 		}
 
-		popup->addSeparator();
+		if (actionInserted) {
+			popup->addSeparator();
+		}
 	}
 
 	//add other source type
 	if (!otherTypeList.empty()) {
 		for (int i = 0; i < otherTypeList.size(); i++) {
-			QAction *action = new QAction(obs_source_get_display_name(otherTypeList[i].toStdString().c_str()), this);
-			BindActionData(action, otherTypeList[i].toStdString().c_str());
+			QString id = otherTypeList[i];
+			QByteArray cid = id.toUtf8();
+			QPushButton *actioWidget = CreateSourcePopupMenuCustomWidget(cid.constData(), QT_UTF8(obs_source_get_display_name(cid.constData())), iconSize);
+			QWidgetAction *action = new QWidgetAction(this);
+			action->setDefaultWidget(actioWidget);
+			BindActionData(action, cid.constData());
 			popup->addAction(action);
 		}
 		popup->addSeparator();
 		foundInputSource = true;
 	}
 
-	QAction *addGroup = new QAction(QTStr("Group"), this);
-	addGroup->setData(QT_UTF8("group"));
-	addGroup->setIcon(GetGroupIcon());
-	connect(addGroup, SIGNAL(triggered(bool)), this, SLOT(AddSourceFromAction()));
-	popup->addAction(addGroup);
+	QPushButton *actioWidget = CreateSourcePopupMenuCustomWidget(GROUP_SOURCE_ID, QTStr("Group"), iconSize);
+	QWidgetAction *action = new QWidgetAction(this);
+	action->setDefaultWidget(actioWidget);
+	BindActionData(action, GROUP_SOURCE_ID);
+	popup->addAction(action);
+
+	// force flush css, and adjust size
+	pls_flush_style_recursive(popup);
+	popup->adjustSize();
 
 	if (!foundInputSource) {
 		PLS_WARN(SOURCE_MODULE, "Cann't find any input source and won't popup add menu");
@@ -4220,6 +5454,42 @@ QMenu *PLSBasic::CreateAddSourcePopupMenu()
 		popup = nullptr;
 	}
 	return popup;
+}
+
+bool PLSBasic::AddMonitorSourceMenu(QMenu *popup, std::map<QString, bool> monitors)
+{
+	bool empty = true;
+	for (auto item : monitors) {
+		if (item.second == true) {
+			empty = false;
+			break;
+		}
+	}
+
+	if (empty) {
+		return false;
+	}
+
+	QMenu *monitorMenu = popup->addMenu(QTStr("Source.MonitorRegion.MenuName"));
+	monitorMenu->setIcon(GetDesktopCapIcon());
+
+	for (auto item : monitors) {
+		if (item.second == true) {
+			QString id = item.first;
+			QString displayName = obs_source_get_display_name(id.toStdString().c_str());
+			AddMonitorSourceAction(monitorMenu, id, displayName);
+		}
+	}
+
+	return true;
+}
+
+void PLSBasic::AddMonitorSourceAction(QMenu *monitorMenu, QString id, QString displayName)
+{
+	QAction *action = new QAction(displayName, this);
+	action->setData(id);
+	connect(action, SIGNAL(triggered(bool)), this, SLOT(AddSourceFromAction()));
+	monitorMenu->addAction(action);
 }
 
 void PLSBasic::AddSourceFromAction()
@@ -4231,7 +5501,7 @@ void PLSBasic::AddSourceFromAction()
 	AddSource(QT_TO_UTF8(action->data().toString()));
 }
 
-void PLSBasic::AddSourcePopupMenu(const QPoint &pos)
+void PLSBasic::AddSourcePopupMenu(const QPoint &pos, QWidget *parent)
 {
 	if (!GetCurrentScene()) {
 		// Tell the user he needs a scene first (help beginners).
@@ -4239,7 +5509,7 @@ void PLSBasic::AddSourcePopupMenu(const QPoint &pos)
 		return;
 	}
 
-	QScopedPointer<QMenu> popup(CreateAddSourcePopupMenu());
+	QScopedPointer<QMenu> popup(CreateAddSourcePopupMenu(parent));
 	if (popup)
 		popup->exec(pos);
 }
@@ -4247,7 +5517,7 @@ void PLSBasic::AddSourcePopupMenu(const QPoint &pos)
 void PLSBasic::on_actionAddSource_triggered()
 {
 	PLS_UI_STEP(MAINMENU_MODULE, "Add Source", ACTION_CLICK);
-	AddSourcePopupMenu(QCursor::pos());
+	AddSourcePopupMenu(QCursor::pos(), ui->sourcesFrame);
 }
 
 void PLSBasic::on_actionRemoveScene_triggered()
@@ -4298,13 +5568,17 @@ void PLSBasic::on_actionRemoveSource_triggered()
 
 void PLSBasic::on_actionInteract_triggered()
 {
-	PLS_UI_STEP(MAINMENU_MODULE, "Interact", ACTION_CLICK);
+	PLS_UI_STEP(MAINMENU_MODULE, "Interact menu item", ACTION_CLICK);
 
 	OBSSceneItem item = GetCurrentSceneItemData();
-	OBSSource source = obs_sceneitem_get_source(item);
-
-	if (source)
-		CreateInteractionWindow(source);
+	if (item) {
+		OBSSource source = obs_sceneitem_get_source(item);
+		if (source) {
+			HideAllInteraction(source);
+			ShowInteractionUI(source, true);
+			interaction_sceneitem_pointer = item;
+		}
+	}
 }
 
 void PLSBasic::on_actionSourceProperties_triggered()
@@ -4366,10 +5640,28 @@ void PLSBasic::OpenFilters()
 {
 	OBSSceneItem item = GetCurrentSceneItemData();
 	OBSSource source = obs_sceneitem_get_source(item);
+	OpenSourceFilters(source);
+}
 
+void PLSBasic::OpenSourceFilters(OBSSource source)
+{
 	PLS_UI_STEP(MAINFRAME_MODULE, "Menu Open Source Filter", ACTION_CLICK);
-
 	CreateFiltersWindow(source);
+}
+
+void PLSBasic::OpenSourceStickers(OBSSource source)
+{
+	if (nullptr == giphyStickerView)
+		InitGiphyStickerView();
+	giphyStickerView->SetBindSourcePtr(reinterpret_cast<PointerValue>(source.get()));
+	giphyStickerView->show();
+	giphyStickerView->raise();
+}
+
+void PLSBasic::OnPropertiesWindowClose()
+{
+	if (giphyStickerView)
+		giphyStickerView->SetBindSourcePtr(0);
 }
 
 void PLSBasic::OpenSceneFilters()
@@ -4389,16 +5681,16 @@ void PLSBasic::OpenSceneFilters()
 #define STREAMING_START "==== Streaming Start ==============================================="
 #define STREAMING_STOP "==== Streaming Stop ================================================"
 
-void PLSBasic::StartStreaming()
+bool PLSBasic::StartStreaming()
 {
 	PLS_INFO("main", "main: %s", "StartStreaming");
 	if (outputHandler->StreamingActive()) {
 		PLS_PLATFORM_API->onLiveStarted();
-		return;
+		return false;
 	}
 	if (disableOutputsRef) {
 		PLS_PLATFORM_API->onLiveEnded();
-		return;
+		return false;
 	}
 
 	if (api)
@@ -4420,7 +5712,7 @@ void PLSBasic::StartStreaming()
 
 		PLSAlertView::critical(this, QTStr("Output.StartStreamFailed"), message);
 		PLS_PLATFORM_API->onLiveEnded();
-		return;
+		return false;
 	}
 
 	bool recordWhenStreaming = config_get_bool(GetGlobalConfig(), "BasicWindow", "RecordWhenStreaming");
@@ -4431,6 +5723,7 @@ void PLSBasic::StartStreaming()
 	if (replayBufferWhileStreaming) {
 		StartReplayBufferWithNoCheck();
 	}
+	return true;
 }
 
 #ifdef _WIN32
@@ -4490,8 +5783,10 @@ void PLSBasic::StopStreaming()
 	PLS_INFO("main", "main: %s", "StopStreaming");
 	SaveProject();
 
-	if (outputHandler->StreamingActive())
+	if (outputHandler->StreamingActive()) {
+		m_timerStreamIn5s.start();
 		outputHandler->StopStreaming(m_bFastStop || streamingStopping);
+	}
 
 	OnDeactivate();
 
@@ -4540,7 +5835,7 @@ void PLSBasic::StreamDelayStarting(int sec)
 	if (!startStreamMenu.isNull())
 		startStreamMenu->deleteLater();
 
-	startStreamMenu = new QMenu();
+	startStreamMenu = new QMenu(this);
 	startStreamMenu->addAction(QTStr("Basic.Main.StopStreaming"), this, SLOT(StopStreaming()));
 	startStreamMenu->addAction(QTStr("Basic.Main.ForceStopStreaming"), this, SLOT(ForceStopStreaming()));
 	//ui->streamButton->setMenu(startStreamMenu);
@@ -4564,7 +5859,7 @@ void PLSBasic::StreamDelayStopping(int sec)
 	if (!startStreamMenu.isNull())
 		startStreamMenu->deleteLater();
 
-	startStreamMenu = new QMenu();
+	startStreamMenu = new QMenu(this);
 	startStreamMenu->addAction(QTStr("Basic.Main.StartStreaming"), this, SLOT(StartStreaming()));
 	startStreamMenu->addAction(QTStr("Basic.Main.ForceStopStreaming"), this, SLOT(ForceStopStreaming()));
 	//ui->streamButton->setMenu(startStreamMenu);
@@ -4610,6 +5905,8 @@ void PLSBasic::StreamStopping()
 
 void PLSBasic::StreamingStop(int code, QString last_error)
 {
+	m_timerStreamIn5s.stop();
+
 	PLS_INFO("main", "main: %s", "StreamingStop");
 	const char *errorDescription = "";
 	DStr errorMessage;
@@ -4774,8 +6071,10 @@ bool PLSBasic::StopRecording()
 	PLS_INFO("main", "main: %s", "StopRecording");
 	SaveProject();
 
-	if (outputHandler->RecordingActive())
+	if (outputHandler->RecordingActive()) {
+		m_timerRecordIn5s.start();
 		outputHandler->StopRecording(m_bFastStop || recordingStopping);
+	}
 
 	OnDeactivate();
 	return true;
@@ -4806,6 +6105,8 @@ void PLSBasic::RecordingStart()
 
 void PLSBasic::RecordingStop(int code, QString last_error)
 {
+	m_timerRecordIn5s.stop();
+
 	PLS_INFO("main", "main: %s", "RecordingStop");
 	mainView->statusBar()->RecordingStopped();
 
@@ -5006,8 +6307,10 @@ void PLSBasic::StopReplayBuffer()
 
 	SaveProject();
 
-	if (outputHandler->ReplayBufferActive())
+	if (outputHandler->ReplayBufferActive()) {
+		m_timerRelayBufferIn5s.start();
 		outputHandler->StopReplayBuffer(replayBufferStopping);
+	}
 
 	OnDeactivate();
 }
@@ -5042,6 +6345,8 @@ void PLSBasic::ReplayBufferSave()
 
 void PLSBasic::ReplayBufferStop(int code)
 {
+	m_timerRelayBufferIn5s.stop();
+
 	PLS_INFO("main", "main: %s", "ReplayBufferStop");
 	if (!outputHandler || !outputHandler->replayBuffer)
 		return;
@@ -5095,6 +6400,160 @@ bool PLSBasic::NoSourcesConfirmation()
 	}
 
 	return true;
+}
+
+void PLSBasic::ClearStickerCache()
+{
+	std::map<QString, bool> stickerUsed;
+	auto getUsedFile = [&stickerUsed](obs_source_t *source) /* -- */
+	{
+		const char *id = obs_source_get_id(source);
+		if (id && *id) {
+			if (0 != strcmp(id, PRISM_STICKER_SOURCE_ID))
+				return true;
+			OBSData settings = obs_source_get_settings(source);
+			const char *file = obs_data_get_string(settings, "file");
+			if (file && *file) {
+				QString fileName(file);
+				QString filePreview;
+				fileName = fileName.mid(fileName.lastIndexOf("/") + 1);
+				stickerUsed.insert(std::make_pair(fileName, true));
+				filePreview = fileName;
+				filePreview.replace(FILE_ORIGINAL, FILE_THUMBNAIL);
+				stickerUsed.insert(std::make_pair(filePreview, true));
+			}
+			obs_data_release(settings);
+		}
+		return true;
+	};
+
+	using getUsedFile_t = decltype(getUsedFile);
+
+	auto PreEnum = [](void *data, obs_source_t *source) -> bool /* -- */
+	{ return (*reinterpret_cast<getUsedFile_t *>(data))(source); };
+
+	obs_enum_sources(PreEnum, &getUsedFile);
+
+	QDir dir(pls_get_user_path(GIPHY_STICKERS_CACHE_PATH));
+	if (dir.exists()) {
+		QFileInfoList infoList = dir.entryInfoList();
+		for (int i = 0; i < infoList.size(); i++) {
+			QFileInfo fileInfo = infoList.at(i);
+			QString name = fileInfo.fileName();
+			if (name == "." || name == ".." || fileInfo.isDir() || !name.contains(".gif")) {
+				continue;
+			}
+
+			if (stickerUsed.end() != stickerUsed.find(name))
+				continue;
+
+			// delete thunmbnail and unused oringinal gifs.
+			if (!QFile::remove(fileInfo.absoluteFilePath())) {
+				PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Delete file %s failed", name.toUtf8().constData());
+			}
+		}
+	}
+}
+
+void PLSBasic::CreateStickerDownloader(OBSSource source)
+{
+	bool findout = false;
+	auto iter = stickerSourceMap.begin();
+	PointerValue randomId = PLSGipyStickerView::ConvertPointer(source.get());
+	bool findOut = (stickerSourceMap.find(randomId) != stickerSourceMap.end());
+	if (!findout) {
+		stickerSourceMap.insert(std::make_pair(randomId, ""));
+		DownloadStickerForSource(source, randomId);
+	}
+}
+
+void PLSBasic::VolumeMuted(const QString &sourceName, bool muted)
+{
+	OBSSource source = pls_get_source_by_name(sourceName.toUtf8().constData());
+	if (!source)
+		return;
+	if (!muted) {
+		UpdateMasterSwitch(false);
+		SetSourcePreviousMuted(source, muted);
+		return;
+	}
+
+	bool allMuted = ConfigAllMuted();
+	if (!allMuted)
+		SetSourcePreviousMuted(source, muted);
+	auto muteStatus = GetMasterAudioStatusCurrent();
+	if (muteStatus.audioSourceCount > 0 && muteStatus.isAllAudioMuted) {
+		UpdateMasterSwitch(true);
+	}
+}
+
+void PLSBasic::DownloadStickerForSource(OBSSource source, unsigned long long randomId)
+{
+	GiphyData data = GetStickerSourceData(source);
+	if (data.sizeOriginal.isEmpty())
+		return;
+	DownloadTaskData task;
+	task.randomId = randomId;
+	task.SourceSize = data.sizeOriginal;
+	task.type = StickerDownloadType::ORIGINAL;
+	task.url = data.originalUrl;
+	task.uniqueId = data.id;
+	if (!GiphyDownloader::instance()->IsRunning())
+		GiphyDownloader::instance()->Start();
+	GiphyDownloader::instance()->Get(task);
+}
+
+void PLSBasic::SetStickerSourceSetting(OBSSource source, const QString &file, const GiphyData &giphyData)
+{
+	if (file.isEmpty())
+		return;
+	OBSData oldSettings(obs_data_create());
+	obs_data_release(oldSettings);
+	OBSData settings = obs_source_get_settings(source);
+	obs_data_apply(oldSettings, settings);
+	obs_data_release(settings);
+
+	obs_data_set_string(settings, "file", QT_TO_UTF8(file));
+	obs_data_set_string(settings, "id", QT_TO_UTF8(giphyData.id));
+	obs_data_set_string(settings, "type", QT_TO_UTF8(giphyData.type));
+	obs_data_set_string(settings, "title", QT_TO_UTF8(giphyData.title));
+	obs_data_set_string(settings, "rating", QT_TO_UTF8(giphyData.rating));
+
+	obs_data_set_int(settings, "preview_width", giphyData.sizePreview.width());
+	obs_data_set_int(settings, "preview_height", giphyData.sizePreview.height());
+	obs_data_set_int(settings, "original_width", giphyData.sizeOriginal.width());
+	obs_data_set_int(settings, "original_height", giphyData.sizeOriginal.height());
+
+	obs_data_set_string(settings, "preview_url", QT_TO_UTF8(giphyData.previewUrl));
+	obs_data_set_string(settings, "original_url", QT_TO_UTF8(giphyData.originalUrl));
+
+	obs_source_update(source, settings);
+}
+
+GiphyData PLSBasic::GetStickerSourceData(OBSSource source)
+{
+	obs_data_t *settings = obs_source_get_settings(source);
+	const char *id = obs_data_get_string(settings, "id");
+	const char *type = obs_data_get_string(settings, "type");
+	const char *title = obs_data_get_string(settings, "title");
+	const char *rating = obs_data_get_string(settings, "rating");
+	uint32_t preview_width = (uint32_t)obs_data_get_int(settings, "preview_width");
+	uint32_t preview_height = (uint32_t)obs_data_get_int(settings, "preview_height");
+	uint32_t original_width = (uint32_t)obs_data_get_int(settings, "original_width");
+	uint32_t original_height = (uint32_t)obs_data_get_int(settings, "original_height");
+	const char *preview_url = obs_data_get_string(settings, "preview_url");
+	const char *original_url = obs_data_get_string(settings, "original_url");
+
+	GiphyData data;
+	data.id = id;
+	data.type = type;
+	data.title = title;
+	data.rating = rating;
+	data.previewUrl = preview_url;
+	data.originalUrl = original_url;
+	data.sizePreview = QSize(preview_width, preview_height);
+	data.sizeOriginal = QSize(original_width, original_height);
+	return data;
 }
 
 void PLSBasic::on_streamButton_clicked()
@@ -5231,6 +6690,35 @@ void PLSBasic::on_settingsButton_clicked()
 	on_action_Settings_triggered();
 }
 
+void PLSBasic::on_actionPrismFAQ_triggered()
+{
+	PLS_UI_STEP(MAINMENU_MODULE, "Main Menu Help Prism FAQ", ACTION_CLICK);
+
+	if (!strcmp(App()->GetLocale(), "ko-KR")) {
+		QDesktopServices::openUrl(QUrl("http://prismlive.com/ko_kr/faq/faq.html?app=pcapp", QUrl::TolerantMode));
+	} else {
+		QDesktopServices::openUrl(QUrl("http://prismlive.com/en_us/faq/faq.html?app=pcapp", QUrl::TolerantMode));
+	}
+}
+
+void PLSBasic::on_actionPrismWebsite_triggered()
+{
+	PLS_UI_STEP(MAINMENU_MODULE, "Main Menu Help Prism Website", ACTION_CLICK);
+
+	if (!strcmp(App()->GetLocale(), "ko-KR")) {
+		QDesktopServices::openUrl(QUrl("http://prismlive.com/ko_kr/pcapp/", QUrl::TolerantMode));
+	} else {
+		QDesktopServices::openUrl(QUrl("http://prismlive.com/en_us/pcapp/", QUrl::TolerantMode));
+	}
+}
+
+void PLSBasic::on_actionObsFAQPortal_triggered()
+{
+	PLS_UI_STEP(MAINMENU_MODULE, "Main Menu Help OBS FAQ Portal", ACTION_CLICK);
+
+	QUrl url = QUrl("https://obsproject.com/help", QUrl::TolerantMode);
+	QDesktopServices::openUrl(url);
+}
 
 void PLSBasic::on_actionShowSettingsFolder_triggered()
 {
@@ -5262,9 +6750,25 @@ int PLSBasic::GetTopSelectedSourceItem()
 	return selectedItems.count() ? selectedItems[0].row() : -1;
 }
 
+std::vector<int> PLSBasic::GetAllSelectedSourceItem()
+{
+	std::vector<int> selectItemsVec{};
+	QModelIndexList selectedItems = ui->sources->selectionModel()->selectedIndexes();
+	for (int i = 0; i < selectedItems.count(); i++) {
+		selectItemsVec.push_back(selectedItems[i].row());
+	}
+	return selectItemsVec;
+}
+
+int PLSBasic::CountSelectedItem()
+{
+	QModelIndexList selectedItems = ui->sources->selectionModel()->selectedIndexes();
+	return selectedItems.count();
+}
+
 void PLSBasic::on_preview_customContextMenuRequested(const QPoint &pos)
 {
-	CreateSourcePopupMenu(GetTopSelectedSourceItem(), true);
+	CreateSourcePopupMenu(GetTopSelectedSourceItem(), true, this);
 
 	UNUSED_PARAMETER(pos);
 }
@@ -5274,7 +6778,7 @@ void PLSBasic::on_program_customContextMenuRequested(const QPoint &)
 	QMenu popup(this);
 	QPointer<QMenu> studioProgramProjector;
 
-	studioProgramProjector = new QMenu(QTStr("StudioProgramProjector"));
+	studioProgramProjector = new QMenu(QTStr("StudioProgramProjector"), this);
 	AddProjectorMenuMonitors(studioProgramProjector, this, SLOT(OpenStudioProgramProjector()));
 
 	popup.addMenu(studioProgramProjector);
@@ -5295,7 +6799,7 @@ void PLSBasic::PreviewDisabledMenu(const QPoint &pos)
 	action->setCheckable(true);
 	action->setChecked(obs_display_enabled(ui->preview->GetDisplay()));
 
-	previewProjectorMain = new QMenu(QTStr("PreviewProjector"));
+	previewProjectorMain = new QMenu(QTStr("PreviewProjector"), this);
 	AddProjectorMenuMonitors(previewProjectorMain, this, SLOT(OpenPreviewProjector()));
 
 	QAction *previewWindow = popup.addAction(QTStr("PreviewWindow"), this, SLOT(OpenPreviewWindow()));
@@ -5400,6 +6904,77 @@ void PLSBasic::GetConfigFPS(uint32_t &num, uint32_t &den) const
 		GetFPSCommon(num, den);
 }
 
+void PLSBasic::InitSourceAudioStatus(obs_source_t *source)
+{
+	bool hasValue = false;
+	bool previousMuted = SourcePreviousMuted(source, &hasValue);
+	if (nullptr != m_allMuted) {
+		if (!hasValue) {
+			if (*m_allMuted) {
+				obs_source_set_muted(source, *m_allMuted);
+			} else {
+				bool muted = obs_source_muted(source);
+				SetSourcePreviousMuted(source, muted);
+			}
+		}
+	} else {
+		if (!hasValue) {
+			SetSourcePreviousMuted(source, obs_source_muted(source));
+		}
+	}
+}
+
+bool PLSBasic::CheckHideInteraction(OBSSceneItem item)
+{
+	if (!interaction_sceneitem_pointer) {
+		return true;
+	}
+
+	if (item && item == interaction_sceneitem_pointer) {
+		OBSSource source = obs_sceneitem_get_source(item);
+		if (source) {
+			ShowInteractionUI(source, false);
+			interaction_sceneitem_pointer = NULL;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+void PLSBasic::HideAllInteraction(obs_source_t *except_source)
+{
+	auto CloseInteractionCb = [](void *param, obs_source_t *source) {
+		obs_source_t *temp = (obs_source_t *)param;
+		if (source && source != temp) {
+			PLSBasic *main = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
+			main->ShowInteractionUI(source, false);
+		}
+		return true;
+	};
+
+	obs_enum_sources(CloseInteractionCb, except_source);
+
+	if (!except_source) {
+		// all interactions have been closed
+		interaction_sceneitem_pointer = NULL;
+	}
+}
+
+void PLSBasic::ShowInteractionUI(obs_source_t *source, bool show)
+{
+	obs_data_t *data = obs_data_create();
+	if (show) {
+		obs_data_set_string(data, "method", "ShowInteract");
+	} else {
+		obs_data_set_string(data, "method", "HideInterct");
+	}
+
+	obs_source_set_private_data(source, data);
+	obs_data_release(data);
+}
+
 config_t *PLSBasic::Config() const
 {
 	return basicConfig;
@@ -5416,25 +6991,40 @@ void PLSBasic::on_actionEditTransform_triggered()
 	transformWindow->setAttribute(Qt::WA_DeleteOnClose, true);
 }
 
-static obs_transform_info copiedTransformInfo;
-static obs_sceneitem_crop copiedCropInfo;
+static obs_transform_info copiedTransformInfo{};
+static obs_sceneitem_crop copiedCropInfo{};
+static obs_transform_info copiedGroupInfo{};
+
+static bool func(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
+{
+	if (obs_sceneitem_is_group(item) && (!obs_sceneitem_selected(item))) {
+		obs_sceneitem_get_info(item, &copiedGroupInfo);
+		obs_sceneitem_group_enum_items(item, func, param);
+		return true;
+	}
+
+	if (!obs_sceneitem_selected(item))
+		return true;
+
+	obs_sceneitem_defer_update_begin(item);
+	obs_sceneitem_get_info(item, &copiedTransformInfo);
+	obs_sceneitem_get_crop(item, &copiedCropInfo);
+
+	if (!obs_sceneitem_is_group(item)) {
+		copiedTransformInfo.pos.x += copiedGroupInfo.pos.x;
+		copiedTransformInfo.pos.y += copiedGroupInfo.pos.y;
+	}
+
+	obs_sceneitem_defer_update_end(item);
+
+	UNUSED_PARAMETER(scene);
+	UNUSED_PARAMETER(param);
+	return true;
+};
 
 void PLSBasic::on_actionCopyTransform_triggered()
 {
 	PLS_UI_STEP(MAINFRAME_MODULE, "Copy Transform", ACTION_CLICK);
-	auto func = [](obs_scene_t *scene, obs_sceneitem_t *item, void *param) {
-		if (!obs_sceneitem_selected(item))
-			return true;
-
-		obs_sceneitem_defer_update_begin(item);
-		obs_sceneitem_get_info(item, &copiedTransformInfo);
-		obs_sceneitem_get_crop(item, &copiedCropInfo);
-		obs_sceneitem_defer_update_end(item);
-
-		UNUSED_PARAMETER(scene);
-		UNUSED_PARAMETER(param);
-		return true;
-	};
 
 	obs_scene_enum_items(GetCurrentScene(), func, nullptr);
 	ui->actionPasteTransform->setEnabled(true);
@@ -5718,6 +7308,105 @@ static bool center_to_scene(obs_scene_t *, obs_sceneitem_t *item, void *param)
 	return true;
 };
 
+void PLSBasic::AddStickerSource(const char *id, const QString &file, const GiphyData &giphyData)
+{
+	OBSScene scene = GetCurrentScene();
+	if (!scene)
+		return;
+
+	if (file.isEmpty())
+		return;
+
+	QString sourceName{QT_UTF8(obs_source_get_display_name(id))};
+	QString newName{sourceName};
+	int i = 2;
+	obs_source_t *source_ = nullptr;
+	while ((source_ = obs_get_source_by_name(QT_TO_UTF8(newName)))) {
+		obs_source_release(source_);
+		newName = QString("%1 %2").arg(sourceName).arg(i++);
+	}
+
+	obs_source_t *source = obs_get_source_by_name(QT_TO_UTF8(newName));
+	if (source) {
+		PLSMessageBox::information(this, QTStr("NameExists.Title"), QTStr("NameExists.Text"));
+		obs_source_release(source);
+		return;
+	}
+
+	source = obs_source_create(id, QT_TO_UTF8(newName), NULL, nullptr);
+
+	if (source) {
+
+		SetStickerSourceSetting(source, file, giphyData);
+
+		// set initialize position to scene center.
+		obs_video_info ovi;
+		vec3 screenCenter;
+		obs_get_video_info(&ovi);
+		vec3_set(&screenCenter, float(ovi.base_width), float(ovi.base_height), 0.0f);
+		vec3_mulf(&screenCenter, &screenCenter, 0.5f);
+
+		//const float fixedWidth = 200.0f;
+		//const float fixedHeight = 200.0f;
+
+		const float stickerWidth = float(giphyData.sizeOriginal.width());
+		const float stickerHeight = float(giphyData.sizeOriginal.height());
+
+		struct AddSourceData {
+			obs_source_t *source;
+			bool visible;
+			vec2 centerPos;
+			vec2 scale;
+		};
+
+		AddSourceData data;
+		data.source = source;
+		data.visible = true;
+
+		float radio = 1.0f;
+		// UX show original size
+		/*do {
+			if (stickerHeight == 0 || stickerWidth == 0)
+				break;
+			if (stickerWidth > fixedWidth || stickerHeight > fixedHeight) {
+				if (stickerWidth > stickerHeight) {
+					radio = fixedWidth / stickerWidth;
+				} else {
+					radio = fixedHeight / stickerHeight;
+				}
+			}
+
+		} while (false);*/
+
+		data.scale.x = radio;
+		data.scale.y = radio;
+
+		data.centerPos.x = screenCenter.x - stickerWidth * radio / 2.0f;
+		data.centerPos.y = screenCenter.y - stickerHeight * radio / 2.0f;
+
+		auto addStickerSource = [](void *_data, obs_scene_t *scene) {
+			AddSourceData *data = (AddSourceData *)_data;
+			obs_sceneitem_t *sceneitem;
+
+			sceneitem = obs_scene_add(scene, data->source);
+			obs_sceneitem_set_pos(sceneitem, &data->centerPos);
+			obs_sceneitem_set_scale(sceneitem, &data->scale);
+			obs_sceneitem_set_visible(sceneitem, data->visible);
+		};
+
+		obs_enter_graphics();
+		obs_scene_atomic_update(scene, addStickerSource, &data);
+		obs_leave_graphics();
+
+		/* set monitoring if source monitors by default */
+		uint32_t flags = obs_source_get_output_flags(source);
+		if ((flags & OBS_SOURCE_MONITOR_BY_DEFAULT) != 0) {
+			obs_source_set_monitoring_type(source, OBS_MONITORING_TYPE_MONITOR_ONLY);
+		}
+	}
+	obs_source_release(source);
+}
+
 void PLSBasic::on_actionCenterToScreen_triggered()
 {
 	PLS_UI_STEP(MAINFRAME_MODULE, "Center To Sceen", ACTION_CLICK);
@@ -5784,6 +7473,52 @@ void PLSBasic::DisablePreview()
 
 	previewEnabled = false;
 	EnablePreviewDisplay(false);
+}
+
+void PLSBasic::MuteAllAudio()
+{
+	UpdateMasterSwitch(true);
+
+	auto enumAudioSource = [](void *param, obs_source_t *source) {
+		if (!source)
+			return true;
+
+		uint32_t flags = obs_source_get_output_flags(source);
+		if (flags & OBS_SOURCE_AUDIO) {
+			SetSourcePreviousMuted(source, obs_source_muted(source));
+			obs_source_set_muted(source, true);
+		}
+		return true;
+	};
+
+	obs_enum_sources(enumAudioSource, nullptr);
+}
+
+void PLSBasic::UnmuteAllAudio()
+{
+	UpdateMasterSwitch(false);
+
+	auto masterStatus = GetMasterAudioStatusPrevious();
+
+	// audio status should revert to previous
+	auto enumAudioSource = [](void *param, obs_source_t *source) {
+		if (!source)
+			return true;
+
+		uint32_t flags = obs_source_get_output_flags(source);
+		if (flags & OBS_SOURCE_AUDIO) {
+			bool previous_muted = SourcePreviousMuted(source);
+			auto masterStatus = *reinterpret_cast<AudioStatus *>(param);
+			if (masterStatus.isAllAudioMuted) {
+				previous_muted = false;
+				SetSourcePreviousMuted(source, previous_muted);
+			}
+			obs_source_set_muted(source, previous_muted);
+		}
+		return true;
+	};
+
+	obs_enum_sources(enumAudioSource, &masterStatus);
 }
 
 static bool nudge_callback(obs_scene_t *, obs_sceneitem_t *item, void *param)
@@ -5868,33 +7603,49 @@ PLSDialogView *PLSBasic::OpenProjector(obs_source_t *source, int monitor, QStrin
 	if (monitor > 9 || monitor > QGuiApplication::screens().size() - 1)
 		return nullptr;
 
-	PLSDialogView *dialogView = new PLSDialogView(nullptr);
-	dialogView->setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowMinMaxButtonsHint);
+	PLSDialogView *dialogView = nullptr;
+	PLSProjector *projector = nullptr;
 
-	PLSProjector *projector = new PLSProjector(nullptr, source, monitor, title, type);
-	dialogView->setWidget(projector);
-	dialogView->content()->setContentsMargins(4, 0, 4, 4);
-	dialogView->content()->setStyleSheet("background-color: #000000");
+	{
+		PLSDpiHelper dpiHelper;
+		dialogView = new PLSDialogView(nullptr, dpiHelper);
+		dialogView->setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowMinMaxButtonsHint);
+		dpiHelper.setMinimumSize(dialogView, {410, 273});
 
-	QWidget *toplevelView = pls_get_toplevel_view(projector);
-	connect(toplevelView, SIGNAL(beginResizeSignal()), projector, SLOT(beginResizeSlot()));
-	connect(toplevelView, SIGNAL(endResizeSignal()), projector, SLOT(endResizeSlot()));
+		projector = new PLSProjector(nullptr, source, monitor, title, type);
 
-	if (monitor < 0) {
-		dialogView->setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/PRISMLiveStudio.ico")));
-		dialogView->setHasMinButton(true);
-		dialogView->setHasMaxResButton(true);
-		dialogView->resize(480, 320);
-	} else {
-		dialogView->setEscapeCloseEnabled(true);
-		dialogView->setHasCaption(false);
-		dialogView->setHasBorder(false);
+		dialogView->setWidget(projector);
+		dpiHelper.setContentsMargins(dialogView->content(), {4, 0, 4, 4});
+		dialogView->content()->setStyleSheet("background-color: #000000");
 
-		QScreen *screen = QGuiApplication::screens()[monitor];
-		dialogView->setGeometry(screen->geometry());
+		connect(dialogView, SIGNAL(beginResizeSignal()), projector, SLOT(beginResizeSlot()));
+		connect(dialogView, SIGNAL(endResizeSignal()), projector, SLOT(endResizeSlot()));
+
+		if (monitor < 0) {
+			dialogView->setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/PRISMLiveStudio.ico")));
+			dialogView->setHasMinButton(true);
+			dialogView->setHasMaxResButton(true);
+			dpiHelper.setInitSize(dialogView, {480, 320});
+		} else {
+			dialogView->setEscapeCloseEnabled(true);
+			dialogView->setHasCaption(false);
+			dialogView->setHasBorder(false);
+
+			QScreen *screen = QGuiApplication::screens()[monitor];
+			dialogView->setGeometry(screen->geometry());
+		}
 	}
 
-	connect(dialogView, &PLSDialogView::shown, dialogView, [=]() { SetAlwaysOnTop(dialogView, "Projector", config_get_bool(GetGlobalConfig(), "BasicWindow", "ProjectorAlwaysOnTop")); });
+	connect(
+		dialogView, &PLSDialogView::shown, dialogView,
+		[=]() {
+			if (!dialogView->property(IS_ALWAYS_ON_TOP_FIRST_SETTED).toBool()) {
+				dialogView->setProperty(IS_ALWAYS_ON_TOP_FIRST_SETTED, true);
+
+				SetAlwaysOnTop(dialogView, "Projector", config_get_bool(GetGlobalConfig(), "BasicWindow", "ProjectorAlwaysOnTop"));
+			}
+		},
+		Qt::QueuedConnection);
 
 	dialogView->setAttribute(Qt::WA_DeleteOnClose, true);
 	dialogView->setAttribute(Qt::WA_QuitOnClose, false);
@@ -6140,7 +7891,7 @@ PLSMainView *PLSBasic::getMainView() const
 
 void PLSBasic::on_resetUI_triggered()
 {
-	PLS_UI_STEP(MAINFRAME_MODULE, "Reset UI", ACTION_CLICK);
+	// PLS_UI_STEP(MAINFRAME_MODULE, "Reset UI", ACTION_CLICK);
 
 	/* prune deleted extra docks */
 	for (int i = extraDocks.size() - 1; i >= 0; i--) {
@@ -6175,13 +7926,14 @@ void PLSBasic::on_resetUI_triggered()
 	//ui->controlsDock->setVisible(false);
 
 	// resize dock with UI design
-	resizeDocks(docks, {218, 218, 218}, Qt::Vertical);
-	resizeDocks(docks, {410, 410, 410}, Qt::Horizontal);
+	int height = PLSDpiHelper::calculate(this, 218), width = PLSDpiHelper::calculate(this, 410);
+	resizeDocks(docks, {height, height, height}, Qt::Vertical);
+	resizeDocks(docks, {width, width, width}, Qt::Horizontal);
 }
 
 void PLSBasic::on_lockUI_toggled(bool lock)
 {
-	PLS_UI_STEP(MAINFRAME_MODULE, "Lock UI", ACTION_CLICK);
+	// PLS_UI_STEP(MAINFRAME_MODULE, "Lock UI", ACTION_CLICK);
 
 	QDockWidget::DockWidgetFeatures features = lock ? QDockWidget::NoDockWidgetFeatures : QDockWidget::AllDockWidgetFeatures;
 
@@ -6295,13 +8047,24 @@ void PLSBasic::on_actionStudioMode_triggered()
 	SetPreviewProgramMode(!isStudioMode);
 }
 
+
+
+void PLSBasic::on_actionChat_triggered()
+{
+	PLS_UI_STEP(MAINMENU_MODULE, "Main Menu View Show/Hide Chat", ACTION_CLICK);
+
+	extern void showChatView(bool isRebackLogin = false, bool isOnlyShow = false, bool isOnlyInit = false);
+
+	showChatView();
+}
+
 void PLSBasic::SetShowing(bool showing)
 {
 	if (!showing && mainView->isVisible()) {
 		PLS_INFO(MAINFRAME_MODULE, "hide main window");
 
 		if (!mainView->getMaxState() && !mainView->getFullScreenState()) {
-			config_set_string(App()->GlobalConfig(), "BasicWindow", "geometry", saveGeometry().toBase64().constData());
+			config_set_string(App()->GlobalConfig(), "BasicWindow", "geometry", mainView->saveGeometry().toBase64().constData());
 		}
 
 		/* hide all visible child dialogs */
@@ -6414,9 +8177,9 @@ void PLSBasic::SystemTrayInit()
 
 	exit = new QAction(QTStr("Exit"), trayIcon.data());
 
-	trayMenu = new QMenu();
-	previewProjector = new QMenu(QTStr("PreviewProjector"));
-	studioProgramProjector = new QMenu(QTStr("StudioProgramProjector"));
+	trayMenu = new QMenu(this);
+	previewProjector = new QMenu(QTStr("PreviewProjector"), this);
+	studioProgramProjector = new QMenu(QTStr("StudioProgramProjector"), this);
 	AddProjectorMenuMonitors(previewProjector, this, SLOT(OpenPreviewProjector()));
 	AddProjectorMenuMonitors(studioProgramProjector, this, SLOT(OpenStudioProgramProjector()));
 	trayMenu->addAction(showHide);
@@ -6431,8 +8194,8 @@ void PLSBasic::SystemTrayInit()
 
 	connect(trayIcon.data(), SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(IconActivated(QSystemTrayIcon::ActivationReason)));
 	connect(showHide, SIGNAL(triggered()), this, SLOT(ToggleShowHide()));
-	connect(sysTrayStream, &QAction::triggered, PLSCHANNELS_API, &PLSChannelDataAPI::toStartBroadcast);
-	connect(sysTrayRecord, &QAction::triggered, PLSCHANNELS_API, &PLSChannelDataAPI::toStartRecord);
+	connect(sysTrayStream, &QAction::triggered, PLSCHANNELS_API, &PLSChannelDataAPI::toStartBroadcast, Qt::QueuedConnection);
+	connect(sysTrayRecord, &QAction::triggered, PLSCHANNELS_API, &PLSChannelDataAPI::toStartRecord, Qt::QueuedConnection);
 
 	connect(exit, &QAction::triggered, this, [this]() {
 		trayIcon->hide();
@@ -6536,10 +8299,10 @@ void PLSBasic::on_actionPasteRef_triggered()
 
 	/* do not allow duplicate refs of the same group in the same scene */
 	OBSScene scene = GetCurrentScene();
-	if (!!obs_scene_get_group(scene, copyString))
+	if (!!obs_scene_get_group(scene, copyString.toStdString().c_str()))
 		return;
 
-	PLSBasicSourceSelect::SourcePaste(copyString, copyVisible, false);
+	PLSBasicSourceSelect::SourcePaste(copyString.toStdString().c_str(), copyVisible, false);
 	on_actionPasteTransform_triggered();
 }
 
@@ -6547,7 +8310,7 @@ void PLSBasic::on_actionPasteDup_triggered()
 {
 	PLS_UI_STEP(MAINMENU_MODULE, "Main Menu Edit Paste Duplicate", ACTION_CLICK);
 
-	PLSBasicSourceSelect::SourcePaste(copyString, copyVisible, true);
+	PLSBasicSourceSelect::SourcePaste(copyString.toStdString().c_str(), copyVisible, true);
 	on_actionPasteTransform_triggered();
 }
 
@@ -6556,7 +8319,9 @@ void PLSBasic::AudioMixerCopyFilters()
 	PLS_UI_STEP(AUDIO_MIXER, "AudioMixerCopyFilters", ACTION_CLICK);
 
 	QAction *action = reinterpret_cast<QAction *>(sender());
-	VolControl *vol = action->property("volControl").value<VolControl *>();
+	QPointer<VolControl> vol = action->property("volControl").value<QPointer<VolControl>>();
+	if (!vol)
+		return;
 	obs_source_t *source = vol->GetSource();
 
 	copyFiltersString = obs_source_get_name(source);
@@ -6567,10 +8332,12 @@ void PLSBasic::AudioMixerPasteFilters()
 	PLS_UI_STEP(AUDIO_MIXER, "AudioMixerPasteFilters", ACTION_CLICK);
 
 	QAction *action = reinterpret_cast<QAction *>(sender());
-	VolControl *vol = action->property("volControl").value<VolControl *>();
+	QPointer<VolControl> vol = action->property("volControl").value<QPointer<VolControl>>();
+	if (!vol)
+		return;
 	obs_source_t *dstSource = vol->GetSource();
 
-	OBSSource source = obs_get_source_by_name(copyFiltersString);
+	OBSSource source = obs_get_source_by_name(copyFiltersString.toStdString().c_str());
 	obs_source_release(source);
 
 	if (source == dstSource)
@@ -6590,7 +8357,7 @@ void PLSBasic::ScenePasteFilters()
 {
 	PLS_UI_STEP(MAINMENU_MODULE, "Scene Paste Filters", ACTION_CLICK);
 
-	OBSSource source = obs_get_source_by_name(copyFiltersString);
+	OBSSource source = obs_get_source_by_name(copyFiltersString.toStdString().c_str());
 	obs_source_release(source);
 
 	OBSSource dstSource = GetCurrentSceneSource();
@@ -6621,7 +8388,7 @@ void PLSBasic::on_actionPasteFilters_triggered()
 {
 	PLS_UI_STEP(MAINMENU_MODULE, "Main Menu Edit Paste Filters", ACTION_CLICK);
 
-	OBSSource source = obs_get_source_by_name(copyFiltersString);
+	OBSSource source = obs_get_source_by_name(copyFiltersString.toStdString().c_str());
 	obs_source_release(source);
 
 	OBSSceneItem sceneItem = GetCurrentSceneItemData();
@@ -6676,6 +8443,50 @@ void PLSBasic::onMixerDockSeperateBtnClicked()
 	SetDocksMovePolicy(ui->mixerDock);
 }
 
+QString GenerateBeautyError(int msg, int code)
+{
+	switch (msg) {
+	case OBS_SOURCE_EXCEPTION_SENSETIME:
+		return QString("%1(%2).").arg(QTStr("main.beauty.exception.sensetime")).arg(code);
+
+	case OBS_SOURCE_EXCEPTION_D3D:
+		return QTStr("main.beauty.exception.d3d");
+
+	case OBS_SOURCE_EXCEPTION_PROCESS_EXIT:
+		return QTStr("main.beauty.exception.processexit");
+
+	case OBS_SOURCE_EXCEPTION_NO_FILE:
+		return QTStr("main.beauty.exception.noexe");
+
+	default:
+		return QString();
+	}
+}
+
+void PLSBasic::OnSourceNotifyAsync(QString name, int msg, int code)
+{
+	// warning : the returned obs_source_t must be release
+	obs_source_t *source = obs_get_source_by_name(name.toStdString().c_str());
+	if (source) {
+		PLS_INFO(SOURCE_MODULE, "Recieved source exception from [%s]. msg:%d code:%d", name.toStdString().c_str(), msg, code);
+
+		const char *pluginID = obs_source_get_id(source);
+		if (pluginID && 0 == strcmp(pluginID, DSHOW_SOURCE_ID)) {
+			// switch to beauty off, and update UI if need
+			beautyFilterView->TurnOffBeauty(source);
+		}
+
+		if (obs_source_get_capture_valid(source, NULL) && obs_source_get_image_status(source)) {
+			QString alertStromg = GenerateBeautyError(msg, code);
+			if (!alertStromg.isEmpty()) {
+				PLSAlertView::warning(App()->getMainView(), name, alertStromg);
+			}
+		}
+
+		obs_source_release(source);
+	}
+}
+
 void PLSBasic::SetDocksMovePolicy(PLSDock *dock)
 {
 	bool isFloating = dock->isFloating();
@@ -6691,6 +8502,25 @@ void PLSBasic::docksMovePolicy(PLSDock *dock, const QPoint &pre)
 	if (qAbs(dock->y() - pre.y()) < DOCK_DEATTACH_MIN_SIZE && qAbs(dock->x() - pre.x()) < DOCK_DEATTACH_MIN_SIZE) {
 		dock->move(pre.x() + DOCK_DEATTACH_MIN_SIZE, pre.y() + DOCK_DEATTACH_MIN_SIZE);
 	}
+}
+
+bool PLSBasic::isDshowSourceBySourceId(OBSSceneItem &item)
+{
+	if (!item) {
+		return false;
+	}
+
+	OBSSource source = obs_sceneitem_get_source(item);
+	if (!source) {
+		return false;
+	}
+
+	const char *id = obs_source_get_id(source);
+	if (id && 0 == strcmp(id, DSHOW_SOURCE_ID)) {
+		return true;
+	}
+
+	return false;
 }
 
 static void ConfirmColor(SourceTree *sources, const QColor &color, QModelIndexList selectedItems)
@@ -6734,10 +8564,9 @@ void PLSBasic::ColorChange()
 			stringstream button;
 			button << "preset" << i;
 			QPushButton *cButton = colorButton->parentWidget()->findChild<QPushButton *>(button.str().c_str());
-			cButton->setStyleSheet("border: 2px solid transparent");
+			cButton->setStyleSheet(QString("border: %1px solid transparent").arg(PLSDpiHelper::calculate(this, 2)));
 		}
-
-		colorButton->setStyleSheet("border: 2px solid black");
+		colorButton->setStyleSheet(QString("border: %1px solid black").arg(PLSDpiHelper::calculate(this, 2)));
 	} else if (action) {
 		int preset = action->property("bgColor").value<int>();
 		if (preset == 1) {
@@ -6828,10 +8657,11 @@ void PLSBasic::on_autoConfigure_triggered()
 
 void PLSBasic::popupStats(bool show, const QPoint &pos)
 {
+	const QSize STATS_POPUP_FIXED_SIZE{875, 184};
+
 	if (!stats.isNull()) {
 		if (show) {
-			QSize size = stats->size();
-			stats->move(pos.x(), pos.y() - size.height());
+			stats->setPos(pos.x(), pos.y() - PLSDpiHelper::calculate(mainView, STATS_POPUP_FIXED_SIZE.height()));
 			stats->show();
 			stats->raise();
 		} else {
@@ -6842,12 +8672,11 @@ void PLSBasic::popupStats(bool show, const QPoint &pos)
 		return;
 	}
 
-	PLSDialogView *statsDlgView = new PLSDialogView(this);
+	PLSDialogView *statsDlgView = newStatsPopup(mainView, STATS_POPUP_FIXED_SIZE);
 	stats = statsDlgView;
 	statsDlgView->setResizeEnabled(false);
 	statsDlgView->setHasCaption(false);
 	statsDlgView->setHasHLine(true);
-	statsDlgView->setFixedSize(875, 184);
 
 	PLSBasicStats *statsDlg = new PLSBasicStats(statsDlgView, statsDlgView->content());
 	statsDlgView->setWidget(statsDlg);
@@ -6855,9 +8684,21 @@ void PLSBasic::popupStats(bool show, const QPoint &pos)
 	connect(statsDlg, &PLSBasicStats::showSignal, mainView->statusBar(), [this]() { mainView->statusBar()->setStatsOpen(true); });
 	connect(statsDlg, &PLSBasicStats::hideSignal, mainView->statusBar(), [this]() { mainView->statusBar()->setStatsOpen(false); });
 
-	QSize size = statsDlgView->size();
-	statsDlgView->move(pos.x(), pos.y() - size.height());
+	statsDlgView->setPos(pos.x(), pos.y() - PLSDpiHelper::calculate(mainView, STATS_POPUP_FIXED_SIZE.height()));
 	statsDlgView->show();
+}
+
+void PLSBasic::ResizeMediaController()
+{
+	QPoint point = ui->previewContainer->pos();
+	QRect rect = ui->previewContainer->rect();
+
+	if (mediaController) {
+		mediaController->setGeometry(point.x(), point.y() + rect.height(), rect.width(), mediaController->height());
+		mediaController->ResizeLoading();
+		return;
+	}
+	return;
 }
 
 QWidget *PLSBasic::getChannelsContainer() const
@@ -6865,13 +8706,7 @@ QWidget *PLSBasic::getChannelsContainer() const
 	return mainView->channelsArea();
 }
 
-void PLSBasic::on_actionShowAbout_triggered()
-{
-	if (sender() == ui->actionShowAbout) {
-		PLS_UI_STEP(MAINMENU_MODULE, "Main Menu Help About", ACTION_CLICK);
-	}
 
-}
 
 void PLSBasic::on_actionOpenSourceLicense_triggered()
 {
@@ -6903,19 +8738,95 @@ void PLSBasic::ResizeOutputSizeOfSource()
 
 	ResetVideo();
 	on_actionFitToScreen_triggered();
+	showEncodingInStatusBar();
 }
 
 void PLSBasic::singletonWakeup()
 {
-	PLS_INFO(MAINFRAME_MODULE, "singleton instance wakeup");
-	if (App()->isAppRunning()) {
-		PLS_INFO(MAINFRAME_MODULE, "wakeup main window");
-		SetShowing(true);
+	return;
+}
 
-		// bring window to top
-		bringWindowToTop(mainView);
-	} else {
-		PLS_INFO(MAINFRAME_MODULE, "application is starting, don't wakeup");
+void PLSBasic::OnDshowSourceStatusChanged(const QString &name, OBSSceneItem item, bool valid)
+{
+	if (beautyFilterView) {
+
+		if (valid && !obs_sceneitem_visible(item))
+			return;
+
+		beautyFilterView->SetSourceVisible(name, item, valid);
+		if (ui->sources->Get(GetTopSelectedSourceItem()) == item && valid) {
+			beautyFilterView->SetSourceSelect(name, item, valid);
+		}
+	}
+}
+
+void PLSBasic::OnSelectItemChanged(OBSSceneItem item, bool selected)
+{
+	if (mediaController) {
+		OBSSceneItem items = selected ? item : ui->sources->Get(GetTopSelectedSourceItem());
+		QMetaObject::invokeMethod(
+			mediaController, [=]() { mediaController->UpdateMediaSource(items, selected); }, Qt::QueuedConnection);
+	}
+
+	SetBgmItemSelected(item, selected);
+	if (selected && beautyFilterView && item == beautyFilterView->GetCurrentItemData()) {
+		return;
+	}
+
+	SelectSceneItemForBeauty(GetCurrentScene(), item, selected);
+}
+
+void PLSBasic::OnVisibleItemChanged(OBSSceneItem item, bool visible)
+{
+	SceneItemSetVisible(item, visible);
+	SetBgmItemVisible(item, visible);
+	uint32_t flags = obs_source_get_output_flags(obs_sceneitem_get_source(item));
+	if (flags & OBS_SOURCE_AUDIO) {
+		if (!visible) {
+			auto muteStatus = GetMasterAudioStatusCurrent();
+			if (muteStatus.audioSourceCount > 0) {
+				bool allMute = muteStatus.isAllAudioMuted;
+				UpdateMasterSwitch(allMute);
+			}
+		} else {
+			bool allMute = ConfigAllMuted();
+			obs_source_t *source = obs_sceneitem_get_source(item);
+			obs_source_set_muted(source, allMute);
+			SetSourcePreviousMuted(source, allMute);
+			UpdateMixer(source);
+		}
+	}
+}
+
+void PLSBasic::OnSourceItemsRemove(QVector<OBSSceneItem> items)
+{
+	for (auto &item : items) {
+		OnRemoveSourceTreeItem(item);
+		RemoveBgmItem(item);
+	}
+}
+
+void PLSBasic::OnStickerDownloadCallback(const TaskResponData &responData)
+{
+	if (0 == responData.taskData.randomId)
+		return;
+	PointerValue randomId = responData.taskData.randomId;
+	auto iter = stickerSourceMap.find(randomId);
+	if (iter != stickerSourceMap.end()) {
+		stickerSourceMap.erase(iter);
+		auto setFileForStickerSource = [=](obs_source_t *source) {
+			if (!source)
+				return true;
+			if (randomId == PLSGipyStickerView::ConvertPointer(source)) {
+				SetFileForStickerSource(source, responData.fileName);
+				return false;
+			}
+			return true;
+		};
+
+		using SetFileForSticker_t = decltype(setFileForStickerSource);
+		auto enumSource = [](void *param, obs_source_t *source) { return (*reinterpret_cast<SetFileForSticker_t *>(param))(source); };
+		obs_enum_sources(enumSource, &setFileForStickerSource);
 	}
 }
 
@@ -7054,14 +8965,14 @@ bool PLSBasic::GetSourceDockSeperated()
 	return ui->sourcesDock->isFloating();
 }
 
-void PLSBasic::OnMultiviewLayoutChanged(int layout)
-{
-	ui->scenesFrame->RefreshMultiviewLayout(layout);
-}
-
 void PLSBasic::toastMessage(pls_toast_info_type type, const QString &message, int autoClose)
 {
 	mainView->toastMessage(type, message, autoClose);
+}
+
+void PLSBasic::toastMessage(pls_toast_info_type type, const QString &message, const QString &url, const QString &replaceStr, int autoClose)
+{
+	mainView->toastMessage(type, message, url, replaceStr, autoClose);
 }
 
 void PLSBasic::toastClear()
@@ -7146,25 +9057,14 @@ void PLSBasic::UpdatePause(bool activate)
 #define MBYTES_LEFT_STOP_REC 50ULL
 #define MAX_BYTES_LEFT (MBYTES_LEFT_STOP_REC * MBYTE)
 
-void PLSBasic::delAllCookie()
+void PLSBasic::delSpecificUrlCookie(const QString &url, const QString &cookieName)
 {
 	if (!panel_cookies) {
 		InitBrowserPanelSafeBlock();
 	}
-	panel_cookies->DeleteCookies("", "");
-
-	QString del_file = QString(pls_get_user_path("PRISMLiveStudio/plugin_config/obs-browser"));
-	QDir dir;
-	dir.setPath(del_file);
-	dir.removeRecursively();
-}
-
-void PLSBasic::delSpecificUrlCookie(const QString &url)
-{
-	if (!panel_cookies) {
-		InitBrowserPanelSafeBlock();
+	if (panel_cookies) {
+		panel_cookies->DeleteCookies(url.toStdString(), cookieName.toStdString());
 	}
-	panel_cookies->DeleteCookies(url.toStdString(), "");
 }
 
 const char *PLSBasic::GetCurrentOutputPath()
@@ -7262,11 +9162,6 @@ void PLSBasic::DiskSpaceMessage()
 	PLSMessageBox::critical(this, QTStr("Output.RecordNoSpace.Title"), QTStr("Output.RecordNoSpace.Msg"));
 }
 
-void PLSBasic::onPropertyChanged(OBSSource source)
-{
-	emit propertiesChaned(source);
-}
-
 void PLSBasic::SetAttachWindowBtnText(QAction *action, bool isFloating)
 {
 	if (!action) {
@@ -7276,6 +9171,297 @@ void PLSBasic::SetAttachWindowBtnText(QAction *action, bool isFloating)
 		action->setText(QTStr(MAIN_MAINFRAME_TOOLTIP_REATTACH));
 	} else {
 		action->setText(QTStr(MAIN_MAINFRAME_TOOLTIP_DETACH));
+	}
+}
+
+bool PLSBasic::CheckMasterAudioStatus(obs_data_t *data)
+{
+	if (nullptr != m_allMuted) {
+		delete m_allMuted;
+		m_allMuted = nullptr;
+	}
+	bool hasValue = obs_data_has_user_value(data, "all_muted");
+	if (hasValue) {
+		bool allMuted = obs_data_get_bool(data, "all_muted");
+		if (nullptr == m_allMuted) {
+			m_allMuted = new bool;
+		}
+		*m_allMuted = allMuted;
+	}
+	return hasValue;
+}
+
+void PLSBasic::UpdateMasterSwitch(bool mute)
+{
+	if (nullptr == m_allMuted) {
+		m_allMuted = new bool;
+	}
+	*m_allMuted = mute;
+	for (QToolButton *btn : ui->mixerDock->titleWidget()->getButtons()) {
+		if (0 == btn->objectName().compare("audioMasterControl")) {
+			btn->setProperty("muteAllAudio", mute);
+			btn->setToolTip(mute ? QTStr("Basic.MainMenu.Edit.UnmuteAll") : QTStr("Basic.MainMenu.Edit.MuteAll"));
+			pls_flush_style(btn);
+			break;
+		}
+	}
+}
+
+bool PLSBasic::ConfigAllMuted()
+{
+	if (m_allMuted) {
+		return *m_allMuted;
+	} else
+		return false;
+}
+
+//judge if all the audio are muted at present(include audio sources, audio devices)
+//@param ignoreAudioSource.
+//@describe: ignore the audio source when counting the  audio sources in enum loop(when counting the audio sources,we do not count the removed one).
+//@ignoreDeviceSource.
+//@describe: ignor the audio device when counting the device sources in enum loop(when counting the device sources,we do not count the removed one).
+AudioStatus PLSBasic::GetMasterAudioStatusCurrent(obs_source_t *ignoreAudioSource, obs_source_t *ignoreDeviceSource)
+{
+	AudioStatus masterAudioStatus;
+	AudioStatus deviceAudioStatus = GetDeviceAudioStatusCurrent(ignoreDeviceSource);
+	AudioStatus audioSourceStatus = GetSourceAudioStatusCurrent(ignoreAudioSource);
+
+	masterAudioStatus.audioSourceCount = deviceAudioStatus.audioSourceCount + audioSourceStatus.audioSourceCount;
+	masterAudioStatus.isAllAudioMuted = deviceAudioStatus.isAllAudioMuted && audioSourceStatus.isAllAudioMuted;
+	return masterAudioStatus;
+}
+
+//judge if all aduio sources are muted at present.
+AudioStatus PLSBasic::GetSourceAudioStatusCurrent(obs_source_t *ignoreSource)
+{
+	AudioStatus allAudioSourceCurrentStatus;
+
+	SceneDisplayVector displayVector = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	auto iter = displayVector.begin();
+	while (iter != displayVector.end()) {
+		if (iter->second) {
+			OBSScene scene = iter->second->GetData();
+			QVector<OBSSceneItem> items;
+			obs_scene_enum_items(scene, enumItemToVector, &items);
+			for (auto iter = items.begin(); iter != items.end(); ++iter) {
+				if (!*iter)
+					continue;
+				obs_source_t *source = obs_sceneitem_get_source(*iter);
+				if (ignoreSource && ignoreSource == source)
+					continue;
+				uint32_t flags = obs_source_get_output_flags(source);
+				bool visible = obs_sceneitem_visible(*iter);
+				if ((flags & OBS_SOURCE_AUDIO) && visible) {
+					allAudioSourceCurrentStatus.audioSourceCount++;
+					if (!obs_source_muted(source)) {
+						allAudioSourceCurrentStatus.isAllAudioMuted = false;
+						goto endOfLoop;
+					}
+				}
+			}
+		}
+		iter++;
+	}
+
+endOfLoop:
+	return allAudioSourceCurrentStatus;
+}
+
+// judge if all the previous muted status of audio devices are muted.
+AudioStatus PLSBasic::GetDeviceAudioStatusPrevious()
+{
+	AudioStatus allDeviceAudioStatusPrevious;
+
+	//tranverse all the audio device sources to judge if all the device sources' previous muted status are muted.
+	auto allSourceMute = [&allDeviceAudioStatusPrevious](obs_source_t *source) {
+		if (!source)
+			return true;
+
+		uint32_t flags = obs_source_get_output_flags(source);
+		if (flags & OBS_SOURCE_AUDIO) {
+			if (0 == strcmp(obs_source_get_id(source), App()->InputAudioSource()) || (0 == strcmp(obs_source_get_id(source), App()->OutputAudioSource()))) {
+				allDeviceAudioStatusPrevious.audioSourceCount++;
+				if (!SourcePreviousMuted(source)) {
+					allDeviceAudioStatusPrevious.isAllAudioMuted = false;
+					return false;
+				}
+			}
+		}
+		return true;
+	};
+
+	using allSourceMute_t = decltype(allSourceMute);
+
+	auto preEnum = [](void *param, obs_source_t *source) -> bool /* -- */
+	{ return (*reinterpret_cast<allSourceMute_t *>(param))(source); };
+
+	obs_enum_sources(preEnum, &allSourceMute);
+
+	return allDeviceAudioStatusPrevious;
+}
+
+// judge if all the previous muted status of audio sources are muted.
+AudioStatus PLSBasic::GetSourceAudioStatusPrevious()
+{
+	AudioStatus allSourceAudioStatusPrevious;
+
+	//tranverse all the scenes and sources to judge if all the audio sources' previous muted status are muted.
+	SceneDisplayVector displayVector = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	auto iter = displayVector.begin();
+	while (iter != displayVector.end()) {
+		if (iter->second) {
+			OBSScene scene = iter->second->GetData();
+			QVector<OBSSceneItem> items;
+			obs_scene_enum_items(scene, enumItemToVector, &items);
+			for (auto iter = items.begin(); iter != items.end(); ++iter) {
+				if (!*iter)
+					continue;
+				obs_source_t *source = obs_sceneitem_get_source(*iter);
+				uint32_t flags = obs_source_get_output_flags(source);
+				bool visible = obs_sceneitem_visible(*iter);
+				if ((flags & OBS_SOURCE_AUDIO) && visible) {
+					allSourceAudioStatusPrevious.audioSourceCount++;
+					if (!SourcePreviousMuted(source)) {
+						allSourceAudioStatusPrevious.isAllAudioMuted = false;
+						goto endOfLoop;
+					}
+				}
+			}
+		}
+		iter++;
+	}
+
+endOfLoop:
+	return allSourceAudioStatusPrevious;
+}
+
+bool PLSBasic::hasSourceMonitor()
+{
+	//tranverse all the audio device sources to judge if all the device sources' previous muted status are muted.
+	bool isMonitoring = false;
+	auto allSourceMute = [&isMonitoring](obs_source_t *source) {
+		if (!source)
+			return true;
+
+		uint32_t flags = obs_source_get_output_flags(source);
+		if (flags & OBS_SOURCE_AUDIO) {
+			if (obs_source_get_monitoring_type(source) != obs_monitoring_type::OBS_MONITORING_TYPE_NONE) {
+				isMonitoring = true;
+				return false;
+			}
+		}
+		return true;
+	};
+
+	using allSourceMute_t = decltype(allSourceMute);
+
+	auto preEnum = [](void *param, obs_source_t *source) -> bool /* -- */
+	{ return (*reinterpret_cast<allSourceMute_t *>(param))(source); };
+
+	obs_enum_sources(preEnum, &allSourceMute);
+
+	return isMonitoring;
+}
+
+void PLSBasic::AddSelectRegionSource(const char *id, const QRect &rectSelected)
+{
+	OBSScene scene = GetCurrentScene();
+	if (!scene)
+		return;
+
+	if (!rectSelected.isValid())
+		return;
+
+	QString sourceName{QT_UTF8(obs_source_get_display_name(id))};
+	QString newName{sourceName};
+	int i = 2;
+	obs_source_t *source_ = nullptr;
+	while ((source_ = obs_get_source_by_name(QT_TO_UTF8(newName)))) {
+		obs_source_release(source_);
+		newName = QString("%1 %2").arg(sourceName).arg(i++);
+	}
+
+	obs_source_t *source = obs_source_create(id, QT_TO_UTF8(newName), NULL, nullptr);
+	if (source) {
+
+		struct AddSourceData {
+			obs_source_t *source;
+			bool visible;
+		};
+		AddSourceData data;
+		data.source = source;
+		data.visible = true;
+
+		auto addRegionCaptureSource = [](void *_data, obs_scene_t *scene) {
+			AddSourceData *data = (AddSourceData *)_data;
+			obs_sceneitem_t *sceneitem;
+
+			sceneitem = obs_scene_add(scene, data->source);
+			obs_sceneitem_set_visible(sceneitem, data->visible);
+		};
+
+		obs_enter_graphics();
+		obs_scene_atomic_update(scene, addRegionCaptureSource, &data);
+		obs_leave_graphics();
+
+		/* set monitoring if source monitors by default */
+		uint32_t flags = obs_source_get_output_flags(source);
+		if ((flags & OBS_SOURCE_MONITOR_BY_DEFAULT) != 0) {
+			obs_source_set_monitoring_type(source, OBS_MONITORING_TYPE_MONITOR_ONLY);
+		}
+
+		OBSSource newSource = source;
+		CreatePropertiesWindow(newSource, OPERATION_ADD_SOURCE, this);
+
+		QTimer::singleShot(0, this, [=]() {
+			if (properties) {
+				properties->activateWindow();
+				properties->setFocus();
+			}
+		});
+
+		OBSData oldSettings(obs_data_create());
+		obs_data_release(oldSettings);
+		OBSData settings = obs_source_get_settings(newSource);
+		obs_data_apply(oldSettings, settings);
+		obs_data_release(settings);
+
+		qInfo() << "user selected a new region=" << rectSelected;
+		obs_data_t *region_obj = obs_data_create();
+		obs_data_set_int(region_obj, "left", rectSelected.left());
+		obs_data_set_int(region_obj, "top", rectSelected.top());
+		obs_data_set_int(region_obj, "width", rectSelected.width());
+		obs_data_set_int(region_obj, "height", rectSelected.height());
+		obs_data_set_obj(settings, "region_select", region_obj);
+		obs_data_release(region_obj);
+		obs_source_update(newSource, settings);
+
+		obs_source_release(source);
+	}
+}
+
+void PLSBasic::OpenRegionCapture()
+{
+	if (regionCapture || properties)
+		return;
+	regionCapture = new PLSRegionCapture(this);
+	regionCapture->setWindowModality(Qt::ApplicationModal);
+	connect(regionCapture, &PLSRegionCapture::selectedRegion, this, [=](const QRect &selectedRect) { AddSelectRegionSource(PRISM_REGION_SOURCE_ID, selectedRect); });
+	obs_enter_graphics();
+	auto max_size = gs_texture_get_max_size();
+	obs_leave_graphics();
+	regionCapture->StartCapture(max_size, max_size);
+}
+
+void PLSBasic::UpdateMixer(obs_source_t *source)
+{
+	for (VolControl *vol : volumes) {
+		if (!vol)
+			continue;
+		if (vol->GetSource() == source) {
+			vol->SetMuted(obs_source_muted(source));
+			break;
+		}
 	}
 }
 
@@ -7298,6 +9484,8 @@ bool PLSBasic::LowDiskSpace()
 void PLSBasic::CheckDiskSpaceRemaining()
 {
 	if (LowDiskSpace()) {
+		//PRISM/LiuHaibin/20200328/#2158/for outro
+		PLSCHANNELS_API->setIsOnlyStopRecord(true);
 		StopRecording();
 		StopReplayBuffer();
 
@@ -7348,19 +9536,256 @@ void PLSBasic::onPopupSettingView(const QString &tab, const QString &group)
 
 		settings_already_executing = true;
 
-		PLSBasicSettings settings(this);
+		PLSBasicSettings settings(mainView);
 		settings.switchTo(tab, group);
 		result = settings.exec();
+		result = settings.returnValue();
 		SystemTray(false);
 
 		settings_already_executing = false;
+
+		if (QWidget *widget = QApplication::focusWidget(); widget) {
+			widget->clearFocus();
+		}
+	}
+
+}
+
+void PLSBasic::OnBeautyClicked()
+{
+	// Change the implementation of restoreGemery in order to solve issue #2552,see QTBUG-4397
+	if (!beautyFilterView) {
+		InitBeautyView();
+		return;
+	}
+
+	SetBeautyViewVisible(!beautyFilterView->isVisible());
+}
+
+void PLSBasic::OnStickerClicked()
+{
+	bool init = (nullptr == giphyStickerView);
+	if (init) {
+		InitGiphyStickerView();
+		giphyStickerView->SetBindSourcePtr(0);
+		giphyStickerView->show();
+	} else {
+		bool show = config_get_bool(App()->GlobalConfig(), GIPHY_STICKERS_CONFIG, SHOW_MADE);
+		if (show)
+			giphyStickerView->SetBindSourcePtr(0);
+		giphyStickerView->setVisible(!show);
+	}
+}
+
+void PLSBasic::OnSetBeautyVisible(bool state)
+{
+	if (beautyFilterView) {
+		SetBeautyViewVisible(state);
+	} else if (state) {
+		OnBeautyClicked();
+	}
+}
+
+void PLSBasic::InitBeautyView()
+{
+	CreateBeautyView();
+	if (beautyFilterView)
+		beautyFilterView->show();
+}
+
+void PLSBasic::InitGiphyStickerView()
+{
+	if (nullptr == giphyStickerView) {
+		giphyStickerView = new PLSGipyStickerView(nullptr);
+		connect(giphyStickerView, &PLSGipyStickerView::visibleChanged, this->mainView, &PLSMainView::RefreshStickersButtonStyle);
+		connect(giphyStickerView, &PLSGipyStickerView::StickerApply, this, &PLSBasic::OnStickerApply);
+	}
+	giphyStickerView->InitGeometry();
+}
+
+void PLSBasic::InitGiphyStickerViewVisible()
+{
+	bool showSticker = config_get_bool(App()->GlobalConfig(), GIPHY_STICKERS_CONFIG, "showMode");
+	if (showSticker) {
+		if (nullptr == giphyStickerView)
+			InitGiphyStickerView();
+		giphyStickerView->SetBindSourcePtr(0);
+		giphyStickerView->show();
+	}
+	mainView->RefreshStickersButtonStyle(showSticker);
+}
+
+void PLSBasic::CreateBeautyView()
+{
+	// Only create instance and initialize not show.
+	QString name{};
+	OBSSceneItem item;
+	DShowSourceVecType items;
+	GetSelectDshowSourceAndList(name, item, items);
+
+	if (!beautyFilterView) {
+		beautyFilterView = new PLSBeautyFilterView(name, nullptr);
+		connect(beautyFilterView, &PLSBeautyFilterView::beautyViewVisibleChanged, this, [=](bool visible) { emit beautyViewVisibleChanged(visible); });
+		connect(beautyFilterView, &PLSBeautyFilterView::currentSourceChanged, this, &PLSBasic::OnBeautyCurrentSourceChanged);
+	}
+
+	//beautyFilterView->InitGeometry();
+	beautyFilterView->UpdateSourceList(name, item, items);
+}
+
+void PLSBasic::SetBeautyViewVisible(bool visible)
+{
+	if (beautyFilterView) {
+		beautyFilterView->setVisible(visible);
+		if (visible) {
+			QString name{};
+			OBSSceneItem item;
+			DShowSourceVecType items;
+			GetSelectDshowSourceAndList(name, item, items);
+			beautyFilterView->UpdateSourceList(name, item, items);
+		}
+		beautyFilterView->SaveShowModeToConfig();
+	}
+}
+
+void PLSBasic::ReorderBeautySourceList()
+{
+	if (!beautyFilterView) {
+		return;
+	}
+
+	QString name;
+	OBSSceneItem item;
+	DShowSourceVecType sourceList;
+	GetSelectDshowSourceAndList(name, item, sourceList);
+
+	beautyFilterView->ReorderSourceList(name, item, sourceList);
+}
+
+void PLSBasic::CleanBeautySourceConfig(obs_scene_t *scene)
+{
+	if (!scene) {
+		return;
+	}
+
+	DShowSourceVecType dshowList;
+	obs_scene_enum_items(scene, enumDshowItem, &dshowList);
+	for (auto iter = dshowList.begin(); iter != dshowList.end(); ++iter) {
+		PLSBeautyDataMgr::Instance()->DeleteBeautySourceConfig(iter->second);
+	}
+	if (beautyFilterView) {
+		QMetaObject::invokeMethod(beautyFilterView, "RemoveSourceNameList", Qt::QueuedConnection, Q_ARG(bool, GetCurrentScene() == scene), Q_ARG(const DShowSourceVecType &, dshowList));
+	}
+}
+
+bool PLSBasic::LoadBeautyConfigFromSource(OBSSceneItem item, bool &isCurrent)
+{
+	obs_data_t *sceneitemPrivData = obs_sceneitem_get_private_settings(item);
+	isCurrent = obs_data_get_bool(sceneitemPrivData, IS_CURRENT_SOURCE);
+	obs_data_release(sceneitemPrivData);
+
+	OBSSource source = obs_sceneitem_get_source(item);
+	obs_data_t *privData = obs_source_get_private_settings(source);
+	obs_data_array_t *beautyArray = obs_data_get_array(privData, BEAUTY_NODE);
+	if (!beautyArray) {
+		obs_data_release(privData);
+		return false;
+	}
+	QList<BeautyConfig> configList;
+	size_t num = obs_data_array_count(beautyArray);
+	bool emptyCustomConfig = (0 == PLSBeautyDataMgr::Instance()->GetBeautyCustomConfig().size());
+	for (size_t i = 0; i < num; i++) {
+		BeautyConfig config;
+		obs_data_t *data = obs_data_array_item(beautyArray, i);
+
+		config.beautyModel.token.category = obs_data_get_string(data, BASE_ID);
+		config.beautyModel.token.strID = obs_data_get_string(data, FILTER_ID);
+		config.beautyStatus.beauty_enable = obs_data_get_bool(data, BEAUTY_ON);
+		config.filterIndex = obs_data_get_int(data, FILTER_INDEX);
+		config.isCurrent = obs_data_get_bool(data, IS_CURRENT);
+		config.isCustom = obs_data_get_bool(data, IS_CUSTOM);
+
+		// error handle. If there is no custom beauty config in "beauty_config" field,
+		// custom config in "private settings" should not be loaded.
+		// https://oss.navercorp.com/cd-live-platform/PRISMLiveStudio/issues/2950
+		if (emptyCustomConfig && config.isCustom) {
+			obs_data_release(data);
+			continue;
+		}
+
+		if (config.isCustom)
+			config.filterType = obs_data_get_int(data, FILTER_TYPE);
+		else
+			config.filterType = i;
+
+		obs_data_t *customData = obs_data_get_obj(data, CUSTOM_NODE);
+		if (!customData) {
+			obs_data_release(data);
+			continue;
+		}
+		config.beautyModel.dynamicParam.cheek = obs_data_get_int(customData, CHEEK_VALUE);
+		config.beautyModel.dynamicParam.cheekbone = obs_data_get_int(customData, CHEEKBONE_VALUE);
+		config.beautyModel.dynamicParam.chin = obs_data_get_int(customData, CHIN_VALUE);
+		config.beautyModel.dynamicParam.eyes = obs_data_get_int(customData, EYE_VALUE);
+		config.beautyModel.dynamicParam.nose = obs_data_get_int(customData, NOSE_VALUE);
+		config.smoothModel.dymamic_value = obs_data_get_int(customData, SKIN_VALUE);
+		obs_data_release(customData);
+
+		obs_data_t *defaultData = obs_data_get_obj(data, DEFAULT_NODE);
+		if (!defaultData) {
+			obs_data_release(data);
+			continue;
+		}
+
+		if (config.isCustom) {
+			config.beautyModel.defaultParam.cheek = obs_data_get_int(defaultData, CHEEK_VALUE);
+			config.beautyModel.defaultParam.cheekbone = obs_data_get_int(defaultData, CHEEKBONE_VALUE);
+			config.beautyModel.defaultParam.chin = obs_data_get_int(defaultData, CHIN_VALUE);
+			config.beautyModel.defaultParam.eyes = obs_data_get_int(defaultData, EYE_VALUE);
+			config.beautyModel.defaultParam.nose = obs_data_get_int(defaultData, NOSE_VALUE);
+			config.smoothModel.default_value = obs_data_get_int(defaultData, SKIN_VALUE);
+		} else {
+			// Everytime we should update the default value of preset beauty config which is download from gpop.
+			BeautyConfig configPreset = PLSBeautyDataMgr::Instance()->GetBeautyPresetConfigById(config.beautyModel.token.strID);
+			config.beautyModel.defaultParam.cheek = configPreset.beautyModel.defaultParam.cheek;
+			config.beautyModel.defaultParam.cheekbone = configPreset.beautyModel.defaultParam.cheekbone;
+			config.beautyModel.defaultParam.chin = configPreset.beautyModel.defaultParam.chin;
+			config.beautyModel.defaultParam.eyes = configPreset.beautyModel.defaultParam.eyes;
+			config.beautyModel.defaultParam.nose = configPreset.beautyModel.defaultParam.nose;
+			config.smoothModel.default_value = configPreset.smoothModel.default_value;
+		}
+
+		obs_data_release(defaultData);
+		obs_data_release(data);
+
+		configList << config;
+	}
+	obs_data_array_release(beautyArray);
+	obs_data_release(privData);
+	PLSBeautyDataMgr::Instance()->SetBeautyConfig(item, configList);
+	return true;
+}
+
+void PLSBasic::UpdateBeautySourceStatus(obs_source_t *source, OBSSceneItem item, bool status)
+{
+	obs_source_t *source_ = obs_sceneitem_get_source(item);
+	if (source_ != source) {
+		return;
+	}
+
+	if (beautyFilterView) {
+		if (!isDshowSourceBySourceId(item)) {
+			return;
+		}
+		beautyFilterView->SetSourceVisible(obs_source_get_name(source_), item, status && obs_sceneitem_visible(item));
+		if (ui->sources->Get(GetTopSelectedSourceItem()) == item && status) {
+			beautyFilterView->SetSourceSelect(obs_source_get_name(source_), item, status);
+		}
 	}
 }
 
 bool PLSBasic::willShow()
 {
-	//add login event
-	PLSBasic ::Get()->getApi()->on_event(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGIN);
 	return true;
 }
 
@@ -7369,8 +9794,33 @@ void PLSBasic::showSettingVideo()
 	onPopupSettingView(QStringLiteral("Output"), QString());
 }
 
-void PLSBasic::OnLogoutEvent()
+void PLSBasic::OnStickerApply(const QString &fileName, const GiphyData &giphyData, const QVariant &extra)
 {
-	CreateDefaultScene(true);
-	SaveProject();
+	if (extra.canConvert<PointerValue>()) {
+		PointerValue sourcePtr = extra.value<PointerValue>();
+		if (sourcePtr > 0) {
+
+			auto setFileForStickerSource = [=](obs_source_t *source) {
+				if (!source)
+					return true;
+				if (sourcePtr == PLSGipyStickerView::ConvertPointer(source)) {
+					SetStickerSourceSetting(source, fileName, giphyData);
+					return false;
+				}
+				return true;
+			};
+
+			using SetFileForSticker_t = decltype(setFileForStickerSource);
+			auto enumSource = [](void *param, obs_source_t *source) { return (*reinterpret_cast<SetFileForSticker_t *>(param))(source); };
+			obs_enum_sources(enumSource, &setFileForStickerSource);
+		} else {
+			AddStickerSource(PRISM_STICKER_SOURCE_ID, fileName, giphyData);
+		}
+	}
+}
+void PLSBasic::OnBeautySourceDownloadFinished()
+{
+	PLSBeautyFilterView::InitIconFileName();
+	if (beautyFilterView)
+		beautyFilterView->UpdateItemIcon();
 }

@@ -169,6 +169,12 @@ enum gs_texture_type {
 	GS_TEXTURE_CUBE,
 };
 
+struct gs_device_loss {
+	void (*device_loss_release)(void *data);
+	void (*device_loss_rebuild)(void *device, void *data);
+	void *data;
+};
+
 struct gs_monitor_info {
 	int rotation_degrees;
 	long x;
@@ -235,6 +241,12 @@ struct gs_rect {
 	int y;
 	int cx;
 	int cy;
+};
+
+//PRISM/Liu.Haibin/20200708/#3296/for adapter check
+struct gs_luid {
+	unsigned long low_part;
+	long high_part;
 };
 
 /* wrapped opaque data types */
@@ -495,6 +507,14 @@ EXPORT void gs_enum_adapters(bool (*callback)(void *param, const char *name,
 
 EXPORT int gs_create(graphics_t **graphics, const char *module,
 		     uint32_t adapter);
+
+//PRISM/Wang.Chuanjing/20200408/for device rebuild
+EXPORT int gs_create_cb(graphics_t **graphics, const char *module,
+			uint32_t adapter,
+			void (*callback)(bool render_working));
+
+EXPORT void gs_device_rebuild(graphics_t *graphics);
+
 EXPORT void gs_destroy(graphics_t *graphics);
 
 EXPORT void gs_enter_context(graphics_t *graphics);
@@ -882,7 +902,24 @@ EXPORT bool gs_texture_create_nv12(gs_texture_t **tex_y, gs_texture_t **tex_uv,
 EXPORT gs_stagesurf_t *gs_stagesurface_create_nv12(uint32_t width,
 						   uint32_t height);
 
+EXPORT void gs_register_loss_callbacks(const struct gs_device_loss *callbacks);
+EXPORT void gs_unregister_loss_callbacks(void *data);
+
 #endif
+
+//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
+EXPORT uint64_t gs_texture_get_max_size();
+
+//PRISM/Wangshaohui/20200710/#3370/for take photo
+EXPORT gs_stagesurf_t *gs_device_canvas_map(uint32_t *cx, uint32_t *cy,
+				  enum gs_color_format *fmt, uint8_t **data,
+				  uint32_t *linesize);
+
+//PRISM/Wangshaohui/20200710/#3370/for take photo
+EXPORT void gs_device_canvas_unmap(gs_stagesurf_t *surface);
+
+//PRISM/Liu.Haibin/20200708/#3296/for adapter check
+EXPORT bool gs_adapter_get_luid(struct gs_luid *luid);
 
 /* inline functions used by modules */
 

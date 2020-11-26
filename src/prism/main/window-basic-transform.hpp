@@ -46,5 +46,5 @@ private slots:
 	void on_resetButton_clicked();
 
 public:
-	explicit PLSBasicTransform(PLSBasic *parent);
+	explicit PLSBasicTransform(PLSBasic *parent, PLSDpiHelper dpiHelper = PLSDpiHelper());
 };

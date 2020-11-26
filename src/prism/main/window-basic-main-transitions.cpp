@@ -34,21 +34,6 @@ using namespace std;
 
 Q_DECLARE_METATYPE(OBSScene);
 Q_DECLARE_METATYPE(OBSSource);
-Q_DECLARE_METATYPE(QuickTransition);
-
-static inline QString MakeQuickTransitionText(QuickTransition *qt)
-{
-	QString name;
-
-	if (!qt->fadeToBlack)
-		name = QT_UTF8(obs_source_get_name(qt->source));
-	else
-		name = QTStr("FadeToBlack");
-
-	if (!obs_transition_fixed(qt->source))
-		name += QString(" (%1ms)").arg(QString::number(qt->duration));
-	return name;
-}
 
 void PLSBasic::InitDefaultTransitions()
 {
@@ -67,8 +52,8 @@ void PLSBasic::InitDefaultTransitions()
 			ui->scenesFrame->InitTransition(tr);
 			transitions.emplace_back(tr);
 
-			if (strcmp(id, "fade_transition") == 0)
-				fadeTransition = tr;
+			if (strcmp(id, "cut_transition") == 0)
+				cutTransition = tr;
 
 			obs_source_release(tr);
 		}
@@ -76,34 +61,14 @@ void PLSBasic::InitDefaultTransitions()
 	ui->scenesFrame->AddTransitionsItem(transitions);
 }
 
-void QuickTransition::SourceRenamed(void *param, calldata_t *data)
-{
-	QuickTransition *qt = reinterpret_cast<QuickTransition *>(param);
-
-	QString hotkeyName = QTStr("QuickTransitions.HotkeyName").arg(MakeQuickTransitionText(qt));
-
-	obs_hotkey_set_description(qt->hotkey, QT_TO_UTF8(hotkeyName));
-
-	UNUSED_PARAMETER(data);
-}
-
 static inline OBSSource GetTransitionComboItem(QComboBox *combo, int idx)
 {
 	return combo->itemData(idx).value<OBSSource>();
 }
 
-void PLSBasic::CreateDefaultQuickTransitions()
+void PLSBasic::SetCutTransition(obs_source_t *source)
 {
-	/* non-configurable transitions are always available, so add them
-	 * to the "default quick transitions" list */
-	quickTransitions.emplace_back(ui->scenesFrame->GetTransitionComboItem(0), 300, quickTransitionIdCounter++);
-	quickTransitions.emplace_back(ui->scenesFrame->GetTransitionComboItem(1), 300, quickTransitionIdCounter++);
-	quickTransitions.emplace_back(ui->scenesFrame->GetTransitionComboItem(1), 300, quickTransitionIdCounter++, true);
-}
-
-void PLSBasic::SetFadeTransition(obs_source_t *source)
-{
-	fadeTransition = source;
+	cutTransition = source;
 }
 
 void PLSBasic::TransitionToScene(OBSScene scene, bool force)
@@ -184,7 +149,9 @@ void PLSBasic::TransitionToScene(OBSSource source, bool force, bool quickTransit
 	OBSSource transition = obs_get_output_source(0);
 	obs_source_release(transition);
 
-	bool stillTransitioning = obs_transition_get_time(transition) < 1.0f;
+	float t = obs_transition_get_time(transition);
+	bool stillTransitioning = t < 1.0f && t > 0.0f;
+	//bool stillTransitioning = obs_transition_get_time(transition) < 1.0f;
 
 	// If actively transitioning, block new transitions from starting
 	if (usingPreviewProgram && stillTransitioning)
@@ -202,7 +169,7 @@ void PLSBasic::TransitionToScene(OBSSource source, bool force, bool quickTransit
 		const char *trOverrideName = obs_data_get_string(data, "transition");
 		int duration = ui->scenesFrame->GetTransitionDurationValue();
 
-		if (trOverrideName && *trOverrideName && !quickTransition) {
+		if (trOverrideName && *trOverrideName && !quickTransition && !overridingTransition) {
 			OBSSource trOverride = ui->scenesFrame->FindTransition(trOverrideName);
 			if (trOverride) {
 				transition = trOverride;
@@ -309,6 +276,7 @@ void PLSBasic::SetCurrentScene(OBSSource scene, bool force)
 			obs_source_t *source = obs_scene_get_source(itemScene);
 
 			if (source == scene) {
+				isCopyScene = false;
 				ui->scenesFrame->SetCurrentItem(item);
 				if (api)
 					api->on_event(OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED);
@@ -325,8 +293,9 @@ void PLSBasic::SetCurrentScene(OBSSource scene, bool force)
 
 void PLSBasic::CreateProgramDisplay()
 {
-	program = new PLSQTDisplay();
+	program = new PLSQTDisplay(ui->previewContainer);
 	program->setObjectName(OBJECT_MAIN_PREVIEW);
+	PLSDpiHelper::dpiDynamicUpdate(program.data());
 
 	program->setContextMenuPolicy(Qt::CustomContextMenu);
 	connect(program.data(), &QWidget::customContextMenuRequested, this, &PLSBasic::on_program_customContextMenuRequested);
@@ -374,6 +343,7 @@ void PLSBasic::CreateProgramDisplay()
 
 void PLSBasic::TransitionClicked()
 {
+	PLS_UI_STEP(MAINFRAME_MODULE, "Apply Button", ACTION_CLICK);
 	if (previewProgramMode)
 		TransitionToScene(GetCurrentScene());
 }
@@ -381,7 +351,7 @@ void PLSBasic::TransitionClicked()
 QMenu *PLSBasic::CreatePerSceneTransitionMenu()
 {
 	OBSSource scene = GetCurrentSceneSource();
-	QMenu *menu = new QMenu(QTStr("TransitionOverride"), this);
+	QMenu *menu = new QMenu(QTStr("TransitionOverride"), ui->scenesFrame);
 
 	QAction *action;
 
@@ -529,9 +499,6 @@ void PLSBasic::SetPreviewProgramMode(bool enabled)
 
 		programScene = nullptr;
 		swapScene = nullptr;
-
-		for (QuickTransition &qt : quickTransitions)
-			qt.button = nullptr;
 
 		if (!previewEnabled)
 			EnablePreviewDisplay(false);

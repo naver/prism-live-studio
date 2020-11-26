@@ -203,15 +203,17 @@ bool IsAlwaysOnTop(QWidget *window, const char *name)
 {
 	DWORD exStyle = GetWindowLong((HWND)window->winId(), GWL_EXSTYLE);
 	bool enable = (exStyle & WS_EX_TOPMOST) != 0;
-	PLS_INFO(MAINFRAME_MODULE, "%s Is Always On Top: %s", name, enable ? "true" : "false");
+	PLS_DEBUG(MAINFRAME_MODULE, "%s Is Always On Top: %s", name, enable ? "true" : "false");
 	return enable;
 }
 
 void SetAlwaysOnTop(QWidget *window, const char *name, bool enable)
 {
+	bringWindowToTop(window);
+
 	HWND hwnd = (HWND)window->winId();
-	SetWindowPos(hwnd, enable ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-	PLS_INFO(MAINFRAME_MODULE, "%s Set Always On Top: %s", name, enable ? "true" : "false");
+	BOOL result = SetWindowPos(hwnd, enable ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	PLS_DEBUG(MAINFRAME_MODULE, "%s Set Always On Top: %s, result: %s %u", name, enable ? "true" : "false", result ? "true" : "false", GetLastError());
 }
 
 void bringWindowToTop(QWidget *window)

@@ -23,11 +23,48 @@
 #include <obs-frontend-api.h>
 #include <obs.hpp>
 #include <util/platform.h>
+#include <map>
 
 using namespace json11;
 
+//PRISM/Wangshaohui/20200917/#3714/for check client
+std::mutex lock_clients;
+std::map<void *, bool> valid_clients;
+
+//PRISM/Wangshaohui/20200917/#3714/for check client
+void SetValidClient(void *pointer, bool valid)
+{
+	std::lock_guard<std::mutex> auto_lock(lock_clients);
+	valid_clients[pointer] = valid;
+}
+
+//PRISM/Wangshaohui/20200917/#3714/for check client
+bool IsClientValid(void *pointer)
+{
+	bool valid = false;
+
+	{
+		std::lock_guard<std::mutex> auto_lock(lock_clients);
+		valid = valid_clients[pointer];
+	}
+
+	if (!valid) {
+		blog(LOG_WARNING, "Invalid object for BrowserClient:%p",
+		     pointer);
+		assert(false);
+	}
+
+	return valid;
+}
+
 BrowserClient::~BrowserClient()
 {
+	//PRISM/Wangshaohui/20200813/#3784/for cef interaction
+	blog(LOG_INFO, "Destrcuture function of BrowserClient:%p", this);
+
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	SetValidClient(this, false);
+
 #if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED && USE_TEXTURE_COPY
 	if (sharing_available) {
 		obs_enter_graphics();
@@ -35,6 +72,12 @@ BrowserClient::~BrowserClient()
 		obs_leave_graphics();
 	}
 #endif
+}
+
+//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+CefRefPtr<CefRequestHandler> BrowserClient::GetRequestHandler()
+{
+	return this;
 }
 
 CefRefPtr<CefLoadHandler> BrowserClient::GetLoadHandler()
@@ -69,17 +112,37 @@ CefRefPtr<CefAudioHandler> BrowserClient::GetAudioHandler()
 }
 #endif
 
-bool BrowserClient::OnBeforePopup(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
-				  const CefString &, const CefString &,
-				  WindowOpenDisposition, bool,
-				  const CefPopupFeatures &, CefWindowInfo &,
-				  CefRefPtr<CefClient> &, CefBrowserSettings &,
+//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+//#define ENABLE_URL_JUMP
+bool BrowserClient::OnOpenURLFromTab(
+	CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+	const CefString &target_url,
+	CefRequestHandler::WindowOpenDisposition target_disposition,
+	bool user_gesture)
+{
+#ifdef ENABLE_URL_JUMP
+	frame->LoadURL(target_url);
+#endif
+	return true;
+}
+
+bool BrowserClient::OnBeforePopup(CefRefPtr<CefBrowser>,
+				  CefRefPtr<CefFrame> frame,
+				  const CefString &target_url,
+				  const CefString &,
+				  CefLifeSpanHandler::WindowOpenDisposition,
+				  bool, const CefPopupFeatures &,
+				  CefWindowInfo &, CefRefPtr<CefClient> &,
+				  CefBrowserSettings &,
 #if CHROME_VERSION_BUILD >= 3770
 				  CefRefPtr<CefDictionaryValue> &,
 #endif
 				  bool *)
 {
-	/* block popups */
+	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+#ifdef ENABLE_URL_JUMP
+	frame->LoadURL(target_url);
+#endif
 	return true;
 }
 
@@ -159,12 +222,52 @@ bool BrowserClient::GetViewRect(
 #endif
 	}
 
-	rect.Set(0, 0, bs->width, bs->height);
+	rect.Set(0, 0, bs->width < 1 ? 1 : bs->width,
+		 bs->height < 1 ? 1 : bs->height);
 #if CHROME_VERSION_BUILD >= 3578
 	return;
 #else
 	return true;
 #endif
+}
+
+//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+bool BrowserClient::GetScreenPoint(CefRefPtr<CefBrowser> browser, int viewX,
+				   int viewY, int &screenX, int &screenY)
+{
+	auto interaction = interaction_weak.lock();
+	if (interaction != NULL) {
+		HWND hWnd = interaction->GetInteractionView();
+		if (::IsWindow(hWnd)) {
+			int source_cx_;
+			int source_cy_;
+			CefRefPtr<CefBrowser> cefBrowser;
+			interaction->GetInteractionInfo(source_cx_, source_cy_,
+							cefBrowser);
+
+			RECT rc;
+			GetClientRect(hWnd, &rc);
+
+			int left, top;
+			float scale;
+			GetScaleAndCenterPos(source_cx_, source_cy_,
+					     RectWidth(rc), RectHeight(rc),
+					     left, top, scale);
+
+			float clientX = left + float(viewX) * scale;
+			float clientY = top + float(viewY) * scale;
+
+			POINT screen_pt = {clientX, clientY};
+			::ClientToScreen(hWnd, &screen_pt);
+
+			screenX = screen_pt.x;
+			screenY = screen_pt.y;
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void BrowserClient::OnPaint(CefRefPtr<CefBrowser>, PaintElementType type,
@@ -252,6 +355,38 @@ void BrowserClient::OnAcceleratedPaint(CefRefPtr<CefBrowser>, PaintElementType,
 }
 #endif
 
+//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+void BrowserClient::OnCursorChange(CefRefPtr<CefBrowser> browser,
+				   CefCursorHandle cursor, CursorType type,
+				   const CefCursorInfo &custom_cursor_info)
+{
+	DCHECK(CefCurrentlyOn(TID_UI));
+	auto interaction = interaction_weak.lock();
+	if (interaction != NULL) {
+		HWND hWnd = interaction->GetInteractionView();
+		if (::IsWindow(hWnd) && ::IsWindowVisible(hWnd)) {
+			SetClassLongPtr(
+				hWnd, GCLP_HCURSOR,
+				static_cast<LONG>(
+					reinterpret_cast<LONG_PTR>(cursor)));
+			SetCursor(cursor);
+		}
+	}
+}
+
+//PRISM/Wangshaohui/20200811/#3784/for cef interaction
+void BrowserClient::OnImeCompositionRangeChanged(
+	CefRefPtr<CefBrowser> browser, const CefRange &selection_range,
+	const CefRenderHandler::RectList &character_bounds)
+{
+	DCHECK(CefCurrentlyOn(TID_UI));
+	auto interaction = interaction_weak.lock();
+	if (interaction != NULL) {
+		interaction->OnImeCompositionRangeChanged(
+			browser, selection_range, character_bounds);
+	}
+}
+
 #if CHROME_VERSION_BUILD >= 3683
 static speaker_layout GetSpeakerLayout(CefAudioHandler::ChannelLayout cefLayout)
 {
@@ -283,6 +418,11 @@ void BrowserClient::OnAudioStreamStarted(CefRefPtr<CefBrowser> browser, int id,
 					 int, ChannelLayout channel_layout,
 					 int sample_rate, int)
 {
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	if (!IsClientValid(this)) {
+		return;
+	}
+
 	if (!bs) {
 		return;
 	}
@@ -308,6 +448,11 @@ void BrowserClient::OnAudioStreamPacket(CefRefPtr<CefBrowser> browser, int id,
 					const float **data, int frames,
 					int64_t pts)
 {
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	if (!IsClientValid(this)) {
+		return;
+	}
+
 	if (!bs) {
 		return;
 	}
@@ -330,6 +475,11 @@ void BrowserClient::OnAudioStreamPacket(CefRefPtr<CefBrowser> browser, int id,
 
 void BrowserClient::OnAudioStreamStopped(CefRefPtr<CefBrowser> browser, int id)
 {
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	if (!IsClientValid(this)) {
+		return;
+	}
+
 	if (!bs) {
 		return;
 	}
@@ -362,22 +512,24 @@ void BrowserClient::OnLoadEnd(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
 		return;
 	}
 
+	// chat source: The event needs to be sent after the page is loaded
+	bs->onBrowserLoadEnd();
+
 	if (frame->IsMain()) {
-		std::string base64EncodedCSS = base64_encode(bs->css);
+		if (!bs->css.empty()) {
+			std::string uriEncodedCSS =
+				CefURIEncode(bs->css, false).ToString();
 
-		std::string href;
-		href += "data:text/css;charset=utf-8;base64,";
-		href += base64EncodedCSS;
+			std::string script;
+			script +=
+				"const obsCSS = document.createElement('style');";
+			script += "obsCSS.innerHTML = decodeURIComponent(\"" +
+				  uriEncodedCSS + "\");";
+			script +=
+				"document.querySelector('head').appendChild(obsCSS);";
 
-		std::string script;
-		script += "var link = document.createElement('link');";
-		script += "link.setAttribute('rel', 'stylesheet');";
-		script += "link.setAttribute('type', 'text/css');";
-		script += "link.setAttribute('href', '" + href + "');";
-		script +=
-			"document.getElementsByTagName('head')[0].appendChild(link);";
-
-		frame->ExecuteJavaScript(script, href, 0);
+			frame->ExecuteJavaScript(script, "", 0);
+		}
 
 		//PRISM/WangShaohui/20200310/#1332/adding logs for exceptions
 		if (httpStatusCode != 200 && httpStatusCode != ERR_NONE &&
@@ -400,7 +552,7 @@ void BrowserClient::OnLoadError(CefRefPtr<CefBrowser> browser,
 	    errorCode != ERR_ABORTED) {
 		blog(LOG_WARNING,
 		     "obs-browser: OnLoadError errorCode:%d errorText:%s",
-		     errorCode, errorText.c_str());
+		     errorCode, errorText.ToString().c_str());
 	}
 }
 

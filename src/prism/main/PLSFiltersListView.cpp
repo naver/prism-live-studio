@@ -15,6 +15,8 @@
 #include <QPainter>
 #include <QPen>
 
+#include "PLSDpiHelper.h"
+
 Q_DECLARE_METATYPE(OBSSource);
 
 PLSFiltersListView::PLSFiltersListView(QWidget *parent) : FocusList(parent), ui(new Ui::PLSFiltersListView)
@@ -51,6 +53,7 @@ void PLSFiltersListView::AddFilterItemView(OBSSource filter, bool reorder)
 	connect(filterView, &PLSFiltersItemView::FilterRenameTriggered, this, &PLSFiltersListView::OnFilterRenameTriggered);
 	connect(filterView, &PLSFiltersItemView::FinishingEditName, this, &PLSFiltersListView::OnFinishingEditName);
 	connect(filterView, &PLSFiltersItemView::CurrentItemChanged, this, &PLSFiltersListView::OnCurrentItemChanged);
+	PLSDpiHelper::dpiDynamicUpdate(filterView);
 
 	this->setItemWidget(item, filterView);
 	item->setData(Qt::UserRole, QVariant::fromValue(filter));
@@ -59,6 +62,7 @@ void PLSFiltersListView::AddFilterItemView(OBSSource filter, bool reorder)
 		emit RowChanged(this->count() - 1, 0);
 	}
 	show();
+	PLSDpiHelper::dpiDynamicUpdate(filterView);
 }
 
 void PLSFiltersListView::RemoveFilterItemView(OBSSource filter)
@@ -79,12 +83,6 @@ void PLSFiltersListView::RemoveFilterItemView(OBSSource filter)
 			if (itemView) {
 				delete itemView;
 				itemView = nullptr;
-			}
-
-			if (i < this->count() - 1) {
-				SetCurrentItem(i + 1);
-			} else {
-				SetCurrentItem(this->count() - 1);
 			}
 			break;
 		}
@@ -273,10 +271,11 @@ void PLSFiltersListView::dragLeaveEvent(QDragLeaveEvent *event)
 void PLSFiltersListView::paintEvent(QPaintEvent *event)
 {
 	QPainter painter(this->viewport());
+	double dpi = PLSDpiHelper::getDpi(this);
 	if (isDraging) {
-		painter.setPen(QPen(QColor(SCENE_SCROLLCONTENT_LINE_COLOR), 1));
+		painter.setPen(QPen(QColor(SCENE_SCROLLCONTENT_LINE_COLOR), PLSDpiHelper::calculate(dpi, 1)));
 	} else {
-		painter.setPen(QPen(QColor(SCENE_SCROLLCONTENT_DEFAULT_COLOR), 1));
+		painter.setPen(QPen(QColor(SCENE_SCROLLCONTENT_DEFAULT_COLOR), PLSDpiHelper::calculate(dpi, 1)));
 	}
 
 	QLine l;
@@ -313,7 +312,7 @@ void PLSFiltersListView::OnFinishingEditName(const QString &text, PLSFiltersItem
 		return;
 	}
 
-	std::string name = QT_TO_UTF8(text.trimmed());
+	std::string name = QT_TO_UTF8(text.simplified());
 
 	const char *prevName = obs_source_get_name(filter);
 	bool sameName = (name == prevName);

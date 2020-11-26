@@ -98,6 +98,9 @@ static void swipe_callback(void *data, gs_texture_t *a, gs_texture_t *b,
 
 static void swipe_video_render(void *data, gs_effect_t *effect)
 {
+	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
+	if (!data)
+		return;
 	struct swipe_info *swipe = data;
 	obs_transition_video_render(swipe->source, swipe_callback);
 	UNUSED_PARAMETER(effect);
@@ -120,6 +123,10 @@ static bool swipe_audio_render(void *data, uint64_t *ts_out,
 			       uint32_t mixers, size_t channels,
 			       size_t sample_rate)
 {
+	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
+	if (!data)
+		return false;
+
 	struct swipe_info *swipe = data;
 	return obs_transition_audio_render(swipe->source, ts_out, audio, mixers,
 					   channels, sample_rate, mix_a, mix_b);

@@ -11,7 +11,8 @@ class QCefBrowserClient : public CefClient,
 			  public CefRequestHandler,
 			  public CefLifeSpanHandler,
 			  public CefLoadHandler,
-			  public CefKeyboardHandler {
+			  public CefKeyboardHandler,
+			  public CefContextMenuHandler {
 
 public:
 	// OBS Modification:
@@ -98,4 +99,23 @@ public:
 				 CefRefPtr<CefProcessMessage> message) override;
 
 	IMPLEMENT_REFCOUNTING(QCefBrowserClient);
+
+	// OBS Modification:
+	// ren.jinbo@navercorp.com / 20200609 / add feature
+	// Reason: the right menu need add develper tool in debug
+	// Solution: override this function to receive message
+	virtual CefRefPtr<CefContextMenuHandler>
+	GetContextMenuHandler() override;
+	void ShowDevelopTools(CefRefPtr<CefBrowser> browser);
+	virtual void
+	OnBeforeContextMenu(CefRefPtr<CefBrowser> browser,
+			    CefRefPtr<CefFrame> frame,
+			    CefRefPtr<CefContextMenuParams> params,
+			    CefRefPtr<CefMenuModel> model) override;
+
+	virtual bool
+	OnContextMenuCommand(CefRefPtr<CefBrowser> browser,
+			     CefRefPtr<CefFrame> frame,
+			     CefRefPtr<CefContextMenuParams> params,
+			     int command_id, EventFlags event_flags) override;
 };

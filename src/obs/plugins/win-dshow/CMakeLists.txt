@@ -5,18 +5,27 @@ endif()
 
 project(win-dshow)
 
-find_package(FFmpeg REQUIRED COMPONENTS avcodec avutil)
+find_package(FFmpeg REQUIRED COMPONENTS avutil swscale swresample avcodec avformat)
 include_directories(${FFMPEG_INCLUDE_DIRS})
 
 set(win-dshow_HEADERS
 	encode-dstr.hpp
-	ffmpeg-decode.h)
+	ffmpeg-decode.h
+	pls-cam-effect/prism-cam-effect.h
+	pls-cam-effect/prism-effect-ipc-define.h
+	pls-cam-effect/prism-handle-wrapper.h
+	pls-cam-effect/prism-ipc-buffer.h
+	pls-cam-effect/prism-msg-queue.h)
 
 set(win-dshow_SOURCES
 	win-dshow.cpp
 	win-dshow-encoder.cpp
 	dshow-plugin.cpp
-	ffmpeg-decode.c)
+	ffmpeg-decode.c
+	pls-cam-effect/prism-cam-effect.cpp
+	pls-cam-effect/prism-handle-wrapper.cpp
+	pls-cam-effect/prism-ipc-buffer.cpp
+	pls-cam-effect/prism-msg-queue.cpp)
 
 set(libdshowcapture_SOURCES
 	libdshowcapture/source/capture-filter.cpp

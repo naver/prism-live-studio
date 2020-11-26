@@ -13,7 +13,7 @@
 
 namespace common {
 /*************** prism ****************/
-
+#define PLS_PRISM "Prism"
 #define PLS_LIVE_STUDIO "PRISM Live Studio"
 #define PLS_ARCHITECTURE " Architecture "
 #define PLS_BUILD " Build "
@@ -38,6 +38,7 @@ namespace common {
 #define STATUS_ENABLE "enable"
 #define STATUS_DISABLE "disable"
 #define STATUS_SELECTED "selected"
+#define STATUS_UNSELECTED "unselected"
 #define STATUS_DISABLE_SELECTED "disableSelected"
 #define STATUS_NORMAL "normal"
 #define STATUS_HOVER "hover"
@@ -52,23 +53,15 @@ namespace common {
 #define STATUS_ENTER "enter"
 #define STATUS_ACTION "action"
 #define STATUS_HANDLE "handle"
+#define STATUS_VISIBLE "visible"
+#define STATUS_INVISIBLE "invisible"
+#define STATUS_OPEN "open"
+#define STATUS_PLAY "play"
+#define STATUS_PAUSE "pause"
+#define STATUS_STATE "state"
 
 /*************** position ****************/
 #define POSITION "position"
-
-/*************** channel ****************/
-#define VLIVE "V LIVE"
-#define NAVER_TV "NAVER TV"
-#define WAV "WAV"
-#define TWITCH "Twitch"
-#define YOUTUBE "YouTube"
-#define FACEBOOK "Facebook"
-#define AFREECATV "afreecaTv"
-#define CUSTOM_RTMP "Custom RTMP"
-#define INPUT_RTMP "Input RTMP"
-#define USER_INPUT "User Input"
-#define CONNECT_ACCOUNT "Connect\nAccount"
-#define DISCONNECT_ACCOUNT "Disconnect\nAccount"
 
 /*************** mode ****************/
 #define MODE "mode"
@@ -108,6 +101,9 @@ namespace common {
 
 #define LANGUAGE_SETTING_ENGLISH "en-US,en;q=0.9"
 #define LANGUAGE_SETTING_KOREAN "ko-KR,ko;q=0.9"
+
+#define ENCODING_SETTINGS_GUIDE_EN_US_URL ""
+#define ENCODING_SETTINGS_GUIDE_KO_KR_URL ""
 
 /*****************resources******************/
 #define RESOURCES_PATH "resources/"
@@ -157,7 +153,53 @@ namespace common {
 #define CONFIGS_GCC_PATH "PRISMLiveStudio/user/gcc.json"
 #define CONFIGS_USER_CONFIG_PATH "PRISMLiveStudio/user/config.ini"
 #define CONFIGS_USER_THUMBNAIL_PATH "PRISMLiveStudio/user/%1"
+#define CONFIGS_USER_TEXTMOTION_PATH "PRISMLiveStudio/textmotion/%1"
 #define CONFIGS_CATEGORYS_PATH "PRISMLiveStudio/user/categorys.json"
+#define CONFIGS_CATEGORYS_LIBRARY_PATH "PRISMLiveStudio/user/library.json"
+#define CONFIGS_GPOP_PATH "PRISMLiveStudio/user/gpop.json"
+#define CONFIGS_BEATURY_USER_PATH "PRISMLiveStudio/beauty/"
+#define CONFIGS_BEATURY_PRESET_IMAGE_PATH "/thumb x3/"
+#define CONFIGS_BEATURY_CUSTOM_IMAGE_PATH "beauty_"
+#define CONFIGS_BEATURY_DEFAULT_IMAGE_PATH "PRISMLiveStudio/beauty/image/"
+#define CONFIGS_BEATURY_SENSETIME_FILE "PRISMLiveStudio/beauty/license_online.lic"
+#define BEAUTY_CONFIG "BeautyConfig"
+#define GIPHY_STICKERS_CONFIG "GiphyStickersConfig"
+#define GIPHY_STICKERS_USER_PATH "PRISMLiveStudio/sticker/"
+#define GIPHY_STICKERS_CACHE_PATH "PRISMLiveStudio/sticker/cache/"
+#define GIPHY_STICKERS_JSON_FILE "PRISMLiveStudio/sticker/sticker.json"
+
+#define SENSETIME_UNZIP_PATH "PRISMLiveStudio/beauty"
+#define SENSETIME_ZIP "PRISMLiveStudio/beauty/library_SenseTime_PC.zip"
+#define SENSETIME_FILE_PATH "PRISMLiveStudio/beauty/library_SenseTime_PC/"
+#define SENSETIME_OLD_FILE_NAME "sensetime_license.lic"
+#define SENSETIME_NEW_FILE_NAME "license_online.lic"
+
+#define BGM_CONFIG "BgmConfig"
+#define CONFIGS_MUSIC_USER_PATH "PRISMLiveStudio/music/"
+#define MUSIC_JSON_FILE "music.json"
+#define BGM_MUSIC_PLAYING_GIF ":/images/bgm/BGM_equalizer.gif"
+#define CONFIG_MUSIC_PATH "data/prism-studio/music/"
+
+/* **the keys of source settings need to be same with bgm source plugins ** */
+#define RANDOM_PLAY "random play"
+#define PLAY_IN_ORDER "play in order"
+#define BGM_GROUP "group"
+#define PLAY_LIST "play list"
+#define BGM_TITLE "title"
+#define BGM_PRODUCER "producer"
+#define BGM_URL "music"
+#define BGM_DURATION "duration"
+#define BGM_DURATION_TYPE "duration_type"
+#define IS_LOOP "is_loop"
+#define IS_SHOW "is_show"
+#define BGM_IS_CURRENT "is_current"
+#define BGM_IS_LOCAL_FILE "is_local_file"
+#define BGM_IS_DISABLE "is_disable"
+#define BGM_HAVE_COVER "has_cover"
+#define BGM_COVER_PATH "cover_path"
+#define BGM_URLS "urls"
+
+/* **the keys of source settings need to be same with bgm source plugins ** */
 
 /**************prism login******/
 #define NET_REQUEST_TIME_OUT 10000
@@ -244,6 +286,8 @@ namespace common {
 #define CATEGORY_ID "categoryId"
 #define COLOR_THUMBNAILURL "thumbnailUrl"
 #define COLOR "color"
+#define BEAUTY "beauty"
+#define MUSIC "music"
 #define LIBRARY "library"
 #define HTTP_MESSAGE "message"
 #define RTMP_SEQ "rtmpSeq"
@@ -267,6 +311,8 @@ namespace common {
 #define COLOR_FILTER_JSON_FILE "color_filter.json"
 #define COLOR_FILTER_TMP_PATH "tmp/"
 #define CONFIG_COLOR_FILTER_PATH "data/prism-studio/color_filter/"
+#define CONFIG_BEAUTY_PATH "data/prism-studio/beauty/"
+#define CONFIG_BEAUTY_TMP_PATH "tmp/"
 
 #define COLOR_FILTER_ORDER_NUMBER 10
 
@@ -373,7 +419,7 @@ namespace common {
 #define AUDIO_ROOT "audio_root"
 
 /************RegExp************************/
-#define EMAIL_REGEXP "^[a-z0-9A-Z\\_\\-\\.]+@([a-z0-9A-Z]+(-[a-z0-9A-Z]+)?\\.)+[a-z]{2,}$"
+#define EMAIL_REGEXP "^[\\w!#$\%&'*+/=?`{|}~^-]+(?:\\.[\\w!#$\%&'*+/=?`{|}~^-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,6}$"
 
 #define PASSWORD_REGEXP "^(?![A-Za-z0-9]{6,20}$)(?![0-9\\W]{6,20}$)(?![a-zA-Z\\W]{6,20}$)(?![\\_\\W]{6,20}$)(?![0-9\\_\\W]{6,20}$)(?![A-Za-z\\_\\W]{6,20}$)[a-zA-Z0-9\\_\\W]{6,20}"
 #define NICK_REGEXP "[^.]{1,20}"
@@ -572,9 +618,9 @@ namespace common {
 /*************** const int variable ****************/
 #define LOADING_PICTURE_MAX_NUMBER 8
 #define LOADING_TIMER_TIMEROUT 100 // ms
-#define TIMING_TIMEOUT 1000        // ms
-#define CPU_TIMER_TIMEOUT 1000     // ms
-#define FEED_UI_MAX_TIME 100       // ms
+#define TIMING_TIMEOUT 1000 // ms
+#define CPU_TIMER_TIMEOUT 1000 // ms
+#define FEED_UI_MAX_TIME 100 // ms
 #define MAINWINDOW_MIN_WIDTH 625
 #define ONE_HOUR_MINUTES 60
 #define ONE_HOUR_SECONDS 3600
@@ -602,32 +648,26 @@ namespace common {
 
 /***************    id of source plugin from obs    ****************/
 #define SCENE_SOURCE_ID "scene"
+#define GROUP_SOURCE_ID "group"
 #define DSHOW_SOURCE_ID "dshow_input"
 #define AUDIO_INPUT_SOURCE_ID "wasapi_input_capture"
 #define AUDIO_OUTPUT_SOURCE_ID "wasapi_output_capture"
 #define GDIP_TEXT_SOURCE_ID "text_gdiplus"
 #define GAME_SOURCE_ID "game_capture"
 #define WINDOW_SOURCE_ID "window_capture"
+#define PRISM_MONITOR_REGION_MENU "prism_monitor_region_menu"
 #define PRISM_MONITOR_SOURCE_ID "prism_monitor_capture"
+#define PRISM_REGION_SOURCE_ID "prism_region_source"
 #define BROWSER_SOURCE_ID "browser_source"
 #define MEDIA_SOURCE_ID "ffmpeg_source"
 #define IMAGE_SOURCE_ID "image_source"
 #define SLIDESHOW_SOURCE_ID "slideshow"
 #define COLOR_SOURCE_ID "color_source"
-
-#define SOURCE_TYPE_INDEX_ZERO 0
-#define SOURCE_TYPE_INDEX_ONE 1
-#define SOURCE_TYPE_INDEX_TWO 2
-#define SOURCE_TYPE_INDEX_THREE 3
-#define SOURCE_TYPE_INDEX_FOUR 4
-#define SOURCE_TYPE_INDEX_FIVE 5
-#define SOURCE_TYPE_INDEX_SIX 6
-#define SOURCE_TYPE_INDEX_SEVEN 7
-#define SOURCE_TYPE_INDEX_EIGHT 8
-#define SOURCE_TYPE_INDEX_NINE 9
-#define SOURCE_TYPE_INDEX_TEN 10
-#define SOURCE_TYPE_INDEX_ELEVEN 11
-#define SOURCE_TYPE_INDEX_TWELVE 12
+#define BGM_SOURCE_ID "prism_bgm_source"
+#define PRISM_STICKER_SOURCE_ID "prism_sticker_source"
+#define PRISM_CHAT_SOURCE_ID "prism_chat_source"
+#define PRISM_TEXT_MOTION_ID "prism_text_motion_source"
+#define PRISM_NDI_SOURCE_ID "ndi_source"
 
 /***************    filter id     ****************/
 #define FILTER_TYPE_ID_APPLYLUT "clut_filter"
@@ -650,6 +690,7 @@ namespace common {
 #define FILTER_TYPE_ID_SHARPEN "sharpness_filter"
 #define FILTER_TYPE_ID_VSTPLUGIN "vst_filter"
 #define FILTER_TYPE_ID_VIDEODELAY_ASYNC "async_delay_filter"
+#define FILTER_TYPE_ID_PREMULTIPLIED_ALPHA_FILTER "premultiplied_alpha_filter"
 
 /*************** properties view ****************/
 #define PROPERTIES_VIEW_VERTICAL_SPACING_MIN 10
@@ -657,8 +698,8 @@ namespace common {
 
 #define DOCK_DEATTACH_MIN_SIZE 20
 #define DISPLAY_VIEW_DEFAULT_WIDTH 690
-#define DISPLAY_VIEW_DEFAULT_HEIGHT 319
-#define DISPLAY_LABEL_DEFAULT_HEIGHT 230
+#define DISPLAY_VIEW_DEFAULT_HEIGHT 210
+#define DISPLAY_LABEL_DEFAULT_HEIGHT 339
 #define DISPLAY_VIEW_MIN_HEIGHT 150
 #define DISPLAY_VIEW_MAX_HEIGHT 368
 #define FILTERS_VIEW_DEFAULT_WIDTH 910
@@ -670,6 +711,7 @@ namespace common {
 #define FILTERS_DISPLAY_VIEW_MAX_WIDTH 690
 #define FILTERS_TRANSITION_VIEW_FIXED_HEIGHT 40
 #define FILTERS_TRANSITION_VIEW_FIXED_WIDTH 128
+#define FILTERS_PROPERTIES_VIEW_MAX_HEIGHT 244
 #define COLOR_FILTERS_IMAGE_FIXED_WIDTH 60
 #define COLOR_FILTERS_IMAGE_FIXED_HEIGHT 60
 #define COLOR_FILTERS_VIEW_LEFT_PADDING 15
@@ -687,6 +729,7 @@ namespace common {
 #define OBJECT_NAME_BUTTON_BOX "buttonBox"
 #define OBJECT_NAME_WIDGET "widget"
 #define OBJECT_NAME_CHECKBOX "checkbox"
+#define OBJECT_NAME_RADIOBUTTON "radiobutton"
 #define OBJECT_NAME_PLAINTEXTEDIT "plainTextEdit"
 #define OBJECT_NAME_LINEEDIT "lineedit"
 #define OBJECT_NAME_BROWSE "browse"
@@ -701,6 +744,7 @@ namespace common {
 #define OBJECT_NAME_DISPLAYTEXT "displayText"
 #define OBJECT_NAME_PROPERTYVIEW "propertyPreview"
 #define OBJECT_NAME_PROPERTY_SPLITTER "propertyWindowSplitter"
+#define OBJECT_NAME_PROPERTY_VIEW_CONTAINER "propertyViewContainer"
 #define OBJECT_NAME_RIGHT_SCROLL_BTN "rightScrollBtn"
 #define OBJECT_NAME_LEFT_SCROLL_BTN "leftScrollBtn"
 #define OBJECT_NAME_COLOR_FILTER_LABEL "colorFilterLabel"
@@ -708,6 +752,7 @@ namespace common {
 
 #define OBJECT_NAME_FILTER_ITEM_MENU "filterItemMenu"
 #define OBJECT_NAME_BASIC_FILTER_MENU "basicFilterMenu"
+#define OBJECT_NAME_ADD_STICKER_BUTTON "addStickerBtn"
 
 /*************** property name ****************/
 #define PROPERTY_NAME_SHOW_IMAGE "showImage"

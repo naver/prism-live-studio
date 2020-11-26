@@ -9,9 +9,11 @@
 
 class PLSColorDialogImpl : public QColorDialog {
 public:
-	PLSColorDialogImpl(PLSColorDialogView *cdv, const QColor &initial, QWidget *parent) : QColorDialog(initial, parent), colorDialogView(cdv)
+	PLSColorDialogImpl(PLSColorDialogView *cdv, const QColor &initial, QWidget *parent, PLSDpiHelper dpiHelper) : QColorDialog(initial, parent), colorDialogView(cdv)
 	{
 		setWindowFlags(Qt::Widget);
+
+		layout()->setSizeConstraint(QLayout::SetDefaultConstraint);
 
 		if (QDialogButtonBox *buttonBox = findChild<QDialogButtonBox *>(); buttonBox) {
 			PLSDialogButtonBox::updateStandardButtonsStyle(buttonBox);
@@ -29,11 +31,14 @@ private:
 	PLSColorDialogView *colorDialogView;
 };
 
-PLSColorDialogView::PLSColorDialogView(QWidget *parent) : PLSColorDialogView(Qt::white, parent) {}
+PLSColorDialogView::PLSColorDialogView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSColorDialogView(Qt::white, parent, dpiHelper) {}
 
-PLSColorDialogView::PLSColorDialogView(const QColor &initial, QWidget *parent) : PLSDialogView(parent)
+PLSColorDialogView::PLSColorDialogView(const QColor &initial, QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper)
 {
-	impl = new PLSColorDialogImpl(this, initial, this->content());
+	dpiHelper.setCss(this, {PLSCssIndex::QColorDialog, PLSCssIndex::PLSColorDialogView});
+	dpiHelper.setInitSize(this, QSize(630, 635));
+
+	impl = new PLSColorDialogImpl(this, initial, this->content(), dpiHelper);
 
 	QHBoxLayout *l = new QHBoxLayout(this->content());
 	l->setSpacing(0);
@@ -135,7 +140,7 @@ void PLSColorDialogView::done(int result)
 
 void PLSColorDialogView::showEvent(QShowEvent *event)
 {
-	sizeToContent();
+	//sizeToContent();
 	moveToCenter();
 	PLSDialogView::showEvent(event);
 }

@@ -3,51 +3,59 @@
 #include <QTextFrame>
 #include <platform.hpp>
 #include <QFile>
+#include "window-basic-main.hpp"
+#include "pls-gpop-data.hpp"
+#include "ui-config.h"
 
 #define TEXT_EDIT_TOP_MARGIN 15
 #define TEXT_EDIT_LEFT_MARGIN 15
 #define TEXT_EDIT_RIGHT_MARGIN 10
 
-PLSOpenSourceView::PLSOpenSourceView(QWidget *parent) : PLSDialogView(parent), ui(new Ui::PLSOpenSourceView)
+extern QCef *cef;
+extern QCefCookieManager *panel_cookies;
+
+PLSOpenSourceView::PLSOpenSourceView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSOpenSourceView)
 {
+	dpiHelper.setCss(this, {PLSCssIndex::PLSOpenSourceView});
+	dpiHelper.setFixedSize(this, {720, 458});
 	ui->setupUi(this->content());
-	setupTextEdit();
-	setFixedSize(720, 458);
+
+	QMap<QString, QString> map = PLSGpopData::instance()->getOpenSourceLicenseMap();
+	QString ver = QString("v2.1.2");
+	if (map.contains(ver)) {
+		m_updateInfoUrl = map.value(ver);
+	}
+	initUI();
 	connect(ui->confirmButton, SIGNAL(clicked()), this, SLOT(on_confirmButton_clicked()));
 }
 
 PLSOpenSourceView::~PLSOpenSourceView()
 {
+	timer->stop();
 	delete ui;
 }
 
-void PLSOpenSourceView::setupTextEdit()
+void PLSOpenSourceView::initUI()
 {
-	// modify the text frame layout
-	QTextDocument *document = ui->textEdit->document();
-	QTextFrame *rootFrame = document->rootFrame();
-	QTextFrameFormat format;
-	format.setLeftMargin(TEXT_EDIT_LEFT_MARGIN);
-	format.setTopMargin(TEXT_EDIT_TOP_MARGIN);
-	format.setRightMargin(TEXT_EDIT_RIGHT_MARGIN);
-	format.setBottomMargin(TEXT_EDIT_TOP_MARGIN);
-	format.setBorderBrush(Qt::transparent);
-	format.setBorder(3);
-	rootFrame->setFrameFormat(format);
-
-	// read open source license file
-	std::string path;
-	QString error = "Error! File could not be read.";
-	if (!GetDataFilePath("license/License_PRISMLiveStudio_Win.txt", path)) {
-		ui->textEdit->setPlainText(error);
+	if (!cef) {
 		return;
 	}
 
-	// read file to textEdit
-	QFile file(QString::fromStdString(path));
-	if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-		ui->textEdit->setPlainText(file.readAll());
+	//delay the cef widge
+	timer = new QTimer(this);
+	connect(timer, SIGNAL(timeout()), this, SLOT(onTimeOut()));
+	timer->start(100);
+}
+
+void PLSOpenSourceView::onTimeOut()
+{
+	PLSBasic::InitBrowserPanelSafeBlock();
+	if (cef) {
+		m_cefWidget = cef->create_widget(nullptr, m_updateInfoUrl.toUtf8().constData(), "", panel_cookies);
+		ui->cefBackView->addWidget(m_cefWidget);
+		ui->cefBackView->setCurrentWidget(m_cefWidget);
 	}
+	timer->stop();
 }
 
 void PLSOpenSourceView::on_confirmButton_clicked()

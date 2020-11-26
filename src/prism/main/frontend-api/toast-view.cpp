@@ -7,7 +7,7 @@
 #include <QStyle>
 
 // class PLSToastView Implements
-PLSToastView::PLSToastView(QWidget *parent) : PLSDialogView(parent), ui(new Ui::PLSToastView), icon(Warning), timer(nullptr)
+PLSToastView::PLSToastView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSToastView), icon(Warning), timer(nullptr)
 {
 	setHasCaption(false);
 	ui->setupUi(this->content());

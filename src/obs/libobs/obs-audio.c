@@ -17,6 +17,8 @@
 
 #include <inttypes.h>
 #include "obs-internal.h"
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include "util/util_uint64.h"
 
 struct ts_info {
 	uint64_t start;
@@ -41,7 +43,9 @@ static void push_audio_tree(obs_source_t *parent, obs_source_t *source, void *p)
 
 static inline size_t convert_time_to_frames(size_t sample_rate, uint64_t t)
 {
-	return (size_t)(t * (uint64_t)sample_rate / 1000000000ULL);
+	//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+	//return (size_t)(t * (uint64_t)sample_rate / 1000000000ULL);
+	return util_mul_div64(t, sample_rate, 1000000000ULL);
 }
 
 static inline void mix_audio(struct audio_output_data *mixes,
@@ -90,8 +94,11 @@ static void ignore_audio(obs_source_t *source, size_t channels,
 					    source->audio_input_buf[ch].size);
 
 		source->last_audio_input_buf_size = 0;
-		source->audio_ts += (uint64_t)num_floats * 1000000000ULL /
-				    (uint64_t)sample_rate;
+		//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+		//source->audio_ts += (uint64_t)num_floats * 1000000000ULL /
+		//		    (uint64_t)sample_rate;
+		source->audio_ts +=
+			util_mul_div64(num_floats, 1000000000ULL, sample_rate);
 	}
 }
 

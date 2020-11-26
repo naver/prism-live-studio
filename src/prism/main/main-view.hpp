@@ -38,7 +38,7 @@ class PLSMainView : public PLSToplevelView<QFrame> {
 	Q_PROPERTY(bool fullScreenState READ getFullScreenState)
 
 public:
-	explicit PLSMainView(QWidget *parent = nullptr);
+	explicit PLSMainView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSMainView();
 
 public:
@@ -84,11 +84,24 @@ public:
 	void setStudioMode(bool studioMode);
 
 	void toastMessage(pls_toast_info_type type, const QString &message, int autoClose);
+	void toastMessage(pls_toast_info_type type, const QString &message, const QString &url, const QString &replaceStr, int autoClose);
+
 	void toastClear();
 
 	void setUserButtonIcon(const QIcon &icon);
 
-	void initToastMsgView();
+	QRect &getGeometryOfNormal() { return geometryOfNormal; }
+
+	void initToastMsgView(bool isInitShow = true);
+	void InitBeautyView();
+	void CreateBeautyView();
+	void OnBeautyViewVisibleChanged(bool visible);
+	void RefreshBeautyButtonStyle(bool state);
+	void RefreshStickersButtonStyle(bool state);
+
+	// bgm
+	void InitBgmView();
+	void OnBgmViewVisibleChanged(bool visible);
 
 	PLSToastButton *getToastButton();
 
@@ -104,12 +117,14 @@ public:
 
 	bool isClosing() const;
 	void close();
+	void OnBeautySourceDownloadFinished();
 
 public slots:
 	void onUpdateChatSytle(bool isShow);
 
 private:
 	static void resetToastViewPostion(pls_frontend_event event, const QVariantList &params, void *context);
+	void helpMenuAboutToHide();
 
 signals:
 	void popupSettingView(const QString &tab, const QString &group);
@@ -117,6 +132,15 @@ signals:
 	void isshowSignal(bool isShow);
 	void beginResizeSignal();
 	void endResizeSignal();
+	void beautyClicked();
+	void bgmClicked();
+	void stickersClicked();
+	void setBeautyViewVisible(bool state);
+	void setBgmViewVisible(bool state);
+	void maxFullScreenStateChanged(bool isMaxState, bool isFullScreenState);
+	void CreateBeautyInstance();
+	void BeautySourceDownloadFinished();
+	void visibleSignal(bool visible);
 
 private slots:
 	void on_menu_clicked();
@@ -124,7 +148,12 @@ private slots:
 	void on_studioMode_clicked();
 	void on_chat_clicked();
 	void on_alert_clicked();
+	void on_help_clicked();
 	void on_settings_clicked();
+	void on_listWidget_itemClicked(QListWidgetItem *item);
+	void on_beauty_clicked();
+	void on_bgmBtn_clicked();
+	void on_stickers_clicked();
 
 protected:
 	void closeEvent(QCloseEvent *event);
@@ -152,11 +181,13 @@ private:
 	QListWidgetItem *checkListWidgetItem;
 	std::function<void(QCloseEvent *)> closeEventCallback;
 	QMap<qint64, QString> toastMessages;
+	QMenu *helpMenu;
 	PLSToastView *toast;
-	bool m_isFirstLogin;
+	bool m_isFirstLogin = true;
 	PLSLivingMsgView m_livingMsgView;
 	PLSToastMsgPopup *m_toastMsg;
 	bool m_livingToastViewShow;
+	bool m_IsChatShowWhenRebackLogin = false;
 	bool closing = false;
 
 	friend class PLSBasic;

@@ -363,7 +363,9 @@ bool ffmpeg_decode_video(struct ffmpeg_decode *decode, uint8_t *data,
 
 	frame->width = decode->frame->width;
 	frame->height = decode->frame->height;
-	frame->flip = false;
+
+	//PRISM/LiuHaibin/20200609/#3174/camera effect
+	frame->ori_img_flip = frame->flip = false;
 
 	if (frame->format == VIDEO_FORMAT_NONE)
 		return false;

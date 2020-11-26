@@ -88,6 +88,34 @@ bool PLSBasic::SceneCollectionExists(const char *findName)
 	return found;
 }
 
+static bool GetUnusedSceneCollectionFile(std::string &name, std::string &file)
+{
+	char path[512];
+	int ret;
+
+	if (!GetFileSafeName(name.c_str(), file)) {
+		blog(LOG_WARNING, "Failed to create safe file name for '%s'", name.c_str());
+		return false;
+	}
+
+	ret = GetConfigPath(path, sizeof(path), "PRISMLiveStudio/basic/scenes/");
+	if (ret <= 0) {
+		blog(LOG_WARNING, "Failed to get scene collection config path");
+		return false;
+	}
+
+	file.insert(0, path);
+
+	if (!GetClosestUnusedFileName(file, "json")) {
+		blog(LOG_WARNING, "Failed to get closest file name for %s", file.c_str());
+		return false;
+	}
+
+	file.erase(file.size() - 5, 5);
+	file.erase(0, strlen(path));
+	return true;
+}
+
 bool PLSBasic::GetSceneCollectionName(QWidget *parent, std::string &name, std::string &file, const char *oldName)
 {
 	bool rename = oldName != nullptr;
@@ -110,6 +138,8 @@ bool PLSBasic::GetSceneCollectionName(QWidget *parent, std::string &name, std::s
 		if (!success) {
 			return false;
 		}
+
+		name = QString(name.c_str()).simplified().toStdString();
 		if (name.empty()) {
 			PLSMessageBox::warning(parent, QTStr("NoNameEntered.Title"), QTStr("NoNameEntered.Text"));
 			continue;
@@ -121,27 +151,10 @@ bool PLSBasic::GetSceneCollectionName(QWidget *parent, std::string &name, std::s
 		break;
 	}
 
-	if (!GetFileSafeName(name.c_str(), file)) {
-		blog(LOG_WARNING, "Failed to create safe file name for '%s'", name.c_str());
+	if (!GetUnusedSceneCollectionFile(name, file)) {
 		return false;
 	}
 
-	ret = GetConfigPath(path, sizeof(path), "PRISMLiveStudio/basic/scenes/");
-	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get scene collection config path");
-		return false;
-	}
-
-	len = file.size();
-	file.insert(0, path);
-
-	if (!GetClosestUnusedFileName(file, "json")) {
-		blog(LOG_WARNING, "Failed to get closest file name for %s", file.c_str());
-		return false;
-	}
-
-	file.erase(file.size() - 5, 5);
-	file.erase(0, file.size() - len);
 	return true;
 }
 
@@ -156,13 +169,16 @@ bool PLSBasic::AddSceneCollection(bool create_new, const QString &qname)
 	} else {
 		if (SceneCollectionExists(qname.toStdString().c_str()))
 			return false;
+		if (!GetUnusedSceneCollectionFile(name, file)) {
+			return false;
+		}
 	}
 
 	SaveProjectNow();
 
 	if (!create_new) {
 		QString oldFile = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
-		PLSSceneDataMgr::Instance()->CopySrcToDest(oldFile, QString::fromStdString(file));
+		PLSSceneDataMgr::Instance()->MoveSrcToDest(oldFile, QString::fromStdString(file));
 	}
 
 	config_set_string(App()->GlobalConfig(), "Basic", "SceneCollection", name.c_str());
@@ -171,7 +187,7 @@ bool PLSBasic::AddSceneCollection(bool create_new, const QString &qname)
 		CreateDefaultScene(false);
 	}
 	SaveProjectNow();
-	RefreshSceneCollections(!create_new);
+	RefreshSceneCollections();
 
 	blog(LOG_INFO, "Added scene collection '%s' (%s, %s.json)", name.c_str(), create_new ? "clean" : "duplicate", file.c_str());
 	blog(LOG_INFO, "------------------------------------------------");
@@ -186,7 +202,7 @@ bool PLSBasic::AddSceneCollection(bool create_new, const QString &qname)
 	return true;
 }
 
-void PLSBasic::RefreshSceneCollections(bool needLoad)
+void PLSBasic::RefreshSceneCollections()
 {
 	QList<QAction *> menuActions = ui->sceneCollectionMenu->actions();
 	int count = 0;
@@ -207,13 +223,7 @@ void PLSBasic::RefreshSceneCollections(bool needLoad)
 		action->setProperty("name", QT_UTF8(name));
 		connect(action, &QAction::triggered, this, &PLSBasic::ChangeSceneCollection);
 		action->setCheckable(true);
-
-		if (0 == strcmp(name, cur_name)) {
-			if (needLoad) {
-				UpdateSceneCollection(action, needLoad);
-			}
-			action->setChecked(true);
-		}
+		action->setChecked(strcmp(name, cur_name) == 0);
 		ui->sceneCollectionMenu->addAction(action);
 		count++;
 		return true;
@@ -270,7 +280,7 @@ void PLSBasic::on_actionRenameSceneCollection_triggered()
 
 	config_set_string(App()->GlobalConfig(), "Basic", "SceneCollection", name.c_str());
 	config_set_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile", file.c_str());
-	PLSSceneDataMgr::Instance()->CopySrcToDest(QString::fromStdString(oldFile), QString::fromStdString(file));
+	PLSSceneDataMgr::Instance()->MoveSrcToDest(QString::fromStdString(oldFile), QString::fromStdString(file));
 	SaveProjectNow();
 
 	char path[512];
@@ -461,14 +471,14 @@ void PLSBasic::on_actionExportSceneCollection_triggered()
 	}
 }
 
-void PLSBasic::UpdateSceneCollection(QAction *action, bool needLoad)
+void PLSBasic::UpdateSceneCollection(QAction *action)
 {
 	if (!action)
 		return;
-	LoadSceneCollection(action, needLoad);
+	LoadSceneCollection(action);
 }
 
-void PLSBasic::LoadSceneCollection(QAction *action, bool needLoad)
+void PLSBasic::LoadSceneCollection(QAction *action)
 {
 	if (!action)
 		return;
@@ -478,19 +488,15 @@ void PLSBasic::LoadSceneCollection(QAction *action, bool needLoad)
 	if (fileName.empty())
 		return;
 
-	if (!needLoad) {
-		const char *oldName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
-		if (action->text().compare(QT_UTF8(oldName)) == 0) {
-			action->setChecked(true);
-			return;
-		}
+	const char *oldName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
+	if (action->text().compare(QT_UTF8(oldName)) == 0) {
+		action->setChecked(true);
+		return;
 	}
 
 	SaveProjectNow();
 	Load(fileName.c_str());
-	if (!needLoad) {
-		RefreshSceneCollections();
-	}
+	RefreshSceneCollections();
 
 	const char *newName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
 	const char *newFile = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");

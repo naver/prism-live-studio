@@ -1,43 +1,31 @@
 #include "PLSChannelsArea.h"
-#include "ui_ChannelsArea.h"
-#include "PLSChannelDataAPI.h"
+#include <QGuiApplication>
+#include <QPushButton>
+#include <QScrollBar>
+#include <QTime>
+#include <QToolButton>
+#include <QWheelEvent>
+#include <QWindow>
 #include "ChannelCapsule.h"
+#include "ChannelCommonFunctions.h"
 #include "ChannelConst.h"
 #include "ChannelDefines.h"
-#include "ChannelCommonFunctions.h"
-#include <QWheelEvent>
-#include <QScrollBar>
-#include "GoLivePannel.h"
-#include <QPushButton>
 #include "ChannelsAddWin.h"
 #include "DefaultPlatformsAddList.h"
-#include "PLSChannelsVirualAPI.h"
-#include "PLSAddingFrame.h"
+#include "GoLivePannel.h"
 #include "LogPredefine.h"
-#include <QTime>
-#include <QGuiApplication>
-#include <QWindow>
+#include "PLSAddingFrame.h"
+#include "PLSChannelDataAPI.h"
+#include "PLSChannelsVirualAPI.h"
+#include "ui_ChannelsArea.h"
+#include "window-basic-main.hpp"
+
 using namespace ChannelData;
 
-PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent), ui(new Ui::ChannelsArea), isHolding(false)
+PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent), ui(new Ui::ChannelsArea), isHolding(false), isUiInitialized(false)
 {
 	ui->setupUi(this);
-	auto refreshBtn = new QPushButton();
-	refreshBtn->setObjectName("RefreshButton");
-	auto refreshTxtBtn = new QPushButton(CHANNELS_TR(MyChannel));
-	refreshTxtBtn->setObjectName("RefreshTxtButton");
-	ui->HeaderLayout->addWidget(refreshTxtBtn, 5);
-	ui->HeaderLayout->addWidget(refreshBtn, 1);
-	ui->HeaderLayout->addStretch(4);
-
-	connect(refreshBtn, &QPushButton::clicked, this, &PLSChannelsArea::refreshChannels, Qt::QueuedConnection);
-	connect(refreshTxtBtn, &QPushButton::clicked, this, &PLSChannelsArea::refreshChannels, Qt::QueuedConnection);
-
-	addBtn = new QPushButton(CHANNELS_TR(Add));
-	addBtn->setObjectName("ChannelsAdd");
-	addBtn->setToolTip(CHANNELS_TR(AddTip));
-	this->appendTailWidget(addBtn);
-	connect(addBtn, &QPushButton::clicked, this, &PLSChannelsArea::showChannelsAdd, Qt::QueuedConnection);
+	initializeMychannels();
 
 	auto defaultAddWid = new DefaultPlatformsAddList;
 	ui->AddFrame->layout()->addWidget(defaultAddWid);
@@ -50,25 +38,26 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent), ui(new Ui::C
 	ui->MidFrame->setAttribute(Qt::WA_Hover);
 	ui->MidFrame->installEventFilter(this);
 
+	ui->AddFrameInvisible->setVisible(false);
+	connect(ui->GotoAddWinButton, &QAbstractButton::clicked, this, &PLSChannelsArea::showChannelsAdd, Qt::QueuedConnection);
+
 	mbusyFrame = new PLSAddingFrame(ui->MidFrame);
 	mbusyFrame->setObjectName("LoadingFrame");
 	mbusyFrame->setContent(CHANNELS_TR(Loading));
 	mbusyFrame->setSourceFirstFile(g_loadingPixPath);
-	mbusyFrame->setWindowFlags(Qt::SubWindow | Qt::FramelessWindowHint);
-	mbusyFrame->setWindowModality(Qt::NonModal);
 	mbusyFrame->hide();
+	mbusyFrame->installEventFilter(this);
 
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelAdded, this, QOverload<const QString &>::of(&PLSChannelsArea::addChannel), Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelRemoved, this, &PLSChannelsArea::removeChannel, Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelModified, this, &PLSChannelsArea::updateChannelUi, Qt::QueuedConnection);
-	//connect(PLSCHANNELS_API, &PLSChannelDataAPI::prismTokenExpired, this, &PLSChannelsArea::clearAllRTMP, Qt::QueuedConnection);
-	connect(PLSCHANNELS_API, &PLSChannelDataAPI::holdOnChannel, this, &PLSChannelsArea::holdOnChannel);
+
 	connect(
 		PLSCHANNELS_API, &PLSChannelDataAPI::holdOnChannelArea, this,
 		[=](bool isHold) {
 			if (isHold) {
 				mbusyFrame->setContent("");
-				mbusyFrame->resize(54, 54);
+				mbusyFrame->resize(PLSDpiHelper::calculate(this, QSize(54, 54)));
 			}
 
 			holdOnChannelArea(isHold);
@@ -79,7 +68,7 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent), ui(new Ui::C
 		[=](bool isHold) {
 			if (isHold) {
 				mbusyFrame->setContent(CHANNELS_TR(Adding));
-				mbusyFrame->resize(200, 54);
+				mbusyFrame->resize(PLSDpiHelper::calculate(this, QSize(200, 54)));
 			}
 
 			holdOnChannelArea(isHold);
@@ -88,12 +77,15 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent), ui(new Ui::C
 
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::holdOnGolive, goliveWid, &GoLivePannel::holdOnAll, Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::sigAllClear, this, &PLSChannelsArea::clearAll, Qt::QueuedConnection);
-	connect(PLSCHANNELS_API, &PLSChannelDataAPI::liveStateChanged, this, &PLSChannelsArea::updateUi, Qt::QueuedConnection);
-	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toDoinitialize, this, &PLSChannelsArea::initChannels, Qt::QueuedConnection);
+	connect(PLSCHANNELS_API, &PLSChannelDataAPI::liveStateChanged, this, &PLSChannelsArea::delayUpdateUi, Qt::QueuedConnection);
+	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toDoinitialize, this, &PLSChannelsArea::beginInitChannels, Qt::QueuedConnection);
+	connect(this, &PLSChannelsArea::sigNextInitialize, this, &PLSChannelsArea::initializeNextStep, Qt::QueuedConnection);
+
 	connect(
 		PLSCHANNELS_API, &PLSChannelDataAPI::networkInvalidOcurred, this, []() { showNetworkErrorAlert(); }, Qt::QueuedConnection);
 
-	updateUi();
+	PLSDpiHelper dpiHelper;
+	dpiHelper.notifyDpiChanged(this, [=](double dpi, double oldDpi) { mbusyFrame->resize(mbusyFrame->width() * (dpi / oldDpi), mbusyFrame->height() * (dpi / oldDpi)); });
 }
 
 PLSChannelsArea::~PLSChannelsArea()
@@ -102,127 +94,128 @@ PLSChannelsArea::~PLSChannelsArea()
 	delete ui;
 }
 
-void PLSChannelsArea::initChannels()
+void PLSChannelsArea::beginInitChannels()
 {
 	//qDebug() << " time initialize :" << QTime::currentTime();
-	PRE_LOG_UI(InitChannels, PLSChannelsArea);
-	HolderReleaser releaser(&PLSChannelsArea::holdOnChannelArea, this);
-	auto allChannels = PLSCHANNELS_API->getCurrentSortedChannelsUUID();
-	if (!allChannels.isEmpty()) {
-		SemaphoreHolder holder(PLSCHANNELS_API->getSourceSemaphore());
-		for (auto &info : allChannels) {
-			QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
-			addChannel(info);
-		}
+	PRE_LOG(InitChannels, INFO);
+	isUiInitialized = false;
+	checkIsEmptyUi();
+	this->holdOnChannelArea(true);
+	mInitializeInfos = PLSCHANNELS_API->sortAllChannels();
+	PLSCHANNELS_API->release();
+	emit sigNextInitialize();
+}
+void PLSChannelsArea::endInitialize()
+{
+	//qDebug() << " time initialize :" << QTime::currentTime();
+	PLSCHANNELS_API->sigChannelAreaInialized();
+	if (PLSCHANNELS_API->hasError()) {
+		PLSCHANNELS_API->networkInvalidOcurred();
+	}
+	this->holdOnChannelArea(false);
+	isUiInitialized = true;
+}
+void PLSChannelsArea::initializeNextStep()
+{
+	if (PLSCHANNELS_API->isExit()) {
+		PLSCHANNELS_API->acquire();
+		return;
 	}
 
-	//qDebug() << " time initialize :" << QTime::currentTime();
-}
+	if (!mInitializeInfos.isEmpty()) {
+		auto channelInfo = mInitializeInfos.takeFirst();
+		addChannel(channelInfo);
+	}
 
-void PLSChannelsArea::appendTailWidget(QWidget *widget)
-{
-	ui->ScrollTailFrameLayout->insertWidget(-1, widget);
-	ui->NormalDisFrameLayout->addStretch(10);
+	if (!mInitializeInfos.isEmpty()) {
+		emit sigNextInitialize();
+		return;
+	}
+
+	if (mInitializeInfos.isEmpty()) {
+		PLSCHANNELS_API->acquire();
+		endInitialize();
+		return;
+	}
 }
 
 void PLSChannelsArea::holdOnChannelArea(bool holdOn)
 {
-	//qDebug() << "----------------hold " << holdOn;
+	//hold
+	isHolding = holdOn;
+	if (holdOn && mbusyFrame->isVisible()) {
+		return;
+	}
 	if (holdOn) {
-		isHolding = true;
-		if (!mbusyFrame->isVisible()) {
-			auto posParentC = ui->MidFrame->contentsRect().center();
-			auto posMC = mbusyFrame->contentsRect().center();
-			auto posDiffer = posParentC - posMC;
-			mbusyFrame->move(posDiffer);
-			mbusyFrame->start(500);
-			mCheckTimer.start(10000);
-			updateUi();
-		}
+		auto posParentC = ui->MidFrame->contentsRect().center();
+		auto posMC = mbusyFrame->contentsRect().center();
+		auto posDiffer = posParentC - posMC;
+		mbusyFrame->move(posDiffer);
+		mbusyFrame->start(200);
+		mbusyFrame->setVisible(true);
 
-	} else {
-		isHolding = false;
-		if (!PLSCHANNELS_API->isEmptyToAcquire()) {
-			return;
-		}
 		updateUi();
-		mCheckTimer.stop();
-	}
-}
 
-int PLSChannelsArea::getRTMPInsertIndex()
-{
-	auto scrollLay = ui->CapusuleLayout;
-	int count = scrollLay->count();
-	int ret = -1;
-	for (int i = 0; i < count; ++i) {
-		auto widget = dynamic_cast<ChannelCapsule *>(scrollLay->itemAt(i)->widget());
-		if (widget) {
-			const auto &uuid = widget->getChannelID();
-			auto &info = PLSCHANNELS_API->getChanelInfoRef(uuid);
-			int type = getInfo(info, g_data_type, ChannelType);
-			if (type == ChannelType) {
-				ret = i;
-			}
-		}
-	}
-	return ret + 1;
-}
-
-int PLSChannelsArea::getChannelInsertIndex(const QString &platformName)
-{
-	auto defaultPlatforms = getDefaultPlatforms();
-	auto ite = defaultPlatforms.begin();
-
-	while (ite != defaultPlatforms.end()) {
-		auto name = *ite;
-		if (PLSCHANNELS_API->getChanelInfoRefByPlatformName(name, ChannelType).isEmpty()) {
-			ite = defaultPlatforms.erase(ite);
-		} else {
-			++ite;
-		}
+		return;
 	}
 
-	return defaultPlatforms.indexOf(platformName);
+	// unhold
+	if (PLSCHANNELS_API->isEmptyToAcquire()) {
+		delayUpdateUi();
+		delayTask(&PLSChannelsArea::hideLoading, 300);
+	}
 }
 
 void PLSChannelsArea::refreshOrder()
 {
-	auto scrollLay = ui->CapusuleLayout;
-	int count = scrollLay->count();
-	for (int i = 0; i < count; ++i) {
-		auto widget = dynamic_cast<ChannelCapsule *>(scrollLay->itemAt(i)->widget());
-		if (widget) {
-			const auto &uuid = widget->getChannelID();
-			PLSCHANNELS_API->setValueOfChannel(uuid, g_displayOrder, i);
-		}
-	}
+	PLSCHANNELS_API->sortAllChannels();
 }
 
 void PLSChannelsArea::initScollButtons()
 {
 
 	mLeftButon = new QPushButton(ui->MidFrame);
-	mLeftButon->setWindowFlags(Qt::SubWindow | Qt::NoDropShadowWindowHint | Qt::FramelessWindowHint);
-	mLeftButon->setAttribute(Qt::WA_TranslucentBackground);
 	mLeftButon->setObjectName("LeftButton");
 	mLeftButon->setAutoRepeat(true);
 	mLeftButon->setAutoRepeatDelay(500);
 	mLeftButon->setAutoRepeatInterval(500);
-	mLeftButon->hide();
+	ui->MidFrameLayout->insertWidget(0, mLeftButon);
 	connect(mLeftButon, &QPushButton::clicked, [=]() { scrollNext(true); });
+	mLeftButon->setVisible(false);
 
 	mRightButton = new QPushButton(ui->MidFrame);
-	mRightButton->setWindowFlags(Qt::SubWindow | Qt::NoDropShadowWindowHint | Qt::FramelessWindowHint);
-	mRightButton->setAttribute(Qt::WA_TranslucentBackground);
 	mRightButton->setObjectName("RightButton");
 	mRightButton->setAutoRepeat(true);
 	mRightButton->setAutoRepeatDelay(500);
 	mRightButton->setAutoRepeatInterval(500);
-	mRightButton->hide();
+	ui->MidFrameLayout->addWidget(mRightButton);
 	connect(mRightButton, &QPushButton::clicked, [=]() { scrollNext(false); });
+	mRightButton->setVisible(false);
 
 	ui->ChannelScrollArea->verticalScrollBar()->setDisabled(true);
+	ui->NormalDisFrameLayout->addStretch(10);
+}
+
+void PLSChannelsArea::checkScrollButtonsState(ScrollDirection direction)
+{
+	bool isNeeded = isScrollButtonsNeeded();
+	enabledScrollButtons(isNeeded);
+	if (isNeeded) {
+		switch (direction) {
+		case PLSChannelsArea::NOScroll:
+			break;
+		case PLSChannelsArea::ForwardScroll:
+			ensureCornerChannelVisible(true);
+			break;
+		case PLSChannelsArea::BackScroll:
+			ensureCornerChannelVisible(false);
+			break;
+		default:
+			break;
+		}
+
+		buttonLimitCheck();
+	}
 }
 
 void PLSChannelsArea::insertChannelCapsule(QWidget *wid, int index)
@@ -233,23 +226,48 @@ void PLSChannelsArea::insertChannelCapsule(QWidget *wid, int index)
 
 void PLSChannelsArea::scrollNext(bool forwartStep)
 {
+	ensureCornerChannelVisible(forwartStep);
 	auto bar = ui->ChannelScrollArea->horizontalScrollBar();
-	bar->setValue(bar->value() + (forwartStep ? -1 : 1) * 210);
+	int width = PLSDpiHelper::calculate(this, 200);
+	int currentV = bar->value();
+	int lastV = currentV + (forwartStep ? -1 : 1) * width;
+	bar->setValue(lastV);
+
+	buttonLimitCheck();
+}
+
+void PLSChannelsArea::ensureCornerChannelVisible(bool forwartStep)
+{
+	auto recView = ui->ChannelScrollArea->contentsRect();
+	auto targetPos = forwartStep ? (recView.topLeft() + QPoint(10, 10)) : (recView.topRight() + QPoint(-10, 10));
+	auto child = ui->ChannelScrollArea->childAt(targetPos);
+	//qDebug() << " child " << child;
+	if (child) {
+		//qDebug() << " child info " << child->metaObject()->className();
+		auto capusle = findParent<ChannelCapsule *>(child);
+		if (capusle) {
+			ui->ChannelScrollArea->ensureWidgetVisible(capusle, 1, 1);
+		}
+	}
+}
+
+void PLSChannelsArea::buttonLimitCheck()
+{
+	auto bar = ui->ChannelScrollArea->horizontalScrollBar();
+	mRightButton->setDisabled(bar->value() == bar->maximum());
+	mLeftButon->setDisabled(bar->value() == bar->minimum());
 }
 
 void PLSChannelsArea::displayScrollButtons(bool isShow)
 {
 	mLeftButon->setVisible(isShow);
 	mRightButton->setVisible(isShow);
-	mRightButton->move(ui->MidFrame->rect().topRight() - QPoint(mRightButton->width(), 0));
 }
 
-void PLSChannelsArea::holdOnChannel(const QString &uuid, bool holdOn)
+void PLSChannelsArea::enabledScrollButtons(bool isEnabled)
 {
-	auto wid = mChannelsWidget.value(uuid);
-	if (wid) {
-		wid->holdOn(holdOn);
-	}
+	mLeftButon->setEnabled(isEnabled);
+	mRightButton->setEnabled(isEnabled);
 }
 
 void PLSChannelsArea::addChannel(const QString &channelUUID)
@@ -258,154 +276,215 @@ void PLSChannelsArea::addChannel(const QString &channelUUID)
 	if (channelInfo.isEmpty()) {
 		return;
 	}
-	addChannel(channelInfo);
-	refreshOrder();
-	checkIsEmptyUi();
+	auto channelWid = addChannel(channelInfo);
+	if (!isUiInitialized || !channelWid->isVisible()) {
+		return;
+	}
+
+	bool isLeader = getInfo(channelInfo, g_isLeader, true);
+	if (isLeader) {
+		checkScrollButtonsState(BackScroll);
+		ui->ChannelScrollArea->ensureWidgetVisible(channelWid.data(), PLSDpiHelper::calculate(this, 10), PLSDpiHelper::calculate(this, 10));
+	}
 }
 
-void PLSChannelsArea::addChannel(const QVariantMap &channelInfo)
+ChannelCapsulePtr PLSChannelsArea::addChannel(const QVariantMap &channelInfo)
 {
-	ChannelCapsulePtr channelWid(new ChannelCapsule, deleteChannelWidget<ChannelCapsule>);
-	channelWid->initialize(channelInfo);
-	int type = getInfo(channelInfo, g_data_type, ChannelType);
-	int order = 0;
-	if (type == ChannelType) {
-
-		auto name = getInfo(channelInfo, g_channelName);
-		int index = getChannelInsertIndex(name);
-		if (index != -1) {
-			order = index;
-		}
-
-	} else {
-		order = getInfo(channelInfo, g_displayOrder, -1);
-		if (order == -1) {
-			order = getRTMPInsertIndex();
-		}
-	}
+	ChannelCapsulePtr channelWid(new ChannelCapsule(), deleteChannelWidget<ChannelCapsule>);
+	auto uuid = getInfo(channelInfo, g_channelUUID);
+	channelWid->setChannelID(uuid);
+	int order = getInfo(channelInfo, g_displayOrder, -1);
 	this->insertChannelCapsule(channelWid.data(), order);
-	mChannelsWidget.insert(getInfo(channelInfo, g_channelUUID, QString()), channelWid);
-	ui->ChannelScrollArea->ensureWidgetVisible(channelWid.data(), 10, 10);
+	mChannelsWidget.insert(uuid, channelWid);
+	bool isToShow = getInfo(channelInfo, g_displayState, true);
+	if (isToShow) {
+		channelWid->updateUi();
+	}
+	channelWid->setVisible(isToShow);
+	return channelWid;
 }
 
 bool PLSChannelsArea::checkIsEmptyUi()
 {
+	//empty channels
 	if (PLSCHANNELS_API->isEmpty()) {
+		ui->AddFrameInvisible->setVisible(false);
 		ui->NormalDisFrame->hide();
+		displayScrollButtons(false);
 		ui->AddFrame->show();
 		return true;
 	}
+
+	// no display channels
+	int visibleWidgets = visibleCount();
+	if (isUiInitialized && visibleWidgets < 1) {
+		ui->NormalDisFrame->setVisible(false);
+		displayScrollButtons(false);
+		ui->AddFrame->hide();
+		ui->AddFrameInvisible->setVisible(true);
+		return false;
+	}
+
+	//normal
 	ui->AddFrame->hide();
+	ui->AddFrameInvisible->setVisible(false);
 	ui->NormalDisFrame->show();
+	displayScrollButtons(true);
+
 	return false;
 }
 
 void PLSChannelsArea::updateUi()
 {
-	checkIsEmptyUi();
 	int state = PLSCHANNELS_API->currentBroadcastState();
 
 	switch (state) {
-	case StreamEnd:
 	case ReadyState: {
+		//hold
 		if (isHolding) {
-			mbusyFrame->setVisible(true);
-			ui->HeaderFrame->setEnabled(false);
+			myChannelsIconBtn->setEnabled(false);
 			ui->MidFrame->setEnabled(false);
-			addBtn->setVisible(false);
-		} else {
-			mbusyFrame->setVisible(false);
-			mbusyFrame->stop();
-			ui->HeaderFrame->setEnabled(true);
+			ui->TailFrame->setEnabled(false);
+			App()->DisableHotkeys();
+			break;
+		}
+		//unhold
+		{
+			delayUpdateAllChannelsUi();
 			ui->MidFrame->setEnabled(true);
-			addBtn->setVisible(true);
-			switchAllChannelsState(false);
+			myChannelsIconBtn->setEnabled(true);
+			ui->TailFrame->setEnabled(true);
+			App()->UpdateHotkeyFocusSetting(true);
 		}
 
 	} break;
-	case StopBroadcastGo:
-	case BroadcastGo:
-	case CanBroadcastState:
-	case StreamStarting: {
-		addBtn->setVisible(false);
-		ui->HeaderFrame->setEnabled(false);
+
+	case BroadcastGo: {
+		myChannelsIconBtn->setEnabled(false);
 		ui->MidFrame->setEnabled(false);
-		mbusyFrame->setVisible(false);
-		mbusyFrame->stop();
 	} break;
 	case StreamStarted: {
-		addBtn->setVisible(false);
-		ui->HeaderFrame->setEnabled(false);
-		switchAllChannelsState(true);
+		delayUpdateAllChannelsUi();
 		ui->MidFrame->setEnabled(true);
 	} break;
-	case StreamStopped: {
-
+	case StopBroadcastGo: {
+		ui->MidFrame->setEnabled(false);
 	} break;
 	default:
 		break;
 	}
 }
 
+void PLSChannelsArea::delayUpdateUi()
+{
+	delayTask(&PLSChannelsArea::updateUi);
+}
+
+void PLSChannelsArea::updateAllChannelsUi()
+{
+	bool isLiving = PLSCHANNELS_API->isLiving();
+	auto check = [&](ChannelCapsulePtr wid) {
+		if ((!wid->isSelectedDisplay()) || (isLiving && !wid->isOnLine())) {
+			wid->hide();
+		} else {
+			wid->show();
+			wid->updateUi();
+		}
+	};
+	std::for_each(mChannelsWidget.begin(), mChannelsWidget.end(), check);
+}
+
+void PLSChannelsArea::delayUpdateAllChannelsUi()
+{
+	static QTimer *delayTimer = nullptr;
+	if (delayTimer == nullptr) {
+		delayTimer = new QTimer(this);
+		delayTimer->setSingleShot(true);
+		connect(delayTimer, &QTimer::timeout, this, [=]() {
+			updateAllChannelsUi();
+			checkIsEmptyUi();
+			checkScrollButtonsState(isUiInitialized ? NOScroll : ForwardScroll);
+		});
+	}
+	delayTimer->start(200);
+}
+
+void PLSChannelsArea::hideLoading()
+{
+	mbusyFrame->setVisible(false);
+	mbusyFrame->stop();
+}
+
 void PLSChannelsArea::removeChannel(const QString &channelUUID)
 {
-	mChannelsWidget.remove(channelUUID);
-	this->updateUi();
-	refreshOrder();
+	auto ite = mChannelsWidget.find(channelUUID);
+	if (ite != mChannelsWidget.end()) {
+		auto wid = ite.value();
+		wid->hide();
+		mChannelsWidget.erase(ite);
+		delayTask(&PLSChannelsArea::refreshOrder);
+	}
 }
 
 void PLSChannelsArea::updateChannelUi(const QString &channelUUID)
 {
 	if (PLSCHANNELS_API->isLiving()) {
-		std::for_each(mChannelsWidget.begin(), mChannelsWidget.end(), [](ChannelCapsulePtr wid) { wid->updateUi(); });
-	} else {
-		auto channelWid = mChannelsWidget.value(channelUUID);
-		if (channelWid) {
-			channelWid->updateUi();
-		}
+		delayUpdateAllChannelsUi();
+		return;
 	}
+
+	auto channelWid = mChannelsWidget.value(channelUUID);
+	if (channelWid == nullptr) {
+		return;
+	}
+	if (channelWid->isSelectedDisplay()) {
+		channelWid->setVisible(true);
+		channelWid->updateUi();
+		return;
+	}
+
+	channelWid->setVisible(false);
 }
 
 void PLSChannelsArea::refreshChannels()
 {
 	PRE_LOG_UI(My channels Clicked, PLSChannelsArea);
+
+	auto matchedPlaftorms = PLSCHANNELS_API->getAllChannelInfo();
+
+	auto isMatched = [&](const QVariantMap &info) {
+		auto platform = getInfo(info, g_channelName);
+		return g_platformsToClearData.contains(platform, Qt::CaseInsensitive) && getInfo(info, g_data_type, NoType) == ChannelType;
+	};
+	auto ret = std::find_if(matchedPlaftorms.constBegin(), matchedPlaftorms.constEnd(), isMatched);
+
+	if (ret != matchedPlaftorms.constEnd()) {
+
+		auto ret = PLSAlertView::question(this, tr("Live.Check.Alert.Title"), tr("RefreshChannel.DeleteLiveInfo.Alert.Message"),
+						  {{PLSAlertView::Button::Yes, tr("RefreshChannel.DeleteLiveInfo.Alert.Refresh")}, {PLSAlertView::Button::Cancel, CHANNELS_TR(Cancel)}},
+						  PLSAlertView::Button::Cancel);
+		if (ret != PLSAlertView::Button::Yes) {
+			return;
+		}
+	}
+	PLSCHANNELS_API->setResetNeed(true);
 	PLSCHANNELS_API->sigRefreshAllChannels();
 }
 
 void PLSChannelsArea::showChannelsAdd()
 {
+	auto mainW = pls_get_main_view();
 	PRE_LOG_UI(show add channels, PLSChannelsArea);
 	auto channelsAdd = new ChannelsAddWin(this);
-	channelsAdd->setWindowFlags(Qt::Popup);
+	channelsAdd->setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
 	channelsAdd->setAttribute(Qt::WA_DeleteOnClose);
-	auto newPos = this->mapToGlobal(this->frameGeometry().center()) + QPoint(-channelsAdd->width() / 2, this->height());
-	channelsAdd->move(newPos);
-
-	connect(channelsAdd, &ChannelsAddWin::destroyed, this, [=]() {
-		addBtn->setChecked(false);
-		addBtn->setCheckable(false);
-	});
-	addBtn->setCheckable(true);
-	addBtn->setChecked(true);
+	channelsAdd->move(mainW->pos());
 	channelsAdd->show();
-}
 
-void PLSChannelsArea::switchAllChannelsState(bool on)
-{
-	auto ite = mChannelsWidget.begin();
-	for (; ite != mChannelsWidget.end(); ++ite) {
-		auto info = PLSCHANNELS_API->getChannelInfo(ite.key());
-		if (info.isEmpty()) {
-			continue;
-		}
-		auto &wid = *ite;
-		if (wid->isActive()) {
-			wid->setVisible(true);
-		} else {
-			wid->setVisible(!on);
-		}
-		wid->updateUi();
-	}
+	auto center = mainW->rect().center();
+	auto selfCenter = QPoint(channelsAdd->width() / 2, channelsAdd->height() / 2);
+	auto pos = center;
+	channelsAdd->move(mainW->mapToGlobal(pos) - selfCenter);
 }
 
 void PLSChannelsArea::clearAll()
@@ -446,26 +525,60 @@ void PLSChannelsArea::wheelEvent(QWheelEvent *event)
 
 bool PLSChannelsArea::eventFilter(QObject *watched, QEvent *event)
 {
-	Q_UNUSED(watched)
-	if (isScrollButtonsNeeded() && (event->type() == QEvent::HoverEnter || event->type() == QEvent::Enter)) {
-		displayScrollButtons(true);
-		return true;
-	}
-
-	if (event->type() == QEvent::HoverLeave) {
-		auto pos = ui->MidFrame->mapFromGlobal(QCursor::pos());
-		if (!ui->MidFrame->contentsRect().contains(pos)) {
-			displayScrollButtons(false);
+	switch (event->type()) {
+	case QEvent::Resize: {
+		if (watched == ui->MidFrame || watched == mbusyFrame) {
+			auto sizeToPoint = [](const QSize &size) { return QPoint(size.width(), size.height()); };
+			mbusyFrame->move(sizeToPoint((ui->MidFrame->size() - mbusyFrame->size()) / 2));
+			if (watched == ui->MidFrame && isUiInitialized) {
+				checkScrollButtonsState(ForwardScroll);
+			}
+			return true;
 		}
-		return true;
-	}
+	} break;
+	default:
 
+		break;
+	}
 	return false;
 }
 
 bool PLSChannelsArea::isScrollButtonsNeeded()
 {
+	ui->scrollAreaWidgetContents->adjustSize();
 	auto recView = ui->ChannelScrollArea->contentsRect();
 	auto scrollGeo = ui->scrollAreaWidgetContents->contentsRect();
 	return recView.width() < scrollGeo.width();
+}
+
+void PLSChannelsArea::initializeMychannels()
+{
+	myChannelsIconBtn = new QToolButton();
+	myChannelsIconBtn->setObjectName("MyChannelsIconBtn");
+	myChannelsTxtBtn = new QPushButton(CHANNELS_TR(MyChannel));
+	myChannelsTxtBtn->setObjectName("MyChannelsTxtBtn");
+	ui->HeaderLayout->addWidget(myChannelsTxtBtn, 5);
+	ui->HeaderLayout->addWidget(myChannelsIconBtn, 1);
+	ui->HeaderLayout->addStretch(4);
+
+	auto menu = new QMenu(myChannelsIconBtn);
+	menu->setObjectName("MyChannelsMenu");
+	auto settingAction = menu->addAction(CHANNELS_TR(SettingChannels), this, [=]() { showChannelsSetting(); });
+	menu->addAction(CHANNELS_TR(AddChannels), this, &PLSChannelsArea::showChannelsAdd);
+	menu->addAction(CHANNELS_TR(RefreshChannels), this, &PLSChannelsArea::refreshChannels);
+
+	connect(
+		myChannelsIconBtn, &QToolButton::clicked, this,
+		[=]() {
+			settingAction->setDisabled(PLSCHANNELS_API->isEmpty());
+			auto pos = QPoint(myChannelsIconBtn->width() / 2, myChannelsIconBtn->height());
+			menu->exec(myChannelsIconBtn->mapToGlobal(pos));
+		},
+		Qt::QueuedConnection);
+}
+
+int PLSChannelsArea::visibleCount()
+{
+	auto isWidVisible = [](ChannelCapsulePtr wid) { return wid->isSelectedDisplay(); };
+	return std::count_if(mChannelsWidget.begin(), mChannelsWidget.end(), isWidVisible);
 }

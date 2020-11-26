@@ -2,39 +2,22 @@
 #include "window-version.h"
 #include <util/windows/ComPtr.hpp>
 #include <assert.h>
-#include "monitor-duplicator.h"
 #include <obs-module.h>
 #include <log.h>
 
 static const IID dxgi_factory2 = {0x50c83a1c, 0xe072, 0x4c48, {0x87, 0xb0, 0x36, 0x30, 0xfa, 0x36, 0xa6, 0xd0}};
 
-PLSMonitorManager::PLSMonitorManager() {}
-
-PLSMonitorManager::~PLSMonitorManager()
+PLSMonitorManager::PLSMonitorManager()
 {
-	clear();
+	reload_monitor(true);
 }
+
+PLSMonitorManager::~PLSMonitorManager() {}
 
 PLSMonitorManager *PLSMonitorManager::get_instance()
 {
 	static PLSMonitorManager monitor_manager;
 	return &monitor_manager;
-}
-
-void PLSMonitorManager::clear()
-{
-	clear_monitor_info_array(monitor_info_array);
-}
-
-void PLSMonitorManager::clear_monitor_info_array(vector<monitor_info *> &monitor_info_vector)
-{
-	vector<monitor_info *>::iterator iter = monitor_info_vector.begin();
-	for (; iter != monitor_info_vector.end(); iter++) {
-		monitor_info *info = reinterpret_cast<monitor_info *>(*iter);
-		delete info;
-		info = NULL;
-	}
-	monitor_info_vector.clear();
 }
 
 std::string wchar_to_string(const wchar_t *str)
@@ -68,10 +51,8 @@ int get_rotation_degree(DISPLAYCONFIG_ROTATION config_rotation)
 	return 0;
 }
 
-void get_monitor_detail(const WCHAR *destDevice, monitor_info *info)
+void enum_monitor_detail(const WCHAR *destDevice, monitor_info *info)
 {
-	info->friendly_name = "";
-
 	UINT32 requiredPaths, requiredModes;
 	if (ERROR_SUCCESS != GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &requiredPaths, &requiredModes))
 		return;
@@ -96,7 +77,7 @@ void get_monitor_detail(const WCHAR *destDevice, monitor_info *info)
 				name.header.id = pathTemp.targetInfo.id;
 				if (ERROR_SUCCESS == DisplayConfigGetDeviceInfo(&name.header)) {
 					info->friendly_name = wchar_to_string(name.monitorFriendlyDeviceName);
-					info->monitor_dev_id = pathTemp.targetInfo.id;
+					info->display_id = pathTemp.targetInfo.id;
 					info->rotation = get_rotation_degree(pathTemp.targetInfo.rotation);
 				}
 
@@ -108,7 +89,7 @@ void get_monitor_detail(const WCHAR *destDevice, monitor_info *info)
 
 BOOL CALLBACK enum_monitor_proc(HMONITOR handle, HDC hdc, LPRECT rect, LPARAM lParam)
 {
-	vector<monitor_info *> *info_array = reinterpret_cast<vector<monitor_info *> *>(lParam);
+	vector<monitor_info> *info_array = reinterpret_cast<vector<monitor_info> *>(lParam);
 
 	MONITORINFOEX mi = {};
 	mi.cbSize = sizeof(mi);
@@ -116,60 +97,66 @@ BOOL CALLBACK enum_monitor_proc(HMONITOR handle, HDC hdc, LPRECT rect, LPARAM lP
 		return TRUE;
 	}
 
-	monitor_info *info = new monitor_info;
-	info->monitor_id = -1;
-	info->offset_x = mi.rcMonitor.left;
-	info->offset_y = mi.rcMonitor.top;
-	info->width = (mi.rcMonitor.right - mi.rcMonitor.left);
-	info->height = (mi.rcMonitor.bottom - mi.rcMonitor.top);
-	info->friendly_name = "";
+	monitor_info info;
+	info.offset_x = mi.rcMonitor.left;
+	info.offset_y = mi.rcMonitor.top;
+	info.width = (mi.rcMonitor.right - mi.rcMonitor.left);
+	info.height = (mi.rcMonitor.bottom - mi.rcMonitor.top);
 
-	get_monitor_detail(mi.szDevice, info);
+	enum_monitor_detail(mi.szDevice, &info);
 
 	if (mi.dwFlags == MONITORINFOF_PRIMARY) {
-		info->is_primary = true;
+		info.is_primary = true;
 		info_array->insert(info_array->begin(), info);
 	} else {
-		info->is_primary = false;
+		info.is_primary = false;
 		info_array->push_back(info);
 	}
 
 	return TRUE;
 }
 
-void fill_monitor_id(vector<monitor_info *> &list_info_out, const monitor_info *match_info)
+void fill_monitor_id(vector<monitor_info> &list_info_out, monitor_info match_info)
 {
 	for (unsigned i = 0; i < static_cast<int>(list_info_out.size()); ++i) {
-		if (list_info_out.at(i)->width == match_info->width && list_info_out.at(i)->height == match_info->height && list_info_out.at(i)->offset_x == match_info->offset_x &&
-		    list_info_out.at(i)->offset_y == match_info->offset_y) {
-			list_info_out.at(i)->monitor_id = match_info->monitor_id;
-			list_info_out.at(i)->adapter_id = match_info->adapter_id;
-			list_info_out.at(i)->monitor_dev_id = match_info->monitor_dev_id;
+		if (list_info_out.at(i).width == match_info.width && list_info_out.at(i).height == match_info.height && list_info_out.at(i).offset_x == match_info.offset_x &&
+		    list_info_out.at(i).offset_y == match_info.offset_y) {
+			list_info_out.at(i).adapter_index = match_info.adapter_index;
+			list_info_out.at(i).adapter_output_index = match_info.adapter_output_index;
 		}
 	}
 }
 
-void PLSMonitorManager::load_monitors()
+void PLSMonitorManager::reload_monitor(bool save_log)
 {
-	clear();
+	CAutoLockCS alock(list_lock);
+
+	monitor_info_array.clear();
 	EnumDisplayMonitors(NULL, NULL, enum_monitor_proc, (LPARAM)&monitor_info_array);
 
-	vector<monitor_info *> d3dList;
+	vector<monitor_info> d3dList;
 	if (enum_duplicator_array(d3dList)) {
 		for (int i = 0; i < static_cast<int>(d3dList.size()); ++i) {
 			fill_monitor_id(monitor_info_array, d3dList.at(i));
 		}
 	}
-	clear_monitor_info_array(d3dList);
-	PLS_PLUGIN_INFO("monitor size:%d", monitor_info_array.size());
+
+	if (save_log) {
+		PLS_PLUGIN_INFO("------------------- monitor list : %d --------------------", monitor_info_array.size());
+		for (auto item : monitor_info_array) {
+			PLS_PLUGIN_INFO("[%s] %dx%d is_primary:%d display_id:%d adapter:%d output:%d", item.friendly_name.c_str(), item.width, item.height, item.is_primary, item.display_id,
+					item.adapter_index, item.adapter_output_index);
+		}
+	}
 }
 
-vector<monitor_info *> &PLSMonitorManager::get_monitor_info_array()
+vector<monitor_info> PLSMonitorManager::get_monitor()
 {
+	CAutoLockCS alock(list_lock);
 	return monitor_info_array;
 }
 
-bool PLSMonitorManager::enum_duplicator_array(vector<monitor_info *> &outputList)
+bool PLSMonitorManager::enum_duplicator_array(vector<monitor_info> &outputList)
 {
 	ComPtr<IDXGIFactory1> m_pFactory;
 	ComPtr<IDXGIAdapter1> adapter;
@@ -183,54 +170,48 @@ bool PLSMonitorManager::enum_duplicator_array(vector<monitor_info *> &outputList
 	}
 
 	int adapter_index = 0;
-
 	while (m_pFactory->EnumAdapters1(adapter_index, adapter.Assign()) == S_OK) {
-		int i = 0;
-		while (adapter->EnumOutputs(i++, &output) == S_OK) {
+		int output_index = 0;
+		while (adapter->EnumOutputs(output_index, &output) == S_OK) {
 			DXGI_OUTPUT_DESC desc;
-			if (FAILED(output->GetDesc(&desc)))
-				continue;
-
-			const RECT &rect = desc.DesktopCoordinates;
-
-			monitor_info *info = new monitor_info;
-			info->monitor_dev_id = i - 1;
-			info->offset_x = rect.left;
-			info->offset_y = rect.top;
-			info->width = rect.right - rect.left;
-			info->height = rect.bottom - rect.top;
-			info->adapter_id = adapter_index;
-			outputList.push_back(info);
+			if (SUCCEEDED(output->GetDesc(&desc))) {
+				const RECT &rect = desc.DesktopCoordinates;
+				monitor_info info;
+				info.adapter_index = adapter_index;
+				info.adapter_output_index = output_index;
+				info.offset_x = rect.left;
+				info.offset_y = rect.top;
+				info.width = rect.right - rect.left;
+				info.height = rect.bottom - rect.top;
+				outputList.push_back(info);
+			}
+			++output_index;
 		}
-		adapter_index++;
+		++adapter_index;
 	}
+
 	return outputList.size() > 0;
 }
 
-bool PLSMonitorManager::get_adapter_monitor_dev_id(int &adapter_id, int &dev_id, int monitor_id)
+bool PLSMonitorManager::find_monitor(int index, int display_id, monitor_info &info)
 {
-	if (monitor_info_array.empty())
-		return false;
-	if ((int)monitor_info_array.size() <= monitor_id)
-		return false;
-	monitor_info *info = reinterpret_cast<monitor_info *>(monitor_info_array.at(monitor_id));
-	adapter_id = info->adapter_id;
-	dev_id = info->monitor_dev_id;
-	return true;
-}
+	CAutoLockCS alock(list_lock);
 
-bool PLSMonitorManager::get_monitor_detail(int &width, int &height, int &offset_x, int &offset_y, int &rotation, int monitor_id)
-{
-	if (monitor_info_array.empty())
-		return false;
-	if (monitor_info_array.size() <= monitor_id)
+	info = monitor_info();
+
+	// we should check display_id firstly
+	if (display_id > 0) {
+		for (auto temp : monitor_info_array) {
+			if (temp.display_id == display_id) {
+				info = temp;
+				return true;
+			}
+		}
+	}
+
+	if (index < 0 || index >= (int)monitor_info_array.size())
 		return false;
 
-	monitor_info *info = reinterpret_cast<monitor_info *>(monitor_info_array.at(monitor_id));
-	width = info->width;
-	height = info->height;
-	offset_x = info->offset_x;
-	offset_y = info->offset_y;
-	rotation = info->rotation;
+	info = monitor_info_array.at(index);
 	return true;
 }

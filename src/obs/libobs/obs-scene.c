@@ -17,8 +17,11 @@
 ******************************************************************************/
 
 #include "util/threading.h"
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include "util/util_uint64.h"
 #include "graphics/math-defs.h"
 #include "obs-scene.h"
+#include "util/darray.h"
 
 const struct obs_source_info group_info;
 
@@ -272,6 +275,16 @@ static void calculate_bounds_data(struct obs_scene_item *item,
 				  struct vec2 *origin, struct vec2 *scale,
 				  uint32_t *cx, uint32_t *cy)
 {
+	if ((*cx) <= 0 || (*cy) <= 0) {
+		return;
+	}
+
+	//PRISM/Liuying/20200727/#3631/Flip Horizontal/Vertical > Source is displayed in the wrong position
+	bool scale_valid = (fabs(scale->x) > 0.0001f && fabs(scale->y) > 0.0001f);
+	if (!scale_valid) {
+		return;
+	}
+
 	float width = (float)(*cx) * fabsf(scale->x);
 	float height = (float)(*cy) * fabsf(scale->y);
 	float item_aspect = width / height;
@@ -303,8 +316,11 @@ static void calculate_bounds_data(struct obs_scene_item *item,
 		vec2_mulf(scale, scale, item->bounds.y / height);
 
 	} else if (bounds_type == OBS_BOUNDS_STRETCH) {
-		scale->x = item->bounds.x / (float)(*cx);
-		scale->y = item->bounds.y / (float)(*cy);
+		//PRISM/Wang.Chuanjing/20200730/#3639/#4299
+		scale->x = item->bounds.x / (float)(*cx) *
+			   (scale->x > 0 ? 1.f : -1.f);
+		scale->y = item->bounds.y / (float)(*cy) *
+			   (scale->y > 0 ? 1.f : -1.f);
 	}
 
 	width = (float)(*cx) * scale->x;
@@ -973,8 +989,11 @@ static void apply_scene_item_audio_actions(struct obs_scene_item *item,
 		if (timestamp < ts)
 			timestamp = ts;
 
-		new_frame_num = (timestamp - ts) * (uint64_t)sample_rate /
-				1000000000ULL;
+		//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+		//new_frame_num = (timestamp - ts) * (uint64_t)sample_rate /
+		//		1000000000ULL;
+		new_frame_num = util_mul_div64(timestamp - ts, sample_rate,
+					       1000000000ULL);
 
 		if (ts && new_frame_num >= AUDIO_OUTPUT_FRAMES)
 			break;
@@ -1023,8 +1042,11 @@ static bool apply_scene_item_volume(struct obs_scene_item *item, float **buf,
 	pthread_mutex_unlock(&item->actions_mutex);
 
 	if (actions_pending) {
-		uint64_t duration = (uint64_t)AUDIO_OUTPUT_FRAMES *
-				    1000000000ULL / (uint64_t)sample_rate;
+		//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+		//uint64_t duration = (uint64_t)AUDIO_OUTPUT_FRAMES *
+		//		    1000000000ULL / (uint64_t)sample_rate;
+		uint64_t duration = util_mul_div64(AUDIO_OUTPUT_FRAMES,
+						   1000000000ULL, sample_rate);
 
 		if (!ts || action.timestamp < (ts + duration)) {
 			apply_scene_item_audio_actions(item, buf, ts,
@@ -1269,7 +1291,6 @@ static inline void duplicate_item_data(struct obs_scene_item *dst,
 
 	if (!src->user_visible)
 		set_visibility(dst, false);
-
 	dst->selected = src->selected;
 	dst->pos = src->pos;
 	dst->rot = src->rot;
@@ -1384,8 +1405,8 @@ obs_scene_t *obs_scene_duplicate(obs_scene_t *scene, const char *name,
 				continue;
 			}
 
-			duplicate_item_data(new_item, item, false, false,
-					    false);
+			//PRISM/Liuying/20200508/Issue:2158/for sceneitem private settings: is_current_source
+			duplicate_item_data(new_item, item, false, false, true);
 
 			obs_source_release(source);
 		}
@@ -1686,9 +1707,10 @@ static obs_sceneitem_t *obs_scene_add_internal(obs_scene_t *scene,
 	}
 
 	if (item_texture_enabled(item)) {
-		obs_enter_graphics();
+		//PRISM/Liuying/20200715/Issue:3269/There was unneccssary to call obs_enter_graphics that would caused dead-lock
+		//obs_enter_graphics();
 		item->item_render = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
-		obs_leave_graphics();
+		//obs_leave_graphics();
 	}
 
 	full_lock(scene);
@@ -1783,6 +1805,10 @@ void obs_sceneitem_remove(obs_sceneitem_t *item)
 
 	scene = item->parent;
 
+	//PRISM/WangShaohui/20200330/NoIssue/for checking empty pointer
+	if (!scene)
+		return;
+
 	full_lock(scene);
 
 	if (item->removed) {
@@ -1855,7 +1881,8 @@ bool obs_sceneitem_selected(const obs_sceneitem_t *item)
 
 void obs_sceneitem_set_pos(obs_sceneitem_t *item, const struct vec2 *pos)
 {
-	if (item) {
+	//PRISM/Wangshaohui/20200713/#3402/check invalid params
+	if (item && vec2_valid(pos)) {
 		vec2_copy(&item->pos, pos);
 		do_update_transform(item);
 	}
@@ -1871,7 +1898,8 @@ void obs_sceneitem_set_rot(obs_sceneitem_t *item, float rot)
 
 void obs_sceneitem_set_scale(obs_sceneitem_t *item, const struct vec2 *scale)
 {
-	if (item) {
+	//PRISM/Wangshaohui/20200713/#3402/check invalid params
+	if (item && vec2_valid(scale)) {
 		vec2_copy(&item->scale, scale);
 		do_update_transform(item);
 	}
@@ -2649,6 +2677,7 @@ void obs_sceneitem_group_ungroup(obs_sceneitem_t *item)
 	full_lock(subscene);
 	first = subscene->first_item;
 	last = first;
+	int index = 0;
 	while (last) {
 		obs_sceneitem_t *dst;
 

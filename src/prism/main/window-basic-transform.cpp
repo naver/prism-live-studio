@@ -37,8 +37,9 @@ void PLSBasicTransform::HookWidget(QWidget *widget, const char *signal, const ch
 #define ISCROLL_CHANGED SIGNAL(valueChanged(int))
 #define DSCROLL_CHANGED SIGNAL(valueChanged(double))
 
-PLSBasicTransform::PLSBasicTransform(PLSBasic *parent) : PLSDialogView(parent), ui(new Ui::PLSBasicTransform), main(parent)
+PLSBasicTransform::PLSBasicTransform(PLSBasic *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSBasicTransform), main(parent)
 {
+	dpiHelper.setInitSize(this, {604, 647});
 	ui->setupUi(this->content());
 	QMetaObject::connectSlotsByName(this);
 

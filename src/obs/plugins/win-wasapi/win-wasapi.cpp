@@ -8,6 +8,8 @@
 #include <util/windows/WinHandle.hpp>
 #include <util/windows/CoTaskMemPtr.hpp>
 #include <util/threading.h>
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include <util/util_uint64.h>
 
 using namespace std;
 
@@ -146,14 +148,23 @@ inline WASAPISource::~WASAPISource()
 
 void WASAPISource::UpdateSettings(obs_data_t *settings)
 {
-	device_id = obs_data_get_string(settings, OPT_DEVICE_ID);
+	//PRISM/WangShaohui/20200414/#2224/for lost audio device
+	string name;
+	DecodeAudioString(obs_data_get_string(settings, OPT_DEVICE_ID), name,
+			  device_id);
+
 	useDeviceTiming = obs_data_get_bool(settings, OPT_USE_DEVICE_TIMING);
 	isDefaultDevice = _strcmpi(device_id.c_str(), "default") == 0;
 }
 
 void WASAPISource::Update(obs_data_t *settings)
 {
-	string newDevice = obs_data_get_string(settings, OPT_DEVICE_ID);
+	//PRISM/WangShaohui/20200414/#2224/for lost audio device
+	string name;
+	string newDevice;
+	DecodeAudioString(obs_data_get_string(settings, OPT_DEVICE_ID), name,
+			  newDevice);
+
 	bool restart = newDevice.compare(device_id) != 0;
 
 	if (restart)
@@ -478,8 +489,11 @@ bool WASAPISource::ProcessCaptureData()
 		data.timestamp = useDeviceTiming ? ts * 100 : os_gettime_ns();
 
 		if (!useDeviceTiming)
-			data.timestamp -= (uint64_t)frames * 1000000000ULL /
-					  (uint64_t)sampleRate;
+			//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+			//data.timestamp -= (uint64_t)frames * 1000000000ULL /
+			//		  (uint64_t)sampleRate;
+			data.timestamp -= util_mul_div64(frames, 1000000000ULL,
+							 sampleRate);
 
 		obs_source_output_audio(source, &data);
 
@@ -593,6 +607,52 @@ static void UpdateWASAPISource(void *obj, obs_data_t *settings)
 	static_cast<WASAPISource *>(obj)->Update(settings);
 }
 
+//PRISM/WangShaohui/20200414/#2224/for lost audio device
+static bool on_audio_list_changed(obs_properties_t *ppts, obs_property_t *p,
+				     obs_data_t *settings)
+{
+	const char *cur_val = obs_data_get_string(settings, OPT_DEVICE_ID);
+	if (!cur_val) {
+		return false;
+	}
+
+	string current_name;
+	string current_id;
+	DecodeAudioString(cur_val, current_name, current_id);
+
+	if (current_name.empty()) {
+		return false;
+	}
+
+	bool match = false;
+	for (size_t i = 0;;) {
+		const char *val = obs_property_list_item_string(p, i++);
+		if (!val)
+			break;
+
+		string temp_name;
+		string temp_id;
+		DecodeAudioString(val, temp_name, temp_id);
+
+		if (current_id == temp_id) {
+			match = true;
+			break;
+		}
+	}
+
+	if (!match) {
+		size_t count = obs_property_list_item_count(p);
+		int index = (count > 0) ? 1 : 0; // after "default"
+		obs_property_list_insert_string(p, index, current_name.c_str(),
+						cur_val);
+		obs_property_list_item_disable(p, index, true);
+		return true;
+	}
+
+	UNUSED_PARAMETER(ppts);
+	return false;
+}
+
 static obs_properties_t *GetWASAPIProperties(bool input)
 {
 	obs_properties_t *props = obs_properties_create();
@@ -604,15 +664,22 @@ static obs_properties_t *GetWASAPIProperties(bool input)
 
 	GetWASAPIAudioDevices(devices, input);
 
-	if (devices.size())
+	//PRISM/WangShaohui/20200414/#2224/for lost audio device
+	/*if (devices.size())*/ {
 		obs_property_list_add_string(
 			device_prop, obs_module_text("Default"), "default");
+	}
 
 	for (size_t i = 0; i < devices.size(); i++) {
 		AudioDeviceInfo &device = devices[i];
+		//PRISM/WangShaohui/20200414/#2224/for lost audio device
 		obs_property_list_add_string(device_prop, device.name.c_str(),
-					     device.id.c_str());
+			EncodeAudioString(device.name.c_str(),
+						device.id.c_str()).c_str());
 	}
+
+	//PRISM/WangShaohui/20200414/#2224/for lost audio device
+	obs_property_set_modified_callback(device_prop, on_audio_list_changed);
 
 	obs_properties_add_bool(props, OPT_USE_DEVICE_TIMING,
 				obs_module_text("UseDeviceTiming"));

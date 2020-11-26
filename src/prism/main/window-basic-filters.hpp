@@ -52,11 +52,20 @@ private:
 	OBSSignal updatePropertiesSignal;
 	bool displayFixed = true;
 	bool colorFilterOriginalPressed = false;
+
+	//------------------------ define preset type list ------------------------
+	struct FilterTypeInfo {
+		QString id;
+		QString tooltip;
+		bool visible;
+		FilterTypeInfo(QString id_, QString tooltip_, bool isVisible_ = false) : visible(isVisible_), tooltip(tooltip_), id(id_) {}
+	};
+
 	void UpdateFilters();
 	bool UpdateColorFilters(obs_source_t *filter);
 	QWidget *CreateColorFitlersView(obs_source_t *filter);
 	void CleanColorFiltersView();
-	void AddFilterAction(QMenu *popup, const char *type, const std::map<QString, QString> &tooltipMap);
+	void AddFilterAction(QMenu *popup, const char *type, const QString &tooltip);
 	void UpdatePropertiesView(int row);
 
 	static void OBSSourceFilterAdded(void *param, calldata_t *data);
@@ -71,6 +80,7 @@ private:
 
 	void AddNewFilter(const char *id);
 	void ReorderFilter(PLSFiltersListView *list, obs_source_t *filter, size_t idx);
+	void GetFilterTypeList(bool isAsync, const uint32_t &sourceFlags, std::vector<std::vector<FilterTypeInfo>> &preset, std::vector<QString> &other);
 
 private slots:
 	void AddFilter(OBSSource filter, bool reorder = false);
@@ -87,16 +97,18 @@ private slots:
 	void OnAddFilterButtonClicked();
 	void OnCurrentItemChanged(const int &row);
 	void OnColorFilterOriginalPressed(bool state);
+	void OnColorFilterValueChanged(int value);
+	void UpdatePropertyColorFilterValue(int value, bool isOriginal);
 
 public:
-	explicit PLSBasicFilters(QWidget *parent, OBSSource source_);
+	explicit PLSBasicFilters(QWidget *parent, OBSSource source_, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSBasicFilters();
 
 	void Init();
+	OBSSource GetSource();
 
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
-	virtual void resizeEvent(QResizeEvent *event) override;
 
 signals:
 	void colorFilterOriginalPressedSignal(bool state);

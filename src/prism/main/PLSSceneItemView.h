@@ -29,6 +29,9 @@ public:
 	void SetRenderFlag(bool state);
 	void SetCurrentFlag(bool state);
 	void SetSceneData(OBSScene scene);
+	void SetDragingState(bool state);
+	bool GetRenderState() const;
+	void visibleSlot(bool visible) override;
 
 protected:
 	void mousePressEvent(QMouseEvent *event) override;
@@ -42,6 +45,7 @@ private:
 private slots:
 	void OnRenderChanged(bool state);
 	void OnDisplayCreated();
+	void CaptureImageFinished(const QString &path);
 
 private:
 	void AddRenderCallback();
@@ -50,11 +54,15 @@ private:
 signals:
 	void MouseLeftButtonClicked();
 	void RenderChanged(bool state);
+	void CaptureImageFinishedSignal(const QString &path);
 
 private:
 	bool ready{false};
 	bool render{false};
 	bool current{false};
+	bool isDraging{false};
+	bool toplevelVisible{true};
+
 	OBSScene scene;
 	PLSSceneItemView *parent{};
 	QPoint startPos{};
@@ -96,10 +104,12 @@ private slots:
 	void OnMouseEnterEvent();
 	void OnMouseLeaveEvent();
 	void OnFinishingEditName();
+	void SetContentMargins(bool state);
+	void OnCaptureImageFinished(const QString &path);
 
 private:
 	void setEnterPropertyState(bool state, QWidget *widget);
-	void CreateDrag(const QPoint &startPos);
+	void CreateDrag(const QPoint &startPos, const QString &path);
 	QString GetNameElideString();
 
 signals:

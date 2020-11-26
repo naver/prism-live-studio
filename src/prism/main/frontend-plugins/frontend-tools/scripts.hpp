@@ -4,6 +4,8 @@
 
 #include <dialog-view.hpp>
 
+#include "PLSDpiHelper.h"
+
 class Ui_ScriptsTool;
 
 class ScriptLogWindow : public PLSDialogView {
@@ -15,7 +17,7 @@ class ScriptLogWindow : public PLSDialogView {
 	void resizeEvent(QResizeEvent *event) override;
 
 public:
-	ScriptLogWindow();
+	ScriptLogWindow(PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~ScriptLogWindow();
 
 public slots:
@@ -33,7 +35,7 @@ class ScriptsTool : public PLSDialogView {
 	QWidget *tabButtonsHLine = nullptr;
 
 public:
-	ScriptsTool();
+	ScriptsTool(PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~ScriptsTool();
 
 	void RemoveScript(const char *path);

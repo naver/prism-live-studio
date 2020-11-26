@@ -45,6 +45,7 @@ extern "C" {
 enum obs_property_type {
 	OBS_PROPERTY_INVALID,
 	OBS_PROPERTY_BOOL,
+	OBS_PROPERTY_BOOL_GROUP,
 	OBS_PROPERTY_INT,
 	OBS_PROPERTY_FLOAT,
 	OBS_PROPERTY_TEXT,
@@ -52,10 +53,37 @@ enum obs_property_type {
 	OBS_PROPERTY_LIST,
 	OBS_PROPERTY_COLOR,
 	OBS_PROPERTY_BUTTON,
+
 	OBS_PROPERTY_FONT,
 	OBS_PROPERTY_EDITABLE_LIST,
 	OBS_PROPERTY_FRAME_RATE,
 	OBS_PROPERTY_GROUP,
+
+	//PRISM/Wangshaohui/20200914/Noissue/for add new property
+	OBS_PROPERTY_PRISM_BASE = 5000,
+
+	//PRISM/Liuying/20200617/No issue/for the same row of buttons
+	OBS_PROPERTY_BUTTON_GROUP,
+
+	//PRISM/Liuying/20200617/new bgm ux
+	OBS_PROPERTY_BGM_MUSIC_LIST,
+	OBS_PROPERTY_TIPS,
+
+	//PRISM/Zhangdewen/20200901/feature/for chat source
+	OBS_PROPERTY_CHAT_TEMPLATE_LIST,
+	OBS_PROPERTY_CHAT_FONT_SIZE,
+
+	//PRISM/Chengbing/20200902/feature/for text motion source
+	OBS_PROPERTY_TM_TEXT_CONTENT,
+	OBS_PROPERTY_TM_TAB,
+	OBS_PROPERTY_TM_TEMPLATE_TAB,
+	OBS_PROPERTY_TM_TEMPLATE_LIST,
+	OBS_PROPERTY_TM_TEXT,
+	OBS_PROPERTY_TM_COLOR,
+	OBS_PROPERTY_TM_MOTION,
+
+	//PRISM/Wangshaohui/20200914/Noissue/region source
+	OBS_PROPERTY_REGION_SELECT,
 };
 
 enum obs_combo_format {
@@ -165,6 +193,14 @@ EXPORT obs_property_t *obs_properties_add_bool(obs_properties_t *props,
 					       const char *name,
 					       const char *description);
 
+EXPORT obs_property_t *obs_properties_add_bool_group(obs_properties_t *props,
+						     const char *name,
+						     const char *description);
+
+EXPORT size_t obs_properties_add_bool_group_item(
+	obs_property_t *p, const char *name, const char *description,
+	obs_property_clicked_t callback);
+
 EXPORT obs_property_t *obs_properties_add_int(obs_properties_t *props,
 					      const char *name,
 					      const char *description, int min,
@@ -220,6 +256,53 @@ EXPORT obs_property_t *obs_properties_add_list(obs_properties_t *props,
 					       enum obs_combo_type type,
 					       enum obs_combo_format format);
 
+//PRISM/Liuying/20200706/new bgm ux
+EXPORT obs_property_t *
+obs_properties_add_bgm_music_list(obs_properties_t *props, const char *name,
+				  const char *description);
+
+//PRISM/Liuying/20200706/new bgm ux
+EXPORT size_t obs_property_music_group_add_item(
+	obs_property_t *p, const char *name, const char *producer,
+	const char *url, int duration, int duration_type,
+	obs_property_clicked_t callback);
+
+//PRISM/Liuying/20200706/new bgm ux
+EXPORT void obs_property_music_group_clear(obs_property_t *p);
+
+//PRISM/Liuying/20200706/new bgm ux
+EXPORT size_t obs_property_music_group_item_count(obs_property_t *p);
+
+//PRISM/Liuying/20200706/new bgm ux
+EXPORT int obs_property_music_group_item_duration(obs_property_t *p,
+						  size_t idx);
+
+//PRISM/Liuying/20200706/new bgm ux
+EXPORT int obs_property_music_group_item_duration_type(obs_property_t *p,
+						       size_t idx);
+
+//PRISM/Liuying/20200706/new bgm ux
+EXPORT const char *obs_property_music_group_item_name(obs_property_t *p,
+						      size_t idx);
+
+//PRISM/Liuying/20200706/new bgm ux
+EXPORT const char *obs_property_music_group_item_producer(obs_property_t *p,
+							  size_t idx);
+
+//PRISM/Liuying/20200706/new bgm ux
+EXPORT const char *obs_property_music_group_item_url(obs_property_t *p,
+						     size_t idx);
+
+//PRISM/Liuying/20200706/new bgm ux
+EXPORT obs_property_t *obs_properties_add_tips(obs_properties_t *props,
+					       const char *name,
+					       const char *description);
+
+//PRISM/Wangshaohui/20200914/Noissue/region source
+EXPORT obs_property_t *obs_properties_add_region_select(obs_properties_t *props,
+							const char *name,
+							const char *desc);
+
 EXPORT obs_property_t *obs_properties_add_color(obs_properties_t *props,
 						const char *name,
 						const char *description);
@@ -233,6 +316,87 @@ obs_properties_add_button2(obs_properties_t *props, const char *name,
 			   const char *text, obs_property_clicked_t callback,
 			   void *priv);
 
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+EXPORT obs_property_t *obs_properties_add_button_group(obs_properties_t *props,
+						       const char *name,
+						       const char *desc);
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+EXPORT obs_property_t *obs_properties_add_button2_group(obs_properties_t *props,
+							const char *name,
+							const char *desc,
+							void *priv);
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+EXPORT size_t obs_property_button_group_add_item(
+	obs_property_t *p, const char *name, const char *text,
+	obs_property_clicked_t callback);
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+EXPORT void obs_property_button_group_clear(obs_property_t *p);
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+EXPORT size_t obs_property_button_group_item_count(obs_property_t *p);
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+EXPORT const char *obs_property_button_group_item_name(obs_property_t *p,
+						       size_t idx);
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+EXPORT const char *obs_property_button_group_item_text(obs_property_t *p,
+						       size_t idx);
+
+//PRISM/Liuying/20200707/#3266/add new interface
+EXPORT int obs_property_button_group_get_idx_by_name(obs_property_t *p,
+						     const char *name);
+
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+EXPORT void obs_property_button_group_set_item_text(obs_property_t *p,
+						    size_t idx,
+						    const char *text);
+
+//PRISM/Zhangdewen/20200901/feature/for chat source
+EXPORT obs_property_t *
+obs_properties_add_chat_template_list(obs_properties_t *props, const char *name,
+				      const char *description);
+
+//PRISM/Zhangdewen/20200901/feature/for chat source
+EXPORT obs_property_t *
+obs_properties_add_chat_font_size(obs_properties_t *props, const char *name,
+				  const char *description, int min, int max,
+				  int step);
+
+////PRISM/Chengbing/20200907/feature/for text motion source
+EXPORT obs_property_t *obs_properties_add_tm_content(obs_properties_t *props,
+						     const char *name,
+						     const char *description);
+////PRISM/Chengbing/20200907/feature/for text motion source
+EXPORT obs_property_t *obs_properties_add_tm_tab(obs_properties_t *props,
+						 const char *name);
+
+////PRISM/Chengbing/20200907/feature/for text motion source
+EXPORT obs_property_t *
+obs_properties_add_tm_template_tab(obs_properties_t *props, const char *name);
+////PRISM/Chengbing/20200907/feature/for text motion source
+EXPORT obs_property_t *
+obs_properties_add_tm_template_list(obs_properties_t *props, const char *name);
+
+//PRISM/Chengbing/20200902/feature/for text motion source
+EXPORT obs_property_t *obs_properties_add_tm_text(obs_properties_t *props,
+						  const char *name,
+						  const char *description,
+						  int min, int max, int step);
+
+////PRISM/Chengbing/20200907/feature/for text motion source
+EXPORT obs_property_t *obs_properties_add_tm_color(obs_properties_t *props,
+						   const char *name,
+						   const char *description,
+						   int min, int max, int step);
+////PRISM/Chengbing/20200907/feature/for text motion source
+EXPORT obs_property_t *obs_properties_add_tm_motion(obs_properties_t *props,
+						    const char *name,
+						    const char *description,
+						    int min, int max, int step);
 /**
  * Adds a font selection property.
  *
@@ -285,6 +449,17 @@ EXPORT void obs_property_set_modified_callback2(
 EXPORT bool obs_property_modified(obs_property_t *p, obs_data_t *settings);
 EXPORT bool obs_property_button_clicked(obs_property_t *p, void *obj);
 
+//PRISM/Liuying/20200617/No issue/for the same row of buttons
+EXPORT bool obs_property_button_group_clicked(obs_property_t *p, void *obj,
+					      size_t idx);
+EXPORT bool obs_property_bool_group_clicked(obs_property_t *p, void *obj,
+					    size_t idx);
+
+//PRISM/Liuying/20200707/#3266/add new interface
+EXPORT void obs_property_button_group_clicked_by_name(obs_property_t *p,
+						      void *obj,
+						      const char *name);
+
 EXPORT void obs_property_set_visible(obs_property_t *p, bool visible);
 EXPORT void obs_property_set_enabled(obs_property_t *p, bool enabled);
 
@@ -292,10 +467,15 @@ EXPORT void obs_property_set_description(obs_property_t *p,
 					 const char *description);
 EXPORT void obs_property_set_long_description(obs_property_t *p,
 					      const char *long_description);
+//PRISM/Zhangdewen/20200909/new ndi ux
+EXPORT void obs_property_set_placeholder(obs_property_t *p,
+					 const char *placeholder);
 
 EXPORT const char *obs_property_name(obs_property_t *p);
 EXPORT const char *obs_property_description(obs_property_t *p);
 EXPORT const char *obs_property_long_description(obs_property_t *p);
+//PRISM/Zhangdewen/20200909/new ndi ux
+EXPORT const char *obs_property_placeholder(obs_property_t *p);
 EXPORT enum obs_property_type obs_property_get_type(obs_property_t *p);
 EXPORT bool obs_property_enabled(obs_property_t *p);
 EXPORT bool obs_property_visible(obs_property_t *p);
@@ -318,6 +498,10 @@ EXPORT const char *obs_property_path_filter(obs_property_t *p);
 EXPORT const char *obs_property_path_default_path(obs_property_t *p);
 EXPORT enum obs_combo_type obs_property_list_type(obs_property_t *p);
 EXPORT enum obs_combo_format obs_property_list_format(obs_property_t *p);
+//PRISM/Zhangdewen/20200916/new ndi ux
+EXPORT void obs_property_set_list_readonly(obs_property_t *p, bool readonly);
+//PRISM/Zhangdewen/20200916/new ndi ux
+EXPORT bool obs_property_list_readonly(obs_property_t *p);
 
 EXPORT void obs_property_int_set_limits(obs_property_t *p, int min, int max,
 					int step);
@@ -394,10 +578,35 @@ obs_property_frame_rate_fps_range_max(obs_property_t *p, size_t idx);
 EXPORT enum obs_group_type obs_property_group_type(obs_property_t *p);
 EXPORT obs_properties_t *obs_property_group_content(obs_property_t *p);
 
+//PRISM/Liuying/20200624/No issue/for the same row of buttons
+EXPORT size_t obs_property_bool_group_item_count(obs_property_t *p);
+
+//PRISM/Liuying/20200624/No issue/for the same row of buttons
+EXPORT const char *obs_property_bool_group_item_name(obs_property_t *p,
+						     size_t idx);
+
+//PRISM/Liuying/20200624/No issue/for the same row of buttons
+EXPORT const char *obs_property_bool_group_item_text(obs_property_t *p,
+						     size_t idx);
+
 #ifndef SWIG
 DEPRECATED
 EXPORT enum obs_text_type obs_proprety_text_type(obs_property_t *p);
 #endif
+
+//PRISM/Zhangdewen/20200901/feature/for chat source
+EXPORT int obs_property_chat_font_size_min(obs_property_t *p);
+EXPORT int obs_property_chat_font_size_max(obs_property_t *p);
+EXPORT int obs_property_chat_font_size_step(obs_property_t *p);
+
+//PRISM/Chengbing/20200902/feature/for text motion source
+EXPORT int obs_property_tm_text_min(obs_property_t *p, size_t propertyType);
+EXPORT int obs_property_tm_text_max(obs_property_t *p, size_t propertyType);
+EXPORT int obs_property_tm_text_step(obs_property_t *p, size_t propertyType);
+
+//PRISM/WangShaohui/20201029/#5497/limite text length
+EXPORT void obs_property_set_length_limit(obs_property_t *p, int max_length);
+EXPORT int obs_property_get_length_limit(obs_property_t *p);
 
 #ifdef __cplusplus
 }

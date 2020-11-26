@@ -69,7 +69,8 @@ struct mp_decode {
 	AVFrame *hw_frame;
 	AVFrame *frame;
 	enum AVPixelFormat hw_format;
-	bool got_first_keyframe;
+	//PRISM/LiuHaibin/20200820/#None/comment out useless code
+	//bool got_first_keyframe;
 	bool frame_ready;
 	bool eof;
 	bool hw;
@@ -78,6 +79,13 @@ struct mp_decode {
 	AVPacket pkt;
 	bool packet_pending;
 	struct circlebuf packets;
+
+	//PRISM/ZengQin/20200814/#3795/for media controller
+	bool seek_flag;
+	bool speed_changed;
+
+	//PRISM/LiuHaibin/20200827/#/mark if video stream is only a cover
+	bool is_cover;
 };
 
 extern bool mp_decode_init(struct mp_media *media, enum AVMediaType type,

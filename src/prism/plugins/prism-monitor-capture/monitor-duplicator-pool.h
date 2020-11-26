@@ -1,24 +1,20 @@
 #pragma once
-#include <windows.h>
-#include <map>
 #include <vector>
-#include <mutex>
-#include "monitor-duplicator.h"
+#include "monitor-duplicator-instance.h"
 
 using namespace std;
 
 class PLSMonitorDuplicatorPool {
 public:
-	PLSMonitorDuplicatorPool();
-	~PLSMonitorDuplicatorPool();
+	virtual ~PLSMonitorDuplicatorPool() {}
 
 public:
 	static PLSMonitorDuplicatorPool *get_instance();
-	PLSMonitorDuplicator *get_duplicator(int adapter_id, int monitor_dev_id);
+
 	void clear();
-	bool release_duplicator(int adapter_id, int monitor_dev_id);
+	DUPLICATOR_PTR get_duplicator(int adapter_index, int output_index, int display_id = 0);
 
 private:
 	std::mutex mtx;
-	vector<PLSMonitorDuplicator *> duplicator_vector;
+	vector<DUPLICATOR_PTR> duplicator_vector;
 };

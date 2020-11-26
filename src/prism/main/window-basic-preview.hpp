@@ -86,6 +86,8 @@ private:
 
 	static vec3 GetSnapOffset(const vec3 &tl, const vec3 &br);
 
+	static bool CountSelectedSource(obs_scene_t *scene, obs_sceneitem_t *item, void *param);
+
 	void GetStretchHandleData(const vec2 &pos);
 
 	void SnapStretchingToScreen(vec3 &tl, vec3 &br);
@@ -99,6 +101,8 @@ private:
 	void BoxItems(const vec2 &startPos, const vec2 &pos);
 
 	void ProcessClick(const vec2 &pos);
+
+	bool isMultiSelectedSource();
 
 public:
 	explicit PLSBasicPreview(QWidget *parent, Qt::WindowFlags flags = 0);

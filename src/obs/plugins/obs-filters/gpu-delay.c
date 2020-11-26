@@ -1,5 +1,7 @@
 #include <obs-module.h>
 #include <util/circlebuf.h>
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include <util/util_uint64.h>
 
 #define S_DELAY_MS "delay_ms"
 #define T_DELAY_MS obs_module_text("DelayMs")
@@ -90,8 +92,10 @@ static inline void check_interval(struct gpu_delay_filter_data *f)
 
 	obs_get_video_info(&ovi);
 
-	interval_ns =
-		(uint64_t)ovi.fps_den * 1000000000ULL / (uint64_t)ovi.fps_num;
+	//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+	//interval_ns =
+	//	(uint64_t)ovi.fps_den * 1000000000ULL / (uint64_t)ovi.fps_num;
+	interval_ns = util_mul_div64(ovi.fps_den, 1000000000ULL, ovi.fps_num);
 
 	if (interval_ns != f->interval_ns)
 		update_interval(f, interval_ns);

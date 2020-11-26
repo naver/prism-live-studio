@@ -8,6 +8,7 @@
 #include "action.h"
 #include "log/module_names.h"
 #include "PLSMenu.hpp"
+#include "ChannelCommonFunctions.h"
 
 #include <QStyle>
 #include <QMenu>
@@ -19,6 +20,8 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 	  enabledSignal(obs_source_get_signal_handler(source), "enable", OBSSourceEnabled, this),
 	  renamedSignal(obs_source_get_signal_handler(source), "rename", OBSSourceRenamed, this)
 {
+	PLSDpiHelper dpiHelper;
+	dpiHelper.setCss(this, {PLSCssIndex::VisibilityCheckBox});
 	ui->setupUi(this);
 	ui->visibleButton->hide();
 	ui->advButton->hide();
@@ -31,6 +34,7 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 	ui->nameLabel->installEventFilter(this);
 	bool enabled = obs_source_enabled(source);
 	ui->visibleButton->setChecked(enabled);
+	UpdateNameStyle();
 
 	connect(ui->visibleButton, &QPushButton::clicked, this, &PLSFiltersItemView::OnVisibilityButtonClicked);
 	connect(ui->advButton, &QPushButton::clicked, this, &PLSFiltersItemView::OnAdvButtonClicked);
@@ -39,15 +43,6 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 PLSFiltersItemView::~PLSFiltersItemView()
 {
 	delete ui;
-}
-
-void PLSFiltersItemView::SetSelectStyle(bool selected)
-{
-	if (ui->nameLabel) {
-		ui->nameLabel->setProperty(PROPERTY_NAME_SOURCE_SELECT, selected);
-		ui->nameLabel->style()->unpolish(ui->nameLabel);
-		ui->nameLabel->style()->polish(ui->nameLabel);
-	}
 }
 
 void PLSFiltersItemView::SetText(const QString &text)
@@ -70,8 +65,8 @@ void PLSFiltersItemView::SetCurrentItemState(bool state)
 {
 	if (this->current != state) {
 		this->current = state;
+		UpdateNameStyle();
 		PLS_UI_STEP(MAINFILTER_MODULE, name.toStdString().c_str(), ACTION_LBUTTON_CLICK);
-		SetSelectStyle(state);
 	}
 }
 
@@ -132,7 +127,8 @@ bool PLSFiltersItemView::eventFilter(QObject *object, QEvent *event)
 	}
 
 	if (object == ui->nameLabel && event->type() == QEvent::Resize) {
-		ui->nameLabel->setText(GetNameElideString());
+		QMetaObject::invokeMethod(
+			this, [=]() { ui->nameLabel->setText(GetNameElideString()); }, Qt::QueuedConnection);
 		return true;
 	}
 	return QFrame::eventFilter(object, event);
@@ -171,9 +167,7 @@ QString PLSFiltersItemView::GetNameElideString()
 
 void PLSFiltersItemView::OnMouseStatusChanged(const QString &status)
 {
-	this->setProperty(PROPERTY_NAME_MOUSE_STATUS, status);
-	this->style()->unpolish(this);
-	this->style()->polish(this);
+	SetProperty(this, PROPERTY_NAME_MOUSE_STATUS, status);
 }
 
 void PLSFiltersItemView::OnFinishingEditName()
@@ -210,6 +204,23 @@ void PLSFiltersItemView::CreatePopupMenu()
 	popup.exec(QCursor::pos());
 }
 
+void PLSFiltersItemView::UpdateNameStyle()
+{
+	QString visibleStr = obs_source_enabled(source) ? STATUS_VISIBLE : STATUS_INVISIBLE;
+	QString selectStr = current ? STATUS_SELECTED : STATUS_UNSELECTED;
+
+	QString value = visibleStr + QString(".") + selectStr;
+	SetProperty(ui->nameLabel, STATUS, value);
+}
+
+void PLSFiltersItemView::SetProperty(QWidget *widget, const char *property, const QVariant &value)
+{
+	if (widget && property) {
+		widget->setProperty(property, value);
+		pls_flush_style(widget);
+	}
+}
+
 void PLSFiltersItemView::OnAdvButtonClicked()
 {
 	CreatePopupMenu();
@@ -231,6 +242,7 @@ void PLSFiltersItemView::OnRenameActionTriggered()
 	ui->nameLabel->hide();
 	ui->visibleButton->hide();
 	ui->advButton->hide();
+	OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
 }
 
 void PLSFiltersItemView::OnRemoveActionTriggered()
@@ -242,8 +254,8 @@ void PLSFiltersItemView::OnRemoveActionTriggered()
 
 void PLSFiltersItemView::SourceEnabled(bool enabled)
 {
-	if (ui->visibleButton->isChecked() != enabled)
-		ui->visibleButton->setChecked(enabled);
+	ui->visibleButton->setChecked(enabled);
+	UpdateNameStyle();
 }
 
 void PLSFiltersItemView::SourceRenamed(QString name)

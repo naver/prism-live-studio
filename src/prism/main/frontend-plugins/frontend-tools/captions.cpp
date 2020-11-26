@@ -76,10 +76,11 @@ static bool valid_lang(LANGID id);
 
 /* ------------------------------------------------------------------------- */
 
-CaptionsDialog::CaptionsDialog(QWidget *parent) : PLSDialogView(parent), ui(new Ui_CaptionsDialog)
+CaptionsDialog::CaptionsDialog(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui_CaptionsDialog)
 {
+	dpiHelper.setInitSize(this, {540, 260});
+
 	ui->setupUi(this->content());
-	resize(540, 260);
 
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 

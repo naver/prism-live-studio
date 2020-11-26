@@ -2,6 +2,8 @@
 #include "../../util/circlebuf.h"
 #include "../../util/platform.h"
 #include "../../util/darray.h"
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include "../../util/util_uint64.h"
 #include "../../obs-internal.h"
 
 #include "wasapi-output.h"
@@ -32,6 +34,10 @@ struct audio_monitor {
 	IMMDevice *device;
 	IAudioClient *client;
 	IAudioRenderClient *render;
+
+	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+	IMMDeviceEnumerator *immde;
+	DWORD previous_check_default;
 
 	uint64_t last_recv_time;
 	uint64_t prev_video_ts;
@@ -78,8 +84,11 @@ static bool process_audio_delay(struct audio_monitor *monitor, float **data,
 		monitor->prev_video_ts = last_frame_ts;
 
 	} else if (monitor->prev_video_ts == last_frame_ts) {
-		monitor->time_since_prev += (uint64_t)*frames * 1000000000ULL /
-					    (uint64_t)monitor->sample_rate;
+		//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+		//monitor->time_since_prev += (uint64_t)*frames * 1000000000ULL /
+		//			    (uint64_t)monitor->sample_rate;
+		monitor->time_since_prev += util_mul_div64(
+			*frames, 1000000000ULL, monitor->sample_rate);
 	} else {
 		monitor->time_since_prev = 0;
 	}
@@ -90,8 +99,11 @@ static bool process_audio_delay(struct audio_monitor *monitor, float **data,
 
 		circlebuf_peek_front(&monitor->delay_buffer, &cur_ts,
 				     sizeof(ts));
-		front_ts = cur_ts - ((uint64_t)pad * 1000000000ULL /
-				     (uint64_t)monitor->sample_rate);
+		//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+		//front_ts = cur_ts - ((uint64_t)pad * 1000000000ULL /
+		//		     (uint64_t)monitor->sample_rate);
+		front_ts = cur_ts - util_mul_div64(pad, 1000000000ULL,
+						   monitor->sample_rate);
 		diff = (int64_t)front_ts - (int64_t)last_frame_ts;
 		bad_diff = !last_frame_ts || llabs(diff) > 5000000000 ||
 			   monitor->time_since_prev > 100000000ULL;
@@ -139,11 +151,17 @@ static bool process_audio_delay(struct audio_monitor *monitor, float **data,
 	return false;
 }
 
+//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+static void audio_monitor_check_default(struct audio_monitor *monitor);
+static void audio_monitor_was_uninit(struct audio_monitor *monitor);
+static bool audio_monitor_was_init(struct audio_monitor *monitor);
+
 static void on_audio_playback(void *param, obs_source_t *source,
 			      const struct audio_data *audio_data, bool muted)
 {
 	struct audio_monitor *monitor = param;
-	IAudioRenderClient *render = monitor->render;
+	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+	//IAudioRenderClient *render = monitor->render;
 	uint8_t *resample_data[MAX_AV_PLANES];
 	float vol = source->user_volume;
 	uint32_t resample_frames;
@@ -157,6 +175,17 @@ static void on_audio_playback(void *param, obs_source_t *source,
 	if (os_atomic_load_long(&source->activate_refs) == 0) {
 		goto unlock;
 	}
+
+	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+	audio_monitor_check_default(monitor);
+	if (!monitor->device || !monitor->client || !monitor->render) {
+		if (!audio_monitor_was_init(monitor)) {
+			goto unlock;
+		}
+	}
+
+	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+	IAudioRenderClient *render = monitor->render;
 
 	success = audio_resampler_resample(
 		monitor->resampler, resample_data, &resample_frames, &ts_offset,
@@ -184,6 +213,8 @@ static void on_audio_playback(void *param, obs_source_t *source,
 	HRESULT hr =
 		render->lpVtbl->GetBuffer(render, resample_frames, &output);
 	if (FAILED(hr)) {
+		//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+		audio_monitor_was_uninit(monitor);
 		goto unlock;
 	}
 
@@ -224,9 +255,16 @@ static inline void audio_monitor_free(struct audio_monitor *monitor)
 	safe_release(monitor->device);
 	safe_release(monitor->client);
 	safe_release(monitor->render);
+	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+	safe_release(monitor->immde);
+	//PRISM/LiuHaibin/20200819/#4005/destroy mutex
+	pthread_mutex_destroy(&monitor->playback_mutex);
 	audio_resampler_destroy(monitor->resampler);
+	monitor->resampler = NULL;
 	circlebuf_free(&monitor->delay_buffer);
 	da_free(monitor->buf);
+	//PRISM/LiuHaibin/20200916/#4005/destroy mutex
+	pthread_mutex_init_value(&monitor->playback_mutex);
 }
 
 static enum speaker_layout convert_speaker_layout(DWORD layout, WORD channels)
@@ -252,7 +290,8 @@ extern bool devices_match(const char *id1, const char *id2);
 static bool audio_monitor_init(struct audio_monitor *monitor,
 			       obs_source_t *source)
 {
-	IMMDeviceEnumerator *immde = NULL;
+	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+	//IMMDeviceEnumerator *immde = NULL;
 	WAVEFORMATEX *wfex = NULL;
 	bool success = false;
 	UINT32 frames;
@@ -261,6 +300,9 @@ static bool audio_monitor_init(struct audio_monitor *monitor,
 	pthread_mutex_init_value(&monitor->playback_mutex);
 
 	monitor->source = source;
+
+	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+	monitor->previous_check_default = GetTickCount();
 
 	const char *id = obs->audio.monitoring_device_id;
 	if (!id) {
@@ -283,13 +325,18 @@ static bool audio_monitor_init(struct audio_monitor *monitor,
 	/* ------------------------------------------ *
 	 * Init device                                */
 
+	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
 	hr = CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL,
-			      &IID_IMMDeviceEnumerator, (void **)&immde);
+			      &IID_IMMDeviceEnumerator,
+			      (void **)&monitor->immde);
 	if (FAILED(hr)) {
 		warn("%s: Failed to create IMMDeviceEnumerator: %08lX",
 		     __FUNCTION__, hr);
 		return false;
 	}
+
+	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+	IMMDeviceEnumerator *immde = monitor->immde;
 
 	if (strcmp(id, "default") == 0) {
 		hr = immde->lpVtbl->GetDefaultAudioEndpoint(
@@ -388,7 +435,8 @@ static bool audio_monitor_init(struct audio_monitor *monitor,
 	success = true;
 
 fail:
-	safe_release(immde);
+	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+	//safe_release(immde);
 	if (wfex)
 		CoTaskMemFree(wfex);
 	return success;
@@ -458,4 +506,189 @@ void audio_monitor_destroy(struct audio_monitor *monitor)
 
 		bfree(monitor);
 	}
+}
+
+//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+static void audio_monitor_check_default(struct audio_monitor *monitor)
+{
+	if (monitor->ignore || !monitor->immde) {
+		return;
+	}
+
+	const char *id = obs->audio.monitoring_device_id;
+	if (!id) {
+		return;
+	}
+
+	if (0 != strcmp(id, "default")) {
+		return;
+	}
+
+	DWORD pre = monitor->previous_check_default;
+	DWORD crt = GetTickCount();
+	bool should_check = ((crt > pre) && (crt - pre) >= 2000);
+	if (!should_check) {
+		return;
+	}
+
+	IMMDevice *dev = NULL;
+	monitor->immde->lpVtbl->GetDefaultAudioEndpoint(monitor->immde, eRender,
+							eConsole, &dev);
+
+	if (!dev) {
+		return;
+	}
+
+	LPWSTR default_id = NULL;
+	LPWSTR using_id = NULL;
+
+	dev->lpVtbl->GetId(dev, &default_id);
+	monitor->device->lpVtbl->GetId(monitor->device, &using_id);
+
+	safe_release(dev);
+
+	if (default_id && using_id) {
+		if (0 != wcscmp(default_id, using_id)) {
+			blog(LOG_INFO,
+			     "Default output audio device is changed and try to reset monitor for [%s]",
+			     obs_source_get_name(monitor->source));
+
+			audio_monitor_was_uninit(monitor);
+		}
+	}
+
+	if (default_id) {
+		CoTaskMemFree(default_id);
+	}
+
+	if (using_id) {
+		CoTaskMemFree(using_id);
+	}
+
+	monitor->previous_check_default = GetTickCount();
+}
+
+//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+static void audio_monitor_was_uninit(struct audio_monitor *monitor)
+{
+	safe_release(monitor->render);
+	safe_release(monitor->client);
+	safe_release(monitor->device);
+	safe_release(monitor->immde);
+
+	monitor->device = NULL;
+	monitor->client = NULL;
+	monitor->render = NULL;
+	monitor->immde = NULL;
+}
+
+//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+static bool audio_monitor_was_init(struct audio_monitor *monitor)
+{
+	if (monitor->ignore)
+		return false;
+
+	obs_source_t *source = monitor->source;
+	WAVEFORMATEX *wfex = NULL;
+	bool success = false;
+	UINT32 frames;
+	HRESULT hr;
+
+	const char *id = obs->audio.monitoring_device_id;
+	if (!id) {
+		return false;
+	}
+
+	if (source->info.output_flags & OBS_SOURCE_DO_NOT_SELF_MONITOR) {
+		obs_data_t *s = obs_source_get_settings(source);
+		const char *s_dev_id = obs_data_get_string(s, "device_id");
+		bool match = devices_match(s_dev_id, id);
+		obs_data_release(s);
+
+		if (match) {
+			monitor->ignore = true;
+			return false;
+		}
+	}
+
+	/* ------------------------------------------ *
+	 * Init device                                */
+
+	hr = CoCreateInstance(&CLSID_MMDeviceEnumerator, NULL, CLSCTX_ALL,
+			      &IID_IMMDeviceEnumerator,
+			      (void **)&monitor->immde);
+	if (FAILED(hr) || !monitor->immde) {
+		return false;
+	}
+
+	IMMDeviceEnumerator *immde = monitor->immde;
+
+	if (strcmp(id, "default") == 0) {
+		hr = immde->lpVtbl->GetDefaultAudioEndpoint(
+			immde, eRender, eConsole, &monitor->device);
+	} else {
+		wchar_t w_id[512];
+		os_utf8_to_wcs(id, 0, w_id, 512);
+
+		hr = immde->lpVtbl->GetDevice(immde, w_id, &monitor->device);
+	}
+
+	if (FAILED(hr) || !monitor->device) {
+		goto fail;
+	}
+
+	/* ------------------------------------------ *
+	 * Init client                                */
+
+	hr = monitor->device->lpVtbl->Activate(monitor->device,
+					       &IID_IAudioClient, CLSCTX_ALL,
+					       NULL, (void **)&monitor->client);
+	if (FAILED(hr) || !monitor->client) {
+		goto fail;
+	}
+
+	hr = monitor->client->lpVtbl->GetMixFormat(monitor->client, &wfex);
+	if (FAILED(hr) || !wfex) {
+		goto fail;
+	}
+
+	hr = monitor->client->lpVtbl->Initialize(monitor->client,
+						 AUDCLNT_SHAREMODE_SHARED, 0,
+						 10000000, 0, wfex, NULL);
+	if (FAILED(hr)) {
+		goto fail;
+	}
+
+	/* ------------------------------------------ *
+	 * Init client                                */
+
+	hr = monitor->client->lpVtbl->GetBufferSize(monitor->client, &frames);
+	if (FAILED(hr)) {
+		goto fail;
+	}
+
+	hr = monitor->client->lpVtbl->GetService(monitor->client,
+						 &IID_IAudioRenderClient,
+						 (void **)&monitor->render);
+	if (FAILED(hr) || !monitor->render) {
+		goto fail;
+	}
+
+	hr = monitor->client->lpVtbl->Start(monitor->client);
+	if (FAILED(hr)) {
+		goto fail;
+	}
+
+	success = true;
+
+fail:
+	if (!success) {
+		audio_monitor_was_uninit(monitor);
+	}
+
+	if (wfex) {
+		CoTaskMemFree(wfex);
+	}
+
+	return success;
 }

@@ -7,12 +7,13 @@
 
 #pragma once
 
-#include "..\PLSPlatformBase.hpp"
 #include <qobject.h>
-#include <vector>
-#include "pls-app.hpp"
-#include <functional>
 #include <QDateTime>
+#include <functional>
+#include <vector>
+#include "..\PLSPlatformBase.hpp"
+#include "PLSHttpApi/PLSHttpHelper.h"
+#include "pls-app.hpp"
 
 using namespace std;
 
@@ -21,10 +22,14 @@ struct PLSYoutubeCategory {
 	QString title;
 };
 
-struct PLSScheduleData {
+struct PLSYoutubeLiveinfoData {
+public:
+	PLSYoutubeLiveinfoData();
+	PLSYoutubeLiveinfoData(const QJsonObject &data);
+
 	QString boundStreamId;
 	QString _id;
-	QString title;
+	QString title = "";
 	QString description;
 	QString startTimeOrigin;
 	QString startTimeUTC;
@@ -35,8 +40,15 @@ struct PLSScheduleData {
 	QString channelID;
 	QString streamKey;
 	QString streamUrl;
-	bool enableMonitorStream;
-	bool isNormalLive; //true is live now , false is scheduled live.
+	bool enableAutoStart = true;
+	bool enableAutoStop = true;
+	bool isNormalLive = true; //true is live now , false is scheduled live.
+	bool isForKids = false;
+	bool iskidsUserSelect = false;
+
+	//schedule parameter
+	QJsonObject contentDetails;
+	QJsonObject streamAPIData;
 };
 
 class PLSPlatformYoutube : public PLSPlatformBase {
@@ -47,40 +59,32 @@ public:
 
 	PLSServiceType getServiceType() const override;
 
+	static void showAutoStartFalseAlertIfNeeded();
+
+	void liveInfoisShowing();
+	void reInitLiveInfo();
 	const QString getSelectID();
 
 	const vector<QString> getPrivacyDatas();
 	const vector<QString> getPrivacyEnglishDatas();
-	const vector<PLSYoutubeCategory> getCategoryDatas();
-	const vector<PLSScheduleData> getScheduleDatas();
-	const PLSScheduleData getNomalLiveDatas();
+	const vector<PLSYoutubeCategory> &getCategoryDatas();
+	const vector<PLSYoutubeLiveinfoData> &getScheduleDatas();
+	const PLSYoutubeLiveinfoData &getNomalLiveData();
 
-	const PLSScheduleData getTempSelectDatas();
-	const PLSScheduleData getSelectDatas();
+	const PLSYoutubeLiveinfoData &getTempSelectData();
+	const PLSYoutubeLiveinfoData &getSelectData();
 
-	bool isModifiedWithNewData(QString title, QString description, int categotyIndex, int privacyIndex, PLSScheduleData *uiData);
+	bool isModifiedWithNewData(QString title, QString description, int categotyIndex, int privacyIndex, bool isKidSelect, bool isNotKidSelect, PLSYoutubeLiveinfoData *uiData);
 
-	void saveSettings(function<void(bool)> onNext, bool isNeedUpdate, PLSScheduleData uiData);
+	void saveSettings(function<void(bool)> onNext, bool isNeedUpdate, PLSYoutubeLiveinfoData uiData);
+	void requestCurrentSelectData(function<void(bool)> onNext, QWidget *widget);
+	void requestCategoryID(function<void(bool)> onNext, bool isAllList, QWidget *widget);
+	void requestCategoryList(function<void(bool)> onNext, QWidget *widget);
+	void requestScheduleList(function<void(bool)> onNext, QWidget *widget);
 
-	void requestUserInfo(function<void(bool)> onNext, bool isStartLive);
-	void requestVideo(function<void(bool)> onNext, bool isSchedule, QWidget *widget);
-	void requestCategory(function<void(bool)> onNext);
-	void requestSchedule(function<void(bool)> onNext, QWidget *widget);
-	void requestStopLive(function<void()> onNext);
-
-	void PLSPlatformYoutube::refreshYoutubeTokenBeforeRequest(
-		bool forceRefresh, function<QNetworkReply *()> originNetworkReplay, const QObject *originReceiver,
-		function<void(QNetworkReply *networkReplay, int code, QByteArray data, void *context)> originOnSucceed = nullptr,
-		function<void(QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context)> originOnFailed = nullptr,
-		function<void(QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context)> originOnFinished = nullptr,
-		void *const originContext = nullptr);
-
-	PLSPlatformYoutube &setTempSchedule(bool value)
-	{
-		m_bTempSchedule = value;
-		return *this;
-	}
-	const bool getIsTempSchedule() const { return m_bTempSchedule; }
+	void requestStartToInsertLiveBroadcasts(function<void(bool)> onNext);
+	void requestStartToInsertLiveStreams(function<void(bool)> onNext);
+	void requestStartToBindTwo(function<void(bool)> onNext);
 
 	PLSPlatformYoutube &setTempSelectID(const QString value)
 	{
@@ -89,68 +93,71 @@ public:
 	}
 	const QString getTempSelectID() const { return m_bTempSelectID; }
 
+	PLSYoutubeLiveinfoData &getTempNormalData() { return m_tempNoramlData; };
+	PLSYoutubeLiveinfoData &getTrySaveDataData() { return m_trySaveData; };
+
+	bool isSendChatToMqtt() const override { return true; }
+
+	QJsonObject getLiveStartParams() override;
+	QString getServiceLiveLink() override;
+	QJsonObject getWebChatParams() override;
+
+	bool isPrivateStatus();
+
 signals:
 	void onGetTitleDescription();
 	void onGetCategorys();
 	void selectIDChanged();
+	void privacyChangedWhenliving();
 	void closeDialogByExpired();
+	void toShowLoading(bool isShowLoading);
 
 private:
-	int m_idxCategory;
-	int m_idxPublic;
+	int m_idxCategory = 0;
+	int m_idxPublic = 0;
 	vector<QString> m_vecLocalPrivacy;
 	vector<QString> m_vecEnglishPrivacy;
 	vector<PLSYoutubeCategory> m_vecCategorys;
-	vector<PLSScheduleData> m_vecSchedules;
+	vector<PLSYoutubeLiveinfoData> m_vecSchedules;
 
 	//normal live data
-	PLSScheduleData m_noramlData;
+	PLSYoutubeLiveinfoData m_noramlData;
 
+	PLSYoutubeLiveinfoData m_tempNoramlData;
 	//finish selected data when click ok;
-	PLSScheduleData m_selectData;
+	PLSYoutubeLiveinfoData m_selectData;
 
 	//temp data
-	bool m_bTempSchedule;
 	QString m_bTempSelectID;
+
+	PLSYoutubeLiveinfoData m_trySaveData;
 
 	QTimer *m_statusTimer;
 
 	int m_iContext = 0;
 
 private:
-	QString getShareUrl() override;
+	QString getShareUrl(bool isLiving);
 	void onPrepareLive(bool value) override;
-	void requestLiveStreamKey(function<void(bool)> onNext);
-	void requestUpdateData(function<void(bool)> onNext, PLSScheduleData data);
-	void requestDisabelMonitor(function<void(bool)> onNext);
-	void openScheduleStatus(function<void(bool)> onNext);
-	void requestOpenScheduleStatus(function<void(bool)> onNext);
-	void requestStatisticsInfo();
-	void forceToRefreshToken(function<void(bool)> onNext);
-	/**
- *  @param 1527840000
- *  @return  02/07/2020 11:40AM UTC+9
- */
-	QString timeStampToUTCString(long timeStamp);
-	/**
- *  @param 1527840000
- *  @return  02/07/2020 11:40
- */
-	QString timeStampToShortString(long timeStamp);
-
-	/**
- *  @param 2020-02-29T07:00:00.000Z
- *  @return 1527840000
- */
-	long timeStringToStamp(QString time);
-
-	PLSPlatformApiResult getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data);
-	void showApiRefreshError(PLSPlatformApiResult value);
-	void showApiUpdateError(PLSPlatformApiResult value);
-
+	void onAllPrepareLive(bool value) override;
 	void onLiveStopped() override;
 	void onAlLiveStarted(bool) override;
 
-	void setSelectData(PLSScheduleData data);
+	void createNewNormalData();
+
+	void requestLiveStreamKey(function<void(bool)> onNext);
+	void requestUpdateVideoData(function<void(bool)> onNext, PLSYoutubeLiveinfoData data);
+	void requestStatisticsInfo();
+	void forceToRefreshToken(function<void(bool)> onNext);
+	PLSPlatformApiResult getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data);
+	void showApiRefreshError(PLSPlatformApiResult value);
+	void showApiUpdateError(PLSPlatformApiResult value);
+	void showApiCreateError(PLSPlatformApiResult value);
+
+	void setSelectData(PLSYoutubeLiveinfoData data);
 	void setupApiFailedWithCode(PLSPlatformApiResult result);
+	void requestStopLive(function<void()> onNext);
+	void requestLiveBroadcastStatus();
+	void checkDuplicateStreamKey(function<void(bool)> onNext);
+	void saveTheScheduleSetting(function<void(bool)> onNext, bool isNeedUpdate);
 };

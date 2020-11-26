@@ -11,22 +11,26 @@
 #include "log/module_names.h"
 #include "action.h"
 #include "PLSMenu.hpp"
+#include "ChannelCommonFunctions.h"
+#include "PLSDpiHelper.h"
 
 Q_DECLARE_METATYPE(OBSSource);
 
-PLSSceneTransitionsView::PLSSceneTransitionsView(QWidget *parent) : QDialog(parent), ui(new Ui::PLSSceneTransitionsView)
+PLSSceneTransitionsView::PLSSceneTransitionsView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSSceneTransitionsView)
 {
-	ui->setupUi(this);
-	setWindowFlags(Qt::Dialog | Qt::FramelessWindowHint);
+	ui->setupUi(this->content());
+	this->setWindowTitle(QTStr("Basic.Hotkeys.SelectScene"));
+	dpiHelper.setCss(this, {PLSCssIndex::QComboBox, PLSCssIndex::QSpinBox, PLSCssIndex::QScrollBar, PLSCssIndex::PLSSceneTransitionsView});
 	connect(ui->okBtn, &QPushButton::clicked, this, [=] {
 		PLS_UI_STEP(MAINSCENE_MODULE, "Scene Transition OK", ACTION_CLICK);
 		this->close();
 	});
-	connect(ui->closeBtn, &QPushButton::clicked, this, [=] {
-		PLS_UI_STEP(MAINSCENE_MODULE, "Scene Transition Close", ACTION_CLICK);
-		this->close();
-	});
 	connect(ui->transitions, &PLSComboBox::currentTextChanged, this, &PLSSceneTransitionsView::OnCurrentTextChanged);
+	connect(ui->transitions, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &PLSSceneTransitionsView::on_transitions_currentIndexChanged);
+	connect(ui->transitionAdd, &QPushButton::clicked, this, &PLSSceneTransitionsView::on_transitionAdd_clicked);
+	connect(ui->transitionRemove, &QPushButton::clicked, this, &PLSSceneTransitionsView::on_transitionRemove_clicked);
+	connect(ui->transitionProps, &QPushButton::clicked, this, &PLSSceneTransitionsView::on_transitionProps_clicked);
+	connect(ui->transitionDuration, QOverload<int>::of(&QSpinBox::valueChanged), this, &PLSSceneTransitionsView::on_transitionDuration_valueChanged);
 }
 
 PLSSceneTransitionsView::~PLSSceneTransitionsView()
@@ -153,7 +157,7 @@ void PLSSceneTransitionsView::AddTransition()
 	}
 
 	bool accepted = NameDialog::AskForName(this, QTStr("TransitionNameDlg.Title"), QTStr("TransitionNameDlg.Text"), name, placeHolderText);
-
+	name = QString(name.c_str()).simplified().toStdString();
 	if (accepted) {
 		if (name.empty()) {
 			PLSMessageBox::warning(this, QTStr("NoNameEntered.Title"), QTStr("NoNameEntered.Text"));
@@ -193,6 +197,7 @@ void PLSSceneTransitionsView::RenameTransition()
 	obs_source_t *source = nullptr;
 
 	bool accepted = NameDialog::AskForName(this, QTStr("TransitionNameDlg.Title"), QTStr("TransitionNameDlg.Text"), name, placeHolderText);
+	name = QString(name.c_str()).simplified().toStdString();
 
 	if (accepted) {
 		if (name.empty()) {
@@ -391,26 +396,6 @@ void PLSSceneTransitionsView::on_transitionDuration_valueChanged(int value)
 void PLSSceneTransitionsView::OnCurrentTextChanged(const QString &text)
 {
 	currentText = text;
-}
-
-void PLSSceneTransitionsView::mouseReleaseEvent(QMouseEvent *event)
-{
-	Q_UNUSED(event);
-	pressed = false;
-}
-
-void PLSSceneTransitionsView::mousePressEvent(QMouseEvent *event)
-{
-	if (event->button() == Qt::LeftButton) {
-		pressed = true;
-		point = event->pos();
-	}
-}
-
-void PLSSceneTransitionsView::mouseMoveEvent(QMouseEvent *event)
-{
-	if (pressed)
-		move(event->pos() - point + pos());
 }
 
 void PLSSceneTransitionsView::showEvent(QShowEvent *event)

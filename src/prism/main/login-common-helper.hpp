@@ -1,3 +1,13 @@
+/*
+ * @fine      LoginCommonHelpers
+ * @brief     login module common function
+ * @date      2019-10-10
+ * @author    Bing Cheng
+ * @attention
+
+ * @version   v1.0
+ * @modify
+ */
 
 #ifndef LOGIN_LOGINCOMMONHELPER_H
 #define LOGIN_LOGINCOMMONHELPER_H

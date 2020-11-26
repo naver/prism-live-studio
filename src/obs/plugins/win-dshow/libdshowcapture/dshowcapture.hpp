@@ -66,6 +66,7 @@ typedef std::function<void(DShowEvent evt, void *params)> EventProc;
 enum class DShowEvent {
 	DeviceRemoved,
 	DeviceInserted,
+	DeviceErrorAbort,
 };
 
 enum class InitGraph {

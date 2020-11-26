@@ -1,39 +1,41 @@
 #include "PLSLiveEndDialog.h"
-#include <QVariant>
+#include <frontend-api.h>
+#include <util/config-file.h>
 #include <QMap>
+#include <QVariant>
+#include "ChannelCommonFunctions.h"
+#include "ChannelConst.h"
+#include "PLSChannelDataAPI.h"
+#include "PLSLiveEndItem.h"
+#include "PLSPlatformApi.h"
+#include "QDebug"
+#include "QDesktopServices"
+#include "QGridLayout"
+#include "QImage"
+#include "QPushButton"
+#include "QUrl"
+#include "log/log.h"
+#include "pls-app.hpp"
 #include "qfile.h"
 #include "ui_PLSLiveEndDialog.h"
-#include "QImage"
-#include "PLSLiveEndItem.h"
-#include "QDebug"
-#include "QPushButton"
-#include "QDesktopServices"
-#include "QUrl"
-#include "QGridLayout"
-#include <frontend-api.h>
-#include "log/log.h"
-#include "PLSChannelDataAPI.h"
-#include "ChannelConst.h"
-#include <util/config-file.h>
-#include "pls-app.hpp"
-#include "PLSPlatformApi.h"
 
-PLSLiveEndDialog::PLSLiveEndDialog(bool isRecord, QWidget *parent) : PLSDialogView(parent), ui(new Ui::PLSLiveEndDialog), m_bRecord(isRecord)
+PLSLiveEndDialog::PLSLiveEndDialog(bool isRecord, QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSLiveEndDialog), m_bRecord(isRecord)
 {
+	App()->DisableHotkeys();
+	dpiHelper.setCss(this, {PLSCssIndex::PLSLiveEndDialog});
+
 	ui->setupUi(this->content());
 	setWindowTitle(QString());
 	setIsMoveInContent(true);
 	setHasMinButton(false);
 	setHasCloseButton(true);
-	setCaptionHeight(40);
 	setHasHLine(false);
 	setResizeEnabled(false);
-
 	this->setAttribute(Qt::WA_AlwaysShowToolTips, true);
 
 	PLS_INFO(END_MODULE, "PLSEnd Dialog Show");
 
-	this->setupFirstUI();
+	this->setupFirstUI(dpiHelper);
 	ui->titleLabel->adjustSize();
 	connect(ui->okButton, &QPushButton::clicked, this, &PLSLiveEndDialog::okButtonClicked);
 	connect(ui->savePushButton, &QPushButton::clicked, this, &PLSLiveEndDialog::openFileSavePath);
@@ -41,67 +43,85 @@ PLSLiveEndDialog::PLSLiveEndDialog(bool isRecord, QWidget *parent) : PLSDialogVi
 
 PLSLiveEndDialog::~PLSLiveEndDialog()
 {
+	App()->UpdateHotkeyFocusSetting();
 	delete ui;
 }
 
-void PLSLiveEndDialog::setupFirstUI()
+void PLSLiveEndDialog::setupFirstUI(PLSDpiHelper dpiHelper)
 {
 	const static QString placeholderString = "       ";
 	bool recordWhenStreaming = config_get_bool(GetGlobalConfig(), "BasicWindow", "RecordWhenStreaming");
-	ui->saveFrame->setHidden(!recordWhenStreaming && !m_bRecord);
+	ui->saveWidget->setHidden(!recordWhenStreaming && !m_bRecord);
 
-	QString appendString = getRecordPath();
-	appendString = appendString.append(placeholderString);
-	QFontMetrics fontWidth(ui->savePushButton->font());
-	QString pathString = fontWidth.elidedText(appendString, Qt::ElideRight, 550);
-	if (!pathString.endsWith(placeholderString)) {
-		pathString = pathString.append(placeholderString);
-	}
-	ui->savePushButton->setText(pathString);
-	ui->savePushButton->setToolTip(getRecordPath());
+	dpiHelper.notifyDpiChanged(this, [=](double dpi) {
+		QString appendString = getRecordPath();
+		appendString = appendString.append(placeholderString);
+		QFontMetrics fontWidth(ui->savePushButton->font());
+		QString pathString = fontWidth.elidedText(appendString, Qt::ElideRight, PLSDpiHelper::calculate(dpi, 550));
+		if (!pathString.endsWith(placeholderString)) {
+			pathString = pathString.append(placeholderString);
+		}
+		ui->savePushButton->setText(pathString);
+		ui->savePushButton->setToolTip(getRecordPath());
+	});
 
 	ui->titleLabel->setText(tr(m_bRecord ? "broadcast.end.record" : "broadcast.end.live"));
 
 	ui->okButton->setText(tr("OK"));
 
-	setupScrollData();
+	setupScrollData(dpiHelper);
 }
 
-void PLSLiveEndDialog::setupScrollData()
+void PLSLiveEndDialog::setupScrollData(PLSDpiHelper dpiHelper)
 {
 
 	const static int endItemHeight = 75;
 	const static int windowWidth = 720;
 	const static int maxCurrentShowCount = 3;
-	const static int recordWidnowHeight = 235;
+	const static int recordWidnowHeight = 240;
 	const static int liveModeOffest = 5;
-
 	if (m_bRecord) {
 		ui->channelScroll->setHidden(true);
-		this->setFixedSize(windowWidth, recordWidnowHeight);
+		dpiHelper.setFixedSize(this, {windowWidth, recordWidnowHeight});
+		ui->placehoderLabel->setFixedHeight(0);
 		return;
 	}
 
 	mChannelVBoxLayout = static_cast<QVBoxLayout *>(ui->channelScroll->widget()->layout());
 	ui->channelScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-	int liveCount = PLS_PLATFORM_API->getUuidOnStarted().size();
+	int tmpLiveCount = PLS_PLATFORM_API->getUuidOnStarted().size();
 	for (const auto &uid : PLS_PLATFORM_API->getUuidOnStarted()) {
 		PLSLiveEndItem *endItem = new PLSLiveEndItem(uid, this);
 		this->mChannelVBoxLayout->addWidget(endItem);
 	}
-	int windowHeight = recordWidnowHeight + liveModeOffest;
-	if (liveCount > maxCurrentShowCount) {
-		liveCount = maxCurrentShowCount;
-	}
 
-	if (liveCount != 0) {
-		windowHeight += liveCount * (endItemHeight);
-	} else {
-		ui->channelScroll->setHidden(true);
-	}
+	bool isExceendMax = tmpLiveCount > maxCurrentShowCount;
+	ui->channelScroll->setVerticalScrollBarPolicy(isExceendMax ? Qt::ScrollBarPolicy::ScrollBarAlwaysOn : Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
+	ui->channelScroll->verticalScrollBar()->setEnabled(isExceendMax ? true : false);
 
-	this->resize(windowWidth, windowHeight);
+	dpiHelper.notifyDpiChanged(this, [=](double dpi, double /*oldDpi*/, bool firstShow) {
+		int liveCount = tmpLiveCount;
+
+		int windowHeight = PLSDpiHelper::calculate(dpi, recordWidnowHeight);
+		bool isExeend = false;
+		if (isExceendMax) {
+			liveCount = maxCurrentShowCount;
+			isExeend = true;
+		}
+
+		if (liveCount != 0) {
+			int scrolHeight = liveCount * PLSDpiHelper::calculate(dpi, endItemHeight);
+			int dpiLiveModeOffest = isExeend ? 0 : PLSDpiHelper::calculate(dpi, liveModeOffest);
+			windowHeight += scrolHeight;
+			ui->channelScroll->setFixedHeight(scrolHeight - dpiLiveModeOffest);
+			ui->placehoderLabel->setFixedHeight(dpiLiveModeOffest);
+		} else {
+			ui->channelScroll->setHidden(true);
+		}
+
+		this->resize(PLSDpiHelper::calculate(dpi, windowWidth), windowHeight);
+	});
 }
 
 void PLSLiveEndDialog::okButtonClicked()
@@ -113,7 +133,17 @@ void PLSLiveEndDialog::okButtonClicked()
 void PLSLiveEndDialog::openFileSavePath()
 {
 	QUrl videoPath = QUrl::fromLocalFile(getRecordPath());
+	string logString = std::string("PLSEnd Dialog openFileSavePath Click, with path") + videoPath.toString().toStdString();
+	PLS_UI_STEP(END_MODULE, logString.c_str(), ACTION_CLICK);
 	QDesktopServices::openUrl(videoPath);
+}
+
+void PLSLiveEndDialog::onScreenAvailableGeometryChanged(const QRect &screenAvailableGeometry)
+{
+	extern QRect centerShow(PLSWidgetDpiAdapter * adapter, const QRect &screenAvailableGeometry, QRect &geometryOfNormal);
+
+	PLSDialogView::onScreenAvailableGeometryChanged(screenAvailableGeometry);
+	centerShow(this, screenAvailableGeometry, geometryOfNormal);
 }
 
 const QString PLSLiveEndDialog::getRecordPath()

@@ -17,6 +17,8 @@
 
 #include <inttypes.h>
 #include "util/platform.h"
+//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+#include "util/util_uint64.h"
 #include "obs.h"
 #include "obs-internal.h"
 
@@ -250,13 +252,21 @@ bool obs_output_actual_start(obs_output_t *output)
 
 	os_event_wait(output->stopping_event);
 	output->stop_code = 0;
+	//PRISM/LiuHaibin/20200703/#3195/for force stop
+	output->stopped_internal = false;
 	if (output->last_error_message) {
 		bfree(output->last_error_message);
 		output->last_error_message = NULL;
 	}
 
-	if (output->context.data)
+	if (output->context.data) {
 		success = output->info.start(output->context.data);
+
+		//PRISM/Wangshaohui/20201110/NoIssue/for save unixtime to filter database
+		blog(LOG_INFO,
+		     "%sOutput module is started. pluginID:%s unixTime:%lldms",
+		     TRACE_OUTPUT_EVENT, output->info.id, time(NULL) * 1000);
+	}
 
 	if (success && output->video) {
 		output->starting_frame_count =
@@ -280,6 +290,13 @@ bool obs_output_start(obs_output_t *output)
 		return false;
 	if (!output->context.data)
 		return false;
+
+	//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
+	if (!is_render_working()) {
+		blog(LOG_WARNING,
+		     "Render is not working, can not start output right now.");
+		return false;
+	}
 
 	if (obs_outro_active(obs_get_outro())) {
 		blog(LOG_WARNING,
@@ -396,7 +413,16 @@ void obs_output_actual_stop(obs_output_t *output, bool force, uint64_t ts)
 	}
 
 	if (output->context.data && call_stop) {
-		output->info.stop(output->context.data, ts);
+		//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
+		if (force && output->info.force_stop)
+			output->info.force_stop(output->context.data);
+		else
+			output->info.stop(output->context.data, ts);
+
+		//PRISM/Wangshaohui/20201110/NoIssue/for save unixtime to filter database
+		blog(LOG_INFO,
+		     "%sOutput module is stopped. pluginID:%s unixTime:%lldms",
+		     TRACE_OUTPUT_EVENT, output->info.id, time(NULL) * 1000);
 
 	} else if (was_reconnecting) {
 		output->stop_code = OBS_OUTPUT_SUCCESS;
@@ -421,6 +447,12 @@ void obs_output_stop(obs_output_t *output)
 	if (!active(output) && !reconnecting(output))
 		return;
 	if (reconnecting(output)) {
+		obs_output_force_stop(output);
+		return;
+	}
+
+	//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
+	if (!is_render_working()) {
 		obs_output_force_stop(output);
 		return;
 	}
@@ -1740,8 +1772,11 @@ static bool prepare_audio(struct obs_output *output,
 	*new = *old;
 
 	if (old->timestamp < output->video_start_ts) {
-		uint64_t duration = (uint64_t)old->frames * 1000000000 /
-				    (uint64_t)output->sample_rate;
+		//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+		//uint64_t duration = (uint64_t)old->frames * 1000000000 /
+		//		    (uint64_t)output->sample_rate;
+		uint64_t duration = util_mul_div64(old->frames, 1000000000ULL,
+						   output->sample_rate);
 		uint64_t end_ts = (old->timestamp + duration);
 		uint64_t cutoff;
 
@@ -1751,7 +1786,10 @@ static bool prepare_audio(struct obs_output *output,
 		cutoff = output->video_start_ts - old->timestamp;
 		new->timestamp += cutoff;
 
-		cutoff = cutoff * (uint64_t)output->sample_rate / 1000000000;
+		//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
+		//cutoff = cutoff * (uint64_t)output->sample_rate / 1000000000;
+		cutoff = util_mul_div64(cutoff, output->sample_rate,
+					1000000000ULL);
 
 		for (size_t i = 0; i < output->planes; i++)
 			new->data[i] += output->audio_size *(uint32_t)cutoff;
@@ -2391,7 +2429,8 @@ void obs_output_addref(obs_output_t *output)
 	if (!output)
 		return;
 
-	obs_ref_addref(&output->control->ref);
+	//PRISM/WangShaohui/20201030/#5529/monitor invalid reference
+	obs_ref_addref(&output->control->ref, output->info.id, NULL);
 }
 
 void obs_output_release(obs_output_t *output)
@@ -2591,4 +2630,32 @@ const char *obs_output_get_supported_audio_codecs(const obs_output_t *output)
 	return obs_output_valid(output, __FUNCTION__)
 		       ? output->info.encoded_audio_codecs
 		       : NULL;
+}
+
+//PRISM/LiuHaibin/20200701/#2440/support NOW
+uint64_t obs_output_get_base_timestamp(obs_output_t *output)
+{
+	if (output && output->video_encoder &&
+	    output->video_encoder->paired_encoder)
+		return output->video_encoder->paired_encoder->base_timestamp;
+	return 0;
+}
+
+//PRISM/LiuHaibin/20200703/#3195/for force stop
+bool obs_output_stopped_internal(obs_output_t *output)
+{
+	return obs_output_valid(output, __FUNCTION__) ? output->stopped_internal
+						      : false;
+}
+
+//PRISM/Liu.Haibin/20201109/#None/get current dbr bitrate
+long obs_output_get_dbr_bitrate(obs_output_t *output)
+{
+	if (!obs_output_valid(output, "obs_output_get_dbr_bitrate"))
+		return 0;
+
+	if (output->info.dbr_bitrate)
+		return output->info.dbr_bitrate(output->context.data);
+
+	return 0;
 }

@@ -235,8 +235,9 @@ static obs_properties_t *image_source_properties(void *data)
 
 	obs_properties_add_path(props, "file", obs_module_text("File"),
 				OBS_PATH_FILE, image_filter, path.array);
-	obs_properties_add_bool(props, "unload",
-				obs_module_text("UnloadWhenNotShowing"));
+	// PRISM/Xiewei/20200731/NoIssue/remove unused field.
+	/*obs_properties_add_bool(props, "unload",
+				obs_module_text("UnloadWhenNotShowing"));*/
 	dstr_free(&path);
 
 	return props;

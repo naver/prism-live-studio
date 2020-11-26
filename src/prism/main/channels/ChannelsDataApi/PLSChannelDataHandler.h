@@ -1,45 +1,73 @@
 #ifndef CHANNELDATAHANDLER_H
 #define CHANNELDATAHANDLER_H
-#include <QString>
-#include <QObject>
-#include <QVariantMap>
-#include <QSharedPointer>
-#include "PLSChannelDataAPI.h"
 
-class ChannelDataHandler {
+#include <QObject>
+#include <QSharedPointer>
+#include <QString>
+#include <QVariantMap>
+
+using ChannelsMap = QMap<QString, QVariantMap>;
+
+using InfosList = QList<QVariantMap>;
+using UpdateCallback = void (*)(const InfosList &);
+Q_DECLARE_METATYPE(UpdateCallback)
+
+struct FinishTaskReleaser {
+	FinishTaskReleaser(const QString &srcUUID) : mSrcUUID(srcUUID){};
+	~FinishTaskReleaser();
+
+private:
+	QString mSrcUUID;
+};
+
+class ChannelDataBaseHandler {
+public:
+	virtual ~ChannelDataBaseHandler(){};
+	virtual QString getPlatformName() { return ""; }
+	virtual bool isMultiChildren() { return false; }
+
+	virtual bool tryToUpdate(const QVariantMap &, UpdateCallback) { return false; };
+	virtual int showLiveInfo(const QVariantMap &) { return 0; };
+	virtual int refreshToken(const QVariantMap &) { return 0; };
+};
+
+/* example */
+class TwitchDataHandler : public ChannelDataBaseHandler {
 
 public:
-	ChannelDataHandler(const QString &uuid);
-	virtual ~ChannelDataHandler();
-	virtual void initData() = 0;
-	virtual bool sendRequest() = 0;
-	virtual void callback(const QVariantMap &retData) = 0;
-	virtual void feedbackToServer() = 0;
-	virtual const QString &name() const { return mHanderlID; }
-	virtual void setName(const QString &newName) { mHanderlID = newName; }
-	virtual void loadMaper();
+	TwitchDataHandler();
+
+	virtual QString getPlatformName();
+	virtual bool tryToUpdate(const QVariantMap &srcInfo, UpdateCallback callback);
+	virtual bool downloadHeaderImage();
 
 protected:
-	QString mHanderlID;
-	QString mSrcUUID;
+	UpdateCallback mCallBack;
+	QVariantMap mLastInfo;
 	static ChannelsMap mDataMaper;
 };
 
-using ChannelDataHandlerPtr = QSharedPointer<ChannelDataHandler>;
-Q_DECLARE_METATYPE(ChannelDataHandlerPtr);
+class YoutubeHandler : public TwitchDataHandler {
 
-void createTwitchHandler(const QString &uuid);
-void createYouTubeHandler(const QString &uuid);
-QString createDownloadHandler(const QString &uuid);
-QString createRrefreshHandler(const QString &srcChannelUUID);
+public:
+	YoutubeHandler();
+	virtual QString getPlatformName();
+	virtual bool tryToUpdate(const QVariantMap &srcInfo, UpdateCallback callback);
+	virtual bool refreshToken();
 
-using networkCallback = void (*)(const QVariantMap &);
-Q_DECLARE_METATYPE(networkCallback)
+	bool runTasks();
 
-bool sendRefreshRequest(const QString &mSrcUUID);
-bool refreshCallback(const QVariantMap &taskData);
-bool isTokenValid(const QString &mSrcUUID);
-bool checkAndUpdateToken(const QString &mSrcUUID);
-bool isReplyContainExpired(const QByteArray &body, const QStringList &keys);
+	bool getRealToken();
+
+	bool getBasicInfo();
+	bool getheaderImage();
+
+protected:
+	void handleError(int statusCode);
+	void resetData();
+
+private:
+	QMap<int, QVariant> mTaskMap;
+};
 
 #endif // ! CHANNELDATAHANDLER_H

@@ -12,8 +12,6 @@ namespace Ui {
 class PLSDialogView;
 }
 
-const int RESIZE_BORDER_WIDTH = 5;
-
 class FRONTEND_API PLSDialogView : public PLSToplevelView<QDialog> {
 	Q_OBJECT
 	Q_PROPERTY(int captionHeight READ getCaptionHeight WRITE setCaptionHeight)
@@ -31,7 +29,7 @@ class FRONTEND_API PLSDialogView : public PLSToplevelView<QDialog> {
 	Q_PROPERTY(bool fullScreenState READ getFullScreenState)
 
 public:
-	explicit PLSDialogView(QWidget *parent = nullptr);
+	explicit PLSDialogView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSDialogView();
 
 public:
@@ -133,6 +131,9 @@ public:
 	bool getEscapeCloseEnabled() const;
 	void setEscapeCloseEnabled(bool enabled);
 
+	// add by zq
+	void setHasBackgroundTransparent(bool isTransparent);
+
 public:
 	/**
 	* @brief      get module name for log
@@ -151,10 +152,12 @@ public:
 
 public slots:
 	int exec() override;
+
 signals:
 	void shown();
 	void beginResizeSignal();
 	void endResizeSignal();
+	void visibleSignal(bool visible);
 
 private:
 	void flushMaxFullScreenStateStyle();

@@ -4,6 +4,8 @@
 #include <QPixmap>
 #include <QToolButton>
 #include <Windows.h>
+#include <qjsondocument.h>
+
 #include "pls-app.hpp"
 #include "window-basic-main.hpp"
 #include "window-basic-status-bar.hpp"
@@ -15,17 +17,81 @@
 #include "log/module_names.h"
 #include "frontend-api.h"
 #include "main-view.hpp"
+#include "PLSNetworkMonitor.h"
 
 #include <Windows.h>
+#include <tlhelp32.h>
+
+#define UPLOAD_STATUS_INTERVAL 3000 // milliseconds
 
 namespace {
 QWidget *g_stats = nullptr;
 
-class SystemCPUUsageInfo {
+inline uint64_t ft2ui64(const FILETIME &ft)
+{
+	uint64_t ui64 = ft.dwHighDateTime;
+	ui64 = (ui64 << 32) | ft.dwLowDateTime;
+	return ui64;
+}
+
+class CalcCPUUsage {
+	class Process {
+		bool updatedFlag;
+		DWORD processId;
+		HANDLE hProcess;
+		uint64_t prevKernelTime, prevUserTime;
+
+		friend class CalcCPUUsage;
+
+	public:
+		Process(DWORD processId_, HANDLE hProcess_) : updatedFlag(false), processId(processId_), hProcess(hProcess_), prevKernelTime(0), prevUserTime(0) { start(); }
+		Process(const Process &c) : updatedFlag(c.updatedFlag), processId(c.processId), hProcess(c.hProcess), prevKernelTime(c.prevKernelTime), prevUserTime(c.prevUserTime) {}
+		~Process() {}
+
+		void start()
+		{
+			FILETIME creationTime, exitTime, prevKernelTime, prevUserTime;
+			GetProcessTimes(this->hProcess, &creationTime, &exitTime, &prevKernelTime, &prevUserTime);
+			this->prevKernelTime = ft2ui64(prevKernelTime);
+			this->prevUserTime = ft2ui64(prevUserTime);
+		}
+		void stop()
+		{
+			if (this->hProcess) {
+				CloseHandle(this->hProcess);
+				this->hProcess = nullptr;
+			}
+		}
+		double getCPUUsage(double sysTime)
+		{
+			double percent = 0.0;
+
+			FILETIME creationTime, exitTime, curKernelTime, curUserTime;
+			BOOL result = GetProcessTimes(this->hProcess, &creationTime, &exitTime, &curKernelTime, &curUserTime);
+
+			uint64_t curKernelTimeV = ft2ui64(curKernelTime);
+			uint64_t curUserTimeV = ft2ui64(curUserTime);
+
+			uint64_t kernelTime = curKernelTimeV - prevKernelTime;
+			uint64_t userTime = curUserTimeV - prevUserTime;
+
+			percent = (kernelTime + userTime) * 100.0 / sysTime;
+
+			this->prevKernelTime = curKernelTimeV;
+			this->prevUserTime = curUserTimeV;
+			this->updatedFlag = true;
+
+			return percent;
+		}
+	};
+
 	uint64_t prevIdleTime, prevKernelTime, prevUserTime;
+	std::list<Process> allProcesses;
+
+	double sysCPUUsage, processCPUUsage;
 
 private:
-	SystemCPUUsageInfo()
+	CalcCPUUsage()
 	{
 		FILETIME curIdleFt, curKernelFt, curUserFt;
 		GetSystemTimes(&curIdleFt, &curKernelFt, &curUserFt);
@@ -33,20 +99,32 @@ private:
 		prevIdleTime = ft2ui64(curIdleFt);
 		prevKernelTime = ft2ui64(curKernelFt);
 		prevUserTime = ft2ui64(curUserFt);
+
+		sysCPUUsage = 0.0;
+		processCPUUsage = 0.0;
+	}
+	~CalcCPUUsage()
+	{
+		while (!allProcesses.empty()) {
+			Process process(allProcesses.front());
+			allProcesses.pop_front();
+			process.stop();
+		}
 	}
 
 public:
-	static SystemCPUUsageInfo *instance()
+	static CalcCPUUsage *instance()
 	{
-		static SystemCPUUsageInfo systemCPUUsageInfo;
-		return &systemCPUUsageInfo;
+		static CalcCPUUsage calcCPUUsage;
+		return &calcCPUUsage;
 	}
 
 public:
-	double getCPUUsage()
-	{
-		double percent = 0.0;
+	double getSysCPUUsage() const { return sysCPUUsage; }
+	double getProcessCPUUsage() const { return processCPUUsage; }
 
+	std::pair<double, double> getCPUUsage()
+	{
 		FILETIME curIdleFt, curKernelFt, curUserFt;
 		GetSystemTimes(&curIdleFt, &curKernelFt, &curUserFt);
 
@@ -57,23 +135,103 @@ public:
 		uint64_t idleTime = curIdleTime - prevIdleTime;
 		uint64_t kernelTime = curKernelTime - prevKernelTime;
 		uint64_t userTime = curUserTime - prevUserTime;
+		uint64_t sysTime = kernelTime + userTime;
 
-		percent = (kernelTime + userTime - idleTime) * 100.0 / (kernelTime + userTime);
+		sysCPUUsage = (sysTime - idleTime) * 100.0 / sysTime;
+		processCPUUsage = getProcessCPUUsage(sysTime);
 
 		prevIdleTime = curIdleTime;
 		prevKernelTime = curKernelTime;
 		prevUserTime = curUserTime;
 
-		return percent;
+		return {sysCPUUsage, processCPUUsage};
 	}
 
-	uint64_t ft2ui64(const FILETIME &ft)
+private:
+	double getProcessCPUUsage(uint64_t sysTime)
 	{
-		uint64_t ui64 = ft.dwHighDateTime;
-		ui64 = (ui64 << 32) | ft.dwLowDateTime;
-		return ui64;
+		HANDLE hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (hProcessSnap == INVALID_HANDLE_VALUE) {
+			return 0.0;
+		}
+
+		clearUpdatedFlag();
+
+		double percent = 0.0;
+
+		DWORD curProcessId = GetCurrentProcessId();
+		if (Process *process = findProcess(curProcessId); process) {
+			percent += process->getCPUUsage(sysTime);
+		} else {
+			PLS_DEBUG(STATUSBAR_MODULE, "ProcessCPUUsageInfo Calc Process CPU Usage, ProcessID: %u", curProcessId);
+			percent += newProcess(curProcessId, GetCurrentProcess(), sysTime);
+		}
+
+		PROCESSENTRY32 pe;
+		pe.dwSize = sizeof(pe);
+		if (Process32First(hProcessSnap, &pe)) {
+			do {
+				if (pe.th32ProcessID != curProcessId && pe.th32ParentProcessID == curProcessId) {
+					Process *process = findProcess(pe.th32ProcessID);
+					if (process) {
+						percent += process->getCPUUsage(sysTime);
+					} else if (HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pe.th32ProcessID); hProcess) {
+						PLS_DEBUG(STATUSBAR_MODULE, "ProcessCPUUsageInfo Calc Child Process CPU Usage, ProcessID: %u", pe.th32ProcessID);
+						percent += newProcess(pe.th32ProcessID, hProcess, sysTime);
+					} else {
+						PLS_WARN(STATUSBAR_MODULE, "ProcessCPUUsageInfo OpenProcess Failed, ProcessID: %u, Error: %u", pe.th32ProcessID, GetLastError());
+					}
+				}
+			} while (Process32Next(hProcessSnap, &pe));
+		}
+
+		removeNotUpdated();
+
+		CloseHandle(hProcessSnap);
+
+		return percent;
+	}
+	Process *findProcess(uint32_t processId)
+	{
+		for (auto &process : allProcesses) {
+			if (process.processId == processId) {
+				return &process;
+			}
+		}
+		return nullptr;
+	}
+	double newProcess(uint32_t processId, void *hProcess, uint64_t sysTime)
+	{
+		double percent = 0.0;
+		Process newProcess(processId, hProcess);
+		percent = newProcess.getCPUUsage(sysTime);
+		allProcesses.push_back(newProcess);
+		return percent;
+	}
+	void clearUpdatedFlag()
+	{
+		for (auto &childProcess : allProcesses) {
+			childProcess.updatedFlag = false;
+		}
+	}
+	void removeNotUpdated()
+	{
+		for (auto iter = allProcesses.begin(); iter != allProcesses.end();) {
+			auto &process = *iter;
+			if (!process.updatedFlag) {
+				process.stop();
+				iter = allProcesses.erase(iter);
+			} else {
+				++iter;
+			}
+		}
 	}
 };
+}
+
+double getProcessCurrentCPUUsage()
+{
+	return CalcCPUUsage::instance()->getProcessCPUUsage();
 }
 
 PLSBasicStatusBarButtonFrame::PLSBasicStatusBarButtonFrame(QWidget *parent, Qt::WindowFlags f) : QFrame(parent, f)
@@ -163,9 +321,8 @@ PLSBasicStatusBar::PLSBasicStatusBar(QWidget *parent)
 	  bitrate(new QLabel(QTStr("Bitrate").arg(0))),
 	  statsDropIcon(new QLabel)
 {
-	SystemCPUUsageInfo::instance();
+	CalcCPUUsage::instance();
 
-	encodesPt->setFixedSize(2, 2);
 	frameDropState->setVisible(false);
 
 	encodesPt->setObjectName("encodesPt");
@@ -234,6 +391,36 @@ PLSBasicStatusBar::PLSBasicStatusBar(QWidget *parent)
 	connect(encodes, &PLSBasicStatusBarButtonFrame::clicked, this, showSettings);
 	connect(stats, &PLSBasicStatusBarButtonFrame::clicked, this, &PLSBasicStatusBar::popupStats);
 	setStatsOpen(false);
+
+	PLSDpiHelper dpiHelper;
+	dpiHelper.notifyDpiChanged(this, [this]() {
+		QMetaObject::invokeMethod(
+			this,
+			[this] {
+				if (g_stats && g_stats->isVisible()) {
+					PLSBasic::Get()->popupStats(true, mapToGlobal(QPoint(0, 0)));
+				}
+			},
+			Qt::QueuedConnection);
+	});
+	dpiHelper.notifyScreenAvailableGeometryChanged(this, [this](const QRect &) {
+		QMetaObject::invokeMethod(
+			this,
+			[this] {
+				if (g_stats && g_stats->isVisible()) {
+					PLSBasic::Get()->popupStats(true, mapToGlobal(QPoint(0, 0)));
+				}
+			},
+			Qt::QueuedConnection);
+	});
+}
+
+PLSBasicStatusBar::~PLSBasicStatusBar()
+{
+	if (uploadTimer) {
+		delete uploadTimer;
+		uploadTimer = NULL;
+	}
 }
 
 void PLSBasicStatusBar::Activate()
@@ -308,7 +495,8 @@ void PLSBasicStatusBar::UpdateBandwidth()
 
 void PLSBasicStatusBar::UpdateCPUUsage()
 {
-	cpuUsage->setText(QString("CPU %1% (Total %2%)").arg(PLSBasic::Get()->GetAppCPUUsage(), 0, 'f', 1).arg(SystemCPUUsageInfo::instance()->getCPUUsage(), 0, 'f', 1));
+	auto usage = CalcCPUUsage::instance()->getCPUUsage();
+	cpuUsage->setText(QString("CPU %1% (Total %2%)").arg(usage.second, 0, 'f', 1).arg(usage.first, 0, 'f', 1));
 }
 
 void PLSBasicStatusBar::popupStats()
@@ -316,6 +504,143 @@ void PLSBasicStatusBar::popupStats()
 	PLS_UI_STEP(STATUSBAR_MODULE, "Status Bar's State Stats Button", ACTION_CLICK);
 
 	PLSBasic::Get()->popupStats(!isStatsOpen(), mapToGlobal(QPoint(0, 0)));
+}
+
+int PLSBasicStatusBar::GetRealTimeBitrate(OBSOutput output, RealBitrateHelper &helper)
+{
+	uint64_t totalBytes = obs_output_get_total_bytes(output);
+	uint64_t curTime = os_gettime_ns();
+	double kbps = 0;
+
+	if (helper.lastBytesSentTime > 0) {
+		uint64_t bitsBetween = (totalBytes - helper.lastBytesSent) * 8;
+		long double timePassed = (long double)(curTime - helper.lastBytesSentTime) / 1000000000.0l;
+		if (timePassed > 0) {
+			kbps = (double)bitsBetween / timePassed / 1000.0l;
+		}
+	}
+
+	helper.lastBytesSent = totalBytes;
+	helper.lastBytesSentTime = curTime;
+
+	return (int)kbps;
+}
+
+int PLSBasicStatusBar::GetExpectOutputBitrate(OBSOutput output)
+{
+	obs_encoder_t *vencoder = obs_output_get_video_encoder(output);
+	if (vencoder) {
+		obs_data_t *vsettings = obs_encoder_get_settings(vencoder);
+		if (vsettings) {
+			int bitrate = obs_data_get_int(vsettings, "bitrate");
+			obs_data_release(vsettings);
+			return bitrate;
+		}
+	}
+	return 0;
+}
+
+void PLSBasicStatusBar::UploadStatus()
+{
+	// These variables should be reset at the right time
+	static int encodeDropsFirst = -1;
+	static int networkDropsFirst = -1;
+	static RealBitrateHelper streamHelper;
+	static RealBitrateHelper recordHelper;
+
+	//-----------------------------------------------------------------
+#ifdef _DEBUG
+	return; // ignore status in DEBUG mode
+#endif
+
+	OBSOutput streamingOutput = obs_frontend_get_streaming_output();
+	OBSOutput recordingOutput = obs_frontend_get_recording_output();
+	obs_output_release(streamingOutput);
+	obs_output_release(recordingOutput);
+
+	bool streaming = (streamingOutput && obs_output_active(streamingOutput));
+	bool recording = (recordingOutput && obs_output_active(recordingOutput));
+
+	if (!streaming) {
+		networkDropsFirst = -1;
+		streamHelper = RealBitrateHelper();
+	}
+
+	if (!recording) {
+		recordHelper = RealBitrateHelper();
+	}
+
+	if (!streaming && !recording) {
+		encodeDropsFirst = -1;
+	}
+
+	if (!PLSNetworkMonitor::Instance()->IsInternetAvailable()) {
+		return;
+	}
+
+	//-----------------------------------------------------------------
+	struct obs_video_info ovi = {};
+	obs_get_video_info(&ovi);
+
+	std::pair<double, double> cpuUsage = CalcCPUUsage::instance()->getCPUUsage();
+
+	int renderDrops = obs_get_lagged_frames();
+	int encodeDrops = video_output_get_skipped_frames(obs_get_video());
+	int networkDrops = 0;
+
+	if (encodeDropsFirst < 0) {
+		encodeDropsFirst = encodeDrops;
+	}
+
+	if (streaming) {
+		networkDrops = obs_output_get_frames_dropped(streamingOutput);
+		if (networkDropsFirst < 0) {
+			networkDropsFirst = networkDrops;
+		}
+	}
+
+	std::string userID = "";
+	std::string neloSession = prismSession;
+	int renderFPS = (ovi.fps_den > 0) ? ((double)ovi.fps_num / (double)ovi.fps_den) : 0;
+	int streamBitrate = streaming ? GetExpectOutputBitrate(streamingOutput) : 0;
+	int recordBitrate = recording ? GetExpectOutputBitrate(recordingOutput) : 0;
+	int64_t unixTime = (int64_t)QDateTime::currentDateTime().toTime_t() * (int64_t)1000; // in milliseconds
+	int cpuUsagePrism = cpuUsage.second;
+	int cpuUsageTotal = cpuUsage.first;
+	int64_t memoryUsing = os_get_proc_resident_size() / (1024.0l * 1024.0l);
+	int64_t availableStorage = os_get_free_disk_space(PLSBasic::Get()->GetCurrentOutputPath()) / (1024.0l * 1024.0l);
+	int realRenderFPS = obs_get_active_fps();
+	int dropRenderFrame = renderDrops;
+	int dropEncodeFrame = encodeDrops - encodeDropsFirst;
+	int dropNetworkFrame = streaming ? (networkDrops - networkDropsFirst) : 0;
+	int dbrStreamBitrate = streaming ? obs_output_get_dbr_bitrate(streamingOutput) : 0;
+	int realStreamBitrate = streaming ? GetRealTimeBitrate(streamingOutput, streamHelper) : 0;
+	int realRecordBitrate = recording ? GetRealTimeBitrate(recordingOutput, recordHelper) : 0;
+
+	//-----------------------------------------------------------------
+	QJsonObject obj;
+	obj["userID"] = userID.c_str();
+	obj["neloSession"] = neloSession.c_str();
+	obj["renderFPS"] = renderFPS;
+	obj["streamBitrate"] = streamBitrate;
+	obj["recordBitrate"] = recordBitrate;
+	obj["unixTime"] = unixTime;
+	obj["cpuUsagePrism"] = cpuUsagePrism;
+	obj["cpuUsageTotal"] = cpuUsageTotal;
+	obj["memoryUsing"] = memoryUsing;
+	obj["availableStorage"] = availableStorage;
+	obj["realRenderFPS"] = realRenderFPS;
+	obj["dropRenderFrame"] = dropRenderFrame;
+	obj["dropEncodeFrame"] = dropEncodeFrame;
+	obj["dropNetworkFrame"] = dropNetworkFrame;
+	obj["dbrStreamBitrate"] = dbrStreamBitrate;
+	obj["realStreamBitrate"] = realStreamBitrate;
+	obj["realRecordBitrate"] = realRecordBitrate;
+
+	QJsonDocument doc;
+	doc.setObject(obj);
+
+	QString text(doc.toJson());
 }
 
 void PLSBasicStatusBar::UpdateDroppedFrames()
@@ -563,5 +888,14 @@ void PLSBasicStatusBar::UpdateDelayMsg()
 		}
 
 		PLS_INFO(STATUSBAR_MODULE, msg.toUtf8().constData());
+	}
+}
+
+void PLSBasicStatusBar::StartStatusMonitor()
+{
+	if (!uploadTimer) {
+		uploadTimer = new QTimer(this);
+		connect(uploadTimer, SIGNAL(timeout()), this, SLOT(UploadStatus()));
+		uploadTimer->start(UPLOAD_STATUS_INTERVAL);
 	}
 }

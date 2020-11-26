@@ -1,13 +1,13 @@
 #include "GoLivePannel.h"
-#include "ui_GoLivePannel.h"
-#include "PLSChannelDataAPI.h"
-#include "ChannelConst.h"
-#include "frontend-api.h"
-#include "PLSChannelsVirualAPI.h"
 #include "ChannelCommonFunctions.h"
+#include "ChannelConst.h"
 #include "LogPredefine.h"
 #include "PLSAddingFrame.h"
+#include "PLSChannelDataAPI.h"
+#include "PLSChannelsVirualAPI.h"
 #include "PLSPlatformApi.h"
+#include "frontend-api.h"
+#include "ui_GoLivePannel.h"
 
 using namespace ChannelData;
 
@@ -22,11 +22,21 @@ GoLivePannel::GoLivePannel(QWidget *parent) : QFrame(parent), ui(new Ui::GoLiveP
 	inLive->assignProperty(ui->GoLiveShift, "text", CHANNELS_TR(FinishLive));
 	inLive->assignProperty(ui->GoLiveShift, "checked", true);
 
+	auto rehearsal = new QState;
+	rehearsal->assignProperty(ui->GoLiveShift, "text", CHANNELS_TR(FinishRehearsal));
+	rehearsal->assignProperty(ui->GoLiveShift, "checked", true);
+
+	goliveState->addTransition(PLSCHANNELS_API, &PLSChannelDataAPI::rehearsalBegin, rehearsal);
+	rehearsal->addTransition(PLSCHANNELS_API, &PLSChannelDataAPI::broadCastEnded, goliveState);
+
+	inLive->addTransition(PLSCHANNELS_API, &PLSChannelDataAPI::rehearsalBegin, rehearsal);
+
 	goliveState->addTransition(PLSCHANNELS_API, &PLSChannelDataAPI::broadcasting, inLive);
 	inLive->addTransition(PLSCHANNELS_API, &PLSChannelDataAPI::broadCastEnded, goliveState);
 
 	mMachine.addState(goliveState);
 	mMachine.addState(inLive);
+	mMachine.addState(rehearsal);
 
 	mMachine.setInitialState(goliveState);
 	mMachine.start();
@@ -69,21 +79,25 @@ void GoLivePannel::on_Record_toggled(bool isCheck)
 {
 	QSignalBlocker blocker(ui->Record);
 	ui->Record->setDisabled(true);
-	PRE_LOG_UI_MSG(QString(ui->Record->text() + " clicked ").toStdString().c_str(), GoLivePannel);
+	QString senderName = sender()->metaObject()->className();
+
 	QString disTxt = isCheck ? (CHANNELS_TR(STOP)) : (CHANNELS_TR(REC));
 	ui->Record->setText(disTxt);
 
 	int state = PLSCHANNELS_API->currentReocrdState();
+	senderName += " record state " + RecordStatesLst[state];
+	PRE_LOG_UI_MSG(QString(ui->Record->text() + " clicked " + senderName).toStdString().c_str(), GoLivePannel);
+
 	switch (state) {
 	case RecordReady:
 	case RecordStopped: {
 		PLSCHANNELS_API->setIsOnlyStopRecord(false);
-		PLSCHANNELS_API->setRecordState(CanRecord);
+		PLSCHANNELS_API->sigTrySetRecordState(CanRecord);
 	} break;
 	case RecordStarted: {
 		PLSCHANNELS_API->setIsClickToStopRecord(true);
 		PLSCHANNELS_API->setIsOnlyStopRecord(true);
-		PLSCHANNELS_API->setRecordState(RecordStopGo);
+		PLSCHANNELS_API->sigTrySetRecordState(RecordStopGo);
 	} break;
 	default:
 		break;
@@ -129,17 +143,20 @@ void GoLivePannel::on_GoLiveShift_clicked()
 {
 	QSignalBlocker blocker(ui->GoLiveShift);
 	ui->GoLiveShift->setDisabled(true);
-	PRE_LOG_UI_MSG(QString(ui->GoLiveShift->text() + " clicked ").toStdString().c_str(), GoLivePannel);
+	QString senderName = sender()->metaObject()->className();
 	int state = PLSCHANNELS_API->currentBroadcastState();
+	senderName += " broadcast state " + LiveStatesLst[state];
+	PRE_LOG_UI_MSG(QString(ui->GoLiveShift->text() + " clicked " + senderName).toStdString().c_str(), GoLivePannel);
+
 	switch (state) {
 	case StreamStopped:
 	case ReadyState: {
-		PLSCHANNELS_API->setBroadcastState(BroadcastGo);
+		PLSCHANNELS_API->sigTrySetBroadcastState(BroadcastGo);
 	} break;
 
 	case StreamStarted: {
 		PLSCHANNELS_API->setIsOnlyStopRecord(false);
-		PLSCHANNELS_API->setBroadcastState(StopBroadcastGo);
+		PLSCHANNELS_API->sigTrySetBroadcastState(StopBroadcastGo);
 	} break;
 	default:
 		break;

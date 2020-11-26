@@ -258,6 +258,13 @@ gs_effect_t *obs_load_effect(gs_effect_t **effect, const char *file)
 	return *effect;
 }
 
+//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+static void obs_render_working(bool working)
+{
+	if (obs)
+		os_atomic_set_bool(&obs->video.render_working, working);
+}
+
 static int obs_init_graphics(struct obs_video_info *ovi)
 {
 	struct obs_core_video *video = &obs->video;
@@ -267,8 +274,9 @@ static int obs_init_graphics(struct obs_video_info *ovi)
 	bool success = true;
 	int errorcode;
 
-	errorcode =
-		gs_create(&video->graphics, ovi->graphics_module, ovi->adapter);
+	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+	errorcode = gs_create_cb(&video->graphics, ovi->graphics_module,
+				 ovi->adapter, obs_render_working);
 	if (errorcode != GS_SUCCESS) {
 		switch (errorcode) {
 		case GS_ERROR_MODULE_NOT_FOUND:
@@ -426,7 +434,11 @@ static int obs_init_video(struct obs_video_info *ovi)
 		return OBS_VIDEO_FAIL;
 	if (pthread_mutex_init(&video->gpu_encoder_mutex, NULL) < 0)
 		return OBS_VIDEO_FAIL;
+	if (pthread_mutex_init(&video->task_mutex, NULL) < 0)
+		return OBS_VIDEO_FAIL;
 
+	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
+	video->render_working = true;
 	errorcode = pthread_create(&video->video_thread, NULL,
 				   obs_graphics_thread, obs);
 	if (errorcode != 0)
@@ -570,6 +582,10 @@ static void obs_free_video(void)
 		pthread_mutex_init_value(&video->gpu_encoder_mutex);
 		da_free(video->gpu_encoders);
 
+		pthread_mutex_destroy(&video->task_mutex);
+		pthread_mutex_init_value(&video->task_mutex);
+		circlebuf_free(&video->tasks);
+
 		video->gpu_encoder_active = 0;
 		video->cur_texture = 0;
 	}
@@ -621,6 +637,11 @@ static bool obs_init_audio(struct audio_output_info *ai)
 	if (pthread_mutex_init(&audio->monitoring_mutex, &attr) != 0)
 		return false;
 
+	//PRISM/LiuHaibin/20200908/#4748/add mp3 info
+	pthread_mutex_init_value(&audio->id3v2_mutex);
+	if (pthread_mutex_init(&audio->id3v2_mutex, &attr) != 0)
+		return false;
+
 	audio->user_volume = 1.0f;
 
 	audio->monitoring_device_name = bstrdup("Default");
@@ -651,6 +672,15 @@ static void obs_free_audio(void)
 	bfree(audio->monitoring_device_name);
 	bfree(audio->monitoring_device_id);
 	pthread_mutex_destroy(&audio->monitoring_mutex);
+
+	//PRISM/LiuHaibin/20200908/#4748/add mp3 info
+	for (int i = 0; i < audio->id3v2_array.num; i++) {
+		struct mi_id3v2 id3 = audio->id3v2_array.array[i];
+		if (id3.data)
+			bfree(id3.data);
+	}
+	da_free(audio->id3v2_array);
+	pthread_mutex_destroy(&audio->id3v2_mutex);
 
 	memset(audio, 0, sizeof(struct obs_core_audio));
 }
@@ -891,7 +921,10 @@ static bool obs_init(const char *locale, const char *module_config_path,
 	obs = bzalloc(sizeof(struct obs_core));
 
 	pthread_mutex_init_value(&obs->audio.monitoring_mutex);
+	//PRISM/LiuHaibin/20200908/#4748/add mp3 info
+	pthread_mutex_init_value(&obs->audio.id3v2_mutex);
 	pthread_mutex_init_value(&obs->video.gpu_encoder_mutex);
+	pthread_mutex_init_value(&obs->video.task_mutex);
 
 	obs->name_store_owned = !store;
 	obs->name_store = store ? store : profiler_name_store_create();
@@ -908,6 +941,9 @@ static bool obs_init(const char *locale, const char *module_config_path,
 		return false;
 	if (!obs_init_hotkeys())
 		return false;
+
+	//PRISM/WangChuanjing/20200827/#4592/for source not render
+	os_atomic_set_bool(&obs->video.system_initialized, false);
 
 	if (module_config_path)
 		obs->module_config_path = bstrdup(module_config_path);
@@ -1479,6 +1515,17 @@ void obs_set_output_source(uint32_t channel, obs_source_t *source)
 	if (channel >= MAX_CHANNELS)
 		return;
 
+	//PRISM/WangShaohui/20201029/NoIssue/for debugging
+	if (source) {
+		blog(LOG_INFO,
+		     "Set channel(%d) of main_view. [%s] id:%s obs_source:%p",
+		     channel,
+		     source->context.name ? source->context.name : "noName",
+		     source->info.id ? source->info.id : "noID", source);
+	} else {
+		blog(LOG_INFO, "Clear channel(%d) of main_view", channel);
+	}
+
 	struct obs_source *prev_source;
 	struct obs_view *view = &obs->data.main_view;
 	struct calldata params = {0};
@@ -1528,6 +1575,38 @@ void obs_enum_sources(bool (*enum_proc)(void *, obs_source_t *), void *param)
 			break;
 		} else if (source->info.type == OBS_SOURCE_TYPE_INPUT &&
 			   !source->context.private &&
+			   !enum_proc(param, source)) {
+			break;
+		}
+
+		source = next_source;
+	}
+
+	pthread_mutex_unlock(&obs->data.sources_mutex);
+}
+
+//PRISM/Liuying/20200828/#4617 enum all source
+void obs_enum_all_sources(bool (*enum_proc)(void *, obs_source_t *),
+			  void *param)
+{
+	obs_source_t *source;
+
+	if (!obs)
+		return;
+
+	pthread_mutex_lock(&obs->data.sources_mutex);
+	source = obs->data.first_source;
+
+	while (source) {
+		obs_source_t *next_source =
+			(obs_source_t *)source->context.next;
+
+		if (source->info.id == group_info.id &&
+		    !enum_proc(param, source)) {
+			break;
+		} else if ((source->info.type == OBS_SOURCE_TYPE_INPUT ||
+			    source->info.type == OBS_SOURCE_TYPE_FILTER ||
+			    source->info.type == OBS_SOURCE_TYPE_TRANSITION) &&
 			   !enum_proc(param, source)) {
 			break;
 		}
@@ -2542,6 +2621,8 @@ bool start_gpu_encode(obs_encoder_t *encoder)
 	obs_leave_graphics();
 
 	if (success) {
+		//PRISM/LiuHaibin/20200703/#None/gpu encoder deadlock
+		os_atomic_set_bool(&encoder->gpu_encoder_error, false);
 		os_atomic_inc_long(&video->gpu_encoder_active);
 		video_output_inc_texture_encoders(video->video);
 	}
@@ -2549,21 +2630,60 @@ bool start_gpu_encode(obs_encoder_t *encoder)
 	return success;
 }
 
+//PRISM/LiuHaibin/20200706/#None/gpu encoder deadlock
+static bool is_encoder_alive(obs_encoder_t *encoder)
+{
+	struct obs_core_video *video = &obs->video;
+	if (da_find(video->gpu_encoders, &encoder, 0) != DARRAY_INVALID)
+		return true;
+	return false;
+}
+
 void stop_gpu_encode(obs_encoder_t *encoder)
 {
 	struct obs_core_video *video = &obs->video;
 	bool call_free = false;
 
-	os_atomic_dec_long(&video->gpu_encoder_active);
 	video_output_dec_texture_encoders(video->video);
 
 	pthread_mutex_lock(&video->gpu_encoder_mutex);
+
+	//PRISM/LiuHaibin/20200706/#None/gpu encoder deadlock
+	/* sometimes, stop_gpu_encode may still be called,
+	 * when encoder is no longer in video->gpu_encoders, that may
+	 * cause video->gpu_encoder_active reduced to a negative number
+	 * and that should never happens, because, it will affect encoder
+	 * starting next time.
+	 * OBS has the same issue */
+	if (is_encoder_alive(encoder)) {
+		os_atomic_dec_long(&video->gpu_encoder_active);
+		blog(LOG_INFO,
+		     "stop_gpu_encode(%s), gpu_encoder_active %d, gpu_encoders %d",
+		     obs_encoder_get_name(encoder), video->gpu_encoder_active,
+		     video->gpu_encoders.num - 1);
+	} else
+		blog(LOG_WARNING,
+		     "stop_gpu_encode, encoder(%s) no longer in gpu_encoders %d, gpu_encoder_active %d, ",
+		     obs_encoder_get_name(encoder), video->gpu_encoders.num,
+		     video->gpu_encoder_active);
+
 	da_erase_item(video->gpu_encoders, &encoder);
 	if (!video->gpu_encoders.num)
 		call_free = true;
+
 	pthread_mutex_unlock(&video->gpu_encoder_mutex);
 
-	os_event_wait(video->gpu_encode_inactive);
+	//PRISM/LiuHaibin/20200703/#None/gpu encoder deadlock
+	/* gpu encode thread will be stuck here,
+	 * if error happens with gpu encoder,
+	 * so, we only wait this "gpu_encode_inactive" event
+	 * when there is no error happens */
+	if (!os_atomic_load_bool(&encoder->gpu_encoder_error)) {
+		os_event_wait(video->gpu_encode_inactive);
+	} else
+		blog(LOG_WARNING,
+		     "error happens with gpu encoder (%s), do not wait gpu_encode_inactive event",
+		     obs_encoder_get_name(encoder));
 
 	if (call_free) {
 		stop_gpu_encoding_thread(video);
@@ -2578,9 +2698,10 @@ void stop_gpu_encode(obs_encoder_t *encoder)
 
 bool obs_video_active(void)
 {
-	struct obs_core_video *video = &obs->video;
+	//PRISM/Liu.Haibin/20200409/#none/obs bug
 	if (!obs)
 		return false;
+	struct obs_core_video *video = &obs->video;
 
 	return os_atomic_load_long(&video->raw_active) > 0 ||
 	       os_atomic_load_long(&video->gpu_encoder_active) > 0;
@@ -2588,9 +2709,108 @@ bool obs_video_active(void)
 
 bool obs_nv12_tex_active(void)
 {
-	struct obs_core_video *video = &obs->video;
+	//PRISM/Liu.Haibin/20200409/#none/obs bug
 	if (!obs)
 		return false;
+	struct obs_core_video *video = &obs->video;
 
 	return video->using_nv12_tex;
+}
+
+//PRISM/Liu.Haibin/20200409/#2321/for device rebuild
+bool is_render_working(void)
+{
+	if (!obs)
+		return false;
+	struct obs_core_video *video = &obs->video;
+
+	return os_atomic_load_bool(&video->render_working);
+}
+
+/* ------------------------------------------------------------------------- */
+/* task stuff                                                                */
+
+struct task_wait_info {
+	obs_task_t task;
+	void *param;
+	os_event_t *event;
+};
+
+static void task_wait_callback(void *param)
+{
+	struct task_wait_info *info = param;
+	info->task(info->param);
+	os_event_signal(info->event);
+}
+
+THREAD_LOCAL bool is_graphics_thread = false;
+
+static bool in_task_thread(enum obs_task_type type)
+{
+	/* NOTE: OBS_TASK_UI is handled independently */
+
+	if (type == OBS_TASK_GRAPHICS)
+		return is_graphics_thread;
+
+	assert(false);
+	return false;
+}
+
+void obs_queue_task(enum obs_task_type type, obs_task_t task, void *param,
+		    bool wait)
+{
+	if (!obs)
+		return;
+
+	if (type == OBS_TASK_UI) {
+		if (obs->ui_task_handler) {
+			obs->ui_task_handler(task, param, wait);
+		} else {
+			blog(LOG_ERROR, "UI task could not be queued, "
+					"there's no UI task handler!");
+		}
+	} else {
+		if (in_task_thread(type)) {
+			task(param);
+		} else if (wait) {
+			struct task_wait_info info = {
+				.task = task,
+				.param = param,
+			};
+
+			os_event_init(&info.event, OS_EVENT_TYPE_MANUAL);
+			obs_queue_task(type, task_wait_callback, &info, false);
+			os_event_wait(info.event);
+			os_event_destroy(info.event);
+		} else {
+			struct obs_core_video *video = &obs->video;
+			struct obs_task_info info = {task, param};
+
+			pthread_mutex_lock(&video->task_mutex);
+			circlebuf_push_back(&video->tasks, &info, sizeof(info));
+			pthread_mutex_unlock(&video->task_mutex);
+		}
+	}
+}
+
+void obs_set_ui_task_handler(obs_task_handler_t handler)
+{
+	if (!obs)
+		return;
+	obs->ui_task_handler = handler;
+}
+
+//PRISM/WangChuanjing/20200825/#3423/for main view load delay
+void obs_set_system_initialized(bool initialized)
+{
+	if (!obs)
+		return;
+	os_atomic_set_bool(&obs->video.system_initialized, initialized);
+}
+
+bool obs_get_system_initialized()
+{
+	if (!obs)
+		return false;
+	return os_atomic_load_bool(&obs->video.system_initialized);
 }
