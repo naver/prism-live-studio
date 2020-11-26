@@ -3,10 +3,10 @@
 
 **Visit [our official web site](http://prismlive.com) for more information and [Latest updates on PRISM Live Studio](http://prismlive.com/ko_kr/pcapp/)**.
 
-## Latest Release (2020/05/06)
+## Latest Release (2020/11/23)
 
-We're happy to announce the release of PRISM Live Studio v2.0.1.55.
-Please check the release note at (http://resource.prismlive.com/updateinfo/20200506120601/update_en.html).
+We're happy to announce the release of PRISM Live Studio v2.4.0.122.
+Please check the release note at (https://resource-prismlive.pstatic.net/202011201106/update_en2.4.0.html).
 
 ## About PRISM Live Studio
 PRISM Live studio PC version helps beginners stream like professionals. It is a desktop application for live broadcasting.
