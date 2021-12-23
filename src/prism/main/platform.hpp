@@ -40,27 +40,13 @@ void bringWindowToTop(QWidget *window);
 
 #ifdef _WIN32
 uint32_t GetWindowsVersion(void);
+uint32_t GetWindowsBuildVersion();
 void SetAeroEnabled(bool enable);
 void SetProcessPriority(const char *priority);
 void SetWin32DropStyle(QWidget *window);
 bool DisableAudioDucking(bool disable);
-
-struct RunOnceMutexData;
-
-class RunOnceMutex {
-	RunOnceMutexData *data = nullptr;
-
-public:
-	explicit RunOnceMutex(RunOnceMutexData *data_) : data(data_) {}
-	RunOnceMutex(const RunOnceMutex &rom) = delete;
-	RunOnceMutex(RunOnceMutex &&rom);
-	~RunOnceMutex();
-
-	RunOnceMutex &operator=(const RunOnceMutex &rom) = delete;
-	RunOnceMutex &operator=(RunOnceMutex &&rom);
-};
-
-RunOnceMutex GetRunOnceMutex(bool &already_running);
+std::string GetFileName(std::string full_path);
+std::string GetExtension(std::string full_path);
 #endif
 
 #ifdef __APPLE__

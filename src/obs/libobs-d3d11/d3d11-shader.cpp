@@ -63,6 +63,10 @@ gs_vertex_shader::gs_vertex_shader(gs_device_t *device, const char *file,
 	data.resize(shaderBlob->GetBufferSize());
 	memcpy(&data[0], shaderBlob->GetBufferPointer(), data.size());
 
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	hr = device->device->CreateVertexShader(data.data(), data.size(), NULL,
 						shader.Assign());
 	if (FAILED(hr))
@@ -101,6 +105,10 @@ gs_pixel_shader::gs_pixel_shader(gs_device_t *device, const char *file,
 
 	data.resize(shaderBlob->GetBufferSize());
 	memcpy(&data[0], shaderBlob->GetBufferPointer(), data.size());
+
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
 
 	hr = device->device->CreatePixelShader(data.data(), data.size(), NULL,
 					       shader.Assign());
@@ -231,8 +239,10 @@ void gs_shader::Compile(const char *shaderString, const char *file,
 				    &asmBlob);
 
 	if (SUCCEEDED(hr) && !!asmBlob && asmBlob->GetBufferSize()) {
-		blog(LOG_INFO, "=============================================");
-		blog(LOG_INFO, "Disassembly output for shader '%s':\n%s", file,
+		plog(LOG_INFO, "=============================================");
+		char temp[256];
+		os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+		plog(LOG_INFO, "Disassembly output for shader '%s':\n%s", temp,
 		     asmBlob->GetBufferPointer());
 	}
 #endif

@@ -65,7 +65,7 @@ void BrowserInteractionMain::SetGlobalParam(obs_data_t *private_data)
 	if (::IsWindow(hWnd)) {
 		BrowserInteractionMain::prism_main = hWnd;
 	} else {
-		blog(LOG_WARNING, "Invalid prism HWND for interaction");
+		plog(LOG_WARNING, "Invalid prism HWND for interaction");
 		assert(false);
 	}
 }
@@ -93,7 +93,7 @@ void BrowserInteractionMain::RegisterClassName()
 	if (!RegisterInteractionClass(INTERACTION_CLASS_MAIN,
 				      InteractionMainProc, interaction_icon)) {
 		assert(false);
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Failed to register class for interaction main. error:%u",
 		     GetLastError());
 	}
@@ -122,7 +122,7 @@ LRESULT CALLBACK BrowserInteractionMain::InteractionMainProc(HWND hWnd,
 	switch (message) {
 	case WM_CLOSE:
 		if (self && !self->ShouldClose()) {
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "UI: [UI STEP] User close interaction by taskbar.");
 			self->OnCloseButton();
 			return false;
@@ -226,7 +226,7 @@ BrowserInteractionMain::~BrowserInteractionMain()
 
 		Sleep(200); // For waiting PostMessage be done
 
-		blog(LOG_ERROR, "Interaction is not destroied ! title:%s",
+		plog(LOG_ERROR, "Interaction is not destroied ! title:%s",
 		     utf8_title.c_str());
 		assert(false);
 	}
@@ -247,7 +247,7 @@ void BrowserInteractionMain::CreateInteractionUI()
 				NULL);
 
 	if (!::IsWindow(hWnd)) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Failed to create interaction main window. error:%u",
 		     GetLastError());
 
@@ -255,7 +255,7 @@ void BrowserInteractionMain::CreateInteractionUI()
 		return;
 	}
 
-	blog(LOG_INFO, "Interaction is created. title:%s", utf8_title.c_str());
+	plog(LOG_INFO, "Interaction is created. title:%s", utf8_title.c_str());
 
 	::SetWindowLongPtr(hWnd, GWLP_USERDATA, (LONG_PTR)this);
 
@@ -415,7 +415,7 @@ void BrowserInteractionMain::OnDestroy()
 	hWnd = NULL;
 	window_created = false;
 
-	blog(LOG_INFO, "Interaction is destroied. title:%s",
+	plog(LOG_INFO, "Interaction is destroied. title:%s",
 	     utf8_title.c_str());
 }
 
@@ -620,7 +620,7 @@ bool BrowserInteractionMain::OnLButtonClick(UINT id, HWND hWnd)
 {
 	switch (id) {
 	case UI_IDC_BUTTON_CLOSE:
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "UI: [UI STEP] User Click close button of interaction. [%s]",
 		     utf8_title.c_str());
 
@@ -734,7 +734,7 @@ std::wstring GetModuleFile(const char *file)
 
 void BrowserInteractionMain::UpdateImage(float dpi)
 {
-	blog(LOG_INFO, "Interaction update image by dpi(%f) title:%s", dpi,
+	plog(LOG_INFO, "Interaction update image by dpi(%f) title:%s", dpi,
 	     utf8_title.c_str());
 
 	std::string dir;
@@ -811,8 +811,8 @@ void BrowserInteractionMain::MovePosition()
 		best_cx = (float)RectWidth(rc) * (pdpi / dpi);
 		best_cy = (float)RectHeight(rc) * (pdpi / dpi);
 	} else {
-		int best_cx = RectWidth(rc);
-		int best_cy = RectHeight(rc);
+		best_cx = RectWidth(rc);
+		best_cy = RectHeight(rc);
 	}
 
 	int left = prc.left + (RectWidth(prc) - best_cx) / 2;

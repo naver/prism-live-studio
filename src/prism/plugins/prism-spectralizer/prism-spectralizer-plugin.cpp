@@ -39,3 +39,8 @@ void obs_module_unload()
 {
 	/* NO-OP */
 }
+
+const char *obs_module_name(void)
+{
+	return obs_module_description();
+}

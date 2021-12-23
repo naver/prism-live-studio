@@ -10,16 +10,17 @@
 
 #define TIMEOFFSET 1000
 
-PLSLivingMsgView::PLSLivingMsgView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSLivingMsgView), m_currentTime(0)
+PLSLivingMsgView::PLSLivingMsgView(DialogInfo info, QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(info, parent, dpiHelper), ui(new Ui::PLSLivingMsgView), m_currentTime(0)
 {
 	dpiHelper.setCss(this, {PLSCssIndex::PLSLivingMsgView});
+	notifyFirstShow([=]() { this->InitGeometry(true); });
 
 	ui->setupUi(this->content());
 	setHasMaxResButton(true);
 	setCaptionButtonMargin(9);
 	ui->stackedWidget->setCurrentIndex(0);
 	ui->livingMsgMainLayout->setAlignment(Qt::AlignTop);
-	setWindowTitle(tr("Live.toast.title"));
+	setWindowTitle(tr("Alert.Title"));
 	setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
 
 	connect(&m_t, &QTimer::timeout, [&]() {
@@ -75,19 +76,14 @@ void PLSLivingMsgView::setShow(bool isVisable)
 
 void PLSLivingMsgView::showEvent(QShowEvent *event)
 {
-	qobject_cast<PLSMainView *>(pls_get_main_view())->getToastButton()->setShowAlert(true);
-	config_set_bool(App()->GlobalConfig(), "LivingMsgView", "showMode", isVisible());
-	config_save(App()->GlobalConfig());
+	App()->getMainView()->updateSideBarButtonStyle(ConfigId::LivingMsgView, true);
 	pls_window_right_margin_fit(this);
 	PLSDialogView::showEvent(event);
 }
 
 void PLSLivingMsgView::hideEvent(QHideEvent *event)
 {
-	qobject_cast<PLSMainView *>(pls_get_main_view())->getToastButton()->setShowAlert(false);
-
-	config_set_bool(App()->GlobalConfig(), "LivingMsgView", "showMode", isVisible());
-	config_save(App()->GlobalConfig());
+	App()->getMainView()->updateSideBarButtonStyle(ConfigId::LivingMsgView, false);
 	emit hideSignal();
 	PLSDialogView::hideEvent(event);
 }
@@ -102,17 +98,6 @@ void PLSLivingMsgView::resizeEvent(QResizeEvent *event)
 {
 	PLSDialogView::resizeEvent(event);
 }
-void PLSLivingMsgView::onMaxFullScreenStateChanged()
-{
-	config_set_bool(App()->GlobalConfig(), "LivingMsgView", "MaximizedState", isMaxState);
-	config_save(App()->GlobalConfig());
-}
-
-void PLSLivingMsgView::onSaveNormalGeometry()
-{
-	config_set_string(App()->GlobalConfig(), "LivingMsgView", "geometry", saveGeometry().toBase64().constData());
-	config_save(App()->GlobalConfig());
-}
 
 void PLSLivingMsgView::addMsgItem(const QString &msgInfo, const long long time, pls_toast_info_type type)
 {
@@ -120,42 +105,6 @@ void PLSLivingMsgView::addMsgItem(const QString &msgInfo, const long long time, 
 	item->setMsgInfo(msgInfo);
 	m_msgItems.push_back(item);
 	ui->livingMsgMainLayout->insertWidget(0, item);
-}
-
-void PLSLivingMsgView::initMsgGeometry()
-{
-	auto initGeometry = [this](double dpi, bool inConstructor) {
-		extern void setGeometrySys(PLSWidgetDpiAdapter * adapter, const QRect &geometry);
-
-		const char *geometry = config_get_string(App()->GlobalConfig(), "LivingMsgView", "geometry");
-		if (!geometry || !geometry[0]) {
-			const int defaultWidth = 300;
-			const int defaultHeight = 400;
-			const int mainRightOffest = 5;
-			PLSMainView *mainView = App()->getMainView();
-			QPoint mainTopRight = App()->getMainView()->mapToGlobal(QPoint(mainView->frameGeometry().width(), 0));
-			geometryOfNormal = QRect(mainTopRight.x() + PLSDpiHelper::calculate(dpi, mainRightOffest), mainTopRight.y(), PLSDpiHelper::calculate(dpi, defaultWidth),
-						 PLSDpiHelper::calculate(dpi, defaultHeight));
-			setGeometrySys(this, geometryOfNormal);
-		} else if (inConstructor) {
-			QByteArray byteArray = QByteArray::fromBase64(QByteArray(geometry));
-			restoreGeometry(byteArray);
-			if (config_get_bool(App()->GlobalConfig(), "LivingMsgView", "MaximizedState")) {
-				showMaximized();
-			}
-		}
-	};
-
-	notifyFirstShow([=]() {
-		extern QRect normalShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
-
-		initGeometry(PLSDpiHelper::getDpi(this), false);
-		if (!isMaxState && !isFullScreenState) {
-			normalShow(this, geometryOfNormal);
-		}
-	});
-
-	initGeometry(PLSDpiHelper::getDpi(this), true);
 }
 
 QString PLSLivingMsgView::getInfoWithUrl(const QString &str, const QString &url, const QString &replaceStr)

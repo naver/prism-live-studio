@@ -19,12 +19,17 @@
 #include "twitch/PLSPlatformTwitch.h"
 #include "youtube/PLSPlatformYoutube.h"
 #include "facebook/PLSPlatformFacebook.h"
+#include "../PLSMosquitto/PLSMosquitto.h"
 #include "vlive/PLSPlatformVLive.h"
+#include "navertv/PLSPlatformNaverTV.h"
 #include "PLSPlatformAfreecaTV.h"
+#include "naver-shopping-live/PLSPlatformNaverShoppingLIVE.h"
 
 enum class LiveStatus { Normal, PrepareLive, ToStart, LiveStarted, Living, PrepareFinish, ToStop, LiveStoped, LiveEnded };
 
 #define BOOL2STR(x) (x) ? "true" : "false"
+#define LiveInfoPrefix ChannelData::g_liveInfoPrefix.toStdString().c_str()
+#define PrepareInfoPrefix "prepare status: "
 
 using namespace std;
 
@@ -35,7 +40,6 @@ public:
 	static PLSPlatformApi *instance();
 	PLSPlatformApi();
 	~PLSPlatformApi();
-
 	bool initialize();
 
 	void saveStreamSettings(const string &platform, const string &server, const string &key) const;
@@ -45,6 +49,7 @@ public:
 
 	//Use prism server to live, or use each platform directly
 	bool isPrismLive() const { return m_bPrismLive; };
+	void setPrismLive(bool prismLive) { m_bPrismLive = prismLive; };
 
 	//Whether in activating a channel
 	bool isDuringActivate() const { return m_bDuringActivate; }
@@ -56,6 +61,8 @@ public:
 
 	//Whether in onPrepareStream status, User click "GoLive" button
 	bool isPrepareLive() const { return LiveStatus::PrepareLive == m_liveStatus; };
+
+	bool isLiveStarted() const { return LiveStatus::LiveStarted == m_liveStatus; };
 
 	//Whether is living, the rtmp output module is started
 	bool isLiving() const { return LiveStatus::Living == m_liveStatus; };
@@ -85,8 +92,10 @@ public:
 	list<PLSPlatformBase *> getActivePlatforms() const;
 
 	bool isPlatformActived(PLSServiceType) const;
+	void checkDirectPush();
 
 	PLSPlatformBase *getPlatformByType(PLSServiceType type, bool froceCreate = true);
+	PLSPlatformBase *getPlatformByTypeNotFroceCreate(const QString &uuid);
 	list<PLSPlatformBase *> getPlatformsByType(PLSServiceType type);
 	PLSPlatformBase *getPlatformById(const QString &which, const QVariantMap &info, bool bRemove = false);
 	PLSPlatformBase *getPlatformByName(const QString &name);
@@ -95,8 +104,12 @@ public:
 	PLSPlatformTwitch *getPlatformTwitch();
 	PLSPlatformYoutube *getPlatformYoutube(bool froceCreate = true);
 	PLSPlatformFacebook *getPlatformFacebook();
-	PLSPlatformVLive *getPlatformVLive();
+	PLSPlatformVLive *getPlatformVLiveActive();
+	list<PLSPlatformNaverTV *> getPlatformNaverTV();
+	PLSPlatformNaverTV *getPlatformNaverTVActive();
 	PLSPlatformAfreecaTV *getPlatformAfreecaTV();
+	list<PLSPlatformNaverShoppingLIVE *> getPlatformNaverShoppingLIVE();
+	PLSPlatformNaverShoppingLIVE *getPlatformNaverShoppingLIVEActive();
 
 	void activateCallback(PLSPlatformBase *, bool);
 	void deactivateCallback(PLSPlatformBase *, bool);
@@ -107,7 +120,18 @@ public:
 	void liveStoppedCallback();
 	void liveEndedCallback();
 
-	void showEndView(bool isRecord);
+	static const char *invokedByWeb(const char *data);
+
+	void showEndView(bool isRecord, bool isShowDialog = true);
+	void sendWebPrismInit(bool onlyYoutube = false);
+	void forwardWebMessagePrivateChanged(PLSPlatformBase *platform, bool isPrivate);
+
+	//when chat tab from hide to show, then send message to web
+	void sendWebChatTabShown(const QString &channelName, bool isAllTab);
+
+	static bool isContainVliveChannel();
+
+	static int getOutputBitrate();
 signals:
 
 	void channelActive(const QString &uuid, bool value);
@@ -152,6 +176,12 @@ signals:
 	void outputStopped();
 
 	/**
+	* The cef browser event is not in main thread
+	* different thread, should use value param, not ref
+	**/
+	void onWebRequest(const QString data);
+
+	/**
 	* when click golive button, emit isEnterd=true
 	* when start live failed or succeed, emit isEnterd=false
 	**/
@@ -166,11 +196,14 @@ public slots:
 	void onPrepareLive();
 	void onLiveStarted();
 	void onPrepareFinish();
-	void onLiveStopped();
-	void onLiveEnded();
+	void onLiveStopped(); //maybe not call, when finish live
+	void onLiveEnded();   //must call, when finish live
 
 	void onRecordingStarted();
 	void onRecordingStoped();
+
+	void onReplayBufferStarted();
+	void onReplayBufferStoped();
 
 	void ensureStopOutput();
 
@@ -179,7 +212,14 @@ public slots:
 	void onUpdateChannel(const QString &which);
 	void onClearChannel();
 
+	void doWebRequest(QString data);
+	void onMqttMessage(const QString, const QString); //From different thread
+
+	QJsonObject getWebPrismInit(bool onlyYoutube = false);
+
 	void doChannelInitialized();
+	void doNoticeLong(const QJsonObject &data);
+
 private:
 	void saveStreamSettings(OBSData settings) const;
 
@@ -189,12 +229,24 @@ private:
 
 	void setLiveStatus(LiveStatus);
 
-	static bool isContainVliveChannel();
+	void sendWebPrismToken(PLSPlatformBase *platform);
+	void sendWebPrismPlatformClose(PLSPlatformBase *platform);
+	void sendWebChat(QString);
+	void forwardWebMessage(const QJsonObject &data);
+
+	void requestWebChat(const QJsonObject &data);
+	void doStatRequest(const QJsonObject &data);
+	void doStatusRequest(const QJsonObject &data);
+
+	void showMqttError(PLSPlatformBase *platform, PLSPlatformMqttStatus status);
+
 	static bool isValidChannel(const QVariantMap &info);
 
 	static void onFrontendEvent(enum obs_frontend_event event, void *private_data);
 
 	void showStartMessageIfNeeded();
+	//print web log
+	void printWebLog(const QJsonObject &obj);
 
 private:
 	mutable QMutex platformListMutex;
@@ -212,7 +264,14 @@ private:
 	bool m_bApiStarted = false;
 
 	bool m_bRecording = false;
+	bool m_bReplayBuffer = false;
 	bool m_bStopForExit = false;
+
+	MQTTPtr m_pMQTT = nullptr;
+
+	//Used for check whether mqtt is timeout
+	QTimer m_timerMQTT;
+	QString m_strLastMqttStat, m_strLastMqttStatus, m_strLastMqttChat;
 };
 
 #define PLS_PLATFORM_API PLSPlatformApi::instance()
@@ -223,5 +282,5 @@ private:
 #define PLS_PLATFORM_TWITCH PLS_PLATFORM_API->getPlatformTwitch()
 #define PLS_PLATFORM_YOUTUBE PLS_PLATFORM_API->getPlatformYoutube()
 #define PLS_PLATFORM_FACEBOOK PLS_PLATFORM_API->getPlatformFacebook()
-#define PLS_PLATFORM_VLIVE PLS_PLATFORM_API->getPlatformVLive()
 #define PLS_PLATFORM_AFREECATV PLS_PLATFORM_API->getPlatformAfreecaTV()
+#define PLS_PLATFORM_NAVERSHOPPING PLS_PLATFORM_API->getPlatformNaverShoppingLIVE()

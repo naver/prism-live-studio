@@ -1,6 +1,7 @@
 #ifndef CHANNEL_CONST_H
 #define CHANNEL_CONST_H
 
+#include <QMap>
 #include <QMetaType>
 #include <QString>
 #include <QStringList>
@@ -9,95 +10,104 @@ namespace ChannelData {
 
 /*key to be used in channel data map*/
 
-extern const QString g_broadcastStatus;
-extern const QString g_reocordStatus;
-
 extern const QString g_channelUUID;
-const QString g_channelName = "channel_name";
-const QString g_youtubePageID = "youtubePageID";
-extern const QString g_publishService;
-extern const QString g_channelUrl;
-extern const QString g_callbackUrl;
-extern const QString g_catogry;
-extern const QString g_catogryTemp;
-extern const QString g_handlerUUID;
+const QString g_platformName = "channel_name"; //ex. twitch navertv youtube ..
+extern const QString g_displayPlatformName;
 
-extern const QString g_channelIcon;
+//just for youtube
+const QString g_youtubePageID = "youtubePageID";
+extern const QString g_tokenType; // used by youtube
+extern const QString g_youtube_latency;
+
+//the second row display
+extern const QString g_catogry;
+//share url
 extern const QString g_shareUrl;
 extern const QString g_shareUrlTemp;
 extern const char SHARE_URL_KEY[];
 
-extern const QString g_channelStatus;
-extern const QString g_channelUserStatus;
-extern const QString g_channelComplexState;
-extern const QString g_authType;
-extern const QString g_authStatusCode;
-extern const QString g_appClientID;
-extern const QString g_errorTitle;
-extern const QString g_errorString;
-extern const QString g_errorType;
+extern const QString g_channelStatus;     // empty valid invalid expired
+extern const QString g_channelUserStatus; //enable busy disbale
 
 extern const QString g_channelRtmpUrl;
 extern const QString g_streamKey;
+
+// auth from web
 const QString g_channelToken = "access_token";
 const QString g_channelCookie = "cookie";
 const QString g_channelCode = "channel_code";
 extern const QString g_refreshToken;
-
-extern const QString g_tokenType;
 extern const QString g_expires_in;
 extern const int g_defaultExpiresSeconds;
 
-extern const QString g_userName;
-extern const QString g_userProfileImg;
-extern const QString g_nickName;
+extern const QString g_data_type; // rtmp or login channel
 
+//just for some platform
+extern const QString g_userName; //platform inner data
+extern const QString g_nickName; // for display on channel capsule
+
+//temp key just for diplay
+extern const QString g_sortString;
+extern const QString g_displayState;
+extern const QString g_displayOrder;
+
+extern const QString g_displayLine1;
+extern const QString g_displayLine2;
+
+//rtmp only
 extern const QString g_userID; //do not use this
 extern const QString g_rtmpUserID;
+extern const QString g_password;
+extern const QString g_otherInfo;
+extern const QString g_rtmpSeq;
+extern const QString g_publishService;
+extern const QString g_isPresetRTMP;
+
+//vlive only
 extern const QString g_userVliveSeq;
 extern const QString g_userVliveCode;
 extern const QString g_vliveNormalChannelName;
-extern const QString g_password;
-extern const QString g_otherInfo;
-extern const QString g_userIconCachePath;
-extern const QString g_rtmpSeq;
-extern const QString g_prismMatched;
+extern const QString g_vliveFanshipModel;
+extern const QString g_vliveProfileData;
+extern const QString g_userIconThumbnailUrl;
+extern const QString g_userProfileImg;
+
+//flags
+extern const QString g_prismMatched; //rtmp only
 extern const QString g_isLeader;
 extern const QString g_isUserAsked;
 extern const QString g_isPlatformEnabled;
+extern const QString g_isFanship;
+extern const QString g_isUpdated;
 
-extern const QString g_profileThumbnailUrl;
-extern const QString g_email;
-extern const QString g_language;
+/* channel common info used save in local */
+
 extern const QString g_createTime;
 extern const QString g_broadcastID;
-/* channel info used */
+extern const QString g_userIconCachePath;   // local user icon path
+extern const QString g_profileThumbnailUrl; // user icon Url
+extern const QString g_imageCache;          // user icon
+extern const QString g_imageSize;
+extern const QString g_srcImage;
+
+extern const QString g_language;
 extern const QString g_viewers;
 extern const QString g_viewersPix;
 extern const QString g_totalViewers;
+
 extern const QString g_likes;
 extern const QString g_likesPix;
+
 extern const QString g_comments;
 extern const QString g_commentsPix;
-extern const QString g_viewersHtml;
-extern const QString g_likesHtml;
-extern const QString g_displayOrder;
 extern const QString g_subChannelId;
-extern const QString g_displayState;
 
-extern const QString g_isFanship;
-extern const QString g_vliveFanshipModel;
+//just for error alerts
+extern const QString g_errorTitle;
+extern const QString g_errorString;
+extern const QString g_errorType;
 
-extern const QString g_channelWidget;
-extern const QString g_channelItem;
-extern const QString g_data_type;
-
-extern const QString g_isUpdated;
-
-/*task handler used*/
-
-extern const QString g_channelHandler;
-
+//default icon qrc path
 extern const QString g_defaultHeaderIcon;
 extern const QString g_defaultErrorIcon;
 extern const QString g_defualtPlatformIcon;
@@ -122,12 +132,15 @@ extern const QString g_naverTvLikeIcon;
 #define WHALE_SPACE "whale space"
 #define AFREECATV "afreecaTV"
 #define NOW "NOW"
+#define NAVER_SHOPPING_LIVE "Naver Shopping LIVE"
 #define SELECT "Select"
 #define CUSTOM_RTMP "Custom RTMP"
 #define RTMPT_DEFAULT_TYPE "CUSTOM"
 
 //platforms which should be asked if delete previous infos before refresh
 extern const QStringList g_platformsToClearData;
+extern const QStringList g_exclusivePlatform;
+extern const QStringList g_rehearsalingConfigEnabledList;
 
 extern const QStringList gDefaultPlatform;
 extern const int g_maxActiveChannels;
@@ -149,6 +162,9 @@ extern const QString g_contentDetails;
 extern const QString g_persistentType;
 extern const QString g_statusPart;
 extern const QString g_comma;
+extern const QString g_liveInfoPrefix;
+extern const QString defaultSourcePath;
+
 /*channel state */
 enum ChannelStatus { Error = 0, LoginError, UnInitialized, WaitingActive, EmptyChannel, Expired, InValid, Valid, UnAuthorized };
 Q_DECLARE_METATYPE(ChannelStatus)
@@ -159,7 +175,7 @@ Q_DECLARE_METATYPE(ChannelUserStatus)
 enum ChannelDataType { NoType = 0, ChannelType, DownloadType, RTMPType };
 Q_DECLARE_METATYPE(ChannelDataType)
 
-enum NetWorkErrorType { NoError, PlatformExpired, NetWorkNoStable, PlatformUinitialized, ChannelIsEmpty = 40400, UnknownError };
+enum NetWorkErrorType { NoError, PlatformExpired, NetWorkNoStable, PlatformUinitialized, ChannelIsEmpty = 40400, UnknownError, SpecializedError };
 Q_DECLARE_METATYPE(NetWorkErrorType)
 
 /*channel run state */
@@ -171,12 +187,19 @@ Q_DECLARE_METATYPE(NetWorkErrorType)
 enum LiveState { ReadyState = 0, BroadcastGo, CanBroadcastState, StreamStarting, StreamStarted, StopBroadcastGo, CanBroadcastStop, StreamStopping, StreamStopped, StreamEnd };
 Q_DECLARE_METATYPE(LiveState)
 
-extern const QStringList LiveStatesLst;
+extern const QMap<int, QString> LiveStatesMap;
 
-enum RecordState { RecordReady, CanRecord, RecordStarting, RecordStarted, RecordStopping, RecordStopGo, RecordStopped };
+enum RecordState { RecordReady, CanRecord, RecordStarting, RecordStarted, RecordStopGo, RecordStopping, RecordStopped };
 Q_DECLARE_METATYPE(RecordState)
 
-extern const QStringList RecordStatesLst;
+extern const QMap<int, QString> RecordStatesMap;
+
+//log step
+const QString g_addChannelStep = "Add Channel";
+const QString g_updateChannelStep = "Update Channel";
+const QString g_LiveStep = "Live Step";
+const QString g_recordStep = "Record Step";
+const QString g_removeChannelStep = "Remove Channel";
 
 }
 

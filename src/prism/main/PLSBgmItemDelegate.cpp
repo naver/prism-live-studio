@@ -154,6 +154,16 @@ bool PLSBgmItemDelegate::editorEvent(QEvent *event, QAbstractItemModel *model, c
 		}
 		break;
 	}
+	case QEvent::MouseButtonDblClick: {
+		auto mouseEvent = static_cast<QMouseEvent *>(event);
+		QRect rectDelBtn(option.rect.right() - qRound(19 * dpi) - qRound(20 * dpi), option.rect.top() + (option.rect.height() - qRound(19 * dpi)) / 2, qRound(19 * dpi), qRound(19 * dpi));
+		if (mouseEvent->button() == Qt::LeftButton) {
+			if (!rectDelBtn.contains(mouseEvent->pos())) {
+				emit doubleClicked(index);
+			}
+		}
+		break;
+	}
 	default:
 		break;
 	}
@@ -301,7 +311,7 @@ void PLSBgmItemDelegate::drawName(const PLSBgmItemData &data, QPainter *painter,
 	painter->restore();
 }
 
-void PLSBgmItemDelegate::drawDeleteIcon(const PLSBgmItemData &data, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+void PLSBgmItemDelegate::drawDeleteIcon(const PLSBgmItemData &, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &) const
 {
 	if (!svgRendererDelBtn)
 		return;
@@ -330,7 +340,7 @@ void PLSBgmItemDelegate::drawDeleteIcon(const PLSBgmItemData &data, QPainter *pa
 	painter->restore();
 }
 
-void PLSBgmItemDelegate::drawStateIcon(const PLSBgmItemData &data, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+void PLSBgmItemDelegate::drawStateIcon(const PLSBgmItemData &, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
 	MediaStatus state = index.model()->data(index, CustomDataRole::MediaStatusRole).value<MediaStatus>();
 	painter->save();
@@ -367,7 +377,7 @@ void PLSBgmItemDelegate::drawStateIcon(const PLSBgmItemData &data, QPainter *pai
 	painter->restore();
 }
 
-void PLSBgmItemDelegate::drawDropIndicator(const PLSBgmItemData &data, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
+void PLSBgmItemDelegate::drawDropIndicator(const PLSBgmItemData &, QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
 	DropIndicator state = index.model()->data(index, CustomDataRole::DropIndicatorRole).value<DropIndicator>();
 	painter->save();

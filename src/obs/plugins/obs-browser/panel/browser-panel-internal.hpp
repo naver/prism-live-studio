@@ -2,6 +2,8 @@
 
 #include <QTimer>
 #include <QPointer>
+#include <QDialog>
+#include <QFrame>
 #include "browser-panel.hpp"
 #include "cef-headers.hpp"
 
@@ -42,46 +44,118 @@ public:
 
 /* ------------------------------------------------------------------------- */
 
-class QCefWidgetInternal : public QCefWidget {
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+class QCefBrowserClient;
+class QPLSBrowserPopupClient;
+class QCefWidgetInner;
+
+//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+class QPLSBrowserPopupDialog;
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+bool cef_widgets_contains(QCefWidgetInner *inner);
+void cef_widgets_sync_call(QCefWidgetInner *inner,
+			   std::function<void(QCefWidgetInner *)> call);
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+class QCefWidgetInner : public QFrame {
 	Q_OBJECT
 
 public:
-	// OBS Modification:
-	// Zhang dewen / 20200211 / Related Issue ID=347
-	// Reason: store request headers
-	// Solution: modify request headers
-	QCefWidgetInternal(QWidget *parent, const std::string &url,
-			   const std::string &script,
-			   CefRefPtr<CefRequestContext> rqc,
-			   const std::map<std::string, std::string> &headers);
-	~QCefWidgetInternal();
+	using Rqc = CefRefPtr<CefRequestContext>;
+	using Headers = std::map<std::string, std::string>;
 
-	CefRefPtr<CefBrowser> cefBrowser;
+public:
+	QCefWidgetInner(QWidget *parent, const std::string &url,
+			const std::string &script, Rqc rqc,
+			const Headers &headers, bool allowPopups,
+			//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+			QPLSBrowserPopupDialog *popup);
+	~QCefWidgetInner();
+
+	CefRefPtr<CefBrowser> browser;
+
 	std::string url;
 	std::string script;
 	CefRefPtr<CefRequestContext> rqc;
-	QTimer timer;
-	bool allowAllPopups_ = false;
+	Headers headers;
 
-	// OBS Modification:
-	// Zhang dewen / 20200211 / Related Issue ID=347
-	// Reason: store request headers
-	// Solution: modify request headers
-	std::map<std::string, std::string> headers;
+	bool allowPopups = false;
+	QList<CefRefPtr<QPLSBrowserPopupClient>> popups;
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	QPLSBrowserPopupDialog *popup = nullptr;
+
+	void init();
+	//PRISM/Zhangdewen/20210601/#/optimization, exception restart
+	void destroy(bool restart = false);
 
 	virtual void resizeEvent(QResizeEvent *event) override;
-	virtual void showEvent(QShowEvent *event) override;
-	virtual QPaintEngine *paintEngine() const override;
-
-	virtual void setURL(const std::string &url) override;
-	virtual void allowAllPopups(bool allow) override;
-	virtual void closeBrowser() override;
 	virtual void closeEvent(QCloseEvent *event) override;
 
-	void Resize(bool bImmediately);
+	void setURL(const std::string &url);
+	void resize(bool bImmediately);
 
-	void ExecuteOnBrowser(std::function<void(CefRefPtr<CefBrowser>)> func,
-			      bool async);
-public slots:
-	void Init();
+	void executeOnUI(std::function<void()> func);
+	void executeOnCef(std::function<void()> func);
+	void executeOnCef(std::function<void(CefRefPtr<CefBrowser>)> func);
+
+	void attachBrowser(CefRefPtr<CefBrowser> browser);
+	void detachBrowser();
+
+signals:
+	void titleChanged(const QString &title);
+	void urlChanged(const QString &url);
+};
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+class QCefWidgetImpl : public QCefWidget {
+	Q_OBJECT
+
+public:
+	using Rqc = QCefWidgetInner::Rqc;
+	using Headers = QCefWidgetInner::Headers;
+
+public:
+	QCefWidgetImpl(QWidget *parent, const std::string &url,
+		       const std::string &script, Rqc rqc,
+		       const Headers &headers, bool allowPopups, bool callInit,
+		       //PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+		       QPLSBrowserPopupDialog *popup = nullptr,
+		       bool locked = false);
+	QCefWidgetImpl(QPLSBrowserPopupDialog *parent,
+		       QCefWidgetInner *checkInner, bool locked = false);
+	~QCefWidgetImpl();
+
+	bool event(QEvent *event) override;
+	void resizeEvent(QResizeEvent *event) override;
+	void setURL(const std::string &url) override;
+	void allowAllPopups(bool allow) override;
+	void closeBrowser() override;
+
+public:
+	QCefWidgetInner *inner;
+};
+
+//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+class QPLSBrowserPopupDialog : public QDialog {
+	Q_OBJECT
+
+private:
+	QPLSBrowserPopupDialog(QCefWidgetInner *checkInner,
+			       QWidget *parent = nullptr, bool locked = false);
+	~QPLSBrowserPopupDialog();
+
+public:
+	static QPLSBrowserPopupDialog *create(HWND &hwnd,
+					      QCefWidgetInner *checkInner,
+					      QWidget *parent,
+					      bool locked = false);
+
+public:
+	QCefWidgetInner *getCheckInner() { return checkInner; }
+	QCefWidgetInner *getBrowserInner() { return impl->inner; }
+
+private:
+	QCefWidgetInner *checkInner = nullptr;
+	QCefWidgetImpl *impl = nullptr;
 };

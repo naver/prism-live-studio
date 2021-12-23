@@ -53,7 +53,29 @@ FinishTaskReleaser::~FinishTaskReleaser()
 		PLSCHANNELS_API->channelModified(mSrcUUID);
 		PLSCHANNELS_API->holdOnChannelArea(false);
 	}
-	PRE_LOG(handler End, INFO);
+	auto platformName = getInfo(info, g_platformName);
+	QString step = isUpdated ? g_updateChannelStep : g_addChannelStep;
+	PRE_LOG_MSG_STEP(QString("finished update: platform :" + platformName + "ID :" + mSrcUUID), step, INFO);
+}
+
+inline void ChannelDataBaseHandler::updateDisplayInfo(InfosList &srcList)
+{
+	for (auto &src : srcList) {
+		src[g_sortString] = src[g_nickName];
+		src[g_displayLine1] = src[g_nickName];
+		src[g_displayLine2] = src[g_catogry];
+	}
+}
+
+inline void ChannelDataBaseHandler::resetData()
+{
+	auto infos = PLSCHANNELS_API->getChanelInfosByPlatformName(getPlatformName());
+	updateDisplayInfo(infos);
+	for (auto &info : infos) {
+		info.remove(g_shareUrl);
+		info.remove(g_shareUrlTemp);
+		PLSCHANNELS_API->setChannelInfos(info, false);
+	}
 }
 
 ChannelsMap TwitchDataHandler::mDataMaper = ChannelsMap();
@@ -74,33 +96,31 @@ bool TwitchDataHandler::tryToUpdate(const QVariantMap &srcInfo, UpdateCallback c
 	mCallBack = callback;
 
 	PLSNetworkReplyBuilder builder;
-	QVariantMap header;
-	header[HTTP_ACCEPT] = HTTP_ACCEPT_TWITCH;
-	builder.setRawHeaders(header);
-
-	QVariantMap urlParamMap;
-	urlParamMap[HTTP_CLIENT_ID] = TWITCH_CLIENT_ID;
 	auto token = mLastInfo[g_channelToken].toString();
-	urlParamMap[COOKIE_OAUTH_TOKEN] = token;
-	builder.setQuerys(urlParamMap);
 
 	builder.setUrl(CHANNEL_TWITCH_URL);
 
-	auto handleSuccess = [&](QNetworkReply *networkReplay, int statusCode, QByteArray data, void *context) {
-		auto jsonDoc = QJsonDocument::fromJson(data);
-		auto jsonMap = jsonDoc.toVariant().toMap();
-		//ViewMapData(jsonMap);
+	builder.setRawHeaders({{"client-id", TWITCH_CLIENT_ID}, {"Authorization", "Bearer " + token}, {"Accept", HTTP_ACCEPT_TWITCH}});
+
+	auto handleSuccess = [&](QNetworkReply *, int, QByteArray data, void *) {
+		auto jsonDoc = QJsonDocument::fromJson(data).object().value("data").toArray();
+		auto jsonMap = jsonDoc.first().toObject().toVariantMap();
 		const auto &mapper = mDataMaper[getPlatformName()];
 		addToMap(mLastInfo, jsonMap, mapper);
 		mLastInfo[g_channelStatus] = Valid;
+		mLastInfo[g_broadcastID] = jsonMap.value("id");
 		mLastInfo[g_viewers] = "0";
+		mLastInfo[g_userName] = jsonMap.value("login");
 		mLastInfo[g_viewersPix] = g_defaultViewerIcon;
+		mLastInfo[g_shareUrl] = QString(TWITCH_URL_BASE "/%1").arg(mLastInfo[g_userName].toString());
+
 		mLastInfo.insert(g_channelStatus, Valid);
-		downloadHeaderImage();
-		mCallBack(QList<QVariantMap>{mLastInfo});
+
+		downloadHeaderImage(jsonMap.value("profile_image_url").toString());
+		getChannelsInfo();
 	};
 
-	auto handleFail = [&](QNetworkReply *networkReplay, int statusCode, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+	auto handleFail = [&](QNetworkReply *, int statusCode, QByteArray data, QNetworkReply::NetworkError, void *) {
 		switch (statusCode) {
 		case 401: {
 			mLastInfo[g_channelStatus] = Expired;
@@ -124,11 +144,42 @@ bool TwitchDataHandler::tryToUpdate(const QVariantMap &srcInfo, UpdateCallback c
 	return true;
 }
 
-bool TwitchDataHandler::downloadHeaderImage()
+bool TwitchDataHandler::getChannelsInfo()
 {
-	auto pixUrl = getInfo(mLastInfo, g_profileThumbnailUrl);
+	PLSNetworkReplyBuilder builder;
+	auto token = mLastInfo[g_channelToken].toString();
+	builder.setUrl(QString(CHANNEL_TWITCH_INFO_URL).arg(mLastInfo[g_broadcastID].toString()));
+
+	builder.setRawHeaders({{"client-id", TWITCH_CLIENT_ID}, {"Authorization", "Bearer " + token}, {"Accept", HTTP_ACCEPT_TWITCH}});
+
+	auto handleSuccess = [&](QNetworkReply *, int, QByteArray data, void *) {
+		auto jsonDoc = QJsonDocument::fromJson(data).object().value("data").toArray();
+		auto jsonMap = jsonDoc.first().toObject().toVariantMap();
+		mLastInfo.insert(g_catogry, jsonMap.value("game_name"));
+		mLastInfo.insert(g_language, jsonMap.value("broadcaster_language"));
+
+		mCallBack(QList<QVariantMap>{mLastInfo});
+	};
+
+	auto handleFail = [&](QNetworkReply *, int statusCode, QByteArray data, QNetworkReply::NetworkError, void *) {
+		QString errorStr = "channel error status code " + QString::number(statusCode);
+		PRE_LOG_MSG(errorStr.toStdString().c_str(), ERROR);
+		mCallBack(QList<QVariantMap>{mLastInfo});
+	};
 	auto network = PLSCHANNELS_API->getNetWorkAPI();
-	auto retP = PLSHttpHelper::downloadImageSync(PLSNetworkReplyBuilder(pixUrl).get(network), PLSCHANNELS_API, getChannelCacheDir(), TWITCH);
+	auto reply = builder.get(network);
+	reply->setProperty("urlMasking", QString(CHANNEL_TWITCH_INFO_URL).arg(pls_masking_person_info(mLastInfo[g_broadcastID].toString())));
+
+	PLS_HTTP_HELPER->connectFinished(reply, PLSCHANNELS_API, handleSuccess, handleFail);
+	return true;
+}
+
+bool TwitchDataHandler::downloadHeaderImage(const QString &pixUrl)
+{
+	auto network = PLSCHANNELS_API->getNetWorkAPI();
+	auto reply = PLSNetworkReplyBuilder(pixUrl).get(network);
+	reply->setProperty("urlMasking", pls_masking_person_info(pixUrl));
+	auto retP = PLSHttpHelper::downloadImageSync(reply, PLSCHANNELS_API, getTmpCacheDir(), getPlatformName());
 	if (retP.first) {
 		mLastInfo[g_userIconCachePath] = retP.second;
 		return true;
@@ -182,7 +233,7 @@ bool YoutubeHandler::refreshToken()
 
 	builder.setUrl(YOUTUBE_API_TOKEN);
 
-	auto handleSuccess = [&](QNetworkReply *networkReplay, int statusCode, QByteArray data, void *context) {
+	auto handleSuccess = [&](QNetworkReply *, int, QByteArray data, void *) {
 		if (data.contains("error_description") && data.contains("Token has been expired or revoked")) {
 			handleError(401);
 			runTasks();
@@ -204,7 +255,7 @@ bool YoutubeHandler::refreshToken()
 		runTasks();
 	};
 
-	auto handleFail = [&](QNetworkReply *networkReplay, int statusCode, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+	auto handleFail = [&](QNetworkReply *, int statusCode, QByteArray data, QNetworkReply::NetworkError, void *) {
 		auto jsonDoc = QJsonDocument::fromJson(data);
 		auto jsonMap = jsonDoc.toVariant().toMap();
 		if (isInvalidGrant(jsonMap)) {
@@ -247,13 +298,13 @@ bool YoutubeHandler::getRealToken()
 	parameters[HTTP_CODE] = code;
 	parameters[HTTP_CLIENT_ID] = YOUTUBE_CLIENT_ID;
 	parameters[HTTP_CLIENT_SECRET] = YOUTUBE_CLIENT_KEY;
-	parameters[HTTP_REDIRECT_URI] = YOUTUBE_REDIRECT_URI;
+	parameters[HTTP_REDIRECT_URI] = mLastInfo["__goole_redirect_uri"];
 	parameters[HTTP_GRANT_TYPE] = HTTP_AUTHORIZATION_CODE;
 	builder.setQuerys(parameters);
 
 	builder.setUrl(YOUTUBE_API_TOKEN);
 
-	auto handleSuccess = [&](QNetworkReply *networkReplay, int statusCode, QByteArray data, void *context) {
+	auto handleSuccess = [&](QNetworkReply *, int, QByteArray data, void *) {
 		auto jsonDoc = QJsonDocument::fromJson(data);
 		auto jsonMap = jsonDoc.toVariant().toMap();
 
@@ -261,7 +312,7 @@ bool YoutubeHandler::getRealToken()
 		runTasks();
 	};
 
-	auto handleFail = [&](QNetworkReply *networkReplay, int statusCode, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+	auto handleFail = [&](QNetworkReply *, int statusCode, QByteArray data, QNetworkReply::NetworkError, void *) {
 		handleError(statusCode);
 		runTasks();
 	};
@@ -288,7 +339,7 @@ bool YoutubeHandler::getBasicInfo()
 
 	builder.setUrl(YOUTUBE_API_INFO);
 
-	auto handleSuccess = [&](QNetworkReply *networkReplay, int statusCode, QByteArray data, void *context) {
+	auto handleSuccess = [&](QNetworkReply *, int, QByteArray data, void *) {
 		auto jsonDoc = QJsonDocument::fromJson(data);
 		auto jsonMap = jsonDoc.toVariant().toMap();
 
@@ -322,7 +373,7 @@ bool YoutubeHandler::getBasicInfo()
 		runTasks();
 	};
 
-	auto handleFail = [&](QNetworkReply *networkReplay, int statusCode, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+	auto handleFail = [&](QNetworkReply *, int statusCode, QByteArray data, QNetworkReply::NetworkError, void *) {
 		auto jsonDoc = QJsonDocument::fromJson(data);
 		auto jsonMap = jsonDoc.toVariant().toMap();
 		if (isInvalidGrant(jsonMap)) {
@@ -341,7 +392,8 @@ bool YoutubeHandler::getBasicInfo()
 
 bool YoutubeHandler::getheaderImage()
 {
-	downloadHeaderImage();
+	auto pixUrl = getInfo(mLastInfo, g_profileThumbnailUrl);
+	downloadHeaderImage(pixUrl);
 	runTasks();
 	return true;
 }
@@ -384,7 +436,7 @@ void YoutubeHandler::resetData()
 	mLastInfo[g_viewersPix] = g_defaultViewerIcon;
 	mLastInfo[g_likes] = "0";
 	mLastInfo[g_comments] = "0";
-	mLastInfo[g_catogryTemp] = mLastInfo[g_catogry];
+	mLastInfo[g_displayLine2] = "Public";
 	mLastInfo[g_shareUrlTemp] = mLastInfo[g_shareUrl];
 	auto youtubePlatform = PLS_PLATFORM_API->getPlatformYoutube(false);
 	if (youtubePlatform != nullptr) {

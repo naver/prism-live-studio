@@ -66,6 +66,17 @@ static inline enum AVSampleFormat convert_audio_format(enum audio_format format)
 	return AV_SAMPLE_FMT_S16;
 }
 
+//PRISM/LiuHaibin/20211018/#10019/Add log
+static inline void dump_audio_resampler_info(const struct audio_resampler *rs)
+{
+	if (rs) {
+		plog(LOG_INFO,
+		     "Audio resampler parameters (input/output): samplerate %d / %d; channellayout %d / %d; format %d / %d",
+		     rs->input_freq, rs->output_freq, rs->input_layout,
+		     rs->output_layout, rs->input_format, rs->output_format);
+	}
+}
+
 static inline uint64_t convert_speaker_layout(enum speaker_layout layout)
 {
 	switch (layout) {
@@ -115,7 +126,9 @@ audio_resampler_t *audio_resampler_create(const struct resample_info *dst,
 					 0, NULL);
 
 	if (!rs->context) {
-		blog(LOG_ERROR, "swr_alloc_set_opts failed");
+		plog(LOG_ERROR, "swr_alloc_set_opts failed");
+		//PRISM/LiuHaibin/20211018/#10019/Add log
+		dump_audio_resampler_info(rs);
 		audio_resampler_destroy(rs);
 		return NULL;
 	}
@@ -133,14 +146,16 @@ audio_resampler_t *audio_resampler_create(const struct resample_info *dst,
 		};
 		if (swr_set_matrix(rs->context, matrix[rs->output_ch - 1], 1) <
 		    0)
-			blog(LOG_DEBUG,
+			plog(LOG_DEBUG,
 			     "swr_set_matrix failed for mono upmix\n");
 	}
 
 	errcode = swr_init(rs->context);
 	if (errcode != 0) {
-		blog(LOG_ERROR, "avresample_open failed: error code %d",
-		     errcode);
+		plog(LOG_ERROR, "avresample_open failed: error code %d, %s",
+		     errcode, av_err2str(errcode));
+		//PRISM/LiuHaibin/20211018/#10019/Add log
+		dump_audio_resampler_info(rs);
 		audio_resampler_destroy(rs);
 		return NULL;
 	}
@@ -168,6 +183,9 @@ bool audio_resampler_resample(audio_resampler_t *rs, uint8_t *output[],
 		return false;
 
 	struct SwrContext *context = rs->context;
+	//PRISM/LiuHaibin/20201203/#None/Fix crash on NELO
+	if (!context)
+		return false;
 	int ret;
 
 	int64_t delay = swr_get_delay(context, rs->input_freq);
@@ -193,7 +211,12 @@ bool audio_resampler_resample(audio_resampler_t *rs, uint8_t *output[],
 			  (const uint8_t **)input, in_frames);
 
 	if (ret < 0) {
-		blog(LOG_ERROR, "swr_convert failed: %d", ret);
+		plog(LOG_ERROR,
+		     "swr_convert failed: %d, %s. output_buffer %p, output_size %d, input %p, in_frames %d",
+		     ret, av_err2str(ret), rs->output_buffer, rs->output_size,
+		     input[0], in_frames);
+		//PRISM/LiuHaibin/20211018/#10019/Add log
+		dump_audio_resampler_info(rs);
 		return false;
 	}
 

@@ -53,14 +53,13 @@ static inline bool init_input(media_remux_job_t job, const char *in_filename)
 {
 	int ret = avformat_open_input(&job->ifmt_ctx, in_filename, NULL, NULL);
 	if (ret < 0) {
-		blog(LOG_ERROR, "media_remux: Could not open input file '%s'",
-		     in_filename);
+		plog(LOG_ERROR, "media_remux: Could not open input file");
 		return false;
 	}
 
 	ret = avformat_find_stream_info(job->ifmt_ctx, NULL);
 	if (ret < 0) {
-		blog(LOG_ERROR, "media_remux: Failed to retrieve input stream"
+		plog(LOG_ERROR, "media_remux: Failed to retrieve input stream"
 				" information");
 		return false;
 	}
@@ -78,7 +77,7 @@ static inline bool init_output(media_remux_job_t job, const char *out_filename)
 	avformat_alloc_output_context2(&job->ofmt_ctx, NULL, NULL,
 				       out_filename);
 	if (!job->ofmt_ctx) {
-		blog(LOG_ERROR, "media_remux: Could not create output context");
+		plog(LOG_ERROR, "media_remux: Could not create output context");
 		return false;
 	}
 
@@ -87,7 +86,7 @@ static inline bool init_output(media_remux_job_t job, const char *out_filename)
 		AVStream *out_stream = avformat_new_stream(
 			job->ofmt_ctx, in_stream->codec->codec);
 		if (!out_stream) {
-			blog(LOG_ERROR, "media_remux: Failed to allocate output"
+			plog(LOG_ERROR, "media_remux: Failed to allocate output"
 					" stream");
 			return false;
 		}
@@ -104,7 +103,7 @@ static inline bool init_output(media_remux_job_t job, const char *out_filename)
 #endif
 
 		if (ret < 0) {
-			blog(LOG_ERROR, "media_remux: Failed to copy context");
+			plog(LOG_ERROR, "media_remux: Failed to copy context");
 			return false;
 		}
 		out_stream->time_base = out_stream->codec->time_base;
@@ -124,10 +123,8 @@ static inline bool init_output(media_remux_job_t job, const char *out_filename)
 		ret = avio_open(&job->ofmt_ctx->pb, out_filename,
 				AVIO_FLAG_WRITE);
 		if (ret < 0) {
-			blog(LOG_ERROR,
-			     "media_remux: Failed to open output"
-			     " file '%s'",
-			     out_filename);
+			plog(LOG_ERROR,
+			     "media_remux: Failed to open output file");
 			return false;
 		}
 	}
@@ -196,7 +193,7 @@ static inline int process_packets(media_remux_job_t job,
 		ret = av_read_frame(job->ifmt_ctx, &pkt);
 		if (ret < 0) {
 			if (ret != AVERROR_EOF)
-				blog(LOG_ERROR,
+				plog(LOG_ERROR,
 				     "media_remux: Error reading"
 				     " packet: %s",
 				     av_err2str(ret));
@@ -217,7 +214,7 @@ static inline int process_packets(media_remux_job_t job,
 		av_packet_unref(&pkt);
 
 		if (ret < 0) {
-			blog(LOG_ERROR, "media_remux: Error muxing packet: %s",
+			plog(LOG_ERROR, "media_remux: Error muxing packet: %s",
 			     av_err2str(ret));
 			break;
 		}
@@ -237,7 +234,7 @@ bool media_remux_job_process(media_remux_job_t job,
 
 	ret = avformat_write_header(job->ofmt_ctx, NULL);
 	if (ret < 0) {
-		blog(LOG_ERROR, "media_remux: Error opening output file: %s",
+		plog(LOG_ERROR, "media_remux: Error opening output file: %s",
 		     av_err2str(ret));
 		return success;
 	}
@@ -250,7 +247,7 @@ bool media_remux_job_process(media_remux_job_t job,
 
 	ret = av_write_trailer(job->ofmt_ctx);
 	if (ret < 0) {
-		blog(LOG_ERROR, "media_remux: av_write_trailer: %s",
+		plog(LOG_ERROR, "media_remux: av_write_trailer: %s",
 		     av_err2str(ret));
 		success = false;
 	}

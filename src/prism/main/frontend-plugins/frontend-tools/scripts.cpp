@@ -123,6 +123,16 @@ template<typename Current, typename... Others> static void setWidgetShow(Current
 	show->show();
 };
 
+//PRISM/Zhangdewen/20210308/#6993/null check when delete
+template<typename Type> static void deleteObject(Type *&object)
+{
+	if (object) {
+		Type *_object = object;
+		object = nullptr;
+		delete _object;
+	}
+}
+
 static ScriptData *scriptData = nullptr;
 static ScriptsTool *scriptsWindow = nullptr;
 static ScriptLogWindow *scriptLogWindow = nullptr;
@@ -528,15 +538,16 @@ extern "C" void FreeScripts()
 static void obs_event(enum obs_frontend_event event, void *)
 {
 	if (event == OBS_FRONTEND_EVENT_EXIT) {
-		delete scriptData;
-		delete scriptsWindow;
-		delete scriptLogWindow;
-
+		//PRISM/Zhangdewen/20210308/#6993/null check when delete
+		deleteObject(scriptData);
+		deleteObject(scriptsWindow);
+		deleteObject(scriptLogWindow);
 	} else if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CLEANUP) {
 		scriptLogWindow->hide();
 		scriptLogWindow->Clear();
 
-		delete scriptData;
+		//PRISM/Zhangdewen/20210308/#6993/null check when delete
+		deleteObject(scriptData);
 		scriptData = new ScriptData;
 	}
 }
@@ -545,7 +556,8 @@ static void load_script_data(obs_data_t *load_data, bool, void *)
 {
 	obs_data_array_t *array = obs_data_get_array(load_data, "scripts-tool");
 
-	delete scriptData;
+	//PRISM/Zhangdewen/20210308/#6993/null check when delete
+	deleteObject(scriptData);
 	scriptData = new ScriptData;
 
 	size_t size = obs_data_array_count(array);

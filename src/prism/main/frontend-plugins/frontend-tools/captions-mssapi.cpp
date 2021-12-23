@@ -1,9 +1,10 @@
 #include "captions-mssapi.hpp"
+#include "log/log.h"
 
-#define do_log(type, format, ...) blog(type, "[Captions] " format, ##__VA_ARGS__)
-
-#define error(format, ...) do_log(LOG_ERROR, format, ##__VA_ARGS__)
-#define debug(format, ...) do_log(LOG_DEBUG, format, ##__VA_ARGS__)
+//#define do_log(type, format, ...) plog(type, "[Captions] " format, ##__VA_ARGS__)
+//
+//#define error(format, ...) do_log(LOG_ERROR, format, ##__VA_ARGS__)
+//#define debug(format, ...) do_log(LOG_DEBUG, format, ##__VA_ARGS__)
 
 mssapi_captions::mssapi_captions(captions_cb callback, const std::string &lang)
 try : captions_handler(callback, AUDIO_FORMAT_16BIT, 16000) {
@@ -80,11 +81,11 @@ try : captions_handler(callback, AUDIO_FORMAT_16BIT, 16000) {
 	}
 
 } catch (const char *err) {
-	blog(LOG_WARNING, "%s: %s", __FUNCTION__, err);
+	PLS_WARN(FRONTEND_TOOLS_CAPTIONS, "%s: %s", __FUNCTION__, err);
 	throw CAPTIONS_ERROR_GENERIC_FAIL;
 
 } catch (HRError err) {
-	blog(LOG_WARNING, "%s: %s (%lX)", __FUNCTION__, err.str, err.hr);
+	PLS_WARN(FRONTEND_TOOLS_CAPTIONS, "%s: %s (%lX)", __FUNCTION__, err.str, err.hr);
 	throw CAPTIONS_ERROR_GENERIC_FAIL;
 }
 
@@ -136,7 +137,7 @@ try {
 
 				callback(text_utf8);
 
-				blog(LOG_DEBUG, "\"%s\"", text_utf8);
+				PLS_DEBUG(FRONTEND_TOOLS_CAPTIONS, "\"%s\"", text_utf8);
 
 			} else if (event.eEventId == SPEI_END_SR_STREAM) {
 				exit = true;
@@ -151,7 +152,7 @@ try {
 	audio->Stop();
 
 } catch (HRError err) {
-	blog(LOG_WARNING, "%s failed: %s (%lX)", __FUNCTION__, err.str, err.hr);
+	PLS_WARN(FRONTEND_TOOLS_CAPTIONS, "%s failed: %s (%lX)", __FUNCTION__, err.str, err.hr);
 }
 
 void mssapi_captions::pcm_data(const void *data, size_t frames)

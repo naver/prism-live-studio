@@ -52,7 +52,7 @@ void *slide_create(obs_data_t *settings, obs_source_t *source)
 	bfree(file);
 
 	if (!effect) {
-		blog(LOG_ERROR, "Could not find slide_transition.effect");
+		plog(LOG_ERROR, "Could not find slide_transition.effect");
 		return NULL;
 	}
 

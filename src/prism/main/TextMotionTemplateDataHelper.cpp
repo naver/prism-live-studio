@@ -7,15 +7,22 @@
 #include "../PLSHttpApi/PLSHmacNetworkReplyBuilder.h"
 #include "../PLSHttpApi/PLSHttpHelper.h"
 #include "log.h"
-
+#include "log/log.h"
 #include <qbuttongroup.h>
 #include <qdir.h>
+#include "PLSResourceMgr.h"
 
 #define PRISM_TM_TEMPLATE_PATH "PRISMLiveStudio/textmotion/textMotionTemplate.json"
 #define PRISM_TEXT_TEMPLATE "text-template"
 
-TextMotionTemplateDataHelper::TextMotionTemplateDataHelper(QObject *parent) : QObject(parent)
+TextMotionTemplateDataHelper::TextMotionTemplateDataHelper(QObject *parent) : QObject(parent) {}
+
+TextMotionTemplateDataHelper::~TextMotionTemplateDataHelper() {}
+
+void TextMotionTemplateDataHelper::initTemplateGroup()
 {
+	m_templateButtons.clear();
+	TextMotionRemoteDataHandler::instance()->initTMData();
 	const QMap<QString, QVector<TextMotionTemplateData>> &templateInfos = TextMotionRemoteDataHandler::instance()->getTMRemoteData();
 	for (auto templateStr : templateInfos.keys()) {
 		QButtonGroup *buttonGroup = new QButtonGroup;
@@ -24,12 +31,12 @@ TextMotionTemplateDataHelper::TextMotionTemplateDataHelper(QObject *parent) : QO
 	}
 }
 
-TextMotionTemplateDataHelper::~TextMotionTemplateDataHelper() {}
-
 void TextMotionTemplateDataHelper::initTemplateButtons()
 {
 	const QMap<QString, QVector<TextMotionTemplateData>> &templateInfos = TextMotionRemoteDataHandler::instance()->getTMRemoteData();
-
+	if (templateInfos.isEmpty()) {
+		initTemplateGroup();
+	}
 	for (auto group = m_templateButtons.begin(); group != m_templateButtons.end(); ++group) {
 		auto groupTmp = group.value();
 		while (groupTmp->buttons().size()) {
@@ -50,7 +57,7 @@ void TextMotionTemplateDataHelper::initTemplateButtons()
 			connect(button, &TextMotionTemplateButton::clicked, this, &TextMotionTemplateDataHelper::updateButtonsStyle);
 			button->setTemplateData(data);
 			button->setGroupName(templateKey);
-			button->attachGifResource(data.resourcePath, data.resourceBackupPath);
+			button->attachGifResource(data.resourcePath, data.resourceBackupPath, data.resourceUrl);
 			group->addButton(button, idInt);
 		}
 	}
@@ -104,7 +111,7 @@ void TextMotionRemoteDataHandler::getTMRemoteDataRequest(const QString &url)
 {
 	PLS_INFO(PRISM_TEXT_TEMPLATE, "start requeset text template data.");
 	m_url = url;
-	PLSNetworkAccessManager::getInstance()->createHttpRequest(PLSNetworkAccessManager::Operation::GetOperation, url, false);
+	PLSNetworkAccessManager::getInstance()->createHttpRequest(PLSNetworkAccessManager::Operation::GetOperation, url, false, QVariantMap(), QVariantMap(), true, false);
 }
 
 TextMotionRemoteDataHandler::TextMotionRemoteDataHandler()
@@ -119,9 +126,15 @@ void TextMotionRemoteDataHandler::initTMData()
 {
 	m_templateInfos.clear();
 	m_templateTabs.clear();
+	bool isSuccess = PLSJsonDataHandler::getJsonArrayFromFile(m_templateJson, pls_get_user_path(PRISM_TM_TEMPLATE_PATH));
+	if (!isSuccess) {
+		PLSResourceMgr::instance()->downloadPartResources(PLSResourceMgr::ResourceFlag::Template,
+								  {{PLSResourceMgr::instance()->getResourceJson(PLSResourceMgr::ResourceFlag::Template), pls_get_user_path(PRISM_TM_TEMPLATE_PATH)}});
+	}
 	QDir appDir(qApp->applicationDirPath());
 	QString backupGifPath = appDir.absoluteFilePath("data/prism-studio/text_motion/%1");
 	QString lang = QString(App()->GetLocale()).split('-')[0];
+
 	QVariantList list;
 	PLSJsonDataHandler::getValuesFromByteArray(m_templateJson, "group", list);
 	int index = 0;
@@ -135,30 +148,21 @@ void TextMotionRemoteDataHandler::initTMData()
 			TextMotionTemplateData tmData;
 			tmData.id = templateMap.value(name2str(itemId)).toString();
 			tmData.name = templateMap.value(name2str(title)).toString();
-
+			//get lang
+			const auto &adjustAttributes = templateMap.value(name2str(properties)).toMap().value("template").toMap().value("baseInfoPC").toMap().value("adjustableAttribute").toMap();
+			if (adjustAttributes.find(lang) == adjustAttributes.end()) {
+				lang = "en";
+			}
 			tmData.resourcePath = QString(pls_get_user_path(CONFIGS_USER_TEXTMOTION_PATH)).arg(QString("%1%2.gif").arg(lang).arg(tmData.name));
 			tmData.resourceBackupPath = backupGifPath.arg(QString("%1%2.gif").arg(lang).arg(tmData.name));
+			QString gifUrl = adjustAttributes.value(lang).toMap().value(name2str(thumbnailUrl)).toString();
+			tmData.resourceUrl = gifUrl;
 			templateDatas.append(tmData);
 			tempateJsons.append(jsonValue.toObject());
-
 			//get gif url
-			QString gifUrl = templateMap.value(name2str(properties))
-						 .toMap()
-						 .value("template")
-						 .toMap()
-						 .value("baseInfoPC")
-						 .toMap()
-						 .value("adjustableAttribute")
-						 .toMap()
-						 .value(lang)
-						 .toMap()
-						 .value(name2str(thumbnailUrl))
-						 .toString();
-			downLoadGif(gifUrl, lang, tmData.name);
+
+			//downLoadGif(gifUrl, lang, tmData.name);
 		}
-		QButtonGroup *buttonGroup = new QButtonGroup;
-		buttonGroup->setExclusive(false);
-		//m_templateButtons.insert(name, buttonGroup);
 		m_templateInfos.insert(name, templateDatas);
 		m_templateTabs.insert(index++, name);
 	}
@@ -167,21 +171,21 @@ void TextMotionRemoteDataHandler::initTMData()
 void TextMotionRemoteDataHandler::downLoadGif(const QString &urlStr, const QString &language, const QString &id)
 {
 	PLSNetworkReplyBuilder builder(urlStr);
-	auto imageCallback = [](bool ok, const QString &imagePath, void *context) {};
+	auto imageCallback = [](bool, const QString &, void *) {};
 	PLSHttpHelper::downloadImageAsync(builder.get(), this, pls_get_user_path("PRISMLiveStudio/textmotion"), imageCallback, language, id);
 }
 
 void TextMotionRemoteDataHandler::onReplyResultData(int statusCode, const QString &url, const QByteArray array)
 {
 	if (m_url == url && statusCode == HTTP_STATUS_CODE_200) {
-		PLS_INFO(PRISM_TEXT_TEMPLATE, "get text template json data success from remote.");
+		PLS_INIT_INFO(PRISM_TEXT_TEMPLATE, "get text template json data success from remote.");
 		m_templateJson = array;
 		PLSJsonDataHandler::saveJsonFile(m_templateJson, pls_get_user_path(PRISM_TM_TEMPLATE_PATH));
 		initTMData();
 	}
 }
 
-void TextMotionRemoteDataHandler::onReplyErrorData(int statusCode, const QString &url, const QString &body, const QString &errorInfo)
+void TextMotionRemoteDataHandler::onReplyErrorData(int, const QString &url, const QString &, const QString &errorInfo)
 {
 	Q_UNUSED(url);
 	Q_UNUSED(errorInfo);

@@ -44,8 +44,16 @@ PLSLoadingComboxMenu PLSLoadingMenuItem #loadingMenuTitleLabel[selected="true"] 
 	color:#effc35;
 }
 
+PLSLiveInfoNaverShoppingLIVE PLSLoadingComboxMenu #loadingListWidget::item:hover {
+	background-color: #373737;
+}
+
 PLSLoadingComboxMenu #loadingListWidget::item:hover {
     background-color: #444444;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLoadingComboxMenu #loadingListWidget::item:selected:hover {
+	background-color: #373737;
 }
 
 PLSLoadingComboxMenu #loadingListWidget::item:selected:hover {

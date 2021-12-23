@@ -1,4 +1,5 @@
 #include <obs-module.h>
+#include <util/dstr.h>
 
 #define TIMING_TIME 0
 #define TIMING_FRAME 1
@@ -41,13 +42,21 @@ static void stinger_update(void *data, obs_data_t *settings)
 {
 	struct stinger_info *s = data;
 	const char *path = obs_data_get_string(settings, "path");
+	bool hw_decode = obs_data_get_bool(settings, "hw_decode");
 
 	obs_data_t *media_settings = obs_data_create();
 	obs_data_set_string(media_settings, "local_file", path);
+	obs_data_set_bool(media_settings, "hw_decode", hw_decode);
+	obs_data_set_bool(media_settings, "restart_on_activate", true);
+	obs_data_set_bool(media_settings, "clear_on_media_end", true);
 
 	obs_source_release(s->media_source);
-	s->media_source = obs_source_create_private("ffmpeg_source", NULL,
+	struct dstr name;
+	dstr_init_copy(&name, obs_source_get_name(s->source));
+	dstr_cat(&name, " (Stinger)");
+	s->media_source = obs_source_create_private("ffmpeg_source", name.array,
 						    media_settings);
+	dstr_free(&name);
 	obs_data_release(media_settings);
 
 	int64_t point = obs_data_get_int(settings, "transition_point");
@@ -100,6 +109,11 @@ static void stinger_destroy(void *data)
 	bfree(s);
 }
 
+static void stinger_defaults(obs_data_t *settings)
+{
+	obs_data_set_default_bool(settings, "hw_decode", true);
+}
+
 static void stinger_video_render(void *data, gs_effect_t *effect)
 {
 	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
@@ -109,7 +123,10 @@ static void stinger_video_render(void *data, gs_effect_t *effect)
 	struct stinger_info *s = data;
 
 	float t = obs_transition_get_time(s->source);
-	bool use_a = t < s->transition_point;
+
+	//PRISM/ZengQin/20210615/#8180/fixed transtion show other scene
+	//bool use_a = t < s->transition_point;
+	bool use_a = t < 0.5;
 
 	enum obs_transition_target target = use_a ? OBS_TRANSITION_SOURCE_A
 						  : OBS_TRANSITION_SOURCE_B;
@@ -176,6 +193,7 @@ static bool stinger_audio_render(void *data, uint64_t *ts_out,
 	//PRISM/Wang.Chuanjing/20200916/Nelo/for transition crash
 	if (!data)
 		return false;
+
 	struct stinger_info *s = data;
 	uint64_t ts = 0;
 
@@ -232,15 +250,19 @@ static void stinger_transition_start(void *data)
 
 		proc_handler_call(ph, "get_duration", &cd);
 		proc_handler_call(ph, "get_nb_frames", &cd);
-		s->duration_ns =
-			(uint64_t)calldata_int(&cd, "duration") + 500000000ULL;
+		//PRISM/ZengQin/20210615/#8180/fixed transtion show other scene
+		/*s->duration_ns =
+			(uint64_t)calldata_int(&cd, "duration") + 250000000ULL;*/
+		s->duration_ns = (uint64_t)calldata_int(&cd, "duration");
 		s->duration_frames = (uint64_t)calldata_int(&cd, "num_frames");
 
-		if (s->transition_point_is_frame)
+		//PRISM/ZengQin/20210615/#8180/fixed transtion show other scene
+		if (s->transition_point_is_frame && s->duration_frames)
 			s->transition_point =
 				(float)((long double)s->transition_point_frame /
 					(long double)s->duration_frames);
-		else
+		//PRISM/ZengQin/20210615/#8180/fixed transtion show other scene
+		else if (!s->transition_point_is_frame && s->duration_ns)
 			s->transition_point =
 				(float)((long double)s->transition_point_ns /
 					(long double)s->duration_ns);
@@ -324,6 +346,10 @@ static obs_properties_t *stinger_properties(void *data)
 	obs_property_t *p = obs_properties_add_list(
 		ppts, "tp_type", obs_module_text("TransitionPointType"),
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+#ifndef __APPLE__
+	obs_properties_add_bool(ppts, "hw_decode",
+				obs_module_text("HardwareDecode"));
+#endif
 	obs_property_list_add_int(p, obs_module_text("TransitionPointTypeTime"),
 				  TIMING_TIME);
 	obs_property_list_add_int(
@@ -370,6 +396,7 @@ struct obs_source_info stinger_transition = {
 	.create = stinger_create,
 	.destroy = stinger_destroy,
 	.update = stinger_update,
+	.get_defaults = stinger_defaults,
 	.video_render = stinger_video_render,
 	.audio_render = stinger_audio_render,
 	.get_properties = stinger_properties,

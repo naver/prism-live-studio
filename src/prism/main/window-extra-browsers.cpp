@@ -481,6 +481,9 @@ void PLSBasic::SaveExtraBrowserDocks()
 
 void PLSBasic::AddExtraBrowserDock(const QString &title, const QString &url, bool firstCreate)
 {
+	if (cef == nullptr) {
+		return;
+	}
 	static int panel_version = -1;
 	if (panel_version == -1) {
 		panel_version = obs_browser_qcef_version();

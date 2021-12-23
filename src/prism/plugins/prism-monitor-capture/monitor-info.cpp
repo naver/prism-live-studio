@@ -98,6 +98,7 @@ BOOL CALLBACK enum_monitor_proc(HMONITOR handle, HDC hdc, LPRECT rect, LPARAM lP
 	}
 
 	monitor_info info;
+	info.handle = handle;
 	info.offset_x = mi.rcMonitor.left;
 	info.offset_y = mi.rcMonitor.top;
 	info.width = (mi.rcMonitor.right - mi.rcMonitor.left);
@@ -142,9 +143,10 @@ void PLSMonitorManager::reload_monitor(bool save_log)
 	}
 
 	if (save_log) {
-		PLS_PLUGIN_INFO("------------------- monitor list : %d --------------------", monitor_info_array.size());
+		PLS_PLUGIN_INFO("------------------- monitor list count : %d --------------------", monitor_info_array.size());
 		for (auto item : monitor_info_array) {
-			PLS_PLUGIN_INFO("[%s] %dx%d is_primary:%d display_id:%d adapter:%d output:%d", item.friendly_name.c_str(), item.width, item.height, item.is_primary, item.display_id,
+			string name = item.friendly_name.empty() ? "no name" : item.friendly_name;
+			PLS_PLUGIN_INFO("Monitor detail. [%s] %dx%d is_primary:%d hardware_id:%d adapter:%d output:%d", name.c_str(), item.width, item.height, item.is_primary, item.display_id,
 					item.adapter_index, item.adapter_output_index);
 		}
 	}

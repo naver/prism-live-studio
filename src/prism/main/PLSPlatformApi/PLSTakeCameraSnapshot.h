@@ -11,6 +11,7 @@ class PLSTakeCameraSnapshot;
 }
 
 class PLSTakeCameraSnapshot;
+class PLSLoadingEvent;
 
 class PLSTakeCameraSnapshotTakeTimerMask : public QDialog {
 	Q_OBJECT
@@ -36,7 +37,7 @@ class PLSTakeCameraSnapshot : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	PLSTakeCameraSnapshot(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	PLSTakeCameraSnapshot(QString &camera, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSTakeCameraSnapshot();
 
 public:
@@ -49,6 +50,9 @@ private:
 	static void drawPreview(void *data, uint32_t cx, uint32_t cy);
 	static void onSourceCaptureState(void *data, calldata_t *calldata);
 	static void onSourceImageStatus(void *data, calldata_t *calldata);
+	void InitCameraList();
+	void ShowLoading();
+	void HideLoading();
 
 private slots:
 	void on_cameraList_currentIndexChanged(int index);
@@ -62,6 +66,7 @@ private slots:
 protected:
 	bool event(QEvent *event) override;
 	bool eventFilter(QObject *watched, QEvent *event) override;
+	void done(int) override;
 
 private:
 	Ui::PLSTakeCameraSnapshot *ui;
@@ -73,6 +78,9 @@ private:
 	OBSSource source;
 	QString imageFilePath;
 	QString errorMessage;
+	QString &camera;
+	PLSLoadingEvent *m_pLoadingEvent = nullptr;
+	QWidget *m_pWidgetLoadingBG = nullptr;
 };
 
 #endif // PLSTAKECAMERASNAPSHOT_H

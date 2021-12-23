@@ -107,7 +107,7 @@ static bool gl_register_dummy_window_class(void)
 	wc.lpszClassName = dummy_window_class;
 
 	if (!RegisterClassA(&wc)) {
-		blog(LOG_ERROR, "Could not create dummy window class");
+		plog(LOG_ERROR, "Could not create dummy window class");
 		return false;
 	}
 
@@ -121,7 +121,7 @@ static inline HWND gl_create_dummy_window(void)
 				    WS_POPUP, 0, 0, 2, 2, NULL, NULL,
 				    GetModuleHandle(NULL), NULL);
 	if (!hwnd)
-		blog(LOG_ERROR, "Could not create dummy context window");
+		plog(LOG_ERROR, "Could not create dummy context window");
 
 	return hwnd;
 }
@@ -130,7 +130,7 @@ static inline bool wgl_make_current(HDC hdc, HGLRC hglrc)
 {
 	bool success = wglMakeCurrent(hdc, hglrc);
 	if (!success)
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "wglMakeCurrent failed, GetLastError "
 		     "returned %lu",
 		     GetLastError());
@@ -142,7 +142,7 @@ static inline HGLRC gl_init_basic_context(HDC hdc)
 {
 	HGLRC hglrc = wglCreateContext(hdc);
 	if (!hglrc) {
-		blog(LOG_ERROR, "wglCreateContext failed, %lu", GetLastError());
+		plog(LOG_ERROR, "wglCreateContext failed, %lu", GetLastError());
 		return NULL;
 	}
 
@@ -166,7 +166,7 @@ static inline HGLRC gl_init_context(HDC hdc)
 	if (GLAD_WGL_ARB_create_context) {
 		HGLRC hglrc = wglCreateContextAttribsARB(hdc, 0, attribs);
 		if (!hglrc) {
-			blog(LOG_ERROR,
+			plog(LOG_ERROR,
 			     "wglCreateContextAttribsARB failed, "
 			     "%lu",
 			     GetLastError());
@@ -202,20 +202,20 @@ static bool gl_dummy_context_init(struct dummy_context *dummy)
 	init_dummy_pixel_format(&pfd);
 	format_index = ChoosePixelFormat(dummy->hdc, &pfd);
 	if (!format_index) {
-		blog(LOG_ERROR, "Dummy ChoosePixelFormat failed, %lu",
+		plog(LOG_ERROR, "Dummy ChoosePixelFormat failed, %lu",
 		     GetLastError());
 		return false;
 	}
 
 	if (!SetPixelFormat(dummy->hdc, format_index, &pfd)) {
-		blog(LOG_ERROR, "Dummy SetPixelFormat failed, %lu",
+		plog(LOG_ERROR, "Dummy SetPixelFormat failed, %lu",
 		     GetLastError());
 		return false;
 	}
 
 	dummy->hrc = gl_init_basic_context(dummy->hdc);
 	if (!dummy->hrc) {
-		blog(LOG_ERROR, "Failed to initialize dummy context");
+		plog(LOG_ERROR, "Failed to initialize dummy context");
 		return false;
 	}
 
@@ -232,13 +232,13 @@ static inline void gl_dummy_context_free(struct dummy_context *dummy)
 
 static inline void required_extension_error(const char *extension)
 {
-	blog(LOG_ERROR, "OpenGL extension %s is required", extension);
+	plog(LOG_ERROR, "OpenGL extension %s is required", extension);
 }
 
 static bool gl_init_extensions(HDC hdc)
 {
 	if (!gladLoadWGL(hdc)) {
-		blog(LOG_ERROR, "Failed to load WGL entry functions.");
+		plog(LOG_ERROR, "Failed to load WGL entry functions.");
 		return false;
 	}
 
@@ -278,7 +278,7 @@ static int gl_choose_pixel_format(HDC hdc, const struct gs_init_data *info)
 	int format;
 
 	if (!color_bits) {
-		blog(LOG_ERROR, "gl_init_pixel_format: color format not "
+		plog(LOG_ERROR, "gl_init_pixel_format: color format not "
 				"supported");
 		return false;
 	}
@@ -297,7 +297,7 @@ static int gl_choose_pixel_format(HDC hdc, const struct gs_init_data *info)
 	success = wglChoosePixelFormatARB(hdc, attribs.array, NULL, 1, &format,
 					  &num_formats);
 	if (!success || !num_formats) {
-		blog(LOG_ERROR, "wglChoosePixelFormatARB failed, %lu",
+		plog(LOG_ERROR, "wglChoosePixelFormatARB failed, %lu",
 		     GetLastError());
 		format = 0;
 	}
@@ -316,7 +316,7 @@ static inline bool gl_getpixelformat(HDC hdc, const struct gs_init_data *info,
 	*format = gl_choose_pixel_format(hdc, info);
 
 	if (!DescribePixelFormat(hdc, *format, sizeof(*pfd), pfd)) {
-		blog(LOG_ERROR, "DescribePixelFormat failed, %lu",
+		plog(LOG_ERROR, "DescribePixelFormat failed, %lu",
 		     GetLastError());
 		return false;
 	}
@@ -328,7 +328,7 @@ static inline bool gl_setpixelformat(HDC hdc, int format,
 				     PIXELFORMATDESCRIPTOR *pfd)
 {
 	if (!SetPixelFormat(hdc, format, pfd)) {
-		blog(LOG_ERROR, "SetPixelFormat failed, %lu", GetLastError());
+		plog(LOG_ERROR, "SetPixelFormat failed, %lu", GetLastError());
 		return false;
 	}
 
@@ -342,7 +342,7 @@ static struct gl_windowinfo *gl_windowinfo_bare(const struct gs_init_data *info)
 	wi->hdc = GetDC(wi->hwnd);
 
 	if (!wi->hdc) {
-		blog(LOG_ERROR, "Unable to get device context from window");
+		plog(LOG_ERROR, "Unable to get device context from window");
 		bfree(wi);
 		return NULL;
 	}
@@ -366,7 +366,7 @@ static bool register_dummy_class(void)
 		return true;
 
 	if (!RegisterClassA(&wc)) {
-		blog(LOG_ERROR, "Failed to register dummy GL window class, %lu",
+		plog(LOG_ERROR, "Failed to register dummy GL window class, %lu",
 		     GetLastError());
 		return false;
 	}
@@ -382,14 +382,14 @@ static bool create_dummy_window(struct gl_platform *plat)
 					    0, 1, 1, NULL, NULL,
 					    GetModuleHandleW(NULL), NULL);
 	if (!plat->window.hwnd) {
-		blog(LOG_ERROR, "Failed to create dummy GL window, %lu",
+		plog(LOG_ERROR, "Failed to create dummy GL window, %lu",
 		     GetLastError());
 		return false;
 	}
 
 	plat->window.hdc = GetDC(plat->window.hwnd);
 	if (!plat->window.hdc) {
-		blog(LOG_ERROR, "Failed to get dummy GL window DC (%lu)",
+		plog(LOG_ERROR, "Failed to get dummy GL window DC (%lu)",
 		     GetLastError());
 		return false;
 	}
@@ -453,7 +453,7 @@ struct gl_platform *gl_platform_create(gs_device_t *device, uint32_t adapter)
 		goto fail;
 
 	if (!gladLoadGL()) {
-		blog(LOG_ERROR, "Failed to initialize OpenGL entry functions.");
+		plog(LOG_ERROR, "Failed to initialize OpenGL entry functions.");
 		goto fail;
 	}
 
@@ -461,7 +461,7 @@ struct gl_platform *gl_platform_create(gs_device_t *device, uint32_t adapter)
 	return plat;
 
 fail:
-	blog(LOG_ERROR, "gl_platform_create failed");
+	plog(LOG_ERROR, "gl_platform_create failed");
 	gl_platform_destroy(plat);
 	gl_dummy_context_free(&dummy);
 	return NULL;
@@ -512,7 +512,7 @@ struct gl_windowinfo *gl_windowinfo_create(const struct gs_init_data *info)
 	return wi;
 
 fail:
-	blog(LOG_ERROR, "gl_windowinfo_create failed");
+	plog(LOG_ERROR, "gl_windowinfo_create failed");
 	gl_windowinfo_destroy(wi);
 	return NULL;
 }
@@ -533,7 +533,7 @@ void device_enter_context(gs_device_t *device)
 		hdc = device->cur_swap->wi->hdc;
 
 	if (!wgl_make_current(hdc, device->plat->hrc))
-		blog(LOG_ERROR, "device_enter_context (GL) failed");
+		plog(LOG_ERROR, "device_enter_context (GL) failed");
 }
 
 void device_leave_context(gs_device_t *device)
@@ -560,18 +560,18 @@ void device_load_swapchain(gs_device_t *device, gs_swapchain_t *swap)
 
 	if (hdc) {
 		if (!wgl_make_current(hdc, device->plat->hrc))
-			blog(LOG_ERROR, "device_load_swapchain (GL) failed");
+			plog(LOG_ERROR, "device_load_swapchain (GL) failed");
 	}
 }
 
 void device_present(gs_device_t *device)
 {
 	if (!SwapBuffers(device->cur_swap->wi->hdc)) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "SwapBuffers failed, GetLastError "
 		     "returned %lu",
 		     GetLastError());
-		blog(LOG_ERROR, "device_present (GL) failed");
+		plog(LOG_ERROR, "device_present (GL) failed");
 	}
 }
 

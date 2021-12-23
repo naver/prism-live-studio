@@ -98,6 +98,8 @@ public:
 	void            getSourceNames();
 	obs_audio_data *process(struct obs_audio_data *audio);
 	bool            openInterfaceWhenActive = false;
+	// PRISM/ZengQin/20210303/#none/add action log for vst changed
+	void actionNotify(std::string tartget);
 
 public slots:
 	void openEditor();

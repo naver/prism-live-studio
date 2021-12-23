@@ -68,3 +68,11 @@
 	max-height:/*hdpi*/ 1px;
 	background-color: #151515;
 }
+
+PLSTakeCameraSnapshot #loadingBG {
+	background-color: rgba(39, 39, 39, 0.8);
+}
+
+PLSTakeCameraSnapshot #loadingBtn {
+	background-color: transparent;
+} 

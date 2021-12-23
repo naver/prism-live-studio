@@ -5,6 +5,9 @@
 #include "../../libobs/util/platform.h"
 #include "../../libobs-winrt/winrt-capture.h"
 
+//PRISM/WangShaohui/20201012/noissue/thread safe for title/class/exe
+#include <Windows.h>
+
 /* clang-format off */
 
 #define TEXT_WINDOW_CAPTURE obs_module_text("WindowCapture")
@@ -29,8 +32,9 @@
 struct winrt_exports {
 	BOOL *(*winrt_capture_supported)();
 	BOOL *(*winrt_capture_cursor_toggle_supported)();
-	struct winrt_capture *(*winrt_capture_init)(BOOL cursor, HWND window,
-						    BOOL client_area);
+	struct winrt_capture *(*winrt_capture_init_window)(BOOL cursor,
+							   HWND window,
+							   BOOL client_area);
 	void (*winrt_capture_free)(struct winrt_capture *capture);
 	BOOL *(*winrt_capture_active)(const struct winrt_capture *capture);
 	void (*winrt_capture_show_cursor)(struct winrt_capture *capture,
@@ -46,6 +50,11 @@ enum window_capture_method {
 	METHOD_BITBLT,
 	METHOD_WGC,
 };
+
+typedef DPI_AWARENESS_CONTEXT(WINAPI *PFN_SetThreadDpiAwarenessContext)(
+	DPI_AWARENESS_CONTEXT);
+typedef DPI_AWARENESS_CONTEXT(WINAPI *PFN_GetThreadDpiAwarenessContext)(VOID);
+typedef DPI_AWARENESS_CONTEXT(WINAPI *PFN_GetWindowDpiAwarenessContext)(HWND);
 
 struct window_capture {
 	obs_source_t *source;
@@ -73,8 +82,15 @@ struct window_capture {
 	DWORD previous_check_time; // in millisecond
 	float cursor_check_time;
 
+	//PRISM/WangShaohui/20201012/noissue/thread safe for title/class/exe
+	CRITICAL_SECTION window_str_mutex;
+
 	HWND window;
 	RECT last_rect;
+
+	PFN_SetThreadDpiAwarenessContext set_thread_dpi_awareness_context;
+	PFN_GetThreadDpiAwarenessContext get_thread_dpi_awareness_context;
+	PFN_GetWindowDpiAwarenessContext get_window_dpi_awareness_context;
 };
 
 static const char *wgc_partial_match_classes[] = {
@@ -148,30 +164,44 @@ static void update_settings(struct window_capture *wc, obs_data_t *s)
 	const char *window = obs_data_get_string(s, "window");
 	int priority = (int)obs_data_get_int(s, "priority");
 
-	bfree(wc->title);
-	bfree(wc->class);
-	bfree(wc->executable);
+	//PRISM/WangShaohui/20201012/noissue/thread safe for title/class/exe
+	{
+		EnterCriticalSection(&wc->window_str_mutex);
 
-	build_window_strings(window, &wc->class, &wc->title, &wc->executable);
+		if (wc->title)
+			bfree(wc->title);
+		if (wc->class)
+			bfree(wc->class);
+		if (wc->executable)
+			bfree(wc->executable);
 
-	if (wc->title != NULL) {
-		//PRISM/WangShaohui/20201102/#NoIssue/for debug log
-		blog(LOG_INFO,
-		     "[window-capture: '%s'] update settings: \n"
-		     "\t executable: %s \n"
-		     "\t class: %s \n"
-		     "\t title: %s \n"
-		     "\t priority: %d \n"
-		     "\t method: %d",
-		     obs_source_get_name(wc->source),
-		     wc->executable ? wc->executable : "",
-		     wc->class ? wc->class : "", wc->title ? wc->title : "",
-		     priority, method);
+		build_window_strings(window, &wc->class, &wc->title,
+				     &wc->executable);
+
+		if (wc->title != NULL) {
+			//PRISM/WangShaohui/20201102/#NoIssue/for debug log
+			char temp[256];
+			os_extract_file_name(wc->executable, temp,
+					     ARRAY_SIZE(temp) - 1);
+			plog(LOG_INFO,
+			     "[window-capture: '%s'] [obs_source:%p plugin_obj:%p] window updated : \n"
+			     "\t executable: %s \n"
+			     "\t class: %s \n"
+			     "\t title: %s \n"
+			     "\t priority: %d \n"
+			     "\t method: %d",
+			     obs_source_get_name(wc->source), wc->source, wc,
+			     temp, wc->class ? wc->class : "",
+			     wc->title ? wc->title : "", priority, method);
+		}
+
+		//PRISM/WangShaohui/20200525/#2928/for AUTO window capture
+		wc->method = choose_method(method, wc->wgc_supported, wc->class,
+					   wc->executable);
+
+		LeaveCriticalSection(&wc->window_str_mutex);
 	}
 
-	//PRISM/WangShaohui/20200525/#2928/for AUTO window capture
-	wc->method = choose_method(method, wc->wgc_supported, wc->class,
-				   wc->executable);
 	wc->priority = (enum window_priority)priority;
 	wc->cursor = obs_data_get_bool(s, "cursor");
 	wc->use_wildcards = obs_data_get_bool(s, "use_wildcards");
@@ -192,7 +222,7 @@ static const char *wc_getname(void *unused)
 		exports->func = os_dlsym(module, #func);          \
 		if (!exports->func) {                             \
 			success = false;                          \
-			blog(LOG_ERROR,                           \
+			plog(LOG_ERROR,                           \
 			     "Could not load function '%s' from " \
 			     "module '%s'",                       \
 			     #func, module_name);                 \
@@ -206,7 +236,7 @@ static bool load_winrt_imports(struct winrt_exports *exports, void *module,
 
 	WINRT_IMPORT(winrt_capture_supported);
 	WINRT_IMPORT(winrt_capture_cursor_toggle_supported);
-	WINRT_IMPORT(winrt_capture_init);
+	WINRT_IMPORT(winrt_capture_init_window);
 	WINRT_IMPORT(winrt_capture_free);
 	WINRT_IMPORT(winrt_capture_active);
 	WINRT_IMPORT(winrt_capture_show_cursor);
@@ -224,6 +254,9 @@ static void *wc_create(obs_data_t *settings, obs_source_t *source)
 
 	struct window_capture *wc = bzalloc(sizeof(struct window_capture));
 	wc->source = source;
+
+	//PRISM/WangShaohui/20201012/noissue/thread safe for title/class/exe
+	InitializeCriticalSection(&wc->window_str_mutex);
 
 	obs_enter_graphics();
 	const bool uses_d3d11 = gs_get_device_type() == GS_DEVICE_DIRECT3D_11;
@@ -244,8 +277,37 @@ static void *wc_create(obs_data_t *settings, obs_source_t *source)
 		static bool wgc_log_saved = false;
 		if (!wgc_log_saved) {
 			wgc_log_saved = true;
-			blog(LOG_INFO, "[window-capture] support WGC : %s",
+			plog(LOG_INFO, "[window-capture] support WGC : %s",
 			     wc->wgc_supported ? "YES" : "NO");
+		}
+	}
+
+	const HMODULE hModuleUser32 = GetModuleHandle(L"User32.dll");
+	if (hModuleUser32) {
+		PFN_SetThreadDpiAwarenessContext
+			set_thread_dpi_awareness_context =
+				(PFN_SetThreadDpiAwarenessContext)GetProcAddress(
+					hModuleUser32,
+					"SetThreadDpiAwarenessContext");
+		PFN_GetThreadDpiAwarenessContext
+			get_thread_dpi_awareness_context =
+				(PFN_GetThreadDpiAwarenessContext)GetProcAddress(
+					hModuleUser32,
+					"GetThreadDpiAwarenessContext");
+		PFN_GetWindowDpiAwarenessContext
+			get_window_dpi_awareness_context =
+				(PFN_GetWindowDpiAwarenessContext)GetProcAddress(
+					hModuleUser32,
+					"GetWindowDpiAwarenessContext");
+		if (set_thread_dpi_awareness_context &&
+		    get_thread_dpi_awareness_context &&
+		    get_window_dpi_awareness_context) {
+			wc->set_thread_dpi_awareness_context =
+				set_thread_dpi_awareness_context;
+			wc->get_thread_dpi_awareness_context =
+				get_thread_dpi_awareness_context;
+			wc->get_window_dpi_awareness_context =
+				get_window_dpi_awareness_context;
 		}
 	}
 
@@ -271,6 +333,9 @@ static void wc_actual_destroy(void *data)
 
 	if (wc->winrt_module)
 		os_dlclose(wc->winrt_module);
+
+	//PRISM/WangShaohui/20201012/noissue/thread safe for title/class/exe
+	DeleteCriticalSection(&wc->window_str_mutex);
 
 	bfree(wc);
 }
@@ -453,7 +518,11 @@ static void wc_tick(void *data, float seconds)
 		return;
 
 	if (!is_window_valid(wc)) {
-		if (!wc->title && !wc->class) {
+		//PRISM/WangShaohui/20201012/noissue/thread safe for title/class/exe
+		EnterCriticalSection(&wc->window_str_mutex);
+		bool no_info = (!wc->title && !wc->class);
+		LeaveCriticalSection(&wc->window_str_mutex);
+		if (no_info) {
 			//PRISM/WangShaohui/20200117/#281/for source unavailable
 			obs_source_set_capture_valid(wc->source, true,
 						     OBS_SOURCE_ERROR_OK);
@@ -475,6 +544,8 @@ static void wc_tick(void *data, float seconds)
 		}
 
 		//PRISM/WangShaohui/20200729/#3285/for enum window object
+		//PRISM/WangShaohui/20201012/noissue/thread safe for title/class/exe
+		EnterCriticalSection(&wc->window_str_mutex);
 		wc->window = (wc->method == METHOD_WGC)
 				     ? find_window_top_level(EXCLUDE_MINIMIZED,
 							     wc->priority,
@@ -484,6 +555,9 @@ static void wc_tick(void *data, float seconds)
 				     : find_window(EXCLUDE_MINIMIZED,
 						   wc->priority, wc->class,
 						   wc->title, wc->executable);
+		//PRISM/WangShaohui/20201012/noissue/thread safe for title/class/exe
+		LeaveCriticalSection(&wc->window_str_mutex);
+
 		if (!wc->window) {
 			//PRISM/WangShaohui/20200117/#281/for source unavailable
 			obs_source_set_capture_valid(
@@ -495,9 +569,26 @@ static void wc_tick(void *data, float seconds)
 
 		wc->previously_failed = false;
 		reset_capture = true;
+
 		//PRISM/WangShaohui/20200117/#281/for source unavailable
 		obs_source_set_capture_valid(wc->source, true,
 					     OBS_SOURCE_ERROR_OK);
+
+		//PRISM/WangShaohui/20210428/#5157/handle LAYERED window
+		if (wc->wgc_supported) {
+			obs_data_t *data = obs_source_get_settings(wc->source);
+			if (data) {
+				int method =
+					(int)obs_data_get_int(data, "method");
+				LONG exstyle =
+					GetWindowLong(wc->window, GWL_EXSTYLE);
+				if (method == METHOD_AUTO &&
+				    (WS_EX_LAYERED & exstyle)) {
+					wc->method = METHOD_WGC;
+				}
+				obs_data_release(data);
+			}
+		}
 
 	} else if (IsIconic(wc->window)) {
 		return;
@@ -528,6 +619,15 @@ static void wc_tick(void *data, float seconds)
 	obs_enter_graphics();
 
 	if (wc->method == METHOD_BITBLT) {
+		DPI_AWARENESS_CONTEXT previous = NULL;
+		if (wc->get_window_dpi_awareness_context != NULL) {
+			const DPI_AWARENESS_CONTEXT context =
+				wc->get_window_dpi_awareness_context(
+					wc->window);
+			previous =
+				wc->set_thread_dpi_awareness_context(context);
+		}
+
 		GetClientRect(wc->window, &rect);
 
 		if (!reset_capture) {
@@ -557,11 +657,15 @@ static void wc_tick(void *data, float seconds)
 		}
 
 		dc_capture_capture(&wc->capture, wc->window);
+
+		if (previous)
+			wc->set_thread_dpi_awareness_context(previous);
+
 	} else if (wc->method == METHOD_WGC) {
 		if (wc->window && (wc->capture_winrt == NULL)) {
 			if (!wc->previously_failed) {
 				wc->capture_winrt =
-					wc->exports.winrt_capture_init(
+					wc->exports.winrt_capture_init_window(
 						wc->cursor, wc->window,
 						wc->client_area);
 
@@ -602,6 +706,25 @@ static void wc_render(void *data, gs_effect_t *effect)
 	UNUSED_PARAMETER(effect);
 }
 
+//PRISM/ZengQin/20210604/#none/Get properties parameters
+static obs_data_t *wc_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+
+	struct window_capture *wc = data;
+	obs_data_t *settings = obs_source_get_settings(wc->source);
+	int method = obs_data_get_int(settings, "method");
+	const char *window = obs_data_get_string(settings, "window");
+	obs_data_release(settings);
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_int(params, "method", method);
+	obs_data_set_string(params, "window", window);
+
+	return params;
+}
+
 struct obs_source_info window_capture_info = {
 	.id = "window_capture",
 	.type = OBS_SOURCE_TYPE_INPUT,
@@ -618,4 +741,6 @@ struct obs_source_info window_capture_info = {
 	.get_defaults = wc_defaults,
 	.get_properties = wc_properties,
 	.icon_type = OBS_ICON_TYPE_WINDOW_CAPTURE,
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	.props_params = wc_props_params,
 };

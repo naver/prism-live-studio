@@ -85,7 +85,7 @@ static void libfdk_defaults(obs_data_t *settings)
 
 #define CHECK_LIBFDK(r)                                                   \
 	if ((err = (r)) != AACENC_OK) {                                   \
-		blog(LOG_ERROR, #r " failed: %s", libfdk_get_error(err)); \
+		plog(LOG_ERROR, #r " failed: %s", libfdk_get_error(err)); \
 		goto fail;                                                \
 	}
 
@@ -100,7 +100,7 @@ static void *libfdk_create(obs_data_t *settings, obs_encoder_t *encoder)
 	AACENC_ERROR err;
 
 	if (!bitrate) {
-		blog(LOG_ERROR, "Invalid bitrate");
+		plog(LOG_ERROR, "Invalid bitrate");
 		return NULL;
 	}
 
@@ -140,7 +140,7 @@ static void *libfdk_create(obs_data_t *settings, obs_encoder_t *encoder)
 #endif
 
 	default:
-		blog(LOG_ERROR, "Invalid channel count");
+		plog(LOG_ERROR, "Invalid channel count");
 		goto fail;
 	}
 
@@ -175,9 +175,9 @@ static void *libfdk_create(obs_data_t *settings, obs_encoder_t *encoder)
 
 	enc->packet_buffer = bmalloc(enc->packet_buffer_size);
 
-	blog(LOG_INFO, "libfdk_aac encoder created");
+	plog(LOG_INFO, "libfdk_aac encoder created");
 
-	blog(LOG_INFO, "libfdk_aac bitrate: %d, channels: %d", bitrate / 1000,
+	plog(LOG_INFO, "libfdk_aac bitrate: %d, channels: %d", bitrate / 1000,
 	     enc->channels);
 
 	return enc;
@@ -193,7 +193,7 @@ fail:
 	if (enc)
 		bfree(enc);
 
-	blog(LOG_WARNING, "libfdk_aac encoder creation failed");
+	plog(LOG_WARNING, "libfdk_aac encoder creation failed");
 
 	return 0;
 }
@@ -207,7 +207,7 @@ static void libfdk_destroy(void *data)
 	bfree(enc->packet_buffer);
 	bfree(enc);
 
-	blog(LOG_INFO, "libfdk_aac encoder destroyed");
+	plog(LOG_INFO, "libfdk_aac encoder destroyed");
 }
 
 static bool libfdk_encode(void *data, struct encoder_frame *frame,
@@ -251,7 +251,7 @@ static bool libfdk_encode(void *data, struct encoder_frame *frame,
 
 	if ((err = aacEncEncode(enc->fdkhandle, &in_buf, &out_buf, &in_args,
 				&out_args)) != AACENC_OK) {
-		blog(LOG_ERROR, "Failed to encode frame: %s",
+		plog(LOG_ERROR, "Failed to encode frame: %s",
 		     libfdk_get_error(err));
 		return false;
 	}

@@ -23,6 +23,13 @@ public:
  *  @return 1527840000
  */
 	static long timeStringToStamp(QString time);
+
+	/**
+ *  @param 2020-02-29T07:00:00.000
+ *  @return 1527840000
+ */
+	static long koreanTimeStampToLocalTimeStamp(QString time);
+
 	/**
  *  @param 1527840000 
  *  @return 2020-02-29T07:00:00Z

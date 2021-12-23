@@ -35,10 +35,10 @@ static inline OBSScene GetCurrentScene()
 	return main->GetCurrentScene();
 }
 
-#define SOURCEITEM_MARGIN_UNNORMAL_LONG 30 // while scroll is hiden and mouse status is unnormal
+#define SOURCEITEM_MARGIN_UNNORMAL_LONG 30  // while scroll is hiden and mouse status is unnormal
 #define SOURCEITEM_MARGIN_UNNORMAL_SHORT 20 // while scroll is shown and mouse status is unnormal
 
-#define SOURCEITEM_MARGIN_NORMAL_LONG 20 // while scroll is hiden and mouse status is normal
+#define SOURCEITEM_MARGIN_NORMAL_LONG 20  // while scroll is hiden and mouse status is normal
 #define SOURCEITEM_MARGIN_NORMAL_SHORT 10 // while scroll is shown and mouse status is normal
 
 #define SOURCEITEM_SPACE_BEFORE_VIS 5
@@ -105,20 +105,6 @@ void SourceTreeItem::OnSourceCaptureState(void *data, calldata_t *calldata)
 	QMetaObject::invokeMethod((SourceTree *)data, "OnSourceStateChanged", Q_ARG(unsigned long long, (unsigned long long)calldata_ptr(calldata, "source")));
 }
 
-void SourceTreeItem::BeautySourceStatusChanged(void *data, calldata_t *params)
-{
-	SourceTree *window = static_cast<SourceTree *>(data);
-
-	obs_source_t *source = (obs_source_t *)calldata_ptr(params, "source");
-	if (!source) {
-		return;
-	}
-
-	QString name = obs_source_get_name(source);
-	bool status = calldata_bool(params, "image_status");
-	QMetaObject::invokeMethod(window, "OnBeautySourceStatusChanged", Qt::QueuedConnection, Q_ARG(const QString &, name), Q_ARG(bool, status));
-}
-
 SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_) : tree(tree_), sceneitem(sceneitem_), selected(false), isItemNormal(true), editing(false)
 {
 	setAttribute(Qt::WA_TranslucentBackground);
@@ -131,7 +117,6 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_) : tre
 	const char *name = obs_source_get_name(source);
 
 	signal_handler_connect_ref(obs_source_get_signal_handler(source), "capture_state", OnSourceCaptureState, tree_);
-	signal_handler_connect_ref(obs_source_get_signal_handler(source), "source_image_status", BeautySourceStatusChanged, tree_);
 
 	iconLabel = new QLabel();
 	iconLabel->setObjectName("sourceIconLabel");
@@ -147,8 +132,8 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_) : tre
 	lock->setChecked(obs_sceneitem_locked(sceneitem));
 
 	label = new SourceLabel(this);
-	label->setText(name);
-	label->setToolTip(name);
+	label->setText(QString::fromStdString(name) + obs_source_get_name_ext(source));
+	label->setToolTip(QString::fromStdString(name) + obs_source_get_name_ext(source));
 	label->setObjectName("sourceNameLabel");
 	label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 	label->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
@@ -203,7 +188,7 @@ SourceTreeItem::SourceTreeItem(SourceTree *tree_, OBSSceneItem sceneitem_) : tre
 		SetBgColor(BgCustom, (void *)color); // format of color is like "#5555aa7f"
 	} else if (preset > 1) {
 		int presetIndex = (preset - 2); // the index should start with 0
-		SetBgColor(BgPreset, (void *)presetIndex);
+		SetBgColor(BgPreset, (void *)(intptr_t)presetIndex);
 	} else {
 		SetBgColor(BgDefault, NULL);
 	}
@@ -240,7 +225,6 @@ SourceTreeItem::~SourceTreeItem()
 		obs_source_t *source = obs_sceneitem_get_source(sceneitem);
 		if (source) {
 			signal_handler_disconnect(obs_source_get_signal_handler(source), "capture_state", OnSourceCaptureState, tree);
-			signal_handler_disconnect(obs_source_get_signal_handler(source), "source_image_status", BeautySourceStatusChanged, tree);
 		}
 	}
 }
@@ -263,6 +247,7 @@ void SourceTreeItem::DisconnectSignals()
 	visibleSignal.Disconnect();
 	lockedSignal.Disconnect();
 	renameSignal.Disconnect();
+	renameExtSignal.Disconnect();
 	removeSignal.Disconnect();
 }
 
@@ -351,17 +336,15 @@ void SourceTreeItem::ReconnectSignals()
 		QMetaObject::invokeMethod(this_, "Renamed", Q_ARG(QString, QT_UTF8(name)));
 	};
 
-	auto removeSource = [](void *data, calldata_t *) {
+	auto renamedExt = [](void *data, calldata_t *) {
 		SourceTreeItem *this_ = reinterpret_cast<SourceTreeItem *>(data);
-		QMetaObject::invokeMethod(this_->tree, "OnSourceItemRemove", Q_ARG(unsigned long long, (unsigned long long)this_->sceneitem.get()));
-		this_->DisconnectSignals();
-		this_->sceneitem = nullptr;
+		QMetaObject::invokeMethod(this_, "RenamedExt");
 	};
 
 	obs_source_t *source = obs_sceneitem_get_source(sceneitem);
 	signal = obs_source_get_signal_handler(source);
 	renameSignal.Connect(signal, "rename", renamed, this);
-	removeSignal.Connect(signal, "remove", removeSource, this);
+	renameExtSignal.Connect(signal, "rename_ext", renamedExt, this);
 }
 
 void SourceTreeItem::mouseDoubleClickEvent(QMouseEvent *event)
@@ -384,7 +367,12 @@ void SourceTreeItem::mouseDoubleClickEvent(QMouseEvent *event)
 void SourceTreeItem::mousePressEvent(QMouseEvent *event)
 {
 	QWidget::mousePressEvent(event);
-	PLS_UI_STEP(SOURCE_MODULE, QString("source[%1] item").arg(label->GetText()).toStdString().c_str(), ACTION_CLICK);
+
+	if (event->buttons() & Qt::LeftButton) {
+		PLS_UI_STEP(SOURCE_MODULE, QString("source[%1] item").arg(label->GetText()).toStdString().c_str(), ACTION_LBUTTON_CLICK);
+	} else if (event->buttons() & Qt::RightButton) {
+		PLS_UI_STEP(SOURCE_MODULE, QString("source[%1] item").arg(label->GetText()).toStdString().c_str(), ACTION_RBUTTON_CLICK);
+	}
 
 	if (!editing)
 		OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_PRESSED);
@@ -456,7 +444,7 @@ void SourceTreeItem::SetBgColor(SourceItemBgType type, void *param)
 				qss += GenerateSourceItemBg(PROPERTY_VALUE_MOUSE_STATUS_PRESSED, color);
 			}
 		} else if (type == BgPreset) {
-			int index = (int)param;
+			int index = (int)(intptr_t)param;
 			if (index < 0 || index >= presetColorList.size())
 				break;
 			QString color = presetColorList[index];
@@ -562,8 +550,8 @@ void SourceTreeItem::ExitEditMode(bool save)
 
 	SignalBlocker sourcesSignalBlocker(this);
 	obs_source_set_name(source, newName.c_str());
-	label->setText(QT_UTF8(newName.c_str()));
-	label->setToolTip(QT_UTF8(newName.c_str()));
+	label->setText(QT_UTF8(newName.c_str()) + obs_source_get_name_ext(source));
+	label->setToolTip(QT_UTF8(newName.c_str()) + obs_source_get_name_ext(source));
 }
 
 bool SourceTreeItem::eventFilter(QObject *object, QEvent *event)
@@ -602,8 +590,24 @@ void SourceTreeItem::LockedChanged(bool locked)
 
 void SourceTreeItem::Renamed(const QString &name)
 {
-	label->setText(name);
-	label->setToolTip(name);
+	obs_source_t *source = obs_sceneitem_get_source(sceneitem);
+	if (!source)
+		return;
+
+	label->setText(name + obs_source_get_name_ext(source));
+	label->setToolTip(name + obs_source_get_name_ext(source));
+}
+
+void SourceTreeItem::RenamedExt()
+{
+	obs_source_t *source = obs_sceneitem_get_source(sceneitem);
+	if (!source)
+		return;
+
+	QString name = obs_source_get_name(source);
+
+	label->setText(name + obs_source_get_name_ext(source));
+	label->setToolTip(name + obs_source_get_name_ext(source));
 }
 
 void SourceTreeItem::Update(bool force)
@@ -844,6 +848,31 @@ QString SourceTreeItem::GetErrorTips(const char *id, enum obs_source_error error
 		}
 	}
 
+	case OBS_ICON_TYPE_PRISM_MOBILE:
+		switch (error) {
+		case OBS_SOURCE_ERROR_UNKNOWN:
+			return QTStr("Source.ErrorTips.PrismMobile.Error");
+		default:
+			return QTStr("Source.ErrorTips.PrismMobile.Error");
+		}
+		break;
+
+	case OBS_ICON_TYPE_PRISM_STICKER: {
+		switch (error) {
+		case OBS_SOURCE_ERROR_NOT_FOUND:
+			return QTStr("Source.ErrorTips.PRISMSticker.NotFound");
+		default:
+			return QTStr("Source.ErrorTips.PRISMSticker.Error");
+		}
+	}
+	case OBS_ICON_TYPE_PRISM_TIMER:
+		switch (error) {
+		case OBS_SOURCE_ERROR_UNKNOWN:
+			return QTStr("Source.ErrorTips.Timer.NotFound");
+		default:
+			return QTStr("Source.ErrorTips.Timer.NotFound");
+		}
+		break;
 	case OBS_ICON_TYPE_CUSTOM:
 	default: {
 		assert(false && "plugin is invalid but there is no string");
@@ -900,6 +929,12 @@ void SourceTreeItem::Deselect()
 #define SOURCE_ICON_TEXT_MOTION "textmotion"
 #define SOURCE_ICON_CHAT "chat"
 
+#define SOURCE_ICON_AUDIOV "audiov"
+#define SOURCE_ICON_VIRTUAL_BACKGROUND "virtualbackground"
+#define SOURCE_ICON_PRISM_MOBILE "prismMobile"
+#define SOURCE_ICON_PRISM_STICKER "prismSticker"
+#define SOURCE_ICON_TIMER "timer"
+
 QString GetIconKey(obs_icon_type type)
 {
 	switch (type) {
@@ -938,6 +973,16 @@ QString GetIconKey(obs_icon_type type)
 		return SOURCE_ICON_TEXT_MOTION;
 	case OBS_ICON_TYPE_CHAT:
 		return SOURCE_ICON_CHAT;
+	case OBS_ICON_TYPE_SPECTRALIZER:
+		return SOURCE_ICON_AUDIOV;
+	case OBS_ICON_TYPE_VIRTUAL_BACKGROUND:
+		return SOURCE_ICON_VIRTUAL_BACKGROUND;
+	case OBS_ICON_TYPE_PRISM_MOBILE:
+		return SOURCE_ICON_PRISM_MOBILE;
+	case OBS_ICON_TYPE_PRISM_STICKER:
+		return SOURCE_ICON_PRISM_STICKER;
+	case OBS_ICON_TYPE_PRISM_TIMER:
+		return SOURCE_ICON_TIMER;
 	default:
 		return SOURCE_ICON_DEFAULT;
 	}
@@ -1003,7 +1048,10 @@ void SourceTreeItem::OnVisibleClicked(bool visible)
 {
 	auto setItemVisible = [this](bool checked) {
 		QString visibleString = checked ? "visible" : "invisible";
-		PLS_UI_STEP(SOURCE_MODULE, QString("source[%1] %2").arg(label->GetText()).arg(visibleString).toStdString().c_str(), ACTION_CLICK);
+		obs_source_t *source = obs_sceneitem_get_source(sceneitem);
+		QString log = QString("[%1 : %2] %3").arg(obs_source_get_id(source)).arg(obs_source_get_name(source)).arg(visibleString);
+		PLS_UI_STEP(SOURCE_MODULE, log.toUtf8(), ACTION_CLICK);
+
 		SignalBlocker sourcesSignalBlocker(this);
 		obs_sceneitem_set_visible(sceneitem, checked);
 		//PRISM/ZengQin/20200818/#4026/for all sources
@@ -1394,12 +1442,10 @@ static bool enumDshowItem(obs_scene_t *, obs_sceneitem_t *item, void *param)
 		return true;
 	}
 
-	enum obs_source_error error;
 	if (0 != strcmp(id, DSHOW_SOURCE_ID) && 0 != strcmp(id, BGM_SOURCE_ID)) {
 		return true;
 	}
 
-	const char *name = obs_source_get_name(source);
 	items.push_back(item);
 
 	return true;
@@ -1851,11 +1897,6 @@ void SourceTree::mouseDoubleClickEvent(QMouseEvent *event)
 		QListView::mouseDoubleClickEvent(event);
 }
 
-bool TravelGroupChilds(obs_scene_t *, obs_sceneitem_t *item, void *val)
-{
-	return true;
-}
-
 void SourceTree::dragEnterEvent(QDragEnterEvent *event)
 {
 	if (event->source() == this)
@@ -1976,12 +2017,6 @@ void SourceTree::dropEvent(QDropEvent *event)
 
 	obs_sceneitem_t *dropGroup = itemIsGroup ? dropItem : obs_sceneitem_get_group(scene, dropItem);
 
-	std::vector<QString> srcChilds;
-	std::vector<QString> destChilds;
-
-	if (dropGroup && obs_sceneitem_is_group(dropGroup))
-		obs_sceneitem_group_enum_items(dropGroup, TravelGroupChilds, (void *)&srcChilds);
-
 	/* not a group if moving above the group */
 	if (indicator == QAbstractItemView::AboveItem && itemIsGroup)
 		dropGroup = nullptr;
@@ -2038,7 +2073,7 @@ void SourceTree::dropEvent(QDropEvent *event)
 	}
 
 	if (!IsValidDrag(dropGroup, items)) {
-		blog(LOG_INFO, "There is an invalid drag in dropEvent");
+		PLS_INFO(SOURCE_MODULE, "There is an invalid drag in dropEvent");
 		QListView::dropEvent(event);
 		return;
 	}
@@ -2326,11 +2361,6 @@ void SourceTree::OnSourceStateChanged(unsigned long long srcPtr)
 	}
 }
 
-void SourceTree::OnBeautySourceStatusChanged(const QString &sourceName, bool status)
-{
-	emit beautyStatusChanged(sourceName, status);
-}
-
 void SourceTree::OnSourceItemRemove(unsigned long long sceneItemPtr)
 {
 	GetStm()->Remove((void *)sceneItemPtr);
@@ -2421,12 +2451,12 @@ void SourceTree::Remove(OBSSceneItem item)
 	GetStm()->Remove(item);
 	main->SaveProject();
 	if (!main->SavingDisabled()) {
-		obs_scene_t *scene = obs_sceneitem_get_scene(item);
+		obs_scene_t *scene = main->GetCurrentScene();
 		obs_source_t *sceneSource = obs_scene_get_source(scene);
 		obs_source_t *itemSource = obs_sceneitem_get_source(item);
 		main->DeletePropertiesWindow(itemSource);
 		main->DeleteFiltersWindow(itemSource);
-		blog(LOG_INFO, "User Removed source '%s' (%s) from scene '%s'", obs_source_get_name(itemSource), obs_source_get_id(itemSource), obs_source_get_name(sceneSource));
+		PLS_INFO(SOURCE_MODULE, " User Removed source '%s' (%s) from scene '%s'", obs_source_get_name(itemSource), obs_source_get_id(itemSource), obs_source_get_name(sceneSource));
 	}
 }
 

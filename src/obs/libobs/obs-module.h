@@ -72,6 +72,7 @@ bool obs_module_load(void)
  *
  */
 
+//PRISM/Liuying/20200121/Identifying third-party plugins : Add obs_is_internal_module
 /** Required: Declares a libobs module. */
 #define OBS_DECLARE_MODULE()                                                  \
 	static obs_module_t *obs_module_pointer;                              \
@@ -82,7 +83,9 @@ bool obs_module_load(void)
 	}                                                                     \
 	obs_module_t *obs_current_module(void) { return obs_module_pointer; } \
 	MODULE_EXPORT uint32_t obs_module_ver(void);                          \
-	uint32_t obs_module_ver(void) { return LIBOBS_API_VER; }
+	uint32_t obs_module_ver(void) { return LIBOBS_API_VER; }              \
+	MODULE_EXPORT bool obs_is_internal_module(void);                      \
+	bool obs_is_internal_module(void) { return true; }
 
 /**
  * Required: Called when the module is loaded.  Use this function to load all

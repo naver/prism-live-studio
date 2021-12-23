@@ -21,6 +21,8 @@
 
 #include "../../PLSPlatformApi/band/PLSBandDataHandler.h"
 #include "../../PLSPlatformApi/facebook/PLSFacebookDataHandler.h"
+#include "../../PLSPlatformApi/naver-shopping-live/PLSNaverShoppingLIVEDataHandler.h"
+#include "../../PLSPlatformApi/navertv/PLSNaverTVDataHandler.h"
 #include "../../PLSPlatformApi/vlive/PLSVLiveDataHandler.h"
 #include "PLSAfreecaTVDataHandler.h"
 
@@ -44,9 +46,11 @@ void registerAllPlatforms()
 	PLSCHANNELS_API->registerPlatformHandler(new PLSAfreecaTVDataHandler);
 	PLSCHANNELS_API->registerPlatformHandler(new TwitchDataHandler);
 	PLSCHANNELS_API->registerPlatformHandler(new YoutubeHandler);
+	PLSCHANNELS_API->registerPlatformHandler(new PLSNaverTVDataHandler);
 	PLSCHANNELS_API->registerPlatformHandler(new PLSVLiveDataHandler);
 	PLSCHANNELS_API->registerPlatformHandler(new PLSBandDataHandler);
 	PLSCHANNELS_API->registerPlatformHandler(new PLSFacebookDataHandler);
+	PLSCHANNELS_API->registerPlatformHandler(new PLSNaverShoppingLIVEDataHandler);
 }
 
 QString getYoutubeImageUrl(const QVariantMap &src)
@@ -152,7 +156,7 @@ QJsonObject createJsonArrayFromInfo(const QString &uuid)
 	QJsonObject obj;
 	auto &info = PLSCHANNELS_API->getChanelInfoRef(uuid);
 	if (!info.isEmpty()) {
-		auto platformName = getInfo(info, g_channelName);
+		auto platformName = getInfo(info, g_platformName);
 
 		platformName = platformName.remove("RTMP").remove(" ").toUpper();
 		auto userID = getInfo(info, g_rtmpUserID);
@@ -186,17 +190,16 @@ QVariantMap createPrismHeader()
 
 bool RTMPAddToPrism(const QString &uuid)
 {
-	PRE_LOG(add rtmp begin, INFO);
+	PRE_LOG_MSG_STEP("add rtmp begin", g_addChannelStep, INFO);
 	HolderReleaser releaser(&PLSChannelDataAPI::addingHold);
 
 	if (PLSCHANNELS_API->isChannelInfoExists(uuid)) {
-		FinishTaskReleaser finishAdd(uuid);
-		return true;
-		PLSCHANNELS_API->release();
 
+		PLSCHANNELS_API->release();
 		auto headerMap = createPrismHeader();
 		if (headerMap.isEmpty()) {
 			PLSCHANNELS_API->acquire();
+			PRE_LOG_MSG_STEP("add rtmp failed", g_addChannelStep, ERROR);
 			return false;
 		}
 		PLSHmacNetworkReplyBuilder builder;
@@ -207,22 +210,24 @@ bool RTMPAddToPrism(const QString &uuid)
 		builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
 
 		builder.setCookie(QVariant::fromValue(createPrismCookie().toRawForm()));
-		builder.setUrl(PLS_RTMP_ADD);
+		builder.setUrl(PLS_RTMP_ADD.arg(PRISM_SSL));
 		builder.setHmacType(HmacType::HT_PRISM);
 
-		auto handleSuccess = [=](QNetworkReply *networkReplay, int statusCode, QByteArray data, void *context) {
+		auto handleSuccess = [=](QNetworkReply *, int, QByteArray data, void *) {
 			PLSCHANNELS_API->acquire();
 			auto &lastInfo = PLSCHANNELS_API->getChanelInfoRef(uuid);
 			auto jsonDoc = QJsonDocument::fromJson(data);
 			auto jsonMap = jsonDoc.toVariant().toMap();
 			addToMap(lastInfo, jsonMap);
 			FinishTaskReleaser finishAdd(uuid);
+			PRE_LOG_MSG_STEP("add rtmp success", g_addChannelStep, INFO);
 		};
 
-		auto handleFail = [=](QNetworkReply *networkReplay, int statusCode, QByteArray Arraydatas, QNetworkReply::NetworkError error, void *context) {
+		auto handleFail = [=](QNetworkReply *networkReplay, int, QByteArray Arraydatas, QNetworkReply::NetworkError, void *) {
 			PLSCHANNELS_API->acquire();
 			PLSCHANNELS_API->removeChannelInfo(uuid, false, false);
 			FinishTaskReleaser finishUpdate(uuid);
+			PRE_LOG_MSG_STEP("add rtmp failed", g_addChannelStep, ERROR);
 			if (isPrismReplyExpired(networkReplay, Arraydatas)) {
 				PLSCHANNELS_API->prismTokenExpired();
 				return;
@@ -238,17 +243,17 @@ bool RTMPAddToPrism(const QString &uuid)
 
 bool RTMPUpdateToPrism(const QString &uuid)
 {
-	PRE_LOG(update rtmp begin, INFO);
+
+	PRE_LOG_MSG_STEP("Update RTMP Begin ", g_updateChannelStep, INFO);
 	HolderReleaser releaser(&PLSChannelDataAPI::holdOnChannelArea);
 
 	if (PLSCHANNELS_API->isChannelInfoExists(uuid)) {
-		FinishTaskReleaser finishUpdate(uuid);
-		return true;
 		PLSCHANNELS_API->release();
 		auto headerMap = createPrismHeader();
 		if (headerMap.isEmpty()) {
 			PLSCHANNELS_API->acquire();
 			PLSCHANNELS_API->recoverInfo(uuid);
+			PRE_LOG_MSG_STEP("Update RTMP failed for Prism Header is empty ", g_updateChannelStep, ERROR);
 			return false;
 		}
 
@@ -261,23 +266,25 @@ bool RTMPUpdateToPrism(const QString &uuid)
 
 		builder.setCookie(QVariant::fromValue(createPrismCookie().toRawForm()));
 		auto sqNo = PLSCHANNELS_API->getValueOfChannel(uuid, g_rtmpSeq, QString());
-		QString url = QString(PLS_RTMP_MODIFY).arg(sqNo);
+		QString url = QString(PLS_RTMP_MODIFY).arg(PRISM_SSL).arg(sqNo);
 		builder.setUrl(url);
 		builder.setHmacType(HmacType::HT_PRISM);
 
-		auto handleSuccess = [=](QNetworkReply *networkReplay, int statusCode, QByteArray data, void *context) {
+		auto handleSuccess = [=](QNetworkReply *, int, QByteArray data, void *) {
 			PLSCHANNELS_API->acquire();
 			auto &lastInfo = PLSCHANNELS_API->getChanelInfoRef(uuid);
 			auto jsonDoc = QJsonDocument::fromJson(data);
 			auto jsonMap = jsonDoc.toVariant().toMap();
 			addToMap(lastInfo, jsonMap);
 			PLSCHANNELS_API->clearBackup(uuid);
+			PRE_LOG_MSG_STEP("Update RTMP success ", g_updateChannelStep, INFO);
 			FinishTaskReleaser finishUpdate(uuid);
 		};
 
-		auto handleFail = [=](QNetworkReply *networkReplay, int statusCode, QByteArray Arraydatas, QNetworkReply::NetworkError error, void *context) {
+		auto handleFail = [=](QNetworkReply *networkReplay, int, QByteArray Arraydatas, QNetworkReply::NetworkError, void *) {
 			PLSCHANNELS_API->acquire();
 			PLSCHANNELS_API->recoverInfo(uuid);
+			PRE_LOG_MSG_STEP("Update RTMP success ", g_updateChannelStep, ERROR);
 			FinishTaskReleaser finishUpdate(uuid);
 			if (isPrismReplyExpired(networkReplay, Arraydatas)) {
 				PLSCHANNELS_API->prismTokenExpired();
@@ -294,15 +301,14 @@ bool RTMPUpdateToPrism(const QString &uuid)
 
 bool RTMPDeleteToPrism(const QString &uuid)
 {
-	PRE_LOG(delete rtmp begin, INFO);
+
+	PRE_LOG_MSG_STEP("Remove RMP channel Begin", g_removeChannelStep, INFO);
 	if (PLSCHANNELS_API->isChannelInfoExists(uuid)) {
-		PLSCHANNELS_API->removeChannelInfo(uuid, true, false);
-		FinishTaskReleaser finishUpdate(uuid);
-		return true;
 		PLSCHANNELS_API->release();
 		auto headerMap = createPrismHeader();
 		if (headerMap.isEmpty()) {
 			PLSCHANNELS_API->acquire();
+			PRE_LOG_MSG_STEP("Remove RMP channel Error for Prism header is empty", g_removeChannelStep, ERROR);
 			return false;
 		}
 		PLSHmacNetworkReplyBuilder builder;
@@ -310,19 +316,21 @@ bool RTMPDeleteToPrism(const QString &uuid)
 		auto seq = PLSCHANNELS_API->getValueOfChannel(uuid, g_rtmpSeq, QString());
 
 		builder.setCookie(QVariant::fromValue(createPrismCookie().toRawForm()));
-		QString url = QString(PLS_RTMP_DELETE).arg(seq);
+		QString url = QString(PLS_RTMP_DELETE).arg(PRISM_SSL).arg(seq);
 		builder.setUrl(url);
 		builder.setHmacType(HmacType::HT_PRISM);
 
-		auto handleSuccess = [=](QNetworkReply *networkReplay, int statusCode, QByteArray data, void *context) {
+		auto handleSuccess = [=](QNetworkReply *, int, QByteArray data, void *) {
 			PLSCHANNELS_API->acquire();
+			PRE_LOG_MSG_STEP("Remove RMP channel end ,success", g_removeChannelStep, INFO);
 			PLSCHANNELS_API->removeChannelInfo(uuid, true, false);
 			FinishTaskReleaser finishUpdate(uuid);
 		};
 
-		auto handleFail = [=](QNetworkReply *networkReplay, int statusCode, QByteArray Arraydatas, QNetworkReply::NetworkError error, void *context) {
+		auto handleFail = [=](QNetworkReply *networkReplay, int, QByteArray Arraydatas, QNetworkReply::NetworkError, void *) {
 			PLSCHANNELS_API->acquire();
 			FinishTaskReleaser finishUpdate(uuid);
+			PRE_LOG_MSG_STEP("Remove RMP channel end ,falied", g_removeChannelStep, ERROR);
 			if (isPrismReplyExpired(networkReplay, Arraydatas)) {
 				PLSCHANNELS_API->prismTokenExpired();
 				return;
@@ -363,12 +371,16 @@ void updateAllRtmps()
 	builder.setRawHeaders(headerMap);
 	builder.setCookie(QVariant::fromValue(createPrismCookie().toRawForm()));
 
-	builder.setUrl(PLS_RTMP_LIST);
+	builder.setUrl(PLS_RTMP_LIST.arg(PRISM_SSL));
 	builder.setHmacType(HmacType::HT_PRISM);
 
-	auto handleSuccess = [&](QNetworkReply *networkReplay, int statusCode, QByteArray data, void *context) { updateRTMPCallback(data); };
+	auto handleSuccess = [&](QNetworkReply *, int, QByteArray data, void *) {
+		PRE_LOG("update all  rtmp ok", INFO);
+		updateRTMPCallback(data);
+	};
 
-	auto handleFail = [&](QNetworkReply *networkReplay, int statusCode, QByteArray Arraydatas, QNetworkReply::NetworkError error, void *context) {
+	auto handleFail = [&](QNetworkReply *networkReplay, int, QByteArray Arraydatas, QNetworkReply::NetworkError, void *) {
+		PRE_LOG("update all  rtmp error", INFO);
 		if (isPrismReplyExpired(networkReplay, Arraydatas)) {
 			endRefresh();
 			PLSCHANNELS_API->prismTokenExpired();
@@ -406,7 +418,7 @@ QString &localizePlatName(QString &srcName)
 void endRefresh()
 {
 	//qDebug() << "end rtmp update "<<QTime::currentTime();
-	PRE_LOG(End Task..., INFO);
+	//PRE_LOG(End Task..., INFO);
 	PLSCHANNELS_API->acquire();
 	if (PLSCHANNELS_API->isEmptyToAcquire() && !PLSCHANNELS_API->isInitilized()) {
 		PLSCHANNELS_API->resetInitializeState(true);
@@ -441,8 +453,12 @@ struct RtmpRun : public QRunnable {
 			auto tmpMap = obj.toMap();
 			QVariantMap objMap;
 			addToMap(objMap, tmpMap, mapper);
-			auto platformName = getInfo(objMap, g_channelName);
-			auto guessPlaform = guessPlatformFromRTMP(getInfo(objMap, g_channelRtmpUrl));
+
+			auto urlstream = getInfo(objMap, g_channelRtmpUrl);
+			auto streamKey = getInfo(objMap, g_streamKey);
+			auto platformName = getInfo(objMap, g_platformName);
+			auto guessPlaform = guessPlatformFromRTMP(urlstream);
+
 			if (platformName.isEmpty()) {
 				platformName = CUSTOM_RTMP;
 			} else {
@@ -455,7 +471,11 @@ struct RtmpRun : public QRunnable {
 				}
 			}
 
-			objMap[g_channelName] = platformName;
+			PRE_LOG_MSG("platform :" + platformName + " rtmp:" + urlstream + "->stream key: " + streamKey, INFO_KR);
+			PRE_LOG_MSG("platform :" + platformName + " rtmp:" + urlstream + "->stream key: " + pls_masking_person_info(streamKey), INFO);
+
+			objMap[g_platformName] = platformName;
+			objMap[g_displayLine1] = objMap[g_nickName];
 			objMap[g_isUpdated] = true;
 			auto seq = getInfo(objMap, g_rtmpSeq);
 			auto isSeqMatched = [&](const QVariantMap &src) {

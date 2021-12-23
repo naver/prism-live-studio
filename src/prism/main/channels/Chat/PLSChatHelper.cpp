@@ -8,7 +8,8 @@
 using namespace std;
 
 static const string defaultUrl = " "; //because cef can't use empty url, so use this temp error url.
-static const QString youtubeLocalUrlPath = "data/prism-studio/chat/youtube.html";
+static const QString s_youtubeLocalUrlPath = "";
+static const QString s_naverShoppingUrlPath = "";
 
 const char *s_ChatStatusType = "status";
 const char *s_ChatStatusNormal = "nomarl";
@@ -84,13 +85,15 @@ void PLSChatHelper::sendWebShownEventIfNeeded(PLSChatHelper::ChatPlatformIndex i
 	if (name.isEmpty() && index != ChatPlatformIndex::ChatIndexAll) {
 		return;
 	}
+
+	PLS_PLATFORM_API->sendWebChatTabShown(name, index == ChatPlatformIndex::ChatIndexAll);
 }
 
 bool PLSChatHelper::isLocalHtmlPage(PLSChatHelper::ChatPlatformIndex index)
 {
 	return (index == PLSChatHelper::ChatPlatformIndex::ChatIndexAll || index == PLSChatHelper::ChatPlatformIndex::ChatIndexNaverTV || index == PLSChatHelper::ChatPlatformIndex::ChatIndexVLive ||
 		index == PLSChatHelper::ChatPlatformIndex::ChatIndexAfreecaTV || index == PLSChatHelper::ChatPlatformIndex::ChatIndexFacebook ||
-		index == PLSChatHelper::ChatPlatformIndex::ChatIndexYoutube);
+		index == PLSChatHelper::ChatPlatformIndex::ChatIndexYoutube || index == PLSChatHelper::ChatPlatformIndex::ChatIndexNaverShopping);
 }
 const char *PLSChatHelper::getString(PLSChatHelper::ChatPlatformIndex index, bool toLowerSpace)
 {
@@ -120,6 +123,9 @@ const char *PLSChatHelper::getString(PLSChatHelper::ChatPlatformIndex index, boo
 	case PLSChatHelper::ChatPlatformIndex::ChatIndexAfreecaTV:
 		name = "afreecaTV";
 		break;
+	case PLSChatHelper::ChatPlatformIndex::ChatIndexNaverShopping:
+		name = "Naver Shopping";
+		break;
 	default:
 		name = "Other";
 		break;
@@ -140,7 +146,7 @@ PLSChatHelper::ChatPlatformIndex PLSChatHelper::getIndexFromInfo(const QVariantM
 	if (info.empty()) {
 		return index;
 	}
-	QString platformName = info.value(ChannelData::g_channelName, "").toString();
+	QString platformName = info.value(ChannelData::g_platformName, "").toString();
 	auto dataType = info.value(ChannelData::g_data_type, ChannelData::RTMPType).toInt();
 
 	if (dataType == ChannelData::RTMPType) {
@@ -158,6 +164,8 @@ PLSChatHelper::ChatPlatformIndex PLSChatHelper::getIndexFromInfo(const QVariantM
 			index = PLSChatHelper::ChatPlatformIndex::ChatIndexFacebook;
 		} else if (platformName == AFREECATV) {
 			index = PLSChatHelper::ChatPlatformIndex::ChatIndexAfreecaTV;
+		} else if (platformName == NAVER_SHOPPING_LIVE) {
+			index = PLSChatHelper::ChatPlatformIndex::ChatIndexNaverShopping;
 		}
 	}
 	return index;
@@ -165,7 +173,6 @@ PLSChatHelper::ChatPlatformIndex PLSChatHelper::getIndexFromInfo(const QVariantM
 
 void PLSChatHelper::getSelectInfoFromIndex(PLSChatHelper::ChatPlatformIndex index, QVariantMap &getInfo)
 {
-	QVariantMap &selectInfo = QVariantMap();
 	for (const auto &info : PLSCHANNELS_API->getCurrentSelectedChannels()) {
 		if (info.empty()) {
 			continue;
@@ -174,14 +181,13 @@ void PLSChatHelper::getSelectInfoFromIndex(PLSChatHelper::ChatPlatformIndex inde
 		if (dataType != ChannelData::ChannelType) {
 			continue;
 		}
-		auto &name = getPlatformNameFromIndex(index);
-		QString platformName = info.value(ChannelData::g_channelName, "").toString();
+		auto name = getPlatformNameFromIndex(index);
+		QString platformName = info.value(ChannelData::g_platformName, "").toString();
 		if (!name.isEmpty() && name == platformName) {
-			selectInfo = info;
+			getInfo = info;
 			break;
 		}
 	}
-	getInfo = selectInfo;
 }
 
 QString PLSChatHelper::getPlatformNameFromIndex(PLSChatHelper::ChatPlatformIndex index)
@@ -202,6 +208,8 @@ QString PLSChatHelper::getPlatformNameFromIndex(PLSChatHelper::ChatPlatformIndex
 		return FACEBOOK;
 	case PLSChatHelper::ChatPlatformIndex::ChatIndexAfreecaTV:
 		return AFREECATV;
+	case PLSChatHelper::ChatPlatformIndex::ChatIndexNaverShopping:
+		return NAVER_SHOPPING_LIVE;
 	default:
 		return QString();
 	}
@@ -211,7 +219,7 @@ QString PLSChatHelper::getRtmpPlaceholderString()
 {
 	QString showStr;
 	if (PLS_PLATFORM_API->isLiving() && !PLS_PLATFORM_API->isPlatformActived(PLSServiceType::ST_BAND)) {
-		showStr = QObject::tr("chat.rtmp.placehoder.living");
+		showStr = QObject::tr("Chat.Toast.RTMP.Not.Supported");
 	} else if (PLSCHANNELS_API->getCurrentSelectedChannels().size() == 0) {
 		showStr = QObject::tr("chat.rtmp.placehoder.nochannel");
 	} else {
@@ -231,12 +239,12 @@ bool PLSChatHelper::isCefWidgetIndex(PLSChatHelper::ChatPlatformIndex index)
 
 bool PLSChatHelper::canChatYoutube(const QVariantMap &info, bool checkForKids) const
 {
-	QString category_en = info.value(ChannelData::g_catogryTemp, "").toString();
+	QString category_en = info.value(ChannelData::g_displayLine2, "").toString();
 	if (category_en.isEmpty()) {
 		category_en = info.value(ChannelData::g_catogry, "").toString();
 	}
 
-	bool isPrivate = tr("youtube.privacy.private.en") == category_en;
+	bool isPrivate = s_youtube_private_en == category_en;
 	if (isPrivate || checkForKids && PLS_PLATFORM_YOUTUBE->getSelectData().isForKids) {
 		return false;
 	}
@@ -245,7 +253,8 @@ bool PLSChatHelper::canChatYoutube(const QVariantMap &info, bool checkForKids) c
 
 std::string PLSChatHelper::getChatUrlWithIndex(PLSChatHelper::ChatPlatformIndex index, const QVariantMap &info)
 {
-	return "";
+	
+	return {};
 }
 
 bool PLSChatHelper::showToastWhenStart(QString &showStr)

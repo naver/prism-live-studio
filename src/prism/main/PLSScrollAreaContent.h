@@ -1,15 +1,16 @@
 #include <QWidget>
 
 #include "pls-common-define.hpp"
+#include "PLSSceneItemView.h"
 
-enum class DragDirection { Left, Right, Unknown };
+enum class DragDirection { Left, Right, Top, Bottom, Unknown };
 
 class PLSScrollAreaContent : public QWidget {
 	Q_OBJECT
 public:
 	explicit PLSScrollAreaContent(QWidget *parent = nullptr);
 	~PLSScrollAreaContent();
-	int Refresh();
+	int Refresh(DisplayMethod displayMethod);
 	void SetIsDraging(bool state);
 
 protected:
@@ -21,11 +22,14 @@ protected:
 	void resizeEvent(QResizeEvent *event) override;
 
 private:
-	void GetRowColByPos(const int &x, const int &y, const int &width, const int &height, int &row, int &col);
-	void GetDirectionByPos(const int &x, const int &y, const int &width, const int &height, const int &row, int &col);
+	void GetRowColByPos(bool gridMode, const int &x, const int &y, const int &width, const int &height, int &row, int &col, bool append = false, int romoveRow = 0);
+	void GetRowColByPosInListMode(const int &x, const int &y, const int &width, const int &height, int &row, int &col, int romoveRow);
+	DragDirection GetDirectionByPos(bool gridMode, const int &x, const int &y, const int &width, const int &height, const int &row, int &col);
+	void SetDrawLineByPos(bool gridMode, const int &x, const int &y, const int &width, const int &height, const int &row, int &col);
 	void SetLinePos(const int &startX, const int &startY, const int &endX, const int &endY);
 signals:
 	void DragFinished();
+	void DragMoving(int xPos, int yPos);
 	void resizeEventChanged(bool);
 
 private:

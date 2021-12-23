@@ -87,7 +87,7 @@
         </size>
        </property>
        <property name="text">
-        <string>opensource.top.window.title</string>
+        <string>Basic.MainMenu.Help.OpenSourceLicense</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignCenter</set>
@@ -276,7 +276,7 @@
         </size>
        </property>
        <property name="text">
-        <string>update.bottom.confirm.button.text</string>
+        <string>Confirm</string>
        </property>
        <property name="flat">
         <bool>true</bool>

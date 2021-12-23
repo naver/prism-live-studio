@@ -34,8 +34,11 @@ PLSAboutView #versionLabel {
 
 PLSAboutView #checkUpdateButton {
 	qproperty-minimumSize: /*hdpi*/ 150px /*hdpi*/ 40px;
-	qproperty-maximumSize: /*hdpi*/ 150px /*hdpi*/ 40px;
-	padding: /*hdpi*/ 0px;
+	max-height: /*hdpi*/ 40px;
+	padding-top: /*hdpi*/ 0px;
+	padding-bottom: /*hdpi*/ 0px;
+	padding-left: /*hdpi*/ 10px;
+	padding-right: /*hdpi*/ 10px;
 	color: #000000;
 	border-radius: /*hdpi*/ 3px;
 	background-color: #effc35;

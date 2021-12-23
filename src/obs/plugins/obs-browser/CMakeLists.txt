@@ -67,24 +67,6 @@ if(BROWSER_PANEL_SUPPORT_ENABLED OR USE_QT_LOOP)
 endif()
 
 if(MSVC)
-	string(REPLACE "/MD" "/MT"
-		"CMAKE_C_FLAGS"
-		"${CMAKE_C_FLAGS}")
-
-	string(REPLACE "/MD" "/MT"
-		"CMAKE_CXX_FLAGS"
-		"${CMAKE_CXX_FLAGS}")
-
-	string(TOUPPER "${CMAKE_CONFIGURATION_TYPES}" UPPER_CONFIG_TYPES)
-	foreach(CONFIG_TYPE ${UPPER_CONFIG_TYPES})
-		string(REPLACE "/MD" "/MT"
-			"CMAKE_C_FLAGS_${CONFIG_TYPE}"
-			"${CMAKE_C_FLAGS_${CONFIG_TYPE}}")
-
-		string(REPLACE "/MD" "/MT"
-			"CMAKE_CXX_FLAGS_${CONFIG_TYPE}"
-			"${CMAKE_CXX_FLAGS_${CONFIG_TYPE}}")
-	endforeach()
 	list(APPEND obs-browser_LIBRARIES
 		d3d11
 		dxgi
@@ -108,6 +90,7 @@ set(obs-browser_SOURCES
 	deps/base64/base64.cpp
 	deps/wide-string.cpp
 	text-motion-source.cpp
+	chat-source.cpp
 	)
 set(obs-browser_HEADERS
 	interaction/interaction_util.hpp
@@ -128,6 +111,7 @@ set(obs-browser_HEADERS
 	deps/wide-string.hpp
 	cef-headers.hpp
 	text-motion-source.hpp
+	chat-source.hpp
 	)
 
 # only allow browser panels on win32 for now -- other operating systems

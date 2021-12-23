@@ -5,9 +5,10 @@
 
 DeckLinkDeviceDiscovery::DeckLinkDeviceDiscovery()
 {
-	discovery = CreateDeckLinkDiscoveryInstance();
+	//PRISM/WuLongyue/20210924/#9757/Do not add extra reference count
+	discovery.Set(CreateDeckLinkDiscoveryInstance());
 	if (discovery == nullptr)
-		blog(LOG_INFO, "No blackmagic support");
+		plog(LOG_INFO, "No blackmagic support");
 }
 
 DeckLinkDeviceDiscovery::~DeckLinkDeviceDiscovery(void)
@@ -32,7 +33,7 @@ bool DeckLinkDeviceDiscovery::Init(void)
 
 	initialized = result == S_OK;
 	if (!initialized)
-		blog(LOG_DEBUG, "Failed to start search for DeckLink devices");
+		plog(LOG_DEBUG, "Failed to start search for DeckLink devices");
 
 	return initialized;
 }

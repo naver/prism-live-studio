@@ -238,7 +238,7 @@ void ShaderProcessor::Process(const char *shader_string, const char *file)
 	bool success = shader_parse(&parser, shader_string, file);
 	char *str = shader_parser_geterrors(&parser);
 	if (str) {
-		blog(LOG_WARNING, "Shader parser errors/warnings:\n%s\n", str);
+		plog(LOG_WARNING, "Shader parser errors/warnings:\n%s\n", str);
 		bfree(str);
 	}
 

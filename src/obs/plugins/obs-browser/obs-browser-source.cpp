@@ -23,6 +23,8 @@
 #include "interaction/interaction_manager.h"
 #include <util/threading.h>
 #include <QApplication>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <util/dstr.h>
 #include <functional>
 #include <thread>
@@ -67,6 +69,9 @@ void SendBrowserVisibility(CefRefPtr<CefBrowser> browser, bool isVisible)
 BrowserSource::BrowserSource(obs_data_t *, obs_source_t *source_)
 	: source(source_)
 {
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	SetObjectValid(this, true);
+
 	/* defer update */
 	obs_source_update(source, nullptr);
 
@@ -90,9 +95,13 @@ BrowserSource::BrowserSource(obs_data_t *, obs_source_t *source_)
 
 BrowserSource::~BrowserSource()
 {
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	SetObjectValid(this, false);
+
 	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
 	{
-		blog(LOG_INFO, "Destrcuture function of BrowserSource:%p",
+		plog(LOG_INFO,
+		     "Destrcuture function of BrowserSource:%p is started",
 		     this);
 
 		signal_handler_disconnect(obs_source_get_signal_handler(source),
@@ -101,7 +110,7 @@ BrowserSource::~BrowserSource()
 		InteractionManager::Instance()->OnSourceDeleted(this);
 
 		if (interaction_display) {
-			blog(LOG_ERROR,
+			plog(LOG_ERROR,
 			     "Display is not cleared. BrowserSource:%p", this);
 			assert(NULL == interaction_display &&
 			       "display exist !");
@@ -112,10 +121,16 @@ BrowserSource::~BrowserSource()
 	DestroyBrowser();
 	DestroyTextures();
 
-	lock_guard<mutex> lock(browser_list_mutex);
-	if (next)
-		next->p_prev_next = p_prev_next;
-	*p_prev_next = next;
+	{
+		lock_guard<mutex> lock(browser_list_mutex);
+		if (next)
+			next->p_prev_next = p_prev_next;
+		*p_prev_next = next;
+	}
+
+	//PRISM/Wangshaohui/20210315/NoIssue/for DEBUG
+	plog(LOG_INFO, "Destrcuture function of BrowserSource:%p is finished",
+	     this);
 }
 
 void BrowserSource::ExecuteOnBrowser(BrowserFunc func, bool async)
@@ -140,7 +155,9 @@ void BrowserSource::ExecuteOnBrowser(BrowserFunc func, bool async)
 		}
 		os_event_destroy(finishedEvent);
 	} else {
-		CefRefPtr<CefBrowser> browser = cefBrowser;
+		//PRISM/Wangshaohui/20211021/#10074/for threadsafe
+		//CefRefPtr<CefBrowser> browser = cefBrowser;
+		CefRefPtr<CefBrowser> browser = GetBrowser();
 		if (!!browser) {
 #ifdef USE_QT_LOOP
 			QueueBrowserTask(cefBrowser, func);
@@ -212,12 +229,18 @@ bool BrowserSource::CreateBrowser()
 		}
 #endif
 
-		cefBrowser = CefBrowserHost::CreateBrowserSync(
+		//PRISM/Wangshaohui/20211021/#10074/for threadsafe
+		CefRefPtr<CefBrowser> tempBrowser;
+		tempBrowser = CefBrowserHost::CreateBrowserSync(
 			windowInfo, browserClient, url, cefBrowserSettings,
 #if CHROME_VERSION_BUILD >= 3770
 			CefRefPtr<CefDictionaryValue>(),
 #endif
 			nullptr);
+
+		//PRISM/Wangshaohui/20211021/#10074/for threadsafe
+		SetBrowser(tempBrowser);
+
 #if CHROME_VERSION_BUILD >= 3683
 		if (reroute_audio)
 			cefBrowser->GetHost()->SetAudioMuted(true);
@@ -233,8 +256,8 @@ bool BrowserSource::CreateBrowser()
 void BrowserSource::DestroyBrowser(bool async)
 {
 	//PRISM/WangShaohui/20200729/NoIssue/for debugging destroy browser source
-	blog(LOG_INFO, "DestroyBrowser for '%s', async:%s",
-	     obs_source_get_name(source), async ? "yes" : "no");
+	plog(LOG_INFO, "DestroyBrowser for '%s', async:%s BrowserSource:%p",
+	     obs_source_get_name(source), async ? "yes" : "no", this);
 
 	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
 	ExecuteOnInteraction(
@@ -251,7 +274,7 @@ void BrowserSource::DestroyBrowser(bool async)
 				reinterpret_cast<BrowserClient *>(client.get());
 
 			//PRISM/WangShaohui/20200729/NoIssue/for debugging destroy browser source
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "DestroyBrowser is invoked, BrowserClient:%p", bc);
 
 			if (bc) {
@@ -268,7 +291,9 @@ void BrowserSource::DestroyBrowser(bool async)
 		},
 		async);
 
-	cefBrowser = nullptr;
+	//PRISM/Wangshaohui/20211021/#10074/for threadsafe
+	//cefBrowser = nullptr;
+	SetBrowser(NULL);
 }
 
 void BrowserSource::ClearAudioStreams()
@@ -430,6 +455,20 @@ void BrowserSource::Refresh()
 		true);
 }
 
+void BrowserSource::receiveWebMessage(const char *msg)
+{
+	auto doc = QJsonDocument::fromJson(msg);
+	if (!doc.isObject()) {
+		return;
+	}
+	auto root = doc.object();
+	auto type = root["module"].toString();
+
+	if ("timerClockWidget" == type) {
+		obs_source_cef_received_web_msg(source, msg);
+	}
+}
+
 #if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED
 inline void BrowserSource::SignalBeginFrame()
 {
@@ -544,9 +583,17 @@ void BrowserSource::Update(obs_data_t *settings)
 		use_hardware = n_hareware;
 
 		//PRISM/Wangshaohui/20201027/#4892/save url settings
-		blog(LOG_INFO, "---------------------------------");
-		blog(LOG_INFO,
-		     "[Browser : '%s'] web updated: \n"
+		std::string url_temp;
+		if (n_is_local) {
+			char temp[256];
+			os_extract_file_name(n_url.c_str(), temp,
+					     ARRAY_SIZE(temp) - 1);
+			url_temp = temp;
+		} else {
+			url_temp = base64_encode(n_url);
+		}
+		plog(LOG_INFO,
+		     "[Browser : '%s'] [obs_source:%p plugin_obj:%p] web updated : \n"
 		     "is_local_file: %d \n"
 		     "url: %s \n"
 		     "resolution: %d x %d \n"
@@ -554,10 +601,9 @@ void BrowserSource::Update(obs_data_t *settings)
 		     "shutdown_when_invisible: %d \n"
 		     "refresh_when_active: %d \n"
 		     "hardware_accelerate: %d",
-		     obs_source_get_name(source), n_is_local,
-		     base64_encode(n_url).c_str(), n_width, n_height, n_reroute,
-		     n_shutdown, n_restart, n_hareware);
-		blog(LOG_INFO, "---------------------------------");
+		     obs_source_get_name(source), source, this, n_is_local,
+		     url_temp.c_str(), n_width, n_height, n_reroute, n_shutdown,
+		     n_restart, n_hareware);
 
 		obs_source_set_audio_active(source, reroute_audio);
 	}
@@ -627,6 +673,24 @@ void ExecuteOnAllBrowsers(BrowserFunc func)
 	}
 }
 
+//PRISM/RenJinbo/20210707/#8498/for cef ignore reload when net from bad to ok
+void ExecuteOnNotIgnoreBrowsers(BrowserFunc func)
+{
+	lock_guard<mutex> lock(browser_list_mutex);
+
+	BrowserSource *bs = first_browser;
+	while (bs) {
+		BrowserSource *bsw = reinterpret_cast<BrowserSource *>(bs);
+		obs_data_t *settings = obs_source_get_settings(bsw->source);
+		bool isIgnore = obs_data_get_bool(settings, "ignore_reload");
+		obs_data_release(settings);
+		if (!isIgnore) {
+			bsw->ExecuteOnBrowser(func, true);
+		}
+		bs = bs->next;
+	}
+}
+
 //PRISM/Zhangdewen/20200901/#for chat source
 void ExecuteOnOneBrowser(obs_source_t *source, BrowserFunc func)
 {
@@ -673,6 +737,10 @@ void DispatchJSEvent(obs_source_t *source, std::string eventName,
 void DispatchJSEvent(BrowserSource *source, std::string eventName,
 		     std::string jsonString)
 {
+	//PRISM/RenJinbo/20210905/#9684/source is null
+	if (source == nullptr) {
+		return;
+	}
 	source->ExecuteOnBrowser(
 		[=](CefRefPtr<CefBrowser> cefBrowser) {
 			CefRefPtr<CefProcessMessage> msg =
@@ -695,11 +763,11 @@ void BrowserSource::ShowInteraction(bool show)
 
 	if (is_interaction_showing != show) {
 		if (show) {
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "Request show interaction for '%s', BrowserSource:%p",
 			     obs_source_get_name(source), this);
 		} else {
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "Request hide interaction for '%s', BrowserSource:%p",
 			     obs_source_get_name(source), this);
 		}
@@ -720,12 +788,12 @@ void BrowserSource::DestroyInteraction()
 	// Here we firstly post a message to make sure the window can be destroied soon.
 	interaction_ui->PostDestroyInteractionUI();
 
-	blog(LOG_INFO, "To run DestroyInteraction for '%s'",
+	plog(LOG_INFO, "To run DestroyInteraction for '%s'",
 	     obs_source_get_name(source));
 
 	ExecuteOnInteraction(
 		[](INTERACTION_PTR interaction) {
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "DestroyInteraction is invoked, address:%p",
 			     interaction.get());
 
@@ -768,7 +836,7 @@ bool BrowserSource::CreateDisplay(HWND hWnd, int cx, int cy)
 	obs_display_add_draw_callback(interaction_display,
 				      BrowserSource::DrawPreview, this);
 
-	blog(LOG_INFO,
+	plog(LOG_INFO,
 	     "Added display for interaction for '%s', BrowserSource:%p",
 	     obs_source_get_name(source), this);
 
@@ -788,7 +856,7 @@ void BrowserSource::ClearDisplay()
 		display_cx = 0;
 		display_cy = 0;
 
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "Removed display for interaction for '%s', BrowserSource:%p",
 		     obs_source_get_name(source), this);
 	}
@@ -914,8 +982,7 @@ void BrowserSource::PostInteractionTitle()
 		const char *fmt = obs_module_text("Basic.InteractionWindow");
 		if (fmt && *fmt) {
 			QString title = QString(fmt).arg(name);
-			interaction_ui->PostWindowTitle(
-				title.toStdString().c_str());
+			interaction_ui->PostWindowTitle(title.toUtf8().data());
 		}
 	}
 }
@@ -1006,4 +1073,18 @@ void BrowserSource::GetBrowserData(void *src, obs_data_t *data)
 		obs_data_set_int(data, "interaction_cy",
 				 BrowserInteractionMain::user_size.cy);
 	}
+}
+
+//PRISM/Wangshaohui/20211021/#10074/for threadsafe
+void BrowserSource::SetBrowser(CefRefPtr<CefBrowser> b)
+{
+	std::lock_guard<std::recursive_mutex> auto_lock(lockBrowser);
+	cefBrowser = b;
+}
+
+//PRISM/Wangshaohui/20211021/#10074/for threadsafe
+CefRefPtr<CefBrowser> BrowserSource::GetBrowser()
+{
+	std::lock_guard<std::recursive_mutex> auto_lock(lockBrowser);
+	return cefBrowser;
 }

@@ -8,6 +8,7 @@ class PLSSpinBox : public QSpinBox {
 public:
 	explicit PLSSpinBox(QWidget *parent = nullptr);
 	~PLSSpinBox();
+	void makeTextVCenter();
 
 protected:
 	virtual void wheelEvent(QWheelEvent *event) override;

@@ -27,7 +27,7 @@ static inline void PushBuffer(vector<ID3D11Buffer *> &buffers,
 		buffers.push_back(buffer);
 		strides.push_back((uint32_t)elementSize);
 	} else {
-		blog(LOG_ERROR, "This vertex shader requires a %s buffer",
+		plog(LOG_ERROR, "This vertex shader requires a %s buffer",
 		     name);
 	}
 }
@@ -35,6 +35,14 @@ static inline void PushBuffer(vector<ID3D11Buffer *> &buffers,
 void gs_vertex_buffer::FlushBuffer(ID3D11Buffer *buffer, void *array,
 				   size_t elementSize)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
+	//PRISM/WangChuanjing/20200204/for nelo crash
+	if (!buffer)
+		return;
+
 	D3D11_MAPPED_SUBRESOURCE msr;
 	HRESULT hr;
 
@@ -67,7 +75,7 @@ void gs_vertex_buffer::MakeBufferList(gs_vertex_shader *shader,
 			strides.push_back((uint32_t)uvSizes[i]);
 		}
 	} else {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "This vertex shader requires at least %u "
 		     "texture buffers.",
 		     (uint32_t)shader->nTexUnits);
@@ -78,6 +86,10 @@ void gs_vertex_buffer::InitBuffer(const size_t elementSize,
 				  const size_t numVerts, void *array,
 				  ID3D11Buffer **buffer)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	D3D11_BUFFER_DESC bd;
 	D3D11_SUBRESOURCE_DATA srd;
 	HRESULT hr;
@@ -92,8 +104,15 @@ void gs_vertex_buffer::InitBuffer(const size_t elementSize,
 	srd.pSysMem = array;
 
 	hr = device->device->CreateBuffer(&bd, &srd, buffer);
-	if (FAILED(hr))
+	if (FAILED(hr)) {
+		//PRISM/WangChuanjing/20210311/#6941/notify engine status
+		if (device->engine_notify_cb) {
+			int code = get_notify_error_code(hr);
+			device->engine_notify_cb(GS_ENGINE_NOTIFY_EXCEPTION,
+						 code, nullptr);
+		}
 		throw HRError("Failed to create buffer", hr);
+	}
 }
 
 void gs_vertex_buffer::BuildBuffers()

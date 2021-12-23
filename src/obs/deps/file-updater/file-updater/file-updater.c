@@ -7,9 +7,9 @@
 #include "file-updater.h"
 
 #define warn(msg, ...) \
-	blog(LOG_WARNING, "%s" msg, info->log_prefix, ##__VA_ARGS__)
+	plog(LOG_WARNING, "%s" msg, info->log_prefix, ##__VA_ARGS__)
 #define info(msg, ...) \
-	blog(LOG_WARNING, "%s" msg, info->log_prefix, ##__VA_ARGS__)
+	plog(LOG_WARNING, "%s" msg, info->log_prefix, ##__VA_ARGS__)
 
 struct update_info {
 	char error[CURL_ERROR_SIZE];
@@ -133,8 +133,7 @@ static bool do_http_request(struct update_info *info, const char *url,
 
 	code = curl_easy_perform(info->curl);
 	if (code != CURLE_OK) {
-		warn("Remote update of URL \"%s\" failed: %s", url,
-		     info->error);
+		warn("Remote update of URL failed: %s", info->error);
 		return false;
 	}
 
@@ -143,8 +142,7 @@ static bool do_http_request(struct update_info *info, const char *url,
 		return false;
 
 	if (*response_code >= 400) {
-		warn("Remote update of URL \"%s\" failed: HTTP/%ld", url,
-		     *response_code);
+		warn("Remote update of URL failed: HTTP/%ld", *response_code);
 		return false;
 	}
 
@@ -375,8 +373,7 @@ static bool update_remote_files(void *param, obs_data_t *remote_file)
 		info->file_data.da = download_data.buffer.da;
 
 		if (!confirm) {
-			info("Update file '%s' (version %d) rejected",
-			     data.name, data.version);
+			info("Update file (version %d) rejected", data.version);
 			return true;
 		}
 	}
@@ -384,8 +381,7 @@ static bool update_remote_files(void *param, obs_data_t *remote_file)
 	write_file_data(info, info->temp, data.name);
 	replace_file(info->temp, info->cache, data.name);
 
-	info("Successfully updated file '%s' (version %d)", data.name,
-	     data.version);
+	info("Successfully updated file (version %d)", data.version);
 	return true;
 }
 
@@ -488,8 +484,8 @@ update_info_t *update_info_create(const char *log_prefix,
 		log_prefix = "";
 
 	if (os_mkdir(cache_dir) < 0) {
-		blog(LOG_WARNING, "%sCould not create cache directory %s",
-		     log_prefix, cache_dir);
+		plog(LOG_WARNING, "%sCould not create cache directory",
+		     log_prefix);
 		return NULL;
 	}
 
@@ -499,8 +495,8 @@ update_info_t *update_info_create(const char *log_prefix,
 	dstr_cat(&dir, ".temp");
 
 	if (os_mkdir(dir.array) < 0) {
-		blog(LOG_WARNING, "%sCould not create temp directory %s",
-		     log_prefix, cache_dir);
+		plog(LOG_WARNING, "%sCould not create temp directory",
+		     log_prefix);
 		dstr_free(&dir);
 		return NULL;
 	}

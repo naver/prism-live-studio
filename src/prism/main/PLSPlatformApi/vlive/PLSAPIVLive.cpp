@@ -9,29 +9,55 @@
 #include "PLSHttpApi/PLSHttpHelper.h"
 #include "PLSPlatformApi.h"
 #include "PLSPlatformVLive.h"
+#include "PLSServerStreamHandler.hpp"
 #include "frontend-api.h"
 #include "pls-common-define.hpp"
+#include "PLSPlatformBase.hpp"
 
 using namespace std;
 const static QString strVersion = "1";
-static const QString IMAGE_FILE_NAME_PREFIX = "vlive-";
+static const QString IMAGE_FILE_NAME_PREFIX = "";
+const static QString vlive_app_key = "";
 
 PLSAPIVLive::PLSAPIVLive(QObject *parent) : QObject(parent) {}
 
 void PLSAPIVLive::vliveRequestGccAndLanguage(const QObject *receiver, dataErrorFunction onFinish)
 {
+
+}
+
+void PLSAPIVLive::vliveRequestCountryCodes(const QObject *receiver, dataErrorFunction onFinish)
+{
+
 }
 
 void PLSAPIVLive::vliveRequestUsersInfoAndChannel(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed)
 {
+
 }
 
-void PLSAPIVLive::vliveRequestSchedule(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, void *const context)
+void PLSAPIVLive::vliveRequestScheduleList(PLSPlatformVLive *vlive, const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, void *const context)
 {
 
 }
 
-void PLSAPIVLive::vliveRequestStartLive(const QObject *receiver, dataErrorFunction onFinish)
+void PLSAPIVLive::vliveRequestBoardList(PLSPlatformVLive *vlive, const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, void *const context)
+{
+}
+
+void PLSAPIVLive::vliveRequestBoardDetail(PLSPlatformVLive *vlive, const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed)
+{
+
+}
+void PLSAPIVLive::vliveRequestProfileList(const QString &channelUuid, const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, void *const context)
+{
+}
+
+void PLSAPIVLive::vliveRequestStartLive(const QString &channelUuid, const QObject *receiver, dataErrorFunction onFinish)
+{
+}
+
+void PLSAPIVLive::vliveRequestStartLiveToPostBoard(const QString &, const QObject *receiver, dataErrorFunction onFinish)
 {
 }
 
@@ -39,14 +65,12 @@ void PLSAPIVLive::vliveRequestStatistics(const QObject *receiver, dataErrorFunct
 {
 }
 
-void PLSAPIVLive::vliveRequestStopLive(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed)
+void PLSAPIVLive::vliveRequestStopLive(PLSPlatformVLive *vlive, const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed)
 {
-	
 }
 
 void PLSAPIVLive::uploadImage(const QObject *receiver, const QString &imageFilePath, UploadImageCallback callback)
 {
-	
 }
 
 void PLSAPIVLive::downloadImageAsync(const QObject *receiver, const QString &imageUrl, ImageCallback callback, void *const context, const QString &prefix, bool ingoreCache)
@@ -55,14 +79,12 @@ void PLSAPIVLive::downloadImageAsync(const QObject *receiver, const QString &ima
 
 QString PLSAPIVLive::getLocalImageFile(const QString &imageUrl, const QString &prefix)
 {
-	QString localFile;
-	return localFile;
+	return QString();
 }
 
 QPair<bool, QString> PLSAPIVLive::downloadImageSync(const QObject *receive, const QString &url, const QString &prefix, bool ingoreCache)
 {
-	PLSNetworkReplyBuilder builder(url);
-	return PLSHttpHelper::downloadImageSync(builder.get(), receive, "", "", "");
+	return {};
 }
 
 void PLSAPIVLive::addCommenQuery(PLSNetworkReplyBuilder &builder)
@@ -75,10 +97,13 @@ void PLSAPIVLive::addCommenCookie(PLSNetworkReplyBuilder &builder)
 
 void PLSAPIVLive::addMacAddress(PLSNetworkReplyBuilder &builder)
 {
-
 }
 
 void PLSAPIVLive::addUserAgent(PLSNetworkReplyBuilder &builder)
+{
+}
+
+void PLSAPIVLive::addDebugMessage(PLSNetworkReplyBuilder &builder)
 {
 }
 
@@ -89,12 +114,14 @@ bool PLSAPIVLive::isVliveFanship()
 
 QString PLSAPIVLive::getVliveHost()
 {
-	QString ssl = pls_get_gpop_connection().ssl;
-	return ssl;
+	return {};
 }
 
 QString PLSAPIVLive::getStreamName()
 {
-	QString streamName = "";
-	return streamName;
+	return {};
+}
+
+void PLSAPIVLive::maskingUrlKeys(PLSNetworkReplyBuilder &builder, QNetworkReply *reply, const QStringList &keys)
+{
 }

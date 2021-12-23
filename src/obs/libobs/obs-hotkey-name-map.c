@@ -328,7 +328,7 @@ static const char *obs_key_names[] = {
 const char *obs_key_to_name(obs_key_t key)
 {
 	if (key >= OBS_KEY_LAST_VALUE) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "obs-hotkey.c: queried unknown key "
 		     "with code %d",
 		     (int)key);

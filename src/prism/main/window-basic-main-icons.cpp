@@ -42,6 +42,16 @@ QIcon PLSBasic::GetSourceIcon(const char *id) const
 		return GetTextMotionIcon();
 	case OBS_ICON_TYPE_CHAT:
 		return GetChatIcon();
+	case OBS_ICON_TYPE_SPECTRALIZER:
+		return GetAudiovIcon();
+	case OBS_ICON_TYPE_VIRTUAL_BACKGROUND:
+		return GetVirtualBackgroundIcon();
+	case OBS_ICON_TYPE_PRISM_MOBILE:
+		return GetPrismMobileIcon();
+	case OBS_ICON_TYPE_PRISM_STICKER:
+		return GetPrismStickerIcon();
+	case OBS_ICON_TYPE_PRISM_TIMER:
+		return GetTimerIcon();
 	case OBS_ICON_TYPE_CUSTOM:
 	default:
 		//TODO: Add ability for sources to define custom icons
@@ -130,6 +140,11 @@ void PLSBasic::SetStickerIcon(const QIcon &icon)
 	stickerIcon = icon;
 }
 
+void PLSBasic::SetPrismMobileIcon(const QIcon &icon)
+{
+	prismMobileIcon = icon;
+}
+
 void PLSBasic::SetDefaultIcon(const QIcon &icon)
 {
 	defaultIcon = icon;
@@ -148,6 +163,25 @@ void PLSBasic::SetTextMotionIcon(const QIcon &icon)
 void PLSBasic::SetChatIcon(const QIcon &icon)
 {
 	chatIcon = icon;
+}
+
+void PLSBasic::SetAudiovIcon(const QIcon &icon)
+{
+	audiovIcon = icon;
+}
+void PLSBasic::SetVirtualBackgroundIcon(const QIcon &icon)
+{
+	virtualBackgroundIcon = icon;
+}
+
+void PLSBasic::SetPrismStickerIcon(const QIcon &icon)
+{
+	prismStickerIcon = icon;
+}
+
+void PLSBasic::SetTimerIcon(const QIcon &icon)
+{
+	timerIcon = icon;
 }
 
 void PLSBasic::SetNdiIcon(const QIcon &icon)
@@ -250,7 +284,31 @@ QIcon PLSBasic::GetSceneIcon() const
 	return sceneIcon;
 }
 
+QIcon PLSBasic::GetPrismMobileIcon() const
+{
+	return prismMobileIcon;
+}
+
 QIcon PLSBasic::GetDefaultIcon() const
 {
 	return defaultIcon;
+}
+
+QIcon PLSBasic::GetAudiovIcon() const
+{
+	return audiovIcon;
+}
+QIcon PLSBasic::GetVirtualBackgroundIcon() const
+{
+	return virtualBackgroundIcon;
+}
+
+QIcon PLSBasic::GetPrismStickerIcon() const
+{
+	return prismStickerIcon;
+}
+
+QIcon PLSBasic::GetTimerIcon() const
+{
+	return timerIcon;
 }

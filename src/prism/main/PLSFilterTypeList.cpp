@@ -16,6 +16,14 @@ static bool filter_compatible(bool async, uint32_t sourceFlags, uint32_t filterF
 	return (async && (filterAudio || filterAsync)) || (!async && !filterAudio && !filterAsync);
 }
 
+static bool filter_compatible(uint32_t s_caps, uint32_t f_caps)
+{
+	if ((f_caps & OBS_SOURCE_AUDIO) != 0 && (f_caps & OBS_SOURCE_VIDEO) == 0)
+		f_caps &= ~OBS_SOURCE_ASYNC;
+
+	return (s_caps & f_caps) == f_caps;
+}
+
 void PLSBasicFilters::GetFilterTypeList(bool isAsync, const uint32_t &sourceFlags, std::vector<std::vector<FilterTypeInfo>> &preset, std::vector<QString> &other)
 {
 	std::vector<std::vector<FilterTypeInfo>> filterList = {
@@ -42,12 +50,24 @@ void PLSBasicFilters::GetFilterTypeList(bool isAsync, const uint32_t &sourceFlag
 	const char *type_str;
 	size_t idx = 0;
 	while (obs_enum_filter_types(idx++, &type_str)) {
-		const char *name = obs_source_get_display_name(type_str);
-		uint32_t caps = obs_get_source_output_flags(type_str);
 
+		uint32_t caps = obs_get_source_output_flags(type_str);
 		if ((caps & OBS_SOURCE_DEPRECATED) != 0)
 			continue;
 		if ((caps & OBS_SOURCE_CAP_DISABLED) != 0)
+			continue;
+		//PRISM/LiuHaibin/20201029/#None/merge obs code
+		//SHA-1: 70582174c3c766008c6ea5e2be32c432f595f44e
+		//libobs: Add the ability to make sources obsolete
+		if ((caps & OBS_SOURCE_CAP_OBSOLETE) != 0)
+			continue;
+
+		//PRISM/LiuHaibin/20201210/#None/mark filter is invisible in filter list
+		if (type_str && strcmp(type_str, FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE) == 0)
+			continue;
+
+		//PRISM/Xiewei/20210518/#7950/check compatity between source and filter
+		if (!filter_compatible(sourceFlags, caps))
 			continue;
 
 		bool isPresetDefined = false;
@@ -62,8 +82,10 @@ void PLSBasicFilters::GetFilterTypeList(bool isAsync, const uint32_t &sourceFlag
 			}
 		}
 
-		if (!isPresetDefined)
-			other.push_back(type_str);
+		if (!isPresetDefined) {
+			if (filter_compatible(isAsync, sourceFlags, caps))
+				other.push_back(type_str);
+		}
 	}
 
 	//----------------------- remove unfound source type --------------------------

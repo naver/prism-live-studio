@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>LiveInfo.Dialog.Title</string>
+   <string>LiveInfo.liveinformation</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
@@ -41,16 +41,56 @@
       <number>29</number>
      </property>
      <property name="rightMargin">
-      <number>24</number>
+      <number>25</number>
      </property>
      <property name="bottomMargin">
       <number>0</number>
      </property>
      <item>
-      <widget class="QLabel" name="labelCaption">
-       <property name="text">
-        <string>BAND</string>
+      <widget class="QFrame" name="TitleFrame">
+       <property name="frameShape">
+        <enum>QFrame::NoFrame</enum>
        </property>
+       <property name="frameShadow">
+        <enum>QFrame::Raised</enum>
+       </property>
+       <layout class="QHBoxLayout" name="TitleFrameLayout">
+        <property name="spacing">
+         <number>0</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QLabel" name="labelCaption">
+          <property name="text">
+           <string>BAND</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>1</width>
+            <height>1</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
       </widget>
      </item>
      <item>
@@ -103,7 +143,7 @@
        <item>
         <widget class="QPlainTextEdit" name="plainTextEdit">
          <property name="placeholderText">
-          <string>Live.Check.Band.Description</string>
+          <string>Live.info.Description</string>
          </property>
         </widget>
        </item>

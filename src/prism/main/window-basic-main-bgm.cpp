@@ -18,24 +18,24 @@ void PLSBasic::OnBgmClicked()
 void PLSBasic::createBackgroundMusicView()
 {
 	if (!backgroundMusicView) {
-		backgroundMusicView = new PLSBackgroundMusicView();
-		connect(backgroundMusicView, &PLSBackgroundMusicView::bgmViewVisibleChanged, this, [=](bool visible) { emit bgmViewVisibleChanged(visible); });
-
+		DialogInfo info;
+		info.configId = ConfigId::BgmConfig;
+		info.defaultHeight = 817;
+		info.defaultWidth = 298;
+		backgroundMusicView = new PLSBackgroundMusicView(info);
 		connect(
 			backgroundMusicView, &PLSBackgroundMusicView::RefreshSourceProperty, this,
-			[=](const QString &name, bool disable) {
+			[=](const QString &name, bool) {
 				if (!properties) {
 					return;
 				}
 
 				if (name == obs_source_get_name(properties->GetSource())) {
 					properties->ReloadProperties();
-					//properties->UpdateOldSettings(properties->GetSource());
 				}
 			},
 			Qt::QueuedConnection);
 	}
-	//backgroundMusicView->InitGeometry();
 }
 
 void PLSBasic::SetBgmViewVisible(bool visible)
@@ -338,7 +338,7 @@ BgmSourceVecType PLSBasic::EnumAllBgmSource()
 	return sourceList;
 }
 
-void PLSBasic::MediaStateChanged(void *data, calldata_t *calldata)
+void PLSBasic::MediaStateChanged(void *, calldata_t *calldata)
 {
 	PLSBasic *basic = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
 	obs_source_t *source = (obs_source_t *)calldata_ptr(calldata, "source");
@@ -353,7 +353,7 @@ void PLSBasic::MediaStateChanged(void *data, calldata_t *calldata)
 	}
 }
 
-void PLSBasic::MediaLoad(void *data, calldata_t *calldata)
+void PLSBasic::MediaLoad(void *, calldata_t *calldata)
 {
 	PLSBasic *basic = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
 	obs_source_t *source = (obs_source_t *)calldata_ptr(calldata, "source");
@@ -366,7 +366,7 @@ void PLSBasic::MediaLoad(void *data, calldata_t *calldata)
 	}
 }
 
-void PLSBasic::PropertiesChanged(void *param, calldata_t *calldata)
+void PLSBasic::PropertiesChanged(void *, calldata_t *calldata)
 {
 	PLSBasic *basic = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
 	obs_source_t *source = (obs_source_t *)calldata_ptr(calldata, "source");

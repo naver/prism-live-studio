@@ -36,7 +36,7 @@ extern "C" {
 #define PLUGIN_NAME "AMD Advanced Media Framework"
 
 #ifndef LITE_OBS
-#define PLOG(level, ...) blog(level, "[AMF] " __VA_ARGS__)
+#define PLOG(level, ...) plog(level, "[AMF] " __VA_ARGS__)
 #define PLOG_ERROR(format, ...) PLOG(LOG_ERROR, format, __VA_ARGS__)
 #else
 #define PLOG(...) (void)0

@@ -6,9 +6,11 @@
 class PLSLabel : public QLabel {
 	Q_OBJECT
 public:
-	explicit PLSLabel(QWidget *parent = nullptr);
+	explicit PLSLabel(QWidget *parent = nullptr, bool showTooltip = true);
+	explicit PLSLabel(const QString &text, bool showTooltip = true, QWidget *parent = nullptr);
 	~PLSLabel();
 	void SetText(const QString &text);
+	QString Text();
 
 protected:
 	virtual void resizeEvent(QResizeEvent *event) override;
@@ -18,6 +20,7 @@ private:
 
 private:
 	QString realText{};
+	bool showTooltip = true;
 };
 
 class CombinedLabel : public QLabel {

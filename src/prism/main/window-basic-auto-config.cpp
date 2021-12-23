@@ -32,6 +32,9 @@ extern QCefCookieManager *panel_cookies;
 
 static OBSData OpenServiceSettings(std::string &type)
 {
+	// do not load local service setting json
+	return OBSData();
+#if 0
 	char serviceJsonPath[512];
 	int ret = GetProfilePath(serviceJsonPath, sizeof(serviceJsonPath), SERVICE_PATH);
 	if (ret <= 0)
@@ -47,6 +50,7 @@ static OBSData OpenServiceSettings(std::string &type)
 	obs_data_release(settings);
 
 	return settings;
+#endif
 }
 
 static void GetServiceInfo(std::string &type, std::string &service, std::string &server, std::string &key)

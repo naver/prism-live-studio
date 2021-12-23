@@ -80,7 +80,7 @@ void LoadingFrame::changeEvent(QEvent *e)
 	}
 }
 
-void LoadingFrame::paintEvent(QPaintEvent *event)
+void LoadingFrame::paintEvent(QPaintEvent *)
 {
 	QColor background(10, 10, 10, 150);
 	QPainter painter(this);

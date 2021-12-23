@@ -41,6 +41,7 @@ along with this program; If not, see <https://www.gnu.org/licenses/>
 #include "Config.h"
 #include "forms/output-settings.h"
 #include "alert-view.hpp"
+#include "log/log.h"
 
 #define NDI_SDK_DIR "NDI_SDK_DIR"
 
@@ -101,24 +102,22 @@ extern "C" Q_DECL_EXPORT int loadNDIRuntime()
 
 bool obs_module_load(void)
 {
-	blog(LOG_INFO, "hello ! (version %s)", OBS_NDI_VERSION);
-
-	QMainWindow *main_window = (QMainWindow *)obs_frontend_get_main_window();
+	PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "hello ! (version %s)", OBS_NDI_VERSION);
 
 	ndiLib = load_ndilib();
 	if (!ndiLib) {
-		blog(LOG_ERROR, "NDI library not found.");
+		PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "NDI library not found.");
 	} else if (ndiLib->initialize()) {
 		ndiLibInitialized = true;
 
-		blog(LOG_INFO, "NDI library initialized successfully (%s)", ndiLib->version());
+		PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "NDI library initialized successfully (%s)", ndiLib->version());
 
 		NDIlib_find_create_t find_desc = {0};
 		find_desc.show_local_sources = true;
 		find_desc.p_groups = NULL;
 		ndi_finder = ndiLib->find_create_v2(&find_desc);
 	} else {
-		blog(LOG_ERROR, "CPU unsupported by NDI library. Module won't load.");
+		PLS_WARN(FRONTEND_PLUGINS_NDI_SOURCE, "CPU unsupported by NDI library. Module won't load.");
 	}
 
 	ndi_source_info = create_ndi_source_info();
@@ -136,6 +135,8 @@ bool obs_module_load(void)
 	alpha_filter_info = create_alpha_filter_info();
 	obs_register_source(&alpha_filter_info);
 
+	//PRISM/Zhangdewen/20210305/#/remove ndi output
+	/*
 	if (main_window) {
 		Config *conf = Config::Current();
 		conf->Load();
@@ -176,14 +177,14 @@ bool obs_module_load(void)
 				}
 			},
 			(void *)conf);
-	}
+	}*/
 
 	return true;
 }
 
 void obs_module_unload()
 {
-	blog(LOG_INFO, "goodbye !");
+	PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "goodbye !");
 
 	if (ndiLib) {
 		ndiLib->find_destroy(ndi_finder);
@@ -221,23 +222,21 @@ const NDIlib_v4 *load_ndilib()
 	locations << "C:/Program Files/NewTek/NDI 4 SDK/Bin/x64";
 
 	for (QString path : locations) {
-		blog(LOG_INFO, "Trying '%s'", path.toUtf8().constData());
 		QFileInfo libPath(QDir(path).absoluteFilePath(NDILIB_LIBRARY_NAME));
 
 		if (libPath.exists() && libPath.isFile()) {
 			QString libFilePath = libPath.absoluteFilePath();
-			blog(LOG_INFO, "Found NDI library at '%s'", libFilePath.toUtf8().constData());
 
 			loaded_lib = new QLibrary(libFilePath, nullptr);
 			if (loaded_lib->load()) {
-				blog(LOG_INFO, "NDI runtime loaded successfully");
+				PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "NDI runtime loaded successfully");
 
 				NDIlib_v4_load_ lib_load = (NDIlib_v4_load_)loaded_lib->resolve("NDIlib_v4_load");
 
 				if (lib_load != nullptr) {
 					return lib_load();
 				} else {
-					blog(LOG_INFO, "ERROR: NDIlib_v4_load not found in loaded library");
+					PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "ERROR: NDIlib_v4_load not found in loaded library");
 				}
 			} else {
 				delete loaded_lib;
@@ -246,6 +245,6 @@ const NDIlib_v4 *load_ndilib()
 		}
 	}
 
-	blog(LOG_ERROR, "Can't find the NDI library");
+	PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "Can't find the NDI library");
 	return nullptr;
 }

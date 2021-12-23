@@ -1,6 +1,7 @@
 #include "spinbox.hpp"
 
 #include <QWheelEvent>
+#include <QLineEdit>
 
 PLSSpinBox::PLSSpinBox(QWidget *parent) : QSpinBox(parent)
 {
@@ -8,6 +9,14 @@ PLSSpinBox::PLSSpinBox(QWidget *parent) : QSpinBox(parent)
 }
 
 PLSSpinBox::~PLSSpinBox() {}
+
+void PLSSpinBox::makeTextVCenter()
+{
+	QLineEdit *edit = this->findChild<QLineEdit *>();
+	if (edit) {
+		edit->setContentsMargins({0, 0, 0, 1});
+	}
+}
 
 void PLSSpinBox::wheelEvent(QWheelEvent *event)
 {

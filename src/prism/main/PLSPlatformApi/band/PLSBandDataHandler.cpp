@@ -20,12 +20,10 @@ QString PLSBandDataHandler::getPlatformName()
 
 bool PLSBandDataHandler::tryToUpdate(const QVariantMap &srcInfo, UpdateCallback finishedCall)
 {
-	PLS_INFO(MODULE_PLATFORM_BAND, "Band platform refresh");
 	QString channelUUID = srcInfo[ChannelData::g_channelUUID].toString();
-
 	PLSPlatformBand *band = dynamic_cast<PLSPlatformBand *>(PLS_PLATFORM_API->getPlatformById(channelUUID, srcInfo));
 	if (!band) {
-		PLS_ERROR(MODULE_PLATFORM_BAND, "Band refresh failed, platform not exists");
+		PLS_ERROR(MODULE_PLATFORM_BAND, "%s %s Band refresh failed, platform not exists", PrepareInfoPrefix, __FUNCTION__);
 		QVariantMap info = srcInfo;
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
 		finishedCall(m_bandInfos);
@@ -33,7 +31,7 @@ bool PLSBandDataHandler::tryToUpdate(const QVariantMap &srcInfo, UpdateCallback 
 	} else {
 		band->clearBandInfos();
 		band->setInitData(srcInfo);
-
+		PLS_INFO(MODULE_PLATFORM_BAND, "%s %s channelUUID(%s) Band platform(%p) refresh", PrepareInfoPrefix, __FUNCTION__, channelUUID.toStdString().c_str(), band);
 		QMetaObject::invokeMethod(band, [=]() {
 			band->initLiveInfo(PLSCHANNELS_API->isResetNeed());
 			if (getInfo(srcInfo, ChannelData::g_channelToken).isEmpty()) {

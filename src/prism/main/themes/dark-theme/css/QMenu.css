@@ -23,13 +23,14 @@ QMenu::icon {
 }
 QMenu::item {
 	font-size:/*hdpi*/ 14px;
-    padding:/*hdpi*/0px/*hdpi*/20px/*hdpi*/0px/*hdpi*/20px;
+    padding:/*hdpi*/0px/*hdpi*/25px/*hdpi*/0px/*hdpi*/20px;
 	min-height:/*hdpi*/ 40px;
 	max-height:/*hdpi*/ 40px;
 	min-width:/*hdpi*/ 190px;
     color: #ffffff;
     background: #2d2d2d;
 }
+
 QMenu::item:selected {
     background: #373737;
 }

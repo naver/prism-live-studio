@@ -26,7 +26,7 @@ try {
 	return true;
 
 } catch (std::string text) {
-	blog(LOG_WARNING, "%s: %s", __FUNCTION__, text.c_str());
+	plog(LOG_WARNING, "%s: %s", __FUNCTION__, text.c_str());
 	return false;
 }
 

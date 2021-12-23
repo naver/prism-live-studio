@@ -107,7 +107,7 @@ MODULE_EXPORT bool obs_module_load(void)
 			char*         path = obs_module_file("enc-amf-test" BIT_STR ".exe");
 
 			if (!create_pipe(&hReadImp, &hOut)) {
-				PLOG_ERROR("Failed to create pipes for AMF test.");
+				PLOG_WARNING("Failed to create pipes for AMF test.");
 				bfree(path);
 				return false;
 			}
@@ -115,7 +115,7 @@ MODULE_EXPORT bool obs_module_load(void)
 								 DUPLICATE_SAME_ACCESS)) {
 				CloseHandle(hReadImp);
 				CloseHandle(hOut);
-				PLOG_ERROR("Failed to modify pipes for AMF test.");
+				PLOG_WARNING("Failed to modify pipes for AMF test.");
 				bfree(path);
 				return false;
 			};
@@ -123,7 +123,7 @@ MODULE_EXPORT bool obs_module_load(void)
 			if (!create_process(path, hOut, &hProcess)) {
 				CloseHandle(hRead);
 				CloseHandle(hOut);
-				PLOG_ERROR("Failed to start AMF test subprocess.");
+				PLOG_WARNING("Failed to start AMF test subprocess.");
 				bfree(path);
 				return false;
 			}
@@ -134,7 +134,7 @@ MODULE_EXPORT bool obs_module_load(void)
 			char  buf[1024];
 			DWORD bufread = 0;
 			while (ReadFile(hRead, buf, sizeof(buf), &bufread, NULL)) {
-				blog(LOG_ERROR, "%.*s", bufread, buf);
+				plog(LOG_WARNING, "%.*s", bufread, buf);
 			}
 
 			if (WaitForSingleObject(hProcess, 2000) == WAIT_OBJECT_0)
@@ -168,11 +168,11 @@ MODULE_EXPORT bool obs_module_load(void)
 			case STATUS_STACK_OVERFLOW:
 			case STATUS_UNWIND_CONSOLIDATE:
 			default:
-				PLOG_ERROR("A critical error occurred during AMF Testing.");
+				PLOG_WARNING("A critical error occurred during AMF Testing.");
 				return false;
 			case 2:
 			case 1:
-				PLOG_ERROR("AMF Test failed due to one or more errors.");
+				PLOG_WARNING("AMF Test failed due to one or more errors.");
 				return false;
 			case 0:
 				break;
@@ -196,9 +196,9 @@ MODULE_EXPORT bool obs_module_load(void)
 		PLOG_DEBUG("<%s> Loaded.", __FUNCTION_NAME__);
 		return true;
 	} catch (const std::exception& ex) {
-		PLOG_ERROR("Failed to load due to error: %s", ex.what());
+		PLOG_WARNING("Failed to load due to error: %s", ex.what());
 	} catch (...) {
-		PLOG_ERROR("Failed to load with unknown error.");
+		PLOG_WARNING("Failed to load with unknown error.");
 	}
 	return false;
 }

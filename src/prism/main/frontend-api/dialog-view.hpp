@@ -12,6 +12,13 @@ namespace Ui {
 class PLSDialogView;
 }
 
+struct DialogInfo {
+	int defaultWidth{300};
+	int defaultHeight{800};
+	int defaultOffset{5};
+	ConfigId configId{ConfigId::None};
+};
+
 class FRONTEND_API PLSDialogView : public PLSToplevelView<QDialog> {
 	Q_OBJECT
 	Q_PROPERTY(int captionHeight READ getCaptionHeight WRITE setCaptionHeight)
@@ -29,6 +36,7 @@ class FRONTEND_API PLSDialogView : public PLSToplevelView<QDialog> {
 	Q_PROPERTY(bool fullScreenState READ getFullScreenState)
 
 public:
+	explicit PLSDialogView(DialogInfo info, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	explicit PLSDialogView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSDialogView();
 
@@ -153,6 +161,11 @@ public:
 public slots:
 	int exec() override;
 
+public:
+	void InitGeometry(bool inConstructor);
+
+	void onMaxFullScreenStateChanged() override;
+	void onSaveNormalGeometry() override;
 signals:
 	void shown();
 	void beginResizeSignal();
@@ -165,6 +178,7 @@ private:
 protected:
 	void closeEvent(QCloseEvent *event);
 	void showEvent(QShowEvent *event);
+	void hideEvent(QHideEvent *event);
 	void keyPressEvent(QKeyEvent *event);
 	void keyReleaseEvent(QKeyEvent *event);
 	void mousePressEvent(QMouseEvent *event);
@@ -189,6 +203,23 @@ private:
 	bool hasCloseButton;
 	bool isEscapeCloseEnabled;
 	std::function<bool(QCloseEvent *)> closeEventCallback;
+	DialogInfo defaultInfo;
 };
+
+struct FRONTEND_API HotKeyLocker {
+	HotKeyLocker();
+	~HotKeyLocker();
+	HotKeyLocker(const HotKeyLocker &src);
+	HotKeyLocker(const HotKeyLocker &&src) noexcept;
+	HotKeyLocker &operator=(const HotKeyLocker &) { return *this; }
+	static QSharedPointer<HotKeyLocker> createHotkeyLocker();
+
+private:
+	static int lockerCount;
+};
+
+using HotKeyLockerPtr = QSharedPointer<HotKeyLocker>;
+
+Q_DECLARE_METATYPE(HotKeyLockerPtr)
 
 #endif // PLSDIALOGVIEW_HPP

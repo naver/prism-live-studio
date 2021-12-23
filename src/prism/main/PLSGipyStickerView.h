@@ -50,20 +50,14 @@ class PLSGipyStickerView : public PLSDialogView {
 	enum TabType { None = -1, RecentTab = 1, TrendingTab };
 
 public:
-	explicit PLSGipyStickerView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSGipyStickerView(DialogInfo info, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSGipyStickerView();
-
-	void onMaxFullScreenStateChanged() override;
-	void onSaveNormalGeometry() override;
 
 	bool IsSignalConnected(const QMetaMethod &signal);
 
-	static void OnPrismAppQuit(enum obs_frontend_event event, void *context);
 	static PointerValue ConvertPointer(void *ptr);
 
 	void SaveStickerJsonData();
-	void SaveShowModeToConfig();
-	void InitGeometry();
 	void SetBindSourcePtr(PointerValue sourcePtr);
 	void SetExitFlag(bool exit_) { exit = exit_; };
 

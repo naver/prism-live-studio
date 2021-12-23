@@ -1,3 +1,4 @@
+#include <Windows.h>
 #include <obs-module.h>
 #include <frontend-api.h>
 #include <QMainWindow>
@@ -36,6 +37,38 @@ struct preview_output {
 
 static struct preview_output context = {0};
 
+//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+struct win_event {
+	HANDLE event;
+
+	win_event() : event(CreateEventW(NULL, TRUE, FALSE, NULL)) {}
+	~win_event()
+	{
+		if (event) {
+			CloseHandle(event);
+			event = NULL;
+		}
+	}
+
+	bool wait(void (*output_stop)(obs_output_t *output), obs_output_t *output, int timeout = 5000 /* 5s */)
+	{
+		if (event) {
+			ResetEvent(event);
+			output_stop(output);
+			return (WaitForSingleObject(event, timeout) == WAIT_OBJECT_0);
+		} else {
+			output_stop(output);
+			return true;
+		}
+	}
+	void notify()
+	{
+		if (event) {
+			SetEvent(event);
+		}
+	}
+};
+
 OBSData load_settings()
 {
 	BPtr<char> path = obs_module_get_config_path(obs_current_module(), "decklinkOutputProps.json");
@@ -65,16 +98,36 @@ bool is_setting_conflict()
 		int previewKeyerMode = (int)obs_data_get_int(previewSettings, KEYER);
 		int mainKeyerMode = (int)obs_data_get_int(mainSettings, KEYER);
 		if (!astrcmpi(previewDeviceHash, mainDeviceHash) && mainKeyerMode != previewKeyerMode && !(mainKeyerMode & previewKeyerMode)) {
-			blog(LOG_WARNING, "Using different keyer mode for same device is not safe.");
+			PLS_WARN(FRONTEND_PLUGINS_DECKLINK_OUTPUT, "Using different keyer mode for same device is not safe.");
 			return true;
 		}
 	}
 	return false;
 }
 
-void output_stop()
+//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+static win_event output_stop_event_for_exit_app;
+
+//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+void output_stop_callback(void * /*data*/, calldata_t * /*params*/)
 {
-	obs_output_stop(output);
+	output_stop_event_for_exit_app.notify();
+}
+
+void output_stop(
+	//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+	bool app_exit = false)
+{
+	//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+	if (!app_exit) {
+		obs_output_stop(output);
+	} else if (!output_stop_event_for_exit_app.wait(&obs_output_stop, output)) {
+		output_stop_event_for_exit_app.wait(&obs_output_force_stop, output);
+	}
+
+	//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+	signal_handler_disconnect(obs_output_get_signal_handler(output), "stop", output_stop_callback, doUI);
+
 	obs_output_release(output);
 	main_output_running = false;
 	// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
@@ -92,8 +145,10 @@ void output_start()
 
 		output = obs_output_create("decklink_output", "decklink_output", settings, NULL);
 
+		//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+		signal_handler_connect_ref(obs_output_get_signal_handler(output), "stop", output_stop_callback, nullptr);
+
 		bool started = obs_output_start(output);
-		obs_data_release(settings);
 
 		main_output_running = started;
 
@@ -132,9 +187,29 @@ OBSData load_preview_settings()
 void on_preview_scene_changed(enum obs_frontend_event event, void *param);
 void render_preview_source(void *param, uint32_t cx, uint32_t cy);
 
-void preview_output_stop()
+//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+static win_event preview_output_stop_event_for_exit_app;
+
+//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+void preview_output_stop_callback(void * /*data*/, calldata_t * /*params*/)
 {
-	obs_output_stop(context.output);
+	preview_output_stop_event_for_exit_app.notify();
+}
+
+void preview_output_stop(
+	//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+	bool app_exit = false)
+{
+	//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+	if (!app_exit) {
+		obs_output_stop(context.output);
+	} else if (!preview_output_stop_event_for_exit_app.wait(&obs_output_stop, context.output)) {
+		preview_output_stop_event_for_exit_app.wait(&obs_output_force_stop, context.output);
+	}
+
+	//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+	signal_handler_disconnect(obs_output_get_signal_handler(context.output), "stop", preview_output_stop_callback, doUI);
+
 	// Zhang dewen issue:#2416 merge OBS v25.0.8 code.
 	obs_output_release(context.output);
 	video_output_stop(context.video_queue);
@@ -166,6 +241,9 @@ void preview_output_start()
 			return;
 
 		context.output = obs_output_create("decklink_output", "decklink_preview_output", settings, NULL);
+
+		//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+		signal_handler_connect_ref(obs_output_get_signal_handler(context.output), "stop", preview_output_stop_callback, nullptr);
 
 		obs_get_video_info(&context.ovi);
 
@@ -300,7 +378,7 @@ void render_preview_source(void *param, uint32_t cx, uint32_t cy)
 
 void addOutputUI(void)
 {
-	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(obs_module_text("Decklink Output"));
+	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(obs_module_text("DecklinkOutput"));
 	pls_add_tools_menu_seperator();
 
 	QMainWindow *window = (QMainWindow *)obs_frontend_get_main_window();
@@ -326,6 +404,17 @@ static void OBSEvent(enum obs_frontend_event event, void *)
 
 		if (previewSettings && obs_data_get_bool(previewSettings, "auto_start"))
 			preview_output_start();
+	}
+	//PRISM/Zhangdewen/20210204/#6672/for decklink crash
+	else if (event == OBS_FRONTEND_EVENT_EXIT) {
+		// main window close
+		if (main_output_running) {
+			output_stop(true);
+		}
+
+		if (preview_output_running) {
+			preview_output_stop(true);
+		}
 	}
 }
 

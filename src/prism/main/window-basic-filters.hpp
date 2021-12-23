@@ -76,7 +76,7 @@ private:
 	static void UpdateProperties(void *data, calldata_t *params);
 	static void DrawPreview(void *data, uint32_t cx, uint32_t cy);
 
-	QMenu *CreateAddFilterPopupMenu(QMenu *popup, bool async);
+	QMenu *CreateAddFilterPopupMenu(QMenu **popup, bool async);
 
 	void AddNewFilter(const char *id);
 	void ReorderFilter(PLSFiltersListView *list, obs_source_t *filter, size_t idx);

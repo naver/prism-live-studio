@@ -5,6 +5,8 @@
 
 #include <QWindow>
 #include <QApplication>
+#include <QVBoxLayout>
+#include <QThread>
 
 #ifdef USE_QT_LOOP
 #include <QEventLoop>
@@ -16,8 +18,8 @@
 #include <util/base.h>
 #include <thread>
 #include <algorithm>
-#include <qeventloop.h>
 #include <qevent.h>
+#include <set>
 
 extern bool QueueCEFTask(std::function<void()> task);
 extern "C" void obs_browser_initialize(void);
@@ -27,7 +29,68 @@ std::mutex popup_whitelist_mutex;
 std::vector<PopupWhitelistInfo> popup_whitelist;
 std::vector<PopupWhitelistInfo> forced_popups;
 
-std::list<QCefWidgetInternal *> g_lstCefWidget;
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+static std::recursive_mutex cef_widgets_mutex;
+static std::set<QCefWidgetInner *> cef_widgets;
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+bool cef_widgets_contains(QCefWidgetInner *inner)
+{
+	if (!inner) {
+		return false;
+	}
+
+	std::lock_guard<std::recursive_mutex> lock(cef_widgets_mutex);
+	if (cef_widgets.find(inner) != cef_widgets.end()) {
+		return true;
+	}
+	return false;
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void cef_widgets_sync_call(QCefWidgetInner *inner,
+			   std::function<void(QCefWidgetInner *)> call)
+{
+	if (!inner) {
+		return;
+	}
+
+	std::lock_guard<std::recursive_mutex> lock(cef_widgets_mutex);
+	if (cef_widgets.find(inner) != cef_widgets.end()) {
+		call(inner);
+	}
+}
+
+//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+static void cef_widgets_add(QCefWidgetInner *inner, bool locked)
+{
+	if (!locked) {
+		std::lock_guard<std::recursive_mutex> lock(cef_widgets_mutex);
+		cef_widgets.insert(inner);
+	} else {
+		cef_widgets.insert(inner);
+	}
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+static void cef_widgets_remove(QCefWidgetInner *inner)
+{
+	std::lock_guard<std::recursive_mutex> lock(cef_widgets_mutex);
+	cef_widgets.erase(inner);
+
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	inner->popups.clear();
+	inner->popup = nullptr;
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+template<typename Callback> static void cef_widgets_foreach(Callback callback)
+{
+	std::lock_guard<std::recursive_mutex> lock(cef_widgets_mutex);
+	for (QCefWidgetInner *inner : cef_widgets) {
+		callback(inner);
+	}
+}
 
 /* ------------------------------------------------------------------------- */
 
@@ -88,7 +151,7 @@ public:
 	}
 
 	virtual bool Visit(const CefCookie &cookie, int index, int total,
-			   bool &deleteCookie) override
+			   bool &) override
 	{
 		has_cookie = true;
 		cookie_cb(CefString(cookie.name.str).ToString().c_str(),
@@ -241,60 +304,80 @@ struct QCefCookieManagerInternal : QCefCookieManager {
 
 /* ------------------------------------------------------------------------- */
 
-// OBS Modification:
-// Zhang dewen / 20200211 / Related Issue ID=347
-// Reason: store request headers
-// Solution: modify request headers
-QCefWidgetInternal::QCefWidgetInternal(
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+QCefWidgetInner::QCefWidgetInner(
 	QWidget *parent, const std::string &url_, const std::string &script_,
-	CefRefPtr<CefRequestContext> rqc_,
-	const std::map<std::string, std::string> &headers_)
-	: QCefWidget(parent),
+	Rqc rqc_, const Headers &headers_, bool allowPopups_,
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	QPLSBrowserPopupDialog *popup_)
+	: QFrame(parent),
+	  browser(),
 	  url(url_),
 	  script(script_),
 	  rqc(rqc_),
-	  headers(headers_)
+	  headers(headers_),
+	  allowPopups(allowPopups_),
+	  popups(),
+	  //PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	  popup(popup_)
 {
-	setAttribute(Qt::WA_PaintOnScreen);
-	setAttribute(Qt::WA_StaticContents);
-	setAttribute(Qt::WA_NoSystemBackground);
-	setAttribute(Qt::WA_OpaquePaintEvent);
-	setAttribute(Qt::WA_DontCreateNativeAncestors);
 	setAttribute(Qt::WA_NativeWindow);
-
 	setFocusPolicy(Qt::ClickFocus);
-
-	g_lstCefWidget.push_back(this);
-
-	obs_browser_initialize();
-	Init();
 }
 
-QCefWidgetInternal::~QCefWidgetInternal()
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+QCefWidgetInner::~QCefWidgetInner() {}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetInner::init()
 {
-	closeBrowser();
+	executeOnCef([this, size = this->size(), id = winId()]() {
+		if (!cef_widgets_contains(this) || browser) {
+			return;
+		}
 
-	g_lstCefWidget.remove(this);
-}
-
-void QCefWidgetInternal::closeBrowser()
-{
-	auto destroyBrowser = [](CefRefPtr<CefBrowser> cefBrowser) {
-		CefRefPtr<CefClient> client =
-			cefBrowser->GetHost()->GetClient();
-		QCefBrowserClient *bc =
-			reinterpret_cast<QCefBrowserClient *>(client.get());
-
-		cefBrowser->GetHost()->WasHidden(true);
-		cefBrowser->GetHost()->CloseBrowser(true);
-
-		bc->widget = nullptr;
-	};
-
-	CefRefPtr<CefBrowser> browser = cefBrowser;
-	if (!!browser) {
+		CefWindowInfo windowInfo;
 #ifdef _WIN32
-		/* So you're probably wondering what's going on here.  If you
+		RECT rc = {0, 0, size.width(), size.height()};
+		windowInfo.SetAsChild((HWND)id, rc);
+#elif __APPLE__
+		windowInfo.SetAsChild((CefWindowHandle)id, 0, 0, size.width(),
+				      size.height());
+#endif
+
+		CefRefPtr<QCefBrowserClient> browserClient =
+			new QCefBrowserClient(this);
+
+		CefBrowserSettings cefBrowserSettings;
+		cefBrowserSettings.web_security = STATE_DISABLED;
+		browser = CefBrowserHost::CreateBrowserSync(
+			windowInfo, browserClient, url, cefBrowserSettings,
+#if CHROME_VERSION_BUILD >= 3770
+			CefRefPtr<CefDictionaryValue>(),
+#endif
+			rqc);
+#ifdef _WIN32
+		resize(true);
+		//PRISM/Zhangdewen/20210608/#/auto restart cef, browser don's show sometimes
+		resize(false);
+#endif
+	});
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+//PRISM/Zhangdewen/20210601/#/optimization, exception restart
+void QCefWidgetInner::destroy(bool restart)
+{
+	if (!restart) {
+		hide();
+		setParent(nullptr);
+
+		CefRefPtr<CefBrowser> browser = this->browser;
+		if (browser) {
+			this->browser = nullptr;
+
+#ifdef _WIN32
+			/* So you're probably wondering what's going on here.  If you
 		 * call CefBrowserHost::CloseBrowser, and it fails to unload
 		 * the web page *before* WM_NCDESTROY is called on the browser
 		 * HWND, it will call an internal CEF function
@@ -310,189 +393,261 @@ void QCefWidgetInternal::closeBrowser()
 		 * So, instead, before closing the browser, we need to decouple
 		 * the browser from the widget.  To do this, we hide it, then
 		 * remove its parent. */
-		HWND hwnd = (HWND)cefBrowser->GetHost()->GetWindowHandle();
-		if (hwnd) {
-			ShowWindow(hwnd, SW_HIDE);
-			SetParent(hwnd, nullptr);
-		}
+			HWND hwnd = (HWND)browser->GetHost()->GetWindowHandle();
+			if (hwnd) {
+				ShowWindow(hwnd, SW_HIDE);
+				SetParent(hwnd, nullptr);
+			}
 #endif
+		}
 
-		ExecuteOnBrowser(destroyBrowser, false);
-		cefBrowser = nullptr;
+		executeOnCef([browser, this]() {
+			if (browser) {
+				//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+				browser->GetHost()->WasHidden(true);
+				browser->GetHost()->CloseBrowser(true);
+			}
+
+			executeOnUI([this]() { delete this; });
+		});
 	} else {
-		QEventLoop loop;
-		auto waitForInit = [this, &loop]() {
-			/* WuLongyue/2020-05-19/#2669
-			 * Nothing to do,
-			 * Only post a task to cef runloop, then wait this task to finish
-			 * It's used for waiting previous QCefWidgetInternal::Init() to finish
-			 * Because Init() runs on cef thread.
-			 * Reason: If likes `QCefWidget *cefWidget = cef->create_widget` on first line,
-			 * then `delete cefWidget` on second line immedately,
-			 * The `Init` method on cef thread may not be finished, So need to wait it.
-			*/
-			QMetaObject::invokeMethod(&loop, &QEventLoop::quit);
-		};
+		//PRISM/Zhangdewen/20210601/#/optimization, exception restart
+		CefRefPtr<CefBrowser> browser = this->browser;
+		if (browser) {
+			this->browser = nullptr;
 
-		if (QueueCEFTask(waitForInit)) {
-			loop.exec(QEventLoop::ExcludeUserInputEvents);
+			HWND hwnd = (HWND)browser->GetHost()->GetWindowHandle();
+			if (hwnd) {
+				ShowWindow(hwnd, SW_HIDE);
+				SetParent(hwnd, nullptr);
+			}
 		}
 
-		CefRefPtr<CefBrowser> browser = cefBrowser;
-		if (!!browser) {
-			closeBrowser();
-		}
+		executeOnCef([browser, this]() {
+			if (browser) {
+				//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+				browser->GetHost()->WasHidden(true);
+				browser->GetHost()->CloseBrowser(true);
+			}
+
+			//PRISM/Zhangdewen/20210802/#9043/cross thread call widget's winId() maybe cause crash
+			executeOnUI([this]() { init(); });
+		});
 	}
 }
 
-void QCefWidgetInternal::Init()
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetInner::resizeEvent(QResizeEvent *event)
 {
-	QSize size = this->size() * devicePixelRatio();
-	WId id = winId();
-	QEventLoop loop;
-
-	bool success = QueueCEFTask([this, size, id, &loop]() {
-		CefWindowInfo windowInfo;
-
-		/* Make sure Init isn't called more than once. */
-		if (cefBrowser) {
-			QMetaObject::invokeMethod(&loop, &QEventLoop::quit);
-			return;
-		}
-
-#ifdef _WIN32
-		RECT rc = {0, 0, size.width(), size.height()};
-		windowInfo.SetAsChild((HWND)id, rc);
-#elif __APPLE__
-		windowInfo.SetAsChild((CefWindowHandle)id, 0, 0, size.width(),
-				      size.height());
-#endif
-
-		// OBS Modification:
-		// Zhang dewen / 20200211 / Related Issue ID=347
-		// Reason: penetrate request headers
-		// Solution: modify request headers
-		CefRefPtr<QCefBrowserClient> browserClient =
-			new QCefBrowserClient(this, script, allowAllPopups_,
-					      headers);
-
-		CefBrowserSettings cefBrowserSettings;
-		cefBrowserSettings.web_security = STATE_DISABLED;
-		cefBrowser = CefBrowserHost::CreateBrowserSync(
-			windowInfo, browserClient, url, cefBrowserSettings,
-#if CHROME_VERSION_BUILD >= 3770
-			CefRefPtr<CefDictionaryValue>(),
-#endif
-			rqc);
-#ifdef _WIN32
-		Resize(true);
-#endif
-		QMetaObject::invokeMethod(&loop, &QEventLoop::quit);
-	});
-
-	if (success) {
-		loop.exec();
-	}
-	//timer.stop();
+	QFrame::resizeEvent(event);
+	resize(false);
 }
 
-void QCefWidgetInternal::resizeEvent(QResizeEvent *event)
-{
-	QWidget::resizeEvent(event);
-	Resize(false);
-}
-
-void QCefWidgetInternal::Resize(bool bImmediately)
-{
-#ifdef _WIN32
-	QSize size = this->size() * devicePixelRatio();
-
-	auto func = [this, size]() {
-		if (!cefBrowser)
-			return;
-
-		HWND hwnd = cefBrowser->GetHost()->GetWindowHandle();
-		SetWindowPos(hwnd, nullptr, 0, 0, size.width(), size.height(),
-			     SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER);
-		SendMessage(hwnd, WM_SIZE, 0,
-			    MAKELPARAM(size.width(), size.height()));
-	};
-
-	if (bImmediately) {
-		func();
-	} else {
-		QueueCEFTask(func);
-	}
-
-#endif
-}
-
-void QCefWidgetInternal::showEvent(QShowEvent *event)
-{
-	QWidget::showEvent(event);
-
-	if (!cefBrowser) {
-		//obs_browser_initialize();
-		//connect(&timer, SIGNAL(timeout()), this, SLOT(Init()));
-		//timer.start(500);
-		//Init();
-	}
-}
-void QCefWidgetInternal::closeEvent(QCloseEvent *event)
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetInner::closeEvent(QCloseEvent *event)
 {
 	//renjinbo, #5053 because chat widget when start to load cef, this widget will cauch alt+f4 to close this cef widget instead of chat dialog.
 	event->ignore();
 	this->window()->hide();
 }
 
-QPaintEngine *QCefWidgetInternal::paintEngine() const
-{
-	return nullptr;
-}
-
-void QCefWidgetInternal::setURL(const std::string &url_)
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetInner::setURL(const std::string &url_)
 {
 	url = url_;
-	if (cefBrowser) {
-		cefBrowser->GetMainFrame()->LoadURL(url);
+	if (browser) {
+		browser->GetMainFrame()->LoadURL(url);
 	}
 }
 
-void QCefWidgetInternal::allowAllPopups(bool allow)
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetInner::resize(bool bImmediately)
 {
-	allowAllPopups_ = allow;
-}
-
-void QCefWidgetInternal::ExecuteOnBrowser(
-	std::function<void(CefRefPtr<CefBrowser>)> func, bool async)
-{
-	if (!async) {
-#ifdef USE_QT_LOOP
-		if (QThread::currentThread() == qApp->thread()) {
-			if (!!cefBrowser)
-				func(cefBrowser);
+	auto func = [this, size = this->size()]() {
+		if (!cef_widgets_contains(this) || !browser)
 			return;
-		}
-#endif
-		QEventLoop loop;
-		bool success = QueueCEFTask([&]() {
-			if (!!cefBrowser)
-				func(cefBrowser);
-			QMetaObject::invokeMethod(&loop, &QEventLoop::quit);
-		});
-		if (success) {
-			loop.exec(QEventLoop::ExcludeUserInputEvents);
-		}
+
+		HWND hwnd = browser->GetHost()->GetWindowHandle();
+		MoveWindow(hwnd, 0, 0, size.width(), size.height(), TRUE);
+	};
+
+	if (bImmediately) {
+		func();
 	} else {
-		CefRefPtr<CefBrowser> browser = cefBrowser;
-		if (!!browser) {
-#ifdef USE_QT_LOOP
-			QueueBrowserTask(cefBrowser, func);
-#else
-			QueueCEFTask([=]() { func(browser); });
-#endif
-		}
+		executeOnCef(func);
 	}
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetInner::executeOnUI(std::function<void()> func)
+{
+	QMetaObject::invokeMethod(qApp, func, Qt::QueuedConnection);
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetInner::executeOnCef(std::function<void()> func)
+{
+	QueueCEFTask([=]() { func(); });
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetInner::executeOnCef(
+	std::function<void(CefRefPtr<CefBrowser>)> func)
+{
+	CefRefPtr<CefBrowser> browser = this->browser;
+	if (browser) {
+		QueueCEFTask([=]() { func(browser); });
+	}
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetInner::attachBrowser(CefRefPtr<CefBrowser> browser)
+{
+	this->browser = browser;
+	resize(true);
+
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	if (popup) {
+		QMetaObject::invokeMethod(popup, "open");
+	}
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetInner::detachBrowser()
+{
+	this->browser = nullptr;
+
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	if (popup) {
+		QMetaObject::invokeMethod(popup, "accept");
+		popup = nullptr;
+	}
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+QCefWidgetImpl::QCefWidgetImpl(QWidget *parent, const std::string &url,
+			       const std::string &script, Rqc rqc,
+			       const Headers &headers, bool allowPopups,
+			       bool callInit, QPLSBrowserPopupDialog *popup,
+			       bool locked)
+	: QCefWidget(parent), inner(nullptr)
+{
+	obs_browser_initialize();
+	setAttribute(Qt::WA_NativeWindow);
+	setFocusPolicy(Qt::ClickFocus);
+
+	inner = new QCefWidgetInner(this, url, script, rqc, headers,
+				    allowPopups, popup);
+	cef_widgets_add(inner, locked);
+
+	connect(inner, &QCefWidgetInner::titleChanged, this,
+		&QCefWidgetImpl::titleChanged);
+	connect(inner, &QCefWidgetInner::urlChanged, this,
+		&QCefWidgetImpl::urlChanged);
+
+	if (callInit) {
+		inner->init();
+	}
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+QCefWidgetImpl::QCefWidgetImpl(QPLSBrowserPopupDialog *parent,
+			       QCefWidgetInner *checkInner, bool locked)
+	: QCefWidgetImpl(parent, checkInner->url, checkInner->script,
+			 checkInner->rqc, checkInner->headers,
+			 checkInner->allowPopups, false, parent, locked)
+{
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+QCefWidgetImpl::~QCefWidgetImpl()
+{
+	cef_widgets_remove(inner);
+	inner->destroy();
+	inner = nullptr;
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+bool QCefWidgetImpl::event(QEvent *event)
+{
+	bool result = QCefWidget::event(event);
+	if (event->type() == QEvent::ParentChange) {
+		inner->resize(false);
+	}
+	return result;
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetImpl::resizeEvent(QResizeEvent *event)
+{
+	QCefWidget::resizeEvent(event);
+	inner->setGeometry(0, 0, event->size().width(), event->size().height());
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetImpl::setURL(const std::string &url)
+{
+	inner->setURL(url);
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetImpl::allowAllPopups(bool allow)
+{
+	inner->allowPopups = allow;
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QCefWidgetImpl::closeBrowser() {}
+
+//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+QPLSBrowserPopupDialog::QPLSBrowserPopupDialog(QCefWidgetInner *checkInner_,
+					       QWidget *parent, bool locked)
+	: QDialog(parent), checkInner(checkInner_)
+{
+	setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint |
+		       Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
+	setAttribute(Qt::WA_DeleteOnClose, true);
+	setWindowTitle(" ");
+	setWindowIcon(QIcon());
+	setGeometry(parent->geometry());
+
+	QVBoxLayout *layout = new QVBoxLayout(this);
+	layout->setMargin(0);
+	layout->setSpacing(0);
+
+	impl = new QCefWidgetImpl(this, checkInner, locked);
+	layout->addWidget(impl);
+}
+
+//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+QPLSBrowserPopupDialog::~QPLSBrowserPopupDialog()
+{
+	checkInner = nullptr;
+	delete impl;
+	impl = nullptr;
+}
+
+//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+QPLSBrowserPopupDialog *
+QPLSBrowserPopupDialog::create(HWND &hwnd, QCefWidgetInner *checkInner,
+			       QWidget *parent, bool locked)
+{
+	if (QThread::currentThread() == qApp->thread()) {
+		QPLSBrowserPopupDialog *dialog =
+			new QPLSBrowserPopupDialog(checkInner, parent, locked);
+		hwnd = (HWND)dialog->impl->inner->winId();
+		return dialog;
+	}
+
+	QPLSBrowserPopupDialog *dialog = nullptr;
+	QMetaObject::invokeMethod(
+		qApp,
+		[&dialog, &hwnd, checkInner, parent, locked]() {
+			dialog = create(hwnd, checkInner, parent, locked);
+		},
+		Qt::BlockingQueuedConnection);
+
+	return dialog;
 }
 
 extern void DispatchJSEvent(std::string eventName, std::string jsonString);
@@ -515,8 +670,7 @@ void DispatchPrismEvent(const char *eventName, const char *jsonString)
 		SendBrowserProcessMessage(browser, PID_RENDERER, msg);
 	};
 
-	std::for_each(begin(g_lstCefWidget), end(g_lstCefWidget),
-		      [&](auto item) { item->ExecuteOnBrowser(func, true); });
+	cef_widgets_foreach([&](auto item) { item->executeOnCef(func); });
 
 	//PRISM/Zhangdewen/20200921/#/fix event not notify web source
 	DispatchJSEvent(event, json);
@@ -536,14 +690,13 @@ struct QCefInternal : QCef {
 	virtual bool initialized(void) override;
 	virtual bool wait_for_browser_init(void) override;
 
-	// OBS Modification:
-	// Zhang dewen / 20200211 / Related Issue ID=347
-	// Reason: add request headers parameter
-	// Solution: modify request headers
-	virtual QCefWidget *create_widget(
-		QWidget *parent, const std::string &url,
-		const std::string &script, QCefCookieManager *cookie_manager,
-		const std::map<std::string, std::string> &headers) override;
+	//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+	virtual QCefWidget *
+	create_widget(QWidget *parent, const std::string &url,
+		      const std::string &script,
+		      QCefCookieManager *cookie_manager,
+		      const std::map<std::string, std::string> &headers,
+		      bool allowPopups) override;
 
 	virtual QCefCookieManager *
 	create_cookie_manager(const std::string &storage_path,
@@ -577,20 +730,17 @@ bool QCefInternal::wait_for_browser_init(void)
 	return os_event_wait(cef_started_event) == 0;
 }
 
-// OBS Modification:
-// Zhang dewen / 20200211 / Related Issue ID=347
-// Reason: add request headers parameter
-// Solution: modify request headers
-QCefWidget *
-QCefInternal::create_widget(QWidget *parent, const std::string &url,
-			    const std::string &script, QCefCookieManager *cm,
-			    const std::map<std::string, std::string> &headers)
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+QCefWidget *QCefInternal::create_widget(
+	QWidget *parent, const std::string &url, const std::string &script,
+	QCefCookieManager *cookie_manager,
+	const std::map<std::string, std::string> &headers, bool allowPopups)
 {
 	QCefCookieManagerInternal *cmi =
-		reinterpret_cast<QCefCookieManagerInternal *>(cm);
+		reinterpret_cast<QCefCookieManagerInternal *>(cookie_manager);
 
-	return new QCefWidgetInternal(parent, url, script,
-				      cmi ? cmi->rc : nullptr, headers);
+	return new QCefWidgetImpl(parent, url, script, cmi ? cmi->rc : nullptr,
+				  headers, allowPopups, true);
 }
 
 QCefCookieManager *
@@ -601,7 +751,7 @@ QCefInternal::create_cookie_manager(const std::string &storage_path,
 		return new QCefCookieManagerInternal(storage_path,
 						     persist_session_cookies);
 	} catch (const char *error) {
-		blog(LOG_ERROR, "Failed to create cookie manager: %s", error);
+		plog(LOG_ERROR, "Failed to create cookie manager: %s", error);
 		return nullptr;
 	}
 }

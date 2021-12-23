@@ -32,8 +32,9 @@ private:
 	static QString getValueOfFrmByeBye(const QString &originStr);
 	static QString getServerUrlValue(const QString &originStr);
 	static bool getIsCheck(const QString &htmlStr, const QString &getIdStr);
-	static bool isEnglishLanguage();
 
 	static void recursiveConvertCategory(const QJsonArray &categories, vector<PLSAfreecaTVCategory> &recieveData);
 	static bool recursiveFindSelectStr(const QString &selectID, QStringList &allLevel, const vector<PLSAfreecaTVCategory> &recieveData);
+
+	static QString decodeHtmlContent(const QString &str);
 };

@@ -218,6 +218,9 @@ static void attachTMInfo()
 					.toObject()
 					.value("adjustableAttribute")
 					.toObject();
+			if (itemAttrObj.find(lang) == itemAttrObj.end()) {
+				lang = "en";
+			}
 			QJsonObject contentObj = itemObj.value("properties")
 							 .toObject()
 							 .value("template")
@@ -625,6 +628,8 @@ void text_motion_source_get_defaults(obs_data_t *settings)
 	set_tm_text_color_data(settings, g_TMTemplateJsons.first(), true);
 
 	set_tm_text_motion_data(settings, g_TMTemplateJsons.first(), true);
+
+	obs_data_set_default_bool(settings, "reroute_audio", false);
 }
 
 void register_prism_text_motion_source()
@@ -805,7 +810,7 @@ void TextMotionSource::Update(obs_data_t *settings)
 	obs_data_release(tmMotionVal);
 	QByteArray updateTextTemplateInfo(toJsonStr().toUtf8());
 
-	blog(LOG_INFO, "update text template info:%s",
+	plog(LOG_INFO, "update text template info:%s",
 	     updateTextTemplateInfo.constData());
 	//send event to Web
 	DispatchJSEvent(this, "textMotion", updateTextTemplateInfo.constData());

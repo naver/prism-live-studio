@@ -10,6 +10,21 @@ PLSLoginInfo::ChannelSupport PLSLoginInfo::channelSupport() const
 	return PLSLoginInfo::ChannelSupport::Account;
 }
 
+PLSLoginInfo::ImplementType PLSLoginInfo::loginWithAccountImplementType() const
+{
+	return ImplementType::Synchronous;
+}
+
+bool PLSLoginInfo::loginWithAccount(QJsonObject &, UseFor, QWidget *) const
+{
+	return false;
+}
+
+void PLSLoginInfo::loginWithAccountAsync(std::function<void(bool ok, const QJsonObject &result)> callback, UseFor, QWidget *) const
+{
+	callback(false, QJsonObject());
+}
+
 QString PLSLoginInfo::rtmpUrl() const
 {
 	return QString();

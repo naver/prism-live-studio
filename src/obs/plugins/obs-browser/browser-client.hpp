@@ -27,11 +27,12 @@
 
 #define USE_TEXTURE_COPY 0
 
+struct AudioStream;
 struct BrowserSource;
 struct TextMotionSource;
 
 //PRISM/Wangshaohui/20200917/#3714/for check client
-void SetValidClient(void *pointer, bool valid);
+void SetObjectValid(void *pointer, bool valid);
 
 class BrowserClient : public CefClient,
 		      public CefDisplayHandler,
@@ -70,7 +71,9 @@ public:
 		  interaction_weak(itr)
 	{
 		//PRISM/Wangshaohui/20200917/#3714/for check client
-		SetValidClient(this, true);
+		plog(LOG_INFO,
+		     "Constructure function of BrowserClient:%p BrowserSource:%p",
+		     this, bs);
 	}
 
 	virtual ~BrowserClient();
@@ -194,6 +197,10 @@ public:
 				 CefLoadHandler::ErrorCode errorCode,
 				 const CefString &errorText,
 				 const CefString &failedUrl) override;
+
+private:
+	//PRISM/WangShaohui/20210406/#7680/UI block
+	bool CheckAudioSource(AudioStream &stream);
 
 	IMPLEMENT_REFCOUNTING(BrowserClient);
 };

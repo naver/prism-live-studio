@@ -20,7 +20,9 @@ set(frontend-api_SOURCES
 	qcolordialog.cpp
 	PLSWidgetDpiAdapter.cpp
 	../themes/PLSThemeManager.cpp
-	../themes/PLSDpiHelper.cpp)
+	../themes/PLSDpiHelper.cpp
+	checkbox.cpp
+	label.cpp)
 
 set(frontend-api_HEADERS
 	frontend-internal.hpp
@@ -39,7 +41,9 @@ set(frontend-api_HEADERS
 	PLSToplevelView.hpp
 	PLSWidgetDpiAdapter.hpp
 	../themes/PLSThemeManager.h
-	../themes/PLSDpiHelper.h)
+	../themes/PLSDpiHelper.h
+	checkbox.hpp
+	label.hpp)
 
 set(frontend-api_UI
 	forms/PLSDialogView.ui

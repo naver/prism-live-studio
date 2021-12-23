@@ -801,7 +801,7 @@ bool OBSApp::InitLocale()
 			if (!text_lookup_add(textLookup, path.c_str()))
 				continue;
 
-			blog(LOG_INFO, "Using preferred locale '%s'",
+			plog(LOG_INFO, "Using preferred locale '%s'",
 			     locale_.c_str());
 			locale = locale_;
 			return true;
@@ -816,10 +816,10 @@ bool OBSApp::InitLocale()
 	string path;
 	if (GetDataFilePath(file.str().c_str(), path)) {
 		if (!text_lookup_add(textLookup, path.c_str()))
-			blog(LOG_ERROR, "Failed to add locale file '%s'",
+			plog(LOG_ERROR, "Failed to add locale file '%s'",
 			     path.c_str());
 	} else {
-		blog(LOG_ERROR, "Could not find locale file '%s'",
+		plog(LOG_ERROR, "Could not find locale file '%s'",
 		     file.str().c_str());
 	}
 
@@ -1323,14 +1323,14 @@ bool OBSApp::OBSInit()
 	obs_apply_private_data(settings);
 	obs_data_release(settings);
 
-	blog(LOG_INFO, "Current Date/Time: %s",
+	plog(LOG_INFO, "Current Date/Time: %s",
 	     CurrentDateTimeString().c_str());
 
-	blog(LOG_INFO, "Browser Hardware Acceleration: %s",
+	plog(LOG_INFO, "Browser Hardware Acceleration: %s",
 	     browserHWAccel ? "true" : "false");
 #endif
 
-	blog(LOG_INFO, "Portable mode: %s", portable_mode ? "true" : "false");
+	plog(LOG_INFO, "Portable mode: %s", portable_mode ? "true" : "false");
 
 	setQuitOnLastWindowClosed(false);
 
@@ -1656,7 +1656,7 @@ static void create_log_file(fstream &logFile)
 		delete_oldest_file(false, "obs-studio/logs");
 		base_set_log_handler(do_log, &logFile);
 	} else {
-		blog(LOG_ERROR, "Failed to open log file");
+		plog(LOG_ERROR, "Failed to open log file");
 	}
 }
 
@@ -1703,7 +1703,7 @@ static void SaveProfilerData(const ProfilerSnapshot &snap)
 
 	BPtr<char> path = GetConfigPathPtr(dst.str().c_str());
 	if (!profiler_snapshot_dump_csv_gz(snap.get(), path))
-		blog(LOG_WARNING, "Could not save profiler data to '%s'",
+		plog(LOG_WARNING, "Could not save profiler data to '%s'",
 		     static_cast<const char *>(path));
 }
 
@@ -1789,13 +1789,13 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 		}
 
 		if (multi) {
-			blog(LOG_INFO, "User enabled --multi flag and is now "
+			plog(LOG_INFO, "User enabled --multi flag and is now "
 				       "running multiple instances of OBS.");
 		} else {
-			blog(LOG_WARNING, "================================");
-			blog(LOG_WARNING, "Warning: OBS is already running!");
-			blog(LOG_WARNING, "================================");
-			blog(LOG_WARNING, "User is now running multiple "
+			plog(LOG_WARNING, "================================");
+			plog(LOG_WARNING, "Warning: OBS is already running!");
+			plog(LOG_WARNING, "================================");
+			plog(LOG_WARNING, "User is now running multiple "
 					  "instances of OBS!");
 		}
 
@@ -1814,7 +1814,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 			for (int i = 2; i < argc; ++i) {
 				stor << " " << argv[i];
 			}
-			blog(LOG_INFO, "Command Line Arguments: %s",
+			plog(LOG_INFO, "Command Line Arguments: %s",
 			     stor.str().c_str());
 		}
 
@@ -1826,7 +1826,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 		return program.exec();
 
 	} catch (const char *error) {
-		blog(LOG_ERROR, "%s", error);
+		plog(LOG_ERROR, "%s", error);
 		OBSErrorBox(nullptr, "%s", error);
 	}
 
@@ -1918,7 +1918,7 @@ static void load_debug_privilege(void)
 
 		if (!AdjustTokenPrivileges(token, false, &tp, sizeof(tp), NULL,
 					   NULL)) {
-			blog(LOG_INFO, "Could not set privilege to "
+			plog(LOG_INFO, "Could not set privilege to "
 				       "increase GPU priority");
 		}
 	}
@@ -2422,7 +2422,7 @@ int main(int argc, char *argv[])
 	curl_global_init(CURL_GLOBAL_ALL);
 	int ret = run_program(logFile, argc, argv);
 
-	blog(LOG_INFO, "Number of memory leaks: %ld", bnum_allocs());
+	plog(LOG_INFO, "Number of memory leaks: %ld", bnum_allocs());
 	base_set_log_handler(nullptr, nullptr);
 	return ret;
 }

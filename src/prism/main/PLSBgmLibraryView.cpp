@@ -17,6 +17,7 @@
 #include <QLabel>
 #include <QScrollBar>
 #include <QUuid>
+#include "PLSResourceMgr.h"
 
 static const char *LIBRARY_HOT_TAB = "HOT";
 static const char *LISTEN_MEDIA_SOURCE = "background-music-audition";
@@ -73,6 +74,8 @@ void PLSBgmLibraryView::initGroup()
 	const BgmItemGroupVectorType &groupList = PLSBgmDataViewManager::Instance()->GetGroupList();
 	if (groupList.empty())
 		InitCategoryData();
+	else
+		CheckMusicResource();
 	int index = 0;
 	for (auto &group : groupList) {
 		if (index > 0)
@@ -156,23 +159,33 @@ void PLSBgmLibraryView::InitCategoryData()
 
 			//60s
 			QJsonObject duration60Obj = propertyObj["duration60SecondsMusicInfo"].toObject();
+			QString url60s = duration60Obj["url"].toString();
 			data.SetUrl(duration60Obj["url"].toString(), (int)DurationType::SixtySeconds);
 			data.SetDuration((int)DurationType::SixtySeconds, duration60Obj["duration"].toInt());
 
 			//15s
 			QJsonObject duration15Obj = propertyObj["duration15SecondsMusicInfo"].toObject();
+			QString url15s = duration15Obj["url"].toString();
 			data.SetUrl(duration15Obj["url"].toString(), (int)DurationType::FifteenSeconds);
 			data.SetDuration((int)DurationType::FifteenSeconds, duration15Obj["duration"].toInt());
 
 			//30s
 			QJsonObject duration30Obj = propertyObj["duration30SecondsMusicInfo"].toObject();
+			QString url30s = duration30Obj["url"].toString();
 			data.SetUrl(duration30Obj["url"].toString(), (int)DurationType::ThirtySeconds);
 			data.SetDuration((int)DurationType::ThirtySeconds, duration30Obj["duration"].toInt());
 
 			//full
 			QJsonObject fullObj = propertyObj["durationFullMusicInfo"].toObject();
+			QString urlFull = fullObj["url"].toString();
 			data.SetUrl(fullObj["url"].toString(), (int)DurationType::FullSeconds);
 			data.SetDuration((int)DurationType::FullSeconds, fullObj["duration"].toInt());
+
+			// check url existed
+			if (url15s.isEmpty() && url30s.isEmpty() && url60s.isEmpty() && urlFull.isEmpty()) {
+				continue;
+			}
+
 			if (recommendFlag) {
 				hotMusicList.insert(hotMusicList.begin(), BgmLibraryData::value_type(data.title, data));
 			}
@@ -203,6 +216,17 @@ void PLSBgmLibraryView::UpdateSelectedString()
 		}
 	}
 	ui->countLabel->setText(strCountText);
+}
+
+void PLSBgmLibraryView::CheckMusicResource()
+{
+	QString musicJsonPath = pls_get_user_path(QString(CONFIGS_MUSIC_USER_PATH).append(MUSIC_JSON_FILE));
+	if (!QFile::exists(musicJsonPath)) {
+		musicJsonPath = QString(CONFIG_MUSIC_PATH).append(MUSIC_JSON_FILE);
+		QMap<QString, QString> urlMap;
+		urlMap.insert(PLSResourceMgr::instance()->getResourceJson(PLSResourceMgr::ResourceFlag::Music), pls_get_user_path(QString(CONFIGS_MUSIC_USER_PATH).append(MUSIC_JSON_FILE)));
+		PLSResourceMgr::instance()->downloadPartResources(PLSResourceMgr::ResourceFlag::Music, urlMap);
+	}
 }
 
 void PLSBgmLibraryView::resizeEvent(QResizeEvent *event)
@@ -896,7 +920,7 @@ void PLSBgmLibraryItem::on_addBtn_clicked()
 	emit AddButtonClickedSignal(this);
 }
 
-void PLSBgmLibraryItem::on_fullButton_clicked(bool checked)
+void PLSBgmLibraryItem::on_fullButton_clicked(bool)
 {
 	PLS_UI_STEP(MAIN_BGM_MODULE, QString("[%1] full sec Button").arg(data.title).toStdString().c_str(), ACTION_CLICK);
 	data.id = static_cast<int>(DurationType::FullSeconds);
@@ -954,7 +978,7 @@ void PLSBgmLibraryItem::onMediaStateChanged(const QString &url, obs_media_state 
 	}
 }
 
-void PLSBgmLibraryItem::on_sixtyButton_clicked(bool checked)
+void PLSBgmLibraryItem::on_sixtyButton_clicked(bool)
 {
 	PLS_UI_STEP(MAIN_BGM_MODULE, QString("[%1] Sixty sec Button").arg(data.title).toStdString().c_str(), ACTION_CLICK);
 	data.id = static_cast<int>(DurationType::SixtySeconds);
@@ -963,7 +987,7 @@ void PLSBgmLibraryItem::on_sixtyButton_clicked(bool checked)
 	emit DurationTypeChangeSignal(this);
 }
 
-void PLSBgmLibraryItem::on_thirtyButton_clicked(bool checked)
+void PLSBgmLibraryItem::on_thirtyButton_clicked(bool)
 {
 	PLS_UI_STEP(MAIN_BGM_MODULE, QString("[%1] Thirty sec Button").arg(data.title).toStdString().c_str(), ACTION_CLICK);
 	data.id = static_cast<int>(DurationType::ThirtySeconds);
@@ -972,7 +996,7 @@ void PLSBgmLibraryItem::on_thirtyButton_clicked(bool checked)
 	emit DurationTypeChangeSignal(this);
 }
 
-void PLSBgmLibraryItem::on_fifteenButton_clicked(bool checked)
+void PLSBgmLibraryItem::on_fifteenButton_clicked(bool)
 {
 	PLS_UI_STEP(MAIN_BGM_MODULE, QString("[%1] Fifteen sec Button").arg(data.title).toStdString().c_str(), ACTION_CLICK);
 	data.id = static_cast<int>(DurationType::FifteenSeconds);

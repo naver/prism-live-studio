@@ -432,7 +432,7 @@ int config_save_safe(config_t *config, const char *temp_ext,
 	int ret;
 
 	if (!temp_ext || !*temp_ext) {
-		blog(LOG_ERROR, "config_save_safe: invalid "
+		plog(LOG_ERROR, "config_save_safe: invalid "
 				"temporary extension specified");
 		return CONFIG_ERROR;
 	}
@@ -449,10 +449,7 @@ int config_save_safe(config_t *config, const char *temp_ext,
 	config->file = file;
 
 	if (ret != CONFIG_SUCCESS) {
-		blog(LOG_ERROR,
-		     "config_save_safe: failed to "
-		     "write to %s",
-		     temp_file.array);
+		plog(LOG_ERROR, "config_save_safe: failed to write");
 		goto cleanup;
 	}
 

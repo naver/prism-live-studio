@@ -8,7 +8,7 @@ PLSFloatScrollBarScrollArea::PLSFloatScrollBarScrollArea(QWidget *parent) : QScr
 	delegateScrollBar = new QScrollBar(Qt::Vertical, this);
 	delegateScrollBar->setObjectName("flatScrollBar");
 	delegateScrollBar->installEventFilter(this);
-	connect(this->verticalScrollBar(), &QScrollBar::valueChanged, this, &PLSFloatScrollBarScrollArea::OnVerticalScrollBarValueChanged);
+	connect(this->verticalScrollBar(), &QScrollBar::valueChanged, this, &PLSFloatScrollBarScrollArea::OnVerticalScrollBarValueChanged, Qt::QueuedConnection);
 
 	connect(this->verticalScrollBar(), &QScrollBar::rangeChanged, [=]() {
 		QTimer::singleShot(0, this, [=]() {

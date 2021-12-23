@@ -16,9 +16,11 @@
 	(KSAUDIO_SPEAKER_SURROUND | SPEAKER_LOW_FREQUENCY)
 #endif
 
+//PRISM/WangShaohui/20201207/#5996/reset NULL
 #define safe_release(ptr)                          \
 	do {                                       \
 		if (ptr) {                         \
 			ptr->lpVtbl->Release(ptr); \
+			ptr = NULL;                \
 		}                                  \
 	} while (false)

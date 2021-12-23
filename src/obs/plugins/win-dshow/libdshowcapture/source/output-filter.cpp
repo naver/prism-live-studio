@@ -419,6 +419,7 @@ public:
 OutputFilter::OutputFilter(const PinOutputInfo &info)
 	: refCount(0),
 	  state(State_Stopped),
+	  graph(nullptr),
 	  pin(new OutputPin(this, info)),
 	  misc(new SourceMiscFlags)
 {

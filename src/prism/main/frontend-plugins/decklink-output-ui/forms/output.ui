@@ -97,7 +97,7 @@
    <item>
     <widget class="QLabel" name="label_2">
      <property name="text">
-      <string>Preview Output</string>
+      <string>PreviewOutput</string>
      </property>
     </widget>
    </item>
@@ -150,7 +150,7 @@
    <item>
     <widget class="QLabel" name="keyerLabel">
      <property name="text">
-      <string>Keyer output requires RGB mode in advanced settings.</string>
+      <string>DecklinkOutputTip</string>
      </property>
     </widget>
    </item>

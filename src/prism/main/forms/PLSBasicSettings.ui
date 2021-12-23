@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1086</width>
-    <height>566</height>
+    <width>1356</width>
+    <height>852</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -206,7 +206,7 @@
             </sizepolicy>
            </property>
            <property name="currentIndex">
-            <number>0</number>
+            <number>1</number>
            </property>
            <widget class="QWidget" name="generalPage">
             <property name="sizePolicy">
@@ -235,7 +235,7 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QScrollArea" name="scrollArea_2">
+              <widget class="VScrollArea" name="scrollArea_2">
                <property name="frameShape">
                 <enum>QFrame::NoFrame</enum>
                </property>
@@ -250,8 +250,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>836</width>
-                  <height>524</height>
+                  <width>1123</width>
+                  <height>728</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_19">
@@ -310,7 +310,7 @@
                         <number>0</number>
                        </property>
                        <item>
-                        <widget class="QWidget" name="accountView" native="true"/>
+                        <widget class="PLSSettingGeneralView" name="accountView" native="true"/>
                        </item>
                       </layout>
                      </widget>
@@ -458,9 +458,12 @@
                       <property name="title">
                        <string>setting.static.text.watermark</string>
                       </property>
-                      <layout class="QHBoxLayout" name="horizontalLayout_27" stretch="0,1">
-                       <property name="spacing">
+                      <layout class="QFormLayout" name="formLayout_20">
+                       <property name="horizontalSpacing">
                         <number>20</number>
+                       </property>
+                       <property name="verticalSpacing">
+                        <number>10</number>
                        </property>
                        <property name="leftMargin">
                         <number>0</number>
@@ -474,15 +477,21 @@
                        <property name="bottomMargin">
                         <number>0</number>
                        </property>
-                       <item>
+                       <item row="0" column="0">
                         <widget class="QLabel" name="label_21">
                          <property name="text">
                           <string/>
                          </property>
                         </widget>
                        </item>
-                       <item>
-                        <widget class="QCheckBox" name="checkBox">
+                       <item row="0" column="1">
+                        <widget class="PLSElideCheckBox" name="checkBox">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="text">
                           <string>setting.static.text.watermark.enable</string>
                          </property>
@@ -494,6 +503,22 @@
                          </property>
                          <property name="uistep" stdset="0">
                           <string notr="true">Watermark</string>
+                         </property>
+                        </widget>
+                       </item>
+                       <item row="1" column="1">
+                        <widget class="QLabel" name="label_watermarkTips">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
+                         <property name="text">
+                          <string>setting.static.text.watermark.always.display.tips</string>
+                         </property>
+                         <property name="wordWrap">
+                          <bool>true</bool>
                          </property>
                         </widget>
                        </item>
@@ -531,7 +556,13 @@
                         <number>0</number>
                        </property>
                        <item row="0" column="1">
-                        <widget class="QCheckBox" name="systemTrayEnabled">
+                        <widget class="PLSElideCheckBox" name="systemTrayEnabled">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="text">
                           <string>Enable</string>
                          </property>
@@ -541,9 +572,15 @@
                         </widget>
                        </item>
                        <item row="1" column="1">
-                        <widget class="QCheckBox" name="systemTrayWhenStarted">
+                        <widget class="PLSElideCheckBox" name="systemTrayWhenStarted">
                          <property name="enabled">
                           <bool>false</bool>
+                         </property>
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
                          </property>
                          <property name="text">
                           <string>Basic.Settings.General.SysTrayWhenStarted</string>
@@ -554,9 +591,15 @@
                         </widget>
                        </item>
                        <item row="2" column="1">
-                        <widget class="QCheckBox" name="systemTrayAlways">
+                        <widget class="PLSElideCheckBox" name="systemTrayAlways">
                          <property name="enabled">
                           <bool>false</bool>
+                         </property>
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
                          </property>
                          <property name="text">
                           <string>Basic.Settings.General.SystemTrayHideMinimize</string>
@@ -612,7 +655,7 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QScrollArea" name="scrollArea_3">
+              <widget class="VScrollArea" name="scrollArea_3">
                <property name="frameShape">
                 <enum>QFrame::NoFrame</enum>
                </property>
@@ -626,9 +669,9 @@
                 <property name="geometry">
                  <rect>
                   <x>0</x>
-                  <y>0</y>
-                  <width>836</width>
-                  <height>3721</height>
+                  <y>-3030</y>
+                  <width>1109</width>
+                  <height>4391</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_21" stretch="0,0,0,0,0,0">
@@ -652,7 +695,7 @@
                    <property name="title">
                     <string>Basic.Settings.Output.ResolutionFps</string>
                    </property>
-                   <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,1">
+                   <layout class="QGridLayout" name="gridLayout_3" columnstretch="0,0">
                     <property name="leftMargin">
                      <number>0</number>
                     </property>
@@ -693,19 +736,6 @@
                       </property>
                      </widget>
                     </item>
-                    <item row="0" column="1">
-                     <widget class="PLSEditableComboBox" name="outputResolution_2">
-                      <property name="editable">
-                       <bool>true</bool>
-                      </property>
-                      <property name="currentText">
-                       <string notr="true"/>
-                      </property>
-                      <property name="uistep" stdset="0">
-                       <string notr="true">Output (Scaled) Resolution</string>
-                      </property>
-                     </widget>
-                    </item>
                     <item row="1" column="0">
                      <widget class="QLabel" name="label_68">
                       <property name="sizePolicy">
@@ -723,50 +753,6 @@
                       <property name="useFor" stdset="0">
                        <string notr="true">FormLabelRole</string>
                       </property>
-                     </widget>
-                    </item>
-                    <item row="1" column="1">
-                     <widget class="PLSComboBox" name="downscaleFilter">
-                      <property name="enabled">
-                       <bool>true</bool>
-                      </property>
-                      <property name="uistep" stdset="0">
-                       <string notr="true">Downscale Filter</string>
-                      </property>
-                     </widget>
-                    </item>
-                    <item row="2" column="0">
-                     <widget class="PLSComboBox" name="fpsType">
-                      <property name="sizePolicy">
-                       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                        <horstretch>0</horstretch>
-                        <verstretch>0</verstretch>
-                       </sizepolicy>
-                      </property>
-                      <property name="currentText">
-                       <string>Basic.Settings.Video.FPSCommon</string>
-                      </property>
-                      <property name="sizeAdjustPolicy">
-                       <enum>QComboBox::AdjustToContents</enum>
-                      </property>
-                      <property name="uistep" stdset="0">
-                       <string notr="true">FPS Type</string>
-                      </property>
-                      <item>
-                       <property name="text">
-                        <string>Basic.Settings.Video.FPSCommon</string>
-                       </property>
-                      </item>
-                      <item>
-                       <property name="text">
-                        <string>Basic.Settings.Video.FPSInteger</string>
-                       </property>
-                      </item>
-                      <item>
-                       <property name="text">
-                        <string>Basic.Settings.Video.FPSFraction</string>
-                       </property>
-                      </item>
                      </widget>
                     </item>
                     <item row="2" column="1">
@@ -795,6 +781,12 @@
                       </item>
                       <item>
                        <widget class="PLSComboBox" name="fpsCommon">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
                         <property name="currentText">
                          <string notr="true">10</string>
                         </property>
@@ -871,10 +863,33 @@
                          <property name="spacing">
                           <number>10</number>
                          </property>
+                         <item row="1" column="0">
+                          <widget class="QLabel" name="label_70">
+                           <property name="text">
+                            <string>Basic.Settings.Video.Denominator</string>
+                           </property>
+                          </widget>
+                         </item>
                          <item row="0" column="0">
                           <widget class="QLabel" name="label_69">
                            <property name="text">
                             <string>Basic.Settings.Video.Numerator</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="1" column="1">
+                          <widget class="PLSSpinBox" name="fpsDenominator">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="minimum">
+                            <number>1</number>
+                           </property>
+                           <property name="maximum">
+                            <number>120</number>
                            </property>
                           </widget>
                          </item>
@@ -897,33 +912,144 @@
                            </property>
                           </widget>
                          </item>
-                         <item row="1" column="0">
-                          <widget class="QLabel" name="label_70">
-                           <property name="text">
-                            <string>Basic.Settings.Video.Denominator</string>
-                           </property>
-                          </widget>
-                         </item>
-                         <item row="1" column="1">
-                          <widget class="PLSSpinBox" name="fpsDenominator">
-                           <property name="sizePolicy">
-                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                             <horstretch>0</horstretch>
-                             <verstretch>0</verstretch>
-                            </sizepolicy>
-                           </property>
-                           <property name="minimum">
-                            <number>1</number>
-                           </property>
-                           <property name="maximum">
-                            <number>120</number>
-                           </property>
-                          </widget>
-                         </item>
                         </layout>
                        </widget>
                       </item>
                      </layout>
+                    </item>
+                    <item row="0" column="1">
+                     <widget class="PLSEditableComboBox" name="outputResolution_2">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="editable">
+                       <bool>true</bool>
+                      </property>
+                      <property name="currentText">
+                       <string notr="true"/>
+                      </property>
+                      <property name="uistep" stdset="0">
+                       <string notr="true">Output (Scaled) Resolution</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="1">
+                     <widget class="PLSComboBox" name="downscaleFilter">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="uistep" stdset="0">
+                       <string notr="true">Downscale Filter</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="2" column="0">
+                     <widget class="PLSComboBox" name="fpsType">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="currentText">
+                       <string>Basic.Settings.Video.FPSCommon</string>
+                      </property>
+                      <property name="sizeAdjustPolicy">
+                       <enum>QComboBox::AdjustToContents</enum>
+                      </property>
+                      <property name="uistep" stdset="0">
+                       <string notr="true">FPS Type</string>
+                      </property>
+                      <item>
+                       <property name="text">
+                        <string>Basic.Settings.Video.FPSCommon</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Basic.Settings.Video.FPSInteger</string>
+                       </property>
+                      </item>
+                      <item>
+                       <property name="text">
+                        <string>Basic.Settings.Video.FPSFraction</string>
+                       </property>
+                      </item>
+                     </widget>
+                    </item>
+                    <item row="3" column="1">
+                     <widget class="QFrame" name="ToReolutionFrame">
+                      <property name="minimumSize">
+                       <size>
+                        <width>0</width>
+                        <height>0</height>
+                       </size>
+                      </property>
+                      <property name="frameShape">
+                       <enum>QFrame::NoFrame</enum>
+                      </property>
+                      <property name="frameShadow">
+                       <enum>QFrame::Raised</enum>
+                      </property>
+                      <layout class="QHBoxLayout" name="horizontalLayout_14">
+                       <property name="spacing">
+                        <number>5</number>
+                       </property>
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>0</number>
+                       </property>
+                       <item>
+                        <spacer name="horizontalSpacer_6">
+                         <property name="orientation">
+                          <enum>Qt::Horizontal</enum>
+                         </property>
+                         <property name="sizeHint" stdset="0">
+                          <size>
+                           <width>40</width>
+                           <height>20</height>
+                          </size>
+                         </property>
+                        </spacer>
+                       </item>
+                       <item>
+                        <widget class="QCheckBox" name="ToResolutionBtn">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
+                         <property name="text">
+                          <string>Basic.Settings.ToResolution</string>
+                         </property>
+                         <property name="iconSize">
+                          <size>
+                           <width>12</width>
+                           <height>14</height>
+                          </size>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </widget>
                     </item>
                    </layout>
                   </widget>
@@ -1102,6 +1228,47 @@
                              <property name="verticalSpacing">
                               <number>10</number>
                              </property>
+                             <item row="1" column="0">
+                              <widget class="QLabel" name="simpleOutRecEncoderLabel_2">
+                               <property name="sizePolicy">
+                                <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                                 <horstretch>0</horstretch>
+                                 <verstretch>0</verstretch>
+                                </sizepolicy>
+                               </property>
+                               <property name="text">
+                                <string>Basic.Settings.Output.Encoder</string>
+                               </property>
+                               <property name="wordWrap">
+                                <bool>true</bool>
+                               </property>
+                               <property name="buddy">
+                                <cstring>simpleOutRecEncoder</cstring>
+                               </property>
+                               <property name="useFor" stdset="0">
+                                <string notr="true">FormLabelRole</string>
+                               </property>
+                              </widget>
+                             </item>
+                             <item row="4" column="1">
+                              <widget class="PLSElideCheckBox" name="simpleOutAdvanced">
+                               <property name="sizePolicy">
+                                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                 <horstretch>0</horstretch>
+                                 <verstretch>0</verstretch>
+                                </sizepolicy>
+                               </property>
+                               <property name="text">
+                                <string>Basic.Settings.Output.Advanced</string>
+                               </property>
+                               <property name="checked">
+                                <bool>true</bool>
+                               </property>
+                               <property name="uistep" stdset="0">
+                                <string notr="true">Enable Advanced Encoder Settings</string>
+                               </property>
+                              </widget>
+                             </item>
                              <item row="0" column="0">
                               <widget class="QLabel" name="label_19">
                                <property name="sizePolicy">
@@ -1129,6 +1296,12 @@
                              </item>
                              <item row="0" column="1">
                               <widget class="PLSSpinBox" name="simpleOutputVBitrate">
+                               <property name="sizePolicy">
+                                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                 <horstretch>0</horstretch>
+                                 <verstretch>0</verstretch>
+                                </sizepolicy>
+                               </property>
                                <property name="minimum">
                                 <number>50</number>
                                </property>
@@ -1140,30 +1313,14 @@
                                </property>
                               </widget>
                              </item>
-                             <item row="1" column="0">
-                              <widget class="QLabel" name="simpleOutRecEncoderLabel_2">
+                             <item row="1" column="1">
+                              <widget class="PLSComboBox" name="simpleOutStrEncoder">
                                <property name="sizePolicy">
-                                <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                                  <horstretch>0</horstretch>
                                  <verstretch>0</verstretch>
                                 </sizepolicy>
                                </property>
-                               <property name="text">
-                                <string>Basic.Settings.Output.Encoder</string>
-                               </property>
-                               <property name="wordWrap">
-                                <bool>true</bool>
-                               </property>
-                               <property name="buddy">
-                                <cstring>simpleOutRecEncoder</cstring>
-                               </property>
-                               <property name="useFor" stdset="0">
-                                <string notr="true">FormLabelRole</string>
-                               </property>
-                              </widget>
-                             </item>
-                             <item row="1" column="1">
-                              <widget class="PLSComboBox" name="simpleOutStrEncoder">
                                <property name="uistep" stdset="0">
                                 <string notr="true">Encoder</string>
                                </property>
@@ -1201,6 +1358,12 @@
                                </property>
                                <item>
                                 <widget class="PLSComboBox" name="simpleOutputABitrate">
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
                                  <property name="currentIndex">
                                   <number>8</number>
                                  </property>
@@ -1267,15 +1430,15 @@
                               </layout>
                              </item>
                              <item row="3" column="1">
-                              <widget class="QCheckBox" name="simpleOutAdvanced">
+                              <widget class="PLSElideCheckBox" name="simpleImmersiveAudioStreaming">
+                               <property name="sizePolicy">
+                                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                 <horstretch>0</horstretch>
+                                 <verstretch>0</verstretch>
+                                </sizepolicy>
+                               </property>
                                <property name="text">
-                                <string>Basic.Settings.Output.Advanced</string>
-                               </property>
-                               <property name="checked">
-                                <bool>true</bool>
-                               </property>
-                               <property name="uistep" stdset="0">
-                                <string notr="true">Enable Advanced Encoder Settings</string>
+                                <string>Basic.Settings.Output.Adv.ImmersiveAudioStreaming</string>
                                </property>
                               </widget>
                              </item>
@@ -1304,7 +1467,13 @@
                               <number>10</number>
                              </property>
                              <item row="0" column="1">
-                              <widget class="QCheckBox" name="simpleOutEnforce">
+                              <widget class="PLSElideCheckBox" name="simpleOutEnforce">
+                               <property name="sizePolicy">
+                                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                 <horstretch>0</horstretch>
+                                 <verstretch>0</verstretch>
+                                </sizepolicy>
+                               </property>
                                <property name="text">
                                 <string>Basic.Settings.Output.EnforceBitrate</string>
                                </property>
@@ -1348,6 +1517,12 @@
                                </property>
                                <item>
                                 <widget class="PLSComboBox" name="simpleOutPreset">
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
                                  <property name="uistep" stdset="0">
                                   <string notr="true">Encoder Preset</string>
                                  </property>
@@ -1378,7 +1553,14 @@
                               </widget>
                              </item>
                              <item row="2" column="1">
-                              <widget class="QLineEdit" name="simpleOutCustom"/>
+                              <widget class="QLineEdit" name="simpleOutCustom">
+                               <property name="sizePolicy">
+                                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                 <horstretch>0</horstretch>
+                                 <verstretch>0</verstretch>
+                                </sizepolicy>
+                               </property>
+                              </widget>
                              </item>
                             </layout>
                            </widget>
@@ -1454,7 +1636,13 @@
                            </widget>
                           </item>
                           <item row="2" column="1">
-                           <widget class="QCheckBox" name="simpleNoSpace">
+                           <widget class="PLSElideCheckBox" name="simpleNoSpace">
+                            <property name="sizePolicy">
+                             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                             </sizepolicy>
+                            </property>
                             <property name="text">
                              <string>Basic.Settings.Output.NoSpaceFileName</string>
                             </property>
@@ -1498,6 +1686,12 @@
                             </property>
                             <item>
                              <widget class="PLSComboBox" name="simpleOutRecQuality">
+                              <property name="sizePolicy">
+                               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                               </sizepolicy>
+                              </property>
                               <property name="uistep" stdset="0">
                                <string notr="true">Recording Quality</string>
                               </property>
@@ -1529,6 +1723,12 @@
                           </item>
                           <item row="5" column="1">
                            <widget class="PLSComboBox" name="simpleOutRecFormat">
+                            <property name="sizePolicy">
+                             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                             </sizepolicy>
+                            </property>
                             <property name="uistep" stdset="0">
                              <string notr="true">Recording Format</string>
                             </property>
@@ -1583,6 +1783,12 @@
                           </item>
                           <item row="6" column="1">
                            <widget class="PLSComboBox" name="simpleOutRecEncoder">
+                            <property name="sizePolicy">
+                             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                             </sizepolicy>
+                            </property>
                             <property name="uistep" stdset="0">
                              <string notr="true">Encoder</string>
                             </property>
@@ -1622,12 +1828,25 @@
                              <number>5</number>
                             </property>
                             <item>
-                             <widget class="QLineEdit" name="simpleOutMuxCustom"/>
+                             <widget class="QLineEdit" name="simpleOutMuxCustom">
+                              <property name="sizePolicy">
+                               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                               </sizepolicy>
+                              </property>
+                             </widget>
                             </item>
                            </layout>
                           </item>
                           <item row="9" column="1">
-                           <widget class="QCheckBox" name="simpleReplayBuf">
+                           <widget class="PLSElideCheckBox" name="simpleReplayBuf">
+                            <property name="sizePolicy">
+                             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                             </sizepolicy>
+                            </property>
                             <property name="text">
                              <string>Basic.Settings.Output.UseReplayBuffer</string>
                             </property>
@@ -1662,6 +1881,12 @@
                                <widget class="QLineEdit" name="simpleOutputPath">
                                 <property name="enabled">
                                  <bool>true</bool>
+                                </property>
+                                <property name="sizePolicy">
+                                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                  <horstretch>0</horstretch>
+                                  <verstretch>0</verstretch>
+                                 </sizepolicy>
                                 </property>
                                 <property name="readOnly">
                                  <bool>true</bool>
@@ -1745,6 +1970,12 @@
                           </item>
                           <item row="0" column="1">
                            <widget class="PLSSpinBox" name="simpleRBSecMax">
+                            <property name="sizePolicy">
+                             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                             </sizepolicy>
+                            </property>
                             <property name="suffix">
                              <string notr="true"> sec</string>
                             </property>
@@ -1780,6 +2011,12 @@
                           </item>
                           <item row="1" column="1">
                            <widget class="PLSSpinBox" name="simpleRBMegsMax">
+                            <property name="sizePolicy">
+                             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                             </sizepolicy>
+                            </property>
                             <property name="suffix">
                              <string notr="true"> MB</string>
                             </property>
@@ -1795,9 +2032,18 @@
                            </widget>
                           </item>
                           <item row="2" column="1">
-                           <widget class="QLabel" name="replayBufferHotkeyMessage1">
+                           <widget class="PLSElideLabel" name="replayBufferHotkeyMessage1">
+                            <property name="sizePolicy">
+                             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                             </sizepolicy>
+                            </property>
                             <property name="text">
                              <string>Basic.Settings.Output.ReplayBuffer.HotkeyMessage</string>
+                            </property>
+                            <property name="wordWrap">
+                             <bool>true</bool>
                             </property>
                            </widget>
                           </item>
@@ -2231,7 +2477,7 @@
                                        </layout>
                                       </widget>
                                      </item>
-                                     <item row="1" column="0">
+                                     <item row="2" column="0">
                                       <widget class="QLabel" name="advOutEncLabel">
                                        <property name="sizePolicy">
                                         <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
@@ -2250,10 +2496,16 @@
                                        </property>
                                       </widget>
                                      </item>
-                                     <item row="3" column="1">
+                                     <item row="4" column="1">
                                       <widget class="PLSEditableComboBox" name="advOutRescale">
                                        <property name="enabled">
                                         <bool>false</bool>
+                                       </property>
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
                                        </property>
                                        <property name="editable">
                                         <bool>true</bool>
@@ -2263,7 +2515,7 @@
                                        </property>
                                       </widget>
                                      </item>
-                                     <item row="3" column="0">
+                                     <item row="4" column="0">
                                       <widget class="QWidget" name="widget_14" native="true">
                                        <layout class="QHBoxLayout" name="horizontalLayout_19" stretch="0,0,1">
                                         <property name="spacing">
@@ -2335,7 +2587,7 @@
                                        </layout>
                                       </widget>
                                      </item>
-                                     <item row="2" column="1">
+                                     <item row="3" column="1">
                                       <layout class="QVBoxLayout" name="verticalLayout_53">
                                        <property name="spacing">
                                         <number>0</number>
@@ -2347,7 +2599,13 @@
                                         <number>5</number>
                                        </property>
                                        <item>
-                                        <widget class="QCheckBox" name="advOutApplyService">
+                                        <widget class="PLSElideCheckBox" name="advOutApplyService">
+                                         <property name="sizePolicy">
+                                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                           <horstretch>0</horstretch>
+                                           <verstretch>0</verstretch>
+                                          </sizepolicy>
+                                         </property>
                                          <property name="text">
                                           <string>Basic.Settings.Output.Adv.ApplyServiceSettings</string>
                                          </property>
@@ -2361,10 +2619,29 @@
                                        </item>
                                       </layout>
                                      </item>
-                                     <item row="1" column="1">
+                                     <item row="2" column="1">
                                       <widget class="PLSComboBox" name="advOutEncoder">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
                                        <property name="uistep" stdset="0">
                                         <string notr="true">Encoder</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item row="1" column="1">
+                                      <widget class="PLSElideCheckBox" name="immersiveAudioStreaming">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                       <property name="text">
+                                        <string>Basic.Settings.Output.Adv.ImmersiveAudioStreaming</string>
                                        </property>
                                       </widget>
                                      </item>
@@ -2464,6 +2741,12 @@
                                   </item>
                                   <item row="0" column="1">
                                    <widget class="PLSComboBox" name="advOutRecType">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
                                     <property name="uistep" stdset="0">
                                      <string notr="true">Type</string>
                                     </property>
@@ -2565,6 +2848,12 @@
                                          <property name="enabled">
                                           <bool>true</bool>
                                          </property>
+                                         <property name="sizePolicy">
+                                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                           <horstretch>0</horstretch>
+                                           <verstretch>0</verstretch>
+                                          </sizepolicy>
+                                         </property>
                                          <property name="readOnly">
                                           <bool>true</bool>
                                          </property>
@@ -2609,6 +2898,12 @@
                                      </item>
                                      <item row="2" column="1">
                                       <widget class="PLSComboBox" name="advOutRecFormat">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
                                        <property name="uistep" stdset="0">
                                         <string notr="true">Recording Format</string>
                                        </property>
@@ -2685,6 +2980,12 @@
                                      </item>
                                      <item row="4" column="1">
                                       <widget class="PLSComboBox" name="advOutRecEncoder">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
                                        <property name="uistep" stdset="0">
                                         <string notr="true">Encoder</string>
                                        </property>
@@ -2709,6 +3010,12 @@
                                          <widget class="PLSEditableComboBox" name="advOutRecRescale">
                                           <property name="enabled">
                                            <bool>false</bool>
+                                          </property>
+                                          <property name="sizePolicy">
+                                           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                            <horstretch>0</horstretch>
+                                            <verstretch>0</verstretch>
+                                           </sizepolicy>
                                           </property>
                                           <property name="editable">
                                            <bool>true</bool>
@@ -2738,7 +3045,14 @@
                                       </widget>
                                      </item>
                                      <item row="6" column="1">
-                                      <widget class="QLineEdit" name="advOutMuxCustom"/>
+                                      <widget class="QLineEdit" name="advOutMuxCustom">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                      </widget>
                                      </item>
                                      <item row="3" column="1">
                                       <widget class="QStackedWidget" name="advRecTrackWidget">
@@ -3066,7 +3380,13 @@
                                         <number>5</number>
                                        </property>
                                        <item>
-                                        <widget class="QCheckBox" name="advOutNoSpace">
+                                        <widget class="PLSElideCheckBox" name="advOutNoSpace">
+                                         <property name="sizePolicy">
+                                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                           <horstretch>0</horstretch>
+                                           <verstretch>0</verstretch>
+                                          </sizepolicy>
+                                         </property>
                                          <property name="text">
                                           <string>Basic.Settings.Output.NoSpaceFileName</string>
                                          </property>
@@ -3137,6 +3457,12 @@
                                   </item>
                                   <item row="0" column="1">
                                    <widget class="PLSComboBox" name="advOutFFType">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
                                     <item>
                                      <property name="text">
                                       <string>Basic.Settings.Output.Adv.FFmpeg.Type.RecordToFile</string>
@@ -3191,7 +3517,14 @@
                                    </widget>
                                   </item>
                                   <item row="3" column="1">
-                                   <widget class="PLSComboBox" name="advOutFFFormat"/>
+                                   <widget class="PLSComboBox" name="advOutFFFormat">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
+                                   </widget>
                                   </item>
                                   <item row="4" column="0">
                                    <widget class="QLabel" name="label_44">
@@ -3239,7 +3572,14 @@
                                    </widget>
                                   </item>
                                   <item row="5" column="1">
-                                   <widget class="QLineEdit" name="advOutFFMCfg"/>
+                                   <widget class="QLineEdit" name="advOutFFMCfg">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
+                                   </widget>
                                   </item>
                                   <item row="6" column="0">
                                    <widget class="QLabel" name="label_40">
@@ -3262,6 +3602,12 @@
                                   </item>
                                   <item row="6" column="1">
                                    <widget class="PLSSpinBox" name="advOutFFVBitrate">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
                                     <property name="minimum">
                                      <number>50</number>
                                     </property>
@@ -3294,6 +3640,12 @@
                                   </item>
                                   <item row="7" column="1">
                                    <widget class="PLSSpinBox" name="advOutFFVGOPSize">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
                                     <property name="maximum">
                                      <number>1000000000</number>
                                     </property>
@@ -3397,7 +3749,14 @@
                                    </widget>
                                   </item>
                                   <item row="10" column="1">
-                                   <widget class="PLSComboBox" name="advOutFFVEncoder"/>
+                                   <widget class="PLSComboBox" name="advOutFFVEncoder">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
+                                   </widget>
                                   </item>
                                   <item row="11" column="0">
                                    <widget class="QLabel" name="label_38">
@@ -3419,7 +3778,14 @@
                                    </widget>
                                   </item>
                                   <item row="11" column="1">
-                                   <widget class="QLineEdit" name="advOutFFVCfg"/>
+                                   <widget class="QLineEdit" name="advOutFFVCfg">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
+                                   </widget>
                                   </item>
                                   <item row="12" column="0">
                                    <widget class="QLabel" name="label_41">
@@ -3442,6 +3808,12 @@
                                   </item>
                                   <item row="12" column="1">
                                    <widget class="PLSSpinBox" name="advOutFFABitrate">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
                                     <property name="minimum">
                                      <number>32</number>
                                     </property>
@@ -3616,7 +3988,14 @@
                                    </widget>
                                   </item>
                                   <item row="14" column="1">
-                                   <widget class="PLSComboBox" name="advOutFFAEncoder"/>
+                                   <widget class="PLSComboBox" name="advOutFFAEncoder">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
+                                   </widget>
                                   </item>
                                   <item row="15" column="0">
                                    <widget class="QLabel" name="label_46">
@@ -3638,7 +4017,14 @@
                                    </widget>
                                   </item>
                                   <item row="15" column="1">
-                                   <widget class="QLineEdit" name="advOutFFACfg"/>
+                                   <widget class="QLineEdit" name="advOutFFACfg">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
+                                   </widget>
                                   </item>
                                   <item row="9" column="1">
                                    <layout class="QVBoxLayout" name="verticalLayout_54">
@@ -3652,7 +4038,13 @@
                                      <number>5</number>
                                     </property>
                                     <item>
-                                     <widget class="QCheckBox" name="advOutFFIgnoreCompat">
+                                     <widget class="PLSElideCheckBox" name="advOutFFIgnoreCompat">
+                                      <property name="sizePolicy">
+                                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                        <horstretch>0</horstretch>
+                                        <verstretch>0</verstretch>
+                                       </sizepolicy>
+                                      </property>
                                       <property name="text">
                                        <string>Basic.Settings.Output.Adv.FFmpeg.IgnoreCodecCompat</string>
                                       </property>
@@ -3664,6 +4056,12 @@
                                    <widget class="PLSEditableComboBox" name="advOutFFRescale">
                                     <property name="enabled">
                                      <bool>false</bool>
+                                    </property>
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
                                     </property>
                                     <property name="editable">
                                      <bool>true</bool>
@@ -3682,7 +4080,13 @@
                                      <number>5</number>
                                     </property>
                                     <item>
-                                     <widget class="QCheckBox" name="advOutFFNoSpace">
+                                     <widget class="PLSElideCheckBox" name="advOutFFNoSpace">
+                                      <property name="sizePolicy">
+                                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                        <horstretch>0</horstretch>
+                                        <verstretch>0</verstretch>
+                                       </sizepolicy>
+                                      </property>
                                       <property name="text">
                                        <string>Basic.Settings.Output.NoSpaceFileName</string>
                                       </property>
@@ -3717,6 +4121,12 @@
                                       </property>
                                       <item>
                                        <widget class="QLineEdit" name="advOutFFRecPath">
+                                        <property name="sizePolicy">
+                                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                          <horstretch>0</horstretch>
+                                          <verstretch>0</verstretch>
+                                         </sizepolicy>
+                                        </property>
                                         <property name="readOnly">
                                          <bool>true</bool>
                                         </property>
@@ -3837,7 +4247,7 @@
                                      </sizepolicy>
                                     </property>
                                     <property name="title">
-                                     <string>Basic.Settings.Output.Adv.Audio.Track1</string>
+                                     <string>Basic.Settings.Output.Adv.Audio.TrackStereo</string>
                                     </property>
                                     <property name="useFor" stdset="0">
                                      <string notr="true">GroupBoxLevel2</string>
@@ -3871,7 +4281,13 @@
                                       <number>0</number>
                                      </property>
                                      <item row="0" column="1">
-                                      <widget class="PLSComboBox" name="advOutTrack1Bitrate">
+                                      <widget class="PLSComboBox" name="advOutTrackStereoBitrate">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
                                        <property name="currentIndex">
                                         <number>8</number>
                                        </property>
@@ -3953,7 +4369,7 @@
                                         <bool>true</bool>
                                        </property>
                                        <property name="buddy">
-                                        <cstring>advOutTrack1Bitrate</cstring>
+                                        <cstring>advOutTrackStereoBitrate</cstring>
                                        </property>
                                        <property name="useFor" stdset="0">
                                         <string notr="true">FormLabelRole</string>
@@ -3978,7 +4394,7 @@
                                         <bool>true</bool>
                                        </property>
                                        <property name="buddy">
-                                        <cstring>advOutTrack1Name</cstring>
+                                        <cstring>advOutTrackStereoName</cstring>
                                        </property>
                                        <property name="useFor" stdset="0">
                                         <string notr="true">FormLabelRole</string>
@@ -3986,7 +4402,366 @@
                                       </widget>
                                      </item>
                                      <item row="1" column="1">
-                                      <widget class="QLineEdit" name="advOutTrack1Name"/>
+                                      <widget class="QLineEdit" name="advOutTrackStereoName">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                    </layout>
+                                   </widget>
+                                  </item>
+                                  <item>
+                                   <widget class="QGroupBox" name="groupBox_24">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
+                                    <property name="title">
+                                     <string>Basic.Settings.Output.Adv.Audio.TrackImmersive</string>
+                                    </property>
+                                    <property name="useFor" stdset="0">
+                                     <string notr="true">GroupBoxLevel2</string>
+                                    </property>
+                                    <property name="uistep" stdset="0">
+                                     <string notr="true">Track 1</string>
+                                    </property>
+                                    <layout class="QFormLayout" name="formLayout_32">
+                                     <property name="fieldGrowthPolicy">
+                                      <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                                     </property>
+                                     <property name="labelAlignment">
+                                      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+                                     </property>
+                                     <property name="horizontalSpacing">
+                                      <number>20</number>
+                                     </property>
+                                     <property name="verticalSpacing">
+                                      <number>10</number>
+                                     </property>
+                                     <property name="leftMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <property name="topMargin">
+                                      <number>20</number>
+                                     </property>
+                                     <property name="rightMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <property name="bottomMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <item row="0" column="1">
+                                      <widget class="PLSComboBox" name="advOutTrackImmersiveBitrate">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                       <property name="currentIndex">
+                                        <number>8</number>
+                                       </property>
+                                       <property name="uistep" stdset="0">
+                                        <string>Audio Bitrate</string>
+                                       </property>
+                                       <item>
+                                        <property name="text">
+                                         <string>32</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>48</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>64</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>80</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>96</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>112</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>128</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>160</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>192</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>256</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>320</string>
+                                        </property>
+                                       </item>
+                                      </widget>
+                                     </item>
+                                     <item row="0" column="0">
+                                      <widget class="QLabel" name="label_81">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                       <property name="text">
+                                        <string>Basic.Settings.Output.AudioBitrate</string>
+                                       </property>
+                                       <property name="alignment">
+                                        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+                                       </property>
+                                       <property name="wordWrap">
+                                        <bool>true</bool>
+                                       </property>
+                                       <property name="buddy">
+                                        <cstring>advOutTrackStereoBitrate</cstring>
+                                       </property>
+                                       <property name="useFor" stdset="0">
+                                        <string notr="true">FormLabelRole</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item row="1" column="0">
+                                      <widget class="QLabel" name="label_82">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                       <property name="text">
+                                        <string>Name</string>
+                                       </property>
+                                       <property name="alignment">
+                                        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+                                       </property>
+                                       <property name="wordWrap">
+                                        <bool>true</bool>
+                                       </property>
+                                       <property name="buddy">
+                                        <cstring>advOutTrackStereoName</cstring>
+                                       </property>
+                                       <property name="useFor" stdset="0">
+                                        <string notr="true">FormLabelRole</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item row="1" column="1">
+                                      <widget class="QLineEdit" name="advOutTrackImmersiveName">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                    </layout>
+                                   </widget>
+                                  </item>
+                                  <item>
+                                   <widget class="QGroupBox" name="groupBox_22">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
+                                    <property name="title">
+                                     <string>Basic.Settings.Output.Adv.Audio.Track1</string>
+                                    </property>
+                                    <property name="useFor" stdset="0">
+                                     <string notr="true">GroupBoxLevel2</string>
+                                    </property>
+                                    <property name="uistep" stdset="0">
+                                     <string notr="true">Track 1</string>
+                                    </property>
+                                    <layout class="QFormLayout" name="formLayout_27">
+                                     <property name="fieldGrowthPolicy">
+                                      <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                                     </property>
+                                     <property name="labelAlignment">
+                                      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+                                     </property>
+                                     <property name="horizontalSpacing">
+                                      <number>20</number>
+                                     </property>
+                                     <property name="verticalSpacing">
+                                      <number>10</number>
+                                     </property>
+                                     <property name="leftMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <property name="topMargin">
+                                      <number>20</number>
+                                     </property>
+                                     <property name="rightMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <property name="bottomMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <item row="0" column="0">
+                                      <widget class="QLabel" name="label_79">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                       <property name="text">
+                                        <string>Basic.Settings.Output.AudioBitrate</string>
+                                       </property>
+                                       <property name="alignment">
+                                        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+                                       </property>
+                                       <property name="wordWrap">
+                                        <bool>true</bool>
+                                       </property>
+                                       <property name="buddy">
+                                        <cstring>advOutTrackStereoBitrate</cstring>
+                                       </property>
+                                       <property name="useFor" stdset="0">
+                                        <string notr="true">FormLabelRole</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item row="0" column="1">
+                                      <widget class="PLSComboBox" name="advOutTrack1Bitrate">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                       <property name="currentIndex">
+                                        <number>8</number>
+                                       </property>
+                                       <property name="uistep" stdset="0">
+                                        <string>Audio Bitrate</string>
+                                       </property>
+                                       <item>
+                                        <property name="text">
+                                         <string>32</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>48</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>64</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>80</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>96</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>112</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>128</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>160</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>192</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>256</string>
+                                        </property>
+                                       </item>
+                                       <item>
+                                        <property name="text">
+                                         <string>320</string>
+                                        </property>
+                                       </item>
+                                      </widget>
+                                     </item>
+                                     <item row="1" column="0">
+                                      <widget class="QLabel" name="label_80">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                       <property name="text">
+                                        <string>Name</string>
+                                       </property>
+                                       <property name="alignment">
+                                        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+                                       </property>
+                                       <property name="wordWrap">
+                                        <bool>true</bool>
+                                       </property>
+                                       <property name="buddy">
+                                        <cstring>advOutTrackStereoName</cstring>
+                                       </property>
+                                       <property name="useFor" stdset="0">
+                                        <string notr="true">FormLabelRole</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item row="1" column="1">
+                                      <widget class="QLineEdit" name="advOutTrack1Name">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                      </widget>
                                      </item>
                                     </layout>
                                    </widget>
@@ -4060,6 +4835,12 @@
                                      </item>
                                      <item row="0" column="1">
                                       <widget class="PLSComboBox" name="advOutTrack2Bitrate">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
                                        <property name="currentIndex">
                                         <number>8</number>
                                        </property>
@@ -4149,7 +4930,14 @@
                                       </widget>
                                      </item>
                                      <item row="1" column="1">
-                                      <widget class="QLineEdit" name="advOutTrack2Name"/>
+                                      <widget class="QLineEdit" name="advOutTrack2Name">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                      </widget>
                                      </item>
                                     </layout>
                                    </widget>
@@ -4223,6 +5011,12 @@
                                      </item>
                                      <item row="0" column="1">
                                       <widget class="PLSComboBox" name="advOutTrack3Bitrate">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
                                        <property name="currentIndex">
                                         <number>8</number>
                                        </property>
@@ -4312,7 +5106,14 @@
                                       </widget>
                                      </item>
                                      <item row="1" column="1">
-                                      <widget class="QLineEdit" name="advOutTrack3Name"/>
+                                      <widget class="QLineEdit" name="advOutTrack3Name">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                      </widget>
                                      </item>
                                     </layout>
                                    </widget>
@@ -4386,6 +5187,12 @@
                                      </item>
                                      <item row="0" column="1">
                                       <widget class="PLSComboBox" name="advOutTrack4Bitrate">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
                                        <property name="currentIndex">
                                         <number>8</number>
                                        </property>
@@ -4475,7 +5282,14 @@
                                       </widget>
                                      </item>
                                      <item row="1" column="1">
-                                      <widget class="QLineEdit" name="advOutTrack4Name"/>
+                                      <widget class="QLineEdit" name="advOutTrack4Name">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                      </widget>
                                      </item>
                                     </layout>
                                    </widget>
@@ -4712,6 +5526,12 @@
                                      </item>
                                      <item row="0" column="1">
                                       <widget class="PLSComboBox" name="advOutTrack6Bitrate">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
                                        <property name="currentIndex">
                                         <number>8</number>
                                        </property>
@@ -4801,7 +5621,14 @@
                                       </widget>
                                      </item>
                                      <item row="1" column="1">
-                                      <widget class="QLineEdit" name="advOutTrack6Name"/>
+                                      <widget class="QLineEdit" name="advOutTrack6Name">
+                                       <property name="sizePolicy">
+                                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                         <horstretch>0</horstretch>
+                                         <verstretch>0</verstretch>
+                                        </sizepolicy>
+                                       </property>
+                                      </widget>
                                      </item>
                                     </layout>
                                    </widget>
@@ -4870,7 +5697,13 @@
                                   </widget>
                                  </item>
                                  <item>
-                                  <widget class="QCheckBox" name="advReplayBuf">
+                                  <widget class="PLSElideCheckBox" name="advReplayBuf">
+                                   <property name="sizePolicy">
+                                    <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                     <horstretch>0</horstretch>
+                                     <verstretch>0</verstretch>
+                                    </sizepolicy>
+                                   </property>
                                    <property name="text">
                                     <string>Basic.Settings.Output.UseReplayBuffer</string>
                                    </property>
@@ -4941,6 +5774,12 @@
                                   </item>
                                   <item row="0" column="1">
                                    <widget class="PLSSpinBox" name="advRBSecMax">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
                                     <property name="suffix">
                                      <string notr="true"> s</string>
                                     </property>
@@ -4976,6 +5815,12 @@
                                   </item>
                                   <item row="1" column="1">
                                    <widget class="PLSSpinBox" name="advRBMegsMax">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
                                     <property name="suffix">
                                      <string> MB</string>
                                     </property>
@@ -4991,9 +5836,18 @@
                                    </widget>
                                   </item>
                                   <item row="2" column="1">
-                                   <widget class="QLabel" name="replayBufferHotkeyMessage2">
+                                   <widget class="PLSElideLabel" name="replayBufferHotkeyMessage2">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
                                     <property name="text">
                                      <string>Basic.Settings.Output.ReplayBuffer.HotkeyMessage</string>
+                                    </property>
+                                    <property name="wordWrap">
+                                     <bool>true</bool>
                                     </property>
                                    </widget>
                                   </item>
@@ -5112,7 +5966,13 @@
                      </widget>
                     </item>
                     <item row="4" column="1">
-                     <widget class="QCheckBox" name="overwriteIfExists">
+                     <widget class="PLSElideCheckBox" name="overwriteIfExists">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Output.Adv.Recording.OverwriteIfExists</string>
                       </property>
@@ -5144,7 +6004,13 @@
                      </widget>
                     </item>
                     <item row="5" column="1">
-                     <widget class="QCheckBox" name="autoRemux">
+                     <widget class="PLSElideCheckBox" name="autoRemux">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Advanced.AutoRemux</string>
                       </property>
@@ -5172,6 +6038,12 @@
                       </property>
                       <item>
                        <widget class="QLineEdit" name="simpleRBPrefix">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
                         <property name="maxLength">
                          <number>30</number>
                         </property>
@@ -5180,7 +6052,13 @@
                      </layout>
                     </item>
                     <item row="0" column="1">
-                     <widget class="QCheckBox" name="recordWhenStreaming">
+                     <widget class="PLSElideCheckBox" name="recordWhenStreaming">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.RecordWhenStreaming</string>
                       </property>
@@ -5190,16 +6068,28 @@
                      </widget>
                     </item>
                     <item row="1" column="1">
-                     <widget class="QCheckBox" name="replayWhileStreaming">
+                     <widget class="PLSElideCheckBox" name="replayWhileStreaming">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.ReplayBufferWhileStreaming</string>
                       </property>
                      </widget>
                     </item>
                     <item row="2" column="1">
-                     <widget class="QCheckBox" name="keepReplayStreamStops">
+                     <widget class="PLSElideCheckBox" name="keepReplayStreamStops">
                       <property name="enabled">
                        <bool>false</bool>
+                      </property>
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
                       </property>
                       <property name="text">
                        <string>Basic.Settings.General.KeepReplayBufferStreamStops</string>
@@ -5221,7 +6111,14 @@
                        <number>5</number>
                       </property>
                       <item>
-                       <widget class="QLineEdit" name="filenameFormatting"/>
+                       <widget class="QLineEdit" name="filenameFormatting">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
+                       </widget>
                       </item>
                      </layout>
                     </item>
@@ -5249,6 +6146,12 @@
                     </item>
                     <item row="7" column="1">
                      <widget class="QLineEdit" name="simpleRBSuffix">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="maxLength">
                        <number>30</number>
                       </property>
@@ -5291,7 +6194,13 @@
                      <number>0</number>
                     </property>
                     <item row="3" column="1">
-                     <widget class="QCheckBox" name="streamDelayPreserve">
+                     <widget class="PLSElideCheckBox" name="streamDelayPreserve">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Advanced.StreamDelay.Preserve</string>
                       </property>
@@ -5301,7 +6210,13 @@
                      </widget>
                     </item>
                     <item row="0" column="1">
-                     <widget class="QCheckBox" name="streamDelayEnable">
+                     <widget class="PLSElideCheckBox" name="streamDelayEnable">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Enable</string>
                       </property>
@@ -5376,22 +6291,10 @@
                             <bool>true</bool>
                            </property>
                            <property name="sizePolicy">
-                            <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                              <horstretch>0</horstretch>
                              <verstretch>0</verstretch>
                             </sizepolicy>
-                           </property>
-                           <property name="minimumSize">
-                            <size>
-                             <width>180</width>
-                             <height>0</height>
-                            </size>
-                           </property>
-                           <property name="maximumSize">
-                            <size>
-                             <width>180</width>
-                             <height>16777215</height>
-                            </size>
                            </property>
                            <property name="suffix">
                             <string notr="true"> s</string>
@@ -5405,7 +6308,13 @@
                           </widget>
                          </item>
                          <item>
-                          <widget class="QLabel" name="streamDelayInfo">
+                          <widget class="PLSElideLabel" name="streamDelayInfo">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
                            <property name="text">
                             <string notr="true">Estimated RAM goes here</string>
                            </property>
@@ -5454,6 +6363,12 @@
                     </property>
                     <item row="0" column="1">
                      <widget class="QCheckBox" name="reconnectEnable">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Enable</string>
                       </property>
@@ -5514,6 +6429,12 @@
                     </item>
                     <item row="2" column="1">
                      <widget class="PLSSpinBox" name="reconnectMaxRetries">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="minimum">
                        <number>1</number>
                       </property>
@@ -5532,6 +6453,12 @@
                       </property>
                       <item>
                        <widget class="PLSSpinBox" name="reconnectRetryDelay">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
                         <property name="suffix">
                          <string> s</string>
                         </property>
@@ -5601,7 +6528,13 @@
                      </widget>
                     </item>
                     <item row="2" column="1">
-                     <widget class="QCheckBox" name="dynBitrate">
+                     <widget class="PLSElideCheckBox" name="dynBitrate">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="toolTip">
                        <string>Basic.Settings.Output.DynamicBitrate.TT</string>
                       </property>
@@ -5627,7 +6560,13 @@
                      </spacer>
                     </item>
                     <item row="3" column="1">
-                     <widget class="QCheckBox" name="enableNewSocketLoop">
+                     <widget class="PLSElideCheckBox" name="enableNewSocketLoop">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Advanced.Network.EnableNewSocketLoop</string>
                       </property>
@@ -5637,9 +6576,15 @@
                      </widget>
                     </item>
                     <item row="4" column="1">
-                     <widget class="QCheckBox" name="enableLowLatencyMode">
+                     <widget class="PLSElideCheckBox" name="enableLowLatencyMode">
                       <property name="enabled">
                        <bool>false</bool>
+                      </property>
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
                       </property>
                       <property name="text">
                        <string>Basic.Settings.Advanced.Network.EnableLowLatencyMode</string>
@@ -5662,6 +6607,12 @@
                       </property>
                       <item>
                        <widget class="PLSComboBox" name="bindToIP">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
                         <property name="uistep" stdset="0">
                          <string notr="true">Bind to IP</string>
                         </property>
@@ -5705,7 +6656,7 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QScrollArea" name="scrollArea_50">
+              <widget class="VScrollArea" name="scrollArea_50">
                <property name="frameShape">
                 <enum>QFrame::NoFrame</enum>
                </property>
@@ -5720,8 +6671,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>642</width>
-                  <height>731</height>
+                  <width>1109</width>
+                  <height>801</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_50">
@@ -5818,6 +6769,12 @@
                        </item>
                        <item row="0" column="1">
                         <widget class="PLSComboBox" name="sampleRate">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="currentText">
                           <string notr="true">44.1 kHz</string>
                          </property>
@@ -5863,6 +6820,12 @@
                        </item>
                        <item row="1" column="1">
                         <widget class="PLSComboBox" name="channelSetup">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="currentText">
                           <string>Mono</string>
                          </property>
@@ -5975,6 +6938,12 @@
                          <property name="enabled">
                           <bool>true</bool>
                          </property>
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="uistep" stdset="0">
                           <string notr="true">Desktop Audio</string>
                          </property>
@@ -6010,6 +6979,12 @@
                          <property name="enabled">
                           <bool>true</bool>
                          </property>
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="uistep" stdset="0">
                           <string notr="true">Desktop Audio 2</string>
                          </property>
@@ -6041,6 +7016,12 @@
                         <widget class="PLSComboBox" name="auxAudioDevice1">
                          <property name="enabled">
                           <bool>true</bool>
+                         </property>
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
                          </property>
                          <property name="uistep" stdset="0">
                           <string notr="true">Mic/Auxiliary Audio</string>
@@ -6074,6 +7055,12 @@
                          <property name="enabled">
                           <bool>true</bool>
                          </property>
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="uistep" stdset="0">
                           <string notr="true">Mic/Auxiliary Audio 2</string>
                          </property>
@@ -6106,6 +7093,12 @@
                          <property name="enabled">
                           <bool>true</bool>
                          </property>
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="uistep" stdset="0">
                           <string notr="true">Mic/Auxiliary Audio 3</string>
                          </property>
@@ -6115,6 +7108,12 @@
                         <widget class="PLSComboBox" name="auxAudioDevice4">
                          <property name="enabled">
                           <bool>true</bool>
+                         </property>
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
                          </property>
                          <property name="uistep" stdset="0">
                           <string notr="true">Mic/Auxiliary Audio 4</string>
@@ -6206,6 +7205,12 @@
                        </item>
                        <item row="0" column="1">
                         <widget class="PLSComboBox" name="meterDecayRate">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="currentText">
                           <string>Basic.Settings.Audio.MeterDecayRate.Fast</string>
                          </property>
@@ -6256,6 +7261,12 @@
                        </item>
                        <item row="1" column="1">
                         <widget class="PLSComboBox" name="peakMeterType">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="currentIndex">
                           <number>0</number>
                          </property>
@@ -6334,6 +7345,12 @@
                        </item>
                        <item row="0" column="1">
                         <widget class="PLSComboBox" name="monitoringDevice">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="uistep" stdset="0">
                           <string notr="true">Monitoring Device</string>
                          </property>
@@ -6348,7 +7365,13 @@
                           <number>5</number>
                          </property>
                          <item>
-                          <widget class="QCheckBox" name="disableAudioDucking">
+                          <widget class="PLSElideCheckBox" name="disableAudioDucking">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
                            <property name="text">
                             <string>Basic.Settings.Advanced.Audio.DisableAudioDucking</string>
                            </property>
@@ -6434,7 +7457,7 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QScrollArea" name="scrollArea_4">
+              <widget class="VScrollArea" name="scrollArea_4">
                <property name="frameShape">
                 <enum>QFrame::NoFrame</enum>
                </property>
@@ -6446,8 +7469,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>927</width>
-                  <height>1021</height>
+                  <width>1109</width>
+                  <height>1281</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_34">
@@ -6520,6 +7543,12 @@
                     </item>
                     <item row="0" column="1">
                      <widget class="PLSEditableComboBox" name="baseResolution">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="editable">
                        <bool>true</bool>
                       </property>
@@ -6561,6 +7590,12 @@
                     </item>
                     <item row="1" column="1">
                      <widget class="PLSEditableComboBox" name="outputResolution">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="editable">
                        <bool>true</bool>
                       </property>
@@ -6635,6 +7670,12 @@
                     </item>
                     <item row="0" column="1">
                      <widget class="PLSComboBox" name="renderer">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="currentText">
                        <string notr="true"/>
                       </property>
@@ -6673,6 +7714,12 @@
                       <property name="enabled">
                        <bool>false</bool>
                       </property>
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="currentText">
                        <string notr="true"/>
                       </property>
@@ -6708,6 +7755,12 @@
                     </item>
                     <item row="2" column="1">
                      <widget class="PLSComboBox" name="colorFormat">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="uistep" stdset="0">
                        <string notr="true">Color Format</string>
                       </property>
@@ -6773,14 +7826,26 @@
                        <number>0</number>
                       </property>
                       <item>
-                       <widget class="QCheckBox" name="disableOSXVSync">
+                       <widget class="PLSElideCheckBox" name="disableOSXVSync">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
                         <property name="text">
                          <string>DisableOSXVSync</string>
                         </property>
                        </widget>
                       </item>
                       <item>
-                       <widget class="QCheckBox" name="resetOSXVSync">
+                       <widget class="PLSElideCheckBox" name="resetOSXVSync">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
                         <property name="text">
                          <string>ResetOSXVSyncOnExit</string>
                         </property>
@@ -6800,7 +7865,7 @@
                        <number>5</number>
                       </property>
                       <item>
-                       <layout class="QHBoxLayout" name="horizontalLayout_20" stretch="0,1,0">
+                       <layout class="QHBoxLayout" name="horizontalLayout_20" stretch="0,0,0">
                         <property name="spacing">
                          <number>10</number>
                         </property>
@@ -6818,17 +7883,11 @@
                         </property>
                         <item>
                          <widget class="PLSComboBox" name="colorSpace">
-                          <property name="minimumSize">
-                           <size>
-                            <width>185</width>
-                            <height>0</height>
-                           </size>
-                          </property>
-                          <property name="maximumSize">
-                           <size>
-                            <width>185</width>
-                            <height>16777215</height>
-                           </size>
+                          <property name="sizePolicy">
+                           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                           </sizepolicy>
                           </property>
                           <property name="uistep" stdset="0">
                            <string notr="true">Color Space</string>
@@ -6869,17 +7928,11 @@
                         </item>
                         <item>
                          <widget class="PLSComboBox" name="colorRange">
-                          <property name="minimumSize">
-                           <size>
-                            <width>185</width>
-                            <height>0</height>
-                           </size>
-                          </property>
-                          <property name="maximumSize">
-                           <size>
-                            <width>185</width>
-                            <height>16777215</height>
-                           </size>
+                          <property name="sizePolicy">
+                           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                           </sizepolicy>
                           </property>
                           <property name="uistep" stdset="0">
                            <string notr="true">Color Range</string>
@@ -6925,6 +7978,12 @@
                     </property>
                     <item row="0" column="1">
                      <widget class="QCheckBox" name="hideProjectorCursor">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.HideProjectorCursor</string>
                       </property>
@@ -6935,6 +7994,12 @@
                     </item>
                     <item row="1" column="1">
                      <widget class="QCheckBox" name="projectorAlwaysOnTop">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.ProjectorAlwaysOnTop</string>
                       </property>
@@ -6945,6 +8010,12 @@
                     </item>
                     <item row="2" column="1">
                      <widget class="QCheckBox" name="saveProjectors">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.SaveProjectors</string>
                       </property>
@@ -6997,7 +8068,13 @@
                      <number>0</number>
                     </property>
                     <item row="1" column="1">
-                     <widget class="QCheckBox" name="overflowAlwaysVisible">
+                     <widget class="PLSElideCheckBox" name="overflowAlwaysVisible">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.OverflowAlwaysVisible</string>
                       </property>
@@ -7007,7 +8084,13 @@
                      </widget>
                     </item>
                     <item row="2" column="1">
-                     <widget class="QCheckBox" name="overflowSelectionHide">
+                     <widget class="PLSElideCheckBox" name="overflowSelectionHide">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.OverflowSelectionHidden</string>
                       </property>
@@ -7017,7 +8100,13 @@
                      </widget>
                     </item>
                     <item row="0" column="1">
-                     <widget class="QCheckBox" name="overflowHide">
+                     <widget class="PLSElideCheckBox" name="overflowHide">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.OverflowHidden</string>
                       </property>
@@ -7070,7 +8159,13 @@
                      <number>0</number>
                     </property>
                     <item row="1" column="1">
-                     <widget class="QCheckBox" name="doubleClickSwitch">
+                     <widget class="PLSElideCheckBox" name="doubleClickSwitch">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.SwitchOnDoubleClick</string>
                       </property>
@@ -7080,14 +8175,26 @@
                      </widget>
                     </item>
                     <item row="2" column="1">
-                     <widget class="QCheckBox" name="studioPortraitLayout">
+                     <widget class="PLSElideCheckBox" name="studioPortraitLayout">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.StudioPortraitLayout</string>
                       </property>
                      </widget>
                     </item>
                     <item row="3" column="1">
-                     <widget class="QCheckBox" name="prevProgLabelToggle">
+                     <widget class="PLSElideCheckBox" name="prevProgLabelToggle">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.TogglePreviewProgramLabels</string>
                       </property>
@@ -7140,7 +8247,13 @@
                      <number>0</number>
                     </property>
                     <item row="0" column="1">
-                     <widget class="QCheckBox" name="multiviewMouseSwitch">
+                     <widget class="PLSElideCheckBox" name="multiviewMouseSwitch">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.Multiview.MouseSwitch</string>
                       </property>
@@ -7153,7 +8266,13 @@
                      </widget>
                     </item>
                     <item row="1" column="1">
-                     <widget class="QCheckBox" name="multiviewDrawNames">
+                     <widget class="PLSElideCheckBox" name="multiviewDrawNames">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.Multiview.DrawSourceNames</string>
                       </property>
@@ -7166,7 +8285,13 @@
                      </widget>
                     </item>
                     <item row="2" column="1">
-                     <widget class="QCheckBox" name="multiviewDrawAreas">
+                     <widget class="PLSElideCheckBox" name="multiviewDrawAreas">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.Multiview.DrawSafeAreas</string>
                       </property>
@@ -7188,6 +8313,12 @@
                       </property>
                       <item>
                        <widget class="PLSComboBox" name="multiviewLayout">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
                         <property name="uistep" stdset="0">
                          <string notr="true">Multiview Layout</string>
                         </property>
@@ -7217,6 +8348,85 @@
                       </property>
                      </widget>
                     </item>
+                    <item row="5" column="0">
+                     <widget class="QLabel" name="label_77">
+                      <property name="text">
+                       <string/>
+                      </property>
+                      <property name="wordWrap">
+                       <bool>true</bool>
+                      </property>
+                      <property name="buddy">
+                       <cstring>sceneDisplayComboBox</cstring>
+                      </property>
+                      <property name="useFor" stdset="0">
+                       <string notr="true">FormLabelRole</string>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QGroupBox" name="groupBox_8">
+                   <property name="title">
+                    <string>Basic.Scene.Display.Method</string>
+                   </property>
+                   <layout class="QFormLayout" name="formLayout_5">
+                    <property name="horizontalSpacing">
+                     <number>20</number>
+                    </property>
+                    <property name="verticalSpacing">
+                     <number>10</number>
+                    </property>
+                    <property name="leftMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="topMargin">
+                     <number>20</number>
+                    </property>
+                    <property name="rightMargin">
+                     <number>0</number>
+                    </property>
+                    <property name="bottomMargin">
+                     <number>0</number>
+                    </property>
+                    <item row="0" column="0">
+                     <widget class="QLabel" name="label_78">
+                      <property name="styleSheet">
+                       <string notr="true"/>
+                      </property>
+                      <property name="text">
+                       <string>Setting.Scene.Display.Method</string>
+                      </property>
+                      <property name="useFor" stdset="0">
+                       <string notr="true">FormLabelRole</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="0" column="1">
+                     <widget class="PLSComboBox" name="sceneDisplayComboBox">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="1">
+                     <widget class="QLabel" name="sceneDisplayTipsLabel">
+                      <property name="text">
+                       <string/>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+                      </property>
+                      <property name="wordWrap">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
+                    </item>
                    </layout>
                   </widget>
                  </item>
@@ -7240,6 +8450,9 @@
              <property name="spacing">
               <number>0</number>
              </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
              <property name="topMargin">
               <number>0</number>
              </property>
@@ -7250,7 +8463,7 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QScrollArea" name="scrollArea_5">
+              <widget class="VScrollArea" name="scrollArea_5">
                <property name="frameShape">
                 <enum>QFrame::NoFrame</enum>
                </property>
@@ -7262,8 +8475,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>502</width>
-                  <height>367</height>
+                  <width>508</width>
+                  <height>395</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_40">
@@ -7328,7 +8541,13 @@
                      <number>0</number>
                     </property>
                     <item row="0" column="1">
-                     <widget class="QCheckBox" name="snappingEnabled">
+                     <widget class="PLSElideCheckBox" name="snappingEnabled">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Enable</string>
                       </property>
@@ -7341,7 +8560,13 @@
                      </widget>
                     </item>
                     <item row="2" column="1">
-                     <widget class="QCheckBox" name="screenSnapping">
+                     <widget class="PLSElideCheckBox" name="screenSnapping">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.ScreenSnapping</string>
                       </property>
@@ -7354,7 +8579,13 @@
                      </widget>
                     </item>
                     <item row="4" column="1">
-                     <widget class="QCheckBox" name="centerSnapping">
+                     <widget class="PLSElideCheckBox" name="centerSnapping">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.CenterSnapping</string>
                       </property>
@@ -7367,7 +8598,13 @@
                      </widget>
                     </item>
                     <item row="3" column="1">
-                     <widget class="QCheckBox" name="sourceSnapping">
+                     <widget class="PLSElideCheckBox" name="sourceSnapping">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.General.SourceSnapping</string>
                       </property>
@@ -7392,6 +8629,12 @@
                       </property>
                       <item>
                        <widget class="PLSDoubleSpinBox" name="snapDistance">
+                        <property name="sizePolicy">
+                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                         </sizepolicy>
+                        </property>
                         <property name="decimals">
                          <number>1</number>
                         </property>
@@ -7462,7 +8705,13 @@
                      </widget>
                     </item>
                     <item row="0" column="1">
-                     <widget class="QCheckBox" name="browserHWAccel">
+                     <widget class="PLSElideCheckBox" name="browserHWAccel">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="text">
                        <string>BrowserSource.EnableHardwareAcceleration</string>
                       </property>
@@ -7520,7 +8769,7 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QScrollArea" name="hotkeyScrollArea">
+              <widget class="VScrollArea" name="hotkeyScrollArea">
                <property name="frameShape">
                 <enum>QFrame::NoFrame</enum>
                </property>
@@ -7532,8 +8781,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>853</width>
-                  <height>439</height>
+                  <width>100</width>
+                  <height>30</height>
                  </rect>
                 </property>
                 <layout class="QFormLayout" name="hotkeyLayout">
@@ -8096,7 +9345,7 @@
               <number>0</number>
              </property>
              <item>
-              <widget class="QScrollArea" name="scrollArea">
+              <widget class="VScrollArea" name="scrollArea">
                <property name="frameShape">
                 <enum>QFrame::NoFrame</enum>
                </property>
@@ -8111,8 +9360,8 @@
                  <rect>
                   <x>0</x>
                   <y>0</y>
-                  <width>853</width>
-                  <height>379</height>
+                  <width>1123</width>
+                  <height>668</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout_23">
@@ -8196,7 +9445,14 @@
                         </widget>
                        </item>
                        <item row="0" column="1">
-                        <widget class="PLSComboBox" name="processPriority"/>
+                        <widget class="PLSComboBox" name="processPriority">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
+                        </widget>
                        </item>
                        <item row="1" column="0">
                         <spacer name="horizontalSpacer_13">
@@ -8261,30 +9517,54 @@
                         </spacer>
                        </item>
                        <item row="0" column="1">
-                        <widget class="QCheckBox" name="warnBeforeStreamStart">
+                        <widget class="PLSElideCheckBox" name="warnBeforeStreamStart">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="text">
                           <string>Basic.Settings.General.WarnBeforeStartingStream</string>
                          </property>
                         </widget>
                        </item>
                        <item row="1" column="1">
-                        <widget class="QCheckBox" name="warnBeforeStreamStop">
+                        <widget class="PLSElideCheckBox" name="warnBeforeStreamStop">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="text">
                           <string>Basic.Settings.General.WarnBeforeStoppingStream</string>
                          </property>
                         </widget>
                        </item>
                        <item row="2" column="1">
-                        <widget class="QCheckBox" name="warnBeforeRecordStop">
+                        <widget class="PLSElideCheckBox" name="warnBeforeRecordStop">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="text">
                           <string>Basic.Settings.General.WarnBeforeStoppingRecord</string>
                          </property>
                         </widget>
                        </item>
                        <item row="4" column="1">
-                        <widget class="QCheckBox" name="keepRecordStreamStops">
+                        <widget class="PLSElideCheckBox" name="keepRecordStreamStops">
                          <property name="enabled">
                           <bool>false</bool>
+                         </property>
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
                          </property>
                          <property name="text">
                           <string>Basic.Settings.General.KeepRecordingWhenStreamStops</string>
@@ -8339,6 +9619,12 @@
                        </item>
                        <item row="0" column="1">
                         <widget class="PLSComboBox" name="hotkeyFocusType">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
                          <property name="uistep" stdset="0">
                           <string notr="true">Hotkey Focus Behavior</string>
                          </property>
@@ -8552,6 +9838,12 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>VScrollArea</class>
+   <extends>QScrollArea</extends>
+   <header>vertical-scroll-area.hpp</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
    <class>PLSComboBox</class>
    <extends>QComboBox</extends>
    <header>combobox.hpp</header>
@@ -8577,9 +9869,25 @@
    <header>dialogbuttonbox.hpp</header>
   </customwidget>
   <customwidget>
+   <class>PLSSettingGeneralView</class>
+   <extends>QWidget</extends>
+   <header>pls-setting-general-view.hpp</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
    <class>PLSEditableComboBox</class>
    <extends>QComboBox</extends>
    <header>combobox.hpp</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSElideLabel</class>
+   <extends>QLabel</extends>
+   <header>label.hpp</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSElideCheckBox</class>
+   <extends>QCheckBox</extends>
+   <header>checkbox.hpp</header>
   </customwidget>
  </customwidgets>
  <tabstops>
@@ -8672,8 +9980,8 @@
   <tabstop>advOutFFAEncoder</tabstop>
   <tabstop>advOutFFACfg</tabstop>
   <tabstop>advOutFFURL</tabstop>
-  <tabstop>advOutTrack1Bitrate</tabstop>
-  <tabstop>advOutTrack1Name</tabstop>
+  <tabstop>advOutTrackStereoBitrate</tabstop>
+  <tabstop>advOutTrackStereoName</tabstop>
   <tabstop>advOutTrack2Bitrate</tabstop>
   <tabstop>advOutTrack2Name</tabstop>
   <tabstop>advOutTrack3Bitrate</tabstop>

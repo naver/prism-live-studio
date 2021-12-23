@@ -14,13 +14,12 @@ PLSLiveInfoAfreecaTV::PLSLiveInfoAfreecaTV(PLSPlatformBase *pPlatformBase, QWidg
 {
 	PLS_INFO(liveInfoMoudule, "AfreecaTV liveinfo Will show");
 	ui->setupUi(this->content());
-
+	ui->horizontalLayout->addWidget(createResolutionButtonsFrame());
 	dpiHelper.setCss(this, {PLSCssIndex::PLSLiveinfoAfreecaTV});
-	dpiHelper.setFixedSize(this, {720, 550});
 
 	setHasCloseButton(false);
 	setHasBorder(true);
-	this->setWindowTitle(tr("LiveInfo.Dialog.Title"));
+	this->setWindowTitle(tr("LiveInfo.liveinformation"));
 
 	content()->setFocusPolicy(Qt::StrongFocus);
 
@@ -72,7 +71,9 @@ void PLSLiveInfoAfreecaTV::showEvent(QShowEvent *event)
 
 void PLSLiveInfoAfreecaTV::setupFirstUI()
 {
-	connect(ui->lineEditTitle, &QLineEdit::textChanged, this, &PLSLiveInfoAfreecaTV::titleEdited);
+	ui->scheduleLabel->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("LiveInfo.base.Title")));
+
+	connect(ui->lineEditTitle, &QLineEdit::textChanged, this, &PLSLiveInfoAfreecaTV::titleEdited, Qt::QueuedConnection);
 
 	connect(ui->okButton, &QPushButton::clicked, this, &PLSLiveInfoAfreecaTV::okButtonClicked);
 	connect(ui->cancelButton, &QPushButton::clicked, this, &PLSLiveInfoAfreecaTV::cancelButtonClicked);
@@ -80,17 +81,11 @@ void PLSLiveInfoAfreecaTV::setupFirstUI()
 
 void PLSLiveInfoAfreecaTV::doUpdateOkState()
 {
-
-	ui->okButton->setEnabled(true);
 	if (ui->lineEditTitle->text().trimmed().isEmpty()) {
 		ui->okButton->setEnabled(false);
+		return;
 	}
-
-	if (!PLS_PLATFORM_API->isPrepareLive()) {
-		if (ui->lineEditTitle->text() == PLS_PLATFORM_AFREECATV->getSelectData().frmTitle) {
-			ui->okButton->setEnabled(false);
-		}
-	}
+	ui->okButton->setEnabled(true);
 }
 
 void PLSLiveInfoAfreecaTV::titleEdited()
@@ -105,13 +100,14 @@ void PLSLiveInfoAfreecaTV::titleEdited()
 	}
 
 	if (newText.compare(ui->lineEditTitle->text()) != 0) {
+		QSignalBlocker signalBlocker(ui->lineEditTitle);
 		ui->lineEditTitle->setText(newText);
 	}
 	doUpdateOkState();
 
 	if (isLargeToMax) {
-		const auto channelName = PLS_PLATFORM_AFREECATV->getInitData().value(ChannelData::g_channelName).toString();
-		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TitleLengthLimit).arg(channelName));
+		const auto channelName = PLS_PLATFORM_AFREECATV->getInitData().value(ChannelData::g_platformName).toString();
+		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TitleLengthLimit).arg(channelName));
 	}
 }
 

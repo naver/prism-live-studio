@@ -25,9 +25,11 @@
 #include "dialog-view.hpp"
 #include "qt-display.hpp"
 #include "dialogbuttonbox.hpp"
+#include "PLSGetPropertiesThread.h"
 
 class PLSPropertiesView;
 class PLSBasic;
+class PLSLoadingEvent;
 
 #define OPERATION_NONE 0X00000000
 #define OPERATION_ADD_SOURCE 0X00000001
@@ -39,25 +41,43 @@ private:
 	QPointer<PLSQTDisplay> preview;
 
 	bool acceptClicked;
+	bool m_isSaveClick = false;
 
 	OBSSource source;
 	OBSSignal removedSignal;
 	OBSSignal renamedSignal;
 	OBSSignal updatePropertiesSignal;
+	OBSSignal updatePropertiesNotifySignal;
+	OBSSignal updatePropertiesOKButtonSignal;
 	OBSData oldSettings;
 	PLSPropertiesView *view;
 	PLSDialogButtonBox *buttonBox;
 	QSplitter *windowSplitter;
+	PLSLoadingEvent *m_pLoadingEvent = nullptr;
+	QWidget *m_pWidgetLoadingBG = nullptr;
 
 	OBSSource sourceA;
 	OBSSource sourceB;
 	OBSSource sourceClone;
 	bool direction = true;
 	unsigned operationFlags;
+	bool isPrivSetting = false;
+	bool autoRenameTitle = true;
+	bool questionHasCancelButton = true;
+	obs_properties_t *(*obsSourceProperties)(const obs_source_t *source);
+	void (*obsSourceUpdate)(obs_source_t *source, obs_data_t *settings);
+	obs_data_t *(*obsSourceGetSettings)(const obs_source_t *source);
+	void (*obsSourceReset)(obs_source_t *source);
+	// camera properties
+	QSize originalCameraResolution;
+	QSize oldCameraResolution;
+	QSize currentCameraResolution;
 
 	static void SourceRemoved(void *data, calldata_t *params);
 	static void SourceRenamed(void *data, calldata_t *params);
 	static void UpdateProperties(void *data, calldata_t *params);
+	static void PropertyUpdateNotify(void *data, calldata_t *params);
+	static void UpdatePropertiesOkButtonEnable(void *data, calldata_t *params);
 	static void DrawPreview(void *data, uint32_t cx, uint32_t cy);
 	static void DrawTransitionPreview(void *data, uint32_t cx, uint32_t cy);
 	void UpdateCallback(void *obj, obs_data_t *settings);
@@ -65,13 +85,25 @@ private:
 	int CheckSettings();
 	void Cleanup();
 
+	//camera properties operation
+	void openCameraProperties(bool defer = false);
+	void closeCameraProperties(bool ok /*ok or cancel*/);
+	void cameraPropertiesResolutionChanged();
+
+	void ShowLoading();
+	void HideLoading();
+	void AsyncLoadCameraProperties();
+	void dialogClosedToSendNoti();
+
 private slots:
 	void on_buttonBox_clicked(QAbstractButton *button);
+	void onReloadOldSettings();
 
 public:
 	static void SetOwnerWindow(OBSSource source, long long hwnd);
 
-	explicit PLSBasicProperties(QWidget *parent, OBSSource source_, unsigned flags = OPERATION_NONE, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSBasicProperties(QWidget *parent, OBSSource source_, unsigned flags = OPERATION_NONE, bool isPrivSetting = false, bool autoRenameTitle = true,
+				    PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSBasicProperties();
 
 	void Init();
@@ -80,11 +112,15 @@ public:
 	void ReloadProperties();
 	void AddPreviewButton(QWidget *widget);
 	void UpdateOldSettings(obs_source_t *source);
+	bool isFirstAddSource() const;
+	void closeNoCancelButton();
 
 protected:
+	virtual void showEvent(QShowEvent *) override;
 	virtual void closeEvent(QCloseEvent *event) override;
 	virtual bool eventFilter(QObject *watcher, QEvent *event) override;
 	virtual void reject() override;
+	virtual void accept() override;
 
 signals:
 	void OpenMusicButtonClicked();

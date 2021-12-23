@@ -55,7 +55,7 @@ void PLSShareSourceItem::initInfo(const QVariantMap &source)
 {
 	mSource = source;
 
-	auto disName = getInfo(mSource, g_nickName, g_nickName);
+	auto disName = getInfo(mSource, g_displayLine1);
 	QString disElidName = getElidedText(ui->DisnameLabel, disName, ui->DisnameLabel->contentsRect().width());
 	ui->DisnameLabel->setText(disElidName);
 	auto urlStr = getInfo(mSource, g_shareUrlTemp, DEFAULT_URL);

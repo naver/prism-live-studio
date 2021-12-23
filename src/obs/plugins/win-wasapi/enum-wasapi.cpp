@@ -95,7 +95,7 @@ void GetWASAPIAudioDevices(vector<AudioDeviceInfo> &devices, bool input)
 		GetWASAPIAudioDevices_(devices, input);
 
 	} catch (HRError &error) {
-		blog(LOG_WARNING, "[GetWASAPIAudioDevices] %s: %lX", error.str,
+		plog(LOG_WARNING, "[GetWASAPIAudioDevices] %s: %lX", error.str,
 		     error.hr);
 	}
 }
@@ -128,8 +128,7 @@ void DecodeAudioString(const char *str, std::string &name, std::string &id)
 	std::string temp = str;
 
 	int pos = temp.find(AUDIO_STRING_SPT);
-	if (pos == std::string::npos)
-	{
+	if (pos == std::string::npos) {
 		name = "";
 		id = temp;
 	} else {

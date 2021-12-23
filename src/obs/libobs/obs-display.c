@@ -28,7 +28,7 @@ bool obs_display_init(struct obs_display *display,
 	if (graphics_data) {
 		display->swap = gs_swapchain_create(graphics_data);
 		if (!display->swap) {
-			blog(LOG_ERROR, "obs_display_init: Failed to "
+			plog(LOG_ERROR, "obs_display_init: Failed to "
 					"create swap chain");
 			return false;
 		}
@@ -38,11 +38,11 @@ bool obs_display_init(struct obs_display *display,
 	}
 
 	if (pthread_mutex_init(&display->draw_callbacks_mutex, NULL) != 0) {
-		blog(LOG_ERROR, "obs_display_init: Failed to create mutex");
+		plog(LOG_ERROR, "obs_display_init: Failed to create mutex");
 		return false;
 	}
 	if (pthread_mutex_init(&display->draw_info_mutex, NULL) != 0) {
-		blog(LOG_ERROR, "obs_display_init: Failed to create mutex");
+		plog(LOG_ERROR, "obs_display_init: Failed to create mutex");
 		return false;
 	}
 
@@ -56,7 +56,7 @@ obs_display_t *obs_display_create(const struct gs_init_data *graphics_data,
 	struct obs_display *display = bzalloc(sizeof(struct obs_display));
 
 	//PRISM/WangShaohui/20201104/NoIssue/for debugging
-	blog(LOG_INFO, "obs_display is created : %p", display);
+	plog(LOG_INFO, "obs_display is created : %p", display);
 
 	gs_enter_context(obs->video.graphics);
 
@@ -96,7 +96,7 @@ void obs_display_destroy(obs_display_t *display)
 {
 	if (display) {
 		//PRISM/WangShaohui/20201104/NoIssue/for debugging
-		blog(LOG_INFO, "obs_display is to be deleted : %p", display);
+		plog(LOG_INFO, "obs_display is to be deleted : %p", display);
 
 		pthread_mutex_lock(&obs->data.displays_mutex);
 		if (display->prev_next)

@@ -77,7 +77,7 @@ static struct {
 #ifdef COMPUTE_MATRICES
 static void log_matrix(float const matrix[16])
 {
-	blog(LOG_DEBUG,
+	plog(LOG_DEBUG,
 	     "\n% f, % f, % f, % f"
 	     "\n% f, % f, % f, % f"
 	     "\n% f, % f, % f, % f"

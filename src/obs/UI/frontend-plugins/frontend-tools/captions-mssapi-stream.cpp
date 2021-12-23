@@ -9,7 +9,7 @@ using namespace std;
 
 #if 0
 #define debugfunc(format, ...)                                     \
-	blog(LOG_DEBUG, "[Captions] %s(" format ")", __FUNCTION__, \
+	plog(LOG_DEBUG, "[Captions] %s(" format ")", __FUNCTION__, \
 	     ##__VA_ARGS__)
 #else
 #define debugfunc(format, ...)

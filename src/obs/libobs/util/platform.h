@@ -30,6 +30,8 @@
 extern "C" {
 #endif
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+
 EXPORT FILE *os_wfopen(const wchar_t *path, const char *mode);
 EXPORT FILE *os_fopen(const char *path, const char *mode);
 EXPORT int64_t os_fgetsize(FILE *file);
@@ -205,6 +207,36 @@ EXPORT bool os_is_file_exist_ex(const wchar_t *wpath);
 EXPORT bool save_as_bitmap_file(char *path, uint8_t *data, int linesize,
 				int width, int height, int per_pixel_byte,
 				bool flip);
+
+//PRISM/WangShaohui/20200809/NoIssue/for debug reference
+EXPORT void enable_popup_messagebox(bool enable);
+EXPORT void popup_messagebox(const char *content);
+
+//PRISM/LiuHaibin/20210224/#6878/cpu usage
+struct os_cpu_usage_info_ex;
+typedef struct os_cpu_usage_info_ex os_cpu_usage_info_ex_t;
+EXPORT os_cpu_usage_info_ex_t *os_cpu_usage_info_start_ex(void);
+EXPORT bool os_cpu_usage_info_query_ex(os_cpu_usage_info_ex_t *info,
+				       double *process_cpu_usage,
+				       double *overall_cpu_usage);
+EXPORT void os_cpu_usage_info_destroy_ex(os_cpu_usage_info_ex_t *info);
+
+//PRISM/WangShaohui/20200817/NoIssue/for file path operation
+EXPORT void os_extract_file_name(const char *full_path, char *output_buf,
+				 int buf_len);
+EXPORT void os_extract_extension(const char *full_path, char *output_buf,
+				 int buf_len);
+
+//PRISM/Zengqin/20210813/#none/init sym
+EXPORT void os_sym_initialize(wchar_t *path_str_w);
+EXPORT void os_sym_cleanup();
+
+//PRISM/Zengqin/2021923/#9773/add lock interface
+EXPORT bool os_mutex_handle_create(const char *name);
+EXPORT void os_mutex_handle_close(const char *name);
+EXPORT void os_mutex_handle_lock(const char *name);
+EXPORT void os_mutex_handle_unlock(const char *name);
+
 #endif
 
 #ifdef _MSC_VER

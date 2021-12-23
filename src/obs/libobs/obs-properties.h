@@ -14,7 +14,6 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
-
 #pragma once
 
 #include "util/c99defs.h"
@@ -84,6 +83,40 @@ enum obs_property_type {
 
 	//PRISM/Wangshaohui/20200914/Noissue/region source
 	OBS_PROPERTY_REGION_SELECT,
+
+	//PRISM/Zengqin/20201021/Noissue/spectralizer source
+	OBS_PROPERTY_IMAGE_GROUP,
+
+	//PRISM/Zengqin/20201023/Noissue/custom group
+	OBS_PROPERTY_CUSTOM_GROUP,
+
+	//PRISM/Zengqin/20201027/Noissue/horizontal line
+	OBS_PROPERTY_H_LINE,
+
+	//PRISM/Zengqin/20201030/Noissue/checkbox text is on left
+	OBS_PROPERTY_BOOL_LEFT,
+
+	//PRISM/Zhangdewen/20201022/Noissue/virtual background
+	OBS_PROPERTY_CAMERA_VIRTUAL_BACKGROUND_STATE,
+	OBS_PROPERTY_VIRTUAL_BACKGROUND_RESOURCE,
+	OBS_PROPERTY_SWITCH,
+
+	//PRSIM/WuLongyue/20200915/No issue/For PRISM Mobile
+	OBS_PROPERTY_MOBILE_GUIDER,
+	OBS_PROPERTY_MOBILE_HELP,
+	OBS_PROPERTY_MOBILE_NAME,
+	OBS_PROPERTY_MOBILE_STATUS,
+	OBS_PROPERTY_PRIVATE_DATA_TEXT,
+
+	//PRISM/Xiewei/20210629/No issue/For Camera Flip
+	OBS_PROPERTY_CHECKBOX_GROUP,
+
+	//PRSIM/Renjinbo/20210518/timer feature/add right spinbox box group, like the OBS_PROPERTY_BOOL_GROUP ui.
+	OBS_PROPERTY_INT_GROUP,
+	OBS_PROPERTY_FONT_SIMPLE,
+	OBS_PROPERTY_COLOR_CHECKBOX,
+	OBS_PROPERTY_TIMER_LIST_LISTEN,
+	OBS_PROPERTY_LABEL_TIP,
 };
 
 enum obs_combo_format {
@@ -115,6 +148,7 @@ enum obs_text_type {
 	OBS_TEXT_DEFAULT,
 	OBS_TEXT_PASSWORD,
 	OBS_TEXT_MULTILINE,
+	OBS_TEXT_DEFAULT_LIMIT,
 };
 
 enum obs_number_type {
@@ -126,6 +160,20 @@ enum obs_group_type {
 	OBS_COMBO_INVALID,
 	OBS_GROUP_NORMAL,
 	OBS_GROUP_CHECKABLE,
+};
+
+enum obs_control_type {
+	OBS_CONTROL_UNKNOWN,
+	OBS_CONTROL_INT,
+};
+
+enum obs_image_style_type {
+	OBS_IMAGE_STYLE_UNKNOWN = -1,
+	OBS_IMAGE_STYLE_TEMPLATE,
+	OBS_IMAGE_STYLE_SOLID_COLOR,
+	OBS_IMAGE_STYLE_GRADIENT_COLOR,
+	OBS_IMAGE_STYLE_BORDER_BUTTON, //svg width=height = 34
+	OBS_IMAGE_STYLE_APNG_BUTTON,   //APNG
 };
 
 #define OBS_FONT_BOLD (1 << 0)
@@ -198,8 +246,8 @@ EXPORT obs_property_t *obs_properties_add_bool_group(obs_properties_t *props,
 						     const char *description);
 
 EXPORT size_t obs_properties_add_bool_group_item(
-	obs_property_t *p, const char *name, const char *description,
-	obs_property_clicked_t callback);
+	obs_property_t *p, const char *description, const char *tooltip,
+	bool enabled, obs_property_clicked_t callback);
 
 EXPORT obs_property_t *obs_properties_add_int(obs_properties_t *props,
 					      const char *name,
@@ -228,6 +276,11 @@ EXPORT obs_property_t *obs_properties_add_text(obs_properties_t *props,
 					       const char *name,
 					       const char *description,
 					       enum obs_text_type type);
+
+//PRISM/WuLongyue/20201204/Get text from private data
+EXPORT obs_property_t *
+obs_properties_add_private_data_text(obs_properties_t *props, const char *name,
+				     const char *text);
 
 /**
  * Adds a 'path' property.  Can be a directory or a file.
@@ -329,7 +382,7 @@ EXPORT obs_property_t *obs_properties_add_button2_group(obs_properties_t *props,
 
 //PRISM/Liuying/20200617/No issue/for the same row of buttons
 EXPORT size_t obs_property_button_group_add_item(
-	obs_property_t *p, const char *name, const char *text,
+	obs_property_t *p, const char *name, const char *text, bool enabled,
 	obs_property_clicked_t callback);
 
 //PRISM/Liuying/20200617/No issue/for the same row of buttons
@@ -346,6 +399,10 @@ EXPORT const char *obs_property_button_group_item_name(obs_property_t *p,
 EXPORT const char *obs_property_button_group_item_text(obs_property_t *p,
 						       size_t idx);
 
+//PRISM/RenJinbo/20210611/No issue/add enable properties
+EXPORT bool obs_property_button_group_item_enable(obs_property_t *p,
+						  size_t idx);
+
 //PRISM/Liuying/20200707/#3266/add new interface
 EXPORT int obs_property_button_group_get_idx_by_name(obs_property_t *p,
 						     const char *name);
@@ -354,7 +411,17 @@ EXPORT int obs_property_button_group_get_idx_by_name(obs_property_t *p,
 EXPORT void obs_property_button_group_set_item_text(obs_property_t *p,
 						    size_t idx,
 						    const char *text);
+//PRISM/RenJinbo/20210611/No issue/add enable properties
+EXPORT void obs_property_button_group_set_item_enable(obs_property_t *p,
+						      size_t idx, bool enable);
 
+//PRISM/RenJinbo/20210708/#8551/add button highlight style
+EXPORT void obs_property_button_group_set_item_highlight(obs_property_t *p,
+							 size_t idx,
+							 bool highlight);
+//PRISM/RenJinbo/20210708/#8551/add button highlight style
+EXPORT bool obs_property_button_group_get_item_highlight(obs_property_t *p,
+							 size_t idx);
 //PRISM/Zhangdewen/20200901/feature/for chat source
 EXPORT obs_property_t *
 obs_properties_add_chat_template_list(obs_properties_t *props, const char *name,
@@ -397,6 +464,78 @@ EXPORT obs_property_t *obs_properties_add_tm_motion(obs_properties_t *props,
 						    const char *name,
 						    const char *description,
 						    int min, int max, int step);
+
+//PRISM/Zengqin/20201103/no issue/for image group
+EXPORT obs_property_t *
+obs_properties_add_image_group(obs_properties_t *props, const char *name,
+			       const char *desc, int row, int column,
+			       enum obs_image_style_type type);
+EXPORT size_t obs_property_image_group_add_item(
+	obs_property_t *props, const char *name, const char *url, long long val,
+	obs_property_clicked_t callback);
+//PRISM/RenJinBo/20200622/feature/for timer source
+EXPORT bool obs_property_image_group_clicked(obs_property_t *p, void *obj,
+					     size_t idx);
+EXPORT size_t obs_property_image_group_item_count(obs_property_t *props);
+EXPORT void obs_property_image_group_params(obs_property_t *prop, int *row,
+					    int *colum,
+					    enum obs_image_style_type *type);
+EXPORT const char *obs_property_image_group_item_url(obs_property_t *prop,
+						     int idx);
+EXPORT const char *obs_property_image_group_item_name(obs_property_t *prop,
+						      int idx);
+/* image group end */
+
+//PRISM/Zengqin/20201030/no issue/for custom group
+EXPORT obs_property_t *obs_properties_add_custom_group(obs_properties_t *props,
+						       const char *name,
+						       const char *desc,
+						       int row, int column);
+EXPORT size_t obs_properties_custom_group_add_int(obs_property_t *prop,
+						  const char *name,
+						  const char *desc, int min,
+						  int max, int step,
+						  char *suffix);
+EXPORT void obs_properties_custom_group_int_params(obs_property_t *prop,
+						   int *min, int *max,
+						   int *step, size_t idx);
+EXPORT void obs_properties_custom_group_set_int_params(obs_property_t *prop,
+						       int min, int max,
+						       int step, size_t idx);
+EXPORT const char *obs_property_custom_group_int_suffix(obs_property_t *prop,
+							size_t idx);
+EXPORT void obs_property_custom_group_row_column(obs_property_t *prop, int *row,
+						 int *colum);
+EXPORT size_t obs_property_custom_group_item_count(obs_property_t *props);
+EXPORT enum obs_control_type
+obs_property_custom_group_item_type(obs_property_t *prop, size_t idx);
+EXPORT const char *obs_property_custom_group_item_name(obs_property_t *prop,
+						       size_t idx);
+EXPORT const char *obs_property_custom_group_item_desc(obs_property_t *prop,
+						       size_t idx);
+/* custom group end */
+
+//PRISM/Zengqin/20201027/no issue/for horizontal line
+EXPORT obs_property_t *obs_properties_add_h_line(obs_properties_t *props,
+						 const char *name,
+						 const char *desc);
+
+//PRISM/Zengqin/20201030/no issue/This checkbox text on the left
+EXPORT obs_property_t *obs_properties_add_bool_left(obs_properties_t *props,
+						    const char *name,
+						    const char *desc);
+
+//PRISM/Zhangdewen/20201022/feature/for virtual background
+EXPORT obs_property_t *obs_properties_add_camera_virtual_background_state(
+	obs_properties_t *props, const char *name, const char *description);
+//PRISM/Zhangdewen/20201023/feature/for virtual background
+EXPORT obs_property_t *obs_properties_add_virtual_background_resource(
+	obs_properties_t *props, const char *name, const char *description);
+//PRISM/Zhangdewen/20201027/feature/for virtual background
+EXPORT obs_property_t *obs_properties_add_switch(obs_properties_t *props,
+						 const char *name,
+						 const char *description);
+
 /**
  * Adds a font selection property.
  *
@@ -426,6 +565,47 @@ EXPORT obs_property_t *obs_properties_add_group(obs_properties_t *props,
 						enum obs_group_type type,
 						obs_properties_t *group);
 
+//PRSIM/WuLongyue/20200915/No issue/For PRISM Mobile
+EXPORT obs_property_t *
+obs_properties_add_mobile_guider(obs_properties_t *props, const char *name,
+				 const char *description);
+EXPORT obs_property_t *obs_properties_add_mobile_help(obs_properties_t *props,
+						      const char *name,
+						      const char *description);
+EXPORT obs_property_t *
+obs_properties_add_mobile_name(obs_properties_t *props, const char *name,
+			       const char *description, const char *text,
+			       obs_property_clicked_t callback);
+EXPORT obs_property_t *
+obs_properties_add_mobile_status(obs_properties_t *props, const char *name,
+				 const char *description);
+
+//PRISM/Xiewei/20210629/No issue/For Camare Flip ---start---
+typedef bool (*obs_property_checkbox_clicked_t)(obs_properties_t *props,
+						obs_property_t *property,
+						bool checked, void *data);
+
+EXPORT obs_property_t *
+obs_properties_add_checkbox_group(obs_properties_t *props, const char *name,
+				  const char *description);
+EXPORT size_t obs_properties_add_checkbox_group_item(
+	obs_property_t *p, const char *name, const char *description,
+	const char *tooltip, bool enabled,
+	obs_property_checkbox_clicked_t callback);
+
+EXPORT bool obs_property_checkbox_group_clicked(obs_property_t *p, void *obj,
+						size_t idx, bool checked);
+EXPORT size_t obs_property_checkbox_group_item_count(obs_property_t *p);
+
+EXPORT const char *obs_property_checkbox_group_item_id(obs_property_t *p,
+						       size_t idx);
+EXPORT const char *obs_property_checkbox_group_item_text(obs_property_t *p,
+							 size_t idx);
+EXPORT bool obs_property_checkbox_group_item_enabled(obs_property_t *p,
+						     size_t idx);
+EXPORT const char *obs_property_checkbox_group_item_tooltip(obs_property_t *p,
+							    size_t idx);
+//PRISM/Xiewei/20210629/No issue/For Camare Flip ---end---
 /* ------------------------------------------------------------------------- */
 
 /**
@@ -460,6 +640,8 @@ EXPORT void obs_property_button_group_clicked_by_name(obs_property_t *p,
 						      void *obj,
 						      const char *name);
 
+EXPORT bool obs_property_text_button_clicked(obs_property_t *p, void *obj);
+
 EXPORT void obs_property_set_visible(obs_property_t *p, bool visible);
 EXPORT void obs_property_set_enabled(obs_property_t *p, bool enabled);
 
@@ -470,12 +652,18 @@ EXPORT void obs_property_set_long_description(obs_property_t *p,
 //PRISM/Zhangdewen/20200909/new ndi ux
 EXPORT void obs_property_set_placeholder(obs_property_t *p,
 					 const char *placeholder);
+//PRISM/WuLongyue/20201204/for property UI.
+EXPORT void obs_property_set_tooltip(obs_property_t *p, const char *tooltip);
+//PRISM/RenJinbo/20210624/None/ignore call modified callback, when refresh properties.
+EXPORT void obs_property_set_ignore_callback_when_refresh(obs_property_t *p,
+							  bool ignore);
 
 EXPORT const char *obs_property_name(obs_property_t *p);
 EXPORT const char *obs_property_description(obs_property_t *p);
 EXPORT const char *obs_property_long_description(obs_property_t *p);
 //PRISM/Zhangdewen/20200909/new ndi ux
 EXPORT const char *obs_property_placeholder(obs_property_t *p);
+EXPORT const char *obs_property_tooltip(obs_property_t *p);
 EXPORT enum obs_property_type obs_property_get_type(obs_property_t *p);
 EXPORT bool obs_property_enabled(obs_property_t *p);
 EXPORT bool obs_property_visible(obs_property_t *p);
@@ -502,6 +690,8 @@ EXPORT enum obs_combo_format obs_property_list_format(obs_property_t *p);
 EXPORT void obs_property_set_list_readonly(obs_property_t *p, bool readonly);
 //PRISM/Zhangdewen/20200916/new ndi ux
 EXPORT bool obs_property_list_readonly(obs_property_t *p);
+
+EXPORT const char *obs_property_text_button_text(obs_property_t *p);
 
 EXPORT void obs_property_int_set_limits(obs_property_t *p, int min, int max,
 					int step);
@@ -532,6 +722,13 @@ EXPORT void obs_property_list_item_disable(obs_property_t *p, size_t idx,
 EXPORT bool obs_property_list_item_disabled(obs_property_t *p, size_t idx);
 
 EXPORT void obs_property_list_item_remove(obs_property_t *p, size_t idx);
+
+//PRISM/WangShaohui/20210922/noIssue/add tooltips for combox list
+EXPORT void obs_property_list_item_set_tips(obs_property_t *p, size_t idx,
+					    const char *tips);
+//PRISM/WangShaohui/20210922/noIssue/add tooltips for combox list
+EXPORT const char *obs_property_list_item_get_tips(obs_property_t *p,
+						   size_t idx);
 
 EXPORT size_t obs_property_list_item_count(obs_property_t *p);
 EXPORT const char *obs_property_list_item_name(obs_property_t *p, size_t idx);
@@ -582,12 +779,12 @@ EXPORT obs_properties_t *obs_property_group_content(obs_property_t *p);
 EXPORT size_t obs_property_bool_group_item_count(obs_property_t *p);
 
 //PRISM/Liuying/20200624/No issue/for the same row of buttons
-EXPORT const char *obs_property_bool_group_item_name(obs_property_t *p,
-						     size_t idx);
-
-//PRISM/Liuying/20200624/No issue/for the same row of buttons
 EXPORT const char *obs_property_bool_group_item_text(obs_property_t *p,
 						     size_t idx);
+
+EXPORT bool obs_property_bool_group_item_enabled(obs_property_t *p, size_t idx);
+EXPORT const char *obs_property_bool_group_item_tooltip(obs_property_t *p,
+							size_t idx);
 
 #ifndef SWIG
 DEPRECATED
@@ -607,6 +804,42 @@ EXPORT int obs_property_tm_text_step(obs_property_t *p, size_t propertyType);
 //PRISM/WangShaohui/20201029/#5497/limite text length
 EXPORT void obs_property_set_length_limit(obs_property_t *p, int max_length);
 EXPORT int obs_property_get_length_limit(obs_property_t *p);
+
+//PRISM/Zengqin/20201125/#none/for property UI
+EXPORT void obs_property_add_flags(obs_property_t *p, uint32_t flag);
+EXPORT uint32_t obs_property_get_flags(obs_property_t *p);
+
+//PRSIM/Renjinbo/20210518/timer feature/add right spinbox box group, like the OBS_PROPERTY_BOOL_GROUP ui.
+EXPORT obs_property_t *obs_properties_add_int_group(obs_properties_t *props,
+						    const char *name,
+						    const char *description);
+EXPORT size_t obs_properties_add_int_group_item(obs_property_t *p,
+						const char *name,
+						const char *desc, int min,
+						int max, int step);
+
+EXPORT size_t obs_property_int_group_item_count(obs_property_t *p);
+
+EXPORT void obs_property_int_group_item_params(obs_property_t *prop,
+					       char **subName, char **des,
+					       int *min, int *max, int *step,
+					       size_t idx);
+
+EXPORT obs_property_t *obs_properties_add_font_simple(obs_properties_t *props,
+						      const char *name,
+						      const char *description);
+
+EXPORT obs_property_t *
+obs_properties_add_color_checkbox(obs_properties_t *props, const char *name,
+				  const char *description);
+
+EXPORT obs_property_t *
+obs_properties_add_timer_list_Listen(obs_properties_t *props, const char *name,
+				     const char *description);
+
+EXPORT obs_property_t *obs_properties_add_label_tip(obs_properties_t *props,
+						    const char *name,
+						    const char *description);
 
 #ifdef __cplusplus
 }

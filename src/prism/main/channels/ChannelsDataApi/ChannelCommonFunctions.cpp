@@ -6,14 +6,15 @@
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QSvgRenderer>
+#include <QTemporaryDir>
 #include <QUUid>
 #include <QUrl>
+#include <QVersionNumber>
 #include "ChannelConst.h"
-
 #include "PLSChannelDataAPI.h"
 #include "PLSChannelsVirualAPI.h"
 #include "frontend-api.h"
-
+#include "pls-app.hpp"
 #define QRCPATH ":/images"
 using namespace ChannelData;
 
@@ -35,7 +36,6 @@ QString findFileInResources(const QString &dirPath, const QString &key)
 			}
 		}
 	}
-
 	return QString();
 }
 
@@ -54,14 +54,93 @@ void deleteItem(QListWidgetItem *item)
 	delete item;
 }
 
-QVariantMap createDefaultChannelInfoMap(const QString &channelName, int defaultType)
+const QString translatePlatformName(const QString &platformName)
+{
+
+	if (platformName.contains(VLIVE, Qt::CaseInsensitive)) {
+		return TR_VLIVE;
+	}
+
+	if (platformName.contains(NAVER_TV, Qt::CaseInsensitive)) {
+		return TR_NAVER_TV;
+	}
+
+	if (platformName.contains(WAV, Qt::CaseInsensitive)) {
+		return TR_WAV;
+	}
+
+	if (platformName.contains(BAND, Qt::CaseInsensitive)) {
+		return TR_BAND;
+	}
+
+	if (platformName.contains(TWITCH, Qt::CaseInsensitive)) {
+		return TR_TWITCH;
+	}
+
+	if (platformName.contains(YOUTUBE, Qt::CaseInsensitive)) {
+		return TR_YOUTUBE;
+	}
+
+	if (platformName.contains(FACEBOOK, Qt::CaseInsensitive)) {
+		return TR_FACEBOOK;
+	}
+
+	if (platformName.contains(WHALE_SPACE, Qt::CaseInsensitive)) {
+		return TR_WHALE_SPACE;
+	}
+
+	if (platformName.contains(AFREECATV, Qt::CaseInsensitive)) {
+		return TR_AFREECATV;
+	}
+
+	if (platformName.contains(NOW, Qt::CaseInsensitive)) {
+		return TR_NOW;
+	}
+
+	if (platformName.contains(NAVER_SHOPPING_LIVE, Qt::CaseInsensitive)) {
+		return TR_NAVER_SHOPPING_LIVE;
+	}
+
+	return platformName;
+}
+
+bool isVersionLessthan(const QString &leftVer, const QString &rightVer)
+{
+	return QVersionNumber::fromString(leftVer) < QVersionNumber::fromString(rightVer);
+}
+
+const ChannelsMap getMatchKeysInfos(const QVariantMap &keysMap)
+{
+	ChannelsMap ret;
+	auto isMatched = [&](const QVariantMap &info) {
+		for (auto srcIte = keysMap.cbegin(); srcIte != keysMap.cend(); ++srcIte) {
+			if (srcIte.value() != getInfo(info, srcIte.key(), QVariant())) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	const auto &allInfos = PLSCHANNELS_API->getAllChannelInfoReference();
+	for (auto ite = allInfos.cbegin(); ite != allInfos.cend(); ++ite) {
+		const auto &info = ite.value();
+		if (isMatched(info)) {
+			ret.insert(ite.key(), info);
+		}
+	}
+
+	return ret;
+}
+
+QVariantMap createDefaultChannelInfoMap(const QString &platformName, int defaultType)
 {
 	QVariantMap channelInfo;
 	QString uuid = createUUID();
 	channelInfo.insert(g_channelUUID, uuid);
-	channelInfo.insert(g_channelName, channelName);
-	channelInfo.insert(g_nickName, channelName);
-	channelInfo.insert(g_userName, channelName);
+	channelInfo.insert(g_platformName, platformName);
+
+	channelInfo.insert(g_nickName, platformName);
+	channelInfo.insert(g_userName, platformName);
 	channelInfo.insert(g_data_type, defaultType);
 	channelInfo.insert(g_channelStatus, InValid);
 	channelInfo.insert(g_channelUserStatus, Disabled);
@@ -73,11 +152,11 @@ QVariantMap createDefaultChannelInfoMap(const QString &channelName, int defaultT
 	int index = -1;
 	if (defaultType == ChannelType) {
 		auto defaultPlatforms = getDefaultPlatforms();
-		index = defaultPlatforms.indexOf(channelName);
+		index = defaultPlatforms.indexOf(platformName);
 	} else if (defaultType == RTMPType) {
 		channelInfo.insert(g_rtmpUserID, "");
 		channelInfo.insert(g_password, "");
-		channelInfo.insert(g_channelName, RTMPT_DEFAULT_TYPE);
+		channelInfo.insert(g_platformName, RTMPT_DEFAULT_TYPE);
 	}
 	channelInfo.insert(g_displayOrder, index);
 	return channelInfo;
@@ -155,7 +234,7 @@ void loadPixmap(QPixmap &pix, const QString &pixmapPath, const QSize &pixSize)
 	} else {
 		if (!pix.load(pixmapPath)) {
 			pix.load(pixmapPath, "PNG");
-			PRE_LOG_MSG(QString("error when load image: " + pixmapPath + " , may be the image suffix is not right").toStdString().c_str(), INFO)
+			PRE_LOG_MSG(QString("error when load image: " + QFileInfo(pixmapPath).fileName() + " , may be the image suffix is not right").toStdString().c_str(), INFO)
 		}
 	}
 }
@@ -174,7 +253,7 @@ void getComplexImageOfChannel(const QString &uuid, QString &userIcon, QString &p
 {
 	const auto &srcData = PLSCHANNELS_API->getChanelInfoRef(uuid);
 
-	QString platformName = getInfo(srcData, g_channelName, QString());
+	QString platformName = getInfo(srcData, g_platformName, QString());
 	if (srcData.isEmpty()) {
 		return;
 	}
@@ -202,6 +281,11 @@ void requestStartLog(const QString &url, const QString &requestType)
 	PLS_INFO("Channels", "%s", QString("http request start:%1, url = " + url + ".").arg(requestType).toStdString().c_str());
 }
 
+const QString getImageCacheFilePath()
+{
+	return getChannelCacheDir() + QDir::separator() + "image.dat";
+}
+
 const QString getChannelCacheFilePath()
 {
 	return getChannelCacheDir() + QDir::separator() + g_channelCacheFile;
@@ -214,7 +298,17 @@ const QString getChannelCacheDir()
 	if (!dir.exists(ret)) {
 		dir.mkpath(ret);
 	}
+
+	if (QDir::searchPaths("Cache").isEmpty()) {
+		QDir::addSearchPath("Cache", ret);
+	}
 	return dir.toNativeSeparators(ret);
+}
+
+const QString getTmpCacheDir()
+{
+	static QTemporaryDir dir;
+	return dir.path();
 }
 
 const QString getChannelSettingsFilePath()
@@ -229,13 +323,31 @@ const QStringList getDefaultPlatforms()
 
 const QString guessPlatformFromRTMP(const QString &rtmpUrl)
 {
-	auto rtmpInfos = PLSCHANNELS_API->getRTMPInfos();
+	const auto &rtmpInfos = PLSCHANNELS_API->getRTMPInfos();
 	auto isUrlMatched = [&](const QString &url) { return rtmpUrl.compare(url, Qt::CaseInsensitive) == 0; };
 	auto retIte = std::find_if(rtmpInfos.constBegin(), rtmpInfos.constEnd(), isUrlMatched);
 	if (retIte != rtmpInfos.constEnd()) {
 		return retIte.key();
 	}
 	return QString(CUSTOM_RTMP);
+}
+
+bool isPlatformOrderLessThan(const QString &left, const QString &right)
+{
+	auto defaultPlatforms = getDefaultPlatforms();
+	int lIndex = defaultPlatforms.indexOf(left);
+	int rIndex = defaultPlatforms.indexOf(right);
+	return lIndex < rIndex;
+}
+
+const QString simplifiedString(const QString &src)
+{
+	return src.toLower().remove(QRegularExpression("\\W+"));
+}
+
+bool isStringEqual(const QString &left, const QString &right)
+{
+	return simplifiedString(left) == simplifiedString(right);
 }
 
 QPropertyAnimation *createShowAnimation(QWidget *wid, int msSec)
@@ -305,5 +417,44 @@ void setStyleSheetFromFile(const QString &fileStr, QWidget *wid)
 	QFile file(fileStr);
 	if (file.open(QIODevice::ReadOnly)) {
 		wid->setStyleSheet(file.readAll());
+	}
+}
+
+bool isCacheFileMatchCurrentLang()
+{
+	static bool isMacth = false;
+	if (isMacth) {
+		return true;
+	}
+
+	auto fileStr = getChannelCacheDir() + "/transFlag.txt";
+	QFile file(fileStr);
+	if (file.open(QIODevice::ReadWrite)) {
+		QString txt = file.readLine();
+		if (!pls_is_match_current_language(txt)) {
+			file.seek(0);
+			file.write(pls_get_current_language().toUtf8());
+			file.write("\n");
+			return false;
+		}
+		isMacth = true;
+	}
+	return isMacth;
+}
+
+void translateSVGText(const QString &srcPath, const QString &txt, const QString &resultTxt)
+{
+	QFile file(srcPath);
+	QFile output(getChannelCacheDir() + "/" + QFileInfo(srcPath).fileName());
+	if (file.open(QIODevice::ReadOnly) && output.open(QIODevice::WriteOnly)) {
+		QTextStream in(&file);
+		in.setCodec("UTF-8");
+		QTextStream out(&output);
+		out.setCodec("UTF-8");
+		while (!in.atEnd()) {
+			auto line = in.readLine();
+			line.replace(txt, resultTxt);
+			out << line;
+		}
 	}
 }

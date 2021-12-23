@@ -5,11 +5,31 @@
 #include <QTimer>
 #include <util/platform.h>
 #include <obs.h>
+#include "PLSLabel.hpp"
 
 class QLabel;
 class QToolButton;
 class PLSColorCircle;
 class PLSBasicStatusBar;
+
+class PLSBasicStatusBarFrameDropState : public QFrame {
+	Q_OBJECT
+	Q_PROPERTY(QColor stateColor READ getStateColor WRITE setStateColor)
+
+public:
+	PLSBasicStatusBarFrameDropState(QWidget *parent = nullptr);
+	~PLSBasicStatusBarFrameDropState();
+
+public:
+	QColor getStateColor() const;
+	void setStateColor(const QColor &color);
+
+protected:
+	virtual void paintEvent(QPaintEvent *) override;
+
+private:
+	QColor stateColor{1, 203, 6};
+};
 
 class PLSBasicStatusBarButtonFrame : public QFrame {
 	Q_OBJECT
@@ -46,10 +66,11 @@ private:
 	QLabel *fps;
 	QLabel *encodingSettingIcon;
 	PLSBasicStatusBarButtonFrame *stats;
-	QFrame *frameDropState;
+	PLSBasicStatusBarFrameDropState *frameDropState;
 	QLabel *cpuUsage;
+	QLabel *gpuUsage;
 	QLabel *frameDrop;
-	QLabel *bitrate;
+	PLSLabel *bitrate;
 	QLabel *statsDropIcon;
 
 	obs_output_t *streamOutput = nullptr;
@@ -94,7 +115,6 @@ private slots:
 	void Reconnect(int seconds);
 	void ReconnectSuccess();
 	void UpdateStatusBar();
-	void UpdateCPUUsage();
 	void popupStats();
 	void UploadStatus();
 
@@ -118,6 +138,11 @@ public:
 	void setEncodingEnabled(bool enabled);
 	void UpdateDelayMsg();
 	void StartStatusMonitor();
+	void UpdateDropFrame(double dropFrame, double dropPercent);
+	void UpdateRealBitrate(double birtare);
+	void UpdateCPUUsage(double process, double total);
+	void UpdateGPUUsage(double process, double total);
+	void SetCalculateFixedWidth();
 
 protected:
 	bool eventFilter(QObject *watched, QEvent *event);

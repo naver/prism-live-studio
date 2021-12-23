@@ -19,7 +19,7 @@ void obs_frontend_set_callbacks_internal(obs_frontend_callbacks *callbacks)
 static inline bool callbacks_valid_(const char *func_name)
 {
 	if (!c) {
-		blog(LOG_WARNING, "Tried to call %s with no callbacks!",
+		plog(LOG_WARNING, "Tried to call %s with no callbacks!",
 		     func_name);
 		return false;
 	}

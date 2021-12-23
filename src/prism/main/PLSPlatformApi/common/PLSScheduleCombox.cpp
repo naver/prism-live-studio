@@ -8,12 +8,14 @@
 PLSScheduleCombox::PLSScheduleCombox(QWidget *parent, PLSDpiHelper dpiHelper) : QPushButton(parent)
 {
 	dpiHelper.setCss(this, {PLSCssIndex::PLSScheduleCombox});
-
 	QHBoxLayout *buttonLayout = new QHBoxLayout(this);
 	buttonLayout->setMargin(0);
-	this->m_scheduletTitleLabel = new QLabel("", this);
-	this->m_scheduletTitleLabel->setObjectName("scheduletTitleLabel");
-	buttonLayout->addWidget(m_scheduletTitleLabel);
+	this->m_titleLabel = new QLabel("", this);
+	this->m_titleLabel->setObjectName("scheduletTitleLabel");
+	this->m_titleLabel->setTextFormat(Qt::PlainText);
+	this->m_titleLabel->setOpenExternalLinks(false);
+	this->m_titleLabel->setTextInteractionFlags(Qt::NoTextInteraction);
+	buttonLayout->addWidget(m_titleLabel);
 	buttonLayout->addStretch();
 
 	this->m_detailLabel = new QLabel("");
@@ -78,6 +80,15 @@ void PLSScheduleCombox::leaveEvent(QEvent *event)
 	QWidget::leaveEvent(event);
 }
 
+void PLSScheduleCombox::resizeEvent(QResizeEvent *event)
+{
+
+	__super::resizeEvent(event);
+
+	QMetaObject::invokeMethod(
+		this, [=]() { updateTitle(m_titleString); }, Qt::QueuedConnection);
+}
+
 PLSScheduleCombox::~PLSScheduleCombox() {}
 
 void PLSScheduleCombox::showScheduleMenu(const vector<PLSScheComboxItemData> &datas)
@@ -85,7 +96,9 @@ void PLSScheduleCombox::showScheduleMenu(const vector<PLSScheComboxItemData> &da
 	m_scheduleMenu->setupDatas(datas, this->width());
 	if (m_scheduleMenu->isHidden()) {
 		QPoint p = this->mapToGlobal(QPoint(0, this->height()));
-		m_scheduleMenu->exec(p);
+		updateStyle(PLSScheduleComboxType::Ty_On);
+		m_scheduleMenu->move(p);
+		m_scheduleMenu->show();
 	}
 }
 bool PLSScheduleCombox::isMenuNULL()
@@ -104,7 +117,7 @@ void PLSScheduleCombox::setMenuHideIfNeed()
 	}
 }
 
-void PLSScheduleCombox::setupButton(QString title, QString time)
+void PLSScheduleCombox::setupButton(const QString title, const QString time)
 {
 	m_detailLabel->setText(time);
 	updateTitle(title);
@@ -127,15 +140,19 @@ void PLSScheduleCombox::setupButton(const PLSScheComboxItemData &data)
 	}
 }
 
-void PLSScheduleCombox::updateTitle(QString title)
+void PLSScheduleCombox::updateTitle(const QString title)
 {
-	double dpi = PLSDpiHelper::getDpi(this);
-	int p = this->width();
-	int buttonWidth = this->width() < PLSDpiHelper::calculate(dpi, 300) ? PLSDpiHelper::calculate(dpi, 550) : this->width(); //when the ui init, the width maybe very small = 100
-	int labelWidth = (m_detailLabel->text().isEmpty() ? (buttonWidth - PLSDpiHelper::calculate(dpi, 60)) : (buttonWidth - PLSDpiHelper::calculate(dpi, 160)));
-	QFontMetrics fontWidth(m_scheduletTitleLabel->font());
+	m_titleString = title;
+	int spaceWidth = PLSDpiHelper::calculate(PLSDpiHelper::getDpi(this), 55);
+	int labelWidth = this->width() - spaceWidth;
+	if (!m_detailLabel->text().isEmpty()) {
+		QFontMetrics fmDetail(m_detailLabel->font());
+		labelWidth -= fmDetail.width(m_detailLabel->text());
+	}
+
+	QFontMetrics fontWidth(m_titleLabel->font());
 	QString elidedText = fontWidth.elidedText(title, Qt::ElideRight, labelWidth);
-	m_scheduletTitleLabel->setText(elidedText);
+	m_titleLabel->setText(elidedText);
 }
 
 void PLSScheduleCombox::setButtonEnable(bool enable)
@@ -143,8 +160,8 @@ void PLSScheduleCombox::setButtonEnable(bool enable)
 	if (this->isEnabled() == enable) {
 		return;
 	}
-	updateStyle(enable ? PLSScheduleComboxType::Ty_Normal : PLSScheduleComboxType::Ty_Disabled);
 	this->setEnabled(enable);
+	updateStyle(enable ? PLSScheduleComboxType::Ty_Normal : PLSScheduleComboxType::Ty_Disabled);
 }
 
 void PLSScheduleCombox::updateStyle(PLSScheduleComboxType type)
@@ -154,16 +171,16 @@ void PLSScheduleCombox::updateStyle(PLSScheduleComboxType type)
 	}
 	switch (type) {
 	case PLSScheduleCombox::PLSScheduleComboxType::Ty_Normal:
-		pls_flush_style_recursive(this, "type", "Ty_Normal");
+		pls_flush_style_recursive(this, "type", "Ty_Normal", 1);
 		break;
 	case PLSScheduleCombox::PLSScheduleComboxType::Ty_Hover:
-		pls_flush_style_recursive(this, "type", "Ty_Hover");
+		pls_flush_style_recursive(this, "type", "Ty_Hover", 1);
 		break;
 	case PLSScheduleCombox::PLSScheduleComboxType::Ty_On:
-		pls_flush_style_recursive(this, "type", "Ty_On");
+		pls_flush_style_recursive(this, "type", "Ty_On", 1);
 		break;
 	case PLSScheduleCombox::PLSScheduleComboxType::Ty_Disabled:
-		pls_flush_style_recursive(this, "type", "Ty_Disabled");
+		pls_flush_style_recursive(this, "type", "Ty_Disabled", 1);
 		break;
 	default:
 		break;

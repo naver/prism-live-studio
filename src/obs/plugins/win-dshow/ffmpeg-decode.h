@@ -46,21 +46,30 @@ struct ffmpeg_decode {
 
 	uint8_t *packet_buffer;
 	size_t packet_size;
+	uint8_t *extra_data;
+	int extra_data_size;
 };
 
+//PRISM/LiuHaibin/20210304/#None/add parameters to pass extra data and extra data size
 extern int ffmpeg_decode_init(struct ffmpeg_decode *decode, enum AVCodecID id,
-			      bool use_hw);
+			      bool use_hw, uint8_t *extra_data,
+			      int extra_data_size);
+
 extern void ffmpeg_decode_free(struct ffmpeg_decode *decode);
 
+//PRISM/LiuHaibin/20210304/#None/add 'copy'flag to mark if data needs to be copied
 extern bool ffmpeg_decode_audio(struct ffmpeg_decode *decode, uint8_t *data,
-				size_t size, struct obs_source_audio *audio,
+				size_t size, bool copy,
+				struct obs_source_audio *audio,
 				bool *got_output);
-
+//PRISM/LiuHaibin/20210304/#None/add 'copy'flag to mark if data needs to be copied
 extern bool ffmpeg_decode_video(struct ffmpeg_decode *decode, uint8_t *data,
-				size_t size, long long *ts,
+				size_t size, bool copy, long long *ts,
 				enum video_range_type range,
 				struct obs_source_frame2 *frame,
 				bool *got_output);
+
+extern void ffmpeg_decode_flush(struct ffmpeg_decode *decode);
 
 static inline bool ffmpeg_decode_valid(struct ffmpeg_decode *decode)
 {

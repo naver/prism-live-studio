@@ -6,6 +6,7 @@
 #include <Windows.h>
 #include <process.h>
 #include <map>
+#include "prism-cam-ground.h"
 
 class PLSFpsChecker {
 public:
@@ -20,20 +21,14 @@ private:
 	DWORD frame_count;
 };
 
-struct PLSExceptionInfo {
-	bool exception_happen;
+struct PLSEventInfo {
+	bool event_happen;
 	bool notify_done;
 
-	obs_source_exception_type type;
+	obs_source_event_type type;
 	int sub_code;
 
-	PLSExceptionInfo()
-		: exception_happen(true),
-		  notify_done(false),
-		  sub_code(0),
-		  type(OBS_SOURCE_EXCEPTION_NONE)
-	{
-	}
+	PLSEventInfo() : event_happen(true), notify_done(false), sub_code(0), type(OBS_SOURCE_EXCEPTION_NONE) {}
 };
 
 class PLSCamEffect {
@@ -46,26 +41,28 @@ public:
 	static bool SetGlobalParam(obs_data_t *data);
 	static unsigned WindowLoopThread(void *pParam);
 	static unsigned MessageLoopThread(void *pParam);
-	static LRESULT EffectWndProc(HWND hWnd, UINT nMsg, WPARAM wParam,
-				     LPARAM lParam);
+	static LRESULT EffectWndProc(HWND hWnd, UINT nMsg, WPARAM wParam, LPARAM lParam);
 
 public:
 	PLSCamEffect();
 	virtual ~PLSCamEffect();
 
-	bool SetEffectParam(const char *method, obs_data_t *data,
-			    bool &effect_onoff_changed);
+	bool SetEffectParam(const char *method, obs_data_t *data, bool &effect_onoff_changed);
 
-	size_t PopExceptions(std::vector<PLSExceptionInfo> &output);
+	size_t PopEvents(std::vector<PLSEventInfo> &output);
 
 	void SetCaptureState(bool actived);
 	bool IsCaptureNormal();
 
 	bool UseVideoEffect();
 	void EffectTick();
-	void SetInputVideo(shared_handle_header &hdr,
-			   shared_handle_sample &body);
+	void SetInputVideo(shared_handle_header &hdr, shared_handle_sample &body);
 	gs_texture *GetOutputVideo();
+
+	//for segmentation
+	bool ParseSegmentationParam(obs_data_t *data, bool &seg_onoff_changed);
+	void SetDShowSource(obs_source_t *source) { dshow_source = source; };
+	void ClearResWhenEffectOff();
 
 private:
 	bool IsEffectOn();
@@ -79,6 +76,7 @@ private:
 	void SetEffectState(std::string state);
 
 	void PushRestoreMessage();
+	void PushRestoreSegMessage();
 	bool RunEffectProcess();
 	bool CheckFindWindow();
 	bool CheckRunProcess();
@@ -88,7 +86,11 @@ private:
 	void WindowLoopThreadInner();
 
 	void OnCopyData(COPYDATASTRUCT *cd);
-	void PushException(PLSExceptionInfo &ecp);
+	void PushEvent(PLSEventInfo &ecp);
+
+	void UpdateFinOutputTexture(const gs_texture *tex);
+	void RenderAllLayers(bool flip);
+	static void GroundExceptionHandler(void *data, int type, int subcode);
 
 private:
 	std::string session_id;
@@ -105,7 +107,7 @@ private:
 	face_beauty_message beauty_params;
 
 	CCriticalSection exception_lock;
-	std::map<obs_source_exception_type, PLSExceptionInfo> exceptions;
+	std::map<obs_source_event_type, PLSEventInfo> exceptions;
 
 	SharedHandleBuffer *video_input_writer;
 	SharedHandleBuffer *video_output_reader;
@@ -127,4 +129,11 @@ private:
 	PLSFpsChecker fps_device;
 	PLSFpsChecker fps_push_handle;
 	PLSFpsChecker fps_get_handle;
+
+	std::shared_ptr<PLSCamGround> back_ground;
+	std::shared_ptr<PLSCamGround> fore_ground;
+	gs_texture *fin_output_texture;
+	segmentation_message seg_message;
+	obs_source_t *dshow_source;
+	bool output_tex_flip;
 };

@@ -16,25 +16,65 @@ public:
 	static PLSGpopData *instance();
 	void getGpopDataRequest();
 
+	//use these functions ,you should set your json file in 'DefaultSources.qrc' under path ':/Configs/DefaultResources'
+	static const QByteArray getDefaultValuesOf(const QString &key);
+	template<typename DestType> static void useDefaultValues(const QString &key, DestType &dest)
+	{
+		auto data = getDefaultValuesOf(key);
+		PLSJsonDataHandler::jsonTo(data, dest);
+	}
+
 public:
 	Common getCommon();
+	QMap<QString, SnsCallbackUrl> getSnscallbackUrls();
 	QMap<int, RtmpDestination> getRtmpDestination();
 	Connection getConnection();
 	const QVariantMap &rtmpFPSMap();
 	QMap<QString, QString> &getOpenSourceLicenseMap();
 	VliveNotice getVliveNotice();
+	BlackList getBlackList();
+	bool getH265opened();
+
+	QMap<QString, QString> &getNaverShoppingTermOfUse();
+	QMap<QString, QString> &getNaverShoppingNotes();
+	int getMultiplePlatformMaxBitrate();
+
+	const QVariantMap &getPlatformVersionInfo();
+
+	int getCameraRestartTimes();
+	float getDropNetworkFramePrecentThreshold();
+	float getDropRenderingFramePrecentThreshold();
+	float getDropEncodingFramePrecentThreshold();
+	int getBufferedDurationMs();
+	int getUIBlockingTimeS();
+	QStringList getNaverPlatformWhiteList();
+	bool isPresetRTMP(const QString &url);
 
 private:
+	void getGpopDataFromLocal();
 	void initCommon();
 	void initSnscallbackUrls();
 	void initOpenLicenseUrl();
 	void initRtmpDestination();
 	void initConnection();
 	void initVliveNotice();
+	void initBlackList();
+	void initH265Param();
+	void initWGCParam();
+	void initCameraRestartTimes();
+	void initFrameDropPercentThreshold();
+	void initUIBlockingTimeS();
+
+	void initNaverShoppingTermOfUse();
+	void initNaverShoppingNotes();
+	void initMultiplePlatformMaxBitrate();
+	void initPlatformVersionInfo();
+	void initNaverPlatformWhiteList();
 
 private:
 	explicit PLSGpopData(QObject *parent = nullptr);
 	~PLSGpopData();
+	void getGpopDataLog(const QByteArray &data, const QString &version);
 
 private slots:
 
@@ -50,7 +90,9 @@ private slots:
 
 signals:
 	void finished();
-	void categoryFinished();
+	void initGpopDataFinished();
+	void initH265Finished();
+	void initCameraRestartTimesFinished();
 
 private:
 	QByteArray m_gpopDataArray;
@@ -63,7 +105,21 @@ private:
 	QMap<QString, QString> m_openSourceLicenseMap;
 	QString m_gpopURL;
 	VliveNotice m_vliveNotice;
-	QString m_appDir;
+	BlackList m_blackList;
+
+	QMap<QString, QString> m_navershoppingTermofUse;
+	QMap<QString, QString> m_navershoppingNotes;
+	int m_iMultiplePlatformMaxBitrate = 0;
+	bool h265opened = false;
+	QVariantMap m_platformVersionInfo;
+	QStringList m_naverPlatformWhiteList;
+
+	int camera_auto_restart_times = 3;
+	float dropNetworkFramePrecentThreshold = 0.5;
+	float dropRenderingFramePrecentThreshold = 0.5;
+	float dropEncodingFramePrecentThreshold = 0.5;
+	int bufferedDurationMs = 3000;
+	int uiBlockingTimeS = 5;
 };
 
 #endif // PLSGPOPDATA_H

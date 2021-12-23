@@ -79,6 +79,11 @@ obs_hotkey_t *obs_hotkey_binding_get_hotkey(obs_hotkey_binding_t *binding)
 	return binding->hotkey;
 }
 
+uint32_t obs_hotkey_get_flags(const obs_hotkey_t *key)
+{
+	return key->flags;
+}
+
 static inline bool find_id(obs_hotkey_id id, size_t *idx);
 void obs_hotkey_set_name(obs_hotkey_id id, const char *name)
 {
@@ -135,6 +140,28 @@ void obs_hotkey_pair_set_descriptions(obs_hotkey_pair_id id, const char *desc0,
 	obs_hotkey_set_description(pair.id[1], desc1);
 }
 
+void obs_hotkey_add_flags(obs_hotkey_id id, uint32_t flag)
+{
+	size_t idx;
+
+	if (!find_id(id, &idx))
+		return;
+
+	obs_hotkey_t *hotkey = &obs->hotkeys.hotkeys.array[idx];
+	hotkey->flags |= flag;
+}
+
+void obs_hotkey_remove_flags(obs_hotkey_id id, uint32_t flag)
+{
+	size_t idx;
+
+	if (!find_id(id, &idx))
+		return;
+
+	obs_hotkey_t *hotkey = &obs->hotkeys.hotkeys.array[idx];
+	hotkey->flags &= ~flag;
+}
+
 static void hotkey_signal(const char *signal, obs_hotkey_t *hotkey)
 {
 	calldata_t data;
@@ -162,7 +189,7 @@ obs_hotkey_register_internal(obs_hotkey_registerer_t type, void *registerer,
 			     void *data)
 {
 	if ((obs->hotkeys.next_id + 1) == OBS_INVALID_HOTKEY_ID)
-		blog(LOG_WARNING, "obs-hotkey: Available hotkey ids exhausted");
+		plog(LOG_WARNING, "obs-hotkey: Available hotkey ids exhausted");
 
 	obs_hotkey_t *base_addr = obs->hotkeys.hotkeys.array;
 	obs_hotkey_id result = obs->hotkeys.next_id++;
@@ -283,7 +310,7 @@ static obs_hotkey_pair_t *create_hotkey_pair(struct obs_context_data *context,
 					     void *data0, void *data1)
 {
 	if ((obs->hotkeys.next_pair_id + 1) == OBS_INVALID_HOTKEY_PAIR_ID)
-		blog(LOG_WARNING, "obs-hotkey: Available hotkey pair ids "
+		plog(LOG_WARNING, "obs-hotkey: Available hotkey pair ids "
 				  "exhausted");
 
 	obs_hotkey_pair_t *base_addr = obs->hotkeys.hotkey_pairs.array;
@@ -1407,6 +1434,11 @@ void obs_hotkey_trigger_routed_callback(obs_hotkey_id id, bool pressed)
 		goto unlock;
 
 	obs_hotkey_t *hotkey = &obs->hotkeys.hotkeys.array[idx];
+
+	//PRSIM/Liuying/20210622/set visible/invisible for hotkey in timer source.
+	if (obs_hotkey_get_flags(hotkey) & HOTKEY_FLAG_INVISIBLE) {
+		goto unlock;
+	}
 	hotkey->func(hotkey->data, id, hotkey, pressed);
 
 unlock:
@@ -1500,8 +1532,8 @@ void obs_hotkeys_set_translations_s(
 	if (numpad_str) {
 		dstr_copy(&numpad, numpad_str);
 		dstr_depad(&numpad);
-
-		if (dstr_find(&numpad, "%1") == NULL) {
+		//PRISM/Zhangzhuchao/2021330/#7468for nelo crash when translation string is white space
+		if (numpad.len > 0 && dstr_find(&numpad, "%1") == NULL) {
 			dstr_cat(&numpad, " %1");
 		}
 
@@ -1525,8 +1557,8 @@ void obs_hotkeys_set_translations_s(
 	if (t.mouse_num) {
 		dstr_copy(&mouse, t.mouse_num);
 		dstr_depad(&mouse);
-
-		if (dstr_find(&mouse, "%1") == NULL) {
+		//PRISM/Zhangzhuchao/2021330/#7468for nelo crash when translation string is white space
+		if (mouse.len > 0 && dstr_find(&mouse, "%1") == NULL) {
 			dstr_cat(&mouse, " %1");
 		}
 

@@ -20,6 +20,7 @@
 #include <callback/signal.h>
 #include <util/bmem.h>
 #include <util/base.h>
+#include <util/darray.h>
 #include "cstrcache.h"
 #include "obs-scripting-config.h"
 
@@ -33,11 +34,11 @@
 #define DEPRECATED_END
 #define EXPORT
 
-%rename(blog) wrap_blog;
+%rename(plog) wrap_blog;
 %inline %{
 static inline void wrap_blog(int log_level, const char *message)
 {
-        blog(log_level, "%s", message);
+        plog(log_level, "%s", message);
 }
 %}
 
@@ -47,6 +48,8 @@ static inline void wrap_blog(int log_level, const char *message)
  * %newobject obs_module_get_config_path; */
 %typemap(newfree) char * "bfree($1);";
 
+%ignore plog;
+%ignore plogva;
 %ignore blog;
 %ignore blogva;
 %ignore bcrash;
@@ -78,6 +81,7 @@ static inline void wrap_blog(int log_level, const char *message)
 %ignore obs_hotkey_pair_register_service;
 %ignore obs_hotkey_pair_register_source;
 
+%include "util/darray.h"
 %include "graphics/graphics.h"
 %include "graphics/vec4.h"
 %include "graphics/vec3.h"

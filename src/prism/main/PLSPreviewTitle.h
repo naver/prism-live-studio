@@ -17,6 +17,7 @@ public:
 
 	void SetTimerType(TimerType type);
 	void OnStatus(bool isStarted);
+	uint getStartTime() const { return startTime; };
 
 protected:
 	void timerEvent(QTimerEvent *e);
@@ -44,6 +45,7 @@ public:
 	void OnLiveStatus(bool isStarted);
 	void OnRecordStatus(bool isStarted);
 	void OnStudioModeStatus(bool isStudioMode);
+	uint getStartTime() const { return liveUI->getStartTime(); };
 
 private:
 	QWidget *leftContainer;

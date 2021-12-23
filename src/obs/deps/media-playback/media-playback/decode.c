@@ -80,7 +80,7 @@ static int mp_open_codec(struct mp_decode *d, bool hw)
 #if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(57, 40, 101)
 	c = avcodec_alloc_context3(d->codec);
 	if (!c) {
-		blog(LOG_WARNING, "MP: Failed to allocate context");
+		plog(LOG_WARNING, "MP: Failed to allocate context");
 		return -1;
 	}
 
@@ -97,7 +97,6 @@ static int mp_open_codec(struct mp_decode *d, bool hw)
 	if (hw)
 		init_hw_decoder(d, c);
 #endif
-
 	if (c->thread_count == 1 && c->codec_id != AV_CODEC_ID_PNG &&
 	    c->codec_id != AV_CODEC_ID_TIFF &&
 	    c->codec_id != AV_CODEC_ID_JPEG2000 &&
@@ -165,21 +164,21 @@ bool mp_decode_init(mp_media_t *m, enum AVMediaType type, bool hw)
 		d->codec = avcodec_find_decoder(id);
 
 	if (!d->codec) {
-		blog(LOG_WARNING, "MP: Failed to find %s codec",
+		plog(LOG_WARNING, "MP: Failed to find %s codec",
 		     av_get_media_type_string(type));
 		return false;
 	}
 
 	ret = mp_open_codec(d, hw);
 	if (ret < 0) {
-		blog(LOG_WARNING, "MP: Failed to open %s decoder: %s",
+		plog(LOG_WARNING, "MP: Failed to open %s decoder: %s",
 		     av_get_media_type_string(type), av_err2str(ret));
 		return false;
 	}
 
 	d->sw_frame = av_frame_alloc();
 	if (!d->sw_frame) {
-		blog(LOG_WARNING, "MP: Failed to allocate %s frame",
+		plog(LOG_WARNING, "MP: Failed to allocate %s frame",
 		     av_get_media_type_string(type));
 		return false;
 	}
@@ -187,7 +186,7 @@ bool mp_decode_init(mp_media_t *m, enum AVMediaType type, bool hw)
 	if (d->hw) {
 		d->hw_frame = av_frame_alloc();
 		if (!d->hw_frame) {
-			blog(LOG_WARNING, "MP: Failed to allocate %s hw frame",
+			plog(LOG_WARNING, "MP: Failed to allocate %s hw frame",
 			     av_get_media_type_string(type));
 			return false;
 		}
@@ -258,14 +257,14 @@ void mp_decode_push_packet(struct mp_decode *decode, AVPacket *packet)
 static inline int64_t get_estimated_duration(struct mp_decode *d,
 					     int64_t last_pts)
 {
-	if (last_pts)
-		return d->frame_pts - last_pts;
-
 	if (d->audio) {
 		return av_rescale_q(d->in_frame->nb_samples,
 				    (AVRational){1, d->in_frame->sample_rate},
 				    (AVRational){1, 1000000000});
 	} else {
+		if (last_pts)
+			return d->frame_pts - last_pts;
+
 		if (d->last_duration)
 			return d->last_duration;
 
@@ -375,7 +374,7 @@ bool mp_decode_next(struct mp_decode *d)
 		}
 		if (ret < 0) {
 #ifdef DETAILED_DEBUG_INFO
-			blog(LOG_DEBUG, "MP: decode failed: %s",
+			plog(LOG_DEBUG, "MP: decode failed: %s",
 			     av_err2str(ret));
 #endif
 

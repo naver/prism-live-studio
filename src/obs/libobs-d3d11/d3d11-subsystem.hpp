@@ -273,6 +273,27 @@ static inline D3D11_PRIMITIVE_TOPOLOGY ConvertGSTopology(gs_draw_mode mode)
 	return D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
 }
 
+static inline int get_notify_error_code(HRESULT hr)
+{
+	switch (hr) {
+	case E_OUTOFMEMORY:
+		return GS_E_OUTOFMEMORY;
+	case E_INVALIDARG:
+		return GS_E_INVALIDARG;
+	case DXGI_ERROR_ACCESS_DENIED:
+		return GS_E_ACCESS_DENIED;
+	case DXGI_ERROR_DEVICE_HUNG:
+		return GS_E_DEVICE_HUNG;
+	case DXGI_ERROR_DEVICE_REMOVED:
+		return GS_E_DEVICE_REMOVED;
+	case DXGI_ERROR_UNSUPPORTED:
+		return GS_E_DEVICE_UNSUPPORTED;
+	default:
+		break;
+	}
+	return GS_E_UNKNOWN;
+}
+
 /* exception-safe RAII wrapper for vertex buffer data (NOTE: not copy-safe) */
 struct VBDataPtr {
 	gs_vb_data *data;
@@ -857,7 +878,7 @@ struct mat4float {
 };
 
 //PRISM/Wang.Chuanjing/20200408/for device rebuild
-typedef void (*set_render_working)(bool);
+typedef void (*engine_notify_callback)(int type, int code, void *extend);
 
 struct gs_device {
 	ComPtr<IDXGIFactory1> factory;
@@ -909,15 +930,31 @@ struct gs_device {
 	matrix4 curViewProjMatrix;
 
 	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
-	set_render_working render_working_cb = nullptr;
+	engine_notify_callback engine_notify_cb = nullptr;
+
+	//PRISM/Wang.Chuanjing/20210607/#NoIssue for device rebuild notification
+	uint32_t rebuild_fail_count = 0;
+	bool device_rebuild_fail_test = false;
 
 	vector<gs_device_loss> loss_callbacks;
 	gs_obj *first_obj = nullptr;
+
+	bool support_dx11 = false;
+
+	//PRISM/WangChuanjing/20210915/#None/rebuild test mode
+	bool device_rebuild_normal = true;
+
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	bool device_valid = false;
 
 	void InitCompiler();
 	//PRISM/LiuHaibin/20200630/#3174/camera effect
 	void InitFactory(uint32_t &adapterIdx);
 	void InitDevice(uint32_t adapterIdx);
+
+	//PRISM/WangChuanjing/20210414/#NoIssue/test module
+	void InitDeviceForTest(uint32_t adapterIdx,
+			       gs_engine_test_type test_type);
 
 	ID3D11DepthStencilState *AddZStencilState();
 	ID3D11RasterizerState *AddRasterState();
@@ -939,13 +976,20 @@ struct gs_device {
 	bool HasBadNV12Output();
 
 	gs_device(uint32_t adapterIdx);
+	gs_device(uint32_t adapterIdx, gs_engine_test_type test_type);
 	~gs_device();
 
 	//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
 	uint64_t maxTextureSize = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 	uint64_t GetMaxTextureSize();
-	bool GetAdapterLuid(struct gs_luid* luid);
+	bool GetAdapterLuid(struct gs_luid *luid);
 	struct gs_luid adapterLuid = {0};
+	//PRISM/LiuHaibin/20201201/#None/Get hardware info
+	struct gs_adapters_info adaptersInfo = {0};
+	gs_adapters_info_t *GetAdaptersInfo();
+
+	//PRISM/ZengQin/20210204/#None/check device support dx11
+	bool CheckDeviceSupportDX11() { return support_dx11; };
 };
 
 extern "C" EXPORT int device_texture_acquire_sync(gs_texture_t *tex,

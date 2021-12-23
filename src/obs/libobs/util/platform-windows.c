@@ -21,7 +21,9 @@
 #include <shlobj.h>
 #include <intrin.h>
 #include <psapi.h>
+#include <shlwapi.h>
 
+#include "obs.h"
 #include "base.h"
 #include "platform.h"
 #include "darray.h"
@@ -30,6 +32,14 @@
 #include "windows/win-version.h"
 
 #include "../../deps/w32-pthreads/pthread.h"
+
+//PRISM/LiuHaibin/20210224/#6878/cpu usage
+#include <tlhelp32.h>
+//PRISM/Zengqin/20210813/#none/init sym
+#include <dbghelp.h>
+#pragma comment(lib, "dbghelp.lib")
+
+#pragma comment(lib, "Shlwapi.lib")
 
 static bool have_clockfreq = false;
 static LARGE_INTEGER clock_freq;
@@ -107,7 +117,10 @@ void *os_dlopen(const char *path)
 			       MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
 			       (LPSTR)&message, 0, NULL);
 
-		blog(LOG_INFO, "LoadLibrary failed for '%s': %s (%lu)", path,
+		char temp[256];
+		os_extract_file_name(path, temp, ARRAY_SIZE(temp) - 1);
+
+		plog(LOG_INFO, "LoadLibrary failed for '%s' : %s (%lu)", temp,
 		     message, error);
 
 		if (message)
@@ -746,7 +759,7 @@ static bool initialize_version_functions(void)
 	if (!ver) {
 		ver = LoadLibraryW(L"version");
 		if (!ver) {
-			blog(LOG_ERROR, "Failed to load windows "
+			plog(LOG_ERROR, "Failed to load windows "
 					"version library");
 			return false;
 		}
@@ -762,7 +775,7 @@ static bool initialize_version_functions(void)
 
 	if (!get_file_version_info_size || !get_file_version_info ||
 	    !ver_query_value) {
-		blog(LOG_ERROR, "Failed to load windows version "
+		plog(LOG_ERROR, "Failed to load windows version "
 				"functions");
 		return false;
 	}
@@ -787,23 +800,25 @@ bool get_dll_ver(const wchar_t *lib, struct win_version_info *ver_info)
 
 	os_wcs_to_utf8(lib, 0, utf8_lib, sizeof(utf8_lib));
 
+	char name[256] = {0};
+	os_extract_file_name(utf8_lib, name, ARRAY_SIZE(name) - 1);
+
 	size = get_file_version_info_size(lib, NULL);
 	if (!size) {
-		blog(LOG_ERROR, "Failed to get %s version info size", utf8_lib);
+		plog(LOG_ERROR, "Failed to get %s version info size", name);
 		return false;
 	}
 
 	data = bmalloc(size);
 	if (!get_file_version_info(lib, 0, size, data)) {
-		blog(LOG_ERROR, "Failed to get %s version info", utf8_lib);
+		plog(LOG_ERROR, "Failed to get %s version info", name);
 		bfree(data);
 		return false;
 	}
 
 	success = ver_query_value(data, L"\\", (LPVOID *)&info, &len);
 	if (!success || !info || !len) {
-		blog(LOG_ERROR, "Failed to get %s version info value",
-		     utf8_lib);
+		plog(LOG_ERROR, "Failed to get %s version info value", name);
 		bfree(data);
 		return false;
 	}
@@ -1071,9 +1086,22 @@ uint64_t os_get_free_disk_space(const char *dir)
 	return success ? free.QuadPart : 0;
 }
 
+//PRISM/WangShaohui/20200809/NoIssue/for debug reference
+bool enable_alert = false;
+void enable_popup_messagebox(bool enable)
+{
+	enable_alert = enable;
+}
+void popup_messagebox(const char *content)
+{
+	if (enable_alert) {
+		MessageBoxA(0, content, "exception happen", 0);
+	}
+}
+
 //PRISM/WangShaohui/20200619/NoIssue/for debugging texture
 bool save_as_bitmap_file(char *path, uint8_t *data, int linesize, int width,
-		    int height, int per_pixel_byte, bool flip)
+			 int height, int per_pixel_byte, bool flip)
 {
 	if (!path || !data)
 		return false;
@@ -1114,4 +1142,384 @@ bool save_as_bitmap_file(char *path, uint8_t *data, int linesize, int width,
 
 	fclose(fp);
 	return true;
+}
+
+//PRISM/LiuHaibin/20210224/#6878/cpu usage
+//-------------------------------------------------------------
+struct cpu_usage_info {
+	uint64_t last_idle_time, last_kernel_time, last_user_time;
+	uint64_t last_sys_time;
+	DWORD core_count;
+};
+
+struct process_cpu_usage {
+	struct cpu_usage_info info;
+	DWORD process_id;
+	HANDLE process;
+	int active_count;
+};
+
+struct os_cpu_usage_info_ex {
+	DARRAY(struct process_cpu_usage) process_cpu_usage_info;
+	struct cpu_usage_info overall_cpu_usage_info;
+};
+
+static void
+create_process_cpu_usage_info(DWORD process_id, HANDLE process,
+			      struct process_cpu_usage *proc_cpu_usage)
+{
+	SYSTEM_INFO si;
+	FILETIME dummy;
+	union time_data kernel, user, sys_time;
+
+	memset(proc_cpu_usage, 0, sizeof(struct process_cpu_usage));
+	GetSystemTimeAsFileTime(&sys_time.ft);
+	GetSystemInfo(&si);
+	GetProcessTimes(process, &dummy, &dummy, &kernel.ft, &user.ft);
+	proc_cpu_usage->info.last_kernel_time = kernel.val;
+	proc_cpu_usage->info.last_user_time = user.val;
+	proc_cpu_usage->info.last_sys_time = sys_time.val;
+	proc_cpu_usage->info.core_count = si.dwNumberOfProcessors;
+	proc_cpu_usage->process = process;
+	proc_cpu_usage->process_id = process_id;
+	proc_cpu_usage->active_count++;
+}
+
+static void init_overall_cpu_usage_info(struct cpu_usage_info *info)
+{
+	SYSTEM_INFO si;
+	union time_data idle, kernel, user;
+
+	GetSystemInfo(&si);
+	GetSystemTimes(&idle.ft, &kernel.ft, &user.ft);
+	info->core_count = si.dwNumberOfProcessors;
+	info->last_idle_time = idle.val;
+	info->last_kernel_time = kernel.val;
+	info->last_user_time = user.val;
+}
+
+os_cpu_usage_info_ex_t *os_cpu_usage_info_start_ex(void)
+{
+	struct os_cpu_usage_info_ex *info = NULL;
+	HANDLE process_snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	if (process_snap == INVALID_HANDLE_VALUE) {
+		return NULL;
+	}
+
+	info = bzalloc(sizeof(struct os_cpu_usage_info_ex));
+
+	if (!info)
+		goto fail;
+
+	da_init(info->process_cpu_usage_info);
+
+	init_overall_cpu_usage_info(&info->overall_cpu_usage_info);
+
+	struct process_cpu_usage proc_cpu_usage;
+	DWORD current_process_id = GetCurrentProcessId();
+	HANDLE current_process = GetCurrentProcess();
+
+	create_process_cpu_usage_info(current_process_id, current_process,
+				      &proc_cpu_usage);
+
+	da_push_back(info->process_cpu_usage_info, &proc_cpu_usage);
+
+	PROCESSENTRY32 pe;
+	pe.dwSize = sizeof(pe);
+	if (Process32First(process_snap, &pe)) {
+		do {
+			if (pe.th32ProcessID != current_process_id &&
+			    pe.th32ParentProcessID == current_process_id) {
+				HANDLE process = OpenProcess(PROCESS_ALL_ACCESS,
+							     FALSE,
+							     pe.th32ProcessID);
+				if (process) {
+					create_process_cpu_usage_info(
+						pe.th32ProcessID, process,
+						&proc_cpu_usage);
+					da_push_back(
+						info->process_cpu_usage_info,
+						&proc_cpu_usage);
+				} else
+					plog(LOG_WARNING,
+					     "[cpu-usage] OpenProcess Failed, ProcessID: %u, Error: %u",
+					     pe.th32ProcessID, GetLastError());
+			}
+		} while (Process32Next(process_snap, &pe));
+	}
+
+fail:
+	CloseHandle(process_snap);
+	return info;
+}
+
+static double calculate_cpu_usage(struct cpu_usage_info *info)
+{
+	union time_data idle, kernel, user;
+	uint64_t idle_time, kernel_time, user_time, sys_time;
+	double percent;
+
+	GetSystemTimes(&idle.ft, &kernel.ft, &user.ft);
+	idle_time = idle.val - info->last_idle_time;
+	kernel_time = kernel.val - info->last_kernel_time;
+	user_time = user.val - info->last_user_time;
+	sys_time = user_time + kernel_time;
+
+	percent = sys_time > 0
+			  ? (double)(sys_time - idle_time) / (double)sys_time
+			  : 0.0;
+	//percent /= (double)info->core_count;
+
+	info->last_idle_time = idle.val;
+	info->last_kernel_time = kernel.val;
+	info->last_user_time = user.val;
+
+	return percent * 100.0;
+}
+
+static struct process_cpu_usage *find_process(os_cpu_usage_info_ex_t *info,
+					      DWORD process_id)
+{
+	for (int i = 0; i < info->process_cpu_usage_info.num; i++) {
+		if (info->process_cpu_usage_info.array[i].process_id ==
+		    process_id)
+			return &info->process_cpu_usage_info.array[i];
+	}
+	return NULL;
+}
+
+static double calculate_process_cpu_usage(struct process_cpu_usage *proc_info)
+{
+	double usage;
+	FILETIME dummy;
+	union time_data kernel, user, sys;
+	uint64_t kernel_time, user_time, sys_time;
+	GetSystemTimeAsFileTime(&sys.ft);
+	GetProcessTimes(proc_info->process, &dummy, &dummy, &kernel.ft,
+			&user.ft);
+	kernel_time = kernel.val - proc_info->info.last_kernel_time;
+	user_time = user.val - proc_info->info.last_user_time;
+	sys_time = sys.val - proc_info->info.last_sys_time;
+
+	usage = sys_time > 0
+			? (double)(kernel_time + user_time) / (double)sys_time
+			: 0.0;
+	usage /= (double)proc_info->info.core_count;
+
+	proc_info->info.last_kernel_time = kernel.val;
+	proc_info->info.last_user_time = user.val;
+	proc_info->info.last_sys_time = sys.val;
+	proc_info->active_count++;
+	return usage * 100.0;
+}
+
+static void check_process(os_cpu_usage_info_ex_t *info)
+{
+	for (size_t i = info->process_cpu_usage_info.num; i > 0; i--) {
+		struct process_cpu_usage *proc_info =
+			&info->process_cpu_usage_info.array[i - 1];
+		if (--proc_info->active_count == 0) {
+			if (proc_info->process)
+				CloseHandle(proc_info->process);
+			proc_info->process = NULL;
+			da_erase(info->process_cpu_usage_info, i - 1);
+		}
+	}
+}
+
+bool os_cpu_usage_info_query_ex(os_cpu_usage_info_ex_t *info,
+				double *process_cpu_usage,
+				double *overall_cpu_usage)
+{
+	double process_usage, overall_usage;
+	DWORD current_process_id;
+	if (!info || !process_cpu_usage || !overall_cpu_usage)
+		return false;
+
+	HANDLE process_snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	if (process_snap == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+
+	overall_usage = calculate_cpu_usage(&info->overall_cpu_usage_info);
+
+	process_usage = 0.0;
+	struct process_cpu_usage proc_cpu_usage;
+	struct process_cpu_usage *proc_cpu_usage_ptr;
+	current_process_id = GetCurrentProcessId();
+	proc_cpu_usage_ptr = find_process(info, current_process_id);
+	if (proc_cpu_usage_ptr)
+		process_usage +=
+			calculate_process_cpu_usage(proc_cpu_usage_ptr);
+	else {
+		HANDLE current_process = GetCurrentProcess();
+		create_process_cpu_usage_info(current_process_id,
+					      current_process, &proc_cpu_usage);
+		process_usage += calculate_process_cpu_usage(&proc_cpu_usage);
+		da_push_back(info->process_cpu_usage_info, &proc_cpu_usage);
+	}
+
+	PROCESSENTRY32 pe;
+	pe.dwSize = sizeof(pe);
+	if (Process32First(process_snap, &pe)) {
+		do {
+			if (pe.th32ProcessID != current_process_id &&
+			    pe.th32ParentProcessID == current_process_id) {
+				proc_cpu_usage_ptr =
+					find_process(info, pe.th32ProcessID);
+				if (proc_cpu_usage_ptr)
+					process_usage +=
+						calculate_process_cpu_usage(
+							proc_cpu_usage_ptr);
+				else {
+					HANDLE process = OpenProcess(
+						PROCESS_ALL_ACCESS, FALSE,
+						pe.th32ProcessID);
+					if (process) {
+						create_process_cpu_usage_info(
+							pe.th32ProcessID,
+							process,
+							&proc_cpu_usage);
+						process_usage +=
+							calculate_process_cpu_usage(
+								&proc_cpu_usage);
+						da_push_back(
+							info->process_cpu_usage_info,
+							&proc_cpu_usage);
+					} else
+						plog(LOG_WARNING,
+						     "[cpu-usage] OpenProcess Failed, ProcessID : % u, Error : %u",
+						     pe.th32ProcessID,
+						     GetLastError());
+				}
+			}
+		} while (Process32Next(process_snap, &pe));
+	}
+
+	check_process(info);
+	CloseHandle(process_snap);
+
+	if (process_usage > 100.0)
+		process_usage = 100.0;
+	else if (process_usage < 0.0)
+		process_usage = 0.0;
+
+	if (overall_usage > 100.0)
+		overall_usage = 100.0;
+	else if (overall_usage < 0.0)
+		overall_usage = 0.0;
+
+	if (process_usage > overall_usage)
+		process_usage = overall_usage;
+
+	*process_cpu_usage = process_usage;
+	*overall_cpu_usage = overall_usage;
+
+	return true;
+}
+
+void os_cpu_usage_info_destroy_ex(os_cpu_usage_info_ex_t *info)
+{
+	if (info) {
+		for (size_t i = info->process_cpu_usage_info.num; i > 0; i--) {
+			struct process_cpu_usage *proc_info =
+				&info->process_cpu_usage_info.array[i - 1];
+			if (proc_info->process)
+				CloseHandle(proc_info->process);
+			proc_info->process = NULL;
+		}
+		da_free(info->process_cpu_usage_info);
+		bfree(info);
+	}
+}
+
+//PRISM/WangShaohui/20200817/NoIssue/for file path operation
+void os_extract_file_name(const char *full_path, char *output_buf, int buf_len)
+{
+	if (output_buf) {
+		memset(output_buf, 0, buf_len);
+	}
+
+	if (!full_path || !output_buf) {
+		return;
+	}
+
+	LPCSTR name = PathFindFileNameA(full_path);
+	snprintf(output_buf, buf_len - 1, "%s", name ? name : "");
+}
+
+//PRISM/WangShaohui/20200817/NoIssue/for file path operation
+void os_extract_extension(const char *full_path, char *output_buf, int buf_len)
+{
+	if (output_buf) {
+		memset(output_buf, 0, buf_len);
+	}
+
+	if (!full_path || !output_buf) {
+		return;
+	}
+
+	_splitpath_s(full_path, NULL, 0, NULL, 0, NULL, 0, output_buf,
+		     buf_len - 1);
+}
+
+//-----------------------------end--------------------------------
+
+//PRISM/Zengqin/20210813/#none/init sym
+//-----------------------------start--------------------------------
+bool sym_initialize_called = false;
+
+void os_sym_initialize(wchar_t *path_str_w)
+{
+	if (!sym_initialize_called) {
+		sym_initialize_called =
+			SymInitializeW(GetCurrentProcess(), path_str_w, false);
+	} else if (path_str_w) {
+		SymSetSearchPathW(GetCurrentProcess(), path_str_w);
+	} else {
+		SymRefreshModuleList(GetCurrentProcess());
+	}
+}
+
+void os_sym_cleanup()
+{
+	if (sym_initialize_called)
+		SymCleanup(GetCurrentProcess());
+}
+//-----------------------------end--------------------------------
+
+//PRISM/Zengqin/2021923/#9773/add lock interface
+bool os_mutex_handle_create(const char *name)
+{
+	HANDLE handle = CreateMutexA(NULL, false, name);
+	if (handle && (handle != INVALID_HANDLE_VALUE))
+		return true;
+	return false;
+}
+
+//PRISM/Zengqin/2021923/#9773/add lock interface
+void os_mutex_handle_close(const char *name)
+{
+	HANDLE handle = OpenMutexA(MUTEX_ALL_ACCESS, false, name);
+	if (handle && (handle != INVALID_HANDLE_VALUE)) {
+		CloseHandle(handle);
+		handle = 0;
+	}
+	return;
+}
+
+//PRISM/Zengqin/2021923/#9773/add lock interface
+void os_mutex_handle_lock(const char *name)
+{
+	HANDLE handle = OpenMutexA(MUTEX_ALL_ACCESS, false, name);
+	if (handle && (handle != INVALID_HANDLE_VALUE))
+		WaitForSingleObject(handle, INFINITE);
+}
+
+//PRISM/Zengqin/2021923/#9773/add lock interface
+void os_mutex_handle_unlock(const char *name)
+{
+	HANDLE handle = OpenMutexA(MUTEX_ALL_ACCESS, false, name);
+	if (handle && (handle != INVALID_HANDLE_VALUE))
+		ReleaseMutex(handle);
 }

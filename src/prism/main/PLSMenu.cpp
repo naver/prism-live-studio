@@ -23,6 +23,7 @@
 #include "frontend-api.h"
 #include "platform.hpp"
 #include "ChannelCommonFunctions.h"
+#include "pls-common-define.hpp"
 
 namespace {
 const unsigned int altBit = 0x20000000;
@@ -329,9 +330,9 @@ PLSPopupMenuItem *newMenuItem(PLSPopupMenu *menu, QAction *action)
 {
 	if (QWidgetAction *widgetAction = dynamic_cast<QWidgetAction *>(action)) {
 		return new PLSPopupMenuItemWidgetAction(widgetAction, menu);
-	} else if (action->isSeparator()) {
+	} else if (action && action->isSeparator()) {
 		return new PLSPopupMenuItemSeparator(action, menu);
-	} else if (action->menu()) {
+	} else if (action && action->menu()) {
 		return new PLSPopupMenuItemMenu(newSubMenu(menu, action)->menuAction(), menu);
 	} else if (!isMenuAction(action)) {
 		return new PLSPopupMenuItemAction(action, menu);
@@ -411,7 +412,7 @@ QAction *prevValidAction(const QList<QAction *> &actions, QAction *current)
 		prev = prevAction(actions, _current = prev);
 	}
 
-	if (!prev->isSeparator() && prev->isVisible()) {
+	if (prev && !prev->isSeparator() && prev->isVisible()) {
 		return prev;
 	}
 	return nullptr;
@@ -434,7 +435,7 @@ QAction *nextValidAction(const QList<QAction *> &actions, QAction *current)
 		next = nextAction(actions, _current = next);
 	}
 
-	if (!next->isSeparator() && next->isVisible()) {
+	if (next && !next->isSeparator() && next->isVisible()) {
 		return next;
 	}
 	return nullptr;
@@ -465,6 +466,8 @@ void triggeredAction(QAction *action)
 
 bool PLSMenu::event(QEvent *event)
 {
+	bool result = QMenu::event(event);
+
 	switch (event->type()) {
 	case QEvent::ActionAdded: {
 		QActionEvent *e = dynamic_cast<QActionEvent *>(event);
@@ -477,7 +480,7 @@ bool PLSMenu::event(QEvent *event)
 	}
 	}
 
-	return QMenu::event(event);
+	return result;
 }
 
 PLSPopupMenuItem::PLSPopupMenuItem(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper) : QFrame(menu), m_action(action), m_menu(menu)
@@ -497,6 +500,10 @@ void PLSPopupMenuItem::actionHovered()
 
 void PLSPopupMenuItem::actionTriggered()
 {
+	if (m_action->property(IS_THIRD_PARTY_PLUGINS).toBool()) {
+		pls_alert_third_party_plugins(m_action->text());
+	}
+
 	m_action->trigger();
 }
 
@@ -509,6 +516,7 @@ QString PLSPopupMenuItem::getText(int &shortcutKey, const QFont &font, int width
 {
 	QFontMetrics fm(font);
 	QString original = decodeMenuItemText(m_action->text(), shortcutKey);
+
 	QString elidedText = fm.elidedText(original, Qt::ElideRight, width);
 	return elidedText;
 }
@@ -523,7 +531,7 @@ PLSPopupMenuItem::Type PLSPopupMenuItemSeparator::type() const
 }
 
 PLSPopupMenuItemContent::PLSPopupMenuItemContent(QAction *action, PLSPopupMenu *menu, PLSDpiHelper dpiHelper)
-	: PLSPopupMenuItem(action, menu, dpiHelper), m_hasIcon(false), m_isLeftIcon(true), m_isElidedTextProcessed(false), m_layout(), m_icon(), m_text(), m_shortcutKey()
+	: PLSPopupMenuItem(action, menu, dpiHelper), m_hasIcon(false), m_isLeftIcon(true), m_layout(), m_icon(), m_text(), m_shortcutKey()
 {
 	m_layout = new QHBoxLayout(this);
 	m_layout->setSpacing(0);
@@ -538,8 +546,7 @@ PLSPopupMenuItemContent::PLSPopupMenuItemContent(QAction *action, PLSPopupMenu *
 	m_text->installEventFilter(this);
 
 	m_layout->addWidget(m_icon);
-	m_layout->addWidget(m_text);
-	m_layout->addStretch(1);
+	m_layout->addWidget(m_text, 1);
 
 	if (m_menu->toolTipsVisible()) {
 		setAttribute(Qt::WA_AlwaysShowToolTips);
@@ -552,11 +559,6 @@ PLSPopupMenuItemContent::PLSPopupMenuItemContent(QAction *action, PLSPopupMenu *
 
 	connect(menu, &PLSPopupMenu::hovered, this, [this](QAction *action) { pls_flush_style_recursive(this, "selected", m_action == action); });
 	connect(menu, &PLSPopupMenu::triggered, this, [this](QAction *action) { pls_flush_style_recursive(this, "selected", m_action == action); });
-
-	dpiHelper.notifyDpiChanged(this, [=]() {
-		m_isElidedTextProcessed = false;
-		m_text->setText(decodeMenuItemText(m_action->text(), m_shortcutKey));
-	});
 }
 
 PLSPopupMenuItemContent::~PLSPopupMenuItemContent() {}
@@ -615,7 +617,6 @@ void PLSPopupMenuItemContent::actionChanged()
 		setToolTip(m_action->toolTip());
 	}
 
-	m_isElidedTextProcessed = false;
 	m_text->setText(decodeMenuItemText(m_action->text(), m_shortcutKey));
 	m_text->setProperty("menuItemRole", m_action->isEnabled() ? "text" : "disabled-text");
 	setEnabled(m_action->isEnabled());
@@ -624,9 +625,8 @@ void PLSPopupMenuItemContent::actionChanged()
 bool PLSPopupMenuItemContent::eventFilter(QObject *watched, QEvent *event)
 {
 	bool result = PLSPopupMenuItem::eventFilter(watched, event);
-	if (watched == m_text && event->type() == QEvent::Resize && !m_isElidedTextProcessed) {
-		m_text->setText(getText(m_shortcutKey, m_text->font(), dynamic_cast<QResizeEvent *>(event)->size().width()));
-		m_isElidedTextProcessed = true;
+	if (watched == m_text && event->type() == QEvent::Resize) {
+		m_text->setText(getText(m_shortcutKey, m_text->font(), static_cast<QResizeEvent *>(event)->size().width()));
 	}
 	return result;
 }
@@ -1291,26 +1291,10 @@ void PLSPopupMenu::bindPLSMenu(PLSMenu *menu)
 		return;
 	}
 
-	connect(menu, &PLSMenu::actionAdded, this, [this](QAction *action, QAction *before) { m_layout->insertWidget(actionIndex(actions(), before), newMenuItem(this, action)); });
-	connect(menu, &PLSMenu::actionRemoved, this, [this](QAction *action) {
-		if (m_selectedAction == action) {
-			m_selectedAction = nullptr;
-		}
-
-		if (ActionUserdata *userData = ActionUserdata::getActionUserData(action); userData) {
-			if (userData->m_submenu) {
-				userData->m_submenu->deleteLater();
-				userData->m_submenu = nullptr;
-			}
-			if (userData->m_menuItem) {
-				userData->m_menuItem->hide();
-				m_layout->removeWidget(userData->m_menuItem);
-				userData->m_menuItem->deleteLater();
-				userData->m_menuItem = nullptr;
-			}
-		}
-	});
+	connect(menu, &PLSMenu::actionAdded, this, [this](QAction *action, QAction *before) { insertAction(before, action); });
+	connect(menu, &PLSMenu::actionRemoved, this, [this](QAction *action) { removeAction(action); });
 }
+
 void PLSPopupMenu::onHideAllPopupMenu()
 {
 	for (PLSPopupMenu *menu : g_menuList) {
@@ -1320,6 +1304,8 @@ void PLSPopupMenu::onHideAllPopupMenu()
 
 bool PLSPopupMenu::event(QEvent *event)
 {
+	bool result = WidgetDpiAdapter::event(event);
+
 	switch (event->type()) {
 	case QEvent::ActionAdded: {
 		QActionEvent *e = dynamic_cast<QActionEvent *>(event);
@@ -1348,7 +1334,7 @@ bool PLSPopupMenu::event(QEvent *event)
 	}
 	}
 
-	return WidgetDpiAdapter::event(event);
+	return result;
 }
 
 void PLSPopupMenu::showEvent(QShowEvent *event)

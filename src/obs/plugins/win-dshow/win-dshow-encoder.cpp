@@ -123,7 +123,7 @@ inline bool DShowEncoder::Update(obs_data_t *settings)
 
 	DStr encoder_name;
 	dstr_from_wcs(encoder_name, config.name.c_str());
-	blog(LOG_DEBUG,
+	plog(LOG_DEBUG,
 	     "win-dshow-encoder:\n"
 	     "\tencoder: %s\n"
 	     "\twidth:   %d\n"
@@ -157,7 +157,7 @@ static inline void *CreateDShowEncoder(obs_data_t *settings,
 		UpdateDShowEncoder(encoder, settings);
 
 	} catch (const char *error) {
-		blog(LOG_ERROR, "Could not create DirectShow encoder '%s': %s",
+		plog(LOG_ERROR, "Could not create DirectShow encoder '%s': %s",
 		     obs_encoder_get_name(context), error);
 	}
 

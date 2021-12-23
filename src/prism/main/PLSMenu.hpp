@@ -95,7 +95,6 @@ protected:
 protected:
 	bool m_hasIcon;
 	bool m_isLeftIcon;
-	bool m_isElidedTextProcessed;
 	QHBoxLayout *m_layout;
 	QLabel *m_icon;
 	QLabel *m_text;

@@ -10,10 +10,13 @@ QComboBox {
 QComboBox:hover {
     background-color: #555555;
 }
-QComboBox:disabled {
+QComboBox:disabled,
+QComboBox:disabled[status=error],
+QComboBox:disabled[status=normal] {
     background-color: #373737;
     color: #666666;
 }
+
 QComboBox::drop-down {
 	border:/*hdpi*/ none;
 	width:/*hdpi*/ 30px;
@@ -34,7 +37,7 @@ QComboBox::down-arrow:on {
 	image:url(":/images/txt-dropbox-open-click.svg");
 }
 QComboBox:on, QComboBox:editable {
-    background-color: #444444;
+    background-color: #1e1e1e;
 }
 
 QComboBox QListView,
@@ -45,6 +48,7 @@ PLSComboBoxListView {
     color: #ffffff;
 	border:/*hdpi*/ 1px solid #111111;
 	border-radius:/*hdpi*/ 3px;
+	margin-top:/*hdpi*/ 1px;
 }
 QComboBox QListView:focus,
 PLSComboBoxListView:focus {

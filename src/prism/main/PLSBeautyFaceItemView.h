@@ -46,6 +46,8 @@ public:
 	void SetFilterIndex(int index);
 	void SetFilterType(int type);
 
+	bool IsItemIconValid();
+
 private:
 	void InitUi();
 	void EditFinishOperation(bool cancel);
@@ -69,6 +71,7 @@ private:
 	QString id;
 	QString baseName;
 	QString imgName;
+	QString iconPath;
 	int filterIndex{0};
 	int filterType{0};
 	bool isCustom{false};

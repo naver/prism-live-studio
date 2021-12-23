@@ -67,6 +67,20 @@ void PLSSceneDataMgr::MoveSrcToDest(const QString &srcName, const QString &destN
 	}
 }
 
+QString PLSSceneDataMgr::GetFirstSceneName()
+{
+	for (auto iter = sceneDisplay.begin(); iter != sceneDisplay.end(); ++iter) {
+		SceneDisplayVector &vec = iter->second;
+		for (auto iter = vec.begin(); iter != vec.end();) {
+			PLSSceneItemView *view = iter->second;
+			if (view) {
+				return view->GetName();
+			}
+		}
+	}
+	return QString();
+}
+
 PLSSceneItemView *PLSSceneDataMgr::FindSceneData(const QString &name)
 {
 	auto iterMap = sceneDisplay.find(GetCurrentSceneCollectionName());
@@ -93,7 +107,8 @@ PLSSceneItemView *PLSSceneDataMgr::DeleteSceneData(const QString &name)
 				PLSSceneItemView *view = iter->second;
 				if (view) {
 					view->SetRenderFlag(false);
-					view->close();
+					delete view;
+					view = nullptr;
 				}
 				iter = vec.erase(iter);
 				if (iter != vec.end()) {
@@ -116,7 +131,8 @@ void PLSSceneDataMgr::DeleteAllData()
 			PLSSceneItemView *view = iter->second;
 			if (view) {
 				view->SetRenderFlag(false);
-				view->close();
+				delete view;
+				view = nullptr;
 				iter = vec.erase(iter);
 			} else {
 				++iter;
@@ -162,7 +178,33 @@ void PLSSceneDataMgr::SwapData(const int &romoveRow, const int &removeCol, const
 	if (!view) {
 		return;
 	}
+
 	SwapDataToVec(romoveRow, removeCol, appendRow, appendCol, columnCount, view, vec);
+}
+
+void PLSSceneDataMgr::SwapDataInListMode(const int &romoveRow, const int &appendRow)
+{
+	auto iterMap = sceneDisplay.find(GetCurrentSceneCollectionName());
+	if (iterMap == sceneDisplay.end()) {
+		return;
+	}
+
+	SceneDisplayVector &vec = iterMap->second;
+	if (romoveRow == appendRow || appendRow < 0 || romoveRow < 0 || romoveRow >= vec.size() || appendRow >= vec.size()) {
+		return;
+	}
+
+	auto iters = vec.begin();
+	iters += romoveRow;
+
+	PLSSceneItemView *view = iters->second;
+	if (!view) {
+		return;
+	}
+	vec.erase(iters);
+
+	auto iter = vec.begin() + appendRow;
+	vec.emplace(iter, SceneDisplayVector::value_type(view->GetName(), view));
 }
 
 void PLSSceneDataMgr::SwapToUp(const QString &name)

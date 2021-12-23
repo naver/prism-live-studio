@@ -19,6 +19,11 @@
 
 void gs_index_buffer::InitBuffer()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid) {
+		throw "Device invalid";
+	}
+
 	HRESULT hr;
 
 	memset(&bd, 0, sizeof(bd));
@@ -31,8 +36,15 @@ void gs_index_buffer::InitBuffer()
 	srd.pSysMem = indices.data;
 
 	hr = device->device->CreateBuffer(&bd, &srd, indexBuffer.Assign());
-	if (FAILED(hr))
+	if (FAILED(hr)) {
+		//PRISM/WangChuanjing/20210311/#6941/notify engine status
+		if (device->engine_notify_cb) {
+			int code = get_notify_error_code(hr);
+			device->engine_notify_cb(GS_ENGINE_NOTIFY_EXCEPTION,
+						 code, nullptr);
+		}
 		throw HRError("Failed to create buffer", hr);
+	}
 }
 
 gs_index_buffer::gs_index_buffer(gs_device_t *device, enum gs_index_type type,

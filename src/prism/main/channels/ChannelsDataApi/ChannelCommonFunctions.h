@@ -34,6 +34,22 @@
 
 #define CHANNELS_TR(str) (REGISTERSTR(str), QObject::tr(ADD_CHANNELS_H(str)))
 
+#define TR_VLIVE CHANNELS_TR(vlive)
+#define TR_NAVER_TV CHANNELS_TR(naver_tv)
+#define TR_WAV CHANNELS_TR(wav)
+#define TR_BAND CHANNELS_TR(band)
+#define TR_TWITCH CHANNELS_TR(twitch)
+#define TR_YOUTUBE CHANNELS_TR(youtube)
+#define TR_FACEBOOK CHANNELS_TR(facebook)
+#define TR_WHALE_SPACE CHANNELS_TR(whale_space)
+#define TR_AFREECATV CHANNELS_TR(afreeca_tv)
+#define TR_NOW CHANNELS_TR(now)
+#define TR_NAVER_SHOPPING_LIVE CHANNELS_TR(naver_shopping_live)
+#define TR_SELECT CHANNELS_TR(select)
+#define TR_CUSTOM_RTMP CHANNELS_TR(custom_rtmp)
+#define TR_RTMPT_DEFAULT_TYPE CHANNELS_TR(rtmp_default_type_channels)
+
+/***********************debug******************************/
 #ifdef QT_DEBUG
 
 /*for debug view json or map data */
@@ -63,6 +79,7 @@
 #define ViewJsonDoc(JsonDoc)
 
 #endif // DEBUG
+/*********************** debug end******************************/
 
 /* function for get and Type value of any QvariantMap */
 template<typename RetType = QString> inline auto getInfo(const QVariantMap &source, const QString &key, const RetType &defaultData = RetType()) -> RetType
@@ -104,11 +121,17 @@ template<typename WidgetType = QWidget> void deleteChannelWidget(WidgetType *cha
 /* delete list item function for using with smart pointer */
 void deleteItem(QListWidgetItem *item);
 
+const QString translatePlatformName(const QString &platformName);
+
 /* convert pointer to qobeject */
 template<typename SRCType> inline QObject *convertToObejct(SRCType *srcPt)
 {
 	return dynamic_cast<QObject *>(srcPt);
 }
+
+bool isVersionLessthan(const QString &leftVer, const QString &rightVer);
+
+const ChannelsMap getMatchKeysInfos(const QVariantMap &keysMap);
 
 QVariantMap createDefaultChannelInfoMap(const QString &channelName, int defaultType = ChannelData::ChannelType);
 const QString createUUID();
@@ -122,7 +145,7 @@ const QString getHostMacAddress();
 /*write json array to file */
 bool writeFile(const QByteArray &array, const QString &path);
 
-void loadPixmap(QPixmap &pix, const QString &pixmapPath, const QSize &pixSize);
+void loadPixmap(QPixmap &pix, const QString &pixmapPath, const QSize &pixSize = QSize(100, 100));
 
 /* to create a circle mask for user header */
 template<typename SourceType> QBitmap createImageCircleMask(const SourceType &source)
@@ -300,25 +323,24 @@ template<typename ReplyType> void formatNetworkLogs(ReplyType reply, const QByte
 	if (code != QNetworkReply::NoError) {
 		msg.prepend("http request error! url = ");
 		msg += "\n error string :" + reply->errorString();
-		PLS_ERROR("Channels", "%s", msg.toStdString().c_str());
-		PRE_LOG_MSG(("reply content :" + reply->readAll()).constData(), INFO);
+		PRE_LOG_MSG(msg, ERROR);
 	} else {
 		msg.prepend("http request successfull! url = ");
-		PLS_INFO("Channels", "%s", msg.toStdString().c_str());
+		PRE_LOG_MSG(msg, INFO);
 	}
 }
 
-template<typename ReplyType> void ChannelsNetWorkPretestWithAlerts(ReplyType reply, const QByteArray &data, bool notify = true)
+template<typename ReplyType> void ChannelsNetWorkPretestWithAlerts(ReplyType reply, const QByteArray & /*data*/, bool notify = true)
 {
-	formatNetworkLogs(reply, data);
+	//formatNetworkLogs(reply, data);
 	if (!notify) {
 		return;
 	}
 	QVariantMap errormap;
 	auto errorValue = reply->error();
 	if (errorValue <= QNetworkReply::UnknownNetworkError || errorValue == QNetworkReply::UnknownServerError) {
-		errormap.insert(g_errorTitle, CHANNELS_TR(Check.Alert.Title));
-		errormap.insert(g_errorString, CHANNELS_TR(Check.Network.Error));
+		errormap.insert(g_errorTitle, QObject::tr("Alert.Title"));
+		errormap.insert(g_errorString, QObject::tr("login.check.note.network"));
 
 	} else {
 		return;
@@ -327,11 +349,29 @@ template<typename ReplyType> void ChannelsNetWorkPretestWithAlerts(ReplyType rep
 	PLSCHANNELS_API->networkInvalidOcurred();
 }
 
+const QString getImageCacheFilePath();
 const QString getChannelCacheFilePath();
 const QString getChannelCacheDir();
+const QString getTmpCacheDir();
 const QString getChannelSettingsFilePath();
 const QStringList getDefaultPlatforms();
 const QString guessPlatformFromRTMP(const QString &rtmpUrl);
+
+bool isPlatformOrderLessThan(const QString &left, const QString &right);
+const QString simplifiedString(const QString &src);
+
+bool isStringEqual(const QString &left, const QString &right);
+
+template<typename MapType, typename FuncType>
+auto findMatchKeyFromMap(const MapType &src, typename const MapType::key_type &searchKey, FuncType Func = isStringEqual) -> typename MapType::const_iterator
+{
+	for (auto it = src.cbegin(); it != src.cend(); ++it) {
+		if (Func(it.key(), searchKey)) {
+			return it;
+		}
+	}
+	return src.cend();
+}
 
 QPropertyAnimation *createShowAnimation(QWidget *wid, int msSec = 250);
 void displayWidgetWithAnimation(QWidget *wid, int msSec = 250, bool show = true);
@@ -380,6 +420,18 @@ template<typename ParentType = QWidget *, typename ChildType = QWidget *> auto f
 template<typename DestType, typename FunctionType> auto getMemberPointer(FunctionType func) -> DestType
 {
 	return *static_cast<DestType *>((reinterpret_cast<void *>(&func)));
+}
+
+bool isCacheFileMatchCurrentLang();
+
+void translateSVGText(const QString &srcPath, const QString &txt, const QString &resultTxt);
+
+template<typename... Args> void translateSVGText(const QString &txt, const QString &resultTxt, Args... args)
+{
+	QStringList files{args...};
+	for (auto &file : files) {
+		translateSVGText(file, txt, resultTxt);
+	}
 }
 
 #endif //CHANELCOMMONFUNCTION_H

@@ -3,6 +3,7 @@
 #include <util/darray.h>
 #include <util/dstr.h>
 #include <obs-avc.h>
+#include <obs-hevc.h>
 #define INITGUID
 #include <dxgi.h>
 #include <d3d11.h>
@@ -13,7 +14,7 @@
 #define EXTRA_BUFFERS 5
 
 #define do_log(level, format, ...)               \
-	blog(level, "[jim-nvenc: '%s'] " format, \
+	plog(level, "[jim-nvenc: '%s'] " format, \
 	     obs_encoder_get_name(enc->encoder), ##__VA_ARGS__)
 
 #define error(format, ...) do_log(LOG_ERROR, format, ##__VA_ARGS__)
@@ -50,6 +51,9 @@ struct nvenc_data {
 	bool first_packet;
 	bool can_change_bitrate;
 	bool bframes;
+
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	bool is_h265_encoder;
 
 	DARRAY(struct nv_bitstream) bitstreams;
 	DARRAY(struct nv_texture) textures;
@@ -213,7 +217,15 @@ static const char *nvenc_get_name(void *type_data)
 	return "NVIDIA NVENC H.264 (new)";
 }
 
-static inline int nv_get_cap(struct nvenc_data *enc, NV_ENC_CAPS cap)
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+static const char *nvenc_hevc_get_name(void *type_data)
+{
+	UNUSED_PARAMETER(type_data);
+	return "NVIDIA NVENC H.265 (new)";
+}
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+static inline int nv_get_cap(struct nvenc_data *enc, NV_ENC_CAPS cap, GUID guid)
 {
 	if (!enc->session)
 		return 0;
@@ -222,7 +234,8 @@ static inline int nv_get_cap(struct nvenc_data *enc, NV_ENC_CAPS cap)
 	int v;
 
 	param.capsToQuery = cap;
-	nv.nvEncGetEncodeCaps(enc->session, NV_ENC_CODEC_H264_GUID, &param, &v);
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	nv.nvEncGetEncodeCaps(enc->session, guid, &param, &v);
 	return v;
 }
 
@@ -350,6 +363,9 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 	video_t *video = obs_encoder_video(enc->encoder);
 	const struct video_output_info *voi = video_output_get_info(video);
 
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	GUID codec_guid = NV_ENC_CODEC_H264_GUID;
+
 	enc->cx = voi->width;
 	enc->cy = voi->height;
 
@@ -397,8 +413,8 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 	NV_ENC_PRESET_CONFIG preset_config = {NV_ENC_PRESET_CONFIG_VER,
 					      {NV_ENC_CONFIG_VER}};
 
-	err = nv.nvEncGetEncodePresetConfig(enc->session,
-					    NV_ENC_CODEC_H264_GUID, nv_preset,
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	err = nv.nvEncGetEncodePresetConfig(enc->session, codec_guid, nv_preset,
 					    &preset_config);
 	if (nv_failed(enc, err, __FUNCTION__, "nvEncGetEncodePresetConfig")) {
 		return false;
@@ -409,8 +425,10 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 
 	enc->config = preset_config.presetCfg;
 
-	uint32_t gop_size =
-		(keyint_sec) ? keyint_sec * voi->fps_num / voi->fps_den : 250;
+	//PRISM/LiuHaibin/20210803/#9045/add protection division operation
+	uint32_t gop_size = (keyint_sec && voi->fps_den)
+				    ? keyint_sec * voi->fps_num / voi->fps_den
+				    : 250;
 
 	NV_ENC_INITIALIZE_PARAMS *params = &enc->params;
 	NV_ENC_CONFIG *config = &enc->config;
@@ -420,7 +438,8 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 
 	memset(params, 0, sizeof(*params));
 	params->version = NV_ENC_INITIALIZE_PARAMS_VER;
-	params->encodeGUID = NV_ENC_CODEC_H264_GUID;
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	params->encodeGUID = codec_guid;
 	params->presetGUID = nv_preset;
 	params->encodeWidth = voi->width;
 	params->encodeHeight = voi->height;
@@ -446,24 +465,28 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 	enc->bframes = bf > 0;
 
 	/* lookahead */
-	if (lookahead && nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_LOOKAHEAD)) {
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	if (lookahead &&
+	    nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_LOOKAHEAD, codec_guid)) {
 		config->rcParams.lookaheadDepth = 8;
 		config->rcParams.enableLookahead = 1;
 	} else {
 		lookahead = false;
 	}
 
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
 	/* psycho aq */
-	if (nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_TEMPORAL_AQ)) {
+	if (nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_TEMPORAL_AQ, codec_guid)) {
 		config->rcParams.enableAQ = psycho_aq;
 		config->rcParams.enableTemporalAQ = psycho_aq;
 	}
 
 	/* -------------------------- */
 	/* rate control               */
-
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
 	enc->can_change_bitrate =
-		nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_DYN_BITRATE_CHANGE) &&
+		nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_DYN_BITRATE_CHANGE,
+			   codec_guid) &&
 		!lookahead;
 
 	config->rcParams.rateControlMode = twopass ? NV_ENC_PARAMS_RC_VBR_HQ
@@ -515,7 +538,215 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 			 config->rcParams.lookaheadDepth + EXTRA_BUFFERS;
 	enc->output_delay = enc->buf_count - 1;
 
-	info("settings:\n"
+	info("jim-nvenc settings:\n"
+	     "\trate_control: %s\n"
+	     "\tbitrate:      %d\n"
+	     "\tcqp:          %d\n"
+	     "\tkeyint:       %d\n"
+	     "\tpreset:       %s\n"
+	     "\tprofile:      %s\n"
+	     "\twidth:        %d\n"
+	     "\theight:       %d\n"
+	     "\t2-pass:       %s\n"
+	     "\tb-frames:     %d\n"
+	     "\tlookahead:    %s\n"
+	     "\tpsycho_aq:    %s\n",
+	     rc, bitrate, cqp, gop_size, preset, profile, enc->cx, enc->cy,
+	     twopass ? "true" : "false", bf, lookahead ? "true" : "false",
+	     psycho_aq ? "true" : "false");
+
+	return true;
+}
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+static bool init_encoder_hevc(struct nvenc_data *enc, obs_data_t *settings)
+{
+	const char *rc = obs_data_get_string(settings, "rate_control");
+	int bitrate = (int)obs_data_get_int(settings, "bitrate");
+	int max_bitrate = (int)obs_data_get_int(settings, "max_bitrate");
+	int cqp = (int)obs_data_get_int(settings, "cqp");
+	int keyint_sec = (int)obs_data_get_int(settings, "keyint_sec");
+	const char *preset = obs_data_get_string(settings, "preset");
+	const char *profile = obs_data_get_string(settings, "profile");
+	bool psycho_aq = obs_data_get_bool(settings, "psycho_aq");
+	bool lookahead = obs_data_get_bool(settings, "lookahead");
+	int bf = 0;
+	bool vbr = astrcmpi(rc, "VBR") == 0;
+	NVENCSTATUS err;
+
+	video_t *video = obs_encoder_video(enc->encoder);
+	const struct video_output_info *voi = video_output_get_info(video);
+
+	GUID codec_guid = NV_ENC_CODEC_HEVC_GUID;
+
+	enc->cx = voi->width;
+	enc->cy = voi->height;
+
+	/* -------------------------- */
+	/* get preset                 */
+
+	GUID nv_preset = NV_ENC_PRESET_DEFAULT_GUID;
+	bool twopass = false;
+	bool hp = false;
+	bool ll = false;
+
+	if (astrcmpi(preset, "hq") == 0) {
+		nv_preset = NV_ENC_PRESET_HQ_GUID;
+
+	} else if (astrcmpi(preset, "mq") == 0) {
+		nv_preset = NV_ENC_PRESET_HQ_GUID;
+		twopass = true;
+
+	} else if (astrcmpi(preset, "hp") == 0) {
+		nv_preset = NV_ENC_PRESET_HP_GUID;
+		hp = true;
+
+	} else if (astrcmpi(preset, "ll") == 0) {
+		nv_preset = NV_ENC_PRESET_LOW_LATENCY_DEFAULT_GUID;
+		ll = true;
+
+	} else if (astrcmpi(preset, "llhq") == 0) {
+		nv_preset = NV_ENC_PRESET_LOW_LATENCY_HQ_GUID;
+		ll = true;
+
+	} else if (astrcmpi(preset, "llhp") == 0) {
+		nv_preset = NV_ENC_PRESET_LOW_LATENCY_HP_GUID;
+		hp = true;
+		ll = true;
+	}
+
+	if (astrcmpi(rc, "lossless") == 0) {
+		nv_preset = hp ? NV_ENC_PRESET_LOSSLESS_HP_GUID
+			       : NV_ENC_PRESET_LOSSLESS_DEFAULT_GUID;
+	}
+
+	/* -------------------------- */
+	/* get preset default config  */
+
+	NV_ENC_PRESET_CONFIG preset_config = {NV_ENC_PRESET_CONFIG_VER,
+					      {NV_ENC_CONFIG_VER}};
+
+	err = nv.nvEncGetEncodePresetConfig(enc->session, codec_guid, nv_preset,
+					    &preset_config);
+	if (nv_failed(enc, err, __FUNCTION__, "nvEncGetEncodePresetConfig")) {
+		return false;
+	}
+
+	/* -------------------------- */
+	/* main configuration         */
+
+	enc->config = preset_config.presetCfg;
+	//PRISM/LiuHaibin/20210803/#9045/add protection division operation
+	uint32_t gop_size = (keyint_sec && voi->fps_den)
+				    ? keyint_sec * voi->fps_num / voi->fps_den
+				    : 250;
+
+	NV_ENC_INITIALIZE_PARAMS *params = &enc->params;
+	NV_ENC_CONFIG *config = &enc->config;
+	NV_ENC_CONFIG_HEVC *hevc_config = &config->encodeCodecConfig.hevcConfig;
+	NV_ENC_CONFIG_HEVC_VUI_PARAMETERS *vui_params =
+		&hevc_config->hevcVUIParameters;
+
+	memset(params, 0, sizeof(*params));
+	params->version = NV_ENC_INITIALIZE_PARAMS_VER;
+	params->encodeGUID = codec_guid;
+	params->presetGUID = nv_preset;
+	params->encodeWidth = voi->width;
+	params->encodeHeight = voi->height;
+	params->darWidth = voi->width;
+	params->darHeight = voi->height;
+	params->frameRateNum = voi->fps_num;
+	params->frameRateDen = voi->fps_den;
+	params->enableEncodeAsync = 1;
+	params->enablePTD = 1;
+	params->encodeConfig = &enc->config;
+	params->maxEncodeWidth = voi->width;
+	params->maxEncodeHeight = voi->height;
+	config->gopLength = gop_size;
+	config->frameIntervalP = 1 + bf;
+	hevc_config->idrPeriod = gop_size;
+	vui_params->videoSignalTypePresentFlag = 1;
+	vui_params->videoFullRangeFlag = (voi->range == VIDEO_RANGE_FULL);
+	vui_params->colourDescriptionPresentFlag = 1;
+	vui_params->colourMatrix = (voi->colorspace == VIDEO_CS_709) ? 1 : 5;
+	vui_params->colourPrimaries = 1;
+	vui_params->transferCharacteristics = 1;
+
+	enc->bframes = bf > 0;
+
+	/* lookahead */
+	if (lookahead &&
+	    nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_LOOKAHEAD, codec_guid)) {
+		config->rcParams.lookaheadDepth = 8;
+		config->rcParams.enableLookahead = 1;
+	} else {
+		lookahead = false;
+	}
+
+	/* psycho aq */
+	if (nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_TEMPORAL_AQ, codec_guid)) {
+		config->rcParams.enableAQ = psycho_aq;
+		config->rcParams.enableTemporalAQ = psycho_aq;
+	}
+
+	/* -------------------------- */
+	/* rate control               */
+
+	enc->can_change_bitrate =
+		nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_DYN_BITRATE_CHANGE,
+			   codec_guid) &&
+		!lookahead;
+
+	config->rcParams.rateControlMode = twopass ? NV_ENC_PARAMS_RC_VBR_HQ
+						   : NV_ENC_PARAMS_RC_VBR;
+
+	if (astrcmpi(rc, "cqp") == 0 || astrcmpi(rc, "lossless") == 0) {
+		if (astrcmpi(rc, "lossless") == 0)
+			cqp = 0;
+
+		config->rcParams.rateControlMode = NV_ENC_PARAMS_RC_CONSTQP;
+		config->rcParams.constQP.qpInterP = cqp;
+		config->rcParams.constQP.qpInterB = cqp;
+		config->rcParams.constQP.qpIntra = cqp;
+		enc->can_change_bitrate = false;
+
+		bitrate = 0;
+		max_bitrate = 0;
+
+	} else if (astrcmpi(rc, "vbr") != 0) { /* CBR by default */
+		hevc_config->outputBufferingPeriodSEI = 1;
+		config->rcParams.rateControlMode =
+			twopass ? NV_ENC_PARAMS_RC_2_PASS_QUALITY
+				: NV_ENC_PARAMS_RC_CBR;
+	}
+
+	hevc_config->outputPictureTimingSEI = 1;
+	config->rcParams.averageBitRate = bitrate * 1000;
+	config->rcParams.maxBitRate = vbr ? max_bitrate * 1000 : bitrate * 1000;
+
+	/* -------------------------- */
+	/* profile                    */
+
+	if (astrcmpi(profile, "main10") == 0) {
+		config->profileGUID = NV_ENC_HEVC_PROFILE_MAIN10_GUID;
+	} else if (astrcmpi(profile, "rext") == 0) {
+		config->profileGUID = NV_ENC_HEVC_PROFILE_FREXT_GUID;
+	} else {
+		config->profileGUID = NV_ENC_HEVC_PROFILE_MAIN_GUID;
+	}
+
+	/* -------------------------- */
+	/* initialize                 */
+
+	if (NV_FAILED(nv.nvEncInitializeEncoder(enc->session, params))) {
+		return false;
+	}
+
+	enc->buf_count = config->frameIntervalP +
+			 config->rcParams.lookaheadDepth + EXTRA_BUFFERS;
+	enc->output_delay = enc->buf_count - 1;
+
+	info("jim-nvenc-hevc settings:\n"
 	     "\trate_control: %s\n"
 	     "\tbitrate:      %d\n"
 	     "\tcqp:          %d\n"
@@ -574,6 +805,9 @@ static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder)
 	enc->encoder = encoder;
 	enc->first_packet = true;
 
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	enc->is_h265_encoder = false;
+
 	/* this encoder requires shared textures, this cannot be used on a
 	 * gpu other than the one OBS is currently running on. */
 	int gpu = (int)obs_data_get_int(settings, "gpu");
@@ -611,6 +845,53 @@ static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder)
 fail:
 	nvenc_destroy(enc);
 	return obs_encoder_create_rerouted(encoder, "ffmpeg_nvenc");
+}
+
+static void *nvenc_hevc_create(obs_data_t *settings, obs_encoder_t *encoder)
+{
+	NV_ENCODE_API_FUNCTION_LIST init = {NV_ENCODE_API_FUNCTION_LIST_VER};
+	struct nvenc_data *enc = bzalloc(sizeof(*enc));
+	enc->encoder = encoder;
+	enc->first_packet = true;
+	enc->is_h265_encoder = true;
+
+	/* this encoder requires shared textures, this cannot be used on a
+	 * gpu other than the one OBS is currently running on. */
+	int gpu = (int)obs_data_get_int(settings, "gpu");
+	if (gpu != 0) {
+		goto fail;
+	}
+
+	if (!obs_nv12_tex_active()) {
+		goto fail;
+	}
+	if (!init_nvenc()) {
+		goto fail;
+	}
+	if (NV_FAILED(nv_create_instance(&init))) {
+		goto fail;
+	}
+	if (!init_d3d11(enc, settings)) {
+		goto fail;
+	}
+	if (!init_session(enc)) {
+		goto fail;
+	}
+	if (!init_encoder_hevc(enc, settings)) {
+		goto fail;
+	}
+	if (!init_bitstreams(enc)) {
+		goto fail;
+	}
+	if (!init_textures(enc)) {
+		goto fail;
+	}
+
+	return enc;
+
+fail:
+	nvenc_destroy(enc);
+	return obs_encoder_create_rerouted(encoder, "ffmpeg_nvenc_hevc");
 }
 
 static bool get_encoded_packet(struct nvenc_data *enc, bool finalize);
@@ -738,11 +1019,20 @@ static bool get_encoded_packet(struct nvenc_data *enc, bool finalize)
 			size_t size;
 
 			enc->first_packet = false;
-			obs_extract_avc_headers(lock.bitstreamBufferPtr,
-						lock.bitstreamSizeInBytes,
-						&new_packet, &size,
-						&enc->header, &enc->header_size,
-						&enc->sei, &enc->sei_size);
+			//PRISM/Wangshaohui/20201230/#3786/support HEVC
+			if (enc->is_h265_encoder) {
+				obs_extract_hevc_headers(
+					lock.bitstreamBufferPtr,
+					lock.bitstreamSizeInBytes, &new_packet,
+					&size, &enc->header, &enc->header_size,
+					&enc->sei, &enc->sei_size);
+			} else {
+				obs_extract_avc_headers(
+					lock.bitstreamBufferPtr,
+					lock.bitstreamSizeInBytes, &new_packet,
+					&size, &enc->header, &enc->header_size,
+					&enc->sei, &enc->sei_size);
+			}
 
 			da_copy_array(enc->packet_data, new_packet, size);
 			bfree(new_packet);
@@ -902,6 +1192,11 @@ static bool nvenc_encode_tex(void *data, uint32_t handle, int64_t pts,
 extern void nvenc_defaults(obs_data_t *settings);
 extern obs_properties_t *nvenc_properties(void *unused);
 
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+extern void nvenc_hevc_defaults(obs_data_t *settings);
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+extern obs_properties_t *nvenc_properties_hevc(void *unused);
+
 static bool nvenc_extra_data(void *data, uint8_t **header, size_t *size)
 {
 	struct nvenc_data *enc = data;
@@ -928,6 +1223,78 @@ static bool nvenc_sei_data(void *data, uint8_t **sei, size_t *size)
 	return true;
 }
 
+//PRISM/ZengQin/20210528/#none/get encoder props params
+static obs_data_t *get_props_params(void *data, bool hevc)
+{
+	if (!data)
+		return NULL;
+
+	struct nvenc_data *enc = data;
+	obs_data_t *settings = obs_encoder_get_settings(enc->encoder);
+	const char *rc = obs_data_get_string(settings, "rate_control");
+	int bitrate = (int)obs_data_get_int(settings, "bitrate");
+	int cqp = (int)obs_data_get_int(settings, "cqp");
+	int keyint_sec = (int)obs_data_get_int(settings, "keyint_sec");
+	const char *preset = obs_data_get_string(settings, "preset");
+	const char *profile = obs_data_get_string(settings, "profile");
+	bool psycho_aq = obs_data_get_bool(settings, "psycho_aq");
+	bool lookahead = obs_data_get_bool(settings, "lookahead");
+	int bf = hevc ? 0 : (int)obs_data_get_int(settings, "bf");
+	obs_data_release(settings);
+
+	if (astrcmpi(rc, "cqp") == 0 || astrcmpi(rc, "lossless") == 0) {
+		if (astrcmpi(rc, "lossless") == 0)
+			cqp = 0;
+		bitrate = 0;
+	}
+
+	video_t *video = obs_encoder_video(enc->encoder);
+	const struct video_output_info *voi = video_output_get_info(video);
+	//PRISM/LiuHaibin/20210803/#9045/add protection division operation
+	uint32_t gop_size = (keyint_sec && voi->fps_den)
+				    ? keyint_sec * voi->fps_num / voi->fps_den
+				    : 250;
+
+	bool twopass = false;
+	if (astrcmpi(preset, "mq") == 0) {
+		twopass = true;
+	}
+
+	GUID codec_guid = hevc ? NV_ENC_CODEC_HEVC_GUID
+			       : NV_ENC_CODEC_H264_GUID;
+	if (!(lookahead &&
+	      nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_LOOKAHEAD, codec_guid))) {
+		lookahead = false;
+	}
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_string(params, "rate_control", rc);
+	obs_data_set_int(params, "bitrate", bitrate);
+	obs_data_set_int(params, "cqp", cqp);
+	obs_data_set_int(params, "keyint", gop_size);
+	obs_data_set_string(params, "preset", preset);
+	obs_data_set_string(params, "profile", profile);
+	obs_data_set_int(params, "width", enc->cx);
+	obs_data_set_int(params, "height", enc->cy);
+	obs_data_set_string(params, "2-pass", twopass ? "true" : "false");
+	obs_data_set_int(params, "bframes", bf);
+	obs_data_set_string(params, "lookahead", lookahead ? "true" : "false");
+	obs_data_set_string(params, "psycho_aq", psycho_aq ? "true" : "false");
+	return params;
+}
+
+//PRISM/ZengQin/20210528/#none/get encoder props params
+static obs_data_t *nvenc_props_prams(void *data)
+{
+	return get_props_params(data, false);
+}
+
+//PRISM/ZengQin/20210528/#none/get encoder props params
+static obs_data_t *nvenc_hevc_props_prams(void *data)
+{
+	return get_props_params(data, true);
+}
+
 struct obs_encoder_info nvenc_info = {
 	.id = "jim_nvenc",
 	.codec = "h264",
@@ -942,4 +1309,25 @@ struct obs_encoder_info nvenc_info = {
 	.get_properties = nvenc_properties,
 	.get_extra_data = nvenc_extra_data,
 	.get_sei_data = nvenc_sei_data,
+	//PRISM/ZengQin/20210528/#none/get encoder props params
+	.props_params = nvenc_props_prams,
+};
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+struct obs_encoder_info jim_nvenc_hevc_info = {
+	.id = "jim_nvenc_hevc",
+	.codec = "hevc",
+	.type = OBS_ENCODER_VIDEO,
+	.caps = OBS_ENCODER_CAP_PASS_TEXTURE | OBS_ENCODER_CAP_DYN_BITRATE,
+	.get_name = nvenc_hevc_get_name,
+	.create = nvenc_hevc_create,
+	.destroy = nvenc_destroy,
+	.update = nvenc_update,
+	.encode_texture = nvenc_encode_tex,
+	.get_defaults = nvenc_hevc_defaults,
+	.get_properties = nvenc_properties_hevc,
+	.get_extra_data = nvenc_extra_data,
+	.get_sei_data = nvenc_sei_data,
+	//PRISM/ZengQin/20210528/#none/get encoder props params
+	.props_params = nvenc_hevc_props_prams,
 };

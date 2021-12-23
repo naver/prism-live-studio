@@ -68,7 +68,7 @@ void OutputSettings::onFormAccepted()
 	}
 }
 
-void OutputSettings::showEvent(QShowEvent *event)
+void OutputSettings::showEvent(QShowEvent *)
 {
 	Config *conf = Config::Current();
 

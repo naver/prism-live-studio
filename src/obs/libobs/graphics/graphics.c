@@ -34,7 +34,7 @@ static inline bool gs_obj_valid(const void *obj, const char *f,
 				const char *name)
 {
 	if (!obj) {
-		blog(LOG_DEBUG, "%s: Null '%s' parameter", f, name);
+		plog(LOG_DEBUG, "%s: Null '%s' parameter", f, name);
 		return false;
 	}
 
@@ -44,7 +44,7 @@ static inline bool gs_obj_valid(const void *obj, const char *f,
 static inline bool gs_valid(const char *f)
 {
 	if (!thread_graphics) {
-		blog(LOG_DEBUG, "%s: called while not in a graphics context",
+		plog(LOG_DEBUG, "%s: called while not in a graphics context",
 		     f);
 		return false;
 	}
@@ -209,7 +209,7 @@ error:
 
 //PRISM/Wang.Chuanjing/20200408/for device rebuild
 int gs_create_cb(graphics_t **pgraphics, const char *module, uint32_t adapter,
-		 void (*callback)(bool render_working))
+		 void (*callback)(int type, int code, void *ext_param))
 {
 	int errcode = GS_ERROR_FAIL;
 
@@ -236,6 +236,40 @@ int gs_create_cb(graphics_t **pgraphics, const char *module, uint32_t adapter,
 		errcode = GS_ERROR_FAIL;
 		goto error;
 	}
+
+	*pgraphics = graphics;
+	return errcode;
+
+error:
+	gs_destroy(graphics);
+	return errcode;
+}
+
+//PRISM/WangChuanjing/20210414/#NoIssue/test module
+int gs_create_for_test(graphics_t **pgraphics, const char *module,
+		       uint32_t adapter, enum gs_engine_test_type test_type,
+		       void (*callback)(int type, int code, void *ext_param))
+{
+	int errcode = GS_ERROR_FAIL;
+
+	graphics_t *graphics = bzalloc(sizeof(struct graphics_subsystem));
+	pthread_mutex_init_value(&graphics->mutex);
+	pthread_mutex_init_value(&graphics->effect_mutex);
+
+	graphics->module = os_dlopen(module);
+	if (!graphics->module) {
+		errcode = GS_ERROR_MODULE_NOT_FOUND;
+		goto error;
+	}
+
+	if (!load_graphics_imports(&graphics->exports, graphics->module,
+				   module))
+		goto error;
+
+	errcode = graphics->exports.device_create_for_test(
+		&graphics->device, adapter, test_type, callback);
+	if (errcode != GS_SUCCESS)
+		goto error;
 
 	*pgraphics = graphics;
 	return errcode;
@@ -385,7 +419,7 @@ void gs_matrix_pop(void)
 		return;
 
 	if (graphics->cur_matrix == 0) {
-		blog(LOG_ERROR, "Tried to pop last matrix on stack");
+		plog(LOG_ERROR, "Tried to pop last matrix on stack");
 		return;
 	}
 
@@ -610,21 +644,21 @@ void gs_render_stop(enum gs_draw_mode mode)
 
 	if (graphics->norms.num &&
 	    (graphics->norms.num != graphics->verts.num)) {
-		blog(LOG_ERROR, "gs_render_stop: normal count does "
+		plog(LOG_ERROR, "gs_render_stop: normal count does "
 				"not match vertex count");
 		num = min_size(num, graphics->norms.num);
 	}
 
 	if (graphics->colors.num &&
 	    (graphics->colors.num != graphics->verts.num)) {
-		blog(LOG_ERROR, "gs_render_stop: color count does "
+		plog(LOG_ERROR, "gs_render_stop: color count does "
 				"not match vertex count");
 		num = min_size(num, graphics->colors.num);
 	}
 
 	if (graphics->texverts[0].num &&
 	    (graphics->texverts[0].num != graphics->verts.num)) {
-		blog(LOG_ERROR, "gs_render_stop: texture vertex count does "
+		plog(LOG_ERROR, "gs_render_stop: texture vertex count does "
 				"not match vertex count");
 		num = min_size(num, graphics->texverts[0].num);
 	}
@@ -728,7 +762,7 @@ static inline bool validvertsize(graphics_t *graphics, size_t num,
 				 const char *name)
 {
 	if (graphics->using_immediate && num == IMMEDIATE_COUNT) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "%s: tried to use over %u "
 		     "for immediate rendering",
 		     name, IMMEDIATE_COUNT);
@@ -856,7 +890,9 @@ gs_effect_t *gs_effect_create_from_file(const char *file, char **error_string)
 
 	file_string = os_quick_read_utf8_file(file);
 	if (!file_string) {
-		blog(LOG_ERROR, "Could not load effect file '%s'", file);
+		char temp[256];
+		os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+		plog(LOG_ERROR, "Could not load effect file '%s'", temp);
 		return NULL;
 	}
 
@@ -916,7 +952,9 @@ gs_shader_t *gs_vertexshader_create_from_file(const char *file,
 
 	file_string = os_quick_read_utf8_file(file);
 	if (!file_string) {
-		blog(LOG_ERROR, "Could not load vertex shader file '%s'", file);
+		char temp[256];
+		os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+		plog(LOG_ERROR, "Could not load vertex shader file '%s'", temp);
 		return NULL;
 	}
 
@@ -937,7 +975,9 @@ gs_shader_t *gs_pixelshader_create_from_file(const char *file,
 
 	file_string = os_quick_read_utf8_file(file);
 	if (!file_string) {
-		blog(LOG_ERROR, "Could not load pixel shader file '%s'", file);
+		char temp[256];
+		os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+		plog(LOG_ERROR, "Could not load pixel shader file '%s'", temp);
 		return NULL;
 	}
 
@@ -1062,13 +1102,14 @@ void gs_draw_sprite(gs_texture_t *tex, uint32_t flip, uint32_t width,
 
 	if (tex) {
 		if (gs_get_texture_type(tex) != GS_TEXTURE_2D) {
-			blog(LOG_ERROR, "A sprite must be a 2D texture");
+			plog(LOG_ERROR, "A sprite must be a 2D texture");
 			return;
 		}
 	} else {
 		if (!width || !height) {
-			blog(LOG_ERROR, "A sprite cannot be drawn without "
-					"a width/height");
+			//PRISM/wang.chuanjing/20201202/#None/for repeated logs
+			//plog(LOG_ERROR, "A sprite cannot be drawn without "
+			//		"a width/height");
 			return;
 		}
 	}
@@ -1098,7 +1139,7 @@ void gs_draw_sprite_subregion(gs_texture_t *tex, uint32_t flip, uint32_t sub_x,
 
 	if (tex) {
 		if (gs_get_texture_type(tex) != GS_TEXTURE_2D) {
-			blog(LOG_ERROR, "A sprite must be a 2D texture");
+			plog(LOG_ERROR, "A sprite must be a 2D texture");
 			return;
 		}
 	}
@@ -1384,7 +1425,7 @@ gs_texture_t *gs_texture_create(uint32_t width, uint32_t height,
 		return NULL;
 
 	if (uses_mipmaps && !pow2tex) {
-		blog(LOG_WARNING, "Cannot use mipmaps with a "
+		plog(LOG_WARNING, "Cannot use mipmaps with a "
 				  "non-power-of-two texture.  Disabling "
 				  "mipmaps for this texture.");
 
@@ -1394,7 +1435,7 @@ gs_texture_t *gs_texture_create(uint32_t width, uint32_t height,
 	}
 
 	if (uses_mipmaps && flags & GS_RENDER_TARGET) {
-		blog(LOG_WARNING, "Cannot use mipmaps with render targets.  "
+		plog(LOG_WARNING, "Cannot use mipmaps with render targets.  "
 				  "Disabling mipmaps for this texture.");
 		flags &= ~GS_BUILD_MIPMAPS;
 		levels = 1;
@@ -1418,7 +1459,7 @@ gs_texture_t *gs_cubetexture_create(uint32_t size,
 		return NULL;
 
 	if (uses_mipmaps && !pow2tex) {
-		blog(LOG_WARNING, "Cannot use mipmaps with a "
+		plog(LOG_WARNING, "Cannot use mipmaps with a "
 				  "non-power-of-two texture.  Disabling "
 				  "mipmaps for this texture.");
 
@@ -1428,7 +1469,7 @@ gs_texture_t *gs_cubetexture_create(uint32_t size,
 	}
 
 	if (uses_mipmaps && flags & GS_RENDER_TARGET) {
-		blog(LOG_WARNING, "Cannot use mipmaps with render targets.  "
+		plog(LOG_WARNING, "Cannot use mipmaps with render targets.  "
 				  "Disabling mipmaps for this texture.");
 		flags &= ~GS_BUILD_MIPMAPS;
 		levels = 1;
@@ -2845,7 +2886,8 @@ bool gs_duplicator_update_frame(gs_duplicator_t *duplicator)
 {
 	if (!gs_valid_p("gs_duplicator_update_frame", duplicator))
 		return false;
-	if (!thread_graphics->exports.gs_duplicator_get_texture)
+	//PRISM/LiuHaibin/20210119/#None/Merge from OBS :https://github.com/obsproject/obs-studio/pull/4030
+	if (!thread_graphics->exports.gs_duplicator_update_frame)
 		return false;
 
 	return thread_graphics->exports.gs_duplicator_update_frame(duplicator);
@@ -2950,7 +2992,7 @@ bool gs_texture_create_nv12(gs_texture_t **tex_y, gs_texture_t **tex_uv,
 		return false;
 
 	if ((width & 1) == 1 || (height & 1) == 1) {
-		blog(LOG_ERROR, "NV12 textures must have dimensions "
+		plog(LOG_ERROR, "NV12 textures must have dimensions "
 				"divisible by 2.");
 		return false;
 	}
@@ -2987,7 +3029,7 @@ gs_stagesurf_t *gs_stagesurface_create_nv12(uint32_t width, uint32_t height)
 		return NULL;
 
 	if ((width & 1) == 1 || (height & 1) == 1) {
-		blog(LOG_ERROR, "NV12 textures must have dimensions "
+		plog(LOG_ERROR, "NV12 textures must have dimensions "
 				"divisible by 2.");
 		return NULL;
 	}
@@ -3042,8 +3084,8 @@ uint64_t gs_texture_get_max_size()
 
 //PRISM/Wangshaohui/20200710/#3370/for take photo
 gs_stagesurf_t *gs_device_canvas_map(uint32_t *cx, uint32_t *cy,
-			  enum gs_color_format *fmt, uint8_t **data,
-			  uint32_t *linesize)
+				     enum gs_color_format *fmt, uint8_t **data,
+				     uint32_t *linesize)
 {
 	graphics_t *graphics = thread_graphics;
 
@@ -3051,8 +3093,8 @@ gs_stagesurf_t *gs_device_canvas_map(uint32_t *cx, uint32_t *cy,
 		return NULL;
 
 	if (graphics->exports.device_canvas_map)
-		return graphics->exports.device_canvas_map(graphics->device,
-							   cx, cy, fmt, data, linesize);
+		return graphics->exports.device_canvas_map(
+			graphics->device, cx, cy, fmt, data, linesize);
 
 	return NULL;
 }
@@ -3067,7 +3109,7 @@ void gs_device_canvas_unmap(gs_stagesurf_t *surface)
 
 	if (graphics->exports.device_canvas_unmap)
 		graphics->exports.device_canvas_unmap(graphics->device,
-							     surface);
+						      surface);
 }
 
 //PRISM/Liu.Haibin/20200708/#3296/for adapter check
@@ -3081,6 +3123,64 @@ bool gs_adapter_get_luid(struct gs_luid *luid)
 	if (graphics->exports.adapter_get_luid)
 		return graphics->exports.adapter_get_luid(graphics->device,
 							  luid);
+
+	return false;
+}
+
+//PRISM/LiuHaibin/20201201/#None/Get hardware info
+gs_adapters_info_t *gs_adapter_get_info()
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid("gs_adapter_get_info"))
+		return NULL;
+
+	if (graphics->exports.adapter_get_info)
+		return graphics->exports.adapter_get_info(graphics->device);
+
+	return NULL;
+}
+
+//PRISM/ZengQin/20210204/#None/check device support dx11
+bool gs_check_device_support_dx11()
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid("gs_check_device_support_dx11"))
+		return false;
+
+	if (graphics->exports.check_device_support_dx11)
+		return graphics->exports.check_device_support_dx11(
+			graphics->device);
+
+	return false;
+}
+
+//PRISM/WangChuanjing/20210915/#None/rebuild test mode
+EXPORT bool gs_set_device_rebuild_status(bool normal)
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid("gs_set_device_rebuild_status"))
+		return false;
+
+	if (graphics->exports.device_set_rebuild_status)
+		return graphics->exports.device_set_rebuild_status(
+			graphics->device, normal);
+
+	return false;
+}
+
+//PRISM/WangChuanjing/20211013/#9974/device valid check
+EXPORT bool gs_get_engine_valid()
+{
+	graphics_t *graphics = thread_graphics;
+
+	if (!gs_valid("device_is_valid"))
+		return false;
+
+	if (graphics->exports.device_is_valid)
+		return graphics->exports.device_is_valid(graphics->device);
 
 	return false;
 }

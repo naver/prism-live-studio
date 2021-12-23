@@ -11,6 +11,11 @@ using namespace std;
 class PLSScheduleCombox : public QPushButton {
 	Q_OBJECT
 public:
+	enum class UesForType {
+		Ty_V_Normal,
+		Ty_H_Normal,
+	};
+
 	explicit PLSScheduleCombox(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSScheduleCombox();
 	void showScheduleMenu(const vector<PLSScheComboxItemData> &datas);
@@ -21,9 +26,9 @@ public:
 
 	void setButtonEnable(bool enable);
 
-	void setupButton(QString title, QString time);
+	void setupButton(const QString title, const QString time);
 	void setupButton(const PLSScheComboxItemData &data);
-	void updateTitle(QString title);
+	void updateTitle(const QString title);
 
 signals:
 	void menuItemClicked(const QString selectData);
@@ -43,8 +48,9 @@ private:
 	void updateStyle(PLSScheduleComboxType type);
 	PLSScheduleComboxMenu *m_scheduleMenu;
 	QLabel *m_detailLabel;
-	QLabel *m_scheduletTitleLabel;
+	QLabel *m_titleLabel;
 	QLabel *m_dropLabel;
+	QString m_titleString = {};
 
 	PLSScheComboxItemData m_showData;
 	QTimer *m_pLeftTimer;
@@ -53,4 +59,5 @@ private:
 protected:
 	void enterEvent(QEvent *event);
 	void leaveEvent(QEvent *event);
+	virtual void resizeEvent(QResizeEvent *event) override;
 };

@@ -15,7 +15,10 @@ set(win-dshow_HEADERS
 	pls-cam-effect/prism-effect-ipc-define.h
 	pls-cam-effect/prism-handle-wrapper.h
 	pls-cam-effect/prism-ipc-buffer.h
-	pls-cam-effect/prism-msg-queue.h)
+	pls-cam-effect/prism-msg-queue.h
+	pls-cam-effect/prism-cam-ground.h
+	pls-cam-effect/prism-cam-ground-item.h
+	pls-cam-effect/prism-cam-ground-def.h)
 
 set(win-dshow_SOURCES
 	win-dshow.cpp
@@ -25,7 +28,9 @@ set(win-dshow_SOURCES
 	pls-cam-effect/prism-cam-effect.cpp
 	pls-cam-effect/prism-handle-wrapper.cpp
 	pls-cam-effect/prism-ipc-buffer.cpp
-	pls-cam-effect/prism-msg-queue.cpp)
+	pls-cam-effect/prism-msg-queue.cpp
+	pls-cam-effect/prism-cam-ground.cpp
+	pls-cam-effect/prism-cam-ground-item.cpp)
 
 set(libdshowcapture_SOURCES
 	libdshowcapture/source/capture-filter.cpp

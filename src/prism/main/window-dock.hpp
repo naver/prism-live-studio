@@ -53,6 +53,7 @@ public:
 
 private:
 	void setButtonPropertiesFromAction(QToolButton *button, QAction *action);
+	void updateTitle(int width, const QString &title = QString());
 
 protected:
 	void mousePressEvent(QMouseEvent *event);

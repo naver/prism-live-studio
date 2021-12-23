@@ -77,7 +77,7 @@ PLSRegionCapture::PLSRegionCapture(QWidget *parent) : QWidget(parent), labelRect
 	penBorder.setWidth(2);
 	penBorder.setColor(selectRectBorderColor);
 
-	connect(qApp, &QGuiApplication::screenAdded, this, [=](QScreen *screen) {
+	connect(qApp, &QGuiApplication::screenAdded, this, [=](QScreen *) {
 		qInfo("screen Added, recalculate frame rect");
 		rectWhole = CalculateFrameSize();
 		this->resize(rectWhole.size());
@@ -96,6 +96,7 @@ PLSRegionCapture::PLSRegionCapture(QWidget *parent) : QWidget(parent), labelRect
 	});
 
 	labelRect = new QLabel(this);
+	labelRect->setAttribute(Qt::WA_TransparentForMouseEvents);
 	labelRect->setObjectName("labelRect");
 	labelRect->setStyleSheet("#labelRect{border:2px solid #effc35;background-color:rgba(255, 255, 255, 0.2);}");
 	labelRect->hide();
@@ -203,8 +204,10 @@ void PLSRegionCapture::mouseMoveEvent(QMouseEvent *event)
 		labelRect->show();
 	}
 	pointMoved = event->pos();
-	SetCurrentPosDpi(mapToGlobal(pointMoved));
-	SetCoordinateValue();
+	if (menuFrame && !menuFrame->isVisible()) {
+		SetCurrentPosDpi(mapToGlobal(pointMoved));
+		SetCoordinateValue();
+	}
 	QWidget::mouseMoveEvent(event);
 }
 
@@ -466,6 +469,8 @@ void PLSRegionCapture::SetMenuCoordinate()
 void PLSRegionCapture::SetCurrentPosDpi(const QPoint &posGlobal)
 {
 	auto screen = QGuiApplication::screenAt(posGlobal);
+	if (!screen)
+		return;
 	auto newDpi = screen->logicalDotsPerInch() / 100.0;
 	if (newDpi != screenDpi) {
 		screenDpi = newDpi;

@@ -40,6 +40,7 @@
 extern double getMonitorDpi(HMONITOR monitor);
 extern HMONITOR getMonitor(PLSWidgetDpiAdapter *adapter);
 extern HMONITOR getMonitor(QWidget *widget);
+extern HMONITOR getPrimaryMonitor();
 
 PLSWidgetDpiAdapter *getDpiAdapter(QWidget *widget)
 {
@@ -235,7 +236,11 @@ inline double getScreenDpi(PLSDpiHelper::Screen *screen)
 
 inline double getScreenDpi(PLSWidgetDpiAdapter *dpiAdapter, PLSDpiHelper::Screen *&screen)
 {
-	screen = (PLSDpiHelper::Screen *)getMonitor(dpiAdapter);
+	if (dpiAdapter->selfWidget()->isVisible()) {
+		screen = (PLSDpiHelper::Screen *)getMonitor(dpiAdapter);
+	} else {
+		screen = (PLSDpiHelper::Screen *)getPrimaryMonitor();
+	}
 	return getScreenDpi(screen);
 }
 
@@ -310,6 +315,23 @@ public:
 	void setStyleSheet(QWidget *widget, const QString &styleSheet) { std::get<6>(getInfo(widget)) = {true, styleSheet}; }
 
 	void setDynamicStyleSheet(QWidget *widget, std::function<QString(double, bool)> dynamicStyleSheetCallback) { std::get<7>(getInfo(widget)) = {true, dynamicStyleSheetCallback}; }
+
+	void updateCssWithParent(QWidget *widget)
+	{
+		if (PLSWidgetDpiAdapter *dpiAdapter = getDpiAdapter(widget); dpiAdapter) {
+			if (QWidget *parent = dpiAdapter->selfWidget()->parentWidget(); parent) {
+				auto dpiAdapterInfo = dpiAdapter->getWidgetDpiAdapterInfo(widget);
+
+				QList<PLSCssIndex> cssIndexes;
+				mergeCss(cssIndexes, dpiAdapterInfo->cssIndexes);
+				mergeCss(cssIndexes, std::get<5>(getInfo(widget)).second);
+
+				QString styleSheet = std::get<6>(getInfo(widget)).second;
+
+				dpiAdapterInfo->dpiHelper(dpiAdapter, PLSDpiHelper::getDpi(parent), cssIndexes, styleSheet);
+			}
+		}
+	}
 
 	void notifyDpiChanged(QWidget *widget, std::function<void(double, double, bool)> callback)
 	{
@@ -755,6 +777,11 @@ void PLSDpiHelper::setStyleSheet(QWidget *widget, const QString &styleSheet)
 void PLSDpiHelper::setDynamicStyleSheet(QWidget *widget, std::function<QString(double, bool)> dynamicStyleSheetCallback)
 {
 	impl->setDynamicStyleSheet(widget, dynamicStyleSheetCallback);
+}
+
+void PLSDpiHelper::updateCssWithParent(QWidget *widget)
+{
+	impl->updateCssWithParent(widget);
 }
 
 void PLSDpiHelper::notifyDpiChanged(QWidget *widget, std::function<void()> callback)

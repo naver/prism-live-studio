@@ -29,8 +29,10 @@ public:
 	PLSNetworkReplyBuilder &setKnownHeaders(const QMap<QNetworkRequest::KnownHeaders, QVariant> &headers);
 
 	PLSNetworkReplyBuilder &setCookie(const QVariant &value);
+	PLSNetworkReplyBuilder &setCookie(const QList<QVariant> &value);
 	PLSNetworkReplyBuilder &setContentType(const QString &value);
 
+	PLSNetworkReplyBuilder &setDefaultHeaders(const QVariantMap &headers);
 	PLSNetworkReplyBuilder &addRawHeader(const QString &key, const QVariant &value);
 	PLSNetworkReplyBuilder &setRawHeaders(const QVariantMap &headers);
 
@@ -52,8 +54,11 @@ public:
 
 	QNetworkReply *get(QNetworkAccessManager *networkAccessManager = nullptr);
 	QNetworkReply *post(QNetworkAccessManager *networkAccessManager = nullptr);
+	QNetworkReply *post(QHttpMultiPart *multiPart, QNetworkAccessManager *networkAccessManager = nullptr);
 	QNetworkReply *put(QNetworkAccessManager *networkAccessManager = nullptr);
 	QNetworkReply *del(QNetworkAccessManager *networkAccessManager = nullptr);
+	QNetworkReply *patch(QNetworkAccessManager *networkAccessManager = nullptr);
+	QNetworkReply *custom(const char *method, const QByteArray &data = nullptr, QNetworkAccessManager *networkAccessManager = nullptr);
 
 protected:
 	virtual QUrl buildUrl(const QUrl &url);
@@ -65,6 +70,7 @@ protected:
 protected:
 	QUrl url;
 
+	QVariantMap defaultHeaders;
 	QMap<QNetworkRequest::KnownHeaders, QVariant> knownheaders;
 	QVariantMap rawHeaders;
 	QVariantMap querys;

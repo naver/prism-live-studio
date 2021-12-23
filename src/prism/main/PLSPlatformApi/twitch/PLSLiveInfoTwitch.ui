@@ -6,12 +6,12 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>954</width>
-    <height>510</height>
+    <width>950</width>
+    <height>501</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>LiveInfo.Dialog.Title</string>
+   <string>LiveInfo.liveinformation</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
@@ -37,6 +37,9 @@
      <property name="leftMargin">
       <number>25</number>
      </property>
+     <property name="rightMargin">
+      <number>25</number>
+     </property>
      <property name="bottomMargin">
       <number>0</number>
      </property>
@@ -49,6 +52,19 @@
         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
        </property>
       </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>1</width>
+         <height>1</height>
+        </size>
+       </property>
+      </spacer>
      </item>
     </layout>
    </item>
@@ -134,7 +150,7 @@
      <item row="0" column="1">
       <widget class="QLineEdit" name="lineEditTitle">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -225,7 +241,7 @@
       <number>10</number>
      </property>
      <property name="rightMargin">
-      <number>25</number>
+      <number>30</number>
      </property>
      <item>
       <spacer name="horizontalSpacer_3">

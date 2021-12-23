@@ -20,6 +20,7 @@ public:
 		setObjectName("itemLabel");
 		setProperty("isCurrent", false);
 		setProperty("isHover", false);
+		setAttribute(Qt::WA_AlwaysShowToolTips);
 	}
 
 public:
@@ -52,6 +53,12 @@ public:
 		width -= listView->scrollBarShow() ? listView->verticalScrollBar()->width() : 0;
 		QString text = fontMetrics().elidedText(originalText, Qt::ElideRight, width - PLSDpiHelper::calculate(this, 13) * 2);
 		QLabel::setText(text);
+
+		if (originalText != this->text()) {
+			setToolTip(originalText);
+		} else {
+			setToolTip("");
+		}
 	}
 
 protected:
@@ -88,7 +95,10 @@ protected:
 				auto index = model->index(row, 0);
 				PLSComboBoxListViewLabel *label = dynamic_cast<PLSComboBoxListViewLabel *>(listView->indexWidget(index));
 				if (label) {
+					QRect geometry = listView->visualRect(index);
+					geometry.setWidth(listView->contentsRect().width());
 					label->updateText(widget->width());
+					label->setGeometry(geometry);
 				}
 			}
 		}
@@ -201,7 +211,8 @@ PLSComboBox::PLSComboBox(QWidget *parent) : QComboBox(parent)
 {
 	isAnimateCombo = qApp->isEffectEnabled(Qt::UI_AnimateCombo);
 
-	auto listView = new PLSComboBoxListView();
+	auto listView = new PLSComboBoxListView(this);
+	listView->setObjectName("PLSComboBoxListView");
 	PLSComboBoxListViewResize *resizeEvent = new PLSComboBoxListViewResize(listView, this);
 
 	setView(listView);
@@ -211,6 +222,16 @@ PLSComboBox::PLSComboBox(QWidget *parent) : QComboBox(parent)
 	setMaxVisibleItems(5);
 }
 PLSComboBox ::~PLSComboBox() {}
+
+QSize PLSComboBox::sizeHint() const
+{
+	return QSize(0, QComboBox::sizeHint().height());
+}
+
+QSize PLSComboBox::minimumSizeHint() const
+{
+	return QSize(0, QComboBox::minimumSizeHint().height());
+}
 
 void PLSComboBox::showPopup()
 {
@@ -223,7 +244,8 @@ void PLSComboBox::showPopup()
 		}
 	}
 
-	qApp->setEffectEnabled(Qt::UI_AnimateCombo, false);
+	//Liuying 2020/12/10 #5740
+	//qApp->setEffectEnabled(Qt::UI_AnimateCombo, false);
 	QComboBox::showPopup();
 	emit popupShown(true);
 
@@ -247,7 +269,7 @@ void PLSComboBox::wheelEvent(QWheelEvent *event)
 	event->ignore();
 }
 
-void PLSComboBox::paintEvent(QPaintEvent *event)
+void PLSComboBox::paintEvent(QPaintEvent *)
 {
 	QStylePainter painter(this);
 	painter.setPen(palette().color(QPalette::Text));

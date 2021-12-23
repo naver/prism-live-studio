@@ -36,6 +36,14 @@
 #include "obs-properties.h"
 #include "obs-interaction.h"
 
+//PRISM/Wangshoahui/20201201/#None/get hardware info
+#include "pls/hardware-info.h"
+
+//PRISM/LiuHaibin/20210729/#None/Monitor PC power
+#ifdef _WIN32
+#include "pls/win-power-monitor.h"
+#endif
+
 struct matrix4;
 
 /* opaque types */
@@ -82,8 +90,14 @@ typedef struct obs_weak_service obs_weak_service_t;
 #include "obs-hotkey.h"
 
 //PRISM/WangShaohui/20201015/NoIssue/for debugging log
-#define TRACE_INPUT_SOURCE "[TRACE-SOURCE] "
-#define TRACE_OUTPUT_EVENT "[TRACE-OUTPUT] "
+#define TRACE_INPUT_SOURCE "[TRACE-SOURCE]"
+#define TRACE_OUTPUT_EVENT "[TRACE-OUTPUT]"
+#define TRACE_ENCODER "[TRACE-ENCODER]"
+
+//PRISM/LiuHaibin/20210311/#None/Debug performance of mobile source
+#ifdef _DEBUG
+#define ENABLE_MOBILE_SOURCE_PERFORMANCE_STATS
+#endif
 
 /**
  * @file
@@ -146,12 +160,53 @@ enum obs_bounds_type {
 };
 
 //PRISM/WangShaohui/20200707/#3254/notify source event
-enum obs_source_exception_type {
+enum obs_source_event_type {
 	OBS_SOURCE_EXCEPTION_NONE = 0,
 	OBS_SOURCE_EXCEPTION_SENSETIME,
 	OBS_SOURCE_EXCEPTION_D3D,
+	//PRISM/Xiewei/20210429/#7810/To handle device stop pushing frame.
+	OBS_SOURCE_EXCEPTION_VIDEO_DEVICE,
 	OBS_SOURCE_EXCEPTION_NO_FILE,
-	OBS_SOURCE_EXCEPTION_PROCESS_EXIT,
+	OBS_SOURCE_EXCEPTION_BG_FILE_ERROR,
+	OBS_SOURCE_SENSEAR_ACTION,
+	OBS_SOURCE_EXCEPTION_BG_FILE_NETWORK_ERROR,
+	OBS_SOURCE_VIRTUAL_BACKGROUND_STATUS,
+	//PRISM/Liuying/20200126/add event
+	OBS_SOURCE_CREATED_FINISHED,
+	OBS_SOURCE_DEVICE_UNSTABLE,
+	OBS_SOURCE_DEVICE_ACTION,
+	OBS_SOURCE_VST_CHANGED,
+	//PRISM/Zhangdewen/20211015/#/Chat Source Event
+	OBS_SOURCE_CHAT_UPDATE_PARAMS,
+
+};
+
+//PRISM/WangChuanjing/20200624/cam-process error subcode
+enum obs_source_exception_sub_code {
+	OBS_SOURCE_EXCEPTION_SUB_CODE_UNKNOWN = 0,
+	OBS_SOURCE_EXCEPTION_SUB_CODE_LICENSE_NOT_EXIST,
+	OBS_SOURCE_EXCEPTION_SUB_CODE_LICENSE_EXPIRE,
+	OBS_SOURCE_EXCEPTION_SUB_CODE_NETWORK_ERROR,
+};
+
+//PRISM/WangChuanjing/20210311/#6941/notify engine status
+enum obs_render_engine_notify {
+	OBS_ENGINE_E_UNKNOWN = -1,
+	OBS_ENGINE_E_OUTOFMEMORY = 0,
+	OBS_ENGINE_E_INVALIDARG,
+	OBS_ENGINE_E_ACCESS_DENIED,
+	OBS_ENGINE_E_DEVICE_HUNG,
+	OBS_ENGINE_E_DEVICE_REMOVED,
+	OBS_ENGINE_E_DEVICE_UNSUPPORTED,
+	OBS_ENGINE_E_REBUILD_FAILED,
+};
+
+//PRISM/Zhangdewen/20211015/#/Chat Source Event
+enum obs_chat_update_params_notify_sub_code {
+	OBS_SOURCE_CHAT_UPDATE_PARAMS_SUB_CODE_UPDATE,
+	OBS_SOURCE_CHAT_UPDATE_PARAMS_SUB_CODE_EDIT_START,
+	OBS_SOURCE_CHAT_UPDATE_PARAMS_SUB_CODE_LOADED,
+	OBS_SOURCE_CHAT_UPDATE_PARAMS_SUB_CODE_CHECK_LIVE,
 };
 
 struct obs_transform_info {
@@ -263,11 +318,13 @@ struct obs_source_frame {
 	bool prev_frame;
 
 	//PRISM/LiuHaibin/20200609/#3174/camera effect
-	bool ori_img_flip;
 	uint64_t sys_timestamp;
 
 	//PRISM/LiuHaibin/20200924/#2174/cover for audio, mark if current frame is cover of audio file
 	bool is_cover;
+
+	//PRISM/LiuHaibin/20210311/#None/Debug performance of mobile source
+	uint64_t async_cache_timestamp; // mark the time that this frame is pushed into async cache
 };
 
 struct obs_source_frame2 {
@@ -285,7 +342,6 @@ struct obs_source_frame2 {
 	bool flip;
 
 	//PRISM/LiuHaibin/20200609/#3174/camera effect
-	bool ori_img_flip;
 	uint64_t sys_timestamp;
 };
 
@@ -406,6 +462,13 @@ EXPORT profiler_name_store_t *obs_get_profiler_name_store(void);
  */
 EXPORT int obs_reset_video(struct obs_video_info *ovi);
 
+//PRISM/WangChuanjing/20210325/#NoIssue/for engine check
+EXPORT int obs_check_init_video(struct obs_video_info *ovi);
+
+//PRISM/WangChuanjing/20210415/#NoIssue/for test module
+EXPORT int obs_engine_check_for_test(struct obs_video_info *ovi,
+				     enum gs_engine_test_type test_type);
+
 /**
  * Sets base audio output format/channels/samples/etc
  *
@@ -471,6 +534,25 @@ EXPORT const char *obs_get_module_binary_path(obs_module_t *module);
 /** Returns the module data path */
 EXPORT const char *obs_get_module_data_path(obs_module_t *module);
 
+//PRISM/Liuying/20210127/for 3rd plugin notification
+EXPORT bool obs_is_internal_loading_module();
+
+//PRISM/Liuying/20210127/for 3rd plugin notification
+EXPORT const char *obs_get_external_loading_module_dll_name();
+
+//PRISM/Liuying/20210127/for 3rd plugin notification
+EXPORT const char *obs_get_external_module_display_name(const char *id);
+EXPORT const char *obs_get_external_module_dll_name(const char *name);
+EXPORT void obs_add_external_module_dll_info(const char *dllName,
+					     const char *id, const char *name);
+typedef void (*obs_enum_external_module_callback_t)(void *param,
+						    const char *dll_name,
+						    const char *source_id);
+EXPORT void
+obs_enum_external_modules(obs_enum_external_module_callback_t callback,
+			  void *param);
+EXPORT bool obs_source_is_external_module(const char *id);
+
 /**
  * Adds a module search path to be used with obs_find_modules.  If the search
  * path strings contain %module%, that text will be replaced with the module
@@ -487,6 +569,9 @@ EXPORT void obs_load_all_modules(void);
 /** Notifies modules that all modules have been loaded.  This function should
  * be called after all modules have been loaded. */
 EXPORT void obs_post_load_modules(void);
+
+//PRISM/Xiewei/20210204/#6651 provide interface to add default modules paths
+EXPORT void obs_add_default_module_paths(void);
 
 #ifndef SWIG
 struct obs_module_info {
@@ -940,13 +1025,21 @@ EXPORT void obs_plugin_get_private_data(const char *id, obs_data_t *data);
  * obs_properties_destroy
  */
 EXPORT obs_properties_t *obs_source_properties(const obs_source_t *source);
+//PRISM/Zhangdewen/20201026/feature/virtual background
+EXPORT obs_properties_t *
+obs_source_private_properties(const obs_source_t *source);
 
 /** Updates settings for this source */
 EXPORT void obs_source_update(obs_source_t *source, obs_data_t *settings);
+//PRISM/Zhangdewen/20201026/feature/virtual background
+// Updates private settings for this source
+EXPORT void obs_source_private_update(obs_source_t *source,
+				      obs_data_t *settings);
 //PRISM/Zhangdewen/20200921/#/chat source
 EXPORT void obs_source_properties_edit_start(obs_source_t *source);
-//PRISM/Zhangdewen/20200921/#/chat source
-EXPORT void obs_source_properties_edit_end(obs_source_t *source);
+//PRISM/RenJinbo/20210713/#/add is save button clicked
+EXPORT void obs_source_properties_edit_end(obs_source_t *source,
+					   bool is_save_click);
 
 /** Renders a video source. */
 EXPORT void obs_source_video_render(obs_source_t *source);
@@ -998,8 +1091,14 @@ EXPORT obs_data_t *obs_source_get_settings(const obs_source_t *source);
 /** Gets the name of a source */
 EXPORT const char *obs_source_get_name(const obs_source_t *source);
 
+//PRISM/WuLongyue/20201210/None/PRISM Mobile source
+EXPORT const char *obs_source_get_name_ext(const obs_source_t *source);
+
 /** Sets the name of a source */
 EXPORT void obs_source_set_name(obs_source_t *source, const char *name);
+
+//PRISM/WuLongyue/20201210/None/PRISM Mobile source
+EXPORT void obs_source_set_name_ext(obs_source_t *source, const char *name);
 
 /** Gets the source type */
 EXPORT enum obs_source_type obs_source_get_type(const obs_source_t *source);
@@ -1125,6 +1224,14 @@ EXPORT obs_source_t *obs_source_get_filter_by_name(obs_source_t *source,
 
 EXPORT void obs_source_copy_filters(obs_source_t *dst, obs_source_t *src);
 
+//PRISM/XieWei/20210429/#6666/for ignore Video Delay(Async) filter when paste,
+//so add a universal callback to judge if the filter should be paste.
+//callback return: paste it if callback returns true otherwise returns false.
+EXPORT void
+obs_source_copy_filters_with_callback(obs_source_t *dst, obs_source_t *src,
+				      bool (*callback)(void *, obs_source_t *),
+				      void *param);
+
 EXPORT bool obs_source_enabled(const obs_source_t *source);
 EXPORT void obs_source_set_enabled(obs_source_t *source, bool enabled);
 
@@ -1193,7 +1300,9 @@ obs_source_get_monitoring_type(const obs_source_t *source);
 
 /** Gets private front-end settings data.  This data is saved/loaded
  * automatically.  Returns an incremented reference. */
-EXPORT obs_data_t *obs_source_get_private_settings(obs_source_t *item);
+EXPORT obs_data_t *obs_source_get_private_settings(const obs_source_t *item);
+//PRISM/Zhangdewen/20201026/feature/virtual background
+EXPORT void obs_source_private_reset(obs_source_t *source);
 
 /* ------------------------------------------------------------------------- */
 /* Functions used by sources */
@@ -1265,6 +1374,12 @@ EXPORT void obs_source_output_audio(obs_source_t *source,
 /** Signal an update to any currently used properties via 'update_properties' */
 EXPORT void obs_source_update_properties(obs_source_t *source);
 
+//PRISM/Zhangdewen/20201126/#/virtual background notify refresh spec property
+EXPORT void obs_source_property_update_notify(obs_source_t *source,
+					      const char *name);
+//PRISM/RenJinbo/20200623/#None/add properties view ok button enable.
+EXPORT void obs_source_properties_view_ok_button_enable(obs_source_t *source,
+							bool enable);
 /** Gets the current async video frame */
 EXPORT struct obs_source_frame *obs_source_get_frame(obs_source_t *source);
 
@@ -1383,10 +1498,11 @@ EXPORT bool obs_source_async_decoupled(const obs_source_t *source);
 EXPORT void obs_source_set_audio_active(obs_source_t *source, bool show);
 EXPORT bool obs_source_audio_active(const obs_source_t *source);
 
-EXPORT uint32_t obs_source_get_last_obs_version(const obs_source_t *source);
+//PRISM/RenJinbo/20210623/#none/private web page add audio source
+EXPORT void obs_private_source_set_audio_active(obs_source_t *source,
+						bool active);
 
-//PRISM/Liuying/20200904/#None/for Music PlayList
-EXPORT void obs_source_set_parent(obs_source_t *source, obs_source_t *parent);
+EXPORT uint32_t obs_source_get_last_obs_version(const obs_source_t *source);
 
 //PRISM/Liuying/20200904/#4943
 EXPORT bool obs_source_is_private(obs_source_t *source);
@@ -1428,6 +1544,19 @@ EXPORT void obs_source_clear_video_cache(obs_source_t *source);
 EXPORT void obs_source_sync_clear(obs_source_t *source);
 //PRISM/LiuHaibin/20201029/#None/media skipped message for BGM
 EXPORT void obs_source_media_skipped(obs_source_t *source, const char *url);
+
+//PRISM/Wang Chuanjing/20201209/#5831/virtual background
+EXPORT bool obs_source_is_async_active(obs_source_t *source);
+//PRISM/Zhangdewen/20211015/#/Chat Source Event
+EXPORT void obs_source_update_extern_params(obs_source_t *source,
+					    const calldata_t *extern_params);
+EXPORT void obs_source_chat_update_extern_params(obs_source_t *source,
+						 const char *cjson,
+						 int sub_code);
+
+//PRISM/WangChuanjing/20211018/#10014/for audio output flag
+EXPORT void obs_source_set_audio_output_flag(obs_source_t *source,
+					     bool output_flag);
 
 /* ------------------------------------------------------------------------- */
 /* Transition-specific functions */
@@ -1718,6 +1847,26 @@ EXPORT void obs_sceneitem_group_enum_items(obs_sceneitem_t *group,
 EXPORT void obs_sceneitem_defer_group_resize_begin(obs_sceneitem_t *item);
 EXPORT void obs_sceneitem_defer_group_resize_end(obs_sceneitem_t *item);
 
+EXPORT void obs_sceneitem_set_show_transition(obs_sceneitem_t *item,
+					      obs_source_t *transition);
+EXPORT void obs_sceneitem_set_show_transition_duration(obs_sceneitem_t *item,
+						       uint32_t duration_ms);
+EXPORT obs_source_t *obs_sceneitem_get_show_transition(obs_sceneitem_t *item);
+EXPORT uint32_t
+obs_sceneitem_get_show_transition_duration(obs_sceneitem_t *item);
+EXPORT void obs_sceneitem_set_hide_transition(obs_sceneitem_t *item,
+					      obs_source_t *transition);
+EXPORT void obs_sceneitem_set_hide_transition_duration(obs_sceneitem_t *item,
+						       uint32_t duration_ms);
+EXPORT obs_source_t *obs_sceneitem_get_hide_transition(obs_sceneitem_t *item);
+EXPORT uint32_t
+obs_sceneitem_get_hide_transition_duration(obs_sceneitem_t *item);
+EXPORT void obs_sceneitem_do_transition(obs_sceneitem_t *item, bool visible);
+EXPORT void obs_sceneitem_transition_load(struct obs_scene_item *item,
+					  obs_data_t *data, bool show);
+EXPORT obs_data_t *obs_sceneitem_transition_save(struct obs_scene_item *item,
+						 bool show);
+
 /* ------------------------------------------------------------------------- */
 /* Outputs */
 
@@ -1869,6 +2018,9 @@ EXPORT void obs_output_set_video_encoder(obs_output_t *output,
  */
 EXPORT void obs_output_set_audio_encoder(obs_output_t *output,
 					 obs_encoder_t *encoder, size_t idx);
+//PRISM/LiuHaibin/20210624/#None/Immersive audio
+EXPORT void obs_output_remove_audio_encoder(obs_output_t *output,
+					    obs_encoder_t *encoder, size_t idx);
 
 /** Returns the current video encoder associated with this output */
 EXPORT obs_encoder_t *obs_output_get_video_encoder(const obs_output_t *output);
@@ -2071,6 +2223,9 @@ EXPORT enum obs_encoder_type obs_encoder_get_type(const obs_encoder_t *encoder);
 EXPORT void obs_encoder_set_scaled_size(obs_encoder_t *encoder, uint32_t width,
 					uint32_t height);
 
+/** For video encoders, returns true if pre-encode scaling is enabled */
+EXPORT bool obs_encoder_scaling_enabled(const obs_encoder_t *encoder);
+
 /** For video encoders, returns the width of the encoded image */
 EXPORT uint32_t obs_encoder_get_width(const obs_encoder_t *encoder);
 
@@ -2167,6 +2322,9 @@ EXPORT void *obs_encoder_create_rerouted(obs_encoder_t *encoder,
 /** Returns whether encoder is paused */
 EXPORT bool obs_encoder_paused(const obs_encoder_t *output);
 
+//PRISM/LiuHaibin/20210906/#None/Pre-check encoders
+EXPORT bool obs_encoder_avaliable(obs_encoder_t *encoder);
+
 /* ------------------------------------------------------------------------- */
 /* Stream Services */
 
@@ -2253,7 +2411,8 @@ EXPORT const char *obs_service_get_output_type(const obs_service_t *service);
 
 /* ------------------------------------------------------------------------- */
 /* Source frame allocation functions */
-EXPORT void obs_source_frame_init(struct obs_source_frame *frame,
+//PRISM/LiuHaibin/20210428/NoIssue/fix breakpoint, return bool result to mark if init succeeded
+EXPORT bool obs_source_frame_init(struct obs_source_frame *frame,
 				  enum video_format format, uint32_t width,
 				  uint32_t height);
 
@@ -2270,9 +2429,17 @@ obs_source_frame_create(enum video_format format, uint32_t width,
 			uint32_t height)
 {
 	struct obs_source_frame *frame;
-
-	frame = (struct obs_source_frame *)bzalloc(sizeof(*frame));
-	obs_source_frame_init(frame, format, width, height);
+	//PRISM/LiuHaibin/20210428/NoIssue/fix breakpoint, return bool result to mark if init succeeded
+	frame = (struct obs_source_frame *)pls_bmalloc(
+		sizeof(struct obs_source_frame), "obs_source_frame_create");
+	if (frame) {
+		if (!obs_source_frame_init(frame, format, width, height)) {
+			bfree(frame);
+			frame = NULL;
+		}
+	}
+	//frame = (struct obs_source_frame *)bzalloc(sizeof(*frame));
+	//obs_source_frame_init(frame, format, width, height);
 	return frame;
 }
 
@@ -2302,8 +2469,16 @@ EXPORT void obs_source_set_capture_valid(obs_source_t *source, bool valid,
 
 //PRISM/WangShaohui/20200707/#3254/notify source event
 EXPORT void obs_source_send_notify(obs_source_t *source,
-				   enum obs_source_exception_type type,
+				   enum obs_source_event_type type,
 				   int sub_code);
+
+//PRISM/WangChuanjing/20210126/for source action event
+EXPORT void obs_source_action_event_notify(obs_source_t *source,
+					   enum obs_source_event_type type,
+					   const char *event1,
+					   const char *event2,
+					   const char *event3,
+					   const char *target);
 
 ////PRISM/WangChuanjing/20200429/#2516/for beauty
 /*signal image state to UI, source valid not equal to getting image success*/
@@ -2336,6 +2511,7 @@ struct obs_watermark_info {
 	/*  watermark file path */
 	char *file_path;
 
+	/* deprecated, use new position parameters */
 	/* position */
 	uint32_t top_margin;
 	uint32_t left_margin;
@@ -2346,6 +2522,11 @@ struct obs_watermark_info {
 	uint64_t fade_in_time_usec;
 	uint64_t fade_out_time_usec;
 	uint64_t interval_usec;
+
+	/* new position parameters */
+	float right_margin_ratio;
+	float bottom_margin_ratio;
+	float scale_ratio;
 };
 
 /** enable or disable watermark */
@@ -2377,6 +2558,9 @@ EXPORT bool obs_thumbnail_retrieve(void **data, uint32_t *width,
 /** free thumbnail data when thumbnail is retrieved */
 EXPORT void obs_thumbnail_free();
 
+//End
+/* ------------------------------------------------------------------------- */
+
 //PRISM/WangShaohui/20200424/NoIssue/for reading texture
 // source: input param
 // map_params: input param
@@ -2393,11 +2577,90 @@ EXPORT void obs_source_unmap_texture(struct texture_map_info *map_info);
 EXPORT void obs_set_system_initialized(bool initialized);
 EXPORT bool obs_get_system_initialized();
 
+//PRISM/Liuying/20201216/#6183/for create display delay
+EXPORT void obs_set_source_is_loading(bool loading);
+EXPORT bool obs_get_source_is_loading();
+
 //PRISM/Liu.Haibin/20201109/#None/get current dbr bitrate
 EXPORT long obs_output_get_dbr_bitrate(obs_output_t *output);
+//PRISM/Liu.Haibin/20201214/#None/get original bitrate
+EXPORT long obs_output_get_orig_bitrate(obs_output_t *output);
+
+//PRISM/Wangshoahui/20201201/#None/get hardware info
+EXPORT void
+obs_get_current_hardware_info(struct obs_hardware_info *output_info);
+
+//PRISM/LiuHaibin/20201208/#None/for buffered duration
+EXPORT void obs_output_get_buffered_duration_usec(obs_output_t *output,
+						  int64_t *v_duration,
+						  int64_t *a_duration);
+//PRISM/LiuHaibin/20210622/#None/Immersive audio
+EXPORT bool obs_output_immersive_audio(obs_output_t *output);
+EXPORT void obs_output_set_immersive_audio(obs_output_t *output,
+					   bool is_immersive_audio);
+
+//PRISM/Wangchuanjing/20201228/#None/chromakey for virtual background
+EXPORT bool obs_source_filter_valid(obs_source_t *source,
+				    const char *filter_id);
+
+//PRISM/Wangchuanjing/20210715/#8724/Invalid GPU resources
+//this function must be invoked in graphics lock
+EXPORT bool obs_render_engine_is_valid();
+
+struct obs_source_texture {
+	uint32_t shared_handle;
+	gs_texture_t *shared_texture;
+	uint32_t width;
+	uint32_t height;
+	uint64_t timestamp;
+	enum gs_color_format format;
+	bool flip;
+	volatile long refs;
+	struct gs_luid luid;
+};
+
+EXPORT void
+obs_source_output_shared_texture(obs_source_t *source,
+				 struct obs_source_texture *texture);
 
 //End
 /* ------------------------------------------------------------------------- */
+
+//PRISM/LiuHaibin/20210406/#None/return if source should be invisible on main view
+EXPORT bool obs_source_invisible_on_main_view(const obs_source_t *source);
+
+//PRISM/ZengQin/20210415/#none/test module for source
+EXPORT void obs_source_custom_test(const obs_source_t *source);
+
+//PRISM/ZengQin/20210413/#7579/reset transition sources.
+EXPORT void obs_transition_reset_sources(obs_source_t *transition);
+
+//PRISM/ZengQin/20210526/#none/Get important source properties parameters
+EXPORT obs_data_t *obs_source_get_props_params(obs_source_t *source);
+
+//PRISM/ZengQin/20210526/#none/Get encoder properties parameters
+EXPORT obs_data_t *obs_encoder_get_props_params(obs_encoder_t *encoder);
+//PRISM/RenJinbo/20210603/#none/timer source feature
+EXPORT void obs_source_dispatch_cef_js(const obs_source_t *source,
+				       const char *eventName,
+				       const char *jsContent);
+
+//PRISM/RenJinbo/20210621/#none/private web page receive web msg
+EXPORT void obs_source_cef_received_web_msg(const obs_source_t *source,
+					    const char *msg);
+
+//PRISM/Wangshaohui/20210716/#none/add func to help debug texture
+EXPORT bool obs_save_target_to_bmp(gs_texture_t *target, char *path, bool flip);
+
+//PRISM/LiuHaibin/20210811/#9237/Get encoder's ref count
+EXPORT long obs_encoder_ref_count(const obs_encoder_t *encoder);
+
+//PRISM/Wangshaohui/20211015/#none/open borderless by GPOP
+EXPORT void obs_set_wgc_borderless_enable(bool enable);
+EXPORT bool obs_get_wgc_borderless_enable();
+
+//PRISM/Zengqin/20211018/#none/get audio output info
+EXPORT void obs_audio_output_get_info(uint32_t *samples_per_sec, int *speakers);
 
 #ifdef __cplusplus
 }

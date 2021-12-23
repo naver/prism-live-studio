@@ -15,18 +15,16 @@ class QCefBrowserClient : public CefClient,
 			  public CefContextMenuHandler {
 
 public:
-	// OBS Modification:
-	// Zhang dewen / 20200211 / Related Issue ID=347
-	// Reason: store request headers
-	// Solution: modify request headers
-	inline QCefBrowserClient(
-		QCefWidgetInternal *widget_, const std::string &script_,
-		bool allowAllPopups_,
-		const std::map<std::string, std::string> &headers_)
-		: widget(widget_),
-		  script(script_),
-		  allowAllPopups(allowAllPopups_),
-		  headers(headers_)
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	inline QCefBrowserClient(QCefWidgetInner *inner)
+		: QCefBrowserClient(inner, inner)
+	{
+	}
+
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	inline QCefBrowserClient(QCefWidgetInner *browserInner_,
+				 QCefWidgetInner *checkInner_)
+		: browserInner(browserInner_), checkInner(checkInner_)
 	{
 	}
 
@@ -78,15 +76,9 @@ public:
 				   CefEventHandle os_event,
 				   bool *is_keyboard_shortcut) override;
 
-	QCefWidgetInternal *widget = nullptr;
-	std::string script;
-	bool allowAllPopups;
-
-	// OBS Modification:
-	// Zhang dewen / 20200211 / Related Issue ID=347
-	// Reason: store request headers
-	// Solution: modify request headers
-	std::map<std::string, std::string> headers;
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	QCefWidgetInner *browserInner = nullptr;
+	QCefWidgetInner *checkInner = nullptr;
 
 	// OBS Modification:
 	// wu.longyue@navercorp.com / 20200228 / new feature
@@ -118,4 +110,25 @@ public:
 			     CefRefPtr<CefFrame> frame,
 			     CefRefPtr<CefContextMenuParams> params,
 			     int command_id, EventFlags event_flags) override;
+	//PRISM/Zhangdewen/20210601/#/optimization, exception restart
+	virtual void OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+					       TerminationStatus status);
+};
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+class QPLSBrowserPopupClient : public QCefBrowserClient {
+	friend class QCefBrowserClient;
+	friend class QCefWidgetInner;
+	friend class QCefWidgetImpl;
+
+private:
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	inline QPLSBrowserPopupClient(QPLSBrowserPopupDialog *dialog)
+		: QCefBrowserClient(dialog->getBrowserInner(),
+				    dialog->getCheckInner())
+	{
+	}
+
+	virtual void OnAfterCreated(CefRefPtr<CefBrowser> browser) override;
+	virtual bool DoClose(CefRefPtr<CefBrowser> browser) override;
 };

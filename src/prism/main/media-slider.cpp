@@ -110,3 +110,9 @@ bool MediaSlider::isMediaSliderEnabled()
 {
 	return enabled;
 }
+
+void MediaSlider::focusOutEvent(QFocusEvent *event)
+{
+	emit mediaSliderFocusOut();
+	QSlider::focusOutEvent(event);
+}

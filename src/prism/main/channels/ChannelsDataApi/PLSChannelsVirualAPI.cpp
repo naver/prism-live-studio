@@ -5,7 +5,6 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QUUid>
-#include <QThread>
 #include "ChannelCommonFunctions.h"
 #include "ChannelConst.h"
 #include "ChannelsSettingsWidget.h"
@@ -30,21 +29,18 @@ using namespace ChannelData;
 
 #define BOOL_To_STR(x) (x) ? "true" : "false"
 
-struct HotKeyLocker {
-	HotKeyLocker() { App()->DisableHotkeys(); }
-	~HotKeyLocker() { App()->UpdateHotkeyFocusSetting(true); }
-};
-
 void showLiveInfo(const QString &uuid)
 {
 	auto info = PLSCHANNELS_API->getChannelInfo(uuid);
 	if (info.isEmpty()) {
 		return;
 	}
+	QString tmp = uuid;
 	pls_exec_live_Info(info);
-	auto newInfo = PLSCHANNELS_API->getChannelInfo(uuid);
+
+	auto newInfo = PLSCHANNELS_API->getChannelInfo(tmp);
 	if (newInfo != info) {
-		PLSCHANNELS_API->channelModified(uuid);
+		PLSCHANNELS_API->channelModified(tmp);
 	}
 }
 
@@ -89,9 +85,9 @@ bool updateChannelInfoFromNet(const QString &uuid)
 	return true;
 }
 
-void sortInfosByNickName(InfosList &infos)
+void sortInfosByKey(InfosList &infos, const QString &sortKey)
 {
-	auto isLessThan = [](const QVariantMap &left, const QVariantMap &right) { return QString::localeAwareCompare(getInfo(left, g_nickName), getInfo(right, g_nickName)) < 0; };
+	auto isLessThan = [&](const QVariantMap &left, const QVariantMap &right) { return QString::localeAwareCompare(getInfo(left, sortKey), getInfo(right, sortKey)) < 0; };
 	std::sort(infos.begin(), infos.end(), isLessThan);
 }
 
@@ -140,21 +136,20 @@ void removeNotExist(const InfosList &oldInfos, const InfosList &taskInfos)
 	}
 }
 
-void handleUpdateRet(const InfosList &infos)
+void handleUpdateRet(InfosList &sortedInfos)
 {
-	if (infos.isEmpty()) {
+	if (sortedInfos.isEmpty()) {
 		endRefresh();
 		return;
 	}
-	auto sortedInfos = infos;
-	sortInfosByNickName(sortedInfos);
+	auto platformName = getInfo(sortedInfos.first(), g_platformName);
 
 	InfosList taskInfos;
-	auto platformName = getInfo(sortedInfos.first(), g_channelName);
 	bool isMulti = PLSCHANNELS_API->isPlatformMultiChildren(platformName);
 	auto oldInfos = PLSCHANNELS_API->getChanelInfosByPlatformName(platformName, ChannelType);
 	int currentTransactionType = PLSCHANNELS_API->currentTransactionCMDType();
 	int newInfoCount = sortedInfos.count();
+
 	for (int i = 0; i < newInfoCount; ++i) {
 		auto &newInfo = sortedInfos[i];
 		newInfo[g_isLeader] = (i == 0 ? true : false);
@@ -175,7 +170,7 @@ void handleUpdateRet(const InfosList &infos)
 		};
 		if (!isMulti) {
 			doUpdateChannelInfo(newInfo);
-			goto finish;
+			break;
 		}
 
 		newInfo.remove(g_displayState);
@@ -208,7 +203,7 @@ void handleUpdateRet(const InfosList &infos)
 	}
 
 	//to do delete work
-	if (isMulti) {
+	if (isMulti || oldInfos.size() != taskInfos.size()) {
 		removeNotExist(oldInfos, taskInfos);
 	}
 
@@ -222,7 +217,6 @@ finish:
 	}
 
 	endRefresh();
-	PLSCHANNELS_API->sigAllChannelRefreshDone();
 }
 
 bool handleChannelStatus(const QVariantMap &info)
@@ -256,31 +250,33 @@ bool handleChannelStatus(const QVariantMap &info)
 	} break;
 	case LoginError: {
 		QVariantMap errormap;
-		errormap.insert(g_errorTitle, CHANNELS_TR(Check.Alert.Title));
+		errormap.insert(g_errorTitle, QObject::tr("Alert.Title"));
 		errormap.insert(g_errorString, CHANNELS_TR(Check.Login.Error));
 		PLSCHANNELS_API->addError(errormap);
 		bool isUpdated = getInfo(info, g_isUpdated, false);
 		PLSCHANNELS_API->sigTryRemoveChannel(uuid, isUpdated, false);
-
+		if (!isUpdated) {
+			emit PLSCHANNELS_API->channelCreateError(uuid);
+		}
 	} break;
 	case Error: {
-		int errorType = getInfo(info, g_errorType, NetWorkErrorType::NetWorkNoStable);
-		addErrorForType(errorType);
-
+		addErrorFromInfo(info);
 		bool isUpdated = getInfo(info, g_isUpdated, false);
 		if (!isUpdated) {
 			PLSCHANNELS_API->sigTryRemoveChannel(uuid, false, false);
+			emit PLSCHANNELS_API->channelCreateError(uuid);
 		}
 	} break;
 	case Valid: {
 		auto displayname = getInfo(info, g_nickName);
 		if (displayname.isEmpty()) {
-			auto platform = getInfo(info, g_channelName);
+			auto platform = getInfo(info, g_platformName);
 			PRE_LOG_MSG(QString("empty nick name:" + platform).toStdString().c_str(), ERROR);
 			addErrorForType(NetWorkErrorType::UnknownError);
 			break;
 		}
 		{
+			PLSCHANNELS_API->setValueOfChannel(uuid, g_isUserAsked, false);
 			isContinue = true;
 			FinishTaskReleaser releaser(uuid);
 		}
@@ -305,19 +301,28 @@ bool updateChannelTypeFromNet(const QString &uuid)
 		return true;
 	}
 
-	QString name = getInfo(info, g_channelName, QString());
+	QString platformName = getInfo(info, g_platformName, QString());
 
-	if (!PLSCHANNELS_API->isPlatformEnabled(name)) {
-		PLSCHANNELS_API->removeChannelsByPlatformName(name, ChannelType, true, false);
+	if (!PLSCHANNELS_API->isPlatformEnabled(platformName)) {
+		PLSCHANNELS_API->removeChannelsByPlatformName(platformName, ChannelType, true, false);
 		PLSCHANNELS_API->addingHold(false);
 		return true;
 	}
 
-	auto handler = PLSCHANNELS_API->getPlatformHandler(name);
+	auto handler = PLSCHANNELS_API->getPlatformHandler(platformName);
 	if (handler) {
 		PLSCHANNELS_API->release();
-		if (!handler->tryToUpdate(info, handleUpdateRet)) {
-			PRE_LOG_MSG(QString("Error on update platform:" + name).toStdString().c_str(), ERROR);
+		bool isUpdated = getInfo(info, g_isUpdated, false);
+		auto updateFun = [=](const InfosList &srcList) {
+			InfosList tmpList = srcList;
+			// reset display order string ,reset display line1 line 2
+			handler->updateDisplayInfo(tmpList);
+			sortInfosByKey(tmpList, g_sortString);
+			handleUpdateRet(tmpList);
+		};
+		PRE_LOG_MSG_STEP("try get channel info :" + platformName, isUpdated ? g_updateChannelStep : g_addChannelStep, INFO);
+		if (!handler->tryToUpdate(info, updateFun)) {
+			PRE_LOG_MSG(QString("Error on update platform:" + platformName).toStdString().c_str(), ERROR);
 			endRefresh();
 			return false;
 		}
@@ -350,15 +355,16 @@ QVariantMap createErrorMap(int errorType)
 {
 
 	QVariantMap errormap;
+	errormap.insert(g_errorType, errorType);
 	switch (errorType) {
 
 	case NetWorkErrorType::NetWorkNoStable: {
-		errormap.insert(g_errorTitle, CHANNELS_TR(Check.Alert.Title));
-		errormap.insert(g_errorString, CHANNELS_TR(Check.Network.Error));
+		errormap.insert(g_errorTitle, QObject::tr("Alert.Title"));
+		errormap.insert(g_errorString, QTStr("login.check.note.network"));
 	} break;
 	default: {
-		errormap.insert(g_errorTitle, CHANNELS_TR(Check.Alert.Title));
-		errormap.insert(g_errorString, CHANNELS_TR(Check.Network.UnknownError));
+		errormap.insert(g_errorTitle, QObject::tr("Alert.Title"));
+		errormap.insert(g_errorString, QObject::tr("server.unknown.error"));
 	} break;
 	}
 
@@ -369,6 +375,20 @@ void addErrorForType(int errorType)
 {
 	auto errorMap = createErrorMap(errorType);
 	PLSCHANNELS_API->addError(errorMap);
+}
+
+void addErrorFromInfo(const QVariantMap &info)
+{
+	int errorType = getInfo(info, g_errorType, NetWorkErrorType::NetWorkNoStable);
+	if (errorType == NetWorkErrorType::SpecializedError) {
+		QVariantMap errormap;
+		errormap.insert(g_errorType, errorType);
+		errormap.insert(g_errorTitle, getInfo(info, g_errorTitle, QObject::tr("Alert.Title")));
+		errormap.insert(g_errorString, getInfo(info, g_errorString, QObject::tr("server.unknown.error")));
+		PLSCHANNELS_API->addError(errormap);
+		return;
+	}
+	addErrorForType(errorType);
 }
 
 void refreshChannel(const QString &uuid)
@@ -430,15 +450,15 @@ void resetExpiredChannel(const QString &uuid, bool toAsk)
 	}
 	PLSCHANNELS_API->tryRemoveChannel(uuid, true, false);
 
-	auto name = getInfo(info, g_channelName);
+	auto name = getInfo(info, g_platformName);
 	reloginChannel(name, toAsk);
 }
 
 void reloginChannel(const QString &platformName, bool toAsk)
 {
-	HotKeyLocker locker;
 	if (toAsk) {
-		auto ret = PLSAlertView::warning(getMainWindow(), CHANNELS_TR(Confirm), CHANNELS_TR(expiredQuestion).arg(platformName), {{PLSAlertView::Button::Yes, CHANNELS_TR(Yes)}});
+		auto displayPlatform = translatePlatformName(platformName);
+		auto ret = PLSAlertView::warning(getMainWindow(), CHANNELS_TR(Confirm), CHANNELS_TR(expiredQuestion).arg(displayPlatform), {{PLSAlertView::Button::Yes, QObject::tr("OK")}});
 		if (ret != PLSAlertView::Button::Yes) {
 			return;
 		}
@@ -449,7 +469,9 @@ void reloginChannel(const QString &platformName, bool toAsk)
 
 void reloginPrismExpired()
 {
-	return;
+	PLSAlertView::warning(getMainWindow(), QObject::tr("Alert.Title"), QObject::tr("main.message.prism.login.session.expired"));
+	PLSBasic::Get()->setSessionExpired(true);
+	pls_prism_change_over_login_view();
 }
 
 void resetAllChannels()
@@ -503,12 +525,12 @@ void handleEmptyChannel(const QString &uuid)
 	if (isAsked) {
 		return;
 	}
-	auto platformName = getInfo(info, g_channelName);
+	info[g_isUserAsked] = true;
+	auto platformName = getInfo(info, g_platformName);
 	if (platformName == YOUTUBE) {
 		auto ret = PLSAlertView::question(nullptr, CHANNELS_TR(Confirm), CHANNELS_TR(GotoYoutubetoSet),
-						  {{PLSAlertView::Button::Yes, CHANNELS_TR(GotoYoutubeOk)}, {PLSAlertView::Button::Cancel, CHANNELS_TR(Cancel)}}, PLSAlertView::Button::Cancel);
+						  {{PLSAlertView::Button::Yes, CHANNELS_TR(GotoYoutubeOk)}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
 
-		info[g_isUserAsked] = true;
 		if (ret != PLSAlertView::Button::Yes) {
 			return;
 		}
@@ -516,18 +538,17 @@ void handleEmptyChannel(const QString &uuid)
 		return;
 	}
 
-	info[g_isUserAsked] = true;
-	PLSAlertView::warning(getMainWindow(), CHANNELS_TR(Alert), CHANNELS_TR(EmptyChannelMessage));
+	PLSAlertView::warning(getMainWindow(), QObject::tr("Alert.Title"), CHANNELS_TR(EmptyChannelMessage));
 	return;
 }
 
 void addRTMP()
 {
-	HotKeyLocker locker;
 	auto rtmpInfo = createDefaultChannelInfoMap(SELECT, RTMPType);
 	PLSRtmpChannelView *rtmpView = new PLSRtmpChannelView(rtmpInfo, getMainWindow());
 	if (rtmpView->exec() == QDialog::Accepted) {
 		rtmpInfo = rtmpView->SaveResult();
+		rtmpInfo[g_displayLine1] = rtmpInfo[g_nickName];
 		rtmpInfo[g_channelStatus] = QVariant::fromValue(Valid);
 		PLSCHANNELS_API->addChannelInfo(rtmpInfo);
 	}
@@ -536,11 +557,11 @@ void addRTMP()
 
 void editRTMP(const QString &uuid)
 {
-	HotKeyLocker locker;
 	auto channelInfo = PLSCHANNELS_API->getChannelInfo(uuid);
 	PLSRtmpChannelView *rtmpView = new PLSRtmpChannelView(channelInfo, getMainWindow());
 	if (rtmpView->exec() == QDialog::Accepted) {
 		channelInfo = rtmpView->SaveResult();
+		channelInfo[g_displayLine1] = channelInfo[g_nickName];
 		PLSCHANNELS_API->backupInfo(uuid);
 		PLSCHANNELS_API->setChannelInfos(channelInfo, false);
 		PLSCHANNELS_API->sigTryToUpdateChannel(uuid);
@@ -552,37 +573,120 @@ void runCMD(const QString &cmdStr)
 {
 	static bool isBegin = false;
 	if (isBegin) {
-		PRE_LOG_MSG(QString("run add channel twice......" + cmdStr).toStdString().c_str(), INFO);
+		PRE_LOG_MSG_STEP(QString("run add channel twice......" + cmdStr), g_addChannelStep, WARN);
 		return;
 	}
 
 	isBegin = true;
-	PRE_LOG_MSG(QString("run add channel:" + cmdStr).toStdString().c_str(), INFO);
+
 	if (PLSCHANNELS_API->count() >= 100) {
-		HotKeyLocker locker;
-		PLSAlertView::warning(getMainWindow(), CHANNELS_TR(Alert), CHANNELS_TR(MaxChannels));
+		PLSAlertView::warning(getMainWindow(), QObject::tr("Alert.Title"), CHANNELS_TR(MaxChannels));
 		isBegin = false;
 		return;
 	}
 
 	if (cmdStr == CUSTOM_RTMP) {
+		PLSCHANNELS_API->addTransaction(ChannelTransactionsKeys::g_CMDType, ChannelTransactionsKeys::AddChannelCMD);
+		PRE_LOG_MSG_STEP(QString(" show UI add RTMP "), g_addChannelStep, INFO);
 		addRTMP();
+		isBegin = false;
+		return;
+	}
+
+	if (!PLSCHANNELS_API->getChanelInfoRefByPlatformName(cmdStr, ChannelData::ChannelType).isEmpty()) {
+		isBegin = false;
+		return;
+	}
+
+	if (!isCurrentVersionCanDoNext(cmdStr)) {
 		isBegin = false;
 		return;
 	}
 
 	if (gDefaultPlatform.contains(cmdStr, Qt::CaseInsensitive)) {
 		PLSCHANNELS_API->addTransaction(ChannelTransactionsKeys::g_CMDType, ChannelTransactionsKeys::AddChannelCMD);
+		PRE_LOG_MSG_STEP(QString(" show %1 login page ").arg(cmdStr), g_addChannelStep, INFO);
 		QVariantMap channelInfo = createDefaultChannelInfoMap(cmdStr);
 		QJsonObject retObj = QJsonObject::fromVariantMap(channelInfo);
-		if (pls_channel_login(retObj, cmdStr, pls_get_main_view())) {
-			addLoginChannel(retObj);
-		}
+		pls_channel_login_async(
+			[=](bool ok, const QJsonObject &result) mutable {
+				if (ok) {
+					for (const auto &key : result.keys())
+						retObj[key] = result[key];
+					addLoginChannel(retObj);
+				}
+			},
+			cmdStr, pls_get_main_view());
 	}
 
 	isBegin = false;
 }
 
+template<typename Container> bool isCurrentVersionCanDoNext(const Container &platforms, QWidget *parent)
+{
+
+	bool isSurport = true;
+	bool isForce = false;
+
+	//to find not surported platform selected,and count if force update platform exists!
+	QStringList msg;
+	for (const auto &platform : platforms) {
+		auto [isSurportT, isForceT] = PLSCHANNELS_API->isPlatformBeSurportedByCurrentVersion(platform);
+		isSurport = isSurport && isSurportT;
+		isForce = (isForce || isForceT);
+		if (!isSurportT) {
+			msg.append(translatePlatformName(platform));
+		}
+	}
+
+	if (isSurport) {
+		return true;
+	}
+
+	std::sort(msg.begin(), msg.end(), isPlatformOrderLessThan);
+	//to ask user
+	auto question = [parent](const QString &tipInfo) -> bool {
+		return (PLSAlertView::Button::Yes == PLSAlertView::question(parent, QObject::tr("Alert.Title"), tipInfo, PLSAlertView::Button::Yes | PLSAlertView::Button::Cancel));
+	};
+
+	QString tipmsg = isForce ? CHANNELS_TR(needUpdate).arg(msg.join(',')) : CHANNELS_TR(suggestUpdate).arg(msg.join(','));
+	auto isToUpdate = question(tipmsg);
+	//user agree to update
+	if (isToUpdate) {
+		goto DoUpdate;
+	}
+	//user ignore update
+	if (isForce) {
+		return false;
+	}
+	//suggestion ignore
+	return true;
+DoUpdate:
+	auto basic = PLSBasic::Get();
+	basic->CheckUpdate();
+	basic->ShowLoginView();
+	return false;
+}
+
+bool isCurrentVersionCanDoNext(const QVector<QString> &platforms, QWidget *parent)
+{
+	return isCurrentVersionCanDoNext<QVector<QString>>(platforms, parent);
+}
+
+bool isCurrentVersionCanDoNext(const QStringList &platforms, QWidget *parent)
+{
+	return isCurrentVersionCanDoNext<QStringList>(platforms, parent);
+}
+
+bool isCurrentVersionCanDoNext(const QString &platfrom, QWidget *parent)
+{
+	return isCurrentVersionCanDoNext(QStringList{platfrom}, parent);
+}
+
+void showResolutionTips(const QString &platform)
+{
+	QMetaObject::invokeMethod(pls_get_main_view(), "showResolutionTips", Qt::QueuedConnection, Q_ARG(QString, platform));
+}
 /****************streaming ***************************/
 Qt::ConnectionType getInvokeType()
 {
@@ -590,10 +694,28 @@ Qt::ConnectionType getInvokeType()
 	return (QThread::currentThread() != getMainWindow()->thread() ? Qt::BlockingQueuedConnection : Qt::AutoConnection);
 }
 
+bool checkVersion()
+{
+	auto platformsInfo = PLSCHANNELS_API->getCurrentSelectedChannels(ChannelData::ChannelType);
+	QStringList platfroms;
+	auto getPlatforms = [](const QVariantMap &info) -> QString { return getInfo(info, g_platformName); };
+	std::transform(platformsInfo.begin(), platformsInfo.end(), std::back_insert_iterator(platfroms), getPlatforms);
+	if (!isCurrentVersionCanDoNext(platfroms)) {
+		return false;
+	}
+
+	return true;
+}
+
 bool checkChannelsState()
 {
+	bool isTocontinue = true;
+	QMetaObject::invokeMethod(getMainWindow(), checkVersion, getInvokeType(), &isTocontinue);
+	if (!isTocontinue) {
+		return false;
+	}
 	if (PLSCHANNELS_API->currentSelectedCount() == 0) {
-		auto showWarning = []() { PLSAlertView::warning(getMainWindow(), CHANNELS_TR(SelectOneErrorTitle), CHANNELS_TR(ErrorEmptyChannelMessage)); };
+		auto showWarning = []() { PLSAlertView::warning(getMainWindow(), QObject::tr("Alert.Title"), CHANNELS_TR(ErrorEmptyChannelMessage)); };
 		QMetaObject::invokeMethod(getMainWindow(), showWarning, getInvokeType());
 		return false;
 	}
@@ -602,14 +724,29 @@ bool checkChannelsState()
 
 bool startStreamingCheck()
 {
+	if (!checkChannelsState()) {
+		return false;
+	}
+
 	auto mainw = getMainWindow();
 	Q_ASSERT(mainw);
 	bool retVal = false;
 	bool isok = QMetaObject::invokeMethod(mainw, "startStreamingCheck", getInvokeType(), Q_RETURN_ARG(bool, retVal));
 	if (!isok) {
 		PRE_LOG("error :startStreamingCheck", ERROR);
+		return false;
 	}
-	return retVal && isok;
+
+	if (!retVal) {
+		return false;
+	}
+
+	PLSBasic *main = reinterpret_cast<PLSBasic *>(mainw);
+	if (!main->CheckHEVC()) {
+		return false;
+	}
+
+	return true;
 }
 
 bool toGoLive()
@@ -655,6 +792,7 @@ bool startRecordCheck()
 	Q_ASSERT(mainw);
 	bool retVal = false;
 	bool isok = QMetaObject::invokeMethod(mainw, "startRecordCheck", getInvokeType(), Q_RETURN_ARG(bool, retVal));
+
 	if (!isok) {
 		PRE_LOG("error :startRecordCheck ", ERROR);
 	}
@@ -701,7 +839,7 @@ bool toTryStopRecord()
 
 void childExclusive(const QString &channelID)
 {
-	auto platformName = PLSCHANNELS_API->getValueOfChannel(channelID, g_channelName, QString());
+	auto platformName = PLSCHANNELS_API->getValueOfChannel(channelID, g_platformName, QString());
 	if (PLSCHANNELS_API->isPlatformMultiChildren(platformName)) {
 		int myType = PLSCHANNELS_API->getValueOfChannel(channelID, g_data_type, NoType);
 		auto allChildren = PLSCHANNELS_API->getChanelInfosByPlatformName(platformName, myType);
@@ -723,9 +861,9 @@ bool isExclusiveChannel(const QString &uuid)
 
 bool isExclusiveChannel(const QVariantMap &info)
 {
-	auto platName = getInfo(info, g_channelName);
+	auto platName = getInfo(info, g_platformName);
 	auto rtmpUrl = getInfo(info, g_channelRtmpUrl);
-	return platName.contains(NOW) || platName.contains(VLIVE) || rtmpUrl.contains(g_exclusiveRtmpUrl, Qt::CaseInsensitive);
+	return g_exclusivePlatform.contains(platName.trimmed()) || rtmpUrl.contains(QRegularExpression(g_exclusiveRtmpUrl, QRegularExpression::CaseInsensitiveOption));
 }
 
 bool isEnabledExclusiveChannelExist()
@@ -781,7 +919,9 @@ void showShareView(const QString &channelUUID)
 	}
 
 	if (getInfo(info, g_shareUrl).isEmpty() && getInfo(info, g_shareUrlTemp).isEmpty()) {
-		PLSAlertView::warning(getMainWindow(), CHANNELS_TR(Alert), CHANNELS_TR(EmptyShareUrl).arg(getInfo(info, g_channelName)));
+		auto platformName = getInfo(info, g_platformName);
+		auto displayPlatformName = translatePlatformName(platformName);
+		PLSAlertView::warning(getMainWindow(), QObject::tr("Alert.Title"), CHANNELS_TR(EmptyShareUrl).arg(displayPlatformName));
 		return;
 	}
 
@@ -835,7 +975,6 @@ void showNetworkErrorAlert()
 
 void showChannelsSetting(int index)
 {
-	HotKeyLocker locker;
 	auto dialog = new ChannelsSettingsWidget(getMainWindow());
 	dialog->setAttribute(Qt::WA_DeleteOnClose);
 	dialog->setChannelsData(PLSCHANNELS_API->getAllChannelInfo(), index);
@@ -844,7 +983,6 @@ void showChannelsSetting(int index)
 
 void showChannelsSetting(const QString &platform)
 {
-	HotKeyLocker locker;
 	auto dialog = new ChannelsSettingsWidget(getMainWindow());
 	dialog->setAttribute(Qt::WA_DeleteOnClose);
 	dialog->setChannelsData(PLSCHANNELS_API->getAllChannelInfo(), platform);

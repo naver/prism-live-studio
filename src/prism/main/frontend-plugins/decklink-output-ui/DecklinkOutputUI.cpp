@@ -166,7 +166,6 @@ void DecklinkOutputUI::PreviewPropertiesChanged()
 
 // Zhang dewen issue:#2416 merge OBS v25.0.8 code.
 void DecklinkOutputUI::PreviewOutputStateChanged(bool active)
-
 {
 	QString text;
 	if (active) {

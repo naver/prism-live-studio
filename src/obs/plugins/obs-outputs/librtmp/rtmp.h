@@ -136,6 +136,8 @@ extern "C"
         uint32_t m_nBytesRead;
         RTMPChunk *m_chunk;
         char *m_body;
+        //PRISM/LiuHaibin/20210622/#None/Immersive audio
+        uint8_t m_audioType;
     } RTMPPacket;
 
     typedef struct RTMPSockBuf
@@ -413,7 +415,8 @@ extern "C"
     int RTMP_SendClientBW(RTMP *r);
     void RTMP_DropRequest(RTMP *r, int i, int freeit);
     int RTMP_Read(RTMP *r, char *buf, int size);
-    int RTMP_Write(RTMP *r, const char *buf, int size, int streamIdx);
+    //PRISM/LiuHaibin/20210622/#None/add custom_info flag 
+    int RTMP_Write(RTMP *r, const char *buf, int size, int streamIdx, int custom_info);
 
     /* hashswf.c */
     int RTMP_HashSWF(const char *url, unsigned int *size, unsigned char *hash,

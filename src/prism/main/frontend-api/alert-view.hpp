@@ -222,6 +222,10 @@ public:
 	Icon getIcon() const;
 	void setIcon(Icon icon);
 
+	int exec() override;
+
+	void closeNoButton() override;
+
 private slots:
 	void onButtonClicked(QAbstractButton *button);
 	QString GetNameElideString(const QString &name, QWidget *widget);

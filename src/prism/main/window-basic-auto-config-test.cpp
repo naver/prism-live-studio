@@ -981,7 +981,7 @@ void AutoConfigTestPage::NextStage()
 	/* make it skip to bandwidth stage if only set to config recording */
 	if (stage == Stage::Starting) {
 		if (!started) {
-			blog(LOG_INFO, STARTING_SEPARATOR);
+			PLS_INFO(AUDIO_CONFIT_TEST, STARTING_SEPARATOR);
 			started = true;
 		}
 
@@ -1049,7 +1049,7 @@ AutoConfigTestPage::~AutoConfigTestPage()
 	}
 
 	if (started)
-		blog(LOG_INFO, STOPPING_SEPARATOR);
+		PLS_INFO(AUDIO_CONFIT_TEST, STOPPING_SEPARATOR);
 }
 
 void AutoConfigTestPage::initializePage()

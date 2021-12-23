@@ -1,5 +1,7 @@
 #include "json-data-handler.hpp"
 #include <QFile>
+#include <QFileInfo>
+#include <QDir>
 
 bool PLSJsonDataHandler::isValidJsonFormat(const QByteArray &array)
 {
@@ -69,7 +71,9 @@ bool PLSJsonDataHandler::getValue(const QJsonObject &jsonObject, const QString &
 	for (auto tem : jsonObject.keys()) {
 		QJsonValue v = jsonObject.value(tem);
 		if (v.isObject()) {
-			getValue(jsonObject.value(tem).toObject(), key, value);
+			if (getValue(jsonObject.value(tem).toObject(), key, value)) {
+				return true;
+			}
 		} else {
 			if (key == tem) {
 				value = v.toVariant();
@@ -87,7 +91,9 @@ bool PLSJsonDataHandler::getValues(const QJsonObject &jsonObject, const QString 
 	for (auto tem : jsonObject.keys()) {
 		QJsonValue v = jsonObject.value(tem);
 		if (v.isObject()) {
-			getValues(jsonObject.value(tem).toObject(), key, values);
+			if (getValues(jsonObject.value(tem).toObject(), key, values)) {
+				return true;
+			}
 		} else if (v.isArray()) {
 			if (key == tem) {
 				values = v.toArray().toVariantList();
@@ -127,11 +133,14 @@ bool PLSJsonDataHandler::getValues(const QJsonObject &jsonObject, const QString 
 			values = v.toObject().toVariantMap();
 			return true;
 		} else {
-			getValues(jsonObject.value(tem).toObject(), key, values);
+			if (getValues(jsonObject.value(tem).toObject(), key, values)) {
+				return true;
+			}
 		}
 	}
 	return false;
 }
+
 void PLSJsonDataHandler::getArray(const QJsonArray &array, const QString &key, QVariantList &values)
 {
 	for (auto arr : array) {
@@ -146,6 +155,11 @@ void PLSJsonDataHandler::getArray(const QJsonArray &array, const QString &key, Q
 }
 bool PLSJsonDataHandler::saveJsonFile(const QByteArray &array, const QString &path)
 {
+	QDir dir = QFileInfo(path).dir();
+	if (!dir.exists()) {
+		dir.mkpath(dir.absolutePath());
+	}
+
 	QFile file(path);
 	if (!file.open(QFile::WriteOnly | QIODevice::Text)) {
 		return false;

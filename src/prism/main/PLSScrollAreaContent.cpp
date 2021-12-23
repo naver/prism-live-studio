@@ -6,6 +6,7 @@
 #include <QDropEvent>
 #include <QMimeData>
 #include <QDebug>
+#include <math.h>
 
 #include <util/util.hpp>
 #include "pls-app.hpp"
@@ -19,40 +20,50 @@ PLSScrollAreaContent::PLSScrollAreaContent(QWidget *parent) : QWidget(parent)
 
 PLSScrollAreaContent::~PLSScrollAreaContent() {}
 
-int PLSScrollAreaContent::Refresh()
+int PLSScrollAreaContent::Refresh(DisplayMethod displayMethod)
 {
 	double dpi = PLSDpiHelper::getDpi(this);
+	bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
 	//Calculate how many columns you can put in this view
+	int leftSpacing = gridMode ? SCENE_LEFT_SPACING : SCENE_LIST_MODE_LEFT_SPACING;
 	int minWidth = PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_WIDTH + SCENE_ITEM_HSPACING);
-	int columnCount = (this->width() - PLSDpiHelper::calculate(dpi, SCENE_LEFT_SPACING)) / minWidth;
-	if (columnCount <= 0)
-		return 0;
+	int columnCount = (this->width() - PLSDpiHelper::calculate(dpi, leftSpacing)) / minWidth;
+	if (columnCount <= 0 || !gridMode)
+		columnCount = 1;
 
 	int sum = 0, i = 0, currentY = 0;
 	SceneDisplayVector vec = PLSSceneDataMgr::Instance()->GetDisplayVector();
 	for (auto iter = vec.begin(); iter != vec.end(); ++iter, i++) {
 		int rows = i / columnCount;
 		int column = i % columnCount;
-		int x = PLSDpiHelper::calculate(dpi, SCENE_LEFT_SPACING) + column * minWidth;
-		int y = rows * PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_HEIGHT + SCENE_ITEM_VSPACING);
+		int x = PLSDpiHelper::calculate(dpi, leftSpacing) + column * minWidth;
 		PLSSceneItemView *item = iter->second;
+		int realHeight = gridMode ? PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_HEIGHT) : PLSDpiHelper::calculate(dpi, SCENE_ITEM_LIST_MODE_FIX_HEIGHT);
+		int realWidth = gridMode ? PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_WIDTH) : width();
+		int y = rows * (PLSDpiHelper::calculate(dpi, SCENE_ITEM_VSPACING) + realHeight);
 		if (item) {
-			item->setGeometry(x, y, PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_WIDTH), PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_HEIGHT));
+			item->setGeometry(x, y, realWidth, realHeight);
+			item->setFixedHeight(realHeight);
 			item->show();
-			if (i >= SCENE_RENDER_NUMBER) {
+			if (i >= SCENE_RENDER_NUMBER && displayMethod == DisplayMethod::DynamicRealtimeView) {
 				item->SetRenderFlag(false);
 			} else {
-				item->SetRenderFlag(true);
+				item->SetRenderFlag(gridMode);
 			}
 
 			if (item->GetCurrentFlag()) {
-				currentY = PLSDpiHelper::calculate(dpi, (rows * SCENE_ITEM_FIX_HEIGHT));
+				currentY = rows * realHeight;
+				item->OnCurrentItemChanged(true);
+				QRect rect(x, y, realWidth, realHeight);
+				if (this->visibleRegion().contains(rect)) {
+					currentY = SCENE_ITEM_DO_NOT_NEED_AUTO_SCROLL;
+				}
 			}
 		}
 
-		sum = y + PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_HEIGHT);
+		sum = y + realHeight;
 	}
-	setMinimumHeight(sum - PLSDpiHelper::calculate(dpi, SCENE_SCROLL_AREA_SPACING_HEIGHT));
+	setMinimumHeight(sum + 1);
 	return currentY;
 }
 
@@ -94,15 +105,27 @@ void PLSScrollAreaContent::dragMoveEvent(QDragMoveEvent *event)
 		event->accept();
 		isDrag = true;
 		QString data = event->mimeData()->data(SCENE_DRAG_MIME_TYPE).toStdString().c_str();
+		DisplayMethod displayMethod = static_cast<DisplayMethod>(atoi(event->mimeData()->data(SCENE_DRAG_GRID_MODE).toStdString().c_str()));
+		bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
 		int width = data.split(":")[0].toInt();
 		int height = data.split(":")[1].toInt();
 		int row = 0, col = 0;
 
 		//qDebug() << "before direction: row = " << row << ", col = " << col;
-		GetRowColByPos(event->pos().x(), event->pos().y(), width, height, row, col);
-		GetDirectionByPos(event->pos().x(), event->pos().y(), width, height, row, col);
-		//qDebug() << "PLSScrollAreaContent::dropEvent pos: " << event->pos().x() << ", " << event->pos().y();
+		GetRowColByPos(gridMode, event->pos().x(), event->pos().y(), width, height, row, col);
+		SetDrawLineByPos(gridMode, event->pos().x(), event->pos().y(), width, height, row, col);
+
 		//qDebug() << "after  direction: row = " << row << ", col = " << col;
+
+		// auto scroll when go to invisible region
+		QRect rect = visibleRegion().boundingRect();
+		int y = mapToParent(event->pos()).y();
+		double dpi = PLSDpiHelper::getDpi(this);
+		if (y < PLSDpiHelper::calculate(dpi, SCENE_ITEM_AUTO_SCROLL_MARGIN)) {
+			emit DragMoving(event->pos().x(), -height / 8);
+		} else if (y > rect.height() - PLSDpiHelper::calculate(dpi, SCENE_ITEM_AUTO_SCROLL_MARGIN)) {
+			emit DragMoving(event->pos().x(), height / 8);
+		}
 
 		this->update();
 	} else {
@@ -117,28 +140,29 @@ void PLSScrollAreaContent::dropEvent(QDropEvent *event)
 		event->setDropAction(Qt::MoveAction);
 		event->accept();
 		QString data = event->mimeData()->data(SCENE_DRAG_MIME_TYPE).toStdString().c_str();
+		DisplayMethod displayMethod = static_cast<DisplayMethod>(atoi(event->mimeData()->data(SCENE_DRAG_GRID_MODE).toStdString().c_str()));
+		bool gridMode = (displayMethod == DisplayMethod::DynamicRealtimeView || displayMethod == DisplayMethod::ThumbnailView);
 		int width = data.split(":")[0].toInt();
 		int height = data.split(":")[1].toInt();
 		int x = data.split(":")[2].toInt();
 		int y = data.split(":")[3].toInt();
-		//qDebug() << "PLSScrollAreaContent::dropEvent width:height: " << width << ", " << height;
-		//qDebug() << "PLSScrollAreaContent::dropEvent start pos: " << x << ", " << y;
-
 		int appendRow = 0, appendCol = 0, removeRow = 0, removeCol = 0;
-		GetRowColByPos(x, y, width, height, removeRow, removeCol);
+		GetRowColByPos(gridMode, x, y, width, height, removeRow, removeCol);
+		GetRowColByPos(gridMode, event->pos().x(), event->pos().y(), width, height, appendRow, appendCol, true, removeRow);
+		SetDrawLineByPos(gridMode, event->pos().x(), event->pos().y(), width, height, appendRow, appendCol);
 
-		GetRowColByPos(event->pos().x(), event->pos().y(), width, height, appendRow, appendCol);
-		GetDirectionByPos(event->pos().x(), event->pos().y(), width, height, appendRow, appendCol);
-		//qDebug() << "PLSScrollAreaContent::dropEvent pos: " << event->pos().x() << ", " << event->pos().y();
-		//qDebug() << "appendRow = " << appendRow << ", appendCol = " << appendCol;
-		//qDebug() << "removeRow = " << removeRow << ", removeCol = " << removeCol;
-
+		int leftSpacing = gridMode ? SCENE_LEFT_SPACING : SCENE_LIST_MODE_LEFT_SPACING;
+		int hSpacing = gridMode ? SCENE_ITEM_HSPACING : SCENE_ITEM_LIST_MODE_HSPACING;
 		double dpi = PLSDpiHelper::getDpi(this);
-		int minWidth = PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_WIDTH + SCENE_ITEM_HSPACING);
-		int columnCount = (this->width() - PLSDpiHelper::calculate(dpi, SCENE_LEFT_SPACING)) / minWidth;
+		int realWidth = gridMode ? PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_WIDTH) : width;
+		int minWidth = realWidth + PLSDpiHelper::calculate(dpi, hSpacing);
+		int columnCount = (this->width() - PLSDpiHelper::calculate(dpi, leftSpacing)) / minWidth;
+		if (columnCount <= 0 || !gridMode) {
+			columnCount = 1;
+		}
 
 		this->update();
-		PLSSceneDataMgr::Instance()->SwapData(removeRow, removeCol, appendRow, appendCol, columnCount);
+		gridMode ? PLSSceneDataMgr::Instance()->SwapData(removeRow, removeCol, appendRow, appendCol, columnCount) : PLSSceneDataMgr::Instance()->SwapDataInListMode(removeRow, appendRow);
 		emit DragFinished();
 		isDrag = false;
 	} else {
@@ -160,17 +184,23 @@ void PLSScrollAreaContent::resizeEvent(QResizeEvent *event)
 	QWidget::resizeEvent(event);
 }
 
-void PLSScrollAreaContent::GetRowColByPos(const int &x, const int &y, const int &width, const int &height, int &row, int &col)
+void PLSScrollAreaContent::GetRowColByPos(bool gridMode, const int &x, const int &y, const int &width, const int &height, int &row, int &col, bool append, int romoveRow)
 {
-	double dpi = PLSDpiHelper::getDpi(this);
-
-	row = y / PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_HEIGHT);
-
-	int minWidth = PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_WIDTH + SCENE_ITEM_HSPACING);
-	int columnCount = (this->width() - PLSDpiHelper::calculate(dpi, SCENE_LEFT_SPACING)) / minWidth;
-	if (columnCount <= 0)
+	if (!gridMode && append) {
+		GetRowColByPosInListMode(x, y, width, height, row, col, romoveRow);
 		return;
-	col = (x - PLSDpiHelper::calculate(dpi, SCENE_LEFT_SPACING)) / minWidth;
+	}
+
+	row = y / height;
+	int leftSpacing = gridMode ? SCENE_LEFT_SPACING : SCENE_LIST_MODE_LEFT_SPACING;
+	int hSpacing = gridMode ? SCENE_ITEM_HSPACING : SCENE_ITEM_LIST_MODE_HSPACING;
+
+	double dpi = PLSDpiHelper::getDpi(this);
+	int minWidth = width + PLSDpiHelper::calculate(dpi, hSpacing);
+	int columnCount = (this->width() - PLSDpiHelper::calculate(dpi, leftSpacing)) / minWidth;
+	if (columnCount <= 0 || !gridMode)
+		columnCount = 1;
+	col = (x - PLSDpiHelper::calculate(dpi, leftSpacing)) / minWidth;
 
 	int size = PLSSceneDataMgr::Instance()->GetSceneSize();
 	if (row * columnCount + col >= size) {
@@ -178,32 +208,76 @@ void PLSScrollAreaContent::GetRowColByPos(const int &x, const int &y, const int 
 		col = size % columnCount;
 		if (0 == col) {
 			row = row - 1 < 0 ? 0 : row - 1;
-			col = columnCount;
+			col = gridMode ? columnCount : 0;
 		}
 	}
 }
 
-void PLSScrollAreaContent::GetDirectionByPos(const int &x, const int &y, const int &width, const int &height, const int &row, int &col)
+void PLSScrollAreaContent::GetRowColByPosInListMode(const int &x, const int &y, const int &width, const int &height, int &row, int &col, int romoveRow)
+{
+	row = y / height;
+	col = 0;
+	if (romoveRow == row) {
+		return;
+	}
+
+	DragDirection direction = GetDirectionByPos(false, x, y, width, height, row, col);
+	if (direction == DragDirection::Top) {
+		if (romoveRow > row) {
+			row = std::max(0, y / height);
+		} else {
+			row = std::max(0, y / height - 1);
+		}
+	} else {
+		if (romoveRow > row) {
+			row = std::max(0, y / height + 1);
+		} else {
+			row = std::max(0, y / height);
+		}
+	}
+}
+
+DragDirection PLSScrollAreaContent::GetDirectionByPos(bool gridMode, const int &x, const int &y, const int &width, const int &height, const int &row, int &col)
 {
 	double dpi = PLSDpiHelper::getDpi(this);
-
 	DragDirection direction = DragDirection::Unknown;
 
-	int minWidth = PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_WIDTH + SCENE_ITEM_HSPACING);
-	int columnCount = (this->width() - PLSDpiHelper::calculate(dpi, SCENE_LEFT_SPACING)) / minWidth;
-	if (columnCount <= 0)
-		return;
-	int leftTopyPos = row * height + row * PLSDpiHelper::calculate(dpi, SCENE_ITEM_VSPACING); //vspacing
-	int leftTopxPos = PLSDpiHelper::calculate(dpi, SCENE_LEFT_SPACING) + col * (PLSDpiHelper::calculate(dpi, SCENE_ITEM_HSPACING) + width);
+	int hSpacing = gridMode ? SCENE_ITEM_HSPACING : SCENE_ITEM_LIST_MODE_HSPACING;
+	int minWidth = width + PLSDpiHelper::calculate(dpi, hSpacing);
+	int leftSpacing = gridMode ? SCENE_LEFT_SPACING : SCENE_LIST_MODE_LEFT_SPACING;
 
-	//qDebug() << "leftTopxPos = " << leftTopxPos << ", leftTopyPos = " << leftTopyPos;
-	if (x - leftTopxPos > width / columnCount) {
-		//qDebug() << "right";
-		direction = DragDirection::Right;
+	int columnCount = (this->width() - PLSDpiHelper::calculate(dpi, leftSpacing)) / minWidth;
+	if (columnCount <= 0 || !gridMode)
+		columnCount = 1;
+	int leftTopyPos = row * height + row * PLSDpiHelper::calculate(dpi, SCENE_ITEM_VSPACING); //vspacing
+	int leftTopxPos = PLSDpiHelper::calculate(dpi, leftSpacing) + col * (PLSDpiHelper::calculate(dpi, hSpacing) + width);
+
+	if (gridMode) {
+		if (x - leftTopxPos > width / columnCount) {
+			direction = DragDirection::Right;
+		} else {
+			direction = DragDirection::Left;
+		}
 	} else {
-		//qDebug() << "left";
-		direction = DragDirection::Left;
+		if (y - leftTopyPos > height / 2) {
+			direction = DragDirection::Bottom;
+		} else {
+			direction = DragDirection::Top;
+		}
 	}
+	return direction;
+}
+
+void PLSScrollAreaContent::SetDrawLineByPos(bool gridMode, const int &x, const int &y, const int &width, const int &height, const int &row, int &col)
+{
+	double dpi = PLSDpiHelper::getDpi(this);
+	DragDirection direction = GetDirectionByPos(gridMode, x, y, width, height, row, col);
+
+	int hSpacing = gridMode ? SCENE_ITEM_HSPACING : SCENE_ITEM_LIST_MODE_HSPACING;
+	int leftSpacing = gridMode ? SCENE_LEFT_SPACING : SCENE_LIST_MODE_LEFT_SPACING;
+
+	int leftTopyPos = row * height + row * PLSDpiHelper::calculate(dpi, SCENE_ITEM_VSPACING); //vspacing
+	int leftTopxPos = PLSDpiHelper::calculate(dpi, leftSpacing) + col * (PLSDpiHelper::calculate(dpi, hSpacing) + width);
 
 	if (direction == DragDirection::Left) {
 		if (col == 0) {
@@ -213,7 +287,7 @@ void PLSScrollAreaContent::GetDirectionByPos(const int &x, const int &y, const i
 		}
 	}
 
-	if (direction == DragDirection::Right) {
+	else if (direction == DragDirection::Right) {
 		if (col == 0) {
 			leftTopxPos = PLSDpiHelper::calculate(dpi, SCENE_LEFT_SPACING - 5); //hspacing
 		} else {
@@ -221,10 +295,16 @@ void PLSScrollAreaContent::GetDirectionByPos(const int &x, const int &y, const i
 		}
 	}
 
-	SetLinePos(leftTopxPos, leftTopyPos, leftTopxPos, leftTopyPos + PLSDpiHelper::calculate(dpi, SCENE_ITEM_FIX_WIDTH));
+	else if (direction == DragDirection::Bottom) {
+		leftTopyPos = (row + 1) * height + row * PLSDpiHelper::calculate(dpi, SCENE_ITEM_VSPACING);
+	}
 
-	//qDebug() << "lineStartX = " << lineStart.x() << ", lineStartY = " << lineStart.y();
-	//qDebug() << "lineEndX = " << lineEnd.x() << ", lineEndY = " << lineEnd.y();
+	if (direction == DragDirection::Bottom || direction == DragDirection::Top) {
+		SetLinePos(leftTopxPos, leftTopyPos, leftTopxPos + width, leftTopyPos);
+
+	} else {
+		SetLinePos(leftTopxPos, leftTopyPos, leftTopxPos, leftTopyPos + width);
+	}
 }
 
 void PLSScrollAreaContent::SetLinePos(const int &startX, const int &startY, const int &endX, const int &endY)

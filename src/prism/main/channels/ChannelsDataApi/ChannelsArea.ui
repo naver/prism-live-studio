@@ -212,7 +212,7 @@
           <item>
            <widget class="QFrame" name="AddFrameInvisible">
             <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
@@ -252,7 +252,7 @@
                </property>
               </spacer>
              </item>
-             <item>
+             <item alignment="Qt::AlignHCenter">
               <widget class="QRadioButton" name="GotoAddWinButton">
                <property name="sizePolicy">
                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">

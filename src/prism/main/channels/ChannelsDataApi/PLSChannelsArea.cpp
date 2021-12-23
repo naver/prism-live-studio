@@ -39,7 +39,8 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent), ui(new Ui::C
 	ui->MidFrame->installEventFilter(this);
 
 	ui->AddFrameInvisible->setVisible(false);
-	connect(ui->GotoAddWinButton, &QAbstractButton::clicked, this, &PLSChannelsArea::showChannelsAdd, Qt::QueuedConnection);
+	connect(
+		ui->GotoAddWinButton, &QAbstractButton::clicked, this, []() { showChannelsSetting(); }, Qt::QueuedConnection);
 
 	mbusyFrame = new PLSAddingFrame(ui->MidFrame);
 	mbusyFrame->setObjectName("LoadingFrame");
@@ -86,6 +87,8 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent), ui(new Ui::C
 
 	PLSDpiHelper dpiHelper;
 	dpiHelper.notifyDpiChanged(this, [=](double dpi, double oldDpi) { mbusyFrame->resize(mbusyFrame->width() * (dpi / oldDpi), mbusyFrame->height() * (dpi / oldDpi)); });
+
+	this->setDisabled(true);
 }
 
 PLSChannelsArea::~PLSChannelsArea()
@@ -97,7 +100,7 @@ PLSChannelsArea::~PLSChannelsArea()
 void PLSChannelsArea::beginInitChannels()
 {
 	//qDebug() << " time initialize :" << QTime::currentTime();
-	PRE_LOG(InitChannels, INFO);
+	//PRE_LOG(InitChannels UI Begin, INFO);
 	isUiInitialized = false;
 	checkIsEmptyUi();
 	this->holdOnChannelArea(true);
@@ -108,12 +111,14 @@ void PLSChannelsArea::beginInitChannels()
 void PLSChannelsArea::endInitialize()
 {
 	//qDebug() << " time initialize :" << QTime::currentTime();
+	this->setEnabled(true);
 	PLSCHANNELS_API->sigChannelAreaInialized();
 	if (PLSCHANNELS_API->hasError()) {
 		PLSCHANNELS_API->networkInvalidOcurred();
 	}
 	this->holdOnChannelArea(false);
 	isUiInitialized = true;
+	PLSCHANNELS_API->clearOldVersionImages();
 }
 void PLSChannelsArea::initializeNextStep()
 {
@@ -231,9 +236,13 @@ void PLSChannelsArea::scrollNext(bool forwartStep)
 	int width = PLSDpiHelper::calculate(this, 200);
 	int currentV = bar->value();
 	int lastV = currentV + (forwartStep ? -1 : 1) * width;
+	if (lastV < 0) {
+		lastV = 0;
+	}
 	bar->setValue(lastV);
 
 	buttonLimitCheck();
+	PLS_UI_STEP("PLSChannelsArea", "Scroll", QString::number(lastV).toUtf8().constData());
 }
 
 void PLSChannelsArea::ensureCornerChannelVisible(bool forwartStep)
@@ -301,6 +310,14 @@ ChannelCapsulePtr PLSChannelsArea::addChannel(const QVariantMap &channelInfo)
 		channelWid->updateUi();
 	}
 	channelWid->setVisible(isToShow);
+	auto subID = getInfo(channelInfo, g_subChannelId);
+	auto platform = getInfo(channelInfo, g_platformName);
+
+	if (isUiInitialized && PLSCHANNELS_API->currentTransactionCMDType() == ChannelTransactionsKeys::AddChannelCMD) {
+		QString log = QString("Channel UI Added, ID:%1, sub ID:%2, order: %3, platform :%4 ").arg(uuid).arg(subID).arg(order).arg(platform);
+		PRE_LOG_MSG_STEP(log, g_addChannelStep, INFO);
+	}
+
 	return channelWid;
 }
 
@@ -341,11 +358,12 @@ void PLSChannelsArea::updateUi()
 	switch (state) {
 	case ReadyState: {
 		//hold
+		static QVariant locker;
 		if (isHolding) {
 			myChannelsIconBtn->setEnabled(false);
 			ui->MidFrame->setEnabled(false);
 			ui->TailFrame->setEnabled(false);
-			App()->DisableHotkeys();
+			locker.setValue(HotKeyLocker::createHotkeyLocker());
 			break;
 		}
 		//unhold
@@ -354,7 +372,7 @@ void PLSChannelsArea::updateUi()
 			ui->MidFrame->setEnabled(true);
 			myChannelsIconBtn->setEnabled(true);
 			ui->TailFrame->setEnabled(true);
-			App()->UpdateHotkeyFocusSetting(true);
+			locker.clear();
 		}
 
 	} break;
@@ -448,20 +466,20 @@ void PLSChannelsArea::updateChannelUi(const QString &channelUUID)
 
 void PLSChannelsArea::refreshChannels()
 {
-	PRE_LOG_UI(My channels Clicked, PLSChannelsArea);
+	PRE_LOG_UI_MSG_STRING("Refresh [menu] ", "Clicked");
 
 	auto matchedPlaftorms = PLSCHANNELS_API->getAllChannelInfo();
 
 	auto isMatched = [&](const QVariantMap &info) {
-		auto platform = getInfo(info, g_channelName);
+		auto platform = getInfo(info, g_platformName);
 		return g_platformsToClearData.contains(platform, Qt::CaseInsensitive) && getInfo(info, g_data_type, NoType) == ChannelType;
 	};
 	auto ret = std::find_if(matchedPlaftorms.constBegin(), matchedPlaftorms.constEnd(), isMatched);
 
 	if (ret != matchedPlaftorms.constEnd()) {
 
-		auto ret = PLSAlertView::question(this, tr("Live.Check.Alert.Title"), tr("RefreshChannel.DeleteLiveInfo.Alert.Message"),
-						  {{PLSAlertView::Button::Yes, tr("RefreshChannel.DeleteLiveInfo.Alert.Refresh")}, {PLSAlertView::Button::Cancel, CHANNELS_TR(Cancel)}},
+		auto ret = PLSAlertView::question(this, tr("Alert.Title"), tr("RefreshChannel.DeleteLiveInfo.Alert.Message"),
+						  {{PLSAlertView::Button::Yes, tr("RefreshChannel.DeleteLiveInfo.Alert.Refresh")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}},
 						  PLSAlertView::Button::Cancel);
 		if (ret != PLSAlertView::Button::Yes) {
 			return;
@@ -474,9 +492,9 @@ void PLSChannelsArea::refreshChannels()
 void PLSChannelsArea::showChannelsAdd()
 {
 	auto mainW = pls_get_main_view();
-	PRE_LOG_UI(show add channels, PLSChannelsArea);
+	PRE_LOG_UI_MSG_STRING("add channels [Menu]", "Clicked");
 	auto channelsAdd = new ChannelsAddWin(this);
-	channelsAdd->setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
+	channelsAdd->setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint | Qt::FramelessWindowHint);
 	channelsAdd->setAttribute(Qt::WA_DeleteOnClose);
 	channelsAdd->move(mainW->pos());
 	channelsAdd->show();
@@ -518,7 +536,10 @@ void PLSChannelsArea::changeEvent(QEvent *e)
 
 void PLSChannelsArea::wheelEvent(QWheelEvent *event)
 {
-	QPoint numDegrees = event->angleDelta() / 8;
+	QPoint numDegrees = event->angleDelta() / 50;
+	if (numDegrees.y() == 0) {
+		return;
+	}
 	scrollNext(numDegrees.y() > 0);
 	event->accept();
 }
@@ -543,6 +564,12 @@ bool PLSChannelsArea::eventFilter(QObject *watched, QEvent *event)
 	return false;
 }
 
+void PLSChannelsArea::showEvent(QShowEvent *event)
+{
+	QFrame::showEvent(event);
+	QTimer::singleShot(200, this, [this]() { ui->scrollAreaWidgetContents->adjustSize(); });
+}
+
 bool PLSChannelsArea::isScrollButtonsNeeded()
 {
 	ui->scrollAreaWidgetContents->adjustSize();
@@ -557,13 +584,16 @@ void PLSChannelsArea::initializeMychannels()
 	myChannelsIconBtn->setObjectName("MyChannelsIconBtn");
 	myChannelsTxtBtn = new QPushButton(CHANNELS_TR(MyChannel));
 	myChannelsTxtBtn->setObjectName("MyChannelsTxtBtn");
-	ui->HeaderLayout->addWidget(myChannelsTxtBtn, 5);
-	ui->HeaderLayout->addWidget(myChannelsIconBtn, 1);
-	ui->HeaderLayout->addStretch(4);
+	myChannelsTxtBtn->setSizePolicy(QSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed));
+	ui->HeaderLayout->addWidget(myChannelsTxtBtn, 25);
+	ui->HeaderLayout->addWidget(myChannelsIconBtn, 1, Qt::AlignRight | Qt::AlignHCenter);
 
 	auto menu = new QMenu(myChannelsIconBtn);
 	menu->setObjectName("MyChannelsMenu");
-	auto settingAction = menu->addAction(CHANNELS_TR(SettingChannels), this, [=]() { showChannelsSetting(); });
+	auto settingAction = menu->addAction(CHANNELS_TR(SettingChannels), this, [=]() {
+		PRE_LOG_UI_MSG_STRING("My Channels Setting [menu] ", "Clicked");
+		showChannelsSetting();
+	});
 	menu->addAction(CHANNELS_TR(AddChannels), this, &PLSChannelsArea::showChannelsAdd);
 	menu->addAction(CHANNELS_TR(RefreshChannels), this, &PLSChannelsArea::refreshChannels);
 

@@ -25,7 +25,7 @@
 		exports->func = os_dlsym(module, #func);          \
 		if (!exports->func) {                             \
 			success = false;                          \
-			blog(LOG_ERROR,                           \
+			plog(LOG_ERROR,                           \
 			     "Could not load function '%s' from " \
 			     "module '%s'",                       \
 			     #func, module_name);                 \
@@ -47,6 +47,7 @@ bool load_graphics_imports(struct gs_exports *exports, void *module,
 	GRAPHICS_IMPORT_OPTIONAL(device_enum_adapters);
 	GRAPHICS_IMPORT(device_preprocessor_name);
 	GRAPHICS_IMPORT(device_create);
+	GRAPHICS_IMPORT(device_create_for_test);
 
 	//PRISM/Wang.Chuanjing/20200408/for device rebuild
 	GRAPHICS_IMPORT(device_rebuild);
@@ -223,10 +224,21 @@ bool load_graphics_imports(struct gs_exports *exports, void *module,
 	GRAPHICS_IMPORT(device_texture_get_max_size);
 	//PRISM/Liu.Haibin/20200708/#3296/for adapter check
 	GRAPHICS_IMPORT_OPTIONAL(adapter_get_luid);
+	//PRISM/LiuHaibin/20201201/#None/Get hardware info
+	GRAPHICS_IMPORT_OPTIONAL(adapter_get_info);
 
 	//PRISM/Wangshaohui/20200710/#3370/for take photo
 	GRAPHICS_IMPORT(device_canvas_map);
 	GRAPHICS_IMPORT(device_canvas_unmap);
-	 
+
+	//PRISM/ZengQin/20210204/#None/check device support dx11
+	GRAPHICS_IMPORT_OPTIONAL(check_device_support_dx11);
+
+	//PRISM/WangChuanjing/20210915/#None/rebuild test mode
+	GRAPHICS_IMPORT_OPTIONAL(device_set_rebuild_status);
+
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	GRAPHICS_IMPORT_OPTIONAL(device_is_valid);
+
 	return success;
 }

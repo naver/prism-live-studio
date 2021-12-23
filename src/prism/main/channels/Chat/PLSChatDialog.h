@@ -21,11 +21,9 @@ class PLSChatDialog : public PLSDialogView {
 	Q_PROPERTY(bool btnSelected READ getHasCloseButton WRITE setHasCloseButton)
 
 public:
-	explicit PLSChatDialog(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSChatDialog(DialogInfo info, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSChatDialog();
 	void logoutToReInitUI();
-	void onMaxFullScreenStateChanged() override;
-	void onSaveNormalGeometry() override;
 
 private:
 	struct ChatDatas {
@@ -37,7 +35,6 @@ private:
 
 	Ui::PLSChatDialog *ui;
 	void setupFirstUI(PLSDpiHelper dpiHelper);
-	void setInitSize(double dpi, bool inConstructor);
 	void refreshTabButtonCount();
 	void hideOrShowTabButton();
 	void setupFirstRtmpUI(QWidget *parent);
@@ -51,6 +48,7 @@ private:
 	void updateRtmpPlaceText();
 	void updateNewUrlByIndex(PLSChatHelper::ChatPlatformIndex index, const QVariantMap &info);
 
+	void createToasWidget();
 	void showToastIfNeeded();
 	void switchStackWidget(PLSChatHelper::ChatPlatformIndex index);
 
@@ -60,6 +58,7 @@ private:
 
 	//PRISM/Zhangdewen/20200921/#/add chat source button
 	QWidget *createChatSourceButton(QWidget *parent, bool noPlatform);
+	void forceResizeDialog();
 
 signals:
 	void chatShowOrHide(bool show);
@@ -83,9 +82,8 @@ protected:
 	void updateTabPolicy();
 
 private:
-	QTimer m_timerToastHide;
-	QLabel *m_pLabelToast;
-	QPushButton *m_p_ButtonToastClose;
+	QPointer<QLabel> m_pLabelToast;
+	QPushButton *m_pButtonToastClose = nullptr;
 	QCefCookieManager *chat_panel_cookies;
 
 	QLabel *m_rtmpPlaceTextLabel;
@@ -98,6 +96,8 @@ private:
 	bool m_isForceRefresh = true;
 	PLSChatHelper::ChatPlatformIndex m_selectIndex = PLSChatHelper::ChatPlatformIndex::ChatIndexUnDefine;
 	QSpacerItem *m_rightHorizontalSpacer;
+
+	bool m_bShowToastAgain = false;
 };
 
 #endif // PLSCHATDIALOG_H

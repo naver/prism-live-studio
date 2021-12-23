@@ -1,0 +1,125 @@
+{
+  "Description": "PRISM Live Studioを操作します。",
+  "Name": "PRISM Live Studio",
+  "com.naver.streamdeck.pls.mixeraudio": {
+    "Name": "オーディオソース",
+    "Tooltip": "オーディオソースのミュート/ミュート解除",
+    "States": [
+      {
+        "Name": "Active"
+      },
+      {
+        "Name": "Deactive"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.muteall": {
+    "Name": "すべてのオーディオ",
+    "Tooltip": "すべてのオーディオをミュート/ミュート解除",
+    "States": [
+      {
+        "Name": "Active"
+      },
+      {
+        "Name": "Deactive"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.record": {
+    "Name": "録画",
+    "Tooltip": "録画開始/終了",
+    "States": [
+      {
+        "Name": "Start"
+      },
+      {
+        "Name": "Stop"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.scene": {
+    "Name": "シーントランジション",
+    "Tooltip": "シーントランジション"
+  },
+  "com.naver.streamdeck.pls.source": {
+    "Name": "ソース",
+    "Tooltip": "ソースを非表示/表示",
+    "States": [
+      {
+        "Name": "Active"
+      },
+      {
+        "Name": "Deactive"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.stream": {
+    "Name": "配信",
+    "Tooltip": "配信開始/終了",
+    "States": [
+      {
+        "Name": "Start"
+      },
+      {
+        "Name": "Stop"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.sidewindow": {
+    "Name": "サイドバーメニュー",
+    "Tooltip": "サイドバーメニューON/OFF",
+    "States": [
+      {
+        "Name": "Open"
+      },
+      {
+        "Name": "Close"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.cpuusage": {
+    "Name": "CPU",
+    "Tooltip": "CPU"
+  },
+  "com.naver.streamdeck.pls.studiomode": {
+    "Name": "スタジオモード",
+    "Tooltip": "スタジオモードON/OFF",
+    "States": [
+      {
+        "Name": "Enable"
+      },
+      {
+        "Name": "Disable"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.toastmessage": {
+    "Name": "通知",
+    "Tooltip": "通知",
+    "States": [
+      {
+        "Name": "Open"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.framedrop": {
+    "Name": "フレーム落ち",
+    "Tooltip": "フレームロス"
+  },
+  "com.naver.streamdeck.pls.bitrate": {
+    "Name": "ビットレート",
+    "Tooltip": "ビットレート"
+  },
+  "Localization": {
+    "Please launch Prism Live Studio": "PRISM Live Studioを起動させてください。",
+    "Source": "ソース",
+    "Collection": "シーンまとめ",
+    "Scene": "シーン",
+    "Window": "サイドバーメニュー",
+    "CPUUsagePiTip": "タイトルを入力される場合、CPU使用率を表示できません。",
+    "FramedropPiTip": "タイトルを入力される場合、フレームロス情報を表示できません。",
+    "BitratePiTip": "タイトルを入力される場合、ビットレート情報を表示できません。",
+    "Loading": "ローディング中…",
+    "NoneOption": "なし"
+  }
+}

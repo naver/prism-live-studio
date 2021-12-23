@@ -26,6 +26,8 @@ struct os_process_pipe {
 	HANDLE handle;
 	HANDLE handle_err;
 	HANDLE process;
+	//PRISM/LiuHaibin/20211009/#9908/Add flag to mark if pipe is canceled outside
+	bool canceled;
 };
 
 static bool create_pipe(HANDLE *input, HANDLE *output)
@@ -125,6 +127,8 @@ os_process_pipe_t *os_process_pipe_create(const char *cmd_line,
 	pp->read_pipe = read_pipe;
 	pp->process = process;
 	pp->handle_err = err_input;
+	//PRISM/LiuHaibin/20211009/#9908/Add flag to mark if pipe is canceled outside
+	pp->canceled = false;
 
 	CloseHandle(read_pipe ? output : input);
 	CloseHandle(err_output);
@@ -146,9 +150,12 @@ int os_process_pipe_destroy(os_process_pipe_t *pp)
 		CloseHandle(pp->handle);
 		CloseHandle(pp->handle_err);
 
-		WaitForSingleObject(pp->process, INFINITE);
-		if (GetExitCodeProcess(pp->process, &code))
-			ret = (int)code;
+		//PRISM/LiuHaibin/20211009/#9908/No need to wait and get exit code when canceled outside
+		if (!pp->canceled) {
+			WaitForSingleObject(pp->process, INFINITE);
+			if (GetExitCodeProcess(pp->process, &code))
+				ret = (int)code;
+		}
 
 		CloseHandle(pp->process);
 		bfree(pp);
@@ -217,4 +224,16 @@ size_t os_process_pipe_write(os_process_pipe_t *pp, const uint8_t *data,
 	}
 
 	return 0;
+}
+
+//PRISM/LiuHaibin/20211009/#9908/cancel io
+void os_process_pipe_cancelio(os_process_pipe_t *pp)
+{
+	if (pp) {
+		pp->canceled = true;
+		if (pp->handle)
+			CancelIoEx(pp->handle, NULL);
+		if (pp->handle_err)
+			CancelIoEx(pp->handle_err, NULL);
+	}
 }

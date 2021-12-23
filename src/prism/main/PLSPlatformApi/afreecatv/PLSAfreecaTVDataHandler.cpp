@@ -24,15 +24,15 @@ QString PLSAfreecaTVDataHandler::getPlatformName()
 bool PLSAfreecaTVDataHandler::tryToUpdate(const QVariantMap &srcInfo, UpdateCallback finishedCall)
 {
 	auto *platform = PLS_PLATFORM_AFREECATV;
-
 	if (!platform) {
-		PLS_ERROR(MODULE_PlatformService, "afreecatv refresh failed, platform not exists");
+		PLS_ERROR(MODULE_PlatformService, "%s %s afreecatv refresh failed, platform not exists", PrepareInfoPrefix, __FUNCTION__);
 		QVariantMap info = srcInfo;
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
 		finishedCall(QList<QVariantMap>{info});
 		return false;
 	}
-
+	QString channelUUID = srcInfo[ChannelData::g_channelUUID].toString();
+	PLS_INFO(MODULE_PlatformService, "%s %s channelUUID(%s) afreecatv platform(%p) refresh", PrepareInfoPrefix, __FUNCTION__, channelUUID.toStdString().c_str(), platform);
 	platform->setInitData(srcInfo);
 	QMetaObject::invokeMethod(platform, [=]() {
 		platform->reInitLiveInfo(PLSCHANNELS_API->isResetNeed());

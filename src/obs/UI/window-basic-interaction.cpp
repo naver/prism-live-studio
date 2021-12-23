@@ -269,7 +269,7 @@ bool OBSBasicInteraction::HandleMouseClickEvent(QMouseEvent *event)
 		button = MOUSE_RIGHT;
 		break;
 	default:
-		blog(LOG_WARNING, "unknown button type %d", event->button());
+		plog(LOG_WARNING, "unknown button type %d", event->button());
 		return false;
 	}
 

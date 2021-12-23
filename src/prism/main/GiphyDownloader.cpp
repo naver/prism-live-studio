@@ -191,10 +191,11 @@ bool GiphyDownloader::saveToDisk(QString &filename, QNetworkReply *reply)
 		if (!dir.exists()) {
 			dir.mkpath(path);
 		}
+		QString fileNameTmp = filename;
 		filename = path + "/" + filename;
 		QFile file(filename);
 		if (!file.open(QIODevice::WriteOnly)) {
-			PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Could not open %s for writing: %s\n", qPrintable(filename), qPrintable(file.errorString()));
+			PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Could not open file:%s for writing: %s\n", qPrintable(fileNameTmp), qPrintable(file.errorString()));
 			return false;
 		}
 

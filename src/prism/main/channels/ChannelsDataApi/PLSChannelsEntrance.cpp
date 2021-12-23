@@ -73,7 +73,9 @@ void onUserLoginStateChanged(pls_frontend_event event, const QVariantList &, voi
 		PLSCHANNELS_API->saveData();
 		break;
 	case pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGIN:
-		initChannelsData();
+		QMetaObject::invokeMethod(PLSCHANNELS_API, initChannelsData, Qt::QueuedConnection);
+
+		break;
 	default:
 		break;
 	}
@@ -84,12 +86,12 @@ bool initChannelUI()
 {
 	auto window = PLSBasic::Get();
 	if (window) {
-		PRE_LOG(Initialize, INFO);
+		//PRE_LOG(Initialize, INFO);
 		auto thread = new QThread;
 		//start a thread for data handle
 		PLSCHANNELS_API->moveToNewThread(thread);
 		thread->start();
-		registerAllPlatforms();
+
 		QHBoxLayout *layout = new QHBoxLayout(window->getChannelsContainer());
 		layout->setMargin(0);
 		layout->setSpacing(0);
@@ -107,7 +109,10 @@ bool initChannelUI()
 
 void initChannelsData()
 {
+
 	HolderReleaser releaser(&PLSChannelDataAPI::holdOnChannelArea);
+	registerAllPlatforms();
+	PLSCHANNELS_API->reloadData();
 	PLSCHANNELS_API->resetInitializeState(false);
 	PLSCHANNELS_API->updateRtmpGpopInfos();
 	PLSCHANNELS_API->updatePlatformsStates();

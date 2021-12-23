@@ -18,6 +18,7 @@
 #pragma once
 
 #include "../util/bmem.h"
+#include "../util/darray.h"
 #include "input.h"
 #ifdef __APPLE__
 #include <objc/objc-runtime.h>
@@ -35,6 +36,7 @@ extern "C" {
 #endif
 
 #define GS_MAX_TEXTURES 8
+#define MAX_IMAGE_RESOLUTIN 4096
 
 struct vec2;
 struct vec3;
@@ -169,6 +171,37 @@ enum gs_texture_type {
 	GS_TEXTURE_CUBE,
 };
 
+enum gs_engine_notify_type {
+	GS_ENGINE_NOTIFY_STATUS,
+	GS_ENGINE_NOTIFY_EXCEPTION,
+};
+
+//PRISM/WangChuanjing/20210311/#6941/notify engine status
+enum gs_engine_status {
+	GS_ENGINE_STATUS_NORMAL,
+	GS_ENGINE_STATUS_EXCEPTIONAL,
+};
+
+enum gs_engine_notify_code {
+	GS_E_UNKNOWN = -1,
+	GS_E_OUTOFMEMORY = 0, //unsufficient video memory to complete the call
+	GS_E_INVALIDARG, //an invalid parameter was passed to the returning function
+	GS_E_ACCESS_DENIED, //use a resource to which you did not have the required access privileges
+	GS_E_DEVICE_HUNG, //device failed due to badly formed commands sent by the application
+	GS_E_DEVICE_REMOVED, //video card has been physically removed from the system
+	GS_E_DEVICE_UNSUPPORTED, //the requested functionality is not supported by the device or the driver
+	GS_E_REBUILD_FAILED, //rebuild failed after device removed
+};
+
+//PRISM/WangChuanjing/#NoIssue/For test module
+enum gs_engine_test_type {
+	GS_E_TEST_UNKNOWN = 0,
+	GS_E_TEST_INIT_FAILED,
+	GS_E_TEST_INIT_INVALID_PARAM,
+	GS_E_TEST_NOT_SUPPORT_VERSION,
+	GS_E_TEST_REBUILD_FAILED,
+};
+
 struct gs_device_loss {
 	void (*device_loss_release)(void *data);
 	void (*device_loss_rebuild)(void *device, void *data);
@@ -248,6 +281,31 @@ struct gs_luid {
 	unsigned long low_part;
 	long high_part;
 };
+
+//PRISM/LiuHaibin/20201201/#None/Get hardware info
+struct adapter_info {
+	char *name;
+	char *feature_level;
+	char *driver_version;
+	bool is_driver_normal;
+	int index;
+	uint32_t vendor_id;
+	uint32_t device_id;
+	uint32_t sub_system_id;
+	uint32_t revision;
+	uint32_t dedicated_vram; // in MB
+	uint32_t shared_vram;    // in MB
+	struct gs_luid luid;
+	wchar_t description[128];
+	DARRAY(struct gs_monitor_info) monitors;
+};
+
+struct gs_adapters_info {
+	int current_index;
+	DARRAY(struct adapter_info) adapters;
+};
+
+typedef struct gs_adapters_info gs_adapters_info_t;
 
 /* wrapped opaque data types */
 
@@ -474,6 +532,10 @@ EXPORT gs_texture_t *gs_texrender_get_texture(const gs_texrender_t *texrender);
 #define GS_ERROR_FAIL -1
 #define GS_ERROR_MODULE_NOT_FOUND -2
 #define GS_ERROR_NOT_SUPPORTED -3
+//PRISM/Wang.Chuanjing/20200219/#NoIssue/for render engine version check
+#define GS_ERROR_NOT_SUPPORTED_ENGINE_VERSION -4
+//PRISM/Wang.Chuanjing/20210415/#NoIssue/for test module
+#define GS_ERROR_ENGINE_INVALID_PARAM -5
 
 struct gs_window {
 #if defined(_WIN32)
@@ -511,7 +573,13 @@ EXPORT int gs_create(graphics_t **graphics, const char *module,
 //PRISM/Wang.Chuanjing/20200408/for device rebuild
 EXPORT int gs_create_cb(graphics_t **graphics, const char *module,
 			uint32_t adapter,
-			void (*callback)(bool render_working));
+			void (*callback)(int type, int code, void *ext_param));
+
+//PRISM/WangChuanjing/20210414/#NoIssue/test module
+EXPORT int
+gs_create_for_test(graphics_t **graphics, const char *module, uint32_t adapter,
+		   enum gs_engine_test_type test_type,
+		   void (*callback)(int type, int code, void *ext_param));
 
 EXPORT void gs_device_rebuild(graphics_t *graphics);
 
@@ -568,6 +636,10 @@ EXPORT gs_texture_t *gs_texture_create_from_file(const char *file);
 EXPORT uint8_t *gs_create_texture_file_data(const char *file,
 					    enum gs_color_format *format,
 					    uint32_t *cx, uint32_t *cy);
+
+//PRISM/WangShaohui/20210802/NoIssue/scale large image
+EXPORT bool gs_image_convert_resolution(uint32_t src_cx, uint32_t src_cy,
+					uint32_t *dest_cx, uint32_t *dest_cy);
 
 #define GS_FLIP_U (1 << 0)
 #define GS_FLIP_V (1 << 1)
@@ -912,14 +984,26 @@ EXPORT uint64_t gs_texture_get_max_size();
 
 //PRISM/Wangshaohui/20200710/#3370/for take photo
 EXPORT gs_stagesurf_t *gs_device_canvas_map(uint32_t *cx, uint32_t *cy,
-				  enum gs_color_format *fmt, uint8_t **data,
-				  uint32_t *linesize);
+					    enum gs_color_format *fmt,
+					    uint8_t **data, uint32_t *linesize);
 
 //PRISM/Wangshaohui/20200710/#3370/for take photo
 EXPORT void gs_device_canvas_unmap(gs_stagesurf_t *surface);
 
 //PRISM/Liu.Haibin/20200708/#3296/for adapter check
 EXPORT bool gs_adapter_get_luid(struct gs_luid *luid);
+
+//PRISM/LiuHaibin/20201201/#None/Get hardware info
+EXPORT gs_adapters_info_t *gs_adapter_get_info();
+
+//PRISM/ZengQin/20210204/#None/check device support dx11
+EXPORT bool gs_check_device_support_dx11();
+
+//PRISM/WangChuanjing/20210915/#None/rebuild test mode
+EXPORT bool gs_set_device_rebuild_status(bool normal);
+
+//PRISM/WangChuanjing/20211013/#9974/device valid check
+EXPORT bool gs_get_engine_valid();
 
 /* inline functions used by modules */
 

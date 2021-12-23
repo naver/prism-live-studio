@@ -54,7 +54,8 @@ void processCss(QWidget *widget, double dpi, const QList<PLSCssIndex> &cssIndexe
 	QString css = manager->loadCss(dpi, cssIndexes);
 	css.append(manager->preprocessCss(dpi, styleSheet));
 	css.append(manager->preprocessCss(dpi, dynamicStyleSheet));
-	widget->setStyleSheet(css);
+	if (css != widget->styleSheet())
+		widget->setStyleSheet(css);
 }
 bool isToplevel(QWidget *widget)
 {
@@ -190,6 +191,13 @@ void PLSWidgetDpiAdapter::WidgetDpiAdapterInfo::dpiHelper(PLSWidgetDpiAdapter *a
 		QRect geometry(QPoint(0, 0), PLSDpiHelper::calculate(dpi, initSize.second).expandedTo(widget->minimumSize()).boundedTo(widget->maximumSize()));
 		normalGeometry(adapter, getScreenAvailableRect(adapter), geometry);
 		widget->resize(geometry.size());
+	}
+}
+
+void PLSWidgetDpiAdapter::WidgetDpiAdapterInfo::dpiHelper(PLSWidgetDpiAdapter *, double dpi, const QList<PLSCssIndex> &cssIndexes, const QString &styleSheet)
+{
+	if (!cssIndexes.isEmpty() || !styleSheet.isEmpty()) {
+		::processCss(widget, dpi, cssIndexes, styleSheet, QString());
 	}
 }
 
@@ -466,6 +474,11 @@ void PLSWidgetDpiAdapter::notifyFirstShow(std::function<void()> callback)
 	firstShowCallbacks.push_back(callback);
 }
 
+void PLSWidgetDpiAdapter::notifyDpiChangedBefore(std::function<void(bool firstShow)> callback)
+{
+	dpiChangedBeforeCallbacks.push_back(callback);
+}
+
 QByteArray PLSWidgetDpiAdapter::saveGeometry(QWidget *widget) const
 {
 	return saveGeometry(widget, widget->geometry());
@@ -653,6 +666,10 @@ QRect PLSWidgetDpiAdapter::dpiChangedEventImpl(QWidget *widget, double dpi, doub
 {
 	isDpiChanging = true;
 
+	for (auto callback : dpiChangedBeforeCallbacks) {
+		callback(firstShow);
+	}
+
 	auto iter = std::find_if(widgetDpiAdapterInfos.begin(), widgetDpiAdapterInfos.end(),
 				 [=](std::shared_ptr<WidgetDpiAdapterInfo> widgetDpiAdapterInfo) { return isChild(widget, widgetDpiAdapterInfo->widget); });
 	if ((iter == widgetDpiAdapterInfos.end()) || ((*iter)->widget != widget)) {
@@ -702,7 +719,6 @@ void PLSWidgetDpiAdapter::checkStatusChanged(PLSDpiHelper::Screen *screen)
 
 	QWidget *widget = selfWidget();
 
-	double oldDpi = this->dpi;
 	double dpi = screen ? PLSDpiHelper::getDpi(screen) : PLSDpiHelper::getDpi(widget);
 
 	if (this->dpi != dpi) {
@@ -713,7 +729,7 @@ void PLSWidgetDpiAdapter::checkStatusChanged(PLSDpiHelper::Screen *screen)
 	}
 }
 
-void PLSWidgetDpiAdapter::dockWidgetFirstShow(double dpi)
+void PLSWidgetDpiAdapter::dockWidgetFirstShow(double)
 {
 	QWidget *widget = selfWidget();
 	if (firstShowState == FirstShowState::Waiting) {

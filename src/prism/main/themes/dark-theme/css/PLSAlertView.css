@@ -1,5 +1,8 @@
 /* PLSAlertView */
 
+PLSAlertView > #titleBar > #titleLabel {
+	font-weight: normal;
+}
 PLSAlertView #message, PLSAlertView #nameLabel {
 	font-size: /*hdpi*/ 14px;
 	color: #ffffff;
@@ -7,6 +10,7 @@ PLSAlertView #message, PLSAlertView #nameLabel {
 	padding: 0;
 	min-width: /*hdpi*/ 360px;
 	max-width: /*hdpi*/ 360px;
+	font-weight: normal;
 }
 
 PLSAlertView #widget > #buttonBox {

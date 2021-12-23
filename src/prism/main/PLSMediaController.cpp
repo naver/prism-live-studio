@@ -56,28 +56,41 @@ bool PLSMediaController::eventFilter(QObject *target, QEvent *event)
 
 void PLSMediaController::MediaEof(void *data, calldata_t *calldata)
 {
-	UNUSED_PARAMETER(calldata);
+	if (!data || !calldata)
+		return;
 
 	PLSMediaController *media = static_cast<PLSMediaController *>(data);
 	obs_source_t *source = (obs_source_t *)calldata_ptr(calldata, "source");
-	QString name = obs_source_get_name(source);
-	QMetaObject::invokeMethod(media, "SetEofState", Qt::QueuedConnection, Q_ARG(const QString &, name));
+	if (source) {
+		QString name = obs_source_get_name(source);
+		QMetaObject::invokeMethod(media, "SetEofState", Qt::QueuedConnection, Q_ARG(const QString &, name));
+	}
 }
 
 void PLSMediaController::MediaRenamed(void *data, calldata_t *calldata)
 {
+	if (!data || !calldata)
+		return;
+
 	PLSMediaController *media = static_cast<PLSMediaController *>(data);
-	const char *name = calldata_string(calldata, "new_name");
 	obs_source_t *source = (obs_source_t *)calldata_ptr(calldata, "source");
-	QMetaObject::invokeMethod(media, "MediaSourceRenamed", Q_ARG(QString, QT_UTF8(name)), Q_ARG(obs_source_t *, source));
+	if (source) {
+		const char *name = calldata_string(calldata, "new_name");
+		QMetaObject::invokeMethod(media, "MediaSourceRenamed", Q_ARG(QString, QT_UTF8(name)), Q_ARG(obs_source_t *, source));
+	}
 }
 
 void PLSMediaController::MediaStateChanged(void *data, calldata_t *calldata)
 {
+	if (!data || !calldata)
+		return;
+
 	PLSMediaController *media = static_cast<PLSMediaController *>(data);
 	obs_source_t *source = (obs_source_t *)calldata_ptr(calldata, "source");
-	QString name = obs_source_get_name(source);
-	QMetaObject::invokeMethod(media, "OnMediaStateChanged", Qt::QueuedConnection, Q_ARG(const QString &, name));
+	if (source) {
+		QString name = obs_source_get_name(source);
+		QMetaObject::invokeMethod(media, "OnMediaStateChanged", Qt::QueuedConnection, Q_ARG(const QString &, name));
+	}
 }
 
 bool PLSMediaController::UpdateSelectItem(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
@@ -111,10 +124,15 @@ bool PLSMediaController::UpdateSelectItem(obs_scene_t *scene, obs_sceneitem_t *i
 
 void PLSMediaController::PropertiesChanged(void *param, calldata_t *data)
 {
+	if (!param || !data)
+		return;
+
 	PLSMediaController *controls = reinterpret_cast<PLSMediaController *>(param);
 	obs_source_t *source = (obs_source_t *)calldata_ptr(data, "source");
-	QString name = obs_source_get_name(source);
-	QMetaObject::invokeMethod(controls, "OnPropertiesChanged", Qt::QueuedConnection, Q_ARG(const QString &, name));
+	if (source) {
+		QString name = obs_source_get_name(source);
+		QMetaObject::invokeMethod(controls, "OnPropertiesChanged", Qt::QueuedConnection, Q_ARG(const QString &, name));
+	}
 }
 
 void PLSMediaController::SetScene(OBSScene scene)
@@ -266,14 +284,11 @@ PLSMediaController::PLSMediaController(QWidget *parent, PLSDpiHelper dpiHelper) 
 
 PLSMediaController::~PLSMediaController()
 {
+	ResetAndHide();
 	obs_frontend_remove_event_callback(FrontendEvent, this);
 	if (nullptr != lableLoad) {
 		delete lableLoad;
 		lableLoad = nullptr;
-	}
-	if (nullptr != timer) {
-		delete timer;
-		timer = nullptr;
 	}
 	deleteLater();
 }
@@ -406,7 +421,7 @@ void PLSMediaController::ResetAndHide()
 	sceneItem = 0;
 }
 
-void PLSMediaController::MediaSourceRenamed(const QString &name, obs_source_t *sourcePtr)
+void PLSMediaController::MediaSourceRenamed(const QString &name, obs_source_t *)
 {
 	sourceName = name;
 }
@@ -417,6 +432,7 @@ void PLSMediaController::SetEofState(const QString &name)
 		return;
 
 	ui->slider->setValue(ui->slider->maximum());
+	ui->timerLabel->setText(ui->durationLabel->text());
 }
 
 void PLSMediaController::SetLoadState(bool load, obs_source_t *sourcePtr)
@@ -507,7 +523,7 @@ void PLSMediaController::UpdateControlsStatus()
 	default:
 		break;
 	}
-show:
+
 	if (CheckValid() && isHidden())
 		show();
 	return;
@@ -587,7 +603,7 @@ void PLSMediaController::SetSceneItem(QString newSourceName, quint64 newSceneIte
 	}
 }
 
-void PLSMediaController::UpdateMediaSource(obs_scene_item *item, bool visibleChanged)
+void PLSMediaController::UpdateMediaSource(obs_scene_item *item, bool)
 {
 	obs_source_t *source = obs_sceneitem_get_source(item);
 	if (!source) {

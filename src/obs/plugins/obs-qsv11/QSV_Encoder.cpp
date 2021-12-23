@@ -63,13 +63,83 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <atomic>
 #include <intrin.h>
+#include <d3d11.h>
+#include <dxgi1_2.h>
 
 #define do_log(level, format, ...) \
-	blog(level, "[qsv encoder: '%s'] " format, "msdk_impl", ##__VA_ARGS__)
+	plog(level, "[qsv encoder: '%s'] " format, "msdk_impl", ##__VA_ARGS__)
 
 mfxIMPL impl = MFX_IMPL_HARDWARE_ANY;
 mfxVersion ver = {{0, 1}}; // for backward compatibility
 std::atomic<bool> is_active{false};
+
+bool prefer_igpu_enc(int *iGPUIndex)
+{
+	IDXGIAdapter *pAdapter;
+	int adapterIndex = 0;
+	bool hasIGPU = false;
+	bool hasDGPU = false;
+	bool isDG1Primary = false;
+
+	HMODULE hDXGI = LoadLibrary(L"dxgi.dll");
+	if (hDXGI == NULL) {
+		return false;
+	}
+
+	typedef HRESULT(WINAPI * LPCREATEDXGIFACTORY)(REFIID riid,
+						      void **ppFactory);
+
+	LPCREATEDXGIFACTORY pCreateDXGIFactory =
+		(LPCREATEDXGIFACTORY)GetProcAddress(hDXGI,
+						    "CreateDXGIFactory1");
+	if (pCreateDXGIFactory == NULL) {
+		pCreateDXGIFactory = (LPCREATEDXGIFACTORY)GetProcAddress(
+			hDXGI, "CreateDXGIFactory");
+
+		if (pCreateDXGIFactory == NULL) {
+			FreeLibrary(hDXGI);
+			return false;
+		}
+	}
+
+	IDXGIFactory *pFactory = NULL;
+	if (FAILED((*pCreateDXGIFactory)(__uuidof(IDXGIFactory),
+					 (void **)(&pFactory)))) {
+		FreeLibrary(hDXGI);
+		return false;
+	}
+
+	while (SUCCEEDED(pFactory->EnumAdapters(adapterIndex, &pAdapter))) {
+		DXGI_ADAPTER_DESC AdapterDesc = {};
+		if (SUCCEEDED(pAdapter->GetDesc(&AdapterDesc))) {
+			if (AdapterDesc.VendorId == 0x8086) {
+				if (AdapterDesc.DedicatedVideoMemory <=
+				    512 * 1024 * 1024) {
+					hasIGPU = true;
+					if (iGPUIndex != NULL) {
+						*iGPUIndex = adapterIndex;
+					}
+				} else {
+					hasDGPU = true;
+				}
+				if ((AdapterDesc.DeviceId == 0x4905) ||
+				    (AdapterDesc.DeviceId == 0x4906) ||
+				    (AdapterDesc.DeviceId == 0x4907)) {
+					if (adapterIndex == 0) {
+						isDG1Primary = true;
+					}
+				}
+			}
+		}
+		adapterIndex++;
+		pAdapter->Release();
+	}
+
+	pFactory->Release();
+	FreeLibrary(hDXGI);
+
+	return hasIGPU && hasDGPU && isDG1Primary;
+}
 
 void qsv_encoder_version(unsigned short *major, unsigned short *minor)
 {
@@ -79,6 +149,13 @@ void qsv_encoder_version(unsigned short *major, unsigned short *minor)
 
 qsv_t *qsv_encoder_open(qsv_param_t *pParams)
 {
+	mfxIMPL impl_list[4] = {MFX_IMPL_HARDWARE, MFX_IMPL_HARDWARE2,
+				MFX_IMPL_HARDWARE3, MFX_IMPL_HARDWARE4};
+	int igpu_index = -1;
+	if (prefer_igpu_enc(&igpu_index)) {
+		impl = impl_list[igpu_index];
+	}
+
 	QSV_Encoder_Internal *pEncoder = new QSV_Encoder_Internal(impl, ver);
 	mfxStatus sts = pEncoder->Open(pParams);
 	if (sts != MFX_ERR_NONE) {
@@ -168,11 +245,18 @@ qsv_t *qsv_encoder_open(qsv_param_t *pParams)
 	return (qsv_t *)pEncoder;
 }
 
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
 int qsv_encoder_headers(qsv_t *pContext, uint8_t **pSPS, uint8_t **pPPS,
-			uint16_t *pnSPS, uint16_t *pnPPS)
+			uint8_t **pVPS, uint16_t *pnSPS, uint16_t *pnPPS,
+			uint16_t *pnVPS)
 {
 	QSV_Encoder_Internal *pEncoder = (QSV_Encoder_Internal *)pContext;
 	pEncoder->GetSPSPPS(pSPS, pPPS, pnSPS, pnPPS);
+
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	if (pVPS && pnVPS) {
+		pEncoder->GetVPS(pVPS, pnVPS);
+	}
 
 	return 0;
 }
@@ -187,6 +271,23 @@ int qsv_encoder_encode(qsv_t *pContext, uint64_t ts, uint8_t *pDataY,
 	if (pDataY != NULL && pDataUV != NULL)
 		sts = pEncoder->Encode(ts, pDataY, pDataUV, strideY, strideUV,
 				       pBS);
+
+	if (sts == MFX_ERR_NONE)
+		return 0;
+	else if (sts == MFX_ERR_MORE_DATA)
+		return 1;
+	else
+		return -1;
+}
+
+int qsv_encoder_encode_tex(qsv_t *pContext, uint64_t ts, uint32_t tex_handle,
+			   uint64_t lock_key, uint64_t *next_key,
+			   mfxBitstream **pBS)
+{
+	QSV_Encoder_Internal *pEncoder = (QSV_Encoder_Internal *)pContext;
+	mfxStatus sts = MFX_ERR_NONE;
+
+	sts = pEncoder->Encode_tex(ts, tex_handle, lock_key, next_key, pBS);
 
 	if (sts == MFX_ERR_NONE)
 		return 0;
@@ -300,6 +401,14 @@ enum qsv_cpu_platform qsv_get_cpu_platform()
 	case 0x4e:
 	case 0x5e:
 		return QSV_CPU_PLATFORM_SKL;
+	case 0x8e:
+	case 0x9e:
+		return QSV_CPU_PLATFORM_KBL;
+	case 0x66:
+		return QSV_CPU_PLATFORM_CNL;
+	case 0x7d:
+	case 0x7e:
+		return QSV_CPU_PLATFORM_ICL;
 	}
 
 	//assume newer revisions are at least as capable as Haswell

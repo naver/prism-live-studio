@@ -249,7 +249,7 @@ try {
 		PLSAlertView::warning(App()->getMainView(), title, text);
 	}
 
-	blog(LOG_WARNING, "%s: %s: %s", __FUNCTION__, info.message.c_str(), info.error.c_str());
+	PLS_WARN(MAIN_AUTH_OAUTH, "%s: %s: %s", __FUNCTION__, info.message.c_str(), info.error.c_str());
 	return false;
 }
 

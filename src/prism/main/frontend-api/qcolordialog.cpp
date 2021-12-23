@@ -871,12 +871,18 @@ QPoint QColorPicker::colPt()
 int QColorPicker::huePt(const QPoint &pt)
 {
 	QRect r = contentsRect();
+	if (r.width() <= 1) {
+		return 0;
+	}
 	return 360 - pt.x() * 360 / (r.width() - 1);
 }
 
 int QColorPicker::satPt(const QPoint &pt)
 {
 	QRect r = contentsRect();
+	if (r.height() <= 1) {
+		return 0;
+	}
 	return 255 - pt.y() * 255 / (r.height() - 1);
 }
 

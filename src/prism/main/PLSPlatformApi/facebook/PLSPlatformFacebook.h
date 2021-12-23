@@ -71,7 +71,7 @@ public:
 	void onPrepareLive(bool value) override;
 	void onAlLiveStarted(bool) override;
 	void onAllPrepareLive(bool value);
-	void onLiveStopped() override;
+	void onLiveEnded() override;
 	void getLongLivedUserAccessToken(MyRequestTypeFunction onFinished);
 	void getUserInfo(MyRequestTypeFunction onFinished);
 	void getMyGroupListRequestAndCheckPermission(MyRequestTypeFunction onFinished, QWidget *parent);
@@ -121,9 +121,9 @@ private:
 	QPointer<PLSLiveInfoFacebook> m_parent;
 	QString m_timelineNickname;
 	QString m_timelineProfilePath;
-	bool m_privateChat;
+	bool m_privateChat = false;
 	QString m_timelinePrivacyId;
 	QString m_userId;
-	bool m_liveStartShowPermissionToast;
-	bool m_facebookLivingExpired;
+	bool m_liveStartShowPermissionToast = false;
+	bool m_facebookLivingExpired = false;
 };

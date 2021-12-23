@@ -6,15 +6,21 @@
 #include <QReadLocker>
 #include <QReadWriteLock>
 #include <QSemaphore>
+#include <QSize>
 #include <QStack>
 #include <QTimer>
 #include <QWriteLocker>
 #include "PLSChannelPublicAPI.h"
-
 class QNetworkAccessManager;
 class ChannelDataBaseHandler;
 using PlatformHandlerPtrs = QSharedPointer<ChannelDataBaseHandler>;
 using InfosList = QList<QVariantMap>;
+
+using ImagesMap = QMap<QString, QVariantMap>;
+
+using ImagesContainer = QHash<QSize, QPixmap>;
+Q_DECLARE_METATYPE(ImagesContainer)
+uint qHash(const QSize &keySize, uint seed = 0);
 
 class PLSChannelDataAPI final : public QObject, public PLSChannelPublicAPI {
 	Q_OBJECT
@@ -23,6 +29,18 @@ class PLSChannelDataAPI final : public QObject, public PLSChannelPublicAPI {
 public:
 	explicit PLSChannelDataAPI(QObject *parent = nullptr);
 	~PLSChannelDataAPI();
+	//add source path image to map,and scale default size image
+	QPixmap addImage(const QString &srcPath, const QPixmap &pix, const QSize &defaultSize = QSize(100, 100));
+	//get or load target size image
+	QPixmap getImage(const QString &srcPath, const QSize &defaultSize = QSize(100, 100));
+
+	QPixmap updateImage(const QString &oldPath, const QString &srcPath, const QSize &size = QSize(100, 100));
+	QPixmap updateImage(const QString &srcPath, const QSize &size = QSize(100, 100));
+
+	bool isImageExists(const QString &srcPath);
+	void removeImage(const QString &srcPath);
+
+	void clearOldVersionImages();
 
 	static PLSChannelDataAPI *getInstance();
 
@@ -72,7 +90,7 @@ public:
 	int count() const;
 
 	/*current selected channels */
-	const ChannelsMap getCurrentSelectedChannels();
+	const ChannelsMap getCurrentSelectedChannels(int Type = 0);
 
 	/*get current selected channels number*/
 	int currentSelectedCount();
@@ -88,6 +106,7 @@ public:
 	QVariantMap &getChanelInfoRef(const QString &channelUUID);
 
 	QVariantMap &getChanelInfoRefByPlatformName(const QString &channelName, int type = 0);
+	const QVariantMap &getChanelInfoRefBySubChannelID(const QString &subChannelID, const QString &channelName);
 
 	InfosList getChanelInfosByPlatformName(const QString &channelName, int type = 0);
 
@@ -98,6 +117,8 @@ public:
 	void updatePlatformsStates();
 
 	void updateRtmpGpopInfos();
+
+	std::tuple<bool, bool> isPlatformBeSurportedByCurrentVersion(const QString &platform);
 
 	/*to check the status of channel */
 	int getChannelStatus(const QString &channelUUID);
@@ -166,6 +187,8 @@ public:
 	bool isLiving();
 	bool isShifting();
 	bool isRecording();
+	void switchStreaming();
+	void switchRecording();
 
 	bool isInWholeBroadCasting();
 	bool isInWholeRecording();
@@ -222,6 +245,7 @@ signals:
 
 	void channelAdded(const QString &channelUUID);
 	void channelRemoved(const QString &channelUUID);
+	void channelCreateError(const QString &channelUUID);
 	void channelModified(const QString &channelUUID);
 	void channelExpired(const QString &channelUUID, bool toAsk = true);
 	void channelGoToInitialize(const QString &channelUUID);
@@ -247,7 +271,7 @@ signals:
 	void rehearsalBegin();
 
 	void sigTrySetBroadcastState(int state);
-	void inReady();
+
 	void broadcastGo(); //
 	void canBroadcast();
 	void toBeBroadcasting();
@@ -301,6 +325,7 @@ private:
 	void registerEnumsForStream();
 	void connectSignals();
 	void reCheckExpiredChannels();
+	void resetData();
 
 	//delete function to copy
 	PLSChannelDataAPI(const PLSChannelDataAPI &) = delete;
@@ -310,6 +335,7 @@ private:
 	ChannelsMap mChannelInfos; // all curretn channels info
 	ChannelsMap mBackupInfos;
 	ChannelsMap mExpiredChannels;
+	ImagesMap mImagesCache;
 
 	QStack<QVariantMap> mErrorStack;
 

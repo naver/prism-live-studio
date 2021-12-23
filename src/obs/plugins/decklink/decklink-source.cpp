@@ -87,8 +87,7 @@ static void decklink_show(void *data)
 {
 	DeckLinkInput *decklink = (DeckLinkInput *)data;
 	obs_source_t *source = decklink->GetSource();
-	bool showing = obs_source_showing(source);
-	if (decklink->dwns && showing && !decklink->Capturing()) {
+	if (decklink->dwns && !decklink->Capturing()) {
 		ComPtr<DeckLinkDevice> device;
 		device.Set(deviceEnum->FindByHash(decklink->hash.c_str()));
 		decklink->Activate(device, decklink->id,
@@ -99,9 +98,7 @@ static void decklink_show(void *data)
 static void decklink_hide(void *data)
 {
 	DeckLinkInput *decklink = (DeckLinkInput *)data;
-	obs_source_t *source = decklink->GetSource();
-	bool showing = obs_source_showing(source);
-	if (decklink->dwns && showing)
+	if (decklink->dwns && decklink->Capturing())
 		decklink->Deactivate();
 }
 
@@ -342,7 +339,8 @@ struct obs_source_info create_decklink_source_info()
 	decklink_source_info.update = decklink_update;
 	decklink_source_info.show = decklink_show;
 	decklink_source_info.hide = decklink_hide;
-	decklink_source_info.icon_type = OBS_ICON_TYPE_CAMERA;
+	//PRISM/Liuying/20210722/#8768/Plugin source or device icon should change to plugin icon
+	decklink_source_info.icon_type = OBS_ICON_TYPE_CUSTOM;
 
 	return decklink_source_info;
 }

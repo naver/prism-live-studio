@@ -26,7 +26,7 @@ bool obs_view_init(struct obs_view *view)
 	pthread_mutex_init_value(&view->channels_mutex);
 
 	if (pthread_mutex_init(&view->channels_mutex, NULL) != 0) {
-		blog(LOG_ERROR, "obs_view_init: Failed to create mutex");
+		plog(LOG_ERROR, "obs_view_init: Failed to create mutex");
 		return false;
 	}
 
@@ -134,7 +134,8 @@ void obs_view_render(obs_view_t *view)
 		source = view->channels[i];
 
 		if (source) {
-			if (source->removed) {
+			//PRISM/WangShaohui/20211012/#9842/won't enum invalid source
+			if (obs_source_removed(source)) {
 				obs_source_release(source);
 				view->channels[i] = NULL;
 			} else {

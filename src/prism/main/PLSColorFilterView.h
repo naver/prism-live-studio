@@ -47,6 +47,9 @@ private:
 	bool ResetConfigFile();
 	bool SetValueToConfigFile(const QString &name, const int &value);
 	bool GetValueFromConfigFile(const QString &name, int &value);
+	void CopyLocalImageToUserPath();
+	void CheckLocalImageExisted();
+
 signals:
 	void OriginalPressed(bool state);
 	void ColorFilterValueChanged(int value, bool isOriginal);

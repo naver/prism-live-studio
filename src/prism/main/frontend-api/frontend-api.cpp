@@ -1,8 +1,10 @@
 #include "frontend-internal.hpp"
 #include "IMACManager.h"
+#include <optional>
 #include <QUrl>
 #include <QStyle>
 #include <QDebug>
+#include <QMetaEnum>
 #include "login-info.hpp"
 #include <QScreen>
 #include <QGuiApplication>
@@ -15,6 +17,17 @@
 #include <util/windows/WinHandle.hpp>
 #include <util/windows/win-version.h>
 #include <qdir.h>
+#include "alert-view.hpp"
+#include "pls/media-info.h"
+#include "log/log.h"
+#include <QProcess>
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QUrlQuery>
+#include <atomic>
+#include <QUuid>
+#include <QPointer>
+#include <QDialog>
 
 #define VERSION_COMPARE_COUNT 3
 #define HEADER_USER_AGENT_KEY QStringLiteral("User-Agent")
@@ -28,6 +41,8 @@
 
 static pls_frontend_callbacks *fc = nullptr;
 static PfnGetConfigPath getConfigPath = nullptr;
+static std::atomic<bool> g_bMainWindowClosing = false;
+static QList<QPointer<QDialog>> g_dialog_views;
 
 static QString getLocalIPAddr()
 {
@@ -103,6 +118,18 @@ extern "C" FRONTEND_API int pls_get_network_state_c()
 	return pls_get_network_state() ? 1 : 0;
 }
 
+extern "C" FRONTEND_API QWidget *pls_get_toplevel_view_c(QWidget *widget)
+{
+	return pls_get_toplevel_view(widget);
+}
+
+extern "C" FRONTEND_API void pls_get_prism_usercode_c(QString *prism_usercode)
+{
+	if (prism_usercode) {
+		*prism_usercode = pls_get_prism_usercode();
+	}
+}
+
 FRONTEND_API void pls_frontend_set_callbacks_internal(pls_frontend_callbacks *callbacks)
 {
 	obs_frontend_set_callbacks_internal(callbacks);
@@ -112,7 +139,7 @@ FRONTEND_API void pls_frontend_set_callbacks_internal(pls_frontend_callbacks *ca
 static inline bool callbacks_valid_(const char *func_name)
 {
 	if (!fc) {
-		blog(LOG_WARNING, "Tried to call %s with no callbacks!", func_name);
+		PLS_WARN(MAIN_FRONTEND_API, "Tried to call %s with no callbacks!", func_name);
 		return false;
 	}
 
@@ -185,7 +212,16 @@ FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const s
 				   QWidget *parent)
 {
 	if (callbacks_valid()) {
-		return fc->pls_browser_view(result, url, headers, pannelName, callback, parent);
+		return fc->pls_browser_view(result, url, headers, pannelName, std::string(), callback, parent);
+	}
+	return false;
+}
+
+FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelName, const std::string &script,
+				   pls_result_checking_callback_t callback, QWidget *parent)
+{
+	if (callbacks_valid()) {
+		return fc->pls_browser_view(result, url, headers, pannelName, script, callback, parent);
 	}
 	return false;
 }
@@ -242,7 +278,13 @@ FRONTEND_API bool pls_sns_user_info(QJsonObject &result, const QList<QNetworkCoo
 	}
 	return false;
 }
-
+FRONTEND_API bool pls_google_user_info(std::function<void(bool ok, const QJsonObject &)> callback, const QString &redirect_uri, const QString &code, QObject *receiver)
+{
+	if (callbacks_valid()) {
+		return fc->pls_google_user_info(callback, redirect_uri, code, receiver);
+	}
+	return false;
+}
 FRONTEND_API bool pls_network_environment_reachable()
 {
 	if (callbacks_valid()) {
@@ -253,7 +295,7 @@ FRONTEND_API bool pls_network_environment_reachable()
 FRONTEND_API QString pls_get_oauth_token_from_url(const QString &url_str)
 {
 	QUrl qurl(url_str);
-	for (auto str : qurl.fragment(QUrl::FullyDecoded).split("&")) {
+	for (const auto &str : qurl.fragment(QUrl::FullyDecoded).split("&")) {
 		if (str.startsWith("access_token", Qt::CaseInsensitive)) {
 			QString tokenStr = str.mid(str.indexOf('=') + 1);
 			return tokenStr.remove('#');
@@ -264,7 +306,7 @@ FRONTEND_API QString pls_get_oauth_token_from_url(const QString &url_str)
 FRONTEND_API QString pls_get_code_from_url(const QString &url_str)
 {
 	QUrl qurl(url_str);
-	for (auto str : qurl.query(QUrl::FullyDecoded).split("&")) {
+	for (const auto &str : qurl.query(QUrl::FullyDecoded).split("&")) {
 		if (str.startsWith("code", Qt::CaseInsensitive)) {
 			QString codeStr = str.mid(str.indexOf('=') + 1);
 			return codeStr.remove('#');
@@ -292,21 +334,36 @@ FRONTEND_API void pls_prism_change_over_login_view()
 		return fc->pls_prism_change_over_login_view();
 	}
 }
-FRONTEND_API bool pls_channel_login(QJsonObject &result, const QString &accountName, QWidget *parent)
+
+FRONTEND_API void pls_login_async(std::function<void(bool ok, const QJsonObject &result)> &&callback, const QString &platformName, QWidget *parent, PLSLoginInfo::UseFor useFor)
 {
-	for (int index = 0; index != pls_get_login_info_count(); ++index) {
-		PLSLoginInfo *channelInfo = pls_get_login_info(index);
-		if (0 == accountName.compare(channelInfo->name(), Qt::CaseInsensitive)) {
-			return channelInfo->loginWithAccount(result, PLSLoginInfo::UseFor::Channel, parent);
+	if (!pls_get_network_state()) {
+		PLSAlertView::warning(parent, QTStr("Alert.Title"), QTStr("login.check.note.network"));
+	} else {
+		for (int index = 0; index != pls_get_login_info_count(); ++index) {
+			PLSLoginInfo *channelInfo = pls_get_login_info(index);
+			if (0 == platformName.compare(channelInfo->name(), Qt::CaseInsensitive)) {
+				if (channelInfo->loginWithAccountImplementType() == PLSLoginInfo::ImplementType::Synchronous) {
+					QJsonObject result;
+					bool ok = channelInfo->loginWithAccount(result, useFor, parent);
+					callback(ok, result);
+				} else {
+					channelInfo->loginWithAccountAsync(callback, useFor, parent);
+				}
+			}
 		}
 	}
-	return false;
+}
+
+FRONTEND_API void pls_channel_login_async(std::function<void(bool ok, const QJsonObject &result)> &&callback, const QString &accountName, QWidget *parent)
+{
+	pls_login_async(std::forward<std::function<void(bool ok, const QJsonObject &result)>>(callback), accountName, parent, PLSLoginInfo::UseFor::Channel);
 }
 
 FRONTEND_API void pls_prism_logout()
 {
 	if (callbacks_valid()) {
-		fc->pls_prism_logout();
+		fc->pls_prism_logout(PLS_LOGOUT_URL.arg(PRISM_SSL));
 	}
 }
 
@@ -314,7 +371,7 @@ FRONTEND_API void pls_prism_signout()
 
 {
 	if (callbacks_valid()) {
-		fc->pls_prism_logout();
+		fc->pls_prism_logout(PLS_SIGNOUT_URL.arg(PRISM_SSL), LoginInfoType::PrismSignoutInfo);
 	}
 }
 FRONTEND_API QUrl pls_get_encrypt_url(const QString &url_str, const QString &mac_key)
@@ -491,7 +548,7 @@ FRONTEND_API QString pls_get_user_path(const QString &path)
 {
 	if (getConfigPath) {
 		char configPath[512];
-		int ret = getConfigPath(configPath, sizeof(configPath), path.toUtf8());
+		getConfigPath(configPath, sizeof(configPath), path.toUtf8());
 		return QString(configPath);
 	}
 	return QString();
@@ -577,6 +634,22 @@ FRONTEND_API double pls_basic_config_get_double(const char *section, const char 
 	return defaultValue;
 }
 
+FRONTEND_API bool pls_inside_visible_screen_area(QRect geometry)
+{
+	QList<QScreen *> screens = QApplication::screens();
+	for (int i = 0; i < screens.size(); i++) {
+		QScreen *screen = screens[i];
+		if (!screen) {
+			continue;
+		}
+		QRect rect = screen->availableGeometry();
+		if (rect.intersects(geometry)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 FRONTEND_API pls_check_update_result_t pls_check_update(QString &gcc, bool &is_force, QString &version, QString &file_url, QString &update_info_url)
 {
 	if (callbacks_valid()) {
@@ -598,6 +671,7 @@ FRONTEND_API pls_upload_file_result_t pls_upload_contactus_files(const QString &
 	if (callbacks_valid()) {
 		return fc->pls_upload_contactus_files(email, question, files);
 	}
+	return pls_upload_file_result_t::Ok;
 }
 
 FRONTEND_API bool pls_show_update_info_view(bool is_force, const QString &version, const QString &file_url, const QString &update_info_url, bool is_manual, QWidget *parent)
@@ -679,13 +753,17 @@ FRONTEND_API void pls_flush_style(QWidget *widget)
 	widget->style()->polish(widget);
 }
 
-FRONTEND_API void pls_flush_style_recursive(QWidget *widget)
+FRONTEND_API void pls_flush_style_recursive(QWidget *widget, int recursiveDeep)
 {
 	pls_flush_style(widget);
 
 	for (QObject *child : widget->children()) {
 		if (child->isWidgetType()) {
-			pls_flush_style_recursive(dynamic_cast<QWidget *>(child));
+			if (recursiveDeep != 0) {
+				pls_flush_style_recursive(dynamic_cast<QWidget *>(child), recursiveDeep - 1);
+			} else {
+				pls_flush_style(dynamic_cast<QWidget *>(child));
+			}
 		}
 	}
 }
@@ -696,17 +774,17 @@ FRONTEND_API void pls_flush_style(QWidget *widget, const char *propertyName, con
 	pls_flush_style(widget);
 }
 
-FRONTEND_API void pls_flush_style_recursive(QWidget *widget, const char *propertyName, const QVariant &propertyValue)
+FRONTEND_API void pls_flush_style_recursive(QWidget *widget, const char *propertyName, const QVariant &propertyValue, int recursiveDeep)
 {
 	widget->setProperty(propertyName, propertyValue);
-	pls_flush_style_recursive(widget);
+	pls_flush_style_recursive(widget, recursiveDeep);
 }
 
 FRONTEND_API void pls_load_stylesheet(QWidget *widget, const QStringList &filePaths)
 {
 	if (widget) {
 		QString qssStr;
-		for (auto filePath : filePaths) {
+		for (const auto &filePath : filePaths) {
 			QFile f(filePath);
 			f.open(QIODevice::ReadOnly);
 			qssStr += f.readAll();
@@ -737,7 +815,7 @@ FRONTEND_API void pls_window_right_margin_fit(QWidget *widget)
 FRONTEND_API void pls_load_dev_server()
 {
 	LOAD_DEV_SERVER(PLS_FACEBOOK_LOGIN_URL);
-	LOAD_DEV_SERVER(PLS_GOOGLE_LOGIN_URL);
+	LOAD_DEV_SERVER(PLS_GOOGLE_LOGIN_URL_TOKEN);
 	LOAD_DEV_SERVER(PLS_LINE_LOGIN_URL);
 	LOAD_DEV_SERVER(PLS_NAVER_LOGIN_URL);
 	LOAD_DEV_SERVER(PLS_TWITTER_LOGIN_URL);
@@ -749,7 +827,7 @@ FRONTEND_API void pls_load_dev_server()
 	LOAD_DEV_SERVER(PLS_EMAIL_FOGETTON_URL);
 	LOAD_DEV_SERVER(PLS_TERM_OF_USE_URL);
 	LOAD_DEV_SERVER(PLS_PRIVACY_URL);
-	LOAD_DEV_SERVER(PLS_HMAC_KEY);
+	LOAD_DEV_SERVER(PLS_PC_HMAC_KEY);
 	LOAD_DEV_SERVER(PLS_LOGOUT_URL);
 	LOAD_DEV_SERVER(PLS_TOKEN_SESSION_URL);
 	LOAD_DEV_SERVER(PLS_NOTICE_URL);
@@ -790,24 +868,13 @@ FRONTEND_API void pls_load_dev_server()
 	LOAD_DEV_SERVER(LASTEST_UPDATE_URL);
 	LOAD_DEV_SERVER(CONTACT_SEND_EMAIL_URL);
 
-	LOAD_DEV_SERVER(PRISM_API_BASE);
 	LOAD_DEV_SERVER(PRISM_AUTH_API_BASE);
-	LOAD_DEV_SERVER(PRISM_API_ACTION);
-	LOAD_DEV_SERVER(PRISM_API_STATUS);
 
 	// NaverTV
 	LOAD_DEV_SERVER(CHANNEL_NAVERTV_LOGIN);
 	LOAD_DEV_SERVER(CHANNEL_NAVERTV_GET_AUTH);
-	LOAD_DEV_SERVER(CHANNEL_NAVERTV_GET_LIVES);
-	LOAD_DEV_SERVER(CHANNEL_NAVERTV_GET_STREAM_INFO);
-	LOAD_DEV_SERVER(CHANNEL_NAVERTV_QUICK_START);
-	LOAD_DEV_SERVER(CHANNEL_NAVERTV_OPEN);
-	LOAD_DEV_SERVER(CHANNEL_NAVERTV_CLOSE);
-	LOAD_DEV_SERVER(CHANNEL_NAVERTV_MODIFY);
 	LOAD_DEV_SERVER(CHANNEL_NAVERTV_COMMENT_OPTIONS);
 	LOAD_DEV_SERVER(CHANNEL_NAVERTV_UPLOAD_IMAGE);
-	LOAD_DEV_SERVER(CHANNEL_NAVERTV_STATUS);
-	LOAD_DEV_SERVER(CHANNEL_NAVERTV_COMMENT);
 	LOAD_DEV_SERVER(CHANNEL_NAVERTV_AUTHORIZE);
 	LOAD_DEV_SERVER(CHANNEL_NAVERTV_AUTHORIZE_REDIRECT);
 	LOAD_DEV_SERVER(CHANNEL_NAVERTV_TOKEN);
@@ -837,6 +904,10 @@ FRONTEND_API void pls_load_dev_server()
 
 	// Chat Widget
 	LOAD_DEV_SERVER(CHAT_SOURCE_URL);
+
+	//Naver Shopping Live
+	LOAD_DEV_SERVER(CHANNEL_NAVER_SHOPPING_LIVE_LOGIN);
+	LOAD_DEV_SERVER(CHANNEL_NAVER_SHOPPING_LIVE_SMART_STORE_LOGIN);
 }
 
 FRONTEND_API PfnGetConfigPath pls_get_config_path(void)
@@ -851,18 +922,7 @@ FRONTEND_API void pls_set_config_path(PfnGetConfigPath getConfigPath)
 
 FRONTEND_API void pls_http_request_head(QVariantMap &headMap, bool hasGacc)
 {
-	if (hasGacc) {
-		headMap[HEADER_PRISM_GCC] = pls_get_gcc_data();
-	}
-	headMap[HEADER_PRISM_USERCODE] = pls_get_prism_usercode();
-	headMap[HEADER_PRISM_LANGUAGE] = QString(App()->GetLocale());
-	headMap[HEADER_PRISM_APPVERSION] = PLS_VERSION;
-	headMap[HEADER_PRISM_DEVICE] = QStringLiteral("Windows OS");
-	headMap[HEADER_PRISM_IP] = getLocalIPAddr();
-	win_version_info wvi;
-	get_win_ver(&wvi);
-	headMap[HEADER_PRISM_OS] = getOsVersion(wvi);
-	headMap[HEADER_USER_AGENT_KEY] = getUserAgent(wvi);
+	return;
 }
 FRONTEND_API std::string pls_get_offline_javaScript()
 {
@@ -872,7 +932,11 @@ FRONTEND_API std::string pls_get_offline_javaScript()
 	file.open(QIODevice::ReadOnly | QIODevice::Text);
 	QByteArray byteArray = file.readAll();
 	file.close();
-	return byteArray.toStdString();
+	QString str = byteArray;
+	QString _strNet = QTStr("login.check.note.network").replace("\n", "\\n");
+	QString _strRetry = QTStr("Retry").replace("\n", "\\n");
+	str = str.replace("net_err_key", _strNet).replace("retry_key", _strRetry);
+	return str.toStdString();
 }
 
 FRONTEND_API QString pls_get_md5(const QString &originStr, const QString &prefix)
@@ -961,7 +1025,7 @@ struct FindSceneitemHelper {
 	OBSSceneItem output;
 };
 
-static bool FindSceneItemCb(obs_scene_t *scene, obs_sceneitem_t *item, void *ptr)
+static bool FindSceneItemCb(obs_scene_t *, obs_sceneitem_t *item, void *ptr)
 {
 	FindSceneitemHelper *helper = (FindSceneitemHelper *)ptr;
 
@@ -994,6 +1058,10 @@ FRONTEND_API OBSSceneItem pls_get_sceneitem_by_pointer_address(OBSScene destScen
 
 FRONTEND_API OBSSceneItem pls_get_sceneitem_by_pointer_address(void *sceneitemAddress)
 {
+	if (!sceneitemAddress) {
+		return OBSSceneItem();
+	}
+
 	auto cb = [](void *helper, obs_source_t *src) {
 		obs_scene_t *scene = obs_scene_from_source(src);
 		if (scene) {
@@ -1014,6 +1082,73 @@ FRONTEND_API OBSSceneItem pls_get_sceneitem_by_pointer_address(void *sceneitemAd
 	return helper.output;
 }
 
+FRONTEND_API void pls_get_all_source(std::vector<OBSSource> &vecSources)
+{
+	std::vector<OBSSource> *_vec = new std::vector<OBSSource>{};
+	auto enumSource = [](void *param, obs_source_t *source) {
+		std::vector<OBSSource> *_data = static_cast<std::vector<OBSSource> *>(param);
+		if (_data == nullptr) {
+			return false;
+		}
+		_data->push_back(source);
+		return true;
+	};
+	obs_enum_sources(enumSource, _vec);
+
+	vecSources.assign(_vec->begin(), _vec->end());
+	delete _vec;
+	_vec = nullptr;
+}
+
+static bool is_string_empty(const char *s)
+{
+	return !s || !s[0];
+}
+
+FRONTEND_API void pls_get_all_source(std::vector<OBSSource> &sources, const char *source_id, const char *name, std::function<bool(const char *value)> value)
+{
+	struct Context {
+		std::vector<OBSSource> &sources;
+		const char *source_id;
+		const char *name;
+		std::function<bool(const char *value)> value;
+		bool source_id_is_empty;
+		bool name_is_empty;
+		bool value_is_empty;
+	} context = {sources, source_id, name, value, is_string_empty(source_id), is_string_empty(name), !value};
+
+	auto enumSource = [](void *param, obs_source_t *source) {
+		Context *context = static_cast<Context *>(param);
+
+		if (context->source_id_is_empty) {
+			context->sources.push_back(source);
+			return true;
+		}
+
+		const char *id = obs_source_get_id(source);
+		if (is_string_empty(id) || strcmp(id, context->source_id)) {
+			return true;
+		}
+
+		if (context->name_is_empty || context->value_is_empty) {
+			context->sources.push_back(source);
+			return true;
+		}
+
+		obs_data_t *settings = obs_source_get_settings(source);
+		const char *_value = obs_data_get_string(settings, context->name);
+		bool _value_is_empty = is_string_empty(_value);
+		obs_data_release(settings);
+
+		if (context->value(!_value_is_empty ? _value : "")) {
+			context->sources.push_back(source);
+			return true;
+		}
+		return true;
+	};
+	obs_enum_sources(enumSource, &context);
+}
+
 FRONTEND_API ITextMotionTemplateHelper *pls_get_text_motion_template_helper_instance()
 {
 	if (callbacks_valid()) {
@@ -1022,12 +1157,55 @@ FRONTEND_API ITextMotionTemplateHelper *pls_get_text_motion_template_helper_inst
 	return nullptr;
 }
 
-FRONTEND_API QString pls_get_curreng_language()
+FRONTEND_API QString pls_get_current_language()
 {
 	if (callbacks_valid()) {
-		return fc->pls_get_curreng_language();
+		return fc->pls_get_current_language();
 	}
 	return QString();
+}
+
+FRONTEND_API QLocale::Language pls_get_current_language_enum()
+{
+	QLocale locale(pls_get_current_language());
+	return locale.language();
+}
+
+FRONTEND_API QString pls_get_current_language_short_str()
+{
+	return pls_get_current_language().section(QRegExp("\\W+"), 0, 0);
+}
+
+FRONTEND_API QString pls_get_current_country_short_str()
+{
+	return pls_get_current_language().section(QRegExp("\\W+"), 1, 1);
+}
+
+FRONTEND_API bool pls_is_match_current_language(QLocale::Language xlanguage)
+{
+	QLocale locale(pls_get_current_language());
+	return (xlanguage == locale.language());
+}
+
+FRONTEND_API QString pls_get_current_accept_language()
+{
+	QString common = "%1;q=0.9, en;q=0.8, ko;q=0.7, *;q=0.5";
+	if (pls_is_match_current_language(QLocale::English)) {
+		common.remove("en;q=0.8,");
+	} else if (pls_is_match_current_language(QLocale::Korean)) {
+		common.remove("ko;q=0.7,");
+	}
+	common = common.arg(pls_get_current_language_short_str());
+	return common;
+}
+
+FRONTEND_API bool pls_is_match_current_language(const QString &lang)
+{
+	if (lang.count() <= 3) {
+		return !QString::compare(pls_get_current_language_short_str(), lang, Qt::CaseInsensitive);
+	} else {
+		return !QString::compare(pls_get_current_language(), lang, Qt::CaseInsensitive);
+	}
 }
 
 FRONTEND_API int pls_get_actived_chat_channel_count()
@@ -1085,4 +1263,520 @@ FRONTEND_API bool pls_get_network_state()
 		return fc->pls_get_network_state();
 	}
 	return true;
+}
+
+FRONTEND_API void pls_show_virtual_background()
+{
+	if (callbacks_valid()) {
+		fc->pls_show_virtual_background();
+	}
+}
+
+FRONTEND_API QWidget *pls_create_virtual_background_resource_widget(QWidget *parent, std::function<void(QWidget *)> &&init, bool forProperty, const QString &itemId, bool checkBoxState,
+								    bool switchToPrismFirst)
+{
+	if (callbacks_valid()) {
+		return fc->pls_create_virtual_background_resource_widget(parent, std::forward<std::function<void(QWidget *)>>(init), forProperty, itemId, checkBoxState, switchToPrismFirst);
+	}
+	return nullptr;
+}
+
+FRONTEND_API bool pls_get_media_size(QSize &size, const char *path)
+{
+	media_info_t mi;
+	memset(&mi, 0, sizeof(media_info_t));
+	if (mi_open(&mi, path, MI_OPEN_DIRECTLY)) {
+		size.setWidth(mi_get_int(&mi, "width"));
+		size.setHeight(mi_get_int(&mi, "height"));
+		mi_free(&mi);
+		return true;
+	}
+	return false;
+}
+
+FRONTEND_API QPixmap pls_load_svg(const QString &path, const QSize &size)
+{
+	if (callbacks_valid()) {
+		return fc->pls_load_svg(path, size);
+	}
+
+	return QPixmap();
+}
+
+FRONTEND_API void pls_show_mobile_source_help()
+{
+	if (callbacks_valid()) {
+		return fc->pls_show_mobile_source_help();
+	}
+}
+
+FRONTEND_API void pls_set_side_window_visible(int key, bool visible)
+{
+	if (callbacks_valid()) {
+		return fc->pls_set_side_window_visible(key, visible);
+	}
+}
+
+FRONTEND_API void pls_mixer_mute_all(bool mute)
+{
+	if (callbacks_valid()) {
+		return fc->pls_mixer_mute_all(mute);
+	}
+}
+
+FRONTEND_API bool pls_mixer_is_all_mute()
+{
+	if (callbacks_valid()) {
+		return fc->pls_mixer_is_all_mute();
+	}
+	return false;
+}
+
+FRONTEND_API QString pls_get_login_state()
+{
+	if (callbacks_valid()) {
+		return fc->pls_get_login_state();
+	}
+	return "";
+}
+
+FRONTEND_API QString pls_get_stream_state()
+{
+	if (callbacks_valid()) {
+		return fc->pls_get_stream_state();
+	}
+	return "";
+}
+
+FRONTEND_API QString pls_get_record_state()
+{
+	if (callbacks_valid()) {
+		return fc->pls_get_record_state();
+	}
+	return "";
+}
+
+FRONTEND_API bool pls_get_live_record_available()
+{
+	if (callbacks_valid()) {
+		return fc->pls_get_live_record_available();
+	}
+	return false;
+}
+
+FRONTEND_API QList<SideWindowInfo> pls_get_side_windows_info()
+{
+	if (callbacks_valid()) {
+		return fc->pls_get_side_windows_info();
+	}
+	return {};
+}
+
+const char *ConfigKey(ConfigId id)
+{
+	return QMetaEnum::fromType<ConfigId>().valueToKey(id);
+}
+
+FRONTEND_API int pls_get_toast_message_count()
+{
+	if (callbacks_valid()) {
+		return fc->pls_get_toast_message_count();
+	}
+	return 0;
+}
+
+FRONTEND_API void pls_config_set_string(config_t *config, ConfigId id, const char *name, const char *value)
+{
+	config_set_string(config, ConfigKey(id), name, value);
+}
+FRONTEND_API void pls_config_set_int(config_t *config, ConfigId id, const char *name, int64_t value)
+{
+	config_set_int(config, ConfigKey(id), name, value);
+}
+FRONTEND_API void pls_config_set_uint(config_t *config, ConfigId id, const char *name, uint64_t value)
+{
+	config_set_uint(config, ConfigKey(id), name, value);
+}
+FRONTEND_API void pls_config_set_bool(config_t *config, ConfigId id, const char *name, bool value)
+{
+	config_set_bool(config, ConfigKey(id), name, value);
+}
+FRONTEND_API void pls_config_set_double(config_t *config, ConfigId id, const char *name, double value)
+{
+	config_set_double(config, ConfigKey(id), name, value);
+}
+
+FRONTEND_API const char *pls_config_get_string(config_t *config, ConfigId id, const char *name)
+{
+	return config_get_string(config, ConfigKey(id), name);
+}
+FRONTEND_API int64_t pls_config_get_int(config_t *config, ConfigId id, const char *name)
+{
+	return config_get_int(config, ConfigKey(id), name);
+}
+FRONTEND_API uint64_t pls_config_get_uint(config_t *config, ConfigId id, const char *name)
+{
+	return config_get_uint(config, ConfigKey(id), name);
+}
+FRONTEND_API bool pls_config_get_bool(config_t *config, ConfigId id, const char *name)
+{
+	return config_get_bool(config, ConfigKey(id), name);
+}
+FRONTEND_API double pls_config_get_double(config_t *config, ConfigId id, const char *name)
+{
+	return config_get_double(config, ConfigKey(id), name);
+}
+
+FRONTEND_API bool pls_config_remove_value(config_t *config, ConfigId id, const char *name)
+{
+	return config_remove_value(config, ConfigKey(id), name);
+}
+
+FRONTEND_API pls_blacklist_type pls_is_gpop_blacklist(QString value, pls_blacklist_type type)
+{
+	if (callbacks_valid()) {
+		return fc->pls_is_blacklist(value, type);
+	}
+	return pls_blacklist_type::None;
+}
+
+FRONTEND_API void pls_alert_third_party_plugins(QString pluginName, QWidget *parent)
+{
+	if (callbacks_valid()) {
+		return fc->pls_alert_third_party_plugins(pluginName, parent);
+	}
+}
+
+FRONTEND_API bool pls_is_dev_server()
+{
+	static std::optional<bool> devServer;
+
+	if (!devServer) {
+		QSettings setting("NAVER Corporation", "Prism Live Studio");
+		devServer = setting.value("DevServer", false).toBool();
+	}
+
+	return devServer.value();
+}
+
+FRONTEND_API QString pls_get_navershopping_deviceId()
+{
+	QSettings setting("NaverShopping", "Info");
+	QString uuid = setting.value("DeviceId", "").toString();
+	if (uuid.isEmpty()) {
+		uuid = QUuid::createUuid().toString();
+		uuid.remove("{").remove("}").remove("-");
+		setting.setValue("DeviceId", uuid);
+		setting.sync();
+	}
+	return uuid;
+}
+
+FRONTEND_API bool pls_run_http_server(const char *path, QString &addr, std::function<void(const QString &, const QJsonObject &)> callback)
+{
+	/*auto proc = new QProcess();
+
+	proc->start("httpserver_ver252.exe", {path});
+	if (!proc->waitForStarted(1000)) {
+		PLS_WARN(MAIN_FRONTEND_API, "HttpServer: failed to start");
+		return false;
+	}
+
+	proc->waitForReadyRead(1000);
+	addr = proc->readLine().trimmed();
+	if (addr.isEmpty()) {
+		PLS_WARN(MAIN_FRONTEND_API, "HttpServer: failed to get addr");
+		return false;
+	}
+
+	QObject::connect(proc, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), proc, [=] {
+		callback(addr, proc->readAllStandardOutput());
+		delete proc;
+	});*/
+
+	auto tcpServer = new QTcpServer;
+	if (!tcpServer->listen(QHostAddress::LocalHost)) {
+		return false;
+	}
+	addr = QString("%1:%2").arg(tcpServer->serverAddress().toString()).arg(tcpServer->serverPort());
+
+	QObject::connect(tcpServer, &QTcpServer::acceptError, &QObject::deleteLater);
+	QObject::connect(tcpServer, &QTcpServer::newConnection, [=, path = QString(path)] {
+		auto tcpClient = tcpServer->nextPendingConnection();
+		if (nullptr == tcpClient) {
+			return;
+		}
+
+		QObject::connect(tcpClient, &QTcpSocket::readyRead, tcpServer, [=] {
+			for (;;) {
+				auto data = tcpClient->readLine();
+				if (data.isEmpty()) {
+					break;
+				}
+
+				auto line = QString(data.trimmed());
+				if (line.isEmpty() || !(line.startsWith("POST") || line.startsWith("GET"))) {
+					continue;
+				}
+
+				auto urls = line.split(" ");
+				if (urls.length() != 3) {
+					break;
+				}
+
+				if (!urls[1].startsWith(path)) {
+					continue;
+				}
+
+				tcpClient->write("HTTP/1.1 200 OK\n");
+				tcpClient->write("Content-Type: text/html; charset=UTF-8\n");
+				tcpClient->write("\n");
+
+				QJsonObject root;
+				QUrl url(urls[1]);
+				QUrlQuery query(url.query());
+				auto code = query.queryItemValue("code", QUrl::FullyDecoded);
+				if (code.isEmpty()) {
+					root.insert("message", "code is empty");
+
+					static QByteArray bodyFailed;
+					if (bodyFailed.isEmpty()) {
+						QFile fileFailed(QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("loginFail.html"));
+						if (fileFailed.open(QIODevice::ReadOnly)) {
+							bodyFailed = fileFailed.readAll();
+							fileFailed.close();
+						}
+					}
+					tcpClient->write(bodyFailed.replace("$(lang)", pls_get_current_language_short_str().toUtf8()));
+				} else {
+					root.insert("code", code);
+					root.insert("path", path);
+					root.insert("scope", query.queryItemValue("scope", QUrl::FullyDecoded));
+
+					static QByteArray bodyOk;
+					if (bodyOk.isEmpty()) {
+						QFile fileOk(QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("login.html"));
+						if (fileOk.open(QIODevice::ReadOnly)) {
+							bodyOk = fileOk.readAll();
+							fileOk.close();
+						}
+					}
+
+					tcpClient->write(bodyOk.replace("$(lang)", pls_get_current_language_short_str().toUtf8()));
+				}
+
+				callback(addr, root);
+
+				tcpClient->flush();
+				tcpClient->close();
+				tcpClient->deleteLater();
+
+				tcpServer->close();
+				tcpServer->deleteLater();
+
+				break;
+			}
+		});
+	});
+
+	return true;
+}
+
+FRONTEND_API QDialogButtonBox::StandardButton pls_alert_warning(const char *title, const char *message)
+{
+	if (callbacks_valid()) {
+		return fc->pls_alert_warning(title, message);
+	} else {
+		return QDialogButtonBox::StandardButton::NoButton;
+	}
+}
+
+FRONTEND_API bool pls_get_app_exiting()
+{
+	return g_bMainWindowClosing;
+}
+
+FRONTEND_API void pls_set_app_exiting(bool value)
+{
+	g_bMainWindowClosing = value;
+}
+
+FRONTEND_API void pls_singletonWakeup()
+{
+	if (callbacks_valid()) {
+		fc->pls_singletonWakeup();
+	}
+}
+
+FRONTEND_API bool pls_is_test_mode()
+{
+	static std::optional<bool> testMode;
+
+	if (!testMode) {
+		QSettings setting("NAVER Corporation", "Prism Live Studio");
+		testMode = setting.value("TestMode", false).toBool();
+	}
+
+	return testMode.value();
+}
+
+FRONTEND_API bool pls_is_immersive_audio()
+{
+	static std::optional<bool> immersiveAudio;
+
+	QSettings setting("NAVER Corporation", "Prism Live Studio");
+	immersiveAudio = setting.value("ImmersiveAudio", false).toBool();
+
+	return immersiveAudio.value();
+}
+
+FRONTEND_API uint pls_get_live_start_time()
+{
+	if (callbacks_valid()) {
+		return fc->pls_get_live_start_time();
+	}
+	return 0;
+}
+QString fill_mask(const int &size)
+{
+	return QString().fill('*', size);
+}
+FRONTEND_API QString pls_masking_identify_info(const QString &str)
+{
+	QString identifyInfo(str);
+	return identifyInfo;
+}
+
+FRONTEND_API QString pls_masking_datetime_info(const QString &str)
+{
+	QString dateTimeInfo(str);
+
+	return dateTimeInfo;
+}
+
+FRONTEND_API QString pls_masking_passport_info(const QString &str)
+{
+	QString passportInfo(str);
+	return passportInfo;
+}
+
+FRONTEND_API QString pls_masking_Region_info(const QString &str)
+{
+	QString regionInfo(str);
+	return regionInfo;
+}
+
+FRONTEND_API QString pls_masking_bank_card_info(const QString &str)
+{
+	QString bandCardInfo(str);
+	return bandCardInfo;
+}
+
+FRONTEND_API QString pls_masking_name_info(const QString &str)
+{
+	QString nameInfo(str);
+	auto length = str.length();
+	if (length < 2) {
+		nameInfo = QString("%1").arg(fill_mask(length));
+	} else if (2 == length) {
+		nameInfo = QString("%1%2").arg(str.left(length - 1)).arg(fill_mask(length - 1));
+	} else if (length < 7 && length > 2) {
+		nameInfo = QString("%1%2%3").arg(str.left(1)).arg(fill_mask(length - 2)).arg(str.right(1));
+
+	} else {
+		nameInfo = QString("%1%2%3").arg(str.left(2)).arg(fill_mask(length - 4)).arg(str.right(2));
+	}
+	return nameInfo;
+}
+
+FRONTEND_API QString pls_masking_ip_info(const QString &str)
+{
+	QString ipInfo(str);
+	QStringList ipLists;
+	if (3 == str.count('.')) {
+		ipLists = str.split('.');
+		ipInfo = QString("%1.%2.***.***").arg(ipLists[0]).arg(ipLists[1]);
+	} else if (7 == str.count(':')) {
+		ipLists = str.split(':');
+		ipInfo = QString("%1:%2:%3:%4:****:****:****:****").arg(ipLists[0]).arg(ipLists[1]).arg(ipLists[3]).arg(ipLists[4]);
+	}
+	return ipInfo;
+}
+
+FRONTEND_API QString pls_masking_address_info(const QString &str)
+{
+	QString addressInfo(str);
+	return addressInfo;
+}
+
+FRONTEND_API QString pls_masking_email_info(const QString &str)
+{
+	QString emailInfo(str);
+	if (str.contains('@')) {
+		auto emailList = str.split('@');
+		QString idDomain;
+		for (auto index = 0; index < emailList.size() - 1; ++index) {
+			idDomain += emailList.at(index) + '@';
+		}
+		idDomain.remove(idDomain.length() - 1);
+		auto length = idDomain.length();
+		emailInfo = length <= 2 ? QString("%1@%2").arg(fill_mask(length)).arg(emailList.last()) : QString("%1%2@%3").arg(idDomain.left(2)).arg(fill_mask(length - 2)).arg(emailList.last());
+	}
+	return emailInfo;
+}
+
+FRONTEND_API QString pls_masking_user_id_info(const QString &str)
+{
+	QString userIdInfo(str);
+	int length = str.length();
+	if (length > 2) {
+		userIdInfo = length <= 6 ? QString("%1%2").arg(str.left(2)).arg(fill_mask(4)) : QString("%1%2").arg(str.left(4)).arg(fill_mask(length - 4));
+	} else {
+		userIdInfo = QString("%1").arg(fill_mask(6));
+	}
+	return userIdInfo;
+}
+
+FRONTEND_API QString pls_masking_person_info(const QString &str)
+{
+	auto personInfo(str);
+	if (!personInfo.isEmpty()) {
+		int length = str.length();
+		int needmaskIndex = length * 0.4f;
+		personInfo = QString("%1%2").arg(personInfo.left(needmaskIndex)).arg(fill_mask(length - needmaskIndex));
+	}
+	return personInfo;
+}
+
+FRONTEND_API QString pls_masking_int_info(const qint64 &intData)
+{
+	auto intInfo = QString::number(intData);
+	return pls_masking_person_info(intInfo);
+}
+
+FRONTEND_API QString pls_masking_double_info(const double &douData)
+{
+	auto doubleInfo = QString::number(douData, 'f');
+	return pls_masking_person_info(doubleInfo);
+}
+
+FRONTEND_API void pls_push_dialog_view(QDialog *dialog)
+{
+	g_dialog_views.append(dialog);
+}
+
+FRONTEND_API void pls_pop_dialog_view(QDialog *dialog)
+{
+	g_dialog_views.removeAll(dialog);
+}
+
+FRONTEND_API void pls_notify_close_dialog_views()
+{
+	while (!g_dialog_views.isEmpty()) {
+		if (auto dialog_view = g_dialog_views.takeLast(); dialog_view) {
+			if (auto adapter = dynamic_cast<PLSWidgetDpiAdapter *>(dialog_view.data()); adapter) {
+				adapter->closeNoButton();
+			}
+		}
+	}
 }

@@ -1,10 +1,11 @@
 QRadioButton {
 	outline: none;
-	spacing: /*hdpi*/ 5px;
+	spacing: /*hdpi*/ 6px;
 }
 QRadioButton::indicator {
-	width: /*hdpi*/ 15px;
-	height: /*hdpi*/ 15px;
+	padding-top: /*hdpi*/1px;
+	width: /*hdpi*/ 18px;
+	height: /*hdpi*/ 18px;
 }
 QRadioButton::indicator:checked {
 	image:url(":/images/radio-button-checked.svg");
@@ -18,3 +19,8 @@ QRadioButton::indicator:unchecked {
 QRadioButton::indicator:unchecked:disabled {
 	image:url(":/images/radio-button-unchecked-disable.svg");
 }
+
+QRadioButton:disabled {
+	color: #666666;
+}
+

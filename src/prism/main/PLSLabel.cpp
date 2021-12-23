@@ -2,7 +2,16 @@
 #include "PLSDpiHelper.h"
 #include <QTimer>
 
-PLSLabel::PLSLabel(QWidget *parent) : QLabel(parent) {}
+PLSLabel::PLSLabel(QWidget *parent, bool showTooltip) : QLabel(parent)
+{
+	this->showTooltip = showTooltip;
+}
+
+PLSLabel::PLSLabel(const QString &text, bool showTooltip, QWidget *parent) : QLabel(parent)
+{
+	this->showTooltip = showTooltip;
+	SetText(text);
+}
 
 PLSLabel::~PLSLabel() {}
 
@@ -10,13 +19,20 @@ void PLSLabel::SetText(const QString &text)
 {
 	this->realText = text;
 	this->setText(GetNameElideString());
-	setToolTip(text);
+
+	if (showTooltip)
+		setToolTip(text);
+}
+
+QString PLSLabel::Text()
+{
+	return realText;
 }
 
 void PLSLabel::resizeEvent(QResizeEvent *event)
 {
 	QLabel::resizeEvent(event);
-	this->setText(GetNameElideString());
+	QTimer::singleShot(0, this, [=]() { this->setText(GetNameElideString()); });
 }
 
 QString PLSLabel::GetNameElideString()

@@ -35,6 +35,10 @@ extern "C" {
 #define INT_CUR_LINE __LINE__
 #define FILE_LINE __FILE__ " (" S__LINE__ "): "
 
+//PRISM/WangChuanjing/20210913/NoIssue/thread info
+#define THREAD_START_LOG \
+	plog(LOG_INFO, "Thread is started. [%s : %u]", __FUNCTION__, __LINE__)
+
 enum {
 	/**
 	 * Use if there's a problem that can potentially affect the program,
@@ -74,7 +78,12 @@ EXPORT void base_set_crash_handler(void (*handler)(const char *, va_list,
 						   void *),
 				   void *param);
 
+//PRISM/Xiewei/20210817/#None/This function does noting, use 'plogva' instead.
+#ifndef _DEBUG
 EXPORT void blogva(int log_level, const char *format, va_list args);
+#endif
+//PRISM/Xiewei/20210817/#None/Add new log function 'plogva'.
+EXPORT void plogva(int log_level, const char *format, va_list args);
 
 #if !defined(_MSC_VER) && !defined(SWIG)
 #define PRINTFATTR(f, a) __attribute__((__format__(__printf__, f, a)))
@@ -82,10 +91,35 @@ EXPORT void blogva(int log_level, const char *format, va_list args);
 #define PRINTFATTR(f, a)
 #endif
 
+//PRISM/Xiewei/20210817/#None/This function does noting, use 'plog' instead.
+#ifndef _DEBUG
 PRINTFATTR(2, 3)
 EXPORT void blog(int log_level, const char *format, ...);
+#endif
+//PRISM/Xiewei/20210817/#None/Add new log function for logs.
+PRINTFATTR(2, 3)
+EXPORT void plog(int log_level, const char *format, ...);
 PRINTFATTR(1, 2)
 EXPORT void bcrash(const char *format, ...);
+
+//PRISM/Zhangdewen/20210218/#/extend log support nelo fields
+typedef void (*log_handler_ex_t)(bool kr, int lvl, const char *msg,
+				 va_list args, const char *fields[][2],
+				 int field_count, void *param);
+//PRISM/Zhangdewen/20210218/#/extend log support nelo fields
+EXPORT void base_get_log_handler_ex(log_handler_ex_t *handler, void **param);
+//PRISM/Zhangdewen/20210218/#/extend log support nelo fields
+EXPORT void base_set_log_handler_ex(log_handler_ex_t handler, void *param);
+//PRISM/Zhangdewen/20210218/#/extend log support nelo fields
+EXPORT void blogvaex(int log_level, const char *format, va_list args,
+		     const char *fields[][2], int field_count);
+//PRISM/Zhangdewen/20210218/#/extend log support nelo fields
+PRINTFATTR(2, 3)
+EXPORT void blogex(bool kr, int log_level, const char *fields[][2],
+		   int field_count, const char *format, ...);
+
+EXPORT void bdisappear(const char *process_name, const char *pid,
+		       const char *src);
 
 #undef PRINTFATTR
 

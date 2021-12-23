@@ -84,6 +84,11 @@ gs_sampler_state::gs_sampler_state(gs_device_t *device,
 	vec4_from_rgba(&v4, info->border_color);
 	memcpy(sd.BorderColor, v4.ptr, sizeof(v4));
 
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid) {
+		throw "Device invalid";
+	}
+
 	hr = device->device->CreateSamplerState(&sd, state.Assign());
 	if (FAILED(hr))
 		throw HRError("Failed to create sampler state", hr);

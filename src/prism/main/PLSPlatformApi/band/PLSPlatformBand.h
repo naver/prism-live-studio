@@ -35,9 +35,9 @@ public:
 private:
 	void onAlLiveStarted(bool) override;
 	void onAllPrepareLive(bool isOk) override;
-	void onLiveStopped() override;
+	void onLiveEnded() override;
 
-	void requesetLiveStop(std::function<void()>);
+	void requesetLiveEnd(std::function<void()>);
 	void setMaxLiveTime(const int &min);
 	void setLiveId(const QString &liveId);
 	PLSPlatformApiResult getApiResult(int code, QNetworkReply::NetworkError error);

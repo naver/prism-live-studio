@@ -40,10 +40,6 @@ static uint64_t tick_sources(uint64_t cur_time, uint64_t last_time)
 		last_time = cur_time -
 			    video_output_get_frame_time(obs->video.video);
 
-	if (!is_render_working()) {
-		return cur_time;
-	}
-
 	delta_time = cur_time - last_time;
 	seconds = (float)((double)delta_time / 1000000000.0);
 
@@ -111,7 +107,7 @@ static inline void render_displays(void)
 
 	display = obs->data.first_display;
 	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
-	while (display && is_render_working()) {
+	while (display && gs_get_engine_valid()) {
 		render_display(display);
 		display = display->next;
 	}
@@ -747,6 +743,10 @@ static inline void output_video_data(struct obs_core_video *video,
 	}
 }
 
+//PRISM/LiuHaibin/20210729/#None/Check if PC is wake up from sleep
+#ifdef _WIN32
+#define DROP_FRAME_CHECKING_THRESHOLD 30
+#endif
 static inline void video_sleep(struct obs_core_video *video, bool raw_active,
 			       const bool gpu_active, uint64_t *p_time,
 			       uint64_t interval_ns)
@@ -762,6 +762,18 @@ static inline void video_sleep(struct obs_core_video *video, bool raw_active,
 	} else {
 		count = (int)((os_gettime_ns() - cur_time) / interval_ns);
 		*p_time = cur_time + interval_ns * count;
+
+//PRISM/LiuHaibin/20210729/#None/Check if PC is wake up from sleep
+#ifdef _WIN32
+		if (count > DROP_FRAME_CHECKING_THRESHOLD &&
+		    power_monitor_state(obs->win_power_monitor,
+					WPS_POWER_RESUME_SUSPEND, true)) {
+			plog(LOG_WARNING,
+			     "WPM: PC is just wake up from sleep, ignore %d dropped render frames.",
+			     count);
+			count = 1;
+		}
+#endif
 	}
 
 	video->total_frames += count;
@@ -860,7 +872,7 @@ static void clear_gpu_frame_data(void)
 
 extern THREAD_LOCAL bool is_graphics_thread;
 
-static void execute_graphics_tasks(void)
+void execute_graphics_tasks(void)
 {
 	struct obs_core_video *video = &obs->video;
 	bool tasks_remaining = true;
@@ -893,7 +905,7 @@ struct winrt_exports {
 		exports->func = os_dlsym(module, #func);          \
 		if (!exports->func) {                             \
 			success = false;                          \
-			blog(LOG_ERROR,                           \
+			plog(LOG_ERROR,                           \
 			     "Could not load function '%s' from " \
 			     "module '%s'",                       \
 			     #func, module_name);                 \
@@ -963,6 +975,9 @@ static const char *render_displays_name = "render_displays";
 static const char *output_frame_name = "output_frame";
 void *obs_graphics_thread(void *param)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 #ifdef _WIN32
 	struct winrt_state winrt;
 	init_winrt_state(&winrt);
@@ -1035,7 +1050,7 @@ void *obs_graphics_thread(void *param)
 #endif
 
 		//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
-		if (is_render_working()) {
+		if (obs_render_engine_is_valid()) {
 			profile_start(output_frame_name);
 			output_frame(raw_active, gpu_active);
 			profile_end(output_frame_name);
@@ -1044,7 +1059,9 @@ void *obs_graphics_thread(void *param)
 			render_displays();
 			profile_end(render_displays_name);
 		} else {
+			gs_enter_context(obs->video.graphics);
 			gs_device_rebuild(obs->video.graphics);
+			gs_leave_context();
 		}
 
 		frame_time_ns = os_gettime_ns() - frame_start;

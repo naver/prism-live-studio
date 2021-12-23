@@ -26,6 +26,8 @@
 
 #define PREFIX "[H265/HEVC]"
 
+/* clang-format off */
+
 using namespace Plugin::AMD;
 static obs_encoder_info _oei = {};
 
@@ -44,6 +46,8 @@ void Plugin::Interface::H265Interface::encoder_register()
 	_oei.update         = update;
 	_oei.get_video_info = get_video_info;
 	_oei.get_extra_data = get_extra_data;
+	//PRISM/ZengQin/20210528/#none/get encoder props params
+	_oei.props_params = get_props_pramas;
 
 	// Test if we actually have AVC support.
 	if (!AMD::CapabilityManager::Instance()->IsCodecSupported(Codec::HEVC)) {
@@ -938,7 +942,8 @@ Plugin::Interface::H265Interface::H265Interface(obs_data_t* data, obs_encoder_t*
 	}
 
 	// Picture Control
-	uint32_t      gopSize = static_cast<uint32_t>(amf_clamp(floor(obsFPSnum / (double_t)obsFPSden), 1, 1000));
+	//PRISM/LiuHaibin/20210803/#9045/add protection division operation
+	uint32_t      gopSize = static_cast<uint32_t>(amf_clamp(obsFPSden ? floor(obsFPSnum / (double_t)obsFPSden) : 30, 1, 1000));
 	H265::GOPType gopType = static_cast<H265::GOPType>(obs_data_get_int(data, P_GOP_TYPE));
 	m_VideoEncoder->SetGOPType(gopType);
 	if (static_cast<ViewMode>(obs_data_get_int(data, P_VIEW)) >= ViewMode::Expert) {
@@ -956,7 +961,8 @@ Plugin::Interface::H265Interface::H265Interface(obs_data_t* data, obs_encoder_t*
 	}
 	m_VideoEncoder->SetGOPSize(gopSize);
 	/// Keyframe Interval/Period
-	double_t framerate = (double_t)obsFPSnum / (double_t)obsFPSden;
+	//PRISM/LiuHaibin/20210803/#9045/add protection division operation
+	double_t framerate = obsFPSden ? (double_t)obsFPSnum / (double_t)obsFPSden : 30;
 	{
 		uint32_t idrperiod = static_cast<uint32_t>(obs_data_get_int(data, P_PERIOD_IDR_H265));
 		if (idrperiod == 0) {
@@ -1028,7 +1034,7 @@ Plugin::Interface::H265Interface::H265Interface(obs_data_t* data, obs_encoder_t*
 	// Dynamic Properties (Can be changed during Encoding)
 	this->update(data);
 
-	PLOG_DEBUG("<%s> Complete.", __FUNCTION_NAME__);
+	PLOG_INFO("<%s> Complete: m_VideoEncoder %p.", __FUNCTION_NAME__, m_VideoEncoder.get());
 }
 
 void Plugin::Interface::H265Interface::destroy(void* ptr) noexcept try {
@@ -1044,6 +1050,7 @@ Plugin::Interface::H265Interface::~H265Interface()
 {
 	PLOG_DEBUG("<%s> Finalizing...", __FUNCTION_NAME__);
 	if (m_VideoEncoder) {
+		PLOG_INFO("<%s> Stop and release m_VideoEncoder %p", __FUNCTION_NAME__, m_VideoEncoder.get());
 		m_VideoEncoder->Stop();
 		m_VideoEncoder = nullptr;
 	}
@@ -1097,7 +1104,8 @@ bool Plugin::Interface::H265Interface::update(obs_data_t* data)
 	m_VideoEncoder->SetEnforceHRDEnabled(!!obs_data_get_int(data, P_ENFORCEHRD));
 
 	// Picture Control
-	double_t framerate = (double_t)obsFPSnum / (double_t)obsFPSden;
+	//PRISM/LiuHaibin/20210803/#9045/add protection division operation
+	double_t framerate = obsFPSden ? (double_t)obsFPSnum / (double_t)obsFPSden : 30;
 	/// I/P/Skip Frame Interval/Period
 	{
 		uint32_t period = static_cast<uint32_t>(obs_data_get_double(data, P_INTERVAL_IFRAME) * framerate);
@@ -1125,7 +1133,7 @@ bool Plugin::Interface::H265Interface::update(obs_data_t* data)
 	if (m_VideoEncoder->IsStarted()) {
 		m_VideoEncoder->LogProperties();
 		if (static_cast<ViewMode>(obs_data_get_int(data, P_VIEW)) >= ViewMode::Master)
-			PLOG_ERROR(
+			PLOG_WARNING(
 				"View Mode 'Master' is active, avoid giving anything but basic support. Error is most likely caused by "
 				"user settings themselves.");
 	}
@@ -1188,7 +1196,39 @@ bool Plugin::Interface::H265Interface::get_extra_data(void* ptr, uint8_t** extra
 	return false;
 }
 
+//PRISM/ZengQin/20210528/#none/get encoder props params
+obs_data_t* Plugin::Interface::H265Interface::get_props_pramas(void* data)
+{
+	if (data)
+		return static_cast<Plugin::Interface::H265Interface*>(data)->get_props_pramas();
+	return NULL;
+}
+
 bool Plugin::Interface::H265Interface::get_extra_data(uint8_t** extra_data, size_t* size)
 {
 	return m_VideoEncoder->GetExtraData(extra_data, size);
 }
+
+//PRISM/ZengQin/20210528/#none/get encoder props params
+obs_data_t* Plugin::Interface::H265Interface::get_props_pramas()
+{
+	if (!m_Encoder || !m_VideoEncoder) {
+		PLOG_WARNING("<%s> H265 Encoder is nullptr: m_Encoder %p, m_VideoEncoder %p", __FUNCTION_NAME__, m_Encoder,
+					 m_VideoEncoder.get());
+		return nullptr;
+	}
+
+	obs_data_t* settings   = obs_encoder_get_settings(m_Encoder);
+	const char* rc         = obs_data_get_string(settings, "rate_control");
+	int         keyint_sec = (int)obs_data_get_int(settings, "keyint_sec");
+	const char* preset     = obs_data_get_string(settings, "preset");
+	obs_data_release(settings);
+
+	obs_data_t* params = m_VideoEncoder->GetPropsPramas();
+	obs_data_set_string(params, "rate_control", rc);
+	obs_data_set_int(params, "keyint", keyint_sec);
+	obs_data_set_string(params, "preset", preset);
+	return params;
+}
+
+/* clang-format on */

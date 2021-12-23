@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>Dialog</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0">
    <property name="spacing">
     <number>0</number>
    </property>
@@ -84,13 +84,13 @@
      <property name="widgetResizable">
       <bool>true</bool>
      </property>
-     <widget class="QWidget" name="scrollAreaWidgetContents">
+     <widget class="QWidget" name="scrollAreaWidgetContentsChannel">
       <property name="geometry">
        <rect>
         <x>0</x>
         <y>0</y>
         <width>471</width>
-        <height>132</height>
+        <height>134</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -104,7 +104,7 @@
         <number>0</number>
        </property>
        <property name="rightMargin">
-        <number>0</number>
+        <number>11</number>
        </property>
        <property name="bottomMargin">
         <number>0</number>

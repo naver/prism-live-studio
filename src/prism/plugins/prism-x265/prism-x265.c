@@ -15,7 +15,7 @@
 // only support AV_PIX_FMT_YUV444P, AV_PIX_FMT_YUV420P
 #define LIBX265_DEPTH 8
 
-#define do_log(level, format, ...) blog(level, "[x265 encoder: '%s'] " format, obs_encoder_get_name(obj->obs_encoder), ##__VA_ARGS__)
+#define do_log(level, format, ...) plog(level, "[x265 encoder: '%s'] " format, obs_encoder_get_name(obj->obs_encoder), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
 #define info(format, ...) do_log(LOG_INFO, format, ##__VA_ARGS__)
@@ -514,11 +514,45 @@ static bool prism_x265_encode(void *data, struct encoder_frame *frame, struct en
 		packet->dts = x265pic_out.dts;
 		packet->keyframe = keyframe;
 
-		//blog(LOG_DEBUG, "pts:%lld, len:%u key:%d  taketime:%lldms ", packet->pts, packet->size, keyframe, (end - start) / 1000000);
+		//plog(LOG_DEBUG, "pts:%lld, len:%u key:%d  taketime:%lldms ", packet->pts, packet->size, keyframe, (end - start) / 1000000);
 	}
 
 	*received_packet = (nal_count > 0);
 	return true;
+}
+
+//PRISM/ZengQin/20210528/#none/get encoder props params
+static obs_data_t *prism_x265_props_prams(void *data)
+{
+	if (!data)
+		return NULL;
+
+	struct prism_x265 *obj = data;
+	obs_data_t *settings = obs_encoder_get_settings(obj->obs_encoder);
+	const char *target_usage = obs_data_get_string(settings, "target_usage");
+	const char *profile = obs_data_get_string(settings, "profile");
+	const char *rate_control = obs_data_get_string(settings, "rate_control");
+	const char *latency = obs_data_get_string(settings, "latency");
+	const char *preset = obs_data_get_string(settings, "preset");
+	const char *tune = obs_data_get_string(settings, "tune");
+	int keyframe_sec = (int)obs_data_get_int(settings, "keyframe_second");
+	int bitrate = (int)obs_data_get_int(settings, "bitrate");
+	int qp = (int)obs_data_get_int(settings, "cqp");
+	int rf = (int)obs_data_get_int(settings, "crf");
+	obs_data_release(settings);
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_string(params, "target_usage", target_usage);
+	obs_data_set_string(params, "profile", profile);
+	obs_data_set_string(params, "rate_control", rate_control);
+	obs_data_set_string(params, "latency", latency);
+	obs_data_set_string(params, "preset", preset);
+	obs_data_set_string(params, "tune", tune);
+	obs_data_set_int(params, "bitrate", bitrate);
+	obs_data_set_int(params, "keyframe_second", keyframe_sec);
+	obs_data_set_int(params, "cqp", qp);
+	obs_data_set_int(params, "crf", rf);
+	return params;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -541,4 +575,6 @@ struct obs_encoder_info prism_x265_encoder = {
 
 	.get_video_info = prism_x265_video_info,
 	.caps = OBS_ENCODER_CAP_DYN_BITRATE,
+	//PRISM/ZengQin/20210528/#none/get encoder props params
+	.props_params = prism_x265_props_prams,
 };

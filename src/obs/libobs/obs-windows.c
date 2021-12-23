@@ -39,21 +39,23 @@ const char *get_module_extension(void)
 #define BIT_STRING "32bit"
 #endif
 
-static const char *module_bin[] = {
-	"obs-plugins/" BIT_STRING,
-	"../../obs-plugins/" BIT_STRING,
-};
-
-static const char *module_data[] = {"data/%module%",
-				    "../../data/obs-plugins/%module%"};
-
-static const int module_patterns_size =
-	sizeof(module_bin) / sizeof(module_bin[0]);
+//PRISM/LiuYing/20210429/#7305/Do not support obs plugins.
+//static const char *module_bin[] = {
+//	"obs-plugins/" BIT_STRING,
+//	"../../obs-plugins/" BIT_STRING,
+//};
+//
+//static const char *module_data[] = {"data/%module%",
+//				    "../../data/obs-plugins/%module%"};
+//
+//static const int module_patterns_size =
+//	sizeof(module_bin) / sizeof(module_bin[0]);
 
 void add_default_module_paths(void)
 {
-	for (int i = 0; i < module_patterns_size; i++)
-		obs_add_module_path(module_bin[i], module_data[i]);
+	//PRISM/LiuYing/20210429/#7305/Do not support obs plugins.
+	//for (int i = 0; i < module_patterns_size; i++)
+	//	obs_add_module_path(module_bin[i], module_data[i]);
 }
 
 /* on windows, points to [base directory]/data/libobs */
@@ -93,7 +95,7 @@ static void log_processor_info(void)
 				  (LPBYTE)data, &size);
 	if (status == ERROR_SUCCESS) {
 		os_wcs_to_utf8_ptr(data, 0, &str);
-		blog(LOG_INFO, "CPU Name: %s", str);
+		plog(LOG_INFO, "CPU Name: %s", str);
 		bfree(str);
 	}
 
@@ -101,14 +103,14 @@ static void log_processor_info(void)
 	status = RegQueryValueExW(key, L"~MHz", NULL, NULL, (LPBYTE)&speed,
 				  &size);
 	if (status == ERROR_SUCCESS)
-		blog(LOG_INFO, "CPU Speed: %ldMHz", speed);
+		plog(LOG_INFO, "CPU Speed: %ldMHz", speed);
 
 	RegCloseKey(key);
 }
 
 static void log_processor_cores(void)
 {
-	blog(LOG_INFO, "Physical Cores: %d, Logical Cores: %d",
+	plog(LOG_INFO, "Physical Cores: %d, Logical Cores: %d",
 	     os_get_physical_cores(), os_get_logical_cores());
 }
 
@@ -125,7 +127,7 @@ static void log_available_memory(void)
 	const char *note = " (NOTE: 32bit programs cannot use more than 3gb)";
 #endif
 
-	blog(LOG_INFO, "Physical Memory: %luMB Total, %luMB Free%s",
+	plog(LOG_INFO, "Physical Memory: %luMB Total, %luMB Free%s",
 	     (DWORD)(ms.ullTotalPhys / 1048576),
 	     (DWORD)(ms.ullAvailPhys / 1048576), note);
 }
@@ -138,7 +140,7 @@ static void log_windows_version(void)
 	bool b64 = is_64_bit_windows();
 	const char *windows_bitness = b64 ? "64" : "32";
 
-	blog(LOG_INFO, "Windows Version: %d.%d Build %d (revision: %d; %s-bit)",
+	plog(LOG_INFO, "Windows Version: %d.%d Build %d (revision: %d; %s-bit)",
 	     ver.major, ver.minor, ver.build, ver.revis, windows_bitness);
 }
 
@@ -158,7 +160,7 @@ static void log_admin_status(void)
 		FreeSid(admin_group);
 	}
 
-	blog(LOG_INFO, "Running as administrator: %s",
+	plog(LOG_INFO, "Running as administrator: %s",
 	     success ? "true" : "false");
 }
 
@@ -188,7 +190,7 @@ static void log_aero(void)
 	}
 
 	composition_enabled(&bComposition);
-	blog(LOG_INFO, "Aero is %s%s", bComposition ? "Enabled" : "Disabled",
+	plog(LOG_INFO, "Aero is %s%s", bComposition ? "Enabled" : "Disabled",
 	     aeroMessage);
 }
 
@@ -225,29 +227,29 @@ static void log_gaming_features(void)
 			      L"AutoGameModeEnabled", &game_mode_enabled);
 	}
 
-	blog(LOG_INFO, "Windows 10 Gaming Features:");
+	plog(LOG_INFO, "Windows 10 Gaming Features:");
 	if (game_bar_enabled.status == ERROR_SUCCESS) {
-		blog(LOG_INFO, "\tGame Bar: %s",
+		plog(LOG_INFO, "\tGame Bar: %s",
 		     (bool)game_bar_enabled.return_value ? "On" : "Off");
 	}
 
 	if (game_dvr_allowed.status == ERROR_SUCCESS) {
-		blog(LOG_INFO, "\tGame DVR Allowed: %s",
+		plog(LOG_INFO, "\tGame DVR Allowed: %s",
 		     (bool)game_dvr_allowed.return_value ? "Yes" : "No");
 	}
 
 	if (game_dvr_enabled.status == ERROR_SUCCESS) {
-		blog(LOG_INFO, "\tGame DVR: %s",
+		plog(LOG_INFO, "\tGame DVR: %s",
 		     (bool)game_dvr_enabled.return_value ? "On" : "Off");
 	}
 
 	if (game_dvr_bg_recording.status == ERROR_SUCCESS) {
-		blog(LOG_INFO, "\tGame DVR Background Recording: %s",
+		plog(LOG_INFO, "\tGame DVR Background Recording: %s",
 		     (bool)game_dvr_bg_recording.return_value ? "On" : "Off");
 	}
 
 	if (game_mode_enabled.status == ERROR_SUCCESS) {
-		blog(LOG_INFO, "\tGame Mode: %s",
+		plog(LOG_INFO, "\tGame Mode: %s",
 		     (bool)game_mode_enabled.return_value ? "On" : "Off");
 	}
 }
@@ -326,7 +328,7 @@ static void log_security_products_by_type(IWSCProductList *prod_list, int type)
 		WideCharToMultiByte(CP_UTF8, 0, name, -1, name_utf8, name_len,
 				    NULL, NULL);
 
-		blog(LOG_INFO, "\t%s: %s (%s)", name_utf8,
+		plog(LOG_INFO, "\t%s: %s (%s)", name_utf8,
 		     get_str_for_state(prod_state), get_str_for_type(type));
 
 		free(name_utf8);
@@ -356,7 +358,7 @@ static void log_security_products(void)
 		(const IID *)GetProcAddress(h_wsc, "IID_IWSCProductList");
 
 	if (prod_list_clsid && prod_list_iid) {
-		blog(LOG_INFO, "Sec. Software Status:");
+		plog(LOG_INFO, "Sec. Software Status:");
 
 		hr = CoCreateInstance(prod_list_clsid, NULL,
 				      CLSCTX_INPROC_SERVER, prod_list_iid,
@@ -815,14 +817,16 @@ void obs_key_combination_to_str(obs_key_combination_t combination,
 	}
 }
 
-bool sym_initialize_called = false;
+//PRISM/Zengqin/20210813/#none/init sym
+//bool sym_initialize_called = false;
 
 void reset_win32_symbol_paths(void)
 {
-	static BOOL(WINAPI * sym_initialize_w)(HANDLE, const wchar_t *, BOOL);
+	//PRISM/Zengqin/20210813/#none/init sym
+	/*static BOOL(WINAPI * sym_initialize_w)(HANDLE, const wchar_t *, BOOL);
 	static BOOL(WINAPI * sym_set_search_path_w)(HANDLE, const wchar_t *);
 	static bool funcs_initialized = false;
-	static bool initialize_success = false;
+	static bool initialize_success = false;*/
 
 	struct obs_module *module = obs->first_module;
 	struct dstr path_str = {0};
@@ -832,29 +836,30 @@ void reset_win32_symbol_paths(void)
 
 	da_init(paths);
 
-	if (!funcs_initialized) {
-		HMODULE mod;
-		funcs_initialized = true;
+	//PRISM/Zengqin/20210813/#none/init sym
+	//if (!funcs_initialized) {
+	//	HMODULE mod;
+	//	funcs_initialized = true;
 
-		mod = LoadLibraryW(L"DbgHelp");
-		if (!mod)
-			return;
+	//	mod = LoadLibraryW(L"DbgHelp");
+	//	if (!mod)
+	//		return;
 
-		sym_initialize_w =
-			(void *)GetProcAddress(mod, "SymInitializeW");
-		sym_set_search_path_w =
-			(void *)GetProcAddress(mod, "SymSetSearchPathW");
-		if (!sym_initialize_w || !sym_set_search_path_w) {
-			FreeLibrary(mod);
-			return;
-		}
+	//	sym_initialize_w =
+	//		(void *)GetProcAddress(mod, "SymInitializeW");
+	//	sym_set_search_path_w =
+	//		(void *)GetProcAddress(mod, "SymSetSearchPathW");
+	//	if (!sym_initialize_w || !sym_set_search_path_w) {
+	//		FreeLibrary(mod);
+	//		return;
+	//	}
 
-		initialize_success = true;
-		// Leaks 'mod' once.
-	}
+	//	initialize_success = true;
+	//	// Leaks 'mod' once.
+	//}
 
-	if (!initialize_success)
-		return;
+	//if (!initialize_success)
+	//	return;
 
 	abspath = os_get_abs_path_ptr(".");
 	if (abspath)
@@ -908,14 +913,18 @@ void reset_win32_symbol_paths(void)
 	if (path_str.array) {
 		os_utf8_to_wcs_ptr(path_str.array, path_str.len, &path_str_w);
 		if (path_str_w) {
-			if (!sym_initialize_called) {
+			//PRISM/Zengqin/20210813/#none/init sym
+			/*if (!sym_initialize_called) {
 				sym_initialize_w(GetCurrentProcess(),
-						 path_str_w, false);
+						 path_str_w, true);
 				sym_initialize_called = true;
 			} else {
 				sym_set_search_path_w(GetCurrentProcess(),
 						      path_str_w);
-			}
+			}*/
+
+			//PRISM/Zengqin/20210813/#none/init sym
+			os_sym_initialize(path_str_w);
 
 			bfree(path_str_w);
 		}

@@ -31,7 +31,7 @@ PLSPlatformAfreecaTV::PLSPlatformAfreecaTV()
 	setSingleChannel(false);
 
 	connect(PLS_PLATFORM_API, &PLSPlatformApi::channelRemoved, this, [=](const QVariantMap &info) {
-		QString platformName = info.value(ChannelData::g_channelName, "").toString();
+		QString platformName = info.value(ChannelData::g_platformName, "").toString();
 		auto dataType = info.value(ChannelData::g_data_type, ChannelData::RTMPType).toInt();
 
 		if (dataType == ChannelData::ChannelType && platformName == AFREECATV) {
@@ -79,13 +79,28 @@ void PLSPlatformAfreecaTV::saveSettings(function<void(bool)> onNext, const QStri
 	}
 }
 
-QString PLSPlatformAfreecaTV::getShareUrl(const QString &id, bool isLiveUrl)
+QString PLSPlatformAfreecaTV::getShareUrl(const QString &id, bool isLiveUrl, bool isEnc)
 {
 	if (isLiveUrl) {
 		return QString(g_plsAfreecaTVShareUrl_living).arg(id);
 	}
 
 	return QString(g_plsAfreecaTVShareUrl_beforeLive).arg(id);
+}
+
+QString PLSPlatformAfreecaTV::getShareUrl()
+{
+	auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
+	auto user_id = info.value(ChannelData::g_subChannelId).toString();
+
+	return getShareUrl(user_id, PLS_PLATFORM_API->isLiving());
+}
+
+QString PLSPlatformAfreecaTV::getShareUrlEnc()
+{
+	auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
+	auto user_id = info.value(ChannelData::g_subChannelId).toString();
+	return getShareUrl(pls_masking_person_info(user_id), PLS_PLATFORM_API->isLiving(), true);
 }
 
 void PLSPlatformAfreecaTV::reInitLiveInfo(bool isReset)
@@ -149,7 +164,7 @@ void PLSPlatformAfreecaTV::requestChannelInfo(const QVariantMap &srcInfo, Update
 			iconUrl = iconUrl.split("?dummy").first();
 		}
 		info[ChannelData::g_userProfileImg] = iconUrl;
-		if (auto icon = PLSAPIVLive::downloadImageSync(this, iconUrl, info[ChannelData::g_channelName].toString(), true); icon.first) {
+		if (auto icon = PLSAPIVLive::downloadImageSync(this, iconUrl, info[ChannelData::g_platformName].toString(), true); icon.first) {
 			info[ChannelData::g_userIconCachePath] = icon.second;
 		}
 		info[ChannelData::g_shareUrl] = getShareUrl(userID, false);
@@ -399,27 +414,21 @@ void PLSPlatformAfreecaTV::showApiRefreshError(PLSPlatformApiResult value)
 
 	switch (value) {
 	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Network.Error"));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("login.check.note.network"));
 		break;
 	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED: {
 		auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-		auto channelName = info.value(ChannelData::g_channelName).toString();
-		PLSAlertView::Button button = PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
+		auto channelName = info.value(ChannelData::g_platformName).toString();
+		PLSAlertView::Button button = PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
 		if (button == PLSAlertView::Button::Ok) {
 			emit closeDialogByExpired();
 			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
 		}
 	} break;
-	case PLSPlatformApiResult::PAR_API_ERROR_Live_Invalid:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.live.error.scheduled.invalid"));
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_Scheduled_Time:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.live.error.scheduled.time.invaild"));
-		break;
 	case PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.live.error.start.other").arg(AFREECATV));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.start.other").arg(AFREECATV));
 	default:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
 		break;
 	}
 }
@@ -431,25 +440,25 @@ void PLSPlatformAfreecaTV::showApiUpdateError(PLSPlatformApiResult value)
 	switch (value) {
 	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED: {
 		auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-		auto channelName = info.value(ChannelData::g_channelName).toString();
-		PLSAlertView::Button button = PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
+		auto channelName = info.value(ChannelData::g_platformName).toString();
+		PLSAlertView::Button button = PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
 		if (button == PLSAlertView::Button::Ok) {
 			emit closeDialogByExpired();
 			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
 		}
 	} break;
 	default:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.live.error.update.failed"));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.update.failed"));
 		break;
 	}
 }
 
-void PLSPlatformAfreecaTV::onLiveStopped()
+void PLSPlatformAfreecaTV::onLiveEnded()
 {
 	auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
 	auto user_id = info.value(ChannelData::g_subChannelId).toString();
 	PLSCHANNELS_API->setValueOfChannel(getChannelUUID(), ChannelData::g_shareUrl, getShareUrl(user_id, false));
-	liveStoppedCallback();
+	liveEndedCallback();
 }
 
 void PLSPlatformAfreecaTV::onAlLiveStarted(bool value)
@@ -483,7 +492,7 @@ QJsonObject PLSPlatformAfreecaTV::getMqttChatParams()
 
 QJsonObject PLSPlatformAfreecaTV::getWebChatParams()
 {
-	auto info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
+	const auto &info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
 	QJsonObject platform;
 	platform["name"] = "AFREECATV";
 	platform["userId"] = info.value(ChannelData::g_subChannelId, "").toString();

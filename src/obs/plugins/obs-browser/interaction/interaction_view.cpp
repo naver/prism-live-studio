@@ -14,7 +14,7 @@ void InteractionView::RegisterClassName()
 	if (!RegisterInteractionClass(INTERACTION_CLASS_VIEW,
 				      InteractionViewProc, NULL)) {
 		assert(false);
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Failed to register class for interaction view. error:%u",
 		     GetLastError());
 	}
@@ -146,7 +146,7 @@ void InteractionView::Create(HWND hp)
 		0, 0, hp, NULL, GetModuleHandle(NULL), NULL);
 
 	if (!::IsWindow(hwnd_)) {
-		blog(LOG_ERROR, "Failed to create interaction view. error:%u",
+		plog(LOG_ERROR, "Failed to create interaction view. error:%u",
 		     GetLastError());
 
 		assert(false);

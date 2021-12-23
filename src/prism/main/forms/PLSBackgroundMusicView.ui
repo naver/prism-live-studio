@@ -481,7 +481,7 @@
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_5">
           <property name="spacing">
-           <number>20</number>
+           <number>0</number>
           </property>
           <property name="leftMargin">
            <number>0</number>
@@ -490,6 +490,9 @@
            <number>0</number>
           </property>
           <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
            <number>0</number>
           </property>
           <item>
@@ -513,6 +516,22 @@
            </widget>
           </item>
           <item>
+           <spacer name="verticalSpacer_5">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Maximum</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
            <widget class="QLabel" name="noPlayListLabel">
             <property name="text">
              <string>Bgm.Add.Free.Music.From.Library</string>
@@ -521,7 +540,7 @@
              <set>Qt::AlignCenter</set>
             </property>
             <property name="wordWrap">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -546,7 +565,7 @@
      <widget class="QWidget" name="noSourcePage">
       <layout class="QVBoxLayout" name="verticalLayout_8">
        <property name="spacing">
-        <number>20</number>
+        <number>0</number>
        </property>
        <property name="sizeConstraint">
         <enum>QLayout::SetNoConstraint</enum>
@@ -584,6 +603,22 @@
         </widget>
        </item>
        <item>
+        <spacer name="verticalSpacer_6">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Maximum</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
         <widget class="QLabel" name="noticeLabel">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
@@ -598,7 +633,7 @@
           <set>Qt::AlignCenter</set>
          </property>
          <property name="wordWrap">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
         </widget>
        </item>

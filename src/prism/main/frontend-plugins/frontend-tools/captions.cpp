@@ -9,6 +9,7 @@
 #include <util/windows/WinHandle.hpp>
 #include <util/windows/ComPtr.hpp>
 #include <obs-module.h>
+#include "log/log.h"
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -31,10 +32,10 @@
 #include "frontend-api.h"
 #include "alert-view.hpp"
 
-#define do_log(type, format, ...) blog(type, "[Captions] " format, ##__VA_ARGS__)
-
-#define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
-#define debug(format, ...) do_log(LOG_DEBUG, format, ##__VA_ARGS__)
+//#define do_log(type, format, ...) plog(type, "[Captions] " format, ##__VA_ARGS__)
+//
+//#define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
+//#define debug(format, ...) do_log(LOG_DEBUG, format, ##__VA_ARGS__)
 
 using namespace std;
 
@@ -233,12 +234,12 @@ void obs_captions::start()
 
 		auto pair = handler_types.find(handler_id);
 		if (pair == handler_types.end()) {
-			warn("Failed to find handler '%s'", handler_id.c_str());
+			PLS_WARN(FRONTEND_TOOLS_CAPTIONS, "[Captions] Failed to find handler '%s'", handler_id.c_str());
 			return;
 		}
 
 		if (!LCIDToLocaleName(lang_id, wname, 256, 0)) {
-			warn("Failed to get locale name: %d", (int)GetLastError());
+			PLS_WARN(FRONTEND_TOOLS_CAPTIONS, "[Captions] Failed to get locale name: %d", (int)GetLastError());
 			return;
 		}
 
@@ -252,7 +253,7 @@ void obs_captions::start()
 
 		OBSSource s = OBSGetStrongRef(source);
 		if (!s) {
-			warn("Source invalid");
+			PLS_WARN(FRONTEND_TOOLS_CAPTIONS, "[Captions] Source invalid");
 			return;
 		}
 
@@ -266,7 +267,7 @@ void obs_captions::start()
 		} catch (std::string text) {
 			QWidget *window = pls_get_main_view();
 
-			warn("Failed to create handler: %s", text.c_str());
+			PLS_WARN(FRONTEND_TOOLS_CAPTIONS, "[Captions] Failed to create handler: %s", text.c_str());
 
 			PLSAlertView::warning(window, obs_module_text("Captions.Error.GenericFail"), text.c_str());
 		}

@@ -162,6 +162,9 @@ namespace Plugin {
 			virtual void SetFillerDataEnabled(bool v) override;
 			virtual bool IsFillerDataEnabled() override;
 
+			//PRISM/ZengQin/20210528/#none/get encoder props params
+			virtual obs_data_t* GetPropsPramas() override;
+
 			virtual std::pair<uint8_t, uint8_t> CapsIFrameQPMinimum();
 			void                                SetIFrameQPMinimum(uint8_t v);
 			uint8_t                             GetIFrameQPMinimum();

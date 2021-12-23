@@ -76,10 +76,10 @@
       <bool>false</bool>
      </property>
      <property name="toolTip">
-      <string>Channels.InfoTip</string>
+      <string>LiveInfo.liveinformation</string>
      </property>
      <property name="whatsThis">
-      <string>Channels.InfoTip</string>
+      <string>LiveInfo.liveinformation</string>
      </property>
      <property name="autoFillBackground">
       <bool>true</bool>

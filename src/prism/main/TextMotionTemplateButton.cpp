@@ -1,6 +1,7 @@
 #include "TextMotionTemplateButton.h"
 #include <QMovie>
 #include "PLSDpiHelper.h"
+#include "PLSResourceMgr.h"
 
 TextMotionTemplateButton::TextMotionTemplateButton(QWidget *parent) : QPushButton(parent), ui(new Ui::TextMotionTemplateButton)
 {
@@ -17,7 +18,7 @@ TextMotionTemplateButton::~TextMotionTemplateButton()
 	delete ui;
 }
 
-void TextMotionTemplateButton::attachGifResource(const QString &resourcePath, const QString &resourceBackupPath)
+void TextMotionTemplateButton::attachGifResource(const QString &resourcePath, const QString &resourceBackupPath, const QString &resourceUrl)
 {
 	ui->templateGifLabel->setMovie(&m_movie);
 	m_movie.setCacheMode(QMovie::CacheAll);
@@ -25,7 +26,7 @@ void TextMotionTemplateButton::attachGifResource(const QString &resourcePath, co
 	QFileInfo fileInfo(resourcePath);
 	if (!fileInfo.exists()) {
 		m_movie.setFileName(resourceBackupPath);
-
+		PLSResourceMgr::instance()->downloadPartResources(PLSResourceMgr::ResourceFlag::Template, {{resourceUrl, resourcePath}});
 	} else {
 		m_movie.setFileName(resourcePath);
 	}

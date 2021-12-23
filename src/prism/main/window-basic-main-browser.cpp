@@ -33,6 +33,7 @@
 #endif
 
 #include "ChannelConst.h"
+#include "platform.hpp"
 
 struct QCef;
 struct QCefCookieManager;
@@ -60,24 +61,22 @@ static std::string GenId()
 
 void CheckExistingCookieId()
 {
-	PLSBasic *main = PLSBasic::Get();
-	if (config_has_user_value(main->Config(), "Panels", "CookieId"))
+	if (config_has_user_value(App()->GlobalConfig(), "Panels", "CookieId"))
 		return;
 	std::string cookieIdStr = GenId();
-	PLS_WARN("CookieModule,"
-		 "create a new CookieId = %s",
-		 cookieIdStr.c_str());
-	config_set_string(main->Config(), "Panels", "CookieId", cookieIdStr.c_str());
-	config_save_safe(main->Config(), "tmp", nullptr);
+	PLS_INFO("CookieModule", "create a new CookieId = %s", cookieIdStr.c_str());
+	config_set_string(App()->GlobalConfig(), "Panels", "CookieId", cookieIdStr.c_str());
+	config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
 }
 
 void setNaverTvCookie()
 {
 	QCefCookieManager *naver_cookie_mgr = PLSBasic::getBrowserPannelCookieMgr(NAVER_TV);
 	if (naver_cookie_mgr) {
-		naver_cookie_mgr->DeleteCookies(CHANNEL_NAVERTV_COMMENT.toStdString(), NID_SES);
-		naver_cookie_mgr->DeleteCookies(CHANNEL_NAVERTV_COMMENT.toStdString(), NID_AUT);
-		naver_cookie_mgr->DeleteCookies(CHANNEL_NAVERTV_COMMENT.toStdString(), NID_INF);
+		auto url = pls_get_gpop_connection().ssl.toStdString();
+		naver_cookie_mgr->DeleteCookies(url, NID_SES);
+		naver_cookie_mgr->DeleteCookies(url, NID_AUT);
+		naver_cookie_mgr->DeleteCookies(url, NID_INF);
 
 		if (config_get_string(App()->CookieConfig(), NAVERCOOKIE, NID_SES)) {
 
@@ -85,9 +84,9 @@ void setNaverTvCookie()
 			std::string aut(config_get_string(App()->CookieConfig(), NAVERCOOKIE, NID_AUT));
 			std::string inf(config_get_string(App()->CookieConfig(), NAVERCOOKIE, NID_INF));
 
-			naver_cookie_mgr->SetCookie(CHANNEL_NAVERTV_COMMENT.toUtf8().data(), NID_SES, ses, ".naver.com", "/", true);
-			naver_cookie_mgr->SetCookie(CHANNEL_NAVERTV_COMMENT.toUtf8().data(), NID_AUT, aut, ".naver.com", "/", true);
-			naver_cookie_mgr->SetCookie(CHANNEL_NAVERTV_COMMENT.toUtf8().data(), NID_INF, inf, ".naver.com", "/", true);
+			naver_cookie_mgr->SetCookie(url, NID_SES, ses, ".naver.com", "/", true);
+			naver_cookie_mgr->SetCookie(url, NID_AUT, aut, ".naver.com", "/", true);
+			naver_cookie_mgr->SetCookie(url, NID_INF, inf, ".naver.com", "/", true);
 		}
 	}
 }
@@ -102,8 +101,7 @@ static void InitPanelCookieManager()
 
 	CheckExistingCookieId();
 
-	PLSBasic *main = PLSBasic::Get();
-	const char *cookie_id = config_get_string(main->Config(), "Panels", "CookieId");
+	const char *cookie_id = config_get_string(App()->GlobalConfig(), "Panels", "CookieId");
 
 	std::string sub_path;
 	sub_path += "prism_profile_cookies/";
@@ -112,7 +110,7 @@ static void InitPanelCookieManager()
 	panel_cookies = cef->create_cookie_manager(sub_path);
 }
 
-static void InitChatPanelCookieManager()
+/*static void InitChatPanelCookieManager()
 {
 	if (!cef)
 		return;
@@ -121,8 +119,7 @@ static void InitChatPanelCookieManager()
 
 	CheckExistingCookieId();
 
-	PLSBasic *main = PLSBasic::Get();
-	const char *cookie_id = config_get_string(main->Config(), "Panels", "CookieId");
+	const char *cookie_id = config_get_string(App()->GlobalConfig(), "Panels", "CookieId");
 
 	std::string sub_path;
 	sub_path += "prism_profile_cookies/";
@@ -133,7 +130,7 @@ static void InitChatPanelCookieManager()
 	if (pannel_chat_cookies) {
 		setNaverTvCookie();
 	}
-}
+}*/
 static void InitPanelCookieManager(const QString &pannelName)
 {
 	if (!cef)
@@ -141,8 +138,7 @@ static void InitPanelCookieManager(const QString &pannelName)
 
 	CheckExistingCookieId();
 
-	PLSBasic *main = PLSBasic::Get();
-	const char *cookie_id = config_get_string(main->Config(), "Panels", "CookieId");
+	const char *cookie_id = config_get_string(App()->GlobalConfig(), "Panels", "CookieId");
 
 	std::string sub_path;
 	sub_path += "prism_profile_cookies/";
@@ -154,7 +150,7 @@ static void InitPanelCookieManager(const QString &pannelName)
 	if (0 == pannelName.compare(NAVER_TV, Qt::CaseInsensitive)) {
 		setNaverTvCookie();
 	}
-	PLS_INFO(COOKIE_MANAGER, "create new cookie mangaer ; save path = %s", sub_path.c_str());
+	PLS_INFO(COOKIE_MANAGER, "create new cookie mangaer ; save path = %s", GetFileName(sub_path).c_str());
 	/*if (pannel_chat_cookies) {
 		setNaverTvCookie();
 	}*/
@@ -178,51 +174,6 @@ void DeleteCookies()
 	if (panel_cookies) {
 		panel_cookies->DeleteCookies("", "");
 	}
-#endif
-}
-
-void DuplicateCurrentCookieProfile(ConfigFile &config)
-{
-#ifdef BROWSER_AVAILABLE
-	if (cef) {
-		PLSBasic *main = PLSBasic::Get();
-		std::string cookie_id = config_get_string(main->Config(), "Panels", "CookieId");
-
-		std::string src_path;
-		src_path += "prism_profile_cookies/";
-		src_path += cookie_id;
-
-		std::string new_id = GenId();
-
-		std::string dst_path;
-		dst_path += "prism_profile_cookies/";
-		dst_path += new_id;
-
-		BPtr<char> src_path_full = cef->get_cookie_path(src_path);
-		BPtr<char> dst_path_full = cef->get_cookie_path(dst_path);
-
-		QDir srcDir(src_path_full.Get());
-		QDir dstDir(dst_path_full.Get());
-
-		if (srcDir.exists()) {
-			if (!dstDir.exists())
-				dstDir.mkdir(dst_path_full.Get());
-
-			QStringList files = srcDir.entryList(QDir::Files);
-			for (const QString &file : files) {
-				QString src = QString(src_path_full);
-				QString dst = QString(dst_path_full);
-				src += QDir::separator() + file;
-				dst += QDir::separator() + file;
-				QFile::copy(src, dst);
-			}
-		}
-
-		config_set_string(config, "Panels", "CookieId", cookie_id.c_str());
-		config_set_string(main->Config(), "Panels", "CookieId", new_id.c_str());
-	}
-#else
-	UNUSED_PARAMETER(config);
 #endif
 }
 

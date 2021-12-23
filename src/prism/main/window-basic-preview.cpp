@@ -196,7 +196,7 @@ vec3 PLSBasicPreview::GetSnapOffset(const vec3 &tl, const vec3 &br)
 	return clampOffset;
 }
 
-bool PLSBasicPreview::CountSelectedSource(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
+bool PLSBasicPreview::CountSelectedSource(obs_scene_t *, obs_sceneitem_t *item, void *param)
 {
 
 	if (obs_sceneitem_locked(item))
@@ -1059,6 +1059,9 @@ vec3 PLSBasicPreview::CalculateStretchPos(const vec3 &tl, const vec3 &br)
 
 void PLSBasicPreview::ClampAspect(vec3 &tl, vec3 &br, vec2 &size, const vec2 &baseSize)
 {
+	if (0 == size.y || 0 == baseSize.y || 0 == baseSize.x) {
+		return;
+	}
 	float baseAspect = baseSize.x / baseSize.y;
 	float aspect = size.x / size.y;
 	uint32_t stretchFlags = (uint32_t)stretchHandle;
@@ -1246,10 +1249,10 @@ void PLSBasicPreview::CropItem(const vec2 &pos)
 	vec3 curPos;
 	vec3_zero(&curPos);
 	obs_sceneitem_get_pos(stretchItem, (vec2*)&curPos);
-	blog(LOG_DEBUG, "curPos {%d, %d} - newPos {%d, %d}",
+	PLS_DEBUG(MAIN_PREVIEW_MODULE, "curPos {%d, %d} - newPos {%d, %d}",
 			int(curPos.x), int(curPos.y),
 			int(newPos.x), int(newPos.y));
-	blog(LOG_DEBUG, "crop {%d, %d, %d, %d}",
+	PLS_DEBUG(MAIN_PREVIEW_MODULE, "crop {%d, %d, %d, %d}",
 			crop.left, crop.top,
 			crop.right, crop.bottom);
 #endif
@@ -1570,6 +1573,10 @@ bool PLSBasicPreview::DrawSelectedItem(obs_scene_t *scene, obs_sceneitem_t *item
 		return true;
 
 	if (!SceneItemHasVideo(item))
+		return true;
+
+	//PRISM/LiuHaibin/20210406/#None/Do not render lines for source which should be invisible on main view
+	if (obs_source_invisible_on_main_view(obs_sceneitem_get_source(item)))
 		return true;
 
 	if (obs_sceneitem_is_group(item)) {

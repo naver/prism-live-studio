@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/data">
+        <file>sample.apng</file>
+        <file>sample.png</file>
+    </qresource>
+</RCC>

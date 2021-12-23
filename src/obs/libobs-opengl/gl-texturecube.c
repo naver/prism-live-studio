@@ -83,7 +83,7 @@ gs_texture_t *device_cubetexture_create(gs_device_t *device, uint32_t size,
 
 fail:
 	gs_cubetexture_destroy((gs_texture_t *)tex);
-	blog(LOG_ERROR, "device_cubetexture_create (GL) failed");
+	plog(LOG_ERROR, "device_cubetexture_create (GL) failed");
 	return NULL;
 }
 
@@ -105,7 +105,7 @@ static inline bool is_texture_cube(const gs_texture_t *tex, const char *func)
 {
 	bool is_texcube = tex->type == GS_TEXTURE_CUBE;
 	if (!is_texcube)
-		blog(LOG_ERROR, "%s (GL) failed:  Not a cubemap texture", func);
+		plog(LOG_ERROR, "%s (GL) failed:  Not a cubemap texture", func);
 	return is_texcube;
 }
 

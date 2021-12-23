@@ -313,7 +313,7 @@
                </sizepolicy>
               </property>
               <property name="text">
-               <string>Channels.copy</string>
+               <string>Copy</string>
               </property>
               <property name="checkable">
                <bool>true</bool>

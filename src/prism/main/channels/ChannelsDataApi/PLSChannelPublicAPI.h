@@ -10,6 +10,7 @@
 #include "ChannelData_global.h"
 
 using ChannelsMap = QMap<QString, QVariantMap>;
+
 Q_DECLARE_METATYPE(ChannelsMap)
 
 class PLSChannelPublicAPI {

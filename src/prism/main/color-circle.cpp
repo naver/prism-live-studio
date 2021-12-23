@@ -2,7 +2,7 @@
 
 #include <QPainter>
 
-void PLSColorCircle::paintEvent(QPaintEvent *event)
+void PLSColorCircle::paintEvent(QPaintEvent *)
 {
 	QPainter painter(this);
 	QRect rc = rect();

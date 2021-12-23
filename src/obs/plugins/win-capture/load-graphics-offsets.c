@@ -40,6 +40,8 @@ static inline bool load_offsets_from_string(struct graphics_offsets *offsets,
 		(uint32_t)config_get_uint(config, "dxgi", "present1");
 	offsets->dxgi.resize =
 		(uint32_t)config_get_uint(config, "dxgi", "resize");
+	offsets->dxgi2.release =
+		(uint32_t)config_get_uint(config, "dxgi", "release");
 
 	config_close(config);
 	return true;
@@ -103,7 +105,7 @@ static bool get_32bit_system_dll_ver(const wchar_t *system_lib,
 	ret = GetSystemDirectoryW(path, MAX_PATH);
 #endif
 	if (!ret) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Failed to get windows 32bit system path: "
 		     "%lu",
 		     GetLastError());
@@ -176,8 +178,11 @@ bool load_graphics_offsets(bool is32bit, const char *config_path)
 
 	pp = os_process_pipe_create(offset_exe_path, "r");
 	if (!pp) {
-		blog(LOG_INFO, "load_graphics_offsets: Failed to start '%s'",
-		     offset_exe.array);
+		char temp[256];
+		os_extract_file_name(offset_exe.array, temp,
+				     ARRAY_SIZE(temp) - 1);
+		plog(LOG_INFO, "load_graphics_offsets: Failed to start '%s'",
+		     temp);
 		goto error;
 	}
 
@@ -191,10 +196,13 @@ bool load_graphics_offsets(bool is32bit, const char *config_path)
 	}
 
 	if (dstr_is_empty(&str)) {
-		blog(LOG_INFO,
+		char temp[256];
+		os_extract_file_name(offset_exe.array, temp,
+				     ARRAY_SIZE(temp) - 1);
+		plog(LOG_INFO,
 		     "load_graphics_offsets: Failed to read "
 		     "from '%s'",
-		     offset_exe.array);
+		     temp);
 		goto error;
 	}
 
@@ -211,7 +219,7 @@ bool load_graphics_offsets(bool is32bit, const char *config_path)
 	success = load_offsets_from_string(is32bit ? &offsets32 : &offsets64,
 					   str.array);
 	if (!success) {
-		blog(LOG_INFO, "load_graphics_offsets: Failed to load string");
+		plog(LOG_INFO, "load_graphics_offsets: Failed to load string");
 	}
 
 	os_process_pipe_destroy(pp);

@@ -99,9 +99,10 @@ static obs_properties_t *color_grade_filter_properties(void *data)
 				OBS_PATH_FILE, filter_str.array, path.array);
 
 	//PRISM/Liuying/20200317/prism color filter ux: filter density range value: 0-100%
-	obs_properties_add_int_slider(props, SETTING_CLUT_AMOUNT, TEXT_AMOUNT,
+	obs_property_t *p = obs_properties_add_int_slider(
+		props, SETTING_CLUT_AMOUNT, TEXT_AMOUNT,
 					0, 100, 1);
-	obs_property_int_set_suffix(props, "%");
+	obs_property_int_set_suffix(p, "%");
 
 
 	dstr_free(&filter_str);

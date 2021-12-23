@@ -14,11 +14,11 @@ PLSChannelsArea {
 		background-color: #272727;
 		margin: /*hdpi*/ 0px;
 		padding: /*hdpi*/ 0px;
-		padding-left: /*hdpi*/ 20px;
-		padding-right: /*hdpi*/ 4px;
+		padding-left: /*hdpi*/ 19px;
+		padding-right: /*hdpi*/ 3px;
 		border-right: /*hdpi*/ 1px solid #111111;
-		qproperty-maximumSize: /*hdpi*/ 142px /*hdpi*/ 68px;
-		qproperty-minimumSize: /*hdpi*/ 142px /*hdpi*/ 68px;
+		qproperty-maximumSize: /*hdpi*/ 144px /*hdpi*/ 70px;
+		qproperty-minimumSize: /*hdpi*/ 144px /*hdpi*/ 69px;
 	}
 
 	PLSChannelsArea #MyChannelsTxtBtn {
@@ -32,7 +32,7 @@ PLSChannelsArea {
 		font-size: /*hdpi*/ 14px;
 		font-weight: bold;
 		font-style: normal;
-		text-align: center right;
+		text-align: center center;
 		color: #ffffff;
 	}
 
@@ -41,7 +41,7 @@ PLSChannelsArea {
 		}
 
 	PLSChannelsArea #MyChannelsIconBtn {
-		margin: /*hdpi*/ 3px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+		margin: /*hdpi*/ 2px /*hdpi*/ 5px /*hdpi*/ 0px /*hdpi*/ 5px;
 		padding: /*hdpi*/ 0px;
 		border: /*hdpi*/ 1px solid transparent;
 		background-color: transparent;
@@ -49,6 +49,7 @@ PLSChannelsArea {
 		min-height: /*hdpi*/ 30px;
 		max-height: /*hdpi*/ 30px;
 		min-width: /*hdpi*/ 22px;
+		max-width: /*hdpi*/ 22px;
 		image-position: center center;
 		image: url(":/images/icon-more-default.svg");
 	}
@@ -158,7 +159,7 @@ PLSChannelsArea {
 		}
 
 		PLSChannelsArea PLSAddingFrame #TextLabel {
-			qproperty-maximumSize: /*hdpi*/ 122px /*hdpi*/ 24px;
+			qproperty-maximumSize: /*hdpi*/ 300px /*hdpi*/ 24px;
 			font-size: /*hdpi*/ 14px;
 			font-weight: normal;
 			font-style: normal;
@@ -166,17 +167,16 @@ PLSChannelsArea {
 
 	PLSChannelsArea QToolTip {
 		margin: /*hdpi*/ 2px;
-		min-height: /*hdpi*/ 25px;
 	}
 
+
 	PLSChannelsArea #GotoAddWinButton {
-		padding-left: /*hdpi*/5px;
-		padding-right: /*hdpi*/5px;
-		min-width: /*hdpi*/ 180px;
+		padding: /*hdpi*/ 0px /*hdpi*/ 5px /*hdpi*/ 0px /*hdpi*/ 5px;
+		margin: /*hdpi*/ 0px /*hdpi*/ 5px /*hdpi*/ 0px /*hdpi*/ 5px;
+		min-width: /*hdpi*/ 200px;
 		min-height: /*hdpi*/ 22px;
 		font-size: /*hdpi*/ 15px;
 		font-weight: bold;
-		font-stretch: normal;
 		font-style: normal;
 		color: #a8a8a8;
 		background-color: transparent;

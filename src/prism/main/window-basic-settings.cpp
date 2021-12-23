@@ -36,7 +36,6 @@
 #include <QResizeEvent>
 #include <algorithm>
 #include <QSignalBlocker>
-#include <QSettings>
 
 #include "audio-encoders.hpp"
 #include "hotkey-edit.hpp"
@@ -56,11 +55,11 @@
 #include "frontend-api.h"
 #include "PLSCompleter.hpp"
 #include "ChannelCommonFunctions.h"
+#include "ResolutionGuidePage.h"
+#include "PLSServerStreamHandler.hpp"
 
-//PRISM/Liu.Haibin/20200420/#None/limit min resolution to 4
-#define RESOLUTION_SIZE_MIN 4
-//PRISM/Liu.Haibin/20200410/#None/Refer to OBS, limit max resolution to 16384
-#define RESOLUTION_SIZE_MAX 16384
+#define ENCODER_HIDE_FLAGS (OBS_ENCODER_CAP_DEPRECATED | OBS_ENCODER_CAP_INTERNAL)
+
 static uint64_t g_maxRolutionSize = 0;
 
 using namespace std;
@@ -107,7 +106,7 @@ class CustomPropertiesView : public PLSPropertiesView {
 public:
 	explicit CustomPropertiesView(PLSBasicSettings *basicSettings, PLSPropertiesView *&rview, QWidget *parent, OBSData settings, const char *type, PropertiesReloadCallback reloadCallback,
 				      int minSize = 0, int maxSize = -1)
-		: PLSPropertiesView(parent, settings, type, reloadCallback, minSize, maxSize), m_basicSettings(basicSettings)
+		: PLSPropertiesView(parent, settings, type, reloadCallback, minSize, maxSize, false, true, false, false), m_basicSettings(basicSettings)
 	{
 		rview = this;
 		RefreshProperties();
@@ -340,7 +339,7 @@ template<typename Widget> static void setLabelLimited(const char *page, int maxW
 {
 	setLabelNoLimitedWidth(labels);
 	int fixedWidth = calcLabelFixedWidth(maxWidth, labels);
-	PLS_INFO(SETTING_MODULE, "%s label flexible width: %d", page, fixedWidth);
+	PLS_DEBUG(SETTING_MODULE, "%s label flexible width: %d", page, fixedWidth);
 	setLabelFixedWidth(fixedWidth, labels);
 }
 
@@ -349,7 +348,7 @@ template<typename Widget0, typename Widget1> static void setLabelLimited(const c
 	setLabelNoLimitedWidth(labels0);
 	setLabelNoLimitedWidth(labels1);
 	int fixedWidth = calcLabelFixedWidth(maxWidth, labels0, labels1);
-	PLS_INFO(SETTING_MODULE, "%s label flexible width: %d", page, fixedWidth);
+	PLS_DEBUG(SETTING_MODULE, "%s label flexible width: %d", page, fixedWidth);
 	setLabelFixedWidth(fixedWidth, labels0);
 	setLabelFixedWidth(fixedWidth, labels1);
 }
@@ -358,12 +357,16 @@ template<typename Widget0, typename Widget1> static void setLabelLimitedExclude(
 {
 	setLabelNoLimitedWidth(labels);
 	int fixedWidth = calcLabelFixedWidth(maxWidth, labels, excludes);
-	PLS_INFO(SETTING_MODULE, "%s label flexible width: %d", page, fixedWidth);
+	PLS_DEBUG(SETTING_MODULE, "%s label flexible width: %d", page, fixedWidth);
 	setLabelFixedWidth(fixedWidth, labels);
 }
 
 static void componentValueChanged(QWidget *page, QObject *sender)
 {
+	if (!page || !sender) {
+		return;
+	}
+
 	bool hasUiStep = false;
 	QString uistep, type, value;
 	if (QCheckBox *checkBox = dynamic_cast<QCheckBox *>(sender); checkBox) {
@@ -373,7 +376,11 @@ static void componentValueChanged(QWidget *page, QObject *sender)
 	} else if (QComboBox *comboBox = dynamic_cast<QComboBox *>(sender); comboBox) {
 		hasUiStep = true;
 		type = QStringLiteral("ComboBox");
-		value = comboBox->isEditable() ? comboBox->lineEdit()->text() : comboBox->currentText();
+		if (comboBox->property("maskAddress").toBool()) {
+			value = comboBox->isEditable() ? pls_masking_person_info(comboBox->lineEdit()->text()) : pls_masking_person_info(comboBox->currentText());
+		} else {
+			value = comboBox->isEditable() ? comboBox->lineEdit()->text() : comboBox->currentText();
+		}
 	} else if (dynamic_cast<QPushButton *>(sender)) {
 		hasUiStep = true;
 		type = QStringLiteral("Button");
@@ -383,7 +390,11 @@ static void componentValueChanged(QWidget *page, QObject *sender)
 		value = radioButton->isChecked() ? "checked" : "unchecked";
 	} else if (QLineEdit *lineEdit = dynamic_cast<QLineEdit *>(sender); lineEdit) {
 		type = QStringLiteral("LineEdit");
-		value = lineEdit->text();
+		if (lineEdit->property("hidePath").toBool()) {
+			value = GetFileName(lineEdit->text().toStdString()).c_str();
+		} else {
+			value = lineEdit->text();
+		}
 	} else if (QTextEdit *textEdit = dynamic_cast<QTextEdit *>(sender); textEdit) {
 		type = QStringLiteral("TextEdit");
 		value = textEdit->toPlainText();
@@ -424,18 +435,6 @@ static void componentValueChanged(QWidget *page, QObject *sender)
 	if (!value.isEmpty()) {
 		PLS_INFO(SETTING_MODULE, "%s %s", componentNameUtf8.constData(), value.toUtf8().constData());
 	}
-}
-
-static void lineEditYellowBorder(QLineEdit *lineEdit)
-{
-	QObject::connect(lineEdit, &QLineEdit::textEdited, [lineEdit]() {
-		lineEdit->setProperty("editing", true);
-		pls_flush_style(lineEdit);
-	});
-	QObject::connect(lineEdit, &QLineEdit::editingFinished, [lineEdit]() {
-		lineEdit->setProperty("editing", false);
-		pls_flush_style(lineEdit);
-	});
 }
 
 static void layoutRemoveWidget(QFormLayout *layout, QWidget *widget)
@@ -513,19 +512,23 @@ void PLSBasicSettings::HookWidget(QWidget *widget, const char *signal, const cha
 		ui->label_32, ui->label_43, ui->label_29, ui->advOutRecEncLabel, ui->advOutRecUseRescaleContainer, ui->label_9001, ui->label_48, ui->label_36, ui->label_16, ui->label_44,       \
 		ui->label_1337, ui->label_40, ui->label_63, ui->widget_15, ui->label_37, ui->label_38, ui->label_41, ui->label_47, ui->label_39, ui->label_46, ui->label_25, ui->label_55,       \
 		ui->label_49, ui->label_50, ui->label_51, ui->label_52, ui->label_53, ui->label_54, ui->label_59, ui->label_60, ui->label_61, ui->advRBSecMaxLabel, ui->advRBMegsMaxLabel,       \
-		ui->label_7, ui->label_57, ui->label_56, ui->label_17, ui->label_22, ui->label_27, ui->label_72
+		ui->label_7, ui->label_57, ui->label_56, ui->label_17, ui->label_22, ui->label_27, ui->label_72, ui->label_25, ui->label_55, ui->label_81, ui->label_82, ui->label_79
 
 #define AUDIO_PAGE_FORMLABELS \
 	ui->label_14, ui->label_15, ui->label_2, ui->label_3, ui->label_4, ui->label_5, ui->label_6, ui->label_67, ui->label_65, ui->label_66, ui->label_66, ui->monitoringDeviceLabel
 
-#define VIEW_PAGE_FORMLABELS ui->label_8, ui->label_10, ui->rendererLabel, ui->adapterLabel, ui->label_30, ui->label_33, ui->label_73, ui->label_74, ui->label_75, ui->label_64
+#define VIEW_PAGE_FORMLABELS ui->label_8, ui->label_10, ui->rendererLabel, ui->adapterLabel, ui->label_30, ui->label_33, ui->label_73, ui->label_74, ui->label_75, ui->label_64, ui->label_78
 
 #define SOURCE_PAGE_FORMLABELS ui->label_9, ui->label_76
+
+static const int SCENE_DISPLAY_TIPS_NUM = 3;
+static const char *sceneDisplayTips[SCENE_DISPLAY_TIPS_NUM] = {"Setting.Scene.Display.Realtime.Tips", "Setting.Scene.Display.Thumbnail.Tips", "Setting.Scene.Display.Text.Tips"};
 
 PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), main(nullptr), ui(new Ui::PLSBasicSettings)
 {
 	dpiHelper.setCss(this, {PLSCssIndex::PLSBasicSettings});
 	dpiHelper.setInitSize(this, {940, 700});
+	dpiHelper.updateCssWithParent(this);
 
 	main = PLSBasic::Get();
 	setCloseEventCallback([this](QCloseEvent *e) { return onCloseEvent(e); });
@@ -539,6 +542,12 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 
 	initGeneralView();
 	main->EnableOutputs(false);
+
+	InitImmersiveAudioUI();
+
+	ui->advOutRecPath->setProperty("hidePath", true);
+	ui->simpleOutputPath->setProperty("hidePath", true);
+	ui->bindToIP->setProperty("maskAddress", true);
 
 	ui->studioPortraitLayout->hide();
 	ui->prevProgLabelToggle->hide();
@@ -578,6 +587,7 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 		SimpleRecordingEncoderChanged();
 		SimpleReplayBufferChanged();
 		AdvOutRecCheckWarnings();
+		AdvOutStreamEncoderCheckWarnings();
 	});
 
 	outputSettingsAdvCurrentTab = ui->outputSettingsAdvStreamTab;
@@ -589,6 +599,7 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 		setOutputSettingsAdvStreamTabBtnSelected(ui->outputSettingsAdvStreamTabBtn, ui->outputSettingsAdvRecordTabBtn, ui->outputSettingsAdvAudioTabBtn, ui->outputSettingsAdvReplayBufTabBtn);
 		setWidgetShow(ui->scrollAreaWidgetContents_3, ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvReplayBufTab);
 		AdvOutRecCheckWarnings();
+		AdvOutStreamEncoderCheckWarnings();
 		componentValueChanged(getPageOfSender(ui->outputSettingsAdvStreamTabBtn), ui->outputSettingsAdvStreamTabBtn);
 	});
 	connect(ui->outputSettingsAdvRecordTabBtn, &QPushButton::clicked, this, [this]() {
@@ -596,6 +607,7 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 		setOutputSettingsAdvStreamTabBtnSelected(ui->outputSettingsAdvRecordTabBtn, ui->outputSettingsAdvStreamTabBtn, ui->outputSettingsAdvAudioTabBtn, ui->outputSettingsAdvReplayBufTabBtn);
 		setWidgetShow(ui->scrollAreaWidgetContents_3, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvReplayBufTab);
 		AdvOutRecCheckWarnings();
+		AdvOutStreamEncoderCheckWarnings();
 		componentValueChanged(getPageOfSender(ui->outputSettingsAdvRecordTabBtn), ui->outputSettingsAdvRecordTabBtn);
 	});
 	connect(ui->outputSettingsAdvAudioTabBtn, &QPushButton::clicked, this, [this]() {
@@ -603,6 +615,7 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 		setOutputSettingsAdvStreamTabBtnSelected(ui->outputSettingsAdvAudioTabBtn, ui->outputSettingsAdvRecordTabBtn, ui->outputSettingsAdvStreamTabBtn, ui->outputSettingsAdvReplayBufTabBtn);
 		setWidgetShow(ui->scrollAreaWidgetContents_3, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvStreamTab, ui->outputSettingsAdvReplayBufTab);
 		AdvOutRecCheckWarnings();
+		AdvOutStreamEncoderCheckWarnings();
 		componentValueChanged(getPageOfSender(ui->outputSettingsAdvAudioTabBtn), ui->outputSettingsAdvAudioTabBtn);
 	});
 	connect(ui->outputSettingsAdvReplayBufTabBtn, &QPushButton::clicked, this, [this]() {
@@ -611,6 +624,7 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 		setWidgetShow(ui->scrollAreaWidgetContents_3, ui->outputSettingsAdvReplayBufTab, ui->outputSettingsAdvAudioTab, ui->outputSettingsAdvRecordTab, ui->outputSettingsAdvStreamTab);
 		AdvReplayBufferChanged();
 		AdvOutRecCheckWarnings();
+		AdvOutStreamEncoderCheckWarnings();
 		componentValueChanged(getPageOfSender(ui->outputSettingsAdvReplayBufTabBtn), ui->outputSettingsAdvReplayBufTabBtn);
 	});
 
@@ -628,7 +642,7 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 		}
 	});
 
-	connect(this, &PLSBasicSettings::updateStreamEncoderPropsSize, this, [this](PLSPropertiesView *view) {
+	connect(this, &PLSBasicSettings::updateStreamEncoderPropsSize, this, [this](PLSPropertiesView *) {
 		QList<QWidget *> labels{OUTPUT_PAGE_FORMLABELS};
 		if (streamEncoderProps) {
 			labels.append(streamEncoderProps->findChildren<QWidget *>(OBJECT_NAME_FORMLABEL));
@@ -641,7 +655,7 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 
 	connect(
 		this, &PLSBasicSettings::updateStreamEncoderPropsSize, this,
-		[this](PLSPropertiesView *view) {
+		[this](PLSPropertiesView *) {
 			if (streamEncoderProps) {
 				int minimumHeight = streamEncoderProps->QScrollArea::widget()->minimumSizeHint().height();
 				streamEncoderProps->setMinimumHeight(minimumHeight);
@@ -654,9 +668,10 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 		Qt::QueuedConnection);
 
 	dpiHelper.notifyDpiChanged(this, [=](double dpi, double /*oldDpi*/, bool firstShow) {
-		ui->streamDelaySec->setFixedWidth(PLSDpiHelper::calculate(dpi, 180));
-		ui->colorSpace->setFixedWidth(PLSDpiHelper::calculate(dpi, 185));
-		ui->colorRange->setFixedWidth(PLSDpiHelper::calculate(dpi, 185));
+		ui->streamDelaySec->setMaximumWidth(PLSDpiHelper::calculate(dpi, 180));
+		ui->colorSpace->setMaximumWidth(PLSDpiHelper::calculate(dpi, 185));
+		ui->colorRange->setMaximumWidth(PLSDpiHelper::calculate(dpi, 185));
+		ui->horizontalLayout_20->invalidate();
 
 		if (firstShow) {
 			activateWindow();
@@ -671,9 +686,12 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 		}
 	});
 
-	PopulateAACBitrates(
-		{ui->simpleOutputABitrate, ui->advOutTrack1Bitrate, ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate, ui->advOutTrack4Bitrate, ui->advOutTrack5Bitrate, ui->advOutTrack6Bitrate});
-
+	if (pls_is_immersive_audio()) {
+		PopulateAACBitrates({ui->simpleOutputABitrate, ui->advOutTrackStereoBitrate, ui->advOutTrackImmersiveBitrate});
+	} else {
+		PopulateAACBitrates({ui->simpleOutputABitrate, ui->advOutTrack1Bitrate, ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate, ui->advOutTrack4Bitrate, ui->advOutTrack5Bitrate,
+				     ui->advOutTrack6Bitrate});
+	}
 	QString text = tr("Basic.Settings.Output.ReplayBuffer.HotkeyMessage").arg(config_get_string(main->Config(), "Others", "Hotkeys.ReplayBuffer"));
 	ui->replayBufferHotkeyMessage1->setText(text);
 	ui->replayBufferHotkeyMessage2->setText(text);
@@ -815,6 +833,8 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 	HookWidget(ui->advOutRecTrack4,      CHECK_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->advOutRecTrack5,      CHECK_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->advOutRecTrack6,      CHECK_CHANGED,  OUTPUTS_CHANGED);
+	HookWidget(ui->simpleImmersiveAudioStreaming, CHECK_CHANGED,  OUTPUTS_CHANGED);
+	HookWidget(ui->immersiveAudioStreaming, CHECK_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->flvTrack1,            CHECK_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->flvTrack2,            CHECK_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->flvTrack3,            CHECK_CHANGED,  OUTPUTS_CHANGED);
@@ -855,6 +875,10 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 	HookWidget(ui->advOutTrack5Name,     EDIT_CHANGED,   OUTPUTS_CHANGED);
 	HookWidget(ui->advOutTrack6Bitrate,  COMBO_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->advOutTrack6Name,     EDIT_CHANGED,   OUTPUTS_CHANGED);
+	HookWidget(ui->advOutTrackStereoBitrate,  COMBO_CHANGED,  OUTPUTS_CHANGED);
+	HookWidget(ui->advOutTrackStereoName,     EDIT_CHANGED,   OUTPUTS_CHANGED);
+	HookWidget(ui->advOutTrackImmersiveBitrate,  COMBO_CHANGED,  OUTPUTS_CHANGED);
+	HookWidget(ui->advOutTrackImmersiveName,     EDIT_CHANGED,   OUTPUTS_CHANGED);
 	HookWidget(ui->advReplayBuf,         CHECK_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->advRBSecMax,          SCROLL_CHANGED, OUTPUTS_CHANGED);
 	HookWidget(ui->advRBMegsMax,         SCROLL_CHANGED, OUTPUTS_CHANGED);
@@ -1008,7 +1032,9 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 	connect(ui->advOutTrack4Bitrate, SIGNAL(currentIndexChanged(int)), this, SLOT(UpdateStreamDelayEstimate()));
 	connect(ui->advOutTrack5Bitrate, SIGNAL(currentIndexChanged(int)), this, SLOT(UpdateStreamDelayEstimate()));
 	connect(ui->advOutTrack6Bitrate, SIGNAL(currentIndexChanged(int)), this, SLOT(UpdateStreamDelayEstimate()));
-	connect(ui->checkBox, &QCheckBox::stateChanged, [=](int state) {});
+	connect(ui->advOutTrackStereoBitrate, SIGNAL(currentIndexChanged(int)), this, SLOT(UpdateStreamDelayEstimate()));
+	connect(ui->advOutTrackImmersiveBitrate, SIGNAL(currentIndexChanged(int)), this, SLOT(UpdateStreamDelayEstimate()));
+
 	//Apply button disabled until change.
 	EnableApplyButton(false);
 
@@ -1088,6 +1114,15 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 	connect(ui->advOutRecEncoder, SIGNAL(currentIndexChanged(int)), this, SLOT(AdvReplayBufferChanged()));
 	connect(ui->advRBSecMax, SIGNAL(valueChanged(int)), this, SLOT(AdvReplayBufferChanged()));
 	connect(ui->listWidget, SIGNAL(currentRowChanged(int)), this, SLOT(SimpleRecordingEncoderChanged()));
+	connect(ui->sceneDisplayComboBox, QOverload<int>::of(&PLSComboBox::currentIndexChanged), this, [=](int index) {
+		componentValueChanged(ui->viewPage, ui->sceneDisplayComboBox);
+
+		OnSceneDisplayMethodIndexChanged(index);
+
+		if (!loading) {
+			EnableApplyButton(true);
+		}
+	});
 
 	// Get Bind to IP Addresses
 	obs_properties_t *ppts = obs_get_output_properties("rtmp_output");
@@ -1117,6 +1152,9 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 	connect(ui->advOutRecEncoder, SIGNAL(currentIndexChanged(int)), this, SLOT(AdvOutRecCheckWarnings()));
 	AdvOutRecCheckWarnings();
 
+	connect(ui->advOutEncoder, SIGNAL(currentIndexChanged(int)), this, SLOT(AdvOutStreamEncoderCheckWarnings()));
+	AdvOutStreamEncoderCheckWarnings();
+
 	ui->buttonBox->button(QDialogButtonBox::Apply)->setIcon(QIcon());
 	ui->buttonBox->button(QDialogButtonBox::Ok)->setIcon(QIcon());
 	ui->buttonBox->button(QDialogButtonBox::Cancel)->setIcon(QIcon());
@@ -1125,17 +1163,15 @@ PLSBasicSettings::PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper) : PL
 
 	UpdateAutomaticReplayBufferCheckboxes();
 
-	App()->DisableHotkeys();
-
 	m_isShowChangeLanguageMsg = true;
+	channelIndex = ui->channelSetup->currentIndex();
+	sampleRateIndex = ui->sampleRate->currentIndex();
 }
 
 PLSBasicSettings::~PLSBasicSettings()
 {
 	delete ui->filenameFormatting->completer();
 	main->EnableOutputs(true);
-
-	App()->UpdateHotkeyFocusSetting();
 
 	EnableThreadedMessageBoxes(false);
 }
@@ -1194,18 +1230,20 @@ void PLSBasicSettings::LoadEncoderTypes()
 		if (obs_get_encoder_type(type) != OBS_ENCODER_VIDEO)
 			continue;
 
-		const char *streaming_codecs[] = {
-			"h264",
-			//"hevc",
-		};
+		bool h265opened = PLSGpopData::instance()->getH265opened();
+		QStringList streaming_codecs;
+		streaming_codecs << "h264";
+		if (h265opened)
+			streaming_codecs << "hevc";
+
 		bool is_streaming_codec = false;
-		for (const char *test_codec : streaming_codecs) {
-			if (strcmp(codec, test_codec) == 0) {
+		for (const auto &test_codec : streaming_codecs) {
+			if (strcmp(codec, test_codec.toStdString().c_str()) == 0) {
 				is_streaming_codec = true;
 				break;
 			}
 		}
-		if ((caps & OBS_ENCODER_CAP_DEPRECATED) != 0)
+		if ((caps & ENCODER_HIDE_FLAGS) != 0)
 			continue;
 
 		QString qName = QT_UTF8(name);
@@ -1334,19 +1372,21 @@ void PLSBasicSettings::ReloadCodecs(const ff_format_desc *formatDesc)
 
 void PLSBasicSettings::LoadLanguageList()
 {
-	const char *currentLang = App()->GetLocale();
+	const char *lang = App()->GetLocale();
 
 	ui->language->clear();
 
 	for (const auto &locale : GetLocaleNames()) {
 		int idx = ui->language->count();
 
-		ui->language->addItem(QT_UTF8(locale.second.c_str()), QT_UTF8(locale.first.c_str()));
+		ui->language->addItem(QT_UTF8(locale.second.second.c_str()), QT_UTF8(locale.first.c_str()));
 
-		if (locale.first == currentLang) {
+		if (locale.first == lang) {
 			ui->language->setCurrentIndex(idx);
-			m_currentLanguageIndex = idx;
+			m_currentLanguage.first = locale.first;
+			m_currentLanguage.second = locale.second.second;
 		}
+		qDebug() << "language = " << QT_UTF8(locale.second.second.c_str()) << "------" << locale.first.c_str();
 	}
 
 	ui->language->model()->sort(0);
@@ -1403,7 +1443,6 @@ void PLSBasicSettings::initGeneralView()
 {
 	ui->groupBox_15->setVisible(false);
 	ui->groupBox_20->setVisible(false);
-	ui->groupBox_19->setVisible(false);
 }
 
 void PLSBasicSettings::LoadGeneralSettings()
@@ -1510,7 +1549,18 @@ void PLSBasicSettings::LoadGeneralSettings()
 
 	ui->multiviewLayout->setCurrentIndex(config_get_int(GetGlobalConfig(), "BasicWindow", "MultiviewLayout"));
 
-	ui->checkBox->setChecked(config_get_bool(GetGlobalConfig(), "General", "Watermark"));
+	QString _watermarksTips;
+	bool _isWaterMarkEnable;
+	bool _isWaterMarkChecked;
+	PLSServerStreamHandler::instance()->getWatermarkInfo(_watermarksTips, _isWaterMarkEnable, _isWaterMarkChecked);
+	if (_isWaterMarkEnable) {
+		ui->checkBox->setChecked(_isWaterMarkChecked);
+	} else {
+		ui->checkBox->setChecked(_isWaterMarkChecked);
+	}
+	ui->checkBox->setEnabled(_isWaterMarkEnable);
+	ui->label_watermarkTips->setEnabled(_isWaterMarkEnable);
+	ui->label_watermarkTips->setText(_watermarksTips);
 
 	if (pls_is_living_or_recording()) {
 
@@ -1582,7 +1632,7 @@ static bool isPresetResolution(int width, int height, int *type, int *start)
 	return false;
 }
 
-void PLSBasicSettings::ResetDownscales(uint32_t cx, uint32_t cy)
+void PLSBasicSettings::ResetDownscales(uint32_t cx, uint32_t cy, bool modified)
 {
 	QString advRescale;
 	QString advRecRescale;
@@ -1701,7 +1751,7 @@ void PLSBasicSettings::ResetDownscales(uint32_t cx, uint32_t cy)
 
 		ui->outputResolution->setProperty("changed", QVariant(true));
 		ui->outputResolution_2->setProperty("changed", QVariant(true));
-		videoChanged = true;
+		videoChanged = modified ? true : false;
 	} else {
 		float baseAspect = float(cx) / float(cy);
 		float outputAspect = float(out_cx) / float(out_cy);
@@ -1720,7 +1770,7 @@ void PLSBasicSettings::ResetDownscales(uint32_t cx, uint32_t cy)
 		if (!closeAspect) {
 			ui->outputResolution->setProperty("changed", QVariant(true));
 			ui->outputResolution_2->setProperty("changed", QVariant(true));
-			videoChanged = true;
+			videoChanged = modified ? true : false;
 		}
 	}
 
@@ -1788,7 +1838,7 @@ void PLSBasicSettings::LoadResolutionLists()
 	ui->baseResolution->lineEdit()->setText(ResString(cx, cy).c_str());
 
 	RecalcOutputResPixels(outputResString.c_str());
-	ResetDownscales(cx, cy);
+	ResetDownscales(cx, cy, false);
 
 	ui->outputResolution->lineEdit()->setText(outputResString.c_str());
 	ui->outputResolution_2->lineEdit()->setText(outputResString.c_str());
@@ -1875,6 +1925,43 @@ static inline bool IsSurround(const char *speakers)
 	return false;
 }
 
+void PLSBasicSettings::InitImmersiveAudioUI()
+{
+	if (pls_is_immersive_audio()) {
+		// hide Streaming -> Audio Track
+		ui->label_28->hide();
+		ui->widget_8->hide();
+
+		// hide Recording -> Audio Track
+		ui->label_29->hide();
+		ui->advRecTrackWidget->hide();
+
+		// hide Audio -> Track1 - Track6 and Bitrate
+		ui->groupBox_22->hide();
+		ui->groupBox_2->hide();
+		ui->groupBox_3->hide();
+		ui->groupBox_4->hide();
+		ui->groupBox_9->hide();
+		ui->groupBox_12->hide();
+
+		// hide simple rate : 44.1 kHz
+		ui->sampleRate->removeItem(0);
+
+		// only add channel : Binaural (2.0)
+		ui->channelSetup->clear();
+		ui->channelSetup->addItem("Binaural (2.0)");
+		ui->channelSetup->setCurrentText("Binaural (2.0)");
+	} else {
+		// hide simple/Advanced -> immersive audio
+		ui->simpleImmersiveAudioStreaming->hide();
+		ui->immersiveAudioStreaming->hide();
+
+		// hide immersive audio Track and Bitrare
+		ui->groupBox->hide();
+		ui->groupBox_24->hide();
+	}
+}
+
 void PLSBasicSettings::LoadSimpleOutputSettings()
 {
 	const char *path = config_get_string(main->Config(), "SimpleOutput", "FilePath");
@@ -1896,6 +1983,17 @@ void PLSBasicSettings::LoadSimpleOutputSettings()
 	bool replayBuf = config_get_bool(main->Config(), "SimpleOutput", "RecRB");
 	int rbTime = config_get_int(main->Config(), "SimpleOutput", "RecRBTime");
 	int rbSize = config_get_int(main->Config(), "SimpleOutput", "RecRBSize");
+
+	if (pls_is_immersive_audio()) {
+		int trackIndex = config_get_int(main->Config(), "SimpleOutput", "TrackIndex");
+		switch (trackIndex) {
+		case 1: // Stereo Only
+			ui->simpleImmersiveAudioStreaming->setChecked(false);
+			break;
+		case 2: // Stereo, Immersive
+			ui->simpleImmersiveAudioStreaming->setChecked(true);
+		}
+	}
 
 	curPreset = preset;
 	curQSVPreset = qsvPreset;
@@ -1952,6 +2050,7 @@ void PLSBasicSettings::LoadAdvOutputStreamingSettings()
 	bool rescale = config_get_bool(main->Config(), "AdvOut", "Rescale");
 	const char *rescaleRes = config_get_string(main->Config(), "AdvOut", "RescaleRes");
 	int trackIndex = config_get_int(main->Config(), "AdvOut", "TrackIndex");
+	int immersiveTrackIndex = config_get_int(main->Config(), "AdvOut", "ImmersiveTrackIndex");
 	bool applyServiceSettings = config_get_bool(main->Config(), "AdvOut", "ApplyServiceSettings");
 
 	ui->advOutApplyService->setChecked(applyServiceSettings);
@@ -1959,7 +2058,7 @@ void PLSBasicSettings::LoadAdvOutputStreamingSettings()
 	ui->advOutRescale->setEnabled(rescale);
 	ui->advOutRescale->setCurrentText(rescaleRes);
 
-	QStringList specList = QTStr("FilenameFormatting.completer").split(QRegularExpression("\n"));
+	QStringList specList = QTStr("FilenameFormatting.completer").split("\n");
 	ui->filenameFormatting->setToolTip(QTStr("FilenameFormatting.TT"));
 	if (PLSCompleter *completer = PLSCompleter::attachLineEdit(this, ui->filenameFormatting, specList); completer) {
 		connect(completer, &PLSCompleter::activated, this, [=]() {
@@ -1970,25 +2069,36 @@ void PLSBasicSettings::LoadAdvOutputStreamingSettings()
 		});
 	}
 
-	switch (trackIndex) {
-	case 1:
-		ui->advOutTrack1->setChecked(true);
-		break;
-	case 2:
-		ui->advOutTrack2->setChecked(true);
-		break;
-	case 3:
-		ui->advOutTrack3->setChecked(true);
-		break;
-	case 4:
-		ui->advOutTrack4->setChecked(true);
-		break;
-	case 5:
-		ui->advOutTrack5->setChecked(true);
-		break;
-	case 6:
-		ui->advOutTrack6->setChecked(true);
-		break;
+	if (!pls_is_immersive_audio()) {
+		switch (trackIndex) {
+		case 1:
+			ui->advOutTrack1->setChecked(true);
+			break;
+		case 2:
+			ui->advOutTrack2->setChecked(true);
+			break;
+		case 3:
+			ui->advOutTrack3->setChecked(true);
+			break;
+		case 4:
+			ui->advOutTrack4->setChecked(true);
+			break;
+		case 5:
+			ui->advOutTrack5->setChecked(true);
+			break;
+		case 6:
+			ui->advOutTrack6->setChecked(true);
+			break;
+		}
+	} else {
+		switch (immersiveTrackIndex) {
+		case 1: // Stereo Only
+			ui->immersiveAudioStreaming->setChecked(false);
+			break;
+		case 2: // Stereo, Immersive
+			ui->immersiveAudioStreaming->setChecked(true);
+			break;
+		}
 	}
 }
 
@@ -2017,7 +2127,6 @@ void PLSBasicSettings::CreateEncoderPropertyView(PLSPropertiesView *&rview, QWid
 void PLSBasicSettings::LoadAdvOutputStreamingEncoderProperties()
 {
 	const char *type = config_get_string(main->Config(), "AdvOut", "Encoder");
-
 	delete streamEncoderProps;
 	streamEncoderProps = nullptr;
 
@@ -2031,7 +2140,7 @@ void PLSBasicSettings::LoadAdvOutputStreamingEncoderProperties()
 
 	if (!SetComboByValue(ui->advOutEncoder, type)) {
 		uint32_t caps = obs_get_encoder_caps(type);
-		if ((caps & OBS_ENCODER_CAP_DEPRECATED) != 0) {
+		if ((caps & ENCODER_HIDE_FLAGS) != 0) {
 			const char *name = obs_encoder_get_display_name(type);
 
 			ui->advOutEncoder->insertItem(0, QT_UTF8(name), QT_UTF8(type));
@@ -2114,7 +2223,7 @@ void PLSBasicSettings::LoadAdvOutputRecordingEncoderProperties()
 
 	if (!SetComboByValue(ui->advOutRecEncoder, type)) {
 		uint32_t caps = obs_get_encoder_caps(type);
-		if ((caps & OBS_ENCODER_CAP_DEPRECATED) != 0) {
+		if ((caps & ENCODER_HIDE_FLAGS) != 0) {
 			const char *name = obs_encoder_get_display_name(type);
 
 			ui->advOutRecEncoder->insertItem(1, QT_UTF8(name), QT_UTF8(type));
@@ -2204,12 +2313,16 @@ void PLSBasicSettings::LoadAdvOutputAudioSettings()
 	int track4Bitrate = config_get_uint(main->Config(), "AdvOut", "Track4Bitrate");
 	int track5Bitrate = config_get_uint(main->Config(), "AdvOut", "Track5Bitrate");
 	int track6Bitrate = config_get_uint(main->Config(), "AdvOut", "Track6Bitrate");
+	int trackStereoBitrate = config_get_uint(main->Config(), "AdvOut", "TrackStereoBitrate");
+	int trackImmersiveBitrate = config_get_uint(main->Config(), "AdvOut", "TrackImmersiveBitrate");
 	const char *name1 = config_get_string(main->Config(), "AdvOut", "Track1Name");
 	const char *name2 = config_get_string(main->Config(), "AdvOut", "Track2Name");
 	const char *name3 = config_get_string(main->Config(), "AdvOut", "Track3Name");
 	const char *name4 = config_get_string(main->Config(), "AdvOut", "Track4Name");
 	const char *name5 = config_get_string(main->Config(), "AdvOut", "Track5Name");
 	const char *name6 = config_get_string(main->Config(), "AdvOut", "Track6Name");
+	const char *nameStereo = config_get_string(main->Config(), "AdvOut", "TrackStereoName");
+	const char *nameImmersive = config_get_string(main->Config(), "AdvOut", "TrackImmersiveName");
 
 	track1Bitrate = FindClosestAvailableAACBitrate(track1Bitrate);
 	track2Bitrate = FindClosestAvailableAACBitrate(track2Bitrate);
@@ -2217,13 +2330,24 @@ void PLSBasicSettings::LoadAdvOutputAudioSettings()
 	track4Bitrate = FindClosestAvailableAACBitrate(track4Bitrate);
 	track5Bitrate = FindClosestAvailableAACBitrate(track5Bitrate);
 	track6Bitrate = FindClosestAvailableAACBitrate(track6Bitrate);
+	trackStereoBitrate = FindClosestAvailableAACBitrate(trackStereoBitrate);
+	trackImmersiveBitrate = FindClosestAvailableAACBitrate(trackImmersiveBitrate);
 
 	// restrict list of bitrates when multichannel is OFF
 	const char *speakers = config_get_string(main->Config(), "Audio", "ChannelSetup");
 
-	// restrict list of bitrates when multichannel is OFF
-	if (!IsSurround(speakers)) {
-		RestrictResetBitrates({ui->advOutTrack1Bitrate, ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate, ui->advOutTrack4Bitrate, ui->advOutTrack5Bitrate, ui->advOutTrack6Bitrate}, 320);
+	if (pls_is_immersive_audio()) {
+		RestrictResetBitrates({ui->advOutTrackStereoBitrate}, 384);
+		if (!IsSurround(speakers)) {
+			RestrictResetBitrates({ui->advOutTrackImmersiveBitrate}, 384);
+		}
+
+	} else {
+		// restrict list of bitrates when multichannel is OFF
+		if (!IsSurround(speakers)) {
+			RestrictResetBitrates({ui->advOutTrack1Bitrate, ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate, ui->advOutTrack4Bitrate, ui->advOutTrack5Bitrate, ui->advOutTrack6Bitrate},
+					      320);
+		}
 	}
 
 	SetComboByName(ui->advOutTrack1Bitrate, std::to_string(track1Bitrate).c_str());
@@ -2232,6 +2356,8 @@ void PLSBasicSettings::LoadAdvOutputAudioSettings()
 	SetComboByName(ui->advOutTrack4Bitrate, std::to_string(track4Bitrate).c_str());
 	SetComboByName(ui->advOutTrack5Bitrate, std::to_string(track5Bitrate).c_str());
 	SetComboByName(ui->advOutTrack6Bitrate, std::to_string(track6Bitrate).c_str());
+	SetComboByName(ui->advOutTrackStereoBitrate, std::to_string(trackStereoBitrate).c_str());
+	SetComboByName(ui->advOutTrackImmersiveBitrate, std::to_string(trackImmersiveBitrate).c_str());
 
 	ui->advOutTrack1Name->setText(name1);
 	ui->advOutTrack2Name->setText(name2);
@@ -2239,6 +2365,8 @@ void PLSBasicSettings::LoadAdvOutputAudioSettings()
 	ui->advOutTrack4Name->setText(name4);
 	ui->advOutTrack5Name->setText(name5);
 	ui->advOutTrack6Name->setText(name6);
+	ui->advOutTrackStereoName->setText(nameStereo);
+	ui->advOutTrackImmersiveName->setText(nameImmersive);
 }
 
 void PLSBasicSettings::LoadOutputSettings()
@@ -2298,6 +2426,7 @@ void PLSBasicSettings::SetAdvOutputFFmpegEnablement(ff_codec_type encoderType, b
 		ui->advOutFFTrack4->setEnabled(enabled);
 		ui->advOutFFTrack5->setEnabled(enabled);
 		ui->advOutFFTrack6->setEnabled(enabled);
+		break;
 	default:
 		break;
 	}
@@ -2374,6 +2503,11 @@ void PLSBasicSettings::LoadAudioDevices()
 		LoadListValues(ui->desktopAudioDevice1, outputs, 1);
 		LoadListValues(ui->desktopAudioDevice2, outputs, 2);
 		obs_properties_destroy(output_props);
+	}
+
+	if (pls_is_living_or_recording()) {
+		ui->sampleRate->setEnabled(false);
+		ui->channelSetup->setEnabled(false);
 	}
 }
 
@@ -2467,8 +2601,8 @@ void PLSBasicSettings::LoadAudioSources()
 		label->setWordWrap(true);
 		label->setMinimumSize(ui->label_67->minimumSize());
 		label->setMaximumSize(ui->label_67->maximumSize());
-		connect(label, &OBSSourceLabel::Removed, [=]() { LoadAudioSources(); });
-		connect(label, &OBSSourceLabel::Destroyed, [=]() { LoadAudioSources(); });
+		connect(label, &OBSSourceLabel::Removed, this, &PLSBasicSettings::LoadAudioSources);
+		connect(label, &OBSSourceLabel::Destroyed, this, &PLSBasicSettings::LoadAudioSources);
 
 		layout->addRow(label, form);
 
@@ -2490,6 +2624,8 @@ void PLSBasicSettings::LoadAudioSources()
 		},
 		static_cast<void *>(&AddSource));
 
+	PLSDpiHelper::dpiDynamicUpdate(ui->audioHotkeysGroupBox);
+
 	if (layout->rowCount() == 0)
 		ui->audioHotkeysGroupBox->hide();
 	else
@@ -2506,30 +2642,37 @@ void PLSBasicSettings::LoadAudioSettings()
 	loading = true;
 
 	const char *str;
-	if (sampleRate == 48000)
+	if (pls_is_immersive_audio()) {
 		str = "48 kHz";
-	else
-		str = "44.1 kHz";
-
+	} else {
+		if (sampleRate == 48000)
+			str = "48 kHz";
+		else
+			str = "44.1 kHz";
+	}
 	int sampleRateIdx = ui->sampleRate->findText(str);
 	if (sampleRateIdx != -1)
 		ui->sampleRate->setCurrentIndex(sampleRateIdx);
 
-	if (strcmp(speakers, "Mono") == 0)
-		ui->channelSetup->setCurrentIndex(0);
-	else if (strcmp(speakers, "2.1") == 0)
-		ui->channelSetup->setCurrentIndex(2);
-	else if (strcmp(speakers, "4.0") == 0)
-		ui->channelSetup->setCurrentIndex(3);
-	else if (strcmp(speakers, "4.1") == 0)
-		ui->channelSetup->setCurrentIndex(4);
-	else if (strcmp(speakers, "5.1") == 0)
-		ui->channelSetup->setCurrentIndex(5);
-	else if (strcmp(speakers, "7.1") == 0)
-		ui->channelSetup->setCurrentIndex(6);
-	else
-		ui->channelSetup->setCurrentIndex(1);
-
+	if (pls_is_immersive_audio()) {
+		if (strcmp(speakers, "Stereo") == 0)
+			ui->channelSetup->setCurrentIndex(0);
+	} else {
+		if (strcmp(speakers, "Mono") == 0)
+			ui->channelSetup->setCurrentIndex(0);
+		else if (strcmp(speakers, "2.1") == 0)
+			ui->channelSetup->setCurrentIndex(2);
+		else if (strcmp(speakers, "4.0") == 0)
+			ui->channelSetup->setCurrentIndex(3);
+		else if (strcmp(speakers, "4.1") == 0)
+			ui->channelSetup->setCurrentIndex(4);
+		else if (strcmp(speakers, "5.1") == 0)
+			ui->channelSetup->setCurrentIndex(5);
+		else if (strcmp(speakers, "7.1") == 0)
+			ui->channelSetup->setCurrentIndex(6);
+		else
+			ui->channelSetup->setCurrentIndex(1);
+	}
 	if (meterDecayRate == VOLUME_METER_DECAY_MEDIUM)
 		ui->meterDecayRate->setCurrentIndex(1);
 	else if (meterDecayRate == VOLUME_METER_DECAY_SLOW)
@@ -2930,6 +3073,10 @@ void PLSBasicSettings::LoadHotkeySettings(obs_hotkey_id ignoreKey)
 		auto registerer_type = obs_hotkey_get_registerer_type(key);
 		void *registerer = obs_hotkey_get_registerer(key);
 
+		if (obs_hotkey_get_flags(key) & HOTKEY_FLAG_INVISIBLE) {
+			return;
+		}
+
 		obs_hotkey_id partner = obs_hotkey_get_pair_partner_id(key);
 		if (partner != OBS_INVALID_HOTKEY_ID) {
 			pairLabels.emplace(obs_hotkey_get_id(key), make_pair(partner, label));
@@ -3043,6 +3190,30 @@ void PLSBasicSettings::LoadSettings(bool changedOnly)
 		LoadHotkeySettings();
 	if (!changedOnly || advancedChanged)
 		LoadAdvancedSettings();
+	LoadSceneDisplayMethodSettings();
+}
+
+void PLSBasicSettings::LoadSceneDisplayMethodSettings()
+{
+	loading = true;
+
+	QStringList list;
+	list << tr("Setting.Scene.Display.Realtime.View") << tr("Setting.Scene.Display.Thumbnail.View") << tr("Setting.Scene.Display.Text.View");
+	ui->sceneDisplayComboBox->blockSignals(true);
+	ui->sceneDisplayComboBox->addItems(list);
+	ui->sceneDisplayComboBox->blockSignals(false);
+	int currentIndex = config_get_int(GetGlobalConfig(), "BasicWindow", "SceneDisplayMethod");
+	if (currentIndex > list.size() - 1 || currentIndex < 0) {
+		ui->sceneDisplayComboBox->setCurrentIndex(0);
+
+		OnSceneDisplayMethodIndexChanged(0);
+		loading = false;
+		return;
+	}
+	ui->sceneDisplayComboBox->setCurrentIndex(currentIndex);
+	OnSceneDisplayMethodIndexChanged(currentIndex);
+
+	loading = false;
 }
 
 void PLSBasicSettings::SaveGeneralSettings()
@@ -3054,16 +3225,9 @@ void PLSBasicSettings::SaveGeneralSettings()
 	if (WidgetChanged(ui->language)) {
 		config_set_string(GetGlobalConfig(), "General", "Language", language.c_str());
 
-		const int EnglishLID = 0x0409; // 1033 for English
-		const int KoreaLID = 0x0412;   // 1042 for Korea
 		QSettings settings("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PRISM Live Studio", QSettings::NativeFormat);
-		if (language == "en-US") {
-			settings.setValue("InstallLanguage", EnglishLID);
-		} else if (language == "ko-KR") {
-			settings.setValue("InstallLanguage", KoreaLID);
-		} else {
-			settings.setValue("InstallLanguage", EnglishLID);
-		}
+		int languageID = locale2languageID(language);
+		settings.setValue("InstallLanguage", languageID);
 		settings.sync();
 	}
 
@@ -3176,6 +3340,12 @@ void PLSBasicSettings::SaveGeneralSettings()
 		PLSProjector::UpdateMultiviewProjectors();
 }
 
+void PLSBasicSettings::on_ToResolutionBtn_clicked()
+{
+	PLS_UI_STEP("Basic seeting ", " Resolution button ", " clicked ");
+	ResolutionGuidePage::setVisibleOfGuide(this, [this]() { this->LoadVideoSettings(); });
+}
+
 void PLSBasicSettings::SaveVideoSettings()
 {
 	QString baseResolution = ui->baseResolution->currentText();
@@ -3283,7 +3453,7 @@ void PLSBasicSettings::SaveAdvancedSettings()
 	if (lastMonitoringDevice != newDevice) {
 		obs_set_audio_monitoring_device(QT_TO_UTF8(ui->monitoringDevice->currentText()), QT_TO_UTF8(newDevice));
 
-		blog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s", QT_TO_UTF8(ui->monitoringDevice->currentText()), QT_TO_UTF8(newDevice));
+		PLS_INFO(SETTING_MODULE, "Audio monitoring device:\n\tname: %s\n\tid: %s", QT_TO_UTF8(ui->monitoringDevice->currentText()), QT_TO_UTF8(newDevice));
 	}
 #endif
 }
@@ -3417,15 +3587,21 @@ void PLSBasicSettings::SaveOutputSettings()
 	SaveCheckBox(ui->simpleReplayBuf, "SimpleOutput", "RecRB");
 	SaveSpinBox(ui->simpleRBSecMax, "SimpleOutput", "RecRBTime");
 	SaveSpinBox(ui->simpleRBMegsMax, "SimpleOutput", "RecRBSize");
-
+	if (pls_is_immersive_audio()) {
+		config_set_int(main->Config(), "SimpleOutput", "TrackIndex", ui->simpleImmersiveAudioStreaming->isChecked() ? 2 : 1);
+		config_set_int(main->Config(), "SimpleOut", "ImmersiveRecTracks", ui->immersiveAudioStreaming->isChecked() ? (1 << 0) | (1 << 1) : (1 << 0));
+	}
 	curAdvStreamEncoder = GetComboData(ui->advOutEncoder);
 
 	SaveCheckBox(ui->advOutApplyService, "AdvOut", "ApplyServiceSettings");
 	SaveComboData(ui->advOutEncoder, "AdvOut", "Encoder");
 	SaveCheckBox(ui->advOutUseRescale, "AdvOut", "Rescale");
 	SaveCombo(ui->advOutRescale, "AdvOut", "RescaleRes");
-	SaveTrackIndex(main->Config(), "AdvOut", "TrackIndex", ui->advOutTrack1, ui->advOutTrack2, ui->advOutTrack3, ui->advOutTrack4, ui->advOutTrack5, ui->advOutTrack6);
-
+	if (!pls_is_immersive_audio()) {
+		SaveTrackIndex(main->Config(), "AdvOut", "TrackIndex", ui->advOutTrack1, ui->advOutTrack2, ui->advOutTrack3, ui->advOutTrack4, ui->advOutTrack5, ui->advOutTrack6);
+	} else {
+		config_set_int(main->Config(), "AdvOut", "ImmersiveTrackIndex", ui->immersiveAudioStreaming->isChecked() ? 2 : 1);
+	}
 	config_set_string(main->Config(), "AdvOut", "RecType", RecTypeFromIdx(ui->advOutRecType->currentIndex()));
 
 	curAdvRecordEncoder = GetComboData(ui->advOutRecEncoder);
@@ -3438,10 +3614,13 @@ void PLSBasicSettings::SaveOutputSettings()
 	SaveCombo(ui->advOutRecRescale, "AdvOut", "RecRescaleRes");
 	SaveEdit(ui->advOutMuxCustom, "AdvOut", "RecMuxerCustom");
 
-	config_set_int(main->Config(), "AdvOut", "RecTracks",
-		       (ui->advOutRecTrack1->isChecked() ? (1 << 0) : 0) | (ui->advOutRecTrack2->isChecked() ? (1 << 1) : 0) | (ui->advOutRecTrack3->isChecked() ? (1 << 2) : 0) |
-			       (ui->advOutRecTrack4->isChecked() ? (1 << 3) : 0) | (ui->advOutRecTrack5->isChecked() ? (1 << 4) : 0) | (ui->advOutRecTrack6->isChecked() ? (1 << 5) : 0));
-
+	if (pls_is_immersive_audio()) {
+		config_set_int(main->Config(), "AdvOut", "ImmersiveRecTracks", ui->immersiveAudioStreaming->isChecked() ? (1 << 0) | (1 << 1) : (1 << 0));
+	} else {
+		config_set_int(main->Config(), "AdvOut", "RecTracks",
+			       (ui->advOutRecTrack1->isChecked() ? (1 << 0) : 0) | (ui->advOutRecTrack2->isChecked() ? (1 << 1) : 0) | (ui->advOutRecTrack3->isChecked() ? (1 << 2) : 0) |
+				       (ui->advOutRecTrack4->isChecked() ? (1 << 3) : 0) | (ui->advOutRecTrack5->isChecked() ? (1 << 4) : 0) | (ui->advOutRecTrack6->isChecked() ? (1 << 5) : 0));
+	}
 	config_set_int(main->Config(), "AdvOut", "FLVTrack", CurrentFLVTrack());
 
 	config_set_bool(main->Config(), "AdvOut", "FFOutputToFile", ui->advOutFFType->currentIndex() == 0 ? true : false);
@@ -3469,12 +3648,16 @@ void PLSBasicSettings::SaveOutputSettings()
 	SaveCombo(ui->advOutTrack4Bitrate, "AdvOut", "Track4Bitrate");
 	SaveCombo(ui->advOutTrack5Bitrate, "AdvOut", "Track5Bitrate");
 	SaveCombo(ui->advOutTrack6Bitrate, "AdvOut", "Track6Bitrate");
+	SaveCombo(ui->advOutTrackStereoBitrate, "AdvOut", "TrackStereoBitrate");
+	SaveCombo(ui->advOutTrackImmersiveBitrate, "AdvOut", "TrackImmersiveBitrate");
 	SaveEdit(ui->advOutTrack1Name, "AdvOut", "Track1Name");
 	SaveEdit(ui->advOutTrack2Name, "AdvOut", "Track2Name");
 	SaveEdit(ui->advOutTrack3Name, "AdvOut", "Track3Name");
 	SaveEdit(ui->advOutTrack4Name, "AdvOut", "Track4Name");
 	SaveEdit(ui->advOutTrack5Name, "AdvOut", "Track5Name");
 	SaveEdit(ui->advOutTrack6Name, "AdvOut", "Track6Name");
+	SaveEdit(ui->advOutTrackStereoName, "AdvOut", "TrackStereoName");
+	SaveEdit(ui->advOutTrackImmersiveName, "AdvOut", "TrackImmersiveName");
 
 	SaveCheckBox(ui->advReplayBuf, "AdvOut", "RecRB");
 	SaveSpinBox(ui->advRBSecMax, "AdvOut", "RecRBTime");
@@ -3498,37 +3681,51 @@ void PLSBasicSettings::SaveAudioSettings()
 	int channelSetupIdx = ui->channelSetup->currentIndex();
 
 	const char *channelSetup;
-	switch (channelSetupIdx) {
-	case 0:
-		channelSetup = "Mono";
-		break;
-	case 1:
-		channelSetup = "Stereo";
-		break;
-	case 2:
-		channelSetup = "2.1";
-		break;
-	case 3:
-		channelSetup = "4.0";
-		break;
-	case 4:
-		channelSetup = "4.1";
-		break;
-	case 5:
-		channelSetup = "5.1";
-		break;
-	case 6:
-		channelSetup = "7.1";
-		break;
+	if (pls_is_immersive_audio()) {
+		switch (channelSetupIdx) {
+		case 0:
+			channelSetup = "Stereo";
+			break;
+		default:
+			channelSetup = "Stereo";
+			break;
+		}
+	} else {
+		switch (channelSetupIdx) {
+		case 0:
+			channelSetup = "Mono";
+			break;
+		case 1:
+			channelSetup = "Stereo";
+			break;
+		case 2:
+			channelSetup = "2.1";
+			break;
+		case 3:
+			channelSetup = "4.0";
+			break;
+		case 4:
+			channelSetup = "4.1";
+			break;
+		case 5:
+			channelSetup = "5.1";
+			break;
+		case 6:
+			channelSetup = "7.1";
+			break;
 
-	default:
-		channelSetup = "Stereo";
-		break;
+		default:
+			channelSetup = "Stereo";
+			break;
+		}
 	}
 
 	int sampleRate = 44100;
 	if (sampleRateStr == "48 kHz")
 		sampleRate = 48000;
+	if (pls_is_immersive_audio()) {
+		sampleRate = 48000;
+	}
 
 	if (WidgetChanged(ui->sampleRate))
 		config_set_uint(main->Config(), "Audio", "SampleRate", sampleRate);
@@ -3662,6 +3859,7 @@ void PLSBasicSettings::SaveSettings()
 
 	if (videoChanged || advancedChanged)
 		main->ResetVideo();
+	SaveSceneDisplayMethodSettings();
 
 	config_save_safe(main->Config(), "tmp", nullptr);
 	config_save_safe(GetGlobalConfig(), "tmp", nullptr);
@@ -3684,11 +3882,24 @@ void PLSBasicSettings::SaveSettings()
 		if (advancedChanged)
 			AddChangedVal(changed, "advanced");
 
-		blog(LOG_INFO, "Settings changed (%s)", changed.c_str());
-		blog(LOG_INFO, MINOR_SEPARATOR);
+		PLS_INFO(SETTING_MODULE, "Settings changed (%s)", changed.c_str());
+		PLS_INFO(SETTING_MODULE, MINOR_SEPARATOR);
 	}
 
 	main->showEncodingInStatusBar();
+
+	// Restart program when audio framerate or channel changed
+	if (ui->channelSetup->currentIndex() != channelIndex || ui->sampleRate->currentIndex() != sampleRateIndex) {
+		m_doneValue = Qt::UserRole + 1025;
+	}
+}
+
+void PLSBasicSettings::SaveSceneDisplayMethodSettings()
+{
+	config_set_int(GetGlobalConfig(), "BasicWindow", "SceneDisplayMethod", ui->sceneDisplayComboBox->currentIndex());
+	if (main) {
+		main->SetSceneDisplayMethod(ui->sceneDisplayComboBox->currentIndex());
+	}
 }
 
 void PLSBasicSettings::ResetSettings()
@@ -3762,12 +3973,14 @@ void PLSBasicSettings::ResetSettings()
 	config_remove_value(config, "SimpleOutput", "RecRB");
 	config_remove_value(config, "SimpleOutput", "RecRBTime");
 	config_remove_value(config, "SimpleOutput", "RecRBSize");
+	config_remove_value(config, "SimpleOutput", "TrackIndex");
 
 	config_remove_value(config, "AdvOut", "ApplyServiceSettings");
 	config_remove_value(config, "AdvOut", "Encoder");
 	config_remove_value(config, "AdvOut", "Rescale");
 	config_remove_value(config, "AdvOut", "RescaleRes");
 	config_remove_value(config, "AdvOut", "TrackIndex");
+	config_remove_value(config, "AdvOut", "ImmersiveTrackIndex");
 
 	config_remove_value(config, "AdvOut", "RecType");
 
@@ -3811,12 +4024,16 @@ void PLSBasicSettings::ResetSettings()
 	config_remove_value(config, "AdvOut", "Track4Bitrate");
 	config_remove_value(config, "AdvOut", "Track5Bitrate");
 	config_remove_value(config, "AdvOut", "Track6Bitrate");
+	config_remove_value(config, "AdvOut", "TrackStereoBitrate");
+	config_remove_value(config, "AdvOut", "TrackImmersiveBitrate");
 	config_remove_value(config, "AdvOut", "Track1Name");
 	config_remove_value(config, "AdvOut", "Track2Name");
 	config_remove_value(config, "AdvOut", "Track3Name");
 	config_remove_value(config, "AdvOut", "Track4Name");
 	config_remove_value(config, "AdvOut", "Track5Name");
 	config_remove_value(config, "AdvOut", "Track6Name");
+	config_remove_value(config, "AdvOut", "TrackStereoName");
+	config_remove_value(config, "AdvOut", "TrackImmersiveName");
 
 	config_remove_value(config, "AdvOut", "RecRB");
 	config_remove_value(config, "AdvOut", "RecRBTime");
@@ -3866,7 +4083,7 @@ void PLSBasicSettings::ResetSettings()
 	};
 
 	resetAudioDevice(false, "default", "Basic.DesktopDevice1", 1);
-	resetAudioDevice(false, "default", "Basic.DesktopDevice2", 2);
+	resetAudioDevice(false, "disabled", "Basic.DesktopDevice2", 2);
 	resetAudioDevice(true, "default", "Basic.AuxDevice1", 3);
 	resetAudioDevice(true, "disabled", "Basic.AuxDevice2", 4);
 	resetAudioDevice(true, "disabled", "Basic.AuxDevice3", 5);
@@ -3913,12 +4130,16 @@ void PLSBasicSettings::ResetSettings()
 	ui->monitoringDevice->setCurrentIndex(0);
 	QString newDevice = ui->monitoringDevice->currentData().toString();
 	obs_set_audio_monitoring_device(QT_TO_UTF8(ui->monitoringDevice->currentText()), QT_TO_UTF8(newDevice));
-	blog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s", QT_TO_UTF8(ui->monitoringDevice->currentText()), QT_TO_UTF8(newDevice));
+	PLS_INFO(SETTING_MODULE, "Audio monitoring device:\n\tname: %s\n\tid: %s", QT_TO_UTF8(ui->monitoringDevice->currentText()), QT_TO_UTF8(newDevice));
 
 	// reset hotkey settings
 	for (auto &hotkey : hotkeys) {
 		hotkey.second->Clear();
 	}
+
+	ui->sceneDisplayComboBox->clear();
+	config_remove_value(globalConfig, "BasicWindow", "SceneDisplayMethod");
+	main->SetSceneDisplayMethod(0);
 
 	SaveHotkeySettings();
 
@@ -3952,14 +4173,15 @@ bool PLSBasicSettings::QueryChanges()
 							      PLSAlertView::Button::Yes | PLSAlertView::Button::No | PLSAlertView::Button::Cancel);
 
 	if (button == PLSAlertView::Button::Cancel || button == PLSAlertView::Button::NoButton) {
+		ClearChanged();
 		return false;
 	} else if (button == PLSAlertView::Button::Yes) {
-		if ((ui->language->currentIndex() != m_currentLanguageIndex) &&
+		if ((ui->language->currentData().toString().toStdString() != m_currentLanguage.first) &&
 		    PLSAlertView::Button::Yes ==
 			    PLSAlertView::warning(this, QTStr("Basic.Settings.ConfirmTitle"), QTStr("Basic.Settings.General.language.changed"), PLSAlertView::Button::Yes | PLSAlertView::Button::No)) {
 			m_doneValue = Qt::UserRole + 1024;
 		} else {
-			ui->language->setCurrentIndex(m_currentLanguageIndex);
+			ui->language->setCurrentText(QString::fromStdString(m_currentLanguage.second));
 		}
 		SaveSettings();
 	} else {
@@ -3977,19 +4199,37 @@ bool PLSBasicSettings::QueryChanges()
 bool PLSBasicSettings::onCloseEvent(QCloseEvent *event)
 {
 	bool result = true;
+	bool isCallBaseCloseEvent = true;
+	if ((m_doneValue != LoginInfoType::PrismLogoutInfo) && (m_doneValue != LoginInfoType::PrismSignoutInfo) && Changed() && !QueryChanges()) {
+		result = false;
+		if (event) {
+			event->ignore();
+			isCallBaseCloseEvent = false;
+		}
+	}
 
 	if (forceAuthReload) {
 		main->auth->Save();
 		main->auth->Load();
 		forceAuthReload = false;
 	}
-	callBaseCloseEvent(event);
+	if (isCallBaseCloseEvent) {
+		callBaseCloseEvent(event);
+	}
 	return result;
 }
 
 void PLSBasicSettings::hotkeysClearButtonClicked(QPushButton *button)
 {
 	componentValueChanged(getPageOfSender(button), button);
+}
+void PLSBasicSettings::OnSceneDisplayMethodIndexChanged(int index)
+{
+	if (index < 0 || index >= SCENE_DISPLAY_TIPS_NUM) {
+		return;
+	}
+
+	ui->sceneDisplayTipsLabel->setText(tr(sceneDisplayTips[index]));
 }
 
 bool PLSBasicSettings::event(QEvent *event)
@@ -4088,9 +4328,10 @@ void PLSBasicSettings::on_buttonBox_clicked(QAbstractButton *button)
 				SaveSettings();
 				ClearChanged();
 				done(Qt::UserRole + 1024);
+				m_doneValue = Qt::UserRole + 1024;
 				return;
 			} else {
-				ui->language->setCurrentIndex(m_currentLanguageIndex);
+				ui->language->setCurrentText(QString::fromStdString(m_currentLanguage.second));
 			}
 		}
 		this->setFocus();
@@ -4406,7 +4647,7 @@ void PLSBasicSettings::on_baseResolution_editTextChanged(const QString &text)
 		uint32_t cx, cy;
 
 		ConvertResText(QT_TO_UTF8(baseResolution), cx, cy);
-		ResetDownscales(cx, cy);
+		ResetDownscales(cx, cy, true);
 	}
 }
 
@@ -4462,7 +4703,14 @@ void PLSBasicSettings::AudioChangedRestart()
 		audioChanged = true;
 		QObject *sender = this->sender();
 		QWidget *page = getPageOfSender();
-		updateAlertMessage(AlertMessageType::Error, page, QTStr("Basic.Settings.ProgramRestart"));
+
+		int currentChannelIndex = ui->channelSetup->currentIndex();
+		int currentSampleRateIndex = ui->sampleRate->currentIndex();
+		if (currentChannelIndex != channelIndex || currentSampleRateIndex != sampleRateIndex) {
+			updateAlertMessage(AlertMessageType::Error, page, QTStr("Basic.Settings.ProgramRestart"));
+		} else {
+			clearAlertMessage(AlertMessageType::Error, page);
+		}
 		sender->setProperty("changed", QVariant(true));
 		componentValueChanged(page, sender);
 		EnableApplyButton(true);
@@ -4484,17 +4732,27 @@ void PLSBasicSettings::SpeakerLayoutChanged(int idx)
 
 	if (surround) {
 		updateAlertMessage(AlertMessageType::Warning, ui->channelSetup, QTStr(MULTI_CHANNEL_WARNING ".Enabled") + QStringLiteral("\n\n") + QTStr(MULTI_CHANNEL_WARNING));
-		PopulateAACBitrates({ui->simpleOutputABitrate, ui->advOutTrack1Bitrate, ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate, ui->advOutTrack4Bitrate, ui->advOutTrack5Bitrate,
-				     ui->advOutTrack6Bitrate});
+		if (pls_is_immersive_audio()) {
+			PopulateAACBitrates({ui->simpleOutputABitrate, ui->advOutTrackStereoBitrate, ui->advOutTrackImmersiveBitrate});
+			RestrictResetBitrates({ui->advOutTrackStereoBitrate}, 384);
+		} else {
+			PopulateAACBitrates({ui->simpleOutputABitrate, ui->advOutTrack1Bitrate, ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate, ui->advOutTrack4Bitrate, ui->advOutTrack5Bitrate,
+					     ui->advOutTrack6Bitrate});
+		}
+
 	} else {
 		/*
 		 * Reset audio bitrate for simple and adv mode, update list of
 		 * bitrates and save setting.
 		 */
 		clearAlertMessage(AlertMessageType::Warning, ui->channelSetup);
-		RestrictResetBitrates({ui->simpleOutputABitrate, ui->advOutTrack1Bitrate, ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate, ui->advOutTrack4Bitrate, ui->advOutTrack5Bitrate,
-				       ui->advOutTrack6Bitrate},
-				      320);
+		if (pls_is_immersive_audio()) {
+			RestrictResetBitrates({ui->simpleOutputABitrate, ui->advOutTrackStereoBitrate, ui->advOutTrackImmersiveBitrate}, 384);
+		} else {
+			RestrictResetBitrates({ui->simpleOutputABitrate, ui->advOutTrack1Bitrate, ui->advOutTrack2Bitrate, ui->advOutTrack3Bitrate, ui->advOutTrack4Bitrate, ui->advOutTrack5Bitrate,
+					       ui->advOutTrack6Bitrate},
+					      320);
+		}
 
 		SaveCombo(ui->simpleOutputABitrate, "SimpleOutput", "ABitrate");
 		SaveCombo(ui->advOutTrack1Bitrate, "AdvOut", "Track1Bitrate");
@@ -4503,6 +4761,8 @@ void PLSBasicSettings::SpeakerLayoutChanged(int idx)
 		SaveCombo(ui->advOutTrack4Bitrate, "AdvOut", "Track4Bitrate");
 		SaveCombo(ui->advOutTrack5Bitrate, "AdvOut", "Track5Bitrate");
 		SaveCombo(ui->advOutTrack6Bitrate, "AdvOut", "Track6Bitrate");
+		SaveCombo(ui->advOutTrackStereoBitrate, "AdvOut", "TrackStereoBitrate");
+		SaveCombo(ui->advOutTrackImmersiveBitrate, "AdvOut", "TrackImmersiveBitrate");
 	}
 }
 
@@ -4602,6 +4862,7 @@ void PLSBasicSettings::HotkeysChanged()
 void PLSBasicSettings::ReloadHotkeys(obs_hotkey_id ignoreKey)
 {
 	LoadHotkeySettings(ignoreKey);
+	updateLabelSize(PLSDpiHelper::getDpi(this));
 }
 
 void PLSBasicSettings::AdvancedChanged()
@@ -4621,20 +4882,33 @@ void PLSBasicSettings::AdvOutRecCheckWarnings()
 
 	uint32_t tracks =
 		Checked(ui->advOutRecTrack1) + Checked(ui->advOutRecTrack2) + Checked(ui->advOutRecTrack3) + Checked(ui->advOutRecTrack4) + Checked(ui->advOutRecTrack5) + Checked(ui->advOutRecTrack6);
-
+	if (pls_is_immersive_audio()) {
+		tracks = ui->immersiveAudioStreaming->isChecked() ? 2 : 1;
+	}
 	clearAlertMessage(AlertMessageType::Warning, ui->advOutRecEncoder, false);
 	clearAlertMessage(AlertMessageType::Error, ui->advOutRecFormat, false);
 	clearAlertMessage(AlertMessageType::Warning, ui->advOutRecFormat, false);
 
-	bool useStreamEncoder = ui->advOutRecEncoder->currentIndex() == 0;
-	if (useStreamEncoder) {
+	QString recEncoderID;
+	if (0 == ui->advOutRecEncoder->currentIndex()) { // use stream's encoder
 		// remove Warning: Recordings cannot be paused if the recording encoder is set to \"(Use stream encoder)\"
 		// not support pause recordings current version
 		// updateAlertMessage(AlertMessageType::Warning, ui->advOutRecEncoder, QTStr("OutputWarnings.CannotPause"));
+
+		recEncoderID = GetComboData(ui->advOutEncoder);
+
+	} else {
+		recEncoderID = GetComboData(ui->advOutRecEncoder);
 	}
 
 	if (ui->advOutRecFormat->currentText().compare("flv") == 0) {
 		ui->advRecTrackWidget->setCurrentWidget(ui->flvTracks);
+		if (!recEncoderID.isEmpty()) {
+			const char *codec = obs_get_encoder_codec(recEncoderID.toStdString().c_str());
+			if (codec && (0 == strcmp(codec, "hevc"))) {
+				updateAlertMessage(AlertMessageType::Warning, ui->advOutRecEncoder, QTStr("Hevc.alert.unsupport.FLV"));
+			}
+		}
 	} else {
 		ui->advRecTrackWidget->setCurrentWidget(ui->recTracks);
 		if (tracks == 0) {
@@ -4647,6 +4921,21 @@ void PLSBasicSettings::AdvOutRecCheckWarnings()
 		updateAlertMessage(AlertMessageType::Warning, ui->advOutRecFormat, QTStr("OutputWarnings.MP4Recording"));
 	} else {
 		ui->autoRemux->setText(QTStr("Basic.Settings.Advanced.AutoRemux"));
+	}
+
+	updateAlertMessage();
+}
+
+void PLSBasicSettings::AdvOutStreamEncoderCheckWarnings()
+{
+	clearAlertMessage(AlertMessageType::Warning, ui->advOutEncoder, false);
+
+	QString encoder = GetComboData(ui->advOutEncoder);
+	if (!encoder.isEmpty()) {
+		const char *codec = obs_get_encoder_codec(encoder.toStdString().c_str());
+		if (0 == strcmp(codec, "hevc")) {
+			updateAlertMessage(AlertMessageType::Warning, ui->advOutEncoder, QTStr("Hevc.tip.vlive"));
+		}
 	}
 
 	updateAlertMessage();
@@ -4678,27 +4967,40 @@ void PLSBasicSettings::UpdateAdvOutStreamDelayEstimate()
 
 	OBSData settings = streamEncoderProps->GetSettings();
 	int trackIndex = config_get_int(main->Config(), "AdvOut", "TrackIndex");
+	int immersiveTrackIndex = config_get_int(main->Config(), "AdvOut", "ImmersiveTrackIndex");
 	QString aBitrateText;
 
-	switch (trackIndex) {
-	case 1:
-		aBitrateText = ui->advOutTrack1Bitrate->currentText();
-		break;
-	case 2:
-		aBitrateText = ui->advOutTrack2Bitrate->currentText();
-		break;
-	case 3:
-		aBitrateText = ui->advOutTrack3Bitrate->currentText();
-		break;
-	case 4:
-		aBitrateText = ui->advOutTrack4Bitrate->currentText();
-		break;
-	case 5:
-		aBitrateText = ui->advOutTrack5Bitrate->currentText();
-		break;
-	case 6:
-		aBitrateText = ui->advOutTrack6Bitrate->currentText();
-		break;
+	if (pls_is_immersive_audio()) {
+		switch (immersiveTrackIndex) {
+		case 1:
+			aBitrateText = ui->advOutTrackStereoBitrate->currentText();
+			break;
+		case 2:
+			aBitrateText = ui->advOutTrackImmersiveBitrate->currentText();
+			break;
+		}
+	} else {
+
+		switch (trackIndex) {
+		case 1:
+			aBitrateText = ui->advOutTrack1Bitrate->currentText();
+			break;
+		case 2:
+			aBitrateText = ui->advOutTrack2Bitrate->currentText();
+			break;
+		case 3:
+			aBitrateText = ui->advOutTrack3Bitrate->currentText();
+			break;
+		case 4:
+			aBitrateText = ui->advOutTrack4Bitrate->currentText();
+			break;
+		case 5:
+			aBitrateText = ui->advOutTrack5Bitrate->currentText();
+			break;
+		case 6:
+			aBitrateText = ui->advOutTrack6Bitrate->currentText();
+			break;
+		}
 	}
 
 	int seconds = ui->streamDelaySec->value();
@@ -4962,19 +5264,24 @@ void PLSBasicSettings::AdvReplayBufferChanged()
 	bool replayBufferEnabled = ui->advReplayBuf->isChecked();
 
 	int abitrate = 0;
-	if (ui->advOutRecTrack1->isChecked())
-		abitrate += ui->advOutTrack1Bitrate->currentText().toInt();
-	if (ui->advOutRecTrack2->isChecked())
-		abitrate += ui->advOutTrack2Bitrate->currentText().toInt();
-	if (ui->advOutRecTrack3->isChecked())
-		abitrate += ui->advOutTrack3Bitrate->currentText().toInt();
-	if (ui->advOutRecTrack4->isChecked())
-		abitrate += ui->advOutTrack4Bitrate->currentText().toInt();
-	if (ui->advOutRecTrack5->isChecked())
-		abitrate += ui->advOutTrack5Bitrate->currentText().toInt();
-	if (ui->advOutRecTrack6->isChecked())
-		abitrate += ui->advOutTrack6Bitrate->currentText().toInt();
-
+	if (pls_is_immersive_audio()) {
+		abitrate += ui->advOutTrackStereoBitrate->currentText().toInt();
+		if (ui->immersiveAudioStreaming->isChecked())
+			abitrate += ui->advOutTrackImmersiveBitrate->currentText().toInt();
+	} else {
+		if (ui->advOutRecTrack1->isChecked())
+			abitrate += ui->advOutTrack1Bitrate->currentText().toInt();
+		if (ui->advOutRecTrack2->isChecked())
+			abitrate += ui->advOutTrack2Bitrate->currentText().toInt();
+		if (ui->advOutRecTrack3->isChecked())
+			abitrate += ui->advOutTrack3Bitrate->currentText().toInt();
+		if (ui->advOutRecTrack4->isChecked())
+			abitrate += ui->advOutTrack4Bitrate->currentText().toInt();
+		if (ui->advOutRecTrack5->isChecked())
+			abitrate += ui->advOutTrack5Bitrate->currentText().toInt();
+		if (ui->advOutRecTrack6->isChecked())
+			abitrate += ui->advOutTrack6Bitrate->currentText().toInt();
+	}
 	int seconds = ui->advRBSecMax->value();
 
 	int64_t memMB = int64_t(seconds) * int64_t(vbitrate + abitrate) * 1000 / 8 / 1024 / 1024;
@@ -5150,7 +5457,7 @@ void PLSBasicSettings::on_resetButton_clicked()
 {
 	PLS_UI_STEP(SETTING_MODULE, "Reset Button", ACTION_CLICK);
 
-	if (PLSAlertView::question(this, tr("Basic.Settings.Reset.Title"), tr("Basic.Settings.Reset.Question"), PLSAlertView::Button::Yes | PLSAlertView::Button::No) != PLSAlertView::Button::Yes) {
+	if (PLSAlertView::question(this, tr("Confirm"), tr("Basic.Settings.Reset.Question"), PLSAlertView::Button::Yes | PLSAlertView::Button::No) != PLSAlertView::Button::Yes) {
 		return;
 	}
 
@@ -5272,7 +5579,7 @@ QWidget *PLSBasicSettings::getPageOfSender(QObject *sender) const
 	return nullptr;
 }
 
-void PLSBasicSettings::switchTo(const QString &tab, const QString &group)
+void PLSBasicSettings::switchTo(const QString &tab, const QString &)
 {
 	if (tab == QStringLiteral("General")) {
 		ui->listWidget->setCurrentRow(0);
@@ -5410,8 +5717,8 @@ void PLSBasicSettings::updateAlertMessage()
 	}
 }
 
-void PLSBasicSettings::done(int type)
+void PLSBasicSettings::cancel()
 {
-	m_doneValue = type;
-	PLSDialogView::done(type);
+	ClearChanged();
+	close();
 }

@@ -37,7 +37,7 @@
 #include <libavformat/avformat.h>
 
 #define do_log(level, format, ...)                  \
-	blog(level, "[ffmpeg muxer: '%s'] " format, \
+	plog(level, "[ffmpeg muxer: '%s'] " format, \
 	     obs_output_get_name(stream->output), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
@@ -54,8 +54,8 @@ struct ffmpeg_muxer {
 	volatile bool stopping;
 	volatile bool capturing;
 
-	//PRISM/LiuHaibin/20200616/#3195/for force stop
-	pthread_mutex_t deactive_mutex;
+	//PRISM/LiuHaibin/20210812/#2321/force stop replay buffer
+	volatile bool force_stop;
 
 	/* replay buffer */
 	struct circlebuf packets;
@@ -106,9 +106,6 @@ static void ffmpeg_mux_destroy(void *data)
 	da_free(stream->mux_packets);
 
 	os_process_pipe_destroy(stream->pipe);
-	//PRISM/LiuHaibin/20200702/#3195/for force stop
-	if (stream->deactive_mutex)
-		pthread_mutex_destroy(&stream->deactive_mutex);
 	dstr_free(&stream->path);
 	bfree(stream);
 }
@@ -117,13 +114,6 @@ static void *ffmpeg_mux_create(obs_data_t *settings, obs_output_t *output)
 {
 	struct ffmpeg_muxer *stream = bzalloc(sizeof(*stream));
 	stream->output = output;
-
-	//PRISM/LiuHaibin/20200703/#3195/for force stop
-	if (pthread_mutex_init(&stream->deactive_mutex, NULL) != 0) {
-		warn("Failed to initialize deactive mutex");
-		ffmpeg_mux_destroy(stream);
-		return NULL;
-	}
 
 	UNUSED_PARAMETER(settings);
 	return stream;
@@ -148,6 +138,12 @@ static inline bool stopping(struct ffmpeg_muxer *stream)
 static inline bool active(struct ffmpeg_muxer *stream)
 {
 	return os_atomic_load_bool(&stream->active);
+}
+
+//PRISM/LiuHaibin/20211009/#9908/if force stop if called
+static inline bool force_stop(struct ffmpeg_muxer *stream)
+{
+	return os_atomic_load_bool(&stream->force_stop);
 }
 
 /* TODO: allow codecs other than h264 whenever we start using them */
@@ -312,7 +308,10 @@ static bool ffmpeg_mux_start(void *data)
 				 obs_module_text("WarnWindowsDefender"));
 		}
 #endif
-		dstr_replace(&error_message, "%1", path);
+		//PRISM/LiuHaibin/20210910/#None/use file name instead of real path
+		char temp[256];
+		os_extract_file_name(path, temp, ARRAY_SIZE(temp) - 1);
+		dstr_replace(&error_message, "%1", temp);
 		obs_output_set_last_error(stream->output, error_message.array);
 		dstr_free(&error_message);
 		obs_data_release(settings);
@@ -332,6 +331,9 @@ static bool ffmpeg_mux_start(void *data)
 		return false;
 	}
 
+	//PRISM/LiuHaibin/20211009/#9908/reset force_stop
+	os_atomic_set_bool(&stream->force_stop, false);
+
 	/* write headers and start capture */
 	os_atomic_set_bool(&stream->active, true);
 	os_atomic_set_bool(&stream->capturing, true);
@@ -339,15 +341,15 @@ static bool ffmpeg_mux_start(void *data)
 	stream->total_bytes = 0;
 	obs_output_begin_data_capture(stream->output, 0);
 
-	info("Writing file '%s'...", stream->path.array);
+	char temp[256];
+	os_extract_file_name(stream->path.array, temp, ARRAY_SIZE(temp) - 1);
+
+	info("Writing file '%s'...", temp);
 	return true;
 }
 
 static int deactivate(struct ffmpeg_muxer *stream, int code)
 {
-	//PRISM/LiuHaibin/20200703/#3195/for force stop
-	pthread_mutex_lock(&stream->deactive_mutex);
-
 	int ret = -1;
 
 	if (active(stream)) {
@@ -357,7 +359,10 @@ static int deactivate(struct ffmpeg_muxer *stream, int code)
 		os_atomic_set_bool(&stream->active, false);
 		os_atomic_set_bool(&stream->sent_headers, false);
 
-		info("Output of file '%s' stopped", stream->path.array);
+		char temp[256];
+		os_extract_file_name(stream->path.array, temp,
+				     ARRAY_SIZE(temp) - 1);
+		info("Output of file '%s' stopped", temp);
 	}
 
 	if (code) {
@@ -367,10 +372,6 @@ static int deactivate(struct ffmpeg_muxer *stream, int code)
 	}
 
 	os_atomic_set_bool(&stream->stopping, false);
-
-	//PRISM/LiuHaibin/20200703/#3195/for force stop
-	pthread_mutex_unlock(&stream->deactive_mutex);
-
 	return ret;
 }
 
@@ -382,6 +383,12 @@ static void ffmpeg_mux_stop(void *data, uint64_t ts)
 		stream->stop_ts = (int64_t)ts / 1000LL;
 		os_atomic_set_bool(&stream->stopping, true);
 		os_atomic_set_bool(&stream->capturing, false);
+		//PRISM/LiuHaibin/20211009/#9908/cancel pipeio and set force_stop flag
+		if (ts == 0) {
+			os_atomic_set_bool(&stream->force_stop, true);
+			os_process_pipe_cancelio(stream->pipe);
+			warn("force stop called from app.");
+		}
 	}
 }
 
@@ -393,13 +400,16 @@ static void signal_failure(struct ffmpeg_muxer *stream)
 
 	size_t len;
 
-	len = os_process_pipe_read_err(stream->pipe, (uint8_t *)error,
-				       sizeof(error) - 1);
+	//PRISM/LiuHaibin/20211009/#9908/No need set error when force stop is called.
+	if (!force_stop(stream)) {
+		len = os_process_pipe_read_err(stream->pipe, (uint8_t *)error,
+					       sizeof(error) - 1);
 
-	if (len > 0) {
-		error[len] = 0;
-		warn("ffmpeg-mux: %s", error);
-		obs_output_set_last_error(stream->output, error);
+		if (len > 0) {
+			error[len] = 0;
+			warn("ffmpeg-mux: %s", error);
+			obs_output_set_last_error(stream->output, error);
+		}
 	}
 
 	ret = deactivate(stream, 0);
@@ -409,7 +419,9 @@ static void signal_failure(struct ffmpeg_muxer *stream)
 		code = OBS_OUTPUT_UNSUPPORTED;
 		break;
 	default:
-		code = OBS_OUTPUT_ERROR;
+		//PRISM/LiuHaibin/20211009/#9908/No need set error when force stop is called.
+		code = force_stop(stream) ? OBS_OUTPUT_SUCCESS
+					  : OBS_OUTPUT_ERROR;
 	}
 
 	obs_output_signal_stop(stream->output, code);
@@ -500,8 +512,12 @@ static void ffmpeg_mux_data(void *data, struct encoder_packet *packet)
 
 	/* encoder failure */
 	if (!packet) {
+		char temp[256];
+		os_extract_file_name(stream->path.array, temp,
+				     ARRAY_SIZE(temp) - 1);
+
 		warn("encoder error for output of file '%s', deactivate muxer",
-		     stream->path.array);
+		     temp);
 		deactivate(stream, OBS_OUTPUT_ENCODE_ERROR);
 		return;
 	}
@@ -515,8 +531,12 @@ static void ffmpeg_mux_data(void *data, struct encoder_packet *packet)
 
 	if (stopping(stream)) {
 		if (packet->sys_dts_usec >= stream->stop_ts) {
+			char temp[256];
+			os_extract_file_name(stream->path.array, temp,
+					     ARRAY_SIZE(temp) - 1);
+
 			info("deactivate output of file '%s', stop_ts %lld.",
-			     stream->path.array, stream->stop_ts);
+			     temp, stream->stop_ts);
 			deactivate(stream, 0);
 			return;
 		}
@@ -542,19 +562,6 @@ static uint64_t ffmpeg_mux_total_bytes(void *data)
 	return stream->total_bytes;
 }
 
-//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
-static void ffmpeg_mux_force_stop(void *data)
-{
-	struct ffmpeg_muxer *stream = data;
-	if (!stream)
-		return;
-
-	ffmpeg_mux_stop(stream, 0);
-
-	info("Force deactive output of file '%s'.", stream->path.array);
-	deactivate(stream, OBS_OUTPUT_SUCCESS);
-}
-
 struct obs_output_info ffmpeg_muxer = {
 	.id = "ffmpeg_muxer",
 	.flags = OBS_OUTPUT_AV | OBS_OUTPUT_ENCODED | OBS_OUTPUT_MULTI_TRACK |
@@ -567,8 +574,6 @@ struct obs_output_info ffmpeg_muxer = {
 	.encoded_packet = ffmpeg_mux_data,
 	.get_total_bytes = ffmpeg_mux_total_bytes,
 	.get_properties = ffmpeg_mux_properties,
-	//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
-	.force_stop = ffmpeg_mux_force_stop,
 };
 
 /* ------------------------------------------------------------------------ */
@@ -657,6 +662,8 @@ static bool replay_buffer_start(void *data)
 	stream->max_size = obs_data_get_int(s, "max_size_mb") * (1024 * 1024);
 	obs_data_release(s);
 
+	//PRISM/LiuHaibin/20210812/#2321/force stop replay buffer
+	os_atomic_set_bool(&stream->force_stop, false);
 	os_atomic_set_bool(&stream->active, true);
 	os_atomic_set_bool(&stream->capturing, true);
 
@@ -791,6 +798,9 @@ static inline void set_error_message(struct obs_output *output,
 
 static void *replay_buffer_mux_thread(void *data)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct ffmpeg_muxer *stream = data;
 
 	//PRISM/LiuHaibin/20200226/#none/for replay buffer message
@@ -809,38 +819,56 @@ static void *replay_buffer_mux_thread(void *data)
 		goto error;
 	}
 
+	char temp[256];
+	os_extract_file_name(stream->path.array, temp, ARRAY_SIZE(temp) - 1);
+
 	if (!send_headers(stream)) {
-		warn("Could not write headers for file '%s'",
-		     stream->path.array);
+		warn("Could not write headers for file '%s'", temp);
 
 		//PRISM/LiuHaibin/20200226/#none/for replay buffer message
-		set_error_message(stream->output,
-				  "[replay buffer] Could not write headers");
 		error_code = OBS_OUTPUT_ERROR;
 		goto error;
 	}
 
 	for (size_t i = 0; i < stream->mux_packets.num; i++) {
+		//PRISM/LiuHaibin/20210812/#2297/to quickly exit for force_stop
+		if (force_stop(stream)) {
+			warn("force stopped, exit saving thread");
+			goto error;
+		}
+
 		struct encoder_packet *pkt = &stream->mux_packets.array[i];
-		write_packet(stream, pkt);
+		//PRISM/LiuHaibin/20201228/#2297/for replay buffer fail, stop write packet after fail
+		if (!write_packet(stream, pkt)) {
+			warn("Could not write packets for file '%s'", temp);
+			error_code = OBS_OUTPUT_ERROR;
+			goto error;
+		}
 		obs_encoder_packet_release(pkt);
 	}
 
-	info("Wrote replay buffer to '%s'", stream->path.array);
+	info("Wrote replay buffer to '%s'", temp);
 error:
 	os_process_pipe_destroy(stream->pipe);
 	stream->pipe = NULL;
+	//PRISM/LiuHaibin/20201228/#2297/for replay buffer fail
+	for (size_t i = 0; i < stream->mux_packets.num; i++) {
+		struct encoder_packet *pkt = &stream->mux_packets.array[i];
+		obs_encoder_packet_release(pkt);
+	}
 	da_free(stream->mux_packets);
 	os_atomic_set_bool(&stream->muxing, false);
 
 	//PRISM/LiuHaibin/20200226/#none/for replay buffer message
-	signal_saved(stream->output, error_code);
+	if (!force_stop(stream) && error_code == OBS_OUTPUT_SUCCESS)
+		signal_saved(stream->output, error_code);
 	return NULL;
 }
 
 static void replay_buffer_save(struct ffmpeg_muxer *stream)
 {
 	const size_t size = sizeof(struct encoder_packet);
+
 	size_t num_packets = stream->packets.size / size;
 
 	da_reserve(stream->mux_packets, num_packets);
@@ -928,10 +956,13 @@ static void replay_buffer_data(void *data, struct encoder_packet *packet)
 	if (!active(stream))
 		return;
 
+	char temp[256];
+	os_extract_file_name(stream->path.array, temp, ARRAY_SIZE(temp) - 1);
+
 	/* encoder failure */
 	if (!packet) {
 		warn("encoder error for output of file '%s', deactivate replay buffer",
-		     stream->path.array);
+		     temp);
 		deactivate_replay_buffer(stream, OBS_OUTPUT_ENCODE_ERROR);
 		return;
 	}
@@ -939,7 +970,7 @@ static void replay_buffer_data(void *data, struct encoder_packet *packet)
 	if (stopping(stream)) {
 		if (packet->sys_dts_usec >= stream->stop_ts) {
 			info("deactivate output of file '%s', stop_ts %lld.",
-			     stream->path.array, stream->stop_ts);
+			     temp, stream->stop_ts);
 			deactivate_replay_buffer(stream, 0);
 			return;
 		}

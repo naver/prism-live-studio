@@ -20,7 +20,7 @@ void DeckLinkOutput::DevicesChanged(void *param, DeckLinkDevice *device, bool)
 	auto *decklink = reinterpret_cast<DeckLinkOutput *>(param);
 	std::lock_guard<std::recursive_mutex> lock(decklink->deviceMutex);
 
-	blog(LOG_DEBUG, "%s", device->GetHash().c_str());
+	plog(LOG_DEBUG, "%s", device->GetHash().c_str());
 }
 
 bool DeckLinkOutput::Activate(DeckLinkDevice *device, long long modeId)

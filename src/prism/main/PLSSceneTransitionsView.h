@@ -57,6 +57,7 @@ private:
 	Ui::PLSSceneTransitionsView *ui;
 	PLSBasic *main{};
 	QString currentText{};
+	bool initTransitionDuration{false};
 };
 
 #endif // PLSSCENETRANSITIONSVIEW_H

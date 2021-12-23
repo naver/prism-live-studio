@@ -23,6 +23,8 @@
 #include <QDirIterator>
 #include <QDir>
 
+#define SCENE_REFRESH_THUMBANIL_TIME_MS 5000
+
 PLSSceneListView::PLSSceneListView(QWidget *parent) : QFrame(parent), ui(new Ui::PLSSceneListView)
 {
 	ui->setupUi(this);
@@ -31,9 +33,17 @@ PLSSceneListView::PLSSceneListView(QWidget *parent) : QFrame(parent), ui(new Ui:
 	this->setWindowFlags(windowFlags() ^ Qt::FramelessWindowHint);
 
 	connect(ui->scrollAreaWidgetContents, &PLSScrollAreaContent::DragFinished, this, &PLSSceneListView::OnDragFinished);
+	connect(ui->scrollAreaWidgetContents, &PLSScrollAreaContent::DragMoving, this, [=](int xPos, int yPos) {
+		Q_UNUSED(xPos);
+		ui->scrollArea->verticalScrollBar()->setValue(ui->scrollArea->verticalScrollBar()->value() + yPos);
+	});
+
 	connect(ui->scrollAreaWidgetContents, &PLSScrollAreaContent::resizeEventChanged, this, &PLSSceneListView::RefreshScene);
 
 	CreateSceneTransitionsView();
+
+	thumbnailTimer = new QTimer(this);
+	connect(thumbnailTimer, &QTimer::timeout, this, &PLSSceneListView::RefreshSceneThumbnail);
 }
 
 PLSSceneListView::~PLSSceneListView()
@@ -43,14 +53,54 @@ PLSSceneListView::~PLSSceneListView()
 		transitionsView = nullptr;
 	}
 
+	StopRefreshThumbnailTimer();
+	if (thumbnailTimer) {
+		delete thumbnailTimer;
+		thumbnailTimer = nullptr;
+	}
+
 	delete ui;
+}
+
+void PLSSceneListView::SetSceneDisplayMethod(int method)
+{
+	if (method < 0 || method > static_cast<int>(DisplayMethod::TextView)) {
+		return;
+	}
+
+	DisplayMethod curMethod = static_cast<DisplayMethod>(method);
+	if (curMethod == displayMethod) {
+		return;
+	}
+
+	displayMethod = curMethod;
+	SceneDisplayVector vec = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	if (vec.empty()) {
+		return;
+	}
+	for (auto iter = vec.begin(); iter != vec.end(); ++iter) {
+		PLSSceneItemView *item = iter->second;
+		if (item) {
+			item->SetSceneDisplayMethod(displayMethod);
+		}
+	}
+
+	if (DisplayMethod::ThumbnailView == displayMethod) {
+		RefreshSceneThumbnail();
+		StartRefreshThumbnailTimer();
+	} else {
+		StopRefreshThumbnailTimer();
+		RefreshSceneThumbnail();
+	}
+
+	this->RefreshScene(true);
 }
 
 void PLSSceneListView::AddScene(const QString &name, OBSScene scene, SignalContainer<OBSScene> handler, bool loadingScene)
 {
 	PLSSceneItemView *view = PLSSceneDataMgr::Instance()->FindSceneData(name);
 	if (!view) {
-		view = new PLSSceneItemView(name, scene, ui->scrollAreaWidgetContents);
+		view = new PLSSceneItemView(name, scene, displayMethod, ui->scrollAreaWidgetContents);
 		view->SetSignalHandler(handler);
 		view->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 		connect(view, &PLSSceneItemView::MouseButtonClicked, this, &PLSSceneListView::OnMouseButtonClicked);
@@ -85,6 +135,9 @@ void PLSSceneListView::DeleteScene(const QString &name)
 PLSSceneItemView *PLSSceneListView::GetCurrentItem()
 {
 	SceneDisplayVector data = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	if (data.empty()) {
+		return nullptr;
+	}
 	for (auto iter = data.begin(); iter != data.end(); ++iter) {
 		PLSSceneItemView *item = iter->second;
 		if (item && item->GetCurrentFlag()) {
@@ -100,6 +153,9 @@ void PLSSceneListView::SetCurrentItem(PLSSceneItemView *item)
 		return;
 	}
 	SceneDisplayVector data = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	if (data.empty()) {
+		return;
+	}
 	for (auto iter = data.begin(); iter != data.end(); ++iter) {
 		if (0 == strcmp(item->GetName().toStdString().c_str(), iter->first.toStdString().c_str())) {
 			iter->second->SetCurrentFlag(true);
@@ -112,6 +168,9 @@ void PLSSceneListView::SetCurrentItem(PLSSceneItemView *item)
 void PLSSceneListView::SetCurrentItem(const QString &name)
 {
 	SceneDisplayVector data = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	if (data.empty()) {
+		return;
+	}
 	for (auto iter = data.begin(); iter != data.end(); ++iter) {
 		if (0 == strcmp(iter->first.toStdString().c_str(), name.toStdString().c_str())) {
 			SetCurrentItem(iter->second);
@@ -124,6 +183,9 @@ QList<PLSSceneItemView *> PLSSceneListView::FindItems(const QString &name)
 {
 	QList<PLSSceneItemView *> items;
 	SceneDisplayVector data = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	if (data.empty()) {
+		return items;
+	}
 	for (auto iter = data.begin(); iter != data.end(); ++iter) {
 		if (0 == strcmp(iter->first.toStdString().c_str(), name.toStdString().c_str())) {
 			items.push_back(iter->second);
@@ -246,8 +308,12 @@ QComboBox *PLSSceneListView::GetTransitionCombobox()
 
 void PLSSceneListView::RefreshScene(bool scrollToCurrent)
 {
-	int y = ui->scrollAreaWidgetContents->Refresh();
-	if (scrollToCurrent) {
+	int y = ui->scrollAreaWidgetContents->Refresh(displayMethod);
+	if (!scrollToCurrent) {
+		return;
+	}
+
+	if (SCENE_ITEM_DO_NOT_NEED_AUTO_SCROLL != y) {
 		ui->scrollArea->verticalScrollBar()->setValue(y);
 	}
 }
@@ -285,6 +351,20 @@ void PLSSceneListView::MoveSceneToBottom()
 	if (item) {
 		PLSSceneDataMgr::Instance()->SwapToBottom(item->GetName());
 		RefreshScene();
+	}
+}
+
+void PLSSceneListView::SetRenderCallback()
+{
+	SceneDisplayVector vec = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	if (vec.empty()) {
+		return;
+	}
+	for (auto iter = vec.begin(); iter != vec.end(); ++iter) {
+		PLSSceneItemView *item = iter->second;
+		if (item) {
+			item->CustomCreateDisplay();
+		}
 	}
 }
 
@@ -489,6 +569,23 @@ void PLSSceneListView::contextMenuEvent(QContextMenuEvent *event)
 	QFrame::contextMenuEvent(event);
 }
 
+void PLSSceneListView::RefreshSceneThumbnail()
+{
+	SceneDisplayVector data = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	if (data.empty()) {
+		return;
+	}
+	int i = 0;
+	for (auto iter = data.begin(); iter != data.end(); ++iter, i++) {
+		PLSSceneItemView *item = iter->second;
+		if (!item) {
+			continue;
+		}
+
+		item->RefreshSceneThumbnail();
+	}
+}
+
 void PLSSceneListView::RenameSceneItem(PLSSceneItemView *item, obs_source_t *source, const QString &name)
 {
 	const char *prevName = obs_source_get_name(source);
@@ -521,4 +618,34 @@ void PLSSceneListView::CreateSceneTransitionsView()
 	PLSBasic *main = PLSBasic::Get();
 	transitionsView = new PLSSceneTransitionsView(main);
 	transitionsView->hide();
+}
+
+void PLSSceneListView::StartRefreshThumbnailTimer()
+{
+	if (!thumbnailTimer) {
+		return;
+	}
+
+	if (thumbnailTimer->isActive()) {
+		return;
+	}
+
+	if (displayMethod != DisplayMethod::ThumbnailView) {
+		return;
+	}
+
+	thumbnailTimer->start(SCENE_REFRESH_THUMBANIL_TIME_MS);
+}
+
+void PLSSceneListView::StopRefreshThumbnailTimer()
+{
+	if (!thumbnailTimer) {
+		return;
+	}
+
+	if (!thumbnailTimer->isActive()) {
+		return;
+	}
+
+	thumbnailTimer->stop();
 }

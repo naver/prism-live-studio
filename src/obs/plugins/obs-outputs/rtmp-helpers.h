@@ -68,3 +68,37 @@ static inline void enc_str_ex(char **enc, char *end, const char *str, int len)
 	AVal s;
 	*enc = AMF_EncodeString(*enc, end, flv_str_ex(&s, str, len));
 }
+
+static inline void enc_array_val(char **enc, char *end, const char *name,
+				 const char **val)
+{
+	AVal s1, s2;
+	AMFObjectProperty property[BTRS_IMMERSIVE_TRAKCS];
+	AMFObjectProperty element = {.p_name = NULL,
+				     .p_type = AMF_NULL,
+				     .p_vu = {.p_number = 1,
+					      .p_aval = AMF_NULL},
+				     .p_UTCoffset = 0};
+	flv_str(&s1, name);
+	*enc = AMF_EncodeInt16(*enc, end, s1.av_len);
+	memcpy(*enc, s1.av_val, s1.av_len);
+	*enc += s1.av_len;
+	for (int i = 0; i < BTRS_IMMERSIVE_TRAKCS; i++) {
+		flv_str(&s2, *val);
+		if (!strcmp(*val, "")) {
+			element.p_type = AMF_NULL;
+			element.p_vu.p_number = 1;
+			element.p_vu.p_aval = s2;
+
+		} else {
+			element.p_type = AMF_STRING;
+			element.p_vu.p_number = 1;
+			element.p_vu.p_aval = s2;
+		}
+		property[i] = element;
+		*val++;
+	}
+	AMFObject object = {.o_num = BTRS_IMMERSIVE_TRAKCS,
+			    .o_props = &property};
+	*enc = AMF_EncodeArray(&object, *enc, end);
+}

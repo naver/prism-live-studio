@@ -6,6 +6,12 @@
 #include "gdi-capture.h"
 #include "cursor-capture.h"
 
+#define do_warn(format, ...) PLS_PLUGIN_WARN("[monitor(region) '%s' %p] " format, obs_source_get_name(source), source, ##__VA_ARGS__)
+#define do_info(format, ...) PLS_PLUGIN_INFO("[monitor(region) '%s' %p] " format, obs_source_get_name(source), source, ##__VA_ARGS__)
+
+#define warn(format, ...) do_warn(format, ##__VA_ARGS__)
+#define info(format, ...) do_info(format, ##__VA_ARGS__)
+
 #define REGION_MIN_CX 0
 #define REGION_MIN_CY 0
 #define REGION_DEFAULT_CX REGION_MIN_CX
@@ -78,6 +84,8 @@ struct hit_info {
 };
 
 struct prism_region_gpu {
+	obs_source_t *source = NULL;
+
 	DWORD pre_fail_time = 0;
 	gs_texture_t *output_texture = NULL;
 	gs_texture_t *rotate_target = NULL;
@@ -132,11 +140,11 @@ void prism_region_settings::keep_valid()
 
 	if (max_size > 0) {
 		if (width > max_size) {
-			width = max_size;
+			width = (int)max_size;
 		}
 
 		if (height > max_size) {
-			height = max_size;
+			height = (int)max_size;
 		}
 	}
 
@@ -211,7 +219,7 @@ bool prism_region_gpu::check_output_texture(int cx, int cy)
 	if (!output_texture) {
 		output_texture = gs_texture_create(cx, cy, GS_RGBA, 1, NULL, GS_RENDER_TARGET);
 		if (!output_texture) {
-			PLS_PLUGIN_WARN("Failed to create output texture for region source. %dx%d", cx, cy);
+			warn("Failed to create output texture for region source. %dx%d", cx, cy);
 		}
 	}
 
@@ -229,12 +237,13 @@ bool prism_region_gpu::render_output_texture(const prism_region_settings &region
 	gs_projection_push();
 	gs_matrix_push();
 
+	gs_texture_t *pre_target = gs_get_render_target();
 	gs_set_render_target(output_texture, NULL);
 	gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
 
 	bool ret = true;
 	for (auto item : hit_list) {
-		DUPLICATOR_PTR duplicator = PLSMonitorDuplicatorPool::get_instance()->get_duplicator(item.adapter_index, item.adapter_output_index, item.display_id);
+		DUPLICATOR_PTR duplicator = PLSMonitorDuplicatorPool::get_instance()->get_duplicator(item.adapter_index, item.adapter_output_index, item.display_id, true);
 		if (!duplicator) {
 			ret = false;
 			break;
@@ -278,6 +287,7 @@ bool prism_region_gpu::render_output_texture(const prism_region_settings &region
 		gs_technique_end(tech);
 	}
 
+	gs_set_render_target(pre_target, NULL);
 	gs_matrix_pop();
 	gs_projection_pop();
 	gs_viewport_pop();
@@ -313,7 +323,7 @@ gs_texture_t *prism_region_gpu::render_rotate_texture(gs_texture_t *monitor_text
 	if (!rotate_target) {
 		rotate_target = gs_texture_create(target_cx, target_cy, GS_RGBA, 1, NULL, GS_RENDER_TARGET);
 		if (!rotate_target) {
-			PLS_PLUGIN_WARN("Failed to create rotate texture for region source. %dx%d", target_cx, target_cy);
+			warn("Failed to create rotate texture for region source. %dx%d", target_cx, target_cy);
 			return NULL;
 		}
 	}
@@ -373,6 +383,8 @@ gs_texture_t *prism_region_gpu::render_rotate_texture(gs_texture_t *monitor_text
 
 prism_region_source::prism_region_source(obs_data_t *settings, obs_source_t *source_) : source(source_)
 {
+	gpu_capture.source = source_;
+
 	obs_source_set_capture_valid(source_, true, OBS_SOURCE_ERROR_OK);
 	update(settings);
 }
@@ -474,9 +486,9 @@ void prism_region_source::set_capture_type(RegionCaptureType type)
 
 	capture_type = type;
 	if (type == RegionTypeGPU) {
-		PLS_PLUGIN_INFO("Region capture type is GPU.");
+		info("Region capture type is GPU.");
 	} else {
-		PLS_PLUGIN_INFO("Region capture type is GDI.");
+		info("Region capture type is GDI.");
 	}
 }
 
@@ -555,6 +567,7 @@ void prism_region_source::update(obs_data_t *settings)
 
 	//-------------------------------------------------
 	region_settings = temp;
+	info("region updated. offset:%d,%d  size:%dx%d  cursor:%d", temp.left, temp.top, temp.width, temp.height, temp.capture_cursor);
 
 	if (PLSWindowVersion::is_support_monitor_duplicate()) {
 		tick(); // Because GPU texture is updated in worker thread, so here we invoke tick() to active worker thread early.
@@ -573,7 +586,7 @@ static obs_properties_t *region_source_get_properties(void *data)
 
 static void region_source_get_defaults(obs_data_t *settings)
 {
-	obs_data_set_flags(settings, PROPERTY_FLAG_NO_LABEL_HEADER);
+	obs_data_add_flags(settings, PROPERTY_FLAG_NO_LABEL_HEADER);
 
 	obs_data_t *region_obj = obs_data_create();
 	obs_data_set_default_int(region_obj, REGION_KEY_LEFT, 0);
@@ -585,6 +598,32 @@ static void region_source_get_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, REGION_KEY_CAPTURE_CURSOR, true);
 
 	obs_data_release(region_obj);
+}
+
+//PRISM/ZengQin/20210604/#none/Get properties parameters
+static obs_data_t *region_monitor_props_params(void *data)
+{
+	if (!data)
+		return nullptr;
+
+	struct prism_region_source *region = reinterpret_cast<prism_region_source *>(data);
+	obs_data_t *settings = obs_source_get_settings(region->source);
+	prism_region_settings temp;
+	obs_data_t *region_obj = obs_data_get_obj(settings, REGION_KEY_REGION_SELECT);
+	temp.left = (int)obs_data_get_int(region_obj, REGION_KEY_LEFT);
+	temp.top = (int)obs_data_get_int(region_obj, REGION_KEY_TOP);
+	temp.width = (int)obs_data_get_int(region_obj, REGION_KEY_WIDTH);
+	temp.height = (int)obs_data_get_int(region_obj, REGION_KEY_HEIGHT);
+	obs_data_release(region_obj);
+	obs_data_release(settings);
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_int(params, REGION_KEY_LEFT, temp.left);
+	obs_data_set_int(params, REGION_KEY_TOP, temp.top);
+	obs_data_set_int(params, REGION_KEY_WIDTH, temp.width);
+	obs_data_set_int(params, REGION_KEY_HEIGHT, temp.height);
+
+	return params;
 }
 
 void register_prism_region_source()
@@ -627,6 +666,8 @@ void register_prism_region_source()
 	info.get_properties = region_source_get_properties;
 	info.get_defaults = region_source_get_defaults;
 	info.update = [](void *data, obs_data_t *settings) { static_cast<prism_region_source *>(data)->update(settings); };
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	info.props_params = region_monitor_props_params;
 
 	obs_register_source(&info);
 }

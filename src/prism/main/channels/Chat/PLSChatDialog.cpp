@@ -15,6 +15,7 @@
 #include "main-view.hpp"
 #include "pls-app.hpp"
 #include "pls-common-define.hpp"
+#include "prism/PLSPlatformPrism.h"
 #include "ui_PLSChatDialog.h"
 
 extern QCef *cef;
@@ -38,7 +39,7 @@ public:
 	ChatSourceButton(const QString &buttonText, QWidget *parent, std::function<void()> clicked_) : QFrame(parent), clicked(std::move(clicked_))
 	{
 		setObjectName("chatSourceButton");
-		setProperty("lang", pls_get_curreng_language());
+		setProperty("lang", pls_get_current_language());
 		setMouseTracking(true);
 
 		QLabel *icon = new QLabel(this);
@@ -103,35 +104,13 @@ void onPrismUserLogout(pls_frontend_event event, const QVariantList &params, voi
 	view->logoutToReInitUI();
 }
 
-void onPrismAppQuit(enum obs_frontend_event event, void *context)
-{
-	if (event == OBS_FRONTEND_EVENT_EXIT) {
-		PLSChatDialog *view = static_cast<PLSChatDialog *>(context);
-		if (!view->getMaxState()) {
-			view->onSaveNormalGeometry();
-		}
-		view->deleteLater();
-	}
-}
-
-PLSChatDialog::PLSChatDialog(QWidget *parent, PLSDpiHelper dpiHelper)
-	: PLSDialogView(parent, dpiHelper), ui(new Ui::PLSChatDialog), m_timerToastHide(this), m_pLabelToast(nullptr), m_p_ButtonToastClose(nullptr), chat_panel_cookies(nullptr)
+PLSChatDialog::PLSChatDialog(DialogInfo info, QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(info, parent, dpiHelper), ui(new Ui::PLSChatDialog), chat_panel_cookies(nullptr)
 {
 	dpiHelper.setCss(this, {PLSCssIndex::PLSChatDialog});
-	dpiHelper.notifyDpiChanged(this, [this](double dpi, double, bool firstShow) {
-		extern QRect normalShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
-
-		if (firstShow) {
-			setInitSize(dpi, false);
-			if (!isMaxState && !isFullScreenState) {
-				normalShow(this, geometryOfNormal);
-			}
-		}
-	});
 
 	ui->setupUi(this->content());
 	setHasMaxResButton(true);
-	setInitSize(PLSDpiHelper::getDpi(this), true);
+	notifyFirstShow([=]() { this->InitGeometry(true); });
 	setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
 
 	setupFirstUI(dpiHelper);
@@ -158,59 +137,25 @@ PLSChatDialog::PLSChatDialog(QWidget *parent, PLSDpiHelper dpiHelper)
 		},
 		Qt::QueuedConnection);
 	connect(
-		PLS_PLATFORM_API, &PLSPlatformApi::liveEnded, this, [=]() { refreshUI(); }, Qt::QueuedConnection);
+		PLS_PLATFORM_API, &PLSPlatformApi::liveEnded, this,
+		[=]() {
+			PLS_LIVE_INFO(MODULE_PlatformService, "live end chat view refresh ui");
+			refreshUI();
+			m_bShowToastAgain = false;
+		},
+		Qt::QueuedConnection);
 	connect(PLS_PLATFORM_FACEBOOK, &PLSPlatformFacebook::privateChatChanged, this, &PLSChatDialog::facebookPrivateChatChanged, Qt::QueuedConnection);
 	pls_frontend_add_event_callback(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGOUT, onPrismUserLogout, this);
-	obs_frontend_add_event_callback(onPrismAppQuit, this);
 
-	m_pLabelToast = new QLabel(this);
-	m_pLabelToast->setObjectName("labelToast");
-	dpiHelper.setFixedHeight(m_pLabelToast, 53);
-	m_pLabelToast->setAlignment(Qt::AlignCenter);
-	m_pLabelToast->setWordWrap(true);
-	m_pLabelToast->hide();
-
-	m_p_ButtonToastClose = new QPushButton(m_pLabelToast);
-	m_p_ButtonToastClose->setObjectName("pushButtonClear");
-
-	m_timerToastHide.setInterval(5000);
-	m_timerToastHide.setSingleShot(true);
-	connect(&m_timerToastHide, &QTimer::timeout, m_pLabelToast, &QWidget::hide);
-	connect(m_p_ButtonToastClose, &QPushButton::clicked, m_pLabelToast, &QWidget::hide);
-
-	ui->stackedWidget->installEventFilter(this);
+	this->installEventFilter(this);
 }
 
 PLSChatDialog::~PLSChatDialog()
 {
 	PLS_INFO(s_chatModuleName, __FUNCTION__);
 	pls_frontend_remove_event_callback(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGOUT, onPrismUserLogout, this);
-	obs_frontend_remove_event_callback(onPrismAppQuit, this);
 	m_vecChatDatas.clear();
 	delete ui;
-}
-
-void PLSChatDialog::setInitSize(double dpi, bool inConstructor)
-{
-	extern void setGeometrySys(PLSWidgetDpiAdapter * adapter, const QRect &geometry);
-
-	const char *geometry = config_get_string(App()->GlobalConfig(), s_geometrySection, s_geometryName);
-	if (!geometry || !geometry[0]) {
-		const int defaultWidth = 300;
-		const int mainRightOffest = 5;
-		PLSMainView *mainView = App()->getMainView();
-		QPoint mainTopRight = App()->getMainView()->mapToGlobal(QPoint(mainView->frameGeometry().width(), 0));
-
-		auto chatHeight = PLSDpiHelper::calculate(dpi, mainView->frameGeometry().height() / PLSDpiHelper::getDpi(mainView));
-		geometryOfNormal = QRect(mainTopRight.x() + PLSDpiHelper::calculate(dpi, mainRightOffest), mainTopRight.y(), PLSDpiHelper::calculate(dpi, defaultWidth), chatHeight);
-		setGeometrySys(this, geometryOfNormal);
-	} else if (inConstructor) {
-		QByteArray byteArray = QByteArray::fromBase64(QByteArray(geometry));
-		this->restoreGeometry(byteArray);
-		if (config_get_bool(App()->GlobalConfig(), s_maxSection, s_maxName)) {
-			showMaximized();
-		}
-	}
 }
 
 void PLSChatDialog::logoutToReInitUI()
@@ -263,9 +208,13 @@ void PLSChatDialog::setupFirstUI(PLSDpiHelper dpiHelper)
 
 		QPushButton *tapButton = new QPushButton("", ui->scrollAreaWidgetContents);
 		auto smallName = PLS_CHAT_HELPER->getString((PLSChatHelper::ChatPlatformIndex)i, true);
-		auto objectName = QString(smallName).append("btn");
+		QString objectName = QString(smallName).append("btn");
 		tapButton->setObjectName(objectName);
-		connect(tapButton, &QPushButton::clicked, [=]() { changedSelectIndex((PLSChatHelper::ChatPlatformIndex)i); });
+		connect(tapButton, &QPushButton::clicked, [=]() {
+			auto _index = (PLSChatHelper::ChatPlatformIndex)i;
+			PLS_UI_STEP(s_chatModuleName, QString("PLSChat Dialog Tab Click To Index %1").arg(PLS_CHAT_HELPER->getString(_index)).toUtf8().constData(), ACTION_CLICK);
+			changedSelectIndex(_index);
+		});
 		ui->scrollAreaWidgetContents->layout()->addWidget(tapButton);
 		tapButton->setHidden(true);
 		string showUrl = PLS_CHAT_HELPER->getChatUrlWithIndex((PLSChatHelper::ChatPlatformIndex)i, QVariantMap());
@@ -313,7 +262,7 @@ void PLSChatDialog::refreshUI()
 
 void PLSChatDialog::refreshTabButtonCount()
 {
-	for (auto data : m_vecChatDatas) {
+	for (auto &data : m_vecChatDatas) {
 		data.button->setHidden(true);
 	}
 
@@ -338,12 +287,16 @@ void PLSChatDialog::hideOrShowTabButton()
 {
 
 	int plaltformCount = 0;
+	bool isContainVlive = false;
 	for (auto &info : PLSCHANNELS_API->getCurrentSelectedChannels()) {
 		if (info.empty()) {
 			continue;
 		}
 
 		PLSChatHelper::ChatPlatformIndex index = PLS_CHAT_HELPER->getIndexFromInfo(info);
+		if (index == PLSChatHelper::ChatPlatformIndex::ChatIndexVLive) {
+			isContainVlive = true;
+		}
 		if (PLSChatHelper::ChatPlatformIndex::ChatIndexUnDefine == index || PLSChatHelper::ChatPlatformIndex::ChatIndexRTMP == index) {
 			continue;
 		}
@@ -351,8 +304,8 @@ void PLSChatDialog::hideOrShowTabButton()
 		plaltformCount++;
 	}
 
-	//PRISM/Zhangdewen/20200921/#/add chat source button
-	m_chatSourceButtonOnePlatform->setVisible(plaltformCount == 1);
+	//PRISM/Zhangdewen/20200921/#/add chat source button && VLIVE not show
+	m_chatSourceButtonOnePlatform->setVisible(plaltformCount == 1 && !isContainVlive);
 
 	bool isOnlyRtmp = plaltformCount <= 0;
 	//PRISM/Zhangdewen/20201021/#5310/switch delay
@@ -365,7 +318,7 @@ void PLSChatDialog::hideOrShowTabButton()
 		//if only rtmp or not channel selected, change to rtmp;
 		changedSelectIndex(PLSChatHelper::ChatPlatformIndex::ChatIndexRTMP);
 	} else if (allWillShow && !m_vecChatDatas[PLSChatHelper::ChatPlatformIndex::ChatIndexAll].isWebLoaded) {
-		//alltab first to show, change to all
+		//all tab first to show, change to all
 		changedSelectIndex(PLSChatHelper::ChatPlatformIndex::ChatIndexAll);
 	} else if (m_vecChatDatas[m_selectIndex].button->isHidden()) {
 		changedSelectIndex(foundFirstShowedButton());
@@ -416,7 +369,7 @@ void PLSChatDialog::changedSelectIndex(PLSChatHelper::ChatPlatformIndex index)
 		button->style()->unpolish(button);
 		button->style()->polish(button);
 	}
-	PLS_UI_STEP(s_chatModuleName, QString("PLSChat Dialog Tab To Index %1").arg(PLS_CHAT_HELPER->getString(index)).toUtf8().constData(), ACTION_CLICK);
+	PLS_INFO(s_chatModuleName, QString("PLSChat Dialog Tab Switch To Index %1").arg(PLS_CHAT_HELPER->getString(index)).toUtf8().constData());
 
 	//PRISM/Zhangdewen/20201021/#5310/switch delay
 	for (QObject *child : ui->stackedWidget->children()) {
@@ -437,7 +390,7 @@ void PLSChatDialog::changedSelectIndex(PLSChatHelper::ChatPlatformIndex index)
 				return;
 			}
 			auto &data = this->m_vecChatDatas[_selIndex];
-			auto ce = data.widget;
+			QPointer<QWidget> ce = data.widget;
 			if (ce == nullptr && PLS_CHAT_HELPER->isCefWidgetIndex(_selIndex)) {
 				if (!data.isWebLoaded) {
 					data.isWebLoaded = true;
@@ -449,6 +402,7 @@ void PLSChatDialog::changedSelectIndex(PLSChatHelper::ChatPlatformIndex index)
 				return;
 			}
 			switchStackWidget(_selIndex);
+			forceResizeDialog();
 		},
 		Qt::QueuedConnection);
 }
@@ -500,9 +454,9 @@ void PLSChatDialog::setupNewUrl(PLSChatHelper::ChatPlatformIndex index, string u
 	}
 	ce->setURL(url);
 	//set url again, sometimes set new url, the cef will not refresh, so set it again.
-	//the cef init will cause some time, when init not complect, set url will failed.
+	//the cef init will cause some time, when init not complected, set url will failed.
 	QTimer::singleShot(100, ce, [=] { ce->setURL(url); });
-	PLS_INFO(s_chatModuleName, "PLSChat Dialog %s set new url:%s", PLS_CHAT_HELPER->getString(index), url.c_str(), ACTION_CLICK);
+	PLS_INFO(s_chatModuleName, "PLSChat Dialog %s set new url", PLS_CHAT_HELPER->getString(index));
 }
 
 int PLSChatDialog::rtmpChannelCount()
@@ -525,7 +479,12 @@ QCefWidget *PLSChatDialog::createANewCefWidget(const string &url, PLSChatHelper:
 	if (!PLS_CHAT_HELPER->isCefWidgetIndex(index)) {
 		return nullptr;
 	}
-	PLS_INFO(s_chatModuleName, "PLSChat Dialog %s create cef with new url:%s", PLS_CHAT_HELPER->getString(index), url.c_str());
+	if (cef == nullptr) {
+		PLS_INFO(s_chatModuleName, "PLSChat Dialog %s create cef with new url, but failed, the cef is nullptr", PLS_CHAT_HELPER->getString(index));
+		return nullptr;
+	}
+	PLS_INFO(s_chatModuleName, "PLSChat Dialog %s create cef with new url", PLS_CHAT_HELPER->getString(index));
+
 	std::map<std::string, std::string> mapData;
 	QCefWidget *cefWidget = nullptr;
 
@@ -566,8 +525,8 @@ void PLSChatDialog::showEvent(QShowEvent *event)
 	updateTabPolicy();
 
 	pls_window_right_margin_fit(this);
-	config_set_bool(App()->GlobalConfig(), s_hiddenSection, s_hiddenName, false);
-	config_save(App()->GlobalConfig());
+	App()->getMainView()->updateSideBarButtonStyle(ConfigId::ChatConfig, true);
+
 	emit chatShowOrHide(true);
 
 	if (m_vecChatDatas.size() > m_selectIndex) {
@@ -575,29 +534,30 @@ void PLSChatDialog::showEvent(QShowEvent *event)
 		if (ce == nullptr || ce->isHidden()) {
 			return;
 		}
-		QSize originSize = this->frameGeometry().size();
-		QSize newSize = QSize(this->frameGeometry().width(), originSize.height() + 1);
-		resize(newSize);
-		resize(originSize);
+		forceResizeDialog();
+	}
+
+	if (m_bShowToastAgain) {
+		showToastIfNeeded();
 	}
 }
 
 void PLSChatDialog::hideEvent(QHideEvent *event)
 {
 	PLS_INFO(s_chatModuleName, "PLSChat Dialog" __FUNCTION__);
-	config_set_bool(App()->GlobalConfig(), s_hiddenSection, s_hiddenName, true);
-	if (!getMaxState()) {
-		onSaveNormalGeometry();
-	}
-	config_save(App()->GlobalConfig());
+	App()->getMainView()->updateSideBarButtonStyle(ConfigId::ChatConfig, false);
 	PLSDialogView::hideEvent(event);
 	emit chatShowOrHide(false);
+
+	if (!m_pLabelToast.isNull()) {
+		m_pLabelToast->deleteLater();
+	}
 }
 
 void PLSChatDialog::closeEvent(QCloseEvent *event)
 {
 	PLS_INFO(s_chatModuleName, "PLSChat Dialog" __FUNCTION__);
-	//can't emit close event, otherwise the cef brower will all deleted.
+	//can't emit close event, otherwise the cef browser will all deleted.
 	hide();
 	event->ignore();
 }
@@ -621,26 +581,14 @@ void PLSChatDialog::updateNewUrlByIndex(PLSChatHelper::ChatPlatformIndex index, 
 	}
 }
 
-void PLSChatDialog::onMaxFullScreenStateChanged()
-{
-	config_set_bool(App()->GlobalConfig(), s_maxSection, s_maxName, isMaxState);
-	config_save(App()->GlobalConfig());
-}
-
-void PLSChatDialog::onSaveNormalGeometry()
-{
-	config_set_string(App()->GlobalConfig(), s_geometrySection, s_geometryName, saveGeometry().toBase64().constData());
-	config_save(App()->GlobalConfig());
-}
-
 bool PLSChatDialog::eventFilter(QObject *watched, QEvent *event)
 {
-	if (ui->stackedWidget == watched) {
-		if (event->type() == QEvent::Resize) {
+	if (this == watched) {
+		if (event->type() == QEvent::Move || event->type() == QEvent::Resize) {
 			adjustToastSize();
 		}
 	}
-	return false;
+	return __super::eventFilter(watched, event);
 }
 
 void PLSChatDialog::wheelEvent(QWheelEvent *event)
@@ -654,12 +602,15 @@ void PLSChatDialog::wheelEvent(QWheelEvent *event)
 
 void PLSChatDialog::adjustToastSize()
 {
-	int spaceWidth = PLSDpiHelper::calculate(this, 10);
-	int closeTop = PLSDpiHelper::calculate(this, 5);
-	int closeLeft = PLSDpiHelper::calculate(this, 21);
-	m_pLabelToast->setFixedWidth(ui->stackedWidget->width() - 2 * spaceWidth);
-	m_pLabelToast->move(ui->stackedWidget->mapTo(this, {spaceWidth, spaceWidth}));
-	m_p_ButtonToastClose->move(m_pLabelToast->width() - closeLeft, closeTop);
+	if (!m_pLabelToast.isNull()) {
+		int spaceWidth = PLSDpiHelper::calculate(this, 10);
+		int closeTop = PLSDpiHelper::calculate(this, 5);
+		int closeLeft = PLSDpiHelper::calculate(this, 21);
+
+		m_pLabelToast->setFixedSize(ui->stackedWidget->width() - 2 * spaceWidth, PLSDpiHelper::calculate(this, 53));
+		m_pLabelToast->move(ui->stackedWidget->mapToGlobal({spaceWidth, spaceWidth}));
+		m_pButtonToastClose->move(m_pLabelToast->width() - closeLeft, closeTop);
+	}
 }
 
 void PLSChatDialog::updateTabPolicy()
@@ -678,22 +629,49 @@ void PLSChatDialog::updateTabPolicy()
 	ui->scrollAreaWidgetContents->style()->polish(ui->scrollAreaWidgetContents);
 }
 
+void PLSChatDialog::createToasWidget()
+{
+	if (m_pLabelToast.isNull()) {
+		m_pLabelToast = new QLabel(this);
+		m_pLabelToast->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
+		m_pLabelToast->setObjectName("labelToast");
+		m_pLabelToast->setAlignment(Qt::AlignCenter);
+		m_pLabelToast->setWordWrap(true);
+		m_pLabelToast->show();
+		m_pLabelToast->raise();
+
+		m_pButtonToastClose = new QPushButton(m_pLabelToast);
+		m_pButtonToastClose->setObjectName("pushButtonClear");
+		m_pButtonToastClose->show();
+
+		QTimer::singleShot(5000, m_pLabelToast, &QObject::deleteLater);
+		connect(m_pButtonToastClose, &QPushButton::clicked, m_pLabelToast, &QObject::deleteLater);
+	}
+}
+
 void PLSChatDialog::showToastIfNeeded()
 {
+	if (isHidden()) {
+		m_bShowToastAgain = true;
+		return;
+	}
+
+	m_bShowToastAgain = false;
+
 	QString showStr("");
 	if (!PLS_CHAT_HELPER->showToastWhenStart(showStr)) {
 		return;
 	}
+
+	createToasWidget();
 	m_pLabelToast->setText(showStr);
 	adjustToastSize();
-	m_pLabelToast->show();
-	m_timerToastHide.start();
 }
 
 void PLSChatDialog::updateYoutubeUrlIfNeeded()
 {
 	auto index = PLSChatHelper::ChatPlatformIndex::ChatIndexYoutube;
-	QVariantMap &info = QVariantMap();
+	QVariantMap info;
 	PLS_CHAT_HELPER->getSelectInfoFromIndex(index, info);
 	if (!info.isEmpty()) {
 		updateNewUrlByIndex(index, info);
@@ -725,6 +703,14 @@ QWidget *PLSChatDialog::createChatSourceButton(QWidget *parent, bool noPlatform)
 	return widget;
 }
 
+void PLSChatDialog::forceResizeDialog()
+{
+	QSize originSize = this->frameGeometry().size();
+	QSize newSize = QSize(originSize.width(), originSize.height() + 1);
+	resize(newSize);
+	resize(originSize);
+}
+
 void PLSChatDialog::switchStackWidget(PLSChatHelper::ChatPlatformIndex index)
 {
 	//when switch to the cefwidget, which is the first loaded, in some computer maybe will delay a short time to show the cef page.
@@ -737,7 +723,7 @@ void PLSChatDialog::switchStackWidget(PLSChatHelper::ChatPlatformIndex index)
 			ui->stackedWidget->removeWidget(childWidget);
 		}
 	}
-	auto widget = m_vecChatDatas[index].widget;
+	QPointer<QWidget> widget = m_vecChatDatas[index].widget;
 	if (widget == nullptr) {
 		return;
 	}
@@ -750,12 +736,13 @@ void PLSChatDialog::switchStackWidget(PLSChatHelper::ChatPlatformIndex index)
 void PLSChatDialog::facebookPrivateChatChanged(bool oldPrivate, bool newPrivate)
 {
 	if (oldPrivate == false && newPrivate == true) {
+		createToasWidget();
 		m_pLabelToast->setText(tr("facebook.living.chat.Private"));
 		adjustToastSize();
-		m_pLabelToast->show();
-		m_timerToastHide.start();
 	} else {
-		m_pLabelToast->hide();
+		if (!m_pLabelToast.isNull()) {
+			m_pLabelToast->deleteLater();
+		}
 	}
 }
 

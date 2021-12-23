@@ -37,7 +37,6 @@ PLSBasicAdvAudio::PLSBasicAdvAudio(QWidget *parent, PLSDpiHelper dpiHelper)
 	hlayout->setSpacing(0);
 
 	//init the name title label
-	int idx = 0;
 	QString styleSheet = QString("font-weight:bold; font-size: /*hdpi*/ 14px; min-height: /*hdpi*/ 32px; max-height: /*hdpi*/ 32px; ");
 	label = new QLabel(QTStr("Basic.AdvAudio.Name"));
 	dpiHelper.setStyleSheet(label, styleSheet);

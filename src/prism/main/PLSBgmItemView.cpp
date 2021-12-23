@@ -31,13 +31,12 @@ void PLSBgmItemViewModel::SetData(const QVector<PLSBgmItemData> &data)
 
 void PLSBgmItemViewModel::InsertData(const QVector<PLSBgmItemData> &datas_)
 {
-	int index = 0;
 	for (int i = datas_.size() - 1; i >= 0; i--) {
 		Insert(datas_[i], i);
 	}
 }
 
-void PLSBgmItemViewModel::Insert(const PLSBgmItemData &data, const int &index)
+void PLSBgmItemViewModel::Insert(const PLSBgmItemData &data, const int &)
 {
 	beginInsertRows(QModelIndex(), 0, 0);
 	datas.insert(0, data);
@@ -180,11 +179,13 @@ bool PLSBgmItemViewModel::setData(const QModelIndex &index, const QVariant &valu
 	} else {
 		return QAbstractListModel::setData(index, value, role);
 	}
+
+	return true;
 }
 
-Qt::ItemFlags PLSBgmItemViewModel::flags(const QModelIndex &index) const
+Qt::ItemFlags PLSBgmItemViewModel::flags(const QModelIndex &) const
 {
-	return Qt::NoItemFlags;
+	return Qt::ItemIsEnabled;
 }
 
 Qt::DropActions PLSBgmItemViewModel::supportedDropActions() const

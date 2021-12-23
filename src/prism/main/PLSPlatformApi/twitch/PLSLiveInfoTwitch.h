@@ -51,7 +51,7 @@ private slots:
 
 private:
 	Ui::PLSLiveInfoTwitch *ui;
-
+	QVariantMap m_categorys;
 	QPushButton *pushButtonClear;
 	QPushButton *pushButtonSearch;
 	PLSLiveInfoTwitchListWidget *listCategory;

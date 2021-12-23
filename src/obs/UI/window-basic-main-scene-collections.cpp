@@ -36,13 +36,13 @@ void EnumSceneCollections(std::function<bool(const char *, const char *)> &&cb)
 	int ret = GetConfigPath(path, sizeof(path),
 				"obs-studio/basic/scenes/*.json");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get config path for scene "
+		plog(LOG_WARNING, "Failed to get config path for scene "
 				  "collections");
 		return;
 	}
 
 	if (os_glob(path, 0, &glob) != 0) {
-		blog(LOG_WARNING, "Failed to glob scene collections");
+		plog(LOG_WARNING, "Failed to glob scene collections");
 		return;
 	}
 
@@ -129,14 +129,14 @@ static bool GetSceneCollectionName(QWidget *parent, std::string &name,
 	}
 
 	if (!GetFileSafeName(name.c_str(), file)) {
-		blog(LOG_WARNING, "Failed to create safe file name for '%s'",
+		plog(LOG_WARNING, "Failed to create safe file name for '%s'",
 		     name.c_str());
 		return false;
 	}
 
 	ret = GetConfigPath(path, sizeof(path), "obs-studio/basic/scenes/");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get scene collection config path");
+		plog(LOG_WARNING, "Failed to get scene collection config path");
 		return false;
 	}
 
@@ -144,7 +144,7 @@ static bool GetSceneCollectionName(QWidget *parent, std::string &name,
 	file.insert(0, path);
 
 	if (!GetClosestUnusedFileName(file, "json")) {
-		blog(LOG_WARNING, "Failed to get closest file name for %s",
+		plog(LOG_WARNING, "Failed to get closest file name for %s",
 		     file.c_str());
 		return false;
 	}
@@ -180,9 +180,9 @@ bool OBSBasic::AddSceneCollection(bool create_new, const QString &qname)
 	SaveProjectNow();
 	RefreshSceneCollections();
 
-	blog(LOG_INFO, "Added scene collection '%s' (%s, %s.json)",
+	plog(LOG_INFO, "Added scene collection '%s' (%s, %s.json)",
 	     name.c_str(), create_new ? "clean" : "duplicate", file.c_str());
-	blog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "------------------------------------------------");
 
 	UpdateTitleBar();
 
@@ -281,7 +281,7 @@ void OBSBasic::on_actionRenameSceneCollection_triggered()
 	char path[512];
 	int ret = GetConfigPath(path, 512, "obs-studio/basic/scenes/");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get scene collection config path");
+		plog(LOG_WARNING, "Failed to get scene collection config path");
 		return;
 	}
 
@@ -291,10 +291,10 @@ void OBSBasic::on_actionRenameSceneCollection_triggered()
 	oldFile += ".bak";
 	os_unlink(oldFile.c_str());
 
-	blog(LOG_INFO, "------------------------------------------------");
-	blog(LOG_INFO, "Renamed scene collection to '%s' (%s.json)",
+	plog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "Renamed scene collection to '%s' (%s.json)",
 	     name.c_str(), file.c_str());
-	blog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "------------------------------------------------");
 
 	UpdateTitleBar();
 	RefreshSceneCollections();
@@ -342,7 +342,7 @@ void OBSBasic::on_actionRemoveSceneCollection_triggered()
 	char path[512];
 	int ret = GetConfigPath(path, 512, "obs-studio/basic/scenes/");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get scene collection config path");
+		plog(LOG_WARNING, "Failed to get scene collection config path");
 		return;
 	}
 
@@ -358,11 +358,11 @@ void OBSBasic::on_actionRemoveSceneCollection_triggered()
 	const char *newFile = config_get_string(App()->GlobalConfig(), "Basic",
 						"SceneCollectionFile");
 
-	blog(LOG_INFO,
+	plog(LOG_INFO,
 	     "Removed scene collection '%s' (%s.json), "
 	     "switched to '%s' (%s.json)",
 	     oldName.c_str(), oldFile.c_str(), newName.c_str(), newFile);
-	blog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "------------------------------------------------");
 
 	UpdateTitleBar();
 
@@ -380,7 +380,7 @@ void OBSBasic::on_actionImportSceneCollection_triggered()
 
 	int ret = GetConfigPath(path, 512, "obs-studio/basic/scenes/");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get scene collection config path");
+		plog(LOG_WARNING, "Failed to get scene collection config path");
 		return;
 	}
 
@@ -411,7 +411,7 @@ void OBSBasic::on_actionImportSceneCollection_triggered()
 		obs_data_set_string(scenedata, "name", name.c_str());
 
 		if (!GetFileSafeName(name.c_str(), file)) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Failed to create "
 			     "safe file name for '%s'",
 			     name.c_str());
@@ -421,7 +421,7 @@ void OBSBasic::on_actionImportSceneCollection_triggered()
 		string filePath = path + file;
 
 		if (!GetClosestUnusedFileName(filePath, "json")) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Failed to get "
 			     "closest file name for %s",
 			     file.c_str());
@@ -447,7 +447,7 @@ void OBSBasic::on_actionExportSceneCollection_triggered()
 
 	int ret = GetConfigPath(path, 512, "obs-studio/basic/scenes/");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get scene collection config path");
+		plog(LOG_WARNING, "Failed to get scene collection config path");
 		return;
 	}
 
@@ -494,9 +494,9 @@ void OBSBasic::ChangeSceneCollection()
 	const char *newFile = config_get_string(App()->GlobalConfig(), "Basic",
 						"SceneCollectionFile");
 
-	blog(LOG_INFO, "Switched to scene collection '%s' (%s.json)", newName,
+	plog(LOG_INFO, "Switched to scene collection '%s' (%s.json)", newName,
 	     newFile);
-	blog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "------------------------------------------------");
 
 	UpdateTitleBar();
 
