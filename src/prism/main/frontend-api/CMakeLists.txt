@@ -67,7 +67,6 @@ if (MSVC)
 		liblog
 		Qt5::Widgets
 		Qt5::Network)
-	link_hmac(frontend-api)
 else()
 	target_link_libraries(frontend-api
 		libobs

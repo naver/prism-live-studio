@@ -784,7 +784,6 @@ if (MSVC)
 		)
     link_obs(PRISMLiveStudio)
     link_jansson(PRISMLiveStudio)
-    link_hmac(PRISMLiveStudio)
     link_mosquitto(PRISMLiveStudio)
 else()
 	target_link_libraries(PRISMLiveStudio

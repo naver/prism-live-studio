@@ -244,18 +244,6 @@ FRONTEND_API bool pls_channel_login(QJsonObject &result, QWidget *parent)
 
 FRONTEND_API bool pls_get_encrypt_url(QUrl &url, const QString &urlStr, const QString &hMackey)
 {
-	IMACManager *manager = ::getMacManager(hMackey.toUtf8().constData());
-	if (!manager) {
-		return false;
-	}
-	QByteArray originalUrl(urlStr.toUtf8());
-	size_t encryptedSize = 0;
-
-	manager->getEncryptUrl(originalUrl.data(), nullptr, &encryptedSize);
-	QByteArray encryptedUrl(static_cast<int>(encryptedSize), Qt::Uninitialized);
-	manager->getEncryptUrl(originalUrl.data(), encryptedUrl.data(), &encryptedSize);
-	manager->Release();
-	url.setUrl(encryptedUrl);
 	return true;
 }
 
