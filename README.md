@@ -15,7 +15,7 @@ PRISM Live Studio used the OBS engine as the core module. We would thank all the
 This application currently only supports 64-bit Windows.
 
 ## Build on Windows
-Before build, please prepare install QT 5.12 or higher version first and set the enviroment variables as:
+Before build, please prepare install QT 5.12 version first and set the enviroment variables as:
 ```
 QTDIR32: QT install directory/msvc2017
 QTDIR64: QT install directory/msvc2017_64
