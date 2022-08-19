@@ -1,4 +1,4 @@
-# PRISM Live Stduio
+# PRISM Live Studio
 ![LOGO](https://resource-prismlive.pstatic.net/202112161144/1585712652.png)
 
 **Visit [our official web site](http://prismlive.com) for more information and [Latest updates on PRISM Live Studio](http://prismlive.com/ko_kr/pcapp/)**.
@@ -15,7 +15,7 @@ PRISM Live Studio used the OBS engine as the core module. We would thank all the
 This application currently only supports 64-bit Windows.
 
 ## Build on Windows
-Before build, please prepare install QT 5.12 version first and set the enviroment variables as:
+Before build, please prepare install QT 5.12 version first and set the environment variables as:
 ```
 QTDIR32: QT install directory/msvc2017
 QTDIR64: QT install directory/msvc2017_64
