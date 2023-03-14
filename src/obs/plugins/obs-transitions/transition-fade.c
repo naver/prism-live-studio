@@ -27,7 +27,7 @@ static void *fade_create(obs_data_t *settings, obs_source_t *source)
 	bfree(file);
 
 	if (!effect) {
-		blog(LOG_ERROR, "Could not find fade_transition.effect");
+		plog(LOG_ERROR, "Could not find fade_transition.effect");
 		return NULL;
 	}
 

@@ -12,9 +12,10 @@
 	EXTERN_C const GUID DECLSPEC_SELECTANY name = {                       \
 		l, w1, w2, {b1, b2, b3, b4, b5, b6, b7, b8}}
 
-#define do_log(level, format, ...)                      \
-	blog(level, "[audio monitoring: '%s'] " format, \
-	     obs_source_get_name(monitor->source), ##__VA_ARGS__)
+#define do_log(level, format, ...)                                  \
+	plog(level, "[audio monitoring: '%s' %p] " format,          \
+	     obs_source_get_name(monitor->source), monitor->source, \
+	     ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
 #define info(format, ...) do_log(LOG_INFO, format, ##__VA_ARGS__)
@@ -39,6 +40,10 @@ struct audio_monitor {
 	IMMDeviceEnumerator *immde;
 	DWORD previous_check_default;
 
+	//PRISM/WangShaohui/20210611/noissue/fix bug of checking monitor self
+	bool ignore_monitor;
+	DWORD previous_check_ignore;
+
 	uint64_t last_recv_time;
 	uint64_t prev_video_ts;
 	uint64_t time_since_prev;
@@ -46,7 +51,8 @@ struct audio_monitor {
 	uint32_t sample_rate;
 	uint32_t channels;
 	bool source_has_video;
-	bool ignore;
+	//PRISM/WangShaohui/20210121/#6653/free audio monitor
+	//bool ignore;
 
 	int64_t lowest_audio_offset;
 	struct circlebuf delay_buffer;
@@ -57,6 +63,41 @@ struct audio_monitor {
 };
 
 /* #define DEBUG_AUDIO */
+
+//PRISM/WangShaohui/20210611/noissue/fix bug of checking monitor self
+extern bool devices_match(const char *id1, const char *id2);
+bool should_ignore_monitor(struct audio_monitor *monitor)
+{
+	if (!(monitor->source->info.output_flags &
+	      OBS_SOURCE_DO_NOT_SELF_MONITOR)) {
+		return false;
+	}
+
+	const char *monitor_id = obs->audio.monitoring_device_id;
+	if (!monitor_id) {
+		return false;
+	}
+
+	DWORD current_time = GetTickCount();
+	if (current_time - monitor->previous_check_ignore >= 2000) {
+		obs_data_t *data = obs_source_get_settings(monitor->source);
+		const char *capture_id =
+			obs_data_get_string(data, "real_device_id");
+		bool ignore = devices_match(capture_id, monitor_id);
+		obs_data_release(data);
+
+		if (ignore != monitor->ignore_monitor) {
+			info("Monitor state is changed : %s",
+			     ignore ? "monitor_self_disable"
+				    : "monitor_self_enable");
+		}
+
+		monitor->previous_check_ignore = current_time;
+		monitor->ignore_monitor = ignore;
+	}
+
+	return monitor->ignore_monitor;
+}
 
 static bool process_audio_delay(struct audio_monitor *monitor, float **data,
 				uint32_t *frames, uint64_t ts, uint32_t pad)
@@ -111,8 +152,7 @@ static bool process_audio_delay(struct audio_monitor *monitor, float **data,
 		/* delay audio if rushing */
 		if (!bad_diff && diff > 75000000) {
 #ifdef DEBUG_AUDIO
-			blog(LOG_INFO,
-			     "audio rushing, cutting audio, "
+			info("audio rushing, cutting audio, "
 			     "diff: %lld, delay buffer size: %lu, "
 			     "v: %llu: a: %llu",
 			     diff, (int)monitor->delay_buffer.size,
@@ -134,8 +174,7 @@ static bool process_audio_delay(struct audio_monitor *monitor, float **data,
 		if (!bad_diff && diff < -75000000 &&
 		    monitor->delay_buffer.size > 0) {
 #ifdef DEBUG_AUDIO
-			blog(LOG_INFO,
-			     "audio dragging, cutting audio, "
+			info("audio dragging, cutting audio, "
 			     "diff: %lld, delay buffer size: %lu, "
 			     "v: %llu: a: %llu",
 			     diff, (int)monitor->delay_buffer.size,
@@ -167,7 +206,12 @@ static void on_audio_playback(void *param, obs_source_t *source,
 	uint32_t resample_frames;
 	uint64_t ts_offset;
 	bool success;
-	BYTE *output;
+	BYTE *output = NULL;
+
+	//PRISM/WangShaohui/20210611/noissue/fix bug of checking monitor self
+	if (should_ignore_monitor(monitor)) {
+		return;
+	}
 
 	if (pthread_mutex_trylock(&monitor->playback_mutex) != 0) {
 		return;
@@ -218,7 +262,8 @@ static void on_audio_playback(void *param, obs_source_t *source,
 		goto unlock;
 	}
 
-	if (!muted) {
+	//PRISM/WangShaohui/20210302/NOISSUE/for NELO crash
+	if (!muted && output && (hr == S_OK)) {
 		/* apply volume */
 		if (!close_float(vol, 1.0f, EPSILON)) {
 			register float *cur = (float *)resample_data[0];
@@ -239,15 +284,19 @@ unlock:
 	pthread_mutex_unlock(&monitor->playback_mutex);
 }
 
+//PRISM/WangShaohui/20210121/#6653/free audio monitor
 static inline void audio_monitor_free(struct audio_monitor *monitor)
 {
-	if (monitor->ignore)
-		return;
+	//PRISM/WangShaohui/20210121/#6653/free audio monitor
+	//if (monitor->ignore)
+	//	return;
 
 	if (monitor->source) {
 		obs_source_remove_audio_capture_callback(
 			monitor->source, on_audio_playback, monitor);
 	}
+
+	pthread_mutex_lock(&monitor->playback_mutex);
 
 	if (monitor->client)
 		monitor->client->lpVtbl->Stop(monitor->client);
@@ -255,16 +304,24 @@ static inline void audio_monitor_free(struct audio_monitor *monitor)
 	safe_release(monitor->device);
 	safe_release(monitor->client);
 	safe_release(monitor->render);
-	//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
 	safe_release(monitor->immde);
-	//PRISM/LiuHaibin/20200819/#4005/destroy mutex
-	pthread_mutex_destroy(&monitor->playback_mutex);
-	audio_resampler_destroy(monitor->resampler);
-	monitor->resampler = NULL;
-	circlebuf_free(&monitor->delay_buffer);
-	da_free(monitor->buf);
-	//PRISM/LiuHaibin/20200916/#4005/destroy mutex
-	pthread_mutex_init_value(&monitor->playback_mutex);
+	if (monitor->resampler) {
+		audio_resampler_destroy(monitor->resampler);
+		monitor->resampler = NULL;
+	}
+	if (monitor->delay_buffer.data) {
+		circlebuf_free(&monitor->delay_buffer);
+	}
+	if (monitor->buf.array) {
+		da_free(monitor->buf);
+	}
+	pthread_mutex_unlock(&monitor->playback_mutex);
+
+	if (monitor->playback_mutex &&
+	    monitor->playback_mutex < PTHREAD_ERRORCHECK_MUTEX_INITIALIZER) {
+		pthread_mutex_destroy(&monitor->playback_mutex);
+		pthread_mutex_init_value(&monitor->playback_mutex);
+	}
 }
 
 static enum speaker_layout convert_speaker_layout(DWORD layout, WORD channels)
@@ -310,6 +367,8 @@ static bool audio_monitor_init(struct audio_monitor *monitor,
 		return false;
 	}
 
+	/*
+	//PRISM/WangShaohui/20210611/noissue/fix bug of checking monitor self
 	if (source->info.output_flags & OBS_SOURCE_DO_NOT_SELF_MONITOR) {
 		obs_data_t *s = obs_source_get_settings(source);
 		const char *s_dev_id = obs_data_get_string(s, "device_id");
@@ -318,9 +377,11 @@ static bool audio_monitor_init(struct audio_monitor *monitor,
 
 		if (match) {
 			monitor->ignore = true;
+			warn("Ignore audio monitor because of DO_NOT_SELF_MONITOR");
 			return true;
 		}
 	}
+	*/
 
 	/* ------------------------------------------ *
 	 * Init device                                */
@@ -400,6 +461,8 @@ static bool audio_monitor_init(struct audio_monitor *monitor,
 	monitor->channels = wfex->nChannels;
 	monitor->resampler = audio_resampler_create(&to, &from);
 	if (!monitor->resampler) {
+		//PRISM/LiuHaibin/20211018/#None/Add log
+		warn("%s: Failed to create audio resampler", __FUNCTION__);
 		goto fail;
 	}
 
@@ -432,6 +495,10 @@ static bool audio_monitor_init(struct audio_monitor *monitor,
 		goto fail;
 	}
 
+	const char *name = obs->audio.monitoring_device_name;
+	info("Success to init monitor device. [%s] samplerate:%d channels:%d",
+	     name ? name : "", monitor->sample_rate, monitor->channels);
+
 	success = true;
 
 fail:
@@ -444,9 +511,6 @@ fail:
 
 static void audio_monitor_init_final(struct audio_monitor *monitor)
 {
-	if (monitor->ignore)
-		return;
-
 	monitor->source_has_video =
 		(monitor->source->info.output_flags & OBS_SOURCE_VIDEO) != 0;
 	obs_source_add_audio_capture_callback(monitor->source,
@@ -482,17 +546,40 @@ void audio_monitor_reset(struct audio_monitor *monitor)
 	bool success;
 
 	pthread_mutex_lock(&monitor->playback_mutex);
+	//PRISM/WangShaohui/20210121/#6653/free audio monitor
 	success = audio_monitor_init(&new_monitor, monitor->source);
 	pthread_mutex_unlock(&monitor->playback_mutex);
 
 	if (success) {
-		obs_source_t *source = monitor->source;
 		audio_monitor_free(monitor);
 		*monitor = new_monitor;
 		audio_monitor_init_final(monitor);
 	} else {
 		audio_monitor_free(&new_monitor);
 	}
+}
+
+//PRISM/LiuHaibin/20201207/#5992/clear audio buffer
+void audio_monitor_clear_buffer(struct audio_monitor *monitor)
+{
+	pthread_mutex_lock(&obs->audio.monitoring_mutex);
+	if (monitor) {
+		pthread_mutex_lock(&monitor->playback_mutex);
+		if (monitor->client) {
+			monitor->client->lpVtbl->Stop(monitor->client);
+			monitor->client->lpVtbl->Reset(monitor->client);
+			monitor->client->lpVtbl->Start(monitor->client);
+		}
+
+		circlebuf_free(&monitor->delay_buffer);
+		da_free(monitor->buf);
+		monitor->last_recv_time = 0;
+		monitor->prev_video_ts = 0;
+		monitor->time_since_prev = 0;
+		pthread_mutex_unlock(&monitor->playback_mutex);
+	}
+
+	pthread_mutex_unlock(&obs->audio.monitoring_mutex);
 }
 
 void audio_monitor_destroy(struct audio_monitor *monitor)
@@ -508,10 +595,10 @@ void audio_monitor_destroy(struct audio_monitor *monitor)
 	}
 }
 
-//PRISM/WangShaohui/20200824/#4416/for recover audio monitor
+//PRISM/WangShaohui/20210121/#6653/free audio monitor
 static void audio_monitor_check_default(struct audio_monitor *monitor)
 {
-	if (monitor->ignore || !monitor->immde) {
+	if (!monitor->immde) {
 		return;
 	}
 
@@ -549,8 +636,7 @@ static void audio_monitor_check_default(struct audio_monitor *monitor)
 
 	if (default_id && using_id) {
 		if (0 != wcscmp(default_id, using_id)) {
-			blog(LOG_INFO,
-			     "Default output audio device is changed and try to reset monitor for [%s]",
+			info("Default output audio device is changed and try to reset monitor for [%s]",
 			     obs_source_get_name(monitor->source));
 
 			audio_monitor_was_uninit(monitor);
@@ -571,6 +657,18 @@ static void audio_monitor_check_default(struct audio_monitor *monitor)
 //PRISM/WangShaohui/20200824/#4416/for recover audio monitor
 static void audio_monitor_was_uninit(struct audio_monitor *monitor)
 {
+	uint32_t blocksize = monitor->channels * sizeof(float);
+	uint64_t timestamp;
+	uint32_t frames;
+	while (monitor->delay_buffer.size != 0) {
+		circlebuf_pop_front(&monitor->delay_buffer, NULL,
+				    sizeof(timestamp));
+		circlebuf_pop_front(&monitor->delay_buffer, &frames,
+				    sizeof(frames));
+		circlebuf_pop_front(&monitor->delay_buffer, NULL,
+				    frames * blocksize);
+	}
+
 	safe_release(monitor->render);
 	safe_release(monitor->client);
 	safe_release(monitor->device);
@@ -585,9 +683,6 @@ static void audio_monitor_was_uninit(struct audio_monitor *monitor)
 //PRISM/WangShaohui/20200824/#4416/for recover audio monitor
 static bool audio_monitor_was_init(struct audio_monitor *monitor)
 {
-	if (monitor->ignore)
-		return false;
-
 	obs_source_t *source = monitor->source;
 	WAVEFORMATEX *wfex = NULL;
 	bool success = false;
@@ -599,6 +694,8 @@ static bool audio_monitor_was_init(struct audio_monitor *monitor)
 		return false;
 	}
 
+	/*
+	//PRISM/WangShaohui/20210611/noissue/fix bug of checking monitor self
 	if (source->info.output_flags & OBS_SOURCE_DO_NOT_SELF_MONITOR) {
 		obs_data_t *s = obs_source_get_settings(source);
 		const char *s_dev_id = obs_data_get_string(s, "device_id");
@@ -606,10 +703,9 @@ static bool audio_monitor_was_init(struct audio_monitor *monitor)
 		obs_data_release(s);
 
 		if (match) {
-			monitor->ignore = true;
 			return false;
 		}
-	}
+	}*/
 
 	/* ------------------------------------------ *
 	 * Init device                                */
@@ -660,6 +756,37 @@ static bool audio_monitor_was_init(struct audio_monitor *monitor)
 	}
 
 	/* ------------------------------------------ *
+	 * Reinit resampler                             */
+	if (monitor->resampler) {
+		audio_resampler_destroy(monitor->resampler);
+		monitor->resampler = NULL;
+	}
+
+	const struct audio_output_info *info =
+		audio_output_get_info(obs->audio.audio);
+	WAVEFORMATEXTENSIBLE *ext = (WAVEFORMATEXTENSIBLE *)wfex;
+	struct resample_info from;
+	struct resample_info to;
+
+	from.samples_per_sec = info->samples_per_sec;
+	from.speakers = info->speakers;
+	from.format = AUDIO_FORMAT_FLOAT_PLANAR;
+
+	to.samples_per_sec = (uint32_t)wfex->nSamplesPerSec;
+	to.speakers =
+		convert_speaker_layout(ext->dwChannelMask, wfex->nChannels);
+	to.format = AUDIO_FORMAT_FLOAT;
+
+	monitor->sample_rate = (uint32_t)wfex->nSamplesPerSec;
+	monitor->channels = wfex->nChannels;
+	monitor->resampler = audio_resampler_create(&to, &from);
+	if (!monitor->resampler) {
+		//PRISM/LiuHaibin/20211018/#None/Add log
+		warn("%s: Failed to create audio resampler", __FUNCTION__);
+		goto fail;
+	}
+
+	/* ------------------------------------------ *
 	 * Init client                                */
 
 	hr = monitor->client->lpVtbl->GetBufferSize(monitor->client, &frames);
@@ -678,6 +805,10 @@ static bool audio_monitor_was_init(struct audio_monitor *monitor)
 	if (FAILED(hr)) {
 		goto fail;
 	}
+
+	const char *name = obs->audio.monitoring_device_name;
+	info("Success to init monitor device. [%s] samplerate:%d channels:%d",
+	     name ? name : "", monitor->sample_rate, monitor->channels);
 
 	success = true;
 

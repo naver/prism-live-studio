@@ -119,6 +119,10 @@ static void recalculate_transition_matrix(obs_source_t *tr, size_t idx)
 	struct vec2 scale;
 	float tr_cx = (float)get_cx(tr);
 	float tr_cy = (float)get_cy(tr);
+	//PRISM/ZengQin/20210517/#none/Avoid division by zero
+	if (tr_cx == 0.0f || tr_cy == 0.0f)
+		return;
+
 	float source_cx;
 	float source_cy;
 	float tr_aspect = tr_cx / tr_cy;
@@ -433,6 +437,9 @@ static float calc_time(obs_source_t *transition, uint64_t ts)
 {
 	uint64_t end;
 
+	if (!transition)
+		return 1.0f;
+
 	if (ts <= transition->transition_start_time)
 		return 0.0f;
 
@@ -550,7 +557,7 @@ void obs_transition_load(obs_source_t *tr, obs_data_t *data)
 		source = obs_get_source_by_name(name);
 		if (source) {
 			if (!obs_source_add_active_child(tr, source)) {
-				blog(LOG_WARNING,
+				plog(LOG_WARNING,
 				     "Cannot set transition '%s' "
 				     "to source '%s' due to "
 				     "infinite recursion",
@@ -559,7 +566,7 @@ void obs_transition_load(obs_source_t *tr, obs_data_t *data)
 				source = NULL;
 			}
 		} else {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Failed to find source '%s' for "
 			     "transition '%s'",
 			     name, tr->context.name);
@@ -783,7 +790,12 @@ bool obs_transition_video_render_direct(obs_source_t *transition,
 
 	lock_transition(transition);
 
-	if (t >= 1.0f && transition->transitioning_video) {
+	//PRISM/Liuying/20201208/#6076/stop transition when scene was removed and already applied the transition.
+	obs_source_t *old_child = transition->transition_sources[0];
+	bool trSceneRemoved = old_child && obs_source_removed(old_child);
+
+	if (t >= 1.0f && transition->transitioning_video ||
+	    trSceneRemoved && transition->transitioning_video) {
 		transition->transitioning_video = false;
 		video_stopped = true;
 
@@ -849,7 +861,8 @@ static void process_audio(obs_source_t *transition, obs_source_t *child,
 			  uint32_t mixers, size_t channels, size_t sample_rate,
 			  obs_transition_audio_mix_callback_t mix)
 {
-	bool valid = child && !child->audio_pending;
+	//PRISM/LiuHaibin/20210701/#None/https://github.com/obsproject/obs-studio/pull/3863
+	bool valid = child && !child->audio_pending && child->audio_ts;
 	struct obs_source_audio_mix child_audio;
 	uint64_t ts;
 	size_t pos;
@@ -887,7 +900,9 @@ static inline uint64_t calc_min_ts(obs_source_t *sources[2])
 	uint64_t min_ts = 0;
 
 	for (size_t i = 0; i < 2; i++) {
-		if (sources[i] && !sources[i]->audio_pending) {
+		//PRISM/LiuHaibin/20210701/#None/https://github.com/obsproject/obs-studio/pull/3863
+		if (sources[i] && !sources[i]->audio_pending &&
+		    sources[i]->audio_ts) {
 			if (!min_ts || sources[i]->audio_ts < min_ts)
 				min_ts = sources[i]->audio_ts;
 		}
@@ -1053,4 +1068,27 @@ void obs_transition_swap_end(obs_source_t *tr_dest, obs_source_t *tr_source)
 
 	unlock_textures(tr_dest);
 	unlock_textures(tr_source);
+}
+
+//PRISM/ZengQin/20210413/#7579/reset transition sources.
+void obs_transition_reset_sources(obs_source_t *transition)
+{
+	if (!transition_valid(transition, "obs_transition_reset_sources"))
+		return;
+
+	lock_transition(transition);
+	obs_source_t *old_child = transition->transition_sources[0];
+	bool old_active = transition->transition_source_active[0];
+
+	transition->transition_source_active[0] = true;
+	transition->transition_source_active[1] = false;
+	transition->transition_sources[0] = transition->transition_sources[1];
+	transition->transition_sources[1] = NULL;
+	unlock_transition(transition);
+
+	if (old_child && old_active)
+		obs_source_remove_active_child(transition, old_child);
+	obs_source_release(old_child);
+
+	return;
 }

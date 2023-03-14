@@ -27,7 +27,7 @@ void NetworkEnvironment::onConnectHost(QHostInfo host)
 {
 	if (host.error() != QHostInfo::NoError) {
 		m_isOnline = false;
-		PLS_WARN(NETWORK_ENVIRONMENT, "network error has occurred");
+		PLS_ERROR(NETWORK_ENVIRONMENT, "network error has occurred");
 	} else {
 		m_isOnline = true;
 	}

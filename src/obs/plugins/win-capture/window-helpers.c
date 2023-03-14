@@ -103,19 +103,28 @@ fail:
 	return true;
 }
 
+//PRISM/WangShaohui/20210917/noIssue/API hang
 void get_window_title(struct dstr *name, HWND hwnd)
 {
-	wchar_t *temp;
-	int len;
+	wchar_t name_temp[MAX_PATH] = {0};
+	ULONG_PTR copy_count = 0;
+	LRESULT res = SendMessageTimeoutW(hwnd, WM_GETTEXT, MAX_PATH, name_temp,
+					  SMTO_ABORTIFHUNG, 2000, &copy_count);
+	if (0 != res && copy_count > 0) {
+		dstr_from_wcs(name, name_temp);
+	}
 
-	len = GetWindowTextLengthW(hwnd);
-	if (!len)
-		return;
+	//wchar_t *temp;
+	//int len;
 
-	temp = malloc(sizeof(wchar_t) * (len + 1));
-	if (GetWindowTextW(hwnd, temp, len + 1))
-		dstr_from_wcs(name, temp);
-	free(temp);
+	//len = GetWindowTextLengthW(hwnd);
+	//if (!len)
+	//	return;
+
+	//temp = malloc(sizeof(wchar_t) * (len + 1));
+	//if (GetWindowTextW(hwnd, temp, len + 1))
+	//	dstr_from_wcs(name, temp);
+	//free(temp);
 }
 
 void get_window_class(struct dstr *class, HWND hwnd)
@@ -233,11 +242,6 @@ static bool check_window_valid(HWND window, enum window_search_mode mode)
 {
 	DWORD styles, ex_styles;
 	RECT rect;
-
-	//PRISM/WangShaohui/20201012/#5157/filter LAYERED window
-	if (WS_EX_LAYERED & GetWindowLong(window, GWL_EXSTYLE)) {
-		return false;
-	}
 
 	if (!IsWindowVisible(window) ||
 	    (mode == EXCLUDE_MINIMIZED && IsIconic(window)))
@@ -391,10 +395,23 @@ static int window_rating(HWND window, enum window_priority priority,
 
 	/* always match by name with UWP windows */
 	if (uwp_window) {
-		if (priority == WINDOW_PRIORITY_EXE && !exe_matches)
-			val = 0x7FFFFFFF;
-		else
-			val = title_val == 0 ? 0 : 0x7FFFFFFF;
+		//PRISM/WangShaohui/20210315/#7072/for finding UWP window
+		int title_weight = (title_val == 0) ? 2 : 0;
+		if (priority == WINDOW_PRIORITY_EXE) {
+			int weight = (exe_matches == 0) ? 1 : 0;
+			val = 0x7FFFFFFF - title_weight - weight;
+		} else if (priority == WINDOW_PRIORITY_CLASS) {
+			int weight = (class_matches == 0) ? 1 : 0;
+			val = 0x7FFFFFFF - title_weight - weight;
+		} else {
+			val = (title_val == 0) ? 0 : 0x7FFFFFFF;
+		}
+
+		//PRISM/WangShaohui/20210315/#7072/for finding UWP window
+		//if (priority == WINDOW_PRIORITY_EXE && !exe_matches)
+		//	val = 0x7FFFFFFF;
+		//else
+		//	val = title_val == 0 ? 0 : 0x7FFFFFFF;
 
 	} else if (priority == WINDOW_PRIORITY_CLASS) {
 		val = class_matches ? title_val : 0x7FFFFFFF;

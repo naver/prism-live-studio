@@ -7,9 +7,45 @@
 #include <QApplication>
 #include <QSettings>
 
+//PRISM/Zhangdewen/20210120/#/for naver shopping
+#include <QDialog>
+#include <QThread>
+#include <QVBoxLayout>
+#include <QIcon>
+
 #ifdef _WIN32
 #include <windows.h>
 #endif
+
+//PRISM/Zhangdewen/20210113/#/for naver shopping
+extern QWidget *(*pls_get_toplevel_view)(QWidget *widget);
+
+//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+static inline QWidget *_pls_get_toplevel_view(QWidget *widget)
+{
+	return pls_get_toplevel_view ? pls_get_toplevel_view(widget) : widget;
+}
+
+//PRISM/Zhangdewen/20210113/#/for naver shopping
+static QWidget *browser_popup_dialog_toplevel_view(QWidget *widget)
+{
+	for (; widget; widget = widget->parentWidget()) {
+		if (dynamic_cast<QPLSBrowserPopupDialog *>(widget)) {
+			return widget;
+		}
+	}
+	return nullptr;
+}
+
+//PRISM/Zhangdewen/20210113/#/for naver shopping
+static inline QWidget *get_toplevel_view(QWidget *widget)
+{
+	QWidget *toplevel_view = browser_popup_dialog_toplevel_view(widget);
+	if (!toplevel_view) {
+		return _pls_get_toplevel_view(widget);
+	}
+	return toplevel_view;
+}
 
 /* CefClient */
 CefRefPtr<CefLoadHandler> QCefBrowserClient::GetLoadHandler()
@@ -41,12 +77,20 @@ CefRefPtr<CefKeyboardHandler> QCefBrowserClient::GetKeyboardHandler()
 void QCefBrowserClient::OnTitleChange(CefRefPtr<CefBrowser> browser,
 				      const CefString &title)
 {
-	if (widget && widget->cefBrowser->IsSame(browser)) {
-		std::string str_title = title;
-		QString qt_title = QString::fromUtf8(str_title.c_str());
-		QMetaObject::invokeMethod(widget, "titleChanged",
-					  Q_ARG(QString, qt_title));
-	} else { /* handle popup title */
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	bool processed = false;
+	cef_widgets_sync_call(browserInner, [this, &processed, &browser,
+					     &title](QCefWidgetInner *inner) {
+		//PRISM/Zhangdewen/20210608/#/fix crash caused by strong killing cef process
+		if (inner->browser && inner->browser->IsSame(browser)) {
+			std::string str_title = title;
+			QString qt_title = QString::fromUtf8(str_title.c_str());
+			QMetaObject::invokeMethod(inner, "titleChanged",
+						  Q_ARG(QString, qt_title));
+			processed = true;
+		}
+	});
+	if (!processed) {
 #ifdef _WIN32
 		std::wstring str_title = title;
 		HWND hwnd = browser->GetHost()->GetWindowHandle();
@@ -63,40 +107,21 @@ bool QCefBrowserClient::OnBeforeBrowse(CefRefPtr<CefBrowser> browser,
 {
 	std::string str_url = request->GetURL();
 
-	std::lock_guard<std::mutex> lock(popup_whitelist_mutex);
-	for (size_t i = forced_popups.size(); i > 0; i--) {
-		PopupWhitelistInfo &info = forced_popups[i - 1];
-
-		if (!info.obj) {
-			forced_popups.erase(forced_popups.begin() + (i - 1));
-			continue;
-		}
-
-		if (astrcmpi(info.url.c_str(), str_url.c_str()) == 0) {
-			/* Open tab popup URLs in user's actual browser */
-			QUrl url = QUrl(str_url.c_str(), QUrl::TolerantMode);
-			QDesktopServices::openUrl(url);
-			browser->GoBack();
-			return true;
-		}
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	QCefWidgetInner::Headers headers;
+	cef_widgets_sync_call(browserInner, [&headers](QCefWidgetInner *inner) {
+		headers = inner->headers;
+	});
+	for (const auto &header : headers) {
+		request->SetHeaderByName(header.first, header.second, true);
 	}
 
-	if (widget) {
-		// OBS Modification:
-		// Zhang dewen / 20200211 / Related Issue ID=347
-		// Reason: modify request headers before browse
-		// Solution: modify request headers
-		if (!headers.empty()) {
-			for (auto &header : headers) {
-				request->SetHeaderByName(header.first,
-							 header.second, true);
-			}
-		}
-
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	cef_widgets_sync_call(checkInner, [str_url](QCefWidgetInner *inner) {
 		QString qt_url = QString::fromUtf8(str_url.c_str());
-		QMetaObject::invokeMethod(widget, "urlChanged",
+		QMetaObject::invokeMethod(inner, "urlChanged",
 					  Q_ARG(QString, qt_url));
-	}
+	});
 	return false;
 }
 
@@ -117,39 +142,39 @@ bool QCefBrowserClient::OnBeforePopup(
 	CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, const CefString &target_url,
 	const CefString &, CefLifeSpanHandler::WindowOpenDisposition, bool,
 	const CefPopupFeatures &, CefWindowInfo &windowInfo,
-	CefRefPtr<CefClient> &, CefBrowserSettings &,
+	CefRefPtr<CefClient> &browserClient, CefBrowserSettings &,
 #if CHROME_VERSION_BUILD >= 3770
 	CefRefPtr<CefDictionaryValue> &,
 #endif
 	bool *)
 {
-	if (allowAllPopups) {
-#ifdef _WIN32
-		HWND hwnd = (HWND)widget->effectiveWinId();
-		windowInfo.parent_window = hwnd;
-#endif
-		return false;
-	}
-
+	//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
 	std::string str_url = target_url;
 
-	std::lock_guard<std::mutex> lock(popup_whitelist_mutex);
-	for (size_t i = popup_whitelist.size(); i > 0; i--) {
-		PopupWhitelistInfo &info = popup_whitelist[i - 1];
-
-		if (!info.obj) {
-			popup_whitelist.erase(popup_whitelist.begin() +
-					      (i - 1));
-			continue;
+	//PRISM/Zhangdewen/20210330/#/optimization, maybe crash
+	bool processed = false;
+	cef_widgets_sync_call(browserInner, [&](QCefWidgetInner *inner) {
+		if (!inner->allowPopups) {
+			return;
 		}
 
-		if (astrcmpi(info.url.c_str(), str_url.c_str()) == 0) {
-#ifdef _WIN32
-			HWND hwnd = (HWND)widget->effectiveWinId();
-			windowInfo.parent_window = hwnd;
-#endif
-			return false;
-		}
+		QWidget *parent = get_toplevel_view(inner);
+
+		HWND hwnd = nullptr;
+		QPLSBrowserPopupDialog *dialog = QPLSBrowserPopupDialog::create(
+			hwnd, checkInner, parent, true);
+		CefRefPtr<QPLSBrowserPopupClient> browserPopupClient =
+			new QPLSBrowserPopupClient(dialog);
+		browserClient = browserPopupClient;
+		inner->popups.append(browserPopupClient);
+
+		RECT rc = {0, 0, dialog->width(), dialog->height()};
+		windowInfo.SetAsChild(hwnd, rc);
+
+		processed = true;
+	});
+	if (processed) {
+		return false;
 	}
 
 	/* Open popup URLs in user's actual browser */
@@ -161,8 +186,18 @@ bool QCefBrowserClient::OnBeforePopup(
 void QCefBrowserClient::OnLoadEnd(CefRefPtr<CefBrowser>,
 				  CefRefPtr<CefFrame> frame, int)
 {
-	if (frame->IsMain() && !script.empty())
-		frame->ExecuteJavaScript(script, CefString(), 0);
+	//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+	if (frame->IsMain()) {
+		std::string script;
+		cef_widgets_sync_call(browserInner,
+				      [&script](QCefWidgetInner *inner) {
+					      script = inner->script;
+				      });
+
+		if (!script.empty()) {
+			frame->ExecuteJavaScript(script, CefString(), 0);
+		}
+	}
 }
 
 bool QCefBrowserClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
@@ -173,8 +208,8 @@ bool QCefBrowserClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
 	if (event.type != KEYEVENT_RAWKEYDOWN)
 		return false;
 
-	//RENJINBO ignore refresh key, because chat local html can't reload.
-	/*if (event.windows_key_code == 'R' &&
+		//RENJINBO ignore refresh key, because chat local html can't reload.
+		/*if (event.windows_key_code == 'R' &&
 	    (event.modifiers & EVENTFLAG_CONTROL_DOWN) != 0) {
 		browser->ReloadIgnoreCache();
 		return true;
@@ -184,16 +219,16 @@ bool QCefBrowserClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
 }
 
 bool QCefBrowserClient::OnProcessMessageReceived(
-	CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
-	CefProcessId source_process, CefRefPtr<CefProcessMessage> message)
+	CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame, CefProcessId,
+	CefRefPtr<CefProcessMessage> message)
 {
 	if (message->GetArgumentList()->GetSize() == 0) {
 		return false;
 	}
 
 	std::string result("{}");
-	const std::string &name = message->GetName();
-	const std::string &param = message->GetArgumentList()->GetString(0);
+	std::string name = message->GetName();
+	std::string param = message->GetArgumentList()->GetString(0);
 
 	if ("sendToPrism" == name) {
 		if (nullptr != prism_frontend_web_invoked) {
@@ -233,9 +268,8 @@ void QCefBrowserClient::OnBeforeContextMenu(
 {
 	model->Clear();
 
-	QSettings setting("PrismLive", QApplication::applicationName());
-	const QString KEY_DEV_SERVER = QStringLiteral("DevServer");
-	bool devServer = setting.value(KEY_DEV_SERVER, false).toBool();
+	QSettings setting("NAVER Corporation", "Prism Live Studio");
+	bool devServer = setting.value("DevServer", false).toBool();
 	if (!devServer) {
 		return;
 	}
@@ -257,8 +291,7 @@ void QCefBrowserClient::OnBeforeContextMenu(
 
 bool QCefBrowserClient::OnContextMenuCommand(
 	CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
-	CefRefPtr<CefContextMenuParams> params, int command_id,
-	EventFlags event_flags)
+	CefRefPtr<CefContextMenuParams> params, int command_id, EventFlags)
 {
 	switch (command_id) {
 	case MENU_ID_USER_SHOWDEVTOOLS: {
@@ -271,6 +304,15 @@ bool QCefBrowserClient::OnContextMenuCommand(
 	return false;
 }
 
+//PRISM/Zhangdewen/20210601/#/optimization, exception restart
+void QCefBrowserClient::OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
+						  TerminationStatus status)
+{
+	cef_widgets_sync_call(browserInner, [this, browser](QCefWidgetInner *) {
+		browserInner->destroy(true);
+	});
+}
+
 void QCefBrowserClient::ShowDevelopTools(CefRefPtr<CefBrowser> browser)
 {
 	CefWindowInfo windowInfo;
@@ -281,4 +323,25 @@ void QCefBrowserClient::ShowDevelopTools(CefRefPtr<CefBrowser> browser)
 #endif
 	browser->GetHost()->ShowDevTools(windowInfo, this, settings,
 					 CefPoint());
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+void QPLSBrowserPopupClient::OnAfterCreated(CefRefPtr<CefBrowser> browser)
+{
+	cef_widgets_sync_call(browserInner, [this, browser](QCefWidgetInner *) {
+		browserInner->attachBrowser(browser);
+	});
+
+	CefLifeSpanHandler::OnAfterCreated(browser);
+}
+
+//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
+bool QPLSBrowserPopupClient::DoClose(CefRefPtr<CefBrowser> browser)
+{
+	cef_widgets_sync_call(browserInner, [this](QCefWidgetInner *) {
+		browserInner->detachBrowser();
+		browserInner = nullptr;
+	});
+
+	return CefLifeSpanHandler::DoClose(browser);
 }

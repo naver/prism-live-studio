@@ -12,7 +12,7 @@ public:
 	static PLSMonitorDuplicatorPool *get_instance();
 
 	void clear();
-	DUPLICATOR_PTR get_duplicator(int adapter_index, int output_index, int display_id = 0);
+	DUPLICATOR_PTR get_duplicator(int adapter_index, int output_index, int display_id, bool enable_dif_adapter);
 
 private:
 	std::mutex mtx;

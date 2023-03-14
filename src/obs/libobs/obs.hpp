@@ -85,7 +85,7 @@ public:
 	}
 
 	inline operator T() const { return val; }
-	inline void* get() const { return val; }
+	inline void *get() const { return val; }
 
 	inline bool operator==(T p) const { return val == p; }
 	inline bool operator!=(T p) const { return val != p; }

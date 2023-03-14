@@ -27,7 +27,7 @@
 #include "obs-ffmpeg-compat.h"
 
 #define do_log(level, format, ...)                                  \
-	blog(level, "[FFmpeg %s encoder: '%s'] " format, enc->type, \
+	plog(level, "[FFmpeg %s encoder: '%s'] " format, enc->type, \
 	     obs_encoder_get_name(enc->encoder), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
@@ -204,7 +204,7 @@ static void *enc_create(obs_data_t *settings, obs_encoder_t *encoder,
 		enc->type = alt;
 	}
 
-	blog(LOG_INFO, "---------------------------------");
+	plog(LOG_INFO, "---------------------------------");
 
 	if (!enc->codec) {
 		warn("Couldn't find encoder");
@@ -396,6 +396,21 @@ static size_t enc_frame_size(void *data)
 	return enc->frame_size;
 }
 
+//PRISM/ZengQin/20210528/#none/get encoder props params
+static obs_data_t *enc_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+
+	struct enc_encoder *enc = data;
+	obs_data_t *params = obs_data_create();
+	obs_data_set_int(params, "bitrate",
+			 (int64_t)enc->context->bit_rate / 1000);
+	obs_data_set_int(params, "channels", (int)enc->context->channels);
+	obs_data_set_int(params, "sample rate", enc->context->sample_rate);
+	return params;
+}
+
 struct obs_encoder_info aac_encoder_info = {
 	.id = "ffmpeg_aac",
 	.type = OBS_ENCODER_AUDIO,
@@ -409,6 +424,8 @@ struct obs_encoder_info aac_encoder_info = {
 	.get_properties = enc_properties,
 	.get_extra_data = enc_extra_data,
 	.get_audio_info = enc_audio_info,
+	//PRISM/ZengQin/20210528/#none/get encoder props params
+	.props_params = enc_props_params,
 };
 
 struct obs_encoder_info opus_encoder_info = {
@@ -424,4 +441,6 @@ struct obs_encoder_info opus_encoder_info = {
 	.get_properties = enc_properties,
 	.get_extra_data = enc_extra_data,
 	.get_audio_info = enc_audio_info,
+	//PRISM/ZengQin/20210528/#none/get encoder props params
+	.props_params = enc_props_params,
 };

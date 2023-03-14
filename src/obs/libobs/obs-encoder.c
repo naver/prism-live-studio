@@ -101,7 +101,7 @@ create_encoder(const char *id, enum obs_encoder_type type, const char *name,
 	encoder->mixer_idx = mixer_idx;
 
 	if (!ei) {
-		blog(LOG_ERROR, "Encoder ID '%s' not found", id);
+		plog(LOG_ERROR, "Encoder ID '%s' not found", id);
 
 		encoder->info.id = bstrdup(id);
 		encoder->info.type = type;
@@ -114,7 +114,7 @@ create_encoder(const char *id, enum obs_encoder_type type, const char *name,
 
 	success = init_encoder(encoder, name, settings, hotkey_data);
 	if (!success) {
-		blog(LOG_ERROR, "creating encoder '%s' (%s) failed", name, id);
+		plog(LOG_ERROR, "creating encoder '%s' (%s) failed", name, id);
 		obs_encoder_destroy(encoder);
 		return NULL;
 	}
@@ -125,7 +125,8 @@ create_encoder(const char *id, enum obs_encoder_type type, const char *name,
 	obs_context_data_insert(&encoder->context, &obs->data.encoders_mutex,
 				&obs->data.first_encoder);
 
-	blog(LOG_DEBUG, "encoder '%s' (%s) created", name, id);
+	plog(LOG_INFO, "%s encoder %p '%s' (%s) created", TRACE_ENCODER,
+	     encoder, name, id);
 	return encoder;
 }
 
@@ -270,8 +271,8 @@ static void obs_encoder_actually_destroy(obs_encoder_t *encoder)
 		da_free(encoder->outputs);
 		pthread_mutex_unlock(&encoder->outputs_mutex);
 
-		blog(LOG_DEBUG, "encoder '%s' destroyed",
-		     encoder->context.name);
+		plog(LOG_INFO, "%s encoder %p '%s' destroyed", TRACE_ENCODER,
+		     encoder, encoder->context.name);
 
 		free_audio_buffers(encoder);
 
@@ -301,8 +302,16 @@ void obs_encoder_destroy(obs_encoder_t *encoder)
 		pthread_mutex_lock(&encoder->init_mutex);
 		pthread_mutex_lock(&encoder->callbacks_mutex);
 		destroy = encoder->callbacks.num == 0;
-		if (!destroy)
+		if (!destroy) {
+			plog(LOG_WARNING,
+			     "%s encoder %p (id %s, name %s) can not be destroyed right now, because there are still %d connections to it.",
+			     TRACE_ENCODER, encoder,
+			     obs_encoder_get_id(encoder),
+			     obs_encoder_get_name(encoder),
+			     encoder->callbacks.num);
 			encoder->destroy_on_stop = true;
+		}
+
 		pthread_mutex_unlock(&encoder->callbacks_mutex);
 		pthread_mutex_unlock(&encoder->init_mutex);
 
@@ -403,9 +412,12 @@ void obs_encoder_update(obs_encoder_t *encoder, obs_data_t *settings)
 
 	obs_data_apply(encoder->context.settings, settings);
 
-	if (encoder->info.update && encoder->context.data)
-		encoder->info.update(encoder->context.data,
-				     encoder->context.settings);
+	// Note, we don't actually apply the changes to the encoder here
+	// as it may be active in another thread. Setting this to true
+	// makes the changes apply at the next possible moment in the
+	// encoder / GPU encoder thread.
+	if (encoder->info.update)
+		encoder->reconfigure_requested = true;
 }
 
 bool obs_encoder_get_extra_data(const obs_encoder_t *encoder,
@@ -524,7 +536,7 @@ void obs_encoder_shutdown(obs_encoder_t *encoder)
 	pthread_mutex_lock(&encoder->init_mutex);
 	if (encoder->context.data) {
 		if (encoder->info.type == OBS_ENCODER_AUDIO)
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "[obs-encoder] obs_encoder_shutdown: index %d, param %p",
 			     encoder->mixer_idx, encoder);
 		encoder->info.destroy(encoder->context.data);
@@ -689,14 +701,14 @@ void obs_encoder_set_scaled_size(obs_encoder_t *encoder, uint32_t width,
 	if (!obs_encoder_valid(encoder, "obs_encoder_set_scaled_size"))
 		return;
 	if (encoder->info.type != OBS_ENCODER_VIDEO) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs_encoder_set_scaled_size: "
 		     "encoder '%s' is not a video encoder",
 		     obs_encoder_get_name(encoder));
 		return;
 	}
 	if (encoder_active(encoder)) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "encoder '%s': Cannot set the scaled "
 		     "resolution while the encoder is active",
 		     obs_encoder_get_name(encoder));
@@ -707,12 +719,20 @@ void obs_encoder_set_scaled_size(obs_encoder_t *encoder, uint32_t width,
 	encoder->scaled_height = height;
 }
 
+bool obs_encoder_scaling_enabled(const obs_encoder_t *encoder)
+{
+	if (!obs_encoder_valid(encoder, "obs_encoder_scaling_enabled"))
+		return false;
+
+	return encoder->scaled_width || encoder->scaled_height;
+}
+
 uint32_t obs_encoder_get_width(const obs_encoder_t *encoder)
 {
 	if (!obs_encoder_valid(encoder, "obs_encoder_get_width"))
 		return 0;
 	if (encoder->info.type != OBS_ENCODER_VIDEO) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs_encoder_get_width: "
 		     "encoder '%s' is not a video encoder",
 		     obs_encoder_get_name(encoder));
@@ -731,7 +751,7 @@ uint32_t obs_encoder_get_height(const obs_encoder_t *encoder)
 	if (!obs_encoder_valid(encoder, "obs_encoder_get_height"))
 		return 0;
 	if (encoder->info.type != OBS_ENCODER_VIDEO) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs_encoder_get_height: "
 		     "encoder '%s' is not a video encoder",
 		     obs_encoder_get_name(encoder));
@@ -750,7 +770,7 @@ uint32_t obs_encoder_get_sample_rate(const obs_encoder_t *encoder)
 	if (!obs_encoder_valid(encoder, "obs_encoder_get_sample_rate"))
 		return 0;
 	if (encoder->info.type != OBS_ENCODER_AUDIO) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs_encoder_get_sample_rate: "
 		     "encoder '%s' is not an audio encoder",
 		     obs_encoder_get_name(encoder));
@@ -771,7 +791,7 @@ void obs_encoder_set_video(obs_encoder_t *encoder, video_t *video)
 	if (!obs_encoder_valid(encoder, "obs_encoder_set_video"))
 		return;
 	if (encoder->info.type != OBS_ENCODER_VIDEO) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs_encoder_set_video: "
 		     "encoder '%s' is not a video encoder",
 		     obs_encoder_get_name(encoder));
@@ -792,7 +812,7 @@ void obs_encoder_set_audio(obs_encoder_t *encoder, audio_t *audio)
 	if (!obs_encoder_valid(encoder, "obs_encoder_set_audio"))
 		return;
 	if (encoder->info.type != OBS_ENCODER_AUDIO) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs_encoder_set_audio: "
 		     "encoder '%s' is not an audio encoder",
 		     obs_encoder_get_name(encoder));
@@ -811,7 +831,7 @@ video_t *obs_encoder_video(const obs_encoder_t *encoder)
 	if (!obs_encoder_valid(encoder, "obs_encoder_video"))
 		return NULL;
 	if (encoder->info.type != OBS_ENCODER_VIDEO) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs_encoder_set_video: "
 		     "encoder '%s' is not a video encoder",
 		     obs_encoder_get_name(encoder));
@@ -826,7 +846,7 @@ audio_t *obs_encoder_audio(const obs_encoder_t *encoder)
 	if (!obs_encoder_valid(encoder, "obs_encoder_audio"))
 		return NULL;
 	if (encoder->info.type != OBS_ENCODER_AUDIO) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs_encoder_set_audio: "
 		     "encoder '%s' is not an audio encoder",
 		     obs_encoder_get_name(encoder));
@@ -926,7 +946,7 @@ void send_off_encoder_packet(obs_encoder_t *encoder, bool success,
 			     bool received, struct encoder_packet *pkt)
 {
 	if (!success) {
-		blog(LOG_ERROR, "Error encoding with encoder '%s'",
+		plog(LOG_ERROR, "Error encoding with encoder '%s'",
 		     encoder->context.name);
 		full_stop(encoder);
 		return;
@@ -969,9 +989,16 @@ bool do_encode(struct obs_encoder *encoder, struct encoder_frame *frame)
 			profile_store_name(obs_get_profiler_name_store(),
 					   "encode(%s)", encoder->context.name);
 
-	struct encoder_packet pkt = {0};
+	//PRISM/LiuHaibin/20210622/#None/Immersive audio
+	struct encoder_packet pkt = {0, .track_idx = encoder->mixer_idx};
 	bool received = false;
 	bool success;
+
+	if (encoder->reconfigure_requested) {
+		encoder->reconfigure_requested = false;
+		encoder->info.update(encoder->context.data,
+				     encoder->context.settings);
+	}
 
 	pkt.timebase_num = encoder->timebase_num;
 	pkt.timebase_den = encoder->timebase_den;
@@ -1420,7 +1447,8 @@ void obs_encoder_addref(obs_encoder_t *encoder)
 		return;
 
 	//PRISM/WangShaohui/20201030/#5529/monitor invalid reference
-	obs_ref_addref(&encoder->control->ref, encoder->info.id, NULL);
+	obs_ref_addref(&encoder->control->ref, encoder->info.id,
+		       obs_encoder_get_name(encoder), encoder);
 }
 
 void obs_encoder_release(obs_encoder_t *encoder)
@@ -1433,6 +1461,10 @@ void obs_encoder_release(obs_encoder_t *encoder)
 		// The order of operations is important here since
 		// get_context_by_name in obs.c relies on weak refs
 		// being alive while the context is listed
+		plog(LOG_INFO,
+		     "%s encoder %p (id %s, name %s) is about to destroy.",
+		     TRACE_ENCODER, encoder, obs_encoder_get_id(encoder),
+		     obs_encoder_get_name(encoder));
 		obs_encoder_destroy(encoder);
 		obs_weak_encoder_release(control);
 	}
@@ -1522,4 +1554,69 @@ bool obs_encoder_paused(const obs_encoder_t *encoder)
 	return obs_encoder_valid(encoder, "obs_encoder_paused")
 		       ? os_atomic_load_bool(&encoder->paused)
 		       : false;
+}
+
+//PRISM/ZengQin/20210526/#none/Get encoder properties parameters
+obs_data_t *obs_encoder_get_props_params(obs_encoder_t *encoder)
+{
+	if (!obs_encoder_valid(encoder, "obs_encoder_get_props_params"))
+		return NULL;
+
+	if (!encoder->info.props_params)
+		return NULL;
+
+	return encoder->info.props_params(encoder->context.data);
+}
+
+long obs_encoder_ref_count(const obs_encoder_t *encoder)
+{
+	if (!encoder)
+		return -1;
+	return encoder->control->ref.refs;
+}
+
+//PRISM/LiuHaibin/20210906/#None/Pre-check encoders
+static inline bool obs_encoder_try_initialize_internal(obs_encoder_t *encoder)
+{
+	if (encoder_active(encoder))
+		return true;
+
+	obs_encoder_shutdown(encoder);
+
+	if (encoder->orig_info.create) {
+		can_reroute = true;
+		encoder->info = encoder->orig_info;
+		encoder->context.data = encoder->orig_info.create(
+			encoder->context.settings, encoder);
+		can_reroute = false;
+	}
+	if (!encoder->context.data)
+		return false;
+
+	obs_encoder_shutdown(encoder);
+
+	return true;
+}
+
+//PRISM/LiuHaibin/20210906/#None/Pre-check encoders
+static bool obs_encoder_try_initialize(obs_encoder_t *encoder)
+{
+	bool success;
+
+	if (!encoder)
+		return false;
+
+	pthread_mutex_lock(&encoder->init_mutex);
+	success = obs_encoder_try_initialize_internal(encoder);
+	pthread_mutex_unlock(&encoder->init_mutex);
+
+	return success;
+}
+
+//PRISM/LiuHaibin/20210906/#None/Pre-check encoders
+bool obs_encoder_avaliable(obs_encoder_t *encoder)
+{
+	if (!obs_encoder_valid(encoder, "obs_encoder_avaliable"))
+		return false;
+	return obs_encoder_try_initialize(encoder);
 }

@@ -30,7 +30,7 @@ public:
 	enum ItemDataRole { ChannelItemData = Qt::UserRole + 1 };
 
 public slots:
-	void on_ChannelsListCombox_currentIndexChanged(const QString &arg1);
+	void on_ChannelsListCombox_currentIndexChanged(const QString &);
 	void onSelectionChanged(const QString &uuid, bool isSelected);
 	void on_ApplySettingsBtn_clicked();
 	void on_Cancel_clicked();
@@ -54,13 +54,13 @@ private:
 class GeometryDelegate : public QStyledItemDelegate {
 	Q_OBJECT
 public:
-	GeometryDelegate(QWidget *parent = nullptr) {}
+	GeometryDelegate(QWidget *parent = nullptr) : QStyledItemDelegate(parent) {}
 
-	virtual void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const override
+	virtual void updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &) const override
 	{
 		auto itemRec = option.rect;
 		auto itemCenter = itemRec.center();
-		auto editorRec = editor->geometry();
+		QRect editorRec = editor->geometry();
 		editorRec.moveCenter(itemCenter);
 		editor->setGeometry(editorRec);
 	}

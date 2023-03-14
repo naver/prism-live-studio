@@ -21,15 +21,17 @@
 #include <media-io/video-io.h>
 #include <obs-module.h>
 #include <obs-avc.h>
+#include <obs-hevc.h>
 
 #include <libavutil/opt.h>
 #include <libavutil/pixdesc.h>
 #include <libavformat/avformat.h>
 
 #include "obs-ffmpeg-formats.h"
+#include "jim-nvenc.h"
 
 #define do_log(level, format, ...)                   \
-	blog(level, "[NVENC encoder: '%s'] " format, \
+	plog(level, "[NVENC encoder: '%s'] " format, \
 	     obs_encoder_get_name(enc->encoder), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
@@ -55,12 +57,22 @@ struct nvenc_encoder {
 	int height;
 	bool first_packet;
 	bool initialized;
+
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	bool is_h265_encoder;
 };
 
 static const char *nvenc_getname(void *unused)
 {
 	UNUSED_PARAMETER(unused);
 	return "NVIDIA NVENC H.264";
+}
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+static const char *nvenc_hevc_getname(void *unused)
+{
+	UNUSED_PARAMETER(unused);
+	return "NVIDIA NVENC H.265";
 }
 
 static inline bool valid_format(enum video_format format)
@@ -132,6 +144,11 @@ static bool nvenc_update(void *data, obs_data_t *settings)
 	bool cbr_override = obs_data_get_bool(settings, "cbr");
 	int bf = (int)obs_data_get_int(settings, "bf");
 
+	//PRISM/Wangshaohui/20210311/#7016/remove b frames
+	if (enc->is_h265_encoder) {
+		bf = 0;
+	}
+
 	video_t *video = obs_encoder_video(enc->encoder);
 	const struct video_output_info *voi = video_output_get_info(video);
 	struct video_scale_info info;
@@ -201,9 +218,11 @@ static bool nvenc_update(void *data, obs_data_t *settings)
 					    : AVCOL_RANGE_MPEG;
 	enc->context->max_b_frames = bf;
 
+	//PRISM/LiuHaibin/20210803/#9045/add protection division operation
 	if (keyint_sec)
 		enc->context->gop_size =
-			keyint_sec * voi->fps_num / voi->fps_den;
+			voi->fps_den ? keyint_sec * voi->fps_num / voi->fps_den
+				     : keyint_sec * 30;
 	else
 		enc->context->gop_size = 250;
 
@@ -293,7 +312,48 @@ static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder)
 		enc->nvenc = avcodec_find_encoder_by_name("nvenc_h264");
 	enc->first_packet = true;
 
-	blog(LOG_INFO, "---------------------------------");
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	enc->is_h265_encoder = false;
+
+	plog(LOG_INFO, "---------------------------------");
+
+	if (!enc->nvenc) {
+		warn("Couldn't find encoder");
+		goto fail;
+	}
+
+	enc->context = avcodec_alloc_context3(enc->nvenc);
+	if (!enc->context) {
+		warn("Failed to create codec context");
+		goto fail;
+	}
+
+	if (!nvenc_update(enc, settings))
+		goto fail;
+
+	return enc;
+
+fail:
+	nvenc_destroy(enc);
+	return NULL;
+}
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+static void *nvenc_hevc_create(obs_data_t *settings, obs_encoder_t *encoder)
+{
+	struct nvenc_encoder *enc;
+
+#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
+	avcodec_register_all();
+#endif
+
+	enc = bzalloc(sizeof(*enc));
+	enc->encoder = encoder;
+	enc->nvenc = avcodec_find_encoder_by_name("hevc_nvenc");
+	enc->first_packet = true;
+	enc->is_h265_encoder = true;
+
+	plog(LOG_INFO, "---------------------------------");
 
 	if (!enc->nvenc) {
 		warn("Couldn't find encoder");
@@ -379,10 +439,18 @@ static bool nvenc_encode(void *data, struct encoder_frame *frame,
 			size_t size;
 
 			enc->first_packet = false;
-			obs_extract_avc_headers(av_pkt.data, av_pkt.size,
-						&new_packet, &size,
-						&enc->header, &enc->header_size,
-						&enc->sei, &enc->sei_size);
+			//PRISM/Wangshaohui/20201230/#3786/support HEVC
+			if (enc->is_h265_encoder) {
+				obs_extract_hevc_headers(
+					av_pkt.data, av_pkt.size, &new_packet,
+					&size, &enc->header, &enc->header_size,
+					&enc->sei, &enc->sei_size);
+			} else {
+				obs_extract_avc_headers(
+					av_pkt.data, av_pkt.size, &new_packet,
+					&size, &enc->header, &enc->header_size,
+					&enc->sei, &enc->sei_size);
+			}
 
 			da_copy_array(enc->buffer, new_packet, size);
 			bfree(new_packet);
@@ -395,7 +463,15 @@ static bool nvenc_encode(void *data, struct encoder_frame *frame,
 		packet->data = enc->buffer.array;
 		packet->size = enc->buffer.num;
 		packet->type = OBS_ENCODER_VIDEO;
-		packet->keyframe = obs_avc_keyframe(packet->data, packet->size);
+
+		//PRISM/Wangshaohui/20201230/#3786/support HEVC
+		if (enc->is_h265_encoder) {
+			packet->keyframe =
+				obs_hevc_keyframe(packet->data, packet->size);
+		} else {
+			packet->keyframe =
+				obs_avc_keyframe(packet->data, packet->size);
+		}
 		*received_packet = true;
 	} else {
 		*received_packet = false;
@@ -415,6 +491,21 @@ void nvenc_defaults(obs_data_t *settings)
 	obs_data_set_default_string(settings, "rate_control", "CBR");
 	obs_data_set_default_string(settings, "preset", "hq");
 	obs_data_set_default_string(settings, "profile", "high");
+	obs_data_set_default_bool(settings, "psycho_aq", true);
+	obs_data_set_default_int(settings, "gpu", 0);
+	obs_data_set_default_int(settings, "bf", 0);
+}
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+void nvenc_hevc_defaults(obs_data_t *settings)
+{
+	obs_data_set_default_int(settings, "bitrate", HEVC_DEFAULT_BITRATT);
+	obs_data_set_default_int(settings, "max_bitrate", HEVC_DEFAULT_BITRATT);
+	obs_data_set_default_int(settings, "keyint_sec", HEVC_KEYFRAME_SEC);
+	obs_data_set_default_int(settings, "cqp", HEVC_DEFAULT_CQP);
+	obs_data_set_default_string(settings, "rate_control", "CBR");
+	obs_data_set_default_string(settings, "preset", "hq");
+	obs_data_set_default_string(settings, "profile", "main");
 	obs_data_set_default_bool(settings, "psycho_aq", true);
 	obs_data_set_default_int(settings, "gpu", 0);
 	obs_data_set_default_int(settings, "bf", 0);
@@ -447,7 +538,42 @@ static bool rate_control_modified(obs_properties_t *ppts, obs_property_t *p,
 	return true;
 }
 
-obs_properties_t *nvenc_properties_internal(bool ffmpeg)
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+// defined in ffmpeg
+static const char *const nvenc_hevc_profile_list[] = {
+	"main",
+	"main10",
+	"rext",
+	NULL,
+};
+
+//PRISM/Wangshaohui/20210311/#7022/limit max gpu
+int nvenc_get_max_gpu()
+{
+	int nvidia_count = 0;
+	obs_enter_graphics();
+	gs_adapters_info_t *adapterInfo = gs_adapter_get_info();
+	if (adapterInfo) {
+		for (size_t i = 0; i < adapterInfo->adapters.num; i++) {
+			struct adapter_info info =
+				adapterInfo->adapters.array[i];
+			if (wstrstri(info.description, L"nvidia") &&
+			    !is_blacklisted(info.description)) {
+				++nvidia_count;
+			}
+		}
+	}
+	obs_leave_graphics();
+
+	int max_gpu = 0;
+	if (nvidia_count > 1) {
+		max_gpu = nvidia_count - 1;
+	}
+
+	return max_gpu;
+}
+
+obs_properties_t *nvenc_properties_internal(bool ffmpeg, bool is_h265)
 {
 	obs_properties_t *props = obs_properties_create();
 	obs_property_t *p;
@@ -502,11 +628,20 @@ obs_properties_t *nvenc_properties_internal(bool ffmpeg)
 				    OBS_COMBO_TYPE_LIST,
 				    OBS_COMBO_FORMAT_STRING);
 
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	if (is_h265) {
+		for (size_t i = 0; nvenc_hevc_profile_list[i] != NULL; i++) {
+			obs_property_list_add_string(
+				p, nvenc_hevc_profile_list[i],
+				nvenc_hevc_profile_list[i]);
+		}
+	} else {
 #define add_profile(val) obs_property_list_add_string(p, val, val)
-	add_profile("high");
-	add_profile("main");
-	add_profile("baseline");
+		add_profile("high");
+		add_profile("main");
+		add_profile("baseline");
 #undef add_profile
+	}
 
 	if (!ffmpeg) {
 		p = obs_properties_add_bool(props, "lookahead",
@@ -521,10 +656,18 @@ obs_properties_t *nvenc_properties_internal(bool ffmpeg)
 			p, obs_module_text("NVENC.PsychoVisualTuning.ToolTip"));
 	}
 
-	obs_properties_add_int(props, "gpu", obs_module_text("GPU"), 0, 8, 1);
+	//PRISM/Wangshaohui/20210311/#7022/limit max gpu
+	int min = 0;
+	int max = nvenc_get_max_gpu();
+	obs_property_t *gpu_property = obs_properties_add_int(
+		props, "gpu", obs_module_text("GPU"), min, max, 1);
+	obs_property_set_enabled(gpu_property, min < max);
 
-	obs_properties_add_int(props, "bf", obs_module_text("BFrames"), 0, 4,
-			       1);
+	//PRISM/Wangshaohui/20210311/#7016/remove b frames
+	if (!is_h265) {
+		obs_properties_add_int(props, "bf", obs_module_text("BFrames"),
+				       0, 4, 1);
+	}
 
 	return props;
 }
@@ -532,13 +675,29 @@ obs_properties_t *nvenc_properties_internal(bool ffmpeg)
 obs_properties_t *nvenc_properties(void *unused)
 {
 	UNUSED_PARAMETER(unused);
-	return nvenc_properties_internal(false);
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	return nvenc_properties_internal(false, false);
 }
 
 obs_properties_t *nvenc_properties_ffmpeg(void *unused)
 {
 	UNUSED_PARAMETER(unused);
-	return nvenc_properties_internal(true);
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	return nvenc_properties_internal(true, false);
+}
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+obs_properties_t *nvenc_properties_hevc(void *unused)
+{
+	UNUSED_PARAMETER(unused);
+	return nvenc_properties_internal(false, true);
+}
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+obs_properties_t *nvenc_properties_ffmpeg_hevc(void *unused)
+{
+	UNUSED_PARAMETER(unused);
+	return nvenc_properties_internal(true, true);
 }
 
 static bool nvenc_extra_data(void *data, uint8_t **extra_data, size_t *size)
@@ -559,6 +718,58 @@ static bool nvenc_sei_data(void *data, uint8_t **extra_data, size_t *size)
 	return true;
 }
 
+//PRISM/ZengQin/20210528/#none/get encoder props params
+static obs_data_t *nvenc_props_prams(void *data)
+{
+	if (!data)
+		return NULL;
+
+	struct nvenc_encoder *enc = data;
+	obs_data_t *settings = obs_encoder_get_settings(enc->encoder);
+	int bitrate = (int)obs_data_get_int(settings, "bitrate");
+	const char *rc = obs_data_get_string(settings, "rate_control");
+	int cqp = (int)obs_data_get_int(settings, "cqp");
+	const char *preset = obs_data_get_string(settings, "preset");
+	const char *profile = obs_data_get_string(settings, "profile");
+	int gpu = (int)obs_data_get_int(settings, "gpu");
+	bool cbr_override = obs_data_get_bool(settings, "cbr");
+	obs_data_release(settings);
+
+	if (cbr_override) {
+		rc = "CBR";
+	}
+
+	if (astrcmpi(rc, "cqp") == 0) {
+		bitrate = 0;
+
+	} else if (astrcmpi(rc, "lossless") == 0) {
+		bitrate = 0;
+		cqp = 0;
+	} else if (astrcmpi(rc, "vbr") != 0) { /* CBR by default */
+		cqp = 0;
+	}
+
+	bool twopass = false;
+	if (astrcmpi(preset, "mq") == 0) {
+		twopass = true;
+		preset = "hq";
+	}
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_string(params, "rate_control", rc);
+	obs_data_set_int(params, "bitrate", bitrate);
+	obs_data_set_int(params, "cqp", cqp);
+	obs_data_set_int(params, "keyint", enc->context->gop_size);
+	obs_data_set_string(params, "preset", preset);
+	obs_data_set_string(params, "profile", profile);
+	obs_data_set_int(params, "width", enc->context->width);
+	obs_data_set_int(params, "height", enc->context->height);
+	obs_data_set_string(params, "2-pass", twopass ? "true" : "false");
+	obs_data_set_int(params, "bframes", enc->context->max_b_frames);
+	obs_data_set_int(params, "GPU", gpu);
+	return params;
+}
+
 struct obs_encoder_info nvenc_encoder_info = {
 	.id = "ffmpeg_nvenc",
 	.type = OBS_ENCODER_VIDEO,
@@ -573,5 +784,35 @@ struct obs_encoder_info nvenc_encoder_info = {
 	.get_extra_data = nvenc_extra_data,
 	.get_sei_data = nvenc_sei_data,
 	.get_video_info = nvenc_video_info,
+#ifdef _WIN32
+	.caps = OBS_ENCODER_CAP_DYN_BITRATE | OBS_ENCODER_CAP_INTERNAL,
+#else
 	.caps = OBS_ENCODER_CAP_DYN_BITRATE,
+#endif
+	//PRISM/ZengQin/20210528/#none/get encoder props params
+	.props_params = nvenc_props_prams,
+};
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+struct obs_encoder_info nvenc_hevc_encoder_info = {
+	.id = "ffmpeg_nvenc_hevc",
+	.type = OBS_ENCODER_VIDEO,
+	.codec = "hevc",
+	.get_name = nvenc_hevc_getname,
+	.create = nvenc_hevc_create,
+	.destroy = nvenc_destroy,
+	.encode = nvenc_encode,
+	.update = nvenc_reconfigure,
+	.get_defaults = nvenc_hevc_defaults,
+	.get_properties = nvenc_properties_ffmpeg_hevc,
+	.get_extra_data = nvenc_extra_data,
+	.get_sei_data = nvenc_sei_data,
+	.get_video_info = nvenc_video_info,
+#ifdef _WIN32
+	.caps = OBS_ENCODER_CAP_DYN_BITRATE | OBS_ENCODER_CAP_INTERNAL,
+#else
+	.caps = OBS_ENCODER_CAP_DYN_BITRATE,
+#endif
+	//PRISM/ZengQin/20210528/#none/get encoder props params
+	.props_params = nvenc_props_prams,
 };

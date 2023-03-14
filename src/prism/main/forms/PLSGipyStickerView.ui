@@ -63,7 +63,7 @@
          <enum>Qt::NoFocus</enum>
         </property>
         <property name="text">
-         <string>main.giphy.search.cancel</string>
+         <string>Cancel</string>
         </property>
        </widget>
       </item>

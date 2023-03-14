@@ -134,8 +134,19 @@ typedef struct GPopInfo {
 	Optional optional;
 	long long buildData;
 } GpopInfo;
-typedef struct VliveNotice {
+struct VliveNotice {
 	QString version;
 	bool isNeedNotice;
 	QString pageUrl;
 };
+struct BlackList {
+	QVector<QString> gpuModels;
+	QVector<QString> graphicsDrivers;
+	QVector<QString> deviceDrivers;
+	QVector<QString> thirdPartyPlugins;
+	QVector<QString> vstPlugins;
+	QVector<QString> thirdPartyPrograms;
+	QMap<QString, QString> exceptionTypes;
+	bool isEmpty = true;
+};
+using ResolutionGuide = QVariantMap;

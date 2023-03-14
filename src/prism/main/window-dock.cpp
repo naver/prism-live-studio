@@ -66,11 +66,11 @@ PLSDockTitle::PLSDockTitle(PLSDock *parent) : QFrame(parent), dock(parent)
 
 	buttonsLayout = new QHBoxLayout();
 	buttonsLayout->setSpacing(contentSpacing);
-	buttonsLayout->setMargin(0);
+	buttonsLayout->setContentsMargins(0, 0, 0, 0);
 
 	QHBoxLayout *l = new QHBoxLayout(this);
 	l->setSpacing(contentSpacing);
-	l->setMargin(1);
+	l->setContentsMargins(1, 1, 1, 1);
 	l->addWidget(titleLabel, 1);
 	l->addLayout(buttonsLayout);
 	l->addWidget(advButton);
@@ -78,7 +78,7 @@ PLSDockTitle::PLSDockTitle(PLSDock *parent) : QFrame(parent), dock(parent)
 	advButton->hide();
 	titleLabel->installEventFilter(this);
 
-	connect(parent, &QWidget::windowTitleChanged, titleLabel, &QLabel::setText);
+	connect(parent, &QWidget::windowTitleChanged, titleLabel, [this](const QString &title) { updateTitle(titleLabel->width(), title); });
 	connect(advButton, &QToolButton::clicked, [this]() {
 		if (advButtonMenu) {
 			advButtonMenu->exec(QCursor::pos());
@@ -218,6 +218,11 @@ void PLSDockTitle::setButtonPropertiesFromAction(QToolButton *button, QAction *a
 	pls_flush_style(button);
 }
 
+void PLSDockTitle::updateTitle(int width, const QString &title)
+{
+	titleLabel->setText(titleLabel->fontMetrics().elidedText(title.isEmpty() ? dock->windowTitle() : title, Qt::ElideRight, width));
+}
+
 QSize PLSDockTitle::minimumSizeHint() const
 {
 	QSize result(DOCK_WIDGET_MIN_WIDTH, captionHeight);
@@ -243,7 +248,7 @@ void PLSDockTitle::mouseReleaseEvent(QMouseEvent *event)
 bool PLSDockTitle::eventFilter(QObject *watched, QEvent *event)
 {
 	if (titleLabel == watched && event->type() == QEvent::Resize) {
-		titleLabel->setText(titleLabel->fontMetrics().elidedText(dock->windowTitle(), Qt::ElideRight, dynamic_cast<QResizeEvent *>(event)->size().width()));
+		updateTitle(dynamic_cast<QResizeEvent *>(event)->size().width());
 	}
 	return QFrame::eventFilter(watched, event);
 }
@@ -491,7 +496,7 @@ void PLSDock::closeEvent(QCloseEvent *event)
 	hide();
 }
 
-void PLSDock::paintEvent(QPaintEvent *event)
+void PLSDock::paintEvent(QPaintEvent *)
 {
 	QStylePainter painter(this);
 	if (isFloating() || isMoving()) {

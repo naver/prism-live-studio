@@ -7,6 +7,9 @@
 #include <QPixmap>
 #include <QWidgetAction>
 #include <Vector>
+
+#include <QTextLayout>
+
 #include "../PLSLiveInfoDialogs.h"
 #include "../PLSPlatformApi.h"
 #include "ChannelCommonFunctions.h"
@@ -19,71 +22,187 @@
 
 static const char *liveInfoMoudule = "PLSLiveInfoVLive";
 
-PLSLiveInfoVLive::PLSLiveInfoVLive(PLSPlatformBase *pPlatformBase, QWidget *parent, PLSDpiHelper dpiHelper) : PLSLiveInfoBase(pPlatformBase, parent, dpiHelper), ui(new Ui::PLSLiveInfoVLive)
+PLSLiveInfoVLive::PLSLiveInfoVLive(PLSPlatformBase *pPlatformBase, QWidget *parent, PLSDpiHelper dpiHelper)
+	: PLSLiveInfoBase(pPlatformBase, parent, dpiHelper), ui(new Ui::PLSLiveInfoVLive), m_platform(dynamic_cast<PLSPlatformVLive *>(pPlatformBase))
 {
-	dpiHelper.setCss(this, {PLSCssIndex::PLSLiveInfoVLive, PLSCssIndex::PLSFanshipWidget});
-	dpiHelper.setFixedSize(this, {720, 550});
+	dpiHelper.setCss(this, {PLSCssIndex::PLSLiveInfoVLive});
+
 	dpiHelper.notifyDpiChanged(this, [this](double, double, bool firstShow) {
 		if (firstShow) {
 			QMetaObject::invokeMethod(
 				this, [this] { pls_flush_style(ui->lineEditTitle); }, Qt::QueuedConnection);
 		}
 	});
-
 	PLS_INFO(liveInfoMoudule, "VLive liveinfo Will show");
 	ui->setupUi(this->content());
 
 	setHasCloseButton(false);
 	setHasBorder(true);
-	this->setWindowTitle(tr("LiveInfo.Dialog.Title"));
+	this->setWindowTitle(tr("LiveInfo.liveinformation"));
 
 	ui->scheCombox->setFocusPolicy(Qt::NoFocus);
+	ui->profileCombox->setFocusPolicy(Qt::NoFocus);
+	ui->boardCombox->setFocusPolicy(Qt::NoFocus);
 	content()->setFocusPolicy(Qt::StrongFocus);
 
-	PLS_PLATFORM_VLIVE->liveInfoisShowing();
-	m_enteredID = PLS_PLATFORM_VLIVE->getSelectData()._id;
+	m_platform->liveInfoisShowing();
+	m_enteredID = m_platform->getSelectData()._id;
 
 	setupFirstUI();
 
-	auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-	pPlatformVLive->setAlertParent(this);
-
+	m_platform->setAlertParent(this);
 	updateStepTitle(ui->okButton);
-
 	if (!PLS_PLATFORM_API->isPrepareLive()) {
 		ui->bottomButtonWidget->layout()->addWidget(ui->cancelButton);
 		ui->rehearsalButton->setHidden(true);
 	}
-
-	updateUIEnabel();
 }
 
 PLSLiveInfoVLive::~PLSLiveInfoVLive()
 {
 	delete ui;
 }
-void PLSLiveInfoVLive::updateUIEnabel()
+void PLSLiveInfoVLive::updateUIEnable()
 {
 	doUpdateOkState();
+	ui->scheCombox->setButtonEnable(!m_platform->getTempProfileData().memberId.isEmpty());
 	if (PLS_PLATFORM_API->isLiving()) {
 		ui->thumbnailButton->setEnabled(false);
 		ui->scheCombox->setButtonEnable(false);
 		ui->lineEditTitle->setEnabled(false);
-		ui->fanshipWidget->setEnabled(false);
 	}
 }
+
+void PLSLiveInfoVLive::updateProfileAndBoardUI()
+{
+	auto &profileData = m_platform->getTempProfileData();
+	if (profileData.memberId.isEmpty()) {
+		ui->profileCombox->updateTitle(tr("LiveInfo.live.title.select.profile"));
+		if (m_platform->getTempBoardData().boardId > 0) {
+			m_platform->setTempBoardData(PLSVLiveBoardData());
+		}
+	} else {
+		ui->profileCombox->updateTitle(profileData.nickname);
+	}
+
+	auto &boardData = m_platform->getTempBoardData();
+	bool isNotSelectBoard = boardData.boardId <= 0;
+	ui->userWidget->setHidden(isNotSelectBoard);
+	if (isNotSelectBoard) {
+		ui->boardCombox->updateTitle(tr("LiveInfo.live.title.select.board"));
+	} else {
+		ui->boardCombox->updateTitle(boardData.title);
+	}
+
+	if (profileData.memberId.isEmpty() || m_platform->getIsTempSchedule()) {
+		ui->boardCombox->setButtonEnable(false);
+	} else {
+		ui->boardCombox->setButtonEnable(true);
+	}
+
+	if (PLS_PLATFORM_API->isLiving()) {
+		ui->profileCombox->setButtonEnable(false);
+		ui->boardCombox->setButtonEnable(false);
+	}
+
+	ui->userBoardLeftLabel->setHidden(isNotSelectBoard);
+	ui->usrLabel->setHidden(isNotSelectBoard);
+	ui->boardTipLabel->setHidden(isNotSelectBoard);
+
+	if (isNotSelectBoard) {
+		ui->countryLeftLabel->setHidden(isNotSelectBoard);
+		ui->countryLabel->setHidden(isNotSelectBoard);
+	} else {
+		updateBoardUserLabelElid();
+		updateCountryLabels();
+	}
+}
+
+void PLSLiveInfoVLive::updateBoardUserLabelElid()
+{
+	if (ui->usrLabel->isHidden()) {
+		return;
+	}
+
+	const auto &text = m_platform->getTempBoardData().readAllowedLabel;
+
+	const static int maxLineLimit = 2;
+	QFontMetrics fontWidth(ui->usrLabel->font());
+	QTextLayout textLayout(text);
+	textLayout.setFont(ui->usrLabel->font());
+	int widthTotal = 0;
+	int lineCount = 0;
+
+	textLayout.beginLayout();
+	while (++lineCount <= maxLineLimit) {
+		QTextLine line = textLayout.createLine();
+		if (!line.isValid())
+			break;
+		line.setLineWidth(ui->usrLabel->width());
+		widthTotal += line.naturalTextWidth();
+	}
+	textLayout.endLayout();
+
+	QString elidedText = fontWidth.elidedText(text, Qt::ElideRight, widthTotal);
+	ui->usrLabel->setText(elidedText);
+}
+
+void PLSLiveInfoVLive::updateCountryLabels()
+{
+
+	auto &boardData = m_platform->getTempBoardData();
+	const auto &includedCountries = boardData.includedCountries;
+	QStringList countriesList;
+	for (int i = 0; i < includedCountries.size(); i++) {
+		countriesList << includedCountries[i].toString();
+	}
+
+	const auto &excludedCountries = boardData.excludedCountries;
+
+	QJsonArray selectCoun;
+	if (!excludedCountries.isEmpty()) {
+		ui->countryLeftLabel->setText(tr("LiveInfo.live.title.board.country.unlist"));
+		selectCoun = excludedCountries;
+	} else if (!includedCountries.isEmpty()) {
+		ui->countryLeftLabel->setText(tr("LiveInfo.live.title.board.country.list"));
+		selectCoun = includedCountries;
+	}
+
+	if (!selectCoun.isEmpty()) {
+		auto showStr = selectCoun[0].toString();
+		showStr = PLSVliveStatic::instance()->convertToFullName(showStr);
+		if (selectCoun.size() - 1 > 0) {
+			showStr.append(tr("LiveInfo.live.title.board.country.other").arg(selectCoun.size() - 1));
+		}
+		ui->countryLabel->setText(showStr);
+	}
+	bool willHidden = includedCountries.isEmpty() && excludedCountries.isEmpty();
+
+	if (willHidden) {
+		ui->userFormLayout->removeWidget(ui->countryLeftLabel);
+		ui->userFormLayout->removeWidget(ui->countryLabel);
+	} else {
+		ui->userFormLayout->insertRow(2, ui->countryLeftLabel, ui->countryLabel);
+	}
+
+	ui->countryLeftLabel->setHidden(willHidden);
+	ui->countryLabel->setHidden(willHidden);
+}
+
+void PLSLiveInfoVLive::getBoardDetailData()
+{
+	//m_platform->requestBoardDetail([=](bool) { /*updateBoardUserLabelElid();*/ }, this);
+}
+
 void PLSLiveInfoVLive::setupFirstUI()
 {
-	/*auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-	if (nullptr == pPlatformVLive) {
-		return; 
-	}*/
-	auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-	const auto &shipDatas = pPlatformVLive->getTempSelectData().fanshipDatas;
-	ui->fanshipWidget->setupDatas(shipDatas);
+	ui->profileLabel->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("LiveInfo.profile.title")));
+	ui->boardLabel->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("LiveInfo.board.title")));
 
-	ui->lineEditTitle->setText(pPlatformVLive->getTempSelectData().title);
-	ui->lineEditTitle->setPlaceholderText(pPlatformVLive->getDefaultTitle());
+	ui->lineEditTitle->setText(m_platform->getTempSelectData().title);
+	ui->titleWidget->layout()->addWidget(createResolutionButtonsFrame());
+
+	ui->uerScrollArea->verticalScrollBar()->setEnabled(false);
 
 	refreshUI();
 	ui->lineEditTitle->setCursorPosition(0);
@@ -95,18 +214,22 @@ void PLSLiveInfoVLive::setupFirstUI()
 	connect(ui->scheCombox, &PLSScheduleCombox::menuItemClicked, this, &PLSLiveInfoVLive::scheduleItemClick);
 	connect(ui->scheCombox, &PLSScheduleCombox::menuItemExpired, this, &PLSLiveInfoVLive::scheduleItemExpired);
 
-	connect(ui->fanshipWidget, &PLSFanshipWidget::shipBoxClick, this, &PLSLiveInfoVLive::fanshipButtonClicked);
+	connect(ui->profileCombox, &PLSScheduleCombox::pressed, this, &PLSLiveInfoVLive::profileComboxClicked);
+	connect(ui->profileCombox, &PLSScheduleCombox::menuItemClicked, this, &PLSLiveInfoVLive::profileMenuItemClick);
 
-	connect(ui->lineEditTitle, &QLineEdit::textChanged, this, &PLSLiveInfoVLive::titleEdited);
+	connect(ui->boardCombox, &PLSScheduleCombox::pressed, this, &PLSLiveInfoVLive::boardComboxClicked);
+	connect(ui->boardCombox, &PLSScheduleCombox::menuItemClicked, this, &PLSLiveInfoVLive::boardMenuItemClick);
+
+	connect(ui->lineEditTitle, &QLineEdit::textChanged, this, &PLSLiveInfoVLive::titleEdited, Qt::QueuedConnection);
 
 	connect(ui->rehearsalButton, &QPushButton::clicked, this, &PLSLiveInfoVLive::rehearsalButtonClicked);
 	connect(ui->okButton, &QPushButton::clicked, this, &PLSLiveInfoVLive::okButtonClicked);
 	connect(ui->cancelButton, &QPushButton::clicked, this, &PLSLiveInfoVLive::cancelButtonClicked);
 	connect(
-		pPlatformVLive, &PLSPlatformVLive::closeDialogByExpired, this, [=]() { reject(); }, Qt::DirectConnection);
+		m_platform, &PLSPlatformVLive::closeDialogByExpired, this, [=]() { reject(); }, Qt::DirectConnection);
 
 	connect(
-		pPlatformVLive, &PLSPlatformVLive::toShowLoading, this,
+		m_platform, &PLSPlatformVLive::toShowLoading, this,
 		[=](bool isShow) {
 			if (isShow) {
 				showLoading(this->content());
@@ -116,6 +239,7 @@ void PLSLiveInfoVLive::setupFirstUI()
 			}
 		},
 		Qt::DirectConnection);
+	connect(m_platform, &PLSPlatformVLive::profileIsInvalid, this, &PLSLiveInfoVLive::refreshUI, Qt::DirectConnection);
 }
 
 void PLSLiveInfoVLive::showEvent(QShowEvent *event)
@@ -124,53 +248,66 @@ void PLSLiveInfoVLive::showEvent(QShowEvent *event)
 	showLoading(content());
 
 	__super::showEvent(event);
-	refreshFanshipView();
 
 	auto _onNext = [=](bool value) {
 		hideLoading();
 
-		if (!value && !PLS_PLATFORM_API->isPrepareLive()) {
+		if (!value) {
 			reject();
 		}
 	};
+	if (m_platform->getSelectData().isNormalLive || PLS_PLATFORM_API->isLiving()) {
+		_onNext(true);
+		return;
+	}
 
-	_onNext(true);
+	m_platform->requestUpdateScheduleList(
+		[=](bool isSucceed, bool isDelete) {
+			if (!isSucceed) {
+				_onNext(false);
+				return;
+			}
+
+			if (isDelete) {
+				m_platform->reInitLiveInfo(true, true);
+			} else {
+				m_platform->setSelectDataByID(m_platform->getSelectID());
+			}
+			m_platform->liveInfoisShowing();
+			refreshUI();
+			_onNext(true);
+		},
+		this);
 }
 
 void PLSLiveInfoVLive::refreshUI()
 {
 	refreshTitleEdit();
 	refreshSchedulePopButton();
-	refreshFanshipView();
 	refreshThumbnailButton();
-	doUpdateOkState();
 
-	const auto &data = PLS_PLATFORM_VLIVE->getTempSelectData();
-	if (!data.thumRemoteUrl.isEmpty() && data.thumLocalPath.isEmpty()) {
-		PLS_PLATFORM_VLIVE->downloadThumImage([=]() { refreshThumbnailButton(); }, ui->thumbnailButton);
-	}
+	updateProfileAndBoardUI();
+	updateUIEnable();
 }
 
 void PLSLiveInfoVLive::refreshTitleEdit()
 {
-	auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-	auto data = pPlatformVLive->getTempSelectData();
-
+	const auto &data = m_platform->getTempSelectData();
+	bool isProfileSelect = !m_platform->getTempProfileData().memberId.isEmpty();
 	ui->lineEditTitle->setText(data.title);
-	ui->lineEditTitle->setEnabled(data.isNormalLive);
+	ui->lineEditTitle->setEnabled(data.isNormalLive && isProfileSelect);
 }
 void PLSLiveInfoVLive::refreshSchedulePopButton()
 {
 
-	auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-	auto data = pPlatformVLive->getTempSelectData();
+	const auto &data = m_platform->getTempSelectData();
 
 	PLSScheComboxItemData scheData = PLSScheComboxItemData();
-	scheData.title = data.isNormalLive ? tr("LiveInfo.Schedule.PopUp.New") : data.title;
+	scheData.title = data.isNormalLive ? tr("New") : data.title;
 	scheData._id = data._id;
 	scheData.type = data.isNormalLive ? PLSScheComboxItemType::Ty_NormalLive : PLSScheComboxItemType::Ty_Schedule;
 	scheData.time = data.startTimeShort;
-	scheData.isVliveUpcoming = data.isUpcoming;
+	scheData.isNewLive = data.isNewLive;
 	scheData.timeStamp = data.startTimeStamp;
 	scheData.endTimeStamp = data.endTimeStamp;
 	scheData.needShowTimeLeftTimer = PLS_PLATFORM_API->isLiving() ? false : true;
@@ -179,15 +316,11 @@ void PLSLiveInfoVLive::refreshSchedulePopButton()
 
 void PLSLiveInfoVLive::refreshThumbnailButton()
 {
-	ui->thumDetailLabel->setHidden(PLS_PLATFORM_VLIVE->getTempSelectData().isNormalLive);
-	auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-	auto data = pPlatformVLive->getTempSelectData();
-	ui->thumbnailButton->setImagePath(data.thumLocalPath);
-	if (!data.thumRemoteUrl.isEmpty() && data.thumLocalPath.isEmpty()) {
-		auto info = PLSCHANNELS_API->getChannelInfo(PLS_PLATFORM_VLIVE->getChannelUUID());
-		QString localFile = PLSAPIVLive::getLocalImageFile(data.thumRemoteUrl, info.value(ChannelData::g_channelName).toString());
-		ui->thumbnailButton->setImagePath(localFile);
-		pPlatformVLive->setThumLocalFile(localFile);
+	ui->thumDetailLabel->setHidden(m_platform->getTempSelectData().isNormalLive);
+	const auto &data = m_platform->getTempSelectData();
+	ui->thumbnailButton->setPixmap(data.pixMap);
+	if (!data.thumRemoteUrl.isEmpty() && data.pixMap.isNull()) {
+		m_platform->downloadThumImage([=]() { refreshThumbnailButton(); }, ui->thumbnailButton);
 	}
 	ui->thumbnailButton->setEnabled(data.isNormalLive);
 }
@@ -199,37 +332,36 @@ void PLSLiveInfoVLive::updateScheduleComboxItems()
 	}
 
 	m_vecItemDatas.clear();
-	auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-	for (auto data : pPlatformVLive->getScheduleDatas()) {
+	for (const auto &data : m_platform->getScheduleDatas()) {
 		PLSScheComboxItemData scheData = PLSScheComboxItemData();
 		scheData.title = data.title;
 		scheData._id = data._id;
 		scheData.type = PLSScheComboxItemType::Ty_Schedule;
 		scheData.time = data.startTimeUTC;
-		scheData.isVliveUpcoming = data.isUpcoming;
+		scheData.isNewLive = data.isNewLive;
 		scheData.timeStamp = data.startTimeStamp;
 		scheData.endTimeStamp = data.endTimeStamp;
 		scheData.needShowTimeLeftTimer = true;
 
-		if (data._id != pPlatformVLive->getTempSelectID()) {
+		if (data._id != m_platform->getTempSelectID()) {
 			m_vecItemDatas.push_back(scheData);
 		}
 	}
 
-	if (pPlatformVLive->getIsTempSchedule()) {
+	if (m_platform->getIsTempSchedule()) {
 		PLSScheComboxItemData nomarlData = PLSScheComboxItemData();
 		nomarlData._id = "";
-		nomarlData.title = tr("LiveInfo.Schedule.PopUp.New");
-		nomarlData.time = tr("LiveInfo.Schedule.PopUp.New");
+		nomarlData.title = tr("New");
+		nomarlData.time = "";
 		nomarlData.type = PLSScheComboxItemType::Ty_NormalLive;
 		m_vecItemDatas.insert(m_vecItemDatas.begin(), nomarlData);
 	}
 
 	{
-		//add a placehoder item, if item is 0, then will show this.
+		//add a placeholder item, if item is 0, then will show this.
 		PLSScheComboxItemData nomarlData = PLSScheComboxItemData();
 		nomarlData._id = "";
-		nomarlData.title = tr("LiveInfo.Schedule.PopUp.New");
+		nomarlData.title = tr("New");
 		nomarlData.time = tr("LiveInfo.Youtube.no.scheduled");
 		nomarlData.type = PLSScheComboxItemType::Ty_Placehoder;
 		m_vecItemDatas.insert(m_vecItemDatas.begin(), nomarlData);
@@ -238,35 +370,27 @@ void PLSLiveInfoVLive::updateScheduleComboxItems()
 	ui->scheCombox->showScheduleMenu(m_vecItemDatas);
 }
 
-void PLSLiveInfoVLive::refreshFanshipView()
-{
-	auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-	auto &data = pPlatformVLive->getTempSelectData();
-	auto shipDatas = data.fanshipDatas;
-	ui->fanshipWidget->setupDatas(shipDatas, !data.isNormalLive);
-}
-
 void PLSLiveInfoVLive::onImageSelected(const QString &imageFilePath)
 {
-	Q_UNUSED(imageFilePath)
-	doUpdateOkState();
+	if (QFile::exists(imageFilePath)) {
+		QFile::remove(imageFilePath);
+	}
+
+	updateUIEnable();
 }
 
 void PLSLiveInfoVLive::saveTempNormalDataWhenSwitch()
 {
-	PLSVLiveLiveinfoData &tempData = PLS_PLATFORM_VLIVE->getTempNormalData();
+	PLSVLiveLiveinfoData &tempData = m_platform->getTempNormalData();
 	tempData.title = ui->lineEditTitle->text();
-	tempData.thumLocalPath = ui->thumbnailButton->getImagePath();
-	vector<bool> boxChecks;
-	ui->fanshipWidget->getChecked(boxChecks);
-	for (size_t i = 0; i < tempData.fanshipDatas.size(); i++) {
-		tempData.fanshipDatas[i].isChecked = boxChecks[i];
-	}
+	tempData.pixMap = ui->thumbnailButton->getOriginalPixmap();
+	tempData.board = m_platform->getTempBoardData();
+	tempData.profile = m_platform->getTempProfileData();
 }
 
 void PLSLiveInfoVLive::okButtonClicked()
 {
-	PLS_PLATFORM_VLIVE->setIsRehearsal(false);
+	m_platform->setIsRehearsal(false);
 	PLS_UI_STEP(liveInfoMoudule, "VLIVE liveinfo OK Button Click", ACTION_CLICK);
 	saveDateWhenClickButton();
 }
@@ -281,21 +405,12 @@ void PLSLiveInfoVLive::rehearsalButtonClicked()
 {
 
 	PLS_UI_STEP(liveInfoMoudule, "VLIVE liveinfo Rehearsal Button Click", ACTION_CLICK);
-	PLS_PLATFORM_VLIVE->setIsRehearsal(true);
+	m_platform->setIsRehearsal(true);
 	saveDateWhenClickButton();
-}
-
-void PLSLiveInfoVLive::fanshipButtonClicked(int index)
-{
-	string log = "VLIVE liveinfo fanship Button Click with index:" + index;
-	PLS_UI_STEP(liveInfoMoudule, log.c_str(), ACTION_CLICK);
-	doUpdateOkState();
 }
 
 void PLSLiveInfoVLive::saveDateWhenClickButton()
 {
-	auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-
 	auto _onNext = [=](bool isSucceed) {
 		hideLoading();
 		PLS_INFO(liveInfoMoudule, "vlive liveinfo Save %s", (isSucceed ? "succeed" : "failed"));
@@ -306,16 +421,13 @@ void PLSLiveInfoVLive::saveDateWhenClickButton()
 
 	showLoading(content());
 
-	PLSVLiveLiveinfoData uiData = pPlatformVLive->getTempSelectData();
+	PLSVLiveLiveinfoData uiData = m_platform->getTempSelectData();
 
-	vector<bool> boxChecks;
-	ui->fanshipWidget->getChecked(boxChecks);
-
-	PLS_PLATFORM_VLIVE->isModifiedWithNewData(ui->lineEditTitle->text(), boxChecks, ui->thumbnailButton->getImagePath(), &uiData);
+	m_platform->isModifiedWithNewData(ui->lineEditTitle->text(), ui->thumbnailButton->getOriginalPixmap(), &uiData);
 	if (ui->lineEditTitle->text().trimmed().isEmpty()) {
-		uiData.title = ui->lineEditTitle->placeholderText();
+		uiData.title = m_platform->getDefaultTitle(uiData.profile.nickname);
 	}
-	pPlatformVLive->saveSettings(_onNext, uiData);
+	m_platform->saveSettings(_onNext, uiData);
 }
 
 void PLSLiveInfoVLive::scheduleButtonClicked()
@@ -324,14 +436,10 @@ void PLSLiveInfoVLive::scheduleButtonClicked()
 	if (!ui->scheCombox->getMenuHide()) {
 		return;
 	}
-	auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-
 	m_vecItemDatas.clear();
 	for (int i = 0; i < 1; i++) {
 		PLSScheComboxItemData data = PLSScheComboxItemData();
-		data.title = "";
-		data.time = tr("LiveInfo.Youtube.loading.scheduled");
-		data._id = "";
+		data.title = tr("LiveInfo.live.loading.scheduled");
 		data.type = PLSScheComboxItemType::Ty_Loading;
 		m_vecItemDatas.push_back(data);
 	}
@@ -341,8 +449,8 @@ void PLSLiveInfoVLive::scheduleButtonClicked()
 		updateScheduleComboxItems();
 	};
 
-	if (nullptr != pPlatformVLive) {
-		pPlatformVLive->requestSchedule(_onNext, ui->scheCombox);
+	if (nullptr != m_platform) {
+		m_platform->requestScheduleList(_onNext, ui->scheCombox);
 	}
 
 	ui->scheCombox->showScheduleMenu(m_vecItemDatas);
@@ -351,14 +459,13 @@ void PLSLiveInfoVLive::scheduleButtonClicked()
 void PLSLiveInfoVLive::scheduleItemClick(const QString selectID)
 {
 
-	for (auto data : m_vecItemDatas) {
+	for (const auto &data : m_vecItemDatas) {
 		PLSScheComboxItemType type = data.type;
 		if (type == PLSScheComboxItemType::Ty_Loading || type == PLSScheComboxItemType::Ty_Placehoder) {
 			continue;
 		}
 
-		auto pPlatformVLive = PLS_PLATFORM_VLIVE;
-		if (pPlatformVLive->getTempSelectID() == selectID) {
+		if (m_platform->getTempSelectID() == selectID) {
 			//if select same id, ignore
 			break;
 		}
@@ -367,12 +474,17 @@ void PLSLiveInfoVLive::scheduleItemClick(const QString selectID)
 		}
 
 		bool isSchedule = type == PLSScheComboxItemType::Ty_Schedule;
-		if (pPlatformVLive->getTempSelectData().isNormalLive && isSchedule) {
+		if (m_platform->getTempSelectData().isNormalLive && isSchedule) {
 			//normal to schedule, temp saved.
 			saveTempNormalDataWhenSwitch();
 		}
-		pPlatformVLive->setTempSchedule(isSchedule);
-		pPlatformVLive->setTempSelectID(selectID);
+		m_platform->setTempSchedule(isSchedule);
+		m_platform->setTempSelectID(selectID);
+		m_platform->setTempBoardData(m_platform->getTempSelectData().board);
+		m_platform->setTempProfileData(m_platform->getTempSelectData().profile);
+		if (isSchedule) {
+			getBoardDetailData();
+		}
 		refreshUI();
 		break;
 	}
@@ -380,36 +492,175 @@ void PLSLiveInfoVLive::scheduleItemClick(const QString selectID)
 
 void PLSLiveInfoVLive::scheduleItemExpired(vector<QString> &ids)
 {
-	PLS_PLATFORM_VLIVE->removeExpiredSchedule(ids);
+	m_platform->removeExpiredSchedule(ids);
 	updateScheduleComboxItems();
+}
+
+void PLSLiveInfoVLive::profileComboxClicked()
+{
+	PLS_UI_STEP(liveInfoMoudule, __FUNCTION__, ACTION_CLICK);
+	if (!ui->profileCombox->getMenuHide()) {
+		return;
+	}
+	vector<PLSScheComboxItemData> items;
+	PLSScheComboxItemData data = PLSScheComboxItemData();
+	data.title = tr("LiveInfo.live.loading.scheduled");
+	data.type = PLSScheComboxItemType::Ty_Loading;
+	data.itemHeight = s_itemHeight_53;
+	items.push_back(data);
+
+	auto _onNext = [=](bool value) {
+		Q_UNUSED(value)
+		updateProfileComboxItems();
+	};
+
+	if (nullptr != m_platform) {
+		m_platform->requestProfileList(_onNext, ui->profileCombox);
+	}
+
+	ui->profileCombox->showScheduleMenu(items);
+}
+
+void PLSLiveInfoVLive::profileMenuItemClick(const QString selectID)
+{
+	if (selectID.isEmpty() || m_platform->getTempProfileData().memberId == selectID) {
+		return;
+	}
+	for (const auto &data : m_platform->getProfileDatas()) {
+		if (data.memberId != selectID) {
+			continue;
+		}
+		m_platform->setTempProfileData(data);
+		m_platform->setTempBoardData({});
+		ui->lineEditTitle->setText(m_platform->getDefaultTitle(data.nickname));
+
+		if (!m_platform->getTempSelectData().isNormalLive) {
+			m_platform->setTempSchedule(false);
+			m_platform->setTempSelectID({});
+			m_platform->setThumPixmap({});
+			m_platform->getTempNormalData().title = ui->lineEditTitle->text();
+		} else {
+			saveTempNormalDataWhenSwitch();
+		}
+		break;
+	}
+
+	refreshUI();
+}
+
+void PLSLiveInfoVLive::updateProfileComboxItems()
+{
+	if (ui->profileCombox == nullptr || ui->profileCombox->isMenuNULL() || ui->profileCombox->getMenuHide()) {
+		return;
+	}
+
+	vector<PLSScheComboxItemData> items;
+	for (const auto &data : m_platform->getProfileDatas()) {
+		PLSScheComboxItemData itemData = PLSScheComboxItemData();
+		itemData.title = data.nickname;
+		itemData._id = data.memberId;
+		itemData.imgUrl = data.profileImageUrl;
+		itemData.type = PLSScheComboxItemType::Ty_NormalLive;
+		itemData.itemHeight = s_itemHeight_53;
+		if (!data.memberId.isEmpty() && data.memberId == m_platform->getTempProfileData().memberId) {
+			itemData.isSelect = true;
+		}
+		items.push_back(itemData);
+	}
+
+	if (m_platform->getProfileDatas().empty()) {
+		PLSScheComboxItemData nomarlData = PLSScheComboxItemData();
+		nomarlData._id = "";
+		nomarlData.title = tr("LiveInfo.live.profile.no.data");
+		nomarlData.type = PLSScheComboxItemType::Ty_Placehoder;
+		nomarlData.itemHeight = s_itemHeight_53;
+		items.push_back(nomarlData);
+	}
+
+	ui->profileCombox->showScheduleMenu(items);
+}
+
+void PLSLiveInfoVLive::boardComboxClicked()
+{
+	PLS_UI_STEP(liveInfoMoudule, __FUNCTION__, ACTION_CLICK);
+	if (!ui->boardCombox->getMenuHide()) {
+		return;
+	}
+	vector<PLSScheComboxItemData> items;
+	PLSScheComboxItemData data = PLSScheComboxItemData();
+	data.title = tr("LiveInfo.live.loading.scheduled");
+	data.type = PLSScheComboxItemType::Ty_Loading;
+	data.itemHeight = s_itemHeight_40;
+	items.push_back(data);
+
+	auto _onNext = [=](bool value) {
+		Q_UNUSED(value)
+		updateBoardComboxItems();
+	};
+
+	if (nullptr != m_platform) {
+		m_platform->requestBoardList(_onNext, ui->boardCombox);
+	}
+
+	ui->boardCombox->showScheduleMenu(items);
+}
+
+void PLSLiveInfoVLive::boardMenuItemClick(const QString selectID)
+{
+	if (selectID.isEmpty()) {
+		return;
+	}
+	auto id_int = selectID.toInt();
+
+	for (const auto &data : m_platform->getBoardDatas()) {
+		if (data.boardId == id_int) {
+			m_platform->setTempBoardData(data);
+			ui->boardCombox->updateTitle(data.title);
+			break;
+		}
+	}
+	getBoardDetailData();
+	updateProfileAndBoardUI();
+	updateUIEnable();
+}
+
+void PLSLiveInfoVLive::updateBoardComboxItems()
+{
+	if (ui->boardCombox == nullptr || ui->boardCombox->isMenuNULL() || ui->boardCombox->getMenuHide()) {
+		return;
+	}
+
+	vector<PLSScheComboxItemData> items;
+	auto selectboardID = m_platform->getTempBoardData().boardId;
+	for (const auto &data : m_platform->getBoardDatas()) {
+		PLSScheComboxItemData itemData = PLSScheComboxItemData();
+		itemData.title = data.title;
+		itemData.isShowRightIcon = !data.expose;
+		itemData._id = QString::number(data.boardId);
+		itemData.type = data.isGroup ? PLSScheComboxItemType::Ty_Header : PLSScheComboxItemType::Ty_NormalLive;
+		itemData.itemHeight = itemData.type == PLSScheComboxItemType::Ty_Header ? s_itemHeight_30 : s_itemHeight_40;
+
+		if (data.boardId > 0 && data.boardId == selectboardID) {
+			itemData.isSelect = true;
+		}
+		items.push_back(itemData);
+	}
+
+	if (m_platform->getBoardDatas().empty()) {
+		PLSScheComboxItemData nomarlData = PLSScheComboxItemData();
+		nomarlData._id = "";
+		nomarlData.title = tr("LiveInfo.live.board.no.data");
+		nomarlData.type = PLSScheComboxItemType::Ty_Placehoder;
+		nomarlData.itemHeight = s_itemHeight_40;
+		items.push_back(nomarlData);
+	}
+
+	ui->boardCombox->showScheduleMenu(items);
 }
 
 void PLSLiveInfoVLive::doUpdateOkState()
 {
-	bool haveChecked = false;
-	vector<bool> boxChecks;
-	ui->fanshipWidget->getChecked(boxChecks);
-
-	for (const auto &checked : boxChecks) {
-		if (true == checked) {
-			haveChecked = true;
-			break;
-		}
-	}
-
-	if ((PLS_PLATFORM_VLIVE->getTempSelectData().isNormalLive && !haveChecked)) {
-		ui->okButton->setEnabled(false);
-		ui->rehearsalButton->setEnabled(false);
-		return;
-	}
-
-	if (PLS_PLATFORM_API->isPrepareLive()) {
-		ui->okButton->setEnabled(true);
-		ui->rehearsalButton->setEnabled(true);
-		return;
-	}
-
-	if (!isModified()) {
+	if (m_platform->getTempProfileData().memberId.isEmpty() || m_platform->getTempBoardData().boardId <= 0) {
 		ui->okButton->setEnabled(false);
 		ui->rehearsalButton->setEnabled(false);
 		return;
@@ -421,13 +672,21 @@ void PLSLiveInfoVLive::doUpdateOkState()
 
 bool PLSLiveInfoVLive::isModified()
 {
-	vector<bool> boxChecks;
-	ui->fanshipWidget->getChecked(boxChecks);
-	bool isModified = PLS_PLATFORM_VLIVE->isModifiedWithNewData(ui->lineEditTitle->text(), boxChecks, ui->thumbnailButton->getImagePath(), nullptr);
-	if (!isModified && m_enteredID != PLS_PLATFORM_VLIVE->getTempSelectData()._id) {
+	bool isModified = m_platform->isModifiedWithNewData(ui->lineEditTitle->text(), ui->thumbnailButton->getOriginalPixmap(), nullptr);
+	if (!isModified && m_enteredID != m_platform->getTempSelectData()._id) {
 		isModified = true;
 	}
 	return isModified;
+}
+
+QSize PLSLiveInfoVLive::getNeedDialogSize(double dpi)
+{
+	const static int windowWidth = 720;
+	const static int windowHeightLow = 550;
+	const static int windowHeightTop = 665;
+	auto &boardData = m_platform->getTempBoardData();
+	bool isNotSelectBoard = boardData.boardId <= 0;
+	return PLSDpiHelper::calculate(dpi, QSize(windowWidth, isNotSelectBoard ? windowHeightLow : windowHeightTop));
 }
 
 void PLSLiveInfoVLive::titleEdited()
@@ -442,12 +701,19 @@ void PLSLiveInfoVLive::titleEdited()
 	}
 
 	if (newText.compare(ui->lineEditTitle->text()) != 0) {
+		QSignalBlocker signalBlocker(ui->lineEditTitle);
 		ui->lineEditTitle->setText(newText);
 	}
-	doUpdateOkState();
+	updateUIEnable();
 
 	if (isLargeToMax) {
-		const auto channelName = PLS_PLATFORM_VLIVE->getInitData().value(ChannelData::g_channelName).toString();
-		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TitleLengthLimit).arg("V LIVE"));
+		const auto channelName = m_platform->getInitData().value(ChannelData::g_platformName).toString();
+		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TitleLengthLimit).arg("V LIVE"));
 	}
+}
+
+void PLSLiveInfoVLive::resizeEvent(QResizeEvent *event)
+{
+	updateBoardUserLabelElid();
+	__super::resizeEvent(event);
 }

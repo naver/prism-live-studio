@@ -7,9 +7,15 @@
 #include <QWidget>
 #include <vector>
 
+const extern int s_itemHeight_30;
+const extern int s_itemHeight_40;
+const extern int s_itemHeight_53;
+const extern int s_itemHeight_70;
+
 enum class PLSScheComboxItemType {
 	Ty_NormalLive,
 	Ty_Loading,
+	Ty_Header,
 	Ty_Placehoder,
 	Ty_Schedule,
 };
@@ -20,11 +26,17 @@ struct PLSScheComboxItemData {
 	long timeStamp = 0;
 	PLSScheComboxItemType type = PLSScheComboxItemType::Ty_NormalLive;
 	QString time;
+	QString imgUrl;
 
 	//the blow data is use for vlive
 	bool needShowTimeLeftTimer = false;
-	bool isVliveUpcoming = true;
+	bool isNewLive = true;
 	long endTimeStamp = 0;
+	int itemHeight = s_itemHeight_70;
+	bool isShowRightIcon = false;
+	bool isSelect = false;
+	QString platformName;
+	bool isExpired = false;
 };
 
 Q_DECLARE_METATYPE(PLSScheComboxItemData)
@@ -43,13 +55,14 @@ public:
 
 protected:
 	bool eventFilter(QObject *i_Object, QEvent *i_Event);
+	virtual void hideEvent(QHideEvent *event);
 
 private:
 	QListWidget *m_listWidget;
 	QTimer *m_pLeftTimer;
 
 	vector<PLSScheduleComboxItem *> m_vecItems;
-	void addAItem(const QString &showStr, const PLSScheComboxItemData &itemData, int superWidth);
+	void addAItem(const QString &showStr, const PLSScheComboxItemData &itemData, int itemSize);
 	void setupTimer();
 	void itemDidSelect(QListWidgetItem *item);
 	static QString formateTheLeftTime(long leftTimeStamp);
@@ -62,27 +75,30 @@ signals:
 	void scheduleItemExpired(vector<QString> ids);
 };
 
+namespace Ui {
+class PLSScheduleComboxItem;
+}
+
 class PLSScheduleComboxItem : public QWidget {
 	Q_OBJECT
 public:
-	explicit PLSScheduleComboxItem(const PLSScheComboxItemData data, int superWidth, QWidget *parent = nullptr);
+	explicit PLSScheduleComboxItem(const PLSScheComboxItemData data, double dpi, QWidget *parent = nullptr);
 	~PLSScheduleComboxItem();
 
 	void setDetailLabelStr(const QString &str);
 	const PLSScheComboxItemData &getData() { return _data; };
 
 private:
-	QLabel *titleLabel;
-	QLabel *detailLabel;
-
-	QLabel *loadingDetailLabel;
+	Ui::PLSScheduleComboxItem *ui;
 
 	const PLSScheComboxItemData _data;
 	QTimer *m_pTimer;
-	int m_superWidth;
+	double m_Dpi;
 
 	void setupTimer();
 	QString PLSScheduleComboxItem::GetNameElideString();
+
+	void downloadThumImage(QLabel *reciver, const QString &url);
 
 private slots:
 	void updateProgress();

@@ -67,7 +67,7 @@ void InteractionManager::OnHideInteractionSlot(SOURCE_HANDLE hdl)
 
 	// Generally code here won't be invoked. However for logic safe, we also add this code.
 	assert(false && "cann't find source by name");
-	blog(LOG_ERROR,
+	plog(LOG_ERROR,
 	     "OnHideInteractionSlot cann't find source_t, name:%s BrowserSource:%p",
 	     source_name.c_str(), hdl);
 

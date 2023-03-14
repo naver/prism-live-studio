@@ -16,6 +16,7 @@ signals:
 	void mediaSliderReleased(int value);
 	void mediaSliderClicked(int value);
 	void mediaSliderMoved(int value);
+	void mediaSliderFocusOut();
 
 protected:
 	virtual void mouseMoveEvent(QMouseEvent *event) override;
@@ -25,6 +26,7 @@ protected:
 	virtual void leaveEvent(QEvent *event);
 	virtual void wheelEvent(QWheelEvent *event) override;
 	virtual void keyPressEvent(QKeyEvent *event) override;
+	virtual void focusOutEvent(QFocusEvent *event) override;
 
 private:
 	bool mousePress = false;

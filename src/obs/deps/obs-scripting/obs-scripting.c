@@ -194,7 +194,7 @@ void obs_scripting_unload(void)
 	pthread_mutex_unlock(&detach_mutex);
 	pthread_mutex_destroy(&detach_mutex);
 
-	blog(LOG_INFO, "[Scripting] Total detached callbacks: %d",
+	plog(LOG_INFO, "[Scripting] Total detached callbacks: %d",
 	     total_detached);
 
 	/* ---------------------- */
@@ -226,7 +226,7 @@ static inline bool pointer_valid(const void *x, const char *name,
 				 const char *func)
 {
 	if (!x) {
-		blog(LOG_WARNING, "obs-scripting: [%s] %s is null", func, name);
+		plog(LOG_WARNING, "obs-scripting: [%s] %s is null", func, name);
 		return false;
 	}
 
@@ -260,7 +260,7 @@ obs_script_t *obs_script_create(const char *path, obs_data_t *settings)
 	} else
 #endif
 	{
-		blog(LOG_WARNING, "Unsupported/unknown script type: %s", path);
+		plog(LOG_WARNING, "Unsupported/unknown script type.");
 	}
 
 	return script;

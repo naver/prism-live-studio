@@ -32,6 +32,8 @@
 #include "browser-app.hpp"
 #include "browser-version.h"
 #include "browser-config.h"
+//PRISM/Zhangdewen/20210408/#/modify user agent
+#include "obsconfig.h"
 
 //PRISM/Wangshaohui/20200811/#3784/for cef interaction
 #include "interaction/interaction_manager.h"
@@ -72,7 +74,18 @@ static std::wstring deviceId;
 //PRISM/Wangshaohui/20200811/#3784/for cef interaction
 static ULONG_PTR gdiplus_token;
 
-void ExecuteOnAllBrowsers(BrowserFunc func);
+//PRISM/Zhangdewen/20201104/#5586/for chat source
+extern void (*pls_get_chat_source_url)(QString *);
+//PRISM/Zhangdewen/20201029/#5517/for chat source
+void (*pls_network_state_monitor)(void (*callback)(int)) = nullptr;
+
+//PRISM/Zhangdewen/20201102/#5550/for chat source
+bool isNetworkAvailable = true;
+QTimer *networkStateMonitorDelayTimer = nullptr;
+void ExecuteOnNotIgnoreBrowsers(BrowserFunc func);
+
+//PRISM/Zhangdewen/20210113/#/for naver shopping
+QWidget *(*pls_get_toplevel_view)(QWidget *widget) = nullptr;
 
 #if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED
 bool hwaccel = false;
@@ -80,6 +93,14 @@ bool hwaccel = false;
 extern void register_prism_text_motion_source();
 extern void release_prism_text_motion_source();
 
+//PRISM/Zhangdewen/20200901/#for chat source
+extern void register_prism_chat_source();
+extern void release_prism_chat_source();
+
+//PRISM/RenJinbo/20210603/#none/timer source feature
+extern void DispatchJSEvent(BrowserSource *source, std::string eventName,
+			    std::string jsonString);
+extern void DispatchJSEvent(std::string eventName, std::string jsonString);
 /* ========================================================================= */
 
 #ifdef USE_QT_LOOP
@@ -142,6 +163,9 @@ void browser_source_get_defaults(obs_data_t *settings)
 
 	//PRISM/Wangshaohui/20201021/#5271/for cef hardware accelerate
 	obs_data_set_default_bool(settings, "hardware_accelerate", true);
+
+	//PRISM/RenJinbo/20210707/#8498/for cef ignore reload when net from bad to ok
+	obs_data_set_default_bool(settings, "ignore_reload", false);
 }
 
 static bool is_local_file_modified(obs_properties_t *props, obs_property_t *,
@@ -172,8 +196,7 @@ obs_properties_t *browser_source_get_properties(void *data)
 	BrowserSource *bs = static_cast<BrowserSource *>(data);
 	DStr path;
 
-	// PRISM/WangShaohui/20200408/#1948/for applying browser's settings as soon
-	//obs_properties_set_flags(props, OBS_PROPERTIES_DEFER_UPDATE);
+	obs_properties_set_flags(props, OBS_PROPERTIES_DEFER_UPDATE);
 
 	obs_property_t *prop = obs_properties_add_bool(
 		props, "is_local_file", obs_module_text("LocalFile"));
@@ -236,10 +259,46 @@ obs_properties_t *browser_source_get_properties(void *data)
 	return props;
 }
 
+//PRISM/Zhangdewen/20201029/#5517/for chat source
+static void network_state_monitor(void (*callback)(int))
+{
+	if (pls_network_state_monitor) {
+		pls_network_state_monitor(callback);
+	}
+}
+
+//PRISM/ZengQin/20210604/#none/Get properties parameters
+static obs_data_t *browser_source_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+
+	BrowserSource *bs = static_cast<BrowserSource *>(data);
+	obs_data_t *settings = obs_source_get_settings(bs->source);
+	bool enable = obs_data_get_bool(settings, "is_local_file");
+	bool shutdown = obs_data_get_bool(settings, "shutdown");
+	bool restart = obs_data_get_bool(settings, "restart_when_active");
+	bool reroute = obs_data_get_bool(settings, "reroute_audio");
+	bool hardware = obs_data_get_bool(settings, "hardware_accelerate");
+	obs_data_release(settings);
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_bool(params, "is_local_file", enable);
+	obs_data_set_bool(params, "shutdown", shutdown);
+	obs_data_set_bool(params, "restart_when_active", restart);
+	obs_data_set_bool(params, "reroute_audio", reroute);
+	obs_data_set_bool(params, "hardware_accelerate", hardware);
+
+	return params;
+}
+
 static CefRefPtr<BrowserApp> app;
 
 static void BrowserInit(void)
 {
+	plog(LOG_INFO, "CEF main thread startup! threadID : %u",
+	     GetCurrentThreadId());
+
 	string path = obs_get_module_binary_path(obs_current_module());
 	path = path.substr(0, path.find_last_of('/') + 1);
 	path += "//obs-browser-page";
@@ -288,6 +347,17 @@ static void BrowserInit(void)
 	CefString(&settings.accept_language_list) = accepted_languages;
 	CefString(&settings.cache_path) = conf_path_abs;
 	CefString(&settings.browser_subprocess_path) = path;
+	//PRISM/Zhangdewen/20210309/#/for naver shopping login
+	//PRISM/Zhangdewen/20210408/#/modify user agent
+#define VERSTR_I(major, minor, patch) #major "." #minor "." #patch
+#define VERSTR(major, minor, patch) VERSTR_I(major, minor, patch)
+	CefString(&settings.user_agent) =
+		"Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Safari/537.36 NAVER(pc; prism; prism-pc; " VERSTR(
+			OBS_RELEASE_CANDIDATE_MAJOR,
+			OBS_RELEASE_CANDIDATE_MINOR,
+			OBS_RELEASE_CANDIDATE_PATCH) ";)";
+#undef VERSTR_I
+#undef VERSTR
 
 	bool tex_sharing_avail = false;
 
@@ -456,13 +526,23 @@ void RegisterBrowserSource()
 
 	//PRISM/WangShaohui/20200212/#281/for source unavailable
 	info.icon_type = OBS_ICON_TYPE_BROWSER;
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	info.props_params = browser_source_props_params,
+
+	info.cef_dispatch_js = [](void *data, const char *eventName,
+				  const char *jsContent) {
+		//PRISM/RenJinbo/20210905/#9684/source is null
+		if (data == nullptr) {
+			return;
+		}
+		DispatchJSEvent(static_cast<BrowserSource *>(data), eventName,
+				jsContent);
+	};
 
 	obs_register_source(&info);
 }
 
 /* ========================================================================= */
-
-extern void DispatchJSEvent(std::string eventName, std::string jsonString);
 
 static void handle_obs_frontend_event(enum obs_frontend_event event, void *)
 {
@@ -554,12 +634,50 @@ static const wchar_t *blacklisted_devices[] = {
 #endif
 
 extern void DispatchPrismEvent(const char *eventName, const char *jsonString);
+//PRISM/Zhangdewen/20200901/#for chat source
 extern void DispatchPrismEvent(obs_source_t *source, const char *eventName,
 			       const char *jsonString);
 
 static inline bool is_intel(const std::wstring &str)
 {
 	return wstrstri(str.c_str(), L"Intel") != 0;
+}
+
+//PRISM/Zhangdewen/20201102/#5550/for chat source
+static void allSourcesReloadIgnoreCache()
+{
+	ExecuteOnNotIgnoreBrowsers([=](CefRefPtr<CefBrowser> cefBrowser) {
+		cefBrowser->ReloadIgnoreCache();
+	});
+}
+
+//PRISM/Zhangdewen/20201102/#5550/for chat source
+static void networkStateMonitor(int state)
+{
+	isNetworkAvailable = state ? true : false;
+
+	if (state) {
+		plog(LOG_DEBUG, "network conntected, reload all web source");
+		allSourcesReloadIgnoreCache();
+	} else {
+		QMetaObject::invokeMethod(networkStateMonitorDelayTimer, "stop",
+					  Qt::QueuedConnection);
+	}
+}
+
+//PRISM/Zhangdewen/20201102/#5550/for chat source
+void browserLoadError(BrowserSource *bs, CefLoadHandler::ErrorCode errorCode)
+{
+	if (!isNetworkAvailable ||
+	    (errorCode != ERR_NETWORK_CHANGED) &&
+		    (errorCode != ERR_INTERNET_DISCONNECTED)) {
+		return;
+	}
+
+	// network available
+	plog(LOG_DEBUG, "web source reload failed, retry in 3 seconds");
+	QMetaObject::invokeMethod(networkStateMonitorDelayTimer, "start",
+				  Qt::QueuedConnection);
 }
 
 #if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED
@@ -573,7 +691,7 @@ static void check_hwaccel_support(void)
 		while (*device) {
 			if (!!wstrstri(deviceId.c_str(), *device)) {
 				hwaccel = false;
-				blog(LOG_INFO, "[obs-browser]: "
+				plog(LOG_INFO, "[obs-browser]: "
 					       "Blacklisted device "
 					       "detected, "
 					       "disabling browser "
@@ -593,8 +711,16 @@ PfnGetConfigPath GetConfigPath;
 
 bool obs_module_load(void)
 {
-	blog(LOG_INFO, "[obs-browser]: Version %s", OBS_BROWSER_VERSION_STRING);
+	plog(LOG_INFO, "[obs-browser]: Version %s", OBS_BROWSER_VERSION_STRING);
 
+	//PRISM/Zhangdewen/20201102/#5550/for chat source
+	networkStateMonitorDelayTimer = new QTimer(qApp);
+	networkStateMonitorDelayTimer->setSingleShot(true);
+	networkStateMonitorDelayTimer->setInterval(3000);
+	QObject::connect(networkStateMonitorDelayTimer, &QTimer::timeout,
+			 &allSourcesReloadIgnoreCache);
+
+	//PRISM/Zhangdewen/20200901/#for chat source
 	HMODULE hFrontEndApi = GetModuleHandleA("frontend-api.dll");
 	if (hFrontEndApi) {
 		PfnGetConfigPath (*pls_get_config_path)() =
@@ -604,6 +730,28 @@ bool obs_module_load(void)
 		char configPath[512];
 		int ret = GetConfigPath(configPath, sizeof(configPath),
 					"PRISMLiveStudio/textmotion/");
+
+		//PRISM/Zhangdewen/20201104/#5586/for chat source
+		pls_get_chat_source_url = (void (*)(QString *))GetProcAddress(
+			hFrontEndApi, "pls_get_chat_source_url_c");
+
+		//PRISM/Zhangdewen/20201029/#5517/for chat source
+		pls_network_state_monitor =
+			(void (*)(void (*)(int)))GetProcAddress(
+				hFrontEndApi, "pls_network_state_monitor_c");
+		network_state_monitor(networkStateMonitor);
+
+		//PRISM/Zhangdewen/20201102/#5550/for chat source
+		int (*pls_get_network_state)() = (int (*)())GetProcAddress(
+			hFrontEndApi, "pls_get_network_state_c");
+		if (pls_get_network_state) {
+			isNetworkAvailable = pls_get_network_state() ? true
+								     : false;
+		}
+
+		//PRISM/Zhangdewen/20210113/#/for naver shopping
+		pls_get_toplevel_view = (QWidget * (*)(QWidget *))
+			GetProcAddress(hFrontEndApi, "pls_get_toplevel_view_c");
 	}
 
 	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
@@ -631,6 +779,9 @@ bool obs_module_load(void)
 	RegisterBrowserSource();
 	register_prism_text_motion_source();
 
+	//PRISM/Zhangdewen/20200901/#for chat source
+	register_prism_chat_source();
+
 	obs_frontend_add_event_callback(handle_obs_frontend_event, nullptr);
 
 #if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED
@@ -643,6 +794,7 @@ bool obs_module_load(void)
 #endif
 
 	prism_frontend_dispatch_js_event = DispatchPrismEvent;
+	//PRISM/Zhangdewen/20200901/#for chat source
 	prism_frontend_dispatch_js_event_to_source = DispatchPrismEvent;
 
 	return true;
@@ -650,6 +802,9 @@ bool obs_module_load(void)
 
 void obs_module_unload(void)
 {
+	//PRISM/Zhangdewen/20200901/#for chat source
+	release_prism_chat_source();
+
 	//PRISM/Wangshaohui/20200811/#3784/for cef interaction
 	{
 		ImageManager::Instance()->ClearImage();

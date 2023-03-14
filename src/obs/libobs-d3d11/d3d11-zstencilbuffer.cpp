@@ -19,6 +19,10 @@
 
 void gs_zstencil_buffer::InitBuffer()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	HRESULT hr;
 
 	memset(&td, 0, sizeof(td));
@@ -32,8 +36,15 @@ void gs_zstencil_buffer::InitBuffer()
 	td.Usage = D3D11_USAGE_DEFAULT;
 
 	hr = device->device->CreateTexture2D(&td, NULL, texture.Assign());
-	if (FAILED(hr))
+	if (FAILED(hr)) {
+		//PRISM/WangChuanjing/20210311/#6941/notify engine status
+		if (device->engine_notify_cb) {
+			int code = get_notify_error_code(hr);
+			device->engine_notify_cb(GS_ENGINE_NOTIFY_EXCEPTION,
+						 code, nullptr);
+		}
 		throw HRError("Failed to create depth stencil texture", hr);
+	}
 
 	memset(&dsvd, 0, sizeof(dsvd));
 	dsvd.Format = dxgiFormat;

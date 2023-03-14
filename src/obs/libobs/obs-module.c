@@ -23,10 +23,11 @@
 #include "obs-module.h"
 
 extern const char *get_module_extension(void);
+extern void add_default_module_paths(void);
 
 static inline int req_func_not_found(const char *name, const char *path)
 {
-	blog(LOG_DEBUG,
+	plog(LOG_DEBUG,
 	     "Required module function '%s' in module '%s' not "
 	     "found, loading of module failed",
 	     name, path);
@@ -48,6 +49,9 @@ static int load_module_exports(struct obs_module *mod, const char *path)
 		return req_func_not_found("obs_module_ver", path);
 
 	/* optional exports */
+	//PRISM/Liuying/20200121/Identifying third-party plugins
+	mod->internal_module = os_dlsym(mod->module, "obs_is_internal_module");
+
 	mod->unload = os_dlsym(mod->module, "obs_module_unload");
 	mod->post_load = os_dlsym(mod->module, "obs_module_post_load");
 	mod->set_locale = os_dlsym(mod->module, "obs_module_set_locale");
@@ -92,16 +96,16 @@ int obs_open_module(obs_module_t **module, const char *path,
 	 * directory. */
 	if (astrstri(path, "Library/Application Support") != NULL &&
 	    astrstri(path, "obs-browser") != NULL) {
-		blog(LOG_WARNING, "Ignoring old obs-browser.so version");
+		plog(LOG_WARNING, "Ignoring old obs-browser.so version");
 		return MODULE_ERROR;
 	}
 #endif
 
-	blog(LOG_DEBUG, "---------------------------------");
+	plog(LOG_DEBUG, "---------------------------------");
 
 	mod.module = os_dlopen(path);
 	if (!mod.module) {
-		blog(LOG_WARNING, "Module '%s' not loaded", path);
+		plog(LOG_WARNING, "Module '%s' not loaded", path);
 		return MODULE_FILE_NOT_FOUND;
 	}
 
@@ -117,7 +121,7 @@ int obs_open_module(obs_module_t **module, const char *path,
 	mod.next = obs->first_module;
 
 	if (mod.file) {
-		blog(LOG_DEBUG, "Loading module: %s", mod.file);
+		plog(LOG_DEBUG, "Loading module: %s", mod.file);
 	}
 
 	*module = bmemdup(&mod, sizeof(mod));
@@ -129,6 +133,9 @@ int obs_open_module(obs_module_t **module, const char *path,
 
 	return MODULE_SUCCESS;
 }
+
+//PRISM/Liuying/20200121/for third-party plugins notification
+static obs_module_t *loading_module = NULL;
 
 bool obs_init_module(obs_module_t *module)
 {
@@ -142,10 +149,21 @@ bool obs_init_module(obs_module_t *module)
 				   "obs_init_module(%s)", module->file);
 	profile_start(profile_name);
 
+	loading_module = module;
+
 	module->loaded = module->load();
 	if (!module->loaded)
-		blog(LOG_WARNING, "Failed to initialize module '%s'",
+		plog(LOG_WARNING, "Failed to initialize module '%s'",
 		     module->file);
+
+	//PRISM/Liuying/20200121/add third-plugins name in log
+	if (!module->internal_module) {
+		const char *fields[][2] = {{"third-plugins", module->file}};
+		//PRISM/Wangshaohui/20210913/#9672/send log to KR nelo
+		blogex(false, LOG_INFO, fields, 1, "third_plugins : %s",
+		       module->file);
+	}
+	loading_module = NULL;
 
 	profile_end(profile_name);
 	return module->loaded;
@@ -153,10 +171,10 @@ bool obs_init_module(obs_module_t *module)
 
 void obs_log_loaded_modules(void)
 {
-	blog(LOG_INFO, "  Loaded Modules:");
+	plog(LOG_INFO, "  Loaded Modules:");
 
 	for (obs_module_t *mod = obs->first_module; !!mod; mod = mod->next)
-		blog(LOG_INFO, "    %s", mod->file);
+		plog(LOG_INFO, "    %s", mod->file);
 }
 
 const char *obs_get_module_file_name(obs_module_t *module)
@@ -187,6 +205,102 @@ const char *obs_get_module_binary_path(obs_module_t *module)
 const char *obs_get_module_data_path(obs_module_t *module)
 {
 	return module ? module->data_path : NULL;
+}
+
+bool obs_is_internal_loading_module()
+{
+	return loading_module ? loading_module->internal_module : false;
+}
+
+const char *obs_get_external_loading_module_dll_name()
+{
+	return obs_get_module_file_name(loading_module);
+}
+
+const char *obs_get_external_module_display_name(const char *id)
+{
+	if (!obs || !id)
+		return NULL;
+
+	for (size_t i = 0; i < obs->external_module_dll_info.num; i++) {
+		struct obs_external_module_dll_info *info =
+			obs->external_module_dll_info.array + i;
+		if (!info) {
+			continue;
+		}
+
+		if (0 == strcmp(info->source_id, id)) {
+			return info->display_name;
+		}
+	}
+
+	return NULL;
+}
+
+const char *obs_get_external_module_dll_name(const char *name)
+{
+	if (!obs || !name)
+		return NULL;
+
+	for (size_t i = 0; i < obs->external_module_dll_info.num; i++) {
+		struct obs_external_module_dll_info *info =
+			obs->external_module_dll_info.array + i;
+		if (!info) {
+			continue;
+		}
+
+		if (0 == strcmp(info->display_name, name)) {
+			return info->dll_name;
+		}
+	}
+
+	return NULL;
+}
+
+void obs_add_external_module_dll_info(const char *dllName, const char *id,
+				      const char *name)
+{
+	if (!obs || !dllName || !id || !name)
+		return;
+
+	struct obs_external_module_dll_info module_info = {0};
+	module_info.dll_name = bstrdup(dllName);
+	module_info.source_id = bstrdup(id);
+	module_info.display_name = bstrdup(name);
+	da_push_back(obs->external_module_dll_info, &module_info);
+}
+
+void obs_enum_external_modules(obs_enum_external_module_callback_t callback,
+			       void *param)
+{
+	if (!obs) {
+		return;
+	}
+
+	for (int i = 0; i < obs->external_module_dll_info.num; i++) {
+		callback(param, obs->external_module_dll_info.array[i].dll_name,
+			 obs->external_module_dll_info.array[i].source_id);
+	}
+}
+
+bool obs_source_is_external_module(const char *id)
+{
+	if (!obs || !id)
+		return false;
+
+	for (size_t i = 0; i < obs->external_module_dll_info.num; i++) {
+		struct obs_external_module_dll_info *info =
+			obs->external_module_dll_info.array + i;
+		if (!info || !info->source_id) {
+			continue;
+		}
+
+		if (0 == strcmp(info->source_id, id)) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 char *obs_find_module_file(obs_module_t *module, const char *file)
@@ -235,15 +349,69 @@ void obs_add_module_path(const char *bin, const char *data)
 	da_push_back(obs->module_paths, &omp);
 }
 
+//PRISM/XIewei/20210204/#6651 filter the obs plugins
+struct obs_loaded_dll {
+	char *dll_name;
+};
+
+DARRAY(struct obs_loaded_dll) loaded_dll_name;
+
+void obs_remember_dll_name(const char *dllName)
+{
+	if (!dllName)
+		return;
+	struct obs_loaded_dll dll_name = {0};
+	dll_name.dll_name = bstrdup(dllName);
+	da_push_back(loaded_dll_name, &dll_name);
+}
+
+bool obs_is_dll_already_loaded(const char *dllName)
+{
+	if (!dllName)
+		return false;
+	for (size_t i = 0; i < loaded_dll_name.num; i++) {
+		struct obs_loaded_dll *dll_name = loaded_dll_name.array + i;
+		if (!dll_name) {
+			continue;
+		}
+		if (0 == strcmp(dll_name->dll_name, dllName)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void obs_clear_dll_name()
+{
+	for (size_t i = 0; i < loaded_dll_name.num; i++) {
+		struct obs_loaded_dll *dll_name = loaded_dll_name.array + i;
+		if (dll_name) {
+			bfree(dll_name->dll_name);
+		}
+	}
+	da_free(loaded_dll_name);
+}
+
 static void load_all_callback(void *param, const struct obs_module_info *info)
 {
 	obs_module_t *module;
 
 	int code = obs_open_module(&module, info->bin_path, info->data_path);
 	if (code != MODULE_SUCCESS) {
-		blog(LOG_DEBUG, "Failed to load module file '%s': %d",
+		plog(LOG_DEBUG, "Failed to load module file '%s': %d",
 		     info->bin_path, code);
 		return;
+	}
+
+	//PRISM/XIewei/20210204/#6651 to filter the obs plugins those name are same as plugins in prism.
+	if (module) {
+		if (obs_is_dll_already_loaded(module->file)) {
+			plog(LOG_DEBUG, "Module file '%s' has been loaded",
+			     info->bin_path);
+			return;
+		} else {
+			obs_remember_dll_name(module->file);
+		}
 	}
 
 	obs_init_module(module);
@@ -260,12 +428,15 @@ void obs_load_all_modules(void)
 {
 	profile_start(obs_load_all_modules_name);
 	obs_find_modules(load_all_callback, NULL);
+
 #ifdef _WIN32
 	profile_start(reset_win32_symbol_paths_name);
 	reset_win32_symbol_paths();
 	profile_end(reset_win32_symbol_paths_name);
 #endif
 	profile_end(obs_load_all_modules_name);
+	//PRISM/XIewei/20210204/#6651 clear dll name array
+	obs_clear_dll_name();
 }
 
 void obs_post_load_modules(void)
@@ -273,6 +444,11 @@ void obs_post_load_modules(void)
 	for (obs_module_t *mod = obs->first_module; !!mod; mod = mod->next)
 		if (mod->post_load)
 			mod->post_load();
+}
+//PRISM/Xiewe/20210205/#6651/provide interface to add default obs-plugins
+void obs_add_default_module_paths(void)
+{
+	add_default_module_paths();
 }
 
 static inline void make_data_dir(struct dstr *parsed_data_dir,
@@ -384,6 +560,9 @@ static void find_modules_in_path(struct obs_module_path *omp,
 	bool search_directories = false;
 	os_glob_t *gi;
 
+	//PRISM/Wangshaohui/20210908/noIssue/ save profile time
+	profile_start("obs_search_dll");
+
 	dstr_copy(&search_path, omp->bin);
 
 	module_start = strstr(search_path.array, "%module%");
@@ -399,12 +578,33 @@ static void find_modules_in_path(struct obs_module_path *omp,
 	if (!search_directories)
 		dstr_cat(&search_path, get_module_extension());
 
-	if (os_glob(search_path.array, 0, &gi) == 0) {
+	int res = os_glob(search_path.array, 0, &gi);
+
+	//PRISM/Wangshaohui/20210908/noIssue/ save profile time
+	profile_end("obs_search_dll");
+
+	if (res == 0) {
 		for (size_t i = 0; i < gi->gl_pathc; i++) {
-			if (search_directories == gi->gl_pathv[i].directory)
+			if (search_directories == gi->gl_pathv[i].directory) {
+				//PRISM/Wangshaohui/20210908/noIssue/ save profile time
+				char file_name[256];
+				os_extract_file_name(gi->gl_pathv[i].path,
+						     file_name,
+						     ARRAY_SIZE(file_name));
+				const char *profile_name = profile_store_name(
+					obs_get_profiler_name_store(),
+					"obs_process_dll(%s)", file_name);
+
+				//PRISM/Wangshaohui/20210908/noIssue/ save profile time
+				profile_start(profile_name);
+
 				process_found_module(omp, gi->gl_pathv[i].path,
 						     search_directories,
 						     callback, param);
+
+				//PRISM/Wangshaohui/20210908/noIssue/ save profile time
+				profile_end(profile_name);
+			}
 		}
 
 		os_globfree(gi);
@@ -467,7 +667,7 @@ lookup_t *obs_module_load_locale(obs_module_t *module,
 	lookup_t *lookup = NULL;
 
 	if (!module || !default_locale || !locale) {
-		blog(LOG_WARNING, "obs_module_load_locale: Invalid parameters");
+		plog(LOG_WARNING, "obs_module_load_locale: Invalid parameters");
 		return NULL;
 	}
 
@@ -482,7 +682,7 @@ lookup_t *obs_module_load_locale(obs_module_t *module,
 	bfree(file);
 
 	if (!lookup) {
-		blog(LOG_WARNING, "Failed to load '%s' text for module: '%s'",
+		plog(LOG_WARNING, "Failed to load '%s' text for module: '%s'",
 		     default_locale, module->file);
 		goto cleanup;
 	}
@@ -497,7 +697,7 @@ lookup_t *obs_module_load_locale(obs_module_t *module,
 	file = obs_find_module_file(module, str.array);
 
 	if (!text_lookup_add(lookup, file))
-		blog(LOG_WARNING, "Failed to load '%s' text for module: '%s'",
+		plog(LOG_WARNING, "Failed to load '%s' text for module: '%s'",
 		     locale, module->file);
 
 	bfree(file);
@@ -510,13 +710,13 @@ cleanup:
 	do {                                                            \
 		struct structure data = {0};                            \
 		if (!size_var) {                                        \
-			blog(LOG_ERROR, "Tried to register " #structure \
+			plog(LOG_ERROR, "Tried to register " #structure \
 					" outside of obs_module_load"); \
 			return;                                         \
 		}                                                       \
                                                                         \
 		if (size_var > sizeof(data)) {                          \
-			blog(LOG_ERROR,                                 \
+			plog(LOG_ERROR,                                 \
 			     "Tried to register " #structure            \
 			     " with size %llu which is more "           \
 			     "than libobs currently supports "          \
@@ -534,7 +734,7 @@ cleanup:
 	do {                                                            \
 		if ((offsetof(type, val) + sizeof(info->val) > size) || \
 		    !info->val) {                                       \
-			blog(LOG_ERROR,                                 \
+			plog(LOG_ERROR,                                 \
 			     "Required value '" #val "' for "           \
 			     "'%s' not found.  " #func " failed.",      \
 			     info->id);                                 \
@@ -556,18 +756,26 @@ cleanup:
 	} while (false)
 
 #define source_warn(format, ...) \
-	blog(LOG_WARNING, "obs_register_source: " format, ##__VA_ARGS__)
+	plog(LOG_WARNING, "obs_register_source: " format, ##__VA_ARGS__)
 #define output_warn(format, ...) \
-	blog(LOG_WARNING, "obs_register_output: " format, ##__VA_ARGS__)
+	plog(LOG_WARNING, "obs_register_output: " format, ##__VA_ARGS__)
 #define encoder_warn(format, ...) \
-	blog(LOG_WARNING, "obs_register_encoder: " format, ##__VA_ARGS__)
+	plog(LOG_WARNING, "obs_register_encoder: " format, ##__VA_ARGS__)
 #define service_warn(format, ...) \
-	blog(LOG_WARNING, "obs_register_service: " format, ##__VA_ARGS__)
+	plog(LOG_WARNING, "obs_register_service: " format, ##__VA_ARGS__)
 
 void obs_register_source_s(const struct obs_source_info *info, size_t size)
 {
 	struct obs_source_info data = {0};
 	struct darray *array = NULL;
+
+	//PRISM/WangShaohui/20210611/noissue/checking loading plugin
+	if (sizeof(struct obs_source_info) != size) {
+		plog(LOG_ERROR,
+		     "Loading modules: Ignore plugin [%s] because using different obs_source_info",
+		     info->id ? info->id : "unknownPluginID");
+		return;
+	}
 
 	if (info->type == OBS_SOURCE_TYPE_INPUT) {
 		array = &obs->input_types.da;
@@ -653,6 +861,14 @@ void obs_register_source_s(const struct obs_source_info *info, size_t size)
 	if (array)
 		darray_push_back(sizeof(struct obs_source_info), array, &data);
 	da_push_back(obs->source_types, &data);
+
+	//PRISM/Liuying/20200128/for third-party plugins notification
+	if (loading_module && !loading_module->internal_module) {
+		obs_add_external_module_dll_info(
+			loading_module->file, info->id,
+			obs_source_get_display_name(info->id));
+	}
+
 	return;
 
 error:

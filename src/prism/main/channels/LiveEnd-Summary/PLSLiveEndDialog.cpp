@@ -15,13 +15,14 @@
 #include "QPushButton"
 #include "QUrl"
 #include "log/log.h"
+#include "platform.hpp"
 #include "pls-app.hpp"
 #include "qfile.h"
 #include "ui_PLSLiveEndDialog.h"
 
 PLSLiveEndDialog::PLSLiveEndDialog(bool isRecord, QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSLiveEndDialog), m_bRecord(isRecord)
 {
-	App()->DisableHotkeys();
+
 	dpiHelper.setCss(this, {PLSCssIndex::PLSLiveEndDialog});
 
 	ui->setupUi(this->content());
@@ -43,7 +44,7 @@ PLSLiveEndDialog::PLSLiveEndDialog(bool isRecord, QWidget *parent, PLSDpiHelper 
 
 PLSLiveEndDialog::~PLSLiveEndDialog()
 {
-	App()->UpdateHotkeyFocusSetting();
+	PLS_INFO(END_MODULE, "PLSEnd Dialog is uniniting");
 	delete ui;
 }
 
@@ -90,7 +91,7 @@ void PLSLiveEndDialog::setupScrollData(PLSDpiHelper dpiHelper)
 	mChannelVBoxLayout = static_cast<QVBoxLayout *>(ui->channelScroll->widget()->layout());
 	ui->channelScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-	int tmpLiveCount = PLS_PLATFORM_API->getUuidOnStarted().size();
+	int tmpLiveCount = int(PLS_PLATFORM_API->getUuidOnStarted().size());
 	for (const auto &uid : PLS_PLATFORM_API->getUuidOnStarted()) {
 		PLSLiveEndItem *endItem = new PLSLiveEndItem(uid, this);
 		this->mChannelVBoxLayout->addWidget(endItem);
@@ -100,7 +101,7 @@ void PLSLiveEndDialog::setupScrollData(PLSDpiHelper dpiHelper)
 	ui->channelScroll->setVerticalScrollBarPolicy(isExceendMax ? Qt::ScrollBarPolicy::ScrollBarAlwaysOn : Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
 	ui->channelScroll->verticalScrollBar()->setEnabled(isExceendMax ? true : false);
 
-	dpiHelper.notifyDpiChanged(this, [=](double dpi, double /*oldDpi*/, bool firstShow) {
+	dpiHelper.notifyDpiChanged(this, [=](double dpi, double /*oldDpi*/, bool /*firstShow*/) {
 		int liveCount = tmpLiveCount;
 
 		int windowHeight = PLSDpiHelper::calculate(dpi, recordWidnowHeight);
@@ -121,6 +122,16 @@ void PLSLiveEndDialog::setupScrollData(PLSDpiHelper dpiHelper)
 		}
 
 		this->resize(PLSDpiHelper::calculate(dpi, windowWidth), windowHeight);
+
+		QApplication::processEvents();
+		for (QObject *child : ui->channelScroll->widget()->children()) {
+			if (!child->isWidgetType()) {
+				continue;
+			}
+			if (PLSLiveEndItem *childWidget = dynamic_cast<PLSLiveEndItem *>(child); childWidget) {
+				childWidget->setNameElideString();
+			}
+		}
 	});
 }
 
@@ -133,8 +144,7 @@ void PLSLiveEndDialog::okButtonClicked()
 void PLSLiveEndDialog::openFileSavePath()
 {
 	QUrl videoPath = QUrl::fromLocalFile(getRecordPath());
-	string logString = std::string("PLSEnd Dialog openFileSavePath Click, with path") + videoPath.toString().toStdString();
-	PLS_UI_STEP(END_MODULE, logString.c_str(), ACTION_CLICK);
+	PLS_UI_STEP(END_MODULE, "PLSEnd Dialog openFileSavePath Click", ACTION_CLICK);
 	QDesktopServices::openUrl(videoPath);
 }
 

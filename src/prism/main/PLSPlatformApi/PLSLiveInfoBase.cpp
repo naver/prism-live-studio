@@ -8,25 +8,25 @@
 #include "pls-app.hpp"
 #include "PLSPlatformApi.h"
 #include "PLSLiveInfoDialogs.h"
+#include "main-view.hpp"
+#include "ResolutionGuidePage.h"
 
 PLSLiveInfoBase::PLSLiveInfoBase(PLSPlatformBase *pPlatformBase, QWidget *parent, PLSDpiHelper dpiHelper)
 	: PLSDialogView(parent, dpiHelper), m_pPlatformBase(pPlatformBase), m_pWidgetLoadingBG(nullptr)
 {
-	App()->DisableHotkeys();
+
 	dpiHelper.setCss(this, {PLSCssIndex::PLSLoadingBtn, PLSCssIndex::PLSLiveInfoBase});
-	dpiHelper.notifyDpiChanged(this, [=]() {
+	dpiHelper.setFixedSize(this, {720, 710});
+	/*dpiHelper.notifyDpiChanged(this, [=]() {
 		if (m_pWidgetLoadingBG != nullptr && m_pWidgetLoadingBG->isVisible()) {
 			m_pWidgetLoadingBG->setGeometry(m_pWidgetLoadingBG->parentWidget()->geometry());
 		}
-	});
+	});*/
 	setHasCloseButton(false);
 	setResizeEnabled(false);
 }
 
-PLSLiveInfoBase::~PLSLiveInfoBase()
-{
-	App()->UpdateHotkeyFocusSetting();
-}
+PLSLiveInfoBase::~PLSLiveInfoBase() {}
 
 void PLSLiveInfoBase::updateStepTitle(QPushButton *button)
 {
@@ -38,7 +38,7 @@ void PLSLiveInfoBase::updateStepTitle(QPushButton *button)
 		int iTotalSteps = PLS_PLATFORM_API->getTotalSteps();
 		int iCurrStep = m_pPlatformBase->getCurrentStep();
 
-		button->setText(iCurrStep == iTotalSteps ? QTStr("Live.Check.GoLive") : QTStr("Live.Check.Next"));
+		button->setText(iCurrStep == iTotalSteps ? QTStr("Live.Check.GoLive") : QTStr("Next"));
 
 		if (iTotalSteps > 1) {
 			auto title = windowTitle();
@@ -51,6 +51,9 @@ void PLSLiveInfoBase::updateStepTitle(QPushButton *button)
 void PLSLiveInfoBase::showLoading(QWidget *parent)
 {
 	hideLoading();
+
+	m_pWidgetLoadingBGParent = parent;
+
 	m_pWidgetLoadingBG = new QWidget(parent);
 	m_pWidgetLoadingBG->setObjectName("loadingBG");
 	m_pWidgetLoadingBG->setGeometry(parent->geometry());
@@ -63,16 +66,46 @@ void PLSLiveInfoBase::showLoading(QWidget *parent)
 	loadingBtn->show();
 
 	m_loadingEvent.startLoadingTimer(loadingBtn);
+
+	if (m_pWidgetLoadingBGParent) {
+		m_pWidgetLoadingBGParent->installEventFilter(this);
+	}
 }
 
 void PLSLiveInfoBase::hideLoading()
 {
+	if (m_pWidgetLoadingBGParent) {
+		m_pWidgetLoadingBGParent->removeEventFilter(this);
+		m_pWidgetLoadingBGParent = nullptr;
+	}
+
 	if (nullptr != m_pWidgetLoadingBG) {
 		m_loadingEvent.stopLoadingTimer();
 
 		delete m_pWidgetLoadingBG;
 		m_pWidgetLoadingBG = nullptr;
 	}
+}
+
+void PLSLiveInfoBase::showEvent(QShowEvent *event)
+{
+	PLSDialogView::showEvent(event);
+	ResolutionGuidePage::checkResolution(this, m_pPlatformBase->getChannelUUID());
+}
+
+bool PLSLiveInfoBase::eventFilter(QObject *watcher, QEvent *event)
+{
+	if (m_pWidgetLoadingBG && (watcher == m_pWidgetLoadingBGParent) && (event->type() == QEvent::Resize)) {
+		QResizeEvent *resizeEvent = static_cast<QResizeEvent *>(event);
+		m_pWidgetLoadingBG->setGeometry(0, 0, resizeEvent->size().width(), resizeEvent->size().height());
+	}
+
+	return PLSDialogView::eventFilter(watcher, event);
+}
+
+void PLSLiveInfoBase::showResolutionGuide()
+{
+	ResolutionGuidePage::showResolutionGuideCloseAfterChange(this);
 }
 
 void PLSLiveInfoBase::closeEvent(QCloseEvent *event)
@@ -82,4 +115,9 @@ void PLSLiveInfoBase::closeEvent(QCloseEvent *event)
 	} else {
 		PLSDialogView::closeEvent(event);
 	}
+}
+
+QWidget *PLSLiveInfoBase::createResolutionButtonsFrame()
+{
+	return ResolutionGuidePage::createResolutionButtonsFrame(this);
 }

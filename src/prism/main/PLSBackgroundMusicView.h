@@ -111,12 +111,12 @@ public:
 	enum class PlayMode { InOrderMode, RandomMode, UnknownMode };
 	Q_ENUM(PlayMode)
 
-	explicit PLSBackgroundMusicView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSBackgroundMusicView(DialogInfo info, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSBackgroundMusicView();
-	void InitGeometry();
 	void UpdateSourceList(const QString &sourceName, quint64 sceneItem, const BgmSourceVecType &sourceList);
 	void RenameSourceName(const quint64 &item, const QString &newName, const QString &prevName);
 	void ClearUrlInfo();
+	void DisconnectSignalsWhenAppClose();
 	bool CurrentPlayListBgmDataExisted(const QString &url);
 	int GetCurrentPlayListDataSize();
 	int GetCurrentBgmSourceSize();
@@ -213,9 +213,6 @@ private:
 	void SetPlayerControllerStatus(const quint64 &sceneItem, bool listChanged = false);
 	void ResetControlView();
 	void DisablePlayerControlUI(bool disable);
-	void SaveShowModeToConfig();
-	void onMaxFullScreenStateChanged() override;
-	void onSaveNormalGeometry() override;
 	void SetCurrentPlayMode(const int &mode);
 	static void PLSFrontendEvent(enum obs_frontend_event event, void *ptr);
 

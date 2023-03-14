@@ -26,6 +26,8 @@
 #endif // Q_OS_WINDOWS
 
 #include "frontend-api.h"
+#include "pls-app.hpp"
+#include "main-view.hpp"
 
 #define TOPLEVELVIEW_MODULE "ToplevelView"
 
@@ -342,6 +344,23 @@ FRONTEND_API bool toplevelViewNativeEvent(PLSWidgetDpiAdapter *adapter, const QB
 	return retval;
 }
 
+FRONTEND_API QRect toplevelViewResizeEnd(QRect rect, const QRect &titleBarRect, const QPoint &cursor)
+{
+	QRect screenAvailableRect = getScreenAvailableRect(cursor);
+	if (rect.top() < screenAvailableRect.top()) {
+		rect.moveTop(screenAvailableRect.top());
+	}
+	if ((rect.top() + titleBarRect.height()) > screenAvailableRect.bottom()) {
+		rect.moveTop(screenAvailableRect.bottom() - titleBarRect.height());
+	}
+	return rect;
+}
+
+PLSDialogView::PLSDialogView(DialogInfo info, QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper)
+{
+	defaultInfo = info;
+}
+
 PLSDialogView::PLSDialogView(QWidget *parent, PLSDpiHelper dpiHelper) : ToplevelView(parent, Qt::Dialog | Qt::FramelessWindowHint), ui(new Ui::PLSDialogView)
 {
 	dpiHelper.setCss(this, {PLSCssIndex::Common, PLSCssIndex::QCheckBox, PLSCssIndex::QLineEdit, PLSCssIndex::QMenu, PLSCssIndex::QPlainTextEdit, PLSCssIndex::QPushButton,
@@ -358,6 +377,7 @@ PLSDialogView::PLSDialogView(QWidget *parent, PLSDpiHelper dpiHelper) : Toplevel
 	ui->contentBorder->installEventFilter(this);
 	ui->content->installEventFilter(this);
 	ui->titleLabel->installEventFilter(this);
+	this->installEventFilter(this);
 
 	owidget = nullptr;
 	captionHeight = captionButtonSize = GetSystemMetrics(SM_CYCAPTION);
@@ -407,6 +427,15 @@ PLSDialogView::PLSDialogView(QWidget *parent, PLSDpiHelper dpiHelper) : Toplevel
 			ui->content->setObjectName(CONTENT);
 		}
 	});
+
+	connect(
+		this, &PLSDialogView::shown, this,
+		[=]() {
+			if (this->isModal() && !this->objectName().contains("PLSLoginView")) {
+				this->moveToCenter();
+			}
+		},
+		Qt::QueuedConnection);
 }
 
 PLSDialogView::~PLSDialogView()
@@ -433,10 +462,11 @@ int PLSDialogView::exec()
 	}
 
 	auto lastFlags = this->windowFlags();
-	if (!lastAvailable.isNull()) {
+	if (!lastAvailable.isNull() && lastAvailable != this && lastAvailable != lastParent) {
+		lastAvailable->activateWindow();
 		this->setParent(lastAvailable, lastFlags);
 	}
-
+	HotKeyLocker locker;
 	widgetStack.append(widgetPtr(this));
 	int ret = ToplevelView::exec();
 	widgetStack.removeLast();
@@ -708,6 +738,70 @@ bool PLSDialogView::canFullScreen() const
 	return false;
 }
 
+void PLSDialogView::InitGeometry(bool inConstructor)
+{
+	if (defaultInfo.configId == ConfigId::None) {
+		return;
+	}
+
+	auto initGeometry = [this](double dpi, bool inConstructor) {
+		extern void setGeometrySys(PLSWidgetDpiAdapter * adapter, const QRect &geometry);
+
+		const char *geometry = pls_config_get_string(App()->GlobalConfig(), defaultInfo.configId, "geometry");
+		if (!geometry || !geometry[0]) {
+			const int defaultWidth = defaultInfo.defaultWidth;
+			const int defaultHeight = defaultInfo.defaultHeight;
+			const int mainRightOffest = defaultInfo.defaultOffset;
+			PLSMainView *mainView = App()->getMainView();
+			if (!mainView) {
+				return;
+			}
+			QPoint mainTopRight = mainView->mapToGlobal(QPoint(mainView->frameGeometry().width(), 0));
+			geometryOfNormal = QRect(mainTopRight.x() + PLSDpiHelper::calculate(dpi, mainRightOffest), mainTopRight.y(), PLSDpiHelper::calculate(dpi, defaultWidth),
+						 PLSDpiHelper::calculate(dpi, defaultHeight));
+			setGeometrySys(this, geometryOfNormal);
+		} else if (inConstructor) {
+			QByteArray byteArray = QByteArray::fromBase64(QByteArray(geometry));
+			restoreGeometry(byteArray);
+			if (pls_config_get_bool(App()->GlobalConfig(), defaultInfo.configId, "isMaxState")) {
+				showMaximized();
+			}
+		}
+	};
+
+	PLSDpiHelper dpiHelper;
+	dpiHelper.notifyDpiChanged(this, [=](double dpi, double, bool isFirstShow) {
+		extern QRect normalShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
+
+		if (isFirstShow) {
+			initGeometry(dpi, false);
+			if (!isMaxState && !isFullScreenState) {
+				normalShow(this, geometryOfNormal);
+			}
+		}
+	});
+
+	initGeometry(PLSDpiHelper::getDpi(this), inConstructor);
+}
+
+void PLSDialogView::onMaxFullScreenStateChanged()
+{
+	if (defaultInfo.configId == ConfigId::None) {
+		return;
+	}
+	pls_config_set_bool(App()->GlobalConfig(), defaultInfo.configId, "isMaxState", getMaxState());
+	config_save(App()->GlobalConfig());
+}
+
+void PLSDialogView::onSaveNormalGeometry()
+{
+	if (defaultInfo.configId == ConfigId::None) {
+		return;
+	}
+	pls_config_set_string(App()->GlobalConfig(), defaultInfo.configId, "geometry", saveGeometry().toBase64().constData());
+	config_save(App()->GlobalConfig());
+}
+
 void PLSDialogView::flushMaxFullScreenStateStyle()
 {
 	pls_flush_style(ui->maxres);
@@ -721,7 +815,22 @@ void PLSDialogView::closeEvent(QCloseEvent *event)
 void PLSDialogView::showEvent(QShowEvent *event)
 {
 	emit shown();
+	if (defaultInfo.configId != ConfigId::None) {
+		pls_config_set_bool(App()->GlobalConfig(), defaultInfo.configId, "showMode", isVisible());
+		config_save(App()->GlobalConfig());
+	}
+
 	ToplevelView::showEvent(event);
+}
+
+void PLSDialogView::hideEvent(QHideEvent *event)
+{
+	if (defaultInfo.configId != ConfigId::None) {
+		pls_config_set_bool(App()->GlobalConfig(), defaultInfo.configId, "showMode", isVisible());
+		config_save(App()->GlobalConfig());
+	}
+
+	ToplevelView::hideEvent(event);
 }
 
 void PLSDialogView::keyPressEvent(QKeyEvent *event)
@@ -794,6 +903,12 @@ bool PLSDialogView::eventFilter(QObject *watcher, QEvent *event)
 		}
 	}
 
+	if (watcher == this && event->type() == QEvent::WindowActivate) {
+		if (!pls_inside_visible_screen_area(this->geometry())) {
+			PLSWidgetDpiAdapter::restoreGeometry(this, saveGeometry());
+		}
+	}
+
 	if (watcher == ui->titleLabel) {
 		switch (event->type()) {
 		case QEvent::Resize:
@@ -803,4 +918,41 @@ bool PLSDialogView::eventFilter(QObject *watcher, QEvent *event)
 	}
 
 	return ToplevelView::eventFilter(watcher, event);
+}
+
+int HotKeyLocker::lockerCount = 0;
+
+HotKeyLocker::HotKeyLocker()
+{
+	++HotKeyLocker::lockerCount;
+	if (lockerCount == 1) {
+		QMetaObject::invokeMethod(App(), "DisableHotkeys", Qt::QueuedConnection);
+	}
+}
+
+HotKeyLocker::~HotKeyLocker()
+{
+	--HotKeyLocker::lockerCount;
+
+	if (HotKeyLocker::lockerCount < 0) {
+		HotKeyLocker::lockerCount = 0;
+	}
+	if (HotKeyLocker::lockerCount == 0) {
+		QMetaObject::invokeMethod(App(), "UpdateHotkeyFocusSetting", Qt::QueuedConnection, Q_ARG(bool, true));
+	}
+}
+
+HotKeyLocker::HotKeyLocker(const HotKeyLocker &)
+{
+	++HotKeyLocker::lockerCount;
+}
+
+HotKeyLocker::HotKeyLocker(const HotKeyLocker &&) noexcept
+{
+	++HotKeyLocker::lockerCount;
+}
+
+QSharedPointer<HotKeyLocker> HotKeyLocker::createHotkeyLocker()
+{
+	return QSharedPointer<HotKeyLocker>::create();
 }

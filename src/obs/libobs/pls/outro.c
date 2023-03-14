@@ -33,25 +33,33 @@ static void reset_outro(obs_outro_t *outro)
 	       sizeof(float) * MAX_AUDIO_CHANNELS * AUDIO_OUTPUT_FRAMES);
 }
 
-static void activate_outro_source(struct obs_outro *outro)
+static bool activate_outro_source(struct obs_outro *outro)
 {
-	outro->source->info.activate(outro->source->context.data);
+	if (outro->source->context.data && outro->source->info.activate) {
+		outro->source->info.activate(outro->source->context.data);
+		return true;
+	} else {
+		plog(LOG_WARNING,
+		     "Outro source has not been created correctly.");
+		return false;
+	}
 }
 
 static bool activate_outro(struct obs_outro *outro)
 {
 	outro->start_time_nsec = os_gettime_ns();
-	blog(LOG_INFO, "Outro activated, start time %lld.",
+	plog(LOG_INFO, "Outro activated, start time %lld.",
 	     outro->start_time_nsec);
 	return os_atomic_set_bool(&outro->active, true);
 }
 
 static void deactivate_outro(struct obs_outro *outro)
 {
-	outro->source->info.deactivate(outro->source->context.data);
+	if (outro->source->context.data && outro->source->info.deactivate)
+		outro->source->info.deactivate(outro->source->context.data);
 	os_atomic_set_bool(&outro->active, false);
 	outro->start_time_nsec = 0;
-	blog(LOG_INFO, "Outro deactivated, start time %lld.",
+	plog(LOG_INFO, "Outro deactivated, start time %lld.",
 	     outro->start_time_nsec);
 }
 
@@ -93,7 +101,7 @@ static void stop_outputs()
 static bool update_source(struct obs_outro *outro, const char *outro_file_path)
 {
 	if (outro->source) {
-		obs_source_destroy(outro->source);
+		obs_source_release(outro->source);
 		outro->source = NULL;
 	}
 
@@ -110,14 +118,12 @@ static bool update_source(struct obs_outro *outro, const char *outro_file_path)
 	obs_data_release(settings);
 
 	if (!outro->source) {
-		blog(LOG_WARNING, "Fail to create outro source %s",
+		plog(LOG_WARNING, "Fail to create outro source %s",
 		     outro->name != NULL ? outro->name : DEFAULT_SOURCE_NAME);
 		return false;
 	}
 
-	activate_outro_source(outro);
-
-	return true;
+	return activate_outro_source(outro);
 }
 
 static bool reset_texture(struct obs_outro *outro)
@@ -130,7 +136,7 @@ static bool reset_texture(struct obs_outro *outro)
 	uint32_t source_width = obs_source_get_width(outro->source);
 	uint32_t source_height = obs_source_get_height(outro->source);
 	if (source_width == 0 || source_height == 0) {
-		blog(LOG_WARNING,
+		plog(LOG_DEBUG,
 		     "Width[%d] / Height[%d] of Outro source still not available.",
 		     source_width, source_height);
 		return false;
@@ -143,7 +149,7 @@ static bool reset_texture(struct obs_outro *outro)
 
 	if (!outro->texture) {
 		gs_leave_context();
-		blog(LOG_WARNING, "Fail to create outro texture, w/h : %d/%d",
+		plog(LOG_WARNING, "Fail to create outro texture, w/h : %d/%d",
 		     source_width, source_height);
 		return false;
 	}
@@ -171,7 +177,7 @@ static bool start_thread(struct obs_outro *outro)
 	int errorcode = pthread_create(&outro->outro_thread, NULL,
 				       obs_outro_thread, obs);
 	if (errorcode != 0) {
-		blog(LOG_WARNING, "Fail to create outro thread, errorcode %d",
+		plog(LOG_WARNING, "Fail to create outro thread, errorcode %d",
 		     errorcode);
 		return false;
 	}
@@ -256,7 +262,7 @@ static gs_texture_t *render_outro_internal(obs_outro_t *outro)
 
 		struct obs_source *source = obs->video.outro->source;
 		if (source) {
-			if (source->removed) {
+			if (obs_source_removed(source)) {
 				obs_source_release(source);
 			} else {
 				obs_source_video_render(source);
@@ -274,7 +280,7 @@ static bool obs_outro_update(obs_outro_t *outro, const char *outro_file_path,
 	if (!obs_ptr_valid(outro, "obs_outro_update") ||
 	    !obs_ptr_valid(outro_file_path, "obs_outro_update") ||
 	    timeout_usec == 0) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "Bad parameters for outro, timeout_usec %lld.",
 		     timeout_usec);
 		return false;
@@ -282,7 +288,7 @@ static bool obs_outro_update(obs_outro_t *outro, const char *outro_file_path,
 
 	// outro is active, do not allow update
 	if (obs_outro_active(outro)) {
-		blog(LOG_WARNING, "Outro is active, do not allow update.");
+		plog(LOG_WARNING, "Outro is active, do not allow update.");
 		return false;
 	}
 
@@ -292,8 +298,7 @@ static bool obs_outro_update(obs_outro_t *outro, const char *outro_file_path,
 
 	os_atomic_set_bool(&outro->ready, true);
 
-	blog(LOG_INFO, "Outro updated: \n\tfile : %s \n\ttimeout_usec : %lld.",
-	     outro_file_path, timeout_usec);
+	plog(LOG_INFO, "Outro updated: timeout_usec : %lld.", timeout_usec);
 
 	return true;
 }
@@ -304,13 +309,13 @@ static bool obs_outro_start(obs_outro_t *outro)
 		return false;
 
 	if (output_stopped()) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "Can not start outro when there is no output enabled.");
 		return false;
 	}
 
 	if (!os_atomic_load_bool(&outro->ready)) {
-		blog(LOG_WARNING, "Outro is not ready to start.");
+		plog(LOG_WARNING, "Outro is not ready to start.");
 		return false;
 	}
 
@@ -339,7 +344,7 @@ static void obs_outro_stop(obs_outro_t *outro)
 			pthread_join(outro->outro_thread, &thread_retval);
 			outro->thread_initialized = false;
 		}
-		blog(LOG_INFO, "Outro stopped.");
+		plog(LOG_INFO, "Outro stopped.");
 	}
 }
 
@@ -354,7 +359,7 @@ obs_outro_t *obs_outro_create(const char *name)
 {
 	struct obs_outro *outro = bzalloc(sizeof(struct obs_outro));
 	if (!outro) {
-		blog(LOG_WARNING, "Fail to alloc outro.");
+		plog(LOG_WARNING, "Fail to alloc outro.");
 		return NULL;
 	}
 
@@ -368,7 +373,7 @@ obs_outro_t *obs_outro_create(const char *name)
 		}
 	}
 
-	blog(LOG_INFO, "Outro [%s] is created.", name);
+	plog(LOG_INFO, "Outro [%s, %p] is created.", name, outro);
 
 	return outro;
 }
@@ -377,11 +382,11 @@ void obs_outro_destroy(obs_outro_t *outro)
 {
 	if (outro) {
 		obs_outro_stop(outro);
-		obs_source_destroy(outro->source);
+		obs_source_release(outro->source);
 		release_texture(outro);
 		reset_outro(outro);
 		bfree(outro);
-		blog(LOG_INFO, "Outro is destroyed.");
+		plog(LOG_INFO, "Outro is destroyed.");
 	}
 }
 
@@ -395,6 +400,9 @@ bool obs_outro_active(const obs_outro_t *outro)
 
 void *obs_outro_thread(void *param)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct obs_outro *outro = obs->video.outro;
 
 	uint64_t interval =
@@ -406,18 +414,19 @@ void *obs_outro_thread(void *param)
 		if (outro->timeout_nsec > 0 && outro->start_time_nsec > 0 &&
 		    time_nsec > outro->timeout_nsec &&
 		    !os_atomic_load_bool(&outro->stopping_output)) {
-			blog(LOG_INFO, "Outro timeout, try to stop outputs");
+			plog(LOG_INFO, "Outro timeout, try to stop outputs");
 			stop_outputs();
 		}
 
 		if (output_stopped() && obs_outro_active(outro)) {
-			blog(LOG_INFO, "Output is stopped, deactivate outro");
+			plog(LOG_INFO, "Output is stopped, deactivate outro");
 			deactivate_outro(outro);
+			break;
 		}
 
 		os_sleep_ms(interval);
 	}
-
+	outro->thread_initialized = false;
 	UNUSED_PARAMETER(param);
 	return NULL;
 }
@@ -427,17 +436,21 @@ gs_texture_t *obs_outro_render(struct obs_core_video *video)
 	if (video && video->outro) {
 		if (!reset_texture(video->outro))
 			return NULL;
-		
-		uint32_t base_width = video->outro->render_width;
-		uint32_t base_height = video->outro->render_height;
-
-		gs_texture_t *texture = render_outro_internal(video->outro);
 
 		gs_texture_t *target = video->output_texture;
-		uint32_t width = gs_texture_get_width(target);
-		uint32_t height = gs_texture_get_height(target);
+		uint32_t target_width = gs_texture_get_width(target);
+		uint32_t target_height = gs_texture_get_height(target);
 
-		gs_effect_t *effect = get_scale_effect(video, width, height);
+		gs_texture_t *texture = render_outro_internal(video->outro);
+		uint32_t base_width = gs_texture_get_width(texture);
+		uint32_t base_height = gs_texture_get_height(texture);
+
+		if (!target_width || !target_height || !base_width ||
+		    !base_height)
+			return NULL;
+
+		gs_effect_t *effect =
+			get_scale_effect(video, target_width, target_height);
 		gs_technique_t *tech;
 
 		if (video->ovi.output_format == VIDEO_FORMAT_RGBA) {
@@ -445,7 +458,8 @@ gs_texture_t *obs_outro_render(struct obs_core_video *video)
 						       "DrawAlphaDivide");
 		} else {
 			if ((effect == video->default_effect) &&
-			    (width == base_width) && (height == base_height))
+			    (target_width == base_width) &&
+			    (target_height == base_height))
 				return texture;
 
 			tech = gs_effect_get_technique(effect, "Draw");
@@ -460,18 +474,18 @@ gs_texture_t *obs_outro_render(struct obs_core_video *video)
 		size_t passes, i;
 
 		gs_set_render_target(target, NULL);
+		struct vec4 clear_color;
+		vec4_set(&clear_color, 0.045f, 0.045f, 0.045f, 0.0f);
+		gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
 
 		gs_enable_depth_test(false);
 		gs_set_cull_mode(GS_NEITHER);
-
-		gs_ortho(0.0f, (float)width, 0.0f, (float)height, -100.0f,
-			 100.0f);
 
 		uint32_t x = 0;
 		uint32_t y = 0;
 		uint32_t cx = 0;
 		uint32_t cy = 0;
-
+#if 0
 		double target_ratio = (double)width / (double)height;
 		double base_ratio = (double)base_width / (double)base_height;
 		if (target_ratio > base_ratio) {
@@ -484,7 +498,23 @@ gs_texture_t *obs_outro_render(struct obs_core_video *video)
 
 		x = (width - cx) / 2;
 		y = (height - cy) / 2;
-
+#else
+		float x_ratio = (float)base_width / (float)target_width;
+		float y_ratio = (float)base_height / (float)target_height;
+		if (x_ratio < y_ratio) {
+			y = 0;
+			cy = target_height;
+			cx = cy * ((float)base_width / (float)base_height);
+			x = (target_width - cx) / 2;
+		} else {
+			x = 0;
+			cx = target_width;
+			cy = cx * ((float)base_height / (float)base_width);
+			y = (target_height - cy) / 2;
+		}
+#endif
+		gs_ortho(0.0f, (float)base_width, 0.0f, (float)base_height,
+			 -100.0f, 100.0f);
 		gs_set_viewport(x, y, cx, cy);
 
 		if (bres) {
@@ -506,7 +536,7 @@ gs_texture_t *obs_outro_render(struct obs_core_video *video)
 		passes = gs_technique_begin(tech);
 		for (i = 0; i < passes; i++) {
 			gs_technique_begin_pass(tech, i);
-			gs_draw_sprite(texture, 0, cx, cy);
+			gs_draw_sprite(texture, 0, 0, 0);
 			gs_technique_end_pass(tech);
 		}
 		gs_technique_end(tech);
@@ -522,7 +552,7 @@ bool obs_outro_activate(const char *outro_file_path, uint64_t timeout_usec)
 	obs_outro_t *outro = obs_get_outro();
 	if (outro) {
 		if (obs_outro_active(outro)) {
-			blog(LOG_WARNING, "Outro is already started");
+			plog(LOG_WARNING, "Outro is already started");
 			return false;
 		}
 
@@ -532,6 +562,6 @@ bool obs_outro_activate(const char *outro_file_path, uint64_t timeout_usec)
 		return obs_outro_start(outro);
 	}
 
-	blog(LOG_WARNING, "Outro is not exist.");
+	plog(LOG_WARNING, "Outro is not exist.");
 	return false;
 }

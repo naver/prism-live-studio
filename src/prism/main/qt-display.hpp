@@ -22,7 +22,9 @@ class PLSQTDisplay : public QWidget {
 	bool isResizing = false;
 	bool isDisplayActive = false;
 	bool displayTextAsGuide = false;
+	bool createImmediately = false;
 
+public:
 	void CreateDisplay();
 	void AdjustResizeUI();
 
@@ -33,6 +35,7 @@ class PLSQTDisplay : public QWidget {
 
 signals:
 	void DisplayCreated(PLSQTDisplay *window);
+	void displayDestroy(PLSQTDisplay *window);
 	void DisplayResized();
 	void AdjustResizeView(QLabel *screen, QLabel *view, bool &handled);
 
@@ -51,7 +54,13 @@ public:
 
 	virtual QPaintEngine *paintEngine() const override;
 
-	inline obs_display_t *GetDisplay() const { return display; }
+	inline obs_display_t *GetDisplay()
+	{
+		if (!display) {
+			CreateDisplay();
+		}
+		return display;
+	}
 
 	uint32_t backgroundColor = GREY_COLOR_BACKGROUND;
 
@@ -63,4 +72,5 @@ public:
 
 	void showGuideText(const QString &guideText);
 	void setDisplayTextVisible(bool visible);
+	void SetCreateImmediately(bool create);
 };

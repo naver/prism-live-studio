@@ -50,8 +50,7 @@ bool import_python(const char *python_path)
 
 	lib = os_dlopen(lib_path.array);
 	if (!lib) {
-		blog(LOG_WARNING, "[Python] Could not load library: %s",
-		     lib_path.array);
+		plog(LOG_WARNING, "[Python] Could not load library");
 		goto fail;
 	}
 
@@ -59,7 +58,7 @@ bool import_python(const char *python_path)
 	do {                                                               \
 		Import_##x = os_dlsym(lib, #x);                            \
 		if (!Import_##x) {                                         \
-			blog(LOG_WARNING, "[Python] Failed to import: %s", \
+			plog(LOG_WARNING, "[Python] Failed to import: %s", \
 			     #x);                                          \
 			goto fail;                                         \
 		}                                                          \

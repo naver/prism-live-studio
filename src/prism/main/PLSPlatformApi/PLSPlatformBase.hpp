@@ -24,10 +24,10 @@ using namespace std;
 
 #define MODULE_PlatformService "PlatformService"
 
-#define PLATFORM_SIZE 8
-enum class PLSServiceType { ST_RTMP, ST_TWITCH, ST_YOUTUBE, ST_FACEBOOK, ST_VLIVE, ST_NAVERTV, ST_BAND, ST_AFREECATV };
+enum class PLSServiceType { ST_RTMP, ST_TWITCH, ST_YOUTUBE, ST_FACEBOOK, ST_VLIVE, ST_NAVERTV, ST_BAND, ST_AFREECATV, ST_NAVER_SHOPPING_LIVE, ST_MAX_PLATFORMS };
 enum class PLSTokenRequestStatus { PLS_GOOD, PLS_ING, PLS_BAD };
 
+const int PLATFORM_SIZE = static_cast<int>(PLSServiceType::ST_MAX_PLATFORMS);
 extern const char *const NamesForChannelType[PLATFORM_SIZE];
 extern const char *const NamesForSettingId[PLATFORM_SIZE];
 extern const char *const NamesForLiveStart[PLATFORM_SIZE];
@@ -40,18 +40,40 @@ enum class PLSPlatformApiResult {
 	PAR_NETWORK_ERROR,
 	PAR_API_FAILED,
 	PAR_TOKEN_EXPIRED,
+	PAR_SERVER_ERROR,
 	YOUTUBE_API_ERROR_NO_CHANNEL,
 	YOUTUBE_API_ERROR_REDUNDANT_TRANSITION,
 	YOUTUBE_API_ERROR_INVALID_TRANSITION,
+	YOUTUBE_API_ERROR_LATENCY_TRANSITION,
 	PAR_API_ERROR_LIVE_BROADCAST_NOT_FOUND,
-	PAR__API_ERROR_FORBIDDEN,
-	VLIVE_API_ERROR_NO_PERMISSION,
+	PAR_API_ERROR_FORBIDDEN,
+	VLIVE_API_ERROR_NO_PROFILE,
 	PAR_API_ERROR_Live_Invalid,
 	PAR_API_ERROR_Scheduled_Time,
 	BAND_API_ERROR_NO_PERMISSION,
 	PAR_API_ERROR_Upload_Image,
 	PAR_API_ERROR_StartLive_Other,
-	PAR_API_ERROR_StartLive_User_Blocked
+	PAR_API_ERROR_UPDATE,
+	PAR_API_ERROR_StartLive_User_Blocked,
+	PAR_API_ERROR_CUSTOM,
+	PAR_API_ERROR_CHANNEL_NO_PERMISSON,
+	PAR_API_ERROR_KIDS_READONLY,
+	PAR_API_ERROR_LATENCY_CHANGED_FAILED,
+	PAR_API_ERROR_CONNECT_ERROR,
+	PAR_API_ERROR_SCHEDULE_API_FAILED,
+};
+
+enum class PLSPlatformMqttStatus {
+	PMS_NONE,
+	PMS_ON_BROADCAST,
+	PMS_END_BROADCAST,
+	PMS_CONNECTING_TO_SERVER,
+	PMS_CANNOT_FIND_SERVER,
+	PMS_CANNOT_CONNECT_TO_SERVER,
+	PMS_CANNOT_AUTH_TO_SERVER,
+	PMS_CANNOT_CONNECT_TO_PATH,
+	PMS_WAITING_TO_BROADCAST,
+	PMS_LIVE_FINISHED_BY_PLATFORM
 };
 
 class PLSPlatformBase : public QObject {
@@ -98,6 +120,13 @@ public:
 		return *this;
 	}
 	bool isSingleChannel() const { return m_bSingleChannel; }
+
+	PLSPlatformBase &setIsScheduleLive(bool value)
+	{
+		m_bScheduleLive = value;
+		return *this;
+	}
+	bool isScheduleLive() const { return m_bScheduleLive; }
 
 	virtual bool isSendChatToMqtt() const { return false; }
 
@@ -200,6 +229,17 @@ public:
 	}
 	PLSTokenRequestStatus getTokenRequestStatus() const { return m_tokenRequestStatus; }
 
+	PLSPlatformBase &setMqttFirstBroadcastOn(bool value)
+	{
+		m_bMqttFirstBroadcastOn = value;
+		return *this;
+	}
+
+	PLSPlatformBase &setMqttStatus(const PLSPlatformMqttStatus value);
+	static PLSPlatformMqttStatus getMqttStatus(const QString &szStatus);
+	PLSPlatformBase &setMqttStatus(const QString &szStatus);
+	PLSPlatformMqttStatus getMqttStatus() const { return m_enumMqttStatus; }
+
 	/**
 	* Occured when user activate a platform, may send some api to get necessary data
 	* param: callback, notify result, true for no error, false for otherwise
@@ -266,8 +306,15 @@ public:
 	**/
 	virtual void onLiveEnded() { liveEndedCallback(); }
 
+	virtual void onMqttStatus(PLSPlatformMqttStatus) {}
+	virtual void onMqttBroadcastOn() {}
+
 	virtual QString getShareUrl() { return QString(); }
 	virtual QString getServiceLiveLink() { return QString(); }
+
+	//the url have encryption
+	virtual QString getShareUrlEnc() { return QString(); }
+	virtual QString getServiceLiveLinkEnc() { return QString(); }
 
 	virtual QJsonObject getWebChatParams();
 	virtual QJsonObject getMqttChatParams();
@@ -293,6 +340,7 @@ protected:
 protected:
 	bool m_bActive = false;
 	bool m_bSingleChannel = false;
+	bool m_bScheduleLive = false;
 
 	QVariantMap m_mapInitData;
 
@@ -320,5 +368,7 @@ protected:
 	//When live stoped will clear the status;
 	PLSTokenRequestStatus m_tokenRequestStatus;
 
+	PLSPlatformMqttStatus m_enumMqttStatus = PLSPlatformMqttStatus::PMS_NONE;
+	bool m_bMqttFirstBroadcastOn = false;
 	bool m_bSubChannelStartApiCall = false;
 };

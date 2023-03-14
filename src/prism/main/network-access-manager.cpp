@@ -23,7 +23,8 @@ PLSNetworkAccessManager *PLSNetworkAccessManager::getInstance()
 	return instance;
 }
 
-QNetworkReply *PLSNetworkAccessManager::createHttpRequest(QNetworkAccessManager::Operation op, const QString &url, bool isEncode, const QVariantMap &headData, const QVariantMap &sendData, bool isGcc)
+QNetworkReply *PLSNetworkAccessManager::createHttpRequest(QNetworkAccessManager::Operation op, const QString &url, bool isEncode, const QVariantMap &headData, const QVariantMap &sendData, bool isGcc,
+							  bool isPrintLog, const QString &maskUrl)
 {
 	QString operation;
 	QNetworkReply *reply = nullptr;
@@ -56,17 +57,29 @@ QNetworkReply *PLSNetworkAccessManager::createHttpRequest(QNetworkAccessManager:
 	default:
 		break;
 	}
-	PLS_INFO(HTTP_REQUEST, "http request start:%s, url = %s.", operation.toUtf8().data(), reply->url().toString().toUtf8().constData());
+	auto httpRequestUrlMask = maskUrl.isEmpty() ? url : maskUrl;
+
+	PLS_INFO(HTTP_REQUEST, "http request start:%s, url = %s.", operation.toUtf8().data(), httpRequestUrlMask.toUtf8().constData());
+	if (!maskUrl.isEmpty()) {
+		PLS_INFO_KR(HTTP_REQUEST, "http request start:%s, url = %s.", operation.toUtf8().data(), url.toUtf8().constData());
+	}
+
 	if (url.contains("/auth/session")) {
 		QVariantMap headMap;
 		pls_http_request_head(headMap);
+		if (pls_is_dev_server()) {
+			headMap.insert("X-prism-usercode", QVariant());
+		}
 		QString headStr;
 		for (auto firstHead = headMap.begin(); firstHead != headMap.end(); ++firstHead) {
+			if (firstHead.key().contains("X-prism-usercode") || firstHead.key().contains("X-prism-ip") || firstHead.key().contains("X-prism-cc")) {
+				continue;
+			}
 			headStr += QString("\n         %1 = %2").arg(firstHead.key()).arg(firstHead.value().toString());
 		}
 		PLS_INFO(HTTP_REQUEST, QString("http requeset head:%1").arg(headStr).toUtf8().data());
 	}
-	httpResponseHandler(reply, url);
+	httpResponseHandler(reply, url, isPrintLog, !maskUrl.isEmpty(), httpRequestUrlMask);
 	return reply;
 }
 
@@ -123,7 +136,7 @@ void PLSNetworkAccessManager::setHmacUrlHandler(bool isEncode, QUrl &url)
 {
 	if (isEncode) {
 		if (url.toString().contains(HTTP_HMAC_STR)) {
-			pls_get_encrypt_url(url, QString::fromUtf8(url.toEncoded(QUrl::FullyDecoded)), PLS_HMAC_KEY);
+			pls_get_encrypt_url(url, QString::fromUtf8(url.toEncoded(QUrl::FullyDecoded)), PLS_PC_HMAC_KEY);
 		}
 	}
 }
@@ -182,7 +195,7 @@ QNetworkReply *PLSNetworkAccessManager::httpPutRequest(const QVariantMap &sendDa
 	}
 }
 
-void PLSNetworkAccessManager::httpResponseHandler(QNetworkReply *reply, const QString &requestHttpUrl)
+void PLSNetworkAccessManager::httpResponseHandler(QNetworkReply *reply, const QString &requestHttpUrl, bool isPrintLog, bool isMasking, const QString &maskUrl)
 {
 	QTimer *t = new QTimer();
 	connect(t, &QTimer::timeout, this, [=]() { reply->abort(); });
@@ -196,11 +209,33 @@ void PLSNetworkAccessManager::httpResponseHandler(QNetworkReply *reply, const QS
 			QByteArray body = reply->readAll();
 			PLSJsonDataHandler::getValueFromByteArray(body, "code", code);
 			if (reply->error() != QNetworkReply::NoError) {
-				PLS_WARN(HTTP_REQUEST, "http response error! url = %s statusCode = %d code = %d.", reply->url().toString().toUtf8().data(), statusCode, code.toInt());
-				emit replyErrorDataWithSatusCode(statusCode, requestHttpUrl, body, reply->errorString());
-				emit replyErrorData(requestHttpUrl, reply->errorString());
+				if (isFilterResponseErrorUrls(requestHttpUrl)) {
+					//notice,token response is error but the response is not error,it is another response.eg:no notice.
+					PLS_INFO(HTTP_REQUEST, "http response success, url = %s, networkReplyError = %d statusCode = %d.", maskUrl.toUtf8().data(), reply->error(), statusCode);
+					PLS_INFO_KR(HTTP_REQUEST, "http response success, url = %s networkReplyError = %d statusCode = %d errorMessage = %s.", requestHttpUrl.toUtf8().data(),
+						    reply->error(), statusCode, body.constData());
+				} else {
+					PLS_ERROR(HTTP_REQUEST, "http response error! url = %s networkReplyError = %d statusCode = %d.", maskUrl.toUtf8().data(), reply->error(), statusCode);
+
+					PLS_ERROR_KR(HTTP_REQUEST, "http response error! url = %s networkReplyError = %d statusCode = %d errorMessage = %s.", requestHttpUrl.toUtf8().data(),
+						     reply->error(), statusCode, body.constData());
+				}
+				if (HTTP_STATUS_CODE_401 == statusCode && HTTP_TOKEN_INVAILD_CODE_3000 == code.toInt() && (!isFilterUrls(requestHttpUrl))) {
+					emit sessionExpired();
+				} else {
+					emit replyErrorDataWithSatusCode(statusCode, requestHttpUrl, body, reply->errorString());
+					emit replyErrorData(requestHttpUrl, reply->errorString());
+				}
 
 			} else {
+				if (isPrintLog) {
+					auto contentTypeStr = reply->header(QNetworkRequest::ContentTypeHeader).toString();
+
+					PLS_INFO(HTTP_REQUEST, "http response success, url = %s, ", maskUrl.toUtf8().constData());
+
+					PLS_INFO_KR(HTTP_REQUEST, "http response success, url = %s, response data = %s", requestHttpUrl.toUtf8().constData(),
+						    contentTypeStr.contains("image") ? "is image res." : body.constData());
+				}
 				m_cookies.insert(requestHttpUrl, reply->header(QNetworkRequest::SetCookieHeader).value<QList<QNetworkCookie>>());
 				emit replyResultData(statusCode, requestHttpUrl, body);
 			}
@@ -225,4 +260,26 @@ void PLSNetworkAccessManager::setCookieToList(const QString &key, const QString 
 	cookie.setName(QByteArray::fromStdString(key.toStdString()));
 	cookie.setValue(QByteArray::fromStdString(value.toStdString()));
 	cookieList.push_back(cookie);
+}
+
+bool PLSNetworkAccessManager::isFilterUrls(const QString &url)
+{
+	QStringList filterUrls = {PLS_TOKEN_SESSION_URL.arg(PRISM_SSL), PLS_LOGOUT_URL.arg(PRISM_SSL), PLS_SIGNOUT_URL.arg(PRISM_SSL)};
+	for (auto filterUrl : filterUrls) {
+		if (0 == url.compare(filterUrl)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool PLSNetworkAccessManager::isFilterResponseErrorUrls(const QString &url)
+{
+	QStringList filterUrls = {PLS_TOKEN_SESSION_URL.arg(PRISM_SSL), PLS_NOTICE_URL.arg(PRISM_SSL)};
+	for (auto filterUrl : filterUrls) {
+		if (0 == url.compare(filterUrl)) {
+			return true;
+		}
+	}
+	return false;
 }

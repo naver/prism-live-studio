@@ -23,7 +23,7 @@ void log_sdk_version()
 
 	deckLinkIterator = CreateDeckLinkIteratorInstance();
 	if (deckLinkIterator == NULL) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "A DeckLink iterator could not be created.  The DeckLink drivers may not be installed");
 		return;
 	}
@@ -35,17 +35,19 @@ void log_sdk_version()
 		deckLinkAPIInformation->GetString(BMDDeckLinkAPIVersion,
 						  &deckLinkVersion);
 
-		blog(LOG_INFO, "Decklink API Compiled version %s",
+		plog(LOG_INFO, "Decklink API Compiled version %s",
 		     BLACKMAGIC_DECKLINK_API_VERSION_STRING);
 
 		std::string versionString;
 		DeckLinkStringToStdString(deckLinkVersion, versionString);
 
-		blog(LOG_INFO, "Decklink API Installed version %s",
+		plog(LOG_INFO, "Decklink API Installed version %s",
 		     versionString.c_str());
 
 		deckLinkAPIInformation->Release();
 	}
+	//PRISM/LiuHaibin/20210924/#None/Release COM object
+	deckLinkIterator->Release();
 }
 
 bool obs_module_load(void)

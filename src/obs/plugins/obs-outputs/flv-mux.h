@@ -41,5 +41,7 @@ extern bool flv_meta_data(obs_output_t *context, uint8_t **output, size_t *size,
 extern bool flv_id3v2(uint8_t **output, size_t *size, int64_t dts,
 		      int32_t dts_offset, int32_t timebase_den);
 
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
 extern void flv_packet_mux(struct encoder_packet *packet, int32_t dts_offset,
-			   uint8_t **output, size_t *size, bool is_header);
+			   uint8_t **output, size_t *size, bool is_header,
+			   bool is_vhevc);

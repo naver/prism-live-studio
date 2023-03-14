@@ -445,7 +445,7 @@
       <item>
        <widget class="QPushButton" name="ApplySettingsBtn">
         <property name="text">
-         <string>Channels.SettingApply</string>
+         <string>OK</string>
         </property>
         <property name="autoDefault">
          <bool>false</bool>
@@ -458,7 +458,7 @@
       <item>
        <widget class="QPushButton" name="Cancel">
         <property name="text">
-         <string>Channels.Cancel</string>
+         <string>Cancel</string>
         </property>
         <property name="autoDefault">
          <bool>false</bool>

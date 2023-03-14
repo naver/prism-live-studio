@@ -21,6 +21,11 @@
 static inline bool get_monitor(gs_device_t *device, int monitor_idx,
 			       IDXGIOutput **dxgiOutput)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid) {
+		return false;
+	}
+
 	HRESULT hr;
 
 	hr = device->adapter->EnumOutputs(monitor_idx, dxgiOutput);
@@ -36,6 +41,11 @@ static inline bool get_monitor(gs_device_t *device, int monitor_idx,
 
 void gs_duplicator::Start()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid) {
+		throw "Device invalid";
+	}
+
 	ComPtr<IDXGIOutput1> output1;
 	ComPtr<IDXGIOutput> output;
 	HRESULT hr;
@@ -77,6 +87,10 @@ EXPORT bool device_get_duplicator_monitor_info(gs_device_t *device,
 	DXGI_OUTPUT_DESC desc;
 	HRESULT hr;
 
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return false;
+
 	try {
 		ComPtr<IDXGIOutput> output;
 
@@ -88,7 +102,7 @@ EXPORT bool device_get_duplicator_monitor_info(gs_device_t *device,
 			throw HRError("GetDesc failed", hr);
 
 	} catch (const HRError &error) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "device_get_duplicator_monitor_info: "
 		     "%s (%08lX)",
 		     error.str, error.hr);
@@ -148,11 +162,11 @@ EXPORT gs_duplicator_t *device_duplicator_create(gs_device_t *device,
 		instances[monitor_idx] = duplicator;
 
 	} catch (const char *error) {
-		blog(LOG_DEBUG, "device_duplicator_create: %s", error);
+		plog(LOG_DEBUG, "device_duplicator_create: %s", error);
 		return nullptr;
 
 	} catch (const HRError &error) {
-		blog(LOG_DEBUG, "device_duplicator_create: %s (%08lX)",
+		plog(LOG_DEBUG, "device_duplicator_create: %s (%08lX)",
 		     error.str, error.hr);
 		return nullptr;
 	}
@@ -170,6 +184,11 @@ EXPORT void gs_duplicator_destroy(gs_duplicator_t *duplicator)
 
 static inline void copy_texture(gs_duplicator_t *d, ID3D11Texture2D *tex)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!d->device->device_valid) {
+		return;
+	}
+
 	D3D11_TEXTURE2D_DESC desc;
 	tex->GetDesc(&desc);
 
@@ -188,6 +207,11 @@ static inline void copy_texture(gs_duplicator_t *d, ID3D11Texture2D *tex)
 
 EXPORT bool gs_duplicator_update_frame(gs_duplicator_t *d)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!d->device->device_valid) {
+		return false;
+	}
+
 	DXGI_OUTDUPL_FRAME_INFO info;
 	ComPtr<ID3D11Texture2D> tex;
 	ComPtr<IDXGIResource> res;
@@ -208,7 +232,7 @@ EXPORT bool gs_duplicator_update_frame(gs_duplicator_t *d)
 		return true;
 
 	} else if (FAILED(hr)) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "gs_duplicator_update_frame: Failed to update "
 		     "frame (%08lX)",
 		     hr);
@@ -218,7 +242,7 @@ EXPORT bool gs_duplicator_update_frame(gs_duplicator_t *d)
 	hr = res->QueryInterface(__uuidof(ID3D11Texture2D),
 				 (void **)tex.Assign());
 	if (FAILED(hr)) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "gs_duplicator_update_frame: Failed to query "
 		     "ID3D11Texture2D (%08lX)",
 		     hr);

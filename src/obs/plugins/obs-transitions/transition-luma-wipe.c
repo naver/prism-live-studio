@@ -90,7 +90,7 @@ static void *luma_wipe_create(obs_data_t *settings, obs_source_t *source)
 	obs_leave_graphics();
 
 	if (!effect) {
-		blog(LOG_ERROR, "Could not open luma_wipe_transition.effect");
+		plog(LOG_ERROR, "Could not open luma_wipe_transition.effect");
 		return NULL;
 	}
 

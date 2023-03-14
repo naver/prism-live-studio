@@ -26,6 +26,8 @@ extern struct obs_output_info replay_buffer;
 extern struct obs_encoder_info aac_encoder_info;
 extern struct obs_encoder_info opus_encoder_info;
 extern struct obs_encoder_info nvenc_encoder_info;
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+extern struct obs_encoder_info nvenc_hevc_encoder_info;
 
 #if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(55, 27, 100)
 #define LIBAVUTIL_VAAPI_AVAILABLE
@@ -71,7 +73,7 @@ static bool is_adapter(const wchar_t *name, const wchar_t *adapter)
 	return true;
 }
 
-static bool is_blacklisted(const wchar_t *name)
+bool is_blacklisted(const wchar_t *name)
 {
 	for (size_t i = 0; i < num_blacklisted; i++) {
 		const wchar_t *blacklisted_adapter = blacklisted_adapters[i];
@@ -217,17 +219,29 @@ bool obs_module_load(void)
 	obs_register_encoder(&opus_encoder_info);
 #ifndef __APPLE__
 	if (nvenc_supported()) {
-		blog(LOG_INFO, "NVENC supported");
+		plog(LOG_INFO, "NVENC supported");
 #ifdef _WIN32
 		if (get_win_ver_int() > 0x0601) {
 			jim_nvenc_load();
+		} else {
+			// if on Win 7, new nvenc isn't available so there's
+			// no nvenc encoder for the user to select, expose
+			// the old encoder directly
+			nvenc_encoder_info.caps &= ~OBS_ENCODER_CAP_INTERNAL;
+
+			//PRISM/Wangshaohui/20201230/#3786/support HEVC
+			nvenc_hevc_encoder_info.caps &=
+				~OBS_ENCODER_CAP_INTERNAL;
 		}
 #endif
 		obs_register_encoder(&nvenc_encoder_info);
+
+		//PRISM/Wangshaohui/20201230/#3786/support HEVC
+		obs_register_encoder(&nvenc_hevc_encoder_info);
 	}
 #if !defined(_WIN32) && defined(LIBAVUTIL_VAAPI_AVAILABLE)
 	if (vaapi_supported()) {
-		blog(LOG_INFO, "FFMPEG VAAPI supported");
+		plog(LOG_INFO, "FFMPEG VAAPI supported");
 		obs_register_encoder(&vaapi_encoder_info);
 	}
 #endif

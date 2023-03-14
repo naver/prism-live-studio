@@ -69,7 +69,7 @@ void VSTPlugin::loadEffectFromPath(std::string path)
 
 		if (!effect) {
 			// TODO: alert user of error
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "VST Plug-in: Can't load "
 			     "effect!");
 			return;
@@ -79,7 +79,7 @@ void VSTPlugin::loadEffectFromPath(std::string path)
 		// If incorrect, then the file either was not loaded properly,
 		// is not a real VST plug-in, or is otherwise corrupt.
 		if (effect->magic != kEffectMagic) {
-			blog(LOG_WARNING, "VST Plug-in's magic number is bad");
+			plog(LOG_WARNING, "VST Plug-in's magic number is bad");
 			return;
 		}
 
@@ -140,6 +140,14 @@ obs_audio_data *VSTPlugin::process(struct obs_audio_data *audio)
 	}
 
 	return audio;
+}
+
+// PRISM/ZengQin/20210303/#none/add action log for vst changed
+void VSTPlugin::actionNotify(std::string tartget)
+{
+	if (sourceContext)
+		obs_source_action_event_notify(
+		        sourceContext, OBS_SOURCE_VST_CHANGED, "init", "plugin", "pluginName", tartget.c_str());
 }
 
 void VSTPlugin::unloadEffect()
@@ -204,7 +212,7 @@ intptr_t VSTPlugin::hostCallback(AEffect *effect, int32_t opcode, int32_t index,
 		if (wasIdle)
 			filtered = true;
 		else {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "VST Plug-in: Future idle calls "
 			     "will not be displayed!");
 			wasIdle = true;
@@ -288,7 +296,7 @@ void VSTPlugin::setProgram(const int programNumber)
 	if (programNumber < effect->numPrograms) {
 		effect->dispatcher(effect, effSetProgram, 0, programNumber, NULL, 0.0f);
 	} else {
-		blog(LOG_ERROR, "Failed to load program, number was outside possible program range.");
+		plog(LOG_ERROR, "Failed to load program, number was outside possible program range.");
 	}
 }
 

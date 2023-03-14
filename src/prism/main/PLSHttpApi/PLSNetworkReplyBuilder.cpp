@@ -44,12 +44,16 @@ PLSNetworkReplyBuilder &PLSNetworkReplyBuilder::setCookie(const QVariant &value)
 {
 	auto cookieVariant = QVariant();
 
-	if (QVariant::String == value.type()) {
-		cookieVariant.setValue(QNetworkCookie::parseCookies(value.toString().toUtf8()));
-	} else if (QVariant::ByteArray == value.type()) {
-		cookieVariant.setValue(QNetworkCookie::parseCookies(value.toByteArray()));
-	} else if (QVariant::List == value.type()) {
-		cookieVariant.setValue(value);
+	try {
+		if (QVariant::String == value.type()) {
+			cookieVariant.setValue(QNetworkCookie::parseCookies(value.toString().toUtf8()));
+		} else if (QVariant::ByteArray == value.type()) {
+			cookieVariant.setValue(QNetworkCookie::parseCookies(value.toByteArray()));
+		} else if (QVariant::List == value.type()) {
+			cookieVariant.setValue(value);
+		}
+	} catch (...) {
+		PLS_ERROR(MODULE_PLSHttpHelper, __FUNCTION__ ".error: %s", value.toString().toUtf8().constData());
 	}
 
 	if (!cookieVariant.isNull()) {
@@ -59,9 +63,39 @@ PLSNetworkReplyBuilder &PLSNetworkReplyBuilder::setCookie(const QVariant &value)
 	return *this;
 }
 
+PLSNetworkReplyBuilder &PLSNetworkReplyBuilder::setCookie(const QList<QVariant> &values)
+{
+	auto cookieVariant = QVariant();
+	QList<QNetworkCookie> cookies;
+	for (auto value : values) {
+
+		try {
+			if (QVariant::String == value.type()) {
+				cookies += QNetworkCookie::parseCookies(value.toString().toUtf8());
+			} else if (QVariant::ByteArray == value.type()) {
+				cookies += QNetworkCookie::parseCookies(value.toByteArray());
+			}
+		} catch (...) {
+			PLS_ERROR(MODULE_PLSHttpHelper, __FUNCTION__ ".error: %s", value.toString().toUtf8().constData());
+		}
+	}
+	QNetworkCookie uploadCookie;
+	if (cookies.size() > 0) {
+		cookieVariant = QVariant::fromValue(cookies);
+	}
+	addKnownHeader(QNetworkRequest::CookieHeader, cookieVariant);
+	return *this;
+}
+
 PLSNetworkReplyBuilder &PLSNetworkReplyBuilder::setContentType(const QString &value)
 {
 	addKnownHeader(QNetworkRequest::ContentTypeHeader, value);
+	return *this;
+}
+
+PLSNetworkReplyBuilder &PLSNetworkReplyBuilder::setDefaultHeaders(const QVariantMap &headers)
+{
+	defaultHeaders = headers;
 	return *this;
 }
 
@@ -157,8 +191,15 @@ QNetworkReply *PLSNetworkReplyBuilder::post(QNetworkAccessManager *networkAccess
 	if (nullptr == networkAccessManager) {
 		networkAccessManager = PLS_HTTP_HELPER->getNetworkAccessManager();
 	}
-
 	return networkAccessManager->post(buildRequest(), buildBody());
+}
+
+QNetworkReply *PLSNetworkReplyBuilder::post(QHttpMultiPart *multiPart, QNetworkAccessManager *networkAccessManager)
+{
+	if (nullptr == networkAccessManager) {
+		networkAccessManager = PLS_HTTP_HELPER->getNetworkAccessManager();
+	}
+	return networkAccessManager->post(buildRequest(), multiPart);
 }
 
 QNetworkReply *PLSNetworkReplyBuilder::put(QNetworkAccessManager *networkAccessManager)
@@ -179,6 +220,24 @@ QNetworkReply *PLSNetworkReplyBuilder::del(QNetworkAccessManager *networkAccessM
 	return networkAccessManager->deleteResource(buildRequest());
 }
 
+QNetworkReply *PLSNetworkReplyBuilder::patch(QNetworkAccessManager *networkAccessManager)
+{
+	if (nullptr == networkAccessManager) {
+		networkAccessManager = PLS_HTTP_HELPER->getNetworkAccessManager();
+	}
+
+	return networkAccessManager->sendCustomRequest(buildRequest(), "PATCH", buildBody());
+}
+
+QNetworkReply *PLSNetworkReplyBuilder::custom(const char *method, const QByteArray &data, QNetworkAccessManager *networkAccessManager)
+{
+	if (nullptr == networkAccessManager) {
+		networkAccessManager = PLS_HTTP_HELPER->getNetworkAccessManager();
+	}
+
+	return networkAccessManager->sendCustomRequest(buildRequest(), method, data);
+}
+
 QUrl PLSNetworkReplyBuilder::buildUrl(const QUrl &url)
 {
 	return url;
@@ -186,15 +245,21 @@ QUrl PLSNetworkReplyBuilder::buildUrl(const QUrl &url)
 
 QNetworkRequest *PLSNetworkReplyBuilder::buildHeader(QNetworkRequest *request)
 {
-	if (!knownheaders.isEmpty()) {
-		for (auto iter = knownheaders.begin(); iter != knownheaders.end(); ++iter) {
-			request->setHeader(iter.key(), iter.value());
+	if (!defaultHeaders.isEmpty()) {
+		for (auto iter = defaultHeaders.begin(); iter != defaultHeaders.end(); ++iter) {
+			request->setRawHeader(iter.key().toUtf8(), iter.value().toString().toUtf8());
 		}
 	}
 
 	if (!rawHeaders.isEmpty()) {
 		for (auto iter = rawHeaders.begin(); iter != rawHeaders.end(); ++iter) {
 			request->setRawHeader(iter.key().toUtf8(), iter.value().toString().toUtf8());
+		}
+	}
+
+	if (!knownheaders.isEmpty()) {
+		for (auto iter = knownheaders.begin(); iter != knownheaders.end(); ++iter) {
+			request->setHeader(iter.key(), iter.value());
 		}
 	}
 

@@ -1,11 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="22" height="22" viewBox="0 0 22 22">
-    <defs>
-        <path id="prefix__a" d="M0 0L21 0 21 21 0 21z"/>
-    </defs>
-    <g fill="none" fill-rule="evenodd" transform="translate(1)">
-        <mask id="prefix__b" fill="#fff">
-            <use xlink:href="#prefix__a"/>
-        </mask>
-        <path fill="#7A7F34" d="M11.55 12.249c0 .383-.315.7-.7.7h-.7c-.384 0-.7-.317-.7-.7v-7c0-.386.316-.7.7-.7h.7c.385 0 .7.314.7.7v7zm0 3.501c0 .386-.315.7-.7.7h-.7c-.384 0-.7-.314-.7-.7v-.7c0-.384.316-.7.7-.7h.7c.385 0 .7.316.7.7v.7zM10.5 0C4.7 0 0 4.7 0 10.5 0 16.298 4.7 21 10.5 21S21 16.298 21 10.5C21 4.7 16.3 0 10.5 0z" mask="url(#prefix__b)"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>9240122D-CC3C-4FB5-8089-39E0C22BC728</title>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="GUIDE_PRISMSticker_202105" transform="translate(-363.000000, -3906.000000)" fill="#7A7F34">
+            <g id="ic_error_on_click" transform="translate(363.000000, 3906.000000)">
+                <g id="Group-3" transform="translate(0.000095, 0.000000)">
+                    <path d="M12.1,12.832 C12.1,13.234 11.77,13.565 11.367,13.565 L10.633,13.565 C10.231,13.565 9.9,13.234 9.9,12.832 L9.9,5.498 C9.9,5.095 10.231,4.765 10.633,4.765 L11.367,4.765 C11.77,4.765 12.1,5.095 12.1,5.498 L12.1,12.832 Z M12.1,16.5 C12.1,16.904 11.77,17.233 11.367,17.233 L10.633,17.233 C10.231,17.233 9.9,16.904 9.9,16.5 L9.9,15.767 C9.9,15.364 10.231,15.033 10.633,15.033 L11.367,15.033 C11.77,15.033 12.1,15.364 12.1,15.767 L12.1,16.5 Z M11,0 C4.924,0 0,4.924 0,11 C0,17.074 4.924,22 11,22 C17.076,22 22,17.074 22,11 C22,4.924 17.076,0 11,0 L11,0 Z" id="Fill-1"></path>
+                </g>
+            </g>
+        </g>
     </g>
 </svg>

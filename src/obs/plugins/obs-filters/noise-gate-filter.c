@@ -3,7 +3,7 @@
 #include <math.h>
 
 #define do_log(level, format, ...)                \
-	blog(level, "[noise gate: '%s'] " format, \
+	plog(level, "[noise gate: '%s'] " format, \
 	     obs_source_get_name(ng->context), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)

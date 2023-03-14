@@ -69,7 +69,7 @@ static bool reset_thumbnail(obs_thumbnail_t *thumbnail, uint32_t width,
 {
 	thumbnail->data = brealloc(thumbnail->data, width * height * 4); //RGBA
 	if (!thumbnail->data) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "fail to alloc thumbnail buffer (width/height: %d/%d)",
 		     width, height);
 		return false;
@@ -81,7 +81,7 @@ static bool reset_thumbnail(obs_thumbnail_t *thumbnail, uint32_t width,
 					       1, NULL, GS_RENDER_TARGET);
 	if (!thumbnail->texture) {
 		gs_leave_context();
-		blog(LOG_WARNING, "Fail to create thumbnail texture");
+		plog(LOG_WARNING, "Fail to create thumbnail texture");
 		bfree(thumbnail->data);
 		thumbnail->data = NULL;
 		return false;
@@ -94,7 +94,7 @@ static bool reset_thumbnail(obs_thumbnail_t *thumbnail, uint32_t width,
 		gs_texture_destroy(thumbnail->texture);
 		gs_leave_context();
 		thumbnail->texture = NULL;
-		blog(LOG_WARNING, "Fail to create thumbnail stage surface");
+		plog(LOG_WARNING, "Fail to create thumbnail stage surface");
 		bfree(thumbnail->data);
 		thumbnail->data = NULL;
 		return false;
@@ -111,20 +111,20 @@ static void save_texture(obs_thumbnail_t *thumbnail, gs_texture_t *texture)
 	if (!thumbnail->data || !texture)
 		return;
 
-	uint8_t *data[8] = {0};
-	uint32_t line_size[8] = {0};
+	uint8_t *data = NULL;
+	uint32_t line_size = 0;
 
 	uint32_t width = gs_texture_get_width(texture);
 	uint32_t height = gs_texture_get_height(texture);
 	gs_stage_texture(thumbnail->stage_surface, texture);
 	if (gs_stagesurface_map(thumbnail->stage_surface, &data, &line_size)) {
-		if (line_size[0] == width * 4)
-			memcpy(thumbnail->data, data[0], line_size[0] * height);
+		if (line_size == width * 4)
+			memcpy(thumbnail->data, data, line_size * height);
 		else {
 			uint32_t copy_length = width * 4;
 			for (int i = 0; i < height; i++)
 				memcpy(thumbnail->data + copy_length * i,
-				       data[0] + line_size[0] * i, copy_length);
+				       data + line_size * i, copy_length);
 		}
 		gs_stagesurface_unmap(thumbnail->stage_surface);
 		os_atomic_set_bool(&thumbnail->ready, true);
@@ -134,14 +134,14 @@ static void save_texture(obs_thumbnail_t *thumbnail, gs_texture_t *texture)
 					    thumbnail->width, thumbnail->width,
 					    true);
 	} else
-		blog(LOG_WARNING, "fail to map thumbnail surface");
+		plog(LOG_WARNING, "fail to map thumbnail surface");
 }
 
 static obs_thumbnail_t *create_thumbnail(uint32_t width, uint32_t height)
 {
 	obs_thumbnail_t *thumbnail = bzalloc(sizeof(struct obs_thumbnail));
 	if (!thumbnail) {
-		blog(LOG_WARNING, "fail to alloc thumbnail");
+		plog(LOG_WARNING, "fail to alloc thumbnail");
 		return NULL;
 	}
 
@@ -168,7 +168,7 @@ void obs_thumbnail_destroy(obs_thumbnail_t *thumbnail)
 		gs_leave_context();
 
 		bfree(thumbnail);
-		blog(LOG_INFO, "Thumbnail is destroyed");
+		plog(LOG_INFO, "Thumbnail is destroyed");
 	}
 }
 
@@ -248,7 +248,7 @@ void obs_thumbnail_request(uint32_t width, uint32_t height,
 			   void *param)
 {
 	if (width <= 0 || height <= 0) {
-		blog(LOG_WARNING, "wrong width/height (%d/%d)", width, height);
+		plog(LOG_WARNING, "wrong width/height (%d/%d)", width, height);
 		if (callback)
 			callback(param, 0, 0, false);
 		return;
@@ -264,7 +264,7 @@ void obs_thumbnail_request(uint32_t width, uint32_t height,
 		}
 	}
 
-	if (thumbnail->width != width || thumbnail != height) {
+	if (thumbnail->width != width || thumbnail->height != height) {
 		if (!reset_thumbnail(thumbnail, width, height)) {
 			if (callback)
 				callback(param, 0, 0, false);
@@ -275,7 +275,7 @@ void obs_thumbnail_request(uint32_t width, uint32_t height,
 	thumbnail->callback = callback;
 	thumbnail->callback_param = param;
 	os_atomic_set_bool(&thumbnail->requested, true);
-	blog(LOG_INFO, "Thumbnail is requested : %d x %d", width, height);
+	plog(LOG_INFO, "Thumbnail is requested : %d x %d", width, height);
 }
 
 bool obs_thumbnail_retrieve(void **data, uint32_t *width, uint32_t *height)
@@ -287,7 +287,7 @@ bool obs_thumbnail_retrieve(void **data, uint32_t *width, uint32_t *height)
 		*height = thumbnail->height;
 		return true;
 	}
-	blog(LOG_WARNING, "Thumbnail is not ready, thumbnail %p, ready %d",
+	plog(LOG_WARNING, "Thumbnail is not ready, thumbnail %p, ready %d",
 	     thumbnail,
 	     thumbnail ? os_atomic_load_bool(&thumbnail->ready) : false);
 	return false;

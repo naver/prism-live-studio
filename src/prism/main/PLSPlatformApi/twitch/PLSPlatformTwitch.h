@@ -10,7 +10,7 @@
 #include <vector>
 #include <functional>
 #include <QTimer>
-
+#include "PLSHttpApi\PLSHttpHelper.h"
 #include "..\PLSPlatformBase.hpp"
 
 using namespace std;
@@ -35,7 +35,7 @@ public:
 
 	vector<string> getServerNames() const;
 
-	void saveSettings(const string &title, const string &category, int idxServer);
+	void saveSettings(const string &title, const string &category, const string &categoryId, int idxServer);
 
 	void onPrepareLive(bool value) override;
 
@@ -47,6 +47,9 @@ public:
 	QJsonObject getLiveStartParams() override;
 	QJsonObject getWebChatParams() override;
 	QString getServiceLiveLink() override;
+	virtual QString getShareUrl() override;
+	virtual QString getShareUrlEnc() override;
+	virtual QString getServiceLiveLinkEnc() override;
 signals:
 	void onGetChannel(PLSPlatformApiResult);
 	void onGetServer(PLSPlatformApiResult);
@@ -55,10 +58,11 @@ signals:
 	void closeDialogByExpired();
 
 private:
+	void setHttpHead(PLSNetworkReplyBuilder &builder);
 	void saveStreamServer();
-
+	void requestStreamKey(bool showAlert);
 	void requestServer(bool showAlert);
-	void requestUpdateChannel(const string &title, const string &category);
+	void requestUpdateChannel(const string &title, const string &category, const string &categoryId);
 	void requestStatisticsInfo();
 	void requestVideos();
 
@@ -67,7 +71,7 @@ private:
 	void showApiUpdateError(PLSPlatformApiResult value);
 
 	void onAlLiveStarted(bool) override;
-	void onLiveStopped() override;
+	void onLiveEnded() override;
 
 	int m_idxServer;
 	vector<TwitchServer> m_vecTwitchServers;

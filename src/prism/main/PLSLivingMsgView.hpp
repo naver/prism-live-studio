@@ -18,12 +18,11 @@ class PLSLivingMsgView : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	explicit PLSLivingMsgView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSLivingMsgView(DialogInfo info, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSLivingMsgView();
 	void initializeView();
 	void setGeometryOfNormal(const QRect &geometry);
 	void addMsgItem(const QString &msgInfo, const long long time, pls_toast_info_type type);
-	void initMsgGeometry();
 	QString getInfoWithUrl(const QString &str, const QString &url, const QString &replaceStr);
 	void clearMsgView();
 	void setShow(bool isVisable);
@@ -33,8 +32,6 @@ protected:
 	virtual void hideEvent(QHideEvent *event);
 	virtual void closeEvent(QCloseEvent *event);
 	virtual void resizeEvent(QResizeEvent *event);
-	virtual void onMaxFullScreenStateChanged();
-	virtual void onSaveNormalGeometry();
 
 signals:
 	void hideSignal();

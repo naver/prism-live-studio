@@ -2,6 +2,7 @@
 
 #include <map>
 #include <tuple>
+#include <cmath>
 
 #include <QMetaEnum>
 #include <QFile>
@@ -16,6 +17,8 @@
 #define CSTR_THEME "theme"
 
 namespace {
+enum class HdpiTag { None, Hdpi, Hdpi_U, Hdpi_D };
+
 void skipSpace(int &index, const char *css, int count)
 {
 	for (; index < count; ++index) {
@@ -74,7 +77,7 @@ void processComment(int &index, const char *css, int count)
 	}
 }
 
-bool isHdpiTag(int &index, const char *css, int count)
+HdpiTag isHdpiTag(int &index, const char *css, int count)
 {
 	// /*hdpi*/
 	skipSpace(index, css, count);
@@ -86,19 +89,28 @@ bool isHdpiTag(int &index, const char *css, int count)
 
 	int end = index - 2;
 	if (end <= start) {
-		return false;
+		return HdpiTag::None;
 	}
 
 	skipSpaceReverse(end, css, start);
-	if ((end - start) != 4) {
-		return false;
+	int length = end - start;
+	if (length < 4) {
+		return HdpiTag::None;
 	} else if (css[start] != 'h' || css[start + 1] != 'd' || css[start + 2] != 'p' || css[start + 3] != 'i') {
-		return false;
+		return HdpiTag::None;
+	} else if (length == 4) {
+		return HdpiTag::Hdpi;
+	} else if (length != 6 || css[start + 4] != '-') {
+		return HdpiTag::None;
+	} else if (css[start + 5] == 'u') {
+		return HdpiTag::Hdpi_U;
+	} else if (css[start + 5] == 'd') {
+		return HdpiTag::Hdpi_D;
 	}
-	return true;
+	return HdpiTag::None;
 }
 
-void processHdpi(QByteArray &preprocessed, int &index, const char *css, int count, double dpi)
+void processHdpi(HdpiTag hdpiTag, QByteArray &preprocessed, int &index, const char *css, int count, double dpi)
 {
 	skipSpace(index, css, count);
 
@@ -113,7 +125,20 @@ void processHdpi(QByteArray &preprocessed, int &index, const char *css, int coun
 
 	if (!num.isEmpty()) {
 		// support float
-		int val = PLSDpiHelper::calculate(dpi * num.toDouble(), 1);
+		qint64 val = 0;
+		switch (hdpiTag) {
+		case HdpiTag::Hdpi:
+		default:
+			val = PLSDpiHelper::calculate(dpi * num.toDouble(), 1);
+			break;
+		case HdpiTag::Hdpi_U:
+			val = (qint64)ceil(dpi * num.toDouble());
+			break;
+		case HdpiTag::Hdpi_D:
+			val = (qint64)floor(dpi * num.toDouble());
+			break;
+		}
+
 		preprocessed.append(QByteArray::number(val));
 	}
 }
@@ -166,8 +191,8 @@ void processValue(QByteArray &preprocessed, int &index, const char *css, int cou
 			if (!preprocessed.endsWith(':')) {
 				preprocessed.append(' ');
 			}
-			if (isHdpiTag(index, css, count)) {
-				processHdpi(preprocessed, index, css, count, dpi);
+			if (HdpiTag hdpiTag = isHdpiTag(index, css, count); hdpiTag != HdpiTag::None) {
+				processHdpi(hdpiTag, preprocessed, index, css, count, dpi);
 			}
 		}
 	}

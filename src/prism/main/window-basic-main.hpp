@@ -34,6 +34,9 @@
 #include "window-basic-about.hpp"
 #include "auth-base.hpp"
 
+#include "PLSChatHelper.h"
+#include "ChannelConst.h"
+
 #include <frontend-internal.hpp>
 
 #include <util/platform.h>
@@ -50,6 +53,7 @@ class PLSDialogView;
 struct QCefCookieManager;
 struct GiphyData;
 struct TaskResponData;
+struct StickerHandleResult;
 
 #include "ui_PLSBasic.h"
 #include "ui_ColorSelect.h"
@@ -80,10 +84,13 @@ class PLSBackgroundMusicPlayer;
 //zq
 class PLSMediaController;
 class PLSGipyStickerView;
+class PLSVirtualBackgroundDialog;
+class PLSPrismSticker;
 
 class PLSChatDialog;
 class PLSPlatformApi;
 class PLSRegionCapture;
+class PLSAlertView;
 
 using DShowSourceVecType = std::vector<std::pair<QString, OBSSceneItem>>;
 using BgmSourceVecType = std::vector<std::pair<QString, quint64>>;
@@ -111,6 +118,11 @@ struct SavedProjectorInfo {
 	std::string name;
 };
 
+struct SourceNotifyMsg {
+	QString title;
+	QString msg;
+};
+
 class ColorSelect : public QWidget {
 	Q_OBJECT
 public:
@@ -118,7 +130,7 @@ public:
 
 protected:
 	// Here we just ignore mouse click messages to avoid hiding menu
-	virtual void mousePressEvent(QMouseEvent *event) {}
+	virtual void mousePressEvent(QMouseEvent *) {}
 
 private:
 	std::unique_ptr<Ui::ColorSelect> ui;
@@ -146,6 +158,10 @@ class PLSBasic : public PLSMainWindow {
 	Q_PROPERTY(QIcon chatIcon READ GetChatIcon WRITE SetChatIcon DESIGNABLE true)
 	Q_PROPERTY(QIcon defaultIcon READ GetDefaultIcon WRITE SetDefaultIcon DESIGNABLE true)
 	Q_PROPERTY(QIcon ndiIcon READ GetNdiIcon WRITE SetNdiIcon DESIGNABLE true)
+	Q_PROPERTY(QIcon audiovIcon READ GetAudiovIcon WRITE SetAudiovIcon DESIGNABLE true)
+	Q_PROPERTY(QIcon virtualBackgroundIcon READ GetVirtualBackgroundIcon WRITE SetVirtualBackgroundIcon DESIGNABLE true)
+	Q_PROPERTY(QIcon prismMobileIcon READ GetPrismMobileIcon WRITE SetPrismMobileIcon DESIGNABLE true)
+	Q_PROPERTY(QIcon timerIcon READ GetTimerIcon WRITE SetTimerIcon DESIGNABLE true)
 
 	friend class PLSAbout;
 	friend class PLSBasicPreview;
@@ -185,6 +201,10 @@ private:
 
 	QList<QPointer<QDockWidget>> extraDocks;
 
+	QList<QPair<QString, QString>> alertList;
+	QTimer alertTimer;
+	std::vector<struct SourceNotifyMsg> SourceNotifyCacheList;
+
 	bool loaded = false;
 	long disableSaving = 1;
 	bool projectChanged = false;
@@ -204,15 +224,13 @@ private:
 	QScopedPointer<QThread> logUploadThread;
 
 	QPointer<PLSBasicProperties> properties;
+	QPointer<PLSBasicProperties> virtualBackgroundChromaKey;
 	QPointer<PLSBasicTransform> transformWindow;
 	QPointer<PLSBasicAdvAudio> advAudioWindow;
 	QPointer<PLSBasicFilters> filters;
 	QPointer<PLSAbout> about;
 
-	QPointer<QTimer> cpuUsageTimer;
 	QPointer<QTimer> diskFullTimer;
-
-	os_cpu_usage_info_t *cpuUsageInfo = nullptr;
 
 	OBSService service;
 	std::unique_ptr<BasicOutputHandler> outputHandler;
@@ -271,6 +289,8 @@ private:
 	QPointer<QMenu> deinterlaceMenu;
 	QPointer<QMenu> perSceneTransitionMenu;
 	QPointer<QObject> shortcutFilter;
+	QPointer<QAction> actionExit;
+	QPointer<QAction> actionLogout;
 
 	QScopedPointer<QThread> patronJsonThread;
 	std::string patronJson;
@@ -281,7 +301,9 @@ private:
 	QPointer<PLSBeautyFilterView> beautyFilterView{nullptr};
 	PLSBackgroundMusicView *backgroundMusicView{nullptr};
 	QPointer<PLSGipyStickerView> giphyStickerView{nullptr};
+	QPointer<PLSVirtualBackgroundDialog> m_virtualBgView{nullptr};
 	QPointer<PLSRegionCapture> regionCapture{nullptr};
+	QPointer<PLSPrismSticker> prismStickerView{nullptr};
 
 	bool m_isUpdateLanguage;
 	bool m_isSessionExpired; //session expired
@@ -295,6 +317,11 @@ private:
 	std::map<unsigned long long, QString> stickerSourceMap;
 	bool isCreateSouceInLoading = true;
 	bool isAudioMonitorToastDisplay = false;
+
+	bool gpopDataInited = false;
+
+	QString lastProfilePath;
+	QString lastCollectionPath;
 
 	void UpdateMultiviewProjectorMenu();
 
@@ -368,12 +395,13 @@ private:
 	void UpdateSceneCollection(QAction *action);
 	void ChangeSceneCollection();
 	void LoadSceneCollection(QAction *action);
-	void LogScenes();
 
 	void LoadProfile();
 	void ResetProfileData();
 	bool AddProfile(bool create_new, const char *title, const char *text, const char *init_text = nullptr, bool rename = false, bool addDefault = false);
+	bool AddProfileImpl(bool create_new, const char *name, const char *dir, const char *init_text = nullptr, bool rename = false, bool addDefault = false);
 	void DeleteProfile(const char *profile_name, const char *profile_dir);
+	bool RenameProfile(const char *title, const char *text, const char *old_name, const char *old_dir);
 	void RefreshProfiles();
 	void ChangeProfile();
 	void CheckForSimpleModeX264Fallback();
@@ -386,10 +414,11 @@ private:
 
 	void InitDefaultTransitions();
 
-	obs_source_t *cutTransition;
+	obs_source_t *cutTransition = NULL;
 	void CreateProgramDisplay();
 
 	QMenu *CreatePerSceneTransitionMenu();
+	QMenu *CreateVisibilityTransitionMenu(bool visible, QWidget *parent);
 
 	void SetPreviewProgramMode(bool enabled);
 	void ResizeProgram(uint32_t cx, uint32_t cy);
@@ -409,12 +438,14 @@ private:
 	obs_hotkey_id statsHotkey = 0;
 	int quickTransitionIdCounter = 1;
 	bool overridingTransition = false;
+	bool isFirstShow = true;
 
 	int programX = 0, programY = 0;
 	int programCX = 0, programCY = 0;
 	float programScale = 0.0f;
 
 	int disableOutputsRef = 0;
+	int loginState = 0;
 
 	inline void OnActivate();
 	inline void OnDeactivate();
@@ -437,7 +468,7 @@ private:
 
 	void EnumDialogs();
 
-	QList<QDialog *> visDialogs;
+	QList<QPointer<QDialog>> visDialogs;
 	QList<QDialog *> modalDialogs;
 	QList<PLSDialogView *> visMsgBoxes;
 
@@ -448,6 +479,7 @@ private:
 	bool m_updateForceUpdate;
 	MainCheckUpdateResult m_checkUpdateResult;
 	bool m_checkLastesVersiontResult;
+	bool m_isStartCategoryRequest = false;
 
 	QList<QPoint> visDlgPositions;
 
@@ -489,11 +521,16 @@ private:
 	QIcon groupIcon;
 	QIcon sceneIcon;
 	QIcon stickerIcon;
+	QIcon prismMobileIcon;
 	QIcon defaultIcon;
 	QIcon bgmIcon;
 	QIcon ndiIcon;
 	QIcon textMotionIcon;
 	QIcon chatIcon;
+	QIcon audiovIcon;
+	QIcon virtualBackgroundIcon;
+	QIcon prismStickerIcon;
+	QIcon timerIcon;
 
 	QIcon GetImageIcon() const;
 	QIcon GetColorIcon() const;
@@ -512,7 +549,13 @@ private:
 	QIcon GetNdiIcon() const;
 	QIcon GetTextMotionIcon() const;
 	QIcon GetChatIcon() const;
+	QIcon GetPrismMobileIcon() const;
 	QIcon GetDefaultIcon() const;
+	QIcon GetAudiovIcon() const;
+	QIcon GetVirtualBackgroundIcon() const;
+	QIcon GetPrismStickerIcon() const;
+	QIcon GetTimerIcon() const;
+
 public slots:
 	void DeferSaveBegin();
 	void DeferSaveEnd();
@@ -562,7 +605,7 @@ public slots:
 
 	bool SceneCollectionExists(const char *findName);
 	bool GetSceneCollectionName(QWidget *parent, std::string &name, std::string &file, const char *oldName = nullptr);
-	bool AddSceneCollection(bool create_new, const QString &name = QString());
+	bool AddSceneCollection(bool create_new, const QString &name = QString(), const QString &dupName = QString(), const QString &dupFile = QString());
 
 	void UpdatePatronJson(const QString &text, const QString &error);
 
@@ -589,6 +632,12 @@ public slots:
 	bool ExistSameSource(OBSSceneItem item, OBSScene sceneCurrent);
 	BgmSourceVecType EnumAllBgmSource();
 
+	//get the rehearsal or live start time stamp
+	uint getStartTimeStamp();
+
+	//restartApp first close window sec restartApp
+	void restartPrismApp();
+
 private slots:
 	void AddSceneUI(const QString &name, OBSScene scene, SignalContainer<OBSScene> handler);
 
@@ -603,6 +652,7 @@ private slots:
 	void AddScene(OBSSource source);
 	void RemoveScene(OBSSource source);
 	void RenameSources(OBSSource source, QString newName, QString prevName);
+	void UpdateAdapater(QString adapter_name);
 
 	//bgm
 	void AddBgmItem(obs_scene_item *item);
@@ -612,8 +662,13 @@ private slots:
 	void SetBgmItemVisible(obs_scene_item *item, bool isVisible);
 	void RenameBgmSourceName(obs_sceneitem_t *sceneItem, const QString &newName, const QString &prevName);
 
+	//virtual background
+	void AddVirtualBgItem(OBSSceneItem item);
+	void SceneItemVirtualBgSetVisible(OBSSceneItem item, bool isVisible);
+
 	void SelectSceneItem(OBSScene scene, OBSSceneItem item, bool select);
 	void SelectSceneItemForBeauty(OBSScene scene, OBSSceneItem item, bool select);
+
 	void OnBeautySourceStatusChanged(const QString &sourceName, bool status);
 	void ActivateAudioSource(OBSSource source);
 	void DeactivateAudioSource(OBSSource source);
@@ -663,12 +718,15 @@ private slots:
 	void onMixerDockSeperateBtnClicked();
 
 	void OnSourceNotifyAsync(QString name, int msg, int code);
+	void OnSourceActionNotify(QString name, int msg, QString event1, QString event2, QString event3, QString target);
+	void InitEngineActionNotify(int code);
 
 	void SetDocksMovePolicy(PLSDock *dock);
 	void ColorChange();
 
 	SourceTreeItem *GetItemWidgetFromSceneItem(obs_sceneitem_t *sceneItem);
 
+	void on_actionShowAbout_triggered();
 	void on_actionOpenSourceLicense_triggered();
 
 	void AudioMixerCopyFilters();
@@ -692,16 +750,23 @@ private slots:
 	void onPopupSettingView(const QString &tab, const QString &group);
 	void OnBeautyClicked();
 	void OnStickerClicked();
+	void OnPrismStickerClicked();
 	void OnSetBeautyVisible(bool state);
 	void InitBeautyView();
-	void InitGiphyStickerView();
+	void CreateGiphyStickerView();
 	void InitGiphyStickerViewVisible();
+	void InitPrismStickerViewVisible();
+	void CreatePrismStickerView();
 	void CreateBeautyView();
 	void SetBeautyViewVisible(bool visible);
 	void ReorderBeautySourceList();
 	void CleanBeautySourceConfig(obs_scene_t *scene);
 	void UpdateBeautySourceStatus(obs_source_t *source, OBSSceneItem item, bool status);
 	bool LoadBeautyConfigFromSource(OBSSceneItem item, bool &isCurrent);
+
+	//virtual background
+	void reorderVirtualSourceList();
+	void OnVirtualBgClicked(bool forceShow = false);
 
 	// bgm
 	void OnBgmClicked();
@@ -726,15 +791,35 @@ private slots:
 	void SetGroupIcon(const QIcon &icon);
 	void SetSceneIcon(const QIcon &icon);
 	void SetStickerIcon(const QIcon &icon);
+	void SetPrismMobileIcon(const QIcon &icon);
 	void SetDefaultIcon(const QIcon &icon);
 	void SetBgmIcon(const QIcon &icon);
 	void SetNdiIcon(const QIcon &icon);
 	void SetTextMotionIcon(const QIcon &icon);
 	void SetChatIcon(const QIcon &icon);
+	void SetAudiovIcon(const QIcon &icon);
+	void SetVirtualBackgroundIcon(const QIcon &icon);
+	void SetPrismStickerIcon(const QIcon &icon);
+	void SetTimerIcon(const QIcon &icon);
 
 	void CreateStickerDownloader(OBSSource source);
 	void VolumeMuted(const QString &sourceName, bool muted);
 	void OpenRegionCapture();
+	void OnSideBarButtonClicked(int buttonId);
+	void CreateWindowInstance();
+	void InitSideBarWindowVisible();
+
+	QString getLoginState();
+	QString getStreamState();
+	QString getRecordState();
+
+public:
+	//bgm
+	static void MediaStateChanged(void *data, calldata_t *calldata);
+	static void MediaLoad(void *data, calldata_t *calldata);
+	static void PropertiesChanged(void *param, calldata_t *data);
+	static void GetSourceTypeList(std::vector<std::vector<QString>> &preset, std::vector<QString> &other, std::map<QString, bool> &monitors);
+	static void BeautySourceStatusChanged(void *data, calldata_t *calldata);
 
 private:
 	/* PLS Callbacks */
@@ -746,17 +831,18 @@ private:
 	static void OnSourceNotify(void *data, calldata_t *calldata);
 	static void SourceCreated(void *data, calldata_t *params);
 	static void SourceRemoved(void *data, calldata_t *params);
+	static void SourceDestroyed(void *data, calldata_t *params);
 	static void SourceActivated(void *data, calldata_t *params);
 	static void SourceDeactivated(void *data, calldata_t *params);
 	static void SourceAudioActivated(void *data, calldata_t *params);
 	static void SourceAudioDeactivated(void *data, calldata_t *params);
 	static void SourceRenamed(void *data, calldata_t *params);
+	static void DeviceRebuilt(void *data, calldata_t *params);
+	static void EngineNotifyHandle(void *data, calldata_t *params);
 	static void RenderMain(void *data, uint32_t cx, uint32_t cy);
 
-	//bgm
-	static void MediaStateChanged(void *data, calldata_t *calldata);
-	static void MediaLoad(void *data, calldata_t *calldata);
-	static void PropertiesChanged(void *param, calldata_t *data);
+	static void SourceActionNotify(void *data, calldata_t *calldata);
+
 	//audio source
 	static void PLSVolumeMuted(void *data, calldata_t *calldata);
 
@@ -766,7 +852,9 @@ private:
 
 	void ResizePreview(uint32_t cx, uint32_t cy);
 
+	obs_source_t *CreateSource(const char *id, obs_data_t *settings = nullptr);
 	void AddStickerSource(const char *id, const QString &file, const GiphyData &giphyData);
+	void AddPRISMStickerSource(const StickerHandleResult &data);
 	void SetFileForStickerSource(OBSSource source, const QString &file);
 	void BindActionData(QWidgetAction *popupItem, const char *type);
 	QMenu *CreateAddSourcePopupMenu(QWidget *parent);
@@ -775,7 +863,6 @@ private:
 	void AddSourcePopupMenu(const QPoint &pos, QWidget *parent);
 	void copyActionsDynamicProperties();
 
-	void GetSourceTypeList(std::vector<std::vector<QString>> &preset, std::vector<QString> &other, std::map<QString, bool> &monitors);
 	QPushButton *CreateSourcePopupMenuCustomWidget(const char *id, const QString &display, const QSize &iconSize);
 
 	static void HotkeyTriggered(void *data, obs_hotkey_id id, bool pressed);
@@ -785,7 +872,9 @@ private:
 	void UpdatePause(bool activate = true);
 
 	bool LowDiskSpace();
+	bool IsDirectoryExist();
 	void DiskSpaceMessage();
+	bool CheckDiskExistance();
 
 	void onPropertyChanged(OBSSource source);
 	void SetAttachWindowBtnText(QAction *action, bool isFloating);
@@ -805,6 +894,11 @@ private:
 	AudioStatus GetSourceAudioStatusPrevious();
 	bool hasSourceMonitor();
 	void AddSelectRegionSource(const char *id, const QRect &rectSelected);
+
+	//spectralizer
+	void updateSpectralizerAudioSources(OBSSource source, unsigned flags);
+
+	void graphicsCardNotice();
 
 public:
 	void resetWindowGeometry(QWidget *loginView, const QPoint prismLoginViewCenterPoint);
@@ -850,8 +944,6 @@ public:
 
 	inline bool SavingDisabled() const { return disableSaving; }
 
-	inline double GetAppCPUUsage() const { return os_cpu_usage_info_query(cpuUsageInfo); }
-
 	void SaveService();
 	bool LoadService();
 
@@ -871,7 +963,7 @@ public:
 	QMenu *AddScaleFilteringMenu(QMenu *menu, obs_sceneitem_t *item);
 	QMenu *AddBackgroundColorMenu(QMenu *menu, QWidgetAction *widgetAction, ColorSelect *select, obs_sceneitem_t *item);
 	void CreateSourcePopupMenu(int idx, bool preview, QWidget *parent);
-
+	void CreateTimerSourcePopupMenu(QMenu *menu, obs_source_t *source);
 	void UpdateTitleBar();
 	void UpdateSceneSelection(OBSSource source);
 
@@ -883,8 +975,9 @@ public:
 	void DeletePropertiesWindowInScene(obs_scene_t *scene);
 	void DeleteFiltersWindowInScene(obs_scene_t *scene);
 	void DeletePropertiesWindow(obs_source_t *source);
+	enum class PropertiesWindowType { PWT_Properties, PWT_VirtualBackgroundChromaKey };
 	void DeleteFiltersWindow(obs_source_t *source);
-	void CreatePropertiesWindow(obs_source_t *source, unsigned flags = OPERATION_NONE, QWidget *parent = nullptr);
+	void CreatePropertiesWindow(obs_source_t *source, unsigned flags = OPERATION_NONE, QWidget *parent = nullptr, PropertiesWindowType pwt = PropertiesWindowType::PWT_Properties);
 	void CreateFiltersWindow(obs_source_t *source);
 
 	QAction *AddDockWidget(QDockWidget *dock);
@@ -893,8 +986,7 @@ public:
 
 	void delSpecificUrlCookie(const QString &url, const QString &cookieName);
 	const char *GetCurrentOutputPath();
-	bool QueryRemoveSourceWithNoNotifier(obs_source_t *source);
-	bool QueryRemoveSource(obs_source_t *source);
+	bool QueryRemoveSource(obs_source_t *source, QWidget *parent = pls_get_main_view());
 	int GetTransitionDuration();
 	QSpinBox *GetTransitionDurationSpinBox();
 	QComboBox *GetTransitionCombobox();
@@ -910,7 +1002,6 @@ public:
 	void ShowLoginView();
 	MainCheckUpdateResult getUpdateResult() const;
 	const QString &getUpdateFileUrl() const;
-	const QString &getUpdateGcc() const;
 	bool getCheckLastVersionResult() const;
 	bool needShowUpdateView() const;
 	void setActionShowAboutHasIcon(bool hasIcon);
@@ -922,6 +1013,7 @@ public:
 	QIcon GetSceneIcon() const;
 
 	void popupStats(bool show, const QPoint &pos);
+	void InitStats();
 	QWidget *getChannelsContainer() const;
 	void docksMovePolicy(PLSDock *dock, const QPoint &pre);
 	bool isDshowSourceBySourceId(OBSSceneItem &item);
@@ -938,6 +1030,35 @@ public:
 	bool CheckHideInteraction(OBSSceneItem items);
 	void HideAllInteraction(obs_source_t *except_source);
 	void ShowInteractionUI(obs_source_t *source, bool show);
+
+	//add by renjinbo
+	bool isSceneItemOnlySelect(OBSSceneItem item);
+	void reloadToSelectVritualbg();
+	OBSSceneItem getTopSelectDShowSceneItem();
+	OBSSceneItem getTopDShowSceneItem();
+	PLSVirtualBackgroundDialog *getVirtualBgDialog();
+
+	//camera properties operation
+	void openCameraProperties(obs_source_t *source, const QSize &originalResolution);
+	void closeCameraProperties(obs_source_t *source, bool ok /*ok or cancel*/, const QSize &originalResolution, const QSize &currentResolution);
+	void cameraPropertiesResolutionChanged(obs_source_t *source, const QSize &currentResolution, const QSize &oldResolution);
+
+	PLSBasicProperties *GetPropertiesView();
+
+	bool IsVLIVE(const QVariantMap &info);
+	bool OnlySelectVLIVE();
+	bool CheckHEVC();
+
+	// scene display method
+	void SetSceneDisplayMethod(int method);
+
+	void checkH265Settings();
+	void CheckStickerSource();
+
+	void setCameraRestartTimes();
+	//category failed alert
+	void categoryResFailedHandle(bool isSuccess, bool isAleadyShowTip);
+	void FilterAlertMsg(const QString &name, const QString &alertStr);
 
 protected:
 	virtual void showEvent(QShowEvent *event) override;
@@ -1003,7 +1124,11 @@ private slots:
 
 	void on_actionPrismFAQ_triggered();
 	void on_actionPrismWebsite_triggered();
+	void on_actionContactUs_triggered();
+	void on_actionCheckUpdate_triggered();
 	void on_actionObsFAQPortal_triggered();
+	void on_actionPrismBlog_triggered();
+	void on_actionTestModule_triggered();
 
 	void on_preview_customContextMenuRequested(const QPoint &pos);
 	void on_program_customContextMenuRequested(const QPoint &pos);
@@ -1037,7 +1162,12 @@ private slots:
 	void on_lockUI_toggled(bool lock);
 
 	void on_actionStudioMode_triggered();
+	void on_actionLogout_triggered();
+	void on_actionExit_triggered();
 	void on_actionChat_triggered();
+
+	void on_actionShowTransitionProperties_triggered();
+	void on_actionHideTransitionProperties_triggered();
 
 	void PauseToggled();
 
@@ -1083,6 +1213,19 @@ private slots:
 	void OnVisibleItemChanged(OBSSceneItem item, bool visible);
 	void OnSourceItemsRemove(QVector<OBSSceneItem> items);
 	void OnStickerDownloadCallback(const TaskResponData &responData);
+	void OnLiveStateChanged(int state);
+	void OnRecordStateChanged(int state);
+
+	void PrismLogout();
+
+	QString ExportSceneCollection();
+	void ImportSceneCollection(const QString &importFile);
+	bool CheckSceneCollection(const QString &importFile);
+	bool ExportProfile(QString &exportDir);
+	void ImportProfile(const QString &importDir);
+
+	void EngineNotifyMessage(int code);
+	void HandleAlertMsg();
 
 public slots:
 
@@ -1109,6 +1252,10 @@ public slots:
 	void OnStickerApply(const QString &fileName, const GiphyData &taskData, const QVariant &extra);
 	void OnBeautySourceDownloadFinished();
 
+	// notice 3rd plugins
+	void OnUsingThirdPartyPlugins(QString pluginName, QWidget *parent = nullptr);
+	void OnPRISMStickerApplied(const StickerHandleResult &stickerData);
+
 public:
 	explicit PLSBasic(PLSMainView *mainView, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	virtual ~PLSBasic();
@@ -1128,14 +1275,21 @@ public:
 	static void delPannelCookies(const QString &pannelName);
 
 	pls_frontend_callbacks *getApi() { return api; }
+	//PRISM/LiuHaibin/20210906/#None/Pre-check encoders
+	bool CheckStreamEncoder();
 
 signals:
 	void propertiesChaned(OBSSource source);
 	void mainMenuPopupSubmenu(PLSMenu *submenu);
 	void statusBarDataChanged();
-	void beautyViewVisibleChanged(bool);
 	void bgmViewVisibleChanged(bool);
 	void RefreshSourceProperty(const QString &name, bool disable = false);
+
+	void virtualViewVisibleChanged(bool);
+
+	void backgroundTemplateSourceError(int msg, int code);
+
+	void mainClosing();
 
 private:
 	std::unique_ptr<Ui::PLSBasic> ui;
@@ -1147,7 +1301,9 @@ private:
 	* Desc: The stream/recording can't be stoped if choice some `Advanced` settting
 	*       So invoke force stop after 5 seconds
 	**/
-	QTimer m_timerStreamIn5s, m_timerRecordIn5s, m_timerRelayBufferIn5s;
+	QTimer m_timerStreamIn10s, m_timerRecordIn5s, m_timerRelayBufferIn5s;
+	//PRISM/LiuHaibin/20210906/#None/Pre-check encoders
+	bool m_firstStart = true;
 };
 
 class SceneRenameDelegate : public QStyledItemDelegate {

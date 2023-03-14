@@ -36,13 +36,13 @@
        <number>0</number>
       </property>
       <property name="leftMargin">
-       <number>20</number>
+       <number>25</number>
       </property>
       <property name="topMargin">
        <number>0</number>
       </property>
       <property name="rightMargin">
-       <number>0</number>
+       <number>25</number>
       </property>
       <property name="bottomMargin">
        <number>0</number>
@@ -53,6 +53,19 @@
          <string>afreecaTV</string>
         </property>
        </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>1</width>
+          <height>1</height>
+         </size>
+        </property>
+       </spacer>
       </item>
      </layout>
     </widget>
@@ -73,7 +86,7 @@
        <number>0</number>
       </property>
       <property name="rightMargin">
-       <number>24</number>
+       <number>25</number>
       </property>
       <item row="0" column="0">
        <widget class="QLabel" name="scheduleLabel">

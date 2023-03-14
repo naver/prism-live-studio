@@ -245,7 +245,7 @@ void OBSBasicFilters::RemoveFilter(OBSSource filter)
 
 	const char *filterId = obs_source_get_id(filter);
 
-	blog(LOG_INFO, "User removed filter '%s' (%s) from source '%s'",
+	plog(LOG_INFO, "User removed filter '%s' (%s) from source '%s'",
 	     filterName, filterId, sourceName);
 
 	main->SaveProject();
@@ -453,7 +453,7 @@ void OBSBasicFilters::AddNewFilter(const char *id)
 		if (filter) {
 			const char *sourceName = obs_source_get_name(source);
 
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "User added filter '%s' (%s) "
 			     "to source '%s'",
 			     name.c_str(), id, sourceName);
@@ -783,7 +783,7 @@ void OBSBasicFilters::FilterNameEdited(QWidget *editor, QListWidget *list)
 	} else {
 		const char *sourceName = obs_source_get_name(source);
 
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "User renamed filter '%s' on source '%s' to '%s'",
 		     prevName, sourceName, name.c_str());
 

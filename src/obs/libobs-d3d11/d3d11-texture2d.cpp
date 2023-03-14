@@ -78,7 +78,7 @@ void gs_texture_2d::GetSharedHandle(IDXGIResource *dxgi_res)
 
 	hr = dxgi_res->GetSharedHandle(&handle);
 	if (FAILED(hr)) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "GetSharedHandle: Failed to "
 		     "get shared handle: %08lX",
 		     hr);
@@ -89,6 +89,10 @@ void gs_texture_2d::GetSharedHandle(IDXGIResource *dxgi_res)
 
 void gs_texture_2d::InitTexture(const uint8_t **data)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	HRESULT hr;
 
 	memset(&td, 0, sizeof(td));
@@ -123,8 +127,15 @@ void gs_texture_2d::InitTexture(const uint8_t **data)
 
 	hr = device->device->CreateTexture2D(&td, data ? srd.data() : NULL,
 					     texture.Assign());
-	if (FAILED(hr))
+	if (FAILED(hr)) {
+		//PRISM/WangChuanjing/20210311/#6941/notify engine status
+		if (device->engine_notify_cb) {
+			int code = get_notify_error_code(hr);
+			device->engine_notify_cb(GS_ENGINE_NOTIFY_EXCEPTION,
+						 code, nullptr);
+		}
 		throw HRError("Failed to create 2D texture", hr);
+	}
 
 	if (isGDICompatible) {
 		hr = texture->QueryInterface(__uuidof(IDXGISurface1),
@@ -141,7 +152,7 @@ void gs_texture_2d::InitTexture(const uint8_t **data)
 		hr = texture->QueryInterface(__uuidof(IDXGIResource),
 					     (void **)&dxgi_res);
 		if (FAILED(hr)) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "InitTexture: Failed to query "
 			     "interface: %08lX",
 			     hr);
@@ -168,6 +179,10 @@ void gs_texture_2d::InitTexture(const uint8_t **data)
 
 void gs_texture_2d::InitResourceView()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	HRESULT hr;
 
 	memset(&resourceDesc, 0, sizeof(resourceDesc));
@@ -191,6 +206,10 @@ void gs_texture_2d::InitResourceView()
 
 void gs_texture_2d::InitRenderTargets()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	HRESULT hr;
 	if (type == GS_TEXTURE_2D) {
 		D3D11_RENDER_TARGET_VIEW_DESC rtv;
@@ -281,6 +300,10 @@ gs_texture_2d::gs_texture_2d(gs_device_t *device, uint32_t handle)
 	  isShared(true),
 	  sharedHandle(handle)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	HRESULT hr;
 	hr = device->device->OpenSharedResource((HANDLE)(uintptr_t)handle,
 						__uuidof(ID3D11Texture2D),

@@ -689,7 +689,7 @@ void OBSBasic::SetCurrentScene(OBSSource scene, bool force, bool direct)
 	UpdateSceneSelection(scene);
 
 	bool userSwitched = (!force && !disableSaving);
-	blog(LOG_INFO, "%s to scene '%s'",
+	plog(LOG_INFO, "%s to scene '%s'",
 	     userSwitched ? "User switched" : "Switched",
 	     obs_source_get_name(scene));
 }
@@ -1264,8 +1264,8 @@ void OBSBasic::SetPreviewProgramMode(bool enabled)
 		if (api)
 			api->on_event(OBS_FRONTEND_EVENT_STUDIO_MODE_ENABLED);
 
-		blog(LOG_INFO, "Switched to Preview/Program mode");
-		blog(LOG_INFO, "-----------------------------"
+		plog(LOG_INFO, "Switched to Preview/Program mode");
+		plog(LOG_INFO, "-----------------------------"
 			       "-------------------");
 	} else {
 		OBSSource actualProgramScene = OBSGetStrongRef(programScene);
@@ -1299,8 +1299,8 @@ void OBSBasic::SetPreviewProgramMode(bool enabled)
 		if (api)
 			api->on_event(OBS_FRONTEND_EVENT_STUDIO_MODE_DISABLED);
 
-		blog(LOG_INFO, "Switched to regular Preview mode");
-		blog(LOG_INFO, "-----------------------------"
+		plog(LOG_INFO, "Switched to regular Preview mode");
+		plog(LOG_INFO, "-----------------------------"
 			       "-------------------");
 	}
 

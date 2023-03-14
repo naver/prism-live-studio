@@ -8,7 +8,7 @@
 #define MONITOR_EXCEPTION_SLEEP 2000
 
 PLSDuplicatorInstance::PLSDuplicatorInstance(DuplicatorType type, int adapter, int output_id, int did)
-	: gs_frame(NULL), shared_handle(0), monitor_capture(type, adapter, output_id), previous_active_time(GetTickCount()), display_id(did)
+	: monitor_capture(type, adapter, output_id), previous_active_time(GetTickCount()), display_id(did)
 {
 	exit_event = ::CreateEvent(NULL, TRUE, FALSE, NULL);
 	active_event = ::CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -40,6 +40,9 @@ bool is_handle_signed(const HANDLE &hEvent, DWORD dwMilliSecond)
 
 unsigned __stdcall PLSDuplicatorInstance::thread_func(void *pParam)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	PLSDuplicatorInstance *self = reinterpret_cast<PLSDuplicatorInstance *>(pParam);
 	CoInitialize(NULL);
 	self->thread_func_inner();
@@ -138,6 +141,16 @@ bool PLSDuplicatorInstance::update_frame()
 		release_frame();
 
 	return is_ok;
+}
+
+void PLSDuplicatorInstance::set_removed()
+{
+	removed = true;
+}
+
+bool PLSDuplicatorInstance::is_removed()
+{
+	return removed;
 }
 
 gs_texture *PLSDuplicatorInstance::get_texture()

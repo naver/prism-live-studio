@@ -22,6 +22,7 @@
 #include <ratio>
 #include <sstream>
 #include <mutex>
+#include <optional>
 #include <util/bmem.h>
 #include <util/dstr.hpp>
 #include <util/platform.h>
@@ -37,8 +38,7 @@
 #include <QPushButton>
 #include <QDir>
 #include <QFile>
-#include <QSettings>
-#include <QJsonDocument>
+#include <QMessageBox>
 
 #include "qt-wrappers.hpp"
 #include "pls-app.hpp"
@@ -49,6 +49,7 @@
 #include "main-view.hpp"
 #include "log/log.h"
 #include "alert-view.hpp"
+#include "notice-view.hpp"
 #include "PLSChannelsEntrance.h"
 #include <fstream>
 #include <QThread>
@@ -58,21 +59,27 @@
 #include <shellapi.h>
 #include <shlobj.h>
 #include <tchar.h>
+#include <regex>
 
 #define UseFreeMusic
 
 #ifdef _WIN32
 #include <windows.h>
+#include <versionhelpers.h>
+#include <Shlwapi.h>
+#pragma comment(lib, "Shlwapi.lib")
 #else
 #include <signal.h>
 #include <pthread.h>
 #endif
 
+#include <tlhelp32.h>
 #include <iostream>
 
 #include "ui-config.h"
 
 #include "PLSPlatformApi/PLSPlatformApi.h"
+#include "prism/PLSPlatformPrism.h"
 
 #include "pls-common-define.hpp"
 #include "pls-common-language.hpp"
@@ -81,20 +88,40 @@
 #include "PLSChatHelper.h"
 #include "PLSNetworkMonitor.h"
 #include "obs.hpp"
+#include "PLSMotionFileManager.h"
+#include "PLSAction.h"
+#include "pls/crash-writer.h"
+#include < WinSock.h>
+
+#include "PLSBlockDump.h"
+
+#pragma comment(lib, "ws2_32.lib")
 
 #pragma comment(lib, "dbghelp.lib")
 
 #define IS_CHAT_IS_HIDDEN_FIRST_SETTED "isChatIsHiddenFirstSetted"
+#define SIDE_BAR_WINDOW_INITIALLIZED "sideBarWindowInitialized"
+
+#define RENDER_ENGINE_CHECK_PROCESS L"EnvCheck.exe"
+#define MAX_BACKTRACE 1024
+
+#define PLS_PROJECT_NAME "P8e4826_PRISMLiveStudio-ZT"
+#define PLS_PROJECT_NAME_KR "P8e4826_PRISMLiveStudio-KR"
 
 using namespace std;
 
 static log_handler_t def_log_handler;
 std::string logUserID;
+std::string maskingLogUserID;
 
 std::string prismSession;
+std::string videoAdapter;
+std::string prism_cpuName;
+static std::string crashFileMutexUuid;
 static string currentLogFile;
 static string lastLogFile;
 static string lastCrashLogFile;
+static string logFrom = "ExternalLog";
 
 bool portable_mode = false;
 static bool multi = false;
@@ -122,6 +149,7 @@ extern "C" __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
 
 extern bool file_exists(const char *path);
 int pls_auto_dump();
+void killSplashScreen();
 
 QObject *CreateShortcutFilter()
 {
@@ -218,8 +246,10 @@ QObject *CreateShortcutFilter()
 				if (dialog && pressed)
 					return false;
 				/* Falls through. */
+				__fallthrough;
 			default:
 				hotkey.key = obs_key_from_virtual_key(event->nativeVirtualKey());
+				break;
 			}
 
 			hotkey.modifiers = TranslateQtKeyboardEventModifiers(event->modifiers());
@@ -247,34 +277,13 @@ QObject *CreateShortcutFilter()
 
 string CurrentTimeString()
 {
-	using namespace std::chrono;
-
-	struct tm tstruct;
-	char buf[80];
-
-	auto tp = system_clock::now();
-	auto now = system_clock::to_time_t(tp);
-	tstruct = *localtime(&now);
-
-	size_t written = strftime(buf, sizeof(buf), "%X", &tstruct);
-	if (ratio_less<system_clock::period, seconds::period>::value && written && (sizeof(buf) - written) > 5) {
-		auto tp_secs = time_point_cast<seconds>(tp);
-		auto millis = duration_cast<milliseconds>(tp - tp_secs).count();
-
-		snprintf(buf + written, sizeof(buf) - written, ".%03u", static_cast<unsigned>(millis));
-	}
-
-	return buf;
+	return CurrentDateTimeString();
 }
 
 string CurrentDateTimeString()
 {
-	time_t now = time(0);
-	struct tm tstruct;
-	char buf[80];
-	tstruct = *localtime(&now);
-	strftime(buf, sizeof(buf), "%Y-%m-%d, %X", &tstruct);
-	return buf;
+	auto curTime = QDateTime::currentDateTime();
+	return curTime.toString("yyyy-MM-dd hh:mm:ss.zzz").toStdString();
 }
 
 static inline void LogString(fstream &logFile, const char *timeString, char *str)
@@ -321,15 +330,17 @@ static inline int sum_chars(const char *str)
 	return val;
 }
 
-static inline bool too_many_repeated_entries(fstream &logFile, const char *module_name, const char *tid, const char *msg, const char *output_str)
+static inline bool too_many_repeated_entries(fstream &logFile, const char *, const char *tid, const char *msg, const char *output_str)
 {
 	static mutex log_mutex;
 	static const char *last_msg_ptr = nullptr;
 	static int last_char_sum = 0;
-	static char cmp_str[4096];
+	static std::vector<char> cmp_str;
 	static int rep_count = 0;
 
 	int new_sum = sum_chars(output_str);
+	int size = _scprintf(msg, output_str) + 1;
+	cmp_str.resize(size);
 
 	lock_guard<mutex> guard(log_mutex);
 
@@ -349,7 +360,7 @@ static inline bool too_many_repeated_entries(fstream &logFile, const char *modul
 	}
 
 	last_msg_ptr = msg;
-	strcpy(cmp_str, output_str);
+	strcpy(cmp_str.data(), output_str);
 	last_char_sum = new_sum;
 	rep_count = 0;
 
@@ -371,50 +382,44 @@ static const char *obsLogLevelToStr(int log_level)
 	}
 }
 
-static void do_log(int log_level, const char *formats, va_list args, void *param)
+static void do_log(int log_level, const char *format, va_list args, void *param)
 {
-	const char *module_name = !strcmp(((const char **)formats)[0], "obs") ? " [OBS]" : " [PLS]";
-	const char *msg = ((const char **)formats)[1];
-	uint32_t tid = *(uint32_t *)((const char **)formats)[2];
-
-	fstream &logFile = *static_cast<fstream *>(param);
-	char str[4096];
-
-#ifndef _WIN32
-	va_list args2;
-	va_copy(args2, args);
-#endif
-
-	vsnprintf(str, 4095, msg, args);
-
-	char tidstr[64];
-	sprintf(tidstr, "[%u] ", tid);
-
-#ifdef _WIN32
 	if (IsDebuggerPresent()) {
-		int wNum = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+		struct log_info_s {
+			bool kr;
+			uint32_t tid;
+			const char *module_name;
+			const char *format;
+		};
+
+		log_info_s *log_info = (log_info_s *)(void *)format;
+		const char *module_name = !strcmp(log_info->module_name, "obs") ? " [OBS]" : " [PLS]";
+		const char *msg = log_info->format;
+		uint32_t tid = log_info->tid;
+
+		std::vector<char> str;
+		int size = _vscprintf(msg, args) + 1;
+		str.resize(size);
+		vsnprintf(str.data(), size, msg, args);
+
+		char tidstr[64];
+		sprintf(tidstr, log_info->kr ? "[%u][KR] " : "[%u] ", tid);
+
+		int wNum = MultiByteToWideChar(CP_UTF8, 0, str.data(), -1, NULL, 0);
 		if (wNum > 1) {
 			static wstring wide_buf;
 			static mutex wide_mutex;
 
 			lock_guard<mutex> lock(wide_mutex);
-			wide_buf.reserve(wNum + 1);
-			wide_buf.resize(wNum - 1);
-			MultiByteToWideChar(CP_UTF8, 0, str, -1, &wide_buf[0], wNum);
+			wide_buf.reserve(size_t(wNum) + 1);
+			wide_buf.resize(size_t(wNum) - 1);
+			MultiByteToWideChar(CP_UTF8, 0, str.data(), -1, &wide_buf[0], wNum);
 			wide_buf.push_back('\n');
 
+			if (log_info->kr)
+				OutputDebugStringW(L"KR: ");
 			OutputDebugStringW(wide_buf.c_str());
 		}
-	}
-#else
-	def_log_handler(log_level, msg, args2, nullptr);
-	va_end(args2);
-#endif
-
-	if (log_level <= LOG_INFO || log_verbose) {
-		if (too_many_repeated_entries(logFile, module_name, tidstr, msg, str))
-			return;
-		LogStringChunk(logFile, obsLogLevelToStr(log_level), module_name, tidstr, str);
 	}
 
 #if defined(_WIN32) && defined(PLS_DEBUGBREAK_ON_ERROR)
@@ -489,7 +494,7 @@ bool PLSApp::InitGlobalConfigDefaults()
 static bool do_mkdir(const char *path)
 {
 	if (os_mkdirs(path) == MKDIR_ERROR) {
-		PLSErrorBox(NULL, "Failed to create directory %s", path);
+		PLSErrorBox(NULL, "Failed to create directory");
 		return false;
 	}
 
@@ -505,16 +510,18 @@ static bool MakeUserDirs()
 	if (!do_mkdir(path))
 		return false;
 
-	if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/logs") <= 0)
-		return false;
-	if (!do_mkdir(path))
-		return false;
-
 	if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/profiler_data") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
-
+	if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/user") <= 0)
+		return false;
+	if (!do_mkdir(path))
+		return false;
+	if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/textmotion") <= 0)
+		return false;
+	if (!do_mkdir(path))
+		return false;
 
 #ifdef _WIN32
 	//if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/crashes") <= 0)
@@ -534,6 +541,16 @@ static bool MakeUserDirs()
 		return false;
 
 	if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/Cache") <= 0)
+		return false;
+	if (!do_mkdir(path))
+		return false;
+
+	if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/naver_shopping") <= 0)
+		return false;
+	if (!do_mkdir(path))
+		return false;
+
+	if (GetConfigPath(path, sizeof(path), "PRISMLiveStudio/crashDump") <= 0)
 		return false;
 	if (!do_mkdir(path))
 		return false;
@@ -647,6 +664,21 @@ static string GetSceneCollectionFileFromName(const char *name)
 	return outputPath;
 }
 
+static void removeChildProcessCrashFile()
+{
+	char path[512];
+	int len = os_get_config_path(path, sizeof(path), "PRISMLiveStudio/crashDump/childProcess.json");
+	if (len <= 0) {
+		return;
+	}
+
+	if (os_is_file_exist(path)) {
+		if (remove(path) == -1)
+			PLS_WARN(MAIN_EXCEPTION, "Remove child process json file failed.");
+	}
+	return;
+}
+
 bool PLSApp::UpdatePre22MultiviewLayout(const char *layout)
 {
 	if (!layout)
@@ -680,6 +712,8 @@ bool PLSApp::InitGlobalConfig()
 	char path[512];
 	bool changed = false;
 
+	PLS_INIT_INFO(MAINFRAME_MODULE, "initialize global configuration");
+
 	int len = GetConfigPath(path, sizeof(path), "PRISMLiveStudio/global.ini");
 	if (len <= 0) {
 		return false;
@@ -703,6 +737,20 @@ bool PLSApp::InitGlobalConfig()
 		PLSErrorBox(NULL, "Failed to open update.ini: %d", errorcode);
 		return false;
 	}
+
+	//create the navershopping global init
+	len = GetConfigPath(path, sizeof(path), "PRISMLiveStudio/naver_shopping/naver_shopping.ini");
+	if (len <= 0) {
+		return false;
+	}
+
+	//open the update init file
+	errorcode = naverShoppingConfig.Open(path, CONFIG_OPEN_ALWAYS);
+	if (errorcode != CONFIG_SUCCESS) {
+		PLSErrorBox(NULL, "Failed to open update.ini: %d", errorcode);
+		return false;
+	}
+
 	//open the cookie init file
 	len = GetConfigPath(path, sizeof(path), "PRISMLiveStudio/Cache/cookies.ini");
 	if (len <= 0) {
@@ -781,12 +829,17 @@ bool PLSApp::InitGlobalConfig()
 	if (changed)
 		config_save_safe(globalConfig, "tmp", nullptr);
 
+	InitCrashConfigDefaults();
+
 	return InitGlobalConfigDefaults();
 }
 
 bool PLSApp::InitLocale()
 {
 	ProfileScope("PLSApp::InitLocale");
+
+	PLS_INIT_INFO(MAINFRAME_MODULE, "initialize app language");
+
 	const char *lang = config_get_string(globalConfig, "General", "Language");
 
 	locale = lang;
@@ -803,22 +856,11 @@ bool PLSApp::InitLocale()
 		return false;
 	}
 
-	const int EnglishLID = 0x0409; // 1033 for English
-	const int KoreaLID = 0x0412;   // 1042 for Korea
 	QSettings settings("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PRISM Live Studio", QSettings::NativeFormat);
-	int language = settings.value("InstallLanguage").toInt();
-	switch (language) {
-	case EnglishLID:
-	default:
-		config_set_string(globalConfig, "General", "Language", DEFAULT_LANG);
-		locale = lang = DEFAULT_LANG;
-		break;
-	case KoreaLID:
-		config_set_string(globalConfig, "General", "Language", "ko-KR");
-		locale = lang = "ko-KR";
-		break;
-	}
-
+	int languageID = settings.value("InstallLanguage").toInt();
+	std::string language = languageID2Locale(languageID);
+	config_set_string(globalConfig, "General", "Language", language.c_str());
+	locale = lang = language.c_str();
 	if (!astrcmpi(lang, DEFAULT_LANG)) {
 		return true;
 	}
@@ -829,9 +871,9 @@ bool PLSApp::InitLocale()
 	string path;
 	if (GetDataFilePath(file.str().c_str(), path)) {
 		if (!text_lookup_add(textLookup, path.c_str()))
-			blog(LOG_ERROR, "Failed to add locale file '%s'", path.c_str());
+			PLS_ERROR(MAIN_EXCEPTION, "Failed to add locale file '%s'", GetFileName(path).c_str());
 	} else {
-		blog(LOG_ERROR, "Could not find locale file '%s'", file.str().c_str());
+		PLS_ERROR(MAIN_EXCEPTION, "Could not find locale file '%s'", GetFileName(file.str().c_str()).c_str());
 	}
 
 	return true;
@@ -903,6 +945,49 @@ void PLSApp::AddExtraThemeColor(QPalette &pal, int group, const char *name, uint
 		func((QPalette::ColorGroup)QPalette::Active);
 		func((QPalette::ColorGroup)QPalette::Inactive);
 	}
+}
+
+void PLSApp::InitSideBarWindowVisible()
+{
+	if (!mainView)
+		return;
+	if (mainView->isVisible()) {
+		PLSBasic::Get()->InitSideBarWindowVisible();
+	} else {
+		// app minimum to the system tray so here we show side bar window delay
+		connect(
+			mainView, &PLSMainView::isshowSignal, mainView,
+			[=](bool isShow) {
+				if (isShow && !mainView->property(SIDE_BAR_WINDOW_INITIALLIZED).toBool()) {
+					mainView->setProperty(SIDE_BAR_WINDOW_INITIALLIZED, true);
+					PLSBasic::Get()->InitSideBarWindowVisible();
+				}
+			},
+			Qt::QueuedConnection);
+	}
+}
+
+void PLSApp::InitCrashConfigDefaults()
+{
+	char path[512];
+	int len = os_get_config_path(path, sizeof(path), PRISM_CRASH_CONFIG_PATH);
+	if (len <= 0) {
+		return;
+	}
+
+	obs_data *crashData = obs_data_create_from_json_file_safe(path, "bak");
+	if (!crashData)
+		crashData = obs_data_create();
+
+	obs_data *currentObj = obs_data_create();
+	obs_data_set_string(currentObj, PRISM_SESSION, prismSession.c_str());
+	obs_data_set_array(currentObj, MODULES, nullptr);
+	obs_data_set_obj(crashData, CURRENT_PRISM, currentObj);
+
+	obs_data_save_json_safe(crashData, path, "tmp", "bak");
+
+	obs_data_release(currentObj);
+	obs_data_release(crashData);
 }
 
 struct CFParser {
@@ -1063,17 +1148,9 @@ bool PLSApp::SetTheme(std::string name, std::string path)
 
 bool PLSApp::InitTheme()
 {
+	PLS_INIT_INFO(MAINFRAME_MODULE, "initialize app theme");
 	defaultPalette = palette();
-
-	const char *themeName = config_get_string(globalConfig, "General", "CurrentTheme");
-
-	if (!themeName) {
-		/* Use deprecated "Theme" value if available */
-		themeName = config_get_string(globalConfig, "General", "Theme");
-		if (!themeName)
-			themeName = DEFAULT_THEME;
-	}
-	return SetTheme(themeName);
+	return SetTheme("Dark");
 }
 
 bool PLSApp::InitWatermark()
@@ -1088,6 +1165,11 @@ bool PLSApp::InitWatermark()
 	return true;
 }
 
+bool PLSApp::HotkeyEnable()
+{
+	return hotkeyEnable;
+}
+
 bool PLSApp::GetCurrentThemePath(std::string &themePath)
 {
 	std::string name = "themes/";
@@ -1098,14 +1180,24 @@ bool PLSApp::GetCurrentThemePath(std::string &themePath)
 	return true;
 }
 
-void QtMessageCallback(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+const char *PLSApp::getProjectName()
+{
+	return PLS_PROJECT_NAME;
+}
+
+const char *PLSApp::getProjectName_kr()
+{
+	return PLS_PROJECT_NAME_KR;
+}
+
+void QtMessageCallback(QtMsgType type, const QMessageLogContext &, const QString &msg)
 {
 	QByteArray localMsg = msg.toLocal8Bit();
 
 	// Check log which we care about.
 	if (type == QtWarningMsg) {
 		if (msg.contains("QMetaObject::invokeMethod: No such method") || msg.contains("QMetaMethod::invoke: Unable to handle unregistered datatype")) {
-			blog(LOG_WARNING, "%s", localMsg.constData());
+			PLS_WARN(MAINFRAME_MODULE, "%s", localMsg.constData());
 			assert(false && "invokeMethod exception");
 			return;
 		}
@@ -1113,21 +1205,27 @@ void QtMessageCallback(QtMsgType type, const QMessageLogContext &context, const 
 
 	switch (type) {
 	case QtDebugMsg:
-		blog(LOG_DEBUG, "[QT::Debug] %s", localMsg.constData());
+		PLS_DEBUG(MAINFRAME_MODULE, "[QT::Debug] %s", localMsg.constData());
 		break;
 	case QtInfoMsg:
-		blog(LOG_DEBUG, "[QT::Info] %s", localMsg.constData());
+		PLS_DEBUG(MAINFRAME_MODULE, "[QT::Info] %s", localMsg.constData());
 		break;
 	case QtWarningMsg:
-		blog(LOG_DEBUG, "[QT::Warning] %s", localMsg.constData());
+		PLS_DEBUG(MAINFRAME_MODULE, "[QT::Warning] %s", localMsg.constData());
 		break;
 	case QtCriticalMsg:
-		blog(LOG_DEBUG, "[QT::Critical] %s", localMsg.constData());
+		PLS_DEBUG(MAINFRAME_MODULE, "[QT::Critical] %s", localMsg.constData());
 		break;
 	case QtFatalMsg:
-		blog(LOG_DEBUG, "[QT::Fatal] %s", localMsg.constData());
+		PLS_DEBUG(MAINFRAME_MODULE, "[QT::Fatal] %s", localMsg.constData());
 		break;
 	}
+}
+
+void PLSApp::sessionExpiredhandler()
+{
+	PLSAlertView::warning(getMainView(), tr("Alert.Title"), tr("main.message.prism.login.session.expired"));
+	pls_prism_change_over_login_view();
 }
 
 PLSApp::PLSApp(int &argc, char **argv, profiler_name_store_t *store) : QApplication(argc, argv), profilerNameStore(store)
@@ -1135,7 +1233,7 @@ PLSApp::PLSApp(int &argc, char **argv, profiler_name_store_t *store) : QApplicat
 	// force modify current work directory
 	QDir::setCurrent(QApplication::applicationDirPath());
 
-	CoInitialize(nullptr);
+	std::ignore = CoInitialize(nullptr);
 
 	qInstallMessageHandler(QtMessageCallback);
 
@@ -1147,17 +1245,16 @@ PLSApp::PLSApp(int &argc, char **argv, profiler_name_store_t *store) : QApplicat
 
 	setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/PRISMLiveStudio.ico")));
 
-	QSettings setting("PrismLive", QApplication::applicationName());
-	const QString KEY_DEV_SERVER = QStringLiteral("DevServer");
-	bool devServer = setting.value(KEY_DEV_SERVER, false).toBool();
-	if (devServer) {
+	if (pls_is_dev_server()) {
 		pls_load_dev_server();
+		enable_popup_messagebox(true);
 	}
-	setting.setValue(KEY_DEV_SERVER, devServer);
 }
 
 PLSApp::~PLSApp()
 {
+	PLS_INFO(MAINSCENE_MODULE, __FUNCTION__);
+
 #ifdef _WIN32
 	PLSNetworkMonitor::Instance()->StopListen();
 
@@ -1177,6 +1274,9 @@ PLSApp::~PLSApp()
 	os_inhibit_sleep_destroy(sleepInhibitor);
 
 	CoUninitialize();
+
+	removeChildProcessCrashFile();
+	os_mutex_handle_close(crashFileMutexUuid.c_str());
 }
 
 static void move_basic_to_profiles(void)
@@ -1268,8 +1368,6 @@ void PLSApp::AppInit()
 		throw "Failed to initialize global config";
 	if (!InitLocale())
 		throw "Failed to load locale";
-	if (!InitTheme())
-		throw "Failed to load theme";
 
 	config_set_default_string(globalConfig, "Basic", "Profile", Str("Untitled"));
 	config_set_default_string(globalConfig, "Basic", "ProfileDir", Str("Untitled"));
@@ -1306,6 +1404,7 @@ void PLSApp::AppInit()
 		throw "Failed to create profile directories";
 
 	PLS_PLATFORM_API;
+	PLS_PLATFORM_PRSIM; // zhangdewen singleton init
 	PLS_HTTP_HELPER;
 }
 
@@ -1333,9 +1432,13 @@ inline void PLSApp::ResetHotkeyState(bool inFocus)
 
 void PLSApp::UpdateHotkeyFocusSetting(bool resetState)
 {
+	if (globalConfig == nullptr) {
+		return;
+	}
+	hotkeyEnable = true;
 	enableHotkeysInFocus = true;
 	enableHotkeysOutOfFocus = true;
-
+	emit HotKeyEnabled(hotkeyEnable);
 	const char *hotkeyFocusType = config_get_string(globalConfig, "General", "HotkeyFocusType");
 
 	if (astrcmpi(hotkeyFocusType, "DisableHotkeysInFocus") == 0) {
@@ -1350,8 +1453,10 @@ void PLSApp::UpdateHotkeyFocusSetting(bool resetState)
 
 void PLSApp::DisableHotkeys()
 {
+	hotkeyEnable = false;
 	enableHotkeysInFocus = false;
 	enableHotkeysOutOfFocus = false;
+	emit HotKeyEnabled(hotkeyEnable);
 	ResetHotkeyState(applicationState() == Qt::ApplicationActive);
 }
 
@@ -1371,13 +1476,88 @@ static void ui_task_handler(obs_task_t task, void *param, bool wait)
 	QMetaObject::invokeMethod(App(), "Exec", wait ? WaitConnection() : Qt::AutoConnection, Q_ARG(VoidFunc, doTask));
 }
 
-static PLSBasic *newMainView(PLSMainView *&mainView, QPointer<PLSMainWindow> &mainWindow)
+static PLSBasic *newMainView(QPointer<PLSMainView> &mainView, QPointer<PLSMainWindow> &mainWindow)
 {
 	PLSDpiHelper dpiHelper;
 	mainView = new PLSMainView(nullptr, dpiHelper);
 	PLSBasic *basic = new PLSBasic(mainView, dpiHelper);
 	mainWindow = basic;
 	return basic;
+}
+
+static void check_local_host()
+{
+	char szHost[256];
+	::gethostname(szHost, 256);
+	hostent *pHost = ::gethostbyname(szHost);
+	if (!pHost) {
+		return;
+	}
+	in_addr addr;
+	int i = 0;
+	if (pHost->h_addrtype == AF_INET) {
+		while (pHost->h_addr_list[i] != 0) {
+			addr.s_addr = *(u_long *)pHost->h_addr_list[i++];
+			char *slzp = ::inet_ntoa(addr);
+			std::regex regExp("10.*");
+			logFrom = std::regex_match(slzp, regExp) ? "InternalLog" : "ExternalLog";
+		}
+	}
+}
+
+QString get_windows_version_info()
+{
+	bool server = IsWindowsServer();
+	bool x64bit = true;
+	if (sizeof(void *) != 8) {
+		x64bit = false;
+	}
+	QString bitStr = x64bit ? "(x64)" : "(x32)";
+
+	uint32_t version_info = GetWindowsVersion();
+	uint32_t build_version = GetWindowsBuildVersion();
+
+	QString ver_str("");
+	if (version_info >= 0x0A00) {
+		if (server) {
+			ver_str = "Windows Server 2016 Technical Preview";
+		} else {
+			if (build_version >= 21664) {
+				ver_str = "Windows 11";
+			} else {
+				ver_str = "Windows 10";
+			}
+		}
+	} else if (version_info >= 0x0603) {
+		if (server) {
+			ver_str = "Windows Server 2012 r2";
+		} else {
+			ver_str = "Windows 8.1";
+		}
+	} else if (version_info >= 0x0602) {
+		if (server) {
+			ver_str = "Windows Server 2012";
+		} else {
+			ver_str = "Windows 8";
+		}
+	} else if (version_info >= 0x0601) {
+		if (server) {
+			ver_str = "Windows Server 2008 r2";
+		} else {
+			ver_str = "Windows 7";
+		}
+	} else if (version_info >= 0x0600) {
+		if (server) {
+			ver_str = "Windows Server 2008";
+		} else {
+			ver_str = "Windows Vista";
+		}
+	} else {
+		ver_str = "Windows Before Vista";
+	}
+
+	QString output_ver_info = ver_str + bitStr;
+	return output_ver_info;
 }
 
 bool PLSApp::PLSInit()
@@ -1401,29 +1581,27 @@ bool PLSApp::PLSInit()
 	obs_apply_private_data(settings);
 	obs_data_release(settings);
 
-	blog(LOG_INFO, "Current Date/Time: %s", CurrentDateTimeString().c_str());
+	PLS_INFO(MAINFRAME_MODULE, "Current Date/Time: %s", CurrentDateTimeString().c_str());
 
-	blog(LOG_INFO, "Browser Hardware Acceleration: %s", browserHWAccel ? "true" : "false");
+	PLS_INFO(MAINFRAME_MODULE, "Browser Hardware Acceleration: %s", browserHWAccel ? "true" : "false");
 #endif
 
-	blog(LOG_INFO, "Portable mode: %s", portable_mode ? "true" : "false");
+	PLS_INFO(MAINFRAME_MODULE, "Portable mode: %s", portable_mode ? "true" : "false");
 
 	setQuitOnLastWindowClosed(false);
 
+	PLSMotionFileManager::instance()->loadMotionFlagSvg();
+
 	PLSBasic *basic = newMainView(mainView, mainWindow);
+	PLS_INIT_INFO(MAINFRAME_MODULE, "main window create success.");
 
 	basic->menuBar()->hide();
 	mainView->setCloseEventCallback(std::bind(&PLSBasic::mainViewClose, basic, std::placeholders::_1));
 
 	connect(mainView, &PLSMainView::popupSettingView, basic, &PLSBasic::onPopupSettingView);
-	connect(mainView, &PLSMainView::beautyClicked, basic, &PLSBasic::OnBeautyClicked);
-	connect(mainView, &PLSMainView::setBeautyViewVisible, basic, &PLSBasic::OnSetBeautyVisible);
-	connect(basic, &PLSBasic::beautyViewVisibleChanged, mainView, &PLSMainView::OnBeautyViewVisibleChanged);
+	connect(mainView, &PLSMainView::sideBarButtonClicked, basic, &PLSBasic::OnSideBarButtonClicked);
 
-	connect(mainView, &PLSMainView::bgmClicked, basic, &PLSBasic::OnBgmClicked);
-	connect(mainView, &PLSMainView::setBgmViewVisible, basic, &PLSBasic::OnSetBgmViewVisible);
-	connect(basic, &PLSBasic::bgmViewVisibleChanged, mainView, &PLSMainView::OnBgmViewVisibleChanged);
-
+	connect(PLSNetworkAccessManager::getInstance(), &PLSNetworkAccessManager::sessionExpired, this, &PLSApp::sessionExpiredhandler);
 	QHBoxLayout *hl = new QHBoxLayout(mainView->content());
 	hl->setContentsMargins(5, 0, 5, 5);
 	hl->setSpacing(0);
@@ -1431,14 +1609,26 @@ bool PLSApp::PLSInit()
 
 	mainView->setAttribute(Qt::WA_DeleteOnClose, true);
 	connect(mainView, SIGNAL(destroyed()), this, SLOT(quit()));
+	connect(this, &QCoreApplication::aboutToQuit, this, [=] {
+		PLS_INFO(MAINFRAME_MODULE, "QCoreApplication::aboutToQuit");
+
+		if (mainView) {
+			PLS_WARN(MAINFRAME_MODULE, "mainView is still valid");
+			mainView->close();
+		}
+	});
 
 	bool initialized = mainWindow->PLSInit();
 
 	mainView->installEventFilter(mainView->statusBar());
 	PLS_PLATFORM_API->initialize();
 
+	PLS_INIT_INFO(MODULE_PlatformService, "Platform push flow interface instance initialization completed.");
+
 	connect(this, &QGuiApplication::applicationStateChanged, [this](Qt::ApplicationState state) { ResetHotkeyState(state == Qt::ApplicationActive); });
 	ResetHotkeyState(applicationState() == Qt::ApplicationActive);
+
+	killSplashScreen();
 
 	if (initialized) {
 		basic->mainMenu = new PLSPopupMenu(mainView);
@@ -1448,78 +1638,45 @@ bool PLSApp::PLSInit()
 		basic->initMainMenu();
 		pls_flush_style(basic->mainMenu);
 
-		PLS_CHAT_HELPER;
-		auto initChat = []() {
-			bool isChatHidden = config_get_bool(App()->GlobalConfig(), "Basic", "chatIsHidden");
-			if (!isChatHidden) {
-				//show chat view
-				extern void showChatView(bool isRebackLogin = false, bool isOnlyShow = false, bool isOnlyInit = false);
-				showChatView(false, false, false);
-			}
-		};
+		// Unified interface to init side bar window visible
+		InitSideBarWindowVisible();
 
-		if (mainView->isVisible()) {
-			initChat();
-			mainView->initToastMsgView();
-		} else {
-			connect(
-				mainView, &PLSMainView::isshowSignal, mainView,
-				[=](bool isShow) {
-					if (isShow && !mainView->property(IS_CHAT_IS_HIDDEN_FIRST_SETTED).toBool()) {
-						mainView->setProperty(IS_CHAT_IS_HIDDEN_FIRST_SETTED, true);
-						initChat();
-						mainView->initToastMsgView(isShow);
-					}
-				},
-				Qt::QueuedConnection);
-		}
-
-		// beauty init
-		// modified by xiewei,move beauty window construction into PLSInit function,here we just set its visibility.
-		if (mainView->isVisible()) {
-			mainView->InitBeautyView();
-		} else {
-			connect(
-				mainView, &PLSMainView::isshowSignal, mainView,
-				[=](bool isShow) {
-					if (isShow) {
-						mainView->InitBeautyView();
-					}
-				},
-				Qt::QueuedConnection);
-		}
-
-		// sticker init
-		if (mainView->isVisible()) {
-			basic->InitGiphyStickerViewVisible();
-#ifdef UseFreeMusic
-			mainView->InitBgmView();
-
-#endif // FreeMusic
-
-		} else {
-			connect(
-				mainView, &PLSMainView::isshowSignal, mainView,
-				[=](bool isShow) {
-					if (isShow) {
-#ifdef UseFreeMusic
-						mainView->InitBgmView();
-#endif // FreeMusic
-						basic->InitGiphyStickerViewVisible();
-					}
-				},
-				Qt::QueuedConnection);
-		}
+		//token vaild
+		PLS_INIT_INFO(MAINFRAME_MODULE, "check prism token vaild or not.");
 		PLSBasic ::Get()->getApi()->on_event(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGIN);
+		if (!mainView || mainView->isClosing()) {
+			return false;
+		}
+
+		bool updateNow = false;
+
+		// if update view never shown
+		if (basic->getUpdateResult() == MainCheckUpdateResult::HasUpdate && basic->needShowUpdateView()) {
+			PLS_INIT_INFO(UPDATE_MODULE, "show update window.");
+			if (basic->ShowUpdateView(basic->getMainView())) {
+				QMetaObject::invokeMethod(basic, &PLSBasic::ShowLoginView, Qt::QueuedConnection);
+				updateNow = true;
+			}
+		}
 
 		//PRISM/WangChuanjing/20200825/#3423/for main view load delay
 		obs_set_system_initialized(true);
-		PLS_INFO(MAINFRAME_MODULE, "System has been initialized.");
+		PLS_INIT_INFO(MAINFRAME_MODULE, "System has been initialized.");
 
+		if (!updateNow) {
+			//notice view
+			PLS_INIT_INFO(MAINFRAME_MODULE, "start request prism notice info.");
+			QVariantMap noticeInfo = pls_get_new_notice_Info();
+			if (noticeInfo.size()) {
+				PLSNoticeView view(noticeInfo.value(NOTICE_CONTENE).toString(), noticeInfo.value(NOTICE_TITLE).toString(), noticeInfo.value(NOTICE_DETAIL_LINK).toString(), mainView);
+				view.exec();
+			}
+		}
 	} else {
+		PLS_INIT_WARN(MAINFRAME_MODULE, "mainview initialization failed, try to close mainview.");
 		mainView->close();
 	}
-	return true;
+	return mainView ? true : false;
 }
 
 string PLSApp::GetVersionString() const
@@ -1603,12 +1760,22 @@ bool PLSApp::TranslateString(const char *lookupVal, const char **out) const
 	return text_lookup_getstr(App()->GetTextLookup(), lookupVal, out);
 }
 
+static inline bool isValidChar(int ch)
+{
+	return (ch >= -1) && (ch <= 255);
+}
+
 QString PLSTranslator::translate(const char *context, const char *sourceText, const char *disambiguation, int n) const
 {
 	int sourceTextLen = (int)strlen(sourceText) + 1;
 	char *sourceTextCopy = (char *)_malloca(sourceTextLen);
+	if (sourceTextCopy == NULL) {
+		PLS_ERROR(MAINFRAME_MODULE, "translate _malloca buffer failed");
+		return "";
+	}
+
 	for (int i = 0, j = 0; i < sourceTextLen; ++i) {
-		if (sourceText[i] != '&' && !::isspace(sourceText[i])) {
+		if (isValidChar(sourceText[i]) && sourceText[i] != '&' && !::isspace(sourceText[i])) {
 			sourceTextCopy[j++] = sourceText[i];
 		}
 	}
@@ -1688,7 +1855,7 @@ static uint64_t convert_log_name(bool has_prefix, const char *name)
 	return std::stoull(timestring.str());
 }
 
-static void delete_oldest_file(bool has_prefix, const char *location)
+/*static void delete_oldest_file(bool has_prefix, const char *location)
 {
 	BPtr<char> logDir(GetConfigPathPtr(location));
 	string oldestLog;
@@ -1726,7 +1893,7 @@ static void delete_oldest_file(bool has_prefix, const char *location)
 			os_unlink(delPath.str().c_str());
 		}
 	}
-}
+}*/
 
 static void get_last_log(bool has_prefix, const char *subdir_to_use, std::string &last)
 {
@@ -1754,20 +1921,17 @@ static void get_last_log(bool has_prefix, const char *subdir_to_use, std::string
 
 string GenerateTimeDateFilename(const char *extension, bool noSpace)
 {
-	time_t now = time(0);
 	char file[256] = {};
-	struct tm *cur_time;
-
-	cur_time = localtime(&now);
-	snprintf(file, sizeof(file), "%d-%02d-%02d%c%02d-%02d-%02d.%s", cur_time->tm_year + 1900, cur_time->tm_mon + 1, cur_time->tm_mday, noSpace ? '_' : ' ', cur_time->tm_hour, cur_time->tm_min,
-		 cur_time->tm_sec, extension);
+	SYSTEMTIME cur_time;
+	GetLocalTime(&cur_time);
+	snprintf(file, sizeof(file), "%d-%02d-%02d%c%02d-%02d-%02d-%03d.%s", cur_time.wYear, cur_time.wMonth, cur_time.wDay, noSpace ? '_' : ' ', cur_time.wHour, cur_time.wMinute, cur_time.wSecond,
+		 cur_time.wMilliseconds, extension);
 
 	return string(file);
 }
 
 string GenerateSpecifiedFilename(const char *extension, bool noSpace, const char *format)
 {
-	PLSBasic *main = reinterpret_cast<PLSBasic *>(App()->GetMainWindow());
 	// Zhangdewen remove auto remux to mp4
 	bool autoRemux = false; // config_get_bool(main->Config(), "Video", "AutoRemux");
 
@@ -1782,7 +1946,7 @@ string GenerateSpecifiedFilename(const char *extension, bool noSpace, const char
 	return string(filename);
 }
 
-vector<pair<string, string>> GetLocaleNames()
+static vector<pair<string, pair<int, string>>> getLocaleNames()
 {
 	string path;
 	if (!GetDataFilePath("locale.ini", path))
@@ -1794,45 +1958,54 @@ vector<pair<string, string>> GetLocaleNames()
 
 	size_t sections = config_num_sections(ini);
 
-	vector<pair<string, string>> names;
+	vector<pair<string, pair<int, string>>> names;
 	names.reserve(sections);
 	for (size_t i = 0; i < sections; i++) {
 		const char *tag = config_get_section(ini, i);
+		int id = config_get_int(ini, tag, "LID");
 		const char *name = config_get_string(ini, tag, "Name");
-		names.emplace_back(tag, name);
+		if (name != NULL && tag != NULL) {
+			names.emplace_back(tag, pair<int, string>{id, name});
+		}
 	}
-
 	return names;
 }
 
-static void create_log_file(fstream &logFile)
+vector<pair<string, pair<int, string>>> &GetLocaleNames()
 {
-	stringstream dst;
+	static vector<pair<string, pair<int, string>>> localeNames = getLocaleNames();
+	return localeNames;
+}
 
-	get_last_log(false, "PRISMLiveStudio/logs", lastLogFile);
-#ifdef _WIN32
-	// get_last_log(true, "PRISMLiveStudio/crashes", lastCrashLogFile);
-#endif
-
-	currentLogFile = GenerateTimeDateFilename("txt");
-	dst << "PRISMLiveStudio/logs/" << currentLogFile.c_str();
-
-	BPtr<char> path(GetConfigPathPtr(dst.str().c_str()));
-
-#ifdef _WIN32
-	BPtr<wchar_t> wpath;
-	os_utf8_to_wcs_ptr(path, 0, &wpath);
-	logFile.open(wpath, ios_base::in | ios_base::out | ios_base::trunc);
-#else
-	logFile.open(path, ios_base::in | ios_base::out | ios_base::trunc);
-#endif
-
-	if (logFile.is_open()) {
-		// delete_oldest_file(false, "PRISMLiveStudio/logs");
-		set_log_handler(do_log, &logFile);
-	} else {
-		blog(LOG_ERROR, "Failed to open log file");
+std::string languageID2Locale(int languageID, const std::string &defaultLanguage)
+{
+	for (const auto &localeName : GetLocaleNames()) {
+		if (localeName.second.first == languageID) {
+			return localeName.first;
+		}
 	}
+	return defaultLanguage;
+}
+
+int locale2languageID(const std::string &locale, int defaultLanguageID)
+{
+	for (const auto &localeName : GetLocaleNames()) {
+		if (localeName.first == locale) {
+			return localeName.second.first;
+		}
+	}
+	return defaultLanguageID;
+}
+
+static void init_local_log()
+{
+	char logDir[512];
+	if (GetConfigPath(logDir, sizeof(logDir), "PRISMLiveStudio/logs/") > 0) {
+		QDir dir(QString::fromUtf8(logDir));
+		dir.removeRecursively();
+	}
+
+	set_log_handler(do_log, nullptr);
 }
 
 static auto ProfilerNameStoreRelease = [](profiler_name_store_t *store) { profiler_name_store_free(store); };
@@ -1871,7 +2044,7 @@ static void SaveProfilerData(const ProfilerSnapshot &snap)
 
 	BPtr<char> path = GetConfigPathPtr(dst.str().c_str());
 	if (!profiler_snapshot_dump_csv_gz(snap.get(), path))
-		blog(LOG_WARNING, "Could not save profiler data to '%s'", static_cast<const char *>(path));
+		PLS_WARN(MAINFRAME_MODULE, "Could not save profiler data");
 }
 
 static auto ProfilerFree = [](void *) {
@@ -1915,34 +2088,175 @@ static void removeConfig(const char *config)
 	}
 
 	if (QFileInfo(path).isDir()) {
-		PLS_DEBUG(MAINFRAME_MODULE, "clear config directory %s.", path);
+		PLS_DEBUG(MAINFRAME_MODULE, "clear config directory.");
 		QDir dir(path);
 		QFileInfoList fis = dir.entryInfoList(QDir::NoDotAndDotDot | QDir::AllDirs | QDir::Files, QDir::DirsFirst);
 		for (QFileInfo &fi : fis) {
 			QString fp = fi.absoluteFilePath();
 			if (fi.isDir()) {
-				PLS_DEBUG(MAINFRAME_MODULE, "remove config directory %s.", fp.toUtf8().constData());
+				PLS_DEBUG(MAINFRAME_MODULE, "remove config directory.");
 				QDir subdir(fp);
 				subdir.removeRecursively();
 			} else {
-				PLS_DEBUG(MAINFRAME_MODULE, "remove config file %s.", fp.toUtf8().constData());
+				PLS_DEBUG(MAINFRAME_MODULE, "remove config file %s.", GetFileName(fp.toUtf8().constData()).c_str());
 				QFile::remove(fp);
 			}
 		}
 	} else {
-		PLS_DEBUG(MAINFRAME_MODULE, "remove config file %s.", path);
+		PLS_DEBUG(MAINFRAME_MODULE, "remove config file %s.", GetFileName(path).c_str());
 		QFile::remove(path);
 	}
 
 	PLS_INFO(MAINFRAME_MODULE, "remove config[%s] successed.", config);
 }
 
-static const char *run_program_init = "run_program_init";
-static int run_program(fstream &logFile, int argc, char *argv[])
+static QString getExceptionAlertString(init_exception_code code)
 {
-	int ret = -1;
+	QString alertString = "";
+	switch (code) {
+	case init_exception_code_common:
+		alertString = QTStr(PRISM_ALERT_INIT_FAILED);
+		break;
+	case init_exception_code_engine_not_support:
+		alertString = QTStr(ENGINE_ALERT_INIT_FAILED);
+		break;
+	case init_exception_code_engine_param_error:
+		alertString = QTStr(ENGINE_ALERT_INIT_PARAM_ERROR);
+		break;
+	case init_exception_code_engine_not_support_dx_version:
+		alertString = QTStr(ENGINE_ALERT_INIT_DX_VERSION);
+		break;
+	default:
+		break;
+	}
+	return alertString;
+}
 
+std::wstring get_process_path()
+{
+	WCHAR szFilePath[MAX_PATH] = {};
+	GetModuleFileNameW(NULL, szFilePath, MAX_PATH);
+
+	int nLen = (int)wcslen(szFilePath);
+	for (int i = nLen - 1; i >= 0; --i) {
+		if (szFilePath[i] == '\\') {
+			szFilePath[i + 1] = 0;
+			break;
+		}
+	}
+
+	return std::wstring(szFilePath) + std::wstring(RENDER_ENGINE_CHECK_PROCESS);
+}
+
+//return true unless exit_code != 0
+static const char *render_engine_check_name = "render_engine_check";
+enum render_engine_check_status {
+	render_engine_check_status_normal = 0,
+	render_engine_check_status_crash,
+	render_engine_check_status_timeout,
+};
+static void render_engine_check(render_engine_check_status &status)
+{
+	const int process_wait_time = 5000;
+	std::wstring process_path = get_process_path();
+	if (process_path.empty()) {
+		PLS_INFO(MAINFRAME_MODULE, "Render engine check process path empty");
+		status = render_engine_check_status_normal;
+		return;
+	}
+
+	if (!os_is_file_exist_ex(process_path.c_str())) {
+		PLS_INFO(MAINFRAME_MODULE, "Render engine check exe not exist");
+		status = render_engine_check_status_normal;
+		return;
+	}
+
+	profile_start(render_engine_check_name);
+	PROCESS_INFORMATION pi = {};
+	STARTUPINFO si = {};
+	si.cb = sizeof(STARTUPINFO);
+	si.dwFlags = STARTF_FORCEOFFFEEDBACK;
+	si.wShowWindow = SW_HIDE;
+
+	wchar_t cmd[2048];
+	swprintf_s(cmd, ARRAY_COUNT(cmd), L"\"%s\"", process_path.c_str());
+
+	BOOL bOK = CreateProcessW((LPWSTR)process_path.c_str(), cmd, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+	if (!bOK) {
+		PLS_INFO(MAINFRAME_MODULE, "Fail to run render engine check process! error:%u", GetLastError());
+		status = render_engine_check_status_normal;
+		return;
+	}
+	DWORD wait_res = WaitForSingleObject(pi.hProcess, process_wait_time);
+	if (wait_res == WAIT_OBJECT_0) {
+		DWORD exit_code;
+		bool res = GetExitCodeProcess(pi.hProcess, &exit_code);
+		if (exit_code == 0) {
+			status = render_engine_check_status_normal;
+		} else {
+			status = render_engine_check_status_crash;
+		}
+	} else if (wait_res == WAIT_TIMEOUT) {
+		status = render_engine_check_status_timeout;
+	}
+	CloseHandle(pi.hThread);
+	CloseHandle(pi.hProcess);
+	profile_end(render_engine_check_name);
+}
+
+static QJsonObject getObjByJsonFile(QString _path, bool configPath)
+{
+	QJsonObject obj;
+	char *path = nullptr;
+	if (configPath)
+		path = GetConfigPathPtr(_path.toStdString().c_str());
+	else
+		path = os_get_executable_path_ptr(_path.toStdString().c_str());
+
+	if (!path) {
+		PLS_WARN(MAINFRAME_MODULE, "Get json path failed.");
+		return obj;
+	}
+
+	if (!os_is_file_exist(path))
+		PLS_WARN(MAINFRAME_MODULE, "Not found %s file.", GetFileName(path).c_str());
+
+	QFile file(path);
+	if (!file.open(QIODevice::ReadOnly)) {
+		PLS_WARN(MAINFRAME_MODULE, "Open %s file failed.", GetFileName(path).c_str());
+		return obj;
+	}
+	QByteArray data = file.readAll();
+	file.close();
+
+	obj = QJsonDocument::fromJson(data).object();
+
+	return obj;
+}
+
+static QJsonObject getCrashFileData()
+{
+	os_mutex_handle_lock(crashFileMutexUuid.c_str());
+	QJsonObject data = getObjByJsonFile(PRISM_CRASH_CONFIG_PATH, true);
+	os_mutex_handle_unlock(crashFileMutexUuid.c_str());
+	return data;
+}
+
+static void parseActionEvent()
+{
+	QJsonObject obj = getCrashFileData();
+	QJsonObject actionObj = obj["actionEvent"].toObject();
+	if (!actionObj.isEmpty() && actionObj.value(IS_CRASHED).toBool()) {
+		PLS_INFO(MAINFRAME_MODULE, "Prism crashed last time.");
+	}
+}
+
+static const char *run_program_init = "run_program_init";
+static int run_program(int argc, char *argv[])
+{
 	pls_auto_dump();
+
+	check_local_host();
 
 	pls_set_config_path(&GetConfigPath);
 
@@ -1962,25 +2276,51 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 	QCoreApplication::setOrganizationName("Naver");
 	QCoreApplication::setOrganizationDomain(APP_ORGANIZATION);
 
+	PLS_INIT_INFO(MAINFRAME_MODULE, "Start PRISMLiveStudio");
+
 	PLSApp program(argc, argv, profilerNameStore.get());
 	try {
+		if (!program.InitTheme())
+			throw "Failed to load theme";
 		if (!InitApplicationBundle())
 			throw "Failed to initialize application bundle";
 		if (!MakeUserDirs())
 			throw "Failed to create required user directories";
 
-		create_log_file(logFile);
+		QString userID = PLSLoginUserInfo::getInstance()->getUserCode();
+		QString maskingUserID = PLSLoginUserInfo::getInstance()->getUserCodeWithEncode();
+		logUserID = userID.toUtf8();
+		maskingLogUserID = maskingUserID.toUtf8();
+		pls_set_user_id(logUserID.c_str(), PLS_SET_TAG_KR);
+		pls_set_user_id(maskingUserID.toUtf8().constData(), PLS_SET_TAG_CN);
 
-		logUserID = "";
-		pls_set_user_id(logUserID.c_str());
+		std::string currentEnvironment = pls_is_dev_server() ? "Dev" : "Rel";
+		PLS_INIT_INFO(MAINFRAME_MODULE, "version: " PLS_VERSION ", processId:%ld, neloSession: %s, currentRunEnvironment:%s;", GetCurrentProcessId(), prismSession.c_str(),
+			      currentEnvironment.c_str());
 
-		PLS_INFO(MAINFRAME_MODULE, "start PRISMLiveStudio, version: " PLS_VERSION ", userId: %s", logUserID.c_str());
+		pls_add_global_field("LogFrom", logFrom.c_str());
+
+		if (!PLSLoginUserInfo::getInstance()->isPrismLogined()) {
+			PLS_INIT_INFO(MAINFRAME_MODULE, "user info expired, clear user configs");
+			removeConfig("PRISMLiveStudio/basic/profiles");
+			removeConfig("PRISMLiveStudio/basic/scenes");
+			removeConfig("PRISMLiveStudio/Cache");
+			removeConfig("PRISMLiveStudio/plugin_config");
+			removeConfig("PRISMLiveStudio/user/gcc.json");
+			removeConfig("PRISMLiveStudio/user/config.ini");
+			removeConfig("PRISMLiveStudio/global.ini");
+			removeConfig("PRISMLiveStudio/naver_shopping");
+			PLSMotionFileManager::instance()->logoutClear();
+		}
+		removeConfig(QString("PRISMLiveStudio/user/%1.png").arg(PLSLoginUserInfo::getInstance()->getAuthType()).toUtf8().constData());
 
 		program.AppInit();
 		// delete_oldest_file(false, "PRISMLiveStudio/profiler_data");
+		PLS_INIT_INFO(MAINFRAME_MODULE, "app configuration information initialization completed.");
 
 		PLSTranslator translator;
 		program.installTranslator(&translator);
+		PLS_INIT_INFO(MAINFRAME_MODULE, "install language translator");
 
 		const wchar_t *eventName = L"PRISMLiveStudio";
 
@@ -1989,14 +2329,47 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 
 		if (!already_running) {
 			hEvent = CreateEventW(NULL, TRUE, FALSE, eventName);
+			if (GetLastError() == ERROR_ALREADY_EXISTS) {
+				already_running = true;
+			}
 		}
 
 		if (already_running) {
 			PLS_INFO("app/singleton", "app is already running");
 			SetEvent(hEvent);
+			CloseHandle(hEvent);
 			return 0;
 		}
 
+		PLS_INIT_INFO(MAINFRAME_MODULE, "check render engine");
+		render_engine_check_status engine_status = render_engine_check_status_normal;
+		render_engine_check(engine_status);
+		if (engine_status == render_engine_check_status_crash) {
+			PLS_WARN(MAINFRAME_MODULE, "Render engine check error");
+			PLSMessageBox::warning(NULL, QTStr("Alert.Title"), QTStr("prism.engine.alert.initcrash"));
+			return 0;
+		} else if (engine_status == render_engine_check_status_timeout) {
+			PLS_WARN(MAINFRAME_MODULE, "Render engine check timeout");
+			PLSAlertView::Button button = PLSMessageBox::question(NULL, QTStr("Alert.Title"), QTStr("prism.engine.alert.check.timeout"));
+			if (button != PLSAlertView::Button::Yes) {
+				PLS_INFO(MAINFRAME_MODULE, "Exit button clicked");
+				return 0;
+			}
+		}
+
+		PLS_INIT_INFO(MAINFRAME_MODULE, "init program");
+		if (!program.PLSInit()) {
+			CloseHandle(hEvent);
+			QMetaObject::invokeMethod(
+				&program, [&program]() { program.quit(); }, Qt::QueuedConnection);
+			return program.exec();
+		}
+
+		parseActionEvent();
+
+		prof.Stop();
+
+		PLS_INIT_INFO(MAINFRAME_MODULE, "start wakeup thread");
 		WakeupThread wakeupThread(hEvent);
 		wakeupThread.start();
 
@@ -2007,30 +2380,41 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 			CloseHandle(hEvent);
 		});
 
-		if (argc > 1) {
-			stringstream stor;
-			stor << argv[1];
-			for (int i = 2; i < argc; ++i) {
-				stor << " " << argv[i];
-			}
-			blog(LOG_INFO, "Command Line Arguments: %s", stor.str().c_str());
-		}
-
-		if (!program.PLSInit())
-			return 0;
-
-		prof.Stop();
-
 		program.setAppRunning(true);
 
 		return program.exec();
 
 	} catch (const char *error) {
-		blog(LOG_ERROR, "%s", error);
+		PLS_ERROR(MAINFRAME_MODULE, "%s", error);
 		PLSErrorBox(nullptr, "%s", error);
+		exit(-1);
+	} catch (init_exception_code code) {
+		QString codeStr = getExceptionAlertString(code);
+		if (!codeStr.isEmpty()) {
+			PLSErrorBox(nullptr, "%s", codeStr.toStdString().c_str());
+		}
+		exit(-1);
+	} catch (...) {
+		PLS_ERROR(MAINFRAME_MODULE, "unknown exception catched");
+		PLSErrorBox(nullptr, "unknown exception catched");
+		exit(-1);
 	}
+}
 
-	return ret;
+void PLSApp::clearNaverShoppingConfig()
+{
+	removeConfig("PRISMLiveStudio/naver_shopping/naver_shopping.ini");
+	//create the navershopping global init
+	char path[512];
+	int len = GetConfigPath(path, sizeof(path), "PRISMLiveStudio/naver_shopping/naver_shopping.ini");
+	if (len <= 0) {
+		return;
+	}
+	//open the update init file
+	int errorcode = naverShoppingConfig.Open(path, CONFIG_OPEN_ALWAYS);
+	if (errorcode != CONFIG_SUCCESS) {
+		return;
+	}
 }
 
 #define MAX_CRASH_REPORT_SIZE (150 * 1024)
@@ -2113,8 +2497,8 @@ static void load_debug_privilege(void)
 		tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
 		if (!AdjustTokenPrivileges(token, false, &tp, sizeof(tp), NULL, NULL)) {
-			blog(LOG_INFO, "Could not set privilege to "
-				       "increase GPU priority");
+			PLS_INFO(MAINFRAME_MODULE, "Could not set privilege to "
+						   "increase GPU priority");
 		}
 	}
 
@@ -2495,8 +2879,58 @@ const char *generate_guid()
 	return (const char *)buf;
 }
 
+static std::chrono::steady_clock::time_point startTime;
+void printTotalStartTime()
+{
+	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+	std::string seconds = std::to_string(std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count());
+	const char *fields[][2] = {{"duration", seconds.c_str()}};
+	PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE, fields, 1, "PRISMLiveStudio launch duration");
+}
+
+static PROCESS_INFORMATION splashScreenProcess = {NULL, NULL, 0, 0};
+bool startSplashScreen()
+{
+	uint32_t pid = GetCurrentProcessId();
+
+	char splashScreenApp[512];
+	GetModuleFileNameA(NULL, splashScreenApp, 512);
+	PathRemoveFileSpecA(splashScreenApp);
+	strcat_s(splashScreenApp, "\\PRISMSplashScreen.exe");
+
+	char commandLine[1024];
+	sprintf_s(commandLine, "\"%s\" \"%u\"", splashScreenApp, pid);
+
+	STARTUPINFOA si;
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	si.lpTitle = "PRISMSplashScreen";
+	if (!CreateProcessA(NULL, commandLine, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &splashScreenProcess)) {
+		return false;
+	}
+	return false;
+}
+void killSplashScreen()
+{
+	if (splashScreenProcess.hThread) {
+		CloseHandle(splashScreenProcess.hThread);
+		splashScreenProcess.hThread = nullptr;
+	}
+
+	if (splashScreenProcess.hProcess) {
+		printTotalStartTime();
+		TerminateProcess(splashScreenProcess.hProcess, -1);
+		CloseHandle(splashScreenProcess.hProcess);
+		splashScreenProcess.hProcess = nullptr;
+	}
+}
+
 int main(int argc, char *argv[])
 {
+	startTime = std::chrono::steady_clock::now();
+
+	startSplashScreen();
+
 #ifndef _WIN32
 	signal(SIGPIPE, SIG_IGN);
 
@@ -2520,17 +2954,30 @@ int main(int argc, char *argv[])
 	}
 #endif
 
+#ifdef _DEBUG
+	auto cw = _control87(0, 0) & MCW_EM;
+	cw &= ~(_EM_INVALID | _EM_ZERODIVIDE | _EM_OVERFLOW);
+	_control87(cw, MCW_EM);
+#endif
+
 #ifdef _WIN32
-	obs_init_win32_crash_handler();
+	//obs_init_win32_crash_handler();
 	SetErrorMode(SEM_FAILCRITICALERRORS);
 	load_debug_privilege();
-	base_set_crash_handler(main_crash_handler, nullptr);
+	//base_set_crash_handler(main_crash_handler, nullptr);
 #endif
 
 	base_get_log_handler(&def_log_handler, nullptr);
 	prismSession = generate_guid();
+	crashFileMutexUuid = generate_guid();
+	if (os_mutex_handle_create(crashFileMutexUuid.c_str())) {
+		cw_set_file_mutex_uuid(crashFileMutexUuid.c_str());
+	}
 
-	log_init(prismSession.c_str());
+	QString strVersion = get_windows_version_info();
+	log_init(prismSession.c_str(), PLS_PROJECT_NAME, PLS_PROJECT_NAME_KR);
+
+	init_local_log();
 
 #if defined(USE_XDG) && defined(IS_UNIX)
 	move_to_xdg();
@@ -2619,85 +3066,305 @@ int main(int argc, char *argv[])
 
 	upgrade_settings();
 
-	fstream logFile;
-
 	curl_global_init(CURL_GLOBAL_ALL);
-	int ret = run_program(logFile, argc, argv);
+	int ret = run_program(argc, argv);
 
-	blog(LOG_INFO, "Number of memory leaks: %ld", bnum_allocs());
+	PLS_INFO(MAINFRAME_MODULE, "Number of memory leaks: %ld", bnum_allocs());
 	log_cleanup();
+	os_sym_cleanup();
 	return ret;
 }
 
-bool send_to_nelo(char *data, size_t len)
+void showCrashExceptionNotice(QString location)
+{
+	QSystemTrayIcon *trayIcon = new QSystemTrayIcon(QIcon::fromTheme("obs-tray", QIcon(":/res/images/PRISMLiveStudio.ico")), qApp);
+	if (trayIcon) {
+		trayIcon->setToolTip(QString("PRISMLiveStudio"));
+		trayIcon->setIcon(QIcon(":/PRISMLiveStudio.ico"));
+		trayIcon->show();
+		location = location.isEmpty() ? "PRISM Live Studio" : location;
+		if (QSystemTrayIcon::supportsMessages()) {
+			QString notice = QTStr(BLACKLIST_CRASHED_NOTICE);
+			PLS_INFO(MAIN_EXCEPTION, "Crash exception notice is %s Crash location is %s.", notice.toUtf8().constData(), location.toUtf8().constData());
+			trayIcon->showMessage(location, notice, QSystemTrayIcon::Warning, 10000);
+		} else {
+			PLS_WARN(MAIN_EXCEPTION, "Crash exception notice not show. supportsMessages failed.");
+		}
+
+	} else {
+		PLS_WARN(MAIN_EXCEPTION, "Crash exception notice not show. create QSystemTrayIcon failed.");
+	}
+}
+
+QJsonObject getBlackList()
+{
+	QJsonObject obj = getObjByJsonFile("PRISMLiveStudio\\user\\gpop.json", true);
+	if (obj.isEmpty()) {
+		PLS_INFO(MAINFRAME_MODULE, "Try to read the gpop file for the second time.");
+		obj = getObjByJsonFile("data\\prism-studio\\user\\gpop.json", false);
+	}
+	QJsonObject optional = obj["optional"].toObject();
+	QJsonObject blacklist = optional["blacklist"].toObject();
+	return blacklist;
+}
+
+void captureStackBackTrace(struct _EXCEPTION_POINTERS *pExceptionPointers, std::vector<DWORD64> &stackFrams)
+{
+	bool bFind = false;
+	void *pBackTrace[MAX_BACKTRACE] = {0};
+	auto captured = CaptureStackBackTrace(1, MAX_BACKTRACE, pBackTrace, nullptr);
+	for (int i = 0; i < captured; ++i) {
+		if (!bFind) {
+			bFind = reinterpret_cast<DWORD64>(pBackTrace[i]) == pExceptionPointers->ContextRecord->Rip;
+		}
+		if (bFind) {
+			stackFrams.push_back(reinterpret_cast<DWORD64>(pBackTrace[i]));
+		}
+	}
+}
+
+void stackWalk(struct _EXCEPTION_POINTERS *pExceptionPointers, std::vector<DWORD64> &stackFrams)
+{
+	STACKFRAME frame = {};
+	frame.AddrPC.Offset = pExceptionPointers->ContextRecord->Rip;
+	frame.AddrPC.Mode = AddrModeFlat;
+	frame.AddrFrame.Offset = pExceptionPointers->ContextRecord->Rbp;
+	frame.AddrFrame.Mode = AddrModeFlat;
+	frame.AddrStack.Offset = pExceptionPointers->ContextRecord->Rsp;
+	frame.AddrStack.Mode = AddrModeFlat;
+
+	HANDLE process = GetCurrentProcess();
+	stackFrams.clear();
+
+	while (frame.AddrFrame.Offset) {
+		bool ret = StackWalk(IMAGE_FILE_MACHINE_AMD64, process, GetCurrentThread(), &frame, pExceptionPointers->ContextRecord, NULL, SymFunctionTableAccess, SymGetModuleBase, NULL);
+		if (!ret || frame.AddrFrame.Offset == 0)
+			break;
+		stackFrams.push_back(frame.AddrPC.Offset);
+	}
+	return;
+}
+
+void getModuleInfo(DWORD64 addr, DWORD64 &offset, std::string &moduleName_)
+{
+	HMODULE hModule;
+	GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCTSTR)(addr), &hModule);
+	char moduleName[128];
+	if (hModule != NULL) {
+		char modulePath[256], ext[16];
+		GetModuleFileNameA(hModule, modulePath, 256);
+		_splitpath(modulePath, NULL, NULL, moduleName, ext);
+		strcat(moduleName, ext);
+		moduleName_ = std::string(moduleName);
+		offset = addr - reinterpret_cast<DWORD64>(hModule);
+	} else {
+		moduleName_ = std::to_string(addr);
+		offset = addr;
+	}
+	return;
+}
+
+void analyzeException(struct _EXCEPTION_POINTERS *pExceptionPointers, std::string &crashKey, std::string &crashValue, std::string &crashType)
+{
+	std::string stackFramsStr{};
+	std::vector<DWORD64> stackFrams{}, tempBackTrace{}, tempStackFrams{};
+	DWORD64 exceptionRip = pExceptionPointers->ContextRecord->Rip;
+
+	captureStackBackTrace(pExceptionPointers, tempBackTrace);
+	stackWalk(pExceptionPointers, tempStackFrams);
+
+	QJsonObject blacklist = getBlackList();
+
+	crashKey = "MainGeneralCrash";
+	crashType = "GeneralCrash";
+
+	bool findBlacklist = false, bFind = false;
+	std::string topLocation{};
+	if (tempBackTrace.size() > tempStackFrams.size()) {
+		stackFrams.swap(tempBackTrace);
+		PLS_INFO(MAIN_EXCEPTION, "Main Selected Stack API : CaptureStackBackTrace");
+	} else {
+		stackFrams.swap(tempStackFrams);
+		PLS_INFO(MAIN_EXCEPTION, "Main Selected Stack API : StackWalk");
+	}
+
+	for (int i = 0; i < stackFrams.size(); ++i) {
+		if (!bFind) {
+			bFind = stackFrams[i] == exceptionRip;
+		}
+		if (bFind) {
+			DWORD64 offset;
+			std::string moduleName;
+			getModuleInfo(stackFrams[i], offset, moduleName);
+
+			char frame[128];
+			sprintf_s(frame, "\n %d %s + 0x%x", i, moduleName.c_str(), offset);
+			stackFramsStr.append(frame);
+
+			if (topLocation.empty())
+				topLocation = moduleName;
+
+			if (findBlacklist)
+				continue;
+
+			crashValue = moduleName;
+		}
+	}
+
+	showCrashExceptionNotice(QString::fromStdString(crashValue));
+
+	//print back stack
+	if (stackFramsStr.empty())
+		PLS_INFO(MAIN_EXCEPTION, "Not found module. Crash rip : 0x%x", exceptionRip);
+	else
+		PLS_INFO(MAIN_EXCEPTION, "Main BackTrace : %s", stackFramsStr.c_str());
+
+	return;
+}
+
+bool send_to_nelo(char *data, size_t len, std::string crashKey, std::string crashValue, std::string crashType)
 {
 	QByteArray ba;
-	ba.append(data, len);
+	ba.append(data, (int)len);
 	QString base64Dump = ba.toBase64();
-	//qDebug() << base64Dump;
-	QString neloUrl = "http://nelo2-col.navercorp.com:80/_store";
-	//
+	//std::string neloUrl = "http://nelo2-col.navercorp.com:80/_store";
+	QString win_version = get_windows_version_info();
 	QJsonObject neloInfo;
-	neloInfo.insert("projectName", "PRISMLiveStudio");
+	neloInfo.insert("projectName", PLS_PROJECT_NAME);
 	neloInfo.insert("projectVersion", PLS_VERSION);
 	neloInfo.insert("prismSession", prismSession.c_str());
 	neloInfo.insert("body", "Crash Dump File");
 
 	neloInfo.insert("logLevel", "FATAL");
 	neloInfo.insert("logSource", "CrashDump");
-	neloInfo.insert("platform", "Windows 10(x64)");
+	neloInfo.insert("Platform", win_version);
 	neloInfo.insert("logType", "nelo2-app");
-	neloInfo.insert("UserID", logUserID.c_str());
+	neloInfo.insert("UserID", maskingLogUserID.c_str());
 	neloInfo.insert("DmpData", base64Dump);
 	neloInfo.insert("DmpFormat", "bin");
 	neloInfo.insert("DmpSymbol", "Required");
+	neloInfo.insert(crashKey.c_str(), crashValue.c_str());
+	neloInfo.insert("CrashType", crashType.c_str());
+	neloInfo.insert("LogFrom", logFrom.c_str());
+
+	neloInfo.insert("videoAdapter", videoAdapter.c_str());
+	neloInfo.insert("cpuName", prism_cpuName.c_str());
 
 	QJsonDocument doc;
 	doc.setObject(neloInfo);
 	QByteArray postData = doc.toJson(QJsonDocument::Compact);
-	//
-	QNetworkAccessManager *accessManager = new QNetworkAccessManager();
-	QNetworkRequest request;
-	request.setUrl(QUrl(neloUrl));
-	QEventLoop eventLoop;
-	QObject::connect(accessManager, &QNetworkAccessManager::finished, &eventLoop, &QEventLoop::quit);
-	blog(LOG_INFO, "Post Crash Dump file to nelo");
 
-	QNetworkReply *reply = accessManager->post(request, postData);
-	eventLoop.exec();
+	bool res = false;
+	try {
+		const int PORT_NUM = 80;
+		WSADATA wData;
+		std::ignore = ::WSAStartup(MAKEWORD(2, 2), &wData);
 
-	if (reply->error() == QNetworkReply::NoError) {
-		QByteArray bytes = reply->readAll();
-		blog(LOG_INFO, "Nelo reply ok");
-		return true;
-	} else {
-		QByteArray bytes = reply->readAll();
-		blog(LOG_INFO, "Nelo reply error:%d", reply->error());
+		hostent *phost = gethostbyname("nelo2-col.navercorp.com");
+		std::string ip_str = phost ? inet_ntoa(*(in_addr *)phost->h_addr_list[0]) : "";
+
+		SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+		struct sockaddr_in ServerAddr = {0};
+		ServerAddr.sin_addr.s_addr = inet_addr(ip_str.c_str());
+		ServerAddr.sin_port = htons(PORT_NUM);
+		ServerAddr.sin_family = AF_INET;
+		int errNo = connect(clientSocket, (sockaddr *)&ServerAddr, sizeof(ServerAddr));
+		if (errNo == 0) {
+			char len[20] = {0};
+			sprintf(len, "%zd", postData.toStdString().length());
+			std::string strLen = len;
+
+			std::string strSend = "POST /_store HTTP/1.1\n"
+					      "Connection: close\n"
+					      "Content-Type: application/x-www-form-urlencoded\n"
+					      "Host: nelo2-col.navercorp.com:80\n"
+					      "Content-Length:";
+			strSend = strSend + strLen + "\n\n" + postData.toStdString();
+
+			int iSended = 0;
+			for (;;) {
+				if (iSended >= strSend.length()) {
+					break;
+				}
+				int iLen = send(clientSocket, &strSend.c_str()[iSended], int(strSend.length() - iSended), 0);
+				PLS_INFO(MAIN_EXCEPTION, "send length:%d", iLen);
+				if (iLen > 0) {
+					iSended += iLen;
+				} else {
+					break;
+				}
+			}
+
+			if (iSended > 0) {
+				char buf[4096] = {0};
+				int iRecved = 0;
+				for (;;) {
+					if (iRecved >= sizeof(buf) - 1) {
+						break;
+					}
+					int recv_res = recv(clientSocket, buf + iRecved, sizeof(buf) - iRecved - 1, 0);
+					if (recv_res == SOCKET_ERROR || recv_res == 0) {
+						break;
+					} else {
+						iRecved += recv_res;
+					}
+				}
+				iRecved = min(iRecved, 4096 - 1);
+				buf[iRecved] = 0;
+				char *sub_success = strstr(buf, "Success");
+				if (!sub_success) {
+					PLS_WARN(MAIN_EXCEPTION, "Send dump file to nelo failed");
+				} else {
+					res = true;
+				}
+			} else {
+				PLS_WARN(MAIN_EXCEPTION, "Send dump file to nelo failed");
+			}
+		} else {
+			errNo = WSAGetLastError();
+			PLS_INFO(MAIN_EXCEPTION, "Connect error, error code:%d", errNo);
+		}
+		closesocket(clientSocket);
+		::WSACleanup();
+		return res;
+	} catch (...) {
+		PLS_INFO(MAIN_EXCEPTION, "Exception happned when send dump to nelo");
+		return false;
 	}
 	return false;
 }
 
-bool PostDumpToServer(QString strDump)
+bool PostDumpToServer(QString strDump, std::string crashKey, std::string crashValue, std::string crashType)
 {
 	QFile file(strDump);
 	if (!file.open(QIODevice::ReadOnly)) {
+		PLS_WARN(MAIN_EXCEPTION, "Open dump file failed");
 		return false;
 	}
 	QDataStream in(&file);
 	QString strDumpData;
 	qint64 len = file.size();
 	if (len == 0) {
+		PLS_WARN(MAIN_EXCEPTION, "Size of dump file is 0");
+		file.close();
+		if (!pls_is_dev_server()) {
+			file.remove();
+		}
 		return false;
 	}
 	char *data = new char[len];
 	file.read(data, len);
-	if (send_to_nelo(data, len)) {
+	if (send_to_nelo(data, len, crashKey, crashValue, crashType)) {
 		file.close();
-		file.remove();
-		blog(LOG_INFO, "Remove dump file : %s", strDump.toStdString().c_str());
+		if (!pls_is_dev_server()) {
+			file.remove();
+			PLS_INFO(MAIN_EXCEPTION, "Remove dump file : %s", GetFileName(strDump.toStdString()).c_str());
+		} else {
+			PLS_INFO(MAIN_EXCEPTION, "Do not remove dump file : %s", GetFileName(strDump.toStdString()).c_str());
+		}
 	} else {
 		file.close();
-		blog(LOG_INFO, "Dump file stay in: %s", strDump.toStdString().c_str());
+		PLS_INFO(MAIN_EXCEPTION, "Dump file stay in: %s", GetFileName(strDump.toStdString()).c_str());
 	}
 	delete[] data;
 	data = nullptr;
@@ -2706,15 +3373,31 @@ bool PostDumpToServer(QString strDump)
 
 LONG WINAPI PrismUnhandledExceptionFilter(struct _EXCEPTION_POINTERS *pExceptionPointers)
 {
+	PLS_INFO(MAIN_EXCEPTION, "Crash happened");
+
+	pls_crash_flag();
+	PLSBlockDump::Instance()->SignExitEvent();
+
+	unsigned length = mem_failed_length();
+	if (length > 0) {
+		uint64_t memoryUsingMB = os_get_proc_resident_size() / (1024 * 1024);
+		char *retryTest = (char *)malloc(length);
+		PLS_INFO(MAIN_EXCEPTION, "Crash happenned after failing to request memory for %u bytes while %lluMB memory is being using. Retry result : %s", length, memoryUsingMB,
+			 retryTest ? "successed" : "failed");
+		if (retryTest) {
+			free(retryTest);
+			retryTest = NULL;
+		}
+	}
+
 	SYSTEMTIME st;
 	::GetLocalTime(&st);
-	blog(LOG_INFO, "Crash happened");
-
-	QString strUserPath = pls_get_user_path("PRISMLiveStudio\\logs\\");
+	QString strUserPath = pls_get_user_path("PRISMLiveStudio\\crashDump\\");
 	wchar_t path[MAX_PATH] = {0};
-	swprintf_s(path, _T("%s%04d_%02d_%02d_%02d_%02d_%02d.dmp"), strUserPath.toStdWString().c_str(), st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
-	blog(LOG_INFO, "Crash Dump file will write into :%s", strUserPath.toStdString().c_str());
+	swprintf_s(path, _T("%s%04d_%02d_%02d_%02d_%02d_%02d_%03d.dmp"), strUserPath.toStdWString().c_str(), st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+	PLS_INFO(MAIN_EXCEPTION, "Crash Dump file will write.");
 
+	bool writedDump = false;
 	HANDLE lhDumpFile = CreateFileW(path, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (lhDumpFile && (lhDumpFile != INVALID_HANDLE_VALUE)) {
 		MINIDUMP_EXCEPTION_INFORMATION loExceptionInfo;
@@ -2726,14 +3409,26 @@ LONG WINAPI PrismUnhandledExceptionFilter(struct _EXCEPTION_POINTERS *pException
 		MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), lhDumpFile, (MINIDUMP_TYPE)nDumpType, &loExceptionInfo, NULL, NULL);
 		CloseHandle(lhDumpFile);
 
-		QString dumpPath = QString::fromWCharArray(path);
-		blog(LOG_INFO, "Write Crash Dump file:%s", dumpPath.toStdString().c_str());
-
-		PostDumpToServer(dumpPath);
+		writedDump = true;
 	} else {
-		blog(LOG_INFO, "Write Crash Dump file failed:(%d)", GetLastError());
+		PLS_INFO(MAIN_EXCEPTION, "Write Crash Dump file failed:(%d)", GetLastError());
 	}
 
+	std::string crashKey = "MainGeneralCrash";
+	std::string crashValue = "Unknown";
+	std::string crashType = "GeneralCrash";
+
+	os_sym_initialize(NULL);
+	analyzeException(pExceptionPointers, crashKey, crashValue, crashType);
+
+	if (writedDump) {
+		QString dumpPath = QString::fromWCharArray(path);
+		PostDumpToServer(dumpPath, crashKey, crashValue, crashType);
+	}
+
+	removeChildProcessCrashFile();
+	os_sym_cleanup();
+	os_mutex_handle_close(crashFileMutexUuid.c_str());
 	return EXCEPTION_EXECUTE_HANDLER;
 }
 

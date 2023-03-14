@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 17 17">
+    <g fill="none" fill-rule="evenodd">
+        <g>
+            <g transform="translate(-1798 -1193) translate(1798 1193)">
+                <circle cx="8.5" cy="8.5" r="8.5" fill="#555"/>
+                <g fill="#BABABA" fill-rule="nonzero">
+                    <path d="M4.727.556c.238-.142.534-.141.772.002L9.36 2.885c.225.136.363.38.363.643v5.51c0 .414-.336.75-.75.75H1.21c-.414 0-.75-.336-.75-.75v-5.51c0-.264.139-.509.366-.644zm.382 1.518L1.96 3.953v4.334h2.4l.001-1.354c0-.414.336-.75.75-.75.38 0 .694.282.743.648l.007.102v1.353l2.362.001V3.951L5.109 2.074z" transform="translate(3.5 3)"/>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

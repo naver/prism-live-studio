@@ -1,7 +1,7 @@
 
 ChannelConfigPannel {
-	min-height:/*hdpi*/ 55px;
-	max-height:/*hdpi*/ 55px;
+	min-height:/*hdpi*/ 54px;
+	max-height:/*hdpi*/ 54px;
 	min-width:/*hdpi*/ 200px;
 	max-width:/*hdpi*/ 200px;
 	margin:/*hdpi*/0px;
@@ -11,8 +11,8 @@ ChannelConfigPannel {
 	border:/*hdpi*/ none;
 	border-radius:/*hdpi*/ 3px;
 	background-color: rgb(68, 68, 68);
-	qproperty-minimumSize:/*hdpi*/200px/*hdpi*/55px;
-	qproperty-maximumSize:/*hdpi*/200px/*hdpi*/55px;
+	qproperty-minimumSize:/*hdpi*/200px/*hdpi*/54px;
+	qproperty-maximumSize:/*hdpi*/200px/*hdpi*/54px;
 }
 
 	ChannelConfigPannel * {

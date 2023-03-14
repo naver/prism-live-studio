@@ -82,6 +82,16 @@ public:
 
 	void setDynamicStyleSheet(QWidget *widget, std::function<QString(double, bool)> dynamicStyleSheetCallback);
 
+	void updateCssWithParent(QWidget *widget);
+
+	template<typename... Widgets> void updateCssWithParent2(Widgets... widgets)
+	{
+		QWidget *_widgets[] = {widgets...};
+		for (int i = 0; i < sizeof...(widgets); ++i) {
+			updateCssWithParent(_widgets[i]);
+		}
+	}
+
 	void notifyDpiChanged(QWidget *widget, std::function<void()> callback);
 	void notifyDpiChanged(QWidget *widget, std::function<void(double dpi)> callback);
 	void notifyDpiChanged(QWidget *widget, std::function<void(double dpi, double oldDpi)> callback);

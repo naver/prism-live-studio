@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1127</width>
-    <height>822</height>
+    <width>767</width>
+    <height>569</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -50,6 +50,9 @@
      <property name="spacing">
       <number>0</number>
      </property>
+     <property name="rightMargin">
+      <number>25</number>
+     </property>
      <item>
       <spacer name="horizontalSpacer_11">
        <property name="orientation">
@@ -72,6 +75,19 @@
         <string>Facebook</string>
        </property>
       </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>1</width>
+         <height>1</height>
+        </size>
+       </property>
+      </spacer>
      </item>
     </layout>
    </item>
@@ -205,6 +221,12 @@
      </item>
      <item>
       <widget class="QLineEdit" name="titleField">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="placeholderText">
         <string>facebook.liveinfo.title.placeholder</string>
        </property>
@@ -284,7 +306,7 @@
         <bool>false</bool>
        </property>
        <property name="placeholderText">
-        <string>facebook.liveinfo.description.placeholder</string>
+        <string>Live.info.Description</string>
        </property>
       </widget>
      </item>
@@ -859,7 +881,7 @@
       <number>10</number>
      </property>
      <property name="rightMargin">
-      <number>25</number>
+      <number>30</number>
      </property>
      <item>
       <spacer name="horizontalSpacer_9">

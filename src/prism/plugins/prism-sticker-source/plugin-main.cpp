@@ -8,9 +8,16 @@ MODULE_EXPORT const char *obs_module_description(void)
 }
 
 extern void RegisterPRISMStickerSource();
+extern void RegisterPRISMGiphyStickerSource();
 
 bool obs_module_load(void)
 {
 	RegisterPRISMStickerSource();
+	RegisterPRISMGiphyStickerSource();
 	return true;
+}
+
+const char *obs_module_name(void)
+{
+	return obs_module_description();
 }

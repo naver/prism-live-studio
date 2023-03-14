@@ -33,7 +33,13 @@ struct gs_exports {
 
 	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
 	int (*device_create)(gs_device_t **device, uint32_t adapter,
-			     void (*callback)(bool render_working));
+			     void (*callback)(int type, int code,
+					      void *ext_param));
+	//PRISM/WangChuanjing/20210414/#NoIssue/test module
+	int (*device_create_for_test)(gs_device_t **device, uint32_t adapter,
+				      enum gs_engine_test_type test_type,
+				      void (*callback)(int type, int code,
+						       void *ext_param));
 	void (*device_rebuild)(gs_device_t *device);
 
 	void (*device_destroy)(gs_device_t *device);
@@ -336,6 +342,16 @@ struct gs_exports {
 
 	//PRISM/Liu.Haibin/20200708/#3296/for adapter check
 	bool (*adapter_get_luid)(gs_device_t *device, struct gs_luid *luid);
+	//PRISM/LiuHaibin/20201201/#None/Get hardware info
+	gs_adapters_info_t *(*adapter_get_info)(gs_device_t *device);
+	//PRISM/ZengQin/20210204/#None/check device support dx11
+	bool (*check_device_support_dx11)(gs_device_t *device);
+
+	//PRISM/WangChuanjing/20210915/#None/rebuild test mode
+	bool (*device_set_rebuild_status)(gs_device_t *device, bool normal);
+
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	bool (*device_is_valid)(gs_device_t *device);
 };
 
 struct blend_state {

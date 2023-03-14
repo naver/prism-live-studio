@@ -214,7 +214,7 @@ void PLSBasicFilters::RemoveFilter(OBSSource filter)
 
 	const char *filterId = obs_source_get_id(filter);
 
-	blog(LOG_INFO, "User removed filter '%s' (%s) from source '%s'", filterName, filterId, sourceName);
+	PLS_INFO(MAINFILTER_MODULE, "User removed filter '%s' (%s) from source '%s'", filterName, filterId, sourceName);
 
 	PLSBasic *main = PLSBasic::Get();
 	if (main)
@@ -288,7 +288,9 @@ void PLSBasicFilters::UpdateFilters()
 		source,
 		[](obs_source_t *, obs_source_t *filter, void *p) {
 			PLSBasicFilters *window = reinterpret_cast<PLSBasicFilters *>(p);
-
+			const char *id = obs_source_get_id(filter);
+			if (id && *id && strcmp(FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE, id) == 0)
+				return;
 			window->AddFilter(filter);
 		},
 		this);
@@ -391,7 +393,7 @@ void PLSBasicFilters::AddFilterAction(QMenu *popup, const char *type, const QStr
 	popup->addAction(popupItem);
 }
 
-QMenu *PLSBasicFilters::CreateAddFilterPopupMenu(QMenu *popup, bool async)
+QMenu *PLSBasicFilters::CreateAddFilterPopupMenu(QMenu **popup, bool async)
 {
 	uint32_t sourceFlags = obs_source_get_output_flags(source);
 
@@ -405,14 +407,14 @@ QMenu *PLSBasicFilters::CreateAddFilterPopupMenu(QMenu *popup, bool async)
 		for (unsigned i = 0; i < subList.size(); ++i) {
 			QString id = subList[i].id;
 			QString tooptip = subList[i].tooltip;
-			AddFilterAction(popup, id.toStdString().c_str(), tooptip);
+			AddFilterAction(*popup, id.toStdString().c_str(), tooptip);
 		}
 	}
 
 	//add other source type
 	if (!otherTypeList.empty()) {
 		for (int i = 0; i < otherTypeList.size(); i++) {
-			AddFilterAction(popup, otherTypeList[i].toStdString().c_str(), "");
+			AddFilterAction(*popup, otherTypeList[i].toStdString().c_str(), "");
 		}
 	}
 	bool foundValues = false;
@@ -421,11 +423,11 @@ QMenu *PLSBasicFilters::CreateAddFilterPopupMenu(QMenu *popup, bool async)
 	}
 
 	if (!foundValues) {
-		delete popup;
-		popup = nullptr;
+		delete *popup;
+		*popup = nullptr;
 	}
 
-	return popup;
+	return *popup;
 }
 
 void PLSBasicFilters::AddNewFilter(const char *id)
@@ -438,7 +440,7 @@ void PLSBasicFilters::AddNewFilter(const char *id)
 		string name = obs_source_get_display_name(id);
 
 		NameDialog dialog(this);
-		bool success = dialog.AskForName(this, QTStr("Basic.Filters.AddFilter.Title"), QTStr("Basic.FIlters.AddFilter.Text"), name, QT_UTF8(name.c_str()));
+		bool success = dialog.AskForName(this, QTStr("Basic.Filters.AddFilter.Title"), QTStr("Basic.Filters.AddFilter.Text"), name, QT_UTF8(name.c_str()));
 		if (!success)
 			return;
 
@@ -461,10 +463,10 @@ void PLSBasicFilters::AddNewFilter(const char *id)
 		if (filter) {
 			const char *sourceName = obs_source_get_name(source);
 
-			blog(LOG_INFO,
-			     "User added filter '%s' (%s) "
-			     "to source '%s'",
-			     name.c_str(), id, sourceName);
+			PLS_INFO(MAINFILTER_MODULE,
+				 "User added filter '%s' (%s) "
+				 "to source '%s'",
+				 name.c_str(), id, sourceName);
 
 			obs_source_filter_add(source, filter);
 			obs_source_release(filter);
@@ -500,15 +502,25 @@ void PLSBasicFilters::OBSSourceFilterAdded(void *param, calldata_t *data)
 {
 	PLSBasicFilters *window = reinterpret_cast<PLSBasicFilters *>(param);
 	obs_source_t *filter = (obs_source_t *)calldata_ptr(data, "filter");
-
+	const char *id = obs_source_get_id(filter);
+	if (id && *id && strcmp(FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE, id) == 0)
+		return;
 	QMetaObject::invokeMethod(window, "AddFilter", Q_ARG(OBSSource, OBSSource(filter)), Q_ARG(bool, true));
+
+	//for third-party plugins notification
+	const char *dllName = obs_get_external_module_display_name(obs_source_get_id(filter));
+	if (dllName) {
+		pls_alert_third_party_plugins(dllName);
+	}
 }
 
 void PLSBasicFilters::OBSSourceFilterRemoved(void *param, calldata_t *data)
 {
 	PLSBasicFilters *window = reinterpret_cast<PLSBasicFilters *>(param);
 	obs_source_t *filter = (obs_source_t *)calldata_ptr(data, "filter");
-
+	const char *id = obs_source_get_id(filter);
+	if (id && *id && strcmp(FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE, id) == 0)
+		return;
 	QMetaObject::invokeMethod(window, "RemoveFilter", Q_ARG(OBSSource, OBSSource(filter)));
 }
 
@@ -607,33 +619,36 @@ void PLSBasicFilters::OnAddFilterButtonClicked()
 		QMenu *asyncAction = new QMenu(QTStr("Basic.Filters.AsyncFilters"), this);
 		asyncAction->setToolTipsVisible(true);
 
-		CreateAddFilterPopupMenu(asyncAction, true);
+		CreateAddFilterPopupMenu(&asyncAction, true);
 
 		QAction *effectAction = new QAction(QTStr("Basic.Filters.EffectFilters"));
 		effectAction->setEnabled(false);
 		popup->addAction(effectAction);
-		popup->addMenu(asyncAction);
+		if (asyncAction)
+			popup->addMenu(asyncAction);
 
 	} else if (!asyncFiltersVisible && effectFiltersVisible) {
 		QAction *asyncAction = new QAction(QTStr("Basic.Filters.AsyncFilters"));
 		asyncAction->setEnabled(false);
 		QMenu *effectAction = new QMenu(QTStr("Basic.Filters.EffectFilters"), this);
 		effectAction->setToolTipsVisible(true);
-		CreateAddFilterPopupMenu(effectAction, false);
-
-		popup->addMenu(effectAction);
+		CreateAddFilterPopupMenu(&effectAction, false);
+		if (effectAction)
+			popup->addMenu(effectAction);
 		popup->addAction(asyncAction);
 	} else {
 		QMenu *asyncAction = new QMenu(QTStr("Basic.Filters.AsyncFilters"), this);
 		asyncAction->setToolTipsVisible(true);
-		CreateAddFilterPopupMenu(asyncAction, true);
+		CreateAddFilterPopupMenu(&asyncAction, true);
 
 		QMenu *effectAction = new QMenu(QTStr("Basic.Filters.EffectFilters"), this);
 		effectAction->setToolTipsVisible(true);
 
-		CreateAddFilterPopupMenu(effectAction, false);
-		popup->addMenu(effectAction);
-		popup->addMenu(asyncAction);
+		CreateAddFilterPopupMenu(&effectAction, false);
+		if (effectAction)
+			popup->addMenu(effectAction);
+		if (asyncAction)
+			popup->addMenu(asyncAction);
 	}
 
 	popup->exec(QCursor::pos());

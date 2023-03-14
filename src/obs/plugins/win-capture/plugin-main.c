@@ -51,18 +51,37 @@ static DWORD WINAPI init_hooks(LPVOID param)
 	return 0;
 }
 
-void wait_for_hook_initialization(void)
+//PRISM/WangShaohui/20210324/#7356/avoid deadlock
+#define WAIT_INIT_HOOK_TIMEOUT 10000
+bool wait_for_hook_initialization(bool terminate_if_timeout)
 {
 	static bool initialized = false;
 
-	if (!initialized) {
-		if (init_hooks_thread) {
-			WaitForSingleObject(init_hooks_thread, INFINITE);
+	if (initialized) {
+		return true;
+	}
+
+	if (init_hooks_thread) {
+		bool ended = (WAIT_OBJECT_0 ==
+			      WaitForSingleObject(init_hooks_thread,
+						  WAIT_INIT_HOOK_TIMEOUT));
+		if (ended) {
 			CloseHandle(init_hooks_thread);
 			init_hooks_thread = NULL;
+			initialized = true;
+		} else {
+			plog(LOG_WARNING,
+			     "Game plugin is unavailable because no graphic-offet !");
+
+			if (terminate_if_timeout) {
+				TerminateThread(init_hooks_thread, 1);
+				CloseHandle(init_hooks_thread);
+				init_hooks_thread = 0;
+			}
 		}
-		initialized = true;
 	}
+
+	return initialized;
 }
 
 void init_hook_files(void);
@@ -107,5 +126,6 @@ bool obs_module_load(void)
 
 void obs_module_unload(void)
 {
-	wait_for_hook_initialization();
+	//PRISM/WangShaohui/20210324/#7356/avoid deadlock
+	wait_for_hook_initialization(true);
 }

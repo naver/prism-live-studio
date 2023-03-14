@@ -60,11 +60,27 @@ void SliderIgnoreScroll::mouseReleaseEvent(QMouseEvent *event)
 
 void SliderIgnoreScroll::SetSliderValue(const QPoint &position)
 {
+	int value = 0;
 	if (this->orientation() == Qt::Horizontal) {
 		double pos = position.x() / (double)width();
-		setValue(pos * (maximum() - minimum()) + minimum());
+		if (pos < 0) {
+			pos = 0;
+		}
+		value = round(pos * (maximum() - minimum()) + minimum());
+
 	} else {
 		double pos = position.y() / (double)height();
-		setValue((1 - pos) * (maximum() - minimum()) + minimum());
+		if (pos < 0) {
+			pos = 0;
+		}
+		value = (1 - pos) * (maximum() - minimum()) + minimum();
 	}
+
+	if (value > maximum()) {
+		value = maximum();
+	}
+	if (value < minimum()) {
+		value = minimum();
+	}
+	setValue(value);
 }

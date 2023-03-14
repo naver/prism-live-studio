@@ -67,9 +67,14 @@ public:
 	mfxStatus Open(qsv_param_t *pParams);
 	void GetSPSPPS(mfxU8 **pSPSBuf, mfxU8 **pPPSBuf, mfxU16 *pnSPSBuf,
 		       mfxU16 *pnPPSBuf);
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	void GetVPS(mfxU8 **pVPSBuf, mfxU16 *pnVPSBuf);
 	mfxStatus Encode(uint64_t ts, uint8_t *pDataY, uint8_t *pDataUV,
 			 uint32_t strideY, uint32_t strideUV,
 			 mfxBitstream **pBS);
+	mfxStatus Encode_tex(uint64_t ts, uint32_t tex_handle,
+			     uint64_t lock_key, uint64_t *next_key,
+			     mfxBitstream **pBS);
 	mfxStatus ClearData();
 	mfxStatus Reset(qsv_param_t *pParams);
 
@@ -77,6 +82,8 @@ protected:
 	bool InitParams(qsv_param_t *pParams);
 	mfxStatus AllocateSurfaces();
 	mfxStatus GetVideoParam();
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	mfxStatus GetVPSParam();
 	mfxStatus InitBitstream();
 	mfxStatus LoadNV12(mfxFrameSurface1 *pSurface, uint8_t *pDataY,
 			   uint8_t *pDataUV, uint32_t strideY,
@@ -94,11 +101,15 @@ private:
 	mfxFrameSurface1 **m_pmfxSurfaces;
 	mfxU16 m_nSurfNum;
 	MFXVideoENCODE *m_pmfxENC;
-	mfxU8 m_SPSBuffer[100];
-	mfxU8 m_PPSBuffer[100];
+	mfxU8 m_SPSBuffer[1024];
+	mfxU8 m_PPSBuffer[1024];
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	mfxU8 m_VPSBuffer[1024];
+	mfxU16 m_nVPSBufferSize;
 	mfxU16 m_nSPSBufferSize;
 	mfxU16 m_nPPSBufferSize;
 	mfxVideoParam m_parameter;
+	mfxExtCodingOption3 m_co3;
 	mfxExtCodingOption2 m_co2;
 	mfxExtCodingOption m_co;
 	mfxU16 m_nTaskPool;
@@ -112,6 +123,7 @@ private:
 	static mfxU16 g_numEncodersOpen;
 	static mfxHDL
 		g_DX_Handle; // we only want one handle for all instances to use;
+
 	//PRISM/LiuHaibin/20201027/#5451/mark if qsv encoder is correctly initialized.
 	bool m_bInitialized;
 };

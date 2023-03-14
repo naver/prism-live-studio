@@ -1,6 +1,6 @@
 PLSBackgroundMusicView{
 	min-width:/*hdpi*/298px;
-	min-height: /*hdpi*/ 698px;
+	min-height: /*hdpi*/ 718px;
 	max-width: /*hdpi*/ 798px;
 	border:/*hdpi*/1px solid #111111;
 	background-color: #1e1e1f;
@@ -113,6 +113,8 @@ PLSBackgroundMusicView #noPlayListLabel{
 	color: #666666;
 	font-size:/*hdpi*/14px;
 	background-color: #1e1e1f;
+        margin-left: /*hdpi*/ 10px;
+	margin-right: /*hdpi*/ 10px;
 }
 
 PLSBackgroundMusicView #infoFrame{
@@ -385,10 +387,12 @@ PLSBackgroundMusicView #retryBtn:pressed {
 	color:#272727;
 }
 
-PLSBackgroundMusicView #noticeLabel, PLSBackgroundMusicView #noNetworkTipLabel{
+PLSBackgroundMusicView #noticeLabel{
 	font-size: /*hdpi*/14px;
 	color: #666666;
 	background: transparent;
+        margin-left: /*hdpi*/ 10px;
+	margin-right: /*hdpi*/ 10px;
 }
 
 PLSBackgroundMusicView #playListWidget{

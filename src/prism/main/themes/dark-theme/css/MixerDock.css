@@ -8,8 +8,8 @@ PLSDock#mixerDock {
 }
 
 PLSDock#mixerDock PLSDockTitle{
-	qproperty-marginLeft:/*hdpi*/18;
-	qproperty-marginRight:/*hdpi*/8;
+	qproperty-marginLeft:/*hdpi*/19;
+	qproperty-marginRight:/*hdpi*/9;
 	qproperty-contentSpacing:/*hdpi*/10;
 	qproperty-captionHeight:/*hdpi*/50;
 }

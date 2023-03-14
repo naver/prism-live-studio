@@ -35,7 +35,7 @@ public:
      * @param sendData: data params
      */
 	QNetworkReply *createHttpRequest(Operation op, const QString &url, bool isEncode = false, const QVariantMap &headData = QVariantMap(), const QVariantMap &sendData = QVariantMap(),
-					 bool isGcc = true);
+					 bool isGcc = true, bool isPrintLog = true, const QString &maskUrl = QString());
 	/**
      * @brief getCookieForUrl: get cookies with url
      * @param url
@@ -144,7 +144,7 @@ private:
      * @param reply
      * @param requestHttpUrl
      */
-	void httpResponseHandler(QNetworkReply *reply, const QString &requestHttpUrl);
+	void httpResponseHandler(QNetworkReply *reply, const QString &requestHttpUrl, bool isPrintLog, bool isMasking, const QString &maskingUrl = QString());
 	/**
      * @brief getBodyfromMap get body value
      * @param bodyMap
@@ -153,6 +153,8 @@ private:
 	QByteArray getBodyfromMap(const QVariantMap &bodyMap);
 
 	void setCookieToList(const QString &key, const QString &value, QList<QNetworkCookie> &cookieList);
+	bool isFilterUrls(const QString &url);
+	bool isFilterResponseErrorUrls(const QString &url);
 	QMap<QString, QList<QNetworkCookie>> m_cookies;
 	QHttpMultiPart *m_multiPart;
 	QString httpHead;

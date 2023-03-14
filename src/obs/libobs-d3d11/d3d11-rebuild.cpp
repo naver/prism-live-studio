@@ -16,6 +16,10 @@
 ******************************************************************************/
 
 #include "d3d11-subsystem.hpp"
+#include <util/util.hpp>
+#include <util/platform.h>
+
+static const int MAX_REBUILD_FAILED_COUNT = 5;
 
 void gs_vertex_buffer::Rebuild()
 {
@@ -70,7 +74,7 @@ void gs_texture_2d::RebuildSharedTexture(ID3D11Device *dev)
 	hr = texture->QueryInterface(__uuidof(IDXGIResource),
 				     (void **)&dxgi_res);
 	if (FAILED(hr)) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "InitTexture: Failed to query "
 		     "interface: %08lX",
 		     hr);
@@ -78,7 +82,7 @@ void gs_texture_2d::RebuildSharedTexture(ID3D11Device *dev)
 		uint32_t old_shared_handle = sharedHandle;
 		GetSharedHandle(dxgi_res);
 
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "Shared texture rebuilt: new handle %u, old handle %u",
 		     sharedHandle, old_shared_handle);
 
@@ -106,7 +110,7 @@ void gs_texture_2d::Rebuild(ID3D11Device *dev)
 					     __uuidof(ID3D11Texture2D),
 					     (void **)&texture);
 		if (FAILED(hr)) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Failed to open original shared texture: ",
 			     "0x%08lX", hr);
 
@@ -279,6 +283,11 @@ void gs_swap_chain::Rebuild(ID3D11Device *dev)
 
 void gs_timer::Rebuild(ID3D11Device *dev)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid) {
+		throw "Device invalid";
+	}
+
 	D3D11_QUERY_DESC desc;
 	desc.Query = D3D11_QUERY_TIMESTAMP;
 	desc.MiscFlags = 0;
@@ -292,6 +301,11 @@ void gs_timer::Rebuild(ID3D11Device *dev)
 
 void gs_timer_range::Rebuild(ID3D11Device *dev)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid) {
+		throw "Device invalid";
+	}
+
 	D3D11_QUERY_DESC desc;
 	desc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
 	desc.MiscFlags = 0;
@@ -330,10 +344,18 @@ const static D3D_FEATURE_LEVEL featureLevels[] = {
 
 void gs_device::RebuildDevice()
 try {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	device_valid = false;
+
 	ID3D11Device *dev = nullptr;
 	HRESULT hr;
 
-	blog(LOG_WARNING, "Device Remove/Reset!  Rebuilding all assets...");
+	//PRISM/Wang.Chuanjing/20210607/#NoIssue for device rebuild notification
+	if (rebuild_fail_count > MAX_REBUILD_FAILED_COUNT) {
+		return;
+	}
+
+	plog(LOG_WARNING, "Device Remove/Reset!  Rebuilding all assets...");
 
 	/* ----------------------------------------------------------------- */
 
@@ -341,6 +363,11 @@ try {
 		callback.device_loss_release(callback.data);
 
 	gs_obj *obj = first_obj;
+
+	//PRISM/WangChuanjing/20210915/#None/rebuild test mode
+	if (!device_rebuild_normal) {
+		throw "device rebuild failed for test";
+	}
 
 	while (obj) {
 		switch (obj->obj_type) {
@@ -413,8 +440,35 @@ try {
 			       sizeof(featureLevels) /
 				       sizeof(D3D_FEATURE_LEVEL),
 			       D3D11_SDK_VERSION, &device, nullptr, &context);
+
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	device_valid = true;
+
+	//PRISM/Wang.Chuanjing/20210607/#NoIssue for device rebuild notification
+	if (device_rebuild_fail_test) {
+		hr = E_INVALIDARG;
+	}
+
 	if (FAILED(hr))
 		throw HRError("Failed to create device", hr);
+
+	//PRISM/ZengQin/20210114/#6574/update adapter luid when rebuild device
+	wstring adapterName = L"";
+	if (adapter) {
+		DXGI_ADAPTER_DESC desc;
+		if (adapter->GetDesc(&desc) == S_OK) {
+			adapterLuid.low_part = desc.AdapterLuid.LowPart;
+			adapterLuid.high_part = desc.AdapterLuid.HighPart;
+			adapterName = desc.Description;
+			plog(LOG_INFO,
+			     "Rebuild adapter: %d, luid low part: %lu, luid high part: %ld",
+			     adpIdx, adapterLuid.low_part,
+			     adapterLuid.high_part);
+		} else {
+			plog(LOG_WARNING,
+			     "Failed to get adapter (index %d) LUID", adpIdx);
+		}
+	}
 
 	dev = device;
 
@@ -508,21 +562,51 @@ try {
 		callback.device_loss_rebuild(device.Get(), callback.data);
 
 	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
-	if (render_working_cb)
-		render_working_cb(true);
-
+	if (engine_notify_cb) {
+		BPtr<char> adapter_name_utf8;
+		os_wcs_to_utf8_ptr(adapterName.c_str(), 0, &adapter_name_utf8);
+		char *adapter_name = bstrdup(adapter_name_utf8.Get());
+		engine_notify_cb(GS_ENGINE_NOTIFY_STATUS,
+				 GS_ENGINE_STATUS_NORMAL, adapter_name);
+		if (adapter_name) {
+			bfree(adapter_name);
+		}
+	}
+	rebuild_fail_count = 0;
 } catch (const char *error) {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	device_valid = false;
 	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
-	if (render_working_cb)
-		render_working_cb(false);
-	blog(LOG_WARNING, "Device Rebuild failed: %s", error);
-	bcrash("Failed to recreate D3D11: %s", error);
+	if (engine_notify_cb)
+		engine_notify_cb(GS_ENGINE_NOTIFY_STATUS,
+				 GS_ENGINE_STATUS_EXCEPTIONAL, nullptr);
+	plog(LOG_WARNING, "Device Rebuild failed: %s", error);
+
+	//PRISM/Wang.Chuanjing/20210607/#NoIssue for device rebuild notification
+	rebuild_fail_count++;
+	if (rebuild_fail_count >= MAX_REBUILD_FAILED_COUNT &&
+	    engine_notify_cb) {
+		engine_notify_cb(GS_ENGINE_NOTIFY_EXCEPTION,
+				 GS_E_REBUILD_FAILED, nullptr);
+	}
+	//bcrash("Failed to recreate D3D11: %s", error);
 
 } catch (const HRError &error) {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	device_valid = false;
 	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
-	if (render_working_cb)
-		render_working_cb(false);
-	blog(LOG_WARNING, "Failed to recreate D3D11: %s (%08lX)", error.str,
+	if (engine_notify_cb)
+		engine_notify_cb(GS_ENGINE_NOTIFY_STATUS,
+				 GS_ENGINE_STATUS_EXCEPTIONAL, nullptr);
+	plog(LOG_WARNING, "Failed to recreate D3D11: %s (%08lX)", error.str,
 	     error.hr);
-	bcrash("Failed to recreate D3D11: %s (%08lX)", error.str, error.hr);
+
+	//PRISM/Wang.Chuanjing/20210607/#NoIssue for device rebuild notification
+	rebuild_fail_count++;
+	if (rebuild_fail_count >= MAX_REBUILD_FAILED_COUNT &&
+	    engine_notify_cb) {
+		engine_notify_cb(GS_ENGINE_NOTIFY_EXCEPTION,
+				 GS_E_REBUILD_FAILED, nullptr);
+	}
+	//bcrash("Failed to recreate D3D11: %s (%08lX)", error.str, error.hr);
 }

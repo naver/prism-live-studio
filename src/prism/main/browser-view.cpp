@@ -12,25 +12,31 @@ PLSBrowserView::PLSBrowserView(const QUrl &url, QWidget *parent) : PLSBrowserVie
 
 PLSBrowserView::PLSBrowserView(const QUrl &url, const std::map<std::string, std::string> &headers, QWidget *parent) : PLSBrowserView(nullptr, url, headers, QString(), nullptr, parent) {}
 
-PLSBrowserView::PLSBrowserView(QJsonObject *res, const QUrl &url, PLSResultCheckingCallback callback, QWidget *parent)
+PLSBrowserView::PLSBrowserView(QJsonObject *res, const QUrl &url, PLSResultCheckingCallback, QWidget *parent)
 	: PLSBrowserView(res, url, std::map<std::string, std::string>(), QString(), nullptr, parent)
 {
 }
 
 PLSBrowserView::PLSBrowserView(QJsonObject *res, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelCookieName, PLSResultCheckingCallback callback,
 			       QWidget *parent)
+	: PLSBrowserView(res, url, headers, pannelCookieName, std::string(), callback, parent)
+{
+}
+
+PLSBrowserView::PLSBrowserView(QJsonObject *res, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelCookieName, const std::string &script,
+			       PLSResultCheckingCallback callback, QWidget *parent)
 	: WidgetDpiAdapter(parent), ui(new Ui::PLSBrowserView), result(res), uri(url.toString().toStdString()), resultCheckingCallback(callback), cefWidget(nullptr), browser_panel_cookies(nullptr)
 {
 	ui->setupUi(this);
 	setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
-
 	if (!cef) {
 		emit doneSignal(QDialog::Rejected);
 		return;
 	}
 	browser_panel_cookies = PLSBasic::getBrowserPannelCookieMgr(pannelCookieName);
 	//PLSBasic::InitBrowserPanelSafeBlock();
-	cefWidget = cef->create_widget(this, uri, pls_get_offline_javaScript(), browser_panel_cookies, headers);
+
+	cefWidget = cef->create_widget(this, uri, pls_get_offline_javaScript() + script, browser_panel_cookies, headers, true);
 	if (!cefWidget) {
 		emit doneSignal(QDialog::Rejected);
 		return;
@@ -44,10 +50,10 @@ PLSBrowserView::PLSBrowserView(QJsonObject *res, const QUrl &url, const std::map
 	layout->addWidget(cefWidget);
 	setWindowIcon(QIcon(""));
 	setWindowTitle(ONE_SPACE);
+	setStyleSheet("background-color:white;");
 
 	PLSDpiHelper dpiHelper;
 	dpiHelper.setInitSize(this, {800, 600});
-
 	QObject::connect(this, &PLSBrowserView::doneSignal, this, &PLSBrowserView::done, Qt::QueuedConnection);
 	QObject::connect(cefWidget, SIGNAL(urlChanged(const QString &)), this, SLOT(urlChanged(const QString &)));
 }
@@ -55,6 +61,14 @@ PLSBrowserView::PLSBrowserView(QJsonObject *res, const QUrl &url, const std::map
 PLSBrowserView::~PLSBrowserView()
 {
 	delete ui;
+}
+
+int PLSBrowserView::exec()
+{
+	pls_push_dialog_view(this);
+	int retval = QDialog::exec();
+	pls_pop_dialog_view(this);
+	return retval;
 }
 
 void PLSBrowserView::resizeEvent(QResizeEvent *event)
@@ -73,6 +87,11 @@ void PLSBrowserView::resizeEvent(QResizeEvent *event)
 			}
 		},
 		Qt::QueuedConnection);
+}
+
+void PLSBrowserView::closeNoButton()
+{
+	PLSBrowserView::done(QDialog::Rejected);
 }
 
 void PLSBrowserView::urlChanged(const QString &url)
@@ -99,7 +118,7 @@ void PLSBrowserView::urlChanged(const QString &url)
 	});
 
 	browser_panel_cookies->visitAllCookies(
-		[eventLoop](const char *name, const char *value, const char *domain, const char *path, bool complete, void *context) {
+		[eventLoop](const char *name, const char *value, const char *, const char *, bool complete, void *) {
 			if (name && value) {
 				eventLoop->cookies.insert(QString::fromUtf8(name), QString::fromUtf8(value));
 			}

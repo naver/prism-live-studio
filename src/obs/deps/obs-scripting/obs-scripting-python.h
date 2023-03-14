@@ -53,7 +53,7 @@
 #include <util/base.h>
 
 #define do_log(level, format, ...) \
-	blog(level, "[Python] " format, ##__VA_ARGS__)
+	plog(level, "[Python] " format, ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
 #define info(format, ...) do_log(LOG_INFO, format, ##__VA_ARGS__)

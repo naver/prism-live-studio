@@ -46,7 +46,7 @@ static bool decklink_output_start(void *data)
 	struct obs_audio_info aoi;
 
 	if (!obs_get_audio_info(&aoi)) {
-		blog(LOG_WARNING, "No active audio");
+		plog(LOG_WARNING, "No active audio");
 		return false;
 	}
 
@@ -72,6 +72,9 @@ static bool decklink_output_start(void *data)
 		return false;
 
 	DeckLinkDeviceMode *mode = device->FindOutputMode(decklink->modeID);
+	//PRISM/Wangshaohui/20201203/#None/decklink crash
+	if (!mode)
+		return false;
 
 	decklink->SetSize(mode->GetWidth(), mode->GetHeight());
 
@@ -111,10 +114,6 @@ static void decklink_output_stop(void *data, uint64_t)
 	auto *decklink = (DeckLinkOutput *)data;
 
 	obs_output_end_data_capture(decklink->GetOutput());
-
-	ComPtr<DeckLinkDevice> device;
-
-	device.Set(deviceEnum->FindByHash(decklink->deviceHash));
 
 	decklink->Deactivate();
 }
@@ -227,14 +226,18 @@ static bool decklink_output_device_changed(obs_properties_t *props,
 						  mode->GetId());
 		}
 
-		obs_property_list_add_int(keyerList, "Disabled", 0);
+		//PRISM/ZengQin/20200520/#8004/add new string
+		obs_property_list_add_int(keyerList, TEXT_ENABLE_KEYER_DISABLED,
+					  0);
 
 		if (device->GetSupportsExternalKeyer()) {
-			obs_property_list_add_int(keyerList, "External", 1);
+			obs_property_list_add_int(
+				keyerList, TEXT_ENABLE_KEYER_EXTERNAL, 1);
 		}
 
 		if (device->GetSupportsInternalKeyer()) {
-			obs_property_list_add_int(keyerList, "Internal", 2);
+			obs_property_list_add_int(
+				keyerList, TEXT_ENABLE_KEYER_INTERNAL, 2);
 		}
 	}
 

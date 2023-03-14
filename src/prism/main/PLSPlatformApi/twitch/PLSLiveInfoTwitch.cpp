@@ -18,7 +18,7 @@
 PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *parent, PLSDpiHelper dpiHelper) : PLSLiveInfoBase(pPlatformBase, parent, dpiHelper), ui(new Ui::PLSLiveInfoTwitch())
 {
 	dpiHelper.setCss(this, {PLSCssIndex::PLSLiveInfoTwitch});
-	dpiHelper.setFixedSize(this, {720, 550});
+
 	dpiHelper.notifyDpiChanged(this, [this](double, double, bool firstShow) {
 		if (firstShow) {
 			QMetaObject::invokeMethod(
@@ -27,10 +27,11 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 	});
 
 	ui->setupUi(content());
-
+	ui->labelTitle->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("LiveInfo.base.Title")));
+	ui->horizontalLayout_3->addWidget(createResolutionButtonsFrame());
 	connect(ui->pushButtonOk, &QPushButton::clicked, this, &PLSLiveInfoTwitch::doOk);
 	connect(ui->pushButtonCancel, &QPushButton::clicked, this, &QDialog::reject);
-	connect(ui->lineEditTitle, &QLineEdit::textChanged, this, &PLSLiveInfoTwitch::titleEdited);
+	connect(ui->lineEditTitle, &QLineEdit::textChanged, this, &PLSLiveInfoTwitch::titleEdited, Qt::QueuedConnection);
 	connect(ui->lineEditCategory, &QLineEdit::textChanged, this, &PLSLiveInfoTwitch::doUpdateOkState);
 	connect(ui->comboBoxServers, SIGNAL(currentIndexChanged(int)), SLOT(doUpdateOkState()));
 
@@ -61,7 +62,7 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 	dpiHelper.notifyDpiChanged(listCategory, [=](double dpi) { listCategory->setIconSize(PLSDpiHelper::calculate(dpi, QSize(38, 52))); });
 
 	content()->setFocusPolicy(Qt::StrongFocus);
-	connect(qApp, &QApplication::focusChanged, listCategory, [this](const QWidget *old, const QWidget *now) {
+	connect(qApp, &QApplication::focusChanged, listCategory, [this](const QWidget *, const QWidget *now) {
 		if (ui->lineEditCategory == now) {
 			if (!ui->lineEditCategory->text().isEmpty()) {
 				pushButtonClear->show();
@@ -75,21 +76,24 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 			ui->lineEditCategory->clearFocus();
 		}
 	});
-	connect(ui->lineEditCategory, &QLineEdit::textChanged, this, [this](const QString &text) {
-		if (text.isEmpty()) {
-			pushButtonClear->hide();
+	connect(
+		ui->lineEditCategory, &QLineEdit::textChanged, this,
+		[this](const QString &text) {
+			if (text.isEmpty()) {
+				pushButtonClear->hide();
 
-			listCategory->clear();
-			listCategory->hide();
-		} else {
-			if (ui->lineEditCategory->hasFocus() && pushButtonClear->isHidden()) {
-				pushButtonClear->show();
+				listCategory->clear();
+				listCategory->hide();
+			} else {
+				if (ui->lineEditCategory->hasFocus() && pushButtonClear->isHidden()) {
+					pushButtonClear->show();
+				}
+
+				auto pPlatformTwitch = PLS_PLATFORM_TWITCH;
+				pPlatformTwitch->requestCategory(text);
 			}
-
-			auto pPlatformTwitch = PLS_PLATFORM_TWITCH;
-			pPlatformTwitch->requestCategory(text);
-		}
-	});
+		},
+		Qt::QueuedConnection);
 
 	connect(pushButtonClear, &QPushButton::clicked, this, [this]() { ui->lineEditCategory->setText(QString()); });
 
@@ -112,6 +116,8 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 	if (PLS_PLATFORM_API->isPrepareLive()) {
 		ui->horizontalLayout->addWidget(ui->pushButtonOk);
 	}
+	ui->pushButtonOk->setFocusPolicy(Qt::NoFocus);
+	ui->pushButtonCancel->setFocusPolicy(Qt::NoFocus);
 }
 
 PLSLiveInfoTwitch::~PLSLiveInfoTwitch()
@@ -138,6 +144,7 @@ void PLSLiveInfoTwitch::refreshChannel(PLSPlatformApiResult value)
 	ui->lineEditCategory->setText(category);
 	auto uuid = pPlatformTwitch->getChannelUUID();
 	PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_catogry, category);
+	PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_displayLine2, category);
 	ui->lineEditTitle->setCursorPosition(0);
 }
 
@@ -182,8 +189,17 @@ void PLSLiveInfoTwitch::doOk()
 
 		auto pPlatformTwitch = PLS_PLATFORM_TWITCH;
 		auto category = ui->lineEditCategory->text();
-		pPlatformTwitch->saveSettings(ui->lineEditTitle->text().toStdString(), category.toStdString(), ui->comboBoxServers->currentIndex());
-		PLSCHANNELS_API->setValueOfChannel(pPlatformTwitch->getChannelUUID(), ChannelData::g_catogry, category);
+		if (m_categorys.find(category) == m_categorys.end()) {
+			category = "";
+		}
+		pPlatformTwitch->saveSettings(ui->lineEditTitle->text().toStdString(), category.toStdString(), m_categorys.value(category).toString().toStdString(),
+					      ui->comboBoxServers->currentIndex());
+
+		auto lastInfo = PLSCHANNELS_API->getChannelInfo(pPlatformTwitch->getChannelUUID());
+		lastInfo.insert(ChannelData::g_catogry, category);
+		lastInfo.insert(ChannelData::g_displayLine2, category);
+
+		PLSCHANNELS_API->setChannelInfos(lastInfo, true);
 		return;
 	}
 
@@ -192,6 +208,7 @@ void PLSLiveInfoTwitch::doOk()
 
 void PLSLiveInfoTwitch::doGetCategory(QJsonObject root, const QString &request)
 {
+	m_categorys.clear();
 	if (root.isEmpty() || ui->lineEditCategory->text() != request) {
 		return;
 	}
@@ -214,12 +231,13 @@ void PLSLiveInfoTwitch::doGetCategory(QJsonObject root, const QString &request)
 
 	listCategory->clear();
 
-	auto games = root["games"].toArray();
+	auto games = root["data"].toArray();
 	for (auto item : games) {
 		auto game = item.toObject();
-		auto id = game["_id"].toInt();
+		auto id = game["id"].toString();
 		auto name = game["name"].toString();
-		auto url = game["box"].toObject()["small"].toString();
+		auto url = game["box_art_url"].toString();
+		m_categorys.insert(name, id);
 
 		auto item = new QListWidgetItem(name);
 
@@ -301,7 +319,7 @@ void PLSLiveInfoTwitch::doUpdateOkState()
 		return;
 	}
 
-	ui->pushButtonOk->setEnabled(PLS_PLATFORM_API->isPrepareLive() || isModified());
+	ui->pushButtonOk->setEnabled(true);
 }
 
 void PLSLiveInfoTwitch::titleEdited()
@@ -310,12 +328,13 @@ void PLSLiveInfoTwitch::titleEdited()
 	bool isLargeToMax = false;
 	if (ui->lineEditTitle->text().length() > TwitchTitleLengthLimit) {
 		isLargeToMax = true;
+		QSignalBlocker signalBlocker(ui->lineEditTitle);
 		ui->lineEditTitle->setText(ui->lineEditTitle->text().left(TwitchTitleLengthLimit));
 	}
 	if (isLargeToMax) {
 		auto pPlatformTwitch = PLS_PLATFORM_TWITCH;
-		const auto channelName = pPlatformTwitch->getInitData().value(ChannelData::g_channelName).toString();
-		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TwitchTitleLengthLimit).arg(channelName));
+		const auto channelName = pPlatformTwitch->getInitData().value(ChannelData::g_platformName).toString();
+		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TwitchTitleLengthLimit).arg(channelName));
 	}
 
 	doUpdateOkState();

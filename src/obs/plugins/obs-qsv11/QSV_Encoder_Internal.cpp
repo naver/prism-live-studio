@@ -56,13 +56,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "QSV_Encoder_Internal.h"
 #include "QSV_Encoder.h"
+#include "common_utils.h"
 #include "mfxastructures.h"
 #include "mfxvideo++.h"
 #include <VersionHelpers.h>
 #include <obs-module.h>
 
 #define do_log(level, format, ...) \
-	blog(level, "[qsv encoder: '%s'] " format, "msdk_impl", ##__VA_ARGS__)
+	plog(level, "[qsv encoder: '%s'] " format, "msdk_impl", ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
 #define info(format, ...) do_log(LOG_INFO, format, ##__VA_ARGS__)
@@ -74,8 +75,10 @@ mfxU16 QSV_Encoder_Internal::g_numEncodersOpen = 0;
 QSV_Encoder_Internal::QSV_Encoder_Internal(mfxIMPL &impl, mfxVersion &version)
 	: m_pmfxSurfaces(NULL),
 	  m_pmfxENC(NULL),
-	  m_nSPSBufferSize(100),
-	  m_nPPSBufferSize(100),
+	  m_nSPSBufferSize(1024),
+	  m_nPPSBufferSize(1024),
+	  //PRISM/Wangshaohui/20201230/#3786/support HEVC
+	  m_nVPSBufferSize(1024),
 	  m_nTaskPool(0),
 	  m_pTaskPool(NULL),
 	  m_nTaskIdx(0),
@@ -103,10 +106,10 @@ QSV_Encoder_Internal::QSV_Encoder_Internal(mfxIMPL &impl, mfxVersion &version)
 			//	(version.Major == 1 && version.Minor >= 8));
 			m_bUseD3D11 = true;
 			if (m_bUseD3D11)
-				blog(LOG_INFO, "\timpl:           D3D11\n"
+				plog(LOG_INFO, "\timpl:           D3D11\n"
 					       "\tsurf:           D3D11");
 			else
-				blog(LOG_INFO, "\timpl:           D3D11\n"
+				plog(LOG_INFO, "\timpl:           D3D11\n"
 					       "\tsurf:           SysMem");
 
 			m_impl = tempImpl;
@@ -120,7 +123,7 @@ QSV_Encoder_Internal::QSV_Encoder_Internal(mfxIMPL &impl, mfxVersion &version)
 			m_session.QueryVersion(&version);
 			m_session.Close();
 
-			blog(LOG_INFO, "\timpl:           D3D09\n"
+			plog(LOG_INFO, "\timpl:           D3D09\n"
 				       "\tsurf:           Hack");
 
 			m_impl = tempImpl;
@@ -136,7 +139,7 @@ QSV_Encoder_Internal::QSV_Encoder_Internal(mfxIMPL &impl, mfxVersion &version)
 		m_session.QueryVersion(&version);
 		m_session.Close();
 
-		blog(LOG_INFO, "\timpl:           D3D09\n"
+		plog(LOG_INFO, "\timpl:           D3D09\n"
 			       "\tsurf:           SysMem");
 
 		m_impl = tempImpl;
@@ -184,6 +187,12 @@ mfxStatus QSV_Encoder_Internal::Open(qsv_param_t *pParams)
 	sts = GetVideoParam();
 	MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	if (MFX_CODEC_HEVC == pParams->codecId) {
+		sts = GetVPSParam();
+		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
+	}
+
 	sts = InitBitstream();
 	MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 
@@ -202,7 +211,14 @@ bool QSV_Encoder_Internal::InitParams(qsv_param_t *pParams)
 {
 	memset(&m_mfxEncParams, 0, sizeof(m_mfxEncParams));
 
-	m_mfxEncParams.mfx.CodecId = MFX_CODEC_AVC;
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	m_mfxEncParams.mfx.CodecId = pParams->codecId;
+	if (pParams->codecId == MFX_CODEC_AVC) {
+		m_mfxEncParams.mfx.IdrInterval = 0;
+	} else if (pParams->codecId == MFX_CODEC_HEVC) {
+		m_mfxEncParams.mfx.IdrInterval = 1;
+	}
+
 	m_mfxEncParams.mfx.GopOptFlag = MFX_GOP_STRICT;
 	m_mfxEncParams.mfx.NumSlice = 1;
 	m_mfxEncParams.mfx.TargetUsage = pParams->nTargetUsage;
@@ -217,6 +233,17 @@ bool QSV_Encoder_Internal::InitParams(qsv_param_t *pParams)
 	m_mfxEncParams.mfx.FrameInfo.CropW = pParams->nWidth;
 	m_mfxEncParams.mfx.FrameInfo.CropH = pParams->nHeight;
 	m_mfxEncParams.mfx.GopRefDist = pParams->nbFrames + 1;
+
+	enum qsv_cpu_platform qsv_platform = qsv_get_cpu_platform();
+	if ((qsv_platform >= QSV_CPU_PLATFORM_ICL) &&
+	    (pParams->nbFrames == 0) &&
+	    (m_ver.Major == 1 && m_ver.Minor >= 31)) {
+		m_mfxEncParams.mfx.LowPower = MFX_CODINGOPTION_ON;
+		if (pParams->nRateControl == MFX_RATECONTROL_LA_ICQ ||
+		    pParams->nRateControl == MFX_RATECONTROL_LA_HRD ||
+		    pParams->nRateControl == MFX_RATECONTROL_LA)
+			pParams->nRateControl = MFX_RATECONTROL_VBR;
+	}
 
 	m_mfxEncParams.mfx.RateControlMethod = pParams->nRateControl;
 
@@ -247,6 +274,7 @@ bool QSV_Encoder_Internal::InitParams(qsv_param_t *pParams)
 		break;
 	case MFX_RATECONTROL_LA_ICQ:
 		m_mfxEncParams.mfx.ICQQuality = pParams->nICQQuality;
+		break;
 	case MFX_RATECONTROL_LA_HRD:
 		m_mfxEncParams.mfx.TargetKbps = pParams->nTargetBitRate;
 		m_mfxEncParams.mfx.MaxKbps = pParams->nTargetBitRate;
@@ -260,7 +288,7 @@ bool QSV_Encoder_Internal::InitParams(qsv_param_t *pParams)
 		(mfxU16)(pParams->nKeyIntSec * pParams->nFpsNum /
 			 (float)pParams->nFpsDen);
 
-	static mfxExtBuffer *extendedBuffers[2];
+	static mfxExtBuffer *extendedBuffers[3];
 	int iBuffers = 0;
 
 	if (m_ver.Major == 1 && m_ver.Minor >= 8) {
@@ -274,7 +302,30 @@ bool QSV_Encoder_Internal::InitParams(qsv_param_t *pParams)
 			m_co2.MBBRC = MFX_CODINGOPTION_ON;
 		if (pParams->nbFrames > 1)
 			m_co2.BRefType = MFX_B_REF_PYRAMID;
+		if (m_mfxEncParams.mfx.LowPower == MFX_CODINGOPTION_ON) {
+			m_co2.RepeatPPS = MFX_CODINGOPTION_OFF;
+			if (pParams->nRateControl == MFX_RATECONTROL_CBR ||
+			    pParams->nRateControl == MFX_RATECONTROL_VBR) {
+				m_co2.LookAheadDepth = pParams->nLADEPTH;
+			}
+		}
 		extendedBuffers[iBuffers++] = (mfxExtBuffer *)&m_co2;
+	}
+
+	if (m_mfxEncParams.mfx.LowPower == MFX_CODINGOPTION_ON) {
+		memset(&m_co3, 0, sizeof(mfxExtCodingOption3));
+		m_co3.Header.BufferId = MFX_EXTBUFF_CODING_OPTION3;
+		m_co3.Header.BufferSz = sizeof(m_co3);
+		m_co3.ScenarioInfo = MFX_SCENARIO_GAME_STREAMING;
+		extendedBuffers[iBuffers++] = (mfxExtBuffer *)&m_co3;
+	} else if (pParams->bCQM) {
+		if (m_ver.Major == 1 && m_ver.Minor >= 16) {
+			memset(&m_co3, 0, sizeof(mfxExtCodingOption3));
+			m_co3.Header.BufferId = MFX_EXTBUFF_CODING_OPTION3;
+			m_co3.Header.BufferSz = sizeof(m_co3);
+			m_co3.ScenarioInfo = 7; // MFX_SCENARIO_GAME_STREAMING
+			extendedBuffers[iBuffers++] = (mfxExtBuffer *)&m_co3;
+		}
 	}
 
 	if (iBuffers > 0) {
@@ -292,6 +343,11 @@ bool QSV_Encoder_Internal::InitParams(qsv_param_t *pParams)
 		m_mfxEncParams.IOPattern = MFX_IOPATTERN_IN_VIDEO_MEMORY;
 	else
 		m_mfxEncParams.IOPattern = MFX_IOPATTERN_IN_SYSTEM_MEMORY;
+
+	mfxStatus sts = m_pmfxENC->Query(&m_mfxEncParams, &m_mfxEncParams);
+	if (sts == MFX_ERR_UNSUPPORTED || sts == MFX_ERR_UNDEFINED_BEHAVIOR) {
+		m_mfxEncParams.mfx.LowPower = MFX_CODINGOPTION_OFF;
+	}
 
 	return true;
 }
@@ -352,7 +408,7 @@ mfxStatus QSV_Encoder_Internal::AllocateSurfaces()
 		}
 	}
 
-	blog(LOG_INFO, "\tm_nSurfNum:     %d", m_nSurfNum);
+	plog(LOG_INFO, "\tm_nSurfNum:     %d", m_nSurfNum);
 
 	return sts;
 }
@@ -372,14 +428,41 @@ mfxStatus QSV_Encoder_Internal::GetVideoParam()
 
 	opt.SPSBuffer = m_SPSBuffer;
 	opt.PPSBuffer = m_PPSBuffer;
-	opt.SPSBufSize = 100; //  m_nSPSBufferSize;
-	opt.PPSBufSize = 100; //  m_nPPSBufferSize;
+	opt.SPSBufSize = 1024; //  m_nSPSBufferSize;
+	opt.PPSBufSize = 1024; //  m_nPPSBufferSize;
 
 	mfxStatus sts = m_pmfxENC->GetVideoParam(&m_parameter);
 	MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 
 	m_nSPSBufferSize = opt.SPSBufSize;
 	m_nPPSBufferSize = opt.PPSBufSize;
+
+	return sts;
+}
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+mfxStatus QSV_Encoder_Internal::GetVPSParam()
+{
+	mfxVideoParam parameter;
+	memset(&parameter, 0, sizeof(parameter));
+
+	mfxExtCodingOptionVPS opt;
+	memset(&parameter, 0, sizeof(parameter));
+	opt.Header.BufferId = MFX_EXTBUFF_CODING_OPTION_VPS;
+	opt.Header.BufferSz = sizeof(mfxExtCodingOptionVPS);
+
+	static mfxExtBuffer *extendedBuffers[1];
+	extendedBuffers[0] = (mfxExtBuffer *)&opt;
+	parameter.ExtParam = extendedBuffers;
+	parameter.NumExtParam = 1;
+
+	opt.VPSBuffer = m_VPSBuffer;
+	opt.VPSBufSize = 1024;
+
+	mfxStatus sts = m_pmfxENC->GetVideoParam(&parameter);
+	MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
+
+	m_nVPSBufferSize = opt.VPSBufSize;
 
 	return sts;
 }
@@ -391,6 +474,13 @@ void QSV_Encoder_Internal::GetSPSPPS(mfxU8 **pSPSBuf, mfxU8 **pPPSBuf,
 	*pPPSBuf = m_PPSBuffer;
 	*pnSPSBuf = m_nSPSBufferSize;
 	*pnPPSBuf = m_nPPSBufferSize;
+}
+
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+void QSV_Encoder_Internal::GetVPS(mfxU8 **pVPSBuf, mfxU16 *pnVPSBuf)
+{
+	*pVPSBuf = m_VPSBuffer;
+	*pnVPSBuf = m_nVPSBufferSize;
 }
 
 mfxStatus QSV_Encoder_Internal::InitBitstream()
@@ -419,7 +509,7 @@ mfxStatus QSV_Encoder_Internal::InitBitstream()
 	m_outBitstream.DataOffset = 0;
 	m_outBitstream.DataLength = 0;
 
-	blog(LOG_INFO, "\tm_nTaskPool:    %d", m_nTaskPool);
+	plog(LOG_INFO, "\tm_nTaskPool:    %d", m_nTaskPool);
 
 	return MFX_ERR_NONE;
 }
@@ -542,6 +632,70 @@ mfxStatus QSV_Encoder_Internal::Encode(uint64_t ts, uint8_t *pDataY,
 		sts = m_mfxAllocator.Unlock(m_mfxAllocator.pthis,
 					    pSurface->Data.MemId,
 					    &(pSurface->Data));
+		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
+	}
+
+	for (;;) {
+		// Encode a frame asynchronously (returns immediately)
+		sts = m_pmfxENC->EncodeFrameAsync(NULL, pSurface,
+						  &m_pTaskPool[nTaskIdx].mfxBS,
+						  &m_pTaskPool[nTaskIdx].syncp);
+
+		if (MFX_ERR_NONE < sts && !m_pTaskPool[nTaskIdx].syncp) {
+			// Repeat the call if warning and no output
+			if (MFX_WRN_DEVICE_BUSY == sts)
+				MSDK_SLEEP(
+					1); // Wait if device is busy, then repeat the same call
+		} else if (MFX_ERR_NONE < sts && m_pTaskPool[nTaskIdx].syncp) {
+			sts = MFX_ERR_NONE; // Ignore warnings if output is available
+			break;
+		} else if (MFX_ERR_NOT_ENOUGH_BUFFER == sts) {
+			// Allocate more bitstream buffer memory here if needed...
+			break;
+		} else
+			break;
+	}
+
+	return sts;
+}
+
+mfxStatus QSV_Encoder_Internal::Encode_tex(uint64_t ts, uint32_t tex_handle,
+					   uint64_t lock_key,
+					   uint64_t *next_key,
+					   mfxBitstream **pBS)
+{
+	mfxStatus sts = MFX_ERR_NONE;
+	*pBS = NULL;
+	int nTaskIdx = GetFreeTaskIndex(m_pTaskPool, m_nTaskPool);
+	int nSurfIdx = GetFreeSurfaceIndex(m_pmfxSurfaces, m_nSurfNum);
+
+	while (MFX_ERR_NOT_FOUND == nTaskIdx || MFX_ERR_NOT_FOUND == nSurfIdx) {
+		// No more free tasks or surfaces, need to sync
+		sts = m_session.SyncOperation(
+			m_pTaskPool[m_nFirstSyncTask].syncp, 60000);
+		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
+
+		mfxU8 *pTemp = m_outBitstream.Data;
+		memcpy(&m_outBitstream, &m_pTaskPool[m_nFirstSyncTask].mfxBS,
+		       sizeof(mfxBitstream));
+
+		m_pTaskPool[m_nFirstSyncTask].mfxBS.Data = pTemp;
+		m_pTaskPool[m_nFirstSyncTask].mfxBS.DataLength = 0;
+		m_pTaskPool[m_nFirstSyncTask].mfxBS.DataOffset = 0;
+		m_pTaskPool[m_nFirstSyncTask].syncp = NULL;
+		nTaskIdx = m_nFirstSyncTask;
+		m_nFirstSyncTask = (m_nFirstSyncTask + 1) % m_nTaskPool;
+		*pBS = &m_outBitstream;
+
+		nSurfIdx = GetFreeSurfaceIndex(m_pmfxSurfaces, m_nSurfNum);
+	}
+
+	mfxFrameSurface1 *pSurface = m_pmfxSurfaces[nSurfIdx];
+	//copy to default surface directly
+	pSurface->Data.TimeStamp = ts;
+	if (m_bUseD3D11 || m_bD3D9HACK) {
+		sts = simple_copytex(m_mfxAllocator.pthis, pSurface->Data.MemId,
+				     tex_handle, lock_key, next_key);
 		MSDK_CHECK_RESULT(sts, MFX_ERR_NONE, sts);
 	}
 

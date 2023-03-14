@@ -19,32 +19,34 @@
 #include "PLSScheLiveNotice.h"
 #include "alert-view.hpp"
 #include "frontend-api.h"
+#include "prism/PLSPlatformPrism.h"
 #include "log.h"
+#include "log/log.h"
 #include "main-view.hpp"
 #include "pls-app.hpp"
 #include "pls-net-url.hpp"
 #include "window-basic-main.hpp"
+#include <QUuid>
 
 const static QString vliveBasic = "BASIC";
 const static QString vlivePreminm = "PREMIUM";
+const static QString boardTypeStar = "STAR";
 
 PLSPlatformVLive::PLSPlatformVLive() : m_bTempSchedule(false)
 {
-	setSingleChannel(true);
+	setSingleChannel(false);
 	m_statusTimer = new QTimer(this);
 	connect(m_statusTimer, &QTimer::timeout, this, &PLSPlatformVLive::requestStatisticsInfo);
 
 	connect(PLS_PLATFORM_API, &PLSPlatformApi::channelRemoved, this, [=](const QVariantMap &info) {
-		QString platformName = info.value(ChannelData::g_channelName, "").toString();
-		auto dataType = info.value(ChannelData::g_data_type, ChannelData::RTMPType).toInt();
-
-		if (dataType == ChannelData::ChannelType && platformName == VLIVE) {
-			reInitLiveInfo(true);
+		if (this->getChannelUUID() == info.value(ChannelData::g_channelUUID).toString()) {
+			//reInitLiveInfo(true);
+			PLSImageStatic::instance()->profileUrlMap.clear();
 		}
 	});
 	connect(PLS_PLATFORM_API, &PLSPlatformApi::liveEndPageShowComplected, this, [=](bool isRecord) {
 		if (!isRecord && !getIsRehearsal() && isActive()) {
-			reInitLiveInfo(true);
+			reInitLiveInfo(true, true);
 		}
 	});
 }
@@ -82,6 +84,14 @@ const PLSVLiveLiveinfoData PLSPlatformVLive::getSelectData()
 	return m_selectData;
 }
 
+PLSVLiveProfileData PLSPlatformVLive::getChannelProfile(const QVariantMap &map)
+{
+	auto profileMap = map.value(ChannelData::g_vliveProfileData).toMap();
+	auto profileJson = QJsonObject(QJsonDocument::fromJson(QJsonDocument::fromVariant(QVariant(profileMap)).toJson()).object());
+	auto profileData = PLSVLiveProfileData(profileJson);
+	return profileData;
+}
+
 void PLSPlatformVLive::setSelectDataByID(const QString &scheID)
 {
 	for (auto &data : m_vecSchedules) {
@@ -106,8 +116,14 @@ void PLSPlatformVLive::removeExpiredSchedule(const vector<QString> &ids)
 	}
 }
 
-void PLSPlatformVLive::setSelectData(PLSVLiveLiveinfoData data)
+void PLSPlatformVLive::setSelectData(PLSVLiveLiveinfoData data, bool isNeedKeepProfile)
 {
+	for (const auto &profile : m_vecProfiles) {
+		if (data.profile.memberId == profile.memberId) {
+			data.profile = profile;
+			break;
+		}
+	}
 	m_bTempSchedule = !data.isNormalLive;
 	m_selectData = data;
 	setTempSelectID(data._id);
@@ -120,44 +136,17 @@ void PLSPlatformVLive::setSelectData(PLSVLiveLiveinfoData data)
 	}
 	__super::setTitle(m_selectData.title.toStdString());
 
-	QStringList list;
-	QString showChannelName;
-	bool isNormalChannelSelect = false;
-	for (auto bage : m_selectData.fanshipDatas) {
-		if (!bage.isChecked) {
-			continue;
-		}
-		if (showChannelName.isEmpty()) {
-			showChannelName = bage.channelName;
-		}
-
-		if (bage.isNormalSeq) {
-
-			isNormalChannelSelect = true;
-			continue;
-		}
-		list.append(bage.badgeName);
-	}
-	if (isNormalChannelSelect) {
-		list.clear();
-	}
-	if (showChannelName.isEmpty()) {
-		auto info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
-		showChannelName = info.value(ChannelData::g_vliveNormalChannelName).toString();
-	}
-	QString bages;
-	if (!list.isEmpty()) {
-		QString src = QString::fromStdWString({0x00B7}) + QString::fromStdWString({0x00B7}) + QString::fromStdWString({0x00B7});
-		bages = list.join(src);
-	}
-
 	auto latInfo = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-	latInfo.insert(ChannelData::g_catogryTemp, bages);
-	latInfo.insert(ChannelData::g_nickName, showChannelName);
+	PLSPlatformVLive::changeChannelDataWhenProfileSelect(latInfo, data.profile, this);
+	if (!data.profile.nickname.isEmpty()) {
+		latInfo[ChannelData::g_vliveProfileData] = data.profile.getMapData();
+	} else if (!isNeedKeepProfile) {
+		latInfo[ChannelData::g_vliveProfileData] = {};
+	}
 	PLSCHANNELS_API->setChannelInfos(latInfo, true);
 }
 
-bool PLSPlatformVLive::isModifiedWithNewData(QString title, vector<bool> boxChecks, const QString &localThumFile, PLSVLiveLiveinfoData *uiData)
+bool PLSPlatformVLive::isModifiedWithNewData(QString title, const QPixmap &localPixmap, PLSVLiveLiveinfoData *uiData)
 {
 	bool isModified = false;
 	PLSVLiveLiveinfoData sData = getTempSelectData();
@@ -168,34 +157,27 @@ bool PLSPlatformVLive::isModifiedWithNewData(QString title, vector<bool> boxChec
 	if (title.compare(sData.title) != 0) {
 		isModified = true;
 	} else if (sData.isNormalLive) {
-		if (localThumFile.compare(sData.thumLocalPath) != 0) {
+		if (localPixmap != sData.pixMap) {
 			isModified = true;
-		} else {
-			for (int i = 0; i < sData.fanshipDatas.size(); i++) {
-				if (boxChecks.size() <= i) {
-					break;
-				}
-				if (sData.fanshipDatas[i].isChecked != boxChecks[i]) {
-					isModified = true;
-					break;
-				}
-			}
+		}
+	}
+
+	if (isModified == false) {
+		if (sData.board.boardId != getTempBoardData().boardId || sData.profile.memberId != getTempProfileData().memberId) {
+			isModified = true;
 		}
 	}
 
 	if (uiData != NULL) {
 		//*uiData = sData;
 		uiData->title = title;
-		if (uiData->isNormalLive) {
-			for (int i = 0; i < boxChecks.size(); i++) {
-				uiData->fanshipDatas[i].isChecked = boxChecks[i];
-			}
-		}
 
-		if (uiData->thumLocalPath.compare(localThumFile, Qt::CaseInsensitive) != 0) {
-			uiData->thumLocalPath = localThumFile;
+		if (localPixmap != sData.pixMap) {
+			uiData->pixMap = localPixmap;
 			uiData->thumRemoteUrl = "";
 		}
+		uiData->board = getTempBoardData();
+		uiData->profile = getTempProfileData();
 	}
 
 	return isModified;
@@ -203,6 +185,7 @@ bool PLSPlatformVLive::isModifiedWithNewData(QString title, vector<bool> boxChec
 
 void PLSPlatformVLive::saveSettings(function<void(bool)> onNext, PLSVLiveLiveinfoData uiData)
 {
+
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__);
 
 	auto _onNext = [=](bool isSucceed, const QString &iamgeUrl) {
@@ -219,6 +202,27 @@ void PLSPlatformVLive::saveSettings(function<void(bool)> onNext, PLSVLiveLiveinf
 
 		setSelectData(savedData);
 
+		QJsonObject neoJson;
+		neoJson["isSchedule"] = BOOL2STR(!m_selectData.isNormalLive);
+		neoJson["scheduleID"] = pls_masking_user_id_info(m_selectData._id);
+		neoJson["profileID"] = pls_masking_user_id_info(m_selectData.profile.memberId);
+		neoJson["profileName"] = pls_masking_person_info(m_selectData.profile.nickname);
+		neoJson["boardID"] = pls_masking_user_id_info(QString::number(m_selectData.board.boardId));
+		neoJson["channelUuid"] = getChannelUUID();
+		neoJson["channelID"] = pls_masking_user_id_info(m_selectData.channelSeq);
+
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ " with save data: %s", QJsonDocument(neoJson).toJson().constData());
+
+		QJsonObject neoKRJson;
+		neoKRJson["isSchedule"] = BOOL2STR(!m_selectData.isNormalLive);
+		neoKRJson["scheduleID"] = m_selectData._id;
+		neoKRJson["profileID"] = m_selectData.profile.memberId;
+		neoKRJson["profileName"] = m_selectData.profile.nickname;
+		neoKRJson["boardID"] = QString::number(m_selectData.board.boardId);
+		neoKRJson["channelUuid"] = getChannelUUID();
+		neoKRJson["channelID"] = m_selectData.channelSeq;
+		PLS_INFO_KR(MODULE_PlatformService, __FUNCTION__ " with save data: %s", QJsonDocument(neoKRJson).toJson().constData());
+
 		if (!PLS_PLATFORM_API->isPrepareLive()) {
 			onNext(isSucceed);
 			return;
@@ -226,33 +230,47 @@ void PLSPlatformVLive::saveSettings(function<void(bool)> onNext, PLSVLiveLiveinf
 
 		auto _onAPINext = [=](bool value) {
 			const QString &uuid = getChannelUUID();
-			PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_shareUrl, getShareUrl());
-			PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_shareUrlTemp, getShareUrl());
+			QString _shareUrl = value ? getShareUrl() : QString();
+			PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_shareUrl, _shareUrl);
+			PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_shareUrlTemp, _shareUrl);
+
+			auto latInfo = PLSCHANNELS_API->getChannelInfo(uuid);
+			if (PLSAPIVLive::isVliveFanship()) {
+				latInfo.remove(ChannelData::g_viewers);
+			} else {
+				latInfo.insert(ChannelData::g_viewers, 0);
+			}
+			PLSCHANNELS_API->setChannelInfos(latInfo, false);
 			onNext(value);
 		};
 		requestStartLive(_onAPINext);
 	};
 
 	if (!uiData.isNormalLive) {
-		requestSchedule([=](bool isOk) { _onNext(isOk, uiData.thumRemoteUrl); }, this, true, uiData._id);
+		if (PLS_PLATFORM_API->isLiving()) {
+			_onNext(true, uiData.thumRemoteUrl);
+		} else {
+			requestScheduleList([=](bool isOk) { _onNext(isOk, uiData.thumRemoteUrl); }, this, true, uiData._id);
+		}
 		return;
 	}
 
-	if (uiData.thumLocalPath.isEmpty()) {
+	if (uiData.pixMap.isNull()) {
 		_onNext(true, uiData.thumRemoteUrl);
 		return;
 	}
 
-	if (uiData.thumLocalPath.compare(getTempSelectData().thumLocalPath, Qt::CaseInsensitive) == 0) {
+	if (uiData.pixMap == getTempSelectData().pixMap) {
 		_onNext(true, uiData.thumRemoteUrl);
 		return;
 	}
-	requestUploadImage(uiData.thumLocalPath, _onNext);
+
+	requestUploadImage(uiData.pixMap, _onNext);
 }
 
-void PLSPlatformVLive::setThumLocalFile(const QString &localFile)
+void PLSPlatformVLive::setThumPixmap(const QPixmap &pixMap)
 {
-	getTempSelectDataRef().thumLocalPath = localFile;
+	getTempSelectDataRef().pixMap = pixMap;
 }
 
 void PLSPlatformVLive::setThumRemoteUrl(const QString &remoteUrl)
@@ -260,30 +278,41 @@ void PLSPlatformVLive::setThumRemoteUrl(const QString &remoteUrl)
 	getTempSelectDataRef().thumRemoteUrl = remoteUrl;
 }
 
-const QString PLSPlatformVLive::getDefaultTitle()
+const QString PLSPlatformVLive::getDefaultTitle(const QString &preStr)
 {
-	auto info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
-	auto channelName = info.value(ChannelData::g_vliveNormalChannelName, "").toString();
-	return channelName.append(tr("LiveInfo.live.title.suffix"));
+	QString pre = preStr;
+	if (!pre.isEmpty()) {
+		pre = tr("LiveInfo.live.title.suffix").arg(pre);
+	}
+	return pre;
 }
 
-void PLSPlatformVLive::onShowScheLiveNoticeIfNeeded()
+void PLSPlatformVLive::onShowScheLiveNoticeIfNeeded(const QString &channelID)
 {
-	if (m_isHaveShownScheduleNotice) {
+	static bool _isRequesting = false;
+	if (PLSVliveStatic::instance()->showNoticeMap[channelID] == true || _isRequesting == true) {
 		return;
 	}
+	const auto &info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
+	auto profileData = PLSPlatformVLive::getChannelProfile(info);
+	if (profileData.memberId.trimmed() == "") {
+		return;
+	}
+
+	_isRequesting = true;
 	auto _onNext = [=](bool value) {
+		_isRequesting = false;
 		if (!value || getScheduleDatas().size() == 0) {
 			return;
 		}
 		const PLSVLiveLiveinfoData *liveInfo = nullptr;
 		long old10Min = PLSDateFormate::getNowTimeStamp() + 60 * 10;
 		long nowTime = PLSDateFormate::getNowTimeStamp();
-		auto tempDatas = getScheduleDatas();
-		auto descendOrder = [&](const PLSVLiveLiveinfoData &left, const PLSVLiveLiveinfoData &right) { return left.startTimeStamp > right.startTimeStamp; };
+		vector<PLSVLiveLiveinfoData> tempDatas = getScheduleDatas();
+		auto descendOrder = [&](const PLSVLiveLiveinfoData &left, const PLSVLiveLiveinfoData &right) { return left.startTimeStamp < right.startTimeStamp; };
 		sort(tempDatas.begin(), tempDatas.end(), descendOrder);
 		for (auto &sli : tempDatas) {
-			if (sli.isUpcoming == false) {
+			if (sli.isNewLive == false) {
 				continue;
 			}
 			if (old10Min > sli.startTimeStamp && sli.startTimeStamp > nowTime) {
@@ -292,11 +321,12 @@ void PLSPlatformVLive::onShowScheLiveNoticeIfNeeded()
 			}
 		}
 
-		if (liveInfo) {
+		if (liveInfo && PLSVliveStatic::instance()->showNoticeMap[channelID] == false) {
+			PLSVliveStatic::instance()->showNoticeMap[channelID] = true;
 			showScheLiveNotice(*liveInfo);
 		}
 	};
-	requestSchedule(_onNext, this, false);
+	requestScheduleList(_onNext, this, false);
 }
 
 QString PLSPlatformVLive::getShareUrl()
@@ -304,26 +334,50 @@ QString PLSPlatformVLive::getShareUrl()
 	return QString(CHANNEL_VLIVE_SHARE).arg(m_selectData.startVideoSeq);
 }
 
-void PLSPlatformVLive::liveInfoisShowing()
+QString PLSPlatformVLive::getShareUrlEnc()
 {
-	if (getSelectData().isNormalLive && !getSelectData().title.isEmpty()) {
-		m_noramlData = getSelectData();
-	} else {
-		if (m_noramlData.title.isEmpty()) {
-			m_noramlData = PLSVLiveLiveinfoData();
-			auto info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
-			auto channelName = info.value(ChannelData::g_vliveNormalChannelName, "").toString();
-			m_noramlData.title = channelName.append(tr("LiveInfo.live.title.suffix"));
-			m_noramlData.channelSeq = info.value(ChannelData::g_subChannelId, "").toString();
-			setFanshipDatas(m_noramlData);
-		}
-	}
-	m_tempNoramlData = m_noramlData;
-	setTempSelectID(getSelectData()._id);
-	setTempSchedule(!getSelectData().isNormalLive);
+	return QString(CHANNEL_VLIVE_SHARE).arg(pls_masking_person_info(m_selectData.startVideoSeq));
 }
 
-void PLSPlatformVLive::reInitLiveInfo(bool isReset)
+void PLSPlatformVLive::liveInfoisShowing()
+{
+	auto _checkContainScheduleData = [=](const QString &schedID) {
+		bool containData = false;
+		for (const auto &info : m_vecSchedules) {
+			if (info._id == schedID) {
+				containData = true;
+				break;
+			}
+		}
+		return containData;
+	};
+
+	auto selectData = getSelectData();
+	const auto &info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
+	auto profileData = PLSPlatformVLive::getChannelProfile(info);
+	selectData.profile = profileData;
+
+	if (selectData.isNormalLive && selectData.channelSeq > 0) {
+		m_noramlData = selectData;
+	} else {
+		m_noramlData = PLSVLiveLiveinfoData();
+		m_noramlData.profile = profileData;
+		m_noramlData.title = getDefaultTitle(profileData.nickname);
+		m_noramlData.channelSeq = info.value(ChannelData::g_subChannelId, "").toString();
+	}
+
+	if (!selectData.isNormalLive && !_checkContainScheduleData(selectData._id)) {
+		m_vecSchedules.push_back(selectData);
+	}
+
+	m_tempNoramlData = m_noramlData;
+	setTempSelectID(selectData._id);
+	setTempSchedule(!selectData.isNormalLive);
+	setTempBoardData(selectData.board);
+	setTempProfileData(selectData.profile);
+}
+
+void PLSPlatformVLive::reInitLiveInfo(bool isReset, bool isNeedKeepProfile)
 {
 	if (!isReset) {
 		return;
@@ -335,7 +389,12 @@ void PLSPlatformVLive::reInitLiveInfo(bool isReset)
 	m_selectData = PLSVLiveLiveinfoData();
 	m_noramlData = PLSVLiveLiveinfoData();
 	m_tempNoramlData = PLSVLiveLiveinfoData();
-	setSelectData(m_selectData);
+
+	if (isNeedKeepProfile) {
+		auto channelInfo = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
+		m_selectData.profile = PLSPlatformVLive::getChannelProfile(channelInfo);
+	}
+	setSelectData(m_selectData, isNeedKeepProfile);
 };
 
 void PLSPlatformVLive::onPrepareLive(bool value)
@@ -345,9 +404,9 @@ void PLSPlatformVLive::onPrepareLive(bool value)
 		return;
 	}
 
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ "show liveinfo");
+	PLS_INFO(MODULE_PlatformService, "%s %s show liveinfo value(%s)", PrepareInfoPrefix, __FUNCTION__, BOOL2STR(value));
 	value = pls_exec_live_Info_vlive(getChannelUUID(), getInitData()) == QDialog::Accepted;
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ "liveinfo closed with:%d", value);
+	PLS_INFO(MODULE_PLATFORM_NAVERTV, "%s %s liveinfo closed value(%s)", PrepareInfoPrefix, __FUNCTION__, BOOL2STR(value));
 	if (!value) {
 		prepareLiveCallback(value);
 		return;
@@ -376,11 +435,11 @@ void PLSPlatformVLive::onPrepareLive(bool value)
 
 void PLSPlatformVLive::initVliveGcc(function<void()> onNext)
 {
-	auto _finish = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+	auto _finish = [=](QNetworkReply *networkReplay, int, QByteArray data, QNetworkReply::NetworkError error, void *context) {
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
 
-		getGccData().isLoaded = true;
+		PLSVliveStatic::instance()->isLoaded = true;
 
 		PLSPlatformApiResult apiResult = PLSPlatformApiResult::PAR_SUCCEED;
 		int responseCode = 0;
@@ -416,22 +475,52 @@ void PLSPlatformVLive::initVliveGcc(function<void()> onNext)
 			return;
 		}
 		QString lang = "";
+		QString locale = "";
 		auto localLists = result["localeLabelList"].toArray();
 		for (int i = 0; i < localLists.size(); i++) {
 			auto data = localLists[i].toObject();
 			if (data["country"].toString().compare(gcc, Qt::CaseInsensitive) == 0) {
 				lang = data["language"].toString();
+				locale = data["locale"].toString();
 				break;
 			}
 		}
 		if (!gcc.isEmpty() && !lang.isEmpty()) {
-			getGccData().gcc = gcc;
-			getGccData().lang = lang;
+			PLSVliveStatic::instance()->gcc = gcc;
+			PLSVliveStatic::instance()->lang = lang;
+			PLSVliveStatic::instance()->locale = locale;
 		}
 		onNext();
 	};
 
 	PLSAPIVLive::vliveRequestGccAndLanguage(this, _finish);
+}
+
+void PLSPlatformVLive::getCountryCodes(function<void()> onNext)
+{
+	auto _finish = [=](QNetworkReply *networkReplay, int, QByteArray data, QNetworkReply::NetworkError, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+
+		auto doc = QJsonDocument::fromJson(data);
+		auto root = doc.object()["result"].toArray();
+		auto nameKey = IS_KR() ? "name" : "nameEn";
+
+		for (int i = 0; i < root.size(); i++) {
+			auto data = root[i].toObject();
+			PLSVliveStatic::instance()->countries.insert(data["countryCode"].toString(), data[nameKey].toString());
+		}
+
+		if (PLSVliveStatic::instance()->countries.isEmpty()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+		} else {
+			PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
+		}
+
+		onNext();
+	};
+
+	PLSAPIVLive::vliveRequestCountryCodes(this, _finish);
 }
 
 void PLSPlatformVLive::requestChannelInfo(const QVariantMap &srcInfo, UpdateCallback finishedCall)
@@ -440,20 +529,9 @@ void PLSPlatformVLive::requestChannelInfo(const QVariantMap &srcInfo, UpdateCall
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
 		Q_UNUSED(code)
-		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
 		auto doc = QJsonDocument::fromJson(data);
 
-		if (!doc.isObject()) {
-			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
-
-			QVariantMap info = srcInfo;
-			info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::EmptyChannel;
-			finishedCall(QList<QVariantMap>{info});
-
-			return;
-		}
-		auto root = doc.object();
-		if (root["code"].toInt() == 3001) {
+		if (doc.isObject() && doc.object()["code"].toInt() == 3001) {
 			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, code == 3001");
 			QVariantMap info = srcInfo;
 			info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::EmptyChannel;
@@ -461,55 +539,59 @@ void PLSPlatformVLive::requestChannelInfo(const QVariantMap &srcInfo, UpdateCall
 			return;
 		}
 
-		auto result = root["result"].toObject();
-		QString userID = result["id"].toString();
-
-		if (userID.isEmpty()) {
-			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, userID.isEmpty");
+		if (!doc.isArray() || doc.array().isEmpty()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not array or empty");
 			QVariantMap info = srcInfo;
 			info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::EmptyChannel;
 			finishedCall(QList<QVariantMap>{info});
+
 			return;
 		}
 
-		//TODO nickName is used to user, not channel.
-		//auto nickName = result["nickname"].toString();
+		QList<QVariantMap> infos;
+		QJsonArray neloArr;
+		// save sub channels
+		for (int i = 0, count = doc.array().count(); i < count; ++i) {
+			auto object = doc.array()[i].toObject();
+			auto subChannelID = object["channelCode"].toString();
+			QVariantMap info;
+			info[ChannelData::g_channelToken] = srcInfo[ChannelData::g_channelToken];
+			info[ChannelData::g_platformName] = VLIVE;
+			info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Valid;
+			info[ChannelData::g_subChannelId] = subChannelID;
+			info[ChannelData::g_nickName] = object["channelName"].toString();
+			info[ChannelData::g_vliveNormalChannelName] = info[ChannelData::g_nickName]; //backup
+			info[ChannelData::g_catogry] = "";
 
-		QVariantMap info = srcInfo;
+			info[ChannelData::g_shareUrl] = QString();
+			info[ChannelData::g_viewers] = "0";
+			info[ChannelData::g_viewersPix] = ChannelData::g_naverTvViewersIcon;
+			info[ChannelData::g_comments] = "0";
+			info[ChannelData::g_commentsPix] = ChannelData::g_defaultCommentsIcon;
+			info[ChannelData::g_likes] = "0";
+			info[ChannelData::g_likesPix] = ChannelData::g_naverTvLikeIcon;
+			info[ChannelData::g_catogry] = QString();
+			QString channelUrl = object["channelProfileImage"].toString();
+			info[ChannelData::g_userIconThumbnailUrl] = channelUrl;
 
-		info[ChannelData::g_userID] = QString::number(result["userID"].toInt());        //b7abf7c0-f050-11e7-987d-000000000e4d
-		info[ChannelData::g_userVliveSeq] = QString::number(result["userSeq"].toInt()); //3763
-		info[ChannelData::g_userVliveCode] = result["userCode"].toString();             //V7C64
-		info[ChannelData::g_userName] = result["nickname"].toString();
-		info[ChannelData::g_userProfileImg] = result["profileImg"].toString();
-		info[ChannelData::g_isFanship] = false;
-
-		auto inAuthChannels = result["inAuthChannel"].toArray();
-		for (int i = 0; i < inAuthChannels.size(); i++) {
-			auto item = inAuthChannels[i].toObject();
-			auto channelPlusType = item["channelPlusType"].toString();
-			if (channelPlusType.compare(vliveBasic) == 0) {
-				info[ChannelData::g_subChannelId] = QString::number(item["channelSeq"].toInt()); //189
-				info[ChannelData::g_nickName] = item["name"].toString();                         //display in channel screa
-				info[ChannelData::g_vliveNormalChannelName] = item["name"].toString();
-				if (auto icon = PLSAPIVLive::downloadImageSync(this, item["profileImg"].toString(), info[ChannelData::g_channelName].toString()); icon.first) {
+			if (!channelUrl.isEmpty() && PLSImageStatic::instance()->profileUrlMap.contains(channelUrl) && !PLSImageStatic::instance()->profileUrlMap[channelUrl].isEmpty()) {
+				info[ChannelData::g_userIconCachePath] = PLSImageStatic::instance()->profileUrlMap[channelUrl];
+			} else if (auto icon = PLSAPIVLive::downloadImageSync(this, channelUrl, info[ChannelData::g_platformName].toString()); icon.first) {
+				if (!icon.second.isEmpty()) {
 					info[ChannelData::g_userIconCachePath] = icon.second;
+					PLSImageStatic::instance()->profileUrlMap[channelUrl] = icon.second;
 				}
-			} else if (channelPlusType.compare(vlivePreminm) == 0) {
-				info[ChannelData::g_isFanship] = true;
-				info[ChannelData::g_vliveFanshipModel] = item.toVariantMap();
 			}
-		}
-		info[ChannelData::g_channelStatus] = inAuthChannels.size() == 0 ? ChannelData::ChannelStatus::EmptyChannel : ChannelData::ChannelStatus::Valid;
 
-		info[ChannelData::g_viewers] = "0";
-		info[ChannelData::g_viewersPix] = ChannelData::g_naverTvViewersIcon;
-		info[ChannelData::g_likes] = "0";
-		info[ChannelData::g_likesPix] = ChannelData::g_naverTvLikeIcon;
-		info[ChannelData::g_catogryTemp] = QString();
-		info[ChannelData::g_shareUrl] = QString();
-		info[ChannelData::g_shareUrlTemp] = QString();
-		finishedCall(QList<QVariantMap>{info});
+			infos.append(info);
+
+			QJsonObject _sub;
+			_sub["channelCode"] = pls_masking_user_id_info(subChannelID);
+			_sub["channelName"] = pls_masking_person_info(object["channelName"].toString());
+			neloArr.append(_sub);
+		}
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed with response: %s", QJsonDocument(neloArr).toJson().constData());
+		finishedCall(infos);
 	};
 
 	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
@@ -527,33 +609,52 @@ void PLSPlatformVLive::requestChannelInfo(const QVariantMap &srcInfo, UpdateCall
 		case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
 			info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Expired;
 			break;
+		case PLSPlatformApiResult::VLIVE_API_ERROR_NO_PROFILE:
+			info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
+			info[ChannelData::g_errorString] = QTStr("Live.Check.LiveInfo.channel.no.permission");
+			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::SpecializedError;
+			break;
+		case PLSPlatformApiResult::PAR_API_ERROR_CHANNEL_NO_PERMISSON:
+			info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
+			info[ChannelData::g_errorString] = QTStr("Live.Check.LiveInfo.channel.no.avaiable.channel.705");
+			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::SpecializedError;
+			break;
+		case PLSPlatformApiResult::PAR_SERVER_ERROR:
+			info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
+			info[ChannelData::g_errorString] = QTStr("Live.Check.message.mutilive.failed.normal");
+			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::SpecializedError;
+			break;
+		case PLSPlatformApiResult::PAR_API_ERROR_FORBIDDEN:
+			info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
+			info[ChannelData::g_errorString] = QTStr("Live.Check.LiveInfo.account.forbidden");
+			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::SpecializedError;
+			break;
 		default:
 			info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
 			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::UnknownError;
 			break;
 		}
+
 		finishedCall(QList<QVariantMap>{info});
 	};
 
 	PLSAPIVLive::vliveRequestUsersInfoAndChannel(this, _onSucceed, _onFail);
 }
 
-void PLSPlatformVLive::requestSchedule(function<void(bool)> onNext, QObject *widget, bool isNeedShowErrAlert, const QString &checkID)
+void PLSPlatformVLive::requestScheduleList(function<void(bool)> onNext, QObject *widget, bool isNeedShowErrAlert, const QString &checkID)
 {
-	static int m_iContext = 0;
+	static qint64 m_iContext = 0;
 	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
 		Q_UNUSED(code)
-		if (context != reinterpret_cast<void *>(m_iContext)) {
+		if (isNeedShowErrAlert && context != reinterpret_cast<void *>(m_iContext)) {
 			return;
 		}
-
-		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
 		auto doc = QJsonDocument::fromJson(data);
 
-		if (!doc.isObject()) {
-			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+		if (!doc.isArray()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not array or empty");
 			if (isNeedShowErrAlert) {
 				setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
 			}
@@ -562,64 +663,30 @@ void PLSPlatformVLive::requestSchedule(function<void(bool)> onNext, QObject *wid
 			}
 			return;
 		}
-		auto root = doc.object();
-		if (root["code"].toInt() != 1000) {
-			if (isNeedShowErrAlert) {
-				setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
-			}
-			if (nullptr != onNext) {
-				onNext(false);
-			}
-			return;
-		}
+		auto root = doc.array();
 
-		auto items = root["result"].toObject()["liveList"].toArray();
 		PLSVLiveLiveinfoData selectData = getTempSelectData();
 		bool isContainSelectData = false;
 		bool isContainCheckedItem = false;
 		m_vecSchedules.clear();
-
-		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed with itemCount:%i", items.count());
-		for (int i = 0; i < items.size(); i++) {
-			auto data = items[i].toObject();
-			bool upcomingYn = data["upcomingYn"].toBool();
-			auto status = data["status"].toString();
-			if ((upcomingYn && status.compare("EXPOSE") != 0)) {
-				continue;
-			}
+		QJsonArray neloArr;
+		for (int i = 0; i < root.size(); i++) {
+			auto data = root[i].toObject();
 			PLSVLiveLiveinfoData scheduleDta = PLSVLiveLiveinfoData(data);
-			if (scheduleDta.isUpcoming) {
+
+			if (isNeedShowErrAlert && !getTempProfileData().memberId.isEmpty()) {
+				if (scheduleDta.profile.memberId != getTempProfileData().memberId) {
+					continue;
+				}
+			}
+
+			if (scheduleDta.isNewLive) {
 				long ago10Min = PLSDateFormate::getNowTimeStamp() - 10 * 60;
 				long early3Day = PLSDateFormate::getNowTimeStamp() + 3 * 60 * 60 * 24;
 				if (scheduleDta.startTimeStamp < ago10Min || early3Day < scheduleDta.startTimeStamp) {
 					continue;
 				}
 			}
-			auto scheShips = data["fanshipBadges"].toArray();
-			if (m_noramlData.fanshipDatas.size() == 0) {
-				setFanshipDatas(m_noramlData);
-			}
-			if (scheShips.isEmpty()) {
-				for (auto ship : m_noramlData.fanshipDatas) {
-					ship.isChecked = true;
-					ship.uiEnabled = false;
-					scheduleDta.fanshipDatas.push_back(ship);
-				}
-			} else {
-				for (auto ship : m_noramlData.fanshipDatas) {
-					ship.isChecked = false;
-					ship.uiEnabled = false;
-					for (size_t i = 0; i < scheShips.size(); i++) {
-						auto scheShip = scheShips[i].toString();
-						if (scheShip == ship.badgeName) {
-							ship.isChecked = true;
-							break;
-						}
-					}
-					scheduleDta.fanshipDatas.push_back(ship);
-				}
-			}
-
 			if (scheduleDta._id == selectData._id) {
 				isContainSelectData = true;
 			}
@@ -627,12 +694,21 @@ void PLSPlatformVLive::requestSchedule(function<void(bool)> onNext, QObject *wid
 				isContainCheckedItem = true;
 			}
 			m_vecSchedules.push_back(scheduleDta);
+
+			QJsonObject _sub;
+			_sub["videoSeq"] = pls_masking_user_id_info(scheduleDta.startVideoSeq);
+			_sub["title"] = pls_masking_person_info(scheduleDta.title);
+			_sub["isNewLive"] = BOOL2STR(scheduleDta.isNewLive);
+			_sub["onAirStartAt"] = QString::number(scheduleDta.startTimeStamp);
+			_sub["willEndAt"] = QString::number(scheduleDta.endTimeStamp);
+			neloArr.append(_sub);
 		}
 
 		if (checkID.isEmpty()) {
 			isContainCheckedItem = true;
 		}
-		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed with itemCount:%i", items.count());
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed with real itemCount:%i, response:%s", root.count(), QJsonDocument(neloArr).toJson().constData());
+
 		if (isContainSelectData == false && !selectData.isNormalLive) {
 			//if the remote not found selected schedule, so add it.
 			m_vecSchedules.push_back(selectData);
@@ -651,6 +727,9 @@ void PLSPlatformVLive::requestSchedule(function<void(bool)> onNext, QObject *wid
 		Q_UNUSED(context)
 		Q_UNUSED(code)
 		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+		if (isNeedShowErrAlert && context != reinterpret_cast<void *>(m_iContext)) {
+			return;
+		}
 		if (isNeedShowErrAlert) {
 			setupApiFailedWithCode(getApiResult(code, error, data));
 		}
@@ -659,39 +738,310 @@ void PLSPlatformVLive::requestSchedule(function<void(bool)> onNext, QObject *wid
 			onNext(false);
 		}
 	};
-	PLSAPIVLive::vliveRequestSchedule(widget, _onSucceed, _onFail, reinterpret_cast<void *>(++m_iContext));
+	PLSAPIVLive::vliveRequestScheduleList(this, widget, _onSucceed, _onFail, reinterpret_cast<void *>(++m_iContext));
+}
+
+void PLSPlatformVLive::requestUpdateScheduleList(function<void(bool isSucceed, bool isDelete)> onNext, QObject *widget)
+{
+	static qint64 m_iContext = 0;
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		Q_UNUSED(code)
+		if (context != reinterpret_cast<void *>(m_iContext)) {
+			return;
+		}
+		bool isDeleted = true;
+
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
+		auto doc = QJsonDocument::fromJson(data);
+
+		if (!doc.isArray()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not array or empty");
+			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
+			if (nullptr != onNext) {
+				onNext(true, isDeleted);
+			}
+			return;
+		}
+		auto root = doc.array();
+
+		PLSVLiveLiveinfoData selectData = getTempSelectData();
+
+		m_vecSchedules.clear();
+
+		for (int i = 0; i < root.size(); i++) {
+			auto data = root[i].toObject();
+			PLSVLiveLiveinfoData scheduleDta = PLSVLiveLiveinfoData(data);
+
+			if (!getTempProfileData().memberId.isEmpty()) {
+				if (scheduleDta.profile.memberId != getTempProfileData().memberId) {
+					continue;
+				}
+			}
+
+			if (scheduleDta.isNewLive) {
+				long ago10Min = PLSDateFormate::getNowTimeStamp() - 10 * 60;
+				long early3Day = PLSDateFormate::getNowTimeStamp() + 3 * 60 * 60 * 24;
+				if (scheduleDta.startTimeStamp < ago10Min || early3Day < scheduleDta.startTimeStamp) {
+					continue;
+				}
+			}
+			if (scheduleDta._id == selectData._id) {
+				isDeleted = false;
+			}
+			m_vecSchedules.push_back(scheduleDta);
+		}
+
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed with itemCount:%i", root.count());
+		if (isDeleted) {
+			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_ERROR_Live_Invalid);
+		}
+		if (nullptr != onNext) {
+			onNext(true, isDeleted);
+		}
+	};
+
+	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		Q_UNUSED(code)
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+		if (context != reinterpret_cast<void *>(m_iContext)) {
+			return;
+		}
+		auto type = getApiResult(code, error, data);
+		if (type != PLSPlatformApiResult::PAR_TOKEN_EXPIRED && type != PLSPlatformApiResult::PAR_NETWORK_ERROR) {
+			type = PLSPlatformApiResult::PAR_API_ERROR_SCHEDULE_API_FAILED;
+		}
+		setupApiFailedWithCode(type);
+
+		if (nullptr != onNext) {
+			onNext(false, false);
+		}
+	};
+	PLSAPIVLive::vliveRequestScheduleList(this, widget, _onSucceed, _onFail, reinterpret_cast<void *>(++m_iContext));
 }
 
 void PLSPlatformVLive::downloadThumImage(function<void()> onNext, QWidget *reciver)
 {
-	static int m_iContext = 0;
+	static qint64 m_iContext = 0;
 	auto _callBack = [=](bool ok, const QString &imagePath, void *const context) {
 		if (context != reinterpret_cast<void *>(m_iContext)) {
+			if (QFile::exists(imagePath)) {
+				QFile::remove(imagePath);
+			}
 			return;
 		}
 		if (ok) {
-			setThumLocalFile(imagePath);
+			setThumPixmap(QPixmap(imagePath));
 			onNext();
-			//emit onThumImageDownloaded();
+		}
+		if (QFile::exists(imagePath)) {
+			QFile::remove(imagePath);
 		}
 	};
 	PLSAPIVLive::downloadImageAsync(reciver, getTempSelectData().thumRemoteUrl, _callBack, reinterpret_cast<void *>(++m_iContext));
 }
 
-void PLSPlatformVLive::requestUploadImage(const QString &localFile, function<void(bool, const QString &)> onNext)
+void PLSPlatformVLive::requestBoardList(function<void(bool)> onNext, QObject *widget)
 {
+
+	auto _isEmptyGroup = [=](const QJsonArray &boards) {
+		for (int j = 0; j < boards.size(); j++) {
+			auto board = boards[j].toObject();
+			if (board["boardType"].toString().compare(boardTypeStar, Qt::CaseInsensitive) == 0) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	static qint64 m_iContext = 0;
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		Q_UNUSED(code)
+		if (context != reinterpret_cast<void *>(m_iContext)) {
+			return;
+		}
+		//PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
+		auto doc = QJsonDocument::fromJson(data);
+		if (!doc.isArray()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
+			if (nullptr != onNext) {
+				onNext(false);
+			}
+			return;
+		}
+		auto root = doc.array();
+		m_vecBoards.clear();
+		for (int i = 0; i < root.size(); i++) {
+			auto group = root[i].toObject();
+			auto boards = group["boards"].toArray();
+			if (_isEmptyGroup(boards)) {
+				continue;
+			}
+
+			PLSVLiveBoardData boardData = PLSVLiveBoardData(group, "", true);
+			m_vecBoards.push_back(boardData);
+
+			vector<PLSVLiveBoardData> boardDatas;
+			for (int j = 0; j < boards.size(); j++) {
+				auto board = boards[j].toObject();
+				PLSVLiveBoardData boardData = PLSVLiveBoardData(board, "", false);
+				if (boardData.boardType.compare(boardTypeStar, Qt::CaseInsensitive) == 0) {
+					m_vecBoards.push_back(boardData);
+				}
+			}
+		}
+		QJsonArray neloArr;
+		for (auto &data : m_vecBoards) {
+			QJsonObject _sub;
+			_sub["groupTitle"] = pls_masking_person_info(data.groupTitle);
+			_sub["title"] = pls_masking_person_info(data.title);
+			_sub["boardId"] = pls_masking_user_id_info(QString::number(data.boardId));
+			neloArr.append(_sub);
+		}
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed with response: %s", QJsonDocument(neloArr).toJson().constData());
+
+		if (nullptr != onNext) {
+			onNext(true);
+		}
+	};
+
+	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		Q_UNUSED(code)
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+		if (context != reinterpret_cast<void *>(m_iContext)) {
+			return;
+		}
+		setupApiFailedWithCode(getApiResult(code, error, data));
+
+		if (nullptr != onNext) {
+			onNext(false);
+		}
+	};
+	PLSAPIVLive::vliveRequestBoardList(this, widget, _onSucceed, _onFail, reinterpret_cast<void *>(++m_iContext));
+}
+
+void PLSPlatformVLive::requestBoardDetail(function<void(bool)> onNext, QObject *widget)
+{
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		Q_UNUSED(code)
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
+		auto doc = QJsonDocument::fromJson(data);
+		if (!doc.isObject()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
+			if (nullptr != onNext) {
+				onNext(false);
+			}
+			return;
+		}
+
+		QString allowed = doc.object()["readAllowedLabel"].toString();
+		getTempSelectDataRef().board.readAllowedLabel = allowed;
+		m_bTempSelectBoard.readAllowedLabel = allowed;
+		if (nullptr != onNext) {
+			onNext(true);
+		}
+	};
+
+	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		Q_UNUSED(code)
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+		setupApiFailedWithCode(getApiResult(code, error, data));
+
+		if (nullptr != onNext) {
+			onNext(false);
+		}
+	};
+	PLSAPIVLive::vliveRequestBoardDetail(this, widget, _onSucceed, _onFail);
+}
+
+void PLSPlatformVLive::requestProfileList(function<void(bool)> onNext, QObject *widget)
+{
+	static qint64 m_iContext = 0;
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		Q_UNUSED(code)
+		if (context != reinterpret_cast<void *>(m_iContext)) {
+			return;
+		}
+		//PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed");
+		auto doc = QJsonDocument::fromJson(data);
+		if (!doc.isArray()) {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, doc is not object");
+			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
+			if (nullptr != onNext) {
+				onNext(false);
+			}
+			return;
+		}
+		auto root = doc.array();
+		m_vecProfiles.clear();
+		QJsonArray neloArr;
+		for (int i = 0; i < root.size(); i++) {
+			auto item = root[i].toObject();
+			PLSVLiveProfileData data = PLSVLiveProfileData(item);
+			m_vecProfiles.push_back(data);
+			QJsonObject _sub;
+			_sub["memberId"] = pls_masking_user_id_info(data.memberId);
+			_sub["nickname"] = pls_masking_name_info(data.nickname);
+			neloArr.append(_sub);
+		}
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed with response: %s", QJsonDocument(neloArr).toJson().constData());
+
+		sort(m_vecProfiles.begin(), m_vecProfiles.end());
+		if (nullptr != onNext) {
+			onNext(true);
+		}
+	};
+
+	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+		Q_UNUSED(code)
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ "failed");
+		if (context != reinterpret_cast<void *>(m_iContext)) {
+			return;
+		}
+		setupApiFailedWithCode(getApiResult(code, error, data));
+
+		if (nullptr != onNext) {
+			onNext(false);
+		}
+	};
+	PLSAPIVLive::vliveRequestProfileList(getChannelUUID(), widget, _onSucceed, _onFail, reinterpret_cast<void *>(++m_iContext));
+}
+
+void PLSPlatformVLive::requestUploadImage(const QPixmap &pixmap, function<void(bool, const QString &)> onNext)
+{
+
+	QString path = QString("%1\\%2.png").arg(getTmpCacheDir()).arg(QUuid::createUuid().toString());
+	QFile file(path);
+	file.open(QIODevice::WriteOnly);
+	pixmap.save(&file, "PNG");
+
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	PLSAPIVLive::uploadImage(this, localFile, [=](bool ok, const QString &imageUrl) {
-		//if (ok) {
-		//setThumRemoteUrl(imageUrl);
-		/*	remoteUrl = QString(imageUrl);
-			remoteUrl = "fdfdf";*/
-		//}
-		if (!ok) {
-			showApiRefreshError(PLSPlatformApiResult::PAR_API_ERROR_Upload_Image);
+	PLSAPIVLive::uploadImage(this, path, [=](PLSPlatformApiResult result, const QString &imageUrl) {
+		if (QFile::exists(path)) {
+			QFile::remove(path);
+		}
+		if (result != PLSPlatformApiResult::PAR_SUCCEED) {
+			setupApiFailedWithCode(result);
 		}
 		if (nullptr != onNext) {
-			onNext(ok, imageUrl);
+			onNext(result == PLSPlatformApiResult::PAR_SUCCEED, imageUrl);
 		}
 	});
 }
@@ -711,7 +1061,7 @@ void PLSPlatformVLive::requestStatisticsInfo()
 
 		if (doc.isObject()) {
 			responseCode = doc["code"].toInt();
-			isLiveEnd = doc.object()["result"].toObject()["status"].toString().compare("END") == 0;
+			isLiveEnd = doc.object()["status"].toString() == "ENDED" || doc.object()["status"].toString() == "CANCELED";
 		}
 		if (isLiveEnd || responseCode == 9100 || responseCode == 9102 || responseCode == 9115) {
 			errorAlert = tr("LiveInfo.live.error.stoped.byRemote").arg(getNameForChannelType());
@@ -725,24 +1075,20 @@ void PLSPlatformVLive::requestStatisticsInfo()
 			PLS_INFO(MODULE_PlatformService, __FUNCTION__ " stop by remote errorCode, errorCode:%d, responseCode:%d", error, responseCode);
 
 			if (LiveStatus::LiveStarted <= PLS_PLATFORM_API->getLiveStatus() && PLS_PLATFORM_API->getLiveStatus() < LiveStatus::LiveStoped) {
-				PLS_INFO(MODULE_PlatformService, __FUNCTION__ ": toStopBroadcast");
+				PLS_LIVE_ABORT_INFO(MODULE_PlatformService, "live abort because live platform stop", "Finished because vlive stop by remote errorCode, errorCode:%d, responseCode:%d",
+						    error, responseCode);
 				PLSCHANNELS_API->toStopBroadcast();
 			}
-			PLSAlertView::warning(getAlertParent(), QTStr("Live.Check.Alert.Title"), errorAlert);
-			return;
-		}
-
-		if (errorAlert.isEmpty() && (error != QNetworkReply::NetworkError::NoError || responseCode != 1000)) {
-			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, errorCode:%d, responseCode:%d", error, responseCode);
+			PLSAlertView::warning(getAlertParent(), QTStr("Alert.Title"), errorAlert);
 			return;
 		}
 
 		auto root = doc.object();
-		auto likeCount = QString::number(root["result"].toObject()["likeCount"].toInt());
-		auto watchCount = QString::number(root["result"].toObject()["watchingCount"].toInt());
-		auto commentCount = QString::number(root["result"].toObject()["commentCount"].toInt());
+		auto likeCount = QString::number(root["likeCount"].toInt());
+		auto watchCount = QString::number(root["playCount"].toInt());
+		auto commentCount = QString::number(root["commentCount"].toInt());
 
-		auto mSourceData = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
+		const auto &mSourceData = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
 		if (mSourceData.contains(ChannelData::g_viewers)) {
 			PLSCHANNELS_API->setValueOfChannel(getChannelUUID(), ChannelData::g_viewers, watchCount);
 		}
@@ -760,35 +1106,12 @@ void PLSPlatformVLive::requestStartLive(function<void(bool)> onNext)
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
 
-		PLSPlatformApiResult apiResult = PLSPlatformApiResult::PAR_SUCCEED;
-		int responseCode = 0;
-
-		/*
-		9105	방송 시작 권한 관련 오류. 지정한 채널로 방송 시작할수 있는 권한이 없는 사용자가 방송 요청   启动与广播权限相关的错误。作为非特权用户开始将请求广播广播的指定通道
-         9106	방송 시작 시간 오류. 예약 되지 않은 시간에 방송 시작 요청   错误的广播开始时间。请求时启动广播
-         9109	유효하지 않은 장비에서 방송 시작 요청. 폰이 아닌 별도 장비로 방송하겠다고 했는데, 폰에서 방송 요청이 들어온 경우 启动无效的广播设备请求。在一个单独的广播设备是一个典当的要求, 如果你带来的丰
-         9115 invaild viedoSeq
-         */
 		auto doc = QJsonDocument::fromJson(data);
-		if (doc.isObject()) {
-			responseCode = doc["code"].toInt();
-		}
-		if (responseCode == 9105) {
-			apiResult = PLSPlatformApiResult::VLIVE_API_ERROR_NO_PERMISSION;
-		} else if (responseCode == 9115) {
-			apiResult = PLSPlatformApiResult::PAR_API_ERROR_Live_Invalid;
-		} else if (responseCode == 9106) {
-			apiResult = PLSPlatformApiResult::PAR_API_ERROR_Scheduled_Time;
-		} else if (error != QNetworkReply::NetworkError::NoError) {
-			apiResult = getApiResult(code, error, data);
-			apiResult = apiResult == PLSPlatformApiResult::PAR_TOKEN_EXPIRED ? PLSPlatformApiResult::PAR_TOKEN_EXPIRED : PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other;
-		} else if (responseCode > 0 && responseCode != 1000) {
-			apiResult = PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other;
-		}
+		PLSPlatformApiResult apiResult = getApiResult(code, error, data, true);
 
 		QString pushUrl;
 		if (apiResult == PLSPlatformApiResult::PAR_SUCCEED && doc.isObject()) {
-			pushUrl = doc["result"].toObject()["publishUrl"].toString();
+			pushUrl = doc["publishUrl"].toString();
 			if (pushUrl.isEmpty()) {
 				PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, pushUrl is empty");
 				apiResult = PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other;
@@ -796,22 +1119,22 @@ void PLSPlatformVLive::requestStartLive(function<void(bool)> onNext)
 		}
 
 		if (apiResult != PLSPlatformApiResult::PAR_SUCCEED) {
-			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed, responseCode:%d", responseCode);
-			showApiRefreshError(apiResult);
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ " failed");
+			setupApiFailedWithCode(apiResult);
 			if (nullptr != onNext) {
 				onNext(false);
 				return;
 			}
 		}
 
-		auto result = doc["result"].toObject();
-
 		QString videoSeq;
 		if (getIsRehearsal()) {
-			videoSeq = QString::number(result["rehearsalSeq"].toInt());
+			videoSeq = QString::number(doc["rehearsalSeq"].toInt());
 		} else {
-			videoSeq = QString::number(result["videoSeq"].toInt());
+			videoSeq = QString::number(doc["videoSeq"].toInt());
 		}
+
+		PLS_INFO(MODULE_PlatformService, __FUNCTION__ "succeed with videoSeq: %s", pls_masking_person_info(videoSeq).toUtf8().constData());
 
 		m_selectData.startVideoSeq = videoSeq;
 
@@ -826,12 +1149,42 @@ void PLSPlatformVLive::requestStartLive(function<void(bool)> onNext)
 		setStreamKey(m_selectData.streamKey.toStdString());
 		setStreamServer(m_selectData.streamUrl.toStdString());
 		setIsSubChannelStartApiCall(true);
+		if (getIsRehearsal() || (!m_selectData.isNormalLive && m_selectData.isNewLive)) {
+			if (nullptr != onNext) {
+				onNext(true);
+			}
+			return;
+		}
+		requestStartLiveToPostBoard(onNext);
+	};
+
+	PLSAPIVLive::vliveRequestStartLive(getChannelUUID(), this, _finish);
+}
+
+void PLSPlatformVLive::requestStartLiveToPostBoard(function<void(bool)> onNext)
+{
+	auto _finish = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+
+		if (code == 201 && error == QNetworkReply::NoError) {
+			if (nullptr != onNext) {
+				onNext(true);
+			}
+			return;
+		}
+		PLSPlatformApiResult apiResult = getApiResult(code, error, data, true);
+
+		if (getIsSubChannelStartApiCall()) {
+			requestStopLive(nullptr);
+		}
+		setupApiFailedWithCode(apiResult);
 		if (nullptr != onNext) {
-			onNext(true);
+			onNext(false);
 		}
 	};
 
-	PLSAPIVLive::vliveRequestStartLive(this, _finish);
+	PLSAPIVLive::vliveRequestStartLiveToPostBoard(getChannelUUID(), this, _finish);
 }
 
 void PLSPlatformVLive::requestStopLive(function<void(void)> onNext)
@@ -856,104 +1209,128 @@ void PLSPlatformVLive::requestStopLive(function<void(void)> onNext)
 		}
 	};
 	setIsSubChannelStartApiCall(false);
-	PLSAPIVLive::vliveRequestStopLive(this, _onSucceed, _onFail);
+	PLSAPIVLive::vliveRequestStopLive(this, this, _onSucceed, _onFail);
 }
 
-PLSPlatformApiResult PLSPlatformVLive::getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data)
+PLSPlatformApiResult PLSPlatformVLive::getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data, bool isStartApi)
 {
 	auto result = PLSPlatformApiResult::PAR_SUCCEED;
 
 	if (QNetworkReply::NoError == error) {
+		return result;
+	}
 
-	} else if (QNetworkReply::UnknownNetworkError >= error) {
+	if (QNetworkReply::UnknownNetworkError >= error) {
 		result = PLSPlatformApiResult::PAR_NETWORK_ERROR;
 	} else {
+		result = PLSPlatformApiResult::PAR_API_FAILED;
+
+		auto doc = QJsonDocument::fromJson(data);
+		QString responseCode = QString();
+		if (doc.isObject()) {
+			responseCode = doc["error_code"].toString().isEmpty() ? doc["errorCode"].toString() : doc["error_code"].toString();
+		}
+
 		switch (code) {
 		case 401:
+			if (responseCode == "common_704") {
+				result = PLSPlatformApiResult::VLIVE_API_ERROR_NO_PROFILE;
+				break;
+			}
 			result = PLSPlatformApiResult::PAR_TOKEN_EXPIRED;
 			break;
-		case 403:
-			result = PLSPlatformApiResult::PAR_API_FAILED;
+		case 403: {
+			//https://wiki.navercorp.com/pages/viewpage.action?pageId=520278326
+			if (responseCode == "common_704") {
+				result = PLSPlatformApiResult::VLIVE_API_ERROR_NO_PROFILE;
+			} else if (responseCode == "common_705") {
+				result = PLSPlatformApiResult::PAR_API_ERROR_CHANNEL_NO_PERMISSON;
+			}
+		} break;
+		case 500:
+			if (responseCode == "VIDEO_500") {
+				result = PLSPlatformApiResult::PAR_SERVER_ERROR;
+				break;
+			}
 			break;
 		default:
 			result = PLSPlatformApiResult::PAR_API_FAILED;
 			break;
 		}
+
+		if (code != 401) {
+			if (responseCode == "common_403") {
+				result = PLSPlatformApiResult::PAR_API_ERROR_FORBIDDEN;
+			} else if (responseCode == "common_500") {
+				result = PLSPlatformApiResult::PAR_SERVER_ERROR;
+			}
+		}
+	}
+	if (isStartApi && result == PLSPlatformApiResult::PAR_API_FAILED) {
+		result = PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other;
 	}
 	return result;
 }
 
 void PLSPlatformVLive::setupApiFailedWithCode(PLSPlatformApiResult result)
 {
-	showApiRefreshError(result);
-}
-
-void PLSPlatformVLive::showApiRefreshError(PLSPlatformApiResult value)
-{
-
 	auto alertParent = getAlertParent();
 
-	switch (value) {
+	switch (result) {
 	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Network.Error"));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("login.check.note.network"));
 		break;
 	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED: {
 		emit toShowLoading(true);
 		auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-		auto channelName = info.value(ChannelData::g_channelName).toString();
-		PLSAlertView::Button button = PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
+		auto channelName = info.value(ChannelData::g_platformName).toString();
+		PLSAlertView::Button button = PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
 		emit closeDialogByExpired();
 		if (button == PLSAlertView::Button::Ok) {
 			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
 		}
 		emit toShowLoading(false);
 	} break;
-	case PLSPlatformApiResult::VLIVE_API_ERROR_NO_PERMISSION:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.live.error.scheduled.vlive.9105"));
-
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_Live_Invalid:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.live.error.scheduled.invalid"));
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_Scheduled_Time:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.live.error.scheduled.time.invaild"));
-		break;
 	case PLSPlatformApiResult::PAR_API_ERROR_Upload_Image:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.live.error.set_photo_error"));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.set_photo_error"));
 		break;
 	case PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("LiveInfo.live.error.start.other").arg(VLIVE));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.start.other").arg(getChannelName()));
 		break;
 	case PLSPlatformApiResult::PAR_API_ERROR_LIVE_BROADCAST_NOT_FOUND:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Broadcast.Error.Delete"));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Broadcast.Error.Delete"));
 		break;
-	default:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
+	case PLSPlatformApiResult::PAR_API_ERROR_CUSTOM:
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), m_showCustomMsg);
 		break;
-	}
-}
-
-void PLSPlatformVLive::showApiUpdateError(PLSPlatformApiResult value)
-{
-	auto alertParent = getAlertParent();
-	auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-	auto channelName = info.value(ChannelData::g_channelName).toString();
-
-	switch (value) {
-	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Network.Error"));
+	case PLSPlatformApiResult::PAR_API_ERROR_CHANNEL_NO_PERMISSON:
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.channel.no.avaiable.channel.705"));
 		break;
-	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED: {
-		emit toShowLoading(true);
-		PLSAlertView::Button button = PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
-		emit closeDialogByExpired();
-		if (button == PLSAlertView::Button::Ok) {
-			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+	case PLSPlatformApiResult::PAR_API_ERROR_CONNECT_ERROR:
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.connection.error.video.500").arg(getChannelName()));
+		break;
+	case PLSPlatformApiResult::VLIVE_API_ERROR_NO_PROFILE:
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.channel.no.permission"));
+		if (!PLS_PLATFORM_API->isLiving()) {
+			reInitLiveInfo(true, false);
+			liveInfoisShowing();
+			emit profileIsInvalid();
 		}
-		emit toShowLoading(false);
-	} break;
+		break;
+	case PLSPlatformApiResult::PAR_API_ERROR_FORBIDDEN:
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.account.forbidden"));
+		break;
+	case PLSPlatformApiResult::PAR_SERVER_ERROR:
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.message.mutilive.failed.normal"));
+		break;
+	case PLSPlatformApiResult::PAR_API_ERROR_Live_Invalid:
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("broadcast.invalid.schedule"));
+		break;
+	case PLSPlatformApiResult::PAR_API_ERROR_SCHEDULE_API_FAILED:
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("common.message.error"));
+		break;
 	default:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Error.Failed").arg(channelName));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
 		break;
 	}
 }
@@ -961,35 +1338,39 @@ void PLSPlatformVLive::showApiUpdateError(PLSPlatformApiResult value)
 void PLSPlatformVLive::onActive()
 {
 	PLSPlatformBase::onActive();
-	QMetaObject::invokeMethod(this, &PLSPlatformVLive::onShowScheLiveNoticeIfNeeded, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(
+		this, [=]() { this->onShowScheLiveNoticeIfNeeded(getChannelUUID()); }, Qt::QueuedConnection);
 }
 
-void PLSPlatformVLive::onLiveStopped()
+void PLSPlatformVLive::onLiveEnded()
 {
 	if (m_statusTimer && m_statusTimer->isActive()) {
 		m_statusTimer->stop();
 	}
 
 	if (PLS_PLATFORM_API->isPrismLive() || !isActive()) {
-		liveStoppedCallback();
+		liveEndedCallback();
 		return;
 	}
 
 	auto _onNext = [=]() {
 		PLSCHANNELS_API->setValueOfChannel(getChannelUUID(), ChannelData::g_shareUrl, QString());
 		PLSCHANNELS_API->setValueOfChannel(getChannelUUID(), ChannelData::g_shareUrlTemp, QString());
-		liveStoppedCallback();
+		liveEndedCallback();
 	};
 
-	requestStopLive(_onNext);
+	requestStopLive(nullptr);
+	_onNext();
 }
 
 void PLSPlatformVLive::onAlLiveStarted(bool value)
 {
 	isStopedByRemote = false;
+
 	if (!value || PLS_PLATFORM_API->isPrismLive() || !isActive()) {
 		return;
 	}
+	__super::setIsScheduleLive(!getSelectData().isNormalLive);
 	if (getIsRehearsal()) {
 		return;
 	}
@@ -1001,19 +1382,20 @@ void PLSPlatformVLive::onAlLiveStarted(bool value)
 
 QJsonObject PLSPlatformVLive::getWebChatParams()
 {
+	assert(getSelectData().startVideoSeq.size() > 0);
+
 	const static QString s_strTicket = "globalv";
 	const static QString s_templateId = "default";
 	const static QString s_pool = "cbox4";
 	const static QString s_strNEOIDConsumerKey = "EvbbxIFhoa3Z2SkNwe0K";
 
-	auto info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
-	QString allToken = PLS_PLATFORM_VLIVE->getChannelToken();
-
+	const auto &info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
+	QString allToken = this->getChannelToken();
 	QJsonObject platform;
 	platform["name"] = "VLIVE";
 	platform["objectId"] = getSelectData().startVideoSeq;
-	platform["gcc"] = getGccData().gcc;
-	platform["lang"] = getGccData().lang;
+	platform["gcc"] = PLSVliveStatic::instance()->gcc;
+	platform["lang"] = PLSVliveStatic::instance()->lang;
 	platform["ticket"] = s_strTicket;
 	platform["templateId"] = s_templateId;
 	platform["objectUrl"] = g_plsVliveObjectUrl;
@@ -1022,16 +1404,16 @@ QJsonObject PLSPlatformVLive::getWebChatParams()
 		platform["snsCode"] = snsCdList[1];
 	}
 	platform["pool"] = s_pool;
-	platform["username"] = info.value(ChannelData::g_userName, "").toString();
-	platform["userProfileImage"] = info.value(ChannelData::g_userProfileImg, "").toString();
-	platform["extension"] = QJsonObject({{"no", info.value(ChannelData::g_userVliveSeq, "").toString()}, {"cno", getSelectData().channelSeq.toInt()}});
+	platform["userName"] = getSelectData().profile.nickname;
+	platform["userProfileImage"] = info.value(ChannelData::g_profileThumbnailUrl, "").toString();
 	platform["isVliveFanship"] = !PLSAPIVLive::isVliveFanship(); //when show chat fanship is true, not show fanshiop icon is false.
 	platform["version"] = 1;
 	platform["GLOBAL_URI"] = pls_get_gpop_connection().ssl;
 	platform["HMAC_SALT"] = PLS_VLIVE_HMAC_KEY;
 	platform["consumerKey"] = s_strNEOIDConsumerKey;
 	platform["isRehearsal"] = getIsRehearsal();
-	auto neoAll = allToken.split(";snsToken=").first();
+	platform["profileId"] = getSelectData().profile.memberId;
+	QString neoAll = allToken.split(";snsToken=").first();
 	auto neoStringList = neoAll.split("NEO_SES=");
 	if (neoStringList.size() > 1) {
 		platform["Authorization"] = QString("Bearer %1").arg(neoStringList[1]).remove("\"");
@@ -1055,14 +1437,9 @@ PLSVLiveLiveinfoData &PLSPlatformVLive::getTempSelectDataRef()
 
 void PLSPlatformVLive::showScheLiveNotice(const PLSVLiveLiveinfoData &liveInfo)
 {
-	if (m_isHaveShownScheduleNotice) {
-		return;
-	}
-	m_isHaveShownScheduleNotice = true;
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__);
 
 	PLSScheLiveNotice scheLiveNotice(this, liveInfo.title, liveInfo.startTimeUTC, App()->getMainView());
-
 	if (scheLiveNotice.exec() != PLSScheLiveNotice::Accepted) {
 		return;
 	}
@@ -1072,71 +1449,133 @@ PLSVLiveLiveinfoData::PLSVLiveLiveinfoData() {}
 
 PLSVLiveLiveinfoData::PLSVLiveLiveinfoData(const QJsonObject &data)
 {
-
-	this->isPlus = data["channelPlusPublicYn"].toBool();
 	this->_id = QString::number(data["videoSeq"].toInt());
 	this->title = data["title"].toString();
-	this->channelSeq = QString::number(data["channelSeq"].toInt());
+	this->channelSeq = data["post"].toObject()["channel"].toObject()["channelCode"].toString();
 	this->thumRemoteUrl = data["thumb"].toString();
-	this->isUpcoming = data["upcomingYn"].toBool();
+	this->isNewLive = !data["ended"].toBool();
 	this->isNormalLive = false;
-	this->startTimeOrigin = data["onAirAt"].toString();
-	this->endTimeOrigin = data["willEndAt"].toString();
 
-	if (this->startTimeOrigin.isEmpty()) {
-		this->startTimeOrigin = PLSDateFormate::vliveTimeStampToString(PLSDateFormate::getNowTimeStamp());
+	long long startAt = data.value(QString("onAirStartAt")).toVariant().toLongLong();
+	long long endAt = data.value(QString("willEndAt")).toVariant().toLongLong();
+	if (startAt > 0) {
+		startAt /= 1000;
 	}
-	if (this->endTimeOrigin.isEmpty()) {
-		this->startTimeOrigin = PLSDateFormate::vliveTimeStampToString(PLSDateFormate::getNowTimeStamp());
+	if (endAt > 0) {
+		endAt /= 1000;
 	}
 
-	this->startTimeStamp = PLSDateFormate::vliveTimeStringToStamp(startTimeOrigin);
+	this->startTimeStamp = startAt;
+	this->endTimeStamp = endAt;
+
+	this->status = data["exposeStatus"].toString();
+
 	this->startTimeShort = PLSDateFormate::timeStampToShortString(this->startTimeStamp);
 	this->startTimeUTC = PLSDateFormate::timeStampToUTCString(this->startTimeStamp);
-	this->endTimeStamp = PLSDateFormate::vliveTimeStringToStamp(endTimeOrigin);
+	this->profile = PLSVLiveProfileData(data["post"].toObject()["author"].toObject());
+	this->board = PLSVLiveBoardData(data["post"].toObject()["board"].toObject());
 }
 
-bool sortAscending(const PLSVLiveFanshipData &v1, const PLSVLiveFanshipData &v2)
-{
-	return v1.shipSeq.toInt() < v2.shipSeq.toInt();
-}
-
-void PLSPlatformVLive::setFanshipDatas(PLSVLiveLiveinfoData &infoData)
-{
-	auto info = PLSCHANNELS_API->getChanelInfoRef(getChannelUUID());
-
-	auto fanshipMap = info.value(ChannelData::g_vliveFanshipModel).toMap();
-	auto fanship = QJsonObject(QJsonDocument::fromJson(QJsonDocument::fromVariant(QVariant(fanshipMap)).toJson()).object());
-	auto shipLists = fanship["fanshipPackageList"].toArray();
-
-	infoData.fanshipDatas.clear();
-
-	PLSVLiveFanshipData basicData;
-	basicData.isNormalSeq = true;
-	basicData.badgeName = "";
-	basicData.channelSeq = info.value(ChannelData::g_subChannelId).toString();
-	basicData.channelName = info.value(ChannelData::g_vliveNormalChannelName).toString();
-	basicData.shipSeq = "";
-	basicData.isChecked = shipLists.size() == 0;
-	infoData.fanshipDatas.push_back(basicData);
-
-	if (shipLists.size() == 0) {
-		return;
-	}
-
-	for (int i = 0; i < shipLists.size(); i++) {
-		auto item = shipLists[i].toObject();
-		PLSVLiveFanshipData shipData;
-		shipData.isNormalSeq = false;
-		shipData.badgeName = item["badge"].toString();
-		shipData.channelSeq = QString::number(fanship["channelSeq"].toInt());
-		shipData.channelName = fanship["name"].toString();
-		shipData.shipSeq = QString::number(item["fanshipBundleSeq"].toInt());
-		infoData.fanshipDatas.push_back(shipData);
-	}
-	sort(infoData.fanshipDatas.begin(), infoData.fanshipDatas.end(), sortAscending);
-}
 QString PLSPlatformVLive::getServiceLiveLink()
 {
 	return getShareUrl();
+}
+
+void PLSPlatformVLive::changeChannelDataWhenProfileSelect(QVariantMap &info, const PLSVLiveProfileData &profileData, const QObject *receiver)
+{
+	QString showUrl = info[ChannelData::g_userIconThumbnailUrl].toString();
+	if (!profileData.profileImageUrl.isEmpty()) {
+		showUrl = profileData.profileImageUrl;
+	}
+
+	if (!showUrl.isEmpty()) {
+		if (PLSImageStatic::instance()->profileUrlMap.contains(showUrl) && !PLSImageStatic::instance()->profileUrlMap[showUrl].isEmpty()) {
+			info[ChannelData::g_userIconCachePath] = PLSImageStatic::instance()->profileUrlMap[showUrl];
+		} else if (auto icon = PLSAPIVLive::downloadImageSync(receiver, showUrl, info[ChannelData::g_platformName].toString()); icon.first) {
+			if (!icon.second.isEmpty()) {
+				info[ChannelData::g_userIconCachePath] = icon.second;
+				PLSImageStatic::instance()->profileUrlMap[showUrl] = icon.second;
+			}
+		}
+	}
+
+	if (profileData.memberId.isEmpty()) {
+		info[ChannelData::g_displayLine2] = QString();
+		info[ChannelData::g_displayLine1] = info[ChannelData::g_vliveNormalChannelName].toString();
+	} else {
+		info[ChannelData::g_displayLine2] = info[ChannelData::g_vliveNormalChannelName].toString();
+		info[ChannelData::g_displayLine1] = profileData.nickname;
+	}
+}
+
+PLSVliveStatic *PLSVliveStatic::instance()
+{
+	static PLSVliveStatic _instance;
+	return &_instance;
+}
+
+QString PLSVliveStatic::convertToFullName(const QString &shortName)
+{
+	auto fullName = countries.value(shortName, shortName);
+	return fullName;
+}
+
+PLSVLiveBoardData::PLSVLiveBoardData(const QJsonObject &data, const QString &, bool isGroup)
+{
+	this->isGroup = isGroup;
+
+	if (isGroup) {
+		this->groupTitle = this->title = data["groupTitle"].toString().replace("\n", " ");
+		return;
+	}
+
+	this->boardId = data["boardId"].toInt();
+	this->title = data["title"].toString().replace("\n", " ");
+	this->boardType = data["boardType"].toString();
+	this->payRequired = data["payRequired"].toBool();
+	this->expose = data["expose"].toBool();
+	this->channelCode = data["channelCode"].toString();
+	this->includedCountries = data["includedCountries"].toArray();
+	this->excludedCountries = data["excludedCountries"].toArray();
+	this->readAllowedLabel = data["readAllowedLabel"].toString();
+}
+
+PLSVLiveProfileData::PLSVLiveProfileData(const QJsonObject &data)
+{
+	this->memberId = data["memberId"].toString();
+	this->channelCode = data["channelCode"].toString();
+	this->joined = data["joined"].toBool();
+	this->nickname = data["nickname"].toString();
+	this->profileImageUrl = data["profileImageUrl"].toString();
+	this->memberType = data["memberType"].toString();
+
+	this->officialProfileType = data["officialProfileType"].toString();
+	this->hasMultiProfiles = data["hasMultiProfiles"].toBool();
+	this->officialName = data["officialName"].toString();
+}
+
+QVariantMap PLSVLiveProfileData::getMapData() const
+{
+	QVariantMap mapData;
+	mapData["memberId"] = this->memberId;
+	mapData["channelCode"] = this->channelCode;
+	mapData["joined"] = this->joined;
+	mapData["nickname"] = this->nickname;
+	mapData["profileImageUrl"] = this->profileImageUrl;
+	mapData["officialProfileType"] = this->officialProfileType;
+	mapData["hasMultiProfiles"] = this->hasMultiProfiles;
+	mapData["officialName"] = this->officialName;
+	return mapData;
+}
+
+bool PLSVLiveProfileData::operator<(const PLSVLiveProfileData &right) const
+{
+	QString leftString = this->nickname;
+	QString righrString = right.nickname;
+	if (leftString == righrString) {
+		leftString = this->memberId;
+		righrString = right.memberId;
+	}
+
+	return QString::localeAwareCompare(leftString, righrString) < 0;
 }

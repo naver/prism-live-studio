@@ -166,6 +166,17 @@ public:
 	}
 	void mouseRelease(QMouseEvent *event)
 	{
+		if (isForMove()) {
+			extern QRect toplevelViewResizeEnd(QRect rect, const QRect &titleBarRect, const QPoint &cursor);
+
+			QPoint globalPos = event->globalPos();
+			QRect g = toplevelViewResizeEnd(QRect(globalPos - relativePosMousePress, geometryOfMousePress.size()), titleBarRect(), globalPos);
+			if (g != geometry()) {
+				geometryOfNormal = g;
+				setGeometry(g);
+			}
+		}
+
 		if (isActive && (event->button() == Qt::LeftButton) && isMouseButtonDown) {
 			if (isResizing) {
 				isResizing = false;
@@ -353,6 +364,9 @@ protected:
 	}
 	template<typename Control> bool isControl(QWidget *child)
 	{
+		if (!child) {
+			return false;
+		}
 		if (this == child) {
 			return false;
 		} else if (dynamic_cast<Control *>(child)) {
@@ -470,7 +484,7 @@ protected:
 
 		onSaveNormalGeometry();
 	}
-	QRect getSuggestedRect(const QRect &suggested) const override { return geometryOfNormal; }
+	QRect getSuggestedRect(const QRect & /*suggested*/) const override { return geometryOfNormal; }
 	bool nativeEvent(const QByteArray &eventType, void *message, long *result) override
 	{
 		extern bool toplevelViewNativeEvent(PLSWidgetDpiAdapter * adapter, const QByteArray &eventType, void *message, long *result,

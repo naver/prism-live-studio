@@ -1,5 +1,6 @@
 #include <obs-module.h>
 #include <obs-avc.h>
+#include <obs-hevc.h>
 #include <util/platform.h>
 #include <util/circlebuf.h>
 #include <util/dstr.h>
@@ -17,7 +18,7 @@
 #endif
 
 #define do_log(level, format, ...)                 \
-	blog(level, "[rtmp stream: '%s'] " format, \
+	plog(level, "[rtmp stream: '%s'] " format, \
 	     obs_output_get_name(stream->output), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
@@ -130,6 +131,14 @@ struct rtmp_stream {
 
 	//PRISM/LiuHaibin/20200810/#None/rtmp heartbeat
 	uint64_t tick_time_ns;
+
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	bool is_video_hevc;
+
+	//PRISM/LiuHaibin/20201208/#None/for buffered duration
+	int64_t last_audio_dts_usec;
+	int64_t video_buffer_duration_usec;
+	int64_t audio_buffer_duration_usec;
 };
 
 #ifdef _WIN32

@@ -118,6 +118,7 @@ void GiphyWebHandler::GetImageInfo(const QJsonObject &imageObj, GiphyData &data)
 	// Get the original info.
 	QJsonObject obj_original = imageObj.value("original").toObject();
 	data.originalUrl = obj_original.value("url").toString();
+	qDebug() << "obj_original: " << obj_original;
 	data.sizeOriginal = QSize(obj_original.value("width").toString().toInt(), obj_original.value("height").toString().toInt());
 }
 

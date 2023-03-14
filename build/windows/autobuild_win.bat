@@ -11,7 +11,7 @@ REM ****************************************************************
 
 
 @echo -----------------start build-----------------
-if "%QTDIR32%"=="" goto ERROR
+rem if "%QTDIR32%"=="" goto ERROR
 if "%QTDIR64%"=="" goto ERROR
 
 rem set build default option
@@ -33,6 +33,7 @@ if not "%ERRORLEVEL%" == "0" goto ERROR
 
 if not exist .\bin mkdir .\bin
 
+
 cd build\windows
 
 
@@ -44,6 +45,8 @@ if "%MULTI_ARCH%" == "x64"  goto BuildX64
 
 call configure.cmd
 call build.cmd
+
+
 
 if "%MULTI_ARCH%" == "Win32"  goto BUILDEND
 
@@ -67,6 +70,7 @@ goto OK
 :OK
 
 @echo build success
+
 
 :END
 

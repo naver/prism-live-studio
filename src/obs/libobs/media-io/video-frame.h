@@ -25,7 +25,8 @@ struct video_frame {
 	uint32_t linesize[MAX_AV_PLANES];
 };
 
-EXPORT void video_frame_init(struct video_frame *frame,
+//PRISM/LiuHaibin/20210428/NoIssue/fix breakpoint, return bool result to mark if init succeeded
+EXPORT bool video_frame_init(struct video_frame *frame,
 			     enum video_format format, uint32_t width,
 			     uint32_t height);
 
@@ -42,8 +43,18 @@ video_frame_create(enum video_format format, uint32_t width, uint32_t height)
 {
 	struct video_frame *frame;
 
-	frame = (struct video_frame *)bzalloc(sizeof(struct video_frame));
-	video_frame_init(frame, format, width, height);
+	//PRISM/LiuHaibin/20210428/NoIssue/fix breakpoint
+	frame = (struct video_frame *)pls_bmalloc(sizeof(struct video_frame),
+						  "video_frame_create");
+	if (frame) {
+		if (!video_frame_init(frame, format, width, height)) {
+			bfree(frame);
+			frame = NULL;
+		}
+	}
+	//frame = (struct video_frame *)bzalloc(sizeof(struct video_frame));
+	//video_frame_init(frame, format, width, height);
+
 	return frame;
 }
 

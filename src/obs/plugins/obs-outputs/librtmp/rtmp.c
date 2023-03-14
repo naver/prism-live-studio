@@ -846,18 +846,24 @@ add_addr_info(struct sockaddr_storage *service, socklen_t *addrlen, AVal *host, 
 
     sprintf(portStr, "%d", port);
 
-    int err = getaddrinfo(hostname, portStr, &hints, &result);
+    //PRISM/LiuHaibin/20210819/#9280/Log rtmp socket connect time
+    uint64_t start = os_gettime_ns();
 
+    int err = getaddrinfo(hostname, portStr, &hints, &result);
     if (err)
     {
 #ifndef _WIN32
 #define gai_strerrorA gai_strerror
 #endif
-        RTMP_Log(RTMP_LOGERROR, "Could not resolve %s: %s (%d)", hostname, gai_strerrorA(GetSockError()), GetSockError());
+        //PRISM/LiuHaibin/20210819/#9280/Log rtmp socket connect time
+        RTMP_Log(RTMP_LOGERROR, "%s, Could not resolve %s: %s (%d), time consumed %llu ms.", __FUNCTION__, hostname, gai_strerrorA(GetSockError()), GetSockError(), ((os_gettime_ns() - start) / 1000000));
         *socket_error = GetSockError();
         ret = FALSE;
         goto finish;
     }
+
+    //PRISM/LiuHaibin/20210819/#9280/Log rtmp socket connect time
+    RTMP_Log(RTMP_LOGWARNING, "%s, Successfully resolve %s, time consumed %llu ms.", __FUNCTION__, hostname, ((os_gettime_ns() - start) / 1000000));
 
     // prefer ipv4 results, since lots of ISPs have broken ipv6 connectivity
     for (ptr = result; ptr != NULL; ptr = ptr->ai_next)
@@ -956,22 +962,28 @@ RTMP_Connect0(RTMP *r, struct sockaddr * service, socklen_t addrlen)
 
         if (connect(r->m_sb.sb_socket, service, addrlen) < 0)
         {
+            //PRISM/LiuHaibin/20210819/#9280/Log rtmp socket connect time
+            uint64_t connect_time_ms = (int)((os_gettime_ns() - connect_start) / 1000000);
+
             int err = GetSockError();
             if (err == E_CONNREFUSED)
-                RTMP_Log(RTMP_LOGERROR, "%s is offline. Try a different server (ECONNREFUSED).", r->Link.hostname.av_val);
+                RTMP_Log(RTMP_LOGERROR, "%s is offline. Try a different server (ECONNREFUSED). Time consumed %llu ms.", r->Link.hostname.av_val, connect_time_ms);
             else if (err == E_ACCES)
-                RTMP_Log(RTMP_LOGERROR, "The connection is being blocked by a firewall or other security software (EACCES).");
+                RTMP_Log(RTMP_LOGERROR, "The connection is being blocked by a firewall or other security software (EACCES). Time consumed %llu ms.", connect_time_ms);
             else if (err == E_TIMEDOUT)
-                RTMP_Log(RTMP_LOGERROR, "The connection timed out. Try a different server, or check that the connection is not being blocked by a firewall or other security software (ETIMEDOUT).");
+                RTMP_Log(RTMP_LOGERROR, "The connection timed out. Try a different server, or check that the connection is not being blocked by a firewall or other security software (ETIMEDOUT). Time consumed %llu ms.", connect_time_ms);
             else
-                RTMP_Log(RTMP_LOGERROR, "%s, failed to connect socket: %s (%d)",
-                     __FUNCTION__, socketerror(err), err);
+                RTMP_Log(RTMP_LOGERROR, "%s, failed to connect socket: %s (%d) Time consumed %llu ms.",
+                     __FUNCTION__, socketerror(err), err, connect_time_ms);
             r->last_error_code = err;
             RTMP_Close(r);
             return FALSE;
         }
 
         r->connect_time_ms = (int)((os_gettime_ns() - connect_start) / 1000000);
+
+        //PRISM/LiuHaibin/20210819/#9280/Log rtmp socket connect time
+        RTMP_Log(RTMP_LOGWARNING, "%s, RTMP socket connection succeed, time consumed %llu ms.", __FUNCTION__, r->connect_time_ms);
 
         if (r->Link.socksport)
         {
@@ -4239,8 +4251,13 @@ RTMP_SendPacket(RTMP *r, RTMPPacket *packet, int queue)
         /* compress a bit by using the prev packet's attributes */
         if (prevPacket->m_nBodySize == packet->m_nBodySize
                 && prevPacket->m_packetType == packet->m_packetType
-                && packet->m_headerType == RTMP_PACKET_SIZE_MEDIUM)
-            packet->m_headerType = RTMP_PACKET_SIZE_SMALL;
+            //PRISM/LiuHaibin/20210622/#None/Immersive audio
+                && packet->m_headerType == RTMP_PACKET_SIZE_MEDIUM) {
+            if (packet->m_packetType != RTMP_PACKET_TYPE_AUDIO)
+                packet->m_headerType = RTMP_PACKET_SIZE_SMALL;
+            else if (prevPacket->m_audioType == packet->m_audioType)
+                packet->m_headerType = RTMP_PACKET_SIZE_SMALL;
+        }
 
         if (prevPacket->m_nTimeStamp == packet->m_nTimeStamp
                 && packet->m_headerType == RTMP_PACKET_SIZE_SMALL)
@@ -5438,9 +5455,11 @@ fail:
 }
 
 static const AVal av_setDataFrame = AVC("@setDataFrame");
+//PRISM/LiuHaibin/20210622/#None/insertId3Tag
+static const AVal av_insertId3Tag = AVC("@insertId3Tag");
 
 int
-RTMP_Write(RTMP *r, const char *buf, int size, int streamIdx)
+RTMP_Write(RTMP *r, const char *buf, int size, int streamIdx, int custom_info)
 {
     RTMPPacket *pkt = &r->m_write;
     char *pend, *enc;
@@ -5474,6 +5493,10 @@ RTMP_Write(RTMP *r, const char *buf, int size, int streamIdx)
             buf += 3;
             s2 -= 11;
 
+            //PRISM/LiuHaibin/20210622/#None/Immersive audio
+            if (pkt->m_packetType == RTMP_PACKET_TYPE_AUDIO)
+                pkt->m_audioType = *buf;
+
             if (((pkt->m_packetType == RTMP_PACKET_TYPE_AUDIO
                     || pkt->m_packetType == RTMP_PACKET_TYPE_VIDEO) &&
                     !pkt->m_nTimeStamp) || pkt->m_packetType == RTMP_PACKET_TYPE_INFO)
@@ -5496,7 +5519,11 @@ RTMP_Write(RTMP *r, const char *buf, int size, int streamIdx)
             pend = enc + pkt->m_nBodySize;
             if (pkt->m_packetType == RTMP_PACKET_TYPE_INFO)
             {
-                enc = AMF_EncodeString(enc, pend, &av_setDataFrame);
+                //PRISM/LiuHaibin/20210622/#None/add custom_info flag
+                if (custom_info)
+                    enc = AMF_EncodeString(enc, pend, &av_insertId3Tag);
+                else
+                    enc = AMF_EncodeString(enc, pend, &av_setDataFrame);
                 pkt->m_nBytesRead = enc - pkt->m_body;
             }
         }

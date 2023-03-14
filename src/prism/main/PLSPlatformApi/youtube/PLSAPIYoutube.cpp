@@ -16,6 +16,7 @@
 #include <assert.h>
 #include "PLSDateFormate.h"
 #include <quuid.h>
+#include "../vlive/PLSAPIVLive.h"
 
 using namespace std;
 
@@ -26,9 +27,13 @@ void PLSAPIYoutube::requestLiveBroadcastStatus(const QObject *receiver, dataFunc
 	auto _getNetworkReply = [=] {
 		PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost));
 		builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
-		builder.setQuerys({{"id", PLS_PLATFORM_YOUTUBE->getSelectData()._id}, {"part", "id,status"}});
+		auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
+		builder.setQuerys({{"id", _id}, {"part", "id,status"}});
 		addCommenCookieAndUserKey(builder);
-		return builder.get();
+
+		auto reply = builder.get();
+		PLSAPIVLive::maskingUrlKeys(builder, reply, {_id});
+		return reply;
 	};
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
@@ -38,9 +43,13 @@ void PLSAPIYoutube::requestVideoStatus(const QObject *receiver, dataFunction onS
 	auto _getNetworkReply = [=] {
 		PLSNetworkReplyBuilder builder(QString("%1/videos").arg(g_plsYoutubeAPIHost));
 		builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
-		builder.setQuerys({{"part", "statistics, liveStreamingDetails"}, {"id", PLS_PLATFORM_YOUTUBE->getSelectData()._id}});
+		auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
+		builder.setQuerys({{"part", "statistics, liveStreamingDetails"}, {"id", _id}});
 		PLSAPIYoutube::addCommenCookieAndUserKey(builder);
-		return builder.get();
+
+		auto reply = builder.get();
+		PLSAPIVLive::maskingUrlKeys(builder, reply, {_id});
+		return reply;
 	};
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
@@ -70,26 +79,33 @@ void PLSAPIYoutube::requestStopLive(const QObject *receiver, function<void()> on
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
 	PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts/transition").arg(g_plsYoutubeAPIHost));
 	builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
-	builder.setQuerys({{"broadcastStatus", "complete"}, {"id", PLS_PLATFORM_YOUTUBE->getSelectData()._id}, {"part", "status"}});
+	auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
+	builder.setQuerys({{"broadcastStatus", "complete"}, {"id", _id}, {"part", "status"}});
 	addCommenCookieAndUserKey(builder);
-	PLS_HTTP_HELPER->connectFinished(builder.post(), receiver, _onSucceed, _onFail);
+
+	auto reply = builder.post();
+	PLSAPIVLive::maskingUrlKeys(builder, reply, {_id});
+	PLS_HTTP_HELPER->connectFinished(reply, receiver, _onSucceed, _onFail);
 }
 
 void PLSAPIYoutube::requestLiveBroadcastsInsert(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, RefreshType refreshType)
 {
+
 	auto _getNetworkReply = [=] {
 		PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost));
 		builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
 		builder.addQuery("part", "snippet,status,contentDetails");
 		addCommenCookieAndUserKey(builder);
-		/*builder.addJsonObject("status", QVariantMap({{"privacyStatus", PLS_PLATFORM_YOUTUBE->getTrySaveDataData().privacyStatus.toLower()},
+		builder.addJsonObject("status", QVariantMap({{"privacyStatus", PLS_PLATFORM_YOUTUBE->getTrySaveDataData().privacyStatus.toLower()},
 							     {"selfDeclaredMadeForKids", PLS_PLATFORM_YOUTUBE->getTrySaveDataData().isForKids}}));
-		*/
-		builder.addJsonObject("status", QVariantMap({{"privacyStatus", PLS_PLATFORM_YOUTUBE->getTrySaveDataData().privacyStatus.toLower()}}));
 
 		auto nowTime = PLSDateFormate::youtubeTimeStampToString(PLSDateFormate::getNowTimeStamp());
 		builder.addJsonObject("snippet", QVariantMap({{"title", PLS_PLATFORM_YOUTUBE->getTrySaveDataData().title}, {"scheduledStartTime", nowTime}}));
-		builder.addJsonObject("contentDetails", QVariantMap({{"enableAutoStart", true}, {"enableAutoStop", true}}));
+		QJsonObject cdnObject = QJsonObject();
+		cdnObject["enableAutoStart"] = true;
+		cdnObject["enableAutoStop"] = true;
+		setLatency(cdnObject, PLS_PLATFORM_YOUTUBE->getTrySaveDataData().latency);
+		builder.addJsonObject("contentDetails", cdnObject.toVariantMap());
 		return builder.post();
 	};
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
@@ -109,7 +125,8 @@ void PLSAPIYoutube::requestLiveStreamsInsert(const QObject *receiver, dataFuncti
 		if (itemData.isNormalLive) {
 			QJsonObject snippetObject = QJsonObject();
 			snippetObject["title"] = QUuid::createUuid().toString();
-			snippetObject["description"] = PLS_PLATFORM_YOUTUBE->getTrySaveDataData().description;
+			//delete description because this length count is less than broadcast insert api. so maybe this will be failed.
+			//snippetObject["description"] = PLS_PLATFORM_YOUTUBE->getTrySaveDataData().description;
 			object["snippet"] = snippetObject;
 			QJsonObject cdnObject = QJsonObject();
 			cdnObject["frameRate"] = "variable";
@@ -143,25 +160,33 @@ void PLSAPIYoutube::requestLiveBroadcastsBind(const QObject *receiver, dataFunct
 	auto _getNetworkReply = [=] {
 		PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts/bind").arg(g_plsYoutubeAPIHost));
 		builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
-		builder.setQuerys(
-			{{"id", PLS_PLATFORM_YOUTUBE->getTrySaveDataData()._id}, {"streamId", PLS_PLATFORM_YOUTUBE->getTrySaveDataData().boundStreamId}, {"part", "id,contentDetails,status"}});
+		auto &_id = PLS_PLATFORM_YOUTUBE->getTrySaveDataData()._id;
+		auto &_bsID = PLS_PLATFORM_YOUTUBE->getTrySaveDataData().boundStreamId;
+		builder.setQuerys({{"id", _id}, {"streamId", _bsID}, {"part", "id,contentDetails,status"}});
 		addCommenCookieAndUserKey(builder);
-		return builder.post();
+		auto reply = builder.post();
+		PLSAPIVLive::maskingUrlKeys(builder, reply, {_bsID, _id});
+		return reply;
 	};
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 
-void PLSAPIYoutube::requestLiveBroadcastsUpdate(PLSYoutubeLiveinfoData data, const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, RefreshType refreshType)
+void PLSAPIYoutube::requestLiveBroadcastsUpdate(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, RefreshType refreshType)
 {
+	//when kids is true, then this api will call failed.
 	auto _getNetworkReply = [=] {
 		PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost));
 		builder.setContentType(HTTP_CONTENT_TYPE_VALUE);
 		builder.addQuery("part", "contentDetails,status");
 		addCommenCookieAndUserKey(builder);
-		auto nowTime = PLSDateFormate::youtubeTimeStampToString(PLSDateFormate::getNowTimeStamp());
+
+		const auto &data = PLS_PLATFORM_YOUTUBE->getTrySaveDataData();
 		builder.addJsonObject("id", data._id);
-		builder.addJsonObject("contentDetails", data.contentDetails);
+		QJsonObject details = data.contentDetails;
+		setLatency(details, PLS_PLATFORM_YOUTUBE->getTrySaveDataData().latency);
+		builder.addJsonObject("contentDetails", details);
+
 		builder.addJsonObject("status", QVariantMap({{"privacyStatus", data.privacyStatus.toLower()}}));
 		return builder.put();
 	};
@@ -169,20 +194,23 @@ void PLSAPIYoutube::requestLiveBroadcastsUpdate(PLSYoutubeLiveinfoData data, con
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 
-void PLSAPIYoutube::requestCategoryID(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, RefreshType refreshType, bool isAllList, int context)
+void PLSAPIYoutube::requestCategoryID(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, RefreshType refreshType, bool isAllList, qint64 context)
 {
 	auto _getNetworkReply = [=] {
 		QString liveID = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
 		if (isAllList) {
 			for (int i = 0; i < PLS_PLATFORM_YOUTUBE->getScheduleDatas().size(); i++) {
-				auto sche = PLS_PLATFORM_YOUTUBE->getScheduleDatas()[i];
+				const auto &sche = PLS_PLATFORM_YOUTUBE->getScheduleDatas()[i];
 				liveID = liveID.append("%1").arg(i == 0 ? "" : ",").append(sche._id);
 			}
 		}
 		PLSNetworkReplyBuilder builder(QString("%1/videos").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"id", liveID}, {"part", "snippet"}});
+		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"id", liveID}, {"part", "snippet,status"}});
 		addCommenCookieAndUserKey(builder);
-		return builder.get();
+
+		auto reply = builder.get();
+		PLSAPIVLive::maskingUrlKeys(builder, reply, liveID.split(","));
+		return reply;
 	};
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed, nullptr, reinterpret_cast<void *>(context));
@@ -191,13 +219,8 @@ void PLSAPIYoutube::requestCategoryID(const QObject *receiver, dataFunction onSu
 void PLSAPIYoutube::requestCategoryList(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, RefreshType refreshType)
 {
 	auto _getNetworkReply = [=] {
-		const char *lang = static_cast<PLSApp *>(QCoreApplication::instance())->GetLocale();
-		QString currentLangure(lang);
-		bool isKr = 0 == currentLangure.compare(KO_KR, Qt::CaseInsensitive);
-		QString langStr = isKr ? "ko-kr" : "en-us";
-		QString regionCode = isKr ? "kr" : "us";
 		PLSNetworkReplyBuilder builder(QString("%1/videoCategories").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"hl", langStr}, {"regionCode", regionCode}, {"part", "snippet"}});
+		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"hl", pls_get_current_language()}, {"regionCode", pls_get_current_country_short_str()}, {"part", "snippet"}});
 		addCommenCookieAndUserKey(builder);
 		return builder.get();
 	};
@@ -205,11 +228,11 @@ void PLSAPIYoutube::requestCategoryList(const QObject *receiver, dataFunction on
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 
-void PLSAPIYoutube::requestScheduleList(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, RefreshType refreshType, int context)
+void PLSAPIYoutube::requestScheduleList(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, RefreshType refreshType, qint64 context)
 {
 	auto _getNetworkReply = [=] {
 		PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost));
-		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"part", "contentDetails,snippet,status"}, {"broadcastStatus", "upcoming"}, {"maxResults", "50"}, {"pageToken", "@"}});
+		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"part", "contentDetails,snippet,status"}, {"broadcastStatus", "upcoming"}, {"maxResults", "50"}});
 		addCommenCookieAndUserKey(builder);
 		return builder.get();
 	};
@@ -223,7 +246,10 @@ void PLSAPIYoutube::requestCurrentSelectData(const QObject *receiver, dataFuncti
 		PLSNetworkReplyBuilder builder(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost));
 		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"part", "contentDetails,snippet,status"}, {"id", PLS_PLATFORM_YOUTUBE->getSelectData()._id}});
 		addCommenCookieAndUserKey(builder);
-		return builder.get();
+
+		auto reply = builder.get();
+		PLSAPIVLive::maskingUrlKeys(builder, reply, {PLS_PLATFORM_YOUTUBE->getSelectData()._id});
+		return reply;
 	};
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed, nullptr);
@@ -240,7 +266,10 @@ void PLSAPIYoutube::requestLiveStreamKey(const QObject *receiver, dataFunction o
 		PLSNetworkReplyBuilder builder(QString("%1/liveStreams").arg(g_plsYoutubeAPIHost));
 		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).setQuerys({{"part", "snippet,cdn,contentDetails,status"}, {"id", boundStreamID}, {"maxResults", "50"}});
 		addCommenCookieAndUserKey(builder);
-		return builder.get();
+
+		auto reply = builder.get();
+		PLSAPIVLive::maskingUrlKeys(builder, reply, ids);
+		return reply;
 	};
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
 
@@ -253,9 +282,16 @@ void PLSAPIYoutube::requestUpdateVideoData(const QObject *receiver, dataFunction
 		PLSNetworkReplyBuilder builder(QString("%1/videos").arg(g_plsYoutubeAPIHost));
 		builder.setContentType(HTTP_CONTENT_TYPE_VALUE).addQuery("part", "snippet,status");
 		addCommenCookieAndUserKey(builder);
-		builder.addJsonObject("status", QVariantMap({{"privacyStatus", data.privacyStatus.toLower()} /*, {"selfDeclaredMadeForKids", data.isForKids}*/}));
+		QJsonObject tempStatus = data.statusData;
+		tempStatus["privacyStatus"] = data.privacyStatus.toLower();
+		tempStatus["selfDeclaredMadeForKids"] = data.isForKids;
+		builder.addJsonObject("status", tempStatus);
 		builder.addJsonObject("id", data._id);
-		builder.addJsonObject("snippet", QVariantMap({{"description", data.description}, {"title", data.title}, {"categoryId", data.categoryID}}));
+		QJsonObject tempSnippet = data.snippetData;
+		tempSnippet["description"] = data.description;
+		tempSnippet["title"] = data.title;
+		tempSnippet["categoryId"] = data.categoryID;
+		builder.addJsonObject("snippet", tempSnippet);
 		return builder.put();
 	};
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
@@ -312,7 +348,7 @@ void PLSAPIYoutube::refreshYoutubeTokenBeforeRequest(RefreshType refreshType, fu
 
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
 
-	auto &channelData = PLSCHANNELS_API->getChanelInfoRef(youtubeUUID);
+	const auto &channelData = PLSCHANNELS_API->getChanelInfoRef(youtubeUUID);
 	auto token = channelData.value(ChannelData::g_refreshToken).toString();
 
 	QString bodyStr(QString("refresh_token=%0&client_id=%1&client_secret=%2&grant_type=refresh_token").arg(token).arg(YOUTUBE_CLIENT_ID).arg(YOUTUBE_CLIENT_KEY));
@@ -322,6 +358,41 @@ void PLSAPIYoutube::refreshYoutubeTokenBeforeRequest(RefreshType refreshType, fu
 	builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE);
 	builder.setBody(bodyByte);
 	PLS_HTTP_HELPER->connectFinished(builder.post(), originReceiver, _onSucceed, _onFail);
+}
+
+void PLSAPIYoutube::getLatency(const QJsonObject &object, PLSYoutubeLatency &latency)
+{
+	auto latencyPreference = object["latencyPreference"].toString();
+	if (latencyPreference == s_latencyNormal) {
+		latency = PLSYoutubeLatency::Normal;
+	} else if (latencyPreference == s_latencyLow) {
+		latency = PLSYoutubeLatency::Low;
+	} else if (latencyPreference == s_latencyUltraLow) {
+		latency = PLSYoutubeLatency::UltraLow;
+	} else {
+		latency = PLSYoutubeLatency::Low;
+	}
+}
+
+void PLSAPIYoutube::setLatency(QJsonObject &object, PLSYoutubeLatency latency)
+{
+	switch (latency) {
+	case PLSYoutubeLatency::Normal:
+		object["latencyPreference"] = s_latencyNormal;
+		break;
+	case PLSYoutubeLatency::Low:
+		object["latencyPreference"] = s_latencyLow;
+		break;
+	case PLSYoutubeLatency::UltraLow:
+		object["latencyPreference"] = s_latencyUltraLow;
+		break;
+	default:
+		break;
+	}
+
+	if (object.contains("enableLowLatency")) {
+		object.remove("enableLowLatency");
+	}
 }
 
 void PLSAPIYoutube::addCommenCookieAndUserKey(PLSNetworkReplyBuilder &builder)

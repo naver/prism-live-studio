@@ -28,30 +28,29 @@
 using namespace json11;
 
 //PRISM/Wangshaohui/20200917/#3714/for check client
-std::mutex lock_clients;
-std::map<void *, bool> valid_clients;
+std::mutex lock_objects;
+std::map<void *, bool> valid_objects;
 
 //PRISM/Wangshaohui/20200917/#3714/for check client
-void SetValidClient(void *pointer, bool valid)
+void SetObjectValid(void *pointer, bool valid)
 {
-	std::lock_guard<std::mutex> auto_lock(lock_clients);
-	valid_clients[pointer] = valid;
+	std::lock_guard<std::mutex> auto_lock(lock_objects);
+	valid_objects[pointer] = valid;
 }
 
 //PRISM/Wangshaohui/20200917/#3714/for check client
-bool IsClientValid(void *pointer)
+bool IsObjectValid(void *pointer)
 {
 	bool valid = false;
 
 	{
-		std::lock_guard<std::mutex> auto_lock(lock_clients);
-		valid = valid_clients[pointer];
+		std::lock_guard<std::mutex> auto_lock(lock_objects);
+		valid = valid_objects[pointer];
 	}
 
 	if (!valid) {
-		blog(LOG_WARNING, "Invalid object for BrowserClient:%p",
+		plog(LOG_WARNING, "Invalid object for BrowserSource:%p",
 		     pointer);
-		assert(false);
 	}
 
 	return valid;
@@ -60,10 +59,7 @@ bool IsClientValid(void *pointer)
 BrowserClient::~BrowserClient()
 {
 	//PRISM/Wangshaohui/20200813/#3784/for cef interaction
-	blog(LOG_INFO, "Destrcuture function of BrowserClient:%p", this);
-
-	//PRISM/Wangshaohui/20200917/#3714/for check client
-	SetValidClient(this, false);
+	plog(LOG_INFO, "Destructure function of BrowserClient:%p", this);
 
 #if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED && USE_TEXTURE_COPY
 	if (sharing_available) {
@@ -165,7 +161,8 @@ bool BrowserClient::OnProcessMessageReceived(
 	const std::string &name = message->GetName();
 	Json json;
 
-	if (!bs) {
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	if (!bs || !IsObjectValid(bs)) {
 		return false;
 	}
 
@@ -191,6 +188,16 @@ bool BrowserClient::OnProcessMessageReceived(
 			{"streaming", obs_frontend_streaming_active()},
 			{"replaybuffer", obs_frontend_replay_buffer_active()}};
 
+	} //PRISM/ChengBing/20201215/add web log info
+	else if (name == "sendToPrism") {
+		std::string result("{}");
+		const std::string &param =
+			message->GetArgumentList()->GetString(0);
+		if (nullptr != prism_frontend_web_invoked) {
+			result = prism_frontend_web_invoked(param.c_str());
+		}
+		bs->receiveWebMessage(param.c_str());
+
 	} else {
 		return false;
 	}
@@ -213,7 +220,8 @@ bool BrowserClient::GetViewRect(
 #endif
 	CefRefPtr<CefBrowser>, CefRect &rect)
 {
-	if (!bs) {
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	if (!bs || !IsObjectValid(bs)) {
 #if CHROME_VERSION_BUILD >= 3578
 		rect.Set(0, 0, 16, 16);
 		return;
@@ -284,7 +292,8 @@ void BrowserClient::OnPaint(CefRefPtr<CefBrowser>, PaintElementType type,
 	}
 #endif
 
-	if (!bs) {
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	if (!bs || !IsObjectValid(bs)) {
 		return;
 	}
 
@@ -314,7 +323,8 @@ void BrowserClient::OnPaint(CefRefPtr<CefBrowser>, PaintElementType type,
 void BrowserClient::OnAcceleratedPaint(CefRefPtr<CefBrowser>, PaintElementType,
 				       const RectList &, void *shared_handle)
 {
-	if (!bs) {
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	if (!bs || !IsObjectValid(bs)) {
 		return;
 	}
 
@@ -419,25 +429,23 @@ void BrowserClient::OnAudioStreamStarted(CefRefPtr<CefBrowser> browser, int id,
 					 int sample_rate, int)
 {
 	//PRISM/Wangshaohui/20200917/#3714/for check client
-	if (!IsClientValid(this)) {
-		return;
-	}
-
-	if (!bs) {
+	if (!bs || !IsObjectValid(bs)) {
 		return;
 	}
 
 	AudioStream &stream = bs->audio_streams[id];
-	if (!stream.source) {
-		stream.source = obs_source_create_private("audio_line", nullptr,
-							  nullptr);
-		obs_source_release(stream.source);
+	//PRISM/WangShaohui/20210406/#7680/UI block
+	//if (!stream.source) {
+	//	stream.source = obs_source_create_private("audio_line", nullptr,
+	//						  nullptr);
+	//	obs_source_release(stream.source);
 
-		obs_source_add_active_child(bs->source, stream.source);
+	//	obs_source_add_active_child(bs->source, stream.source);
 
-		std::lock_guard<std::mutex> lock(bs->audio_sources_mutex);
-		bs->audio_sources.push_back(stream.source);
-	}
+	//	std::lock_guard<std::mutex> lock(bs->audio_sources_mutex);
+	//	bs->audio_sources.push_back(stream.source);
+	//}
+	CheckAudioSource(stream);
 
 	stream.speakers = GetSpeakerLayout(channel_layout);
 	stream.channels = get_audio_channels(stream.speakers);
@@ -449,15 +457,17 @@ void BrowserClient::OnAudioStreamPacket(CefRefPtr<CefBrowser> browser, int id,
 					int64_t pts)
 {
 	//PRISM/Wangshaohui/20200917/#3714/for check client
-	if (!IsClientValid(this)) {
-		return;
-	}
-
-	if (!bs) {
+	if (!bs || !IsObjectValid(bs)) {
 		return;
 	}
 
 	AudioStream &stream = bs->audio_streams[id];
+
+	//PRISM/WangShaohui/20210406/#7680/UI block
+	if (!CheckAudioSource(stream)) {
+		return;
+	}
+
 	struct obs_source_audio audio = {};
 
 	const uint8_t **pcm = (const uint8_t **)data;
@@ -476,11 +486,7 @@ void BrowserClient::OnAudioStreamPacket(CefRefPtr<CefBrowser> browser, int id,
 void BrowserClient::OnAudioStreamStopped(CefRefPtr<CefBrowser> browser, int id)
 {
 	//PRISM/Wangshaohui/20200917/#3714/for check client
-	if (!IsClientValid(this)) {
-		return;
-	}
-
-	if (!bs) {
+	if (!bs || !IsObjectValid(bs)) {
 		return;
 	}
 
@@ -508,10 +514,12 @@ void BrowserClient::OnAudioStreamStopped(CefRefPtr<CefBrowser> browser, int id)
 void BrowserClient::OnLoadEnd(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
 			      int httpStatusCode)
 {
-	if (!bs) {
+	//PRISM/Wangshaohui/20200917/#3714/for check client
+	if (!bs || !IsObjectValid(bs)) {
 		return;
 	}
 
+	//PRISM/Zhangdewen/20200901/#for chat source
 	// chat source: The event needs to be sent after the page is loaded
 	bs->onBrowserLoadEnd();
 
@@ -534,7 +542,7 @@ void BrowserClient::OnLoadEnd(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame> frame,
 		//PRISM/WangShaohui/20200310/#1332/adding logs for exceptions
 		if (httpStatusCode != 200 && httpStatusCode != ERR_NONE &&
 		    httpStatusCode != ERR_ABORTED) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "obs-browser: OnLoadEnd Exception httpStatus:%d",
 			     httpStatusCode);
 		}
@@ -550,9 +558,57 @@ void BrowserClient::OnLoadError(CefRefPtr<CefBrowser> browser,
 {
 	if (frame->IsMain() && errorCode != ERR_NONE &&
 	    errorCode != ERR_ABORTED) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs-browser: OnLoadError errorCode:%d errorText:%s",
 		     errorCode, errorText.ToString().c_str());
+
+		//PRISM/Zhangdewen/20201102/#5550/for chat source
+		extern void browserLoadError(
+			BrowserSource * bs,
+			CefLoadHandler::ErrorCode errorCode);
+		browserLoadError(bs, errorCode);
+	}
+}
+
+//PRISM/WangShaohui/20210406/#7680/UI block
+bool BrowserClient::CheckAudioSource(AudioStream &stream)
+{
+	if (stream.source) {
+		return true;
+	}
+
+	if (obs_get_source_is_loading()) {
+		return false;
+	} else {
+		stream.source = obs_source_create_private("audio_line", nullptr,
+							  nullptr);
+		obs_source_release(stream.source);
+
+		obs_source_add_active_child(bs->source, stream.source);
+
+		std::lock_guard<std::mutex> lock(bs->audio_sources_mutex);
+		bs->audio_sources.push_back(stream.source);
+
+		return true;
+	}
+}
+
+//PRISM/Wangshaohui/20210114/noIssue/save CEF's log level
+int TransCefLogLevel(cef_log_severity_t level)
+{
+	switch (level) {
+	case LOGSEVERITY_FATAL:
+		return LOG_ERROR;
+
+	case LOGSEVERITY_ERROR:
+	case LOGSEVERITY_WARNING:
+		return LOG_WARNING;
+
+	case LOGSEVERITY_DEBUG:
+		return LOG_DEBUG;
+
+	default:
+		return LOG_INFO;
 	}
 }
 
@@ -568,7 +624,10 @@ bool BrowserClient::OnConsoleMessage(CefRefPtr<CefBrowser>,
 		return false;
 #endif
 
-	blog(LOG_INFO, "obs-browser: %s (source: %s:%d)",
-	     message.ToString().c_str(), source.ToString().c_str(), line);
+	//PRISM/Wangshaohui/20210114/noIssue/save CEF's log level
+	//PRISM/Wangshaohui/20210913/#9672/send log to KR nelo
+	blogex(true, TransCefLogLevel(level), NULL, 0,
+	       "[CEF message] obs-browser: %s (source: %s:%d)",
+	       message.ToString().c_str(), source.ToString().c_str(), line);
 	return false;
 }

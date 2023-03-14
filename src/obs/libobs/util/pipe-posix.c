@@ -95,3 +95,9 @@ size_t os_process_pipe_write(os_process_pipe_t *pp, const uint8_t *data,
 
 	return fwrite(data, 1, len, pp->file);
 }
+
+//PRISM/LiuHaibin/20211009/#9908/cancel io
+void os_process_pipe_cancelio(os_process_pipe_t *pp)
+{
+	UNUSED_PARAMETER(pp);
+}

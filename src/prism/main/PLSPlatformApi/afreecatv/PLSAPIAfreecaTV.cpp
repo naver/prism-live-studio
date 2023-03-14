@@ -11,6 +11,8 @@
 #include "frontend-api.h"
 #include "pls-common-define.hpp"
 #include "pls-gpop-data.hpp"
+#include "../vlive/PLSAPIVLive.h"
+#include <QTextDocument>
 
 using namespace std;
 
@@ -30,7 +32,9 @@ void PLSAPIAfreecaTV::requestUsersNickName(const QString &userID, const QObject 
 	QString url = g_plsAfreecaTVUserNick.arg(userID);
 	PLSHmacNetworkReplyBuilder builder(url, HmacType::HT_NONE);
 	addCommonData(builder);
-	PLS_HTTP_HELPER->connectFinished(builder.get(), receiver, onSucceed, onFailed);
+	auto reply = builder.get();
+	PLSAPIVLive::maskingUrlKeys(builder, reply, {userID});
+	PLS_HTTP_HELPER->connectFinished(reply, receiver, onSucceed, onFailed);
 }
 
 void PLSAPIAfreecaTV::requestDashboradData(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed)
@@ -45,7 +49,7 @@ void PLSAPIAfreecaTV::requestDashboradData(const QObject *receiver, dataFunction
 void PLSAPIAfreecaTV::requestCategoryList(const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed)
 {
 	PLS_INFO(MODULE_PlatformService, __FUNCTION__ " start");
-	QString url = g_plsAfreecaTVCategories.arg(isEnglishLanguage() ? "en_US" : "ko_KR");
+	QString url = g_plsAfreecaTVCategories.arg(IS_ENGLISH() ? "en_US" : "ko_KR");
 	PLSHmacNetworkReplyBuilder builder(url, HmacType::HT_NONE);
 	addCommonData(builder);
 	PLS_HTTP_HELPER->connectFinished(builder.get(), receiver, onSucceed, onFailed);
@@ -60,7 +64,9 @@ void PLSAPIAfreecaTV::requestLiveID(const QObject *receiver, dataFunction onSucc
 	QString url = g_plsAfreecaTVLiveID.arg(channelId);
 	PLSHmacNetworkReplyBuilder builder(url, HmacType::HT_NONE);
 	builder.addField("bid", channelId);
-	PLS_HTTP_HELPER->connectFinished(builder.get(), receiver, onSucceed, onFailed);
+	auto reply = builder.get();
+	PLSAPIVLive::maskingUrlKeys(builder, reply, {channelId});
+	PLS_HTTP_HELPER->connectFinished(reply, receiver, onSucceed, onFailed);
 }
 
 void PLSAPIAfreecaTV::updateLiveInfo(const QObject *receiver, const QString &title, dataFunction onSucceed, dataErrorFunction onFailed)
@@ -126,8 +132,8 @@ void PLSAPIAfreecaTV::addCommonData(PLSNetworkReplyBuilder &builder, bool forceK
 	builder.addRawHeader("Cookie", PLS_PLATFORM_AFREECATV->getChannelCookie());
 	QString acceptLanguage = "ko;q=0.9,en;q=0.8,zh;q=0.7,ja;q=0.6";
 
-	if (isEnglishLanguage() && !forceKo) {
-		acceptLanguage = "en;q=0.9,ko;q=0.8,zh;q=0.7,ja;q=0.6";
+	if (IS_ENGLISH() && !forceKo) {
+		acceptLanguage = pls_get_current_accept_language();
 	}
 	builder.addRawHeader("Accept-Language", acceptLanguage);
 }
@@ -159,7 +165,7 @@ void PLSAPIAfreecaTV::readDataByRegu(PLSAfreecaTVLiveinfoData &data, const QStri
 	data.waiting_time = getValue(compareS);
 
 	compareS = getFirstReg(htmlStr, regTemp.arg("frmTitle"));
-	data.frmTitle = getValue(compareS);
+	data.frmTitle = decodeHtmlContent(getValue(compareS));
 
 	compareS = getFirstReg(htmlStr, regTemp.arg("frmTuneOut"));
 	data.b_frmTuneOut = getIsCheck(htmlStr, compareS);
@@ -189,7 +195,7 @@ void PLSAPIAfreecaTV::readDataByRegu(PLSAfreecaTVLiveinfoData &data, const QStri
 	data.frmByeBye = getValueOfFrmByeBye(compareS);
 
 	compareS = getFirstReg(htmlStr, regTemp.arg("frmStreamKey"));
-	data.frmStreamKey = getValue(compareS);
+	data.frmStreamKey = decodeHtmlContent(getValue(compareS));
 
 	compareS = getFirstReg(htmlStr, serverUrlReg);
 	data.frmServerUrl = getValueOfFrmByeBye(compareS);
@@ -199,7 +205,7 @@ void PLSAPIAfreecaTV::readDataByRegu(PLSAfreecaTVLiveinfoData &data, const QStri
 	if (data.b_containFrmAccess) {
 		data.frmAccess = getValue(compareS);
 		compareS = getFirstReg(htmlStr, regTemp.arg("frmAccessCode"));
-		data.frmAccessCode = getValue(compareS);
+		data.frmAccessCode = decodeHtmlContent(getValue(compareS));
 	}
 }
 
@@ -303,11 +309,6 @@ bool PLSAPIAfreecaTV::getIsCheck(const QString &htmlStr, const QString &getIdStr
 	return classStr.contains("class=\"on\"");
 }
 
-bool PLSAPIAfreecaTV::isEnglishLanguage()
-{
-	return (QString(App()->GetLocale()).contains("en", Qt::CaseInsensitive));
-}
-
 void PLSAPIAfreecaTV::recursiveConvertCategory(const QJsonArray &categories, vector<PLSAfreecaTVCategory> &recieveData)
 {
 	for (int i = 0; i < categories.size(); i++) {
@@ -356,4 +357,11 @@ bool PLSAPIAfreecaTV::recursiveFindSelectStr(const QString &selectID, QStringLis
 		}
 	}
 	return isFind;
+}
+
+QString PLSAPIAfreecaTV::decodeHtmlContent(const QString &str)
+{
+	QTextDocument text;
+	text.setHtml(str);
+	return text.toPlainText();
 }

@@ -12,9 +12,7 @@ PLSUpdateView #middleWidget
 	min-height:/*hdpi*/233px;
 	max-height:/*hdpi*/233px;
 }
-PLSUpdateView, PLSUpdateView QWidget {
-	background-color: #111111;
-}
+
 
 PLSUpdateView #middleWidget QWidget {
 	background-color:#1e1e1e;

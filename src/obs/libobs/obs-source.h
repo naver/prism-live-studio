@@ -78,6 +78,19 @@ enum obs_icon_type {
 
 	//PRISM/Wangshaohui/20200914/NoIssue/giphy source
 	OBS_ICON_TYPE_GIPHY,
+
+	//PRISM/Zengqin/20201020/NoIssue/spectralizer source
+	OBS_ICON_TYPE_SPECTRALIZER,
+
+	//PRISM/zhangdewen/20201016/Noissue/virtual background
+	OBS_ICON_TYPE_VIRTUAL_BACKGROUND,
+
+	OBS_ICON_TYPE_PRISM_MOBILE,
+	//PRISM/Xiewei/20210610/NoIssue/PRISM Sticker
+	OBS_ICON_TYPE_PRISM_STICKER,
+
+	//PRISM/RenJinbo/20210628/NoIssue/PRISM Timer
+	OBS_ICON_TYPE_PRISM_TIMER,
 };
 
 enum obs_media_state {
@@ -89,11 +102,6 @@ enum obs_media_state {
 	OBS_MEDIA_STATE_STOPPED,
 	OBS_MEDIA_STATE_ENDED,
 	OBS_MEDIA_STATE_ERROR,
-};
-
-//PRISM/Wangshaohui/20200701/#3174/camera effect
-enum obs_source_state_flag {
-	OBS_SOURCE_STATE_ACTIVE = 0X00000001,
 };
 
 //PRISM/WangShaohui/20200210/#281/for source unavailable
@@ -200,6 +208,14 @@ enum obs_source_error {
  */
 #define OBS_SOURCE_CAP_DISABLED (1 << 10)
 
+//PRISM/LiuHaibin/20201029/#None/merge obs code
+//SHA-1: 70582174c3c766008c6ea5e2be32c432f595f44e
+//libobs: Add the ability to make sources obsolete
+/**
+ * Source type is obsolete (has been updated with new defaults/properties/etc)
+ */
+#define OBS_SOURCE_CAP_OBSOLETE OBS_SOURCE_CAP_DISABLED
+
 /**
  * Source should enable monitoring by default.  Monitoring should be set by the
  * frontend if this flag is set.
@@ -213,6 +229,9 @@ enum obs_source_error {
  * Source type can be controlled by media controls
  */
 #define OBS_SOURCE_CONTROLLABLE_MEDIA (1 << 13)
+
+//PRISM/LiuHaibin/20210223/#None/source will output shared texture to libobs
+#define OBS_SOURCE_ASYNC_TEXTURE (1 << 14)
 
 /** @} */
 
@@ -550,6 +569,7 @@ struct obs_source_info {
 	int64_t (*media_get_time)(void *data);
 	void (*media_set_time)(void *data, int64_t miliseconds);
 	enum obs_media_state (*media_get_state)(void *data);
+
 	//PRISM/ZengQin/20200616/#3179/for media controller
 	bool (*is_update_done)(void *data);
 
@@ -565,34 +585,41 @@ struct obs_source_info {
 	void (*get_private_data)(void *data, obs_data_t *data_output);
 
 	/* ----------------------------------------------------------------- */
-	//PRISM/LiuHaibin/20200609/#/camera effect
-	/* optional, only for camera source (dshow plugin) */
-
-	/* push shared handle back to dshow plugin */
-	void (*push_shared_handle)(void *data, uint32_t shared_handle,
-				   struct gs_luid *luid, bool flip,
-				   uint64_t sys_time);
-
-	/* return true if camera effect is on, false otherwise */
-	bool (*cam_effect_on)(void *data);
-
-	void (*on_async_tick)(void *data);
-
-	/* retrieve the beauty result texture from dshow plugin */
-	gs_texture_t *(*retrieve_texture)(void *data);
-
-	/* return true if previous operation is changing beauty */
-	bool (*cam_effect_switching)(void *data);
-
-	/* get state set of enum obs_source_state_flag for source */
-	unsigned (*source_state_flags)(void *data);
-
-	/* ----------------------------------------------------------------- */
 	//PRISM/Zhangdewen/20200921/#/chat source
 	// source properties window open
 	void (*properties_edit_start)(void *data, obs_data_t *settings);
 	// source properties window close
-	void (*properties_edit_end)(void *data, obs_data_t *settings);
+	void (*properties_edit_end)(void *data, obs_data_t *settings,
+				    bool is_save_click);
+
+	//PRISM/Zhangdewen/20201026/feature/virtual background
+	obs_properties_t *(*get_private_properties)(void *data,
+						    void *type_data);
+	//PRISM/Zhangdewen/20201026/feature/virtual background
+	void (*get_private_defaults)(obs_data_t *settings);
+	//PRISM/Zhangdewen/20201026/feature/virtual background
+	void (*private_update)(void *data, obs_data_t *settings);
+	//PRISM/Zhangdewen/20201026/feature/virtual background
+	void (*private_reset)(void *data, obs_data_t *settings);
+
+	//PRISM/LiuHaibin/20210226/#None/render custom effect on texture
+	gs_texture_t *(*render_custom_effects)(void *data,
+					       gs_texture_t *texture);
+
+	//PRISM/LiuHaibin/20210406/#None/return if source should be invisible on main view
+	bool (*invisible_on_main_view)(void *data);
+
+	//PRISM/ZengQin/20210415/#none/test module for source
+	void (*custom_test)(void *data);
+	//PRISM/ZengQin/20210526/#none/Get important source properties parameters
+	obs_data_t *(*props_params)(void *data);
+
+	//PRISM/RenJinbo/20210603/#none/timer source feature
+	void (*cef_dispatch_js)(void *data, const char *eventName,
+				const char *jsContent);
+	//PRISM/Zhangdewen/20211015/#/Chat Source Event
+	void (*update_extern_params)(void *data,
+				     const calldata_t *extern_params);
 };
 
 EXPORT void obs_register_source_s(const struct obs_source_info *info,

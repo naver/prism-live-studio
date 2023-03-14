@@ -1,0 +1,140 @@
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vue-recycle-scroller__item-view {
+  > div {
+    padding: 2px 0;
+  }
+}
+
+/* DynamicScrollerItem component can't inject the custom className, so use the native className */
+.vue-recycle-scroller__item-view.hover {
+  .chat-info-item:not(.is-manager) {
+    background-color: #272727;
+  }
+
+  .chat-info-item.shopping-item {
+    background-color: transparent;
+  }
+
+  .chat-info-item.shopping-item.notice {
+    background-color: #272727;
+  }
+
+  .chat-btn-close {
+    display: block;
+  }
+  .is-notice-error{
+    .chat-btn-close{
+      display: none;
+    }
+  }
+}
+
+.vue-recycle-scroller__item-view {
+  .shopping-item.notice {
+    background-color: #272727;
+  }
+}
+
+.chat-info-item {
+  word-break: break-word;
+  position: relative;
+  padding: 10px 20px;
+  transition: all .2s;
+
+  .chat-btns {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+
+  .chat-btn-close {
+    display: none;
+  }
+
+  .channel-img {
+    width: 18px;
+    height: 18px;
+    margin-right: 5px;
+  }
+
+  .title {
+    display: flex;
+    align-items: center;
+    color: #999;
+    font-weight: bolder;
+    line-height: 18px;
+
+    > div {
+      flex-shrink: 0;
+    }
+
+    .author-name {
+      flex-shrink: 1;
+    }
+  }
+
+  .author-name {
+    display: inline-block;
+
+    @extend .ellipsis;
+  }
+
+  .message {
+    margin-top: 10px;
+    font-size: 14px;
+    line-height: 18px;
+    word-break: break-all;
+  }
+
+  .chat-sup {
+    display: block;
+    height: 14px;
+    line-height: 14px;
+    margin-top: 5px;
+    color: #666;
+  }
+
+  &.is-self {
+    background-color: #272727;
+
+    .author-name {
+      color: #effc35;
+    }
+  }
+
+  &.is-manager {
+    background-color: #ffffff;
+
+    .author-name {
+      color: #1d1d1e;
+    }
+
+    .message {
+      color: rgba(0, 0, 0, .5);
+    }
+
+    .chat-sup {
+      color: rgba(0, 0, 0, .25);
+    }
+  }
+
+  .badge-img-box {
+    height: 12px;
+    margin-right: 2px;
+    font-size: 0;
+
+    &.medium {
+      height: 15px;
+    }
+
+    .badge-img {
+      margin-right: 4px;
+      height: 100%;
+    }
+  }
+}

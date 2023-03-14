@@ -19,6 +19,9 @@
 
 static void *gpu_encode_thread(void *unused)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct obs_core_video *video = &obs->video;
 	uint64_t interval = video_output_get_frame_time(obs->video.video);
 	DARRAY(obs_encoder_t *) encoders;
@@ -59,6 +62,9 @@ static void *gpu_encode_thread(void *unused)
 
 		for (size_t i = 0; i < video->gpu_encoders.num; i++) {
 			obs_encoder_t *encoder = video->gpu_encoders.array[i];
+			//PRISM/LiuHaibin/20210811/#9237/if ref <= -1, it means this encoder has been released in UI, and app is about to close
+			if (obs_encoder_ref_count(encoder) <= -1)
+				continue;
 			da_push_back(encoders, &encoder);
 			obs_encoder_addref(encoder);
 		}
@@ -88,6 +94,12 @@ static void *gpu_encode_thread(void *unused)
 
 			if (video_pause_check(&encoder->pause, timestamp))
 				continue;
+
+			if (encoder->reconfigure_requested) {
+				encoder->reconfigure_requested = false;
+				encoder->info.update(encoder->context.data,
+						     encoder->context.settings);
+			}
 
 			if (!encoder->start_ts)
 				encoder->start_ts = timestamp;
@@ -196,6 +208,7 @@ bool init_gpu_encoding(struct obs_core_video *video)
 void stop_gpu_encoding_thread(struct obs_core_video *video)
 {
 	if (video->gpu_encode_thread_initialized) {
+		plog(LOG_INFO, "%s is called.", __FUNCTION__);
 		os_atomic_set_bool(&video->gpu_encode_stop, true);
 		os_sem_post(video->gpu_encode_semaphore);
 		pthread_join(video->gpu_encode_thread, NULL);

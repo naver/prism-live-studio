@@ -12,7 +12,7 @@ QSlider::handle:horizontal {
 	image:url(":/images/img-handle-normal.svg");
 	height:/*hdpi*/ 14px;
 	width:/*hdpi*/ 14px;
-	margin:/*hdpi*/-5px/*hdpi*/0px/*hdpi*/-5px/*hdpi*/-2px;
+	margin:/*hdpi*/-5px/*hdpi*/-2px/*hdpi*/-5px/*hdpi*/-2px;
 }
 
 QSlider::handle:horizontal[handle="false"], QSlider::handle:horizontal[handle="false"][enter="false"]
@@ -24,14 +24,22 @@ QSlider::handle:horizontal[enter="false"], QSlider::handle:horizontal[enter="fal
 	image:url(":/images/img-handle-normal.svg");
 	height:/*hdpi*/ 14px;
 	width:/*hdpi*/ 14px;
-	margin:/*hdpi*/-5px/*hdpi*/0px/*hdpi*/-5px/*hdpi*/-2px;
+	margin:/*hdpi*/-5px/*hdpi*/-2px/*hdpi*/-5px/*hdpi*/-2px;
 }
 
 QSlider::handle:horizontal[enter="true"], QSlider::handle:horizontal[enter="true"][handle="true"] {
 	image:url(":/images/img-handle-over.svg");
 	height:/*hdpi*/ 18px;
 	width:/*hdpi*/ 18px;
-	margin:/*hdpi*/-7px/*hdpi*/0px/*hdpi*/-7px/*hdpi*/-2px;
+	margin:/*hdpi*/-7px/*hdpi*/-2px/*hdpi*/-7px/*hdpi*/-2px;
+}
+
+QSlider::groove:horizontal,
+QSlider::handle:horizontal,
+QSlider::handle:horizontal:hover,
+QSlider::sub-page:horizontal,
+QSlider::sub-page:horizontal:disabled {
+	border-radius:/*hdpi*/2px;
 }
 
 QSlider::sub-page:horizontal {

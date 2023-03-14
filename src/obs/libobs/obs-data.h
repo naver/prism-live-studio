@@ -59,14 +59,21 @@ enum obs_data_number_type {
 };
 
 //PRISM/Wangshaohui/20200927/#4868/for property UI
-#define PROPERTY_FLAG_NO_LABEL_HEADER 0x00000001
-
+#define PROPERTY_FLAG_NO_LABEL_HEADER 1 << 0
+//PRISM/Zengqin/20201125/no label for single property.
+#define PROPERTY_FLAG_NO_LABEL_SINGLE 1 << 1
+//PRISM/Zengqin/20201125/child control for property.
+#define PROPERTY_FLAG_CHILD_CONTROL 1 << 2
+//PRISM/Liuying/20201202/default audio device.
+#define DEFAULT_AUDIO_DEVICE_FLAG 1 << 3
+//PRSIM/RenJinbo/20210615/add fixed button width.
+#define PROPERTY_FLAG_BUTTON_WIDTH_FIXED 1 << 4
 /* ------------------------------------------------------------------------- */
 /* Main usage functions */
 
 //PRISM/Wangshaohui/20200927/#4868/for property UI
-EXPORT void obs_data_set_flags(obs_data_t *data, unsigned value);
-EXPORT unsigned obs_data_get_flags(obs_data_t *data);
+EXPORT void obs_data_add_flags(obs_data_t *data, uint32_t flag);
+EXPORT uint32_t obs_data_get_flags(obs_data_t *data);
 
 EXPORT obs_data_t *obs_data_create();
 EXPORT obs_data_t *obs_data_create_from_json(const char *json_string);

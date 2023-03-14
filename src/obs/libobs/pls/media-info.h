@@ -12,6 +12,7 @@ extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
 #include <util/threading.h>
+#include <util/darray.h>
 
 enum mi_type {
 	MI_TYPE_BOOL,
@@ -53,13 +54,13 @@ typedef struct mi_metadata {
 } mi_metadata_t;
 
 /** audio cover */
-typedef struct mi_cover {
+typedef struct mi_video_frame {
 	char *data;
 	int size;
 	int width;
 	int height;
 	enum AVPixelFormat format;
-} mi_cover_t;
+} mi_cover_t, mi_frame_t;
 
 /** -------------------------------------------------------------- */
 /** ---------- define of the main struct for media info ---------- */
@@ -75,11 +76,21 @@ typedef struct media_info {
 	bool abort;
 	bool has_cover;
 	int cover_index;
+	int video_index;
+	int audio_index;
 	mi_cover_t cover;
+	mi_frame_t first_frame;
 	mi_metadata_t metadata;
 	mi_id3v2_t id3v2;
 	bool id3v2_ready;
 } media_info_t;
+
+typedef struct media_remux {
+	AVFormatContext *ofmt_ctx;
+	DARRAY(media_info_t *) mis;
+	int64_t ts;
+	unsigned int fps;
+} media_remux_t;
 
 /** --------------------------------------------------------------------- */
 /** ---------- interfaces for getting media info from file/url ---------- */
@@ -131,6 +142,10 @@ EXPORT bool mi_del_id3v2(mi_id3v2_t *id3v2);
 
 /** return true if there are id3v2 infos still queued in core audio, false otherwise */
 EXPORT bool mi_id3v2_queued();
+
+/** return true if media remux success, false otherwise */
+EXPORT bool mi_remux_do(const char *in_path, const char *out_filename,
+			unsigned int fps);
 
 #ifdef __cplusplus
 }

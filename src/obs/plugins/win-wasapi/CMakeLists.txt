@@ -1,12 +1,14 @@
 project(win-wasapi)
 
 set(win-wasapi_HEADERS
-	enum-wasapi.hpp)
+	enum-wasapi.hpp
+	MMNotificationClient.h)
 
 set(win-wasapi_SOURCES
 	win-wasapi.cpp
 	enum-wasapi.cpp
-	plugin-main.cpp)
+	plugin-main.cpp
+	MMNotificationClient.cpp)
 
 add_library(win-wasapi MODULE
 	${win-wasapi_SOURCES}

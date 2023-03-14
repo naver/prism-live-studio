@@ -33,7 +33,8 @@ void PLSComplexHeaderIcon::setPixmap(const QString &pix, const QSize &size)
 		QPainter painter(&pixmap);
 		svgRenderer.render(&painter);
 	} else {
-		pixmap.load(pix);
+		extern bool getPrismUserThumbnail(QPixmap & pixmap);
+		getPrismUserThumbnail(pixmap);
 	}
 	if (pixmap.size().width() < 110 && pixmap.height() < 110) {
 		pixmap = pixmap.scaled(QSize(300, 300), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);

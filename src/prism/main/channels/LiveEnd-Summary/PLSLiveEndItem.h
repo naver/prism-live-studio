@@ -11,18 +11,18 @@ class PLSLiveEndItem : public QFrame {
 	Q_OBJECT
 
 public:
-	explicit PLSLiveEndItem(const QString &uuid, QWidget *parent = nullptr, int superWidth = 599);
+	explicit PLSLiveEndItem(const QString &uuid, QWidget *parent = nullptr);
 	~PLSLiveEndItem();
 
-	void combineTwoImage();
-	void setupStatusWidget();
+	void setNameElideString();
 
 private:
 	Ui::PLSLiveEndItem *ui;
 	const QVariantMap &mSourceData;
-	int m_superWidth = 0;
 	void setupData();
-	QString PLSLiveEndItem::toThousandsNum(QString numString);
+	QString toThousandsNum(QString numString);
+	void combineTwoImage();
+	void setupStatusWidget();
 };
 
 #endif // PLSLIVEENDITEM_H

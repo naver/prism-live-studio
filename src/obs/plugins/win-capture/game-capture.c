@@ -17,9 +17,9 @@
 #include "app-helpers.h"
 #include "nt-stuff.h"
 
-#define do_log(level, format, ...)                  \
-	blog(level, "[game-capture: '%s'] " format, \
-	     obs_source_get_name(gc->source), ##__VA_ARGS__)
+#define do_log(level, format, ...)                                \
+	plog(level, "[game-capture: '%s'] obs_source:%p " format, \
+	     obs_source_get_name(gc->source), gc->source, ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
 #define info(format, ...) do_log(LOG_INFO, format, ##__VA_ARGS__)
@@ -56,8 +56,9 @@
 #define TEXT_ANY_FULLSCREEN      obs_module_text("GameCapture.AnyFullscreen")
 #define TEXT_SLI_COMPATIBILITY   obs_module_text("SLIFix")
 #define TEXT_ALLOW_TRANSPARENCY  obs_module_text("AllowTransparency")
-#define TEXT_FORCE_SCALING       obs_module_text("GameCapture.ForceScaling")
-#define TEXT_SCALE_RES           obs_module_text("GameCapture.ScaleRes")
+//PRISM/Liuying/20210527/#7071/Remove game capture scaling
+//#define TEXT_FORCE_SCALING       obs_module_text("GameCapture.ForceScaling")
+//#define TEXT_SCALE_RES           obs_module_text("GameCapture.ScaleRes")
 #define TEXT_WINDOW              obs_module_text("WindowCapture.Window")
 #define TEXT_MATCH_PRIORITY      obs_module_text("WindowCapture.Priority")
 #define TEXT_MATCH_TITLE         obs_module_text("WindowCapture.Priority.Title")
@@ -115,6 +116,11 @@ struct game_capture_config {
 	bool anticheat_hook;
 	enum hook_rate hook_rate;
 };
+
+typedef DPI_AWARENESS_CONTEXT(WINAPI *PFN_SetThreadDpiAwarenessContext)(
+	DPI_AWARENESS_CONTEXT);
+typedef DPI_AWARENESS_CONTEXT(WINAPI *PFN_GetThreadDpiAwarenessContext)(VOID);
+typedef DPI_AWARENESS_CONTEXT(WINAPI *PFN_GetWindowDpiAwarenessContext)(HWND);
 
 struct game_capture {
 	obs_source_t *source;
@@ -182,6 +188,10 @@ struct game_capture {
 	};
 
 	void (*copy_texture)(struct game_capture *);
+
+	PFN_SetThreadDpiAwarenessContext set_thread_dpi_awareness_context;
+	PFN_GetThreadDpiAwarenessContext get_thread_dpi_awareness_context;
+	PFN_GetWindowDpiAwarenessContext get_window_dpi_awareness_context;
 };
 
 struct graphics_offsets offsets32 = {0};
@@ -565,6 +575,15 @@ static void game_capture_update(void *data, obs_data_t *settings)
 	} else {
 		gc->initial_config = false;
 	}
+
+	//PRISM/WangShaohui/20210401/NoIssue/add debug log
+	char temp[256];
+	os_extract_file_name(cfg.executable, temp, ARRAY_SIZE(temp) - 1);
+	info("game updated. title:%s class:%s exe:%s mode:%d matchPriority:%d force_shmem:%d anticheat_hook:%d allow_transparency:%d limit_framerate:%d capture_overlays:%d hook_rate:%d",
+	     cfg.title ? cfg.title : "empty", cfg.class ? cfg.class : "empty",
+	     temp, cfg.mode, cfg.priority, cfg.force_shmem, cfg.anticheat_hook,
+	     cfg.allow_transparency, cfg.limit_framerate, cfg.capture_overlays,
+	     cfg.hook_rate);
 }
 
 //PRISM/WangShaohui/20200117/#281/for source unavailable
@@ -586,13 +605,22 @@ static void set_game_invalid(struct game_capture *gc,
 	}
 }
 
-extern void wait_for_hook_initialization(void);
+//PRISM/WangShaohui/20210324/#7356/avoid deadlock
+extern bool wait_for_hook_initialization(bool);
 
 static void *game_capture_create(obs_data_t *settings, obs_source_t *source)
 {
+	//PRISM/WangShaohui/20210324/#7356/avoid deadlock
+	if (!wait_for_hook_initialization(false)) {
+		obs_source_set_capture_valid(source, false,
+					     OBS_SOURCE_ERROR_UNKNOWN);
+		return NULL;
+	}
+
 	struct game_capture *gc = bzalloc(sizeof(*gc));
 
-	wait_for_hook_initialization();
+	//PRISM/WangShaohui/20210324/#7356/avoid deadlock
+	//wait_for_hook_initialization();
 
 	gc->source = source;
 	gc->initial_config = true;
@@ -601,6 +629,35 @@ static void *game_capture_create(obs_data_t *settings, obs_source_t *source)
 	gc->hotkey_pair = obs_hotkey_pair_register_source(
 		gc->source, HOTKEY_START, TEXT_HOTKEY_START, HOTKEY_STOP,
 		TEXT_HOTKEY_STOP, hotkey_start, hotkey_stop, gc, gc);
+
+	const HMODULE hModuleUser32 = GetModuleHandle(L"User32.dll");
+	if (hModuleUser32) {
+		PFN_SetThreadDpiAwarenessContext
+			set_thread_dpi_awareness_context =
+				(PFN_SetThreadDpiAwarenessContext)GetProcAddress(
+					hModuleUser32,
+					"SetThreadDpiAwarenessContext");
+		PFN_GetThreadDpiAwarenessContext
+			get_thread_dpi_awareness_context =
+				(PFN_GetThreadDpiAwarenessContext)GetProcAddress(
+					hModuleUser32,
+					"GetThreadDpiAwarenessContext");
+		PFN_GetWindowDpiAwarenessContext
+			get_window_dpi_awareness_context =
+				(PFN_GetWindowDpiAwarenessContext)GetProcAddress(
+					hModuleUser32,
+					"GetWindowDpiAwarenessContext");
+		if (set_thread_dpi_awareness_context &&
+		    get_thread_dpi_awareness_context &&
+		    get_window_dpi_awareness_context) {
+			gc->set_thread_dpi_awareness_context =
+				set_thread_dpi_awareness_context;
+			gc->get_thread_dpi_awareness_context =
+				get_thread_dpi_awareness_context;
+			gc->get_window_dpi_awareness_context =
+				get_window_dpi_awareness_context;
+		}
+	}
 
 	game_capture_update(gc, settings);
 	//PRISM/WangShaohui/20200117/#281/for source unavailable
@@ -642,14 +699,18 @@ static bool check_file_integrity(struct game_capture *gc, const char *file,
 	}
 
 	error = GetLastError();
+
+	char temp[256];
+	os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+
 	if (error == ERROR_FILE_NOT_FOUND) {
-		warn("Game capture file '%s' not found." STOP_BEING_BAD, file);
+		warn("Game capture file '%s' not found." STOP_BEING_BAD, temp);
 	} else if (error == ERROR_ACCESS_DENIED) {
 		warn("Game capture file '%s' could not be loaded." STOP_BEING_BAD,
-		     file);
+		     temp);
 	} else {
 		warn("Game capture file '%s' could not be loaded: %lu." STOP_BEING_BAD,
-		     file, error);
+		     temp, error);
 	}
 
 	return false;
@@ -684,7 +745,10 @@ static inline bool open_target_process(struct game_capture *gc)
 	gc->target_process = open_process(
 		PROCESS_QUERY_INFORMATION | SYNCHRONIZE, false, gc->process_id);
 	if (!gc->target_process) {
-		warn("could not open process: %s", gc->config.executable);
+		char temp[256];
+		os_extract_file_name(gc->config.executable, temp,
+				     ARRAY_SIZE(temp) - 1);
+		warn("could not open process: %s", temp);
 		return false;
 	}
 
@@ -740,8 +804,10 @@ static inline bool attempt_existing_hook(struct game_capture *gc)
 {
 	gc->hook_restart = open_event_gc(gc, EVENT_CAPTURE_RESTART);
 	if (gc->hook_restart) {
-		debug("existing hook found, signaling process: %s",
-		      gc->config.executable);
+		char temp[256];
+		os_extract_file_name(gc->config.executable, temp,
+				     ARRAY_SIZE(temp) - 1);
+		debug("existing hook found, signaling process: %s", temp);
 		SetEvent(gc->hook_restart);
 		return true;
 	}
@@ -818,8 +884,10 @@ static inline bool init_hook_info(struct game_capture *gc)
 static void pipe_log(void *param, uint8_t *data, size_t size)
 {
 	struct game_capture *gc = param;
-	if (data && size)
-		info("%s", data);
+	if (data && size) {
+		//PRISM/WangShaohui/20210917/NoIssue/add debug log
+		info("[gameDll] %s", data);
+	}
 }
 
 static inline bool init_pipe(struct game_capture *gc)
@@ -870,8 +938,11 @@ static inline bool hook_direct(struct game_capture *gc,
 
 	process = open_process(PROCESS_ALL_ACCESS, false, gc->process_id);
 	if (!process) {
-		warn("hook_direct: could not open process: %s (%lu)",
-		     gc->config.executable, GetLastError());
+		char temp[256];
+		os_extract_file_name(gc->config.executable, temp,
+				     ARRAY_SIZE(temp) - 1);
+		warn("hook_direct: could not open process: %s (%lu)", temp,
+		     GetLastError());
 		return false;
 	}
 
@@ -1023,20 +1094,22 @@ static bool init_hook(struct game_capture *gc)
 	struct dstr exe = {0};
 	bool blacklisted_process = false;
 
+	char temp[256];
+	os_extract_file_name(exe.array, temp, ARRAY_SIZE(temp) - 1);
+
 	if (gc->config.mode == CAPTURE_MODE_ANY) {
 		if (get_window_exe(&exe, gc->next_window)) {
-			info("attempting to hook fullscreen process: %s",
-			     exe.array);
+			info("attempting to hook fullscreen process: %s", temp);
 		}
 	} else {
 		if (get_window_exe(&exe, gc->next_window)) {
-			info("attempting to hook process: %s", exe.array);
+			info("attempting to hook process: %s", temp);
 		}
 	}
 
 	blacklisted_process = is_blacklisted_exe(exe.array);
 	if (blacklisted_process)
-		info("cannot capture %s due to being blacklisted", exe.array);
+		info("cannot capture %s due to being blacklisted", temp);
 	dstr_free(&exe);
 
 	if (blacklisted_process) {
@@ -1113,6 +1186,28 @@ static void setup_window(struct game_capture *gc, HWND window)
 			3.0f * hook_rate_to_float(gc->config.hook_rate);
 		gc->wait_for_target_startup = false;
 	} else {
+		//PRISM/WangShaohui/20210401/NoIssue/add debug log
+		if (gc->next_window != window) {
+			struct dstr title = {0};
+			struct dstr exe = {0};
+			get_window_title(&title, window);
+			get_window_exe(&exe, window);
+
+			char temp[256];
+			os_extract_file_name(exe.array, temp,
+					     ARRAY_SIZE(temp) - 1);
+
+			info("game found. title:%s exe:%s",
+			     title.array ? title.array : "empty", temp);
+
+			if (title.array) {
+				dstr_free(&title);
+			}
+			if (exe.array) {
+				dstr_free(&exe);
+			}
+		}
+
 		gc->next_window = window;
 	}
 }
@@ -1836,10 +1931,26 @@ static void game_capture_tick(void *data, float seconds)
 			}
 
 			if (gc->config.cursor) {
+				DPI_AWARENESS_CONTEXT previous = NULL;
+				if (gc->get_window_dpi_awareness_context !=
+				    NULL) {
+					const DPI_AWARENESS_CONTEXT context =
+						gc->get_window_dpi_awareness_context(
+							gc->window);
+					previous =
+						gc->set_thread_dpi_awareness_context(
+							context);
+				}
+
 				check_foreground_window(gc, seconds);
 				obs_enter_graphics();
 				cursor_capture(&gc->cursor_data);
 				obs_leave_graphics();
+
+				if (previous) {
+					gc->set_thread_dpi_awareness_context(
+						previous);
+				}
 			}
 
 			gc->fps_reset_time += seconds;
@@ -1866,7 +1977,17 @@ static inline void game_capture_render_cursor(struct game_capture *gc)
 			 ? (HWND)(uintptr_t)gc->global_hook_info->window
 			 : gc->window;
 
+	DPI_AWARENESS_CONTEXT previous = NULL;
+	if (gc->get_window_dpi_awareness_context != NULL) {
+		const DPI_AWARENESS_CONTEXT context =
+			gc->get_window_dpi_awareness_context(gc->window);
+		previous = gc->set_thread_dpi_awareness_context(context);
+	}
+
 	ClientToScreen(window, &p);
+
+	if (previous)
+		gc->set_thread_dpi_awareness_context(previous);
 
 	float x_scale = (float)gc->global_hook_info->cx /
 			(float)gc->global_hook_info->base_cx;
@@ -2078,28 +2199,29 @@ static obs_properties_t *game_capture_properties(void *data)
 	obs_properties_add_bool(ppts, SETTING_COMPATIBILITY,
 				TEXT_SLI_COMPATIBILITY);
 
-	p = obs_properties_add_bool(ppts, SETTING_FORCE_SCALING,
-				    TEXT_FORCE_SCALING);
+	//PRISM/Liuying/20210315/#7071/Remove game capture scaling
+	//p = obs_properties_add_bool(ppts, SETTING_FORCE_SCALING,
+	//			    TEXT_FORCE_SCALING);
 
-	obs_property_set_modified_callback(p, use_scaling_callback);
+	//obs_property_set_modified_callback(p, use_scaling_callback);
 
-	p = obs_properties_add_list(ppts, SETTING_SCALE_RES, TEXT_SCALE_RES,
-				    OBS_COMBO_TYPE_EDITABLE,
-				    OBS_COMBO_FORMAT_STRING);
+	//p = obs_properties_add_list(ppts, SETTING_SCALE_RES, TEXT_SCALE_RES,
+	//			    OBS_COMBO_TYPE_EDITABLE,
+	//			    OBS_COMBO_FORMAT_STRING);
 
-	for (size_t i = 0; i < NUM_DEFAULT_SCALE_VALS; i++) {
-		char scale_str[64];
-		uint32_t new_cx =
-			(uint32_t)((double)cx / default_scale_vals[i]) & ~2;
-		uint32_t new_cy =
-			(uint32_t)((double)cy / default_scale_vals[i]) & ~2;
+	//for (size_t i = 0; i < NUM_DEFAULT_SCALE_VALS; i++) {
+	//	char scale_str[64];
+	//	uint32_t new_cx =
+	//		(uint32_t)((double)cx / default_scale_vals[i]) & ~2;
+	//	uint32_t new_cy =
+	//		(uint32_t)((double)cy / default_scale_vals[i]) & ~2;
 
-		sprintf(scale_str, "%" PRIu32 "x%" PRIu32, new_cx, new_cy);
+	//	sprintf(scale_str, "%" PRIu32 "x%" PRIu32, new_cx, new_cy);
 
-		obs_property_list_add_string(p, scale_str, scale_str);
-	}
+	//	obs_property_list_add_string(p, scale_str, scale_str);
+	//}
 
-	obs_property_set_enabled(p, false);
+	//obs_property_set_enabled(p, false);
 
 	obs_properties_add_bool(ppts, SETTING_TRANSPARENCY,
 				TEXT_ALLOW_TRANSPARENCY);
@@ -2126,6 +2248,26 @@ static obs_properties_t *game_capture_properties(void *data)
 	return ppts;
 }
 
+//PRISM/ZengQin/20210604/#none/Get properties parameters
+static obs_data_t *game_capture_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+
+	struct game_capture *gc = data;
+	obs_data_t *settings = obs_source_get_settings(gc->source);
+	const char *capture_mode = obs_data_get_string(settings, SETTING_MODE);
+	const char *window =
+		obs_data_get_string(settings, SETTING_CAPTURE_WINDOW);
+	obs_data_release(settings);
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_string(params, "mode", capture_mode);
+	obs_data_set_string(params, "window", window);
+
+	return params;
+}
+
 struct obs_source_info game_capture_info = {
 	.id = "game_capture",
 	.type = OBS_SOURCE_TYPE_INPUT,
@@ -2142,4 +2284,6 @@ struct obs_source_info game_capture_info = {
 	.video_tick = game_capture_tick,
 	.video_render = game_capture_render,
 	.icon_type = OBS_ICON_TYPE_GAME_CAPTURE,
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	.props_params = game_capture_props_params,
 };

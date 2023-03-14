@@ -3,6 +3,8 @@
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <libavutil/imgutils.h>
+#include <util/platform.h>
 
 #include "../obs-ffmpeg-compat.h"
 
@@ -23,8 +25,8 @@ static bool ffmpeg_image_open_decoder_context(struct ffmpeg_image *info)
 	int ret = av_find_best_stream(info->fmt_ctx, AVMEDIA_TYPE_VIDEO, -1, 1,
 				      NULL, 0);
 	if (ret < 0) {
-		blog(LOG_WARNING, "Couldn't find video stream in file '%s': %s",
-		     info->file, av_err2str(ret));
+		plog(LOG_WARNING, "Couldn't find video stream : %s",
+		     av_err2str(ret));
 		return false;
 	}
 
@@ -34,17 +36,16 @@ static bool ffmpeg_image_open_decoder_context(struct ffmpeg_image *info)
 	info->decoder = avcodec_find_decoder(info->decoder_ctx->codec_id);
 
 	if (!info->decoder) {
-		blog(LOG_WARNING, "Failed to find decoder for file '%s'",
-		     info->file);
+		plog(LOG_WARNING, "Failed to find decoder.");
 		return false;
 	}
 
 	ret = avcodec_open2(info->decoder_ctx, info->decoder, NULL);
 	if (ret < 0) {
-		blog(LOG_WARNING,
-		     "Failed to open video codec for file '%s': "
+		plog(LOG_WARNING,
+		     "Failed to open video codec : "
 		     "%s",
-		     info->file, av_err2str(ret));
+		     av_err2str(ret));
 		return false;
 	}
 
@@ -70,17 +71,16 @@ static bool ffmpeg_image_init(struct ffmpeg_image *info, const char *file)
 
 	ret = avformat_open_input(&info->fmt_ctx, file, NULL, NULL);
 	if (ret < 0) {
-		blog(LOG_WARNING, "Failed to open file '%s': %s", info->file,
-		     av_err2str(ret));
+		plog(LOG_WARNING, "Failed to open file : %s", av_err2str(ret));
 		return false;
 	}
 
 	ret = avformat_find_stream_info(info->fmt_ctx, NULL);
 	if (ret < 0) {
-		blog(LOG_WARNING,
-		     "Could not find stream info for file '%s':"
+		plog(LOG_WARNING,
+		     "Could not find stream info for file :"
 		     " %s",
-		     info->file, av_err2str(ret));
+		     av_err2str(ret));
 		goto fail;
 	}
 
@@ -122,28 +122,47 @@ static bool ffmpeg_image_reformat_frame(struct ffmpeg_image *info,
 		}
 
 	} else {
+		//PRISM/LiuHaibin/20210118/#None/Merge from OBS https://github.com/obsproject/obs-studio/pull/2836
+		static const enum AVPixelFormat format = AV_PIX_FMT_BGRA;
+
 		sws_ctx = sws_getContext(info->cx, info->cy, info->format,
-					 info->cx, info->cy, AV_PIX_FMT_BGRA,
-					 SWS_POINT, NULL, NULL, NULL);
+					 info->cx, info->cy, format, SWS_POINT,
+					 NULL, NULL, NULL);
 		if (!sws_ctx) {
-			blog(LOG_WARNING,
-			     "Failed to create scale context "
-			     "for '%s'",
-			     info->file);
+			plog(LOG_WARNING, "Failed to create scale context.");
+			return false;
+		}
+
+		uint8_t *pointers[4];
+		int linesizes[4];
+		ret = av_image_alloc(pointers, linesizes, info->cx, info->cy,
+				     format, 32);
+		if (ret < 0) {
+			plog(LOG_WARNING, "av_image_alloc failed : %s",
+			     av_err2str(ret));
+			sws_freeContext(sws_ctx);
 			return false;
 		}
 
 		ret = sws_scale(sws_ctx, (const uint8_t *const *)frame->data,
-				frame->linesize, 0, info->cy, &out, &linesize);
+				frame->linesize, 0, info->cy, pointers,
+				linesizes);
 		sws_freeContext(sws_ctx);
 
 		if (ret < 0) {
-			blog(LOG_WARNING, "sws_scale failed for '%s': %s",
-			     info->file, av_err2str(ret));
+			plog(LOG_WARNING, "sws_scale failed for : %s",
+			     av_err2str(ret));
+			av_freep(pointers);
 			return false;
 		}
 
-		info->format = AV_PIX_FMT_BGRA;
+		for (size_t y = 0; y < (size_t)info->cy; y++)
+			memcpy(out + y * linesize,
+			       pointers[0] + y * linesizes[0], linesize);
+
+		av_freep(pointers);
+
+		info->format = format;
 	}
 
 	return true;
@@ -159,15 +178,14 @@ static bool ffmpeg_image_decode(struct ffmpeg_image *info, uint8_t *out,
 	int ret;
 
 	if (!frame) {
-		blog(LOG_WARNING, "Failed to create frame data for '%s'",
-		     info->file);
+		plog(LOG_WARNING, "Failed to create frame data.");
 		return false;
 	}
 
 	ret = av_read_frame(info->fmt_ctx, &packet);
 	if (ret < 0) {
-		blog(LOG_WARNING, "Failed to read image frame from '%s': %s",
-		     info->file, av_err2str(ret));
+		plog(LOG_WARNING, "Failed to read image frame : %s",
+		     av_err2str(ret));
 		goto fail;
 	}
 
@@ -186,13 +204,26 @@ static bool ffmpeg_image_decode(struct ffmpeg_image *info, uint8_t *out,
 					    &got_frame, &packet);
 #endif
 		if (ret < 0) {
-			blog(LOG_WARNING, "Failed to decode frame for '%s': %s",
-			     info->file, av_err2str(ret));
+			plog(LOG_WARNING, "Failed to decode frame : %s",
+			     av_err2str(ret));
 			goto fail;
 		}
 	}
 
-	success = ffmpeg_image_reformat_frame(info, frame, out, linesize);
+	//PRISM/WangShaohui/20210915/#9682/check resolution
+	if (info->cx != frame->width || info->cy != frame->height) {
+		success = false;
+
+		char name[260] = {0};
+		os_extract_file_name(info->file, name, ARRAY_SIZE(name));
+
+		plog(LOG_WARNING,
+		     "Resolution incorrect with %s! %dx%d in decode_context while %dx%x in AVFrame",
+		     name, info->cx, info->cy, frame->width, frame->height);
+	} else {
+		success =
+			ffmpeg_image_reformat_frame(info, frame, out, linesize);
+	}
 
 fail:
 	av_packet_unref(&packet);
@@ -229,21 +260,99 @@ uint8_t *gs_create_texture_file_data(const char *file,
 {
 	struct ffmpeg_image image;
 	uint8_t *data = NULL;
+	enum AVPixelFormat ffmpeg_format;
 
 	if (ffmpeg_image_init(&image, file)) {
-		data = bmalloc(image.cx * image.cy * 4);
-
-		if (ffmpeg_image_decode(&image, data, image.cx * 4)) {
-			*format = convert_format(image.format);
-			*cx_out = (uint32_t)image.cx;
-			*cy_out = (uint32_t)image.cy;
-		} else {
-			bfree(data);
-			data = NULL;
+		//PRISM/WangShaohui/20210427/NoIssue/fix breakpoint
+		//data = bmalloc(image.cx * image.cy * 4);
+		MALLOC(data, image.cx * image.cy * 4);
+		if (data) {
+			if (ffmpeg_image_decode(&image, data, image.cx * 4)) {
+				ffmpeg_format = image.format;
+				*format = convert_format(image.format);
+				*cx_out = (uint32_t)image.cx;
+				*cy_out = (uint32_t)image.cy;
+			} else {
+				bfree(data);
+				data = NULL;
+			}
 		}
 
 		ffmpeg_image_free(&image);
 	}
 
+	//PRISM/WangShaohui/20210802/NoIssue/scale large image
+	struct SwsContext *sws_ctx = NULL;
+	do {
+		if (!data) {
+			break;
+		}
+
+		uint32_t cx = 0;
+		uint32_t cy = 0;
+		if (!gs_image_convert_resolution(*cx_out, *cy_out, &cx, &cy)) {
+			break;
+		}
+
+		sws_ctx = sws_getContext(*cx_out, *cy_out, ffmpeg_format, cx,
+					 cy, ffmpeg_format, SWS_BICUBIC, NULL,
+					 NULL, NULL);
+		if (!sws_ctx) {
+			plog(LOG_WARNING,
+			     "[scale-image] Failed to create scale context. %dx%d",
+			     *cx_out, *cy_out);
+			break;
+		}
+
+		uint8_t *dest_buffer = NULL;
+		MALLOC(dest_buffer, cx * cy * 4);
+		if (!dest_buffer) {
+			plog(LOG_WARNING,
+			     "[scale-image] Failed to malloc memory");
+			break;
+		}
+
+		uint8_t *src_data[AV_NUM_DATA_POINTERS] = {data};
+		int src_linesize[AV_NUM_DATA_POINTERS] = {(*cx_out) * 4};
+
+		uint8_t *dest_data[AV_NUM_DATA_POINTERS] = {dest_buffer};
+		int dest_linesizes[AV_NUM_DATA_POINTERS] = {cx * 4};
+
+		int ret = sws_scale(sws_ctx, src_data, src_linesize, 0, *cy_out,
+				    dest_data, dest_linesizes);
+		if (ret < 0) {
+			plog(LOG_WARNING,
+			     "[scale-image] Failed to scale image. error:%d",
+			     ret);
+			bfree(dest_buffer);
+			break;
+		}
+
+		bfree(data);
+
+		data = dest_buffer;
+		*cx_out = cx;
+		*cy_out = cy;
+
+	} while (false);
+	if (sws_ctx) {
+		sws_freeContext(sws_ctx);
+	}
+
 	return data;
+}
+
+//PRISM/WangShaohui/20210802/NoIssue/scale large image
+bool gs_image_convert_resolution(uint32_t src_cx, uint32_t src_cy,
+				 uint32_t *dest_cx, uint32_t *dest_cy)
+{
+	uint32_t sz = max(src_cx, src_cy);
+	if (sz <= MAX_IMAGE_RESOLUTIN) {
+		return false;
+	} else {
+		float scale = (float)(MAX_IMAGE_RESOLUTIN) / (float)sz;
+		*dest_cx = (uint32_t)(scale * (float)src_cx);
+		*dest_cy = (uint32_t)(scale * (float)src_cy);
+		return true;
+	}
 }

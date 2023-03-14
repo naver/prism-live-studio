@@ -22,6 +22,7 @@ along with this program; If not, see <https://www.gnu.org/licenses/>
 #include <util/platform.h>
 #include <media-io/video-io.h>
 #include <media-io/video-frame.h>
+#include "log/log.h"
 
 #include "obs-ndi.h"
 
@@ -59,7 +60,7 @@ void preview_output_start(const char *output_name)
 	if (context.enabled || !context.output)
 		return;
 
-	blog(LOG_INFO, "starting NDI preview output with name '%s'", output_name);
+	PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "starting NDI preview output with name '%s'", output_name);
 
 	obs_get_video_info(&context.ovi);
 
@@ -92,7 +93,7 @@ void preview_output_start(const char *output_name)
 	ai.format = mainAOI->format;
 	ai.samples_per_sec = mainAOI->samples_per_sec;
 	ai.speakers = mainAOI->speakers;
-	ai.input_callback = [](void *param, uint64_t start_ts, uint64_t end_ts, uint64_t *new_ts, uint32_t active_mixers, struct audio_output_data *mixes) { return false; };
+	ai.input_callback = [](void * /*param*/, uint64_t /*start_ts*/, uint64_t /*end_ts*/, uint64_t * /*new_ts*/, uint32_t /*active_mixers*/, struct audio_output_data * /*mixes*/) { return false; };
 	ai.input_param = nullptr;
 
 	audio_output_open(&context.dummy_audio_queue, &ai);
@@ -120,7 +121,7 @@ void preview_output_stop()
 	if (!context.enabled)
 		return;
 
-	blog(LOG_INFO, "stopping NDI preview output");
+	PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "stopping NDI preview output");
 
 	obs_output_stop(context.output);
 	video_output_stop(context.video_queue);
@@ -177,7 +178,7 @@ void on_preview_scene_changed(enum obs_frontend_event event, void *param)
 	}
 }
 
-void render_preview_source(void *param, uint32_t cx, uint32_t cy)
+void render_preview_source(void *param, uint32_t /*cx*/, uint32_t /*cy*/)
 {
 	auto ctx = (struct preview_output *)param;
 

@@ -20,8 +20,6 @@ public:
 	void PauseRecordingTimer();
 	void UnpauseRecordingTimer();
 
-	void showEvent(QShowEvent *event) override;
-
 public slots:
 	void StreamingTimerButton();
 	void RecordingTimerButton();

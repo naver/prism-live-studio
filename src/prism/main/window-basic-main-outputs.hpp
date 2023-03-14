@@ -2,6 +2,8 @@
 
 #include <string>
 
+enum ENC_CHECKER { ENCODER_CHECK_STREAM = 1, ENCODER_CHECK_RECORD = ENCODER_CHECK_STREAM << 1, ENCODER_CHECK_ALL = (ENCODER_CHECK_STREAM | ENCODER_CHECK_RECORD) };
+
 class PLSBasic;
 
 struct BasicOutputHandler {
@@ -12,6 +14,7 @@ struct BasicOutputHandler {
 	bool recordingActive = false;
 	bool delayActive = false;
 	bool replayBufferActive = false;
+
 	PLSBasic *main;
 
 	std::string outputType;
@@ -44,6 +47,15 @@ struct BasicOutputHandler {
 	virtual bool ReplayBufferActive() const { return false; }
 
 	virtual void Update() = 0;
+
+	//PRISM/LiuHaibin/20210906/#None/Pre-check encoders
+	bool CheckEncoders(ENC_CHECKER flag);
+	virtual bool CheckStreamEncoder() = 0;
+	virtual bool CheckRecordEncoder() = 0;
+	bool streamEncoderChecked = false;
+	bool streamEncoderAvailable = false;
+	bool recordEncoderChecked = false;
+	bool recordEncoderAvailable = false;
 
 	inline bool Active() const { return streamingActive || recordingActive || delayActive || replayBufferActive; }
 };

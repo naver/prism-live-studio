@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1284</width>
-    <height>776</height>
+    <width>1280</width>
+    <height>362</height>
    </rect>
   </property>
   <property name="mouseTracking">
@@ -184,7 +184,7 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>1282</width>
+           <width>1278</width>
            <height>85</height>
           </rect>
          </property>
@@ -283,8 +283,34 @@
      </property>
     </spacer>
    </item>
+   <item>
+    <widget class="ComplexButton" name="AddRTMPBtn">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="mouseTracking">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Channels.AddRTMP</string>
+     </property>
+     <property name="lang" stdset="0">
+      <string notr="true">en</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ComplexButton</class>
+   <extends>QPushButton</extends>
+   <header location="global">ComplexButton.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

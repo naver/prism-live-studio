@@ -24,6 +24,7 @@
 #include <graphics/matrix4.h>
 #include "gl-subsystem.h"
 #include "gl-shaderparser.h"
+#include <util/platform.h>
 
 static inline void shader_param_init(struct gs_shader_param *param)
 {
@@ -57,7 +58,9 @@ static void gl_get_shader_info(GLuint shader, const char *file,
 	glGetShaderInfoLog(shader, info_len, &chars_written, errors);
 	gl_success("glGetShaderInfoLog");
 
-	blog(LOG_DEBUG, "Compiler warnings/errors for %s:\n%s", file, errors);
+	char temp[256];
+	os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+	plog(LOG_DEBUG, "Compiler warnings/errors for %s:\n%s", temp, errors);
 
 	if (error_string)
 		*error_string = errors;
@@ -211,11 +214,13 @@ static bool gl_shader_init(struct gs_shader *shader,
 		return false;
 
 #if 0
-	blog(LOG_DEBUG, "+++++++++++++++++++++++++++++++++++");
-	blog(LOG_DEBUG, "  GL shader string for: %s", file);
-	blog(LOG_DEBUG, "-----------------------------------");
-	blog(LOG_DEBUG, "%s", glsp->gl_string.array);
-	blog(LOG_DEBUG, "+++++++++++++++++++++++++++++++++++");
+	plog(LOG_DEBUG, "+++++++++++++++++++++++++++++++++++");
+	char temp[256];
+	os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+	plog(LOG_DEBUG, "  GL shader string for: %s", temp);
+	plog(LOG_DEBUG, "-----------------------------------");
+	plog(LOG_DEBUG, "%s", glsp->gl_string.array);
+	plog(LOG_DEBUG, "+++++++++++++++++++++++++++++++++++");
 #endif
 
 	glGetShaderiv(shader->obj, GL_COMPILE_STATUS, &compiled);
@@ -231,7 +236,7 @@ static bool gl_shader_init(struct gs_shader *shader,
 		GLsizei returnedLength = 0;
 		glGetShaderInfoLog(shader->obj, infoLength, &returnedLength,
 				   infoLog);
-		blog(LOG_ERROR, "Error compiling shader:\n%s\n", infoLog);
+		plog(LOG_ERROR, "Error compiling shader:\n%s\n", infoLog);
 
 		free(infoLog);
 
@@ -285,7 +290,7 @@ gs_shader_t *device_vertexshader_create(gs_device_t *device, const char *shader,
 	ptr = shader_create(device, GS_SHADER_VERTEX, shader, file,
 			    error_string);
 	if (!ptr)
-		blog(LOG_ERROR, "device_vertexshader_create (GL) failed");
+		plog(LOG_ERROR, "device_vertexshader_create (GL) failed");
 	return ptr;
 }
 
@@ -296,7 +301,7 @@ gs_shader_t *device_pixelshader_create(gs_device_t *device, const char *shader,
 	ptr = shader_create(device, GS_SHADER_PIXEL, shader, file,
 			    error_string);
 	if (!ptr)
-		blog(LOG_ERROR, "device_pixelshader_create (GL) failed");
+		plog(LOG_ERROR, "device_pixelshader_create (GL) failed");
 	return ptr;
 }
 
@@ -446,7 +451,7 @@ static inline bool validate_param(struct program_param *pp,
 				  size_t expected_size)
 {
 	if (pp->param->cur_value.num != expected_size) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Parameter '%s' set to invalid size %u, "
 		     "expected %u",
 		     pp->param->name, (unsigned int)pp->param->cur_value.num,
@@ -552,7 +557,7 @@ static void print_link_errors(GLuint program)
 	glGetProgramInfoLog(program, info_len, &chars_written, errors);
 	gl_success("glGetShaderInfoLog");
 
-	blog(LOG_DEBUG, "Linker warnings/errors:\n%s", errors);
+	plog(LOG_DEBUG, "Linker warnings/errors:\n%s", errors);
 
 	free(errors);
 }
@@ -565,7 +570,7 @@ static bool assign_program_attrib(struct gs_program *program,
 		return false;
 
 	if (attrib_obj == -1) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "glGetAttribLocation: Could not find "
 		     "attribute '%s'",
 		     attrib->name);
@@ -768,7 +773,7 @@ void gs_shader_set_val(gs_sparam_t *param, const void *val, size_t size)
 		return;
 
 	if (expected_size != size) {
-		blog(LOG_ERROR, "gs_shader_set_val (GL): Size of shader "
+		plog(LOG_ERROR, "gs_shader_set_val (GL): Size of shader "
 				"param does not match the size of the input");
 		return;
 	}

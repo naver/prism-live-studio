@@ -137,7 +137,7 @@ void ffmpeg_log_error(int log_level, struct ffmpeg_data *data,
 
 	ffmpeg_output_set_last_error(data, out);
 
-	blog(log_level, "%s", out);
+	plog(log_level, "%s", out);
 }
 
 static bool new_stream(struct ffmpeg_data *data, AVStream **stream,
@@ -184,7 +184,7 @@ static bool parse_params(AVCodecContext *context, char **opts)
 			value = assign + 1;
 
 			if (av_opt_set(context->priv_data, name, value, 0)) {
-				blog(LOG_WARNING, "Failed to set %s=%s", name,
+				plog(LOG_WARNING, "Failed to set %s=%s", name,
 				     value);
 				ret = false;
 			}
@@ -209,7 +209,7 @@ static bool open_video_codec(struct ffmpeg_data *data)
 		// libav requires x264 parameters in a special format which may be non-obvious
 		if (!parse_params(context, opts) &&
 		    strcmp(data->vcodec->name, "libx264") == 0)
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "If you're trying to set x264 parameters, use x264-params=name=value:name=value");
 		strlist_free(opts);
 	}
@@ -449,7 +449,7 @@ static inline bool open_output_file(struct ffmpeg_data *data)
 					    AV_DICT_IGNORE_SUFFIX)))
 			dstr_catf(&str, "\n\t%s=%s", entry->key, entry->value);
 
-		blog(LOG_INFO, "Using muxer settings: %s", str.array);
+		plog(LOG_INFO, "Using muxer settings: %s", str.array);
 		dstr_free(&str);
 	}
 
@@ -484,7 +484,7 @@ static inline bool open_output_file(struct ffmpeg_data *data)
 					    AV_DICT_IGNORE_SUFFIX)))
 			dstr_catf(&str, "\n\t%s=%s", entry->key, entry->value);
 
-		blog(LOG_INFO, "Invalid muxer settings: %s", str.array);
+		plog(LOG_INFO, "Invalid muxer settings: %s", str.array);
 		dstr_free(&str);
 	}
 
@@ -646,7 +646,7 @@ static bool ffmpeg_data_init(struct ffmpeg_data *data,
 	return true;
 
 fail:
-	blog(LOG_WARNING, "ffmpeg_data_init failed");
+	plog(LOG_WARNING, "ffmpeg_data_init failed");
 	return false;
 }
 
@@ -666,8 +666,12 @@ static const char *ffmpeg_output_getname(void *unused)
 static void ffmpeg_log_callback(void *param, int level, const char *format,
 				va_list args)
 {
-	if (level <= AV_LOG_INFO)
-		blogva(LOG_DEBUG, format, args);
+	if (level <= AV_LOG_INFO) {
+		//PRISM/Wangshaohui/20210913/#9672/send log to KR nelo
+		char buf[4096];
+		vsnprintf(buf, sizeof(buf) / sizeof(buf[0]), format, args);
+		blogex(true, LOG_INFO, NULL, 0, "[FFmpeg] %s", buf);
+	}
 
 	UNUSED_PARAMETER(param);
 }
@@ -799,7 +803,7 @@ static void receive_video(void *param, struct video_data *frame)
 				    &got_packet);
 #endif
 		if (ret < 0) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "receive_video: Error encoding "
 			     "video: %s",
 			     av_err2str(ret));
@@ -827,7 +831,7 @@ static void receive_video(void *param, struct video_data *frame)
 	}
 #endif
 	if (ret != 0) {
-		blog(LOG_WARNING, "receive_video: Error writing video: %s",
+		plog(LOG_WARNING, "receive_video: Error writing video: %s",
 		     av_err2str(ret));
 		//FIXME: stop the encode with an error
 	}
@@ -854,7 +858,7 @@ static void encode_audio(struct ffmpeg_output *output, int idx,
 				       data->samples[idx][0], (int)total_size,
 				       1);
 	if (ret < 0) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "encode_audio: avcodec_fill_audio_frame "
 		     "failed: %s",
 		     av_err2str(ret));
@@ -878,7 +882,7 @@ static void encode_audio(struct ffmpeg_output *output, int idx,
 				    &got_packet);
 #endif
 	if (ret < 0) {
-		blog(LOG_WARNING, "encode_audio: Error encoding audio: %s",
+		plog(LOG_WARNING, "encode_audio: Error encoding audio: %s",
 		     av_err2str(ret));
 		//FIXME: stop the encode with an error
 		return;
@@ -997,7 +1001,7 @@ static int process_packet(struct ffmpeg_output *output)
 	if (!new_packet)
 		return 0;
 
-	/*blog(LOG_DEBUG, "size = %d, flags = %lX, stream = %d, "
+	/*plog(LOG_DEBUG, "size = %d, flags = %lX, stream = %d, "
 			"packets queued: %lu",
 			packet.size, packet.flags,
 			packet.stream_index, output->packets.num);*/
@@ -1026,6 +1030,9 @@ static int process_packet(struct ffmpeg_output *output)
 
 static void *write_thread(void *data)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct ffmpeg_output *output = data;
 
 	while (os_sem_wait(output->write_sem) == 0) {
@@ -1125,7 +1132,7 @@ static bool try_connect(struct ffmpeg_output *output)
 	}
 
 	if (config.format == AV_PIX_FMT_NONE) {
-		blog(LOG_DEBUG, "invalid pixel format used for FFmpeg output");
+		plog(LOG_DEBUG, "invalid pixel format used for FFmpeg output");
 		return false;
 	}
 
@@ -1172,6 +1179,9 @@ static bool try_connect(struct ffmpeg_output *output)
 
 static void *start_thread(void *data)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct ffmpeg_output *output = data;
 
 	if (!try_connect(output))

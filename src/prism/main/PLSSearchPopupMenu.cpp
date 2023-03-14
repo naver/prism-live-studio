@@ -112,7 +112,7 @@ void RecommendSearchList::AddListData(const QStringList &words)
 		item->setFocusPolicy(Qt::NoFocus);
 		connect(item, &QPushButton::clicked, [=]() {
 			QString key;
-			key.sprintf("Recommend search word '%s'", word);
+			key.sprintf("Recommend search word '%s'", word.toStdString().c_str());
 			PLS_UI_STEP(MAIN_GIPHY_STICKER_MODULE, key.toUtf8().constData(), ACTION_CLICK);
 			emit RecommendItemClicked(item->text());
 		});
@@ -136,7 +136,7 @@ void RecommendSearchList::ClearList()
 	emit UpdateContentHeight();
 }
 
-void RecommendSearchList::DpiChanged(double dpi) {}
+void RecommendSearchList::DpiChanged(double) {}
 
 HistorySearchItem::HistorySearchItem(QWidget *parent) : QFrame(parent)
 {
@@ -210,8 +210,8 @@ void HistorySearchList::AddItem(const QString &content)
 	HistorySearchItem *item = new HistorySearchItem(this);
 	item->SetContent(content);
 	connect(item, &HistorySearchItem::Clicked, [=](const QString &content) {
-		QString key("history search word: %1");
-		key.arg(content);
+		QString key;
+		key.sprintf("history search word: %s", content.toStdString().c_str());
 		PLS_UI_STEP(MAIN_GIPHY_STICKER_MODULE, key.toUtf8().constData(), ACTION_CLICK);
 		emit Clicked(content);
 	});

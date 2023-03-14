@@ -5,7 +5,7 @@
 #include <util/dstr.h>
 
 #define do_log(level, format, ...)               \
-	blog(level, "[slideshow: '%s'] " format, \
+	plog(level, "[slideshow: '%s'] " format, \
 	     obs_source_get_name(ss->source), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
@@ -246,13 +246,15 @@ static void add_file(struct slideshow *ss, struct darray *array,
 	*array = new_files.da;
 }
 
+//PRISM/Liuying/20210601/#None/add JFIF Files
 static bool valid_extension(const char *ext)
 {
 	if (!ext)
 		return false;
 	return astrcmpi(ext, ".bmp") == 0 || astrcmpi(ext, ".tga") == 0 ||
 	       astrcmpi(ext, ".png") == 0 || astrcmpi(ext, ".jpeg") == 0 ||
-	       astrcmpi(ext, ".jpg") == 0 || astrcmpi(ext, ".gif") == 0;
+	       astrcmpi(ext, ".jpg") == 0 || astrcmpi(ext, ".gif") == 0 ||
+	       astrcmpi(ext, ".jfif") == 0;
 }
 
 static inline bool item_valid(struct slideshow *ss)
@@ -490,7 +492,8 @@ static void ss_play_pause(void *data)
 	ss->manual = ss->paused;
 }
 
-static void ss_restart(void *data)
+//PRISM/WangShaohui/20211018/#10018/for thread-safe
+static void ss_actual_restart(void *data)
 {
 	struct slideshow *ss = data;
 
@@ -502,6 +505,29 @@ static void ss_restart(void *data)
 
 	ss->stop = false;
 	ss->paused = false;
+
+	obs_source_release(ss->source);
+}
+
+//PRISM/WangShaohui/20211018/#10018/for thread-safe
+static void ss_restart(void *data)
+{
+	struct slideshow *ss = data;
+	obs_source_addref(ss->source);
+	obs_queue_task(OBS_TASK_GRAPHICS, ss_actual_restart, ss, false);
+
+	/*
+	struct slideshow *ss = data;
+
+	ss->elapsed = 0.0f;
+	ss->cur_item = 0;
+
+	obs_transition_set(ss->transition,
+			   ss->files.array[ss->cur_item].source);
+
+	ss->stop = false;
+	ss->paused = false;
+	*/
 }
 
 static void ss_stop(void *data)
@@ -845,8 +871,9 @@ static void ss_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, S_LOOP, true);
 }
 
+//PRISM/Liuying/20210323/#None/add JFIF Files
 static const char *file_filter =
-	"Image files (*.bmp *.tga *.png *.jpeg *.jpg *.gif)";
+	"Image files (*.bmp *.tga *.png *.jpeg *.jpg *.gif *.jfif)";
 
 static const char *aspects[] = {"16:9", "16:10", "4:3", "1:1"};
 
@@ -956,6 +983,19 @@ static void ss_deactivate(void *data)
 		ss->pause_on_deactivate = true;
 }
 
+//PRISM/ZengQin/20210604/#none/Get properties parameters
+static obs_data_t *ss_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+
+	struct slideshow *ss = data;
+	obs_data_t *params = obs_data_create();
+	obs_data_set_int(params, "mem_usage", ss->mem_usage);
+
+	return params;
+}
+
 struct obs_source_info slideshow_info = {
 	.id = "slideshow",
 	.type = OBS_SOURCE_TYPE_INPUT,
@@ -976,4 +1016,6 @@ struct obs_source_info slideshow_info = {
 	.get_defaults = ss_defaults,
 	.get_properties = ss_properties,
 	.icon_type = OBS_ICON_TYPE_SLIDESHOW,
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	.props_params = ss_props_params,
 };

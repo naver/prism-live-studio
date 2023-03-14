@@ -3,17 +3,49 @@
 #include <util/platform.h>
 #include <util/dstr.h>
 #include <sys/stat.h>
+#include <util/base.h>
 
-#define blog(log_level, format, ...)                    \
-	blog(log_level, "[image_source: '%s'] " format, \
-	     obs_source_get_name(context->source), ##__VA_ARGS__)
+//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+#include <pthread.h>
+#include <util/circlebuf.h>
+#include <pls/media-info.h>
 
-#define debug(format, ...) blog(LOG_DEBUG, format, ##__VA_ARGS__)
-#define info(format, ...) blog(LOG_INFO, format, ##__VA_ARGS__)
-#define warn(format, ...) blog(LOG_WARNING, format, ##__VA_ARGS__)
+#define plog(log_level, format, ...)                                \
+	plog(log_level, "[image_source: '%s' %p] " format,          \
+	     obs_source_get_name(context->source), context->source, \
+	     ##__VA_ARGS__)
+
+#define debug(format, ...) plog(LOG_DEBUG, format, ##__VA_ARGS__)
+#define info(format, ...) plog(LOG_INFO, format, ##__VA_ARGS__)
+#define warn(format, ...) plog(LOG_WARNING, format, ##__VA_ARGS__)
+
+//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+enum task_type {
+	task_load_image = 1,
+	task_unload_image,
+};
+
+//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+struct task_info {
+	enum task_type type;
+	void *params;
+};
 
 struct image_source {
 	obs_source_t *source;
+
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread --------------- start
+	bool task_completed;
+	uint32_t cx;
+	uint32_t cy;
+	uint32_t frame_count;
+	uint64_t mem_usage;
+
+	bool exit_task_thread;
+	pthread_t task_thread;
+	pthread_mutex_t task_mutex;
+	struct circlebuf task_buffer;
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread --------------- end
 
 	char *file;
 	bool persistent;
@@ -24,6 +56,105 @@ struct image_source {
 
 	gs_image_file2_t if2;
 };
+
+//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+void push_task(struct image_source *context, const struct task_info *info)
+{
+	pthread_mutex_lock(&context->task_mutex);
+
+	context->task_completed = false;
+	circlebuf_push_back(&context->task_buffer, info,
+			    sizeof(struct task_info));
+
+	pthread_mutex_unlock(&context->task_mutex);
+}
+
+//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+bool pop_task(struct image_source *context, struct task_info *output)
+{
+	pthread_mutex_lock(&context->task_mutex);
+	bool include_task = (context->task_buffer.size > 0);
+	if (include_task) {
+		circlebuf_pop_front(&context->task_buffer, output,
+				    sizeof(struct task_info));
+	}
+	pthread_mutex_unlock(&context->task_mutex);
+	return include_task;
+}
+
+//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+static void image_source_unload_inner(struct image_source *context)
+{
+	obs_enter_graphics();
+	gs_image_file2_free(&context->if2);
+	obs_leave_graphics();
+}
+
+//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+void *image_task_thread(void *param)
+{
+	struct image_source *context = param;
+	struct task_info task;
+
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
+	while (!context->exit_task_thread) {
+		if (!pop_task(context, &task)) {
+			os_sleepto_ns(os_gettime_ns() + 10000000);
+			continue;
+		}
+
+		switch (task.type) {
+		case task_load_image: {
+			image_source_unload_inner(context);
+			if (task.params) {
+				gs_image_file2_init(&context->if2,
+						    (char *)task.params);
+
+				obs_enter_graphics();
+				gs_image_file2_init_texture(&context->if2);
+				obs_leave_graphics();
+
+				if (!context->if2.image.loaded) {
+
+					char temp[256];
+					os_extract_file_name(
+						(char *)task.params, temp,
+						ARRAY_SIZE(temp) - 1);
+					warn("failed to load texture '%s'",
+					     temp);
+				}
+			}
+			break;
+		}
+
+		case task_unload_image: {
+			image_source_unload_inner(context);
+			break;
+		}
+
+		default: {
+			warn("unkown task id in image plugin : %d",
+			     (char *)task.type);
+			assert(false);
+			break;
+		}
+		}
+
+		if (task.params) {
+			bfree(task.params);
+		}
+
+		pthread_mutex_lock(&context->task_mutex);
+		if (0 == context->task_buffer.size) {
+			context->task_completed = true;
+		}
+		pthread_mutex_unlock(&context->task_mutex);
+	}
+
+	return NULL;
+}
 
 static time_t get_modified_timestamp(const char *filename)
 {
@@ -43,30 +174,59 @@ static void image_source_load(struct image_source *context)
 {
 	char *file = context->file;
 
-	obs_enter_graphics();
-	gs_image_file2_free(&context->if2);
-	obs_leave_graphics();
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
 
-	if (file && *file) {
-		debug("loading texture '%s'", file);
+	bool file_valid = (file && *file);
+	if (file_valid) {
 		context->file_timestamp = get_modified_timestamp(file);
-		gs_image_file2_init(&context->if2, file);
 		context->update_time_elapsed = 0;
 
-		obs_enter_graphics();
-		gs_image_file2_init_texture(&context->if2);
-		obs_leave_graphics();
+		media_info_t mi;
+		if (!mi_open(&mi, file, MI_OPEN_DIRECTLY)) {
+			context->cx = 0;
+			context->cy = 0;
+			context->frame_count = 0;
+			context->mem_usage = 0;
 
-		if (!context->if2.image.loaded)
-			warn("failed to load texture '%s'", file);
+			char temp[256];
+			os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+			warn("failed to call mi_open for '%s'", temp);
+		} else {
+			long long cx = mi_get_int(&mi, "width");
+			long long cy = mi_get_int(&mi, "height");
+			long long frame_count = mi_get_int(&mi, "frame_count");
+			int codec_id = mi_get_int(&mi, "vcodec_id");
+
+			//PRISM/WangShaohui/20210802/NoIssue/scale large image
+			gs_image_convert_resolution(cx, cy, &cx, &cy);
+
+			context->cx = cx;
+			context->cy = cy;
+			context->frame_count = frame_count;
+			context->mem_usage = (cx * cy * 4) * frame_count;
+
+			mi_free(&mi);
+
+			char temp[256];
+			os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+			info("loaded image. %lldx%lld frames:%lld codec_id:%d '%s'",
+			     cx, cy, frame_count, codec_id, temp);
+		}
 	}
+
+	struct task_info task;
+	task.type = task_load_image;
+	task.params = file_valid ? bstrdup(file) : NULL;
+	push_task(context, &task);
 }
 
 static void image_source_unload(struct image_source *context)
 {
-	obs_enter_graphics();
-	gs_image_file2_free(&context->if2);
-	obs_leave_graphics();
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+	struct task_info task;
+	task.type = task_unload_image;
+	task.params = NULL;
+	push_task(context, &task);
 }
 
 static void image_source_update(void *data, obs_data_t *settings)
@@ -74,6 +234,18 @@ static void image_source_update(void *data, obs_data_t *settings)
 	struct image_source *context = data;
 	const char *file = obs_data_get_string(settings, "file");
 	const bool unload = obs_data_get_bool(settings, "unload");
+
+	//PRISM/WangShaohui/20210607/NoIssue/Check whether to reload image
+	if (file && context->file && 0 == strcmp(file, context->file)) {
+		context->persistent = !unload;
+		if (!obs_source_showing(context->source)) {
+			if (context->persistent)
+				image_source_load(data);
+			else
+				image_source_unload(data);
+		}
+		return;
+	}
 
 	if (context->file)
 		bfree(context->file);
@@ -116,6 +288,11 @@ static void *image_source_create(obs_data_t *settings, obs_source_t *source)
 	struct image_source *context = bzalloc(sizeof(struct image_source));
 	context->source = source;
 
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+	context->exit_task_thread = false;
+	pthread_mutex_init(&context->task_mutex, NULL);
+	pthread_create(&context->task_thread, NULL, image_task_thread, context);
+
 	image_source_update(context, settings);
 	return context;
 }
@@ -124,7 +301,23 @@ static void image_source_destroy(void *data)
 {
 	struct image_source *context = data;
 
-	image_source_unload(context);
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread --------------- start
+	void *thread_retval;
+	context->exit_task_thread = true;
+	pthread_join(context->task_thread, &thread_retval);
+
+	image_source_unload_inner(context);
+
+	struct task_info task;
+	while (pop_task(context, &task)) {
+		if (task.params) {
+			bfree(task.params);
+		}
+	}
+
+	circlebuf_free(&context->task_buffer);
+	pthread_mutex_destroy(&context->task_mutex);
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread --------------- end
 
 	if (context->file)
 		bfree(context->file);
@@ -134,13 +327,15 @@ static void image_source_destroy(void *data)
 static uint32_t image_source_getwidth(void *data)
 {
 	struct image_source *context = data;
-	return context->if2.image.cx;
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+	return context->cx;
 }
 
 static uint32_t image_source_getheight(void *data)
 {
 	struct image_source *context = data;
-	return context->if2.image.cy;
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+	return context->cy;
 }
 
 static void image_source_render(void *data, gs_effect_t *effect)
@@ -153,14 +348,17 @@ static void image_source_render(void *data, gs_effect_t *effect)
 		obs_source_set_capture_valid(context->source, true,
 					     OBS_SOURCE_ERROR_OK);
 	} else {
-		obs_source_set_capture_valid(
-			context->source, false,
-			os_is_file_exist(context->file)
-				? OBS_SOURCE_ERROR_UNKNOWN
-				: OBS_SOURCE_ERROR_NOT_FOUND);
+		if (context->task_completed) {
+			obs_source_set_capture_valid(
+				context->source, false,
+				os_is_file_exist(context->file)
+					? OBS_SOURCE_ERROR_UNKNOWN
+					: OBS_SOURCE_ERROR_NOT_FOUND);
+		}
 	}
 
-	if (!context->if2.image.texture)
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+	if (!context->if2.image.texture || !context->task_completed)
 		return;
 
 	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"),
@@ -176,20 +374,46 @@ static void image_source_tick(void *data, float seconds)
 
 	context->update_time_elapsed += seconds;
 
-	if (context->update_time_elapsed >= 1.0f) {
-		time_t t = get_modified_timestamp(context->file);
-		context->update_time_elapsed = 0.0f;
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+	if (!context->task_completed) {
+		return;
+	}
 
-		if (context->file_timestamp != t) {
-			image_source_load(context);
+	if (obs_source_showing(context->source)) {
+		if (context->update_time_elapsed >= 1.0f) {
+			time_t t = get_modified_timestamp(context->file);
+			context->update_time_elapsed = 0.0f;
+
+			if (context->file_timestamp != t) {
+				image_source_load(context);
+			}
 		}
 	}
 
-	//PRISM/WangShaohui/20200303/#872/for playing deactive gif
-	if (!context->active) {
-		if (context->if2.image.is_animated_gif)
-			context->last_time = frame_time;
-		context->active = true;
+	//PRISM/WangShaohui/20200303/#872/for playing gif in studio mode
+	if (obs_source_showing(context->source)) {
+		if (!context->active) {
+			if (context->if2.image.is_animated_gif)
+				context->last_time = frame_time;
+			context->active = true;
+		}
+
+	} else {
+		if (context->active) {
+			if (context->if2.image.is_animated_gif) {
+				context->if2.image.cur_frame = 0;
+				context->if2.image.cur_loop = 0;
+				context->if2.image.cur_time = 0;
+
+				obs_enter_graphics();
+				gs_image_file2_update_texture(&context->if2);
+				obs_leave_graphics();
+			}
+
+			context->active = false;
+		}
+
+		return;
 	}
 
 	if (context->last_time && context->if2.image.is_animated_gif) {
@@ -214,6 +438,8 @@ static const char *image_filter =
 	"JPEG Files (*.jpeg *.jpg);;"
 	"GIF Files (*.gif);;"
 	"PSD Files (*.psd);;"
+	//PRISM/Liuying/20210323/#None/add JFIF Files
+	"JFIF Files (*.jfif);;"
 	"All Files (*.*)";
 
 static obs_properties_t *image_source_properties(void *data)
@@ -235,9 +461,8 @@ static obs_properties_t *image_source_properties(void *data)
 
 	obs_properties_add_path(props, "file", obs_module_text("File"),
 				OBS_PATH_FILE, image_filter, path.array);
-	// PRISM/Xiewei/20200731/NoIssue/remove unused field.
-	/*obs_properties_add_bool(props, "unload",
-				obs_module_text("UnloadWhenNotShowing"));*/
+	obs_properties_add_bool(props, "unload",
+				obs_module_text("UnloadWhenNotShowing"));
 	dstr_free(&path);
 
 	return props;
@@ -246,7 +471,23 @@ static obs_properties_t *image_source_properties(void *data)
 uint64_t image_source_get_memory_usage(void *data)
 {
 	struct image_source *s = data;
-	return s->if2.mem_usage;
+	//PRISM/WangShaohui/20210526/NoIssue/load/unload image in worker thread
+	return s->mem_usage;
+}
+
+//PRISM/ZengQin/20210604/#none/Get properties parameters
+static obs_data_t *image_source_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+
+	struct image_source *s = data;
+	obs_data_t *params = obs_data_create();
+	obs_data_set_int(params, "width", s->cx);
+	obs_data_set_int(params, "height", s->cy);
+	obs_data_set_int(params, "frames", s->frame_count);
+
+	return params;
 }
 
 static struct obs_source_info image_source_info = {
@@ -266,6 +507,8 @@ static struct obs_source_info image_source_info = {
 	.video_tick = image_source_tick,
 	.get_properties = image_source_properties,
 	.icon_type = OBS_ICON_TYPE_IMAGE,
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	.props_params = image_source_props_params,
 };
 
 OBS_DECLARE_MODULE()

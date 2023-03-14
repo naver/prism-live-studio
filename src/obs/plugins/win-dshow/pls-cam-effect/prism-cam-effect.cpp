@@ -1,6 +1,7 @@
 #include "prism-cam-effect.h"
 #include <util/platform.h>
 #include <util/util.hpp>
+#include "prism-cam-ground-def.h"
 
 #ifdef DEBUG
 //#define DEBUG_EFFECT_FPS
@@ -82,7 +83,7 @@ bool PLSCamEffect::SetGlobalParam(obs_data_t *data)
 	const char *path = obs_data_get_string(data, "path");
 
 	if (!nelo || !version || !path) {
-		blog(LOG_ERROR, "Receive incorrect params for beauty!");
+		plog(LOG_ERROR, "Receive incorrect params for beauty!");
 		assert(false);
 	}
 
@@ -118,7 +119,7 @@ LRESULT PLSCamEffect::EffectWndProc(HWND hWnd, UINT nMsg, WPARAM wParam,
 {
 	switch (nMsg) {
 	case WM_DESTROY: {
-		blog(LOG_INFO, "PLSCamEffect: Window is destroied.");
+		plog(LOG_INFO, "PLSCamEffect: Window is destroied.");
 		PostQuitMessage(0); // exit message loop
 		break;
 	}
@@ -155,7 +156,10 @@ PLSCamEffect::PLSCamEffect()
 	  fps_push_handle("input-handle"),
 	  fps_get_handle("output-handle"),
 	  waiting_onoff_change(false),
-	  source_hwnd(0)
+	  source_hwnd(0),
+	  fin_output_texture(NULL),
+	  dshow_source(nullptr),
+	  output_tex_flip(false)
 {
 	session_id = GenerateGuid();
 
@@ -169,7 +173,7 @@ PLSCamEffect::PLSCamEffect()
 	video_input_writer = new SharedHandleBuffer(name.c_str());
 	DWORD ret = video_input_writer->InitMapBuffer();
 	if (ret != 0) {
-		blog(LOG_ERROR, "PLSCamEffect fail to init input map! error:%u",
+		plog(LOG_ERROR, "PLSCamEffect fail to init input map! error:%u",
 		     ret);
 		assert(false);
 	}
@@ -178,7 +182,7 @@ PLSCamEffect::PLSCamEffect()
 	video_output_reader = new SharedHandleBuffer(name.c_str());
 	ret = video_output_reader->InitMapBuffer();
 	if (ret != 0) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "PLSCamEffect fail to init output map! error:%u", ret);
 		assert(false);
 	}
@@ -226,6 +230,15 @@ PLSCamEffect::~PLSCamEffect()
 	CHandleWrapper::CloseHandleEx(camera_alive_flag);
 	CHandleWrapper::CloseHandleEx(camera_active_flag);
 	CHandleWrapper::CloseHandleEx(effect_valid_flag);
+
+	back_ground.reset();
+	fore_ground.reset();
+	obs_enter_graphics();
+	if (fin_output_texture) {
+		gs_texture_destroy(fin_output_texture);
+		fin_output_texture = nullptr;
+	}
+	obs_leave_graphics();
 }
 
 bool PLSCamEffect::SetEffectParam(const char *method, obs_data_t *data,
@@ -233,10 +246,13 @@ bool PLSCamEffect::SetEffectParam(const char *method, obs_data_t *data,
 {
 	effect_onoff_changed = false;
 
+	bool seg_effect_changed = false;
 	bool ret = false;
 	if (0 == strcmp(method, "beauty")) {
 		ret = ParseBeautyParam(data, effect_onoff_changed);
 	} else {
+		plog(LOG_ERROR, "Receive unknown effect type!");
+		assert(false);
 		ret = false;
 	}
 
@@ -247,7 +263,7 @@ bool PLSCamEffect::SetEffectParam(const char *method, obs_data_t *data,
 	return ret;
 }
 
-size_t PLSCamEffect::PopExceptions(std::vector<PLSExceptionInfo> &output)
+size_t PLSCamEffect::PopEvents(std::vector<PLSEventInfo> &output)
 {
 	output.clear();
 
@@ -258,11 +274,11 @@ size_t PLSCamEffect::PopExceptions(std::vector<PLSExceptionInfo> &output)
 	{
 		CAutoLockCS autoLock(exception_lock);
 
-		std::map<obs_source_exception_type, PLSExceptionInfo>::iterator
-			itr = exceptions.begin();
+		std::map<obs_source_event_type, PLSEventInfo>::iterator itr =
+			exceptions.begin();
 
 		while (itr != exceptions.end()) {
-			if (itr->second.exception_happen &&
+			if (itr->second.event_happen &&
 			    !itr->second.notify_done) {
 				output.push_back(itr->second);
 				itr->second.notify_done =
@@ -278,7 +294,7 @@ size_t PLSCamEffect::PopExceptions(std::vector<PLSExceptionInfo> &output)
 bool PLSCamEffect::IsEffectOn()
 {
 	CAutoLockCS autoLock(param_lock);
-	if (beauty_params.enable) {
+	if (beauty_params.enable || seg_message.enable) {
 		return true;
 	} else {
 		return false;
@@ -317,10 +333,14 @@ bool PLSCamEffect::ParseBeautyParam(obs_data_t *data,
 	int len = min(ARRAY_COUNT(temp->guid), session_id.length() + 1);
 	memmove(temp->guid, session_id.c_str(), len);
 
+	bool output_clear = !temp->enable;
+
 	{
 		CAutoLockCS autoLock(param_lock);
-		effect_onoff_changed = (temp->enable != beauty_params.enable);
+		effect_onoff_changed = (temp->enable != beauty_params.enable) &&
+				       !seg_message.enable;
 		memmove(&beauty_params, temp, sizeof(face_beauty_message));
+		output_clear = output_clear && !seg_message.enable;
 	}
 
 	if (effect_onoff_changed) {
@@ -328,13 +348,13 @@ bool PLSCamEffect::ParseBeautyParam(obs_data_t *data,
 		ClearOutputVideo();
 
 		if (temp->enable) {
-			blog(LOG_INFO, "PLSCamEffect: Face beauty is enable");
+			plog(LOG_INFO, "PLSCamEffect: Face beauty is enable");
 		} else {
-			blog(LOG_INFO, "PLSCamEffect: Face beauty is disable");
+			plog(LOG_INFO, "PLSCamEffect: Face beauty is disable");
 		}
 	}
 
-	if (!temp->enable) {
+	if (output_clear) {
 		ClearOutputVideo();
 	}
 
@@ -346,7 +366,7 @@ void PLSCamEffect::SetCaptureState(bool actived)
 {
 	if (actived) {
 		if (!CHandleWrapper::IsHandleSigned(camera_active_flag)) {
-			blog(LOG_INFO, "Capture state is active");
+			plog(LOG_INFO, "Capture state is active");
 		}
 
 		fps_device.OnFrame();
@@ -365,7 +385,7 @@ void PLSCamEffect::SetCaptureState(bool actived)
 		fps_get_handle.Reset();
 
 		if (CHandleWrapper::IsHandleSigned(camera_active_flag)) {
-			blog(LOG_INFO, "Capture state is deactive");
+			plog(LOG_INFO, "Capture state is deactive");
 		}
 
 		::ResetEvent(camera_active_flag);
@@ -383,6 +403,7 @@ bool PLSCamEffect::IsCaptureNormal()
 // return true if effect process is ready && effect is on
 bool PLSCamEffect::UseVideoEffect()
 {
+	return false;
 	// effect is off
 	if (!IsEffectOn()) {
 		SetEffectState("beaufy-off");
@@ -431,6 +452,14 @@ void PLSCamEffect::EffectTick()
 		PushEmptyInputVideo();
 		ClearOutputVideo();
 	}
+
+	if (back_ground) {
+		back_ground->Tick();
+	}
+
+	if (fore_ground) {
+		fore_ground->Tick();
+	}
 }
 
 void PLSCamEffect::SetInputVideo(shared_handle_header &hdr,
@@ -467,17 +496,18 @@ gs_texture *PLSCamEffect::GetOutputVideo()
 	if (bOk) {
 		if (header.is_handle_available()) {
 			if (output_video_handle != sample.handle) {
-				blog(LOG_INFO,
+				plog(LOG_INFO,
 				     "Received new video handle. video:%llu",
 				     sample.handle);
 			}
 
 			output_video_handle = sample.handle;
+			output_tex_flip = header.flip;
 			if (output_video_handle) {
 				fps_get_handle.OnFrame();
 			}
 		} else {
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "Received obsoleted video handle(%llu). It is updated before %ums.",
 			     sample.handle, GetTickCount() - header.push_time);
 		}
@@ -497,7 +527,13 @@ gs_texture *PLSCamEffect::GetOutputVideo()
 		// Output video never change, use the openned texture directly.
 		if (current_handle == output_video_handle) {
 			SetEffectState("sharedhandle-ok");
-			return output_video_tex;
+			//render & mix ground
+			obs_enter_graphics();
+			UpdateFinOutputTexture(output_video_tex);
+			RenderAllLayers(output_tex_flip);
+			obs_leave_graphics();
+			return fin_output_texture;
+			//return output_video_tex;
 		}
 
 		// Output video is changed, release previou texture.
@@ -507,16 +543,19 @@ gs_texture *PLSCamEffect::GetOutputVideo()
 	obs_enter_graphics();
 	output_video_tex =
 		gs_texture_open_shared((uint32_t)output_video_handle);
-	obs_leave_graphics();
 
 	if (!output_video_tex) {
 		SetEffectState("sharedhandle-invalid");
-		blog(LOG_ERROR, "Fail to open shared handle! HANDLE:%llu",
+		plog(LOG_ERROR, "Fail to open shared handle! HANDLE:%llu",
 		     output_video_handle);
 		//assert(output_video_tex && "fail to open output handle");
 	}
-
-	return output_video_tex;
+	//render & mix ground
+	UpdateFinOutputTexture(output_video_tex);
+	RenderAllLayers(output_tex_flip);
+	obs_leave_graphics();
+	return fin_output_texture;
+	//return output_video_tex;
 }
 
 std::string PLSCamEffect::GenerateGuid()
@@ -567,7 +606,7 @@ HWND PLSCamEffect::CreateMessageWindow()
 
 	ATOM nAtom = RegisterClassA(&wc);
 	if (0 == nAtom) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "PLSCamEffect failed to register window! error:%u",
 		     GetLastError());
 
@@ -583,7 +622,7 @@ HWND PLSCamEffect::CreateMessageWindow()
 		UnregisterClassA(source_hwnd_class.c_str(),
 				 GetModuleHandle(NULL));
 
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "PLSCamEffect failed to create window! error:%u",
 		     GetLastError());
 
@@ -608,12 +647,18 @@ void PLSCamEffect::ClearOutputVideo()
 
 void PLSCamEffect::ReleaseOpennedTexture()
 {
-	obs_enter_graphics();
 	if (output_video_tex) {
-		gs_texture_destroy(output_video_tex);
-		output_video_tex = NULL;
+		obs_enter_graphics();
+		if (output_video_tex) {
+			gs_texture_destroy(output_video_tex);
+			output_video_tex = NULL;
+		}
+		if (fin_output_texture) {
+			gs_texture_destroy(fin_output_texture);
+			fin_output_texture = NULL;
+		}
+		obs_leave_graphics();
 	}
-	obs_leave_graphics();
 }
 
 void PLSCamEffect::PushEmptyInputVideo()
@@ -626,10 +671,12 @@ void PLSCamEffect::PushEmptyInputVideo()
 
 void PLSCamEffect::SetEffectState(std::string state)
 {
-	if (effect_state != state) {
-		effect_state = state;
-		blog(LOG_INFO, "Update effect state : %s", state.c_str());
-	}
+	// "effect_state" has been removed in latest version, so we just comment it here for releasing hotfix
+
+	//if (effect_state != state) {
+	//	effect_state = state;
+	//	blog(LOG_INFO, "Update effect state : %s", state.c_str());
+	//}
 }
 
 void PLSCamEffect::PushRestoreMessage()
@@ -645,6 +692,22 @@ void PLSCamEffect::PushRestoreMessage()
 	message_queue.PushMessage(msg, sizeof(face_beauty_message), true);
 }
 
+void PLSCamEffect::PushRestoreSegMessage()
+{
+	//for segmentation
+	if (seg_message.enable) {
+		segmentation_message *temp_seg = new segmentation_message();
+		EFFECT_MESSAGE_PTR seg_msg(temp_seg);
+		{
+			CAutoLockCS autoLock(param_lock);
+			memmove(temp_seg, &seg_message,
+				sizeof(segmentation_message));
+		}
+		message_queue.PushMessage(seg_msg, sizeof(segmentation_message),
+					  true);
+	}
+}
+
 bool PLSCamEffect::RunEffectProcess()
 {
 	assert(!CHandleWrapper::IsHandleValid(process_handle));
@@ -654,6 +717,7 @@ bool PLSCamEffect::RunEffectProcess()
 	::ResetEvent(
 		effect_valid_flag); // Effect process will sign this flag if success to init
 	PushRestoreMessage(); // send effect params to effect process for restoring
+	//PushRestoreSegMessage(); //restore segmentation message
 	PushEmptyInputVideo();
 	ClearOutputVideo();
 
@@ -664,20 +728,20 @@ bool PLSCamEffect::RunEffectProcess()
 
 	std::wstring process_path = GetProcessPath();
 	if (process_path.empty()) {
-		blog(LOG_ERROR, "Get beauty process path failed");
+		plog(LOG_ERROR, "Get beauty process path failed");
 		CHandleWrapper::IsHandleSigned(thread_exit_event, 5000);
 		assert(false);
 		return false;
 	}
 
 	if (!os_is_file_exist_ex(process_path.c_str())) {
-		PLSExceptionInfo ecp;
-		ecp.exception_happen = true;
+		PLSEventInfo ecp;
+		ecp.event_happen = true;
 		ecp.sub_code = 0;
 		ecp.type = OBS_SOURCE_EXCEPTION_NO_FILE;
-		PushException(ecp);
+		PushEvent(ecp);
 
-		blog(LOG_ERROR, "Beauty process file not exist");
+		plog(LOG_ERROR, "Beauty process file not exist");
 		CHandleWrapper::IsHandleSigned(thread_exit_event, 5000);
 		return false;
 	}
@@ -704,7 +768,7 @@ bool PLSCamEffect::RunEffectProcess()
 	BOOL bOK = CreateProcessW((LPWSTR)process_path.c_str(), cmd, NULL, NULL,
 				  TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
 	if (!bOK) {
-		blog(LOG_ERROR, "Fail to run effect process! error:%u",
+		plog(LOG_ERROR, "Fail to run effect process! error:%u",
 		     GetLastError());
 		CHandleWrapper::IsHandleSigned(thread_exit_event, 5000);
 		assert(false);
@@ -714,7 +778,7 @@ bool PLSCamEffect::RunEffectProcess()
 	CloseHandle(pi.hThread);
 	process_handle = pi.hProcess;
 
-	blog(LOG_INFO, "Success to run effect process. HANDLE:%llu PID:%u",
+	plog(LOG_INFO, "Success to run effect process. HANDLE:%llu PID:%u",
 	     pi.hProcess, pi.dwProcessId);
 
 	return true;
@@ -729,7 +793,7 @@ bool PLSCamEffect::CheckFindWindow()
 	std::string process_hwnd_class = session_id;
 	process_hwnd = ::FindWindowA(process_hwnd_class.c_str(), NULL);
 	if (::IsWindow(process_hwnd)) {
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "Find window of effect process. HANDLE:%llu HWND:%llu",
 		     process_handle, process_hwnd);
 		previous_heartbeat = GetTickCount();
@@ -752,15 +816,15 @@ bool PLSCamEffect::CheckRunProcess()
 		DWORD exit_code = 0;
 		GetExitCodeProcess(process_handle, &exit_code);
 
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Effect process exited because of an exception! code:%u HANDLE:%llu",
 		     exit_code, process_handle);
 
-		PLSExceptionInfo ecp;
-		ecp.exception_happen = true;
+		PLSEventInfo ecp;
+		ecp.event_happen = true;
 		ecp.sub_code = exit_code;
-		ecp.type = OBS_SOURCE_EXCEPTION_PROCESS_EXIT;
-		PushException(ecp);
+		ecp.type = OBS_SOURCE_EXCEPTION_VIDEO_DEVICE;
+		PushEvent(ecp);
 
 		process_hwnd = 0;
 		CHandleWrapper::CloseHandleEx(process_handle);
@@ -793,10 +857,10 @@ void PLSCamEffect::CheckHeartBeat(bool &heartbeat_timeout)
 	if (heartbeat_timeout != timeout) {
 		heartbeat_timeout = timeout;
 		if (heartbeat_timeout) {
-			blog(LOG_ERROR, "Heartbeat is timeout. HANDLE:%llu",
+			plog(LOG_ERROR, "Heartbeat is timeout. HANDLE:%llu",
 			     process_handle);
 		} else {
-			blog(LOG_INFO, "Heartbeat is normal. HANDLE:%llu",
+			plog(LOG_INFO, "Heartbeat is normal. HANDLE:%llu",
 			     process_handle);
 		}
 	}
@@ -814,12 +878,14 @@ void PLSCamEffect::TrySendMessage(cam_effect_message_info &info)
 					   SMTO_BLOCK | SMTO_ABORTIFHUNG,
 					   MESSAGE_TIMEOUT_MS, NULL);
 	if (!res) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Timeout while sending message! hr:%X error:%u HANDLE:%llu",
 		     res, GetLastError(), process_handle);
 
 		if (info.msg->type == effect_message_face_beauty) {
 			PushRestoreMessage(); // push another message with latest params
+		} else if (info.msg->type == effect_message_segmentation) {
+			PushRestoreSegMessage();
 		} else {
 			message_queue.PushMessage(info.msg, info.length, false);
 		}
@@ -863,7 +929,7 @@ void PLSCamEffect::MessageLoopThreadInner()
 	}
 }
 
-obs_source_exception_type TransException(cam_effect_exception_type src)
+obs_source_event_type TransException(cam_effect_exception_type src)
 {
 	switch (src) {
 	case effect_exception_sensetime:
@@ -911,38 +977,332 @@ void PLSCamEffect::OnCopyData(COPYDATASTRUCT *cd)
 			process_exception_message *src =
 				(process_exception_message *)cd->lpData;
 
-			obs_source_exception_type type =
+			obs_source_event_type type =
 				TransException(src->exception_type);
 
 			if (type != OBS_SOURCE_EXCEPTION_NONE) {
-				PLSExceptionInfo ecp;
-				ecp.exception_happen = true;
+				PLSEventInfo ecp;
+				ecp.event_happen = true;
 				ecp.type = type;
 				ecp.sub_code = src->sub_code;
-				PushException(ecp);
+				PushEvent(ecp);
 			} else {
-				blog(LOG_WARNING,
+				plog(LOG_WARNING,
 				     "Received unknown exception type. type:%d",
 				     type);
 			}
 		}
 		break;
+	case effect_message_status_action:
+		assert(cd->cbData == sizeof(process_status_message));
+		if (cd->cbData == sizeof(process_status_message)) {
+			process_status_message *src =
+				(process_status_message *)cd->lpData;
+			if (src->type == effect_message_status_action) {
+				PLSEventInfo ecp;
+				ecp.event_happen = true;
+				ecp.type = OBS_SOURCE_SENSEAR_ACTION;
+				ecp.sub_code = 0;
+				PushEvent(ecp);
+			}
+		}
+		break;
 
 	default:
-		blog(LOG_WARNING, "Received unknown message type. type:%d",
+		plog(LOG_WARNING, "Received unknown message type. type:%d",
 		     (int)cd->dwData);
 		break;
 	}
 }
 
-void PLSCamEffect::PushException(PLSExceptionInfo &ecp)
+void PLSCamEffect::PushEvent(PLSEventInfo &ecp)
 {
 	CAutoLockCS autoLock(exception_lock);
 
-	PLSExceptionInfo info = exceptions[ecp.type];
-	if (info.exception_happen && info.notify_done) {
+	PLSEventInfo info = exceptions[ecp.type];
+	if (info.event_happen && info.notify_done &&
+	    ecp.type != OBS_SOURCE_EXCEPTION_BG_FILE_ERROR &&
+	    ecp.type != OBS_SOURCE_EXCEPTION_BG_FILE_NETWORK_ERROR) {
 		return; // exception has been notified before
 	}
 
 	exceptions[ecp.type] = ecp;
+}
+
+void PLSCamEffect::UpdateFinOutputTexture(const gs_texture *tex)
+{
+	if (!tex)
+		return;
+	uint32_t width = gs_texture_get_width(tex);
+	uint32_t height = gs_texture_get_height(tex);
+	gs_color_format fmt = gs_texture_get_color_format(tex);
+	if (fin_output_texture &&
+	    (gs_texture_get_width(fin_output_texture) != width ||
+	     gs_texture_get_height(fin_output_texture) != height ||
+	     fmt != gs_texture_get_color_format(fin_output_texture))) {
+		gs_texture_destroy(fin_output_texture);
+		fin_output_texture = NULL;
+	}
+
+	if (!fin_output_texture) {
+		fin_output_texture = gs_texture_create(width, height, fmt, 1,
+						       NULL, GS_RENDER_TARGET);
+	}
+}
+
+void PLSCamEffect::RenderAllLayers(bool flip)
+{
+	if (!fin_output_texture) {
+		return;
+	}
+
+	obs_enter_graphics();
+
+	if (!seg_message.enable) {
+		gs_copy_texture(fin_output_texture, output_video_tex);
+		obs_leave_graphics();
+		return;
+	}
+
+	bool res = false;
+	if (back_ground) {
+		res = back_ground->RenderGround(fin_output_texture, flip);
+	}
+
+	if (res) {
+		//mix output_video_tex to fin_output_texture
+		gs_texture_t *pre_rt_tex = gs_get_render_target();
+
+		gs_viewport_push();
+		gs_projection_push();
+		gs_matrix_push();
+		gs_matrix_identity();
+		uint32_t width = gs_texture_get_width(fin_output_texture);
+		uint32_t height = gs_texture_get_height(fin_output_texture);
+		gs_set_render_target(fin_output_texture, NULL);
+		gs_set_viewport(0, 0, width, height);
+		gs_ortho(0.0f, (float)width, 0.0f, (float)height, -100.0f,
+			 100.0f);
+		gs_blend_state_push();
+		gs_reset_blend_state();
+
+		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+		gs_technique_t *tech = gs_effect_get_technique(effect, "Draw");
+		gs_technique_begin(tech);
+		gs_technique_begin_pass(tech, 0);
+
+		gs_eparam_t *param_image =
+			gs_effect_get_param_by_name(effect, "image");
+		gs_effect_set_texture(param_image, output_video_tex);
+
+		gs_draw_sprite(output_video_tex, 0, 0, 0);
+
+		gs_technique_end_pass(tech);
+		gs_technique_end(tech);
+
+		gs_blend_state_pop();
+		gs_set_render_target(pre_rt_tex, NULL);
+		gs_matrix_pop();
+		gs_projection_pop();
+		gs_viewport_pop();
+	} else {
+		gs_copy_texture(fin_output_texture, output_video_tex);
+	}
+
+	if (fore_ground) {
+		fore_ground->RenderGround(fin_output_texture, flip);
+	}
+
+	obs_leave_graphics();
+}
+
+void PLSCamEffect::GroundExceptionHandler(void *data, int type, int subcode)
+{
+	PLSCamEffect *cam_effect = (PLSCamEffect *)data;
+	PLSEventInfo ecp;
+	ecp.event_happen = true;
+	ecp.sub_code = subcode;
+	ecp.type = static_cast<obs_source_event_type>(type);
+	plog(LOG_INFO, "Ground Item Exception, type:%d, subcode:%d", type,
+	     subcode);
+	cam_effect->PushEvent(ecp);
+}
+
+enum seg_method {
+	seg_method_chromakey = 1,
+	seg_method_sensetime = 2,
+};
+
+bool PLSCamEffect::ParseSegmentationParam(obs_data_t *data,
+					  bool &seg_onoff_changed)
+{
+	if (!data) {
+		return false;
+	}
+
+	ground_private_data ground_data;
+	ground_data.blur_enable = obs_data_get_bool(data, GROUND_BLUR_ENABLE);
+	ground_data.blur = obs_data_get_double(data, GROUND_BLUR);
+	ground_data.ground_seg_type = static_cast<GROUND_SEG_TYPE>(
+		obs_data_get_int(data, GROUND_SELECT_TYPE));
+	ground_data.temp_origin =
+		obs_data_get_int(data, GROUND_IS_TEMP_ORIGINAL);
+
+	if (ground_data.ground_seg_type == GROUND_SEG_TYPE_UNKNOWN) {
+		plog(LOG_WARNING, "Ground type error: unknown");
+		return false;
+	}
+
+	item_private_data item_data;
+	std::string str_type = obs_data_get_string(data, GROUND_BG_ITEM_TYPE);
+	if (ground_data.ground_seg_type == GROUND_SEG_TYPE_ADD_BG) {
+		if (str_type.compare("image") == 0) {
+			item_data.item_type = ITEM_TYPE_IMAGE;
+		} else if (str_type.compare("video") == 0) {
+			item_data.item_type = ITEM_TYPE_VIDEO;
+		} else {
+			plog(LOG_INFO, "Background type[%s] invalid", str_type);
+			return false;
+		}
+	}
+
+	item_data.path = obs_data_get_string(data, GROUND_PATH);
+	item_data.stop_moiton_path =
+		obs_data_get_string(data, GROUND_STOPMOTION_PATH);
+	item_data.rt_source.x = obs_data_get_double(data, GROUND_SRC_RECT_X);
+	item_data.rt_source.y = obs_data_get_double(data, GROUND_SRC_RECT_Y);
+	item_data.rt_source.cx = obs_data_get_double(data, GROUND_SRC_RECT_CX);
+	item_data.rt_source.cy = obs_data_get_double(data, GROUND_SRC_RECT_CY);
+
+	item_data.rt_target.x = obs_data_get_double(data, GROUND_DST_RECT_X);
+	item_data.rt_target.y = obs_data_get_double(data, GROUND_DST_RECT_Y);
+	item_data.rt_target.cx = obs_data_get_double(data, GROUND_DST_RECT_CX);
+	item_data.rt_target.cy = obs_data_get_double(data, GROUND_DST_RECT_CY);
+
+	item_data.motion = obs_data_get_bool(data, GROUND_MOTION);
+	item_data.h_flip = obs_data_get_bool(data, GROUND_H_FLIP);
+	item_data.v_flip = obs_data_get_bool(data, GROUND_V_FLIP);
+	item_data.ui_motion_id = obs_data_get_string(data, GROUND_UI_MOTION_ID);
+	item_data.thumbnail_file_path =
+		obs_data_get_string(data, GROUND_THUMBNAIL_FILE_PATH);
+	item_data.is_prism_resource =
+		obs_data_get_bool(data, GROUND_IS_PRISM_RESOURCE);
+
+	bool ck_enable = obs_data_get_bool(data, CK_CAPTURE);
+
+	if (!back_ground) {
+		ground_exception callback =
+			(ground_exception)&PLSCamEffect::GroundExceptionHandler;
+		back_ground = std::make_shared<PLSCamGround>(
+			dshow_source, this, callback, GROUND_TYPE_BG);
+	}
+	back_ground->SetBackgroundInfo(ground_data, item_data);
+
+	segmentation_message *temp = new segmentation_message();
+	EFFECT_MESSAGE_PTR msg(temp);
+	int len = min(ARRAY_COUNT(temp->guid), session_id.length() + 1);
+	memmove(temp->guid, session_id.c_str(), len);
+
+	temp->blur = ground_data.blur;
+	//temp->use_original_bg = (ground_data.ground_seg_type == GROUND_SEG_TYPE_ORIGINAL);
+	temp->segment_type = cam_seg_type_original_total;
+	if (ground_data.temp_origin == 1 &&
+	    ground_data.ground_seg_type == GROUND_SEG_TYPE_ORIGINAL) {
+		temp->segment_type = cam_seg_type_original_total;
+	} else {
+		if (ground_data.ground_seg_type == GROUND_SEG_TYPE_ORIGINAL) {
+			temp->segment_type = cam_seg_type_original;
+		} else if (ground_data.ground_seg_type ==
+				   GROUND_SEG_TYPE_ADD_BG ||
+			   ground_data.ground_seg_type ==
+				   GROUND_SEG_TYPE_DEL_BG) {
+			temp->segment_type = cam_seg_type_remvoe_bg;
+		}
+	}
+	temp->blur_enable = ground_data.blur_enable;
+
+	plog(LOG_INFO, "ground type:%d", ground_data.ground_seg_type);
+
+	//disable only blur disable and use original background
+	temp->enable = ground_data.blur_enable ||
+		       ground_data.ground_seg_type !=
+			       GROUND_SEG_TYPE_ORIGINAL ||
+		       ground_data.temp_origin == 1;
+
+	temp->seg_method = seg_method_sensetime;
+	temp->ck_info.enable = false;
+	/*temp->ck_info.enable = ck_enable;
+	if (ck_enable) {
+		temp->seg_method = 1;
+		temp->ck_info.color = obs_data_get_int(data, CK_COLOR);
+		temp->ck_info.similarity =
+			obs_data_get_int(data, CK_SIMILARITY);
+		temp->ck_info.smooth = obs_data_get_int(data, CK_SMOOTH);
+		temp->ck_info.spill = obs_data_get_int(data, CK_SPILL);
+		temp->ck_info.opacity = obs_data_get_int(data, CK_OPACITY);
+		temp->ck_info.contrast = obs_data_get_double(data, CK_CONTRAST);
+		temp->ck_info.brightness =
+			obs_data_get_double(data, CK_BRIGHTNESS);
+		temp->ck_info.gamma = obs_data_get_double(data, CK_GAMMA);
+	}*/
+
+	bool output_clear = !temp->enable;
+	{
+		CAutoLockCS autoLock(param_lock);
+		seg_onoff_changed = (temp->enable != seg_message.enable) &&
+				    !beauty_params.enable;
+		output_clear = output_clear && !beauty_params.enable;
+		memmove(&seg_message, temp, sizeof(segmentation_message));
+	}
+
+	if (seg_onoff_changed) {
+		PushEmptyInputVideo();
+		ClearOutputVideo();
+		if (back_ground) {
+			back_ground->SetClearAllTextureToken();
+		}
+	}
+
+	if (output_clear) {
+		ClearOutputVideo();
+	}
+
+	if (!fore_ground) {
+		ground_exception callback =
+			(ground_exception)&PLSCamEffect::GroundExceptionHandler;
+		fore_ground = std::make_shared<PLSCamGround>(
+			dshow_source, this, callback, GROUND_TYPE_FG);
+	}
+
+	item_private_data it;
+	it.path = obs_data_get_string(data, FORE_GROUND_PATH);
+	it.stop_moiton_path =
+		obs_data_get_string(data, FORE_GROUND_STATIC_PATH);
+	it.item_type = item_data.item_type;
+	it.ui_motion_id = item_data.ui_motion_id;
+	it.motion = item_data.motion;
+	it.is_prism_resource = item_data.is_prism_resource;
+	if (it.path.empty() || it.stop_moiton_path.empty()) {
+		ground_data.enable = false;
+	}
+	fore_ground->SetBackgroundInfo(ground_data, it);
+
+	message_queue.PushMessage(msg, sizeof(segmentation_message), true);
+
+	if (seg_onoff_changed && waiting_onoff_change && IsEffectOn()) {
+		::SetEvent(onoff_changed_event);
+	}
+
+	return true;
+}
+
+void PLSCamEffect::ClearResWhenEffectOff()
+{
+	if (back_ground) {
+		back_ground->ClearResWhenEffectOff();
+	}
+
+	if (fore_ground) {
+		fore_ground->ClearResWhenEffectOff();
+	}
 }

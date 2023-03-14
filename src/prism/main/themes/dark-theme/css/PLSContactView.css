@@ -69,7 +69,7 @@ PLSContactView #inquiryLabel {
 PLSContactView #fileButton {
     background-color:transparent;
 	min-width:/*hdpi*/40px;
-	max-width:/*hdpi*/40px;
+	max-width:/*hdpi*/70px;
 	min-height:/*hdpi*/ 16px;
 	max-height:/*hdpi*/ 16px;
 }

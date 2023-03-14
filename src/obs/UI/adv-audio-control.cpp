@@ -365,7 +365,7 @@ void OBSAdvAudioCtrl::monitoringTypeChanged(int index)
 		break;
 	}
 
-	blog(LOG_INFO, "User changed audio monitoring for source '%s' to: %s",
+	plog(LOG_INFO, "User changed audio monitoring for source '%s' to: %s",
 	     obs_source_get_name(source), type);
 }
 

@@ -25,23 +25,37 @@
 #include "log/module_names.h"
 #include "pls-common-define.hpp"
 
+#define SPECTRALIZER_MIN_WIDTH 210
+
 struct AddSourceData {
 	obs_source_t *source;
 	bool visible;
 
 	//zhangdewen, chat source, set source position
 	bool setpos;
-	vec2 pos;
+
+	//zengqin, audiovisualizer source, set source position and size
+	obs_transform_info itemInfo{};
 
 	AddSourceData(obs_source_t *source, bool visible)
 	{
 		this->source = source;
 		this->visible = visible;
 		this->setpos = false;
-		this->pos.x = this->pos.y = 0.0f;
+
+		vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+		vec2_set(&itemInfo.scale, 1.0f, 1.0f);
+		itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+		itemInfo.rot = 0.0f;
+
+		itemInfo.bounds_type = OBS_BOUNDS_NONE;
+		itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+		vec2_set(&itemInfo.bounds, 0.0f, 0.0f);
 	}
 
-	void centerShow()
+	void setAlignment(uint32_t value) { itemInfo.alignment = value; }
+
+	void centerShow(int width = 0, int height = 0)
 	{
 		setpos = true;
 
@@ -51,10 +65,48 @@ struct AddSourceData {
 		vec3_set(&center, float(ovi.base_width), float(ovi.base_height), 0.0f);
 		vec3_mulf(&center, &center, 0.5f);
 
-		auto width = obs_source_get_width(source);
-		auto height = obs_source_get_height(source);
-		pos.x = center.x - width / 2.0f;
-		pos.y = center.y - height / 2.0f;
+		PLSBasic *main = PLSBasic::Get();
+		int x, y, cx, cy;
+		main->GetDisplayRect(x, y, cx, cy);
+		vec2 baseSize;
+		baseSize.x = obs_source_get_width(source);
+		baseSize.y = obs_source_get_height(source);
+
+		vec2 size;
+		if (width && height) {
+			size.x = cx ? width / (float)cx * ovi.base_width : baseSize.x;
+			size.y = cy ? height / (float)cy * ovi.base_height : baseSize.y;
+		} else if (width && !height) {
+			size.x = cx ? width / (float)cx * ovi.base_width : baseSize.x;
+			size.y = baseSize.x ? baseSize.y / (float)baseSize.x * size.x : baseSize.y;
+		} else if (!width && height) {
+			size.y = cy ? height / (float)cy * ovi.base_height : baseSize.y;
+			size.x = baseSize.y ? baseSize.x / (float)baseSize.y * size.y : baseSize.x;
+
+		} else {
+			size.x = baseSize.x;
+			size.y = baseSize.y;
+		}
+
+		float posX = center.x - size.x / 2.0f;
+		float posY = center.y - size.y / 2.0f;
+		if (OBS_ALIGN_CENTER == itemInfo.alignment) {
+			//PRISM/WuLongyue/20201222/#6214/For PRISM Mobile source: Use center point to rotate
+			/** Compatible with other source
+			* Either here or obs-scene.cpp::obs_scene_add_internal
+			* can make PRISM Mobile source rotate on center point
+			* FEEL FREE to remove one of them in the future
+			*/
+			posX = center.x;
+			posY = center.y;
+		}
+
+		vec2_div(&size, &size, &baseSize);
+
+		vec2_set(&itemInfo.pos, posX, posY);
+		if (baseSize.x > 0 && baseSize.y > 0) {
+			vec2_set(&itemInfo.scale, size.x, size.y);
+		}
 	}
 };
 
@@ -140,8 +192,25 @@ static void AddSource(void *_data, obs_scene_t *scene)
 	obs_sceneitem_set_visible(sceneitem, data->visible);
 
 	if (data->setpos) {
-		obs_sceneitem_set_pos(sceneitem, &data->pos);
-		//obs_sceneitem_set_scale(sceneitem, &chat->scale);
+		obs_sceneitem_set_info(sceneitem, &data->itemInfo);
+	}
+
+	const char *id = obs_source_get_id(data->source);
+	if (id && !strcmp(id, PRISM_BACKGROUND_TEMPLATE_SOURCE_ID)) { // fit to screen
+		obs_video_info ovi;
+		obs_get_video_info(&ovi);
+
+		obs_transform_info itemInfo;
+		vec2_set(&itemInfo.pos, 0.0f, 0.0f);
+		vec2_set(&itemInfo.scale, 1.0f, 1.0f);
+		itemInfo.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
+		itemInfo.rot = 0.0f;
+
+		vec2_set(&itemInfo.bounds, float(ovi.base_width), float(ovi.base_height));
+		itemInfo.bounds_type = OBS_BOUNDS_SCALE_INNER;
+		itemInfo.bounds_alignment = OBS_ALIGN_CENTER;
+
+		obs_sceneitem_set_info(sceneitem, &itemInfo);
 	}
 }
 
@@ -190,6 +259,17 @@ static void AddExisting(const char *name, bool visible, bool duplicate)
 		const char *id = obs_source_get_id(source);
 		if (id && !strcmp(id, PRISM_CHAT_SOURCE_ID)) {
 			data.centerShow();
+		} else if (id && !strcmp(id, PRISM_SPECTRALIZER_SOURCE_ID)) {
+			data.centerShow(SPECTRALIZER_MIN_WIDTH);
+		} else if (id && (!strcmp(id, PRISM_MOBILE_SOURCE_ID) || !strcmp(id, PRISM_TIMER_SOURCE_ID))) {
+			//PRISM/WuLongyue/20201222/#6214/For PRISM Mobile source: Use center point to rotate
+			/** Compatible with other source
+			* Either here or obs-scene.cpp::obs_scene_add_internal
+			* can make PRISM Mobile source rotate on center point
+			* FEEL FREE to remove one of them in the future
+			*/
+			data.setAlignment(OBS_ALIGN_CENTER);
+			data.centerShow();
 		}
 
 		obs_enter_graphics();
@@ -220,6 +300,17 @@ bool AddNew(QWidget *parent, const char *id, const char *name, const bool visibl
 
 			const char *id = obs_source_get_id(source);
 			if (id && !strcmp(id, PRISM_CHAT_SOURCE_ID)) {
+				data.centerShow();
+			} else if (id && !strcmp(id, PRISM_SPECTRALIZER_SOURCE_ID)) {
+				data.centerShow(SPECTRALIZER_MIN_WIDTH);
+			} else if (id && (!strcmp(id, PRISM_MOBILE_SOURCE_ID) || !strcmp(id, PRISM_TIMER_SOURCE_ID))) {
+				//PRISM/WuLongyue/20201222/#6214/For PRISM Mobile source: Use center point to rotate
+				/** Compatible with other source
+				* Either here or obs-scene.cpp::obs_scene_add_internal
+				* can make PRISM Mobile source rotate on center point
+				* FEEL FREE to remove one of them in the future
+				*/
+				data.setAlignment(OBS_ALIGN_CENTER);
 				data.centerShow();
 			}
 

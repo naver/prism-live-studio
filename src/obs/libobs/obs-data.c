@@ -626,15 +626,15 @@ static json_t *obs_data_to_json(obs_data_t *data)
 /* ------------------------------------------------------------------------- */
 
 //PRISM/Wangshaohui/20200927/#4868/for property UI
-void obs_data_set_flags(obs_data_t *data, unsigned value)
+void obs_data_add_flags(obs_data_t *data, uint32_t flag)
 {
 	if (data) {
-		data->flags = value;
+		data->flags |= flag;
 	}
 }
 
 //PRISM/Wangshaohui/20200927/#4868/for property UI
-unsigned obs_data_get_flags(obs_data_t *data)
+uint32_t obs_data_get_flags(obs_data_t *data)
 {
 	if (data) {
 		return data->flags;
@@ -662,7 +662,7 @@ obs_data_t *obs_data_create_from_json(const char *json_string)
 		obs_data_add_json_object_data(data, root);
 		json_decref(root);
 	} else {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "obs-data.c: [obs_data_create_from_json] "
 		     "Failed reading json string (%d): %s",
 		     error.line, error.text);
@@ -699,7 +699,7 @@ obs_data_t *obs_data_create_from_json_file_safe(const char *json_file,
 		dstr_cat(&backup_file, backup_ext);
 
 		if (os_file_exists(backup_file.array)) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "obs-data.c: "
 			     "[obs_data_create_from_json_file_safe] "
 			     "attempting backup file");
@@ -1826,12 +1826,14 @@ bool obs_data_item_get_default_bool(obs_data_item_t *item)
 
 obs_data_t *obs_data_item_get_default_obj(obs_data_item_t *item)
 {
-	return data_item_get_obj(item, get_item_obj);
+	//PRISM/LiuHaibin/20210119/#None/Merge from OBS :https://github.com/obsproject/obs-studio/pull/3365
+	return data_item_get_obj(item, get_item_default_obj);
 }
 
 obs_data_array_t *obs_data_item_get_default_array(obs_data_item_t *item)
 {
-	return data_item_get_array(item, get_item_array);
+	//PRISM/LiuHaibin/20210119/#None/Merge from OBS :https://github.com/obsproject/obs-studio/pull/3365
+	return data_item_get_array(item, get_item_default_array);
 }
 
 const char *obs_data_item_get_autoselect_string(obs_data_item_t *item)

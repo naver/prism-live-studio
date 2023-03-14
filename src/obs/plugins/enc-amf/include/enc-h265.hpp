@@ -39,6 +39,8 @@ namespace Plugin {
 								bool* received_packet) noexcept;
 			static void  get_video_info(void* ptr, struct video_scale_info* info) noexcept;
 			static bool  get_extra_data(void* ptr, uint8_t** extra_data, size_t* size) noexcept;
+			//PRISM/ZengQin/20210528/#none/get encoder props params
+			static obs_data_t* get_props_pramas(void* data);
 
 			//////////////////////////////////////////////////////////////////////////
 			// Module Code
@@ -51,6 +53,8 @@ namespace Plugin {
 			bool encode(struct encoder_frame* frame, struct encoder_packet* packet, bool* received_packet);
 			void get_video_info(struct video_scale_info* info);
 			bool get_extra_data(uint8_t** extra_data, size_t* size);
+			//PRISM/ZengQin/20210528/#none/get encoder props params
+			obs_data_t* get_props_pramas();
 
 			//////////////////////////////////////////////////////////////////////////
 			// Storage

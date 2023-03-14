@@ -5,6 +5,9 @@ if(MSVC)
 		w32-pthreads)
 endif()
 
+find_package(FFmpeg REQUIRED COMPONENTS avutil avcodec avformat)
+include_directories(${FFMPEG_INCLUDE_DIRS})
+
 set(image-source_SOURCES
 	image-source.c
 	color-source.c

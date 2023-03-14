@@ -14,7 +14,7 @@ static inline void init_textures(struct dc_capture *capture)
 			gs_texture_create_gdi(capture->width, capture->height);
 
 	if (!capture->texture) {
-		blog(LOG_WARNING, "[dc_capture_init] Failed to "
+		plog(LOG_WARNING, "[dc_capture_init] Failed to "
 				  "create textures");
 		return;
 	}
@@ -145,7 +145,7 @@ void dc_capture_capture(struct dc_capture *capture, HWND window)
 
 	hdc = dc_capture_get_dc(capture);
 	if (!hdc) {
-		blog(LOG_WARNING, "[capture_screen] Failed to get "
+		plog(LOG_WARNING, "[capture_screen] Failed to get "
 				  "texture DC");
 		return;
 	}

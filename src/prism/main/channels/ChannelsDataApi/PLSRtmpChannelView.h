@@ -3,7 +3,7 @@
 
 #include <QDialog>
 #include <QVariantMap>
-#include "PLSWidgetDpiAdapter.hpp"
+#include "dialog-view.hpp"
 
 namespace Ui {
 class RtmpChannelView;
@@ -11,7 +11,7 @@ class RtmpChannelView;
 
 class PLSLoginInfo;
 
-class PLSRtmpChannelView : public PLSWidgetDpiAdapterHelper<QDialog> {
+class PLSRtmpChannelView : public PLSDialogView {
 	Q_OBJECT
 
 public:
@@ -20,6 +20,7 @@ public:
 	void initUi();
 	QVariantMap SaveResult();
 	void loadFromData(const QVariantMap &oldData);
+	void showResolutionGuide();
 
 protected:
 	void changeEvent(QEvent *e);
@@ -45,12 +46,15 @@ private slots:
 private:
 	void languageChange();
 	void initCommbox();
-	void verify();
+	void verifyRename();
 	bool checkIsModified();
+	bool isInfoValid();
 	void updateRtmpInfos();
 	bool isRtmUrlRight();
 
 	void updatePlatform(const QString &platform);
+
+	void ValidateNameEdit();
 
 private:
 	Ui::RtmpChannelView *ui;

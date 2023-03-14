@@ -32,6 +32,7 @@ extern "C" {
 #define OBS_ENCODER_CAP_DEPRECATED (1 << 0)
 #define OBS_ENCODER_CAP_PASS_TEXTURE (1 << 1)
 #define OBS_ENCODER_CAP_DYN_BITRATE (1 << 2)
+#define OBS_ENCODER_CAP_INTERNAL (1 << 3)
 
 /** Specifies the encoder type */
 enum obs_encoder_type {
@@ -261,6 +262,9 @@ struct obs_encoder_info {
 			       uint64_t lock_key, uint64_t *next_key,
 			       struct encoder_packet *packet,
 			       bool *received_packet);
+
+	//PRISM/ZengQin/20210527/#none/Get encoder properties parameters
+	obs_data_t *(*props_params)(void *data);
 };
 
 EXPORT void obs_register_encoder_s(const struct obs_encoder_info *info,

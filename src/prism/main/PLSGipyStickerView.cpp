@@ -23,9 +23,11 @@
 #include <QPainter>
 #include <QToolButton>
 #include <qmath.h>
+#include <set>
+#include "window-basic-main.hpp"
 
 const char *TAB_INDEX = "tabIndex";
-const char *API_KEY = ""; //You should register a API KEY for your application
+const char *API_KEY = "";
 const char *API = "https://api.giphy.com/v1/stickers/";
 const char *PAGE_TYPE = "pageType";
 static const char *GEOMETRY_DATA = "geometryGiphy"; //key of giphy window geometry in global ini
@@ -49,15 +51,13 @@ const int FLOW_LAYOUT_MARGIN_LEFT_RIGHT = 17;
 const int FLOW_LAYOUT_MARGIN_TOP_BOTTOM = 19;
 const int MAX_INPUT_LENGTH = 100;
 
-void PLSGipyStickerView::OnPrismAppQuit(enum obs_frontend_event event, void *context)
+void OnPrismAppQuit(enum obs_frontend_event event, void *context)
 {
 	if (event == OBS_FRONTEND_EVENT_EXIT) {
 		PLSGipyStickerView *view = static_cast<PLSGipyStickerView *>(context);
 		if (view) {
 			view->SetExitFlag(true);
 			view->SaveStickerJsonData();
-			if (!view->getMaxState())
-				view->onSaveNormalGeometry();
 			view->deleteLater();
 		}
 	}
@@ -68,10 +68,11 @@ PointerValue PLSGipyStickerView::ConvertPointer(void *ptr)
 	return reinterpret_cast<PointerValue>(ptr);
 }
 
-PLSGipyStickerView::PLSGipyStickerView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSGipyStickerView)
+PLSGipyStickerView::PLSGipyStickerView(DialogInfo info, QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(info, parent, dpiHelper), ui(new Ui::PLSGipyStickerView)
 {
 	pageLimit = defaultLimit;
 	this->setCursor(Qt::ArrowCursor);
+	notifyFirstShow([=]() { this->InitGeometry(true); });
 	dpiHelper.setCss(this, {PLSCssIndex::GiphyStickers, PLSCssIndex::PLSToastMsgFrame});
 	qRegisterMetaType<RequestTaskData>("RequestTaskData");
 	qRegisterMetaType<DownloadTaskData>("DownloadTaskData");
@@ -316,6 +317,39 @@ void PLSGipyStickerView::StartDownloader()
 	GiphyDownloader::instance()->Start();
 }
 
+const std::map<std::string, std::string> supportedLocal = {{"en", "English"},
+							   {"es", "Spanish"},
+							   {"pt", "Portuguese"},
+							   {"id", "Indonesian"},
+							   {"fr", "French"},
+							   {"ar", "Arabic"},
+							   {"tr", "Turkish"},
+							   {"th", "Thai"},
+							   {"vi", "Vietnamese"},
+							   {"de", "German"},
+							   {"it", "Italian"},
+							   {"ja", "Japanese"},
+							   {"zh-CN", "Chinese Simplified"},
+							   {"zh-TW", "Chinese Traditional"},
+							   {"ru", "Russian"},
+							   {"ko", "Korean"},
+							   {"pl", "Polish"},
+							   {"nl", "Dutch"},
+							   {"ro", "Romanian"},
+							   {"hu", "Hungarian"},
+							   {"sv", "Swedish"},
+							   {"cs", "Czech"},
+							   {"hi", "Hindi"},
+							   {"bn", "Bengali"},
+							   {"da", "Danish"},
+							   {"fa", "Farsi"},
+							   {"tl", "Filipino"},
+							   {"fi", "Finnish"},
+							   {"he", "Hebrew"},
+							   {"ms", "Malay"},
+							   {"no", "Norwegian"},
+							   {"uk", "Ukrainian"}};
+
 QString PLSGipyStickerView::GetRequestUrl(const QString &apiType, int limit, int offset) const
 {
 	QString url(API);
@@ -324,13 +358,23 @@ QString PLSGipyStickerView::GetRequestUrl(const QString &apiType, int limit, int
 	url.append("&limit=").append(QString::number(limit));
 	url.append("&rating=").append("G");
 	url.append("&offset=").append(QString::number(offset));
+
 	const char *currentLang = App()->GetLocale();
-	if (0 == strcmp(currentLang, "en-US")) {
+	if (!currentLang) {
 		url.append("&lang=").append("en");
-	} else if (0 == strcmp(currentLang, "ko-KR")) {
-		url.append("&lang=").append("ko");
+		return url;
+	}
+
+	if (0 == strcmp(currentLang, "zh-CN") || 0 == strcmp(currentLang, "zh-TW")) {
+		url.append("&lang=").append(currentLang);
 	} else {
-		url.append("&lang=").append("en");
+		std::string targetLang = QString(currentLang).left(2).toUtf8().constData();
+		auto iter = supportedLocal.find(targetLang);
+		if (iter != supportedLocal.end()) {
+			url.append("&lang=").append(targetLang.c_str());
+		} else {
+			url.append("&lang=").append("en");
+		}
 	}
 	return url;
 }
@@ -510,7 +554,7 @@ bool PLSGipyStickerView::CreateJsonFile()
 
 	QFile file(userFileName);
 	if (!file.open(QIODevice::ReadWrite)) {
-		PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Could not open %s for writing: %s\n", qPrintable(userFileName), qPrintable(file.errorString()));
+		PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Could not open Giphy sticker json file for writing: %s\n", qPrintable(file.errorString()));
 		return false;
 	}
 
@@ -538,7 +582,7 @@ void PLSGipyStickerView::InitStickerJson()
 	QString userFileName = pls_get_user_path(GIPHY_STICKERS_JSON_FILE);
 	QFile file(userFileName);
 	if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-		PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Could not open %s for writing: %s\n", qPrintable(userFileName), qPrintable(file.errorString()));
+		PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Could not open Giphy sticker json file for writing: %s\n", qPrintable(file.errorString()));
 		return;
 	}
 
@@ -613,27 +657,9 @@ void PLSGipyStickerView::DeleteHistoryItem(const QString &key)
 	WriteSearchHistoryToFile(key, true);
 }
 
-void PLSGipyStickerView::QuerySearch(const QString &keyword, int limit, int offset)
-{
-	QString url = GetRequestUrl(SEARCH_API, limit, offset);
-	url.append("&q=").append(keyword.toUtf8());
-	RequestTaskData task;
-	task.randomId = ConvertPointer(searchResultList);
-	task.url = url;
-	task.keyword = keyword;
-	//emit request(task);
-	webHandler->Get(task);
-}
+void PLSGipyStickerView::QuerySearch(const QString &keyword, int limit, int offset) {}
 
-void PLSGipyStickerView::QueryTrending(int limit, int offset)
-{
-	QString url = GetRequestUrl(TRENDING_API, limit, offset);
-	RequestTaskData task;
-	task.randomId = ConvertPointer(trendingScrollList);
-	task.url = url;
-	//emit request(task);
-	webHandler->Get(task);
-}
+void PLSGipyStickerView::QueryTrending(int limit, int offset) {}
 
 void PLSGipyStickerView::ShowSearchPage()
 {
@@ -695,7 +721,6 @@ void PLSGipyStickerView::AutoFillContent()
 //After window resized,page count should be recalculated.
 void PLSGipyStickerView::UpdateLimit()
 {
-	double dpi = PLSDpiHelper::getDpi(this);
 	int newPageCount = GetColumCountByWidth(this->width(), FLOW_LAYOUT_MARGIN_LEFT_RIGHT);
 	if (newPageCount < defaultLimit)
 		newPageCount = defaultLimit;
@@ -927,18 +952,6 @@ void PLSGipyStickerView::SetSearchData(const ResponData &data)
 	}
 }
 
-void PLSGipyStickerView::onMaxFullScreenStateChanged()
-{
-	config_set_bool(App()->GlobalConfig(), GIPHY_STICKERS_CONFIG, MAXIMIZED_STATE, getMaxState());
-	config_save(App()->GlobalConfig());
-}
-
-void PLSGipyStickerView::onSaveNormalGeometry()
-{
-	config_set_string(App()->GlobalConfig(), GIPHY_STICKERS_CONFIG, GEOMETRY_DATA, saveGeometry().toBase64().constData());
-	config_save(App()->GlobalConfig());
-}
-
 bool PLSGipyStickerView::IsSignalConnected(const QMetaMethod &signal)
 {
 	return this->isSignalConnected(signal);
@@ -949,7 +962,7 @@ void PLSGipyStickerView::SaveStickerJsonData()
 	QString userFileName = pls_get_user_path(GIPHY_STICKERS_JSON_FILE);
 	QFile file(userFileName);
 	if (!file.open(QIODevice::ReadWrite | QIODevice::Text)) {
-		PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Could not open %s for writing: %s\n", qPrintable(userFileName), qPrintable(file.errorString()));
+		PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Could not open Giphy sticker json file for writing: %s\n", qPrintable(file.errorString()));
 		return;
 	}
 
@@ -965,51 +978,6 @@ void PLSGipyStickerView::SaveStickerJsonData()
 	file.close();
 }
 
-void PLSGipyStickerView::SaveShowModeToConfig()
-{
-	config_set_bool(App()->GlobalConfig(), GIPHY_STICKERS_CONFIG, "showMode", isVisible());
-	config_save(App()->GlobalConfig());
-}
-
-void PLSGipyStickerView::InitGeometry()
-{
-	auto initGeometry = [this](double dpi, bool inConstructor) {
-		extern void setGeometrySys(PLSWidgetDpiAdapter * adapter, const QRect &geometry);
-
-		const char *geometry = config_get_string(App()->GlobalConfig(), GIPHY_STICKERS_CONFIG, GEOMETRY_DATA);
-		if (!geometry || !geometry[0]) {
-			const int defaultWidth = 298;
-			const int defaultHeight = 802;
-			const int mainRightOffest = 5;
-			PLSMainView *mainView = App()->getMainView();
-			QPoint mainTopRight = App()->getMainView()->mapToGlobal(QPoint(mainView->frameGeometry().width(), 0));
-			geometryOfNormal = QRect(mainTopRight.x() + PLSDpiHelper::calculate(dpi, mainRightOffest), mainTopRight.y(), PLSDpiHelper::calculate(dpi, defaultWidth),
-						 PLSDpiHelper::calculate(dpi, defaultHeight));
-			setGeometrySys(this, geometryOfNormal);
-		} else if (inConstructor) {
-			QByteArray byteArray = QByteArray::fromBase64(QByteArray(geometry));
-			restoreGeometry(byteArray);
-			if (config_get_bool(App()->GlobalConfig(), GIPHY_STICKERS_CONFIG, MAXIMIZED_STATE)) {
-				showMaximized();
-			}
-		}
-	};
-
-	PLSDpiHelper dpiHelper;
-	dpiHelper.notifyDpiChanged(this, [=](double dpi, double, bool isFirstShow) {
-		extern QRect normalShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
-
-		if (isFirstShow) {
-			initGeometry(dpi, false);
-			if (!isMaxState && !isFullScreenState) {
-				normalShow(this, geometryOfNormal);
-			}
-		}
-	});
-
-	initGeometry(PLSDpiHelper::getDpi(this), true);
-}
-
 void PLSGipyStickerView::SetBindSourcePtr(PointerValue sourcePtr)
 {
 	g_bindSourcePtr = sourcePtr;
@@ -1023,13 +991,7 @@ void PLSGipyStickerView::hideEvent(QHideEvent *event)
 	PLSDialogView::hideEvent(event);
 	if (isSearchMode)
 		on_btn_cancel_clicked();
-	emit visibleChanged(false);
-
-	if (!getMaxState()) {
-		onSaveNormalGeometry();
-	}
-
-	SaveShowModeToConfig();
+	App()->getMainView()->updateSideBarButtonStyle(ConfigId::GiphyStickersConfig, false);
 }
 
 void PLSGipyStickerView::closeEvent(QCloseEvent *event)
@@ -1074,7 +1036,7 @@ void PLSGipyStickerView::mousePressEvent(QMouseEvent *event)
 void PLSGipyStickerView::showEvent(QShowEvent *event)
 {
 	PLSDialogView::showEvent(event);
-	emit visibleChanged(true);
+	App()->getMainView()->updateSideBarButtonStyle(ConfigId::GiphyStickersConfig, true);
 	if (isFirstShow) {
 		isFirstShow = false;
 		StartWebHandler();
@@ -1082,7 +1044,6 @@ void PLSGipyStickerView::showEvent(QShowEvent *event)
 		ui->btn_trending->setChecked(true);
 		QTimer::singleShot(0, this, [=]() { OnTabClicked(TrendingTab); });
 	}
-	SaveShowModeToConfig();
 }
 
 bool PLSGipyStickerView::event(QEvent *e)
@@ -1424,6 +1385,13 @@ void MovieLabel::DownloadOriginal()
 void MovieLabel::LoadFrames()
 {
 	imageFrames.clear();
+	QFile file(giphyFileInfo.fileName);
+	if (!file.exists()) {
+		setProperty("useDefaultIcon", true);
+		pls_flush_style(this);
+		DownloadPreview();
+		return;
+	}
 	QImage image(giphyFileInfo.taskData.SourceSize, QImage::Format_RGB16);
 	QImageReader imageReader;
 	imageReader.setFileName(giphyFileInfo.fileName);
@@ -1683,7 +1651,7 @@ NoDataPage::NoDataPage(QWidget *parent) : QFrame(parent)
 	btnRetry->setFocusPolicy(Qt::NoFocus);
 	connect(btnRetry, &QPushButton::clicked, this, &NoDataPage::retryClicked);
 	btnRetry->setObjectName("networkErrorRetryBtn");
-	btnRetry->setText(QTStr("main.giphy.network.retry"));
+	btnRetry->setText(QTStr("Retry"));
 
 	layout->addItem(new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding));
 	layout->addWidget(iconNoData, 0, Qt::AlignHCenter);
@@ -1843,7 +1811,7 @@ void ScrollAreaWithNoDataTip::HideLoading()
 	if (!loadingLayer)
 		return;
 	loadingLayer->hide();
-	loadingEvent.stopLoading();
+	loadingEvent.stopLoadingTimer();
 }
 
 void ScrollAreaWithNoDataTip::SetLoadingVisible(bool visible)

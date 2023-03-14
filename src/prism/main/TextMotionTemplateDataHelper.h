@@ -16,6 +16,7 @@ using TextMotionTemplateData = struct TextMotionTemplateData {
 	QString name;
 	QString resourcePath;
 	QString resourceBackupPath;
+	QString resourceUrl;
 };
 
 class TextMotionRemoteDataHandler : public QObject {
@@ -25,11 +26,11 @@ public:
 	void getTMRemoteDataRequest(const QString &url);
 	const inline QMap<QString, QVector<TextMotionTemplateData>> &getTMRemoteData() const { return m_templateInfos; }
 	const inline QMap<int, QString> &getTemplateNames() const { return m_templateTabs; }
+	void initTMData();
 
 private:
 	TextMotionRemoteDataHandler();
 	~TextMotionRemoteDataHandler();
-	void initTMData();
 	void downLoadGif(const QString &urlStr, const QString &language, const QString &id);
 
 private slots:
@@ -48,16 +49,24 @@ class TextMotionTemplateDataHelper : public QObject, public ITextMotionTemplateH
 	Q_OBJECT
 
 public:
-	explicit TextMotionTemplateDataHelper(QObject *parent = nullptr);
-	~TextMotionTemplateDataHelper();
-
-public:
 	virtual void initTemplateButtons() override;
 	virtual QMap<int, QString> getTemplateNames() override;
 	virtual QButtonGroup *getTemplateButtons(const QString &templateName) override;
 	virtual void resetButtonStyle() override;
 	virtual QString findTemplateGroupStr(const int &templateId) override;
 
+public:
+	static ITextMotionTemplateHelper *instance()
+	{
+		static TextMotionTemplateDataHelper dataHelper;
+		return static_cast<ITextMotionTemplateHelper *>(&dataHelper);
+	}
+
+private:
+	explicit TextMotionTemplateDataHelper(QObject *parent = nullptr);
+	~TextMotionTemplateDataHelper();
+
+	void initTemplateGroup();
 private slots:
 	void updateButtonsStyle();
 

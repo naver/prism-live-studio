@@ -48,6 +48,10 @@ class PLSHotkeyWidget;
 class SilentUpdateCheckBox : public QCheckBox {
 	Q_OBJECT
 
+public:
+	QSize sizeHint() const override { return QSize(0, QCheckBox::sizeHint().height()); }
+	QSize minimumSizeHint() const override { return QSize(0, QCheckBox::minimumSizeHint().height()); }
+
 public slots:
 	void setCheckedSilently(bool checked)
 	{
@@ -59,6 +63,10 @@ public slots:
 
 class SilentUpdateSpinBox : public PLSSpinBox {
 	Q_OBJECT
+
+public:
+	QSize sizeHint() const override { return QSize(0, PLSSpinBox::sizeHint().height()); }
+	QSize minimumSizeHint() const override { return QSize(0, PLSSpinBox::minimumSizeHint().height()); }
 
 public slots:
 	void setValueSilently(int val)
@@ -88,10 +96,10 @@ class PLSBasicSettings : public PLSDialogView {
 	Q_PROPERTY(QIcon advancedIcon READ GetAdvancedIcon WRITE SetAdvancedIcon DESIGNABLE true)
 
 private:
-	int m_doneValue;
+	int m_doneValue = -1;
 	PLSBasic *main;
 	bool m_isShowChangeLanguageMsg;
-	int m_currentLanguageIndex;
+	std::pair<std::string, std::string> m_currentLanguage;
 	std::unique_ptr<Ui::PLSBasicSettings> ui;
 
 	std::shared_ptr<Auth> auth;
@@ -107,6 +115,8 @@ private:
 	bool loading = true;
 	bool forceAuthReload = false;
 	std::string savedTheme;
+	int sampleRateIndex = 0;
+	int channelIndex = 0;
 
 	int lastSimpleRecQualityIdx = 0;
 	int lastChannelSetupIdx = 0;
@@ -196,6 +206,7 @@ private:
 	void LoadHotkeySettings(obs_hotkey_id ignoreKey = OBS_INVALID_HOTKEY_ID);
 	void LoadAdvancedSettings();
 	void LoadSettings(bool changedOnly);
+	void LoadSceneDisplayMethodSettings();
 
 	void CreateEncoderPropertyView(PLSPropertiesView *&view, QWidget *parent, const char *encoder, const char *path, bool changed = false);
 
@@ -220,8 +231,12 @@ private slots:
 	void on_disconnectAccount_clicked();
 	void on_useStreamKey_clicked();
 	void on_useAuth_toggled();
+	void on_ToResolutionBtn_clicked();
 
 private:
+	/* immersive audio */
+	void InitImmersiveAudioUI();
+
 	/* output */
 	void LoadSimpleOutputSettings();
 	void LoadAdvOutputStreamingSettings();
@@ -239,7 +254,7 @@ private:
 
 	/* video */
 	void LoadRendererList();
-	void ResetDownscales(uint32_t cx, uint32_t cy);
+	void ResetDownscales(uint32_t cx, uint32_t cy, bool modified);
 	void LoadDownscaleFilters();
 	void LoadResolutionLists();
 	void LoadFPSData();
@@ -252,6 +267,7 @@ private:
 	void SaveHotkeySettings();
 	void SaveAdvancedSettings();
 	void SaveSettings();
+	void SaveSceneDisplayMethodSettings();
 
 	void ResetSettings();
 
@@ -334,6 +350,7 @@ private slots:
 	void UpdateAutomaticReplayBufferCheckboxes();
 
 	void AdvOutRecCheckWarnings();
+	void AdvOutStreamEncoderCheckWarnings();
 
 	void SimpleRecordingQualityChanged();
 	void SimpleRecordingEncoderChanged();
@@ -358,6 +375,8 @@ private slots:
 	bool onCloseEvent(QCloseEvent *event);
 	void hotkeysClearButtonClicked(QPushButton *button);
 
+	void OnSceneDisplayMethodIndexChanged(int index);
+
 protected:
 	virtual bool event(QEvent *event);
 	virtual bool eventFilter(QObject *watched, QEvent *event);
@@ -365,6 +384,7 @@ protected:
 public:
 	explicit PLSBasicSettings(QWidget *parent, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSBasicSettings();
+	void setReturnValue(const int returnValue) { m_doneValue = returnValue; }
 	int returnValue() { return m_doneValue; }
 
 public:
@@ -374,7 +394,8 @@ public:
 	void updateAlertMessage(AlertMessageType type, QWidget *widget, const QString &message);
 	void clearAlertMessage(AlertMessageType type, QWidget *widget, bool update = true);
 	void updateAlertMessage();
-	virtual void done(int type);
+
+	void cancel();
 
 signals:
 	void updateStreamEncoderPropsSize(PLSPropertiesView *view);

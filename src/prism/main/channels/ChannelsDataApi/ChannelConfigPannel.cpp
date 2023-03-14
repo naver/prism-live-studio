@@ -47,7 +47,7 @@ void ChannelConfigPannel::changeEvent(QEvent *e)
 	}
 }
 
-bool ChannelConfigPannel::eventFilter(QObject *watched, QEvent *event)
+bool ChannelConfigPannel::eventFilter(QObject *, QEvent *event)
 {
 	switch (event->type()) {
 	case QEvent::HoverEnter:
@@ -64,7 +64,7 @@ bool ChannelConfigPannel::eventFilter(QObject *watched, QEvent *event)
 
 void ChannelConfigPannel::on_showInfoBtn_clicked()
 {
-	PRE_LOG_UI(showInfoBtn, ChannelConfigPannel);
+	PRE_LOG_UI_MSG_STRING("Show Live Info", "Clicked");
 	this->hide();
 	showChannelInfo(mChannelID);
 }
@@ -72,7 +72,7 @@ void ChannelConfigPannel::on_showInfoBtn_clicked()
 void ChannelConfigPannel::on_ShareBtn_clicked()
 {
 	this->hide();
-	PRE_LOG_UI(ShareBtn, ChannelConfigPannel);
+	PRE_LOG_UI_MSG_STRING(" Share Button ", "Clicked");
 	showShareView(mChannelID);
 }
 
@@ -80,19 +80,21 @@ void ChannelConfigPannel::on_ConfigBtn_clicked()
 {
 	QSignalBlocker blocker(this);
 	auto removeChannel = [&]() {
+		PRE_LOG_UI_MSG_STRING(" Remove Channel ", "Clicked");
 		int myType = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_data_type, NoType);
 		QString typeStr;
 		if (myType == ChannelType) {
-			typeStr = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString("RTMP"));
+			typeStr = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_platformName, QString("RTMP"));
 		} else {
 			typeStr = "RTMP";
 		}
+		typeStr = translatePlatformName(typeStr);
 		auto ret = PLSAlertView::question(nullptr, CHANNELS_TR(Confirm), CHANNELS_TR(DisconnectWarning).arg(typeStr),
-						  {{PLSAlertView::Button::Yes, CHANNELS_TR(Yes)}, {PLSAlertView::Button::Cancel, CHANNELS_TR(Cancel)}}, PLSAlertView::Button::Cancel);
+						  {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
 		if (ret != PLSAlertView::Button::Yes) {
 			return;
 		}
-		PRE_LOG_UI(RemoveChannel, ChannelConfigPannel);
+
 		PLSCHANNELS_API->sigTryRemoveChannel(mChannelID, true, true);
 	};
 
@@ -112,11 +114,12 @@ void ChannelConfigPannel::on_ConfigBtn_clicked()
 void ChannelConfigPannel::doChildrenExclusive(bool &retflag)
 {
 	retflag = true;
-	auto myPlatform = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString());
+	auto myPlatform = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_platformName, QString());
 	auto childSelected = PLSCHANNELS_API->getCurrentSelectedPlatformChannels(myPlatform, ChannelType);
 	if (childSelected.count() > 0) {
-		auto ret = PLSAlertView::question(nullptr, CHANNELS_TR(Confirm), CHANNELS_TR(ChildDisableWaring).arg(myPlatform),
-						  {{PLSAlertView::Button::Yes, CHANNELS_TR(Yes)}, {PLSAlertView::Button::Cancel, CHANNELS_TR(Cancel)}}, PLSAlertView::Button::Cancel);
+		auto typeStr = translatePlatformName(myPlatform);
+		auto ret = PLSAlertView::question(nullptr, CHANNELS_TR(Confirm), CHANNELS_TR(ChildDisableWaring).arg(typeStr),
+						  {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
 		//do not want to disable other child
 		if (ret != PLSAlertView::Button::Yes) {
 			QSignalBlocker blocker(ui->EnableSwitch);
@@ -139,14 +142,14 @@ void ChannelConfigPannel::checkExclusiveChannel(bool &retflag)
 	//checked now exists
 	if (!exclusiveID.isEmpty()) {
 
-		QString typeStr = PLSCHANNELS_API->getValueOfChannel(exclusiveID, g_channelName, QString(""));
+		QString typeStr = PLSCHANNELS_API->getValueOfChannel(exclusiveID, g_platformName, QString(""));
 		int myType = PLSCHANNELS_API->getValueOfChannel(exclusiveID, g_data_type, NoType);
 		if (myType == RTMPType && !typeStr.contains("RTMP", Qt::CaseInsensitive)) {
-			typeStr = PLSCHANNELS_API->getValueOfChannel(exclusiveID, g_channelName, QString("")) + " RTMP";
+			typeStr = PLSCHANNELS_API->getValueOfChannel(exclusiveID, g_platformName, QString("")) + " RTMP";
 		}
-
+		typeStr = translatePlatformName(typeStr);
 		auto ret = PLSAlertView::question(nullptr, CHANNELS_TR(Confirm), CHANNELS_TR(NowDisableWarning).arg(typeStr),
-						  {{PLSAlertView::Button::Yes, CHANNELS_TR(Yes)}, {PLSAlertView::Button::Cancel, CHANNELS_TR(Cancel)}}, PLSAlertView::Button::Cancel);
+						  {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
 		//do not want to disable now
 		if (ret != PLSAlertView::Button::Yes) {
 			QSignalBlocker blocker(ui->EnableSwitch);
@@ -164,15 +167,15 @@ void ChannelConfigPannel::checkExclusiveChannel(bool &retflag)
 
 void ChannelConfigPannel::on_EnableSwitch_toggled(bool checked)
 {
-	PRE_LOG_UI(SwitchChannel, ChannelConfigPannel);
+	PRE_LOG_UI_MSG_STRING(" Switch Channel " + QString(checked ? " ON" : "OFF"), "Clicked");
 	int myType = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_data_type, NoType);
 	bool isLiving = PLSCHANNELS_API->isLiving();
 	//to uncheck and isliving
 	if (!checked && isLiving) {
-		QString typeStr = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString(""));
-
+		QString typeStr = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_platformName, QString(""));
+		typeStr = translatePlatformName(typeStr);
 		auto ret = PLSAlertView::question(nullptr, CHANNELS_TR(Confirm), CHANNELS_TR(DisableWarnig).arg(typeStr),
-						  {{PLSAlertView::Button::Yes, CHANNELS_TR(Yes)}, {PLSAlertView::Button::Cancel, CHANNELS_TR(Cancel)}}, PLSAlertView::Button::Cancel);
+						  {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
 		//reject disable
 		if (ret != PLSAlertView::Button::Yes) {
 			QSignalBlocker blocker(ui->EnableSwitch);
@@ -191,6 +194,17 @@ void ChannelConfigPannel::on_EnableSwitch_toggled(bool checked)
 		return;
 	}
 	/************************to  checked******************************/
+
+	/* not exclusive channel */
+	if (myType == ChannelType) {
+		bool retflag;
+		//close other if is multi children platform
+		doChildrenExclusive(retflag);
+		if (retflag) {
+			return;
+		}
+	}
+
 	bool hasExclusive;
 	checkExclusiveChannel(hasExclusive);
 	if (hasExclusive) {
@@ -205,19 +219,9 @@ void ChannelConfigPannel::on_EnableSwitch_toggled(bool checked)
 		return;
 	}
 
-	/* not exclusive channel */
-	if (myType == ChannelType) {
-		bool retflag;
-		//close other if is multi children platform
-		doChildrenExclusive(retflag);
-		if (retflag) {
-			return;
-		}
-	}
-
 	// checked now is not exist and to checked and max limitted
 	if (PLSCHANNELS_API->currentSelectedCount() >= 6) {
-		PLSAlertView::warning(nullptr, CHANNELS_TR(warning.title), CHANNELS_TR(info.selectedLimited));
+		PLSAlertView::warning(nullptr, QObject::tr("Alert.Title"), CHANNELS_TR(info.selectedLimited));
 		QSignalBlocker blocker(ui->EnableSwitch);
 		ui->EnableSwitch->setChecked(false);
 		PLSCHANNELS_API->setChannelUserStatus(mChannelID, Disabled);
@@ -271,9 +275,9 @@ void ChannelConfigPannel::shiftState(const QVariantMap &info)
 		return true;
 	};
 
-	bool isEnabeld = checkIsEnabled();
+	bool isEnabled = checkIsEnabled();
 
-	ui->EnableSwitch->setEnabled(isEnabeld);
+	ui->EnableSwitch->setEnabled(isEnabled);
 
 	ui->showInfoBtn->setProperty(g_data_type.toStdString().c_str(), dataType);
 	refreshStyle(ui->showInfoBtn);
@@ -284,7 +288,7 @@ void ChannelConfigPannel::shiftState(const QVariantMap &info)
 		ui->ShareBtn->setEnabled(false);
 	} break;
 	case ChannelType: {
-		ui->showInfoBtn->setToolTip(CHANNELS_TR(InfoTip));
+		ui->showInfoBtn->setToolTip(QObject::tr("LiveInfo.liveinformation"));
 		ui->showInfoBtn->setEnabled(dataState == Valid);
 		bool isNeedShare = (info.contains(g_shareUrl) || info.contains(g_shareUrlTemp));
 		if (isNeedShare) {
@@ -314,7 +318,10 @@ void ChannelConfigPannel::updateUI()
 		return;
 	}
 	shiftState(info);
-	this->setEnabled(!PLSCHANNELS_API->isRehearsaling());
+
+	auto platform = getInfo(info, g_platformName);
+	bool enabled = !PLSCHANNELS_API->isRehearsaling() || g_rehearsalingConfigEnabledList.contains(platform);
+	this->setEnabled(enabled);
 
 	return;
 }

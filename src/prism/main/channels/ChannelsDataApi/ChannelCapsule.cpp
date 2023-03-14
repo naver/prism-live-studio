@@ -31,7 +31,6 @@ ChannelCapsule::ChannelCapsule(QWidget *parent) : QFrame(parent), ui(new Ui::Cha
 
 	PLSDpiHelper dpiHelper;
 	dpiHelper.notifyDpiChanged(this, [this]() { delayUpdateText(); });
-	PRE_LOG(new channel capsule, INFO);
 }
 
 void ChannelCapsule::normalState(const QVariantMap &info)
@@ -125,7 +124,7 @@ void ChannelCapsule::channelTypeState(const QVariantMap &info)
 		setOnLine(isEnabled);
 	}
 
-	bool hasText = !getInfo(info, g_catogryTemp).isEmpty() || !getInfo(info, g_catogry).isEmpty();
+	bool hasText = !getInfo(info, g_displayLine2).isEmpty() || !getInfo(info, g_catogry).isEmpty();
 	bool isCatogeryVisible = !isLiving && hasText;
 	ui->CatogeryFrame->setVisible(isCatogeryVisible);
 
@@ -259,7 +258,7 @@ void ChannelCapsule::updateIcons(const QVariantMap &srcData)
 		}
 		getComplexImageOfChannel(mInfoID, userIcon, platformIcon);
 	} else {
-		QString channelName = getInfo(srcData, g_channelName);
+		QString channelName = getInfo(srcData, g_platformName);
 		userIcon = getPlatformImageFromName(channelName);
 	}
 
@@ -281,43 +280,37 @@ void ChannelCapsule::updateTextFrames(const QVariantMap &srcData)
 	ui->UserName->resize(TextFrameSize, ui->UserName->height());
 	ui->CatogeryName->resize(ui->TextFrame->width(), ui->CatogeryName->height());
 
-	QString userName = getInfo(srcData, g_nickName, QString("No Name"));
-	userName = getElidedText(ui->UserName, userName, TextFrameSize);
-	ui->UserName->setText(userName);
+	QString line1 = getInfo(srcData, g_displayLine1, QString("No Name"));
+	line1 = getElidedText(ui->UserName, line1, TextFrameSize);
+	ui->UserName->setText(line1);
 
-	QString catogry;
-	QString catogryTemp = getInfo(srcData, g_catogryTemp, QString());
-	if (!catogryTemp.isEmpty()) {
-		catogry = catogryTemp;
-	} else {
-		catogry = getInfo(srcData, g_catogry, QString());
-	}
+	QString line2 = getInfo(srcData, g_displayLine2, QString());
 
-	QString platformName = getInfo(srcData, g_channelName, QString());
-	if (platformName.contains(YOUTUBE) && !catogry.isEmpty()) {
-		translateForYoutube(catogry);
+	QString platformName = getInfo(srcData, g_platformName, QString());
+	if (platformName.contains(YOUTUBE) && !line2.isEmpty()) {
+		translateForYoutube(line2);
 	}
 
 	int widthElid = ui->CatogeryName->width();
-	if (platformName == VLIVE && !catogry.isEmpty()) {
-		QString split(3, 0x00B7);
-		auto values = catogry.split(split);
+	if ((platformName == VLIVE || platformName == NAVER_SHOPPING_LIVE) && !line2.isEmpty()) {
+		QString split(3, QChar(0x00B7));
+		auto values = line2.split(split);
 		if (values.size() == 2) {
 			int leftWidth = widthElid * 0.45;
 			auto leftString = getElidedText(ui->CatogeryName, values[0], leftWidth);
 			int rightWidth = widthElid * 0.45;
 			auto rightString = getElidedText(ui->CatogeryName, values[1], rightWidth);
-			catogry = leftString + " " + QChar(0x00b7) + " " + rightString;
+			line2 = leftString + " " + QChar(0x00b7) + " " + rightString;
 		} else {
-			catogry = getElidedText(ui->CatogeryName, catogry, widthElid);
+			line2 = getElidedText(ui->CatogeryName, line2, widthElid);
 		}
 	} else {
-		catogry = getElidedText(ui->CatogeryName, catogry, widthElid);
+		line2 = getElidedText(ui->CatogeryName, line2, widthElid);
 	}
 
 	//catogry = QString("platfo... ") + QString::fromStdWString(std::wstring{0x25CF})+QString(" chann...");
 	//catogry = QString("platfo... ") + QString::fromStdWString(std::wstring{0x00b7}) + QString(" chann...");
-	ui->CatogeryName->setText(catogry);
+	ui->CatogeryName->setText(line2);
 }
 
 void ChannelCapsule::delayUpdateText()
@@ -414,11 +407,7 @@ QString &formatNumber(QString &number, bool isEng = true)
 
 bool ChannelCapsule::updateStatisticInfo()
 {
-	bool isEng = false;
-	auto lang = QString(App()->GetLocale());
-	if (lang.contains("en", Qt::CaseInsensitive)) {
-		isEng = true;
-	}
+	bool isEng = IS_ENGLISH();
 	auto info = PLSCHANNELS_API->getChannelInfo(mInfoID);
 	QString viewers;
 
@@ -426,7 +415,7 @@ bool ChannelCapsule::updateStatisticInfo()
 		viewers = getInfo(info, g_viewers, QString("0"));
 		formatNumber(viewers, isEng);
 		ui->ViewerNumberLabel->setText(viewers);
-		ui->ViewerPicLabel->setStyleSheet(QString("image: url(%1);").arg(getInfo(info, g_viewersPix, g_defaultViewerIcon)));
+		ui->ViewerPicLabel->setStyleSheet(QString("image: url(%1);color:transparent;").arg(getInfo(info, g_viewersPix, g_defaultViewerIcon)));
 		ui->ViewerFrame->setVisible(true);
 	} else {
 		ui->ViewerFrame->setVisible(false);
@@ -436,7 +425,7 @@ bool ChannelCapsule::updateStatisticInfo()
 		likes = getInfo(info, g_likes, QString("0"));
 		formatNumber(likes, isEng);
 		ui->LikeNumberLabel->setText(likes);
-		ui->LikePicLabel->setStyleSheet(QString("image: url(%1);").arg(getInfo(info, g_likesPix, g_defaultLikeIcon)));
+		ui->LikePicLabel->setStyleSheet(QString("image: url(%1);color:transparent;").arg(getInfo(info, g_likesPix, g_defaultLikeIcon)));
 		ui->LikeInfo->setVisible(true);
 	} else {
 		ui->LikeInfo->setVisible(false);
@@ -505,15 +494,13 @@ void ChannelCapsule::hideConfigPannel()
 
 bool ChannelCapsule::switchUpdateStatisticInfo(bool on)
 {
-	bool ret = false;
-	if (on) {
-		if (updateStatisticInfo()) {
-			mUpdateTimer.start(5000);
-			ret = true;
-		}
+	bool ret = updateStatisticInfo();
+
+	if (on && ret) {
+		mUpdateTimer.start(5000);
+
 	} else {
 		mUpdateTimer.stop();
-		ret = updateStatisticInfo();
 	}
 	return ret;
 }

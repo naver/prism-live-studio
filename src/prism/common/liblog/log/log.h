@@ -13,7 +13,12 @@
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-void pls_log(pls_log_level_t log_level, const char *file_name, int file_line, const char *format, ...);
+void pls_log(bool kr, pls_log_level_t log_level, const char *file_name, int file_line, int arg_count, const char *format, ...);
+template<typename... Args> void pls_log(bool kr, pls_log_level_t log_level, const char *file_name, int file_line, const char *format, Args &&...args)
+{
+	pls_log(kr, log_level, file_name, file_line, sizeof...(Args), format, std::forward<Args>(args)...);
+}
+
 /**
   * print log
   * param:
@@ -25,7 +30,12 @@ void pls_log(pls_log_level_t log_level, const char *file_name, int file_line, co
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-void pls_logex(pls_log_level_t log_level, const char *file_name, int file_line, const char *fields[][2], int field_count, const char *format, ...);
+void pls_logex(bool kr, pls_log_level_t log_level, const char *file_name, int file_line, const char *fields[][2], int field_count, int arg_count, const char *format, ...);
+template<typename... Args> void pls_logex(bool kr, pls_log_level_t log_level, const char *file_name, int file_line, const char *fields[][2], int field_count, const char *format, Args &&...args)
+{
+	pls_logex(kr, log_level, file_name, file_line, fields, field_count, sizeof...(Args), format, std::forward<Args>(args)...);
+}
+
 /**
   * print error log
   * param:
@@ -34,7 +44,12 @@ void pls_logex(pls_log_level_t log_level, const char *file_name, int file_line, 
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-void pls_error(const char *file_name, int file_line, const char *format, ...);
+void pls_error(bool kr, const char *file_name, int file_line, int arg_count, const char *format, ...);
+template<typename... Args> void pls_error(bool kr, const char *file_name, int file_line, const char *format, Args &&...args)
+{
+	pls_error(kr, file_name, file_line, sizeof...(Args), format, std::forward<Args>(args)...);
+}
+
 /**
   * print warn log
   * param:
@@ -43,7 +58,12 @@ void pls_error(const char *file_name, int file_line, const char *format, ...);
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-void pls_warn(const char *file_name, int file_line, const char *format, ...);
+void pls_warn(bool kr, const char *file_name, int file_line, int arg_count, const char *format, ...);
+template<typename... Args> void pls_warn(bool kr, const char *file_name, int file_line, const char *format, Args &&...args)
+{
+	pls_warn(kr, file_name, file_line, sizeof...(Args), format, std::forward<Args>(args)...);
+}
+
 /**
   * print info log
   * param:
@@ -52,7 +72,12 @@ void pls_warn(const char *file_name, int file_line, const char *format, ...);
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-void pls_info(const char *file_name, int file_line, const char *format, ...);
+void pls_info(bool kr, const char *file_name, int file_line, int arg_count, const char *format, ...);
+template<typename... Args> void pls_info(bool kr, const char *file_name, int file_line, const char *format, Args &&...args)
+{
+	pls_info(kr, file_name, file_line, sizeof...(Args), format, std::forward<Args>(args)...);
+}
+
 /**
   * print debug log
   * param:
@@ -61,7 +86,12 @@ void pls_info(const char *file_name, int file_line, const char *format, ...);
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-void pls_debug(const char *file_name, int file_line, const char *format, ...);
+void pls_debug(bool kr, const char *file_name, int file_line, int arg_count, const char *format, ...);
+template<typename... Args> void pls_debug(bool kr, const char *file_name, int file_line, const char *format, Args &&...args)
+{
+	pls_debug(kr, file_name, file_line, sizeof...(Args), format, std::forward<Args>(args)...);
+}
+
 /**
   * print action log
   * param:
@@ -70,7 +100,8 @@ void pls_debug(const char *file_name, int file_line, const char *format, ...);
   *     [in] file_name: file name
   *     [in] file_line: file line
   */
-void pls_action_log(const char *controls, const char *action, const char *file_name, int file_line);
+void pls_action_log(bool kr, const char *controls, const char *action, const char *file_name, int file_line);
+
 /**
   * print ui step log
   * param:
@@ -79,7 +110,7 @@ void pls_action_log(const char *controls, const char *action, const char *file_n
   *     [in] file_name: file name
   *     [in] file_line: file line
   */
-void pls_ui_step(const char *controls, const char *action, const char *file_name, int file_line);
+void pls_ui_step(bool kr, const char *controls, const char *action, const char *file_name, int file_line);
 
 /**
   * print log
@@ -88,7 +119,9 @@ void pls_ui_step(const char *controls, const char *action, const char *file_name
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-#define PLS_PLUGIN_LOG(log_level, format, ...) pls_log(log_level, __FILE__, __LINE__, format, __VA_ARGS__)
+#define PLS_PLUGIN_LOG(log_level, format, ...) pls_log(false, log_level, __FILE__, __LINE__, format, __VA_ARGS__)
+#define PLS_PLUGIN_LOG_KR(log_level, format, ...) pls_log(true, log_level, __FILE__, __LINE__, format, __VA_ARGS__)
+
 /**
   * print log
   * param:
@@ -98,49 +131,62 @@ void pls_ui_step(const char *controls, const char *action, const char *file_name
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-#define PLS_PLUGIN_LOGEX(log_level, fields, field_count, format, ...) pls_logex(log_level, __FILE__, __LINE__, fields, field_count, format, __VA_ARGS__)
+#define PLS_PLUGIN_LOGEX(log_level, fields, field_count, format, ...) pls_logex(false, log_level, __FILE__, __LINE__, fields, field_count, format, __VA_ARGS__)
+#define PLS_PLUGIN_LOGEX_KR(log_level, fields, field_count, format, ...) pls_logex(true, log_level, __FILE__, __LINE__, fields, field_count, format, __VA_ARGS__)
+
 /**
   * print error log
   * param:
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-#define PLS_PLUGIN_ERROR(format, ...) pls_error(__FILE__, __LINE__, format, __VA_ARGS__)
+#define PLS_PLUGIN_ERROR(format, ...) pls_error(false, __FILE__, __LINE__, format, __VA_ARGS__)
+#define PLS_PLUGIN_ERROR_KR(format, ...) pls_error(true, __FILE__, __LINE__, format, __VA_ARGS__)
+
 /**
   * print warn log
   * param:
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-#define PLS_PLUGIN_WARN(format, ...) pls_warn(__FILE__, __LINE__, format, __VA_ARGS__)
+#define PLS_PLUGIN_WARN(format, ...) pls_warn(false, __FILE__, __LINE__, format, __VA_ARGS__)
+#define PLS_PLUGIN_WARN_KR(format, ...) pls_warn(true, __FILE__, __LINE__, format, __VA_ARGS__)
+
 /**
   * print info log
   * param:
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-#define PLS_PLUGIN_INFO(format, ...) pls_info(__FILE__, __LINE__, format, __VA_ARGS__)
+#define PLS_PLUGIN_INFO(format, ...) pls_info(false, __FILE__, __LINE__, format, __VA_ARGS__)
+#define PLS_PLUGIN_INFO_KR(format, ...) pls_info(true, __FILE__, __LINE__, format, __VA_ARGS__)
+
 /**
   * print debug log
   * param:
   *     [in] format: format string
   *     [in] ...: variadic params
   */
-#define PLS_PLUGIN_DEBUG(format, ...) pls_debug(__FILE__, __LINE__, format, __VA_ARGS__)
+#define PLS_PLUGIN_DEBUG(format, ...) pls_debug(false, __FILE__, __LINE__, format, __VA_ARGS__)
+#define PLS_PLUGIN_DEBUG_KR(format, ...) pls_debug(true, __FILE__, __LINE__, format, __VA_ARGS__)
+
 /**
   * print action log
   * param:
   *     [in] controls: trigger controls
   *     [in] action: trigger action
   */
-#define PLS_PLUGIN_ACTION_LOG(controls, action) pls_action_log(controls, action, __FILE__, __LINE__)
+#define PLS_PLUGIN_ACTION_LOG(controls, action) pls_action_log(false, controls, action, __FILE__, __LINE__)
+#define PLS_PLUGIN_ACTION_LOG_KR(controls, action) pls_action_log(true, controls, action, __FILE__, __LINE__)
+
 /**
   * print ui step log
   * param:
   *     [in] controls: trigger controls
   *     [in] action: trigger action
   */
-#define PLS_PLUGIN_UI_STEP(controls, action) pls_ui_step(controls, action, __FILE__, __LINE__)
+#define PLS_PLUGIN_UI_STEP(controls, action) pls_ui_step(false, controls, action, __FILE__, __LINE__)
+#define PLS_PLUGIN_UI_STEP_KR(controls, action) pls_ui_step(true, controls, action, __FILE__, __LINE__)
 #endif // _PRISM_PLUGIN
 
 #endif // _PRISM_COMMON_LIBLOG_LOG_LOG_H

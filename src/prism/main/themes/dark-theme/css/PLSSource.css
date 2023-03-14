@@ -129,6 +129,16 @@ QLabel#sourceIconLabel[type="visible.valid.unselect.chat"] {
 	image: url(":/images/icon-source-chat-normal.svg");
 }
 
+QLabel#sourceIconLabel[type="visible.valid.unselect.audiov"] {
+	image: url(":/images/icon-source-audiov-normal.svg");
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.virtualbackground"] {
+	image: url(":/images/icon-source-bgtemplate-normal.svg");
+}
+QLabel#sourceIconLabel[type="visible.valid.unselect.default"] {
+	image: url(":/images/icon-source-plugin-normal.svg");
+}
+
 QLabel#sourceIconLabel[type="visible.valid.select.image"] {
 	image:url(":/images/icon-source-image-select.svg");
 }
@@ -175,6 +185,16 @@ QLabel#sourceIconLabel[type="visible.valid.select.chat"] {
 	image: url(":/images/icon-source-chat-select.svg");
 }
 
+QLabel#sourceIconLabel[type="visible.valid.select.audiov"] {
+	image: url(":/images/icon-source-audiov-select.svg");
+}
+QLabel#sourceIconLabel[type="visible.valid.select.virtualbackground"] {
+	image: url(":/images/icon-source-bgtemplate-select.svg");
+}
+QLabel#sourceIconLabel[type="visible.valid.select.default"] {
+	image: url(":/images/icon-source-plugin-select.svg");
+}
+
 QLabel#sourceIconLabel[type="visible.invalid.unselect.image"] {
 	image:url(":/images/erroricon-source-image.svg");
 }
@@ -212,6 +232,16 @@ QLabel#sourceIconLabel[type="visible.invalid.unselect.chat"] {
 	image: url(":/images/erroricon-source-chat-normal.svg");
 }
 
+QLabel#sourceIconLabel[type="visible.invalid.unselect.audiov"] {
+	image: url(":/images/erroricon-source-audiov-normal.svg");
+}
+QLabel#sourceIconLabel[type="visible.invalid.unselect.virtualbackground"] {
+	image: url(":/images/erroricon-source-bgtemplate-normal.svg");
+}
+QLabel#sourceIconLabel[type="visible.invalid.unselect.default"] {
+	image: url(":/images/erroricon-source-plugin-normal.svg");
+}
+
 QLabel#sourceIconLabel[type="visible.invalid.select.image"] {
 	image:url(":/images/erroricon-source-image-select.svg");
 }
@@ -244,6 +274,16 @@ QLabel#sourceIconLabel[type="visible.invalid.select.media"] {
 }
 QLabel#sourceIconLabel[type="visible.invalid.select.chat"] {
 	image: url(":/images/erroricon-source-chat-select-normal.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.invalid.select.audiov"] {
+	image: url(":/images/erroricon-source-audiov-select-normal.svg");
+}
+QLabel#sourceIconLabel[type="visible.invalid.select.virtualbackground"] {
+	image: url(":/images/erroricon-source-bgtemplate-select-normal.svg");
+}
+QLabel#sourceIconLabel[type="visible.invalid.select.default"] {
+	image: url(":/images/erroricon-source-plugin-select.svg");
 }
 
 QLabel#sourceIconLabel[type="visible.invalid.select.bgm"] {
@@ -282,7 +322,7 @@ QLabel#sourceIconLabel[type="invisible.invalid.unselect.slideshow"] {
 	image:url(":/images/erroricon-source-imageslide-disable.svg");
 }
 QLabel#sourceIconLabel[type="invisible.invalid.unselect.audioinput"] {
-	image:url(":/images/erroricon-source-audio-input-disabled.svg");
+	image:url(":/images/erroricon-source-audio-disabled.svg");
 }
 QLabel#sourceIconLabel[type="invisible.invalid.unselect.audiooutput"] {
 	image:url(":/images/erroricon-source-audio-output-disable.svg");
@@ -309,6 +349,16 @@ QLabel#sourceIconLabel[type="invisible.invalid.unselect.chat"] {
 	image: url(":/images/erroricon-source-chat-disable.svg");
 }
 
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.audiov"] {
+	image: url(":/images/erroricon-source-audiov-disable.svg");
+}
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.virtualbackground"] {
+	image: url(":/images/erroricon-source-bgtemplate-disable.svg");
+}
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.default"] {
+	image: url(":/images/erroricon-source-plugin-disable.svg");
+}
+
 QLabel#sourceIconLabel[type="invisible.invalid.select.image"] {
 	image:url(":/images/erroricon-source-image-select-disable.svg");
 }
@@ -319,7 +369,7 @@ QLabel#sourceIconLabel[type="invisible.invalid.select.slideshow"] {
 	image:url(":/images/erroricon-source-imageslide-select-disable.svg");
 }
 QLabel#sourceIconLabel[type="invisible.invalid.select.audioinput"] {
-	image:url(":/images/erroricon-source-audio-input-select-disable.svg");
+	image:url(":/images/erroricon-source-audio-select-disable.svg");
 }
 QLabel#sourceIconLabel[type="invisible.invalid.select.audiooutput"] {
 	image:url(":/images/erroricon-source-audio-output-select-disable.svg");
@@ -341,6 +391,16 @@ QLabel#sourceIconLabel[type="invisible.invalid.select.media"] {
 }
 QLabel#sourceIconLabel[type="invisible.invalid.select.chat"] {
 	image: url(":/images/erroricon-source-chat-select-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.invalid.select.audiov"] {
+	image: url(":/images/erroricon-source-audiov-select-disable.svg");
+}
+QLabel#sourceIconLabel[type="invisible.invalid.select.virtualbackground"] {
+	image: url(":/images/erroricon-source-bgtemplate-select-disable.svg");
+}
+QLabel#sourceIconLabel[type="invisible.invalid.select.default"] {
+	image: url(":/images/erroricon-source-plugin-select-disable.svg");
 }
 
 QLabel#sourceIconLabel[type="invisible.invalid.select.bgm"] {
@@ -391,6 +451,18 @@ QLabel#sourceIconLabel[type="invisible.valid.select.bgm"] {
 QLabel#sourceIconLabel[type="invisible.valid.select.chat"] {
 	image: url(":/images/icon-source-chat-select-disable.svg");
 }
+
+QLabel#sourceIconLabel[type="invisible.valid.select.audiov"] {
+	image: url(":/images/icon-source-audiov-select-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.select.virtualbackground"] {
+	image: url(":/images/icon-source-bgtemplate-select-disable.svg");
+}
+QLabel#sourceIconLabel[type="invisible.valid.select.default"] {
+	image: url(":/images/icon-source-plugin-select-disable.svg");
+}
+
 QLabel#sourceIconLabel[type="invisible.valid.unselect.image"] {
 	image:url(":/images/icon-source-image-disabled.svg");
 }
@@ -435,6 +507,17 @@ QLabel#sourceIconLabel[type="invisible.valid.unselect.bgm"] {
 }
 QLabel#sourceIconLabel[type="invisible.valid.unselect.chat"] {
 	image: url(":/images/icon-source-chat-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.unselect.audiov"] {
+	image: url(":/images/icon-source-audiov-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.unselect.virtualbackground"] {
+	image: url(":/images/icon-source-bgtemplate-disable.svg");
+}
+QLabel#sourceIconLabel[type="invisible.valid.unselect.default"] {
+	image: url(":/images/icon-source-plugin-disable.svg");
 }
 
 QLabel#sourceIconLabel[type="visible.valid.unselect.giphy"] {
@@ -502,6 +585,105 @@ QLabel#sourceIconLabel[type="invisible.valid.unselect.textmotion"] {
 	image: url(":/images/text-template/icon-source-texttemplate-disable.svg");
 }
 
+QLabel#sourceIconLabel[type="visible.valid.unselect.prismMobile"] {
+	image: url(":/images/prism-mobile/icon-source-mobile-normal.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.valid.select.prismMobile"] {
+	image: url(":/images/prism-mobile/icon-source-mobile-select.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.invalid.unselect.prismMobile"] {
+	image: url(":/images/prism-mobile/erroricon-source-mobile-normal.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.invalid.select.prismMobile"] {
+	image: url(":/images/prism-mobile/erroricon-source-mobile-select-normal.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.prismMobile"] {
+	image: url(":/images/prism-mobile/erroricon-source-mobile-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.invalid.select.prismMobile"] {
+	image: url(":/images/prism-mobile/erroricon-source-mobile-select-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.select.prismMobile"] {
+	image: url(":/images/prism-mobile/icon-source-mobile-select-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.unselect.prismMobile"] {
+	image: url(":/images/prism-mobile/icon-source-mobile-disable.svg");
+}
+
+/*For PRISM Sticker Source*/
+QLabel#sourceIconLabel[type="visible.valid.unselect.prismSticker"] {
+	image: url(":/images/prism-sticker/icon-source-prismsticker-normal.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.valid.select.prismSticker"] {
+	image: url(":/images/prism-sticker/icon-source-prismsticker-select-normal.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.invalid.unselect.prismSticker"] {
+	image: url(":/images/prism-sticker/erroricon-source-prismsticker-normal.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.invalid.select.prismSticker"] {
+	image: url(":/images/prism-sticker/erroricon-source-prismsticker-select.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.prismSticker"] {
+	image: url(":/images/prism-sticker/erroricon-source-prismsticker-normal.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.invalid.select.prismSticker"] {
+	image: url(":/images/prism-sticker/erroricon-source-prismsticker-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.select.prismSticker"] {
+	image: url(":/images/prism-sticker/icon-source-prismsticker-select-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.unselect.prismSticker"] {
+	image: url(":/images/prism-sticker/icon-source-prismsticker-disable.svg");
+}
+/*PRISM Sticker Source End*/
+
+/*PRISM Timer Clock Source Start*/
+QLabel#sourceIconLabel[type="visible.valid.unselect.timer"] {
+    image: url(":/images/timer-source/icon-source-clock-normal.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.valid.select.timer"] {
+    image: url(":/images/timer-source/icon-source-clock-select.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.invalid.unselect.timer"] {
+    image: url(":/images/timer-source/erroricon-source-clock-normal.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.invalid.select.timer"] {
+    image: url(":/images/timer-source/erroricon-source-clock-select.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.invalid.unselect.timer"] {
+    image: url(":/images/timer-source/erroricon-source-clock-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.invalid.select.timer"] {
+    image: url(":/images/timer-source/erroricon-source-clock-select-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.select.timer"] {
+    image: url(":/images/timer-source/icon-source-clock-select-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.unselect.timer"] {
+    image: url(":/images/timer-source/icon-source-clock-disable.svg");
+}
+/*PRISM Timer Clock Source End*/
 
 SourceTreeItem #sourceRenameEditor {
 	padding-left:/*hdpi*/ 5px;

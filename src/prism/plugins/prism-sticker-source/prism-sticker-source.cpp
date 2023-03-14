@@ -1,294 +1,307 @@
 #include <obs.h>
 #include <stdio.h>
 #include <util/dstr.h>
-#include <graphics/image-file.h>
 #include <util/platform.h>
+#include <thread>
+#include <mutex>
+#include <pls/media-info.h>
+#include <media-io/media-remux.h>
 #include "prism-sticker-source.hpp"
 
-#define debug(format, ...) blog(LOG_DEBUG, format, ##__VA_ARGS__)
-#define info(format, ...) blog(LOG_INFO, format, ##__VA_ARGS__)
-#define warn(format, ...) blog(LOG_WARNING, format, ##__VA_ARGS__)
+#define T_LOOP obs_module_text("StickerReactionLoop")
 
-static time_t get_modified_timestamp(const char *filename)
-{
-	struct stat stats;
-	if (os_stat(filename, &stats) != 0)
-		return -1;
-	return stats.st_mtime;
-}
+using namespace std;
 
-static const char *PRISMStickerSourceGetName(void *unused)
-{
-	UNUSED_PARAMETER(unused);
-	return obs_module_text("PRISMStickerSource");
-}
+struct sticker_reaction {
+	obs_source_t *source{};
+	obs_source_t *image{};
+	obs_source_t *media{};
 
-struct sticker_source {
-	obs_source_t *source;
+	gs_texture_t *source_texture{};
+	string last_video_input{};
+	string last_image_input{};
+	string video_input{};
+	string image_input{};
+	string landscape_video{};
+	string landscape_image{};
+	string portrait_video{};
+	string portrait_image{};
+	uint32_t cx;
+	uint32_t cy;
+	int64_t duration;
 
-	char *file;
-	char *id;
-	char *type;
-	char *title;
-	char *rating;
-	uint32_t preview_width;
-	uint32_t preview_height;
-	uint32_t original_width;
-	uint32_t original_height;
-	char *preview_url;
-	char *original_url;
+	bool loop = false;
 
-	bool persistent;
-	time_t file_timestamp;
-	float update_time_elapsed;
-	uint64_t last_time;
-	bool active;
-
-	gs_image_file2_t if2;
+	uint32_t base_width;
+	uint32_t base_height;
+	bool landscape;
 };
 
-static const char *image_source_get_name(void *unused)
+static const char *sticker_source_get_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
-	return obs_module_text("PRISMStickerSource");
+	return obs_module_text("PRISMStickerReaction");
 }
 
-static void image_source_load(struct sticker_source *context)
+static void update_image_source(sticker_reaction *sticker)
 {
-	char *file = context->file;
+	if (sticker->image_input.empty())
+		return;
+	obs_data_t *settings = nullptr;
+	if (!sticker->image) {
+		settings = obs_data_create();
+		obs_data_set_string(settings, "file", sticker->image_input.c_str());
+		obs_data_set_bool(settings, "unload", false);
+		sticker->image = obs_source_create_private("image_source", NULL, settings);
 
-	obs_enter_graphics();
-	gs_image_file2_free(&context->if2);
-	obs_leave_graphics();
-
-	if (file && *file) {
-		debug("loading texture '%s'", file);
-		context->file_timestamp = get_modified_timestamp(file);
-		gs_image_file2_init(&context->if2, file);
-		context->update_time_elapsed = 0;
-
-		obs_enter_graphics();
-		gs_image_file2_init_texture(&context->if2);
-		obs_leave_graphics();
-
-		if (!context->if2.image.loaded)
-			warn("failed to load texture '%s'", file);
+	} else if (sticker->last_image_input != sticker->image_input) {
+		settings = obs_source_get_settings(sticker->image);
+		obs_data_set_string(settings, "file", sticker->image_input.c_str());
+		obs_data_set_bool(settings, "unload", false);
+		obs_source_update(sticker->image, settings);
 	}
+
+	obs_data_release(settings);
 }
 
-static void image_source_unload(struct sticker_source *context)
+static void update_video_source(sticker_reaction *sticker, bool lastLoop)
 {
-	obs_enter_graphics();
-	gs_image_file2_free(&context->if2);
-	obs_leave_graphics();
+	obs_data_t *media_settings = nullptr;
+	if (!sticker->media) {
+		media_settings = obs_data_create();
+		obs_data_set_bool(media_settings, "looping", sticker->loop);
+		obs_data_set_string(media_settings, "local_file", sticker->video_input.c_str());
+		sticker->media = obs_source_create_private("ffmpeg_source", "ffmpeg_sticker", media_settings);
+
+	} else {
+		media_settings = obs_source_get_settings(sticker->media);
+		int64_t seek_to = 0;
+		std::string last_file = obs_data_get_string(media_settings, "local_file");
+		bool file_changed = last_file != sticker->video_input;
+		if (file_changed) {
+			int64_t duration = obs_source_media_get_duration(sticker->media);
+			int64_t time = obs_source_media_get_time(sticker->media);
+			seek_to = duration ? time / duration * sticker->duration : 0;
+		}
+		obs_data_set_bool(media_settings, "looping", sticker->loop);
+		obs_data_set_string(media_settings, "local_file", sticker->video_input.c_str());
+		obs_source_update(sticker->media, media_settings);
+
+		if (lastLoop && !sticker->loop && !sticker->video_input.empty()) {
+			obs_source_media_play_pause(sticker->media, true);
+		} else if (!lastLoop && sticker->loop && !sticker->video_input.empty() || file_changed) {
+			obs_source_output_video(sticker->media, NULL);
+			obs_source_media_restart_to_pos(sticker->media, false, seek_to);
+		}
+	}
+	obs_data_release(media_settings);
 }
 
-static void image_source_update(void *data, obs_data_t *settings)
+static void sticker_source_update(void *data, obs_data_t *settings)
 {
-	struct sticker_source *context = reinterpret_cast<sticker_source *>(data);
-	const char *file = obs_data_get_string(settings, "file");
-	const char *id = obs_data_get_string(settings, "id");
-	const char *type = obs_data_get_string(settings, "type");
-	const char *title = obs_data_get_string(settings, "title");
-	const char *rating = obs_data_get_string(settings, "rating");
-	uint32_t preview_width = (uint32_t)obs_data_get_int(settings, "preview_width");
-	uint32_t preview_height = (uint32_t)obs_data_get_int(settings, "preview_height");
-	uint32_t original_width = (uint32_t)obs_data_get_int(settings, "original_width");
-	uint32_t original_height = (uint32_t)obs_data_get_int(settings, "original_height");
-	const char *preview_url = obs_data_get_string(settings, "preview_url");
-	const char *original_url = obs_data_get_string(settings, "original_url");
-	const bool unload = obs_data_get_bool(settings, "unload");
+	struct sticker_reaction *sticker = reinterpret_cast<sticker_reaction *>(data);
+	bool lastLoop = sticker->loop;
+	sticker->loop = obs_data_get_bool(settings, "loop");
 
-	if (context->file)
-		bfree(context->file);
-	context->file = bstrdup(file);
+	obs_data_t *priv_settings = obs_source_get_private_settings(sticker->source);
+	sticker->landscape_video = obs_data_get_string(priv_settings, "landscapeVideo");
+	sticker->landscape_image = obs_data_get_string(priv_settings, "landscapeImage");
+	sticker->portrait_video = obs_data_get_string(priv_settings, "portraitVideo");
+	sticker->portrait_image = obs_data_get_string(priv_settings, "portraitImage");
+	obs_data_release(priv_settings);
 
-	if (context->id)
-		bfree(context->id);
-	context->id = bstrdup(id);
+	obs_video_info ovi;
+	obs_get_video_info(&ovi);
+	sticker->landscape = ovi.base_width >= ovi.base_height;
 
-	if (context->type)
-		bfree(context->type);
-	context->type = bstrdup(type);
+	sticker->last_image_input = sticker->image_input;
+	sticker->last_video_input = sticker->video_input;
+	sticker->video_input = sticker->landscape ? sticker->landscape_video : sticker->portrait_video;
+	sticker->image_input = sticker->landscape ? sticker->landscape_image : sticker->portrait_image;
 
-	if (context->title)
-		bfree(context->title);
-	context->title = bstrdup(title);
+	bool videoChanged = sticker->last_video_input != sticker->video_input;
+	if (videoChanged || !sticker->cx || !sticker->cy) {
+		media_info_t mi;
+		if (!mi_open(&mi, sticker->video_input.c_str(), MI_OPEN_DIRECTLY)) {
+			sticker->cx = 0;
+			sticker->cy = 0;
+			sticker->duration = 0;
+		} else {
+			sticker->cx = mi_get_int(&mi, "width");
+			sticker->cy = mi_get_int(&mi, "height");
+			sticker->duration = mi_get_int(&mi, "duration");
+			mi_free(&mi);
+		}
+	}
 
-	if (context->rating)
-		bfree(context->rating);
-	context->rating = bstrdup(rating);
-
-	context->preview_width = preview_width;
-	context->preview_height = preview_height;
-	context->original_width = original_width;
-	context->original_height = original_height;
-
-	if (context->preview_url)
-		bfree(context->preview_url);
-	context->preview_url = bstrdup(preview_url);
-
-	if (context->original_url)
-		bfree(context->original_url);
-	context->original_url = bstrdup(original_url);
-
-	context->persistent = !unload;
-
-	/* Load the image if the source is persistent or showing */
-	if (context->persistent || obs_source_showing(context->source))
-		image_source_load(context);
-	else
-		image_source_unload(context);
+	update_image_source(sticker);
+	update_video_source(sticker, lastLoop);
 }
 
-static void image_source_defaults(obs_data_t *settings)
+static void sticker_source_defaults(obs_data_t *settings)
 {
-	obs_data_set_default_bool(settings, "unload", false);
+	obs_data_add_flags(settings, PROPERTY_FLAG_NO_LABEL_HEADER);
+	obs_data_set_default_bool(settings, "loop", true);
 }
 
-static void image_source_show(void *data)
+static obs_properties_t *sticker_source_getproperties(void *data)
 {
-	struct sticker_source *context = reinterpret_cast<sticker_source *>(data);
+	if (!data)
+		return nullptr;
 
-	if (!context->persistent)
-		image_source_load(context);
+	obs_properties_t *props = obs_properties_create();
+	obs_property_t *prop = obs_properties_add_bool(props, "loop", T_LOOP);
+	return props;
 }
 
-static void image_source_hide(void *data)
+static void *sticker_source_create(obs_data_t *settings, obs_source_t *source)
 {
-	struct sticker_source *context = reinterpret_cast<sticker_source *>(data);
-
-	if (!context->persistent)
-		image_source_unload(context);
-}
-
-static void *image_source_create(obs_data_t *settings, obs_source_t *source)
-{
-	//PRISM/WangShaohui/20200117/#281/for source unavailable
 	obs_source_set_capture_valid(source, true, OBS_SOURCE_ERROR_OK);
 
-	struct sticker_source *context = reinterpret_cast<sticker_source *>(bzalloc(sizeof(struct sticker_source)));
-	context->source = source;
-
-	image_source_update(context, settings);
-	return context;
+	struct sticker_reaction *sticker = reinterpret_cast<sticker_reaction *>(bzalloc(sizeof(struct sticker_reaction)));
+	sticker->source = source;
+	return sticker;
 }
 
-static void image_source_destroy(void *data)
+static void sticker_source_destroy(void *data)
 {
-	struct sticker_source *context = reinterpret_cast<sticker_source *>(data);
-
-	image_source_unload(context);
-
-	if (context->file)
-		bfree(context->file);
-	if (context->id)
-		bfree(context->id);
-	if (context->type)
-		bfree(context->type);
-	if (context->title)
-		bfree(context->title);
-	if (context->rating)
-		bfree(context->rating);
-	if (context->preview_url)
-		bfree(context->preview_url);
-	if (context->original_url)
-		bfree(context->original_url);
-
-	bfree(context);
-}
-
-static uint32_t image_source_getwidth(void *data)
-{
-	struct sticker_source *context = reinterpret_cast<sticker_source *>(data);
-	return context->if2.image.cx;
-}
-
-static uint32_t image_source_getheight(void *data)
-{
-	struct sticker_source *context = reinterpret_cast<sticker_source *>(data);
-	return context->if2.image.cy;
-}
-
-static void image_source_render(void *data, gs_effect_t *effect)
-{
-	struct sticker_source *context = reinterpret_cast<sticker_source *>(data);
-
-	//PRISM/WangShaohui/20200117/#281/for source unavailable
-	if (context->if2.image.texture || (!context->file || 0 == strlen(context->file))) {
-		obs_source_set_capture_valid(context->source, true, OBS_SOURCE_ERROR_OK);
-	} else {
-		obs_source_set_capture_valid(context->source, false, os_is_file_exist(context->file) ? OBS_SOURCE_ERROR_UNKNOWN : OBS_SOURCE_ERROR_NOT_FOUND);
+	struct sticker_reaction *sticker = reinterpret_cast<sticker_reaction *>(data);
+	if (sticker->source_texture) {
+		obs_enter_graphics();
+		gs_texture_destroy(sticker->source_texture);
+		obs_leave_graphics();
 	}
 
-	if (!context->if2.image.texture)
+	if (sticker->image)
+		obs_source_release(sticker->image);
+	if (sticker->media)
+		obs_source_release(sticker->media);
+}
+
+static uint32_t sticker_source_getwidth(void *data)
+{
+	struct sticker_reaction *sticker = reinterpret_cast<sticker_reaction *>(data);
+	return sticker->cx;
+}
+
+static uint32_t sticker_source_getheight(void *data)
+{
+	struct sticker_reaction *sticker = reinterpret_cast<sticker_reaction *>(data);
+	return sticker->cy;
+}
+
+static void sticker_source_render(void *data, gs_effect_t *effect)
+{
+	struct sticker_reaction *sticker = reinterpret_cast<sticker_reaction *>(data);
+	if (!sticker || !sticker->source_texture)
 		return;
 
-	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), context->if2.image.texture);
-	gs_draw_sprite(context->if2.image.texture, 0, context->if2.image.cx, context->if2.image.cy);
+	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), sticker->source_texture);
+	gs_draw_sprite(sticker->source_texture, 0, sticker->cx, sticker->cy);
 }
 
-static void image_source_tick(void *data, float seconds)
+static void sticker_source_tick(void *data, float seconds)
 {
-	struct sticker_source *context = reinterpret_cast<sticker_source *>(data);
-	uint64_t frame_time = obs_get_video_frame_time();
+	struct sticker_reaction *sticker = reinterpret_cast<sticker_reaction *>(data);
+	if (!sticker || !sticker->media)
+		return;
 
-	context->update_time_elapsed += seconds;
+	obs_video_info ovi;
+	obs_get_video_info(&ovi);
+	bool l_screen = ovi.base_width >= ovi.base_height;
+	bool screen_changed = sticker->landscape != l_screen;
+	sticker->landscape = l_screen;
+	if (screen_changed) {
+		obs_data_t *settings = obs_source_get_settings(sticker->source);
+		obs_source_update(sticker->source, settings);
+		obs_data_release(settings);
+	}
 
-	if (context->update_time_elapsed >= 1.0f) {
-		time_t t = get_modified_timestamp(context->file);
-		context->update_time_elapsed = 0.0f;
+	if (0 == sticker->cx || 0 == sticker->cy)
+		return;
 
-		if (context->file_timestamp != t) {
-			image_source_load(context);
+	obs_enter_graphics();
+	if (!sticker->source_texture) {
+		sticker->source_texture = gs_texture_create(sticker->cx, sticker->cy, GS_RGBA, 1, NULL, GS_RENDER_TARGET);
+	} else {
+		uint32_t texture_width = gs_texture_get_width(sticker->source_texture);
+		uint32_t texture_height = gs_texture_get_height(sticker->source_texture);
+		if (texture_width != sticker->cx || texture_height != sticker->cy) {
+			gs_texture_destroy(sticker->source_texture);
+			sticker->source_texture = gs_texture_create(sticker->cx, sticker->cy, GS_RGBA, 1, NULL, GS_RENDER_TARGET);
 		}
 	}
 
-	//PRISM/WangShaohui/20200303/#872/for playing deactive gif
-	if (!context->active) {
-		if (context->if2.image.is_animated_gif)
-			context->last_time = frame_time;
-		context->active = true;
+	if (!sticker->source_texture) {
+		obs_leave_graphics();
+		return;
 	}
 
-	if (context->last_time && context->if2.image.is_animated_gif) {
-		uint64_t elapsed = frame_time - context->last_time;
-		bool updated = gs_image_file2_tick(&context->if2, elapsed);
+	struct vec4 clear_color;
+	vec4_set(&clear_color, 0.0f, 0.0f, 0.0f, 0.0f);
 
-		if (updated) {
-			obs_enter_graphics();
-			gs_image_file2_update_texture(&context->if2);
-			obs_leave_graphics();
+	gs_viewport_push();
+	gs_projection_push();
+
+	gs_texture_t *pre_target = gs_get_render_target();
+	gs_set_render_target(sticker->source_texture, NULL);
+	gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
+
+	gs_enable_depth_test(false);
+	gs_set_cull_mode(GS_NEITHER);
+
+	gs_ortho(0.0f, (float)sticker->cx, 0.0f, (float)sticker->cy, -100.0f, 100.0f);
+	gs_set_viewport(0, 0, sticker->cx, sticker->cy);
+
+	if (sticker->image && !sticker->loop) {
+		if (obs_source_removed(sticker->image)) {
+			obs_source_release(sticker->image);
+		} else {
+			obs_source_video_render(sticker->image);
+		}
+	} else {
+		if (obs_source_removed(sticker->media)) {
+			obs_source_release(sticker->media);
+		} else {
+			obs_source_video_render(sticker->media);
 		}
 	}
 
-	context->last_time = frame_time;
+	gs_set_render_target(pre_target, NULL);
+	gs_projection_pop();
+	gs_viewport_pop();
+	obs_leave_graphics();
 }
 
-uint64_t image_source_get_memory_usage(void *data)
+static void sticker_private_update(void *data, obs_data_t *settings)
 {
-	struct sticker_source *s = reinterpret_cast<sticker_source *>(data);
-	return s->if2.mem_usage;
+	if (!settings || !data)
+		return;
+
+	struct sticker_reaction *sticker = reinterpret_cast<sticker_reaction *>(data);
+	obs_data_t *setting = obs_source_get_settings(sticker->source);
+	sticker_source_update(data, setting);
+	obs_data_release(setting);
 }
 
 void RegisterPRISMStickerSource()
 {
 	obs_source_info info = {};
-	info.id = "prism_sticker_source";
+	info.id = "prism_sticker_reaction";
 	info.type = OBS_SOURCE_TYPE_INPUT;
 	info.output_flags = OBS_SOURCE_VIDEO;
-	info.get_name = image_source_get_name;
-	info.create = image_source_create;
-	info.destroy = image_source_destroy;
-	info.update = image_source_update;
-	info.get_defaults = image_source_defaults;
-	info.show = image_source_show;
-	info.hide = image_source_hide;
-	info.get_width = image_source_getwidth;
-	info.get_height = image_source_getheight;
-	info.video_render = image_source_render;
-	info.video_tick = image_source_tick;
-	info.icon_type = OBS_ICON_TYPE_GIPHY;
+	info.get_name = sticker_source_get_name;
+	info.create = sticker_source_create;
+	info.destroy = sticker_source_destroy;
+	info.update = sticker_source_update;
+	info.get_defaults = sticker_source_defaults;
+	info.get_properties = sticker_source_getproperties;
+	info.get_width = sticker_source_getwidth;
+	info.get_height = sticker_source_getheight;
+	info.video_render = sticker_source_render;
+	info.video_tick = sticker_source_tick;
+	info.icon_type = OBS_ICON_TYPE_PRISM_STICKER;
+	info.private_update = sticker_private_update;
 
 	obs_register_source(&info);
 }

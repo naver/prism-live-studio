@@ -702,7 +702,7 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 		streamOutput = obs_output_create(type, "simple_stream", nullptr,
 						 nullptr);
 		if (!streamOutput) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Creation of stream output type '%s' "
 			     "failed!",
 			     type);
@@ -732,7 +732,7 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 				obs_output_get_supported_audio_codecs(
 					streamOutput);
 			if (!codec) {
-				blog(LOG_WARNING, "Failed to load audio codec");
+				plog(LOG_WARNING, "Failed to load audio codec");
 				return false;
 			}
 
@@ -816,7 +816,7 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 	else
 		lastError = string();
 
-	blog(LOG_WARNING, "Stream output type '%s' failed to start!%s%s", type,
+	plog(LOG_WARNING, "Stream output type '%s' failed to start!%s%s", type,
 	     hasLastError ? "  Last Error: " : "", hasLastError ? error : "");
 	return false;
 }
@@ -1530,7 +1530,7 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 		streamOutput =
 			obs_output_create(type, "adv_stream", nullptr, nullptr);
 		if (!streamOutput) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Creation of stream output type '%s' "
 			     "failed!",
 			     type);
@@ -1560,7 +1560,7 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 				obs_output_get_supported_audio_codecs(
 					streamOutput);
 			if (!codec) {
-				blog(LOG_WARNING, "Failed to load audio codec");
+				plog(LOG_WARNING, "Failed to load audio codec");
 				return false;
 			}
 
@@ -1642,7 +1642,7 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 	else
 		lastError = string();
 
-	blog(LOG_WARNING, "Stream output type '%s' failed to start!%s%s", type,
+	plog(LOG_WARNING, "Stream output type '%s' failed to start!%s%s", type,
 	     hasLastError ? "  Last Error: " : "", hasLastError ? error : "");
 	return false;
 }

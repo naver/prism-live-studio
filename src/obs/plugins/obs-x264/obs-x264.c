@@ -28,7 +28,7 @@
 #include <x264.h>
 
 #define do_log(level, format, ...)                  \
-	blog(level, "[x264 encoder: '%s'] " format, \
+	plog(level, "[x264 encoder: '%s'] " format, \
 	     obs_encoder_get_name(obsx264->encoder), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
@@ -360,7 +360,9 @@ static void log_x264(void *param, int level, const char *format, va_list args)
 	char str[1024];
 
 	vsnprintf(str, 1024, format, args);
-	info("%s", str);
+	//PRISM/Wangshaohui/20210913/#9672/send log to KR nelo
+	blogex(true, LOG_INFO, NULL, 0, "[libx264] [x264 encoder] %s", str);
+	//info("%s", str);
 
 	UNUSED_PARAMETER(level);
 }
@@ -457,7 +459,7 @@ static void update_params(struct obs_x264 *obsx264, obs_data_t *settings,
 		crf = 0;
 	}
 
-	if (keyint_sec)
+	if (keyint_sec && voi->fps_den)
 		obsx264->params.i_keyint_max =
 			keyint_sec * voi->fps_num / voi->fps_den;
 
@@ -553,7 +555,7 @@ static bool update_settings(struct obs_x264 *obsx264, obs_data_t *settings,
 	paramlist = strlist_split(opts, ' ', false);
 
 	if (!update)
-		blog(LOG_INFO, "---------------------------------");
+		plog(LOG_INFO, "---------------------------------");
 
 	if (!obsx264->context) {
 		override_base_params(obsx264, paramlist, &preset, &profile,
@@ -777,6 +779,42 @@ static void obs_x264_video_info(void *data, struct video_scale_info *info)
 	info->format = pref_format;
 }
 
+//PRISM/ZengQin/20210528/#none/get encoder props params
+static obs_data_t *get_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+
+	struct obs_x264 *obsx264 = data;
+	obs_data_t *settings = obs_encoder_get_settings(obsx264->encoder);
+	const char *rate_control =
+		obs_data_get_string(settings, "rate_control");
+	char *preset = bstrdup(obs_data_get_string(settings, "preset"));
+	char *profile = bstrdup(obs_data_get_string(settings, "profile"));
+	char *tune = bstrdup(obs_data_get_string(settings, "tune"));
+	const char *opts = obs_data_get_string(settings, "x264opts");
+	obs_data_release(settings);
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_string(params, "rate_control", rate_control);
+	obs_data_set_string(params, "preset", preset);
+	obs_data_set_string(params, "profile", profile);
+	obs_data_set_string(params, "tune", tune);
+	obs_data_set_string(params, "x264opts", opts);
+	obs_data_set_int(params, "bitrate",
+			 obsx264->params.rc.i_vbv_max_bitrate);
+	obs_data_set_int(params, "buffer size",
+			 obsx264->params.rc.i_vbv_buffer_size);
+	obs_data_set_int(params, "crf", (int)obsx264->params.rc.f_rf_constant);
+	obs_data_set_int(params, "fps_num", obsx264->params.i_fps_num);
+	obs_data_set_int(params, "fps_den", obsx264->params.i_fps_den);
+	obs_data_set_int(params, "width", obsx264->params.i_width);
+	obs_data_set_int(params, "height", obsx264->params.i_height);
+	obs_data_set_int(params, "keyint", obsx264->params.i_keyint_max);
+	obs_data_set_int(params, "bframe", obsx264->params.i_bframe);
+	return params;
+}
+
 struct obs_encoder_info obs_x264_encoder = {
 	.id = "obs_x264",
 	.type = OBS_ENCODER_VIDEO,
@@ -792,4 +830,6 @@ struct obs_encoder_info obs_x264_encoder = {
 	.get_sei_data = obs_x264_sei,
 	.get_video_info = obs_x264_video_info,
 	.caps = OBS_ENCODER_CAP_DYN_BITRATE,
+	//PRISM/ZengQin/20210528/#none/get encoder props params
+	.props_params = get_props_params,
 };

@@ -26,14 +26,16 @@ void showChatView(bool isRebackLogin = false, bool isOnlyShow = false, bool isOn
 void addLoginChannel(const QJsonObject &retJson);
 bool updateChannelInfoFromNet(const QString &uuid);
 
-void sortInfosByNickName(InfosList &infos);
+void sortInfosByKey(InfosList &infos, const QString &sortKey);
 
 bool handleChannelStatus(const QVariantMap &info);
 bool updateChannelTypeFromNet(const QString &uuid);
 bool updateRTMPTypeFromNet(const QString &uuid);
+void showResolutionTips(const QString &platform);
 
 QVariantMap createErrorMap(int errorType);
 void addErrorForType(int errorType);
+void addErrorFromInfo(const QVariantMap &info);
 
 void refreshChannel(const QString &uuid);
 
@@ -70,6 +72,12 @@ void addRTMP();
 void editRTMP(const QString &uuid);
 void runCMD(const QString &cmdStr);
 
+bool isCurrentVersionCanDoNext(const QStringList &, QWidget *parent = nullptr);
+bool isCurrentVersionCanDoNext(const QVector<QString> &, QWidget *parent = nullptr);
+
+bool isCurrentVersionCanDoNext(const QString &, QWidget *parent = nullptr);
+
+bool checkVersion();
 bool checkChannelsState();
 
 bool startStreamingCheck();

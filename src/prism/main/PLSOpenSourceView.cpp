@@ -16,6 +16,7 @@ extern QCefCookieManager *panel_cookies;
 
 PLSOpenSourceView::PLSOpenSourceView(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSOpenSourceView)
 {
+	setResizeEnabled(false);
 	dpiHelper.setCss(this, {PLSCssIndex::PLSOpenSourceView});
 	dpiHelper.setFixedSize(this, {720, 458});
 	ui->setupUi(this->content());

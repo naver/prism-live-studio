@@ -10,9 +10,10 @@
 #define OFFSET_X 14
 #define OFFSET_Y 6
 #define MAXNUM 9
-PLSToastButton::PLSToastButton(QWidget *parent) : QWidget(parent), ui(new Ui::PLSToastButton), m_num(0)
+PLSToastButton::PLSToastButton(QWidget *parent) : QPushButton(parent), ui(new Ui::PLSToastButton), m_num(0)
 {
 	ui->setupUi(this);
+	ui->horizontalLayout->setContentsMargins(0, 0, 0, 0);
 	this->installEventFilter(this);
 	connect(ui->pushButton, &QPushButton::clicked, this, &PLSToastButton::clickButton);
 	m_numLabel = new QLabel(this);
@@ -23,7 +24,7 @@ PLSToastButton::PLSToastButton(QWidget *parent) : QWidget(parent), ui(new Ui::PL
 	m_numLabel->raise();
 	ui->pushButton->lower();
 	m_numLabel->hide();
-
+	setCursor(Qt::ArrowCursor);
 	//updateIconStyle(m_num);
 	PLSDpiHelper dpiHelper;
 	setNumLabelPositon(dpiHelper.getDpi(this));
@@ -74,7 +75,7 @@ QString PLSToastButton::getNumText() const
 void PLSToastButton::setNumLabelPositon(const double dpi)
 {
 	QPointF center(this->rect().center());
-	m_numLabel->move(center.x(), center.y() - PLSDpiHelper::calculate(dpi, 18));
+	m_numLabel->move(center.x() + dpi * 2, this->rect().topLeft().x());
 }
 
 bool PLSToastButton::eventFilter(QObject *o, QEvent *e)
@@ -84,11 +85,16 @@ bool PLSToastButton::eventFilter(QObject *o, QEvent *e)
 		ui->pushButton->clicked();
 		return true;
 	}
-	return QWidget::eventFilter(o, e);
+	return QPushButton::eventFilter(o, e);
 }
 
 void PLSToastButton::setShowAlert(bool showAlert)
 {
 	ui->pushButton->setProperty("showAlert", showAlert);
 	LoginCommonHelpers::refreshStyle(ui->pushButton);
+}
+
+QPushButton *PLSToastButton::getButton()
+{
+	return ui->pushButton;
 }

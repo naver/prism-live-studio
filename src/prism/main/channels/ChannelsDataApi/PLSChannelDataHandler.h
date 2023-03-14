@@ -9,7 +9,7 @@
 using ChannelsMap = QMap<QString, QVariantMap>;
 
 using InfosList = QList<QVariantMap>;
-using UpdateCallback = void (*)(const InfosList &);
+using UpdateCallback = std::function<void(const InfosList &)>;
 Q_DECLARE_METATYPE(UpdateCallback)
 
 struct FinishTaskReleaser {
@@ -29,6 +29,9 @@ public:
 	virtual bool tryToUpdate(const QVariantMap &, UpdateCallback) { return false; };
 	virtual int showLiveInfo(const QVariantMap &) { return 0; };
 	virtual int refreshToken(const QVariantMap &) { return 0; };
+	virtual void updateDisplayInfo(InfosList &srcList);
+	virtual void resetData();
+	;
 };
 
 /* example */
@@ -39,9 +42,11 @@ public:
 
 	virtual QString getPlatformName();
 	virtual bool tryToUpdate(const QVariantMap &srcInfo, UpdateCallback callback);
-	virtual bool downloadHeaderImage();
+	virtual bool downloadHeaderImage(const QString &pixUrl);
 
 protected:
+	bool getChannelsInfo();
+
 	UpdateCallback mCallBack;
 	QVariantMap mLastInfo;
 	static ChannelsMap mDataMaper;

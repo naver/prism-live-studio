@@ -20,7 +20,7 @@ class PLSBeautyFilterView : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	explicit PLSBeautyFilterView(const QString &sourceName, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
+	explicit PLSBeautyFilterView(const QString &sourceName, DialogInfo info, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSBeautyFilterView();
 	void AddSourceName(const QString &sourceName, OBSSceneItem item);
 	void RenameSourceName(OBSSceneItem item, const QString &newName, const QString &prevName);
@@ -29,10 +29,6 @@ public:
 	void SetSourceSelect(const QString &sourceName, OBSSceneItem item, bool selected);
 	void UpdateSourceList(const QString &sourceName, OBSSceneItem item, const DShowSourceVecType &sourceList);
 	void ReorderSourceList(const QString &sourceName, OBSSceneItem item, const DShowSourceVecType &sourceList);
-	void InitGeometry();
-	void SaveShowModeToConfig();
-	void onMaxFullScreenStateChanged() override;
-	void onSaveNormalGeometry() override;
 	OBSSceneItem GetCurrentItemData();
 	void Clear();
 	void TurnOffBeauty(obs_source_t *source);
@@ -41,6 +37,7 @@ public:
 	static QString getIconFileByIndex(int groupIndex, int index);
 
 	void UpdateItemIcon();
+	void static SetBeautyPresetConfig(const QString &configPath);
 
 public slots:
 	void RemoveSourceNameList(bool isCurrentScene, const DShowSourceVecType &list);
@@ -56,12 +53,12 @@ private:
 	static void getFilesFromDir(const QString &filePath, QVector<QString> &files);
 
 	template<typename T> void InitSlider(QSlider *slider, const T &min, const T &max, const T &step, Qt::Orientation ori = Qt::Horizontal);
-	void LoadBeautyFaceView(OBSSceneItem item);
-	void InitBeautyFaceView(const BeautyConfig &beautyConfig);
+	void LoadBeautyFaceView(OBSSceneItem item, bool init = false);
+	bool InitBeautyFaceView(const BeautyConfig &beautyConfig);
 	void InitSliderAndLineEditConnections(QSlider *slider, QLineEdit *lineEdit, void (PLSBeautyFilterView::*func)(int));
 	void CreateBeautyFaceView(const QString &id, int filterType, bool isCustom, bool isCurrent, QString baseName, int filterIndex = 0);
 	PLSBeautyFaceItemView *isCustomFaceExisted(const QString &filterId);
-	void UpdateBeautyFaceView(OBSSceneItem item);
+	void UpdateBeautyFaceView(OBSSceneItem item, bool init = false);
 	void SetRecommendValue(const BeautyConfig &config);
 	void OnGetByteArraySuccess(const QByteArray &array, BeautyConfig &beautyConfig);
 	void UpdateUI(const QString &filterId);
@@ -101,6 +98,11 @@ private:
 	void SaveLastValidValue(QLineEdit *object, int value);
 	void LoadPrivateBeautySetting(OBSSceneItem item);
 	void SetFaceItem(PLSBeautyFaceItemView *item);
+	bool CheckBeautyResource();
+	bool CheckBeautyPreset(const QJsonObject &beautyJsonObj);
+	void DownloadAllResource();
+	bool CheckBeautyIcons();
+	bool CheckBeautyJson();
 
 private slots:
 	void OnChinSliderValueChanged(int value);
@@ -124,8 +126,9 @@ private slots:
 	void OnScrollToCurrentItem(const QString &filterId);
 	void OnSkinSliderMouseRelease();
 	void OnLayoutFinished();
+	void OnDownloadJsonFile();
+	void OnDownloadAllResource();
 signals:
-	void beautyViewVisibleChanged(bool);
 	void currentSourceChanged(const QString &name, OBSSceneItem item);
 
 private:
@@ -135,8 +138,14 @@ private:
 	OBSSceneItem currentSource{};
 	bool ignoreChangeIndex{true};
 	bool sendActionLog{true};
+	bool customClickedState{false};
+	bool initState{false};
+	bool firstShow = true;
 	enum ResizeReason { ItemDelete = 0, ItemAdded, FlowLayoutChange };
 	ResizeReason resizeReason{FlowLayoutChange};
+
+	int resourceCount = 0;
+	std::atomic_bool downloadingAll = false;
 
 	FlowLayout *flowLayout{};
 	QList<PLSBeautyFaceItemView *> listItems;

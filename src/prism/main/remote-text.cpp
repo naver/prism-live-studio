@@ -99,6 +99,8 @@ static size_t header_write(char *ptr, size_t size, size_t nmemb, vector<string> 
 	size_t total = size * nmemb;
 	if (total)
 		str.append(ptr, total);
+	if (str.empty())
+		return 0;
 
 	if (str.back() == '\n')
 		str.resize(str.size() - 1);

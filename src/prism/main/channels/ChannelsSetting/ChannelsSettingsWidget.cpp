@@ -15,13 +15,12 @@ ChannelsSettingsWidget::ChannelsSettingsWidget(QWidget *parent, PLSDpiHelper dpi
 	this->initializePlatforms(getDefaultPlatforms());
 	this->setHasCaption(false);
 	QMetaObject::connectSlotsByName(this);
-	PRE_LOG_UI(Channels settings, ChannelsSettingsWidget);
 
 	ui->CenterStack->setFocus();
 
-	dpiHelper.notifyDpiChanged(this, [this](double dpi) {
+	dpiHelper.notifyDpiChanged(this, [this](double) {
 		if (ui->ChannelsListCombox->currentIndex() >= 1) {
-			auto platform = ui->ChannelsListCombox->currentText();
+			auto platform = ui->ChannelsListCombox->currentData(ChannelItemData).toString();
 			setGuidePageInfo(platform);
 		}
 	});
@@ -63,9 +62,16 @@ void ChannelsSettingsWidget::setChannelsData(const ChannelsMap &datas, int index
 
 void ChannelsSettingsWidget::initializePlatforms(const QStringList &platforms)
 {
+
 	QStringList tmp = platforms;
 	tmp.prepend(CHANNELS_TR(ALL));
-	ui->ChannelsListCombox->addItems(tmp);
+	for (int i = 0; i < tmp.size(); ++i) {
+		const auto &platform = tmp[i];
+		auto displatPlatform = translatePlatformName(platform);
+		ui->ChannelsListCombox->addItem(displatPlatform);
+		ui->ChannelsListCombox->setItemData(i, platform, ChannelItemData);
+	}
+
 	ui->ChannelsListCombox->setMaxVisibleItems(tmp.size());
 
 	auto pushButton = new QPushButton(ui->ChannelsListCombox);
@@ -127,9 +133,10 @@ void ChannelsSettingsWidget::applyChanges()
 	}
 }
 
-void ChannelsSettingsWidget::on_ChannelsListCombox_currentIndexChanged(const QString &arg1)
+void ChannelsSettingsWidget::on_ChannelsListCombox_currentIndexChanged(const QString &)
 {
-	PRE_LOG_UI_MSG(QString("Channels Filter changed to " + arg1).toStdString().c_str(), ChannelsSettingsWidget);
+	auto platform = ui->ChannelsListCombox->currentData(ChannelItemData).toString();
+	PRE_LOG_UI_MSG(QString("Channels Filter changed to " + platform).toStdString().c_str(), ChannelsSettingsWidget);
 	int rowCount = ui->listWidget->count();
 	if (rowCount == 0) {
 		return;
@@ -167,8 +174,8 @@ void ChannelsSettingsWidget::on_ChannelsListCombox_currentIndexChanged(const QSt
 		auto isNotMatchPlatform = [&](const QListWidgetItem *item) {
 			auto varMap = item->data(ChannelItemData).toMap();
 			int tmpType = getInfo(varMap, ChannelData::g_data_type, ChannelData::NoType);
-			QString platformName = getInfo(varMap, ChannelData::g_channelName);
-			return (!platformName.contains(arg1, Qt::CaseInsensitive) || tmpType != ChannelData::ChannelType);
+			QString platformName = getInfo(varMap, ChannelData::g_platformName);
+			return (!platformName.contains(platform, Qt::CaseInsensitive) || tmpType != ChannelData::ChannelType);
 		};
 		transformItems(isNotMatchPlatform);
 	}
@@ -180,7 +187,7 @@ void ChannelsSettingsWidget::on_ChannelsListCombox_currentIndexChanged(const QSt
 
 	if (visibleCount == 0) {
 		ui->CenterStack->setCurrentIndex(1);
-		setGuidePageInfo(arg1);
+		setGuidePageInfo(platform);
 	} else {
 		ui->CenterStack->setCurrentIndex(0);
 	}
@@ -201,7 +208,7 @@ void ChannelsSettingsWidget::onSelectionChanged(const QString &uuid, bool isSele
 void ChannelsSettingsWidget::on_ApplySettingsBtn_clicked()
 {
 	if (!hasSelected()) {
-		PLSAlertView::warning(this, CHANNELS_TR(Alert), CHANNELS_TR(NoChannelSelected));
+		PLSAlertView::warning(this, tr("Alert.Title"), CHANNELS_TR(NoChannelSelected));
 		return;
 	}
 	PRE_LOG_UI_MSG("try apply changes  ", ChannelsSettingsWidget);
@@ -218,13 +225,13 @@ void ChannelsSettingsWidget::on_Cancel_clicked()
 void ChannelsSettingsWidget::on_GotoLoginBtn_clicked()
 {
 	if (!hasSelected()) {
-		PLSAlertView::warning(this, CHANNELS_TR(Alert), CHANNELS_TR(AtLeastOneSelected));
+		PLSAlertView::warning(this, tr("Alert.Title"), CHANNELS_TR(AtLeastOneSelected));
 		return;
 	}
 	PRE_LOG_UI_MSG("try to go to login page   ", ChannelsSettingsWidget);
 	applyChanges();
 	this->accept();
-	QString cmd = ui->ChannelsListCombox->currentText();
+	QString cmd = ui->ChannelsListCombox->currentData(ChannelItemData).toString();
 	runCMD(cmd);
 }
 

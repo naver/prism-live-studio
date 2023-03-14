@@ -7,6 +7,7 @@ root = true
 
 # Unix-style newlines with a newline ending every file.
 [*]
+guidelines = 200
 insert_final_newline = true
 trim_trailing_whitespace = true
 charset = utf-8

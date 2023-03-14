@@ -13,3 +13,6 @@ extern const char *nv_error_name(NVENCSTATUS err);
 extern NV_ENCODE_API_FUNCTION_LIST nv;
 extern NV_CREATE_INSTANCE_FUNC nv_create_instance;
 extern bool init_nvenc(void);
+
+//PRISM/Wangshaohui/20210311/#7022/limit max gpu
+extern bool is_blacklisted(const wchar_t *name);

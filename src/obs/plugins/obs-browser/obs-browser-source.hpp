@@ -57,6 +57,8 @@ struct BrowserSource {
 	bool tex_sharing_avail = false;
 	bool create_browser = false;
 	CefRefPtr<CefBrowser> cefBrowser;
+	//PRISM/Wangshaohui/20211021/#10074/for threadsafe
+	std::recursive_mutex lockBrowser;
 
 	std::string url;
 	std::string css;
@@ -117,6 +119,10 @@ struct BrowserSource {
 	static void GetBrowserData(void *data, obs_data_t *data_output);
 	/* ------------------------------PRISM/Wangshaohui/20200811/#3784/for cef interaction --------------end */
 
+	//PRISM/Wangshaohui/20211021/#10074/for threadsafe
+	void SetBrowser(CefRefPtr<CefBrowser> b);
+	CefRefPtr<CefBrowser> GetBrowser();
+
 	bool CreateBrowser();
 	void DestroyBrowser(bool async = false);
 	void ClearAudioStreams();
@@ -149,6 +155,8 @@ struct BrowserSource {
 	void SetShowing(bool showing);
 	void SetActive(bool active);
 	void Refresh();
+
+	void receiveWebMessage(const char *msg);
 
 #if EXPERIMENTAL_SHARED_TEXTURE_SUPPORT_ENABLED
 	inline void SignalBeginFrame();

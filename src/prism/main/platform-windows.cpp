@@ -32,10 +32,14 @@
 #include <mmdeviceapi.h>
 #include <audiopolicy.h>
 #include <sys/stat.h>
+#include <string>
 
+#include <util/platform.h>
 #include <util/windows/WinHandle.hpp>
 #include <util/windows/HRError.hpp>
 #include <util/windows/ComPtr.hpp>
+
+#include <qapplication.h>
 
 #include "log.h"
 #include "./log/module_names.h"
@@ -173,6 +177,14 @@ uint32_t GetWindowsVersion()
 	return ver;
 }
 
+uint32_t GetWindowsBuildVersion()
+{
+	struct win_version_info ver_info;
+
+	get_win_ver(&ver_info);
+	return ver_info.build;
+}
+
 void SetAeroEnabled(bool enable)
 {
 	static HRESULT(WINAPI * func)(UINT) = nullptr;
@@ -183,10 +195,18 @@ void SetAeroEnabled(bool enable)
 			return;
 		}
 
-		HMODULE dwm = LoadLibraryW(L"dwmapi");
+		HMODULE dwm = GetModuleHandleW(L"dwmapi");
 		if (!dwm) {
-			failed = true;
-			return;
+			dwm = LoadLibraryW(L"dwmapi");
+			if (!dwm) {
+				failed = true;
+				return;
+			}
+
+			QObject::connect(qApp, &QApplication::destroyed, [=]() {
+				// free dwm handle
+				FreeLibrary(dwm);
+			});
 		}
 
 		func = reinterpret_cast<decltype(func)>(GetProcAddress(dwm, "DwmEnableComposition"));
@@ -286,64 +306,16 @@ bool DisableAudioDucking(bool disable)
 	return SUCCEEDED(result);
 }
 
-struct RunOnceMutexData {
-	WinHandle handle;
-
-	explicit inline RunOnceMutexData(HANDLE h) : handle(h) {}
-};
-
-RunOnceMutex::RunOnceMutex(RunOnceMutex &&rom)
+std::string GetFileName(std::string full_path)
 {
-	delete data;
-	data = rom.data;
-	rom.data = nullptr;
+	char temp[256];
+	os_extract_file_name(full_path.c_str(), temp, sizeof(temp));
+	return temp;
 }
 
-RunOnceMutex::~RunOnceMutex()
+std::string GetExtension(std::string full_path)
 {
-	delete data;
-}
-
-RunOnceMutex &RunOnceMutex::operator=(RunOnceMutex &&rom)
-{
-	delete data;
-	data = rom.data;
-	rom.data = nullptr;
-	return *this;
-}
-
-RunOnceMutex GetRunOnceMutex(bool &already_running)
-{
-	string name;
-
-	if (!portable_mode) {
-		name = "PLSStudioCore";
-	} else {
-		char path[500];
-		*path = 0;
-		GetConfigPath(path, sizeof(path), "");
-		name = "PLSStudioPortable";
-		name += path;
-	}
-
-	BPtr<wchar_t> wname;
-	os_utf8_to_wcs_ptr(name.c_str(), name.size(), &wname);
-
-	if (wname) {
-		wchar_t *temp = wname;
-		while (*temp) {
-			if (!iswalnum(*temp))
-				*temp = L'_';
-			temp++;
-		}
-	}
-
-	HANDLE h = OpenMutexW(SYNCHRONIZE, false, wname.Get());
-	already_running = !!h;
-
-	if (!already_running)
-		h = CreateMutexW(nullptr, false, wname.Get());
-
-	RunOnceMutex rom(h ? new RunOnceMutexData(h) : nullptr);
-	return rom;
+	char temp[256];
+	os_extract_extension(full_path.c_str(), temp, sizeof(temp));
+	return temp;
 }

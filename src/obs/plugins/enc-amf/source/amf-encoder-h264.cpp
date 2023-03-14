@@ -1225,6 +1225,19 @@ bool Plugin::AMD::EncoderH264::IsMotionEstimationHalfPixelEnabled()
 	return e;
 }
 
+//PRISM/ZengQin/20210528/#none/get encoder props params
+obs_data_t * Plugin::AMD::EncoderH264::GetPropsPramas()
+{
+	obs_data_t* params = obs_data_create();
+	obs_data_set_int(params, "bitrate", GetTargetBitrate() / 1000);
+	obs_data_set_string(params, "profile", Utility::ProfileToString(GetProfile()));
+	obs_data_set_int(params, "width", m_Resolution.first);
+	obs_data_set_int(params, "height", m_Resolution.second);
+	obs_data_set_int(params, "bframes", GetBFramePattern());
+	obs_data_set_int(params, "IDR", GetIDRPeriod());
+	return params;
+}
+
 // Properties - Intra-Refresh
 std::pair<uint32_t, uint32_t> Plugin::AMD::EncoderH264::CapsIntraRefreshNumMBsPerSlot()
 {

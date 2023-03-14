@@ -17,12 +17,14 @@ public:
 	void RenameSceneData(const QString &preName, const QString &nextName);
 	void CopySrcToDest(const QString &srcName, const QString &destName);
 	void MoveSrcToDest(const QString &srcName, const QString &destName);
+	QString GetFirstSceneName();
 
 	PLSSceneItemView *FindSceneData(const QString &name);
 	PLSSceneItemView *DeleteSceneData(const QString &name);
 	void DeleteAllData();
 	void SetDisplayVector(const SceneDisplayVector &dVec, QString file = "");
 	void SwapData(const int &romoveRow, const int &removeCol, const int &appendRow, const int &appendCol, const int &columnCount);
+	void SwapDataInListMode(const int &romoveRow, const int &appendRow);
 	void SwapToUp(const QString &name);
 	void SwapToDown(const QString &name);
 	void SwapToBottom(const QString &name);

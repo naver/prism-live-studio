@@ -400,7 +400,7 @@ void profile_end(const char *name)
 
 	profile_call *call = thread_context;
 	if (!call) {
-		blog(LOG_ERROR, "Called profile end with no active profile");
+		plog(LOG_ERROR, "Called profile end with no active profile");
 		return;
 	}
 
@@ -408,7 +408,7 @@ void profile_end(const char *name)
 		call->name = name;
 
 	if (call->name != name) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Called profile end with mismatching name: "
 		     "start(\"%s\"[%p]) <-> end(\"%s\"[%p])",
 		     call->name, call->name, name, name);
@@ -526,7 +526,7 @@ static void gather_stats(uint64_t expected_time_between_calls,
 	}
 
 	/*if (entry_buffer->num > 2)
-		blog(LOG_INFO, "buffer-size %lu, overall count %llu\n"
+		plog(LOG_INFO, "buffer-size %lu, overall count %llu\n"
 				"map-size %lu, occupied %lu, probes %lu",
 				entry_buffer->num, calls,
 				map->size, map->occupied,
@@ -602,7 +602,7 @@ static void profile_print_entry(profiler_snapshot_entry_t *entry,
 				  calls_per_parent);
 	}
 
-	blog(LOG_INFO, "%s", output_buffer->array);
+	plog(LOG_INFO, "%s", output_buffer->array);
 
 	active |= (uint64_t)1 << indent;
 	for (size_t i = 0; i < entry->children.num; i++) {
@@ -707,7 +707,7 @@ static void profile_print_entry_expected(profiler_snapshot_entry_t *entry,
 
 	make_indent_string(indent_buffer, indent, active);
 
-	blog(LOG_INFO,
+	plog(LOG_INFO,
 	     "%s%s: min=%" G_MS ", median=%" G_MS ", max=%" G_MS ", %g%% "
 	     "within ±2%% of %" G_MS " (%g%% lower, %g%% higher)",
 	     indent_buffer->array, entry->name, min_ / 1000., median / 1000.,
@@ -733,12 +733,12 @@ void profile_print_func(const char *intro, profile_entry_print_func print,
 	if (!snap)
 		snap = profile_snapshot_create();
 
-	blog(LOG_INFO, "%s", intro);
+	plog(LOG_INFO, "%s", intro);
 	for (size_t i = 0; i < snap->roots.num; i++) {
 		print(&snap->roots.array[i], &indent_buffer, &output_buffer, 0,
 		      0, 0);
 	}
-	blog(LOG_INFO, "=================================================");
+	plog(LOG_INFO, "=================================================");
 
 	if (free_snapshot)
 		profile_snapshot_free(snap);

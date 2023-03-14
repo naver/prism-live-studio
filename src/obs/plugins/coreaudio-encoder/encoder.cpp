@@ -14,9 +14,9 @@
 #endif
 
 #define CA_LOG(level, format, ...) \
-	blog(level, "[CoreAudio encoder]: " format, ##__VA_ARGS__)
+	plog(level, "[CoreAudio encoder]: " format, ##__VA_ARGS__)
 #define CA_LOG_ENCODER(format_name, encoder, level, format, ...)  \
-	blog(level, "[CoreAudio %s: '%s']: " format, format_name, \
+	plog(level, "[CoreAudio %s: '%s']: " format, format_name, \
 	     obs_encoder_get_name(encoder), ##__VA_ARGS__)
 #define CA_BLOG(level, format, ...)                                 \
 	CA_LOG_ENCODER(ca->format_name, ca->encoder, level, format, \
@@ -658,10 +658,9 @@ static void *aac_create(obs_data_t *settings, obs_encoder_t *encoder)
 	}
 
 	const char *format_name =
-		out.mFormatID == kAudioFormatMPEG4AAC_HE_V2
-			? "HE-AAC v2"
-			: out.mFormatID == kAudioFormatMPEG4AAC_HE ? "HE-AAC"
-								   : "AAC";
+		out.mFormatID == kAudioFormatMPEG4AAC_HE_V2 ? "HE-AAC v2"
+		: out.mFormatID == kAudioFormatMPEG4AAC_HE  ? "HE-AAC"
+							    : "AAC";
 	CA_BLOG(LOG_INFO,
 		"settings:\n"
 		"\tmode:          %s\n"
@@ -1363,6 +1362,22 @@ static obs_properties_t *aac_properties(void *data)
 	return props;
 }
 
+static obs_data_t *aac_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+	ca_encoder *ca = static_cast<ca_encoder *>(data);
+	obs_data_t *settings = obs_encoder_get_settings(ca->encoder);
+	unsigned int bitrate = obs_data_get_int(settings, "bitrate");
+	obs_data_release(settings);
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_int(params, "bitrate", bitrate);
+	obs_data_set_int(params, "channels", ca->channels);
+	obs_data_set_int(params, "sample rate", ca->samples_per_second);
+	return params;
+}
+
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("coreaudio-encoder", "en-US")
 MODULE_EXPORT const char *obs_module_description(void)
@@ -1396,6 +1411,8 @@ bool obs_module_load(void)
 	aac_info.get_extra_data = aac_extra_data;
 	aac_info.get_defaults = aac_defaults;
 	aac_info.get_properties = aac_properties;
+	//PRISM/ZengQin/20210528/#none/get encoder props params
+	aac_info.props_params = aac_props_params,
 
 	obs_register_encoder(&aac_info);
 	return true;

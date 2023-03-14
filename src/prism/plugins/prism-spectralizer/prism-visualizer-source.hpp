@@ -113,6 +113,8 @@ public:
 		audio_sources.swap(vec);
 	}
 
+	void freeVisualizerResource();
+
 private:
 	static void source_changed(void *data, calldata_t *calldata);
 
@@ -145,6 +147,7 @@ public:
 	uint32_t get_height() const { return config.cy; }
 	visual_params get_current_visual_params(visual_mode vm);
 	visual_mode get_old_visual_mode();
+	obs_data_t *getPropsParams();
 
 	void SaveTexture(gs_texture_t *tex, const char *path);
 };

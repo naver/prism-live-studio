@@ -18,15 +18,16 @@ PLSLiveInfoBand::PLSLiveInfoBand(PLSPlatformBase *pPlatformBase, QWidget *parent
 	: PLSLiveInfoBase(pPlatformBase, parent, dpiHelper), ui(new Ui::PLSLiveInfoBand), platform(dynamic_cast<PLSPlatformBand *>(pPlatformBase)), m_isModify(false)
 {
 	dpiHelper.setCss(this, {PLSCssIndex::PLSLiveInfoBand});
-	dpiHelper.setFixedSize(this, {720, 550});
 
 	ui->setupUi(this->content());
+	ui->TitleFrameLayout->addWidget(createResolutionButtonsFrame());
 	platform->setAlertParent(this);
 	ui->plainTextEdit->setProperty("readonly", false);
 	if (PLSCHANNELS_API->isLiving()) {
 		ui->plainTextEdit->setProperty("readonly", true);
-		ui->plainTextEdit->setReadOnly(true);
 		ui->okButton->setDisabled(true);
+		ui->plainTextEdit->setDisabled(true);
+
 		ui->describeLabel->setDisabled(true);
 	}
 
@@ -36,7 +37,7 @@ PLSLiveInfoBand::PLSLiveInfoBand(PLSPlatformBase *pPlatformBase, QWidget *parent
 	if (!description.isEmpty()) {
 		ui->plainTextEdit->setPlainText(description);
 	}
-	connect(ui->plainTextEdit, &QPlainTextEdit::textChanged, this, &PLSLiveInfoBand::textChangeHandler);
+	connect(ui->plainTextEdit, &QPlainTextEdit::textChanged, this, &PLSLiveInfoBand::textChangeHandler, Qt::QueuedConnection);
 	connect(ui->okButton, &QPushButton::clicked, this, &PLSLiveInfoBand::okButtonClicked);
 	connect(ui->cancelButton, &QPushButton::clicked, this, &PLSLiveInfoBand::cancelButtonClicked);
 
@@ -73,7 +74,7 @@ void PLSLiveInfoBand::okButtonClicked()
 		if (value == 0) {
 			done(Accepted);
 		} else if (value == static_cast<int>(PLSPlatformApiResult::PAR_TOKEN_EXPIRED)) {
-			PLSAlertView::Button btn = PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Band.Expired"));
+			PLSAlertView::Button btn = PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Band.Expired"));
 			done(Rejected);
 			if (btn != PLSAlertView::Button::NoButton) {
 				PLSCHANNELS_API->channelExpired(platform->getChannelUUID(), false);
@@ -102,8 +103,9 @@ void PLSLiveInfoBand::textChangeHandler()
 	m_isModify = true;
 	QString text = ui->plainTextEdit->toPlainText();
 	if (text.length() > MAXINPUTCONTENT) {
+		QSignalBlocker signalBlocker(ui->plainTextEdit);
 		ui->plainTextEdit->setPlainText(text.left(MAXINPUTCONTENT));
-		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.Band.Description.Max.Limit"));
+		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("Live.Check.Band.Description.Max.Limit"));
 		ui->plainTextEdit->moveCursor(QTextCursor::End);
 	}
 }

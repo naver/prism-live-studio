@@ -4,6 +4,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <qurlquery.h>
 
 #include "pls-app.hpp"
 #include "log.h"
@@ -11,7 +12,6 @@
 #include "alert-view.hpp"
 #include "window-basic-main.hpp"
 #include "pls-common-define.hpp"
-#include "PLSHttpApi\PLSHttpHelper.h"
 #include "../PLSPlatformApi.h"
 #include "../PLSLiveInfoDialogs.h"
 #include "PLSChannelDataAPI.h"
@@ -51,10 +51,10 @@ vector<string> PLSPlatformTwitch::getServerNames() const
 	return vecServerNames;
 }
 
-void PLSPlatformTwitch::saveSettings(const string &title, const string &category, int idxServer)
+void PLSPlatformTwitch::saveSettings(const string &title, const string &category, const string &categoryId, int idxServer)
 {
 	if (getTitle() != title || getCategory() != category) {
-		requestUpdateChannel(title, category);
+		requestUpdateChannel(title, category, categoryId);
 	} else {
 		emit onUpdateChannel(PLSPlatformApiResult::PAR_SUCCEED);
 	}
@@ -72,9 +72,9 @@ void PLSPlatformTwitch::onPrepareLive(bool value)
 		prepareLiveCallback(value);
 		return;
 	}
-
+	PLS_INFO(MODULE_PlatformService, "%s %s show liveinfo value(%s)", PrepareInfoPrefix, __FUNCTION__, BOOL2STR(value));
 	value = pls_exec_live_Info_twitch(getChannelUUID(), getInitData()) == QDialog::Accepted;
-
+	PLS_INFO(MODULE_PlatformService, "%s %s close liveinfo value(%s)", PrepareInfoPrefix, __FUNCTION__, BOOL2STR(value));
 	prepareLiveCallback(value);
 }
 
@@ -85,17 +85,33 @@ void PLSPlatformTwitch::onAlLiveStarted(bool value)
 	}
 }
 
-void PLSPlatformTwitch::onLiveStopped()
+void PLSPlatformTwitch::onLiveEnded()
 {
 	if (m_statusTimer.isActive()) {
 		m_statusTimer.stop();
 	}
 
 	if (PLS_PLATFORM_API->isPrismLive()) {
-		liveStoppedCallback();
+		liveEndedCallback();
 	} else {
 		requestVideos();
 	}
+}
+
+QString maskUrl(const QString &url, const QVariantMap &queryInfo)
+{
+	QUrl maskUrl(url);
+	QUrlQuery maskQuery;
+	for (auto info = queryInfo.constBegin(); info != queryInfo.constEnd(); ++info) {
+		maskQuery.addQueryItem(info.key(), info.value().toString());
+	}
+	maskUrl.setQuery(maskQuery);
+	return maskUrl.toString();
+}
+
+void PLSPlatformTwitch::setHttpHead(PLSNetworkReplyBuilder &builder)
+{
+	builder.setRawHeaders({{"Client-ID", TWITCH_CLIENT_ID}, {"Authorization", "Bearer " + getChannelToken()}, {"Accept", HTTP_ACCEPT_TWITCH}});
 }
 
 void PLSPlatformTwitch::saveStreamServer()
@@ -120,7 +136,7 @@ PLSPlatformApiResult PLSPlatformTwitch::getApiResult(int code, QNetworkReply::Ne
 			result = PLSPlatformApiResult::PAR_TOKEN_EXPIRED;
 			break;
 		case 403:
-			result = PLSPlatformApiResult::PAR__API_ERROR_FORBIDDEN;
+			result = PLSPlatformApiResult::PAR_API_ERROR_FORBIDDEN;
 			break;
 		default:
 			result = PLSPlatformApiResult::PAR_API_FAILED;
@@ -137,20 +153,18 @@ void PLSPlatformTwitch::showApiRefreshError(PLSPlatformApiResult value)
 
 	switch (value) {
 	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Network.Error"));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("login.check.note.network"));
 		break;
 	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-	case PLSPlatformApiResult::PAR__API_ERROR_FORBIDDEN: {
-		auto dialogResult = PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Twitch.Expired"));
-		if (PLS_PLATFORM_API->isPrepareLive()) {
-			emit closeDialogByExpired();
-		}
+	case PLSPlatformApiResult::PAR_API_ERROR_FORBIDDEN: {
+		auto dialogResult = PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(getChannelName()));
 		if (QDialogButtonBox::Ok == dialogResult) {
+			emit closeDialogByExpired();
 			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
 		}
 	} break;
 	default:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Twitch.Failed"));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
 		break;
 	}
 }
@@ -161,13 +175,17 @@ void PLSPlatformTwitch::showApiUpdateError(PLSPlatformApiResult value)
 
 	switch (value) {
 	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Network.Error"));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("login.check.note.network"));
 		break;
-	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Twitch.Expired"));
-		break;
+	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED: {
+		auto dialogResult = PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(getChannelName()));
+		if (QDialogButtonBox::Ok == dialogResult) {
+			emit closeDialogByExpired();
+			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+		}
+	} break;
 	default:
-		PLSAlertView::warning(alertParent, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Twitch.Failed"));
+		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Error.Failed").arg(getChannelName()));
 		break;
 	}
 }
@@ -180,24 +198,20 @@ void PLSPlatformTwitch::requestChannel(bool showAlert)
 
 		auto doc = QJsonDocument::fromJson(data);
 		if (doc.isObject()) {
-			auto root = doc.object();
-			setChannelId(root["_id"].toString().toStdString())
-				.setUserName(root["name"].toString().toStdString())
-				.setDisplayName(root["display_name"].toString().toStdString())
-				.setTitle(root["status"].toString().toStdString())
-				.setCategory(root["game"].toString().toStdString())
-				.setStreamKey(root["stream_key"].toString().toStdString());
+			auto root = doc.object().value("data").toArray().first().toObject();
+			setChannelId(root["broadcaster_id"].toString().toStdString())
+				.setDisplayName(root["broadcaster_name"].toString().toStdString())
+				.setTitle(root["title"].toString().toStdString())
+				.setCategory(root["game_name"].toString().toStdString());
 
 			m_strOriginalTitle = getTitle();
 
-			emit onGetChannel(PLSPlatformApiResult::PAR_SUCCEED);
-
-			requestServer(showAlert);
+			requestStreamKey(showAlert);
 		} else {
 			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ ".error: %d-%s", code, QString(data).toStdString().c_str());
 
 			if (showAlert) {
-				PLSAlertView::warning(getAlertParent(), QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Twitch.Failed"));
+				PLSAlertView::warning(getAlertParent(), QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
 			}
 			emit onGetChannel(PLSPlatformApiResult::PAR_API_FAILED);
 		}
@@ -215,12 +229,64 @@ void PLSPlatformTwitch::requestChannel(bool showAlert)
 		}
 		emit onGetChannel(result);
 	};
+	auto broadcastId = PLSCHANNELS_API->getChannelInfo(getChannelUUID()).value("broadcast_id").toString();
+	auto url = QString(CHANNEL_TWITCH_INFO_URL).arg(broadcastId);
+	PLSNetworkReplyBuilder builder(url);
+	builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE);
+	setHttpHead(builder);
 
-	PLSNetworkReplyBuilder builder(TWITCH_API_BASE "/kraken/channel");
-	builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE).setRawHeaders({{"Client-ID", TWITCH_CLIENT_ID}, {"Authorization", "OAuth " + getChannelToken()}, {"Accept", HTTP_ACCEPT_TWITCH}});
-	PLS_HTTP_HELPER->connectFinished(builder.get(), this, _onSucceed, _onFail);
+	auto reply = builder.get();
+	reply->setProperty("urlMasking", QString(CHANNEL_TWITCH_INFO_URL).arg(pls_masking_person_info(broadcastId)));
+
+	PLS_HTTP_HELPER->connectFinished(reply, this, _onSucceed, _onFail);
 }
+void PLSPlatformTwitch::requestStreamKey(bool showAlert)
+{
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
 
+		auto doc = QJsonDocument::fromJson(data);
+		if (doc.isObject()) {
+			auto root = doc.object().value("data").toArray().first().toObject();
+			setStreamKey(root["stream_key"].toString().toStdString());
+
+			m_strOriginalTitle = getTitle();
+
+			emit onGetChannel(PLSPlatformApiResult::PAR_SUCCEED);
+
+			requestServer(showAlert);
+		} else {
+			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ ".error: %d-%s", code, QString(data).toStdString().c_str());
+
+			if (showAlert) {
+				PLSAlertView::warning(getAlertParent(), QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
+			}
+			emit onGetChannel(PLSPlatformApiResult::PAR_API_FAILED);
+		}
+	};
+
+	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
+		Q_UNUSED(networkReplay)
+		Q_UNUSED(context)
+
+		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ ".error: %d-%d", code, error);
+
+		auto result = getApiResult(code, error);
+		if (showAlert) {
+			showApiRefreshError(result);
+		}
+		emit onGetChannel(result);
+	};
+	auto url = QString(CHANNEL_TWITCH_STREAMKEY).arg(QString::fromStdString(getChannelId()));
+	PLSNetworkReplyBuilder builder(url);
+	builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE);
+	setHttpHead(builder);
+	auto reply = builder.get();
+	reply->setProperty("urlMasking", QString(CHANNEL_TWITCH_STREAMKEY).arg(pls_masking_person_info(QString::fromStdString(getChannelId()))));
+
+	PLS_HTTP_HELPER->connectFinished(reply, this, _onSucceed, _onFail);
+}
 void PLSPlatformTwitch::requestServer(bool showAlert)
 {
 	if (!m_vecTwitchServers.empty()) {
@@ -259,7 +325,7 @@ void PLSPlatformTwitch::requestServer(bool showAlert)
 			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ ".error: %d-%s", code, QString(data).toStdString().c_str());
 
 			if (showAlert) {
-				PLSAlertView::warning(getAlertParent(), QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Twitch.Failed"));
+				PLSAlertView::warning(getAlertParent(), QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
 				emit onGetServer(PLSPlatformApiResult::PAR_API_FAILED);
 			}
 		}
@@ -278,32 +344,21 @@ void PLSPlatformTwitch::requestServer(bool showAlert)
 		}
 	};
 
-	//PLSNetworkReplyBuilder builder(TWITCH_API_BASE "/kraken/ingests/");
+	//PLSNetworkReplyBuilder builder(TWITCH_API_BASE "/helix/ingests/");
 	//builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE).setRawHeaders({{"Client-ID", TWITCH_CLIENT_ID}, {"Accept", HTTP_ACCEPT_TWITCH}});
 	PLSNetworkReplyBuilder builder(TWITCH_API_INGESTS);
 	PLS_HTTP_HELPER->connectFinished(builder.get(), this, _onSucceed, _onFail);
 }
 
-void PLSPlatformTwitch::requestUpdateChannel(const string &title, const string &category)
+void PLSPlatformTwitch::requestUpdateChannel(const string &title, const string &category, const string &categoryId)
 {
-	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
+	auto _onSucceed = [=](QNetworkReply *networkReplay, int, QByteArray data, void *context) {
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
 
-		auto doc = QJsonDocument::fromJson(data);
-		if (doc.isObject()) {
-			auto root = doc.object();
-
-			setTitle(title);
-			setCategory(category);
-
-			emit onUpdateChannel(PLSPlatformApiResult::PAR_SUCCEED);
-		} else {
-			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ ".error: %d-%s", code, QString(data).toStdString().c_str());
-
-			PLSAlertView::warning(getAlertParent(), QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Twitch.Failed"));
-			emit onUpdateChannel(PLSPlatformApiResult::PAR_API_FAILED);
-		}
+		setTitle(title);
+		setCategory(category);
+		emit onUpdateChannel(PLSPlatformApiResult::PAR_SUCCEED);
 	};
 
 	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
@@ -317,13 +372,16 @@ void PLSPlatformTwitch::requestUpdateChannel(const string &title, const string &
 		emit onUpdateChannel(result);
 	};
 
-	auto url = QString(TWITCH_API_BASE "/kraken/channels/%1").arg(QString::fromStdString(getChannelId()));
+	auto url = QString(CHANNEL_TWITCH_INFO_URL).arg(QString::fromStdString(getChannelId()));
 	PLSNetworkReplyBuilder builder(url);
 	builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE)
-		.setRawHeaders({{"Client-ID", TWITCH_CLIENT_ID}, {"Authorization", "OAuth " + getChannelToken()}, {"Accept", HTTP_ACCEPT_TWITCH}})
-		.addField("channel[status]", title.c_str())
-		.addField("channel[game]", category.c_str());
-	PLS_HTTP_HELPER->connectFinished(builder.put(), this, _onSucceed, _onFail);
+		.addField("title", title.c_str())
+		.addField("game_id", categoryId.empty() ? "0" : categoryId.c_str())
+		.addField("broadcaster_language", PLSCHANNELS_API->getChannelInfo(getChannelUUID()).value("broadcaster_language").toString().toUtf8().data());
+	setHttpHead(builder);
+	auto reply = builder.patch();
+	reply->setProperty("urlMasking", QString(CHANNEL_TWITCH_INFO_URL).arg(pls_masking_person_info(QString::fromStdString(getChannelId()))));
+	PLS_HTTP_HELPER->connectFinished(reply, this, _onSucceed, _onFail);
 }
 
 void PLSPlatformTwitch::requestStatisticsInfo()
@@ -338,8 +396,8 @@ void PLSPlatformTwitch::requestStatisticsInfo()
 
 		auto doc = QJsonDocument::fromJson(data);
 		if (doc.isObject()) {
-			auto data = doc.object();
-			auto viewers = data["stream"].toObject()["viewers"].toInt();
+			auto data = doc.object().value("data").toArray().first().toObject();
+			auto viewers = data["viewer_count"].toInt();
 			PLSCHANNELS_API->setValueOfChannel(getChannelUUID(), ChannelData::g_viewers, QString::number(viewers));
 		} else {
 			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ ".error: %d-%s", code, QString(data).toStdString().c_str());
@@ -353,12 +411,27 @@ void PLSPlatformTwitch::requestStatisticsInfo()
 		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ ".error: %d-%d", code, error);
 
 		auto result = getApiResult(code, error);
+		switch (result) {
+		case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
+			m_statusTimer.stop();
+			pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QTStr("MQTT.Token.Expired").arg(getChannelName()));
+			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+			break;
+		default:
+			break;
+		}
 	};
 
-	auto url = QString(TWITCH_API_BASE "/kraken/streams/%1").arg(QString::fromStdString(getChannelId()));
+	auto url = QString(CHANNEL_TWITCH_STATISTICS);
 	PLSNetworkReplyBuilder builder(url);
-	builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE).setRawHeaders({{"Client-ID", TWITCH_CLIENT_ID}, {"Authorization", "OAuth " + getChannelToken()}, {"Accept", HTTP_ACCEPT_TWITCH}});
-	PLS_HTTP_HELPER->connectFinished(builder.get(), this, _onSucceed, _onFail);
+	builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE);
+	setHttpHead(builder);
+	builder.addQuery("user_id", QString::fromStdString(getChannelId()));
+	auto reply = builder.get();
+	auto maskUrlStr = maskUrl(url, {{"user_id", pls_masking_person_info(QString::fromStdString(getChannelId()))}});
+	reply->setProperty("urlMasking", maskUrlStr);
+
+	PLS_HTTP_HELPER->connectFinished(reply, this, _onSucceed, _onFail);
 }
 
 void PLSPlatformTwitch::requestCategory(const QString &query)
@@ -388,9 +461,10 @@ void PLSPlatformTwitch::requestCategory(const QString &query)
 		emit onGetCategory(QJsonObject(), query);
 	};
 
-	auto url = QString(TWITCH_API_BASE "/kraken/search/games?query=%1").arg(query);
+	auto url = QString(CHANNEL_TWITCH_CATEGORY).arg(query);
 	PLSNetworkReplyBuilder builder(url);
-	builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE).setRawHeaders({{"Client-ID", TWITCH_CLIENT_ID}, {"Accept", HTTP_ACCEPT_TWITCH}});
+	builder.setContentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE);
+	setHttpHead(builder);
 	PLS_HTTP_HELPER->connectFinished(builder.get(), this, _onSucceed, _onFail);
 }
 
@@ -410,7 +484,7 @@ void PLSPlatformTwitch::requestVideos()
 			PLS_ERROR(MODULE_PlatformService, __FUNCTION__ ".error: %d-%s", code, QString(data).toStdString().c_str());
 		}
 
-		liveStoppedCallback();
+		liveEndedCallback();
 	};
 
 	auto _onFail = [=](QNetworkReply *networkReplay, int code, QByteArray data, QNetworkReply::NetworkError error, void *context) {
@@ -419,12 +493,18 @@ void PLSPlatformTwitch::requestVideos()
 
 		PLS_ERROR(MODULE_PlatformService, __FUNCTION__ ".error: %d-%d", code, error);
 
-		liveStoppedCallback();
+		liveEndedCallback();
 	};
 
-	PLSNetworkReplyBuilder builder("https://api.twitch.tv/helix/videos");
-	builder.setRawHeaders({{"Client-ID", TWITCH_CLIENT_ID}, {"Authorization", "Bearer " + getChannelToken()}}).addQuery("user_id", QString::fromStdString(getChannelId()));
-	PLS_HTTP_HELPER->connectFinished(builder.get(), this, _onSucceed, _onFail);
+	PLSNetworkReplyBuilder builder(CHANNEL_TWITCH_VIDEOS);
+	builder.addQuery("user_id", QString::fromStdString(getChannelId()));
+	setHttpHead(builder);
+	auto reply = builder.get();
+
+	auto maskUrlStr = maskUrl(CHANNEL_TWITCH_VIDEOS, {{"user_id", pls_masking_person_info(QString::fromStdString(getChannelId()))}});
+	reply->setProperty("urlMasking", maskUrlStr);
+
+	PLS_HTTP_HELPER->connectFinished(reply, this, _onSucceed, _onFail);
 }
 
 QJsonObject PLSPlatformTwitch::getLiveStartParams()
@@ -448,4 +528,19 @@ QJsonObject PLSPlatformTwitch::getWebChatParams()
 QString PLSPlatformTwitch::getServiceLiveLink()
 {
 	return m_strEndUrl;
+}
+
+QString PLSPlatformTwitch::getShareUrl()
+{
+	return PLSCHANNELS_API->getChannelInfo(getChannelUUID()).value(ChannelData::g_shareUrl).toString();
+}
+
+QString PLSPlatformTwitch::getShareUrlEnc()
+{
+	return QString(pls_masking_person_info(getShareUrl()));
+}
+
+QString PLSPlatformTwitch::getServiceLiveLinkEnc()
+{
+	return pls_masking_person_info(m_strEndUrl);
 }

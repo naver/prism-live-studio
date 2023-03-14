@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>778</width>
-    <height>30</height>
+    <height>34</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -140,10 +140,6 @@
       <widget class="QPushButton" name="loopButton">
        <property name="text">
         <string/>
-       </property>
-       <property name="icon">
-        <iconset>
-         <normaloff>:/res/images/media/media_loop.svg</normaloff>:/res/images/media/media_loop.svg</iconset>
        </property>
       </widget>
      </item>

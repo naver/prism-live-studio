@@ -108,7 +108,7 @@ static void APIENTRY gl_debug_proc(GLenum source, GLenum type, GLuint id,
 		severity_str = "Unknown";
 	}
 
-	blog(LOG_DEBUG, "[%s][%s]{%s}: %.*s", source_str, type_str,
+	plog(LOG_DEBUG, "[%s][%s]{%s}: %.*s", source_str, type_str,
 	     severity_str, length, message);
 }
 
@@ -120,7 +120,7 @@ static void gl_enable_debug()
 	} else if (GLAD_GL_ARB_debug_output) {
 		glDebugMessageCallbackARB(gl_debug_proc, NULL);
 	} else {
-		blog(LOG_DEBUG, "Failed to set GL debug callback as it is "
+		plog(LOG_DEBUG, "Failed to set GL debug callback as it is "
 				"not supported.");
 	}
 }
@@ -131,7 +131,7 @@ static void gl_enable_debug() {}
 static bool gl_init_extensions(struct gs_device *device)
 {
 	if (!GLAD_GL_VERSION_2_1) {
-		blog(LOG_ERROR, "obs-studio requires OpenGL version 2.1 or "
+		plog(LOG_ERROR, "obs-studio requires OpenGL version 2.1 or "
 				"higher.");
 		return false;
 	}
@@ -139,7 +139,7 @@ static bool gl_init_extensions(struct gs_device *device)
 	gl_enable_debug();
 
 	if (!GLAD_GL_VERSION_3_0 && !GLAD_GL_ARB_framebuffer_object) {
-		blog(LOG_ERROR, "OpenGL extension ARB_framebuffer_object "
+		plog(LOG_ERROR, "OpenGL extension ARB_framebuffer_object "
 				"is required.");
 		return false;
 	}
@@ -194,7 +194,7 @@ void convert_sampler_info(struct gs_sampler_state *sampler,
 	else if (sampler->max_anisotropy > max_anisotropy_max)
 		sampler->max_anisotropy = max_anisotropy_max;
 
-	blog(LOG_DEBUG,
+	plog(LOG_DEBUG,
 	     "convert_sampler_info: 1 <= max_anisotropy <= "
 	     "%d violated, selected: %d, set: %d",
 	     max_anisotropy_max, info->max_anisotropy, sampler->max_anisotropy);
@@ -216,13 +216,13 @@ const char *device_preprocessor_name(void)
 }
 
 int device_create(gs_device_t **p_device, uint32_t adapter,
-		  void (*callback)(bool render_working))
+		  void (*callback)(int type, int code, void *ext_param))
 {
 	struct gs_device *device = bzalloc(sizeof(struct gs_device));
 	int errorcode = GS_ERROR_FAIL;
 
-	blog(LOG_INFO, "---------------------------------");
-	blog(LOG_INFO, "Initializing OpenGL...");
+	plog(LOG_INFO, "---------------------------------");
+	plog(LOG_INFO, "Initializing OpenGL...");
 
 	device->plat = gl_platform_create(device, adapter);
 	if (!device->plat)
@@ -231,7 +231,7 @@ int device_create(gs_device_t **p_device, uint32_t adapter,
 	const char *glVendor = (const char *)glGetString(GL_VENDOR);
 	const char *glRenderer = (const char *)glGetString(GL_RENDERER);
 
-	blog(LOG_INFO, "Loading up OpenGL on adapter %s %s", glVendor,
+	plog(LOG_INFO, "Loading up OpenGL on adapter %s %s", glVendor,
 	     glRenderer);
 
 	if (!gl_init_extensions(device)) {
@@ -247,7 +247,7 @@ int device_create(gs_device_t **p_device, uint32_t adapter,
 	GLint size;
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &size);
 	device->max_texture_size = size;
-	blog(LOG_INFO,
+	plog(LOG_INFO,
 	     "OpenGL loaded successfully, version %s, shading "
 	     "language %s, max texture size: %llu",
 	     glVersion, glShadingLanguage, size);
@@ -259,7 +259,7 @@ int device_create(gs_device_t **p_device, uint32_t adapter,
 	device->cur_swap = NULL;
 
 #ifdef _WIN32
-	blog(LOG_INFO, "Warning: The OpenGL renderer is currently in use.  "
+	plog(LOG_INFO, "Warning: The OpenGL renderer is currently in use.  "
 		       "On windows, the OpenGL renderer can decrease "
 		       "capture performance due to the lack of specific "
 		       "features used to maximize capture performance.  "
@@ -269,7 +269,7 @@ int device_create(gs_device_t **p_device, uint32_t adapter,
 	return GS_SUCCESS;
 
 fail:
-	blog(LOG_ERROR, "device_create (GL) failed");
+	plog(LOG_ERROR, "device_create (GL) failed");
 	bfree(device);
 
 	*p_device = NULL;
@@ -299,13 +299,13 @@ gs_swapchain_t *device_swapchain_create(gs_device_t *device,
 	swap->info = *info;
 	swap->wi = gl_windowinfo_create(info);
 	if (!swap->wi) {
-		blog(LOG_ERROR, "device_swapchain_create (GL) failed");
+		plog(LOG_ERROR, "device_swapchain_create (GL) failed");
 		gs_swapchain_destroy(swap);
 		return NULL;
 	}
 
 	if (!gl_platform_init_swapchain(swap)) {
-		blog(LOG_ERROR, "gl_platform_init_swapchain  failed");
+		plog(LOG_ERROR, "gl_platform_init_swapchain  failed");
 		gs_swapchain_destroy(swap);
 		return NULL;
 	}
@@ -320,7 +320,7 @@ void device_resize(gs_device_t *device, uint32_t cx, uint32_t cy)
 		device->cur_swap->info.cx = cx;
 		device->cur_swap->info.cy = cy;
 	} else {
-		blog(LOG_WARNING, "device_resize (GL): No active swap");
+		plog(LOG_WARNING, "device_resize (GL): No active swap");
 	}
 
 	gl_update(device);
@@ -332,7 +332,7 @@ void device_get_size(const gs_device_t *device, uint32_t *cx, uint32_t *cy)
 		*cx = device->cur_swap->info.cx;
 		*cy = device->cur_swap->info.cy;
 	} else {
-		blog(LOG_WARNING, "device_get_size (GL): No active swap");
+		plog(LOG_WARNING, "device_get_size (GL): No active swap");
 		*cx = 0;
 		*cy = 0;
 	}
@@ -343,7 +343,7 @@ uint32_t device_get_width(const gs_device_t *device)
 	if (device->cur_swap) {
 		return device->cur_swap->info.cx;
 	} else {
-		blog(LOG_WARNING, "device_get_width (GL): No active swap");
+		plog(LOG_WARNING, "device_get_width (GL): No active swap");
 		return 0;
 	}
 }
@@ -353,7 +353,7 @@ uint32_t device_get_height(const gs_device_t *device)
 	if (device->cur_swap) {
 		return device->cur_swap->info.cy;
 	} else {
-		blog(LOG_WARNING, "device_get_height (GL): No active swap");
+		plog(LOG_WARNING, "device_get_height (GL): No active swap");
 		return 0;
 	}
 }
@@ -550,7 +550,7 @@ void device_load_texture(gs_device_t *device, gs_texture_t *tex, int unit)
 	return;
 
 fail:
-	blog(LOG_ERROR, "device_load_texture (GL) failed");
+	plog(LOG_ERROR, "device_load_texture (GL) failed");
 }
 
 static bool load_sampler_on_textures(gs_device_t *device, gs_samplerstate_t *ss,
@@ -591,7 +591,7 @@ void device_load_samplerstate(gs_device_t *device, gs_samplerstate_t *ss,
 		return;
 
 	if (!load_sampler_on_textures(device, ss, unit))
-		blog(LOG_ERROR, "device_load_samplerstate (GL) failed");
+		plog(LOG_ERROR, "device_load_samplerstate (GL) failed");
 
 	return;
 }
@@ -602,8 +602,8 @@ void device_load_vertexshader(gs_device_t *device, gs_shader_t *vertshader)
 		return;
 
 	if (vertshader && vertshader->type != GS_SHADER_VERTEX) {
-		blog(LOG_ERROR, "Specified shader is not a vertex shader");
-		blog(LOG_ERROR, "device_load_vertexshader (GL) failed");
+		plog(LOG_ERROR, "Specified shader is not a vertex shader");
+		plog(LOG_ERROR, "device_load_vertexshader (GL) failed");
 		return;
 	}
 
@@ -632,7 +632,7 @@ void device_load_pixelshader(gs_device_t *device, gs_shader_t *pixelshader)
 		return;
 
 	if (pixelshader && pixelshader->type != GS_SHADER_PIXEL) {
-		blog(LOG_ERROR, "Specified shader is not a pixel shader");
+		plog(LOG_ERROR, "Specified shader is not a pixel shader");
 		goto fail;
 	}
 
@@ -645,7 +645,7 @@ void device_load_pixelshader(gs_device_t *device, gs_shader_t *pixelshader)
 	return;
 
 fail:
-	blog(LOG_ERROR, "device_load_pixelshader (GL) failed");
+	plog(LOG_ERROR, "device_load_pixelshader (GL) failed");
 }
 
 void device_load_default_samplerstate(gs_device_t *device, bool b_3d, int unit)
@@ -692,7 +692,7 @@ static bool get_tex_dimensions(gs_texture_t *tex, uint32_t *width,
 		return true;
 	}
 
-	blog(LOG_ERROR, "Texture must be 2D or cubemap");
+	plog(LOG_ERROR, "Texture must be 2D or cubemap");
 	return false;
 }
 
@@ -834,12 +834,12 @@ void device_set_render_target(gs_device_t *device, gs_texture_t *tex,
 {
 	if (tex) {
 		if (tex->type != GS_TEXTURE_2D) {
-			blog(LOG_ERROR, "Texture is not a 2D texture");
+			plog(LOG_ERROR, "Texture is not a 2D texture");
 			goto fail;
 		}
 
 		if (!tex->is_render_target) {
-			blog(LOG_ERROR, "Texture is not a render target");
+			plog(LOG_ERROR, "Texture is not a render target");
 			goto fail;
 		}
 	}
@@ -850,7 +850,7 @@ void device_set_render_target(gs_device_t *device, gs_texture_t *tex,
 	return;
 
 fail:
-	blog(LOG_ERROR, "device_set_render_target (GL) failed");
+	plog(LOG_ERROR, "device_set_render_target (GL) failed");
 }
 
 void device_set_cube_render_target(gs_device_t *device, gs_texture_t *cubetex,
@@ -858,12 +858,12 @@ void device_set_cube_render_target(gs_device_t *device, gs_texture_t *cubetex,
 {
 	if (cubetex) {
 		if (cubetex->type != GS_TEXTURE_CUBE) {
-			blog(LOG_ERROR, "Texture is not a cube texture");
+			plog(LOG_ERROR, "Texture is not a cube texture");
 			goto fail;
 		}
 
 		if (!cubetex->is_render_target) {
-			blog(LOG_ERROR, "Texture is not a render target");
+			plog(LOG_ERROR, "Texture is not a render target");
 			goto fail;
 		}
 	}
@@ -874,7 +874,7 @@ void device_set_cube_render_target(gs_device_t *device, gs_texture_t *cubetex,
 	return;
 
 fail:
-	blog(LOG_ERROR, "device_set_cube_render_target (GL) failed");
+	plog(LOG_ERROR, "device_set_cube_render_target (GL) failed");
 }
 
 void device_copy_texture_region(gs_device_t *device, gs_texture_t *dst,
@@ -886,23 +886,23 @@ void device_copy_texture_region(gs_device_t *device, gs_texture_t *dst,
 	struct gs_texture_2d *dst2d = (struct gs_texture_2d *)dst;
 
 	if (!src) {
-		blog(LOG_ERROR, "Source texture is NULL");
+		plog(LOG_ERROR, "Source texture is NULL");
 		goto fail;
 	}
 
 	if (!dst) {
-		blog(LOG_ERROR, "Destination texture is NULL");
+		plog(LOG_ERROR, "Destination texture is NULL");
 		goto fail;
 	}
 
 	if (dst->type != GS_TEXTURE_2D || src->type != GS_TEXTURE_2D) {
-		blog(LOG_ERROR, "Source and destination textures must be 2D "
+		plog(LOG_ERROR, "Source and destination textures must be 2D "
 				"textures");
 		goto fail;
 	}
 
 	if (dst->format != src->format) {
-		blog(LOG_ERROR, "Source and destination formats do not match");
+		plog(LOG_ERROR, "Source and destination formats do not match");
 		goto fail;
 	}
 
@@ -912,7 +912,7 @@ void device_copy_texture_region(gs_device_t *device, gs_texture_t *dst,
 				      : (src2d->height - src_y);
 
 	if (dst2d->width - dst_x < nw || dst2d->height - dst_y < nh) {
-		blog(LOG_ERROR, "Destination texture region is not big "
+		plog(LOG_ERROR, "Destination texture region is not big "
 				"enough to hold the source region");
 		goto fail;
 	}
@@ -924,7 +924,7 @@ void device_copy_texture_region(gs_device_t *device, gs_texture_t *dst,
 	return;
 
 fail:
-	blog(LOG_ERROR, "device_copy_texture (GL) failed");
+	plog(LOG_ERROR, "device_copy_texture (GL) failed");
 }
 
 void device_copy_texture(gs_device_t *device, gs_texture_t *dst,
@@ -941,22 +941,22 @@ void device_begin_scene(gs_device_t *device)
 static inline bool can_render(const gs_device_t *device, uint32_t num_verts)
 {
 	if (!device->cur_vertex_shader) {
-		blog(LOG_ERROR, "No vertex shader specified");
+		plog(LOG_ERROR, "No vertex shader specified");
 		return false;
 	}
 
 	if (!device->cur_pixel_shader) {
-		blog(LOG_ERROR, "No pixel shader specified");
+		plog(LOG_ERROR, "No pixel shader specified");
 		return false;
 	}
 
 	if (!device->cur_vertex_buffer && (num_verts == 0)) {
-		blog(LOG_ERROR, "No vertex buffer specified");
+		plog(LOG_ERROR, "No vertex buffer specified");
 		return false;
 	}
 
 	if (!device->cur_swap && !device->cur_render_target) {
-		blog(LOG_ERROR, "No active swap chain or render target");
+		plog(LOG_ERROR, "No active swap chain or render target");
 		return false;
 	}
 
@@ -1076,7 +1076,7 @@ void device_draw(gs_device_t *device, enum gs_draw_mode draw_mode,
 	return;
 
 fail:
-	blog(LOG_ERROR, "device_draw (GL) failed");
+	plog(LOG_ERROR, "device_draw (GL) failed");
 }
 
 void device_end_scene(gs_device_t *device)
@@ -1107,7 +1107,7 @@ void device_clear(gs_device_t *device, uint32_t clear_flags,
 
 	glClear(gl_flags);
 	if (!gl_success("glClear"))
-		blog(LOG_ERROR, "device_clear (GL) failed");
+		plog(LOG_ERROR, "device_clear (GL) failed");
 
 	UNUSED_PARAMETER(device);
 }
@@ -1203,7 +1203,7 @@ void device_blend_function(gs_device_t *device, enum gs_blend_type src,
 
 	glBlendFunc(gl_src, gl_dst);
 	if (!gl_success("glBlendFunc"))
-		blog(LOG_ERROR, "device_blend_function (GL) failed");
+		plog(LOG_ERROR, "device_blend_function (GL) failed");
 
 	UNUSED_PARAMETER(device);
 }
@@ -1221,7 +1221,7 @@ void device_blend_function_separate(gs_device_t *device,
 
 	glBlendFuncSeparate(gl_src_c, gl_dst_c, gl_src_a, gl_dst_a);
 	if (!gl_success("glBlendFuncSeparate"))
-		blog(LOG_ERROR, "device_blend_function_separate (GL) failed");
+		plog(LOG_ERROR, "device_blend_function_separate (GL) failed");
 
 	UNUSED_PARAMETER(device);
 }
@@ -1232,7 +1232,7 @@ void device_depth_function(gs_device_t *device, enum gs_depth_test test)
 
 	glDepthFunc(gl_test);
 	if (!gl_success("glDepthFunc"))
-		blog(LOG_ERROR, "device_depth_function (GL) failed");
+		plog(LOG_ERROR, "device_depth_function (GL) failed");
 
 	UNUSED_PARAMETER(device);
 }
@@ -1245,7 +1245,7 @@ void device_stencil_function(gs_device_t *device, enum gs_stencil_side side,
 
 	glStencilFuncSeparate(gl_side, gl_test, 0, 0xFFFFFFFF);
 	if (!gl_success("glStencilFuncSeparate"))
-		blog(LOG_ERROR, "device_stencil_function (GL) failed");
+		plog(LOG_ERROR, "device_stencil_function (GL) failed");
 
 	UNUSED_PARAMETER(device);
 }
@@ -1262,7 +1262,7 @@ void device_stencil_op(gs_device_t *device, enum gs_stencil_side side,
 
 	glStencilOpSeparate(gl_side, gl_fail, gl_zfail, gl_zpass);
 	if (!gl_success("glStencilOpSeparate"))
-		blog(LOG_ERROR, "device_stencil_op (GL) failed");
+		plog(LOG_ERROR, "device_stencil_op (GL) failed");
 
 	UNUSED_PARAMETER(device);
 }
@@ -1297,7 +1297,7 @@ void device_set_viewport(gs_device_t *device, int x, int y, int width,
 
 	glViewport(x, gl_y, width, height);
 	if (!gl_success("glViewport"))
-		blog(LOG_ERROR, "device_set_viewport (GL) failed");
+		plog(LOG_ERROR, "device_set_viewport (GL) failed");
 
 	device->cur_viewport.x = x;
 	device->cur_viewport.y = y;
@@ -1323,7 +1323,7 @@ void device_set_scissor_rect(gs_device_t *device, const struct gs_rect *rect)
 		return;
 	}
 
-	blog(LOG_ERROR, "device_set_scissor_rect (GL) failed");
+	plog(LOG_ERROR, "device_set_scissor_rect (GL) failed");
 }
 
 void device_ortho(gs_device_t *device, float left, float right, float top,

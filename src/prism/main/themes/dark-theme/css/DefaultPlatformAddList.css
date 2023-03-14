@@ -11,11 +11,12 @@ DefaultPlatformsAddList {
 		background-color: transparent;
 		border: /*hdpi*/ none;
 		border-image: none;
-		min-width: /*hdpi*/ 100px;
+		min-width: /*hdpi*/ 90px;
 		min-height: /*hdpi*/ 33px;
-		max-width: /*hdpi*/ 100px;
+		max-width: /*hdpi*/ 90px;
 		max-height: /*hdpi*/ 33px;
-		qproperty-iconSize: /*hdpi*/ 100px /*hdpi*/ 33px;
+		qproperty-iconSize: /*hdpi*/ 90px /*hdpi*/ 33px;
+		
 	}
 
 
@@ -26,9 +27,9 @@ DefaultPlatformsAddList {
 		background-color: transparent;
 		border: /*hdpi*/ none;
 		border-image: url(":/images/DefaultChannels/btn-mych-addch-mauseover-normal.svg");
-		min-width: /*hdpi*/ 100px;
+		min-width: /*hdpi*/ 90px;
 		min-height: /*hdpi*/ 33px;
-		max-width: /*hdpi*/ 100px;
+		max-width: /*hdpi*/ 90px;
 		max-height: /*hdpi*/ 33px;
 	}
 		DefaultPlatformsAddList #hoverBtn:pressed {
@@ -41,10 +42,10 @@ DefaultPlatformsAddList {
 		padding: /*hdpi*/ 0px;
 		background-color: transparent;
 		color: transparent;
-		min-height: /*hdpi*/ 33px;
-		min-width: /*hdpi*/ 10px;
-		max-width: /*hdpi*/ 10px;
-		max-height: /*hdpi*/ 10px;
+		min-width: /*hdpi*/ 11px;
+		max-width: /*hdpi*/ 11px;
+		min-height: /*hdpi*/ 10px;
+		max-height: /*hdpi*/ 33px;
 	}
 
 		

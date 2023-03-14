@@ -11,7 +11,7 @@
 /* -------------------------------------------------------- */
 
 #define do_log(level, format, ...)                \
-	blog(level, "[compressor: '%s'] " format, \
+	plog(level, "[compressor: '%s'] " format, \
 	     obs_source_get_name(cd->context), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
@@ -267,14 +267,14 @@ static void *compressor_create(obs_data_t *settings, obs_source_t *filter)
 	cd->context = filter;
 
 	if (pthread_mutex_init(&cd->sidechain_mutex, NULL) != 0) {
-		blog(LOG_ERROR, "Failed to create mutex");
+		plog(LOG_ERROR, "Failed to create mutex");
 		bfree(cd);
 		return NULL;
 	}
 
 	if (pthread_mutex_init(&cd->sidechain_update_mutex, NULL) != 0) {
 		pthread_mutex_destroy(&cd->sidechain_mutex);
-		blog(LOG_ERROR, "Failed to create mutex");
+		plog(LOG_ERROR, "Failed to create mutex");
 		bfree(cd);
 		return NULL;
 	}

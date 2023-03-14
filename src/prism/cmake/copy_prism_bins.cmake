@@ -48,3 +48,10 @@ execute_process(COMMAND $ENV{ComSpec} /c
 execute_process(
 	COMMAND ${QTDIR}/bin/windeployqt ${OUTPUT_DIR}/PRISMLiveStudio.exe --plugindir plugins
 	WORKING_DIRECTORY ${OUTPUT_DIR})
+
+execute_process(COMMAND $ENV{ComSpec} /c
+	${PRISM_DIR}/copy-libs
+	${OBS_DIR}
+	${PRISM_DIR}
+	${OUTPUT_DIR}
+	${CONFIG})

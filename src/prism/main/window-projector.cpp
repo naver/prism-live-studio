@@ -132,6 +132,8 @@ PLSProjector::~PLSProjector()
 		gs_vertexbuffer_destroy(topLine);
 		gs_vertexbuffer_destroy(rightLine);
 		obs_leave_graphics();
+
+		numSrcs = 0;
 	}
 
 	if (type == ProjectorType::Multiview)
@@ -140,12 +142,16 @@ PLSProjector::~PLSProjector()
 	if (isWindow)
 		windowedProjectors.removeAll(this);
 
+	obs_enter_graphics();
 	for (auto tex : multiLabelTexture) {
 		gs_texture_destroy(tex->render_texture);
+		tex->render_texture = nullptr;
 		gs_texture_destroy(tex->shader_input_texture);
+		tex->shader_input_texture = nullptr;
 		delete tex;
 		tex = nullptr;
 	}
+	obs_leave_graphics();
 	multiLabelTexture.clear();
 
 	App()->DecrementSleepInhibition();
@@ -260,7 +266,7 @@ static inline void check_label_texture_valid(gs_texture **tex, int width, int he
 		return;
 	}
 
-	if (gs_texture_get_width(*tex) != width || gs_texture_get_height(*tex) != height) {
+	if (gs_texture_get_width(*tex) != uint32_t(width) || gs_texture_get_height(*tex) != uint32_t(height)) {
 		gs_texture_destroy(*tex);
 		*tex = gs_texture_create(width, height, GS_RGBA, 1, NULL, flag);
 	}
@@ -511,6 +517,7 @@ void PLSProjector::PLSRenderMultiview(void *data, uint32_t cx, uint32_t cy)
 			gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
 			gs_viewport_push();
 			gs_projection_push();
+			gs_matrix_push();
 			set_render_size(src_width, src_height);
 
 			obs_source_video_render(label);
@@ -699,7 +706,8 @@ static int getSourceByPosition(int x, int y, float ratio)
 	if (!rec)
 		return pos;
 	int cx = rec->width();
-	int cy = rec->height();
+	//PRISM/Liuying/20210324/#7334/Minus the height of the title
+	int cy = rec->height() - PLSDpiHelper::calculate(rec, 40);
 	int minX = 0;
 	int minY = 0;
 	int maxX = cx;
@@ -821,7 +829,7 @@ void PLSProjector::mouseDoubleClickEvent(QMouseEvent *event)
 
 	if (event->button() == Qt::LeftButton) {
 		int pos = getSourceByPosition(event->x(), event->y(), ratio);
-		if (pos < 0 || pos >= (int)numSrcs)
+		if (pos < 0 || pos >= (int)numSrcs || pos >= multiviewScenes.size())
 			return;
 		OBSSource src = OBSGetStrongRef(multiviewScenes[pos]);
 		if (!src)
@@ -858,7 +866,7 @@ void PLSProjector::mousePressEvent(QMouseEvent *event)
 
 	if (event->button() == Qt::LeftButton) {
 		int pos = getSourceByPosition(event->x(), event->y(), ratio);
-		if (pos < 0 || pos >= (int)numSrcs)
+		if (pos < 0 || pos >= (int)numSrcs || pos >= multiviewScenes.size())
 			return;
 		OBSSource src = OBSGetStrongRef(multiviewScenes[pos]);
 		if (!src)
@@ -881,12 +889,16 @@ void PLSProjector::UpdateMultiview()
 	multiviewScenes.clear();
 	multiviewLabels.clear();
 
+	obs_enter_graphics();
 	for (auto tex : multiLabelTexture) {
 		gs_texture_destroy(tex->render_texture);
+		tex->render_texture = nullptr;
 		gs_texture_destroy(tex->shader_input_texture);
+		tex->shader_input_texture = nullptr;
 		delete tex;
 		tex = nullptr;
 	}
+	obs_leave_graphics();
 	multiLabelTexture.clear();
 
 	struct obs_video_info ovi;

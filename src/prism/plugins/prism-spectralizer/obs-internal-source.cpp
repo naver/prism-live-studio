@@ -19,6 +19,7 @@
 #include "obs-internal-source.hpp"
 #include "prism-visualizer-source.hpp"
 #include <util/platform.h>
+#include <log.h>
 
 #define DEFAULT_AUDIO_BUF_MS 10
 #define MS_IN_S 100
@@ -42,7 +43,7 @@ obs_internal_source::~obs_internal_source()
 	if (m_cfg->capture_source) {
 		obs_source_t *source = obs_weak_source_get_source(m_cfg->capture_source);
 		if (source) {
-			info("Removed audio capture from '%s'", obs_source_get_name(source));
+			PLS_PLUGIN_INFO("Removed audio capture from '%s'", obs_source_get_name(source));
 			obs_source_remove_audio_capture_callback(source, audio_capture, this);
 			obs_source_release(source);
 		}
@@ -119,7 +120,7 @@ bool obs_internal_source::tick(float seconds)
 		}
 
 		if (capture) {
-			info("Added audio capture to '%s'", obs_source_get_name(capture));
+			PLS_PLUGIN_INFO("Added audio capture to '%s'", obs_source_get_name(capture));
 			obs_source_add_audio_capture_callback(capture, audio_capture, this);
 			obs_weak_source_release(weak_capture);
 			obs_source_release(capture);
@@ -145,7 +146,7 @@ bool obs_internal_source::tick(float seconds)
 	/* Copy captured data */
 	size_t data_size = m_audio_buf_len * sizeof(float);
 	if (!data_size) {
-		debug("Buffer is empty");
+		PLS_PLUGIN_DEBUG("Buffer is empty");
 		return false;
 	}
 
@@ -154,7 +155,7 @@ bool obs_internal_source::tick(float seconds)
 		/* Clear buffers */
 		memset(m_audio_buf[0], 0, data_size);
 		memset(m_audio_buf[1], 0, data_size);
-		debug("No Data in circle buffer");
+		PLS_PLUGIN_DEBUG("No Data in circle buffer");
 		m_cfg->value_mutex.unlock();
 		return false;
 	} else {
@@ -221,7 +222,7 @@ void obs_internal_source::update()
 	if (old) {
 		obs_source_t *old_source = obs_weak_source_get_source(old);
 		if (old_source) {
-			info("Removed audio capture from '%s'", obs_source_get_name(old_source));
+			PLS_PLUGIN_INFO("Removed audio capture from '%s'", obs_source_get_name(old_source));
 			obs_source_remove_audio_capture_callback(old_source, audio_capture, this);
 			obs_source_release(old_source);
 		}

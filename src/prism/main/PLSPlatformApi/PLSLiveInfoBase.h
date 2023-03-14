@@ -23,18 +23,22 @@ public:
 	~PLSLiveInfoBase();
 
 	void setPlatformBase(PLSPlatformBase *pPlatformBase) { m_pPlatformBase = pPlatformBase; }
+	virtual void showResolutionGuide();
 
 protected:
 	void updateStepTitle(QPushButton *button);
-
 	void showLoading(QWidget *parent);
 	void hideLoading();
+	virtual void showEvent(QShowEvent *event) override;
+	virtual bool eventFilter(QObject *watcher, QEvent *event) override;
 
 protected:
 	void closeEvent(QCloseEvent *event);
+	QWidget *createResolutionButtonsFrame();
 
 protected:
 	PLSPlatformBase *m_pPlatformBase;
 	PLSLoadingEvent m_loadingEvent;
-	QWidget *m_pWidgetLoadingBG;
+	QPointer<QObject> m_pWidgetLoadingBGParent = nullptr;
+	QPointer<QWidget> m_pWidgetLoadingBG = nullptr;
 };

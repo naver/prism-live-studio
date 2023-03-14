@@ -25,7 +25,7 @@
 #include "flv-mux.h"
 
 #define do_log(level, format, ...)                \
-	blog(level, "[flv output: '%s'] " format, \
+	plog(level, "[flv output: '%s'] " format, \
 	     obs_output_get_name(stream->output), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
@@ -93,8 +93,9 @@ static int write_packet(struct flv_output *stream,
 
 	stream->last_packet_ts = get_ms_time(packet, packet->dts);
 
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
 	flv_packet_mux(packet, is_header ? 0 : stream->start_dts_offset, &data,
-		       &size, is_header);
+		       &size, is_header, false);
 	fwrite(data, 1, size, stream->file);
 	bfree(data);
 
@@ -169,7 +170,7 @@ static bool flv_output_start(void *data)
 
 	stream->file = os_fopen(stream->path.array, "wb");
 	if (!stream->file) {
-		warn("Unable to open FLV file '%s'", stream->path.array);
+		warn("Unable to open FLV file");
 		return false;
 	}
 
@@ -177,7 +178,7 @@ static bool flv_output_start(void *data)
 	os_atomic_set_bool(&stream->active, true);
 	obs_output_begin_data_capture(stream->output, 0);
 
-	info("Writing FLV file '%s'...", stream->path.array);
+	info("Writing FLV file...");
 	return true;
 }
 

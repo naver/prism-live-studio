@@ -137,6 +137,12 @@ void FlowLayout::setItemRetainSizeWhenHidden(bool retainSize_)
 {
 	retainSize = retainSize_;
 }
+int FlowLayout::rowForWidth(int width)
+{
+	int row;
+	doLayout(QRect(0, 0, width, 0), true, &row);
+	return row;
+}
 //! [5]
 
 //! [6]
@@ -188,7 +194,7 @@ QSize FlowLayout::minimumSize() const
 //! [8]
 
 //! [9]
-int FlowLayout::doLayout(const QRect &rect, bool testOnly) const
+int FlowLayout::doLayout(const QRect &rect, bool testOnly, int *rowOut) const
 {
 	int left, top, right, bottom;
 	getContentsMargins(&left, &top, &right, &bottom);
@@ -200,6 +206,7 @@ int FlowLayout::doLayout(const QRect &rect, bool testOnly) const
 
 	//! [10]
 	QLayoutItem *item;
+	int row = 0;
 	foreach(item, itemList)
 	{
 		QWidget *wid = item->widget();
@@ -217,6 +224,7 @@ int FlowLayout::doLayout(const QRect &rect, bool testOnly) const
 			y = y + lineHeight + spaceY;
 			nextX = x + item->sizeHint().width() + spaceX;
 			lineHeight = 0;
+			row++;
 		}
 
 		if (!testOnly)
@@ -224,6 +232,10 @@ int FlowLayout::doLayout(const QRect &rect, bool testOnly) const
 
 		x = nextX;
 		lineHeight = qMax(lineHeight, item->sizeHint().height());
+	}
+	if (rowOut) {
+		if (itemList.size() > 0)
+			*rowOut = ++row;
 	}
 	return y + lineHeight - rect.y() + bottom;
 }

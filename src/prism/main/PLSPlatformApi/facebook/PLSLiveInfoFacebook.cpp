@@ -17,7 +17,7 @@ static const char *liveInfoMoudule = "PLSLiveInfoFacebook";
 #define IsTimelineObject ui->shareFirstObject->getComboBoxTitle() == TimelineObjectFlags
 #define IsGroupObjectFlags ui->shareFirstObject->getComboBoxTitle() == GroupObjectFlags
 #define IsPageObjectFlags ui->shareFirstObject->getComboBoxTitle() == PageObjectFlags
-#define IsUpdatePage PLSCHANNELS_API->isLiving()
+#define IsLiving PLSCHANNELS_API->isLiving()
 
 PLSLiveInfoFacebookListWidget::PLSLiveInfoFacebookListWidget(QWidget *parent) : WidgetDpiAdapter(parent) {}
 
@@ -28,7 +28,7 @@ void PLSLiveInfoFacebook::handleRequestFunctionType(PLSAPIFacebookType type)
 	switch (type) {
 	case PLSAPIFacebookType::PLSFacebookInvalidAccessToken: {
 		showLoading(content());
-		PLSAlertView::Button button = PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("facebook.liveinfo.login.token.expired"));
+		PLSAlertView::Button button = PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("facebook.liveinfo.login.token.expired"));
 		hideLoading();
 		reject();
 		if (button == PLSAlertView::Button::Ok) {
@@ -37,13 +37,16 @@ void PLSLiveInfoFacebook::handleRequestFunctionType(PLSAPIFacebookType type)
 		break;
 	}
 	case PLSAPIFacebookType::PLSRequestPermissionReject:
-		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("facebook.liveinfo.request.permission.refused"));
+		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("facebook.liveinfo.request.permission.refused"));
 		break;
 	case PLSAPIFacebookType::PLSLivingPermissionReject:
-		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("facebook.liveinfo.living.permission.refused"));
+		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("facebook.liveinfo.living.permission.refused"));
 		break;
 	case PLSAPIFacebookType::PLSUpdateLiveInfoFailed:
-		PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("facebook.liveinfo.golive.update.liveInfo.failed"));
+		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.update.failed"));
+		break;
+	case PLSAPIFacebookType::PLSUpdateLivingPermissionReject:
+		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("facebook.living.no.living.permissions"));
 		break;
 	default:
 		break;
@@ -57,12 +60,13 @@ bool PLSLiveInfoFacebookListWidget::needQtProcessDpiChangedEvent() const
 
 PLSLiveInfoFacebook::PLSLiveInfoFacebook(PLSPlatformBase *pPlatformBase, QWidget *parent, PLSDpiHelper dpiHelper) : PLSLiveInfoBase(pPlatformBase, parent, dpiHelper), ui(new Ui::PLSLiveInfoFacebook)
 {
-	PLS_INFO(liveInfoMoudule, "VLive liveinfo Will show");
+	PLS_INFO(liveInfoMoudule, "Facebook liveinfo Will show");
 	dpiHelper.setCss(this, {PLSCssIndex::PLSLiveInfoFacebook});
-	dpiHelper.setFixedSize(this, {720, 550});
 
 	ui->setupUi(content());
-	this->setWindowTitle(tr("LiveInfo.Dialog.Title"));
+	ui->horizontalLayout_6->addWidget(createResolutionButtonsFrame());
+	ui->labelOpen->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("facebook.liveinfo.Public.Title")));
+	this->setWindowTitle(tr("LiveInfo.liveinformation"));
 	QMetaObject::connectSlotsByName(this);
 	setFocusPolicy(Qt::StrongFocus);
 	setFocus();
@@ -98,28 +102,32 @@ PLSLiveInfoFacebook::PLSLiveInfoFacebook(PLSPlatformBase *pPlatformBase, QWidget
 	initLineEdit();
 
 	//set the ok button state
-	connect(ui->titleField, &QLineEdit::textChanged, this, [=](QString inputText) {
-		QByteArray output = inputText.toUtf8();
-		if (output.size() > TITLE_MAX_LENGTH) {
-			int truncateAt = 0;
-			for (int i = TITLE_MAX_LENGTH; i > 0; i--) {
-				if ((output[i] & 0xC0) != 0x80) {
-					truncateAt = i;
-					break;
+	connect(
+		ui->titleField, &QLineEdit::textChanged, this,
+		[=](QString inputText) {
+			QByteArray output = inputText.toUtf8();
+			if (output.size() > TITLE_MAX_LENGTH) {
+				int truncateAt = 0;
+				for (int i = TITLE_MAX_LENGTH; i > 0; i--) {
+					if ((output[i] & 0xC0) != 0x80) {
+						truncateAt = i;
+						break;
+					}
 				}
+				output.truncate(truncateAt);
+				QSignalBlocker signalBlocker(ui->titleField);
+				ui->titleField->setText(QString::fromUtf8(output));
+				PLSAlertView::warning(PLSBasic::Get(), QTStr("Alert.Title"), QTStr("facebook.liveinfo.title.max.length"));
+				return;
 			}
-			output.truncate(truncateAt);
-			ui->titleField->setText(QString::fromUtf8(output));
-			PLSAlertView::warning(PLSBasic::Get(), QTStr("Live.Check.Alert.Title"), QTStr("facebook.liveinfo.title.max.length"));
-			return;
-		}
-		doUpdateOkState();
-	});
+			doUpdateOkState();
+		},
+		Qt::QueuedConnection);
 	connect(ui->descriptionTitle, &QTextEdit::textChanged, this, [=] { doUpdateOkState(); });
 	connect(ui->gameLineEdit, &PLSFacebookGameLineEdit::textChanged, this, [=] { doUpdateOkState(); });
 
 	//connect qApp focusChaned
-	connect(qApp, &QApplication::focusChanged, m_gameListWidget, [this](const QWidget *old, const QWidget *now) {
+	connect(qApp, &QApplication::focusChanged, m_gameListWidget, [this](const QWidget *, const QWidget *now) {
 		if (ui->gameLineEdit == now) {
 			QString text = ui->gameLineEdit->text();
 			if (m_gameListWidget->isHidden() && text.size() > 0) {
@@ -174,15 +182,19 @@ void PLSLiveInfoFacebook::on_cancelButton_clicked()
 
 void PLSLiveInfoFacebook::on_okButton_clicked()
 {
-	string log = "Facebook liveinfo on_okButton_clicked";
-	PLS_UI_STEP(liveInfoMoudule, log.c_str(), ACTION_CLICK);
+	PLS_UI_STEP(liveInfoMoudule, "Facebook liveinfo on_okButton_clicked", ACTION_CLICK);
+	if (!isModified() && !PLS_PLATFORM_API->isPrepareLive()) {
+		accept();
+		return;
+	}
 	showLoading(content());
 	QStringList permissionList;
-	PLSAPIFacebook::PLSAPI apiType;
+	PLSAPIFacebook::PLSAPI apiType = PLSAPIFacebook::PLSAPICheckTimelineLivingPermission;
 	if (IsTimelineObject) {
 		permissionList << timeline_living_permission;
 		apiType = PLSAPIFacebook::PLSAPICheckTimelineLivingPermission;
 	} else if (IsGroupObjectFlags) {
+		permissionList << timeline_living_permission;
 		permissionList << group_living_permission;
 		apiType = PLSAPIFacebook::PLSAPICheckGroupLivingPermission;
 	} else if (IsPageObjectFlags) {
@@ -211,7 +223,7 @@ void PLSLiveInfoFacebook::on_okButton_clicked()
 void PLSLiveInfoFacebook::initComboBoxList()
 {
 	//the first comboBox
-	ui->shareFirstObject->setDisabled(IsUpdatePage);
+	ui->shareFirstObject->setDisabled(IsLiving);
 	ui->shareFirstObject->setComboBoxTitleData(PLS_PLATFORM_FACEBOOK->getLiveInfoValue(FacebookShareObjectName_Key));
 	updateSecondComboBoxTitle();
 	connect(ui->shareFirstObject, &PLSLoadingCombox::pressed, this, [=] { ui->shareFirstObject->showTitlesView(PLS_PLATFORM_FACEBOOK->getShareObjectList()); });
@@ -234,8 +246,7 @@ void PLSLiveInfoFacebook::initComboBoxList()
 		}
 	});
 	connect(ui->shareSecondObject, &PLSLoadingCombox::clickItemIndex, this, [=](int showIndex) {
-		string log = "Facebook liveinfo shareSecondObject: " + showIndex;
-		PLS_UI_STEP(liveInfoMoudule, log.c_str(), ACTION_CLICK);
+		PLS_UI_STEP(liveInfoMoudule, "Facebook liveinfo shareSecondObject", ACTION_CLICK);
 		if (IsTimelineObject) {
 			QList<QString> idList = PLS_PLATFORM_FACEBOOK->getItemIdList(FacebookPrivacyItemType);
 			QString privacyId = idList.at(showIndex);
@@ -256,7 +267,7 @@ void PLSLiveInfoFacebook::initComboBoxList()
 	});
 
 	//when living, group and page second list is disabled
-	if (IsUpdatePage && (IsGroupObjectFlags || IsPageObjectFlags)) {
+	if (IsLiving && (IsGroupObjectFlags || IsPageObjectFlags)) {
 		ui->shareSecondObject->setDisabled(true);
 	}
 }
@@ -468,7 +479,7 @@ void PLSLiveInfoFacebook::doUpdateOkState()
 		ui->okButton->setEnabled(false);
 		return;
 	}
-	ui->okButton->setEnabled(PLS_PLATFORM_API->isPrepareLive() || isModified());
+	ui->okButton->setEnabled(true);
 }
 
 void PLSLiveInfoFacebook::startLiving()
@@ -500,6 +511,11 @@ void PLSLiveInfoFacebook::startLiving()
 			return;
 		}
 		if (type == PLSAPIFacebookType::PLSFacebookDeclined || type == PLSAPIFacebookType::PLSFacebookObjectDontExist) {
+			if (IsLiving) {
+				type = PLSAPIFacebookType::PLSUpdateLivingPermissionReject;
+				handleRequestFunctionType(type);
+				return;
+			}
 			if (type == PLSAPIFacebookType::PLSFacebookObjectDontExist && m_startLivingApi) {
 				m_expiredObjectList.append(secondObjectId);
 			}
@@ -510,7 +526,7 @@ void PLSLiveInfoFacebook::startLiving()
 		type = PLSAPIFacebookType::PLSUpdateLiveInfoFailed;
 		handleRequestFunctionType(type);
 	};
-	if (IsUpdatePage) {
+	if (IsLiving) {
 		PLS_PLATFORM_FACEBOOK->updateLiving(info, livingFinished);
 	} else {
 		if (PLS_PLATFORM_API->isPrepareLive()) {
@@ -600,17 +616,17 @@ void PLSLiveInfoFacebook::showNetworkErrorAlert(PLSLiveInfoFacebookErrorType err
 	switch (errorType) {
 	case PLSLiveInfoFacebookErrorType::PLSLiveInfoFacebookGroupError:
 		if (IsGroupObjectFlags && ui->shareSecondObject->isChecked()) {
-			PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("main.message.error.netError"));
+			PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("login.check.note.network"));
 		}
 		break;
 	case PLSLiveInfoFacebookErrorType::PLSLiveInfoFacebookPageError:
 		if (IsPageObjectFlags && ui->shareSecondObject->isChecked()) {
-			PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("main.message.error.netError"));
+			PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("login.check.note.network"));
 		}
 		break;
 	case PLSLiveInfoFacebookErrorType::PLSLiveInfoFacebookSearchGameError:
 		if (ui->gameLineEdit->hasFocus()) {
-			PLSAlertView::warning(this, QTStr("Live.Check.Alert.Title"), QTStr("main.message.error.netError"));
+			PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("login.check.note.network"));
 		}
 		break;
 	default:
@@ -620,7 +636,7 @@ void PLSLiveInfoFacebook::showNetworkErrorAlert(PLSLiveInfoFacebookErrorType err
 
 void PLSLiveInfoFacebook::showEvent(QShowEvent *event)
 {
-	if (IsUpdatePage) {
+	if (IsLiving) {
 		showLoading(content());
 		auto onFinished = [=](PLSAPIFacebookType type) {
 			hideLoading();

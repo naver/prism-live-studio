@@ -185,6 +185,13 @@ private:
 	QSlider *slider;
 	MuteCheckBox *mute;
 	QPushButton *config = nullptr;
+	//PRISM/XieWei/20201110/#None/Add a switch for RNNoise
+	QCheckBox *rnNoiseCheckbox = nullptr;
+	OBSSource rnNoiseFilter;
+	OBSSignal addSignal;
+	OBSSignal removeSignal;
+	bool volInit{false};
+
 	float levelTotal;
 	float levelCount;
 	obs_fader_t *obs_fader;
@@ -196,10 +203,14 @@ private:
 	static void PLSVolumeLevel(void *data, const float magnitude[MAX_AUDIO_CHANNELS], const float peak[MAX_AUDIO_CHANNELS], const float inputPeak[MAX_AUDIO_CHANNELS]);
 	static void PLSVolumeMuted(void *data, calldata_t *calldata);
 	static void monitorChange(pls_frontend_event event, const QVariantList &params, void *context);
+	static void OBSSourceFilterAdded(void *param, calldata_t *data);
+	static void OBSSourceFilterRemoved(void *param, calldata_t *data);
+	static void OBSSourceFilterEnabled(void *param, calldata_t *data);
 
 	void EmitConfigClicked();
 
 	void monitorStateChangeFromAdv(Qt::CheckState state);
+	void UpdateRnNoiseState();
 
 public slots:
 	void SetMuted(bool checked);
@@ -209,8 +220,14 @@ private slots:
 	void VolumeMuted(bool muted);
 
 	void SliderChanged(int vol);
+	void SliderRelease();
 	void updateText();
 	void monitorCheckChange(int index);
+	void rnNoiseClicked();
+
+	void AddFilter(OBSSource filter);
+	void RemoveFilter();
+	void SourceEnabled(bool enabled);
 
 signals:
 	void ConfigClicked();

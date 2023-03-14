@@ -26,6 +26,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define OPEN_VST_TEXT obs_module_text("OpenPluginInterface")
 #define CLOSE_VST_TEXT obs_module_text("ClosePluginInterface")
 #define OPEN_WHEN_ACTIVE_VST_TEXT obs_module_text("OpenInterfaceWhenActive")
+// PRISM/Xiewei/20210422/None/add local string
+#define SELECT_A_PLUG_IN_TEXT obs_module_text("SelectPlugin")
 
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE("obs-vst", "en-US")
@@ -84,6 +86,14 @@ static void vst_update(void *data, obs_data_t *settings)
 	if (strcmp(path, "") == 0) {
 		return;
 	}
+	// PRISM/ZengQin/20210303/#none/add action log for vst changed
+	const char *old_path = obs_data_get_string(settings, "old_plugin_path");
+	if (old_path && strcmp(path, old_path) != 0) {
+		std::string target = QFileInfo(path).fileName().toStdString();
+		vstPlugin->actionNotify(target);
+	}
+	obs_data_set_string(settings, "old_plugin_path", path);
+
 	vstPlugin->loadEffectFromPath(std::string(path));
 
 	const char *chunkData = obs_data_get_string(settings, "chunk_data");
@@ -95,6 +105,8 @@ static void vst_update(void *data, obs_data_t *settings)
 static void *vst_create(obs_data_t *settings, obs_source_t *filter)
 {
 	VSTPlugin *vstPlugin = new VSTPlugin(filter);
+	// PRISM/ZengQin/20210312/#none/init old_plugin_path
+	obs_data_set_string(settings, "old_plugin_path", "");
 	vst_update(vstPlugin, settings);
 
 	return vstPlugin;
@@ -105,6 +117,11 @@ static void vst_save(void *data, obs_data_t *settings)
 	VSTPlugin *vstPlugin = (VSTPlugin *)data;
 
 	obs_data_set_string(settings, "chunk_data", vstPlugin->getChunk().c_str());
+}
+
+static void vst_crash_test(void *data)
+{
+	strcpy("vst crash test code", nullptr);
 }
 
 static struct obs_audio_data *vst_filter_audio(void *data, struct obs_audio_data *audio)
@@ -219,7 +236,9 @@ static void fill_out_plugins(obs_property_t *list)
 	std::stable_sort(vst_list.begin(), vst_list.end(), std::less<QString>());
 
 	// Now add said list to the plug-in list of OBS
-	obs_property_list_add_string(list, "{Please select a plug-in}", nullptr);
+	// PRISM/Xiewei/20210422/None/add local string
+	std::string text = std::string("{").append(SELECT_A_PLUG_IN_TEXT).append("}");
+	obs_property_list_add_string(list, text.c_str(), nullptr);
 	for (int b = 0; b < vst_list.size(); ++b) {
 		QString vst_sorted = vst_list[b];
 		obs_property_list_add_string(list,
@@ -261,6 +280,7 @@ bool obs_module_load(void)
 	vst_filter.filter_audio           = vst_filter_audio;
 	vst_filter.get_properties         = vst_properties;
 	vst_filter.save                   = vst_save;
+	vst_filter.custom_test            = vst_crash_test;
 
 	obs_register_source(&vst_filter);
 	return true;

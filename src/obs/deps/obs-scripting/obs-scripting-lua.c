@@ -1056,12 +1056,16 @@ static void lua_tick(void *param, float seconds)
 		lua_State *script = data->script;
 		current_lua_script = data;
 
-		pthread_mutex_lock(&data->mutex);
+		//PRISM/Xiewei/20210726/2.6.3 Nelo crash/Add null pointer checking.
+		if (script) {
+			pthread_mutex_lock(&data->mutex);
 
-		lua_pushnumber(script, (double)seconds);
-		call_func_(script, data->tick, 1, 0, "tick", __FUNCTION__);
+			lua_pushnumber(script, (double)seconds);
+			call_func_(script, data->tick, 1, 0, "tick",
+				   __FUNCTION__);
 
-		pthread_mutex_unlock(&data->mutex);
+			pthread_mutex_unlock(&data->mutex);
+		}
 
 		data = data->next_tick;
 	}

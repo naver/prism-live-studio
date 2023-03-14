@@ -15,7 +15,7 @@ QScrollBar::handle:vertical {
 	min-height:/*hdpi*/ 20px;
 	border-radius:/*hdpi*/ 3px;
 	border:/*hdpi*/ none;
-    margin:/*hdpi*/0 2px;
+    margin:/*hdpi*/0px /*hdpi*/2px;
 }
 
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {

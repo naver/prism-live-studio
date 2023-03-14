@@ -1,7 +1,7 @@
 #pragma once
 
 #define LOG(level, message, ...) \
-	blog(level, "%s: " message, "decklink", ##__VA_ARGS__)
+	plog(level, "%s: " message, "decklink", ##__VA_ARGS__)
 
 #include <obs-module.h>
 #include "decklink-device.hpp"

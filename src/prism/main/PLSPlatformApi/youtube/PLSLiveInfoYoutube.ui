@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>787</width>
-    <height>520</height>
+    <width>1268</width>
+    <height>521</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>LiveInfo.Dialog.Title</string>
+   <string>LiveInfo.liveinformation</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0">
    <property name="spacing">
     <number>0</number>
    </property>
@@ -39,13 +39,13 @@
        <number>24</number>
       </property>
       <property name="topMargin">
-       <number>0</number>
+       <number>18</number>
       </property>
       <property name="rightMargin">
-       <number>0</number>
+       <number>24</number>
       </property>
       <property name="bottomMargin">
-       <number>0</number>
+       <number>10</number>
       </property>
       <item>
        <widget class="QLabel" name="titleLabel">
@@ -54,14 +54,30 @@
         </property>
        </widget>
       </item>
+      <item>
+       <spacer name="horizontalSpacer_5">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>0</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
      </layout>
     </widget>
    </item>
    <item>
     <widget class="QWidget" name="midwidget" native="true">
      <layout class="QFormLayout" name="formLayout">
+      <property name="rowWrapPolicy">
+       <enum>QFormLayout::DontWrapRows</enum>
+      </property>
       <property name="horizontalSpacing">
-       <number>20</number>
+       <number>10</number>
       </property>
       <property name="verticalSpacing">
        <number>10</number>
@@ -141,31 +157,143 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
-       <widget class="QTextEdit" name="textEditDescribe">
-        <property name="acceptRichText">
-         <bool>false</bool>
+      <item row="5" column="0">
+       <widget class="QWidget" name="latencyLeftWidget" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="latencyTitle">
+           <property name="text">
+            <string>LiveInfo.latency.Title</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item alignment="Qt::AlignLeft|Qt::AlignBottom">
+          <widget class="QLabel" name="latencyIcon">
+           <property name="toolTip">
+            <string/>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::NoFrame</enum>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_4">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>0</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QWidget" name="latencyRadioWidget" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <property name="spacing">
+          <number>10</number>
+         </property>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QRadioButton" name="radioButton_normal">
+           <property name="text">
+            <string>LiveInfo.latency.normal</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="radioButton_low">
+           <property name="text">
+            <string>LiveInfo.latency.low</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="radioButton_ultraLow">
+           <property name="text">
+            <string>LiveInfo.latency.ultra.low</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="ultraLowTipLabel">
+           <property name="text">
+            <string>LiveInfo.latency.ultra.low.tip</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_3">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="kidsLabel">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="textFormat">
+         <enum>Qt::RichText</enum>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
-      <item row="6" column="1">
-       <spacer name="verticalSpacer_2">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Expanding</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>10</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item row="5" column="1">
-       <widget class="QWidget" name="radioWidget" native="true">
+      <item row="7" column="1">
+       <widget class="QWidget" name="kidsRadioWidget" native="true">
         <layout class="QHBoxLayout" name="horizontalLayout_2">
          <property name="spacing">
           <number>20</number>
@@ -219,13 +347,10 @@
         </layout>
        </widget>
       </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="kidsLabel">
-        <property name="text">
-         <string>LiveInfo.Kids.Title</string>
-        </property>
-        <property name="textFormat">
-         <enum>Qt::RichText</enum>
+      <item row="4" column="1">
+       <widget class="QTextEdit" name="textEditDescribe">
+        <property name="acceptRichText">
+         <bool>false</bool>
         </property>
        </widget>
       </item>
@@ -311,14 +436,14 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>PLSComboBox</class>
-   <extends>QComboBox</extends>
-   <header location="global">combobox.hpp</header>
-  </customwidget>
-  <customwidget>
    <class>PLSScheduleCombox</class>
    <extends>QPushButton</extends>
    <header>PLSScheduleCombox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSComboBox</class>
+   <extends>QComboBox</extends>
+   <header location="global">combobox.hpp</header>
   </customwidget>
  </customwidgets>
  <resources/>

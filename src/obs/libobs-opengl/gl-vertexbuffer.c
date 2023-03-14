@@ -87,7 +87,7 @@ gs_vertbuffer_t *device_vertexbuffer_create(gs_device_t *device,
 	vb->dynamic = flags & GS_DYNAMIC;
 
 	if (!create_buffers(vb)) {
-		blog(LOG_ERROR, "device_vertexbuffer_create (GL) failed");
+		plog(LOG_ERROR, "device_vertexbuffer_create (GL) failed");
 		gs_vertexbuffer_destroy(vb);
 		return NULL;
 	}
@@ -129,7 +129,7 @@ static inline void gs_vertexbuffer_flush_internal(gs_vertbuffer_t *vb,
 							   : vb->data->num_tex;
 
 	if (!vb->dynamic) {
-		blog(LOG_ERROR, "vertex buffer is not dynamic");
+		plog(LOG_ERROR, "vertex buffer is not dynamic");
 		goto failed;
 	}
 
@@ -172,7 +172,7 @@ static inline void gs_vertexbuffer_flush_internal(gs_vertbuffer_t *vb,
 	return;
 
 failed:
-	blog(LOG_ERROR, "gs_vertexbuffer_flush (GL) failed");
+	plog(LOG_ERROR, "gs_vertexbuffer_flush (GL) failed");
 }
 
 void gs_vertexbuffer_flush(gs_vertbuffer_t *vb)
@@ -228,7 +228,7 @@ static bool load_vb_buffer(struct shader_attrib *attrib,
 
 	buffer = get_vb_buffer(vb, attrib->type, attrib->index, &width, &type);
 	if (!buffer) {
-		blog(LOG_ERROR, "Vertex buffer does not have the required "
+		plog(LOG_ERROR, "Vertex buffer does not have the required "
 				"inputs for vertex shader");
 		return false;
 	}

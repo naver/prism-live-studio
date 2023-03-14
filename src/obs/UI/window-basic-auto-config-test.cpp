@@ -1064,7 +1064,7 @@ void AutoConfigTestPage::NextStage()
 	/* make it skip to bandwidth stage if only set to config recording */
 	if (stage == Stage::Starting) {
 		if (!started) {
-			blog(LOG_INFO, STARTING_SEPARATOR);
+			plog(LOG_INFO, STARTING_SEPARATOR);
 			started = true;
 		}
 
@@ -1133,7 +1133,7 @@ AutoConfigTestPage::~AutoConfigTestPage()
 	}
 
 	if (started)
-		blog(LOG_INFO, STOPPING_SEPARATOR);
+		plog(LOG_INFO, STOPPING_SEPARATOR);
 }
 
 void AutoConfigTestPage::initializePage()

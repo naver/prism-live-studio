@@ -79,6 +79,20 @@ function(copy_prism_theme_target target)
 	    VERBATIM)
 endfunction()
 
+function(copy_target_file target file)
+    add_custom_command(TARGET ${target}
+	    POST_BUILD
+	    COMMAND "${CMAKE_COMMAND}"
+		    "-DCONFIG=$<CONFIGURATION>"
+		    "-DPRISM_DIR=$ENV{PRISM_DIR}"
+		    "-DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+		    "-DBIN_DIR=$ENV{BIN_DIR}"
+		    "-DARCH=$ENV{ARCH}"
+		    "-DTARGET=${file}"
+		    -P "$ENV{PRISM_DIR}/cmake/copy_target_file.cmake"
+	    VERBATIM)
+endfunction()
+
 function(add_obs_dependency target)
     add_dependencies(${target} obs-build obs-copy)
 endfunction()
@@ -101,6 +115,13 @@ function(link_hmac target)
     target_link_libraries(${target}
 	debug "$ENV{PRISM_DIR}/libs/HMAC/lib/Debug/$ENV{ARCH}/libApiGateway-MAC.lib"
 	optimized "$ENV{PRISM_DIR}/libs/HMAC/lib/Release/$ENV{ARCH}/libApiGateway-MAC.lib")
+endfunction()
+
+function(link_mosquitto target)
+    target_link_libraries(${target}
+		"$ENV{PRISM_DIR}/main/deps/mosquitto/lib/$ENV{ARCH}/mosquitto.lib"
+		"$ENV{PRISM_DIR}/main/deps/mosquitto/lib/$ENV{ARCH}/mosquittopp.lib"
+	)
 endfunction()
 
 execute_process(COMMAND $ENV{ComSpec} /c ${CMAKE_CURRENT_SOURCE_DIR}/obs-configure)
@@ -174,11 +195,10 @@ add_custom_command(TARGET obs-copy
 	VERBATIM)
 
 add_subdirectory(common)
+add_subdirectory(libs/QtApng)
 add_subdirectory(main)
 add_subdirectory(plugins)
-if(EXISTS $ENV{PRISM_DIR}/sub/PRISMLogger/CMakeLists.txt)
-	add_subdirectory(sub/PRISMLogger)
-endif()
+add_subdirectory(sub)
 
 add_executable(prism-copy build.cpp)
 add_dependencies(prism-copy
@@ -195,3 +215,20 @@ add_custom_command(TARGET prism-copy
 		"-DQTDIR=$ENV{QTDIR}"
 		-P "$ENV{PRISM_DIR}/cmake/copy_prism_bins.cmake"
 	VERBATIM)
+
+set(TargetListFile ${CMAKE_SOURCE_DIR}/../prism/sub/PRISMLogger/TargetList.h)
+
+function (ListTargets Dir)
+	get_directory_property(SubDirs DIRECTORY ${Dir} SUBDIRECTORIES)
+	foreach (Item ${SubDirs})
+		ListTargets(${Item})
+	endforeach()
+
+	get_directory_property(Targets DIRECTORY ${Dir} BUILDSYSTEM_TARGETS)
+	foreach (Item ${Targets})
+		file(APPEND ${TargetListFile} "\tL\"" ${Item} "\"," \n)
+	endforeach()
+endfunction()
+
+ListTargets(.)
+file(APPEND ${TargetListFile} "};")
