@@ -178,6 +178,9 @@ namespace Plugin {
 			virtual void SetMotionEstimationHalfPixelEnabled(bool v) override;
 			virtual bool IsMotionEstimationHalfPixelEnabled() override;
 
+			//PRISM/ZengQin/20210528/#none/get encoder props params
+			virtual obs_data_t* GetPropsPramas() override;
+
 			// Properties - Intra-Refresh
 			std::pair<uint32_t, uint32_t> CapsIntraRefreshNumMBsPerSlot();
 			void                          SetIntraRefreshNumMBsPerSlot(uint32_t v);

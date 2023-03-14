@@ -17,6 +17,7 @@
 #include <QPainter>
 #include <QPen>
 #include <QListWidget>
+#include <QFileInfo>
 
 static const QString BGM_DRAG_MIME_TYPE = "bgmItem";
 static const int FIX_BGM_ITEM_HEIGHT = 70;
@@ -228,16 +229,6 @@ void PLSBgmDragView::mousePressEvent(QMouseEvent *event)
 	QListView::mousePressEvent(event);
 }
 
-void PLSBgmDragView::mouseDoubleClickEvent(QMouseEvent *event)
-{
-	if (event->button() == Qt::LeftButton) {
-		startDragModelIdx = this->indexAt(event->pos());
-		emit MouseDoublePressedSignal(startDragModelIdx);
-	}
-
-	QListView::mouseDoubleClickEvent(event);
-}
-
 void PLSBgmDragView::mouseMoveEvent(QMouseEvent *event)
 {
 	if (event->buttons() & Qt::LeftButton) {
@@ -251,7 +242,7 @@ void PLSBgmDragView::mouseMoveEvent(QMouseEvent *event)
 
 			QRect currentRect = visualRect(this->indexAt(event->pos()));
 			QPixmap pixmap = viewport()->grab(currentRect);
-			drag->setHotSpot(QPoint(pixmap.width() / 2, pixmap.height() / 2));
+			drag->setHotSpot(QPoint(startDragPoint.x(), pixmap.height() / 2));
 			drag->setPixmap(pixmap);
 
 			drag->setMimeData(mimeData);
@@ -329,9 +320,14 @@ void PLSBgmDragView::dropEvent(QDropEvent *event)
 		QList<QUrl> urls = event->mimeData()->urls();
 		for (int i = 0; i < urls.size(); i++) {
 			QString file = urls.at(i).toLocalFile();
+			QFileInfo fileInfo(file);
+			if (!fileInfo.exists())
+				continue;
+
 			if (!PLSBgmDataViewManager::Instance()->IsSupportFormat(file)) {
 				continue;
 			}
+
 			paths << file;
 		}
 		PLS_UI_STEP(MAIN_BGM_MODULE, QString("%1 Songs").arg(paths.size()).toStdString().c_str(), ACTION_DRAG);
@@ -447,6 +443,7 @@ void PLSBgmDragView::CreateItemDelegate()
 {
 	PLSBgmItemDelegate *delegate = new PLSBgmItemDelegate(this, font(), this);
 	connect(delegate, &PLSBgmItemDelegate::delBtnClicked, this, [=](const QModelIndex &index) { emit DelButtonClickedSignal(GetData(index), false); });
+	connect(delegate, &PLSBgmItemDelegate::doubleClicked, this, [=](const QModelIndex &index) { emit MouseDoublePressedSignal(index); });
 
 	setItemDelegate(delegate);
 }

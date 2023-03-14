@@ -3,7 +3,7 @@ PLSChatDialog {
         min-width:/*hdpi*/300px;
 }
 
-PLSChatDialog #labelToast {
+#labelToast {
         border-radius:/*hdpi*/3px;
         border:/*hdpi*/1px solid rgba(255, 255, 255, 0.1);
         background-color: #1e1e1f;
@@ -58,6 +58,11 @@ PLSChatDialog #scrollAreaWidgetContents>QPushButton {
         font-size:/*hdpi*/14px;
 }
 
+PLSChatDialog #scrollAreaWidgetContents #navershoppingbtn {
+        max-width:/*hdpi*/ 72px;
+        min-width:/*hdpi*/ 72px;
+}
+
 PLSChatDialog #scrollAreaWidgetContents>.QPushButton:disabled {
         color: #666666;
 }
@@ -108,7 +113,7 @@ PLSChatDialog #rtmpPlaceTextLabel {
         color: #666666;
 }
 
-PLSChatDialog #pushButtonClear {
+#pushButtonClear {
         min-width:/*hdpi*/16px;
         max-width:/*hdpi*/16px;
         min-height:/*hdpi*/16px;
@@ -118,15 +123,15 @@ PLSChatDialog #pushButtonClear {
         image: url(":/images/btn-close-normal.svg");
 }
 
-PLSChatDialog #pushButtonClear:hover {
+#pushButtonClear:hover {
         image: url(":/images/btn-close-over.svg");
 }
 
-PLSChatDialog #pushButtonClear:pressed {
+#pushButtonClear:pressed {
         image: url(":/images/btn-close-click.svg");
 }
 
-PLSChatDialog #pushButtonClear: !enabled {
+#pushButtonClear: !enabled {
         image: url(":/images/btn-close-disable.svg");
 }
 

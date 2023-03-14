@@ -44,6 +44,7 @@ private:
 
 signals:
 	void delBtnClicked(const QModelIndex &index);
+	void doubleClicked(const QModelIndex &index);
 
 private:
 	// for render svg icons

@@ -19,6 +19,12 @@
 		}                        \
 	}
 
+#if LIBAVCODEC_VERSION_MAJOR >= 58
+#define CODEC_FLAG_GLOBAL_H AV_CODEC_FLAG_GLOBAL_HEADER
+#else
+#define CODEC_FLAG_GLOBAL_H CODEC_FLAG_GLOBAL_HEADER
+#endif
+
 /* clang-format off */
 static const mi_option mi_options[] = {
 	/* options retrieved in format of string */
@@ -38,6 +44,10 @@ static const mi_option mi_options[] = {
 
 	/* options retrieved in format of int64_t */
 	{"duration",		"duration of meida file, in milliseconds",		MI_TYPE_INT},
+	{"width",		"width of video data",					MI_TYPE_INT},
+	{"height",		"height of video data",					MI_TYPE_INT},
+	{"frame_count",		"frame count for video data, estimated value, may not accurate",
+											MI_TYPE_INT},
 
 	/* options retrieved in format of boolean */
 	{"has_cover",		"flag shows if an audio file has a cover attached",	MI_TYPE_BOOL},
@@ -46,6 +56,7 @@ static const mi_option mi_options[] = {
 	{"cover_obj",		"audio cover object, defined in mi_cover_t",		MI_TYPE_OBJ},
 	{"metadata_obj",	"audio metadata object, defined in mi_metadata_t",	MI_TYPE_OBJ},
 	{"id3v2_obj",		"mp3 id3 v2.3 object, defined in mi_id3v23_t",		MI_TYPE_OBJ},
+	{"first_frame_obj",	"first video frame, defined in mi_first_frame_t",	MI_TYPE_OBJ},
 };
 /* clang-format on */
 
@@ -57,24 +68,21 @@ static int interrupt_callback(void *data)
 	pthread_mutex_lock(&mi->mutex);
 	if (mi->open_ts > 0 && (ts - mi->open_ts) > FFMPEG_OPEN_TIMEOUT_NS) {
 		pthread_mutex_unlock(&mi->mutex);
-		blog(LOG_INFO, "[mi] FFmpeg interrupt for openning '%s'",
-		     mi->path);
+		plog(LOG_INFO, "[mi] FFmpeg interrupt for openning.");
 		return true;
 	}
 
 	if (mi->io_open_ts > 0 &&
 	    (ts - mi->io_open_ts) > FFMPEG_OPEN_TIMEOUT_NS) {
 		pthread_mutex_unlock(&mi->mutex);
-		blog(LOG_INFO, "[mi] FFmpeg interrupt for avio openning '%s'",
-		     mi->path);
+		plog(LOG_INFO, "[mi] FFmpeg interrupt for avio openning.");
 		return true;
 	}
 
 	if (mi->abort) {
 		pthread_mutex_unlock(&mi->mutex);
-		blog(LOG_WARNING,
-		     "[mi] FFmpeg interrupt (due to abort) for openning '%s'",
-		     mi->path);
+		plog(LOG_WARNING,
+		     "[mi] FFmpeg interrupt (due to abort) for openning.");
 		return true;
 	}
 
@@ -90,8 +98,7 @@ static bool mi_open_internal(media_info_t *mi)
 
 	mi->fmt = avformat_alloc_context();
 	if (!mi->fmt) {
-		blog(LOG_WARNING,
-		     "[mi] Fail to alloc avformat context for '%s'", mi->path);
+		plog(LOG_WARNING, "[mi] Fail to alloc avformat context");
 		return false;
 	}
 
@@ -107,8 +114,8 @@ static bool mi_open_internal(media_info_t *mi)
 	mi->open_ts = os_gettime_ns();
 	pthread_mutex_unlock(&mi->mutex);
 
-	blog(LOG_INFO, "[mi] %s opening media: '%s'",
-	     mi->open_mode == MI_OPEN_DEFER ? "Defer" : "Directly", mi->path);
+	plog(LOG_DEBUG, "[mi] %s opening media.",
+	     mi->open_mode == MI_OPEN_DEFER ? "Defer" : "Directly");
 	int ret = avformat_open_input(&mi->fmt, mi->path, NULL,
 				      opts ? &opts : NULL);
 	pthread_mutex_lock(&mi->mutex);
@@ -117,19 +124,23 @@ static bool mi_open_internal(media_info_t *mi)
 	av_dict_free(&opts);
 
 	if (ret < 0) {
-		blog(LOG_WARNING, "[mi] Failed to open media '%s': [%d] '%s'",
-		     mi->path, ret, av_err2str(ret));
+		plog(LOG_WARNING, "[mi] Failed to open media : [%d] '%s'", ret,
+		     av_err2str(ret));
 		return false;
 	}
 
 	ret = avformat_find_stream_info(mi->fmt, NULL);
 	if (ret < 0) {
-		blog(LOG_WARNING,
-		     "[mi] Failed to find stream info for '%s': [%d] '%s'",
-		     mi->path, ret, av_err2str(ret));
+		plog(LOG_WARNING,
+		     "[mi] Failed to find stream info for : [%d] '%s'", ret,
+		     av_err2str(ret));
 		return false;
 	}
 
+	mi->video_index = av_find_best_stream(mi->fmt, AVMEDIA_TYPE_VIDEO, -1,
+					      -1, NULL, 0);
+	mi->audio_index = av_find_best_stream(mi->fmt, AVMEDIA_TYPE_AUDIO, -1,
+					      -1, NULL, 0);
 	mi->opened = true;
 
 	return true;
@@ -145,7 +156,7 @@ static bool check_defer_open(media_info_t *mi)
 	return true;
 }
 
-static get_duration_ms(media_info_t *mi)
+static long long get_duration_ms(media_info_t *mi)
 {
 	if (!mi || !mi->fmt)
 		return 0;
@@ -153,8 +164,70 @@ static get_duration_ms(media_info_t *mi)
 	if (mi->fmt->duration != AV_NOPTS_VALUE)
 		return mi->fmt->duration / INT64_C(1000);
 	else {
-		blog(LOG_WARNING, "[mi] Invalid duration for '%s'.", mi->path);
+		plog(LOG_WARNING, "[mi] Invalid duration.");
 		return AV_NOPTS_VALUE;
+	}
+}
+
+static long long estimate_frame_count(media_info_t *mi)
+{
+	if (!mi || !mi->fmt)
+		return 0;
+
+	int ret = av_find_best_stream(mi->fmt, AVMEDIA_TYPE_VIDEO, -1, -1, NULL,
+				      0);
+	if (ret < 0) {
+		plog(LOG_INFO, "[mi] NO video stream: [%d] '%s'", ret,
+		     av_err2str(ret));
+		return 0;
+	}
+
+	AVStream *stream = mi->fmt->streams[ret];
+
+	if (stream->nb_frames)
+		return stream->nb_frames;
+	else if (stream->avg_frame_rate.den &&
+		 mi->fmt->duration != AV_NOPTS_VALUE) {
+		return (long long)ceil((double)mi->fmt->duration /
+				       (double)AV_TIME_BASE *
+				       (double)stream->avg_frame_rate.num /
+				       (double)stream->avg_frame_rate.den);
+	} else
+		return stream->codec_info_nb_frames;
+}
+
+static long long get_resolution(media_info_t *mi, const char *key)
+{
+	if (!mi || !mi->fmt || mi->video_index < 0)
+		return 0;
+
+	if (0 == strcmp(key, "width"))
+		return mi->fmt->streams[mi->video_index]->codecpar->width;
+	else if (0 == strcmp(key, "height"))
+		return mi->fmt->streams[mi->video_index]->codecpar->height;
+
+	return 0;
+}
+
+static enum AVCodecID get_codec_id(media_info_t *mi, bool video)
+{
+	if (!mi || !mi->fmt)
+		return AV_CODEC_ID_NONE;
+
+	if (video) {
+		if (mi->video_index < 0) {
+			return AV_CODEC_ID_NONE;
+		} else {
+			return mi->fmt->streams[mi->video_index]
+				->codecpar->codec_id;
+		}
+	} else {
+		if (mi->audio_index < 0) {
+			return AV_CODEC_ID_NONE;
+		} else {
+			return mi->fmt->streams[mi->audio_index]
+				->codecpar->codec_id;
+		}
 	}
 }
 
@@ -166,9 +239,8 @@ static bool has_cover(media_info_t *mi)
 	int ret = av_find_best_stream(mi->fmt, AVMEDIA_TYPE_VIDEO, -1, -1, NULL,
 				      0);
 	if (ret < 0) {
-		blog(LOG_INFO,
-		     "[mi] NO video stream (cover) for '%s': [%d] '%s'",
-		     mi->path, ret, av_err2str(ret));
+		plog(LOG_INFO, "[mi] NO video stream (cover): [%d] '%s'", ret,
+		     av_err2str(ret));
 		return false;
 	}
 
@@ -189,7 +261,7 @@ static bool mi_try_init_decoder(media_info_t *mi, enum AVMediaType type)
 
 	ret = av_find_best_stream(mi->fmt, type, -1, -1, NULL, 0);
 	if (ret < 0) {
-		blog(LOG_INFO, "MP: No %s stream.",
+		plog(LOG_INFO, "MP: No %s stream.",
 		     av_get_media_type_string(type));
 		return false;
 	}
@@ -198,20 +270,20 @@ static bool mi_try_init_decoder(media_info_t *mi, enum AVMediaType type)
 	id = stream->codecpar->codec_id;
 	codec = avcodec_find_decoder(id);
 	if (!codec) {
-		blog(LOG_WARNING, "MP: Failed to find %s codec",
+		plog(LOG_WARNING, "MP: Failed to find %s codec",
 		     av_get_media_type_string(type));
 		return false;
 	}
 
 	c = avcodec_alloc_context3(codec);
 	if (!c) {
-		blog(LOG_WARNING, "MP: Failed to allocate context for %s",
+		plog(LOG_WARNING, "MP: Failed to allocate context for %s",
 		     av_get_media_type_string(type));
 		return false;
 	}
 
 	ret = avcodec_parameters_to_context(c, stream->codecpar);
-	if (ret < 0) 
+	if (ret < 0)
 		goto fail;
 
 	if (c->thread_count == 1 && c->codec_id != AV_CODEC_ID_PNG &&
@@ -222,7 +294,7 @@ static bool mi_try_init_decoder(media_info_t *mi, enum AVMediaType type)
 
 	ret = avcodec_open2(c, codec, NULL);
 	if (ret < 0)
-		blog(LOG_WARNING, "MP: Failed to open %s decoder: %s",
+		plog(LOG_WARNING, "MP: Failed to open %s decoder: %s",
 		     av_get_media_type_string(type), av_err2str(ret));
 fail:
 	avcodec_close(c);
@@ -241,14 +313,14 @@ static bool mi_try_decoder(media_info_t *mi)
 bool mi_open(media_info_t *mi, const char *path, enum mi_open_mode mode)
 {
 	if (!mi || !path) {
-		blog(LOG_WARNING, "[mi] Null ptr : mi %p, path %p", mi, path);
+		plog(LOG_WARNING, "[mi] Null ptr : mi %p", mi);
 		return false;
 	}
 
 	memset(mi, 0, sizeof(media_info_t));
 	pthread_mutex_init_value(&mi->mutex);
 	if (pthread_mutex_init(&mi->mutex, NULL) != 0) {
-		blog(LOG_WARNING, "[mi] Failed to init mutex, for '%s'", path);
+		plog(LOG_WARNING, "[mi] Failed to init mutex");
 		return false;
 	}
 
@@ -283,6 +355,9 @@ void mi_free(media_info_t *mi)
 	if (mi->cover.data)
 		av_freep(&mi->cover.data);
 
+	if (mi->first_frame.data)
+		av_freep(&mi->first_frame.data);
+
 	if (mi->id3v2.data)
 		bfree(mi->id3v2.data);
 
@@ -299,7 +374,7 @@ void mi_free(media_info_t *mi)
 	pthread_mutex_init_value(&mi->mutex);
 }
 
-char *mi_get_string(media_info_t *mi, char *key)
+char *mi_get_string(media_info_t *mi, const char *key)
 {
 	if (!mi || !key)
 		return NULL;
@@ -327,6 +402,14 @@ long long mi_get_int(media_info_t *mi, const char *key)
 
 	if (0 == strcmp(key, "duration"))
 		return get_duration_ms(mi);
+	else if (0 == strcmp(key, "width") || 0 == strcmp(key, "height"))
+		return get_resolution(mi, key);
+	else if (0 == strcmp(key, "frame_count"))
+		return estimate_frame_count(mi);
+	else if (0 == strcmp(key, "vcodec_id"))
+		return get_codec_id(mi, true);
+	else if (0 == strcmp(key, "acodec_id"))
+		return get_codec_id(mi, false);
 
 	// other options could be added here
 
@@ -349,9 +432,9 @@ bool mi_get_bool(media_info_t *mi, const char *key)
 	return false;
 }
 
-static bool init_cover_decoder(media_info_t *mi)
+static bool init_decoder(media_info_t *mi, int stream_index)
 {
-	AVStream *stream = mi->fmt->streams[mi->cover_index];
+	AVStream *stream = mi->fmt->streams[stream_index];
 
 	enum AVCodecID id = stream->codecpar->codec_id;
 	AVCodec *codec = NULL;
@@ -361,9 +444,10 @@ static bool init_cover_decoder(media_info_t *mi)
 				  AV_DICT_IGNORE_SUFFIX);
 
 		if (tag && strcmp(tag->value, "1") == 0) {
-			char *codec = (id == AV_CODEC_ID_VP8) ? "libvpx"
-							      : "libvpx-vp9";
-			codec = avcodec_find_decoder_by_name(codec);
+			char *codec_str = (id == AV_CODEC_ID_VP8)
+						  ? "libvpx"
+						  : "libvpx-vp9";
+			codec = avcodec_find_decoder_by_name(codec_str);
 		}
 	}
 
@@ -371,23 +455,21 @@ static bool init_cover_decoder(media_info_t *mi)
 		codec = avcodec_find_decoder(id);
 
 	if (!codec) {
-		blog(LOG_WARNING, "[mi] Failed to find codec for cover of '%s'",
-		     mi->fmt->url);
+		plog(LOG_WARNING, "[mi] Failed to find codec for cover");
 		return false;
 	}
 
 	AVCodecContext *ctx = avcodec_alloc_context3(codec);
 	if (!ctx) {
-		blog(LOG_WARNING, "[mi] Failed to allocate context for '%s'",
-		     mi->fmt->url);
+		plog(LOG_WARNING, "[mi] Failed to allocate context");
 		return false;
 	}
 
 	int ret = avcodec_parameters_to_context(ctx, stream->codecpar);
 	if (ret < 0) {
-		blog(LOG_WARNING,
-		     "[mi] Failed to pass parameters to context for '%s': %d, '%s'",
-		     mi->fmt->url, ret, av_err2str(ret));
+		plog(LOG_WARNING,
+		     "[mi] Failed to pass parameters to context: %d, '%s'", ret,
+		     av_err2str(ret));
 		goto fail;
 	}
 
@@ -396,9 +478,9 @@ static bool init_cover_decoder(media_info_t *mi)
 	ret = avcodec_open2(ctx, codec, &opts);
 	av_dict_free(&opts);
 	if (ret < 0) {
-		blog(LOG_WARNING,
-		     "[mi] Failed to open codec context for '%s': %d, '%s'",
-		     mi->fmt->url, ret, av_err2str(ret));
+		plog(LOG_WARNING,
+		     "[mi] Failed to open codec context : %d, '%s'", ret,
+		     av_err2str(ret));
 		goto fail;
 	}
 
@@ -413,7 +495,8 @@ fail:
 	return false;
 }
 
-static bool convert_to_rgba(media_info_t *mi, AVFrame *frame)
+static bool convert_to_rgba(media_info_t *mi, AVFrame *frame, char **out,
+			    int *out_size)
 {
 	char *buffer[MAX_AV_PLANES] = {0};
 	int linesize[MAX_AV_PLANES] = {0};
@@ -421,9 +504,9 @@ static bool convert_to_rgba(media_info_t *mi, AVFrame *frame)
 	int ret = av_image_alloc(buffer, linesize, frame->width, frame->height,
 				 AV_PIX_FMT_RGBA, 1);
 	if (ret < 0) {
-		blog(LOG_WARNING,
-		     "[mi] Failed to alloc image buffer for '%s': %d, '%s'",
-		     mi->fmt->url, ret, av_err2str(ret));
+		plog(LOG_WARNING,
+		     "[mi] Failed to alloc image buffer : %d, '%s'", ret,
+		     av_err2str(ret));
 		return false;
 	}
 
@@ -435,9 +518,9 @@ static bool convert_to_rgba(media_info_t *mi, AVFrame *frame)
 			frame->width, frame->height, AV_PIX_FMT_RGBA, SWS_POINT,
 			NULL, NULL, NULL);
 		if (!swsctx) {
-			blog(LOG_WARNING,
-			     "[mi] Failed to create scale context for '%s': %d, '%s'",
-			     mi->fmt->url, ret, av_err2str(ret));
+			plog(LOG_WARNING,
+			     "[mi] Failed to create scale context : %d, '%s'",
+			     ret, av_err2str(ret));
 			goto fail;
 		}
 
@@ -447,9 +530,9 @@ static bool convert_to_rgba(media_info_t *mi, AVFrame *frame)
 		sws_freeContext(swsctx);
 		swsctx = NULL;
 		if (ret < 0) {
-			blog(LOG_WARNING,
-			     "[mi] Failed to create scale context for '%s': %d, '%s'",
-			     mi->fmt->url, ret, av_err2str(ret));
+			plog(LOG_WARNING,
+			     "[mi] Failed to create scale context : %d, '%s'",
+			     ret, av_err2str(ret));
 			goto fail;
 		}
 	} else {
@@ -458,18 +541,15 @@ static bool convert_to_rgba(media_info_t *mi, AVFrame *frame)
 			(const int *)frame->linesize, frame->format,
 			frame->width, frame->height, 1);
 		if (ret < 0) {
-			blog(LOG_WARNING,
-			     "[mi] Can not copy image to buffer for '%s': %d, '%s'",
-			     mi->fmt->url, ret, av_err2str(ret));
+			plog(LOG_WARNING,
+			     "[mi] Can not copy image to buffer : %d, '%s'",
+			     ret, av_err2str(ret));
 			goto fail;
 		}
 	}
 
-	mi->cover.data = buffer[0];
-	mi->cover.size = size;
-	mi->cover.width = frame->width;
-	mi->cover.height = frame->height;
-	mi->cover.format = AV_PIX_FMT_RGBA;
+	*out = buffer[0];
+	*out_size = size;
 
 	return true;
 fail:
@@ -477,15 +557,15 @@ fail:
 	return false;
 }
 
-static bool decode_cover(media_info_t *mi)
+static bool decode_video(media_info_t *mi, int stream_index,
+			 struct mi_video_frame *out)
 {
 	AVPacket packet;
 	av_init_packet(&packet);
 
 	AVFrame *frame = av_frame_alloc();
 	if (!frame) {
-		blog(LOG_WARNING, "[mi] Failed to alloc cover frame for '%s'",
-		     mi->fmt->url);
+		plog(LOG_WARNING, "[mi] Failed to alloc cover frame");
 		return false;
 	}
 	bool got_frame = 0;
@@ -497,31 +577,49 @@ static bool decode_cover(media_info_t *mi)
 			if (ret < 0) {
 				if (ret == AVERROR_EOF) {
 					eof = true;
+					/* flush the decoder */
+					packet.data = NULL;
+					packet.size = 0;
+					packet.stream_index = stream_index;
 				} else {
-					blog(LOG_WARNING,
-					     "[mi] Failed to read image frame from '%s': %d, '%s'",
-					     mi->fmt->url, ret,
-					     av_err2str(ret));
+					plog(LOG_WARNING,
+					     "[mi] Failed to read image frame : %d, '%s'",
+					     ret, av_err2str(ret));
 					goto fail;
 				}
 			}
 		}
 
-		if (packet.stream_index == mi->cover_index) {
+		if (packet.stream_index == stream_index) {
 			avcodec_send_packet(mi->codec_ctx, &packet);
 			ret = avcodec_receive_frame(mi->codec_ctx, frame);
 			if (ret < 0) {
-				blog(LOG_WARNING,
-				     "[mi] Failed to decode frame for '%s': %d, '%s'",
-				     mi->fmt->url, ret, av_err2str(ret));
-				goto fail;
+				if (ret != AVERROR(EAGAIN)) {
+					plog(LOG_WARNING,
+					     "[mi] Failed to decode frame : %d, '%s'",
+					     ret, av_err2str(ret));
+					goto fail;
+				} else if (eof) {
+					plog(LOG_WARNING,
+					     "[mi] Can not decode one frame before EOF.");
+					goto fail;
+				}
+
+				continue;
 			} else {
 				got_frame = 1;
 			}
 		}
 	}
 
-	bool ret = convert_to_rgba(mi, frame);
+	if (out->data)
+		av_freep(&out->data);
+	memset(out, 0, sizeof(*out));
+
+	bool ret = convert_to_rgba(mi, frame, &out->data, &out->size);
+	out->width = frame->width;
+	out->height = frame->height;
+	out->format = AV_PIX_FMT_RGBA;
 
 fail:
 	av_packet_unref(&packet);
@@ -545,10 +643,10 @@ static mi_obj get_cover(media_info_t *mi)
 			mi->fmt->streams[i]->discard = AVDISCARD_ALL;
 	}
 
-	if (!init_cover_decoder(mi))
+	if (!init_decoder(mi, mi->cover_index))
 		return NULL;
 
-	bool ret = decode_cover(mi);
+	bool ret = decode_video(mi, mi->cover_index, &mi->cover);
 
 	if (mi->codec_ctx) {
 #if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(57, 40, 101)
@@ -560,6 +658,35 @@ static mi_obj get_cover(media_info_t *mi)
 	}
 
 	return ret ? &mi->cover : NULL;
+}
+
+static mi_obj get_first_frame(media_info_t *mi)
+{
+	if (mi->video_index < 0)
+		return NULL;
+
+	for (int i = 0; i < mi->fmt->nb_streams; ++i) {
+		if (i == mi->video_index)
+			mi->fmt->streams[i]->discard = AVDISCARD_DEFAULT;
+		else
+			mi->fmt->streams[i]->discard = AVDISCARD_ALL;
+	}
+
+	if (!init_decoder(mi, mi->video_index))
+		return NULL;
+
+	bool ret = decode_video(mi, mi->video_index, &mi->first_frame);
+
+	if (mi->codec_ctx) {
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(57, 40, 101)
+		avcodec_free_context(&mi->codec_ctx);
+#else
+		avcodec_close(mi->codec_ctx);
+#endif
+		mi->codec_ctx = NULL;
+	}
+
+	return ret ? &mi->first_frame : NULL;
 }
 
 static mi_obj get_metadata(media_info_t *mi)
@@ -599,30 +726,25 @@ static mi_obj get_id3v2_from_ffmpeg(media_info_t *mi)
 	mi->io_open_ts = 0;
 	pthread_mutex_unlock(&mi->mutex);
 	if (ret < 0) {
-		blog(LOG_WARNING, "[mi] Fail to open url: '%s': %s.\n",
-		     mi->path, av_err2str(ret));
+		plog(LOG_WARNING, "[mi] Fail to open : %s.\n", av_err2str(ret));
 		goto fail;
 	}
 
 	header = bmalloc(ID3V2_HEADER_SIZE);
 	if (!header) {
-		blog(LOG_WARNING,
-		     "[mi] Fail to malloc ID3V2 header buffer for '%s'.",
-		     mi->path);
+		plog(LOG_WARNING, "[mi] Fail to malloc ID3V2 header buffer.");
 		goto fail;
 	}
 
 	ret = avio_read(io, header, ID3V2_HEADER_SIZE);
 	if (ret < ID3V2_HEADER_SIZE) {
-		blog(LOG_WARNING,
-		     "[mi] Fail to read ID3V2 header for '%s', ret %d.",
-		     mi->path, ret);
+		plog(LOG_WARNING, "[mi] Fail to read ID3V2 header, ret %d.",
+		     ret);
 		goto fail;
 	}
 
 	if (!id3v2_match(header, ID3v2_DEFAULT_MAGIC)) {
-		blog(LOG_WARNING, "[mi] Not an ID3V2 header for '%s'.",
-		     mi->path);
+		plog(LOG_WARNING, "[mi] Not an ID3V2 header.");
 		goto fail;
 	}
 
@@ -630,16 +752,14 @@ static mi_obj get_id3v2_from_ffmpeg(media_info_t *mi)
 			   ((header[7] & 0x7f) << 14) |
 			   ((header[8] & 0x7f) << 7) | (header[9] & 0x7f);
 	if (body_size <= 0) {
-		blog(LOG_WARNING, "[mi] Wrong body size for '%s'.", mi->path);
+		plog(LOG_WARNING, "[mi] Wrong body size.");
 		goto fail;
 	}
 
 	size_t size = body_size + ID3V2_HEADER_SIZE;
 	buffer = bmalloc(size);
 	if (!buffer) {
-		blog(LOG_WARNING,
-		     "[mi] Fail to malloc ID3V2 body buffer for '%s'.",
-		     mi->path);
+		plog(LOG_WARNING, "[mi] Fail to malloc ID3V2 body buffer.");
 		goto fail;
 	}
 	memset(buffer, 0, size);
@@ -647,16 +767,13 @@ static mi_obj get_id3v2_from_ffmpeg(media_info_t *mi)
 
 	ret = avio_read(io, buffer + ID3V2_HEADER_SIZE, body_size);
 	if (ret < body_size) {
-		blog(LOG_WARNING,
-		     "[mi] Fail to read ID3V2 body for '%s', ret %d.", mi->path,
-		     ret);
+		plog(LOG_WARNING, "[mi] Fail to read ID3V2 body, ret %d.", ret);
 		goto fail;
 	}
 	mi->id3v2.data = buffer;
 	mi->id3v2.size = size;
-	blog(LOG_INFO,
-	     "[mi] Succeed to get ID3 for '%s' : version %d, size %d.",
-	     mi->path, header[3], mi->id3v2.size);
+	plog(LOG_INFO, "[mi] Succeed to get ID3 : version %d, size %d.",
+	     header[3], mi->id3v2.size);
 	succeed = true;
 	mi->id3v2_ready = true;
 fail:
@@ -677,104 +794,14 @@ static mi_obj get_id3v2(media_info_t *mi)
 {
 	// currently, we only support mp3 file
 	if (!mi->path || NULL == astrstri(mi->path, "mp3")) {
-		blog(LOG_WARNING, "[mi] Not a mp3 file '%s'.", mi->path);
+		plog(LOG_WARNING, "[mi] Not a mp3 file.");
 		return NULL;
 	}
 
 	if (mi->id3v2_ready)
 		return &mi->id3v2;
 
-#if USING_FFMPEG
 	return get_id3v2_from_ffmpeg(mi);
-#else
-	bool succeed = false;
-	char *header = NULL;
-	char *body = NULL;
-	FILE *file = os_fopen(mi->path, "rb");
-	if (!file) {
-		blog(LOG_WARNING, "[mi] Failed open file '%s'.", mi->path);
-		return NULL;
-	}
-
-	size_t file_size = os_fgetsize(file);
-	if (file_size < 10) {
-		blog(LOG_WARNING, "[mi] Size %lld of file '%s' is not right.",
-		     file_size, mi->path);
-		goto fail;
-	}
-
-	header = bmalloc(ID3V2_HEADER_SIZE);
-	if (!header) {
-		blog(LOG_WARNING,
-		     "[mi] Fail to malloc ID3V2 header buffer for '%s'.",
-		     mi->path);
-		goto fail;
-	}
-
-	fseek(file, 0, SEEK_SET);
-	int size_read = fread(header, 1, ID3V2_HEADER_SIZE, file);
-	if (size_read != ID3V2_HEADER_SIZE) {
-		blog(LOG_WARNING, "[mi] Fail to read ID3V2 header for '%s'.",
-		     mi->path);
-		goto fail;
-	}
-
-	if (!id3v2_match(header, ID3v2_DEFAULT_MAGIC)) {
-		blog(LOG_WARNING, "[mi] Not an ID3V2 header for '%s'.",
-		     mi->path);
-		goto fail;
-	}
-
-	size_t body_size = ((header[6] & 0x7f) << 21) |
-			   ((header[7] & 0x7f) << 14) |
-			   ((header[8] & 0x7f) << 7) | (header[9] & 0x7f);
-	if (file_size < body_size + ID3V2_HEADER_SIZE) {
-		blog(LOG_WARNING, "[mi] Not an ID3V2 header for '%s'.",
-		     mi->path);
-		goto fail;
-	}
-
-	body = bmalloc(body_size);
-	if (!body) {
-		blog(LOG_WARNING,
-		     "[mi] Fail to malloc ID3V2 body buffer for '%s'.",
-		     mi->path);
-		goto fail;
-	}
-
-	fseek(file, ID3V2_HEADER_SIZE, SEEK_SET);
-	size_read = fread(body, 1, body_size, file);
-	if (size_read != body_size) {
-		blog(LOG_WARNING, "[mi] Fail to read ID3V2 header for '%s'.",
-		     mi->path);
-		goto fail;
-	}
-
-	mi->id3v2.data = bmalloc(body_size + ID3V2_HEADER_SIZE);
-	if (!mi->id3v2.data) {
-		blog(LOG_WARNING, "[mi] Fail to malloc ID3V2 buffer for '%s'.",
-		     mi->path);
-		goto fail;
-	}
-
-	memset(mi->id3v2.data, 0, body_size + ID3V2_HEADER_SIZE);
-	memcpy(mi->id3v2.data, header, ID3V2_HEADER_SIZE);
-	memcpy(mi->id3v2.data + ID3V2_HEADER_SIZE, body, body_size);
-	mi->id3v2.size = body_size + ID3V2_HEADER_SIZE;
-	succeed = true;
-
-fail:
-	if (file)
-		fclose(file);
-	if (header)
-		bfree(header);
-	if (body)
-		bfree(body);
-	if (succeed)
-		return &mi->id3v2;
-	else
-		return NULL;
-#endif
 }
 
 mi_obj mi_get_obj(media_info_t *mi, const char *key)
@@ -791,6 +818,10 @@ mi_obj mi_get_obj(media_info_t *mi, const char *key)
 		return get_metadata(mi);
 	else if (0 == strcmp(key, "id3v2_obj"))
 		return get_id3v2(mi);
+	else if (0 == strcmp(key, "first_frame_obj"))
+		return get_first_frame(mi);
+
+	return NULL;
 }
 
 void mi_send_id3v2(mi_id3v2_t *id3v2)
@@ -801,7 +832,7 @@ void mi_send_id3v2(mi_id3v2_t *id3v2)
 	mi_id3v2_t id3 = {0};
 	id3.data = bmalloc(id3v2->size);
 	if (!id3.data) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "[mi] Fail to malloc new ID3V2 buffer, size %lld.",
 		     id3v2->size);
 		return;
@@ -838,7 +869,7 @@ bool mi_get_id3v2(mi_id3v2_t *id3v2)
 void mi_free_id3v2(mi_id3v2_t *id3v2)
 {
 	if (!id3v2)
-		return false;
+		return;
 	if (id3v2->data)
 		bfree(id3v2->data);
 	id3v2->size = 0;
@@ -904,4 +935,250 @@ bool mi_id3v2_queued()
 	queued = audio->id3v2_array.num > 0;
 	pthread_mutex_unlock(&audio->id3v2_mutex);
 	return queued;
+}
+
+static inline bool init_input(media_remux_t *mr, const char *in_filename)
+{
+	struct media_info *mi = bzalloc(sizeof(struct media_info));
+	if (!mi_open(mi, in_filename, MI_OPEN_DIRECTLY)) {
+		return false;
+	}
+
+	mi_obj obj = mi_get_obj(mi, "first_frame_obj");
+	if (!obj) {
+		mi_free(mi);
+		return false;
+	}
+
+#ifndef _NDEBUG
+	av_dump_format(mi->fmt, 0, in_filename, false);
+#endif
+	int stream_index = av_find_default_stream_index(mi->fmt);
+	AVStream *stream = mi->fmt->streams[stream_index];
+	int seek_flags;
+	if (mi->fmt->duration == AV_NOPTS_VALUE)
+		seek_flags = AVSEEK_FLAG_FRAME;
+	else
+		seek_flags = AVSEEK_FLAG_BACKWARD;
+
+	int ret = avformat_seek_file(mi->fmt, stream_index, INT64_MIN,
+				     0 + stream->start_time, INT64_MAX,
+				     seek_flags);
+
+	if (ret < 0) {
+		plog(LOG_WARNING, "[mi] remux: Failed to seek: %s",
+		     av_err2str(ret));
+		return false;
+	}
+
+	da_push_back(mr->mis, &mi);
+	return true;
+}
+
+static inline bool init_output(media_remux_t *mr, const char *out_filename)
+{
+	bool ret = false;
+	avformat_alloc_output_context2(&mr->ofmt_ctx, NULL, NULL, out_filename);
+	if (!mr->ofmt_ctx) {
+		plog(LOG_ERROR, "[mi] remux : Could not create output context");
+		return ret;
+	}
+
+	for (unsigned i = 0; i < mr->mis.array[0]->fmt->nb_streams; i++) {
+		AVStream *in_stream = mr->mis.array[0]->fmt->streams[i];
+		AVStream *out_stream = avformat_new_stream(
+			mr->ofmt_ctx, in_stream->codec->codec);
+		if (!out_stream) {
+			plog(LOG_ERROR, "[mi] remux : Failed to allocate output"
+					" stream");
+			return false;
+		}
+		out_stream->avg_frame_rate = (AVRational){mr->fps, 1};
+		out_stream->time_base = (AVRational){1, 1000000000};
+
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 48, 101)
+		AVCodecParameters *par = avcodec_parameters_alloc();
+		ret = avcodec_parameters_from_context(par, in_stream->codec);
+		if (ret == 0)
+			ret = avcodec_parameters_to_context(out_stream->codec,
+							    par);
+		avcodec_parameters_free(&par);
+#else
+		ret = avcodec_copy_context(out_stream->codec, in_stream->codec);
+#endif
+
+		if (ret < 0) {
+			plog(LOG_ERROR, "[mi] remux : Failed to copy context");
+			return false;
+		}
+
+		av_dict_copy(&out_stream->metadata, in_stream->metadata, 0);
+
+		out_stream->codec->codec_tag = 0;
+		if (mr->ofmt_ctx->oformat->flags & AVFMT_GLOBALHEADER)
+			out_stream->codec->flags |= CODEC_FLAG_GLOBAL_H;
+	}
+
+#ifndef _NDEBUG
+	av_dump_format(mr->ofmt_ctx, 0, out_filename, true);
+#endif
+
+	if (!(mr->ofmt_ctx->oformat->flags & AVFMT_NOFILE)) {
+		ret = avio_open(&mr->ofmt_ctx->pb, out_filename,
+				AVIO_FLAG_WRITE);
+		if (ret < 0) {
+			plog(LOG_ERROR, "[mi] remux : Failed to open output.");
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool valid_extension(const char *ext)
+{
+	if (!ext)
+		return false;
+	return astrcmpi(ext, ".bmp") == 0 || astrcmpi(ext, ".tga") == 0 ||
+	       astrcmpi(ext, ".png") == 0 || astrcmpi(ext, ".jpeg") == 0 ||
+	       astrcmpi(ext, ".jpg") == 0 || astrcmpi(ext, ".gif") == 0;
+}
+
+static inline bool init_files(media_remux_t *mr, const char *in_files,
+			      const char *out_filename)
+{
+	os_dir_t *dir = os_opendir(in_files);
+	if (dir) {
+		struct dstr dir_path = {0};
+		struct os_dirent *ent;
+
+		for (;;) {
+			const char *ext;
+
+			ent = os_readdir(dir);
+			if (!ent)
+				break;
+			if (ent->directory)
+				continue;
+
+			ext = os_get_path_extension(ent->d_name);
+			if (!valid_extension(ext))
+				continue;
+
+			dstr_copy(&dir_path, in_files);
+			dstr_cat_ch(&dir_path, '/');
+			dstr_cat(&dir_path, ent->d_name);
+			init_input(mr, dir_path.array);
+		}
+
+		dstr_free(&dir_path);
+		os_closedir(dir);
+	} else {
+		init_input(mr, in_files);
+	}
+
+	if (mr->mis.num <= 0) {
+		plog(LOG_ERROR, "[mi] remux : No input context");
+		return false;
+	}
+
+	return init_output(mr, out_filename);
+}
+
+static bool remux_internal(media_remux_t *mr)
+{
+	int ret = avformat_write_header(mr->ofmt_ctx, NULL);
+	if (ret < 0) {
+		plog(LOG_ERROR, "[mi] remux : Error opening output file: %s",
+		     av_err2str(ret));
+		return false;
+	}
+
+	AVPacket pkt;
+	bool success = false;
+	for (int i = 0; i < mr->mis.num; i++) {
+		for (;;) {
+			AVFormatContext *ctx = mr->mis.array[i]->fmt;
+			ret = av_read_frame(ctx, &pkt);
+			if (ret < 0) {
+				if (ret != AVERROR_EOF) {
+					plog(LOG_ERROR,
+					     "[mi] remux : Error reading"
+					     " packet: %s",
+					     av_err2str(ret));
+				}
+				break;
+			}
+
+			pkt.pts = mr->ts;
+			pkt.dts = mr->ts;
+			mr->ts += (1000000000 / mr->fps);
+
+			ret = av_interleaved_write_frame(mr->ofmt_ctx, &pkt);
+			av_packet_unref(&pkt);
+
+			if (ret < 0) {
+				plog(LOG_ERROR,
+				     "[mi] remux : Error muxing packet: %s",
+				     av_err2str(ret));
+				break;
+			}
+		}
+		success = ret >= 0 || ret == AVERROR_EOF;
+		if (!success)
+			break;
+	}
+
+	ret = av_write_trailer(mr->ofmt_ctx);
+	if (ret < 0) {
+		plog(LOG_ERROR, "[mi] remux : av_write_trailer: %s",
+		     av_err2str(ret));
+		return false;
+	}
+
+	return success;
+}
+
+void mi_remux_free(media_remux_t *mr)
+{
+	if (!mr)
+		return;
+
+	if (mr->ofmt_ctx && !(mr->ofmt_ctx->oformat->flags & AVFMT_NOFILE))
+		avio_close(mr->ofmt_ctx->pb);
+
+	if (mr->ofmt_ctx)
+		avformat_free_context(mr->ofmt_ctx);
+
+	for (int i = 0; i < mr->mis.num; i++) {
+		mi_free(mr->mis.array[i]);
+	}
+
+	da_free(mr->mis);
+}
+
+bool mi_remux_do(const char *in_path, const char *out_filename,
+		 unsigned int fps)
+{
+	if (!in_path || !out_filename || !strlen(in_path) ||
+	    !strlen(out_filename))
+		return false;
+
+	bool success = false;
+	media_remux_t mr;
+	memset(&mr, 0, sizeof(media_remux_t));
+	mr.ts = 0;
+	mr.fps = fps;
+
+	if (!init_files(&mr, in_path, out_filename)) {
+		success = false;
+		goto free;
+	}
+
+	success = remux_internal(&mr);
+	if (!success && os_is_file_exist(out_filename))
+		remove(out_filename);
+
+free:
+	mi_remux_free(&mr);
+	return success;
 }

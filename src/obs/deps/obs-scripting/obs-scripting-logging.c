@@ -41,17 +41,20 @@ void script_log_va(obs_script_t *script, int level, const char *format,
 			break;
 		}
 
-		start_len = snprintf(msg, sizeof(msg), "[%s: %s] ", lang,
-				     script->file.array);
+		char temp[256];
+		os_extract_file_name(script->file.array, temp,
+				     ARRAY_SIZE(temp) - 1);
+
+		start_len = snprintf(msg, sizeof(msg), "[%s: %s] ", lang, temp);
 	} else {
 		start_len = snprintf(msg, sizeof(msg), "[Unknown Script] ");
 	}
 
+	plog(level, "%s", msg);
 	vsnprintf(msg + start_len, sizeof(msg) - start_len, format, args);
 
 	if (callback)
 		callback(param, script, level, msg + start_len);
-	blog(level, "%s", msg);
 }
 
 void script_log(obs_script_t *script, int level, const char *format, ...)

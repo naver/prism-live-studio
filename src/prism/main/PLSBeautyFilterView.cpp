@@ -20,6 +20,10 @@
 #include "window-namedialog.hpp"
 #include "main-view.hpp"
 #include "PLSAction.h"
+#include "PLSResources/PLSResourceMgr.h"
+#include "PLSResources/PLSBeautyResHandler.h"
+#include "PLSHttpApi/PLSFileDownloader.h"
+#include "platform.hpp"
 
 Q_DECLARE_METATYPE(OBSSceneItem);
 
@@ -29,25 +33,14 @@ const int minFilterValue = 1;
 const int maxFilterValue = 100;
 const char *lastValidValueDefine = "lastValidValue";
 QVector<QVector<QString>> PLSBeautyFilterView::iconFileNameVector;
+const QString NO_SOURCE_DATA = "noSourceData";
 
-void OnPrismAppQuit(enum obs_frontend_event event, void *context)
-{
-	if (event == OBS_FRONTEND_EVENT_EXIT) {
-		PLSBeautyFilterView *view = static_cast<PLSBeautyFilterView *>(context);
-		if (view) {
-			if (!view->getMaxState())
-				view->onSaveNormalGeometry();
-			view->deleteLater();
-		}
-	}
-}
-
-PLSBeautyFilterView::PLSBeautyFilterView(const QString &sourceName_, QWidget *parent, PLSDpiHelper dpiHelper)
-	: PLSDialogView(parent, dpiHelper), currentSourceName(sourceName_), ui(new Ui::PLSBeautyFilterView)
+PLSBeautyFilterView::PLSBeautyFilterView(const QString &sourceName_, DialogInfo info, QWidget *parent, PLSDpiHelper dpiHelper)
+	: PLSDialogView(info, parent, dpiHelper), currentSourceName(sourceName_), ui(new Ui::PLSBeautyFilterView)
 {
 	dpiHelper.setCss(this, {PLSCssIndex::QComboBox, PLSCssIndex::Beauty});
 
-	notifyFirstShow([=]() { this->InitGeometry(); });
+	notifyFirstShow([=]() { this->InitGeometry(true); });
 
 	ui->setupUi(this->content());
 	setHasMaxResButton(true);
@@ -56,7 +49,6 @@ PLSBeautyFilterView::PLSBeautyFilterView(const QString &sourceName_, QWidget *pa
 	this->setWindowTitle(QTStr(MAIN_BEAUTY_TITLE));
 	ui->verticalLayout->setAlignment(Qt::AlignTop);
 	obs_frontend_add_event_callback(PLSFrontendEvent, this);
-	obs_frontend_add_event_callback(OnPrismAppQuit, this);
 
 	flowLayout = new FlowLayout(ui->thumbnailWidget, 0, 8, 8);
 	connect(flowLayout, &FlowLayout::LayoutFinished, this, &PLSBeautyFilterView::OnLayoutFinished, Qt::DirectConnection);
@@ -83,12 +75,15 @@ PLSBeautyFilterView::PLSBeautyFilterView(const QString &sourceName_, QWidget *pa
 		flowLayout->setverticalSpacing(PLSDpiHelper::calculate(dpi, 8));
 	};
 	dpiHelper.notifyDpiChanged(this, notifyDipChangeEvent);
+
+	InitIconFileName();
+	CheckBeautyResource();
 }
 
 PLSBeautyFilterView::~PLSBeautyFilterView()
 {
+	PLSFileDownloader::instance()->Stop();
 	obs_frontend_remove_event_callback(PLSFrontendEvent, this);
-	obs_frontend_remove_event_callback(OnPrismAppQuit, this);
 	DeleteAllBeautyViewInCurrentSource();
 	delete ui;
 }
@@ -163,7 +158,7 @@ void PLSBeautyFilterView::RemoveSourceNameList(bool isCurrentScene, const DShowS
 	}
 
 	if (0 == GetSourceComboboxVisibleCount()) {
-		ui->sourceListComboBox->addItem(QTStr("main.beauty.face.nosource"));
+		ui->sourceListComboBox->addItem(QTStr("main.beauty.face.nosource"), NO_SOURCE_DATA);
 	}
 
 	WriteBeautyConfigToLocal();
@@ -220,7 +215,7 @@ void PLSBeautyFilterView::SetSourceVisible(const QString &sourceName, OBSSceneIt
 		SetCurrentIndex(sourceName, item);
 	}
 
-	if (ui->sourceListComboBox->currentText() == QTStr("main.beauty.face.nosource")) {
+	if (ui->sourceListComboBox->currentData().toString() == NO_SOURCE_DATA) {
 		SetCurrentIndex(sourceName, item);
 	}
 
@@ -234,6 +229,10 @@ void PLSBeautyFilterView::SetSourceSelect(const QString &sourceName, OBSSceneIte
 		return;
 	}
 
+	if (!selected) {
+		return SetSourceUnSelect(sourceName, item);
+	}
+
 	if (!IsDShowSourceAvailable(sourceName, item)) {
 		SetCurrentSourceName(sourceName, item);
 		return;
@@ -244,6 +243,7 @@ void PLSBeautyFilterView::SetSourceSelect(const QString &sourceName, OBSSceneIte
 		return;
 	}
 
+	SetCurrentSourceName(sourceName, item);
 	if (isSourceComboboxVisible(sourceName, item)) {
 		if (SetCurrentIndex(sourceName, item)) {
 			return;
@@ -291,51 +291,6 @@ void PLSBeautyFilterView::ReorderSourceList(const QString &sourceName, OBSSceneI
 		SetCurrentIndex(sourceName, item);
 	}
 	ignoreChangeIndex = false;
-}
-
-void PLSBeautyFilterView::InitGeometry()
-{
-	auto initGeometry = [this](double dpi, bool inConstructor) {
-		extern void setGeometrySys(PLSWidgetDpiAdapter * adapter, const QRect &geometry);
-
-		const char *geometry = config_get_string(App()->GlobalConfig(), BEAUTY_CONFIG, GEOMETRY_DATA);
-		if (!geometry || !geometry[0]) {
-			const int defaultWidth = 298;
-			const int defaultHeight = 802;
-			const int mainRightOffest = 5;
-			PLSMainView *mainView = App()->getMainView();
-			QPoint mainTopRight = App()->getMainView()->mapToGlobal(QPoint(mainView->frameGeometry().width(), 0));
-			geometryOfNormal = QRect(mainTopRight.x() + PLSDpiHelper::calculate(dpi, mainRightOffest), mainTopRight.y(), PLSDpiHelper::calculate(dpi, defaultWidth),
-						 PLSDpiHelper::calculate(dpi, defaultHeight));
-			setGeometrySys(this, geometryOfNormal);
-		} else if (inConstructor) {
-			QByteArray byteArray = QByteArray::fromBase64(QByteArray(geometry));
-			restoreGeometry(byteArray);
-			if (config_get_bool(App()->GlobalConfig(), BEAUTY_CONFIG, MAXIMIZED_STATE)) {
-				showMaximized();
-			}
-		}
-	};
-
-	PLSDpiHelper dpiHelper;
-	dpiHelper.notifyDpiChanged(this, [=](double dpi, double, bool isFirstShow) {
-		extern QRect normalShow(PLSWidgetDpiAdapter * adapter, QRect & geometryOfNormal);
-
-		if (isFirstShow) {
-			initGeometry(dpi, false);
-			if (!isMaxState && !isFullScreenState) {
-				normalShow(this, geometryOfNormal);
-			}
-		}
-	});
-
-	initGeometry(PLSDpiHelper::getDpi(this), true);
-}
-
-void PLSBeautyFilterView::SaveShowModeToConfig()
-{
-	config_set_bool(App()->GlobalConfig(), BEAUTY_CONFIG, "showMode", isVisible());
-	config_save(App()->GlobalConfig());
 }
 
 OBSSceneItem PLSBeautyFilterView::GetCurrentItemData()
@@ -399,6 +354,7 @@ void PLSBeautyFilterView::TurnOffBeauty(obs_source_t *source)
 
 void PLSBeautyFilterView::InitIconFileName()
 {
+	QVector<QVector<QString>> tempData;
 	QDir dir(pls_get_user_path(CONFIGS_BEATURY_DEFAULT_IMAGE_PATH));
 	dir.setFilter(QDir::Dirs);
 	dir.setSorting(QDir::Name);
@@ -411,8 +367,12 @@ void PLSBeautyFilterView::InitIconFileName()
 		if (info.isDir()) {
 			QVector<QString> files;
 			getFilesFromDir(info.absoluteFilePath(), files);
-			iconFileNameVector.push_back(files);
+			tempData.push_back(files);
 		}
+	}
+	if (tempData.size() > 0) {
+		iconFileNameVector.clear();
+		iconFileNameVector.swap(tempData);
 	}
 }
 
@@ -435,27 +395,50 @@ void PLSBeautyFilterView::UpdateItemIcon()
 	}
 }
 
+void PLSBeautyFilterView::SetBeautyPresetConfig(const QString &configPath)
+{
+	QDir dir(configPath);
+	dir.setFilter(QDir::Files);
+	QFileInfoList list = dir.entryInfoList();
+	PLSBeautyDataMgr::Instance()->ClearBeautyPresetConfig();
+	for (int i = 0; i < list.size(); i++) {
+		QFileInfo fileInfo = list.at(i);
+		QString name = fileInfo.fileName();
+		if (fileInfo.fileName() == "." || fileInfo.fileName() == ".." || fileInfo.isDir() || !fileInfo.fileName().contains(".json")) {
+			continue;
+		}
+
+		QByteArray byteArray;
+		if (PLSJsonDataHandler::getJsonArrayFromFile(byteArray, fileInfo.filePath())) {
+			BeautyConfig config;
+			config.filterType = i;
+			PLSBeautyDataMgr::Instance()->ParseJsonArrayToBeautyConfig(byteArray, config);
+			PLSBeautyDataMgr::Instance()->AddBeautyPresetConfig(config.beautyModel.token.strID, config);
+			continue;
+		}
+		PLS_ERROR(MAIN_BEAUTY_MODULE, "Load %s Failed.", fileInfo.fileName().toStdString().c_str());
+	}
+}
+
 void PLSBeautyFilterView::showEvent(QShowEvent *event)
 {
 	PLSDialogView::showEvent(event);
 	ignoreChangeIndex = false;
-	SaveShowModeToConfig();
-	emit beautyViewVisibleChanged(true);
+	App()->getMainView()->updateSideBarButtonStyle(ConfigId::BeautyConfig, true);
+	if (firstShow) {
+		firstShow = false;
+	} else {
+		QTimer::singleShot(0, this, &PLSBeautyFilterView::CheckBeautyResource);
+	}
 }
 
 void PLSBeautyFilterView::hideEvent(QHideEvent *event)
 {
 	resizeReason = FlowLayoutChange;
-
 	WriteBeautyConfigToLocal();
-	if (!getMaxState()) {
-		onSaveNormalGeometry();
-	}
-	config_save(App()->GlobalConfig());
-	emit beautyViewVisibleChanged(false);
+	App()->getMainView()->updateSideBarButtonStyle(ConfigId::BeautyConfig, false);
 
 	PLSDialogView::hideEvent(event);
-	SaveShowModeToConfig();
 }
 
 bool PLSBeautyFilterView::eventFilter(QObject *watcher, QEvent *event)
@@ -483,18 +466,6 @@ void PLSBeautyFilterView::closeEvent(QCloseEvent *event)
 {
 	hide();
 	event->ignore();
-}
-
-void PLSBeautyFilterView::onMaxFullScreenStateChanged()
-{
-	config_set_bool(App()->GlobalConfig(), BEAUTY_CONFIG, MAXIMIZED_STATE, getMaxState());
-	config_save(App()->GlobalConfig());
-}
-
-void PLSBeautyFilterView::onSaveNormalGeometry()
-{
-	config_set_string(App()->GlobalConfig(), BEAUTY_CONFIG, GEOMETRY_DATA, saveGeometry().toBase64().constData());
-	config_save(App()->GlobalConfig());
 }
 
 void PLSBeautyFilterView::PLSFrontendEvent(enum obs_frontend_event event, void *ptr)
@@ -526,8 +497,9 @@ void PLSBeautyFilterView::getFilesFromDir(const QString &filePath, QVector<QStri
 			continue;
 
 		if (info.isFile()) {
-			if (name.contains("@3x"))
+			if (name.contains("@3x")) {
 				files.push_back(info.absoluteFilePath());
+			}
 		} else if (info.isDir()) {
 			getFilesFromDir(info.absoluteFilePath(), files);
 		}
@@ -545,7 +517,7 @@ template<typename T> void PLSBeautyFilterView::InitSlider(QSlider *slider, const
 	slider->setOrientation(ori);
 }
 
-void PLSBeautyFilterView::LoadBeautyFaceView(OBSSceneItem item)
+void PLSBeautyFilterView::LoadBeautyFaceView(OBSSceneItem item, bool init)
 {
 	// load default beauty files which are downloaded from server when application startups
 	LoadPresetBeautyConfig(item);
@@ -553,7 +525,7 @@ void PLSBeautyFilterView::LoadBeautyFaceView(OBSSceneItem item)
 	LoadPrivateBeautySetting(item);
 
 	//Load Custom
-	UpdateBeautyFaceView(item);
+	UpdateBeautyFaceView(item, init);
 
 	// set Beauty item checked if there is one that last time checked, otherwise select "Natural" as default
 	SetCurrentClickedFaceView();
@@ -561,11 +533,15 @@ void PLSBeautyFilterView::LoadBeautyFaceView(OBSSceneItem item)
 	OnBeautyEffectStateCheckBoxClicked(ui->faceStatusCheckbox->isChecked());
 }
 
-void PLSBeautyFilterView::InitBeautyFaceView(const BeautyConfig &beautyConfig)
+bool PLSBeautyFilterView::InitBeautyFaceView(const BeautyConfig &beautyConfig)
 {
+	auto fileName = PLSBeautyFilterView::getIconFileByIndex(beautyConfig.filterType, beautyConfig.filterIndex);
 	CreateBeautyFaceView(beautyConfig.beautyModel.token.strID, beautyConfig.filterType, beautyConfig.isCustom, beautyConfig.isCurrent, beautyConfig.beautyModel.token.category,
 			     beautyConfig.filterIndex);
 	PLSBeautyDataMgr::Instance()->SetBeautyConfig(ui->sourceListComboBox->currentData().value<OBSSceneItem>(), beautyConfig.beautyModel.token.strID, beautyConfig);
+	if (fileName.isEmpty() || !os_is_file_exist(qUtf8Printable(fileName)))
+		return false;
+	return true;
 }
 
 void PLSBeautyFilterView::InitSliderAndLineEditConnections(QSlider *slider, QLineEdit *lineEdit, void (PLSBeautyFilterView::*func)(int))
@@ -630,25 +606,21 @@ PLSBeautyFaceItemView *PLSBeautyFilterView::isCustomFaceExisted(const QString &f
 	return nullptr;
 }
 
-void PLSBeautyFilterView::UpdateBeautyFaceView(OBSSceneItem item)
+void PLSBeautyFilterView::UpdateBeautyFaceView(OBSSceneItem item, bool init)
 {
 	if (!item) {
 		return;
 	}
 
 	BeautyConfigMap configMap = PLSBeautyDataMgr::Instance()->GetBeautyConfigBySourceId(item);
-	if (0 == configMap.size()) {
-		QDir dir(pls_get_user_path(CONFIGS_BEATURY_USER_PATH));
-		if (!dir.exists()) {
-			return;
-		}
-		// Be carefull the infinite recursion.
-		LoadBeautyFaceView(ui->sourceListComboBox->currentData().value<OBSSceneItem>());
+	if (!init && 0 == configMap.size()) {
+		// add a bool field to avoid infinite recursion.
+		LoadBeautyFaceView(ui->sourceListComboBox->currentData().value<OBSSceneItem>(), true);
 		return;
 	}
 
 	// error data handle
-	int offset = listItems.size() - configMap.size();
+	int offset = listItems.size() - int(configMap.size());
 	if (offset > 0) {
 		for (int i = 0; i < offset; ++i) {
 			auto item = listItems.last();
@@ -660,8 +632,17 @@ void PLSBeautyFilterView::UpdateBeautyFaceView(OBSSceneItem item)
 		}
 	}
 
+	bool needDownload = false;
 	for (auto iter = configMap.begin(); iter != configMap.end(); ++iter) {
-		InitBeautyFaceView(iter->second);
+		if (!InitBeautyFaceView(iter->second)) {
+			if (needDownload)
+				continue;
+			needDownload = true;
+		}
+	}
+
+	if (needDownload) {
+		DownloadAllResource();
 	}
 
 	SetCurrentClickedFaceView();
@@ -734,23 +715,36 @@ void PLSBeautyFilterView::UpdateUI(const QString &filterId)
 	SaveLastValidValue(ui->eyeLineEdit, config.beautyModel.dynamicParam.eyes);
 	SaveLastValidValue(ui->noseLineEdit, config.beautyModel.dynamicParam.nose);
 
-	ui->faceStatusCheckbox->setChecked(config.beautyStatus.beauty_enable);
-	ui->skinSlider->setValue(config.smoothModel.dymamic_value);
-	ui->chinSlider->setValue(config.beautyModel.dynamicParam.chin);
-	ui->cheekSlider->setValue(config.beautyModel.dynamicParam.cheek);
-	ui->cheekboneSlider->setValue(config.beautyModel.dynamicParam.cheekbone);
-	ui->eyeSlider->setValue(config.beautyModel.dynamicParam.eyes);
-	ui->noseSlider->setValue(config.beautyModel.dynamicParam.nose);
+	initState = true;
+	auto silenceSetvalue = [](QSlider *slider, int value) {
+		QSignalBlocker blocker(slider);
+		slider->setValue(value);
+	};
 
-	ui->skinLineEdit->setText(QString::number(config.smoothModel.dymamic_value));
-	ui->chinLineEdit->setText(QString::number(config.beautyModel.dynamicParam.chin));
-	ui->cheekLineEdit->setText(QString::number(config.beautyModel.dynamicParam.cheek));
-	ui->cheekBoneLineEdit->setText(QString::number(config.beautyModel.dynamicParam.cheekbone));
-	ui->eyeLineEdit->setText(QString::number(config.beautyModel.dynamicParam.eyes));
-	ui->noseLineEdit->setText(QString::number(config.beautyModel.dynamicParam.nose));
+	silenceSetvalue(ui->skinSlider, config.smoothModel.dymamic_value);
+	silenceSetvalue(ui->chinSlider, config.beautyModel.dynamicParam.chin);
+	silenceSetvalue(ui->cheekSlider, config.beautyModel.dynamicParam.cheek);
+	silenceSetvalue(ui->cheekboneSlider, config.beautyModel.dynamicParam.cheekbone);
+	silenceSetvalue(ui->eyeSlider, config.beautyModel.dynamicParam.eyes);
+	silenceSetvalue(ui->noseSlider, config.beautyModel.dynamicParam.nose);
+
+	auto silenceSetText = [](QLineEdit *edit, QString text) {
+		QSignalBlocker blocker(edit);
+		edit->setText(text);
+	};
+
+	silenceSetText(ui->skinLineEdit, QString::number(config.smoothModel.dymamic_value));
+	silenceSetText(ui->chinLineEdit, QString::number(config.beautyModel.dynamicParam.chin));
+	silenceSetText(ui->cheekLineEdit, QString::number(config.beautyModel.dynamicParam.cheek));
+	silenceSetText(ui->cheekBoneLineEdit, QString::number(config.beautyModel.dynamicParam.cheekbone));
+	silenceSetText(ui->eyeLineEdit, QString::number(config.beautyModel.dynamicParam.eyes));
+	silenceSetText(ui->noseLineEdit, QString::number(config.beautyModel.dynamicParam.nose));
+
+	ui->faceStatusCheckbox->setChecked(config.beautyStatus.beauty_enable);
 
 	UpdateButtonState(config.isCustom, config.beautyModel.IsChanged() || config.smoothModel.IsChanged());
 	OnBeautyEffectStateCheckBoxClicked(ui->faceStatusCheckbox->isChecked());
+	initState = false;
 }
 
 void PLSBeautyFilterView::UpdateButtonState(bool isCustom, bool isChanged)
@@ -1043,29 +1037,7 @@ void PLSBeautyFilterView::LoadPresetBeautyConfig(OBSSceneItem item)
 	BeautyConfigMap configMap = PLSBeautyDataMgr::Instance()->GetBeautyPresetConfig();
 	if (0 == configMap.size()) {
 		// If there is no preset data ,load it from local files.
-		auto loadPresetConfigFromDir = [=](const QString &dirPath) {
-			QDir dir(pls_get_user_path(dirPath));
-			dir.setFilter(QDir::Files);
-			QFileInfoList list = dir.entryInfoList();
-			for (int i = 0; i < list.size(); i++) {
-				QFileInfo fileInfo = list.at(i);
-				QString name = fileInfo.fileName();
-				if (fileInfo.fileName() == "." || fileInfo.fileName() == ".." || fileInfo.isDir() || !fileInfo.fileName().contains(".json")) {
-					continue;
-				}
-
-				QByteArray byteArray;
-				if (PLSJsonDataHandler::getJsonArrayFromFile(byteArray, fileInfo.filePath())) {
-					BeautyConfig config;
-					config.filterType = i;
-					PLSBeautyDataMgr::Instance()->ParseJsonArrayToBeautyConfig(byteArray, config);
-					PLSBeautyDataMgr::Instance()->AddBeautyPresetConfig(config.beautyModel.token.strID, config);
-					continue;
-				}
-				PLS_ERROR(MAIN_BEAUTY_MODULE, "Load %s Failed.", fileInfo.filePath().toStdString().c_str());
-			}
-		};
-		loadPresetConfigFromDir(CONFIGS_BEATURY_USER_PATH);
+		SetBeautyPresetConfig(pls_get_user_path(CONFIGS_BEATURY_USER_PATH));
 	}
 	auto configIter = configMap.cbegin();
 	while (configIter != configMap.cend()) {
@@ -1139,9 +1111,9 @@ bool PLSBeautyFilterView::isSourceComboboxVisible(const QString &sourceName, OBS
 	return !view->isRowHidden(index);
 }
 
-bool PLSBeautyFilterView::isCurrentSourceExisted(const QString &currentSourceName)
+bool PLSBeautyFilterView::isCurrentSourceExisted(const QString &sourceName)
 {
-	return (!currentSourceName.isEmpty()) && (0 != currentSourceName.compare(QTStr("main.beauty.face.nosource")));
+	return (!sourceName.isEmpty());
 }
 
 void PLSBeautyFilterView::ClearSourceComboboxSceneData(const QList<OBSSceneItem> &vec, bool releaseCurrent)
@@ -1165,7 +1137,7 @@ void PLSBeautyFilterView::AddSourceComboboxList(const DShowSourceVecType &list, 
 			sceneList << iter->second;
 		}
 		ClearSourceComboboxSceneData(sceneList, releaseCurrent);
-		ui->sourceListComboBox->addItem(QTStr("main.beauty.face.nosource"));
+		ui->sourceListComboBox->addItem(QTStr("main.beauty.face.nosource"), NO_SOURCE_DATA);
 	} else {
 		for (auto iter = list.begin(); iter != list.end(); ++iter) {
 			BeautyConfigMap configMap = PLSBeautyDataMgr::Instance()->GetBeautyConfigBySourceId(iter->second);
@@ -1198,7 +1170,11 @@ int PLSBeautyFilterView::GetSourceComboboxVisibleCount()
 void PLSBeautyFilterView::InitConnections()
 {
 	connect(ui->sourceListComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &PLSBeautyFilterView::OnSourceComboboxCurrentIndexChanged);
-	connect(ui->faceStatusCheckbox, &QCheckBox::stateChanged, this, &PLSBeautyFilterView::OnBeautyEffectStateCheckBoxClicked);
+	connect(ui->faceStatusCheckbox, &QCheckBox::stateChanged, this, [=](int state) {
+		customClickedState = true;
+		OnBeautyEffectStateCheckBoxClicked(state);
+		customClickedState = false;
+	});
 
 	InitSliderAndLineEditConnections(ui->chinSlider, ui->chinLineEdit, &PLSBeautyFilterView::OnChinSliderValueChanged);
 	InitSliderAndLineEditConnections(ui->cheekSlider, ui->cheekLineEdit, &PLSBeautyFilterView::OnCheekSliderValueChanged);
@@ -1228,10 +1204,12 @@ void PLSBeautyFilterView::CheckeAndSetValidValue(int *value)
 		*value = maxFilterValue;
 }
 
-void PLSBeautyFilterView::SetSourceUnSelect(const QString &sourceName, OBSSceneItem item)
+void PLSBeautyFilterView::SetSourceUnSelect(const QString &, OBSSceneItem item)
 {
-	Q_UNUSED(sourceName);
-	Q_UNUSED(item);
+	if (item == currentSource) {
+		currentSourceName = "";
+		currentSource = nullptr;
+	}
 }
 
 void PLSBeautyFilterView::SetSourceInvisible(const QString &sourceName, OBSSceneItem item)
@@ -1242,8 +1220,9 @@ void PLSBeautyFilterView::SetSourceInvisible(const QString &sourceName, OBSScene
 	}
 
 	if (0 == GetSourceComboboxVisibleCount()) {
-		ui->sourceListComboBox->addItem(QTStr("main.beauty.face.nosource"));
-		ui->sourceListComboBox->setCurrentText(QTStr("main.beauty.face.nosource"));
+		ui->sourceListComboBox->addItem(QTStr("main.beauty.face.nosource"), NO_SOURCE_DATA);
+		int index = ui->sourceListComboBox->count() - 1;
+		ui->sourceListComboBox->setCurrentIndex(index);
 	}
 }
 
@@ -1304,8 +1283,6 @@ void PLSBeautyFilterView::SaveLastValidValue(QLineEdit *object, int value)
 
 void PLSBeautyFilterView::LoadPrivateBeautySetting(OBSSceneItem item)
 {
-	obs_data_t *sceneitemPrivData = obs_sceneitem_get_private_settings(item);
-
 	OBSSource source = obs_sceneitem_get_source(item);
 	obs_data_t *privData = obs_source_get_private_settings(source);
 	obs_data_array_t *beautyArray = obs_data_get_array(privData, BEAUTY_NODE);
@@ -1338,7 +1315,7 @@ void PLSBeautyFilterView::LoadPrivateBeautySetting(OBSSceneItem item)
 		if (config.isCustom)
 			config.filterType = obs_data_get_int(data, FILTER_TYPE);
 		else
-			config.filterType = i;
+			config.filterType = int(i);
 
 		obs_data_t *customData = obs_data_get_obj(data, CUSTOM_NODE);
 		if (!customData) {
@@ -1397,6 +1374,64 @@ void PLSBeautyFilterView::SetFaceItem(PLSBeautyFaceItemView *item)
 	WriteBeautyConfigToLocal();
 }
 
+bool PLSBeautyFilterView::CheckBeautyResource()
+{
+	if (!CheckBeautyJson())
+		return false;
+
+	auto beautyJsonFile = pls_get_user_path(CONFIGS_BEATURY_USER_PATH) + CONFIGS_BEATURY_JSON_FILE;
+	QByteArray array;
+	if (!PLSJsonDataHandler::getJsonArrayFromFile(array, beautyJsonFile)) {
+		PLS_WARN(MAINFILTER_MODULE, "Read file %s failed", GetFileName(beautyJsonFile.toUtf8().constData()).c_str());
+		return false;
+	}
+
+	QJsonDocument doc = QJsonDocument::fromJson(array);
+	// Check beauty preset json
+	bool ok = CheckBeautyPreset(doc.object()) && CheckBeautyIcons();
+	if (!ok) {
+		DownloadAllResource();
+		return false;
+	}
+
+	return true;
+}
+
+bool PLSBeautyFilterView::CheckBeautyPreset(const QJsonObject &beautyJsonObj)
+{
+	auto items = beautyJsonObj.value("items").toArray();
+	auto iter = items.begin();
+	int index = 1;
+	std::vector<std::pair<QString, DownloadTaskData>> tasks;
+	while (iter != items.end()) {
+		QString presetFile(pls_get_user_path(CONFIGS_BEATURY_USER_PATH));
+		presetFile.append(QString::number(index)).append(".json");
+		if (!os_is_file_exist(qUtf8Printable(presetFile))) {
+			return false;
+		}
+		index++;
+		iter++;
+	}
+
+	return true;
+}
+
+void PLSBeautyFilterView::DownloadAllResource() {}
+
+bool PLSBeautyFilterView::CheckBeautyIcons()
+{
+	for (auto item : listItems) {
+		if (item && !item->IsItemIconValid())
+			return false;
+	}
+	return true;
+}
+
+bool PLSBeautyFilterView::CheckBeautyJson()
+{
+	return true;
+}
+
 void PLSBeautyFilterView::OnLayoutFinished()
 {
 	if (0 == listItems.size()) {
@@ -1413,6 +1448,23 @@ void PLSBeautyFilterView::OnLayoutFinished()
 		OnScrollToCurrentItem(listItems.at(listItems.size() - 1));
 		flowLayout->showLayoutItemWidget();
 	}
+}
+
+void PLSBeautyFilterView::OnDownloadJsonFile()
+{
+	CheckBeautyResource();
+}
+
+void PLSBeautyFilterView::OnDownloadAllResource()
+{
+	PLS_INFO(MAIN_BEAUTY_MODULE, "download all beauty resource finished");
+	resourceCount = 0;
+	downloadingAll = false;
+	SetBeautyPresetConfig(pls_get_user_path(CONFIGS_BEATURY_USER_PATH));
+	PLSBeautyDataMgr::Instance()->UpdateRecommendConfig();
+	UpdateUI(selectFilterName);
+	PLSBeautyFilterView::InitIconFileName();
+	UpdateItemIcon();
 }
 
 void PLSBeautyFilterView::OnChinSliderValueChanged(int value)
@@ -1501,11 +1553,11 @@ void PLSBeautyFilterView::OnSkinSliderValueChanged(int value)
 
 void PLSBeautyFilterView::OnSourceComboboxCurrentIndexChanged(int index)
 {
-	bool noSource = (0 == ui->sourceListComboBox->itemText(index).compare(QTStr("main.beauty.face.nosource")));
+	bool noSource = (ui->sourceListComboBox->itemData(index).toString() == NO_SOURCE_DATA);
 	if (0 == GetSourceComboboxVisibleCount() || noSource || -1 == index) {
 		ui->stackedWidget->setCurrentWidget(ui->page_noSource);
 	} else {
-		ui->sourceListComboBox->removeItem(ui->sourceListComboBox->findText(QTStr("main.beauty.face.nosource")));
+		ui->sourceListComboBox->removeItem(ui->sourceListComboBox->findData(NO_SOURCE_DATA));
 		ui->stackedWidget->setCurrentWidget(ui->page_normal);
 
 		if (!ignoreChangeIndex) {
@@ -1530,7 +1582,7 @@ void PLSBeautyFilterView::OnSourceComboboxCurrentIndexChanged(int index)
 
 void PLSBeautyFilterView::OnSaveCustomButtonClicked()
 {
-	PLS_UI_STEP(MAIN_BEAUTY_MODULE, "Save as Custom Button", ACTION_CLICK);
+	PLS_UI_STEP(MAIN_BEAUTY_MODULE, QString("Source[%1] Save as Custom Button").arg(ui->sourceListComboBox->currentText()).toUtf8().constData(), ACTION_CLICK);
 	if (selectFilterName.isEmpty()) {
 		PLS_ERROR(MAIN_BEAUTY_MODULE, "No Select Face View.");
 		return;
@@ -1548,7 +1600,7 @@ void PLSBeautyFilterView::OnSaveCustomButtonClicked()
 
 void PLSBeautyFilterView::OnResetButtonClicked()
 {
-	PLS_UI_STEP(MAIN_BEAUTY_MODULE, "Reset Button", ACTION_CLICK);
+	PLS_UI_STEP(MAIN_BEAUTY_MODULE, QString("Source[%1] Reset Button").arg(ui->sourceListComboBox->currentText()).toUtf8().constData(), ACTION_CLICK);
 	if (!PLSBeautyDataMgr::Instance()->ResetBeautyConfig(ui->sourceListComboBox->currentData().value<OBSSceneItem>(), selectFilterName)) {
 		return;
 	}
@@ -1571,14 +1623,18 @@ void PLSBeautyFilterView::OnBeautyEffectStateCheckBoxClicked(int state)
 				sendActionLog = false;
 			}
 		}
-		PLS_UI_STEP(MAIN_BEAUTY_MODULE, "Beauty Effects switch Open", ACTION_CLICK);
+		if (initState)
+			PLS_INFO(MAIN_BEAUTY_MODULE, QString("Source[%1] Beauty Effects Init State : Open").arg(ui->sourceListComboBox->currentText()).toUtf8().constData());
+		else if (customClickedState)
+			PLS_UI_STEP(MAIN_BEAUTY_MODULE, QString("Source[%1] Beauty Effects switch Open").arg(ui->sourceListComboBox->currentText()).toUtf8().constData(), ACTION_CLICK);
 		break;
 	case Qt::Unchecked:
 		ui->filterWidget->setEnabled(false);
 		ui->scrollArea->setEnabled(false);
 		ui->skinWidget->setEnabled(false);
 		ui->buttonWidget->setEnabled(false);
-		PLS_UI_STEP(MAIN_BEAUTY_MODULE, "Beauty Effects switch Close", ACTION_CLICK);
+		if (customClickedState && !initState)
+			PLS_UI_STEP(MAIN_BEAUTY_MODULE, QString("Source[%1] Beauty Effects switch Close").arg(ui->sourceListComboBox->currentText()).toUtf8().constData(), ACTION_CLICK);
 		break;
 	default:
 		break;
@@ -1622,7 +1678,7 @@ void PLSBeautyFilterView::OnSceneCopy()
 
 void PLSBeautyFilterView::OnDeleteButtonClicked()
 {
-	PLS_UI_STEP(MAIN_BEAUTY_MODULE, "Delete Button", ACTION_CLICK);
+	PLS_UI_STEP(MAIN_BEAUTY_MODULE, QString("Source[%1] Delete Button").arg(ui->sourceListComboBox->currentText()).toUtf8().constData(), ACTION_CLICK);
 
 	if (PLSAlertView::Button::Ok !=
 	    PLSMessageBox::question(this, QTStr("ConfirmRemove.Title"), QTStr(MAIN_BEAUTY_DELETEBEAUTY_MESSAGE).arg(selectFilterName), PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel)) {
@@ -1648,9 +1704,7 @@ void PLSBeautyFilterView::OnDeleteButtonClicked()
 void PLSBeautyFilterView::OnFaceItemClicked(PLSBeautyFaceItemView *item)
 {
 	SetFaceItem(item);
-	if (ui->faceStatusCheckbox->isChecked()) {
-	}
-	PLS_UI_STEP(MAIN_BEAUTY_MODULE, item->GetFilterId().toStdString().c_str(), ACTION_CLICK);
+	PLS_UI_STEP(MAIN_BEAUTY_MODULE, QString("Source[%1] " + item->GetFilterId()).arg(ui->sourceListComboBox->currentText()).toUtf8().constData(), ACTION_CLICK);
 }
 
 void PLSBeautyFilterView::OnFaceItemEdited(const QString &newId, PLSBeautyFaceItemView *item)
@@ -1724,6 +1778,4 @@ void PLSBeautyFilterView::OnScrollToCurrentItem(const QString &filterId)
 	}
 }
 
-void PLSBeautyFilterView::OnSkinSliderMouseRelease()
-{
-}
+void PLSBeautyFilterView::OnSkinSliderMouseRelease() {}

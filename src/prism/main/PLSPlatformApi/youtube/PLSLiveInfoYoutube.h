@@ -14,6 +14,8 @@
 
 using namespace std;
 
+enum class PLSYoutubeLatency;
+
 namespace Ui {
 class PLSLiveInfoYoutube;
 }
@@ -39,6 +41,7 @@ private:
 	void refreshUI();
 
 	void refreshPrivacy();
+	void refreshLatency();
 
 	QString m_enteredID;
 
@@ -74,6 +77,8 @@ private slots:
 	void refreshRadios();
 	void setKidsRadioButtonClick(bool checked = false);
 	void setNotKidsRadioButtonClick(bool checked = false);
+	void refreshUltraTipLabelVisible();
+	PLSYoutubeLatency getUILatency();
 };
 
 #endif // PLSLIVEINFOYOUTUBE_H

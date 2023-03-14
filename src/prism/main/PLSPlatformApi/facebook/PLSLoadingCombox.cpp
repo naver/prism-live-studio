@@ -110,8 +110,10 @@ bool PLSLoadingCombox::eventFilter(QObject *watched, QEvent *event)
 	} else if (event->type() == QEvent::EnabledChange) {
 		if (isEnabled()) {
 			ui->titleLabel->setStyleSheet("color:white;");
+			ui->arrowLabel->setStyleSheet("image:url(\":/images/txt-dropbox-open-normal.svg\")");
 		} else {
 			ui->titleLabel->setStyleSheet("color:#666666;");
+			ui->arrowLabel->setStyleSheet("image:url(\":/images/txt-dropbox-open-disable.svg\")");
 		}
 	}
 	return QPushButton::eventFilter(watched, event);
@@ -122,8 +124,10 @@ void PLSLoadingCombox::showComboListView(bool show)
 	this->setChecked(show);
 	if (isEnabled()) {
 		ui->titleLabel->setStyleSheet("color:white;");
+		ui->arrowLabel->setStyleSheet("image:url(\":/images/txt-dropbox-open-normal.svg\")");
 	} else {
 		ui->titleLabel->setStyleSheet("color:#666666;");
+		ui->arrowLabel->setStyleSheet("image:url(\":/images/txt-dropbox-open-disable.svg\")");
 	}
 	pls_flush_style(this);
 }

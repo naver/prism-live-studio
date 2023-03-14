@@ -3001,7 +3001,7 @@ void OBSBasicSettings::SaveAdvancedSettings()
 			QT_TO_UTF8(ui->monitoringDevice->currentText()),
 			QT_TO_UTF8(newDevice));
 
-		blog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s",
+		plog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s",
 		     QT_TO_UTF8(ui->monitoringDevice->currentText()),
 		     QT_TO_UTF8(newDevice));
 	}
@@ -3419,8 +3419,8 @@ void OBSBasicSettings::SaveSettings()
 		if (advancedChanged)
 			AddChangedVal(changed, "advanced");
 
-		blog(LOG_INFO, "Settings changed (%s)", changed.c_str());
-		blog(LOG_INFO, MINOR_SEPARATOR);
+		plog(LOG_INFO, "Settings changed (%s)", changed.c_str());
+		plog(LOG_INFO, MINOR_SEPARATOR);
 	}
 }
 

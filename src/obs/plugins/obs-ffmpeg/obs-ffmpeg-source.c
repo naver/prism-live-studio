@@ -22,11 +22,12 @@
 #include "obs-ffmpeg-formats.h"
 
 #include <media-playback/media.h>
+#include "pls/media-info.h"
 
 #define FF_LOG(level, format, ...) \
-	blog(level, "[Media Source]: " format, ##__VA_ARGS__)
+	plog(level, "[Media Source]: " format, ##__VA_ARGS__)
 #define FF_LOG_S(source, level, format, ...)        \
-	blog(level, "[Media Source '%s']: " format, \
+	plog(level, "[Media Source '%s']: " format, \
 	     obs_source_get_name(source), ##__VA_ARGS__)
 #define FF_BLOG(level, format, ...) \
 	FF_LOG_S(s->source, level, format, ##__VA_ARGS__)
@@ -80,6 +81,11 @@ struct ffmpeg_source {
 	bool network_changed;
 	//PRISM/LiuHaibin/20201029/#None/mark if current source is BGM source
 	bool bgm_source;
+
+	bool is_prism_mobile;
+
+	//PRISM/LiuHaibin/20210106/#6461/mark if current source is virtual background source
+	bool virtual_background_source;
 };
 
 //PRISM/ZengQin/20201017/#5142/file changed, send openning force
@@ -95,9 +101,11 @@ static void set_media_state(void *data, enum obs_media_state state,
 	if (!state_changed && !file_changed)
 		return;
 
-	//if (state == OBS_MEDIA_STATE_OPENING)
-	//	obs_source_set_capture_valid(s->source, true,
-	//				     OBS_SOURCE_ERROR_OK);
+	//PRISM/ZengQin/20201127/#none/reset valid state
+	if (state == OBS_MEDIA_STATE_OPENING ||
+	    state == OBS_MEDIA_STATE_PLAYING)
+		obs_source_set_capture_valid(s->source, true,
+					     OBS_SOURCE_ERROR_OK);
 
 	obs_source_media_state_changed(s->source);
 }
@@ -179,6 +187,9 @@ static const char *audio_filter = " (*.mp3 *.aac *.ogg *.wav);;";
 
 static obs_properties_t *ffmpeg_source_getproperties(void *data)
 {
+	if (!data)
+		return NULL;
+
 	struct ffmpeg_source *s = data;
 	struct dstr filter = {0};
 	struct dstr path = {0};
@@ -281,7 +292,6 @@ static void dump_source_info(struct ffmpeg_source *s, const char *input,
 {
 	FF_BLOG(LOG_INFO,
 		"settings:\n"
-		"\tinput:                   %s\n"
 		"\tinput_format:            %s\n"
 		"\tspeed:                   %d\n"
 		"\tis_looping:              %s\n"
@@ -289,7 +299,6 @@ static void dump_source_info(struct ffmpeg_source *s, const char *input,
 		"\tis_clear_on_media_end:   %s\n"
 		"\trestart_on_activate:     %s\n"
 		"\tclose_when_inactive:     %s",
-		input ? input : "(null)",
 		input_format ? input_format : "(null)", s->speed_percent,
 		s->is_looping ? "yes" : "no", s->is_hw_decoding ? "yes" : "no",
 		s->is_clear_on_media_end ? "yes" : "no",
@@ -323,6 +332,7 @@ static void get_audio(void *opaque, struct obs_source_audio *a)
 static void media_cache_clear(void *opaque, bool seeking)
 {
 	struct ffmpeg_source *s = opaque;
+
 	/* We do not destroy texture and reset async_active flag
 	 * but only clear frame cache when seeking */
 	if (seeking)
@@ -397,13 +407,17 @@ static void media_error(void *opaque, bool open_error)
 			os_is_file_exist(s->input)
 				? OBS_SOURCE_ERROR_UNKNOWN
 				: OBS_SOURCE_ERROR_NOT_FOUND);
+		//PRISM/ZengQin/20210809/#9137/only open error to send state to UI.
+		set_media_state(s, OBS_MEDIA_STATE_ERROR, true);
 	}
 
-	blog(LOG_INFO, "MP: media_error");
-	set_media_state(s, OBS_MEDIA_STATE_ERROR, false);
-
 	//PRISM/LiuHaibin/20200803/#None/clear cache
-	media_cache_clear(s, false);
+	if (open_error) {
+		//RRISM/WuLongyue/20201222/#6161/Don't output black screen if PRISM Mobile source
+		if (!s->is_prism_mobile) {
+			media_cache_clear(s, false);
+		}
+	}
 }
 
 //PRISM/LiuHaibin/20201029/#None/media skipped message for BGM
@@ -443,9 +457,13 @@ static void ffmpeg_source_open(struct ffmpeg_source *s)
 			.start_pos = s->start_pos,
 			.state_cb = set_media_state,
 			//PRISM/LiuHaibin/20201029/#None/media skipped message for BGM
-			.skipped_cb = s->bgm_source ? media_skipped : NULL};
+			.skipped_cb = s->bgm_source ? media_skipped : NULL,
+			.is_prism_mobile = s->is_prism_mobile,
+			//PRISM/LiuHaibin/20210106/#6461/mark if current source is virtual background source
+			.virtual_background_source =
+				s->virtual_background_source};
 
-		s->media_valid = mp_media_init(&s->media, &info);
+		s->media_valid = mp_media_init(&s->media, &info, s->source);
 
 		//PRISM/WangShaohui/20200117/#281/for source unavailable
 		if (s->media_valid) {
@@ -475,6 +493,9 @@ static void ffmpeg_source_tick(void *data, float seconds)
 {
 	UNUSED_PARAMETER(seconds);
 
+	if (!data)
+		return;
+
 	struct ffmpeg_source *s = data;
 	if (s->destroy_media) {
 		if (s->media_valid) {
@@ -486,22 +507,25 @@ static void ffmpeg_source_tick(void *data, float seconds)
 
 	//PRISM/ZengQin/20200911/#4670/for media controller
 	if (s->network_off && !s->network_changed) {
-
-		if (s->input && strlen(s->input) &&
-		    !os_is_file_exist(s->input)) {
-			if (s->media_valid) {
-				mp_media_stop(&s->media);
+		//PRISM/WuLongyue/20201214/No Issue/Don't show black if PRISM Mobile source
+		if (!s->is_prism_mobile) {
+			if (s->input && strlen(s->input) &&
+			    !os_is_file_exist(s->input)) {
+				if (s->media_valid) {
+					mp_media_stop(&s->media);
+				}
+				media_cache_clear(s, false);
+				obs_source_set_capture_valid(
+					s->source, false,
+					OBS_SOURCE_ERROR_UNKNOWN);
 			}
-			media_cache_clear(s, false);
-			obs_source_set_capture_valid(s->source, false,
-						     OBS_SOURCE_ERROR_UNKNOWN);
 		}
 
 		s->network_changed = true;
 	}
 }
 
-static void ffmpeg_source_start(struct ffmpeg_source *s)
+void ffmpeg_source_start(struct ffmpeg_source *s)
 {
 	if (!s->media_valid)
 		ffmpeg_source_open(s);
@@ -617,6 +641,9 @@ static bool ffmpeg_source_setting_changed(struct ffmpeg_source *s,
 static void ffmpeg_source_play_pause(void *data, bool pause);
 static void ffmpeg_source_update(void *data, obs_data_t *settings)
 {
+	if (!data || !settings)
+		return;
+
 	struct ffmpeg_source *s = data;
 
 	//PRISM/WangShaohui/20200512/#2637/for checking media's settings changed
@@ -636,6 +663,10 @@ static void ffmpeg_source_update(void *data, obs_data_t *settings)
 		s->reopen = true;
 		s->reseek = false;
 	}
+
+	//PRISM/LiuHaibin/20210106/#6461/mark if current source is virtual background source
+	s->virtual_background_source =
+		obs_data_get_bool(settings, "virtual_background_source");
 
 	if (is_local_file) {
 		input = (char *)obs_data_get_string(settings, "local_file");
@@ -722,7 +753,7 @@ static void ffmpeg_source_update(void *data, obs_data_t *settings)
 				.file_changed = input_changed};
 
 			mp_media_update(&s->media, &info);
-			bool active = obs_source_active(s->source);
+
 			if (input_changed && s->input && strlen(s->input)) {
 				obs_source_sync_clear(s->source);
 				mp_media_set_pause_state(&s->media, false,
@@ -758,6 +789,9 @@ static void restart_hotkey(void *data, obs_hotkey_id id, obs_hotkey_t *hotkey,
 	UNUSED_PARAMETER(id);
 	UNUSED_PARAMETER(hotkey);
 
+	if (!data)
+		return;
+
 	if (!pressed)
 		return;
 
@@ -785,20 +819,39 @@ static void restart_proc(void *data, calldata_t *cd)
 
 static void get_duration(void *data, calldata_t *cd)
 {
+	if (!data || !cd)
+		return;
+
 	struct ffmpeg_source *s = data;
 	int64_t dur = 0;
 	if (s->media.fmt)
 		dur = s->media.fmt->duration;
+	else {
+		media_info_t mi;
+		if (mi_open(&mi, s->input, MI_OPEN_DIRECTLY)) {
+			dur = mi_get_int(&mi, "duration") * 1000;
+			mi_free(&mi);
+		}
+	}
 
 	calldata_set_int(cd, "duration", dur * 1000);
 }
 
 static void get_nb_frames(void *data, calldata_t *cd)
 {
+	if (!data || !cd)
+		return;
+
 	struct ffmpeg_source *s = data;
 	int64_t frames = 0;
 
 	if (!s->media.fmt) {
+		media_info_t mi;
+		if (mi_open(&mi, s->input, MI_OPEN_DIRECTLY)) {
+			frames = mi_get_int(&mi, "frame_count");
+			mi_free(&mi);
+		}
+
 		calldata_set_int(cd, "num_frames", frames);
 		return;
 	}
@@ -836,6 +889,9 @@ static bool ffmpeg_source_play_hotkey(void *data, obs_hotkey_pair_id id,
 	UNUSED_PARAMETER(id);
 	UNUSED_PARAMETER(hotkey);
 
+	if (!data)
+		return false;
+
 	if (!pressed)
 		return false;
 
@@ -858,6 +914,9 @@ static bool ffmpeg_source_pause_hotkey(void *data, obs_hotkey_pair_id id,
 {
 	UNUSED_PARAMETER(id);
 	UNUSED_PARAMETER(hotkey);
+
+	if (!data)
+		return false;
 
 	if (!pressed)
 		return false;
@@ -882,6 +941,9 @@ static void ffmpeg_source_stop_hotkey(void *data, obs_hotkey_id id,
 {
 	UNUSED_PARAMETER(id);
 	UNUSED_PARAMETER(hotkey);
+
+	if (!data)
+		return;
 
 	if (!pressed)
 		return;
@@ -931,7 +993,7 @@ static void *ffmpeg_source_create(obs_data_t *settings, obs_source_t *source)
 	pthread_mutex_init_value(&s->state_mutex);
 	if (pthread_mutex_init(&s->state_mutex, NULL) != 0) {
 		ffmpeg_source_destroy(s);
-		blog(LOG_WARNING, "FFmpeg source: Failed to init state mutex");
+		plog(LOG_WARNING, "FFmpeg source: Failed to init state mutex");
 		return NULL;
 	}
 
@@ -942,6 +1004,9 @@ static void *ffmpeg_source_create(obs_data_t *settings, obs_source_t *source)
 	s->source_created = false;
 
 	s->network_changed = false;
+
+	//PRISM/WuLongyue/20201208/whether it's PRISM Mobile source
+	s->is_prism_mobile = obs_data_get_bool(settings, "is_prism_mobile");
 
 	ffmpeg_source_update(s, settings);
 
@@ -968,6 +1033,9 @@ static void *ffmpeg_source_create(obs_data_t *settings, obs_source_t *source)
 
 static void ffmpeg_source_destroy(void *data)
 {
+	if (!data)
+		return;
+
 	struct ffmpeg_source *s = data;
 
 	if (s->hotkey)
@@ -987,6 +1055,9 @@ static void ffmpeg_source_destroy(void *data)
 
 static void ffmpeg_source_activate(void *data)
 {
+	if (!data)
+		return;
+
 	struct ffmpeg_source *s = data;
 
 	//PRISM/ZengQin/20200911/#4670/source become invalid when network disconnect
@@ -994,12 +1065,17 @@ static void ffmpeg_source_activate(void *data)
 	bool valid = obs_source_get_capture_valid(s->source, &error);
 
 	if (s->restart_on_activate && valid) {
+		//PRISM/Zengqin/20201217/#None/clear cache
+		obs_source_sync_clear(s->source);
 		obs_source_media_restart(s->source);
 	}
 }
 
 static void ffmpeg_source_deactivate(void *data)
 {
+	if (!data)
+		return;
+
 	struct ffmpeg_source *s = data;
 
 	//PRISM/ZengQin/20200911/#4670/source become invalid when network disconnect
@@ -1019,13 +1095,19 @@ static void ffmpeg_source_deactivate(void *data)
 
 static void ffmpeg_source_play_pause(void *data, bool pause)
 {
-	struct ffmpeg_source *s = data;
+	if (!data)
+		return;
 
-	mp_media_play_pause(&s->media, pause);
+	struct ffmpeg_source *s = data;
+	if (s->media_valid)
+		mp_media_play_pause(&s->media, pause);
 }
 
 static void ffmpeg_source_stop(void *data)
 {
+	if (!data)
+		return;
+
 	struct ffmpeg_source *s = data;
 
 	if (s->media_valid) {
@@ -1037,6 +1119,9 @@ static void ffmpeg_source_stop(void *data)
 
 static void ffmpeg_source_restart(void *data)
 {
+	if (!data)
+		return;
+
 	struct ffmpeg_source *s = data;
 
 	//PRISM/ZengQin/20200911/#4670/source become invalid when network disconnect
@@ -1060,6 +1145,9 @@ static void ffmpeg_source_restart(void *data)
 
 static int64_t ffmpeg_source_get_duration(void *data)
 {
+	if (!data)
+		return 0;
+
 	struct ffmpeg_source *s = data;
 	int64_t dur = 0;
 
@@ -1073,7 +1161,14 @@ static int64_t ffmpeg_source_get_duration(void *data)
 
 static int64_t ffmpeg_source_get_time(void *data)
 {
+	//PRISM/ZengQin/20210117/none/judging data validity
+	if (!data)
+		return 0;
+
 	struct ffmpeg_source *s = data;
+
+	if (!s->media_valid)
+		return 0;
 
 	//PRISM/LiuHaibin/20200825/#4491&4482/for media controller and free bgm
 	s->current_timestamp = mp_get_current_time(&s->media);
@@ -1083,13 +1178,24 @@ static int64_t ffmpeg_source_get_time(void *data)
 
 static void ffmpeg_source_set_time(void *data, int64_t ms)
 {
+	if (!data)
+		return;
+
 	struct ffmpeg_source *s = data;
+
+	//PRISM/ZengQin/20210117/none/merge obs crash #3325
+	if (!s->media_valid)
+		return;
 
 	mp_media_seek_to(&s->media, ms);
 }
 
 static enum obs_media_state ffmpeg_source_get_state(void *data)
 {
+	//PRISM/ZengQin/20210117/none/judging data validity
+	if (!data)
+		return OBS_MEDIA_STATE_NONE;
+
 	struct ffmpeg_source *s = data;
 	return get_media_state(s);
 }
@@ -1097,6 +1203,9 @@ static enum obs_media_state ffmpeg_source_get_state(void *data)
 //PRISM/ZengQin/20200616/#3179/for media controller
 static bool ffmpeg_source_is_update_done(void *data)
 {
+	if (!data)
+		return false;
+
 	struct ffmpeg_source *s = data;
 	return mp_media_is_update_done(&s->media);
 }
@@ -1104,6 +1213,9 @@ static bool ffmpeg_source_is_update_done(void *data)
 //PRISM/ZengQin/20200818/#4283/for media controller
 static void ffmpeg_source_restart_to_pos(void *data, bool pause, int64_t pos)
 {
+	if (!data)
+		return;
+
 	struct ffmpeg_source *s = data;
 
 	if (!s->media_valid)
@@ -1176,6 +1288,35 @@ static void ffmpeg_source_network_state_changed(void *data, bool off)
 	s->network_changed = false;
 }
 
+//PRISM/ZengQin/20210526/#none/Get properties parameters
+static obs_data_t *get_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+
+	int64_t width = 0;
+	int64_t height = 0;
+
+	struct ffmpeg_source *s = data;
+	char temp[256];
+	if (s->input)
+		os_extract_extension(s->input, temp, ARRAY_SIZE(temp) - 1);
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_string(params, "input", temp);
+	obs_data_set_int(params, "speed", s->speed_percent);
+	obs_data_set_string(params, "is_hw_decoding",
+			    s->is_hw_decoding ? "yes" : "no");
+
+	if (s->media_valid)
+		mp_media_get_width_height(&s->media, &width, &height);
+	obs_data_set_int(params, "width", width);
+	obs_data_set_int(params, "height", height);
+	obs_data_set_int(params, "duration", ffmpeg_source_get_duration(data));
+
+	return params;
+}
+
 struct obs_source_info ffmpeg_source = {
 	.id = "ffmpeg_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
@@ -1207,4 +1348,6 @@ struct obs_source_info ffmpeg_source = {
 	.get_private_data = ffmpeg_source_get_private_data,
 	//PRISM/ZengQin/20200911/#4670/for media controller
 	.network_state_changed = ffmpeg_source_network_state_changed,
+	//PRISM/ZengQin/20210526/#none/Get properties parameters
+	.props_params = get_props_params,
 };

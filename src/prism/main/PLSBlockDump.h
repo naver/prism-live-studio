@@ -1,10 +1,11 @@
 #pragma once
+#include <atomic>
 #include <Windows.h>
 #include <string>
 #include <QObject>
 #include <QTimerEvent>
 
-// %APPDATA%\PRISMLiveStudio\dump
+// %APPDATA%\PRISMLiveStudio\blockDump
 class PLSBlockDump : public QObject {
 	Q_OBJECT
 
@@ -19,6 +20,7 @@ public:
 
 	void StartMonitor();
 	void StopMonitor();
+	void SignExitEvent();
 
 protected:
 	virtual void timerEvent(QTimerEvent *event);
@@ -27,13 +29,13 @@ protected:
 	void CheckThreadInner();
 	bool IsHandleSigned(const HANDLE &hEvent, DWORD dwMilliSecond);
 	bool IsBlockState(DWORD preHeartbeat, DWORD currentTime);
-	void SaveDumpFile(int index);
+	std::wstring SaveDumpFile(int index);
 
 private:
 	std::wstring dumpDirectory = L""; // include "\" at the tail
 
 	int heartbeatTimer = 0;
-	DWORD preHeartbeatTime = GetTickCount();
+	std::atomic<DWORD> preHeartbeatTime = GetTickCount();
 
 	HANDLE checkBlockThread = 0;
 	HANDLE threadExitEvent = 0;

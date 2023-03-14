@@ -537,7 +537,7 @@ std::vector<PrePassMode> Plugin::AMD::EncoderH265::CapsPrePassMode()
 	} else {
 		std::vector<PrePassMode> ret;
 		for (const amf::AMFEnumDescriptionEntry* enm = var->pEnumDescription; enm->name != nullptr; enm++) {
-			PLOG_ERROR("Unknown Pre-Pass Mode: %ls %lld", enm->name, enm->value);
+			PLOG_WARNING("Unknown Pre-Pass Mode: %ls %lld", enm->name, enm->value);
 			//ret.push_back(Utility::PrePassModeFromAMFH265((AMF_VIDEO_ENCODER_PREENCODE_MODE_ENUM)enm->value));
 		}
 		return ret;
@@ -995,6 +995,19 @@ bool Plugin::AMD::EncoderH265::IsFillerDataEnabled()
 	return e;
 }
 
+//PRISM/ZengQin/20210528/#none/get encoder props params
+obs_data_t * Plugin::AMD::EncoderH265::GetPropsPramas()
+{
+	obs_data_t* params = obs_data_create();
+	obs_data_set_int(params, "bitrate", GetTargetBitrate() / 1000);
+	obs_data_set_string(params, "profile", Utility::ProfileToString(GetProfile()));
+	obs_data_set_int(params, "width", m_Resolution.first);
+	obs_data_set_int(params, "height", m_Resolution.second);
+	obs_data_set_int(params, "bframes", 0);
+	obs_data_set_int(params, "IDR", GetIDRPeriod());
+	return params;
+}
+
 std::pair<uint8_t, uint8_t> Plugin::AMD::EncoderH265::CapsIFrameQPMinimum()
 {
 	const amf::AMFPropertyInfo* var;
@@ -1346,6 +1359,7 @@ void Plugin::AMD::EncoderH265::PacketPriorityAndKeyframe(amf::AMFDataPtr& pData,
 	uint64_t pktType;
 	pData->GetProperty(AMF_VIDEO_ENCODER_HEVC_OUTPUT_DATA_TYPE, &pktType);
 	switch ((AMF_VIDEO_ENCODER_HEVC_OUTPUT_DATA_TYPE_ENUM)pktType) {
+	case AMF_VIDEO_ENCODER_HEVC_OUTPUT_DATA_TYPE_IDR:
 	case AMF_VIDEO_ENCODER_HEVC_OUTPUT_DATA_TYPE_I:
 		packet->keyframe = true;
 		packet->priority = 1;
@@ -1512,6 +1526,5 @@ void Plugin::AMD::EncoderH265::LogProperties()
 #pragma endregion Experimental
 }
 #endif
-
 
 /* clang-format on */

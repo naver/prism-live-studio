@@ -82,7 +82,6 @@ signals:
 
 public:
 	static void OnSourceCaptureState(void *data, calldata_t *calldata);
-	static void BeautySourceStatusChanged(void *data, calldata_t *params);
 
 	static QString GetErrorTips(const char *id, enum obs_source_error error);
 
@@ -126,6 +125,7 @@ private:
 	OBSSignal visibleSignal;
 	OBSSignal lockedSignal;
 	OBSSignal renameSignal;
+	OBSSignal renameExtSignal;
 	OBSSignal removeSignal;
 
 	bool selected;
@@ -144,6 +144,7 @@ private slots:
 	void VisibilityChanged(bool visible);
 	void LockedChanged(bool locked);
 	void Renamed(const QString &name);
+	void RenamedExt();
 
 	void ExpandClicked(bool checked);
 
@@ -210,8 +211,8 @@ public:
 	QSourceScrollBar(QWidget *parent = nullptr) : QScrollBar(parent) {}
 	virtual ~QSourceScrollBar() {}
 
-	void hideEvent(QHideEvent *e) { emit SourceScrollShow(false); }
-	void showEvent(QShowEvent *e) { emit SourceScrollShow(true); }
+	void hideEvent(QHideEvent *) { emit SourceScrollShow(false); }
+	void showEvent(QShowEvent *) { emit SourceScrollShow(true); }
 
 signals:
 	void SourceScrollShow(bool isShow);
@@ -276,7 +277,6 @@ public slots:
 	void AddGroup();
 	void Edit(int idx);
 	void OnSourceStateChanged(unsigned long long srcPtr);
-	void OnBeautySourceStatusChanged(const QString &sourceName, bool status);
 	void OnSourceItemRemove(unsigned long long sceneItemPtr);
 	void OnSelectItemChanged(OBSSceneItem item, bool selected);
 	void OnVisibleItemChanged(OBSSceneItem item, bool visible);
@@ -298,5 +298,4 @@ signals:
 	void VisibleItemChanged(OBSSceneItem item, bool visible);
 	void itemsRemove(QVector<OBSSceneItem> items);
 	void itemsReorder();
-	void beautyStatusChanged(const QString &sourceName, bool status);
 };

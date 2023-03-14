@@ -1,6 +1,7 @@
 #include "PLSNetworkMonitor.h"
 #include "liblog.h"
 #include "log/module_names.h"
+#include "log/log.h"
 
 #ifdef WIN32
 #pragma comment(lib, "ole32.lib")
@@ -132,7 +133,7 @@ bool PLSNetworkMonitor::StartListen()
 			internetAvailable = IsInternetOK(nlmConnectivity);
 		}
 
-		PLS_INFO(NETWORK_ENVIRONMENT, "Successed to init PLSNetworkMonitor. Internet state : %s", internetAvailable ? "CONNECTED" : "DISCONNECTED");
+		PLS_INIT_INFO(NETWORK_ENVIRONMENT, "Successed to init PLSNetworkMonitor. Internet state : %s", internetAvailable ? "CONNECTED" : "DISCONNECTED");
 		networkInited = true;
 		return true;
 

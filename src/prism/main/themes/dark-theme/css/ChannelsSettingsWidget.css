@@ -2,7 +2,7 @@ ChannelsSettingsWidget {
 	min-width: /*hdpi*/ 775px;
 	min-height: /*hdpi*/ 482px;
 	max-width: /*hdpi*/ 775px;
-	max-height: /*hdpi*/ 482px;
+	max-height: /*hdpi*/ 1250px;
 	margin: 0px;
 	padding: 0px;
 }
@@ -41,8 +41,8 @@ ChannelsSettingsWidget {
 	ChannelsSettingsWidget #boxFrame {
 		margin: /*hdpi*/ 10px /*hdpi*/ 20px /*hdpi*/ 0px /*hdpi*/ 10px;
 		padding: /*hdpi*/ 0px;
-		min-height: /*hdpi*/ 18px;
-		max-height: /*hdpi*/ 18px;
+		min-height: /*hdpi*/ 28px;
+		max-height: /*hdpi*/ 28px;
 		border: none;
 		background-color: transparent;
 	}
@@ -65,13 +65,13 @@ ChannelsSettingsWidget {
 		background-color: transparent;
 		border: /*hdpi*/ none;
 		padding: /*hdpi*/ 0px /*hdpi*/ 25px /*hdpi*/ 0px /*hdpi*/ 0px;
-		margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+		margin: /*hdpi*/ 5px /*hdpi*/ 0px /*hdpi*/ 5px /*hdpi*/ 0px;
 		font-size: /*hdpi*/ 12px;
 		font-weight: bold;
 		font-style: normal;
 		color: transparent;
-		qproperty-minimumSize: /*hdpi*/ 115px /*hdpi*/ 16px;
-		qproperty-maximumSize: /*hdpi*/ 115px /*hdpi*/ 16px;
+		qproperty-minimumSize: /*hdpi*/ 150px /*hdpi*/ 26px;
+		qproperty-maximumSize: /*hdpi*/ 150px /*hdpi*/ 26px;
 	}
 
 
@@ -99,7 +99,7 @@ ChannelsSettingsWidget {
 			}
 
 
-		ChannelsSettingsWidget #ChannelsListCombox QPushButton {
+		ChannelsSettingsWidget #ChannelsListCombox > QPushButton {
 			background-color: transparent;
 			margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
 			padding: /*hdpi*/ 0px /*hdpi*/ 25px /*hdpi*/ 0px /*hdpi*/ 0px;
@@ -109,73 +109,73 @@ ChannelsSettingsWidget {
 			color: #a3a3a3;
 			text-align: right;
 			min-width: /*hdpi*/ 90px;
-			max-width: /*hdpi*/ 115px;
+			max-width: /*hdpi*/ 150px;
 			min-height: /*hdpi*/ 16px;
 			max-height: /*hdpi*/ 16px;
 		}
 
-			ChannelsSettingsWidget #ChannelsListCombox QPushButton:hover {
+			ChannelsSettingsWidget #ChannelsListCombox > QPushButton:hover {
 				color: white;
 			}
 
-			ChannelsSettingsWidget #ChannelsListCombox QPushButton:pressed, ChannelsSettingsWidget #ChannelsListCombox QPushButton:checked {
+			ChannelsSettingsWidget #ChannelsListCombox > QPushButton:pressed, ChannelsSettingsWidget #ChannelsListCombox > QPushButton:checked {
 				color: #effc35;
 			}
 
 
-			ChannelsSettingsWidget #ChannelsListCombox QPushButton:disabled {
+			ChannelsSettingsWidget #ChannelsListCombox > QPushButton:disabled {
 				color: #666666;
 			}
 
-	ChannelsSettingsWidget PLSComboBoxListView {
-		border: /*hdpi*/ 1px solid #111111;
-		padding: /*hdpi*/ 7px /*hdpi*/ 0px /*hdpi*/ 2px /*hdpi*/ 0px;
-		margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
-		background-color: #2d2d2d;
-		min-width: /*hdpi*/ 115px;
-		min-height: /*hdpi*/ 259px;
-	}
-
-		ChannelsSettingsWidget PLSComboBoxListView QLabel#itemLabel {
-			padding-left: /*hdpi*/ 12px;
-			font-size: /*hdpi*/ 12px;
-			font-weight: normal;
-			font-style: normal;
-			color: #bababa;
+		ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView {
+			border: /*hdpi*/ 1px solid #111111;
+			padding: /*hdpi*/ 7px /*hdpi*/ 0px /*hdpi*/ 2px /*hdpi*/ 0px;
+			margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
 			background-color: #2d2d2d;
+			min-width: /*hdpi*/ 150px;
+			min-height: /*hdpi*/ 259px;
 		}
 
-			ChannelsSettingsWidget PLSComboBoxListView QLabel#itemLabel[isHover="true"],
-			ChannelsSettingsWidget PLSComboBoxListView QLabel#itemLabel[isCurrent="true"] {
+			ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView QLabel#itemLabel {
+				padding-left: /*hdpi*/ 12px;
+				font-size: /*hdpi*/ 12px;
+				font-weight: normal;
+				font-style: normal;
+				color: #bababa;
 				background-color: #2d2d2d;
 			}
 
-			ChannelsSettingsWidget PLSComboBoxListView QLabel#itemLabel[isHover="true"] {
-				color: white;
-				background-color: #2d2d2d;
+				ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView QLabel#itemLabel[isHover="true"],
+				ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView QLabel#itemLabel[isCurrent="true"] {
+					background-color: #2d2d2d;
+				}
+
+				ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView QLabel#itemLabel[isHover="true"] {
+					color: white;
+					background-color: #2d2d2d;
+				}
+
+			ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView:focus {
+				outline: none;
 			}
 
-		ChannelsSettingsWidget PLSComboBoxListView:focus {
-			outline: none;
-		}
-
-		ChannelsSettingsWidget PLSComboBoxListView::item {
-			font-size: /*hdpi*/ 12px;
-			font-weight: normal;
-			font-style: normal;
-			color: #bababa;
-			background-color: transparent;
-			height: /*hdpi*/ 28px;
-		}
-
-			ChannelsSettingsWidget PLSComboBoxListView::item:selected {
+			ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView::item {
+				font-size: /*hdpi*/ 12px;
+				font-weight: normal;
+				font-style: normal;
+				color: #bababa;
 				background-color: transparent;
+				height: /*hdpi*/ 28px;
 			}
 
-			ChannelsSettingsWidget PLSComboBoxListView::item:hover {
-				color: white;
-				background-color: transparent;
-			}
+				ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView::item:selected {
+					background-color: transparent;
+				}
+
+				ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView::item:hover {
+					color: white;
+					background-color: transparent;
+				}
 
 	ChannelsSettingsWidget #ChannelsScrollArea {
 		background-color: transparent;

@@ -16,6 +16,7 @@
 #include <QPen>
 
 #include "PLSDpiHelper.h"
+#include "log/log.h"
 
 Q_DECLARE_METATYPE(OBSSource);
 
@@ -191,11 +192,10 @@ void PLSFiltersListView::mouseMoveEvent(QMouseEvent *event)
 			QDrag *drag = new QDrag(this);
 			QMimeData *mimeData = new QMimeData();
 			startDragIndex = this->row(startDragItem);
-
 			mimeData->setData(FILTER_DRAG_MIME_TYPE, QByteArray(QString::number(startDragIndex).toStdString().c_str()));
-			//QPixmap pixmap = grab();
-			//drag->setHotSpot(QPoint(pixmap.width() / 2, pixmap.height() / 2));
-			//drag->setPixmap(pixmap);
+			QPixmap pixmap = grab(this->rectForIndex(this->indexFromItem(startDragItem)));
+			drag->setHotSpot(QPoint(startDragPoint.x(), pixmap.height() / 2));
+			drag->setPixmap(pixmap);
 
 			drag->setMimeData(mimeData);
 			drag->exec(Qt::CopyAction | Qt::MoveAction, Qt::CopyAction);
@@ -249,10 +249,25 @@ void PLSFiltersListView::dropEvent(QDropEvent *event)
 		event->setDropAction(Qt::MoveAction);
 		event->accept();
 		isDraging = false;
-		auto currentItem = this->itemAt(event->pos());
-		int currentIndex = this->row(currentItem);
-		if (-1 == currentIndex || currentIndex >= this->count()) {
+
+		QRect currentRect;
+		int currentIndex = row(this->itemAt(event->pos()));
+		if (currentIndex < 0 || currentIndex >= this->count()) {
 			currentIndex = this->count() - 1;
+			currentRect = visualRect(this->indexFromItem(this->item(this->count() - 1)));
+		} else {
+			currentRect = visualRect(this->indexAt(event->pos()));
+		}
+
+		QPoint topleft = currentRect.topLeft();
+		if (event->pos().y() - topleft.y() <= FILTERS_ITEM_VIEW_FIXED_HEIGHT / 2) {
+			if (startDragIndex < currentIndex) {
+				currentIndex <= 0 ? currentIndex = 0 : currentIndex -= 1;
+			}
+		} else {
+			if (startDragIndex > currentIndex) {
+				currentIndex >= this->count() - 1 ? currentIndex = this->count() - 1 : currentIndex += 1;
+			}
 		}
 
 		startDragSource = this->GetFilter(startDragIndex);
@@ -262,7 +277,7 @@ void PLSFiltersListView::dropEvent(QDropEvent *event)
 	}
 }
 
-void PLSFiltersListView::dragLeaveEvent(QDragLeaveEvent *event)
+void PLSFiltersListView::dragLeaveEvent(QDragLeaveEvent *)
 {
 	isDraging = false;
 	update();
@@ -334,7 +349,7 @@ void PLSFiltersListView::OnFinishingEditName(const QString &text, PLSFiltersItem
 	} else {
 		const char *sourceName = obs_source_get_name(source);
 
-		blog(LOG_INFO, "User renamed filter '%s' on source '%s' to '%s'", prevName, sourceName, name.c_str());
+		PLS_INFO(MAINFILTER_MODULE, "User renamed filter '%s' on source '%s' to '%s'", prevName, sourceName, name.c_str());
 
 		item->SetText(QT_UTF8(name.c_str()));
 		obs_source_set_name(filter, name.c_str());

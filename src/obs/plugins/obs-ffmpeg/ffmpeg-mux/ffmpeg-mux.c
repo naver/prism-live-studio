@@ -18,6 +18,8 @@
 #include <io.h>
 #include <fcntl.h>
 #include <windows.h>
+#include <Shlwapi.h>
+#pragma comment(lib, "Shlwapi.lib")
 #define inline __inline
 
 #endif
@@ -64,6 +66,21 @@ static inline void resize_buf_resize(struct resize_buf *rb, size_t size)
 static inline void resize_buf_free(struct resize_buf *rb)
 {
 	free(rb->buf);
+}
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
+static void extract_file_name(const char *full_path, char *output_buf,
+			      int buf_len)
+{
+	if (output_buf)
+		memset(output_buf, 0, buf_len);
+
+	if (!full_path || !output_buf) {
+		return;
+	}
+
+	LPCSTR name = PathFindFileNameA(full_path);
+	sprintf_s(output_buf, buf_len - 1, "%s", name ? name : "");
 }
 
 /* ------------------------------------------------------------------------- */
@@ -471,8 +488,11 @@ static inline int open_output_file(struct ffmpeg_mux *ffm)
 		ret = avio_open(&ffm->output->pb, ffm->params.file,
 				AVIO_FLAG_WRITE);
 		if (ret < 0) {
-			fprintf(stderr, "Couldn't open '%s', %s",
-				ffm->params.file, av_err2str(ret));
+			char temp[256];
+			extract_file_name(ffm->params.file, temp,
+					  ARRAY_SIZE(temp) - 1);
+			fprintf(stderr, "Couldn't open '%s', %s", temp,
+				av_err2str(ret));
 			return FFM_ERROR;
 		}
 	}
@@ -503,7 +523,9 @@ static inline int open_output_file(struct ffmpeg_mux *ffm)
 
 	ret = avformat_write_header(ffm->output, &dict);
 	if (ret < 0) {
-		fprintf(stderr, "Error opening '%s': %s", ffm->params.file,
+		char temp[256];
+		extract_file_name(ffm->params.file, temp, ARRAY_SIZE(temp) - 1);
+		fprintf(stderr, "Error opening '%s': %s", temp,
 			av_err2str(ret));
 
 		av_dict_free(&dict);
@@ -523,8 +545,10 @@ static int ffmpeg_mux_init_context(struct ffmpeg_mux *ffm)
 
 	output_format = av_guess_format(NULL, ffm->params.file, NULL);
 	if (output_format == NULL) {
+		char temp[256];
+		extract_file_name(ffm->params.file, temp, ARRAY_SIZE(temp) - 1);
 		fprintf(stderr, "Couldn't find an appropriate muxer for '%s'\n",
-			ffm->params.file);
+			temp);
 		return FFM_ERROR;
 	}
 

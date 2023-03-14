@@ -93,6 +93,18 @@ PLSBasicSourceSelect #createNew{
 	background: transparent;
 }
 
+PLSBasicSourceSelect #createNew::indicator {
+	padding: 0;
+	width: /*hdpi*/ 18px;
+	height: /*hdpi*/ 18px;
+}
+
+PLSBasicSourceSelect #selectExisting::indicator {
+	padding: 0;
+	width: /*hdpi*/ 18px;
+	height: /*hdpi*/ 18px;
+}
+
 PLSBasicSourceSelect #selectExisting{
 	min-height:/*hdpi*/ 18px;
 	max-height:/*hdpi*/ 18px;

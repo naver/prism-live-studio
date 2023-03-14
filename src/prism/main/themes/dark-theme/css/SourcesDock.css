@@ -12,8 +12,8 @@ PLSDock#sourcesDock QListView:focus{
 }
 
 PLSDock#sourcesDock PLSDockTitle{
-	qproperty-marginLeft:/*hdpi*/18;
-	qproperty-marginRight:/*hdpi*/5;
+	qproperty-marginLeft:/*hdpi*/19;
+	qproperty-marginRight:/*hdpi*/9;
 	qproperty-contentSpacing:/*hdpi*/10;
 	qproperty-captionHeight:/*hdpi*/50;
 }

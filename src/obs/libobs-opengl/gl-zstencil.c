@@ -65,7 +65,7 @@ gs_zstencil_t *device_zstencil_create(gs_device_t *device, uint32_t width,
 	zs->device = device;
 
 	if (!gl_init_zsbuffer(zs, width, height)) {
-		blog(LOG_ERROR, "device_zstencil_create (GL) failed");
+		plog(LOG_ERROR, "device_zstencil_create (GL) failed");
 		gs_zstencil_destroy(zs);
 		return NULL;
 	}

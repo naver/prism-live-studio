@@ -89,7 +89,7 @@ class OutputFilter : public IBaseFilter {
 
 	volatile long refCount;
 	FILTER_STATE state;
-	ComPtr<IFilterGraph> graph;
+	IFilterGraph *graph;
 	ComPtr<OutputPin> pin;
 
 	ComPtr<IAMFilterMiscFlags> misc;

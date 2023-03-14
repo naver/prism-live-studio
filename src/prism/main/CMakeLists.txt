@@ -47,9 +47,10 @@ set(CMAKE_AUTOMOC TRUE)
 
 find_package(Qt5Svg REQUIRED)
 find_package(Qt5Network REQUIRED)
+find_package(Qt5WebSockets REQUIRED)
 
 find_package(FFmpeg REQUIRED COMPONENTS avcodec avutil avformat)
-find_package(Qt5 COMPONENTS Multimediawidgets Multimedia REQUIRED)
+find_package(Qt5 COMPONENTS Multimediawidgets Multimedia xml REQUIRED)
 
 if(APPLE)
 	find_package(Qt5MacExtras REQUIRED)
@@ -71,6 +72,7 @@ include_directories(SYSTEM "frontend-api")
 include_directories(SYSTEM "$ENV{OBS_DIR}/libobs")
 include_directories(SYSTEM "$ENV{OBS_DIR}/deps/libff")
 include_directories(SYSTEM "$ENV{OBS_DIR}/deps/json11")
+include_directories(deps/mosquitto/include)
 #channels config
 include_directories(
 	.
@@ -86,15 +88,22 @@ include_directories(
 	"$ENV{PRISM_DIR}/main/themes"
 	"$ENV{PRISM_DIR}/main/PLSPlatformApi/afreecatv"
 	"$ENV{PRISM_DIR}/main/PLSPlatformApi/facebook"
+	"$ENV{PRISM_DIR}/main/PLSPlatformApi/naver-shopping-live"
+	"$ENV{PRISM_DIR}/main/virtual"
+	"$ENV{PRISM_DIR}/main/ResolutionTips"
 	"${CMAKE_CURRENT_BINARY_DIR}"
+    "$ENV{PRISM_DIR}/main/PLSResources"
+
 	)
 if(BROWSER_AVAILABLE_INTERNAL)
 	include_directories(SYSTEM "$ENV{OBS_DIR}/plugins/obs-browser/panel")
+	include_directories(SYSTEM "$ENV{OBS_DIR}/plugins/obs-browser")
+	include_directories("$ENV{OBS_DIR}/deps/cef/win64/include")
 endif()
 
 find_package(Libcurl REQUIRED)
 include_directories(${LIBCURL_INCLUDE_DIRS})
-add_definitions(${LIBCURL_DEFINITIONS})
+add_definitions(${LIBCURL_DEFINITIONS} -D_WINSOCK_DEPRECATED_NO_WARNINGS)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
@@ -124,7 +133,7 @@ elseif(MSVC)
 	endif()
 
 #Disable pointless constant condition warnings
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4127 /wd4201 /wd4456 /wd4457 /wd4458 /wd4459 /wd4595")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4127 /wd4201 /wd4456 /wd4457 /wd4458 /wd4459 /wd4595 /wd26812 /wd4125")
 endif()
 
 if(WIN32)
@@ -178,6 +187,9 @@ add_subdirectory(frontend-plugins)
 add_subdirectory(channels)
 add_subdirectory(PLSPlatformApi)
 add_subdirectory(themes)
+add_subdirectory(virtual)
+add_subdirectory(ResolutionTips)
+add_subdirectory(PLSResources)
 if(WIN32)
 #add_subdirectory(win - update / updater)
 endif()
@@ -188,7 +200,7 @@ if(WIN32)
 		$ENV{OBS_DIR}/deps/blake2/src
 		${CMAKE_CURRENT_SOURCE_DIR}/deps/nelo/include
 		$ENV{PRISM_DIR}/libs/HMAC/include
-		$ENV{PRISM_DIR}/plugins/prism-channel-controller/prism-channel-controller-plugin)
+		$ENV{PRISM_DIR}/ResolutionTips)
 	link_directories(
 		$ENV{OBS_BUILD_DIR}/$ENV{MULTI_ARCH}/libobs
 		$ENV{OBS_BUILD_DIR}/$ENV{MULTI_ARCH}/deps/jansson/lib
@@ -197,9 +209,13 @@ if(WIN32)
 
 	set(pls_PLATFORM_SOURCES
 		platform-windows.cpp
+		win-update/win-update.cpp
+		win-update/update-view.cpp
 		"${CMAKE_CURRENT_BINARY_DIR}/pls.rc")
-	set(pls_PLATFORM_HEADERS)
-	set(pls_PLATFORM_UIS)
+	set(pls_PLATFORM_HEADERS
+		win-update/update-view.hpp)
+	set(pls_PLATFORM_UIS
+		win-update/forms/PLSUpdateView.ui)
 	set(pls_PLATFORM_LIBRARIES
 		crypt32
 		blake2)
@@ -298,9 +314,25 @@ if(MSVC)
 		w32-pthreads)
 endif()
 
+if(WIN32)
+	set(pls_performance_HEADERS
+		PLSPerformance/PLSPerfCounter.hpp
+		PLSPerformance/PLSPerfHelper.hpp
+		PLSPerformance/PLSPerfDefine.hpp
+	)
+
+	set(pls_performance_SOURCES
+		PLSPerformance/PLSPerfCounter.cpp
+		PLSPerformance/PLSPerfHelper.cpp
+	)
+
+	source_group("PLSPerformance" FILES ${pls_performance_HEADERS} ${pls_performance_SOURCES})
+endif()
+
 set(pls_SOURCES
 	${pls_PLATFORM_SOURCES}
 	${pls_libffutil_SOURCES}
+	${pls_performance_SOURCES}
 	../../obs/deps/json11/json11.cpp
 	pls-app.cpp
 	window-dock.cpp
@@ -356,22 +388,42 @@ set(pls_SOURCES
 	remote-text.cpp
 	audio-encoders.cpp
 	qt-wrappers.cpp
+	channel-login-view.cpp
 	main-view.cpp
 	spinbox.cpp
 	browser-view.cpp
+	login-common-helper.cpp
+	login-user-info.cpp
+	json-data-handler.cpp
 	network-access-manager.cpp
+	login-web-handler.cpp
 	network-environment.cpp
 	loading-event.cpp
-	json-data-handler.cpp
-	login-common-helper.cpp
+	PLSSyncServerManager.cpp
+	PLSServerStreamHandler.cpp
 	pls-gpop-data.cpp
+	PLSImageListView.cpp
+	PLSMotionFileManager.cpp
+	PLSMotionImageListView.cpp
+	PLSMotionNetwork.cpp
+	PLSMyMotionListView.cpp
+	PLSPrismListView.cpp
+	PLSRecentListView.cpp
+	pls-setting-general-view.cpp
 	pls-complex-header-icon.cpp
+	pls-notice-handler.cpp
 	color-circle.cpp
+	notice-view.cpp
 	about-view.cpp
 	custom-help-menu-item.cpp
+	PLSContactView.cpp
 	PLSFileButton.cpp
 	PLSFileItemView.cpp
 	PLSOpenSourceView.cpp
+	PLSUSBStackView.cpp
+	PLSUSBWiFiHelpView.cpp
+	PLSWiFiStackView.cpp
+	PLSWiFiUSBTipView.cpp
 	PLSSceneDataMgr.cpp
 	PLSSceneItemView.cpp
 	PLSSceneListView.cpp
@@ -384,6 +436,7 @@ set(pls_SOURCES
 	PLSHttpApi/PLSHttpHelper.cpp
 	PLSHttpApi/PLSNetworkReplyBuilder.cpp
 	PLSHttpApi/PLSHmacNetworkReplyBuilder.cpp
+	PLSHttpApi/PLSFileDownloader.cpp
 	PLSMenu.cpp
 	PLSLivingMsgView.cpp
 	PLSLivingMsgItem.cpp
@@ -393,6 +446,7 @@ set(pls_SOURCES
 	PLSSourceTypeList.cpp
 	PLSFilterTypeList.cpp
 	PLSCompleter.cpp
+	PLSMosquitto/PLSMosquitto.cpp
 	PLSCommonScrollBar.cpp
 	unzip.cpp
 	PLSBeautyFilterView.cpp
@@ -424,11 +478,21 @@ set(pls_SOURCES
 	PLSBlockDump.cpp
 	PLSRegionCapture.cpp
 	PLSBgmItemDelegate.cpp
+	PLSLoadingView.cpp
+	PLSLoadNextPage.cpp
+	PLSTestModule.cpp
+	PLSDialogSavePCM.cpp
+	PLSPrismSticker.cpp
+	PLSStickerDataHandler.cpp
+	PLSAddSourceView.cpp
+	PLSInfoCollector.cpp
+	PLSGetPropertiesThread.cpp
 	)
 
 set(pls_HEADERS
 	${pls_PLATFORM_HEADERS}
 	${pls_libffutil_HEADERS}
+	${pls_performance_HEADERS}
 	../../obs/deps/json11/json11.hpp
 	pls-app.hpp
 	platform.hpp
@@ -485,27 +549,49 @@ set(pls_HEADERS
 	audio-encoders.hpp
 	qt-wrappers.hpp
 	clickable-label.hpp
+	channel-login-view.hpp
 	main-view.hpp
 	spinbox.hpp
 	browser-view.hpp
 	pls-common-define.hpp
 	pls-net-url.hpp
+	login-common-helper.hpp
+	login-common-struct.hpp
+	login-user-info.hpp
 	free-network-reply-guard.hpp
 	json-data-handler.hpp
-	login-common-helper.hpp
 	network-access-manager.hpp
+	login-web-handler.hpp
 	pls-common-language.hpp
 	network-environment.hpp
 	loading-event.hpp
+	PLSSyncServerManager.hpp
+	PLSServerStreamHandler.hpp
 	pls-gpop-data.hpp
 	pls-gpop-data-struct.hpp
+	PLSImageListView.h
+	PLSMotionDefine.h
+	PLSMotionFileManager.h
+	PLSMotionImageListView.h
+	PLSMotionNetwork.h
+	PLSMyMotionListView.h
+	PLSPrismListView.h
+	PLSRecentListView.h
+	pls-setting-general-view.hpp
 	pls-complex-header-icon.hpp
+	pls-notice-handler.hpp
 	color-circle.hpp
+	notice-view.hpp
 	about-view.hpp
 	custom-help-menu-item.hpp
+	PLSContactView.hpp
 	PLSFileButton.hpp
 	PLSFileItemView.hpp
 	PLSOpenSourceView.h
+	PLSUSBStackView.h
+	PLSUSBWiFiHelpView.h
+	PLSWiFiStackView.h
+	PLSWiFiUSBTipView.h
 	PLSSceneDataMgr.h
 	PLSSceneItemView.h
 	PLSSceneListView.h
@@ -518,6 +604,7 @@ set(pls_HEADERS
 	PLSHttpApi/PLSHttpHelper.h
 	PLSHttpApi/PLSNetworkReplyBuilder.h
 	PLSHttpApi/PLSHmacNetworkReplyBuilder.h
+	PLSHttpApi/PLSFileDownloader.h
 	PLSMenu.hpp
 	PLSLivingMsgItem.hpp
 	PLSLivingMsgView.hpp
@@ -525,6 +612,7 @@ set(pls_HEADERS
 	PLSToastMsgPopup.hpp
 	PLSPreviewTitle.h
 	PLSCompleter.hpp
+	PLSMosquitto/PLSMosquitto.h
 	PLSCommonScrollBar.h
 	unzip.h
 	PLSBeautyFilterView.h
@@ -557,6 +645,16 @@ set(pls_HEADERS
 	PLSBlockDump.h
 	PLSRegionCapture.h
 	PLSBgmItemDelegate.h
+	PLSLoadingView.h
+	PLSLoadNextPage.h
+	PLSTestModule.h
+	PLSDialogSavePCM.h
+	PLSPrismSticker.h
+	PLSThumbnailLabel.hpp
+	PLSStickerDataHandler.h
+	PLSAddSourceView.h
+	PLSInfoCollector.h
+	PLSGetPropertiesThread.h
 	)
 
 
@@ -576,14 +674,27 @@ set(pls_UI
 	forms/PLSExtraBrowsers.ui
 	forms/PLSRemux.ui
 	forms/PLSAbout.ui
+	forms/PLSChannelLoginView.ui
 	forms/PLSMainView.ui
 	forms/PLSBrowserView.ui
+	forms/PLSSettingGeneralView.ui
 	forms/PLSComplexHeaderIcon.ui
+	forms/PLSNoticeView.ui
 	forms/PLSAboutView.ui
 	forms/PLSCustomHelpMenuItem.ui
+	forms/PLSContactView.ui
 	forms/PLSFileButton.ui
 	forms/PLSFileItemView.ui
 	forms/PLSOpenSourceView.ui
+	forms/PLSImageListView.ui
+	forms/PLSMotionImageListView.ui
+	forms/PLSMyMotionListView.ui
+	forms/PLSPrismListView.ui
+	forms/PLSRecentListView.ui
+	forms/PLSUSBStackView.ui
+	forms/PLSUSBWiFiHelpView.ui
+	forms/PLSWiFiStackView.ui
+	forms/PLSWiFiUSBTipView.ui
 	${pls_PLATFORM_UIS}
 	forms/PLSSceneItemView.ui
 	forms/PLSSceneListView.ui
@@ -608,14 +719,26 @@ set(pls_UI
 	forms/PLSGipyStickerView.ui
 	forms/PLSSearchPopupMenu.ui
 	forms/TextMotionTemplateButton.ui
-        forms/PLSBgmLibraryView.ui
-        forms/PLSBgmLibraryItem.ui
+	forms/PLSBgmLibraryView.ui
+	forms/PLSBgmLibraryItem.ui
+	forms/PLSBgmLibraryView.ui
+	forms/PLSBgmLibraryItem.ui
+	${PLSVirtualBg-UI_FILES}
+	${PLSResolution-UI_FILES}
+	${PLSResourcesMgr-UI_FILES}
+	forms/PLSTestModule.ui
+	forms/PLSDialogSavePCM.ui
+	forms/PLSPrismSticker.ui
+	forms/PLSAddSourceView.ui
+	forms/PLSAddSourceItem.ui
 	)
 
 set(pls_QRC
 	forms/PLSPrismLogin.qrc
 	forms/pls.qrc
-	${channels-RCC_FILES})
+	${channels-RCC_FILES}
+	DefaultSources.qrc
+	)
 
 qt5_wrap_ui(pls_UI_HEADERS ${pls_UI})
 qt5_add_resources(pls_QRC_SOURCES ${pls_QRC})
@@ -632,7 +755,14 @@ add_executable(PRISMLiveStudio WIN32
 	${channels-SRC_FILES}
 	${channels-HDR_FILES}
 	${PLSPlatformApi-SRC_FILES}
-	${PLSPlatformApi-HDR_FILES})
+	${PLSPlatformApi-HDR_FILES}
+	${PLSVirtualBg-SRC_FILES}
+	${PLSVirtualBg-HDR_FILES}
+	${PLSResolution-SRC_FILES}
+    ${PLSResolution-HDR_FILES}
+	${PLSResourcesMgr-SRC_FILES}
+    ${PLSResourcesMgr-HDR_FILES})
+
 add_obs_dependency(PRISMLiveStudio)
 add_dependencies(PRISMLiveStudio
     frontend-api)
@@ -643,6 +773,8 @@ if (MSVC)
 		Qt5::Network
 		Qt5::Svg
 		Qt5::Multimedia
+		Qt5::Xml
+		Qt5::WebSockets
 		frontend-api
 		liblog
 		Version
@@ -652,13 +784,15 @@ if (MSVC)
 		)
     link_obs(PRISMLiveStudio)
     link_jansson(PRISMLiveStudio)
-    link_hmac(PRISMLiveStudio)
+    link_mosquitto(PRISMLiveStudio)
 else()
 	target_link_libraries(PRISMLiveStudio
 		libobs
 		Qt5::Widgets
 		Qt5::Network
 		Qt5::Svg
+		Qt5::Xml
+		Qt5::WebSockets
 		frontend-api
 		liblog
 		${FFMPEG_LIBRARIES}
@@ -680,12 +814,12 @@ if (APPLE)
 endif()
 
 
-#channels config end
-
 define_graphic_modules(PRISMLiveStudio)
 
 install_obs_core(PRISMLiveStudio)
 install_obs_data(PRISMLiveStudio data prism-studio)
-install_obs_data_file(PRISMLiveStudio ../AUTHORS prism-studio/authors)
+#install_obs_data_file(PRISMLiveStudio ../AUTHORS prism-studio/authors)
 
 copy_prism_target(PRISMLiveStudio)
+
+add_subdirectory(SplashScreen)

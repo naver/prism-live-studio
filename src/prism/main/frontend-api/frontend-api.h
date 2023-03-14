@@ -14,11 +14,16 @@
 #include <QNetworkCookie>
 #include <QVariant>
 #include <QFileInfo>
+#include <QObject>
+#include <QDialogButtonBox>
 #include "../../prism/main/pls-gpop-data.hpp"
 #include "cancel.hpp"
 #include "obs.hpp"
+#include <vector>
 
 class PLSLoginInfo;
+
+#define PRISM_SSL pls_get_gpop_connection().ssl
 
 enum class PLSResultCheckingResult { Ok, Continue, Close };
 
@@ -31,7 +36,7 @@ enum class PLSResultCheckingResult { Ok, Continue, Close };
   * return:
   *     true for success
   */
-using pls_result_checking_callback_t = PLSResultCheckingResult (*)(QJsonObject &result, const QString &url, const QMap<QString, QString> &cookies);
+using pls_result_checking_callback_t = std::function<PLSResultCheckingResult(QJsonObject &result, const QString &url, const QMap<QString, QString> &cookies)>;
 
 /**
   * register login module info
@@ -106,6 +111,21 @@ FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, pls_res
 FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelName, pls_result_checking_callback_t callback,
 				   QWidget *parent = nullptr);
 /**
+  * popup browser view
+  * param:
+  *     [out] result: result data, for example: token, cookies, ...
+  *     [in] url: url
+  *     [in] headers: request headers
+  *     [in] script: javascript script
+  *     [in] callback: browser result check callback
+  *     [in-opt] parent: parent widget
+  * return:
+  *     json object
+  */
+FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelName, const std::string &script,
+				   pls_result_checking_callback_t callback, QWidget *parent = nullptr);
+
+/**
   * popup rtmp view
   * param:
   *     [out] result: result data, for example: token, cookies, ...
@@ -163,6 +183,7 @@ FRONTEND_API QList<QNetworkCookie> pls_get_cookies(const QJsonObject &cookies);
   *     true for success, false for failed
   */
 FRONTEND_API bool pls_sns_user_info(QJsonObject &result, const QList<QNetworkCookie> &cookies, const QString &urlStr);
+FRONTEND_API bool pls_google_user_info(std::function<void(bool ok, const QJsonObject &)> callback, const QString &redirect_uri, const QString &code, QObject *receiver);
 /**
   * close mainwindow and reset config show login view
 
@@ -195,7 +216,7 @@ FRONTEND_API QString pls_get_code_from_url(const QString &url_str);
 /*
 * channel login
 */
-FRONTEND_API bool pls_channel_login(QJsonObject &result, const QString &accountName, QWidget *parent);
+FRONTEND_API void pls_channel_login_async(std::function<void(bool ok, const QJsonObject &result)> &&callback, const QString &accountName, QWidget *parent);
 
 FRONTEND_API Common pls_get_gpop_common();
 FRONTEND_API VliveNotice pls_get_vlive_notice();
@@ -272,6 +293,22 @@ enum class pls_frontend_event {
 	PLS_FRONTEND_EVENT_PRISM_LOGIN,
 	PLS_FRONTEND_EVENT_LIVE_OR_RECORD_START,
 	PLS_FRONTEND_EVENT_LIVE_OR_RECORD_END,
+
+	//PRISM/Xiewei/20210113/#/add events for stream deck
+	PLS_FRONTEND_EVENT_ALL_MUTE,
+	PLS_FRONTEND_EVENT_SIDE_WINDOW_VISIBLE_CHANGED,
+	PLS_FRONTEND_EVENT_SIDE_WINDOW_ALL_REGISTERD,
+	PLS_FRONTEND_EVENT_PRISM_UPDATE_CPU_USAGE,
+	PLS_FRONTEND_EVENT_PRISM_UPDATE_FRAME_DROP,
+	PLS_FRONTEND_EVENT_PRISM_UPDATE_BITRATE,
+	PLS_FRONTEND_EVENT_PRISM_UPDATE_NOTICE_MESSAGE,
+	PLS_FRONTEND_EVENT_PRISM_LOGIN_STATE_CHANGED,
+	PLS_FRONTEND_EVENT_PRISM_STREAM_STATE_CHANGED,
+	PLS_FRONTEND_EVENT_PRISM_RECORD_STATE_CHANGED,
+
+	//PRISM/Zhangdewen/20210713/#8257/chat source record contains preview messages
+	PLS_FRONTEND_EVENT_STREAMING_START_FAILED,
+	PLS_FRONTEND_EVENT_SCENE_COLLECTION_ABOUT_TO_CHANGED
 };
 /**
   * frontend event callback
@@ -396,6 +433,13 @@ FRONTEND_API uint64_t pls_basic_config_get_uint(const char *section, const char 
 FRONTEND_API bool pls_basic_config_get_bool(const char *section, const char *name, bool defaultValue = false);
 FRONTEND_API double pls_basic_config_get_double(const char *section, const char *name, double defaultValue = 0.0);
 
+/**
+* the geometry is inside the visible screen area.
+* param:
+	[in] geometry
+**/
+FRONTEND_API bool pls_inside_visible_screen_area(QRect geometry);
+
 enum class pls_check_update_result_t {
 	Ok = 0x01,
 	Failed = 0x02,
@@ -407,6 +451,9 @@ enum class pls_check_update_result_t {
 enum class pls_upload_file_result_t {
 	Ok = 0x01,
 	NetworkError = 0x02,
+	EmailFormatError = 0x03,
+	FileFormatError = 0x04,
+	AttachUpToMaxFile = 0x05,
 };
 
 /**
@@ -513,7 +560,7 @@ FRONTEND_API void pls_flush_style(QWidget *widget);
 /*
 * flush widget style recursively
 */
-FRONTEND_API void pls_flush_style_recursive(QWidget *widget);
+FRONTEND_API void pls_flush_style_recursive(QWidget *widget, int recursiveDeep = -1);
 
 /*
 * flush widget style with property
@@ -522,8 +569,9 @@ FRONTEND_API void pls_flush_style(QWidget *widget, const char *propertyName, con
 
 /*
 * flush widget style recursively with property
+* recursiveDeep < 0, mean not limit the recursive deep.
 */
-FRONTEND_API void pls_flush_style_recursive(QWidget *widget, const char *propertyName, const QVariant &propertyValue);
+FRONTEND_API void pls_flush_style_recursive(QWidget *widget, const char *propertyName, const QVariant &propertyValue, int recursiveDeep = -1);
 /*
 * if the window Right Margin is out of the scrren, then move it to screen right border.
 */
@@ -556,6 +604,9 @@ FRONTEND_API OBSSource pls_get_source_by_pointer_address(void *pointerAddress);
 FRONTEND_API OBSSceneItem pls_get_sceneitem_by_pointer_address(OBSScene destScene, void *sceneitemAddress);
 FRONTEND_API OBSSceneItem pls_get_sceneitem_by_pointer_address(void *sceneitemAddress);
 
+FRONTEND_API void pls_get_all_source(std::vector<OBSSource> &vecSources);
+FRONTEND_API void pls_get_all_source(std::vector<OBSSource> &sources, const char *source_id, const char *name, std::function<bool(const char *value)> value);
+
 class QButtonGroup;
 
 struct ITextMotionTemplateHelper {
@@ -573,7 +624,36 @@ FRONTEND_API ITextMotionTemplateHelper *pls_get_text_motion_template_helper_inst
 /**
   * get current application language
   */
-FRONTEND_API QString pls_get_curreng_language();
+FRONTEND_API QString pls_get_current_language();
+
+FRONTEND_API QLocale::Language pls_get_current_language_enum();
+
+/**
+  * pt-BR -> pt
+  */
+FRONTEND_API QString pls_get_current_language_short_str();
+
+/**
+  * pt-BR -> BR
+  */
+FRONTEND_API QString pls_get_current_country_short_str();
+/*
+* check if current app language  is languge x
+* et. QLocale::English ->pls_is_match_current_language(QLocale::English);
+*/
+FRONTEND_API bool pls_is_match_current_language(QLocale::Language xlanguage);
+
+#define IS_ENGLISH() pls_is_match_current_language(QLocale::English)
+
+#define IS_KR() pls_is_match_current_language(QLocale::Korean)
+
+/**
+  * get current accept language
+  * return "qt;q=0.9, en;q=0.8, ko;q=0.7, *;q=0.5";
+  */
+FRONTEND_API QString pls_get_current_accept_language();
+
+FRONTEND_API bool pls_is_match_current_language(const QString &lang);
 
 /**
   * get actived chat channel count
@@ -604,3 +684,185 @@ FRONTEND_API void pls_network_state_monitor(std::function<void(bool)> &&callback
   * get network state
   */
 FRONTEND_API bool pls_get_network_state();
+
+/**
+  * show virtual background
+  */
+FRONTEND_API void pls_show_virtual_background();
+
+/**
+  * create virtual background resource list widget
+  */
+FRONTEND_API QWidget *pls_create_virtual_background_resource_widget(QWidget *parent, std::function<void(QWidget *)> &&init, bool forProperty = false, const QString &itemId = QString(),
+								    bool checkBoxState = false, bool switchToPrismFirst = false);
+
+/**
+  * get media size
+  */
+FRONTEND_API bool pls_get_media_size(QSize &size, const char *path);
+
+FRONTEND_API QPixmap pls_load_svg(const QString &path, const QSize &size);
+
+FRONTEND_API void pls_show_mobile_source_help();
+
+//PRISM/Xiewei/20210113/#/add apis for stream deck
+FRONTEND_API void pls_set_side_window_visible(int key, bool visible);
+FRONTEND_API void pls_mixer_mute_all(bool mute);
+FRONTEND_API bool pls_mixer_is_all_mute();
+FRONTEND_API QString pls_get_login_state();
+FRONTEND_API QString pls_get_stream_state();
+FRONTEND_API QString pls_get_record_state();
+FRONTEND_API bool pls_get_live_record_available();
+
+/**
+  * enum for window config key
+  */
+class FRONTEND_API WindowConfigEnum : public QObject {
+	Q_OBJECT
+public:
+	enum FeatureId { None = -1, BeautyConfig = 1, GiphyStickersConfig, BgmConfig, LivingMsgView, ChatConfig, WiFiConfig, VirtualbackgroundConfig, PrismStickerConfig };
+	Q_ENUM(FeatureId)
+};
+using ConfigId = WindowConfigEnum::FeatureId;
+
+struct SideWindowInfo {
+	QString windowName;
+	WindowConfigEnum::FeatureId id;
+	bool visible = false;
+};
+
+FRONTEND_API QList<SideWindowInfo> pls_get_side_windows_info();
+
+struct PrismStatus {
+	double cpuUsage = 0.0;
+	double totalCpu = 0.0;
+	double kbitsPerSec = 0.0;
+	int totalDrop = 0;
+	double dropPercent = 0.0;
+};
+Q_DECLARE_METATYPE(PrismStatus)
+
+FRONTEND_API int pls_get_toast_message_count();
+
+FRONTEND_API void pls_config_set_string(config_t *config, ConfigId id, const char *name, const char *value);
+FRONTEND_API void pls_config_set_int(config_t *config, ConfigId id, const char *name, int64_t value);
+FRONTEND_API void pls_config_set_uint(config_t *config, ConfigId id, const char *name, uint64_t value);
+FRONTEND_API void pls_config_set_bool(config_t *config, ConfigId id, const char *name, bool value);
+FRONTEND_API void pls_config_set_double(config_t *config, ConfigId id, const char *name, double value);
+
+FRONTEND_API const char *pls_config_get_string(config_t *config, ConfigId id, const char *name);
+FRONTEND_API int64_t pls_config_get_int(config_t *config, ConfigId id, const char *name);
+FRONTEND_API uint64_t pls_config_get_uint(config_t *config, ConfigId id, const char *name);
+FRONTEND_API bool pls_config_get_bool(config_t *config, ConfigId id, const char *name);
+FRONTEND_API double pls_config_get_double(config_t *config, ConfigId id, const char *name);
+
+FRONTEND_API bool pls_config_remove_value(config_t *config, ConfigId id, const char *name);
+
+enum class pls_blacklist_type {
+	None = 0,
+	GPUModel = (1 << 0),
+	GraphicsDrivers = (1 << 1),
+	DeviceDrivers = (1 << 2),
+	ThirdPlugins = (1 << 3),
+	VSTPlugins = (1 << 4),
+	ThirdPrograms = (1 << 5),
+	OtherType = (1 << 6),
+	ExceptionType = (1 << 7)
+};
+
+FRONTEND_API pls_blacklist_type pls_is_gpop_blacklist(QString value, pls_blacklist_type type);
+FRONTEND_API void pls_alert_third_party_plugins(QString pluginName, QWidget *parent = nullptr);
+
+FRONTEND_API bool pls_is_dev_server();
+FRONTEND_API QString pls_get_navershopping_deviceId();
+
+FRONTEND_API bool pls_run_http_server(const char *path, QString &addr, std::function<void(const QString &, const QJsonObject &)> callback);
+
+FRONTEND_API QDialogButtonBox::StandardButton pls_alert_warning(const char *title, const char *message);
+
+FRONTEND_API bool pls_get_app_exiting();
+FRONTEND_API void pls_set_app_exiting(bool);
+
+FRONTEND_API void pls_singletonWakeup();
+
+FRONTEND_API bool pls_is_test_mode();
+
+FRONTEND_API bool pls_is_immersive_audio();
+FRONTEND_API uint pls_get_live_start_time();
+/*
+* user indentify number
+* 900101-1*****
+*/
+FRONTEND_API QString pls_masking_identify_info(const QString &str);
+/*
+* datetime
+* 1990.***
+*/
+FRONTEND_API QString pls_masking_datetime_info(const QString &str);
+/*
+* passport
+* M488*****
+*/
+FRONTEND_API QString pls_masking_passport_info(const QString &str);
+
+/*
+* Region
+*  00-123***
+*/
+FRONTEND_API QString pls_masking_Region_info(const QString &str);
+/*
+* Bank Card
+* 예시: 1234-****-****-5678 / 1234-****-****-567
+*/
+FRONTEND_API QString pls_masking_bank_card_info(const QString &str);
+
+/*
+* user name or other information
+* LA***IM, SH***UB, LU***EI
+*/
+FRONTEND_API QString pls_masking_name_info(const QString &str);
+/*
+* ipv4/ipv6
+* 192.168.***.***
+*/
+FRONTEND_API QString pls_masking_ip_info(const QString &str);
+/*
+* address
+* 
+*/
+FRONTEND_API QString pls_masking_address_info(const QString &str);
+
+/*
+* email
+* pr****@naver.com
+*/
+FRONTEND_API QString pls_masking_email_info(const QString &str);
+/*
+* userid
+* priv***
+*/
+FRONTEND_API QString pls_masking_user_id_info(const QString &str);
+/*
+* other person info
+* P12345*****
+* Personal information without specific examples (personal customs clearance code, overseas account number, overseas ID card number, etc.)
+*/
+FRONTEND_API QString pls_masking_person_info(const QString &str);
+
+/*
+* long long 
+* 1234568*
+* mask long long data
+*/
+FRONTEND_API QString pls_masking_int_info(const qint64 &intData);
+/*
+* double data
+* 145.34***
+* mask double data
+*/
+FRONTEND_API QString pls_masking_double_info(const double &douData);
+
+class QDialog;
+FRONTEND_API void pls_push_dialog_view(QDialog *dialog);
+FRONTEND_API void pls_pop_dialog_view(QDialog *dialog);
+FRONTEND_API void pls_notify_close_dialog_views();

@@ -10,6 +10,7 @@
 #include "frontend-api.h"
 #include "pls-common-define.hpp"
 #include "window-basic-properties.hpp"
+#include "../loading-event.hpp"
 
 #include "log.h"
 
@@ -69,18 +70,18 @@ obs_source_t *createSource(const char *camera, const char *name)
 QString captureImage(uint32_t width, uint32_t height, enum gs_color_format format, uint8_t **data, uint32_t *linesize)
 {
 	if (format == gs_color_format::GS_BGRA) {
-		uchar *buffer = (uchar *)malloc(width * height * 4);
+		uchar *buffer = (uchar *)malloc(size_t(width) * height * 4);
 		if (!buffer) {
 			return QString();
 		}
 
-		memset(buffer, 0, width * height * 4);
+		memset(buffer, 0, size_t(width) * height * 4);
 
 		if (width * 4 == linesize[0]) {
-			memmove(buffer, data[0], linesize[0] * height);
+			memmove(buffer, data[0], size_t(linesize[0]) * height);
 		} else {
 			for (uint32_t i = 0; i < height; i++) {
-				memmove(buffer + i * width * 4, data[0] + i * linesize[0], width * 4);
+				memmove(buffer + size_t(i) * width * 4, data[0] + size_t(i) * linesize[0], size_t(width) * 4);
 			}
 		}
 
@@ -130,9 +131,9 @@ bool PLSTakeCameraSnapshotTakeTimerMask::event(QEvent *event)
 	return QDialog::event(event);
 }
 
-PLSTakeCameraSnapshot::PLSTakeCameraSnapshot(QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSTakeCameraSnapshot())
+PLSTakeCameraSnapshot::PLSTakeCameraSnapshot(QString &camera_, QWidget *parent, PLSDpiHelper dpiHelper) : PLSDialogView(parent, dpiHelper), ui(new Ui::PLSTakeCameraSnapshot()), camera(camera_)
 {
-	dpiHelper.setCss(this, {PLSCssIndex::PLSTakeCameraSnapshot});
+	dpiHelper.setCss(this, {PLSCssIndex::PLSTakeCameraSnapshot, PLSCssIndex::PLSLoadingBtn});
 
 	setResizeEnabled(false);
 
@@ -174,25 +175,18 @@ PLSTakeCameraSnapshot::PLSTakeCameraSnapshot(QWidget *parent, PLSDpiHelper dpiHe
 	connect(ui->preview, &PLSQTDisplay::DisplayCreated, addDrawCallback);
 	ui->preview->show();
 
-	QList<QPair<QString, QString>> cameraList = getCameraList();
-	if (!cameraList.isEmpty()) {
-		for (auto &camera : cameraList) {
-			QSignalBlocker blocker(ui->cameraList);
-			ui->cameraList->addItem(camera.first, camera.second);
-		}
+	cameraUninitMaskText->setText(tr("TakeCameraSnapshot.NoDevice"));
+	ui->cameraList->addItem(tr("TakeCameraSnapshot.NoDevice"));
+	ui->cameraList->setEnabled(false);
+	ui->cameraSettingButton->setEnabled(false);
+	ui->okButton->setEnabled(false);
 
-		init(cameraList.first().second);
-	} else {
-		cameraUninitMaskText->setText(tr("TakeCameraSnapshot.NoDevice"));
-		ui->cameraList->addItem(tr("TakeCameraSnapshot.NoDevice"));
-		ui->cameraList->setEnabled(false);
-		ui->cameraSettingButton->setEnabled(false);
-		ui->okButton->setEnabled(false);
-	}
+	QTimer::singleShot(0, this, [this]() { InitCameraList(); });
 }
 
 PLSTakeCameraSnapshot::~PLSTakeCameraSnapshot()
 {
+	HideLoading();
 	ClearSource();
 	obs_display_remove_draw_callback(ui->preview->GetDisplay(), PLSTakeCameraSnapshot::drawPreview, this);
 	delete ui;
@@ -225,8 +219,10 @@ QList<QPair<QString, QString>> PLSTakeCameraSnapshot::getCameraList()
 	return cameraList;
 }
 
-void PLSTakeCameraSnapshot::init(const QString &camera)
+void PLSTakeCameraSnapshot::init(const QString &camera_)
 {
+	camera = camera_;
+
 	cameraUninitMaskText->setText(tr("TakeCameraSnapshot.Wait"));
 	cameraUninitMask->show();
 	ui->okButton->setEnabled(false);
@@ -312,7 +308,7 @@ void PLSTakeCameraSnapshot::drawPreview(void *data, uint32_t cx, uint32_t cy)
 	}
 }
 
-void PLSTakeCameraSnapshot::onSourceCaptureState(void *data, calldata_t *calldata)
+void PLSTakeCameraSnapshot::onSourceCaptureState(void *data, calldata_t *)
 {
 	QMetaObject::invokeMethod(static_cast<PLSTakeCameraSnapshot *>(data), "onSourceCaptureState", Qt::QueuedConnection);
 }
@@ -322,6 +318,95 @@ void PLSTakeCameraSnapshot::onSourceImageStatus(void *data, calldata_t *calldata
 	PLSTakeCameraSnapshot *tcs = static_cast<PLSTakeCameraSnapshot *>(data);
 	bool status = calldata_bool(calldata, "image_status");
 	QMetaObject::invokeMethod(tcs, "onSourceImageStatus", Qt::QueuedConnection, Q_ARG(bool, status));
+}
+
+void PLSTakeCameraSnapshot::InitCameraList()
+{
+	ShowLoading();
+	connect(
+		PLSGetPropertiesThread::Instance(), &PLSGetPropertiesThread::OnProperties, this,
+		[this](PropertiesParam_t param) {
+			if (param.id == reinterpret_cast<quint64>(this) && param.properties) {
+				HideLoading();
+				QList<QPair<QString, QString>> cameraList;
+				if (obs_property_t *property = obs_properties_get(param.properties, CSTR_VIDEO_DEVICE_ID); property) {
+					for (size_t i = 0, count = obs_property_list_item_count(property); i < count; ++i) {
+						QString name = QString::fromUtf8(obs_property_list_item_name(property, i));
+						QString value = QString::fromUtf8(obs_property_list_item_string(property, i));
+						cameraList.append({name, value});
+					}
+				}
+				obs_properties_destroy(param.properties);
+
+				if (!cameraList.isEmpty()) {
+					QSignalBlocker blocker(ui->cameraList);
+					ui->cameraList->clear();
+					int cameraIndex = -1;
+					for (int index = 0, count = cameraList.count(); index < count; ++index) {
+						const auto &camera = cameraList[index];
+						ui->cameraList->addItem(camera.first, camera.second);
+						if (!this->camera.isEmpty() && this->camera == camera.second) {
+							cameraIndex = index;
+						}
+					}
+
+					if (cameraIndex >= 0) {
+						ui->cameraList->setCurrentIndex(cameraIndex);
+						init(this->camera);
+					} else {
+						init(cameraList.first().second);
+					}
+					ui->cameraList->setEnabled(true);
+					ui->cameraSettingButton->setEnabled(true);
+				} else {
+					cameraUninitMaskText->setText(tr("TakeCameraSnapshot.NoDevice"));
+					ui->cameraList->addItem(tr("TakeCameraSnapshot.NoDevice"));
+					ui->cameraList->setEnabled(false);
+					ui->cameraSettingButton->setEnabled(false);
+					ui->okButton->setEnabled(false);
+				}
+			}
+		},
+		Qt::QueuedConnection);
+	PLSGetPropertiesThread::Instance()->GetPropertiesBySourceId(DSHOW_SOURCE_ID, reinterpret_cast<quint64>(this));
+}
+
+void PLSTakeCameraSnapshot::ShowLoading()
+{
+	HideLoading();
+	m_pWidgetLoadingBG = new QWidget(content());
+	m_pWidgetLoadingBG->setObjectName("loadingBG");
+	m_pWidgetLoadingBG->setGeometry(content()->geometry());
+	m_pWidgetLoadingBG->show();
+
+	m_pLoadingEvent = new PLSLoadingEvent();
+
+	auto layout = new QVBoxLayout(m_pWidgetLoadingBG);
+	auto loadingBtn = new QPushButton(m_pWidgetLoadingBG);
+	auto tips = new QLabel(tr("main.camera.loading.devicelist"));
+	layout->addStretch();
+	layout->addWidget(loadingBtn, 0, Qt::AlignHCenter);
+	layout->addWidget(tips, 0, Qt::AlignHCenter);
+	layout->addStretch();
+	loadingBtn->setObjectName("loadingBtn");
+	loadingBtn->show();
+
+	m_pLoadingEvent->startLoadingTimer(loadingBtn);
+}
+
+void PLSTakeCameraSnapshot::HideLoading()
+{
+	if (nullptr != m_pLoadingEvent) {
+		m_pLoadingEvent->stopLoadingTimer();
+		delete m_pLoadingEvent;
+		m_pLoadingEvent = nullptr;
+	}
+
+	if (nullptr != m_pWidgetLoadingBG) {
+		m_pWidgetLoadingBG->hide();
+		delete m_pWidgetLoadingBG;
+		m_pWidgetLoadingBG = nullptr;
+	}
 }
 
 void PLSTakeCameraSnapshot::on_cameraList_currentIndexChanged(int index)
@@ -372,11 +457,15 @@ void PLSTakeCameraSnapshot::onSourceCaptureState()
 		cameraUninitMask->hide();
 		ui->okButton->setEnabled(true);
 	} else if (error == OBS_SOURCE_ERROR_NOT_FOUND) {
-		cameraUninitMaskText->setText(tr("TakeCameraSnapshot.NotFound"));
+		cameraUninitMaskText->setText(tr("Source.ErrorTips.Camera.NotFound"));
 		cameraUninitMask->show();
 		ui->okButton->setEnabled(false);
 	} else if (error == OBS_SOURCE_ERROR_BE_USING) {
-		cameraUninitMaskText->setText(tr("TakeCameraSnapshot.Used"));
+		cameraUninitMaskText->setText(tr("Source.ErrorTips.Camera.BeUsing"));
+		cameraUninitMask->show();
+		ui->okButton->setEnabled(false);
+	} else {
+		cameraUninitMaskText->setText(tr("Source.ErrorTips.Camera.Error"));
 		cameraUninitMask->show();
 		ui->okButton->setEnabled(false);
 	}
@@ -409,4 +498,16 @@ bool PLSTakeCameraSnapshot::eventFilter(QObject *watched, QEvent *event)
 		}
 	}
 	return PLSDialogView::eventFilter(watched, event);
+}
+
+void PLSTakeCameraSnapshot::done(int result)
+{
+	if (timerMask) {
+		PLSTakeCameraSnapshotTakeTimerMask *_timerMask = timerMask;
+		timerMask = nullptr;
+		_timerMask->hide();
+		delete _timerMask;
+	}
+
+	PLSDialogView::done(result);
 }

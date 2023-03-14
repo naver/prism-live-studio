@@ -156,14 +156,14 @@ static void add_service(obs_property_t *list, json_t *service, bool show_all,
 	bool common;
 
 	if (!json_is_object(service)) {
-		blog(LOG_WARNING, "rtmp-common.c: [add_service] service "
+		plog(LOG_WARNING, "rtmp-common.c: [add_service] service "
 				  "is not an object");
 		return;
 	}
 
 	name = get_string_val(service, "name");
 	if (!name) {
-		blog(LOG_WARNING, "rtmp-common.c: [add_service] service "
+		plog(LOG_WARNING, "rtmp-common.c: [add_service] service "
 				  "has no name");
 		return;
 	}
@@ -175,7 +175,7 @@ static void add_service(obs_property_t *list, json_t *service, bool show_all,
 
 	servers = json_object_get(service, "servers");
 	if (!servers || !json_is_array(servers)) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "rtmp-common.c: [add_service] service "
 		     "'%s' has no servers",
 		     name);
@@ -192,7 +192,7 @@ static void add_services(obs_property_t *list, json_t *root, bool show_all,
 	size_t index;
 
 	if (!json_is_array(root)) {
-		blog(LOG_WARNING, "rtmp-common.c: [add_services] JSON file "
+		plog(LOG_WARNING, "rtmp-common.c: [add_services] JSON file "
 				  "root is not an array");
 		return;
 	}
@@ -224,7 +224,7 @@ static json_t *open_json_file(const char *file)
 	bfree(file_data);
 
 	if (!root) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "rtmp-common.c: [open_json_file] "
 		     "Error reading JSON file (%d): %s",
 		     error.line, error.text);
@@ -234,7 +234,7 @@ static json_t *open_json_file(const char *file)
 	format_ver = get_int_val(root, "format_version");
 
 	if (format_ver != RTMP_SERVICES_FORMAT_VERSION) {
-		blog(LOG_DEBUG,
+		plog(LOG_DEBUG,
 		     "rtmp-common.c: [open_json_file] "
 		     "Wrong format version (%d), expected %d",
 		     format_ver, RTMP_SERVICES_FORMAT_VERSION);
@@ -248,7 +248,7 @@ static json_t *open_json_file(const char *file)
 	json_decref(root);
 
 	if (!list) {
-		blog(LOG_WARNING, "rtmp-common.c: [open_json_file] "
+		plog(LOG_WARNING, "rtmp-common.c: [open_json_file] "
 				  "No services list");
 		return NULL;
 	}
@@ -332,7 +332,7 @@ static void fill_servers(obs_property_t *servers_prop, json_t *service,
 	servers = json_object_get(service, "servers");
 
 	if (!json_is_array(servers)) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "rtmp-common.c: [fill_servers] "
 		     "Servers for service '%s' not a valid object",
 		     name);
@@ -539,11 +539,12 @@ static void initialize_output(struct rtmp_common *service, json_t *root,
 	json_t *recommended;
 
 	if (!json_service) {
-		if (service->service && *service->service)
-			blog(LOG_WARNING,
-			     "rtmp-common.c: [initialize_output] "
-			     "Could not find service '%s'",
-			     service->service);
+		//PRISM/LiuHaibin/20210817/#None/Do not log this
+		//if (service->service && *service->service)
+		//	blog(LOG_WARNING,
+		//	     "rtmp-common.c: [initialize_output] "
+		//	     "Could not find service '%s'",
+		//	     service->service);
 		return;
 	}
 

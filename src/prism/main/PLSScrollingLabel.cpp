@@ -17,7 +17,7 @@ void PLSScrollingLabel::SetText(const QString &text)
 	repaint();
 }
 
-void PLSScrollingLabel::paintEvent(QPaintEvent *event)
+void PLSScrollingLabel::paintEvent(QPaintEvent *)
 {
 	QString strText = text;
 	QPainter painter(this);

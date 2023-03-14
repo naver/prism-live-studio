@@ -1,0 +1,5 @@
+PLSBasicTransform QLabel {
+	font-size: /*hdpi*/ 14px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+}

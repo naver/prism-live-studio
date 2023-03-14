@@ -26,7 +26,8 @@
  *   http://www.ffmpeg.org/
  */
 
-#define ALIGNMENT 32
+//PRISM/WangShaohui/20210429/NoIssue/monitor memory overflow
+//#define ALIGNMENT 32
 
 /* TODO: use memalign for non-windows systems */
 #if defined(_WIN32)
@@ -87,20 +88,51 @@ static void a_free(void *ptr)
 #endif
 }
 
-static struct base_allocator alloc = {a_malloc, a_realloc, a_free};
-static long num_allocs = 0;
+struct base_allocator alloc = {a_malloc, a_realloc, a_free};
+long num_allocs = 0;
+
+//PRISM/WangShaohui/20210301/NoIssue/debug breakpoint
+static unsigned failed_memory_length = 0;
+unsigned mem_failed_length()
+{
+	return failed_memory_length;
+}
 
 void base_set_allocator(struct base_allocator *defs)
 {
 	memcpy(&alloc, defs, sizeof(struct base_allocator));
 }
 
-void *bmalloc(size_t size)
+//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
+#define MALLOC_RETRY_TIMES 5
+void *bmalloc_inner(size_t size, bool break_if_fail)
 {
 	void *ptr = alloc.malloc(size);
 	if (!ptr && !size)
 		ptr = alloc.malloc(1);
+
+	//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
 	if (!ptr) {
+		for (int i = 0; i < MALLOC_RETRY_TIMES; i++) {
+			ptr = alloc.malloc(size);
+			if (ptr) {
+				plog(LOG_INFO,
+				     "Successed to bmalloc memory for %llu bytes at the %dth time",
+				     size, i + 1);
+				break;
+			}
+		}
+		if (!ptr) {
+			plog(LOG_WARNING,
+			     "Failed to request memory with %llu bytes", size);
+		}
+	}
+
+	//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
+	if (!ptr && break_if_fail) {
+		//PRISM/WangShaohui/20210301/NoIssue/debug breakpoint
+		failed_memory_length = (unsigned)size;
+
 		os_breakpoint();
 		bcrash("Out of memory while trying to allocate %lu bytes",
 		       (unsigned long)size);
@@ -110,7 +142,8 @@ void *bmalloc(size_t size)
 	return ptr;
 }
 
-void *brealloc(void *ptr, size_t size)
+//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
+void *brealloc_inner(void *ptr, size_t size, bool break_if_fail)
 {
 	if (!ptr)
 		os_atomic_inc_long(&num_allocs);
@@ -118,13 +151,71 @@ void *brealloc(void *ptr, size_t size)
 	ptr = alloc.realloc(ptr, size);
 	if (!ptr && !size)
 		ptr = alloc.realloc(ptr, 1);
+
+	//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
 	if (!ptr) {
+		for (int i = 0; i < MALLOC_RETRY_TIMES; i++) {
+			ptr = alloc.realloc(ptr, size);
+			if (ptr) {
+				plog(LOG_INFO,
+				     "Successed to brealloc memory for %llu bytes at the %dth time",
+				     size, i + 1);
+				break;
+			}
+		}
+		if (!ptr) {
+			plog(LOG_WARNING,
+			     "Failed to request memory with %llu bytes", size);
+		}
+	}
+
+	//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
+	if (!ptr && break_if_fail) {
+		//PRISM/WangShaohui/20210301/NoIssue/debug breakpoint
+		failed_memory_length = (unsigned)size;
+
 		os_breakpoint();
 		bcrash("Out of memory while trying to allocate %lu bytes",
 		       (unsigned long)size);
 	}
 
 	return ptr;
+}
+
+//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
+void *pls_bmalloc(size_t size, const char *func)
+{
+	void *ret = bmalloc_inner(size, false);
+	if (!ret) {
+		plog(LOG_ERROR,
+		     "(pls_bmalloc) Failed to request memory with %lluBytes in %s",
+		     size, func ? func : "unknownFunc");
+	}
+	return ret;
+}
+
+//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
+void *pls_brealloc(void *ptr, size_t size, const char *func)
+{
+	void *ret = brealloc_inner(ptr, size, false);
+	if (!ret) {
+		plog(LOG_ERROR,
+		     "(pls_brealloc) Failed to request memory with %lluBytes in %s",
+		     size, func ? func : "unknownFunc");
+	}
+	return ret;
+}
+
+void *bmalloc(size_t size)
+{
+	//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
+	return bmalloc_inner(size, true);
+}
+
+void *brealloc(void *ptr, size_t size)
+{
+	//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
+	return brealloc_inner(ptr, size, true);
 }
 
 void bfree(void *ptr)

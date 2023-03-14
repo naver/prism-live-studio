@@ -40,6 +40,9 @@ struct list_item {
 	char *name;
 	bool disabled;
 
+	//PRISM/WangShaohui/20210922/noIssue/add tooltips for combox list
+	char *tips;
+
 	union {
 		char *str;
 		long long ll;
@@ -74,10 +77,19 @@ struct button_data {
 	obs_property_clicked_t callback;
 };
 
+struct text_button_data {
+	char *text;
+	obs_property_clicked_t callback;
+};
+
 //PRISM/Liuying/20200617/No issue/for the same row of buttons
 struct button_group_item {
 	char *name;
 	char *text;
+	//PRISM/RenJinbo/20210628/#none/Timer source feature
+	bool enabled;
+	//PRISM/RenJinbo/20210708/#8551/add button highlight style
+	bool highlight;
 	obs_property_clicked_t callback;
 };
 
@@ -106,13 +118,27 @@ struct group_data {
 };
 
 struct bool_data {
-	char *name;
 	char *text;
+	char *tooltip;
+	bool enabled;
 	obs_property_clicked_t callback;
 };
 
 struct bool_group_data {
 	DARRAY(struct bool_data) items;
+};
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+struct checkbox_data {
+	char *name;
+	char *text;
+	char *tooltip;
+	bool enabled;
+	obs_property_checkbox_clicked_t callback;
+};
+
+struct checkbox_group_data {
+	DARRAY(struct checkbox_data) items;
 };
 
 struct music_data {
@@ -128,6 +154,19 @@ struct music_group_data {
 	DARRAY(struct music_data) items;
 };
 
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+struct int_data_item {
+	char *name;
+	char *description;
+	int min, max, step;
+};
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+struct int_group_data {
+	char *name;
+	char *description;
+	DARRAY(struct int_data_item) items;
+};
+
 //PRISM/Zhangdewen/20200901/feature/for chat source
 struct chat_font_size_data {
 	int min, max, step;
@@ -138,13 +177,52 @@ struct tm_text_data {
 	int min, max, step;
 };
 
+//PRISM/Zengqin/20201021/feature/for spectralizer source
+struct image_group_item {
+	char *name;
+	char *url;
+	long long val;
+	//PRISM/RenJinbo/20210628/#none/Timer source feature
+	obs_property_clicked_t callback;
+};
+
+//PRISM/Zengqin/20201021/feature/for spectralizer source
+struct image_group_data {
+	int row;
+	int column;
+	enum obs_image_style_type type;
+	DARRAY(struct image_group_item) items;
+};
+
+//PRISM/Zengqin/20201021/feature/for custom froup item in line
+struct custom_group_item {
+
+	char *name;
+	char *desc;
+	enum obs_control_type type;
+	union {
+		struct list_data ld;
+		struct bool_data bd;
+		struct button_data buttonddata;
+		struct float_data fd;
+		struct int_data id;
+	};
+};
+
+//PRISM/Zengqin/20201021/feature/for custom group
+struct custom_group_data {
+	int row;
+	int column;
+	DARRAY(struct custom_group_item) items;
+};
+
 //PRISM/Liuying/20200624/No issue/for the same row of buttons
 static inline void bool_group_data_free(struct bool_group_data *data)
 {
 	for (size_t i = 0; i < data->items.num; i++) {
 		struct bool_data *item = data->items.array + i;
-		bfree(item->name);
 		bfree(item->text);
+		bfree(item->tooltip);
 	}
 
 	da_free(data->items);
@@ -158,6 +236,19 @@ static inline void music_group_free(struct music_group_data *data)
 		bfree(item->name);
 		bfree(item->producer);
 		bfree(item->url);
+	}
+
+	da_free(data->items);
+}
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+static inline void checkbox_group_free(struct checkbox_group_data *data)
+{
+	for (size_t i = 0; i < data->items.num; i++) {
+		struct checkbox_data *item = data->items.array + i;
+		bfree(item->name);
+		bfree(item->text);
+		bfree(item->tooltip);
 	}
 
 	da_free(data->items);
@@ -182,6 +273,10 @@ static inline void list_item_free(struct list_data *data,
 	bfree(item->name);
 	if (data->format == OBS_COMBO_FORMAT_STRING)
 		bfree(item->str);
+
+	//PRISM/WangShaohui/20210922/noIssue/add tooltips for combox list
+	if (item->tips)
+		bfree(item->tips);
 }
 
 static inline void list_data_free(struct list_data *data)
@@ -246,6 +341,37 @@ static inline void button_group_data_free(struct button_group_data *data)
 	da_free(data->items);
 }
 
+//PRISM/Zengqin/20201021/No issue/for image group
+static inline void image_group_data_free(struct image_group_data *data)
+{
+	for (size_t i = 0; i < data->items.num; i++) {
+		struct image_group_item *item = data->items.array + i;
+		bfree(item->name);
+		bfree(item->url);
+	}
+
+	da_free(data->items);
+}
+
+static inline void text_button_data_free(struct text_button_data *data)
+{
+	if (data->text)
+		bfree(data->text);
+}
+
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+static inline void int_group_data_free(struct int_group_data *data)
+{
+	bfree(data->name);
+	bfree(data->description);
+	for (size_t i = 0; i < data->items.num; i++) {
+		struct int_data_item *item = data->items.array + i;
+		bfree(item->name);
+		bfree(item->description);
+	}
+	da_free(data->items);
+}
+
 struct obs_properties;
 
 struct obs_property {
@@ -258,6 +384,11 @@ struct obs_property {
 	bool visible;
 	bool enabled;
 
+	//PRISM/Zengqin/20201125/for property UI.
+	uint32_t flags;
+	//PRISM/WuLongyue/20201204/for property UI.
+	char *tooltip;
+
 	//PRISM/WangShaohui/20201029/#5497/Limite text length for editor. It is valid if more than 0.
 	int length_limit;
 
@@ -267,6 +398,9 @@ struct obs_property {
 	obs_property_modified2_t modified2;
 
 	struct obs_property *next;
+
+	//PRISM/RenJinbo/20210624/None/ignore call modified callback, when refresh properties.
+	bool ignoreCallbackWhenRefresh;
 };
 
 struct obs_properties {
@@ -326,7 +460,8 @@ obs_properties_t *obs_properties_create_param(void *param,
 
 static void obs_property_destroy(struct obs_property *property)
 {
-	if (property->type == OBS_PROPERTY_LIST)
+	if (property->type == OBS_PROPERTY_LIST ||
+	    property->type == OBS_PROPERTY_TIMER_LIST_LISTEN)
 		list_data_free(get_property_data(property));
 	else if (property->type == OBS_PROPERTY_PATH)
 		path_data_free(get_property_data(property));
@@ -344,11 +479,18 @@ static void obs_property_destroy(struct obs_property *property)
 		music_group_free(get_property_data(property));
 	else if (property->type == OBS_PROPERTY_BOOL_GROUP)
 		bool_group_data_free(get_property_data(property));
+	else if (property->type == OBS_PROPERTY_MOBILE_NAME)
+		text_button_data_free(get_property_data(property));
+	else if (property->type == OBS_PROPERTY_INT_GROUP)
+		int_group_data_free(get_property_data(property));
+	else if (property->type == OBS_PROPERTY_CHECKBOX_GROUP)
+		checkbox_group_free(get_property_data(property));
 
 	bfree(property->name);
 	bfree(property->desc);
 	bfree(property->long_desc);
 	bfree(property->placeholder); //PRISM/Zhangdewen/20200911/new ndi ux
+	bfree(property->tooltip);
 	bfree(property);
 }
 
@@ -450,9 +592,9 @@ void obs_properties_apply_settings_internal(obs_properties_t *props,
 				obs_property_group_content(p), settings,
 				realprops);
 		}
-		if (p->modified)
+		if (p->modified && !p->ignoreCallbackWhenRefresh)
 			p->modified(realprops, p, settings);
-		else if (p->modified2)
+		else if (p->modified2 && !p->ignoreCallbackWhenRefresh)
 			p->modified2(p->priv, realprops, p, settings);
 		p = p->next;
 	}
@@ -497,6 +639,7 @@ static inline size_t get_property_size(enum obs_property_type type)
 	case OBS_PROPERTY_PATH:
 		return sizeof(struct path_data);
 	case OBS_PROPERTY_LIST:
+	case OBS_PROPERTY_TIMER_LIST_LISTEN:
 		return sizeof(struct list_data);
 	//PRISM/Liuying/20200706/new bgm ux
 	case OBS_PROPERTY_BGM_MUSIC_LIST:
@@ -522,6 +665,22 @@ static inline size_t get_property_size(enum obs_property_type type)
 		return sizeof(struct tm_text_data);
 	case OBS_PROPERTY_CHAT_FONT_SIZE: //PRISM/Zhangdewen/20200901/feature/for chat source
 		return sizeof(struct chat_font_size_data);
+	case OBS_PROPERTY_IMAGE_GROUP:
+		return sizeof(struct image_group_data);
+	case OBS_PROPERTY_CUSTOM_GROUP:
+		return sizeof(struct custom_group_data);
+	case OBS_PROPERTY_MOBILE_NAME:
+		return sizeof(struct text_button_data);
+	case OBS_PROPERTY_PRIVATE_DATA_TEXT:
+		return 0;
+	case OBS_PROPERTY_CHECKBOX_GROUP: //PRISM/Xiewei/20210629/No issue/For Camera flip.
+		return sizeof(struct checkbox_group_data);
+	case OBS_PROPERTY_INT_GROUP:
+		return sizeof(struct int_group_data);
+	case OBS_PROPERTY_FONT_SIMPLE:
+		return 0;
+	case OBS_PROPERTY_COLOR_CHECKBOX:
+		return 0;
 	}
 
 	return 0;
@@ -541,10 +700,14 @@ static inline struct obs_property *new_prop(struct obs_properties *props,
 	p->type = type;
 	p->name = bstrdup(name);
 	p->desc = bstrdup(desc);
+	//PRISM/Zengqin/20201125/#none/for property UI
+	p->flags = 0;
 
 	//PRISM/WangShaohui/20201029/#5497/limite text length
 	p->length_limit = 0;
 
+	//PRISM/RenJinbo/20210628/#none/Timer source feature
+	p->ignoreCallbackWhenRefresh = false;
 	propertes_add(props, p);
 
 	return p;
@@ -567,7 +730,7 @@ static inline bool contains_prop(struct obs_properties *props, const char *name)
 
 	while (p) {
 		if (strcmp(p->name, name) == 0) {
-			blog(LOG_WARNING, "Property '%s' exists", name);
+			plog(LOG_WARNING, "Property '%s' exists", name);
 			return true;
 		}
 
@@ -611,7 +774,8 @@ obs_property_t *obs_properties_add_bool(obs_properties_t *props,
 	return new_prop(props, name, desc, OBS_PROPERTY_BOOL);
 }
 
-static inline struct bool_data *get_bool_group_data(struct obs_property *p)
+static inline struct bool_group_data *
+get_bool_group_data(struct obs_property *p)
 {
 	if (!p || p->type != OBS_PROPERTY_BOOL_GROUP) {
 		return NULL;
@@ -628,15 +792,17 @@ obs_property_t *obs_properties_add_bool_group(obs_properties_t *props,
 	return new_prop(props, name, desc, OBS_PROPERTY_BOOL_GROUP);
 }
 
-size_t obs_properties_add_bool_group_item(obs_property_t *p, const char *name,
+size_t obs_properties_add_bool_group_item(obs_property_t *p,
 					  const char *description,
+					  const char *tooltip, bool enabled,
 					  obs_property_clicked_t callback)
 {
 	struct bool_group_data *data = get_bool_group_data(p);
 	if (data) {
 		struct bool_data *item = bzalloc(sizeof(struct bool_data));
-		item->name = bstrdup(name);
 		item->text = bstrdup(description);
+		item->tooltip = bstrdup(tooltip);
+		item->enabled = enabled;
 		item->callback = callback;
 		return da_push_back(data->items, item);
 	}
@@ -719,6 +885,17 @@ obs_property_t *obs_properties_add_text(obs_properties_t *props,
 	return p;
 }
 
+//PRSIM/WuLongyue/20200915/No issue/For PRISM Mobile
+obs_property_t *obs_properties_add_private_data_text(obs_properties_t *props,
+						     const char *name,
+						     const char *text)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	return new_prop(props, name, text, OBS_PROPERTY_PRIVATE_DATA_TEXT);
+}
+
 obs_property_t *obs_properties_add_path(obs_properties_t *props,
 					const char *name, const char *desc,
 					enum obs_path_type type,
@@ -749,7 +926,7 @@ obs_property_t *obs_properties_add_list(obs_properties_t *props,
 
 	if (type == OBS_COMBO_TYPE_EDITABLE &&
 	    format != OBS_COMBO_FORMAT_STRING) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "List '%s', error: Editable combo boxes "
 		     "must be of the 'string' type",
 		     name);
@@ -765,6 +942,162 @@ obs_property_t *obs_properties_add_list(obs_properties_t *props,
 	return p;
 }
 
+obs_property_t *obs_properties_add_mobile_guider(obs_properties_t *props,
+						 const char *name,
+						 const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, description, OBS_PROPERTY_MOBILE_GUIDER);
+}
+
+obs_property_t *obs_properties_add_mobile_help(obs_properties_t *props,
+					       const char *name,
+					       const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, description, OBS_PROPERTY_MOBILE_HELP);
+}
+
+obs_property_t *obs_properties_add_mobile_name(obs_properties_t *props,
+					       const char *name,
+					       const char *description,
+					       const char *text,
+					       obs_property_clicked_t callback)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, description, OBS_PROPERTY_MOBILE_NAME);
+	struct text_button_data *data = get_property_data(p);
+	data->text = bstrdup(text);
+	data->callback = callback;
+
+	return p;
+}
+
+obs_property_t *obs_properties_add_mobile_status(obs_properties_t *props,
+						 const char *name,
+						 const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, description, OBS_PROPERTY_MOBILE_STATUS);
+}
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+obs_property_t *obs_properties_add_checkbox_group(obs_properties_t *props,
+						  const char *name,
+						  const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, description, OBS_PROPERTY_CHECKBOX_GROUP);
+}
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+static inline struct checkbox_group_data *
+get_checkbox_group_data(struct obs_property *p)
+{
+	if (!p || p->type != OBS_PROPERTY_CHECKBOX_GROUP) {
+		return NULL;
+	}
+	return get_property_data(p);
+}
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+size_t
+obs_properties_add_checkbox_group_item(obs_property_t *p, const char *id,
+				       const char *description,
+				       const char *tooltip, bool enabled,
+				       obs_property_checkbox_clicked_t callback)
+{
+	struct checkbox_group_data *data = get_checkbox_group_data(p);
+	if (data) {
+		struct checkbox_data *item =
+			bzalloc(sizeof(struct checkbox_data));
+		item->text = bstrdup(description);
+		item->tooltip = bstrdup(tooltip);
+		item->enabled = enabled;
+		item->callback = callback;
+		item->name = bstrdup(id);
+		return da_push_back(data->items, item);
+	}
+	return 0;
+}
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+bool obs_property_checkbox_group_clicked(obs_property_t *p, void *obj,
+					 size_t idx, bool checked)
+{
+	struct obs_context_data *context = obj;
+	if (p) {
+		struct checkbox_group_data *data =
+			get_type_data(p, OBS_PROPERTY_CHECKBOX_GROUP);
+
+		if (!data) {
+			return false;
+		}
+
+		if (idx >= obs_property_checkbox_group_item_count(p)) {
+			return false;
+		}
+
+		struct checkbox_data item = data->items.array[idx];
+		if (item.callback) {
+			obs_properties_t *top = get_topmost_parent(p->parent);
+			if (p->priv)
+				return item.callback(top, p, checked, p->priv);
+			return item.callback(top, p, checked,
+					     (context ? context->data : NULL));
+		}
+	}
+
+	return false;
+}
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+size_t obs_property_checkbox_group_item_count(obs_property_t *p)
+{
+	struct checkbox_group_data *data = get_checkbox_group_data(p);
+	return data ? data->items.num : 0;
+}
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+const char *obs_property_checkbox_group_item_id(obs_property_t *p, size_t idx)
+{
+	struct checkbox_group_data *data = get_checkbox_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].name
+					       : NULL;
+}
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+const char *obs_property_checkbox_group_item_text(obs_property_t *p, size_t idx)
+{
+	struct checkbox_group_data *data = get_checkbox_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].text
+					       : NULL;
+}
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+bool obs_property_checkbox_group_item_enabled(obs_property_t *p, size_t idx)
+{
+	struct checkbox_group_data *data = get_checkbox_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].enabled
+					       : false;
+}
+
+//PRISM/Xiewei/20210629/No issue/For Camera flip.
+const char *obs_property_checkbox_group_item_tooltip(obs_property_t *p,
+						     size_t idx)
+{
+	struct checkbox_group_data *data = get_checkbox_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].tooltip
+					       : NULL;
+}
+
 //PRISM/Liuying/20200706/new bgm ux
 static inline bool is_music_group(struct obs_property *p)
 {
@@ -772,7 +1105,8 @@ static inline bool is_music_group(struct obs_property *p)
 }
 
 //PRISM/Liuying/20200706/new bgm ux
-static inline struct button_data *get_music_group_data(struct obs_property *p)
+static inline struct music_group_data *
+get_music_group_data(struct obs_property *p)
 {
 	if (!p || !is_music_group(p))
 		return NULL;
@@ -786,7 +1120,7 @@ static size_t add_music_item(struct music_group_data *data, const char *name,
 			     int duration, int duration_type,
 			     obs_property_clicked_t callback)
 {
-	struct music_data *item = bzalloc(sizeof(struct button_group_item));
+	struct music_data *item = bzalloc(sizeof(struct music_data));
 	item->name = bstrdup(name);
 	item->producer = bstrdup(producer);
 	item->url = bstrdup(url);
@@ -951,7 +1285,8 @@ static inline bool is_button_group(struct obs_property *p)
 }
 
 //PRISM/Liuying/20200617/No issue/for the same row of buttons
-static inline struct button_data *get_button_group_data(struct obs_property *p)
+static inline struct button_group_data *
+get_button_group_data(struct obs_property *p)
 {
 	if (!p || !is_button_group(p))
 		return NULL;
@@ -990,25 +1325,29 @@ obs_property_t *obs_properties_add_button2_group(obs_properties_t *props,
 
 //PRISM/Liuying/20200617/No issue/for the same row of buttons
 static size_t add_group_item(struct button_group_data *data, const char *name,
-			     const char *text, obs_property_clicked_t callback)
+			     const char *text, bool enabled,
+			     obs_property_clicked_t callback)
 {
 	struct button_group_item *item =
 		bzalloc(sizeof(struct button_group_item));
 	item->name = bstrdup(name);
 	item->text = bstrdup(text);
+	item->enabled = enabled;
 	item->callback = callback;
+	//PRISM/RenJinbo/20210708/#8551/add button highlight style
+	item->highlight = false;
 
 	return da_push_back(data->items, item);
 }
 
 //PRISM/Liuying/20200617/No issue/for the same row of buttons
 size_t obs_property_button_group_add_item(obs_property_t *p, const char *name,
-					  const char *text,
+					  const char *text, bool enabled,
 					  obs_property_clicked_t callback)
 {
 	struct button_group_data *data = get_button_group_data(p);
 	if (data)
-		return add_group_item(data, name, text, callback);
+		return add_group_item(data, name, text, enabled, callback);
 	return 0;
 }
 
@@ -1050,6 +1389,14 @@ const char *obs_property_button_group_item_text(obs_property_t *p, size_t idx)
 					       : NULL;
 }
 
+//PRISM/RenJinbo/20210611/No issue/add enable properties
+bool obs_property_button_group_item_enable(obs_property_t *p, size_t idx)
+{
+	struct button_group_data *data = get_button_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].enabled
+					       : true;
+}
+
 //PRISM/Liuying/20200707/#3266/add new interface
 int obs_property_button_group_get_idx_by_name(obs_property_t *p,
 					      const char *name)
@@ -1079,6 +1426,39 @@ void obs_property_button_group_set_item_text(obs_property_t *p, size_t idx,
 	bfree(data->items.array[idx].text);
 
 	data->items.array[idx].text = bstrdup(text);
+}
+
+//PRISM/RenJinbo/20210611/No issue/add enable properties
+void obs_property_button_group_set_item_enable(obs_property_t *p, size_t idx,
+					       bool enable)
+{
+	struct button_group_data *data = get_button_group_data(p);
+	if (!data) {
+		return;
+	}
+	data->items.array[idx].enabled = enable;
+}
+
+//PRISM/RenJinbo/20210708/#8551/add button highlight style
+void obs_property_button_group_set_item_highlight(obs_property_t *p, size_t idx,
+						  bool highlight)
+{
+
+	struct button_group_data *data = get_button_group_data(p);
+	if (!data) {
+		return;
+	}
+	data->items.array[idx].highlight = highlight;
+}
+
+//PRISM/RenJinbo/20210708/#8551/add button highlight style
+bool obs_property_button_group_get_item_highlight(obs_property_t *p, size_t idx)
+{
+	struct button_group_data *data = get_button_group_data(p);
+	if (!data) {
+		return false;
+	}
+	return data->items.array[idx].highlight;
 }
 
 //PRISM/Zhangdewen/20200901/feature/for chat source
@@ -1212,6 +1592,335 @@ obs_property_t *obs_properties_add_tm_motion(obs_properties_t *props,
 	return p;
 }
 
+//PRISM/Zengqin/20201021/feature/for spectralizer source
+obs_property_t *obs_properties_add_image_group(obs_properties_t *props,
+					       const char *name,
+					       const char *desc, int row,
+					       int column,
+					       enum obs_image_style_type type)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, desc, OBS_PROPERTY_IMAGE_GROUP);
+	struct image_group_data *data = get_property_data(p);
+	data->row = row;
+	data->column = column;
+	data->type = type;
+	return p;
+}
+
+//PRISM/RenJinBo/20200622/feature/for timer source
+bool obs_property_image_group_clicked(obs_property_t *p, void *obj, size_t idx)
+{
+	struct obs_context_data *context = obj;
+	if (p) {
+		struct image_group_data *data =
+			get_type_data(p, OBS_PROPERTY_IMAGE_GROUP);
+
+		if (!data) {
+			return false;
+		}
+
+		if (idx >= obs_property_image_group_item_count(p)) {
+			return false;
+		}
+
+		struct image_group_item item = data->items.array[idx];
+		if (item.callback) {
+			obs_properties_t *top = get_topmost_parent(p->parent);
+			if (p->priv)
+				return item.callback(top, p, p->priv);
+			return item.callback(top, p,
+					     (context ? context->data : NULL));
+		}
+	}
+
+	return false;
+}
+
+//PRISM/Zengqin/20201021/no issue/add item for images group
+size_t obs_property_image_group_add_item(obs_property_t *props,
+					 const char *name, const char *url,
+					 long long val,
+					 obs_property_clicked_t callback)
+{
+	if (!props || !props->type == OBS_PROPERTY_IMAGE_GROUP)
+		return 0;
+
+	struct image_group_data *data = get_property_data(props);
+	if (data) {
+		struct image_group_item *item =
+			bzalloc(sizeof(struct image_group_item));
+		item->name = bstrdup(name);
+		item->url = bstrdup(url);
+		item->val = val;
+		item->callback = callback;
+		return da_push_back(data->items, item);
+	}
+	return 0;
+}
+
+//PRISM/Zengqin/20201021/no issue/image group
+size_t obs_property_image_group_item_count(obs_property_t *props)
+{
+	if (!props || !props->type == OBS_PROPERTY_IMAGE_GROUP)
+		return 0;
+
+	struct image_group_data *data = get_property_data(props);
+	return data ? data->items.num : 0;
+}
+
+//PRISM/Zengqin/20201102/no issue/for images group
+void obs_property_image_group_params(obs_property_t *prop, int *row, int *colum,
+				     enum obs_image_style_type *type)
+{
+	if (!prop || !prop->type == OBS_PROPERTY_IMAGE_GROUP)
+		return;
+	struct image_group_data *data = get_property_data(prop);
+	*row = data->row;
+	*colum = data->column;
+	*type = data->type;
+}
+
+//PRISM/Zengqin/20201116/no issue/for images group
+const char *obs_property_image_group_item_url(obs_property_t *prop, int idx)
+{
+	if (!prop || !prop->type == OBS_PROPERTY_IMAGE_GROUP)
+		return NULL;
+
+	struct image_group_data *data = get_property_data(prop);
+	return (data && idx < data->items.num) ? data->items.array[idx].url
+					       : NULL;
+}
+
+//PRISM/Zengqin/20201125/no issue/for image group
+const char *obs_property_image_group_item_name(obs_property_t *prop, int idx)
+{
+	if (!prop || !prop->type == OBS_PROPERTY_IMAGE_GROUP)
+		return NULL;
+
+	struct image_group_data *data = get_property_data(prop);
+	return (data && idx < data->items.num) ? data->items.array[idx].name
+					       : NULL;
+}
+
+//PRISM/Zengqin/20201021/no issue/for custom group
+obs_property_t *obs_properties_add_custom_group(obs_properties_t *props,
+						const char *name,
+						const char *desc, int row,
+						int column)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, desc, OBS_PROPERTY_CUSTOM_GROUP);
+	struct custom_group_data *data = get_property_data(p);
+	data->row = row;
+	data->column = column;
+	return p;
+}
+
+//PRISM/Zengqin/20201030/no issue/for custom group
+size_t obs_properties_custom_group_add_int(obs_property_t *prop,
+					   const char *name, const char *desc,
+					   int min, int max, int step,
+					   char *suffix)
+{
+	if (!prop || !prop->type == OBS_PROPERTY_CUSTOM_GROUP)
+		return 0;
+
+	struct custom_group_data *data = get_property_data(prop);
+	if (data) {
+		struct custom_group_item *item =
+			bzalloc(sizeof(struct custom_group_item));
+
+		struct int_data id;
+		id.min = min;
+		id.max = max;
+		id.step = step;
+		id.suffix = bstrdup(suffix);
+		id.type = OBS_NUMBER_SCROLLER;
+
+		item->id = id;
+		item->name = bstrdup(name);
+		item->desc = bstrdup(desc);
+		item->type = OBS_CONTROL_INT;
+		return da_push_back(data->items, item);
+	}
+	return 0;
+}
+
+//PRISM/Zengqin/20201103/no issue/for custom group
+void obs_properties_custom_group_int_params(obs_property_t *prop, int *min,
+					    int *max, int *step, size_t idx)
+{
+	if (!prop || prop->type != OBS_PROPERTY_CUSTOM_GROUP)
+		return;
+
+	struct custom_group_data *data = get_property_data(prop);
+	if (data && idx < data->items.num &&
+	    data->items.array[idx].type == OBS_CONTROL_INT) {
+		struct int_data id = data->items.array[idx].id;
+		*min = id.min;
+		*max = id.max;
+		*step = id.step;
+	}
+	return;
+}
+
+//PRISM/Zengqin/20201216/no issue/for custom group
+void obs_properties_custom_group_set_int_params(obs_property_t *prop, int min,
+						int max, int step, size_t idx)
+{
+	if (!prop || prop->type != OBS_PROPERTY_CUSTOM_GROUP)
+		return;
+
+	struct custom_group_data *data = get_property_data(prop);
+	if (data && idx < data->items.num &&
+	    data->items.array[idx].type == OBS_CONTROL_INT) {
+		data->items.array[idx].id.min = min;
+		data->items.array[idx].id.max = max;
+		data->items.array[idx].id.step = step;
+	}
+	return;
+}
+
+//PRISM/Zengqin/20201103/no issue/for custom group
+const char *obs_property_custom_group_int_suffix(obs_property_t *prop,
+						 size_t idx)
+{
+	if (!prop || prop->type != OBS_PROPERTY_CUSTOM_GROUP)
+		return NULL;
+
+	struct custom_group_data *data = get_property_data(prop);
+	if (data && idx < data->items.num &&
+	    data->items.array[idx].type == OBS_CONTROL_INT) {
+		struct int_data id = data->items.array[idx].id;
+		return id.suffix;
+	}
+	return NULL;
+}
+
+//PRISM/Zengqin/20201027/no issue/for custom group
+void obs_property_custom_group_row_column(obs_property_t *prop, int *row,
+					  int *colum)
+{
+	if (!prop || !prop->type == OBS_PROPERTY_CUSTOM_GROUP)
+		return;
+	struct custom_group_data *data = get_property_data(prop);
+	*row = data->row;
+	*colum = data->column;
+}
+
+//PRISM/Zengqin/20201023/no issue/for custom group
+size_t obs_property_custom_group_item_count(obs_property_t *props)
+{
+	if (!props || !props->type == OBS_PROPERTY_CUSTOM_GROUP)
+		return 0;
+
+	struct custom_group_data *data = get_property_data(props);
+	return data ? data->items.num : 0;
+}
+
+//PRISM/Zengqin/20201023/no issue/for custom group
+enum obs_control_type obs_property_custom_group_item_type(obs_property_t *prop,
+							  size_t idx)
+{
+	if (!prop || prop->type != OBS_PROPERTY_CUSTOM_GROUP)
+		return OBS_CONTROL_UNKNOWN;
+
+	struct custom_group_data *data = get_property_data(prop);
+	return (data && idx < data->items.num) ? data->items.array[idx].type
+					       : OBS_CONTROL_UNKNOWN;
+}
+
+//PRISM/Zengqin/20201026/no issue/for custom group
+const char *obs_property_custom_group_item_name(obs_property_t *prop,
+						size_t idx)
+{
+	if (!prop || prop->type != OBS_PROPERTY_CUSTOM_GROUP)
+		return NULL;
+
+	struct custom_group_data *data = get_property_data(prop);
+	return (data && idx < data->items.num) ? data->items.array[idx].name
+					       : NULL;
+}
+
+//PRISM/Zengqin/20201103/no issue/for custom group
+const char *obs_property_custom_group_item_desc(obs_property_t *prop,
+						size_t idx)
+{
+	if (!prop || prop->type != OBS_PROPERTY_CUSTOM_GROUP)
+		return NULL;
+
+	struct custom_group_data *data = get_property_data(prop);
+	return (data && idx < data->items.num) ? data->items.array[idx].desc
+					       : NULL;
+}
+
+//PRISM/Zengqin/20201027/no issue/for horizontal line
+obs_property_t *obs_properties_add_h_line(obs_properties_t *props,
+					  const char *name, const char *desc)
+{
+	if (!props)
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, desc, OBS_PROPERTY_H_LINE);
+	return p;
+}
+
+//PRISM/Zengqin/20201030/no issue/This checkbox text on the left
+obs_property_t *obs_properties_add_bool_left(obs_properties_t *props,
+					     const char *name, const char *desc)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, desc, OBS_PROPERTY_BOOL_LEFT);
+}
+
+//PRISM/Zhangdewen/20201022/feature/for virtual background
+obs_property_t *obs_properties_add_camera_virtual_background_state(
+	obs_properties_t *props, const char *name, const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, description,
+			 OBS_PROPERTY_CAMERA_VIRTUAL_BACKGROUND_STATE);
+	return p;
+}
+
+//PRISM/Zhangdewen/20201023/feature/for virtual background
+obs_property_t *obs_properties_add_virtual_background_resource(
+	obs_properties_t *props, const char *name, const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, description,
+			 OBS_PROPERTY_VIRTUAL_BACKGROUND_RESOURCE);
+	return p;
+}
+
+//PRISM/Zhangdewen/20201027/feature/for virtual background
+obs_property_t *obs_properties_add_switch(obs_properties_t *props,
+					  const char *name,
+					  const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p =
+		new_prop(props, name, description, OBS_PROPERTY_SWITCH);
+	return p;
+}
+
 obs_property_t *obs_properties_add_font(obs_properties_t *props,
 					const char *name, const char *desc)
 {
@@ -1328,7 +2037,8 @@ obs_property_t *obs_properties_add_group(obs_properties_t *props,
 
 static inline bool is_combo(struct obs_property *p)
 {
-	return p->type == OBS_PROPERTY_LIST;
+	return p->type == OBS_PROPERTY_LIST ||
+	       p->type == OBS_PROPERTY_TIMER_LIST_LISTEN;
 }
 
 static inline struct list_data *get_list_data(struct obs_property *p)
@@ -1472,6 +2182,24 @@ void obs_property_button_group_clicked_by_name(obs_property_t *p, void *obj,
 	obs_property_button_group_clicked(p, obj, index);
 }
 
+bool obs_property_text_button_clicked(obs_property_t *p, void *obj)
+{
+	struct obs_context_data *context = obj;
+	if (p) {
+		struct text_button_data *data =
+			get_type_data(p, OBS_PROPERTY_MOBILE_NAME);
+		if (data && data->callback) {
+			obs_properties_t *top = get_topmost_parent(p->parent);
+			if (p->priv)
+				return data->callback(top, p, p->priv);
+			return data->callback(top, p,
+					      (context ? context->data : NULL));
+		}
+	}
+
+	return false;
+}
+
 void obs_property_set_visible(obs_property_t *p, bool visible)
 {
 	if (p)
@@ -1513,6 +2241,22 @@ void obs_property_set_placeholder(obs_property_t *p, const char *placeholder)
 	}
 }
 
+void obs_property_set_tooltip(obs_property_t *p, const char *tooltip)
+{
+	if (p) {
+		bfree(p->tooltip);
+		p->tooltip = tooltip && *tooltip ? bstrdup(tooltip) : NULL;
+	}
+}
+
+//PRISM/RenJinbo/20210624/None/ignore call modified callback, when refresh properties.
+void obs_property_set_ignore_callback_when_refresh(obs_property_t *p,
+						   bool ignore)
+{
+	if (p)
+		p->ignoreCallbackWhenRefresh = ignore;
+}
+
 const char *obs_property_name(obs_property_t *p)
 {
 	return p ? p->name : NULL;
@@ -1534,6 +2278,11 @@ const char *obs_property_placeholder(obs_property_t *p)
 	return p ? p->placeholder : NULL;
 }
 
+const char *obs_property_tooltip(obs_property_t *p)
+{
+	return p ? p->tooltip : NULL;
+}
+
 enum obs_property_type obs_property_get_type(obs_property_t *p)
 {
 	return p ? p->type : OBS_PROPERTY_INVALID;
@@ -1547,6 +2296,11 @@ bool obs_property_enabled(obs_property_t *p)
 bool obs_property_visible(obs_property_t *p)
 {
 	return p ? p->visible : false;
+}
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+bool obs_property_ignore_callback_when_refresh(obs_property_t *p, bool ignore)
+{
+	return p ? p->ignoreCallbackWhenRefresh : false;
 }
 
 int obs_property_int_min(obs_property_t *p)
@@ -1659,6 +2413,13 @@ bool obs_property_list_readonly(obs_property_t *p)
 {
 	struct list_data *data = get_list_data(p);
 	return data ? data->readonly : false;
+}
+
+const char *obs_property_text_button_text(obs_property_t *p)
+{
+	struct text_button_data *data =
+		get_type_data(p, OBS_PROPERTY_MOBILE_NAME);
+	return data->text;
 }
 
 void obs_property_int_set_limits(obs_property_t *p, int min, int max, int step)
@@ -1823,6 +2584,30 @@ void obs_property_list_item_disable(obs_property_t *p, size_t idx,
 	if (!data || idx >= data->items.num)
 		return;
 	data->items.array[idx].disabled = disabled;
+}
+
+//PRISM/WangShaohui/20210922/noIssue/add tooltips for combox list
+void obs_property_list_item_set_tips(obs_property_t *p, size_t idx,
+				     const char *tips)
+{
+	struct list_data *data = get_list_data(p);
+	if (data && idx < data->items.num) {
+		if (data->items.array[idx].tips) {
+			bfree(data->items.array[idx].tips);
+			data->items.array[idx].tips = NULL;
+		}
+
+		if (tips)
+			data->items.array[idx].tips = bstrdup(tips);
+	}
+}
+
+//PRISM/WangShaohui/20210922/noIssue/add tooltips for combox list
+const char *obs_property_list_item_get_tips(obs_property_t *p, size_t idx)
+{
+	struct list_data *data = get_list_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].tips
+					       : NULL;
 }
 
 const char *obs_property_list_item_name(obs_property_t *p, size_t idx)
@@ -2044,13 +2829,6 @@ size_t obs_property_bool_group_item_count(obs_property_t *p)
 	return data ? data->items.num : 0;
 }
 
-const char *obs_property_bool_group_item_name(obs_property_t *p, size_t idx)
-{
-	struct bool_group_data *data = get_bool_group_data(p);
-	return (data && idx < data->items.num) ? data->items.array[idx].name
-					       : NULL;
-}
-
 const char *obs_property_bool_group_item_text(obs_property_t *p, size_t idx)
 {
 	struct bool_group_data *data = get_bool_group_data(p);
@@ -2113,4 +2891,150 @@ void obs_property_set_length_limit(obs_property_t *p, int max_length)
 int obs_property_get_length_limit(obs_property_t *p)
 {
 	return p->length_limit;
+}
+
+//PRISM/Zengqin/20201125/#none/for property UI
+void obs_property_add_flags(obs_property_t *p, uint32_t flag)
+{
+	if (p) {
+		p->flags |= flag;
+	}
+}
+
+//PRISM/Zengqin/20201125/#none/for property UI
+uint32_t obs_property_get_flags(obs_property_t *p)
+{
+	return p ? p->flags : 0;
+}
+
+bool obs_property_bool_group_item_enabled(obs_property_t *p, size_t idx)
+{
+	struct bool_group_data *data = get_bool_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].enabled
+					       : false;
+}
+
+const char *obs_property_bool_group_item_tooltip(obs_property_t *p, size_t idx)
+{
+	struct bool_group_data *data = get_bool_group_data(p);
+	return (data && idx < data->items.num) ? data->items.array[idx].tooltip
+					       : NULL;
+}
+
+//PRISM/RenJinbo/20210628/#none/Timer source featuress
+obs_property_t *obs_properties_add_int_group(obs_properties_t *props,
+					     const char *name,
+					     const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, description, OBS_PROPERTY_INT_GROUP);
+}
+
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+static inline struct int_group_data *get_int_group_data(struct obs_property *p)
+{
+	if (!p || p->type != OBS_PROPERTY_INT_GROUP) {
+		return NULL;
+	}
+	return get_property_data(p);
+}
+
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+size_t obs_properties_add_int_group_item(obs_property_t *p, const char *name,
+					 const char *desc, int min, int max,
+					 int step)
+{
+	struct int_group_data *data = get_int_group_data(p);
+
+	if (data) {
+		struct int_data_item *item =
+			bzalloc(sizeof(struct int_data_item));
+		item->min = min;
+		item->max = max;
+		item->step = step;
+		item->name = bstrdup(name);
+		item->description = bstrdup(desc);
+
+		return da_push_back(data->items, item);
+	}
+
+	return 0;
+}
+
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+size_t obs_property_int_group_item_count(obs_property_t *p)
+{
+	struct int_group_data *data = get_int_group_data(p);
+	return data ? data->items.num : 0;
+}
+
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+void obs_property_int_group_item_params(obs_property_t *prop, char **subName,
+					char **des, int *min, int *max,
+					int *step, size_t idx)
+{
+	if (!prop || prop->type != OBS_PROPERTY_INT_GROUP)
+		return;
+
+	struct int_group_data *data = get_int_group_data(prop);
+	if (!data || idx > data->items.num) {
+		return;
+	}
+
+	//struct int_group_data *data = get_int_group_data(prop);
+	struct int_data_item i_data = data->items.array[idx];
+	*min = i_data.min;
+	*max = i_data.max;
+	*step = i_data.step;
+	*des = i_data.description;
+	*subName = i_data.name;
+}
+
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+obs_property_t *obs_properties_add_font_simple(obs_properties_t *props,
+					       const char *name,
+					       const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, description, OBS_PROPERTY_FONT_SIMPLE);
+}
+
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+obs_property_t *obs_properties_add_color_checkbox(obs_properties_t *props,
+						  const char *name,
+						  const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, description, OBS_PROPERTY_COLOR_CHECKBOX);
+}
+
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+obs_property_t *obs_properties_add_timer_list_Listen(obs_properties_t *props,
+						     const char *name,
+						     const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+
+	struct obs_property *p = new_prop(props, name, description,
+					  OBS_PROPERTY_TIMER_LIST_LISTEN);
+	struct list_data *data = get_property_data(p);
+	data->format = OBS_COMBO_FORMAT_STRING;
+	data->type = OBS_COMBO_TYPE_LIST;
+	data->readonly = false;
+
+	return p;
+}
+
+//PRISM/RenJinbo/20210628/#none/Timer source feature
+obs_property_t *obs_properties_add_label_tip(obs_properties_t *props,
+					     const char *name,
+					     const char *description)
+{
+	if (!props || has_prop(props, name))
+		return NULL;
+	return new_prop(props, name, description, OBS_PROPERTY_LABEL_TIP);
 }

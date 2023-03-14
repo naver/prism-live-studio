@@ -9,6 +9,7 @@
 #include <QStyle>
 #include "output-timer.hpp"
 #include "log.h"
+#include "log/log.h"
 #include "action.h"
 #include "frontend-api.h"
 using namespace std;
@@ -50,7 +51,7 @@ void OutputTimer::StreamingTimerButton()
 {
 	PLS_PLUGIN_UI_STEP("Output Timer > Streaming Start Button", ACTION_CLICK);
 	if (!obs_frontend_streaming_active()) {
-		blog(LOG_INFO, "Starting stream due to OutputTimer");
+		PLS_INFO(FRONTEND_TOOLS_OUTPUT_TIMER, "Starting stream due to OutputTimer");
 		pls_start_broadcast(true);
 
 	} else if (streamingAlreadyActive) {
@@ -65,7 +66,7 @@ void OutputTimer::RecordingTimerButton()
 {
 	PLS_PLUGIN_UI_STEP("Output Timer > Recording Start Button", ACTION_CLICK);
 	if (!obs_frontend_recording_active()) {
-		blog(LOG_INFO, "Starting recording due to OutputTimer");
+		PLS_INFO(FRONTEND_TOOLS_OUTPUT_TIMER, "Starting recording due to OutputTimer");
 		pls_start_record(true);
 	} else if (recordingAlreadyActive) {
 		RecordTimerStart();
@@ -231,13 +232,6 @@ void OutputTimer::UnpauseRecordingTimer()
 		recordingTimer->start(recordingTimeLeft);
 }
 
-void OutputTimer::showEvent(QShowEvent *event)
-{
-	updateStreamButtonState();
-	updateRecordButtonState();
-	PLSDialogView::showEvent(event);
-}
-
 void OutputTimer::ShowHideDialog()
 {
 	if (!isVisible()) {
@@ -251,14 +245,16 @@ void OutputTimer::ShowHideDialog()
 
 void OutputTimer::EventStopStreaming()
 {
-	blog(LOG_INFO, "Stopping stream due to OutputTimer timeout");
+	PLS_INFO(FRONTEND_TOOLS_OUTPUT_TIMER, "Stopping stream due to OutputTimer timeout");
 	pls_start_broadcast(false);
+	StreamTimerStop();
 }
 
 void OutputTimer::EventStopRecording()
 {
-	blog(LOG_INFO, "Stopping recording due to OutputTimer timeout");
+	PLS_INFO(FRONTEND_TOOLS_OUTPUT_TIMER, "Stopping recording due to OutputTimer timeout");
 	pls_start_record(false);
+	RecordTimerStop();
 }
 
 void OutputTimer::updateStreamButtonState()

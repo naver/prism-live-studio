@@ -7,7 +7,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1079</width>
+    <width>1371</width>
     <height>957</height>
    </rect>
   </property>
@@ -272,27 +272,30 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1079</width>
-     <height>22</height>
+     <width>1371</width>
+     <height>23</height>
     </rect>
    </property>
    <widget class="PLSMenu" name="menuFile">
     <property name="title">
-     <string>Basic.MainMenu.File</string>
+     <string>Basic.MainMenu.File.Settings</string>
     </property>
     <addaction name="action_Settings"/>
     <addaction name="separator"/>
     <addaction name="actionShowSettingsFolder"/>
     <addaction name="actionShowVideosFolder"/>
-    <addaction name="separator"/>
-    <addaction name="actionExit"/>
    </widget>
    <widget class="PLSMenu" name="menuHelp">
     <property name="title">
      <string>Basic.MainMenu.Help</string>
     </property>
+    <addaction name="actionShowAbout"/>
+    <addaction name="actionOpenSourceLicense"/>
+    <addaction name="separator"/>
     <addaction name="actionPrismWebsite"/>
     <addaction name="actionPrismFAQ"/>
+    <addaction name="actionPrismBlog"/>
+    <addaction name="actionContactUs"/>
     <addaction name="separator"/>
     <addaction name="actionObsFAQPortal"/>
    </widget>
@@ -352,13 +355,8 @@
      <string>Basic.MainMenu.Profile</string>
     </property>
     <addaction name="actionNewProfile"/>
-    <addaction name="actionShowProfileFolder"/>
-    <addaction name="actionImportProfile"/>
-    <addaction name="separator"/>
-    <addaction name="actionDupProfile"/>
     <addaction name="actionExportProfile"/>
-    <addaction name="actionRenameProfile"/>
-    <addaction name="actionRemoveProfile"/>
+    <addaction name="actionImportProfile"/>
     <addaction name="separator"/>
    </widget>
    <widget class="PLSMenu" name="sceneCollectionMenu">
@@ -366,12 +364,8 @@
      <string>Basic.MainMenu.SceneCollection</string>
     </property>
     <addaction name="actionNewSceneCollection"/>
-    <addaction name="actionImportSceneCollection"/>
-    <addaction name="separator"/>
-    <addaction name="actionDupSceneCollection"/>
     <addaction name="actionExportSceneCollection"/>
-    <addaction name="actionRenameSceneCollection"/>
-    <addaction name="actionRemoveSceneCollection"/>
+    <addaction name="actionImportSceneCollection"/>
     <addaction name="separator"/>
    </widget>
    <widget class="PLSMenu" name="viewMenu">
@@ -434,12 +428,12 @@
     </property>
    </widget>
    <addaction name="menuFile"/>
-   <addaction name="viewMenu"/>
-   <addaction name="menuEdit"/>
+   <addaction name="menuHelp"/>
    <addaction name="sceneCollectionMenu"/>
+   <addaction name="menuEdit"/>
+   <addaction name="viewMenu"/>
    <addaction name="profileMenu"/>
    <addaction name="menuTools"/>
-   <addaction name="menuHelp"/>
   </widget>
   <widget class="PLSDock" name="scenesDock">
    <property name="features">
@@ -680,7 +674,7 @@
           <rect>
            <x>0</x>
            <y>0</y>
-           <width>206</width>
+           <width>269</width>
            <height>16</height>
           </rect>
          </property>
@@ -701,7 +695,7 @@
            <number>0</number>
           </property>
           <property name="rightMargin">
-           <number>10</number>
+           <number>5</number>
           </property>
           <property name="bottomMargin">
            <number>0</number>
@@ -1097,21 +1091,6 @@
     <string>New</string>
    </property>
   </action>
-  <action name="actionDupSceneCollection">
-   <property name="text">
-    <string>Duplicate</string>
-   </property>
-  </action>
-  <action name="actionRenameSceneCollection">
-   <property name="text">
-    <string>Rename</string>
-   </property>
-  </action>
-  <action name="actionRemoveSceneCollection">
-   <property name="text">
-    <string>Delete</string>
-   </property>
-  </action>
   <action name="actionImportSceneCollection">
    <property name="text">
     <string>Import</string>
@@ -1127,21 +1106,6 @@
     <string>New</string>
    </property>
   </action>
-  <action name="actionDupProfile">
-   <property name="text">
-    <string>Duplicate</string>
-   </property>
-  </action>
-  <action name="actionRenameProfile">
-   <property name="text">
-    <string>Rename</string>
-   </property>
-  </action>
-  <action name="actionRemoveProfile">
-   <property name="text">
-    <string>Delete</string>
-   </property>
-  </action>
   <action name="actionImportProfile">
    <property name="text">
     <string>Import</string>
@@ -1155,11 +1119,6 @@
   <action name="actionShowSettingsFolder">
    <property name="text">
     <string>Basic.MainMenu.File.ShowSettingsFolder</string>
-   </property>
-  </action>
-  <action name="actionShowProfileFolder">
-   <property name="text">
-    <string>Basic.MainMenu.Profile.ShowProfileFolder</string>
    </property>
   </action>
   <action name="actionAlwaysOnTop">
@@ -1416,6 +1375,16 @@
    </property>
    <property name="shortcut">
     <string>Del</string>
+   </property>
+  </action>
+  <action name="actionPrismBlog">
+   <property name="text">
+    <string>Basic.MainMenu.Help.Blog</string>
+   </property>
+  </action>
+  <action name="actionTestModule">
+   <property name="text">
+    <string>Basic.MainMenu.Help.TestModule</string>
    </property>
   </action>
  </widget>

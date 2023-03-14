@@ -23,9 +23,16 @@
 #include "obs.h"
 #include "obs-internal.h"
 
+//PRISM/WangShaohui/20211012/#9881/enum all modules to help debug
+#ifdef WIN32
+#include <Windows.h>
+#include <TlHelp32.h>
+#include <locale.h>
+#endif
+
 struct obs_core *obs = NULL;
 
-extern void add_default_module_paths(void);
+//extern void add_default_module_paths(void);
 extern char *find_libobs_data_file(const char *file);
 
 static inline void make_video_info(struct video_output_info *vi,
@@ -86,18 +93,18 @@ static bool obs_init_gpu_conversion(struct obs_video_info *ovi)
 					: false;
 
 	if (!video->conversion_needed) {
-		blog(LOG_INFO, "GPU conversion not available for format: %u",
+		plog(LOG_INFO, "GPU conversion not available for format: %u",
 		     (unsigned int)ovi->output_format);
 		video->gpu_conversion = false;
 		video->using_nv12_tex = false;
-		blog(LOG_INFO, "NV12 texture support not available");
+		plog(LOG_INFO, "NV12 texture support not available");
 		return true;
 	}
 
 	if (video->using_nv12_tex)
-		blog(LOG_INFO, "NV12 texture support enabled");
+		plog(LOG_INFO, "NV12 texture support enabled");
 	else
-		blog(LOG_INFO, "NV12 texture support not available");
+		plog(LOG_INFO, "NV12 texture support not available");
 
 #ifdef _WIN32
 	if (video->using_nv12_tex) {
@@ -258,11 +265,111 @@ gs_effect_t *obs_load_effect(gs_effect_t **effect, const char *file)
 	return *effect;
 }
 
-//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
-static void obs_render_working(bool working)
+//PRISM/WangChuanjing/20210311/#6941/notify engine status
+static enum obs_render_engine_notify
+obs_get_render_engine_notify_code(enum gs_engine_notify_code code)
 {
-	if (obs)
-		os_atomic_set_bool(&obs->video.render_working, working);
+	switch (code) {
+	case GS_E_OUTOFMEMORY:
+		return OBS_ENGINE_E_OUTOFMEMORY;
+	case GS_E_INVALIDARG:
+		return OBS_ENGINE_E_INVALIDARG;
+	case GS_E_ACCESS_DENIED:
+		return OBS_ENGINE_E_ACCESS_DENIED;
+	case GS_E_DEVICE_HUNG:
+		return OBS_ENGINE_E_DEVICE_HUNG;
+	case GS_E_DEVICE_REMOVED:
+		return OBS_ENGINE_E_DEVICE_REMOVED;
+	case GS_E_DEVICE_UNSUPPORTED:
+		return OBS_ENGINE_E_DEVICE_UNSUPPORTED;
+	case GS_E_REBUILD_FAILED:
+		return OBS_ENGINE_E_REBUILD_FAILED;
+	default:
+		break;
+	}
+	return OBS_ENGINE_E_UNKNOWN;
+}
+
+//PRISM/WangChuanjing/20210311/#6941/notify engine status
+static void obs_render_notify_callback(int type, int code, void *ext_param)
+{
+	if (!obs) {
+		return;
+	}
+	if (type == GS_ENGINE_NOTIFY_STATUS) {
+
+		if (code == GS_ENGINE_STATUS_NORMAL) {
+			//PRISM/ZengQin/20210309/#none/when device rebuild to update videoAdapter
+			struct calldata data;
+			uint8_t stack[256];
+			calldata_init_fixed(&data, stack, sizeof(stack));
+			if (ext_param) {
+				calldata_set_string(&data, "adapter_name",
+						    (char *)ext_param);
+			} else {
+				calldata_set_string(&data, "adapter_name",
+						    "Unknown");
+			}
+			signal_handler_signal(obs->signals, "device_rebuilt",
+					      &data);
+		}
+	} else if (type == GS_ENGINE_NOTIFY_EXCEPTION) {
+		switch (code) {
+		case GS_E_OUTOFMEMORY: {
+			bool notified = false;
+			for (size_t i = 0;
+			     i < obs->video.engine_notify_array.num; i++) {
+				struct obs_engine_notify_info *info =
+					obs->video.engine_notify_array.array +
+					i;
+
+				if (info->type == type && info->code == code &&
+				    info->notify_done) {
+					notified = true;
+				}
+			}
+
+			if (!notified) {
+				struct calldata data;
+				uint8_t stack[128];
+				calldata_init_fixed(&data, stack,
+						    sizeof(stack));
+				int notify_code =
+					obs_get_render_engine_notify_code(code);
+				calldata_set_int(&data, "notify_code", code);
+				signal_handler_signal(obs->signals,
+						      "engine_notify_signal",
+						      &data);
+
+				struct obs_engine_notify_info info = {0};
+				info.type = type;
+				info.code = code;
+				info.notify_done = true;
+				da_push_back(obs->video.engine_notify_array,
+					     &info);
+			}
+			break;
+		}
+		case GS_E_REBUILD_FAILED: {
+			struct calldata data;
+			uint8_t stack[128];
+			calldata_init_fixed(&data, stack, sizeof(stack));
+			int notify_code =
+				obs_get_render_engine_notify_code(code);
+			calldata_set_int(&data, "notify_code", code);
+			signal_handler_signal(obs->signals,
+					      "engine_notify_signal", &data);
+
+			struct obs_engine_notify_info info = {0};
+			info.type = type;
+			info.code = code;
+			info.notify_done = true;
+			da_push_back(obs->video.engine_notify_array, &info);
+			break;
+		}
+		default:;
+		}
+	}
 }
 
 static int obs_init_graphics(struct obs_video_info *ovi)
@@ -276,13 +383,15 @@ static int obs_init_graphics(struct obs_video_info *ovi)
 
 	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
 	errorcode = gs_create_cb(&video->graphics, ovi->graphics_module,
-				 ovi->adapter, obs_render_working);
+				 ovi->adapter, obs_render_notify_callback);
 	if (errorcode != GS_SUCCESS) {
 		switch (errorcode) {
 		case GS_ERROR_MODULE_NOT_FOUND:
 			return OBS_VIDEO_MODULE_NOT_FOUND;
 		case GS_ERROR_NOT_SUPPORTED:
 			return OBS_VIDEO_NOT_SUPPORTED;
+		case GS_ERROR_NOT_SUPPORTED_ENGINE_VERSION:
+			return OBS_VIDEO_NOT_SUPPORTED_ENGINE_VERSION;
 		default:
 			return OBS_VIDEO_FAIL;
 		}
@@ -338,6 +447,8 @@ static int obs_init_graphics(struct obs_video_info *ovi)
 	video->premultiplied_alpha_effect =
 		gs_effect_create_from_file(filename, NULL);
 	bfree(filename);
+
+	plog(LOG_INFO, "Init public effect success");
 
 	point_sampler.max_anisotropy = 1;
 	video->point_sampler = gs_samplerstate_create(&point_sampler);
@@ -411,10 +522,10 @@ static int obs_init_video(struct obs_video_info *ovi)
 
 	if (errorcode != VIDEO_OUTPUT_SUCCESS) {
 		if (errorcode == VIDEO_OUTPUT_INVALIDPARAM) {
-			blog(LOG_ERROR, "Invalid video parameters specified");
+			plog(LOG_ERROR, "Invalid video parameters specified");
 			return OBS_VIDEO_INVALID_PARAM;
 		} else {
-			blog(LOG_ERROR, "Could not open video output");
+			plog(LOG_ERROR, "Could not open video output");
 		}
 		return OBS_VIDEO_FAIL;
 	}
@@ -434,11 +545,10 @@ static int obs_init_video(struct obs_video_info *ovi)
 		return OBS_VIDEO_FAIL;
 	if (pthread_mutex_init(&video->gpu_encoder_mutex, NULL) < 0)
 		return OBS_VIDEO_FAIL;
-	if (pthread_mutex_init(&video->task_mutex, NULL) < 0)
-		return OBS_VIDEO_FAIL;
+	//PRISM/WangShaohui/20210507/NoIssue/for task thread-safe
+	//if (pthread_mutex_init(&video->task_mutex, NULL) < 0)
+	//	return OBS_VIDEO_FAIL;
 
-	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
-	video->render_working = true;
 	errorcode = pthread_create(&video->video_thread, NULL,
 				   obs_graphics_thread, obs);
 	if (errorcode != 0)
@@ -447,10 +557,14 @@ static int obs_init_video(struct obs_video_info *ovi)
 	video->thread_initialized = true;
 	video->ovi = *ovi;
 
+	//PRISM/Wang.Chuanjing/20200315//#6941/notify engine status
+	da_init(video->engine_notify_array);
+
 	/* ------------------------------------------------------------------------- */
 	//PRISM/LiuHaibin/20200117/#214&#215/for outro&watermark
 
-	video->outro = obs_outro_create("pls_outro");
+	if (!video->outro)
+		video->outro = obs_outro_create("pls_outro");
 	video->watermark = obs_watermark_create();
 
 	//End
@@ -582,12 +696,15 @@ static void obs_free_video(void)
 		pthread_mutex_init_value(&video->gpu_encoder_mutex);
 		da_free(video->gpu_encoders);
 
-		pthread_mutex_destroy(&video->task_mutex);
-		pthread_mutex_init_value(&video->task_mutex);
-		circlebuf_free(&video->tasks);
+		//PRISM/WangShaohui/20210507/NoIssue/for task thread-safe
+		//pthread_mutex_destroy(&video->task_mutex);
+		//pthread_mutex_init_value(&video->task_mutex);
+		//circlebuf_free(&video->tasks);
 
 		video->gpu_encoder_active = 0;
 		video->cur_texture = 0;
+
+		da_free(video->engine_notify_array);
 	}
 }
 
@@ -651,9 +768,9 @@ static bool obs_init_audio(struct audio_output_info *ai)
 	if (errorcode == AUDIO_OUTPUT_SUCCESS)
 		return true;
 	else if (errorcode == AUDIO_OUTPUT_INVALIDPARAM)
-		blog(LOG_ERROR, "Invalid audio parameters specified");
+		plog(LOG_ERROR, "Invalid audio parameters specified");
 	else
-		blog(LOG_ERROR, "Could not open audio output");
+		plog(LOG_ERROR, "Could not open audio output");
 
 	return false;
 }
@@ -744,7 +861,7 @@ void obs_main_view_free(struct obs_view *view)
 			unfreed++;                                         \
 		}                                                          \
 		if (unfreed)                                               \
-			blog(LOG_INFO, "\t%d " #type "(s) were remaining", \
+			plog(LOG_INFO, "\t%d " #type "(s) were remaining", \
 			     unfreed);                                     \
 	} while (false)
 
@@ -756,7 +873,7 @@ static void obs_free_data(void)
 
 	obs_main_view_free(&data->main_view);
 
-	blog(LOG_INFO, "Freeing OBS context data");
+	plog(LOG_INFO, "Freeing OBS context data");
 
 	FREE_OBS_LINKED_LIST(source);
 	FREE_OBS_LINKED_LIST(output);
@@ -789,6 +906,7 @@ static const char *obs_signals[] = {
 	"void source_audio_activate(ptr source)",
 	"void source_audio_deactivate(ptr source)",
 	"void source_rename(ptr source, string new_name, string prev_name)",
+	"void source_rename_ext(ptr source, string new_name, string prev_name)",
 	"void source_volume(ptr source, in out float volume)",
 	"void source_volume_level(ptr source, float level, float magnitude, "
 	"float peak)",
@@ -803,6 +921,13 @@ static const char *obs_signals[] = {
 	"void hotkey_register(ptr hotkey)",
 	"void hotkey_unregister(ptr hotkey)",
 	"void hotkey_bindings_changed(ptr hotkey)",
+
+	"void device_rebuilt()",
+
+	//PRISM/WangChuanjing/20210126/#None/action log
+	"void source_action_notify(ptr source, int type, ptr event1, ptr event2, ptr event3, ptr target)",
+
+	"void engine_notify_signal(ptr data, ptr param)",
 
 	NULL,
 };
@@ -924,12 +1049,17 @@ static bool obs_init(const char *locale, const char *module_config_path,
 	//PRISM/LiuHaibin/20200908/#4748/add mp3 info
 	pthread_mutex_init_value(&obs->audio.id3v2_mutex);
 	pthread_mutex_init_value(&obs->video.gpu_encoder_mutex);
-	pthread_mutex_init_value(&obs->video.task_mutex);
+	//PRISM/WangShaohui/20210507/NoIssue/for task thread-safe
+	//pthread_mutex_init_value(&obs->video.task_mutex);
+	if (pthread_mutex_init(&obs->video.task_mutex, NULL) < 0) {
+		plog(LOG_ERROR, "Couldn't create task mutex");
+		return false;
+	}
 
 	obs->name_store_owned = !store;
 	obs->name_store = store ? store : profiler_name_store_create();
 	if (!obs->name_store) {
-		blog(LOG_ERROR, "Couldn't create profiler name store");
+		plog(LOG_ERROR, "Couldn't create profiler name store");
 		return false;
 	}
 
@@ -945,13 +1075,23 @@ static bool obs_init(const char *locale, const char *module_config_path,
 	//PRISM/WangChuanjing/20200827/#4592/for source not render
 	os_atomic_set_bool(&obs->video.system_initialized, false);
 
+	//PRISM/Liuying/20201216/#6183/for create display delay
+	os_atomic_set_bool(&obs->video.source_is_loading, false);
+
 	if (module_config_path)
 		obs->module_config_path = bstrdup(module_config_path);
 	obs->locale = bstrdup(locale);
 	obs_register_source(&scene_info);
 	obs_register_source(&group_info);
 	obs_register_source(&audio_line_info);
-	add_default_module_paths();
+	//PRISM/Xiewei/20210204/#6651/load obs plugins after prism plugins were loaded.
+	//add_default_module_paths();
+
+	//PRISM/LiuHaibin/20210729/#None/add windows message monitor
+#ifdef _WIN32
+	obs->win_power_monitor = power_monitor_start();
+#endif
+
 	return true;
 }
 
@@ -1013,7 +1153,7 @@ bool obs_startup(const char *locale, const char *module_config_path,
 	profile_start(obs_startup_name);
 
 	if (obs) {
-		blog(LOG_WARNING, "Tried to call obs_startup more than once");
+		plog(LOG_WARNING, "Tried to call obs_startup more than once");
 		return false;
 	}
 
@@ -1065,6 +1205,126 @@ struct obs_cmdline_args obs_get_cmdline_args(void)
 	return cmdline_args;
 }
 
+//PRISM/WangShaohui/20210122/#1751/for tracing shutdown
+bool check_source_empty_callback(void *data, obs_source_t *source)
+{
+	const char *id = obs_source_get_id(source);
+	const char *name = obs_source_get_name(source);
+	plog(LOG_INFO,
+	     "Found existed source before shutdown. plugin:[%s] name:[%s] source:%p",
+	     id ? id : "noID", name ? name : "noName", source);
+
+	int *source_count = (int *)data;
+	(*source_count) += 1;
+
+	return true;
+}
+
+//PRISM/WangShaohui/20210122/#1751/for tracing shutdown
+void enum_any_sources(bool (*enum_proc)(void *, obs_source_t *), void *param)
+{
+	if (!obs)
+		return;
+
+	pthread_mutex_lock(&obs->data.sources_mutex);
+	obs_source_t *source = obs->data.first_source;
+
+	while (source) {
+		if (!enum_proc(param, source)) {
+			break;
+		}
+		source = (obs_source_t *)source->context.next;
+	}
+
+	pthread_mutex_unlock(&obs->data.sources_mutex);
+}
+
+//PRISM/WangShaohui/20210122/#1751/for tracing shutdown
+void check_source_empty()
+{
+	int source_count = 0;
+	enum_any_sources(check_source_empty_callback, &source_count);
+
+	if (source_count > 0) {
+		plog(LOG_ERROR,
+		     "Before shutdown, there are %d sources are not released which may cause a crash!",
+		     source_count);
+
+		assert(false &&
+		       "Before shutdown you must release all sources !");
+		popup_messagebox("alive sources in shutdown!");
+	}
+}
+
+//PRISM/WangShaohui/20211012/#9881/enum all modules to help debug
+#ifdef WIN32
+BOOL os_win_enum_modules(DWORD pid)
+{
+	DWORD st = timeGetTime();
+
+	HANDLE modules = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
+	if (!modules || modules == INVALID_HANDLE_VALUE)
+		return FALSE;
+
+	MODULEENTRY32 me32 = {sizeof(MODULEENTRY32)};
+	if (!Module32First(modules, &me32)) {
+		CloseHandle(modules);
+		return FALSE;
+	}
+
+	char str_set[4096] = {0};
+	int str_items = 0;
+	int count = 0;
+	int total = 0;
+	do {
+		char path[MAX_PATH] = {0};
+		GetModuleFileNameA(me32.hModule, path, MAX_PATH);
+
+		if (NULL != strstr(path, "prism-plugins")) {
+			char *utf8_str = NULL;
+			os_wcs_to_utf8_ptr(me32.szModule, 0, &utf8_str);
+
+			if (utf8_str) {
+				char item[1024];
+				snprintf(item, 1024, "%p - %p >%s\n",
+					 me32.modBaseAddr,
+					 me32.modBaseAddr + me32.modBaseSize,
+					 utf8_str);
+
+				if (!str_items)
+					str_items = sizeof(str_set) /
+						    (2 * strlen(item));
+
+				++count;
+				++total;
+				strcat(str_set, item);
+
+				if (count >= str_items) {
+					plog(LOG_INFO,
+					     "plugin module list: %d \n%s",
+					     count, str_set);
+
+					str_set[0] = 0;
+					count = 0;
+				}
+
+				bfree(utf8_str);
+			}
+		}
+	} while (Module32Next(modules, &me32));
+
+	if (count > 0)
+		plog(LOG_INFO, "plugin module list: %d \n%s", count, str_set);
+
+	plog(LOG_INFO, "Count of plugin module list: %d, %ums is token.", total,
+	     timeGetTime() - st);
+
+	CloseHandle(modules);
+	return TRUE;
+}
+#endif
+
+extern void execute_graphics_tasks(void);
 void obs_shutdown(void)
 {
 	struct obs_module *module;
@@ -1074,7 +1334,26 @@ void obs_shutdown(void)
 		return;
 
 	//PRISM/WangShaohui/20200318/#1751/for tracing shutdown
-	blog(LOG_INFO, "obs_shutdown() start");
+	plog(LOG_INFO, "obs_shutdown() start");
+
+	//PRISM/WangShaohui/20211012/#9881/enum all modules to help debug
+#ifdef WIN32
+	os_win_enum_modules(GetCurrentProcessId());
+#endif
+
+	//PRISM/LiuHaibin/20200117/#214/for outro
+	stop_outro();
+
+	//PRISM/LiuHaibin/20200117/#215/for watermark
+	stop_watermark();
+
+	//PRISM/LiuHaibin/20200217/#432/for live thumbnail
+	free_thumbnail();
+
+	//PRISM/LiuHaibin/20210729/#None/add windows msg monitor
+#ifdef _WIN32
+	power_monitor_stop(&obs->win_power_monitor);
+#endif
 
 #define FREE_REGISTERED_TYPES(structure, list)                         \
 	do {                                                           \
@@ -1099,17 +1378,11 @@ void obs_shutdown(void)
 	da_free(obs->filter_types);
 	da_free(obs->transition_types);
 
-	//PRISM/LiuHaibin/20200117/#214/for outro
-	stop_outro();
-
-	//PRISM/LiuHaibin/20200117/#215/for watermark
-	stop_watermark();
-
-	//PRISM/LiuHaibin/20200217/#432/for live thumbnail
-	free_thumbnail();
-
 	stop_video();
 	stop_hotkeys();
+
+	//PRISM/WangShaohui/20210507/NoIssue/for task thread-safe
+	execute_graphics_tasks();
 
 	obs_free_audio();
 	obs_free_data();
@@ -1120,6 +1393,9 @@ void obs_shutdown(void)
 	signal_handler_destroy(obs->signals);
 	obs->procs = NULL;
 	obs->signals = NULL;
+
+	//PRISM/WangShaohui/20210122/#1751/for tracing shutdown
+	check_source_empty();
 
 	core = obs;
 	obs = NULL;
@@ -1136,6 +1412,15 @@ void obs_shutdown(void)
 		free_module_path(core->module_paths.array + i);
 	da_free(core->module_paths);
 
+	//PRISM/Liuying/20200128/for third-party plugins notification
+	for (size_t i = 0; i < core->external_module_dll_info.num; i++)
+		free_module_dll_info(core->external_module_dll_info.array + i);
+	da_free(core->external_module_dll_info);
+
+	//PRISM/WangShaohui/20210507/NoIssue/for task thread-safe
+	pthread_mutex_destroy(&core->video.task_mutex);
+	circlebuf_free(&core->video.tasks);
+
 	if (core->name_store_owned)
 		profiler_name_store_free(core->name_store);
 
@@ -1149,7 +1434,7 @@ void obs_shutdown(void)
 #endif
 
 	//PRISM/WangShaohui/20200318/#1751/for tracing shutdown
-	blog(LOG_INFO, "obs_shutdown() end");
+	plog(LOG_INFO, "obs_shutdown() end");
 }
 
 bool obs_initialized(void)
@@ -1215,9 +1500,6 @@ int obs_reset_video(struct obs_video_info *ovi)
 
 	struct obs_core_video *video = &obs->video;
 
-	//PRISM/LiuHaibin/20200117/#214/for outro
-	stop_outro();
-
 	//PRISM/LiuHaibin/20200117/#215/for watermark
 	stop_watermark();
 
@@ -1263,8 +1545,8 @@ int obs_reset_video(struct obs_video_info *ovi)
 	const char *yuv_range =
 		get_video_range_name(ovi->output_format, ovi->range);
 
-	blog(LOG_INFO, "---------------------------------");
-	blog(LOG_INFO,
+	plog(LOG_INFO, "---------------------------------");
+	plog(LOG_INFO,
 	     "video settings reset:\n"
 	     "\tbase resolution:   %dx%d\n"
 	     "\toutput resolution: %dx%d\n"
@@ -1278,6 +1560,39 @@ int obs_reset_video(struct obs_video_info *ovi)
 	     yuv ? yuv_format : "None", yuv ? "/" : "", yuv ? yuv_range : "");
 
 	return obs_init_video(ovi);
+}
+
+//currently, only check d3d initialization
+int obs_check_init_video(struct obs_video_info *ovi)
+{
+	if (!ovi) {
+		return 0;
+	}
+
+	graphics_t *graphics = NULL;
+	int errorcode = gs_create_cb(&graphics, ovi->graphics_module,
+				     ovi->adapter, obs_render_notify_callback);
+	if (!graphics) {
+		return errorcode;
+	}
+
+	gs_enter_context(graphics);
+
+	char *filename = obs_find_data_file("lanczos_scale.effect");
+	if (filename) {
+		gs_effect_t *lanczos_effect =
+			gs_effect_create_from_file(filename, NULL);
+		bfree(filename);
+
+		gs_effect_destroy(lanczos_effect);
+	}
+	gs_leave_context();
+
+	if (graphics) {
+		gs_destroy(graphics);
+		graphics = NULL;
+	}
+	return 0;
 }
 
 bool obs_reset_audio(const struct obs_audio_info *oai)
@@ -1301,8 +1616,8 @@ bool obs_reset_audio(const struct obs_audio_info *oai)
 	ai.speakers = oai->speakers;
 	ai.input_callback = audio_callback;
 
-	blog(LOG_INFO, "---------------------------------");
-	blog(LOG_INFO,
+	plog(LOG_INFO, "---------------------------------");
+	plog(LOG_INFO,
 	     "audio settings reset:\n"
 	     "\tsamples per sec: %d\n"
 	     "\tspeakers:        %d",
@@ -1517,13 +1832,13 @@ void obs_set_output_source(uint32_t channel, obs_source_t *source)
 
 	//PRISM/WangShaohui/20201029/NoIssue/for debugging
 	if (source) {
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "Set channel(%d) of main_view. [%s] id:%s obs_source:%p",
 		     channel,
 		     source->context.name ? source->context.name : "noName",
 		     source->info.id ? source->info.id : "noID", source);
 	} else {
-		blog(LOG_INFO, "Clear channel(%d) of main_view", channel);
+		plog(LOG_INFO, "Clear channel(%d) of main_view", channel);
 	}
 
 	struct obs_source *prev_source;
@@ -1556,6 +1871,8 @@ void obs_set_output_source(uint32_t channel, obs_source_t *source)
 	}
 }
 
+extern bool obs_source_alive(obs_source_t *source);
+
 void obs_enum_sources(bool (*enum_proc)(void *, obs_source_t *), void *param)
 {
 	obs_source_t *source;
@@ -1569,7 +1886,11 @@ void obs_enum_sources(bool (*enum_proc)(void *, obs_source_t *), void *param)
 	while (source) {
 		obs_source_t *next_source =
 			(obs_source_t *)source->context.next;
-
+		//PRISM/Liuying/20210615/#8201 ignore source removed
+		if (obs_source_removed(source) || !obs_source_alive(source)) {
+			source = next_source;
+			continue;
+		}
 		if (source->info.id == group_info.id &&
 		    !enum_proc(param, source)) {
 			break;
@@ -1600,7 +1921,11 @@ void obs_enum_all_sources(bool (*enum_proc)(void *, obs_source_t *),
 	while (source) {
 		obs_source_t *next_source =
 			(obs_source_t *)source->context.next;
-
+		//PRISM/Liuying/20210615/#8201 ignore source removed
+		if (obs_source_removed(source) || !obs_source_alive(source)) {
+			source = next_source;
+			continue;
+		}
 		if (source->info.id == group_info.id &&
 		    !enum_proc(param, source)) {
 			break;
@@ -2001,11 +2326,22 @@ static obs_source_t *obs_load_source_type(obs_data_t *source_data)
 	obs_source_set_monitoring_type(
 		source, (enum obs_monitoring_type)monitoring_type);
 
-	obs_data_release(source->private_settings);
-	source->private_settings =
-		obs_data_get_obj(source_data, "private_settings");
-	if (!source->private_settings)
+	//PRISM/Zhangdewen/20201026/#/virtual background chroma-key settings not saved
+	if (!source->private_settings) {
 		source->private_settings = obs_data_create();
+		if (source->info.get_private_defaults) {
+			source->info.get_private_defaults(
+				source->private_settings);
+		}
+	}
+
+	obs_data_t *saved_private_settings =
+		obs_data_get_obj(source_data, "private_settings");
+	obs_data_apply(source->private_settings, saved_private_settings);
+	obs_data_release(saved_private_settings);
+
+	//PRISM/Zhangdewen/20201026/feature/virtual background
+	obs_source_private_update(source, NULL);
 
 	if (filters) {
 		size_t count = obs_data_array_count(filters);
@@ -2037,6 +2373,31 @@ obs_source_t *obs_load_source(obs_data_t *source_data)
 	return obs_load_source_type(source_data);
 }
 
+//PRISM/Liuying/20210319/#7260/for rename existed source when load source
+bool existed_same_source(obs_data_array_t *array, const char *ori_source_name)
+{
+	if (!array || !ori_source_name) {
+		return false;
+	}
+
+	int total_number = 0;
+	int count = obs_data_array_count(array);
+	for (int i = 0; i < count; i++) {
+		obs_data_t *source_data = obs_data_array_item(array, i);
+		const char *source_name =
+			obs_data_get_string(source_data, "name");
+		if (0 == strcmp(source_name, ori_source_name)) {
+			total_number++;
+			if (total_number > 1) {
+				obs_data_release(source_data);
+				return true;
+			}
+		}
+		obs_data_release(source_data);
+	}
+	return false;
+}
+
 //PRISM/WangShaohui/20200319/#1833/for avoid UI block
 void obs_load_sources(obs_data_array_t *array, obs_load_source_cb cb,
 		      obs_load_pld_cb pldCb, void *private_data)
@@ -2054,10 +2415,31 @@ void obs_load_sources(obs_data_array_t *array, obs_load_source_cb cb,
 	count = obs_data_array_count(array);
 	da_reserve(sources, count);
 
+	//PRISM/Liuying/20201216/#6183/for create display delay
+	obs_set_source_is_loading(true);
+
 	pthread_mutex_lock(&data->sources_mutex);
 
 	for (i = 0; i < count; i++) {
 		obs_data_t *source_data = obs_data_array_item(array, i);
+		const char *source_name =
+			obs_data_get_string(source_data, "name");
+
+		//PRISM/Liuying/20210319/#7260/for rename existed source when load source
+		if (existed_same_source(array, source_name)) {
+			char name[256] = {0};
+			int index = 2;
+			while (true) {
+				memset(name, 0, strlen(name));
+				sprintf(name, "%s %d", source_name, index++);
+				if (!existed_same_source(array, name)) {
+					break;
+				}
+			}
+			//rename source
+			obs_data_set_string(source_data, "name", name);
+		}
+
 		obs_source_t *source = obs_load_source(source_data);
 
 		da_push_back(sources, &source);
@@ -2096,6 +2478,9 @@ void obs_load_sources(obs_data_array_t *array, obs_load_source_cb cb,
 		obs_source_release(sources.array[i]);
 
 	pthread_mutex_unlock(&data->sources_mutex);
+
+	//PRISM/Liuying/20201216/#6183/for create display delay
+	obs_set_source_is_loading(false);
 
 	da_free(sources);
 }
@@ -2296,6 +2681,7 @@ void obs_context_data_free(struct obs_context_data *context)
 	obs_context_data_remove(context);
 	pthread_mutex_destroy(&context->rename_cache_mutex);
 	bfree(context->name);
+	bfree(context->name_ext); //PRISM/WuLongyue/20201210/None/PRISM Mobile source
 
 	for (size_t i = 0; i < context->rename_cache.num; i++)
 		bfree(context->rename_cache.array[i]);
@@ -2346,6 +2732,17 @@ void obs_context_data_setname(struct obs_context_data *context,
 	if (context->name)
 		da_push_back(context->rename_cache, &context->name);
 	context->name = dup_name(name, context->private);
+
+	pthread_mutex_unlock(&context->rename_cache_mutex);
+}
+
+//PRISM/WuLongyue/20201210/None/PRISM Mobile source
+void obs_context_data_set_nameext(struct obs_context_data *context,
+				  const char *name)
+{
+	pthread_mutex_lock(&context->rename_cache_mutex);
+
+	context->name_ext = dup_name(name, context->private);
 
 	pthread_mutex_unlock(&context->rename_cache_mutex);
 }
@@ -2607,6 +3004,10 @@ bool start_gpu_encode(obs_encoder_t *encoder)
 	struct obs_core_video *video = &obs->video;
 	bool success = true;
 
+	//PRISM/LiuHaibin/20210316/#6938/async stop gpu encoder
+	if (os_atomic_load_bool(&video->gpu_encode_exit_thread_active))
+		pthread_join(video->gpu_encode_exit_thread, NULL);
+
 	obs_enter_graphics();
 	pthread_mutex_lock(&video->gpu_encoder_mutex);
 
@@ -2630,13 +3031,45 @@ bool start_gpu_encode(obs_encoder_t *encoder)
 	return success;
 }
 
-//PRISM/LiuHaibin/20200706/#None/gpu encoder deadlock
+//PRISM/LiuHaibin/20200706/#6938/gpu encoder deadlock
 static bool is_encoder_alive(obs_encoder_t *encoder)
 {
 	struct obs_core_video *video = &obs->video;
 	if (da_find(video->gpu_encoders, &encoder, 0) != DARRAY_INVALID)
 		return true;
 	return false;
+}
+
+//PRISM/LiuHaibin/20210316/#6938/async stop gpu encoder
+static void end_gpu_encode_thread(void *data)
+{
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
+	struct obs_core_video *video = (struct obs_core_video *)data;
+	stop_gpu_encoding_thread(video);
+
+	obs_enter_graphics();
+	pthread_mutex_lock(&video->gpu_encoder_mutex);
+	free_gpu_encoding(video);
+	pthread_mutex_unlock(&video->gpu_encoder_mutex);
+	obs_leave_graphics();
+	os_atomic_set_bool(&video->gpu_encode_exit_thread_active, false);
+}
+
+//PRISM/LiuHaibin/20210316/#None/async stop gpu encoder
+static void async_end_gpu_encode_thread(struct obs_core_video *video)
+{
+	if (os_atomic_load_bool(&video->gpu_encode_exit_thread_active))
+		pthread_join(video->gpu_encode_exit_thread, NULL);
+
+	os_atomic_set_bool(&video->gpu_encode_exit_thread_active, true);
+	int ret = pthread_create(&video->gpu_encode_exit_thread, NULL,
+				 end_gpu_encode_thread, video);
+	if (ret != 0) {
+		plog(LOG_WARNING, "Failed to create end_gpu_encode_thread.");
+		end_gpu_encode_thread(video);
+	}
 }
 
 void stop_gpu_encode(obs_encoder_t *encoder)
@@ -2657,12 +3090,12 @@ void stop_gpu_encode(obs_encoder_t *encoder)
 	 * OBS has the same issue */
 	if (is_encoder_alive(encoder)) {
 		os_atomic_dec_long(&video->gpu_encoder_active);
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "stop_gpu_encode(%s), gpu_encoder_active %d, gpu_encoders %d",
 		     obs_encoder_get_name(encoder), video->gpu_encoder_active,
 		     video->gpu_encoders.num - 1);
 	} else
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "stop_gpu_encode, encoder(%s) no longer in gpu_encoders %d, gpu_encoder_active %d, ",
 		     obs_encoder_get_name(encoder), video->gpu_encoders.num,
 		     video->gpu_encoder_active);
@@ -2680,10 +3113,17 @@ void stop_gpu_encode(obs_encoder_t *encoder)
 	 * when there is no error happens */
 	if (!os_atomic_load_bool(&encoder->gpu_encoder_error)) {
 		os_event_wait(video->gpu_encode_inactive);
-	} else
-		blog(LOG_WARNING,
+	} else {
+		plog(LOG_WARNING,
 		     "error happens with gpu encoder (%s), do not wait gpu_encode_inactive event",
 		     obs_encoder_get_name(encoder));
+		if (call_free) {
+			plog(LOG_WARNING, "async stop gpu encoder (%s)",
+			     obs_encoder_get_name(encoder));
+			async_end_gpu_encode_thread(video);
+			return;
+		}
+	}
 
 	if (call_free) {
 		stop_gpu_encoding_thread(video);
@@ -2715,16 +3155,6 @@ bool obs_nv12_tex_active(void)
 	struct obs_core_video *video = &obs->video;
 
 	return video->using_nv12_tex;
-}
-
-//PRISM/Liu.Haibin/20200409/#2321/for device rebuild
-bool is_render_working(void)
-{
-	if (!obs)
-		return false;
-	struct obs_core_video *video = &obs->video;
-
-	return os_atomic_load_bool(&video->render_working);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -2766,7 +3196,7 @@ void obs_queue_task(enum obs_task_type type, obs_task_t task, void *param,
 		if (obs->ui_task_handler) {
 			obs->ui_task_handler(task, param, wait);
 		} else {
-			blog(LOG_ERROR, "UI task could not be queued, "
+			plog(LOG_ERROR, "UI task could not be queued, "
 					"there's no UI task handler!");
 		}
 	} else {
@@ -2813,4 +3243,80 @@ bool obs_get_system_initialized()
 	if (!obs)
 		return false;
 	return os_atomic_load_bool(&obs->video.system_initialized);
+}
+
+//PRISM/Liuying/20201216/#6183/for create display delay
+void obs_set_source_is_loading(bool loading)
+{
+	if (!obs)
+		return;
+	os_atomic_set_bool(&obs->video.source_is_loading, loading);
+}
+
+//PRISM/Liuying/20201216/#6183/for create display delay
+bool obs_get_source_is_loading()
+{
+	if (!obs)
+		return false;
+	return os_atomic_load_bool(&obs->video.source_is_loading);
+}
+
+//PRISM/WangChuanjing/20210401/#No issue/test module
+int obs_engine_check_for_test(struct obs_video_info *ovi,
+			      enum gs_engine_test_type test_type)
+{
+	if (!ovi) {
+		return 0;
+	}
+
+	if (!size_valid(ovi->output_width, ovi->output_height) ||
+	    !size_valid(ovi->base_width, ovi->base_height))
+		return OBS_VIDEO_INVALID_PARAM;
+
+	graphics_t *graphics = NULL;
+	int errorcode = gs_create_for_test(&graphics, ovi->graphics_module,
+					   ovi->adapter, test_type,
+					   obs_render_notify_callback);
+	if (!graphics) {
+		gs_destroy(graphics);
+		graphics = NULL;
+	}
+
+	if (errorcode != GS_SUCCESS) {
+		switch (errorcode) {
+		case GS_ERROR_MODULE_NOT_FOUND:
+			return OBS_VIDEO_MODULE_NOT_FOUND;
+		case GS_ERROR_NOT_SUPPORTED:
+			return OBS_VIDEO_NOT_SUPPORTED;
+		case GS_ERROR_NOT_SUPPORTED_ENGINE_VERSION:
+			return OBS_VIDEO_NOT_SUPPORTED_ENGINE_VERSION;
+		case GS_ERROR_ENGINE_INVALID_PARAM:
+			return OBS_VIDEO_INVALID_PARAM;
+		default:
+			return OBS_VIDEO_FAIL;
+		}
+	}
+	return OBS_VIDEO_FAIL;
+}
+
+bool obs_render_engine_is_valid()
+{
+	bool valid = true;
+	obs_enter_graphics();
+	valid = gs_get_engine_valid();
+	obs_leave_graphics();
+	return valid;
+}
+
+//PRISM/Wangshaohui/20211015/#none/open borderless by GPOP
+bool wgc_borderless_enable = false;
+void obs_set_wgc_borderless_enable(bool enable)
+{
+	os_atomic_set_bool(&wgc_borderless_enable, enable);
+}
+
+//PRISM/Wangshaohui/20211015/#none/open borderless by GPOP
+bool obs_get_wgc_borderless_enable()
+{
+	return os_atomic_load_bool(&wgc_borderless_enable);
 }

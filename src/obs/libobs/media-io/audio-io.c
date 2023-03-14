@@ -243,7 +243,7 @@ static void input_and_output(struct audio_output *audio, uint64_t audio_time,
 	memset(data, 0, sizeof(data));
 
 #ifdef DEBUG_AUDIO
-	blog(LOG_DEBUG, "audio_time: %llu, prev_time: %llu, bytes: %lu",
+	plog(LOG_DEBUG, "audio_time: %llu, prev_time: %llu, bytes: %lu",
 	     audio_time, prev_time, bytes);
 #endif
 
@@ -259,9 +259,10 @@ static void input_and_output(struct audio_output *audio, uint64_t audio_time,
 	for (size_t mix_idx = 0; mix_idx < MAX_AUDIO_MIXES; mix_idx++) {
 		struct audio_mix *mix = &audio->mixes[mix_idx];
 
-		memset(mix->buffer[0], 0,
-		       AUDIO_OUTPUT_FRAMES * MAX_AUDIO_CHANNELS *
-			       sizeof(float));
+		//PRISM/LiuHaibin/20210119/#None/Merge from OBS :
+		//SHA-1: d7e8f115e80104f69cb9df70464f48ea605d111a
+		//*libobs/media-io : Fix suspicious memset behavior
+		memset(mix->buffer, 0, sizeof(mix->buffer));
 
 		for (size_t i = 0; i < audio->planes; i++)
 			data[mix_idx].data[i] = mix->buffer[i];
@@ -295,6 +296,9 @@ static void input_and_output(struct audio_output *audio, uint64_t audio_time,
 
 static void *audio_thread(void *param)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct audio_output *audio = param;
 	size_t rate = audio->info.samples_per_sec;
 	uint64_t samples = 0;
@@ -370,7 +374,7 @@ static inline bool audio_input_init(struct audio_input *input,
 
 		input->resampler = audio_resampler_create(&to, &from);
 		if (!input->resampler) {
-			blog(LOG_ERROR, "audio_input_init: Failed to "
+			plog(LOG_ERROR, "audio_input_init: Failed to "
 					"create resampler");
 			return false;
 		}
@@ -418,7 +422,7 @@ bool audio_output_connect(audio_t *audio, size_t mi,
 		success = audio_input_init(&input, audio);
 		if (success) {
 			da_push_back(mix->inputs, &input);
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "[audio-io] audio_output_connect: mixer index %d, callback %p, params %p; inputs count %d",
 			     mi, callback, param, mix->inputs.num);
 		}
@@ -442,11 +446,11 @@ void audio_output_disconnect(audio_t *audio, size_t mix_idx,
 		struct audio_mix *mix = &audio->mixes[mix_idx];
 		audio_input_free(mix->inputs.array + idx);
 		da_erase(mix->inputs, idx);
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "[audio-io] audio_output_disconnect: mixer index %d, callback %p, params %p; inputs count %d",
 		     mix_idx, callback, param, mix->inputs.num);
 	} else {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "[audio-io] audio_output_disconnect (NOT FOUND): mixer index %d, callback %p, params %p; inputs count %d",
 		     mix_idx, callback, param,
 		     audio->mixes[mix_idx].inputs.num);
@@ -524,6 +528,8 @@ void audio_output_close(audio_t *audio)
 	}
 
 	os_event_destroy(audio->stop_event);
+	//PRISM/LiuHaibin/20210121/#6653/destroy input mutex
+	pthread_mutex_destroy(&audio->input_mutex);
 	bfree(audio);
 }
 

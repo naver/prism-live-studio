@@ -22,7 +22,8 @@ DefaultPlatformsAddList::~DefaultPlatformsAddList()
 void DefaultPlatformsAddList::runBtnCMD()
 {
 	auto btn = dynamic_cast<QToolButton *>(sender());
-	auto cmdStr = getInfoOfObject(btn, g_channelName.toStdString().c_str(), QString("add"));
+	auto cmdStr = getInfoOfObject(btn, g_platformName.toStdString().c_str(), QString("add"));
+	PRE_LOG_UI_MSG_STRING(("Default Platform" + cmdStr), "clicked");
 	runCMD(cmdStr);
 }
 
@@ -87,7 +88,7 @@ void DefaultPlatformsAddList::initUi()
 				iconPath = getPlatformImageFromName(platformName, "btn-mych.+", "\\.svg");
 			}
 			QIcon icon;
-			icon.addPixmap(paintSvg(iconPath, PLSDpiHelper::calculate(dpi, QSize(115, 38))), QIcon::Normal);
+			icon.addPixmap(paintSvg(iconPath, PLSDpiHelper::calculate(dpi, QSize(90, 33))), QIcon::Normal);
 			btn->setIcon(icon);
 		});
 
@@ -97,14 +98,10 @@ void DefaultPlatformsAddList::initUi()
 		hoverBtn->setObjectName("hoverBtn");
 
 		hoverBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
-		hoverBtn->setProperty(g_channelName.toStdString().c_str(), platformName);
+		hoverBtn->setProperty(g_platformName.toStdString().c_str(), platformName);
 		hoverBtn->hide();
 		connect(hoverBtn, &QToolButton::clicked, this, &DefaultPlatformsAddList::runBtnCMD, Qt::QueuedConnection);
-		if (i == size - 1) {
-			auto spaceLabel = new QLabel(this);
-			spaceLabel->setObjectName("spaceLabel");
-			ui->DefaultPlatformsLayout->addWidget(spaceLabel);
-		}
+
 		ui->DefaultPlatformsLayout->addWidget(btn);
 		if (i == size - 1) {
 			auto spaceLabel = new QLabel(this);

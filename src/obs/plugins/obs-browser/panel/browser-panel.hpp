@@ -65,16 +65,14 @@ struct QCef {
 	virtual bool initialized(void) = 0;
 	virtual bool wait_for_browser_init(void) = 0;
 
-	// OBS Modification:
-	// Zhang dewen / 20200211 / Related Issue ID=347
-	// Reason: add request headers parameter
-	// Solution: modify request headers
+	//PRISM/Zhangdewen/20210311/#6991/nelo crash, browser refactoring
 	virtual QCefWidget *
 	create_widget(QWidget *parent, const std::string &url,
 		      const std::string &script = std::string(),
 		      QCefCookieManager *cookie_manager = nullptr,
 		      const std::map<std::string, std::string> &headers =
-			      std::map<std::string, std::string>()) = 0;
+			      std::map<std::string, std::string>(),
+		      bool allowPopups = false) = 0;
 
 	virtual QCefCookieManager *
 	create_cookie_manager(const std::string &storage_path,

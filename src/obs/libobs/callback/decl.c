@@ -176,7 +176,7 @@ static void print_errors(struct cf_parser *cfp, const char *decl_string)
 	char *errors = error_data_buildstring(&cfp->error_list);
 
 	if (errors) {
-		blog(LOG_WARNING, "Errors/warnings for '%s':\n\n%s",
+		plog(LOG_WARNING, "Errors/warnings for '%s':\n\n%s",
 		     decl_string, errors);
 
 		bfree(errors);

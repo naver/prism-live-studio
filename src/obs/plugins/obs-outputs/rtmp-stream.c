@@ -51,7 +51,7 @@ static void log_rtmp(int level, const char *format, va_list args)
 	if (level > RTMP_LOGWARNING)
 		return;
 
-	blogva(LOG_INFO, format, args);
+	plogva(LOG_INFO, format, args);
 }
 
 static inline size_t num_buffered_packets(struct rtmp_stream *stream);
@@ -150,6 +150,9 @@ static void *rtmp_stream_create(obs_data_t *settings, obs_output_t *output)
 	stream->output = output;
 	pthread_mutex_init_value(&stream->packets_mutex);
 
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	stream->is_video_hevc = false; // default value
+
 	RTMP_Init(&stream->rtmp);
 	RTMP_LogSetCallback(log_rtmp);
 	RTMP_LogSetLevel(RTMP_LOGWARNING);
@@ -198,12 +201,41 @@ fail:
 	return NULL;
 }
 
+//PRISM/LiuHaibin/20210810/#9237/Force stop rtmp
+/* There are no timeout set for RTMP send.
+ * When network is bad, the rtmp thread may be blocked inside send operation of socket.
+ * If the app needs rtmp exit quickly, we call shutdown&closesocket interrupt the blocking operation and close the socket.
+ * This operation will abandon the data in the data transmission queue established by Windows.
+ */
+static void force_close_socket(struct rtmp_stream *stream)
+{
+	if (stream) {
+		warn("force_stop is called from app, force shutdown & close rtmp socket.");
+		shutdown(stream->rtmp.m_sb.sb_socket, SD_SEND);
+		closesocket(stream->rtmp.m_sb.sb_socket);
+		if (stream->new_socket_loop) {
+			warn("new_socket_loop enabled, force signal exit events.");
+			stream->rtmp.m_sb.sb_socket = -1;
+			pthread_mutex_lock(&stream->write_buf_mutex);
+			stream->write_buf_len = 0;
+			pthread_mutex_unlock(&stream->write_buf_mutex);
+			os_event_signal(stream->send_thread_signaled_exit);
+			os_event_signal(stream->buffer_space_available_event);
+			os_event_signal(stream->socket_available_event);
+		}
+	}
+}
+
 static void rtmp_stream_stop(void *data, uint64_t ts)
 {
 	struct rtmp_stream *stream = data;
 
 	if (stopping(stream) && ts != 0)
 		return;
+
+	//PRISM/LiuHaibin/20210810/#9237/Force stop rtmp
+	if (ts == 0)
+		force_close_socket(stream);
 
 	if (connecting(stream))
 		pthread_join(stream->connect_thread, NULL);
@@ -426,14 +458,15 @@ static int send_packet(struct rtmp_stream *stream,
 		}
 	}
 
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
 	flv_packet_mux(packet, is_header ? 0 : stream->start_dts_offset, &data,
-		       &size, is_header);
+		       &size, is_header, stream->is_video_hevc);
 
 #ifdef TEST_FRAMEDROPS
 	droptest_cap_data_rate(stream, size);
 #endif
-
-	ret = RTMP_Write(&stream->rtmp, (char *)data, (int)size, (int)idx);
+	//PRISM/LiuHaibin/20210622/#None/add custom_info flag
+	ret = RTMP_Write(&stream->rtmp, (char *)data, (int)size, (int)idx, 0);
 	bfree(data);
 
 	if (is_header)
@@ -572,8 +605,9 @@ static bool insert_id3v2(struct rtmp_stream *stream, int64_t dts,
 			    timebase_den);
 
 	if (success) {
+		//PRISM/LiuHaibin/20210622/#None/add custom_info flag
 		success = RTMP_Write(&stream->rtmp, (char *)id3v2,
-				     (int)id3v2_size, (int)idx) >= 0;
+				     (int)id3v2_size, (int)idx, 1) >= 0;
 		bfree(id3v2);
 	}
 
@@ -582,6 +616,9 @@ static bool insert_id3v2(struct rtmp_stream *stream, int64_t dts,
 
 static void *send_thread(void *data)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct rtmp_stream *stream = data;
 
 	os_set_thread_name("rtmp-stream: send_thread");
@@ -700,9 +737,6 @@ static void *send_thread(void *data)
 	os_event_reset(stream->stop_event);
 	os_atomic_set_bool(&stream->active, false);
 
-	//PRISM/LiuHaibin/20200928/#None/clear id3v2 queue after stream stopped..
-	mi_clear_id3v2_queue();
-
 	stream->sent_headers = false;
 
 	//PRISM/LiuHaibin/20200805/#3721&#3715/deal with encoder crash
@@ -724,11 +758,12 @@ static bool send_meta_data(struct rtmp_stream *stream, size_t idx, bool *next)
 	bool success = true;
 
 	*next = flv_meta_data(stream->output, &meta_data, &meta_data_size,
-			      false, idx);
+			      obs_output_immersive_audio(stream->output), idx);
 
 	if (*next) {
+		//PRISM/LiuHaibin/20210622/#None/add custom_info flag
 		success = RTMP_Write(&stream->rtmp, (char *)meta_data,
-				     (int)meta_data_size, (int)idx) >= 0;
+				     (int)meta_data_size, (int)idx, 0) >= 0;
 		bfree(meta_data);
 	}
 
@@ -742,8 +777,8 @@ static bool send_audio_header(struct rtmp_stream *stream, size_t idx,
 	obs_encoder_t *aencoder = obs_output_get_audio_encoder(context, idx);
 	uint8_t *header;
 
-	struct encoder_packet packet = {.type = OBS_ENCODER_AUDIO,
-					.timebase_den = 1};
+	struct encoder_packet packet = {
+		.type = OBS_ENCODER_AUDIO, .timebase_den = 1, .track_idx = idx};
 
 	if (!aencoder) {
 		*next = false;
@@ -766,7 +801,14 @@ static bool send_video_header(struct rtmp_stream *stream)
 		.type = OBS_ENCODER_VIDEO, .timebase_den = 1, .keyframe = true};
 
 	obs_encoder_get_extra_data(vencoder, &header, &size);
-	packet.size = obs_parse_avc_header(&packet.data, header, size);
+
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	if (stream->is_video_hevc) {
+		packet.size = obs_parse_hevc_header(&packet.data, header, size);
+	} else {
+		packet.size = obs_parse_avc_header(&packet.data, header, size);
+	}
+
 	return send_packet(stream, &packet, true, 0) >= 0;
 }
 
@@ -922,10 +964,6 @@ static int init_send(struct rtmp_stream *stream)
 		stream->rtmp.m_customSendParam = stream;
 	}
 
-	//PRISM/LiuHaibin/20200915/#4748/add id3v2
-	// clear id3v2 queue before stream started.
-	mi_clear_id3v2_queue();
-
 	os_atomic_set_bool(&stream->active, true);
 
 	//PRISM/LiuHaibin/20200701/#2440/support NOW
@@ -1039,16 +1077,18 @@ static int try_connect(struct rtmp_stream *stream)
 
 	RTMP_AddStream(&stream->rtmp, stream->key.array);
 
-	for (size_t idx = 1;; idx++) {
-		obs_encoder_t *encoder =
-			obs_output_get_audio_encoder(stream->output, idx);
-		const char *encoder_name;
+	if (!obs_output_immersive_audio(stream->output)) {
+		for (size_t idx = 1;; idx++) {
+			obs_encoder_t *encoder = obs_output_get_audio_encoder(
+				stream->output, idx);
+			const char *encoder_name;
 
-		if (!encoder)
-			break;
+			if (!encoder)
+				break;
 
-		encoder_name = obs_encoder_get_name(encoder);
-		RTMP_AddStream(&stream->rtmp, encoder_name);
+			encoder_name = obs_encoder_get_name(encoder);
+			RTMP_AddStream(&stream->rtmp, encoder_name);
+		}
 	}
 
 	stream->rtmp.m_outChunkSize = 4096;
@@ -1098,6 +1138,9 @@ static bool init_connect(struct rtmp_stream *stream)
 	stream->min_priority = 0;
 	stream->got_first_video = false;
 	stream->tick_time_ns = 0;
+
+	stream->audio_buffer_duration_usec = 0;
+	stream->video_buffer_duration_usec = 0;
 
 	settings = obs_output_get_settings(stream->output);
 	dstr_copy(&stream->path, obs_service_get_url(service));
@@ -1162,6 +1205,9 @@ static bool init_connect(struct rtmp_stream *stream)
 
 static void *connect_thread(void *data)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct rtmp_stream *stream = data;
 	int ret;
 
@@ -1190,6 +1236,11 @@ static bool rtmp_stream_start(void *data)
 {
 	struct rtmp_stream *stream = data;
 
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	obs_encoder_t *vencoder = obs_output_get_video_encoder(stream->output);
+	const char *codec_id = obs_encoder_get_codec(vencoder);
+	stream->is_video_hevc = (codec_id && (0 == strcmp(codec_id, "hevc")));
+
 	if (!obs_output_can_begin_data_capture(stream->output, 0))
 		return false;
 	if (!obs_output_initialize_encoders(stream->output, 0))
@@ -1200,9 +1251,38 @@ static bool rtmp_stream_start(void *data)
 			      stream) == 0;
 }
 
+//PRISM/LiuHaibin/20201208/#None/for buffered duration
+static bool find_first_audio_packet(struct rtmp_stream *stream,
+				    struct encoder_packet *first)
+{
+	size_t count = stream->packets.size / sizeof(*first);
+
+	for (size_t i = 0; i < count; i++) {
+		struct encoder_packet *cur =
+			circlebuf_data(&stream->packets, i * sizeof(*first));
+		if (cur->type == OBS_ENCODER_AUDIO) {
+			*first = *cur;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static inline bool add_packet(struct rtmp_stream *stream,
 			      struct encoder_packet *packet)
 {
+	//PRISM/LiuHaibin/20201208/#None/for buffered duration
+	struct encoder_packet first;
+	if (packet->type == OBS_ENCODER_AUDIO) {
+		if (find_first_audio_packet(stream, &first))
+			stream->audio_buffer_duration_usec =
+				stream->last_audio_dts_usec - first.dts_usec;
+		else
+			stream->audio_buffer_duration_usec = 0;
+		stream->last_audio_dts_usec = packet->dts_usec;
+	}
+
 	circlebuf_push_back(&stream->packets, packet,
 			    sizeof(struct encoder_packet));
 	return true;
@@ -1296,7 +1376,7 @@ static bool dbr_bitrate_lowered(struct rtmp_stream *stream)
 #if 0
 	if (prev_bitrate && est_bitrate) {
 		if (prev_bitrate < est_bitrate) {
-			blog(LOG_INFO, "going back to prev bitrate: "
+			plog(LOG_INFO, "going back to prev bitrate: "
 					"prev_bitrate (%d) < est_bitrate (%d)",
 					prev_bitrate,
 					est_bitrate);
@@ -1390,13 +1470,20 @@ static void check_to_drop_frames(struct rtmp_stream *stream, bool pframes)
 	}
 
 	if (num_packets < 5) {
-		if (!pframes)
+		if (!pframes) {
 			stream->congestion = 0.0f;
+			//PRISM/LiuHaibin/20201215/#None/for buffered duration
+			stream->video_buffer_duration_usec = 0;
+		}
+
 		return;
 	}
 
-	if (!find_first_video_packet(stream, &first))
+	if (!find_first_video_packet(stream, &first)) {
+		//PRISM/LiuHaibin/20201215/#None/for buffered duration
+		stream->video_buffer_duration_usec = 0;
 		return;
+	}
 
 	/* if the amount of time stored in the buffered packets waiting to be
 	 * sent is higher than threshold, drop frames */
@@ -1405,6 +1492,9 @@ static void check_to_drop_frames(struct rtmp_stream *stream, bool pframes)
 	if (!pframes) {
 		stream->congestion =
 			(float)buffer_duration_usec / (float)drop_threshold;
+
+		//PRISM/LiuHaibin/20201208/#None/for buffered duration
+		stream->video_buffer_duration_usec = buffer_duration_usec;
 	}
 
 	/* alternatively, drop only pframes:
@@ -1518,7 +1608,8 @@ static void rtmp_stream_defaults(obs_data_t *defaults)
 {
 	obs_data_set_default_int(defaults, OPT_DROP_THRESHOLD, 700);
 	obs_data_set_default_int(defaults, OPT_PFRAME_DROP_THRESHOLD, 900);
-	obs_data_set_default_int(defaults, OPT_MAX_SHUTDOWN_TIME_SEC, 30);
+	//PRISM/LiuHaibin/20210811/#9237/modify the shutdown timeout
+	obs_data_set_default_int(defaults, OPT_MAX_SHUTDOWN_TIME_SEC, 5 /*30*/);
 	obs_data_set_default_string(defaults, OPT_BIND_IP, "default");
 	obs_data_set_default_bool(defaults, OPT_NEWSOCKETLOOP_ENABLED, false);
 	obs_data_set_default_bool(defaults, OPT_LOWLATENCY_ENABLED, false);
@@ -1594,6 +1685,29 @@ static long rtmp_stream_dbr_bitrate(void *data)
 	return stream->dbr_cur_bitrate;
 }
 
+//PRISM/LiuHaibin/20201208/#None/for buffered duration
+void rtmp_buffered_duration_usec(void *data, int64_t *v_duration,
+				 int64_t *a_duration)
+{
+	if (!data || !v_duration || !a_duration)
+		return;
+	struct rtmp_stream *stream = data;
+	*v_duration = stream->video_buffer_duration_usec;
+	*a_duration = stream->audio_buffer_duration_usec;
+#if 0
+	debug("[RTMP] Buffered duration video %lld, audio %lld, packets count %d.",
+	      stream->video_buffer_duration_usec,
+	      stream->audio_buffer_duration_usec, num_buffered_packets(stream));
+#endif
+}
+
+//PRISM/Liu.Haibin/20201214/#None/get original bitrate
+static long rtmp_stream_orig_bitrate(void *data)
+{
+	struct rtmp_stream *stream = data;
+	return stream->dbr_orig_bitrate;
+}
+
 struct obs_output_info rtmp_output_info = {
 	.id = "rtmp_output",
 	.flags = OBS_OUTPUT_AV | OBS_OUTPUT_ENCODED | OBS_OUTPUT_SERVICE |
@@ -1614,4 +1728,8 @@ struct obs_output_info rtmp_output_info = {
 	.get_dropped_frames = rtmp_stream_dropped_frames,
 	//PRISM/Liu.Haibin/20201109/#None/get current dbr bitrate
 	.dbr_bitrate = rtmp_stream_dbr_bitrate,
+	//PRISM/Liu.Haibin/20201214/#None/get original bitrate
+	.orig_bitrate = rtmp_stream_orig_bitrate,
+	//PRISM/LiuHaibin/20201208/#None/for buffered duration
+	.buffered_duration_usec = rtmp_buffered_duration_usec,
 };

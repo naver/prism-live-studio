@@ -25,6 +25,8 @@
 #include <components\ComponentCaps.h>
 #include <components\VideoEncoderVCE.h>
 
+/* clang-format off */
+
 #if defined(_WIN32) || defined(_WIN64)
 extern "C" {
 #include <windows.h>
@@ -38,7 +40,7 @@ class CustomWriter : public amf::AMFTraceWriter {
 	virtual void __cdecl Write(const wchar_t*, const wchar_t* message) override
 	{
 #ifndef LITE_OBS
-		blog(LOG_DEBUG, "[AMF] %.*ls", wcsnlen_s(message, 65535), message);
+		plog(LOG_DEBUG, "[AMF] %.*ls", wcsnlen_s(message, 65535), message);
 #else
 		message;
 #endif
@@ -153,7 +155,7 @@ Plugin::AMD::AMF::AMF()
 
 	/// Blacklist Drivers with older SDK.
 	if (m_AMFVersion_Runtime < AMF_FULL_VERSION) {
-		PLOG_ERROR("The detected AMF runtime is too old, please update your drivers.");
+		PLOG_WARNING("The detected AMF runtime is too old, please update your drivers.");
 		throw std::runtime_error("AMF Runtime is outdated.");
 	}
 
@@ -313,3 +315,5 @@ uint64_t Plugin::AMD::AMF::GetRuntimeVersion()
 {
 	return m_AMFVersion_Runtime;
 }
+
+/* clang-format on */

@@ -54,7 +54,7 @@ static inline struct signal_info *signal_info_create(struct decl_info *info)
 	da_init(si->callbacks);
 
 	if (pthread_mutex_init(&si->mutex, &attr) != 0) {
-		blog(LOG_ERROR, "Could not create signal");
+		plog(LOG_ERROR, "Could not create signal");
 
 		decl_info_free(&si->func);
 		bfree(si);
@@ -139,12 +139,12 @@ signal_handler_t *signal_handler_create(void)
 		return NULL;
 
 	if (pthread_mutex_init(&handler->mutex, NULL) != 0) {
-		blog(LOG_ERROR, "Couldn't create signal handler mutex!");
+		plog(LOG_ERROR, "Couldn't create signal handler mutex!");
 		bfree(handler);
 		return NULL;
 	}
 	if (pthread_mutex_init(&handler->global_callbacks_mutex, &attr) != 0) {
-		blog(LOG_ERROR, "Couldn't create signal handler global "
+		plog(LOG_ERROR, "Couldn't create signal handler global "
 				"callbacks mutex!");
 		pthread_mutex_destroy(&handler->mutex);
 		bfree(handler);
@@ -183,7 +183,7 @@ bool signal_handler_add(signal_handler_t *handler, const char *signal_decl)
 	bool success = true;
 
 	if (!parse_decl_string(&func, signal_decl)) {
-		blog(LOG_ERROR, "Signal declaration invalid: %s", signal_decl);
+		plog(LOG_ERROR, "Signal declaration invalid: %s", signal_decl);
 		return false;
 	}
 
@@ -191,7 +191,7 @@ bool signal_handler_add(signal_handler_t *handler, const char *signal_decl)
 
 	sig = getsignal(handler, func.name, &last);
 	if (sig) {
-		blog(LOG_WARNING, "Signal declaration '%s' exists", func.name);
+		plog(LOG_WARNING, "Signal declaration '%s' exists", func.name);
 		decl_info_free(&func);
 		success = false;
 	} else {
@@ -224,7 +224,7 @@ static void signal_handler_connect_internal(signal_handler_t *handler,
 	pthread_mutex_unlock(&handler->mutex);
 
 	if (!sig) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "signal_handler_connect: "
 		     "signal '%s' not found",
 		     signal);
@@ -403,7 +403,7 @@ void signal_handler_disconnect_global(signal_handler_t *handler,
 				      global_signal_callback_t callback,
 				      void *data)
 {
-	struct global_callback_info cb_data = {callback, data, false};
+	struct global_callback_info cb_data = {callback, data, 0, false};
 	size_t idx;
 
 	if (!handler || !callback)

@@ -22,7 +22,7 @@
 #include <util/dstr.h>
 
 #define do_log(level, format, ...) \
-	blog(level, "[net if] " format, ##__VA_ARGS__)
+	plog(level, "[net if] " format, ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
 #define info(format, ...) do_log(LOG_INFO, format, ##__VA_ARGS__)
@@ -90,8 +90,8 @@ static void netif_push(struct sockaddr *copy_source,
 
 void netif_log_saddrs(struct netif_saddr_data *sd)
 {
-	for (size_t i = 0; i < sd->addrs.num; i++)
-		info("\t\t%s", sd->addrs.array[i].name);
+	//for (size_t i = 0; i < sd->addrs.num; i++)
+	//	info("\t\t%s", sd->addrs.array[i].name);
 }
 
 bool netif_str_to_addr(struct sockaddr_storage *out, int *addr_len,

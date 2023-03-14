@@ -32,6 +32,8 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 	ui->nameLabel->setText(GetNameElideString());
 	ui->nameLabel->setToolTip(name);
 	ui->nameLabel->installEventFilter(this);
+	ui->visibleButton->installEventFilter(this);
+	ui->advButton->installEventFilter(this);
 	bool enabled = obs_source_enabled(source);
 	ui->visibleButton->setChecked(enabled);
 	UpdateNameStyle();
@@ -66,7 +68,6 @@ void PLSFiltersItemView::SetCurrentItemState(bool state)
 	if (this->current != state) {
 		this->current = state;
 		UpdateNameStyle();
-		PLS_UI_STEP(MAINFILTER_MODULE, name.toStdString().c_str(), ACTION_LBUTTON_CLICK);
 	}
 }
 
@@ -117,12 +118,13 @@ void PLSFiltersItemView::leaveEvent(QEvent *event)
 bool PLSFiltersItemView::eventFilter(QObject *object, QEvent *event)
 {
 	if (ui->nameLineEdit == object && LineEditCanceled(event)) {
-		OnFinishingEditName();
+		isFinishEditing = true;
+		OnFinishingEditName(true);
 		return true;
 	}
 	if (ui->nameLineEdit == object && LineEditChanged(event) && !isFinishEditing) {
 		isFinishEditing = true;
-		OnFinishingEditName();
+		OnFinishingEditName(false);
 		return true;
 	}
 
@@ -131,6 +133,10 @@ bool PLSFiltersItemView::eventFilter(QObject *object, QEvent *event)
 			this, [=]() { ui->nameLabel->setText(GetNameElideString()); }, Qt::QueuedConnection);
 		return true;
 	}
+	if ((object == ui->visibleButton || object == ui->advButton) && event->type() == QEvent::MouseMove) {
+		return true;
+	}
+
 	return QFrame::eventFilter(object, event);
 }
 
@@ -170,17 +176,23 @@ void PLSFiltersItemView::OnMouseStatusChanged(const QString &status)
 	SetProperty(this, PROPERTY_NAME_MOUSE_STATUS, status);
 }
 
-void PLSFiltersItemView::OnFinishingEditName()
+void PLSFiltersItemView::OnFinishingEditName(bool cancel)
 {
 	ui->nameLineEdit->hide();
 	ui->nameLabel->show();
 	ui->nameLabel->setText(GetNameElideString());
-	emit FinishingEditName(ui->nameLineEdit->text(), this);
+	if (this->rect().contains(mapFromGlobal(QCursor::pos()))) {
+		ui->visibleButton->show();
+		ui->advButton->show();
+	}
+	if (!cancel)
+		emit FinishingEditName(ui->nameLineEdit->text(), this);
+	editActive = false;
 }
 
 void PLSFiltersItemView::OnVisibilityButtonClicked(bool visible)
 {
-	QString log = name + " visibility button";
+	QString log = QString("[%1 : %2] visibility button: %3").arg(obs_source_get_id(source)).arg(name).arg(visible ? "checked" : "unchecked");
 	PLS_UI_STEP(MAINFILTER_MODULE, QT_TO_UTF8(log), ACTION_CLICK);
 	obs_source_set_enabled(source, visible);
 }
@@ -228,6 +240,9 @@ void PLSFiltersItemView::OnAdvButtonClicked()
 
 void PLSFiltersItemView::OnRenameActionTriggered()
 {
+	if (editActive) {
+		return;
+	}
 	isFinishEditing = false;
 
 	QString log = name + " rename button";
@@ -243,6 +258,8 @@ void PLSFiltersItemView::OnRenameActionTriggered()
 	ui->visibleButton->hide();
 	ui->advButton->hide();
 	OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
+
+	editActive = true;
 }
 
 void PLSFiltersItemView::OnRemoveActionTriggered()

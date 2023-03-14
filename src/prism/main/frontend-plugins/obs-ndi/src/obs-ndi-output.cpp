@@ -21,6 +21,7 @@ along with this program; If not, see <https://www.gnu.org/licenses/>
 #include <util/threading.h>
 #include <util/profiler.h>
 #include <util/circlebuf.h>
+#include "log/log.h"
 
 #include "obs-ndi.h"
 
@@ -118,7 +119,7 @@ bool ndi_output_start(void *data)
 	audio_t *audio = obs_output_audio(o->output);
 
 	if (!video && !audio) {
-		blog(LOG_ERROR, "'%s': no video and audio available", o->ndi_name);
+		PLS_ERROR(FRONTEND_PLUGINS_NDI_SOURCE, "'%s': no video and audio available", o->ndi_name);
 		return false;
 	}
 
@@ -159,7 +160,7 @@ bool ndi_output_start(void *data)
 			break;
 
 		default:
-			blog(LOG_WARNING, "unsupported pixel format %d", format);
+			PLS_WARN(FRONTEND_PLUGINS_NDI_SOURCE, "unsupported pixel format %d", format);
 			return false;
 		}
 
@@ -190,18 +191,18 @@ bool ndi_output_start(void *data)
 
 		o->started = obs_output_begin_data_capture(o->output, flags);
 		if (o->started) {
-			blog(LOG_INFO, "'%s': ndi output started", o->ndi_name);
+			PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "'%s': ndi output started", o->ndi_name);
 		} else {
-			blog(LOG_ERROR, "'%s': data capture start failed", o->ndi_name);
+			PLS_ERROR(FRONTEND_PLUGINS_NDI_SOURCE, "'%s': data capture start failed", o->ndi_name);
 		}
 	} else {
-		blog(LOG_ERROR, "'%s': ndi sender init failed", o->ndi_name);
+		PLS_ERROR(FRONTEND_PLUGINS_NDI_SOURCE, "'%s': ndi sender init failed", o->ndi_name);
 	}
 
 	return o->started;
 }
 
-void ndi_output_stop(void *data, uint64_t ts)
+void ndi_output_stop(void *data, uint64_t /*ts*/)
 {
 	auto o = (struct ndi_output *)data;
 

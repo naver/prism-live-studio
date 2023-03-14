@@ -42,6 +42,9 @@ signals:
 	void popupShown(bool);
 
 public:
+	QSize sizeHint() const override;
+	QSize minimumSizeHint() const override;
+
 	virtual void showPopup();
 	virtual void hidePopup();
 

@@ -55,6 +55,8 @@ private:
 	QPointer<QCheckBox> mixer4;
 	QPointer<QCheckBox> mixer5;
 	QPointer<QCheckBox> mixer6;
+	QPointer<QCheckBox> stereo;
+	QPointer<QCheckBox> immersiveAudio;
 
 	OBSSignal volChangedSignal;
 	OBSSignal syncOffsetSignal;
@@ -91,5 +93,7 @@ public slots:
 	void mixer4Changed(bool checked);
 	void mixer5Changed(bool checked);
 	void mixer6Changed(bool checked);
+	void stereoChanged(bool checked);
+	void immersiveAudioChanged(bool checked);
 	void ResetBalance();
 };

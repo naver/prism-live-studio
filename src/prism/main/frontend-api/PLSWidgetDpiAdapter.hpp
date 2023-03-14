@@ -27,6 +27,7 @@ class FRONTEND_API PLSWidgetDpiAdapter {
 		WidgetDpiAdapterInfo &operator=(const WidgetDpiAdapterInfo &widgetDpiAdapterInfo);
 
 		void dpiHelper(PLSWidgetDpiAdapter *adapter, double dpi, bool firstShow, bool updateCss);
+		void dpiHelper(PLSWidgetDpiAdapter *adapter, double dpi, const QList<PLSCssIndex> &cssIndexes, const QString &styleSheet);
 		QRect showAsDefaultSize(double dpi, const QRect &normalGeometry, const QRect &screenAvailableGeometry);
 
 	public:
@@ -69,11 +70,13 @@ public:
 	std::shared_ptr<WidgetDpiAdapterInfo> getWidgetDpiAdapterInfo(QWidget *widget, bool &isNew) const;
 	std::shared_ptr<ScreenConnection> getScreenConnection(QScreen *screen) const;
 	QRect showAsDefaultSize(const QRect &normalGeometry, const QRect &screenAvailableGeometry);
+	double getDpi() const { return dpi; }
 
 public:
 	virtual QWidget *selfWidget() const = 0;
 	virtual QByteArray saveGeometry() const = 0;
 	virtual bool restoreGeometry(const QByteArray &geometry) = 0;
+	virtual void closeNoButton() {}
 
 protected:
 	virtual bool needQtProcessDpiChangedEvent() const;
@@ -89,6 +92,7 @@ protected:
 	bool event(QWidget *widget, QEvent *event, std::function<bool(QEvent *)> baseEvent);
 	bool nativeEvent(QWidget *widget, const QByteArray &eventType, void *message, long *result, std::function<bool(const QByteArray &, void *, long *)> baseNativeEvent);
 	void notifyFirstShow(std::function<void()> callback);
+	void notifyDpiChangedBefore(std::function<void(bool firstShow)> callback);
 	QByteArray saveGeometry(QWidget *widget) const;
 	QByteArray saveGeometry(QWidget *widget, const QRect &geometry) const;
 	bool restoreGeometry(QWidget *widget, const QByteArray &array);
@@ -109,6 +113,7 @@ protected:
 	bool isMinimizedDpiChanged = false;
 	double dpi = 0.0;
 	mutable std::list<std::function<void()>> firstShowCallbacks;
+	mutable std::list<std::function<void(bool firstShow)>> dpiChangedBeforeCallbacks;
 	mutable std::list<std::shared_ptr<WidgetDpiAdapterInfo>> widgetDpiAdapterInfos;
 	mutable std::list<std::shared_ptr<ScreenConnection>> screenConnections;
 	QMetaObject::Connection screenAddedConnection;

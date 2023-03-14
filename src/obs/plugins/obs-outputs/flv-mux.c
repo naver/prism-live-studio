@@ -37,6 +37,12 @@
 
 #define VIDEO_HEADER_SIZE 5
 
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+enum flv_video_codec_id {
+	FLV_VIDEO_CODEC_ID_H264 = 0x07,
+	FLV_VIDEO_CODEC_ID_HEVC = 0x0c,
+};
+
 static inline double encoder_bitrate(obs_encoder_t *encoder)
 {
 	obs_data_t *settings = obs_encoder_get_settings(encoder);
@@ -74,16 +80,35 @@ static bool build_flv_meta_data(obs_output_t *context, uint8_t **output,
 	char *end = enc + sizeof(buf);
 	struct dstr encoder_name = {0};
 	struct dstr publisher_info = {0};
+	char *audio_track_codec[BTRS_IMMERSIVE_TRAKCS];
+
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	const char *vcodec = obs_encoder_get_codec(vencoder);
+	bool is_video_hevc = (vcodec && (0 == strcmp(vcodec, "hevc")));
 
 	if (a_idx > 0 && !aencoder)
 		return false;
+
+	//PRISM/LiuHaibin/20210622/#None/Immersive audio
+	for (size_t i = 0; i < BTRS_IMMERSIVE_TRAKCS; i++) {
+		obs_encoder_t *encoder =
+			obs_output_get_audio_encoder(context, i + 1);
+		if (encoder)
+			audio_track_codec[i] = "aac";
+		else
+			audio_track_codec[i] = "";
+	}
 
 	enc_str(&enc, end, "onMetaData");
 
 	*enc++ = AMF_ECMA_ARRAY;
 
 	//PRISM/LiuHaibin/20200701/#2440/support NOW
-	enc = AMF_EncodeInt32(enc, end, a_idx == 0 ? 22 : 17);
+	//PRISM/LiuHaibin/20210622/#None/Immersive audio
+	if (obs_output_immersive_audio(context)) {
+		enc = AMF_EncodeInt32(enc, end, a_idx == 0 ? 17 : 14);
+	} else
+		enc = AMF_EncodeInt32(enc, end, a_idx == 0 ? 22 : 17);
 
 	enc_num_val(&enc, end, "duration", 0.0);
 	enc_num_val(&enc, end, "fileSize", 0.0);
@@ -94,7 +119,9 @@ static bool build_flv_meta_data(obs_output_t *context, uint8_t **output,
 		enc_num_val(&enc, end, "height",
 			    (double)obs_encoder_get_height(vencoder));
 
-		enc_str_val(&enc, end, "videocodecid", "avc1");
+		//PRISM/Wangshaohui/20201230/#3786/support HEVC
+		enc_str_val(&enc, end, "videocodecid",
+			    is_video_hevc ? "hvc1" : "avc1");
 		enc_num_val(&enc, end, "videodatarate",
 			    encoder_bitrate(vencoder));
 		enc_num_val(&enc, end, "framerate",
@@ -109,14 +136,30 @@ static bool build_flv_meta_data(obs_output_t *context, uint8_t **output,
 	enc_num_val(&enc, end, "audiochannels",
 		    (double)audio_output_get_channels(audio));
 
-	enc_bool_val(&enc, end, "stereo",
-		     audio_output_get_channels(audio) == 2);
-	enc_bool_val(&enc, end, "2.1", audio_output_get_channels(audio) == 3);
-	enc_bool_val(&enc, end, "3.1", audio_output_get_channels(audio) == 4);
-	enc_bool_val(&enc, end, "4.0", audio_output_get_channels(audio) == 4);
-	enc_bool_val(&enc, end, "4.1", audio_output_get_channels(audio) == 5);
-	enc_bool_val(&enc, end, "5.1", audio_output_get_channels(audio) == 6);
-	enc_bool_val(&enc, end, "7.1", audio_output_get_channels(audio) == 8);
+	//PRISM/LiuHaibin/20210622/#None/Immersive audio
+	if (obs_output_immersive_audio(context)) {
+		if (a_idx > 0)
+			enc_array_val(&enc, end, "audiotrackcodecid",
+				      audio_track_codec);
+		enc_str_val(&enc, end, "audiotrackcodecid", "aac");
+		enc_bool_val(&enc, end, "stereo",
+			     audio_output_get_channels(audio) == 2);
+	} else {
+		enc_bool_val(&enc, end, "stereo",
+			     audio_output_get_channels(audio) == 2);
+		enc_bool_val(&enc, end, "2.1",
+			     audio_output_get_channels(audio) == 3);
+		enc_bool_val(&enc, end, "3.1",
+			     audio_output_get_channels(audio) == 4);
+		enc_bool_val(&enc, end, "4.0",
+			     audio_output_get_channels(audio) == 4);
+		enc_bool_val(&enc, end, "4.1",
+			     audio_output_get_channels(audio) == 5);
+		enc_bool_val(&enc, end, "5.1",
+			     audio_output_get_channels(audio) == 6);
+		enc_bool_val(&enc, end, "7.1",
+			     audio_output_get_channels(audio) == 8);
+	}
 
 	//PRISM/LiuHaibin/20201015/#None/add publisher info
 	dstr_printf(&encoder_name, "PRISM-%s (libobs version %d.%d.%d)",
@@ -234,8 +277,7 @@ static bool build_id3v2(uint8_t **output, size_t *size)
 			return false;
 		}
 
-		buf_size = base64_buf_size + strlen("@insertId3Tag") +
-			   BUFFER_PADDING_SIZE;
+		buf_size = base64_buf_size + BUFFER_PADDING_SIZE;
 		buf = bmalloc(buf_size);
 		if (!buf) {
 			mi_free_id3v2(&id3);
@@ -250,7 +292,7 @@ static bool build_id3v2(uint8_t **output, size_t *size)
 
 		if (!av_base64_encode(base64_buf, base64_buf_size, id3.data,
 				      id3.size)) {
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "Failed: cannot Base64-encode the id3 data, size (src %d : dst %d)",
 			     id3.size, base64_buf_size);
 			mi_free_id3v2(&id3);
@@ -259,7 +301,6 @@ static bool build_id3v2(uint8_t **output, size_t *size)
 			return false;
 		}
 
-		enc_str(&enc, end, "@insertId3Tag");
 		enc_str(&enc, end, base64_buf);
 		bfree(base64_buf);
 #else
@@ -376,11 +417,28 @@ bool flv_meta_data(obs_output_t *context, uint8_t **output, size_t *size,
 static int32_t last_time = 0;
 #endif
 
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
 static void flv_video(struct serializer *s, int32_t dts_offset,
-		      struct encoder_packet *packet, bool is_header)
+		      struct encoder_packet *packet, bool is_header,
+		      bool is_vhevc)
 {
 	int64_t offset = packet->pts - packet->dts;
 	int32_t time_ms = get_ms_time(packet, packet->dts) - dts_offset;
+
+	int video_codec = 0;
+	unsigned char flag = 0;
+
+	if (is_vhevc) {
+		video_codec = FLV_VIDEO_CODEC_ID_HEVC;
+	} else {
+		video_codec = FLV_VIDEO_CODEC_ID_H264;
+	}
+
+	if (packet->keyframe) {
+		flag = 0x10 | video_codec;
+	} else {
+		flag = 0x20 | video_codec;
+	}
 
 	if (!packet->data || !packet->size)
 		return;
@@ -388,10 +446,10 @@ static void flv_video(struct serializer *s, int32_t dts_offset,
 	s_w8(s, RTMP_PACKET_TYPE_VIDEO);
 
 #ifdef DEBUG_TIMESTAMPS
-	blog(LOG_DEBUG, "Video: %lu", time_ms);
+	plog(LOG_DEBUG, "Video: %lu", time_ms);
 
 	if (last_time > time_ms)
-		blog(LOG_DEBUG, "Non-monotonic");
+		plog(LOG_DEBUG, "Non-monotonic");
 
 	last_time = time_ms;
 #endif
@@ -402,7 +460,7 @@ static void flv_video(struct serializer *s, int32_t dts_offset,
 	s_wb24(s, 0);
 
 	/* these are the 5 extra bytes mentioned above */
-	s_w8(s, packet->keyframe ? 0x17 : 0x27);
+	s_w8(s, flag);
 	s_w8(s, is_header ? 0 : 1);
 	s_wb24(s, get_ms_time(packet, offset));
 	s_write(s, packet->data, packet->size);
@@ -422,10 +480,10 @@ static void flv_audio(struct serializer *s, int32_t dts_offset,
 	s_w8(s, RTMP_PACKET_TYPE_AUDIO);
 
 #ifdef DEBUG_TIMESTAMPS
-	blog(LOG_DEBUG, "Audio: %lu", time_ms);
+	plog(LOG_DEBUG, "Audio: %lu", time_ms);
 
 	if (last_time > time_ms)
-		blog(LOG_DEBUG, "Non-monotonic");
+		plog(LOG_DEBUG, "Non-monotonic");
 
 	last_time = time_ms;
 #endif
@@ -436,7 +494,11 @@ static void flv_audio(struct serializer *s, int32_t dts_offset,
 	s_wb24(s, 0);
 
 	/* these are the two extra bytes mentioned above */
-	s_w8(s, 0xaf);
+	//PRISM/LiuHaibin/20210622/#None/Immersive audio
+	if (packet->track_idx == 1)
+		s_w8(s, 0xf0);
+	else
+		s_w8(s, 0xaf);
 	s_w8(s, is_header ? 0 : 1);
 	s_write(s, packet->data, packet->size);
 
@@ -444,8 +506,10 @@ static void flv_audio(struct serializer *s, int32_t dts_offset,
 	s_wb32(s, (uint32_t)serializer_get_pos(s) - 1);
 }
 
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
 void flv_packet_mux(struct encoder_packet *packet, int32_t dts_offset,
-		    uint8_t **output, size_t *size, bool is_header)
+		    uint8_t **output, size_t *size, bool is_header,
+		    bool is_vhevc)
 {
 	struct array_output_data data;
 	struct serializer s;
@@ -453,7 +517,7 @@ void flv_packet_mux(struct encoder_packet *packet, int32_t dts_offset,
 	array_output_serializer_init(&s, &data);
 
 	if (packet->type == OBS_ENCODER_VIDEO)
-		flv_video(&s, dts_offset, packet, is_header);
+		flv_video(&s, dts_offset, packet, is_header, is_vhevc);
 	else
 		flv_audio(&s, dts_offset, packet, is_header);
 

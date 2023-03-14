@@ -1384,12 +1384,12 @@ static void debug_param(struct gs_effect_param *param,
 	char _debug_buf[4096];
 	debug_get_default_value(param, _debug_buf, sizeof(_debug_buf));
 	if (param->annotations.num > 0) {
-		blog(LOG_DEBUG,
+		plog(LOG_DEBUG,
 		     "%s[%4lld] %.*s '%s' with value %.*s and %lld annotations:",
 		     offset, idx, sizeof(_debug_type), _debug_type, param->name,
 		     sizeof(_debug_buf), _debug_buf, param->annotations.num);
 	} else {
-		blog(LOG_DEBUG, "%s[%4lld] %.*s '%s' with value %.*s.", offset,
+		plog(LOG_DEBUG, "%s[%4lld] %.*s '%s' with value %.*s.", offset,
 		     idx, sizeof(_debug_type), _debug_type, param->name,
 		     sizeof(_debug_buf), _debug_buf);
 	}
@@ -1401,7 +1401,7 @@ static void debug_param_annotation(struct gs_effect_param *param,
 {
 	char _debug_buf[4096];
 	debug_get_default_value(param, _debug_buf, sizeof(_debug_buf));
-	blog(LOG_DEBUG, "%s[%4lld] %s '%s' with value %.*s", offset, idx,
+	plog(LOG_DEBUG, "%s[%4lld] %s '%s' with value %.*s", offset, idx,
 	     param_in->type, param->name, sizeof(_debug_buf), _debug_buf);
 }
 
@@ -1427,13 +1427,13 @@ static void debug_print_string(const char *offset, const char *str)
 		}
 
 		if (is_line) {
-			blog(LOG_DEBUG, "\t\t\t\t[%4lld] %.*s", line, len, str);
+			plog(LOG_DEBUG, "\t\t\t\t[%4lld] %.*s", line, len, str);
 			line++;
 		}
 	}
 	if (begin[0] != '\0') {
 		// Final line was not written.
-		blog(LOG_DEBUG, "\t\t\t\t[%4lld] %*s", line, strlen(begin),
+		plog(LOG_DEBUG, "\t\t\t\t[%4lld] %*s", line, strlen(begin),
 		     begin);
 	}
 }
@@ -1489,9 +1489,9 @@ bool ep_parse(struct effect_parser *ep, gs_effect_t *effect,
 	}
 
 #if defined(_DEBUG) && defined(_DEBUG_SHADERS)
-	blog(LOG_DEBUG,
+	plog(LOG_DEBUG,
 	     "================================================================================");
-	blog(LOG_DEBUG, "Effect Parser reformatted shader '%s' to:", file);
+	plog(LOG_DEBUG, "Effect Parser reformatted shader '%s' to:", file);
 	debug_print_string("\t", ep->cfp.lex.reformatted);
 #endif
 
@@ -1500,7 +1500,7 @@ bool ep_parse(struct effect_parser *ep, gs_effect_t *effect,
 		success = ep_compile(ep);
 
 #if defined(_DEBUG) && defined(_DEBUG_SHADERS)
-	blog(LOG_DEBUG,
+	plog(LOG_DEBUG,
 	     "================================================================================");
 #endif
 
@@ -1915,7 +1915,7 @@ static bool ep_compile_pass_shaderparams(struct effect_parser *ep,
 #endif
 
 		if (!param->sparam) {
-			blog(LOG_ERROR, "Effect shader parameter not found");
+			plog(LOG_ERROR, "Effect shader parameter not found");
 			return false;
 		}
 	}
@@ -1975,11 +1975,11 @@ static inline bool ep_compile_pass_shader(struct effect_parser *ep,
 	}
 
 #if defined(_DEBUG) && defined(_DEBUG_SHADERS)
-	blog(LOG_DEBUG, "\t\t\t%s Shader:",
+	plog(LOG_DEBUG, "\t\t\t%s Shader:",
 	     type == GS_SHADER_VERTEX ? "Vertex" : "Fragment");
-	blog(LOG_DEBUG, "\t\t\tCode:");
+	plog(LOG_DEBUG, "\t\t\tCode:");
 	debug_print_string("\t\t\t\t\t", shader_str.array);
-	blog(LOG_DEBUG, "\t\t\tParameters:");
+	plog(LOG_DEBUG, "\t\t\tParameters:");
 #endif
 
 	if (shader)
@@ -2011,19 +2011,19 @@ static bool ep_compile_pass(struct effect_parser *ep,
 	pass->section = EFFECT_PASS;
 
 #if defined(_DEBUG) && defined(_DEBUG_SHADERS)
-	blog(LOG_DEBUG, "\t\t[%4lld] Pass '%s':", idx, pass->name);
+	plog(LOG_DEBUG, "\t\t[%4lld] Pass '%s':", idx, pass->name);
 #endif
 
 	if (!ep_compile_pass_shader(ep, tech, pass, pass_in, idx,
 				    GS_SHADER_VERTEX)) {
 		success = false;
-		blog(LOG_ERROR, "Pass (%zu) <%s> missing vertex shader!", idx,
+		plog(LOG_ERROR, "Pass (%zu) <%s> missing vertex shader!", idx,
 		     pass->name ? pass->name : "");
 	}
 	if (!ep_compile_pass_shader(ep, tech, pass, pass_in, idx,
 				    GS_SHADER_PIXEL)) {
 		success = false;
-		blog(LOG_ERROR, "Pass (%zu) <%s> missing pixel shader!", idx,
+		plog(LOG_ERROR, "Pass (%zu) <%s> missing pixel shader!", idx,
 		     pass->name ? pass->name : "");
 	}
 	return success;
@@ -2046,7 +2046,7 @@ static inline bool ep_compile_technique(struct effect_parser *ep, size_t idx)
 	da_resize(tech->passes, tech_in->passes.num);
 
 #if defined(_DEBUG) && defined(_DEBUG_SHADERS)
-	blog(LOG_DEBUG, "\t[%4lld] Technique '%s' has %lld passes:", idx,
+	plog(LOG_DEBUG, "\t[%4lld] Technique '%s' has %lld passes:", idx,
 	     tech->name, tech->passes.num);
 #endif
 
@@ -2069,14 +2069,14 @@ static bool ep_compile(struct effect_parser *ep)
 	da_resize(ep->effect->techniques, ep->techniques.num);
 
 #if defined(_DEBUG) && defined(_DEBUG_SHADERS)
-	blog(LOG_DEBUG, "Shader has %lld parameters:", ep->params.num);
+	plog(LOG_DEBUG, "Shader has %lld parameters:", ep->params.num);
 #endif
 
 	for (i = 0; i < ep->params.num; i++)
 		ep_compile_param(ep, i);
 
 #if defined(_DEBUG) && defined(_DEBUG_SHADERS)
-	blog(LOG_DEBUG, "Shader has %lld techniques:", ep->techniques.num);
+	plog(LOG_DEBUG, "Shader has %lld techniques:", ep->techniques.num);
 #endif
 
 	for (i = 0; i < ep->techniques.num; i++) {

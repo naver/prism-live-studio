@@ -34,7 +34,7 @@
 #endif
 
 #define do_log(level, format, ...)                \
-	blog(level, "[ftl stream: '%s'] " format, \
+	plog(level, "[ftl stream: '%s'] " format, \
 	     obs_output_get_name(stream->output), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
@@ -122,7 +122,7 @@ static const char *ftl_stream_getname(void *unused)
 
 static void log_ftl(int level, const char *format, va_list args)
 {
-	blogva(LOG_INFO, format, args);
+	plogva(LOG_INFO, format, args);
 	UNUSED_PARAMETER(level);
 }
 
@@ -469,6 +469,9 @@ static inline bool can_shutdown_stream(struct ftl_stream *stream,
 
 static void *send_thread(void *data)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct ftl_stream *stream = data;
 	ftl_status_t status_code;
 
@@ -612,7 +615,7 @@ static int try_connect(struct ftl_stream *stream)
 	status_code = ftl_ingest_connect(&stream->ftl_handle);
 	if (status_code != FTL_SUCCESS) {
 		if (status_code == FTL_BAD_OR_INVALID_STREAM_KEY) {
-			blog(LOG_ERROR, "Invalid Key (%s)",
+			plog(LOG_ERROR, "Invalid Key (%s)",
 			     ftl_status_code_to_string(status_code));
 			return OBS_OUTPUT_INVALID_STREAM;
 		} else {
@@ -884,13 +887,16 @@ static enum ret_type ftl_event(struct ftl_stream *stream,
 	}
 
 	//tell OBS and it will trigger a reconnection
-	blog(LOG_WARNING, "Reconnecting to Ingest");
+	plog(LOG_WARNING, "Reconnecting to Ingest");
 	obs_output_signal_stop(stream->output, OBS_OUTPUT_DISCONNECTED);
 	return RET_EXIT;
 }
 
 static void *status_thread(void *data)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct ftl_stream *stream = data;
 
 	ftl_status_msg_t status;
@@ -915,7 +921,7 @@ static void *status_thread(void *data)
 				break;
 
 		} else if (status.type == FTL_STATUS_LOG) {
-			blog(LOG_INFO, "[%d] %s", status.msg.log.log_level,
+			plog(LOG_INFO, "[%d] %s", status.msg.log.log_level,
 			     status.msg.log.string);
 
 		} else if (status.type == FTL_STATUS_VIDEO_PACKETS) {
@@ -928,7 +934,7 @@ static void *status_thread(void *data)
 
 			int log_level = p->nack_reqs > 0 ? LOG_INFO : LOG_DEBUG;
 
-			blog(log_level,
+			plog(log_level,
 			     "Avg packet send per second %3.1f, "
 			     "total nack requests %d",
 			     (float)p->sent * 1000.f / p->period,
@@ -940,7 +946,7 @@ static void *status_thread(void *data)
 
 			int log_level = p->avg_rtt > 20 ? LOG_INFO : LOG_DEBUG;
 
-			blog(log_level,
+			plog(log_level,
 			     "avg transmit delay %dms "
 			     "(min: %d, max: %d), "
 			     "avg rtt %dms (min: %d, max: %d)",
@@ -955,7 +961,7 @@ static void *status_thread(void *data)
 			int log_level = v->queue_fullness > 0 ? LOG_INFO
 							      : LOG_DEBUG;
 
-			blog(log_level,
+			plog(log_level,
 			     "Queue an average of %3.2f fps "
 			     "(%3.1f kbps), "
 			     "sent an average of %3.2f fps "
@@ -968,14 +974,14 @@ static void *status_thread(void *data)
 			     (float)v->bytes_sent / v->period * 8,
 			     v->queue_fullness, v->max_frame_size);
 		} else {
-			blog(LOG_DEBUG,
+			plog(LOG_DEBUG,
 			     "Status:  Got Status message of type "
 			     "%d",
 			     status.type);
 		}
 	}
 
-	blog(LOG_DEBUG, "status_thread:  Exited");
+	plog(LOG_DEBUG, "status_thread:  Exited");
 	pthread_detach(stream->status_thread);
 	return NULL;
 }
@@ -987,7 +993,7 @@ static void *connect_thread(void *data)
 
 	os_set_thread_name("ftl-stream: connect_thread");
 
-	blog(LOG_WARNING, "ftl-stream: connect thread");
+	plog(LOG_WARNING, "ftl-stream: connect thread");
 
 	ret = init_connect(stream);
 	if (ret != OBS_OUTPUT_SUCCESS) {
@@ -1012,7 +1018,7 @@ static void log_libftl_messages(ftl_log_severity_t log_level,
 				const char *message)
 {
 	UNUSED_PARAMETER(log_level);
-	blog(LOG_WARNING, "[libftl] %s", message);
+	plog(LOG_WARNING, "[libftl] %s", message);
 }
 
 static int init_connect(struct ftl_stream *stream)
@@ -1072,11 +1078,11 @@ static int init_connect(struct ftl_stream *stream)
 	status_code = ftl_ingest_create(&stream->ftl_handle, &stream->params);
 	if (status_code != FTL_SUCCESS) {
 		if (status_code == FTL_BAD_OR_INVALID_STREAM_KEY) {
-			blog(LOG_ERROR, "Invalid Key (%s)",
+			plog(LOG_ERROR, "Invalid Key (%s)",
 			     ftl_status_code_to_string(status_code));
 			return OBS_OUTPUT_INVALID_STREAM;
 		} else {
-			blog(LOG_ERROR, "Failed to create ingest handle (%s)",
+			plog(LOG_ERROR, "Failed to create ingest handle (%s)",
 			     ftl_status_code_to_string(status_code));
 			return OBS_OUTPUT_ERROR;
 		}

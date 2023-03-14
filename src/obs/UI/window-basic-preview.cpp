@@ -1322,10 +1322,10 @@ void OBSBasicPreview::CropItem(const vec2 &pos)
 	vec3 curPos;
 	vec3_zero(&curPos);
 	obs_sceneitem_get_pos(stretchItem, (vec2*)&curPos);
-	blog(LOG_DEBUG, "curPos {%d, %d} - newPos {%d, %d}",
+	plog(LOG_DEBUG, "curPos {%d, %d} - newPos {%d, %d}",
 			int(curPos.x), int(curPos.y),
 			int(newPos.x), int(newPos.y));
-	blog(LOG_DEBUG, "crop {%d, %d, %d, %d}",
+	plog(LOG_DEBUG, "crop {%d, %d, %d, %d}",
 			crop.left, crop.top,
 			crop.right, crop.bottom);
 #endif

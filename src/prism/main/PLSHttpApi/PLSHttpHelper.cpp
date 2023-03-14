@@ -11,7 +11,8 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QMutex>
-
+#include <QDir>
+#include <QUuid>
 #include <atomic>
 #include <util/windows/win-version.h>
 
@@ -87,28 +88,37 @@ void removeSuffix(QString &fileName)
 		fileName = fileName.left(index);
 	}
 }
-bool saveImage(QString &filePath, QNetworkReply *reply, const QString &saveDir, const QString &saveFileNamePrefix, const QString &saveFileName, const QByteArray &data)
+bool saveImage(QString &filePath, QNetworkReply *reply, const QString &saveDir, const QString &saveFileNamePrefix, const QString &saveFileName, const QByteArray &data, bool isModifySuffix)
 {
 	QString fileName = saveFileName;
 	if (fileName.isEmpty()) {
 		fileName = reply->request().url().fileName();
 	}
 
-	fileName = PLSHttpHelper::imageContentTypeToFileName(reply->header(QNetworkRequest::ContentTypeHeader).toString(), fileName);
+	if (fileName.isEmpty()) {
+		fileName = QUuid::createUuid().toString();
+	}
+
+	if (saveFileName.isEmpty() || isModifySuffix) {
+		fileName = PLSHttpHelper::imageContentTypeToFileName(reply->header(QNetworkRequest::ContentTypeHeader).toString(), fileName);
+	}
 
 	filePath = saveDir + "/" + saveFileNamePrefix + fileName;
+	QDir dir(saveDir);
+	if (!dir.exists()) {
+		dir.mkpath(saveDir);
+	}
 	if (QFile::exists(filePath)) {
 		QFile::remove(filePath);
 	}
 
 	QFile file(filePath);
 	if (!file.open(QFile::WriteOnly)) {
-		PLS_ERROR(MODULE_PLSHttpHelper, "save image failed, image path: %s, reason: %s", filePath.toUtf8().constData(), file.errorString().toUtf8().constData());
+		PLS_ERROR(MODULE_PLSHttpHelper, "save image failed,reason: %s", file.errorString().toUtf8().constData());
 		return false;
 	}
 
 	file.write(data);
-	PLS_INFO(MODULE_PLSHttpHelper, "save image success, image path: %s", filePath.toUtf8().constData());
 	return true;
 }
 }
@@ -120,74 +130,63 @@ PLSHttpHelper *PLSHttpHelper::instance()
 	return &_instance;
 }
 
-void PLSHttpHelper::connectFinished(QNetworkReply *networkReplay, const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, dataErrorFunction onFinished, void *const context,
+void PLSHttpHelper::connectFinished(QNetworkReply *networkReply, const QObject *receiver, dataFunction onSucceed, dataErrorFunction onFailed, dataErrorFunction onFinished, void *const context,
 				    int iTimeout, bool bPrintLog)
 {
-	auto _onFinished = [=] {
-		auto statusCode = networkReplay->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-		auto data = networkReplay->readAll();
-		auto error = networkReplay->error();
-		int code = 0;
-		QString exectText;
+	bool isMasking = networkReply->property("urlMasking").isValid();
+	auto url = isMasking ? networkReply->property("urlMasking").toString() : networkReply->url().toString();
 
+	auto _onFinished = [=] {
+		//assert(!networkReply->url().toString().isEmpty());
 		const char *KEY_PROCESSED = "processed";
-		if (networkReplay->property(KEY_PROCESSED).toBool()) {
-			PLS_ERROR(MODULE_PLSHttpHelper, __FUNCTION__ ".reentrant url = %s statusCode = %d code = %d.", networkReplay->url().toString().toStdString().c_str(), statusCode, code);
+		if (networkReply->property(KEY_PROCESSED).toBool()) {
 			return;
 		}
-		/**
-		* deleteLater will not be processed if in QCoreApplication::processEvents
-		* So QNetworkReply::finished may occur twice if http request time is too long
-		* The 1st is occured by QTimer::singleShot for timeout on line 85
-		* The 2th is occured by really receiving data from server
-		**/
-		networkReplay->setProperty(KEY_PROCESSED, true);
+		networkReply->setProperty(KEY_PROCESSED, true);
 
-		auto doc = QJsonDocument::fromJson(data);
-		if (doc.isObject()) {
-			const char *KEY_CODE = "code";
-			auto root = doc.object();
-			if (root.contains(KEY_CODE)) {
-				code = root[KEY_CODE].toInt();
-			}
-			const static auto errKey = "error";
-			const static auto messageKey = "message";
-			auto exactKeys = {"status", messageKey, "exception", errKey};
-			for (auto item : exactKeys) {
-				if (root.contains(item)) {
-					auto value = root[item].toVariant().toString();
-					if (item == errKey && value.isEmpty() && root[item].isObject()) {
-						//add youtube api get error message
-						value = root[item].toObject()[messageKey].toString();
-						item = messageKey;
-					}
-					exectText.append(QString(" %1 = %2;").arg(item).arg(value));
-				}
-			}
+		if (nullptr == onSucceed && nullptr == onFailed && nullptr == onFinished) {
+			networkReply->deleteLater();
+			return;
 		}
 
-		if (QNetworkReply::NoError == networkReplay->error()) {
+		auto statusCode = networkReply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+		auto data = networkReply->readAll();
+		auto error = networkReply->error();
+
+		if (QNetworkReply::NoError == networkReply->error()) {
+			if (bPrintLog) {
+				auto contentTypeStr = networkReply->header(QNetworkRequest::ContentTypeHeader).toString();
+
+				PLS_INFO(MODULE_PLSHttpHelper, "http response success, url = %s, ", url.toUtf8().constData());
+
+				PLS_INFO_KR(MODULE_PLSHttpHelper, "http response success, url = %s, response data = %s", networkReply->url().toString().toUtf8().constData(),
+					    contentTypeStr.contains("image") ? "is image res." : data.constData());
+			}
 			if (nullptr != onSucceed) {
-				onSucceed(networkReplay, statusCode, data, context);
+				onSucceed(networkReply, statusCode, data, context);
 			}
 		} else {
 			if (bPrintLog) {
-				PLS_INFO(MODULE_PLSHttpHelper, "http response error! url = %s networkReplayError = %d statusCode = %d code = %d.%s",
-					 networkReplay->url().toString().toStdString().c_str(), networkReplay->error(), statusCode, code, exectText.toUtf8().constData());
+				PLS_ERROR(MODULE_PLSHttpHelper, "http response error! url = %s networkReplyError = %d statusCode = %d.", url.toUtf8().constData(), networkReply->error(), statusCode);
+
+				PLS_ERROR_KR(MODULE_PLSHttpHelper, "http response error! url = %s networkReplyError = %d statusCode = %d  errorMessage = %s.",
+					     networkReply->url().toString().toUtf8().constData(), networkReply->error(), statusCode, data.constData());
 			}
 			if (onFailed != nullptr) {
-				onFailed(networkReplay, statusCode, data, error, context);
+				onFailed(networkReply, statusCode, data, error, context);
 			}
 		}
 
 		if (onFinished != nullptr) {
-			onFinished(networkReplay, statusCode, data, error, context);
+			onFinished(networkReply, statusCode, data, error, context);
 		}
+
+		networkReply->deleteLater();
 	};
 
 	if (bPrintLog) {
 		const char *pOperator = "Custom";
-		switch (networkReplay->operation()) {
+		switch (networkReply->operation()) {
 		case QNetworkAccessManager::HeadOperation:
 			pOperator = "Head";
 			break;
@@ -204,45 +203,46 @@ void PLSHttpHelper::connectFinished(QNetworkReply *networkReplay, const QObject 
 			pOperator = "Delete";
 			break;
 		}
-		PLS_INFO(MODULE_PLSHttpHelper, "http request start:%s, url = %s.", pOperator, networkReplay->url().toString().toStdString().c_str());
+
+		PLS_INFO(MODULE_PLSHttpHelper, "http request start:%s, url = %s.", pOperator, url.toUtf8().constData());
+		if (isMasking) {
+			PLS_INFO_KR(MODULE_PLSHttpHelper, "http request start:%s, url = %s.", pOperator, networkReply->url().toString().toUtf8().constData());
+		}
 	}
 
-	if (nullptr != onSucceed || nullptr != onFailed || nullptr != onFinished) {
-		QObject::connect(networkReplay, &QNetworkReply::finished, nullptr != receiver ? receiver : networkReplay, _onFinished);
-	}
-	QObject::connect(networkReplay, &QNetworkReply::finished, [networkReplay] { networkReplay->deleteLater(); });
+	QObject::connect(networkReply, &QNetworkReply::finished, nullptr != receiver ? receiver : networkReply, _onFinished);
 
 	if (iTimeout > 0) {
-		QTimer::singleShot(iTimeout, networkReplay, &QNetworkReply::abort);
+		QTimer::singleShot(iTimeout, networkReply, &QNetworkReply::abort);
 	}
 
 	if (receiver) {
-		QObject::connect(receiver, &QObject::destroyed, networkReplay, &QNetworkReply::abort);
+		QObject::connect(receiver, &QObject::destroyed, networkReply, &QNetworkReply::abort, Qt::QueuedConnection);
 	}
 }
 
 void PLSHttpHelper::downloadImageAsync(QNetworkReply *reply, const QObject *receiver, const QString &saveDir, ImageCallback callback, const QString &saveFileNamePrefix, const QString &saveFileName,
-				       const QString &defaultImagePath, void *context)
+				       const QString &defaultImagePath, void *context, int iTimeout, bool bPrintLog, bool isModifySuffix)
 {
 	connectFinished(
 		reply, receiver,
 		[=](QNetworkReply *reply, int, const QByteArray &data, void *) {
 			QString filePath;
-			if (saveImage(filePath, reply, saveDir, saveFileNamePrefix, saveFileName, data)) {
+			if (saveImage(filePath, reply, saveDir, saveFileNamePrefix, saveFileName, data, isModifySuffix)) {
 				callback(true, filePath, context);
 			} else {
 				callback(false, defaultImagePath, context);
 			}
 		},
-		[=](QNetworkReply *, int, const QByteArray &, QNetworkReply::NetworkError, void *) { callback(false, defaultImagePath, context); });
+		[=](QNetworkReply *, int, const QByteArray &, QNetworkReply::NetworkError, void *) { callback(false, defaultImagePath, context); }, nullptr, context, iTimeout, bPrintLog);
 }
-QPair<bool, QString> PLSHttpHelper::downloadImageSync(QNetworkReply *networkReplay, const QObject *receiver, const QString &saveDir, const QString &saveFileNamePrefix, const QString &saveFileName,
-						      const QString &defaultImagePath)
+QPair<bool, QString> PLSHttpHelper::downloadImageSync(QNetworkReply *networkReply, const QObject *receiver, const QString &saveDir, const QString &saveFileNamePrefix, const QString &saveFileName,
+						      const QString &defaultImagePath, int iTimeout, bool bPrintLog, bool isModifySuffix)
 {
 	auto asyncResult = SyncResult<QPair<bool, QString>>::create();
 	downloadImageAsync(
-		networkReplay, receiver, saveDir, [=](bool ok, const QString &imagePath, void *) { asyncResult->finish(QPair<bool, QString>(ok, imagePath)); }, saveFileNamePrefix, saveFileName,
-		defaultImagePath);
+		networkReply, receiver, saveDir, [=](bool ok, const QString &imagePath, void *) { asyncResult->finish(QPair<bool, QString>(ok, imagePath)); }, saveFileNamePrefix, saveFileName,
+		defaultImagePath, nullptr, iTimeout, bPrintLog, isModifySuffix);
 
 	asyncResult->exec();
 	auto result = asyncResult->get();
@@ -250,7 +250,7 @@ QPair<bool, QString> PLSHttpHelper::downloadImageSync(QNetworkReply *networkRepl
 	return result;
 }
 void PLSHttpHelper::downloadImagesAsync(QList<QNetworkReply *> &replyList, const QObject *receiver, const QString &saveDir, ImagesCallback callback, const QString &saveFileNamePrefix,
-					const QList<QString> &saveFileNameList, const QString &defaultImagePath, void *context)
+					const QList<QString> &saveFileNameList, const QString &defaultImagePath, void *context, int iTimeout, bool bPrintLog, bool isModifySuffix)
 {
 	if (replyList.isEmpty()) {
 		callback(QList<QPair<bool, QString>>(), context);
@@ -270,7 +270,7 @@ void PLSHttpHelper::downloadImagesAsync(QList<QNetworkReply *> &replyList, const
 	}
 
 	auto _callback = [=](bool ok, const QString &imagePath, void *context) {
-		waiting->result[(int)context] = QPair<bool, QString>(ok, imagePath);
+		waiting->result[(int)(intptr_t)context] = QPair<bool, QString>(ok, imagePath);
 		if (!(waiting->count -= 1)) {
 			callback(waiting->result, context);
 			delete waiting;
@@ -279,20 +279,21 @@ void PLSHttpHelper::downloadImagesAsync(QList<QNetworkReply *> &replyList, const
 
 	for (int i = 0; i < replyList.size(); ++i) {
 		if (i < saveFileNameList.size()) {
-			downloadImageAsync(replyList.at(i), receiver, saveDir, _callback, saveFileNamePrefix, saveFileNameList.at(i), defaultImagePath, (void *)i);
+			downloadImageAsync(replyList.at(i), receiver, saveDir, _callback, saveFileNamePrefix, saveFileNameList.at(i), defaultImagePath, (void *)(intptr_t)i, iTimeout, bPrintLog,
+					   isModifySuffix);
 		} else {
-			downloadImageAsync(replyList.at(i), receiver, saveDir, _callback, saveFileNamePrefix, QString(), defaultImagePath, (void *)i);
+			downloadImageAsync(replyList.at(i), receiver, saveDir, _callback, saveFileNamePrefix, QString(), defaultImagePath, (void *)(intptr_t)i, iTimeout, bPrintLog, isModifySuffix);
 		}
 	}
 }
 QList<QPair<bool, QString>> PLSHttpHelper::downloadImagesSync(QList<QNetworkReply *> &replyList, const QObject *receiver, const QString &saveDir, const QString &saveFileNamePrefix,
-							      const QList<QString> &saveFileNameList, const QString &defaultImagePath)
+							      const QList<QString> &saveFileNameList, const QString &defaultImagePath, int iTimeout, bool bPrintLog, bool isModifySuffix)
 {
 	auto asyncResult = SyncResult<QList<QPair<bool, QString>>>::create();
 	asyncResult->initList(QPair<bool, QString>(), replyList.size());
 	downloadImagesAsync(
-		replyList, receiver, saveDir, [=](const QList<QPair<bool, QString>> &imageList, void *context) { asyncResult->finish(imageList); }, saveFileNamePrefix, saveFileNameList,
-		defaultImagePath);
+		replyList, receiver, saveDir, [=](const QList<QPair<bool, QString>> &imageList, void *) { asyncResult->finish(imageList); }, saveFileNamePrefix, saveFileNameList, defaultImagePath,
+		nullptr, iTimeout, bPrintLog, isModifySuffix);
 
 	asyncResult->exec();
 	auto result = asyncResult->get();

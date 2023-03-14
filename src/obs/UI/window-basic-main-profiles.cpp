@@ -38,12 +38,12 @@ void EnumProfiles(std::function<bool(const char *, const char *)> &&cb)
 	int ret = GetConfigPath(path, sizeof(path),
 				"obs-studio/basic/profiles/*");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get profiles config path");
+		plog(LOG_WARNING, "Failed to get profiles config path");
 		return;
 	}
 
 	if (os_glob(path, 0, &glob) != 0) {
-		blog(LOG_WARNING, "Failed to glob profiles");
+		plog(LOG_WARNING, "Failed to glob profiles");
 		return;
 	}
 
@@ -120,21 +120,21 @@ static bool GetProfileName(QWidget *parent, std::string &name,
 	}
 
 	if (!GetFileSafeName(name.c_str(), file)) {
-		blog(LOG_WARNING, "Failed to create safe file name for '%s'",
+		plog(LOG_WARNING, "Failed to create safe file name for '%s'",
 		     name.c_str());
 		return false;
 	}
 
 	ret = GetConfigPath(path, sizeof(path), "obs-studio/basic/profiles/");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get profiles config path");
+		plog(LOG_WARNING, "Failed to get profiles config path");
 		return false;
 	}
 
 	file.insert(0, path);
 
 	if (!GetClosestUnusedFileName(file, nullptr)) {
-		blog(LOG_WARNING, "Failed to get closest file name for %s",
+		plog(LOG_WARNING, "Failed to get closest file name for %s",
 		     file.c_str());
 		return false;
 	}
@@ -152,14 +152,14 @@ static bool CopyProfile(const char *fromPartial, const char *to)
 
 	ret = GetConfigPath(dir, sizeof(dir), "obs-studio/basic/profiles/");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get profiles config path");
+		plog(LOG_WARNING, "Failed to get profiles config path");
 		return false;
 	}
 
 	snprintf(path, sizeof(path), "%s%s/*", dir, fromPartial);
 
 	if (os_glob(path, 0, &glob) != 0) {
-		blog(LOG_WARNING, "Failed to glob profile '%s'", fromPartial);
+		plog(LOG_WARNING, "Failed to glob profile '%s'", fromPartial);
 		return false;
 	}
 
@@ -172,7 +172,7 @@ static bool CopyProfile(const char *fromPartial, const char *to)
 			       strrchr(filePath, '/') + 1);
 		if (ret > 0) {
 			if (os_copyfile(filePath, path) != 0) {
-				blog(LOG_WARNING,
+				plog(LOG_WARNING,
 				     "CopyProfile: Failed to "
 				     "copy file %s to %s",
 				     filePath, path);
@@ -203,7 +203,7 @@ bool OBSBasic::AddProfile(bool create_new, const char *title, const char *text,
 	int ret = GetConfigPath(baseDir, sizeof(baseDir),
 				"obs-studio/basic/profiles/");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get profiles config path");
+		plog(LOG_WARNING, "Failed to get profiles config path");
 		return false;
 	}
 
@@ -211,7 +211,7 @@ bool OBSBasic::AddProfile(bool create_new, const char *title, const char *text,
 	newPath += newDir;
 
 	if (os_mkdir(newPath.c_str()) < 0) {
-		blog(LOG_WARNING, "Failed to create profile directory '%s'",
+		plog(LOG_WARNING, "Failed to create profile directory '%s'",
 		     newDir.c_str());
 		return false;
 	}
@@ -222,7 +222,7 @@ bool OBSBasic::AddProfile(bool create_new, const char *title, const char *text,
 	newPath += "/basic.ini";
 
 	if (config.Open(newPath.c_str(), CONFIG_OPEN_ALWAYS) != 0) {
-		blog(LOG_ERROR, "Failed to open new config file '%s'",
+		plog(LOG_ERROR, "Failed to open new config file '%s'",
 		     newDir.c_str());
 		return false;
 	}
@@ -251,9 +251,9 @@ bool OBSBasic::AddProfile(bool create_new, const char *title, const char *text,
 	if (create_new)
 		ResetProfileData();
 
-	blog(LOG_INFO, "Created profile '%s' (%s, %s)", newName.c_str(),
+	plog(LOG_INFO, "Created profile '%s' (%s, %s)", newName.c_str(),
 	     create_new ? "clean" : "duplicate", newDir.c_str());
-	blog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "------------------------------------------------");
 
 	config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
 	UpdateTitleBar();
@@ -272,20 +272,20 @@ void OBSBasic::DeleteProfile(const char *profileName, const char *profileDir)
 
 	int ret = GetConfigPath(basePath, 512, "obs-studio/basic/profiles");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get profiles config path");
+		plog(LOG_WARNING, "Failed to get profiles config path");
 		return;
 	}
 
 	ret = snprintf(profilePath, 512, "%s/%s/*", basePath, profileDir);
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get path for profile dir '%s'",
+		plog(LOG_WARNING, "Failed to get path for profile dir '%s'",
 		     profileDir);
 		return;
 	}
 
 	os_glob_t *glob;
 	if (os_glob(profilePath, 0, &glob) != 0) {
-		blog(LOG_WARNING, "Failed to glob profile dir '%s'",
+		plog(LOG_WARNING, "Failed to glob profile dir '%s'",
 		     profileDir);
 		return;
 	}
@@ -303,16 +303,16 @@ void OBSBasic::DeleteProfile(const char *profileName, const char *profileDir)
 
 	ret = snprintf(profilePath, 512, "%s/%s", basePath, profileDir);
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get path for profile dir '%s'",
+		plog(LOG_WARNING, "Failed to get path for profile dir '%s'",
 		     profileDir);
 		return;
 	}
 
 	os_rmdir(profilePath);
 
-	blog(LOG_INFO, "------------------------------------------------");
-	blog(LOG_INFO, "Removed profile '%s' (%s)", profileName, profileDir);
-	blog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "Removed profile '%s' (%s)", profileName, profileDir);
+	plog(LOG_INFO, "------------------------------------------------");
 }
 
 void OBSBasic::RefreshProfiles()
@@ -368,7 +368,7 @@ void OBSBasic::ResetProfileData()
 
 	obs_set_audio_monitoring_device(device_name, device_id);
 
-	blog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s",
+	plog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s",
 	     device_name, device_id);
 #endif
 }
@@ -444,7 +444,7 @@ void OBSBasic::on_actionRemoveProfile_triggered()
 	newPath += "/basic.ini";
 
 	if (config.Open(newPath.c_str(), CONFIG_OPEN_ALWAYS) != 0) {
-		blog(LOG_ERROR, "ChangeProfile: Failed to load file '%s'",
+		plog(LOG_ERROR, "ChangeProfile: Failed to load file '%s'",
 		     newPath.c_str());
 		return;
 	}
@@ -470,9 +470,9 @@ void OBSBasic::on_actionRemoveProfile_triggered()
 	RefreshProfiles();
 	config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
 
-	blog(LOG_INFO, "Switched to profile '%s' (%s)", newName.c_str(),
+	plog(LOG_INFO, "Switched to profile '%s' (%s)", newName.c_str(),
 	     newDir);
-	blog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "------------------------------------------------");
 
 	UpdateTitleBar();
 
@@ -492,7 +492,7 @@ void OBSBasic::on_actionImportProfile_triggered()
 
 	int ret = GetConfigPath(path, 512, "obs-studio/basic/profiles/");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get profile config path");
+		plog(LOG_WARNING, "Failed to get profile config path");
 		return;
 	}
 
@@ -537,7 +537,7 @@ void OBSBasic::on_actionExportProfile_triggered()
 
 	int ret = GetConfigPath(path, 512, "obs-studio/basic/profiles/");
 	if (ret <= 0) {
-		blog(LOG_WARNING, "Failed to get profile config path");
+		plog(LOG_WARNING, "Failed to get profile config path");
 		return;
 	}
 
@@ -603,7 +603,7 @@ void OBSBasic::ChangeProfile()
 	path += "/basic.ini";
 
 	if (config.Open(path.c_str(), CONFIG_OPEN_ALWAYS) != 0) {
-		blog(LOG_ERROR, "ChangeProfile: Failed to load file '%s'",
+		plog(LOG_ERROR, "ChangeProfile: Failed to load file '%s'",
 		     path.c_str());
 		return;
 	}
@@ -632,8 +632,8 @@ void OBSBasic::ChangeProfile()
 
 	CheckForSimpleModeX264Fallback();
 
-	blog(LOG_INFO, "Switched to profile '%s' (%s)", newName, newDir);
-	blog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "Switched to profile '%s' (%s)", newName, newDir);
+	plog(LOG_INFO, "------------------------------------------------");
 
 	if (api)
 		api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);

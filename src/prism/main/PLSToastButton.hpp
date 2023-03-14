@@ -1,14 +1,14 @@
 #ifndef PLSTOASTBUTTON_H
 #define PLSTOASTBUTTON_H
 
-#include <QWidget>
+#include <QPushButton>
 #include <qlabel.h>
 
 namespace Ui {
 class PLSToastButton;
 }
 
-class PLSToastButton : public QWidget {
+class PLSToastButton : public QPushButton {
 	Q_OBJECT
 
 public:
@@ -18,6 +18,7 @@ public:
 	int num() const;
 	QString getNumText() const;
 	void setShowAlert(bool showAlert);
+	QPushButton *getButton();
 signals:
 	void clickButton();
 

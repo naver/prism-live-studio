@@ -47,6 +47,19 @@ long PLSDateFormate::timeStringToStamp(QString time)
 	return stDTime.toTime_t() + QDateTime::currentDateTime().offsetFromUtc();
 }
 
+long PLSDateFormate::koreanTimeStampToLocalTimeStamp(QString time)
+{
+	if (time.isEmpty()) {
+		return 0;
+	}
+	QString tempTime = time;
+	tempTime.remove(QRegExp("\\.[0-9]+")); //remove old type time string
+	QDateTime stDTime = QDateTime::fromString(tempTime, "yyyy-MM-dd'T'HH:mm:ss");
+	int koreanLocal = 9;
+	long finalTime = stDTime.toTime_t() - koreanLocal * 3600 + QDateTime::currentDateTime().offsetFromUtc();
+	return finalTime;
+}
+
 QString PLSDateFormate::youtubeTimeStampToString(long timeStamp)
 {
 	if (timeStamp <= 0) {
@@ -67,7 +80,7 @@ long PLSDateFormate::vliveTimeStringToStamp(QString time)
 	///*QTimeZone zone();
 	//stDTime.setTimeZone()*/
 	int koreanLocal = 9;
-	long finalTime = stDTime.toTime_t() - koreanLocal * 3600 + +QDateTime::currentDateTime().offsetFromUtc();
+	long finalTime = stDTime.toTime_t() - koreanLocal * 3600 + QDateTime::currentDateTime().offsetFromUtc();
 
 	return finalTime;
 }

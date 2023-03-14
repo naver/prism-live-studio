@@ -78,12 +78,13 @@ public:
 	QLayoutItem *takeAt(int index) override;
 	void showLayoutItemWidget() const;
 	void setItemRetainSizeWhenHidden(bool retainSize);
+	int rowForWidth(int);
 
 signals:
 	void LayoutFinished() const;
 
 private:
-	int doLayout(const QRect &rect, bool testOnly) const;
+	int doLayout(const QRect &rect, bool testOnly, int *row = nullptr) const;
 	int smartSpacing(QStyle::PixelMetric pm) const;
 
 	QList<QLayoutItem *> itemList;

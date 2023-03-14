@@ -17,7 +17,8 @@ using namespace std;
 
 static const char *textExtensions[] = {"txt", "log", nullptr};
 
-static const char *imageExtensions[] = {"bmp", "tga", "png", "jpg", "jpeg", "gif", nullptr};
+//PRISM/Liuying/20210323/#None/add JFIF Files
+static const char *imageExtensions[] = {"bmp", "tga", "png", "jpg", "jpeg", "gif", "jfif", nullptr};
 
 static const char *htmlExtensions[] = {"htm", "html", nullptr};
 

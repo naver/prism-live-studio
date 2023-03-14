@@ -23,17 +23,14 @@ public:
 	bool WaitBufferChanged(DWORD dwWaitMilliSecond);
 	bool WaitExtendChanged(DWORD dwWaitMilliSecond);
 
-	bool WriteItemData(const void *hdr, int hdrWriteSize, const void *data,
-			   int dataWriteSize);
-	bool ReadItemData(void *hdr, int hdrReadSize, void *buf,
-			  int dataReadSize);
+	bool WriteItemData(const void *hdr, int hdrWriteSize, const void *data, int dataWriteSize);
+	bool ReadItemData(void *hdr, int hdrReadSize, void *buf, int dataReadSize);
 
 	virtual void SetExtensionInfo(const void *input) { assert(false); }
 	virtual void GetExtensionInfo(void *output) { assert(false); }
 
 protected:
-	CircleBufferIPC(const char *queueName, int extendSize,
-			int itemHeaderSize, int itemCount, int itemSampleSize);
+	CircleBufferIPC(const char *queueName, int extendSize, int itemHeaderSize, int itemCount, int itemSampleSize);
 
 	virtual void FormatExtensionView(void *ptr, bool bNewCreate) {}
 	virtual bool CheckHeaderValid(const void *hdr) { return true; }

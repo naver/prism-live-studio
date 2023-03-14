@@ -136,6 +136,7 @@ private:
 	void InitButtonState(const QString &group);
 	void InitCategoryData();
 	void UpdateSelectedString();
+	void CheckMusicResource();
 
 signals:
 	void AddCachePlayList(const QVector<PLSBgmItemData> &datas);

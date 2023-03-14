@@ -58,6 +58,9 @@ typedef void (*mp_skipped_cb)(void *opaque, const char *url);
 
 struct mp_media_info;
 struct mp_media {
+	//PRISM/Wangshaohui/20210818/#none/for debug
+	void *attached_source;
+
 	AVFormatContext *fmt;
 
 	mp_video_cb v_preload_cb;
@@ -86,6 +89,12 @@ struct mp_media {
 	int speed;
 
 	enum AVPixelFormat scale_format;
+	//PRISM/LiuHaibin/20210622/#None/modify checking scale
+	enum AVPixelFormat scale_src_format;
+	int32_t scale_src_width;
+	int32_t scale_src_height;
+	int scale_range;
+	int scale_space;
 	struct SwsContext *swscale;
 	int scale_linesizes[4];
 	uint8_t *scale_pic[4];
@@ -131,7 +140,6 @@ struct mp_media {
 
 	//PRISM/ZengQin/20200618/#3179/for media controller
 	bool just_seek;
-	bool just_eof;
 	bool seek_video;
 	int64_t seek_time;
 	int64_t start_pos;
@@ -144,9 +152,6 @@ struct mp_media {
 	bool first_read;
 
 	bool speed_changing;
-
-	//PRISM/LiuHaibin/20200813/#4192/back to start
-	bool back_to_start;
 
 	//PRISM/LiuHaibin/20200819/#none/for seek
 	DARRAY(int64_t) seek_positions;
@@ -171,6 +176,25 @@ struct mp_media {
 	bool stop_callback_called;
 	//PRISM/LiuHaibin/20200924/#2174/cover for audio, mark if the media object is opened for the first time.
 	bool first_time_open;
+
+	//PRISM/WuLongue/20201126/For PRISM Mobile source
+	bool is_prism_mobile;
+
+	//PRISM/LiuHaibin/20201202/mark video&audio frames has been decoded since opened
+	uint64_t a_frame_count;
+	uint64_t v_frame_count;
+
+	//PRISM/LiuHaibin/20210106/#6461/mark if current source is virtual background source
+	bool virtual_background_source;
+
+	//PRISM/ZengQin/20210604/#none/video width and height
+	int64_t width;
+	int64_t height;
+
+	//PRISM/LiuHaibin/20210804/#9087/reduce log times
+	uint64_t consecutive_read_failures;
+	uint64_t consecutive_init_scale_failures;
+	uint64_t consecutive_seek_failures;
 };
 
 typedef struct mp_media mp_media_t;
@@ -212,9 +236,16 @@ struct mp_media_info {
 	bool reopen;
 	//PRISM/LiuHaibin/20200827/#/file changed
 	bool file_changed;
+
+	//PRISM/WuLongyue/20201126
+	bool is_prism_mobile;
+
+	//PRISM/LiuHaibin/20210106/#6461/mark if current source is virtual background source
+	bool virtual_background_source;
 };
 
-extern bool mp_media_init(mp_media_t *media, const struct mp_media_info *info);
+extern bool mp_media_init(mp_media_t *media, const struct mp_media_info *info,
+			  void *source);
 extern void mp_media_free(mp_media_t *media);
 
 extern void mp_media_play(mp_media_t *media, bool loop, bool restart);
@@ -243,6 +274,10 @@ extern bool mp_media_is_invalid_durtion_local_file(mp_media_t *m);
 
 //PRISM/ZengQin/20200902/#none/get duration
 extern int64_t mp_media_get_duration(mp_media_t *m);
+
+//PRISM/ZengQin/20200604/#none/get video width and height
+extern void mp_media_get_width_height(mp_media_t *m, int64_t *width,
+				      int64_t *height);
 
 /* #define DETAILED_DEBUG_INFO */
 

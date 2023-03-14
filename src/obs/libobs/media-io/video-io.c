@@ -110,7 +110,7 @@ static inline bool scale_video_output(struct video_input *input,
 				data->linesize[i] = frame->linesize[i];
 			}
 		} else {
-			blog(LOG_WARNING, "video-io: Could not scale frame!");
+			plog(LOG_WARNING, "video-io: Could not scale frame!");
 		}
 	}
 
@@ -173,6 +173,9 @@ static inline bool video_output_cur_frame(struct video_output *video)
 
 static void *video_thread(void *param)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct video_output *video = param;
 
 	os_set_thread_name("video-io: video thread");
@@ -207,7 +210,8 @@ static inline bool valid_video_params(const struct video_output_info *info)
 	       info->fps_num != 0;
 }
 
-static inline void init_cache(struct video_output *video)
+//PRISM/LiuHaibin/20210428/NoIssue/fix breakpoint, return bool result to mark if init succeeded
+static inline bool init_cache(struct video_output *video)
 {
 	if (video->info.cache_size > MAX_CACHE_SIZE)
 		video->info.cache_size = MAX_CACHE_SIZE;
@@ -216,11 +220,13 @@ static inline void init_cache(struct video_output *video)
 		struct video_frame *frame;
 		frame = (struct video_frame *)&video->cache[i];
 
-		video_frame_init(frame, video->info.format, video->info.width,
-				 video->info.height);
+		if (!video_frame_init(frame, video->info.format,
+				      video->info.width, video->info.height))
+			return false;
 	}
 
 	video->available_frames = video->info.cache_size;
+	return true;
 }
 
 int video_output_open(video_t **video, struct video_output_info *info)
@@ -253,10 +259,12 @@ int video_output_open(video_t **video, struct video_output_info *info)
 		goto fail;
 	if (os_sem_init(&out->update_semaphore, 0) != 0)
 		goto fail;
+	//PRISM/LiuHaibin/20210428/NoIssue/fix breakpoint, checkout result
+	/* move this line here to prevent crash inside video_thread */
+	if (!init_cache(out))
+		goto fail;
 	if (pthread_create(&out->thread, NULL, video_thread, out) != 0)
 		goto fail;
-
-	init_cache(out);
 
 	out->initialized = true;
 	*video = out;
@@ -319,20 +327,29 @@ static inline bool video_input_init(struct video_input *input,
 					      VIDEO_SCALE_FAST_BILINEAR);
 		if (ret != VIDEO_SCALER_SUCCESS) {
 			if (ret == VIDEO_SCALER_BAD_CONVERSION)
-				blog(LOG_ERROR, "video_input_init: Bad "
+				plog(LOG_ERROR, "video_input_init: Bad "
 						"scale conversion type");
 			else
-				blog(LOG_ERROR, "video_input_init: Failed to "
+				plog(LOG_ERROR, "video_input_init: Failed to "
 						"create scaler");
 
 			return false;
 		}
 
-		for (size_t i = 0; i < MAX_CONVERT_BUFFERS; i++)
-			video_frame_init(&input->frame[i],
-					 input->conversion.format,
-					 input->conversion.width,
-					 input->conversion.height);
+		//PRISM/LiuHaibin/20210428/NoIssue/fix breakpoint, check result
+		for (size_t i = 0; i < MAX_CONVERT_BUFFERS; i++) {
+			if (!video_frame_init(&input->frame[i],
+					      input->conversion.format,
+					      input->conversion.width,
+					      input->conversion.height)) {
+				plog(LOG_WARNING,
+				     "video_input_init: Fail to init video frame for conversion, fmt %d, %d x %d",
+				     input->conversion.format,
+				     input->conversion.width,
+				     input->conversion.height);
+				return false;
+			}
+		}
 	}
 
 	return true;
@@ -400,7 +417,7 @@ static void log_skipped(video_t *video)
 		(double)os_atomic_load_long(&video->total_frames) * 100.0;
 
 	if (skipped)
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "Video stopped, number of "
 		     "skipped frames due "
 		     "to encoding lag: "
@@ -550,11 +567,17 @@ double video_output_get_frame_rate(const video_t *video)
 
 uint32_t video_output_get_skipped_frames(const video_t *video)
 {
+	//PRISM/LiuHaibin/20210617/NoIssue/check nullptr
+	if (!video)
+		return 0;
 	return (uint32_t)os_atomic_load_long(&video->skipped_frames);
 }
 
 uint32_t video_output_get_total_frames(const video_t *video)
 {
+	//PRISM/LiuHaibin/20210617/NoIssue/check nullptr
+	if (!video)
+		return 0;
 	return (uint32_t)os_atomic_load_long(&video->total_frames);
 }
 
@@ -566,6 +589,9 @@ uint32_t video_output_get_total_frames(const video_t *video)
 
 void video_output_inc_texture_encoders(video_t *video)
 {
+	//PRISM/LiuHaibin/20210617/NoIssue/check nullptr
+	if (!video)
+		return;
 	if (os_atomic_inc_long(&video->gpu_refs) == 1 &&
 	    !os_atomic_load_bool(&video->raw_active)) {
 		reset_frames(video);
@@ -574,6 +600,9 @@ void video_output_inc_texture_encoders(video_t *video)
 
 void video_output_dec_texture_encoders(video_t *video)
 {
+	//PRISM/LiuHaibin/20210617/NoIssue/check nullptr
+	if (!video)
+		return;
 	if (os_atomic_dec_long(&video->gpu_refs) == 0 &&
 	    !os_atomic_load_bool(&video->raw_active)) {
 		log_skipped(video);
@@ -582,10 +611,16 @@ void video_output_dec_texture_encoders(video_t *video)
 
 void video_output_inc_texture_frames(video_t *video)
 {
+	//PRISM/LiuHaibin/20210617/NoIssue/check nullptr
+	if (!video)
+		return;
 	os_atomic_inc_long(&video->total_frames);
 }
 
 void video_output_inc_texture_skipped_frames(video_t *video)
 {
+	//PRISM/LiuHaibin/20210617/NoIssue/check nullptr
+	if (!video)
+		return;
 	os_atomic_inc_long(&video->skipped_frames);
 }

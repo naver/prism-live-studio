@@ -68,14 +68,14 @@ bool gs_effect_loop(gs_effect_t *effect, const char *name)
 		gs_technique_t *tech;
 
 		if (!!gs_get_effect()) {
-			blog(LOG_WARNING, "gs_effect_loop: An effect is "
+			plog(LOG_WARNING, "gs_effect_loop: An effect is "
 					  "already active");
 			return false;
 		}
 
 		tech = gs_effect_get_technique(effect, name);
 		if (!tech) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "gs_effect_loop: Technique '%s' "
 			     "not found.",
 			     name);
@@ -382,12 +382,12 @@ static inline void effect_setval_inline(gs_eparam_t *param, const void *data,
 	bool size_changed;
 
 	if (!param) {
-		blog(LOG_ERROR, "effect_setval_inline: invalid param");
+		plog(LOG_ERROR, "effect_setval_inline: invalid param");
 		return;
 	}
 
 	if (!data) {
-		blog(LOG_ERROR, "effect_setval_inline: invalid data");
+		plog(LOG_ERROR, "effect_setval_inline: invalid data");
 		return;
 	}
 
@@ -409,12 +409,12 @@ static inline void effect_getval_inline(gs_eparam_t *param, void *data,
 					size_t size)
 {
 	if (!param) {
-		blog(LOG_ERROR, "effect_getval_inline: invalid param");
+		plog(LOG_ERROR, "effect_getval_inline: invalid param");
 		return;
 	}
 
 	if (!data) {
-		blog(LOG_ERROR, "effect_getval_inline: invalid data");
+		plog(LOG_ERROR, "effect_getval_inline: invalid data");
 		return;
 	}
 
@@ -427,12 +427,12 @@ static inline void effect_getdefaultval_inline(gs_eparam_t *param, void *data,
 					       size_t size)
 {
 	if (!param) {
-		blog(LOG_ERROR, "effect_getdefaultval_inline: invalid param");
+		plog(LOG_ERROR, "effect_getdefaultval_inline: invalid param");
 		return;
 	}
 
 	if (!data) {
-		blog(LOG_ERROR, "effect_getdefaultval_inline: invalid data");
+		plog(LOG_ERROR, "effect_getdefaultval_inline: invalid data");
 		return;
 	}
 
@@ -497,7 +497,7 @@ void gs_effect_set_val(gs_eparam_t *param, const void *val, size_t size)
 void *gs_effect_get_val(gs_eparam_t *param)
 {
 	if (!param) {
-		blog(LOG_ERROR, "gs_effect_get_val: invalid param");
+		plog(LOG_ERROR, "gs_effect_get_val: invalid param");
 		return NULL;
 	}
 	size_t size = param->cur_val.num;
@@ -521,7 +521,7 @@ size_t gs_effect_get_val_size(gs_eparam_t *param)
 void *gs_effect_get_default_val(gs_eparam_t *param)
 {
 	if (!param) {
-		blog(LOG_ERROR, "gs_effect_get_default_val: invalid param");
+		plog(LOG_ERROR, "gs_effect_get_default_val: invalid param");
 		return NULL;
 	}
 	size_t size = param->default_val.num;
@@ -551,7 +551,7 @@ void gs_effect_set_default(gs_eparam_t *param)
 void gs_effect_set_next_sampler(gs_eparam_t *param, gs_samplerstate_t *sampler)
 {
 	if (!param) {
-		blog(LOG_ERROR, "gs_effect_set_next_sampler: invalid param");
+		plog(LOG_ERROR, "gs_effect_set_next_sampler: invalid param");
 		return;
 	}
 

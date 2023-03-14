@@ -32,7 +32,12 @@ EXPORT const char *device_preprocessor_name(void);
 
 //PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild,add callback
 EXPORT int device_create(gs_device_t **device, uint32_t adapter,
-			 void (*callback)(bool render_working));
+			 void (*callback)(int type, int code, void *ext_param));
+//PRISM/WangChuanjing/20210414/#NoIssue/test module
+EXPORT int device_create_for_test(gs_device_t **device, uint32_t adapter,
+				  enum gs_engine_test_type test_type,
+				  void (*callback)(int type, int code,
+						   void *ext_param));
 EXPORT void device_rebuild(gs_device_t *device);
 
 EXPORT void device_destroy(gs_device_t *device);

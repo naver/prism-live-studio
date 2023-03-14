@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32px" height="32px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>B6D78B4B-82FE-4AE6-A71D-A9F5160DBE47</title>
+    <defs>
+        <linearGradient x1="100%" y1="0%" x2="0%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#7AFCA5" offset="0%"></stop>
+            <stop stop-color="#ADDE5E" offset="44.3915335%"></stop>
+            <stop stop-color="#F7CB55" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="GUIDE_ClockWidget_202105" transform="translate(-190.000000, -4371.000000)" fill="url(#linearGradient-1)" stroke="#FFFFFF">
+            <g id="Group-32" transform="translate(70.000000, 4370.000000)">
+                <g id="img_widget_color08" transform="translate(120.000000, 1.000000)">
+                    <circle id="Oval-Copy-4" cx="16" cy="16" r="15.5"></circle>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

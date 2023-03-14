@@ -11,13 +11,12 @@
 #pragma comment(lib, "DXGI.lib")
 #pragma comment(lib, "D3D11.lib")
 #pragma comment(lib, "d2d1.lib")
+#define write_log_d2d(log_level, format, ...) plog(log_level, "[PLSGraphicsD2D] " format, ##__VA_ARGS__)
 
-#define write_log_d2d(log_level, format, ...) blog(log_level, "[PLSGraphicsD2D] " format, ##__VA_ARGS__)
-
-#define debug(format, ...) write_log_d2d(LOG_DEBUG, format, ##__VA_ARGS__)
-#define info(format, ...) write_log_d2d(LOG_INFO, format, ##__VA_ARGS__)
-#define warn(format, ...) write_log_d2d(LOG_WARNING, format, ##__VA_ARGS__)
-#define error(format, ...) write_log_d2d(LOG_ERROR, format, ##__VA_ARGS__)
+#define debug(format, ...) PLS_PLUGIN_DEBUG("[PLSGraphicsD2D] " format, ##__VA_ARGS__)
+#define info(format, ...) PLS_PLUGIN_INFO("[PLSGraphicsD2D] " format, ##__VA_ARGS__)
+#define warn(format, ...) PLS_PLUGIN_WARN("[PLSGraphicsD2D] " format, ##__VA_ARGS__)
+#define error(format, ...) PLS_PLUGIN_ERROR("[PLSGraphicsD2D] " format, ##__VA_ARGS__)
 
 static const IID dxgiFactory2 = {0x50c83a1c, 0xe072, 0x4c48, {0x87, 0xb0, 0x36, 0x30, 0xfa, 0x36, 0xa6, 0xd0}};
 const static D3D_FEATURE_LEVEL featureLevels[] = {
@@ -135,7 +134,8 @@ void PLSGraphicsD2D::end_draw()
 			need_update_texture = true;
 		}
 
-		d3d11_device_context->Flush();
+		if (d3d11_device_context)
+			d3d11_device_context->Flush();
 	}
 }
 

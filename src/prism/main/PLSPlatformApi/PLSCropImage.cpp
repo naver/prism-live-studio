@@ -24,15 +24,19 @@ static int mostEqual(int value, int most)
 }
 static QRect calcImageRect(const QSize &previewSize, const QSize &imageSize, const QRect &middleRect)
 {
+	if (previewSize.isEmpty() || imageSize.isEmpty() || middleRect.isEmpty()) {
+		return QRect();
+	}
+
 	if (imageSize.width() * middleRect.height() < imageSize.height() * middleRect.width()) {
-		int displayHeight = leastEqual(qRound(imageSize.height() * middleRect.width() / double(imageSize.width())), middleRect.height());
+		int displayHeight = leastEqual(qRound(imageSize.height() * double(middleRect.width()) / double(imageSize.width())), middleRect.height());
 		return QRect(middleRect.x(), mostEqual((previewSize.height() - displayHeight) / 2, middleRect.y()), middleRect.width(), displayHeight);
 	} else {
-		int displayWidth = leastEqual(qRound(imageSize.width() * middleRect.height() / double(imageSize.height())), middleRect.width());
+		int displayWidth = leastEqual(qRound(imageSize.width() * double(middleRect.height()) / double(imageSize.height())), middleRect.width());
 		return QRect(mostEqual((previewSize.width() - displayWidth) / 2, middleRect.x()), middleRect.y(), displayWidth, middleRect.height());
 	}
 }
-static void initImageSize(QLabel *image, QSlider *slider, const QRect &imageRect, double &minScaleFactor, double maxScaleFactor, double originalImageWidth, double previewWidth)
+static void initImageSize(QLabel *image, QSlider *slider, const QRect &imageRect, double &minScaleFactor, double maxScaleFactor, double originalImageWidth)
 {
 	image->setGeometry(imageRect);
 
@@ -42,8 +46,7 @@ static void initImageSize(QLabel *image, QSlider *slider, const QRect &imageRect
 	slider->setRange(int(minScaleFactor * SCALE_FACTOR), int(maxScaleFactor * SCALE_FACTOR));
 	slider->blockSignals(false);
 
-	double curScaleFactor = previewWidth / originalImageWidth;
-	slider->setValue(int(curScaleFactor * SCALE_FACTOR));
+	slider->setValue(int(minScaleFactor * SCALE_FACTOR));
 }
 
 PLSCropImage::PLSCropImage(const QString &imageFilePath, const QSize &cropImageSize, QWidget *parent, PLSDpiHelper dpiHelper) : PLSCropImage(QPixmap(imageFilePath), cropImageSize, parent, dpiHelper)
@@ -82,7 +85,7 @@ PLSCropImage::PLSCropImage(const QPixmap &originalImage_, const QSize &cropImage
 	middle = new QFrame(ui->preview);
 	middle->setObjectName("middle");
 	dpiHelper.setFixedSize(middle, cropImageSize);
-	dpiHelper.setStyleSheet(middle, "QFrame { border: /*hdpi*/ 1px solid #effc35; background-color: rgba(216, 216, 216, 0); }");
+	dpiHelper.setStyleSheet(middle, "QFrame { border: /*hdpi*/ 1px solid #effc35; background-color: rgba(216, 216, 216, 0); margin: 0; padding: 0; }");
 	middle->setAttribute(Qt::WA_TransparentForMouseEvents, true);
 	middle->installEventFilter(this);
 
@@ -92,12 +95,12 @@ PLSCropImage::PLSCropImage(const QPixmap &originalImage_, const QSize &cropImage
 	QVBoxLayout *v = new QVBoxLayout();
 	v->setMargin(0);
 	v->setSpacing(0);
-	v->addWidget(top);
+	v->addWidget(top, 1);
 	v->addWidget(middle);
-	v->addWidget(bottom);
-	h->addWidget(left);
+	v->addWidget(bottom, 1);
+	h->addWidget(left, 1);
 	h->addLayout(v);
-	h->addWidget(right);
+	h->addWidget(right, 1);
 }
 
 PLSCropImage::~PLSCropImage()
@@ -138,6 +141,9 @@ void PLSCropImage::on_slider_valueChanged(int value)
 {
 	QRect oldImageRect = image->geometry();
 	QRect middleRect = middle->geometry();
+	if (oldImageRect.isEmpty() || middleRect.isEmpty()) {
+		return;
+	}
 	QPoint oldCenter = image->mapFromParent(middleRect.center());
 	double scaleFactor = value / SCALE_FACTOR;
 	QSize imageSize = originalImage.size() * scaleFactor;
@@ -193,15 +199,17 @@ bool PLSCropImage::eventFilter(QObject *watched, QEvent *event)
 	if (watched == middle) {
 		switch (event->type()) {
 		case QEvent::Resize: {
-			QSize previewSize = ui->preview->size();
-			QRect imageRect = calcImageRect(previewSize, originalImage.size(), QRect(middle->pos(), dynamic_cast<QResizeEvent *>(event)->size()));
-			initImageSize(image, ui->slider, imageRect, minScaleFactor, PLSDpiHelper::calculate(this, maxScaleFactor), originalImage.width(), previewSize.width());
+			QRect imageRect = calcImageRect(ui->preview->size(), originalImage.size(), QRect(middle->pos(), dynamic_cast<QResizeEvent *>(event)->size()));
+			if (!imageRect.isEmpty()) {
+				initImageSize(image, ui->slider, imageRect, minScaleFactor, PLSDpiHelper::calculate(this, maxScaleFactor), originalImage.width());
+			}
 			break;
 		}
 		case QEvent::Move: {
-			QSize previewSize = ui->preview->size();
-			QRect imageRect = calcImageRect(previewSize, originalImage.size(), QRect(dynamic_cast<QMoveEvent *>(event)->pos(), middle->size()));
-			initImageSize(image, ui->slider, imageRect, minScaleFactor, PLSDpiHelper::calculate(this, maxScaleFactor), originalImage.width(), previewSize.width());
+			QRect imageRect = calcImageRect(ui->preview->size(), originalImage.size(), QRect(dynamic_cast<QMoveEvent *>(event)->pos(), middle->size()));
+			if (!imageRect.isEmpty()) {
+				initImageSize(image, ui->slider, imageRect, minScaleFactor, PLSDpiHelper::calculate(this, maxScaleFactor), originalImage.width());
+			}
 			break;
 		}
 		}

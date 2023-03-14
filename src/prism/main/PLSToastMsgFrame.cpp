@@ -34,6 +34,8 @@ PLSToastMsgFrame::PLSToastMsgFrame(QWidget *parent) : QFrame(parent)
 	editMessage->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	editMessage->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	editMessage->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+	editMessage->viewport()->setCursor(Qt::ArrowCursor);
+	editMessage->setCursor(Qt::ArrowCursor);
 
 	QHBoxLayout *main_layout = new QHBoxLayout(this);
 	main_layout->setContentsMargins(10, 10, 10, 10);

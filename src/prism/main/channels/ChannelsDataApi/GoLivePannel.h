@@ -24,15 +24,33 @@ protected:
 
 private slots:
 
-	void on_GoLiveShift_clicked();
-
 	void on_Record_toggled(bool isCheck);
-	void shitftRecordState(int state);
+
+	void toggleRecord(bool isStart = true);
+
+	void updateRecordButton(int state);
+
+	void on_GoLiveShift_toggled(bool isCheck);
+
+	void toggleBroadcast(bool toStart = true);
+
+	void updateGoliveButton(int state);
+
+private:
+	void setEnteredGolive(bool isEntered) { isEnteredGolive = isEntered; }
+	void setEnteredRecord(bool isEntered) { isEnteredRecord = isEntered; }
 
 private:
 	Ui::GoLivePannel *ui;
-	QStateMachine mMachine;
+
 	PLSAddingFrame *mBusyFrame;
+
+	const QString goliveText;
+	const QString finishLiveText;
+	const QString finisheRehearsalText;
+
+	volatile bool isEnteredGolive;
+	volatile bool isEnteredRecord;
 };
 
 #endif // GOLIVEPANNEL_H

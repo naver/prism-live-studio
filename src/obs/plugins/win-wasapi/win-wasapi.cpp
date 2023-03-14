@@ -11,17 +11,67 @@
 //PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
 #include <util/util_uint64.h>
 
+//PRISM/ZengQin/20210226/#none/for save device info to file.
+#include "pls/crash-writer.h"
+
+//PRISM/WangShaohui/20210406/#7526/handle default device changed
+#include <memory>
+#include "MMNotificationClient.h"
+
+//PRISM/WangShaohui/20210806/noissue/save PCM
+#include <atomic>
+#include <shlobj_core.h>
+
+#pragma comment(lib, "Shell32.lib")
+
 using namespace std;
 
 #define OPT_DEVICE_ID "device_id"
 #define OPT_USE_DEVICE_TIMING "use_device_timing"
 
+//PRISM/WangShaohui/20210611/noissue/fix bug of checking monitor self
+#define OPT_REAL_DEVICE_ID "real_device_id"
+
 static void GetWASAPIDefaults(obs_data_t *settings);
+
+//PRISM/WangShaohui/20210406/#7526/handle default device changed
+static std::string UnicodeToUtf8(const std::wstring &id);
 
 #define OBS_KSAUDIO_SPEAKER_4POINT1 \
 	(KSAUDIO_SPEAKER_SURROUND | SPEAKER_LOW_FREQUENCY)
 
-class WASAPISource {
+#define do_log(level, format, ...)                                            \
+	plog(level, "[%s audio : '%s' %p] " format,                           \
+	     isInputDevice ? "input" : "output", obs_source_get_name(source), \
+	     source, ##__VA_ARGS__)
+
+#define err(format, ...) do_log(LOG_ERROR, format, ##__VA_ARGS__)
+#define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)
+#define info(format, ...) do_log(LOG_INFO, format, ##__VA_ARGS__)
+#define debug(format, ...) do_log(LOG_DEBUG, format, ##__VA_ARGS__)
+
+//PRISM/WangShaohui/20201124/noissue/monitor audio delay
+class WASAPISource;
+struct AudioDelayMonitor {
+	uint64_t totalFrames = 0;
+	uint64_t delayFrames = 0;
+
+	uint64_t preDevTs = 0;    // ms
+	uint64_t preSysTs = 0;    // ms
+	uint64_t preLogSysTs = 0; // ms
+
+	void OnFrameCaptured(WASAPISource *plugin, uint64_t dev, uint64_t sys);
+	void SaveDelayStatus(WASAPISource *plugin);
+};
+
+class WASAPISource : public IWASEventCallback {
+	//PRISM/WangShaohui/20201124/noissue/monitor audio delay
+	friend struct AudioDelayMonitor;
+
+	//PRISM/WangShaohui/20210406/#7526/handle default device changed
+	ComPtr<IMMDeviceEnumerator> enumerator;
+	ComPtr<CMMNotificationClient> eventMonitor;
+
 	ComPtr<IMMDevice> device;
 	ComPtr<IAudioClient> client;
 	ComPtr<IAudioCaptureClient> capture;
@@ -47,9 +97,29 @@ class WASAPISource {
 	speaker_layout speakers;
 	audio_format format;
 	uint32_t sampleRate;
+	int channels;
+
+	//PRISM/WangShaohui/20201124/noissue/monitor audio delay
+	AudioDelayMonitor delayMonitor;
+
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	crash_writer writer{};
+
+	//PRISM/WangShaohui/20210406/#7526/handle default device changed
+	std::wstring usedDefaultDev = L"";
+
+	//PRISM/WangShaohui/20210806/noissue/save PCM
+	std::atomic<bool> pcmToSave = false;
+	std::atomic<unsigned long> pcmSaveDuration = 10000; // in ms
+	DWORD pcmStartTime = 0;                             // in ms
+	HANDLE pcmWriter = 0;
 
 	static DWORD WINAPI ReconnectThread(LPVOID param);
 	static DWORD WINAPI CaptureThread(LPVOID param);
+
+	//PRISM/WangShaohui/20210806/noissue/save PCM
+	std::wstring GetAudioPath();
+	bool CheckCreatePCM();
 
 	bool ProcessCaptureData();
 
@@ -71,21 +141,55 @@ class WASAPISource {
 	//PRISM/WangShaohui/20200219/#468/for checking source invalid
 	void SetInvalidState();
 
+	//PRISM/WangShaohui/20210302/noissue/stop capture thread
+	void StopThread(WinHandle &thread);
+
 	bool TryInitialize();
 
 	void UpdateSettings(obs_data_t *settings);
+
+	//PRISM/WangShaohui/20210406/#7526/handle default device changed
+	virtual void OnDefaultInputDeviceChanged(const std::wstring &id);
+	virtual void OnDefaultOutputDeviceChanged(const std::wstring &id);
+	bool DefaultDeviceChanged();
 
 public:
 	WASAPISource(obs_data_t *settings, obs_source_t *source_, bool input);
 	inline ~WASAPISource();
 
 	void Update(obs_data_t *settings);
+
+	//PRISM/WangShaohui/20210806/noissue/save PCM
+	void StartSavePCM(int sec);
+
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	inline crash_writer *GetCrashWriter() { return &writer; };
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	inline obs_data_t *getPropsParams()
+	{
+		obs_data_t *settings = obs_source_get_settings(source);
+		const char *device_id =
+			obs_data_get_string(settings, OPT_DEVICE_ID);
+		obs_data_release(settings);
+
+		obs_data_t *params = obs_data_create();
+		obs_data_set_string(params, "device_id", device_id);
+		return params;
+	};
 };
 
 WASAPISource::WASAPISource(obs_data_t *settings, obs_source_t *source_,
 			   bool input)
 	: source(source_), isInputDevice(input)
 {
+	//PRISM/WangShaohui/20210406/#7526/handle default device changed
+	eventMonitor = new CMMNotificationClient(this);
+	// reference is set with default 1 and will be 2 after setting to ComPtr, so here we must invoke Release once
+	eventMonitor->Release();
+
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	cw_create(&writer, cw_crash_type::CW_DEVICE);
+
 	UpdateSettings(settings);
 
 	stopSignal = CreateEvent(nullptr, true, false, nullptr);
@@ -116,27 +220,39 @@ bool WASAPISource::IsAudioExist()
 
 inline void WASAPISource::Start()
 {
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	cw_update_invoke_mark(&writer, true);
 	if (!TryInitialize()) {
-		blog(LOG_INFO,
-		     "[WASAPISource::WASAPISource] "
+		info("[WASAPISource::Start] "
 		     "Device '%s' not found.  Waiting for device",
 		     device_id.c_str());
 		Reconnect();
 	}
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	cw_update_invoke_mark(&writer, false);
 }
 
 inline void WASAPISource::Stop()
 {
 	SetEvent(stopSignal);
 
-	if (active) {
-		blog(LOG_INFO, "WASAPI: Device '%s' Terminated",
-		     device_name.c_str());
-		WaitForSingleObject(captureThread, INFINITE);
-	}
+	//PRISM/WangShaohui/20210302/noissue/stop capture thread
+	//if (active) {
+	//	info("WASAPI: Device '%s' Terminated",
+	//	     device_name.c_str());
+	//	WaitForSingleObject(captureThread, INFINITE);
+	//}
 
-	if (reconnecting)
-		WaitForSingleObject(reconnectThread, INFINITE);
+	//PRISM/WangShaohui/20210302/noissue/stop capture thread
+	//if (reconnecting)
+	//	WaitForSingleObject(reconnectThread, INFINITE);
+
+	//PRISM/WangShaohui/20210302/noissue/stop capture thread
+	// stop reconnect thread firstly because capture thread may be created in this thread
+	info("[WASAPISource::Stop] stop reconnect thread");
+	StopThread(reconnectThread);
+	info("[WASAPISource::Stop] stop capture thread");
+	StopThread(captureThread);
 
 	ResetEvent(stopSignal);
 }
@@ -144,6 +260,15 @@ inline void WASAPISource::Stop()
 inline WASAPISource::~WASAPISource()
 {
 	Stop();
+
+	//PRISM/WangShaohui/20210406/#7526/handle default device changed
+	if (enumerator) {
+		enumerator->UnregisterEndpointNotificationCallback(
+			eventMonitor);
+	}
+
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	cw_free(&writer);
 }
 
 void WASAPISource::UpdateSettings(obs_data_t *settings)
@@ -153,8 +278,22 @@ void WASAPISource::UpdateSettings(obs_data_t *settings)
 	DecodeAudioString(obs_data_get_string(settings, OPT_DEVICE_ID), name,
 			  device_id);
 
+	//PRISM/WangShaohui/20210611/noissue/fix bug of checking monitor self
+	obs_data_set_string(settings, OPT_REAL_DEVICE_ID, device_id.c_str());
+
 	useDeviceTiming = obs_data_get_bool(settings, OPT_USE_DEVICE_TIMING);
 	isDefaultDevice = _strcmpi(device_id.c_str(), "default") == 0;
+
+	//PRISM/ZengQin/20210803/#none/for save device info to file.
+	cw_update_module_info(&writer, device_name.c_str(),
+			      obs_source_get_name(source),
+			      obs_source_get_id(source));
+
+	//PRISM/WangShaohui/20210316/noIssue/for debugging
+	info("Update settings for %s source. obs_source:%p useDeviceTiming:%s device:%s devID:%s",
+	     isInputDevice ? "input" : "output", source,
+	     useDeviceTiming ? "yes" : "no",
+	     isDefaultDevice ? "default" : name.c_str(), device_id.c_str());
 }
 
 void WASAPISource::Update(obs_data_t *settings)
@@ -164,6 +303,9 @@ void WASAPISource::Update(obs_data_t *settings)
 	string newDevice;
 	DecodeAudioString(obs_data_get_string(settings, OPT_DEVICE_ID), name,
 			  newDevice);
+
+	//PRISM/WangShaohui/20210611/noissue/fix bug of checking monitor self
+	obs_data_set_string(settings, OPT_REAL_DEVICE_ID, device_id.c_str());
 
 	bool restart = newDevice.compare(device_id) != 0;
 
@@ -176,15 +318,41 @@ void WASAPISource::Update(obs_data_t *settings)
 		Start();
 }
 
+//PRISM/WangShaohui/20210406/#7526/handle default device changed
+void WASAPISource::OnDefaultInputDeviceChanged(const std::wstring &id)
+{
+	if (isInputDevice && isDefaultDevice) {
+
+		info("[WASAPISource] Default input device is changed. id:%s",
+		     UnicodeToUtf8(id).c_str());
+	}
+}
+
+//PRISM/WangShaohui/20210406/#7526/handle default device changed
+void WASAPISource::OnDefaultOutputDeviceChanged(const std::wstring &id)
+{
+	if (!isInputDevice && isDefaultDevice) {
+		info("[WASAPISource] Default output device is changed. id:%s",
+		     UnicodeToUtf8(id).c_str());
+	}
+}
+
 bool WASAPISource::InitDevice(IMMDeviceEnumerator *enumerator)
 {
 	HRESULT res;
 
 	if (isDefaultDevice) {
-		res = enumerator->GetDefaultAudioEndpoint(
-			isInputDevice ? eCapture : eRender,
-			isInputDevice ? eCommunications : eConsole,
-			device.Assign());
+		//PRISM/WangShaohui/20210406/#7526/handle default device changed
+		std::wstring id = eventMonitor->GetDefaultDevice(isInputDevice);
+		if (id.empty()) {
+			res = enumerator->GetDefaultAudioEndpoint(
+				isInputDevice ? eCapture : eRender,
+				isInputDevice ? eCommunications : eConsole,
+				device.Assign());
+		} else {
+			res = enumerator->GetDevice(id.c_str(),
+						    device.Assign());
+		}
 	} else {
 		wchar_t *w_id;
 		os_utf8_to_wcs_ptr(device_id.c_str(), device_id.size(), &w_id);
@@ -300,6 +468,9 @@ void WASAPISource::InitFormat(WAVEFORMATEX *wfex)
 	sampleRate = wfex->nSamplesPerSec;
 	format = AUDIO_FORMAT_FLOAT;
 	speakers = ConvertSpeakerLayout(layout, wfex->nChannels);
+
+	//PRISM/WangShaohui/20210806/noissue/save PCM
+	channels = wfex->nChannels;
 }
 
 void WASAPISource::InitCapture()
@@ -313,6 +484,9 @@ void WASAPISource::InitCapture()
 	if (FAILED(res))
 		throw HRError("Failed to set event handle", res);
 
+	//PRISM/WangShaohui/20210302/noissue/stop capture thread
+	StopThread(captureThread);
+
 	captureThread = CreateThread(nullptr, 0, WASAPISource::CaptureThread,
 				     this, 0, nullptr);
 	if (!captureThread.Valid())
@@ -321,24 +495,41 @@ void WASAPISource::InitCapture()
 	client->Start();
 	active = true;
 
-	blog(LOG_INFO, "WASAPI: Device '%s' initialized", device_name.c_str());
+	info("[WASAPISource::InitCapture] Device '%s' initialized. samplerate:%d channels:%d",
+	     device_name.c_str(), sampleRate, channels);
 }
 
 void WASAPISource::Initialize()
 {
-	ComPtr<IMMDeviceEnumerator> enumerator;
+	//PRISM/WangShaohui/20210406/#7526/handle default device changed
+	//ComPtr<IMMDeviceEnumerator> enumerator;
 	HRESULT res;
 
-	res = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
-			       CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
-			       (void **)enumerator.Assign());
-	if (FAILED(res))
-		throw HRError("Failed to create enumerator", res);
+	//PRISM/WangShaohui/20210406/#7526/handle default device changed
+	if (!enumerator) {
+		res = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
+				       CLSCTX_ALL,
+				       __uuidof(IMMDeviceEnumerator),
+				       (void **)enumerator.Assign());
+		if (FAILED(res))
+			throw HRError("Failed to create enumerator", res);
+
+		//PRISM/WangShaohui/20210406/#7526/handle default device changed
+		res = enumerator->RegisterEndpointNotificationCallback(
+			eventMonitor);
+		if (S_OK != res)
+			throw HRError("Failed to register event", res);
+	}
 
 	if (!InitDevice(enumerator))
 		return;
 
 	device_name = GetDeviceName(device);
+
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	cw_update_module_info(&writer, device_name.c_str(),
+			      obs_source_get_name(source),
+			      obs_source_get_id(source));
 
 	InitClient();
 	if (!isInputDevice)
@@ -364,6 +555,15 @@ void WASAPISource::SetInvalidState()
 	}
 }
 
+//PRISM/WangShaohui/20210302/noissue/stop capture thread
+void WASAPISource::StopThread(WinHandle &thread)
+{
+	if (thread.Valid()) {
+		WaitForSingleObject(thread, INFINITE);
+		thread = nullptr;
+	}
+}
+
 bool WASAPISource::TryInitialize()
 {
 	try {
@@ -373,7 +573,7 @@ bool WASAPISource::TryInitialize()
 		if (previouslyFailed)
 			return active;
 
-		blog(LOG_WARNING, "[WASAPISource::TryInitialize]:[%s] %s: %lX",
+		warn("[WASAPISource::TryInitialize]:[%s] %s: %lX",
 		     device_name.empty() ? device_id.c_str()
 					 : device_name.c_str(),
 		     error.str, error.hr);
@@ -382,7 +582,7 @@ bool WASAPISource::TryInitialize()
 		if (previouslyFailed)
 			return active;
 
-		blog(LOG_WARNING, "[WASAPISource::TryInitialize]:[%s] %s",
+		warn("[WASAPISource::TryInitialize]:[%s] %s",
 		     device_name.empty() ? device_id.c_str()
 					 : device_name.c_str(),
 		     error);
@@ -401,15 +601,18 @@ bool WASAPISource::TryInitialize()
 
 void WASAPISource::Reconnect()
 {
+	//PRISM/WangShaohui/20210302/noissue/stop capture thread
+	StopThread(reconnectThread);
+
 	reconnecting = true;
 	reconnectThread = CreateThread(
 		nullptr, 0, WASAPISource::ReconnectThread, this, 0, nullptr);
 
+	//PRISM/WangShaohui/20210108/noissue/debug log
 	if (!reconnectThread.Valid())
-		blog(LOG_WARNING,
-		     "[WASAPISource::Reconnect] "
-		     "Failed to initialize reconnect thread: %lu",
-		     GetLastError());
+		warn("[WASAPISource::Reconnect] "
+		     "Failed to initialize reconnect thread: %lu [%s]",
+		     GetLastError(), device_name.c_str());
 }
 
 static inline bool WaitForSignal(HANDLE handle, DWORD time)
@@ -425,6 +628,10 @@ DWORD WINAPI WASAPISource::ReconnectThread(LPVOID param)
 
 	os_set_thread_name("win-wasapi: reconnect thread");
 
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	cw_update_thread_id(&source->writer, GetCurrentThreadId(),
+			    cw_thread_type::CW_RECONNECT_AUDIO);
+
 	CoInitializeEx(0, COINIT_MULTITHREADED);
 
 	obs_monitoring_type type =
@@ -439,9 +646,78 @@ DWORD WINAPI WASAPISource::ReconnectThread(LPVOID param)
 
 	obs_source_set_monitoring_type(source->source, type);
 
-	source->reconnectThread = nullptr;
+	//PRISM/WangShaohui/20210302/noissue/stop capture thread
+	//source->reconnectThread = nullptr;
 	source->reconnecting = false;
+
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	cw_remove_thread_id(&source->writer, GetCurrentThreadId());
 	return 0;
+}
+
+//PRISM/WangShaohui/20210806/noissue/save PCM
+void WASAPISource::StartSavePCM(int sec)
+{
+	if (sec > 0) {
+		pcmSaveDuration = sec * 1000;
+		pcmToSave = true;
+	}
+}
+
+//PRISM/WangShaohui/20210806/noissue/save PCM
+std::wstring WASAPISource::GetAudioPath()
+{
+	wchar_t dir[_MAX_PATH];
+	SHGetSpecialFolderPathW(0, dir, CSIDL_DESKTOP, 0); // NO \
+
+	wchar_t *unicodeStr = NULL;
+	const char *sourceName = obs_source_get_name(source);
+	if (sourceName) {
+		os_utf8_to_wcs_ptr(sourceName, 0, &unicodeStr);
+	}
+
+	wchar_t name[MAX_PATH];
+	swprintf(name, L"%s %p-%d-%d.pcm", unicodeStr ? unicodeStr : L"",
+		 source, sampleRate, channels);
+
+	if (unicodeStr) {
+		bfree(unicodeStr);
+	}
+
+	std::wstring path = std::wstring(dir) + L"\\" + std::wstring(name);
+	return path;
+}
+
+//PRISM/WangShaohui/20210806/noissue/save PCM
+bool WASAPISource::CheckCreatePCM()
+{
+	bool fileOpenned = (pcmWriter && pcmWriter != INVALID_HANDLE_VALUE);
+	if (!fileOpenned) {
+		pcmWriter = CreateFile(GetAudioPath().c_str(), GENERIC_WRITE, 0,
+				       NULL, CREATE_ALWAYS,
+				       FILE_ATTRIBUTE_NORMAL, NULL);
+		fileOpenned = (pcmWriter && pcmWriter != INVALID_HANDLE_VALUE);
+		if (fileOpenned) {
+			pcmStartTime = GetTickCount();
+		} else {
+			pcmToSave = false;
+			warn("[%s] Failed to create PCM file. error:%u",
+			     device_name.empty() ? device_id.c_str()
+						 : device_name.c_str(),
+			     GetLastError());
+		}
+	}
+
+	return fileOpenned;
+}
+
+//PRISM/WangShaohui/20211009/#9933/exit thread soon
+bool IsEventSigned(const HANDLE &hHandle)
+{
+	if (!hHandle || hHandle == INVALID_HANDLE_VALUE)
+		return true;
+	else
+		return (WAIT_OBJECT_0 == WaitForSingleObject(hHandle, 0));
 }
 
 bool WASAPISource::ProcessCaptureData()
@@ -453,16 +729,17 @@ bool WASAPISource::ProcessCaptureData()
 	UINT64 pos, ts;
 	UINT captureSize = 0;
 
-	while (true) {
+	//PRISM/WangShaohui/20211009/#9933/exit thread soon
+	while (!IsEventSigned(stopSignal)) {
 		res = capture->GetNextPacketSize(&captureSize);
 
 		if (FAILED(res)) {
+			//PRISM/WangShaohui/20210108/noissue/debug log
 			if (res != AUDCLNT_E_DEVICE_INVALIDATED)
-				blog(LOG_WARNING,
-				     "[WASAPISource::GetCaptureData]"
+				warn("[WASAPISource::ProcessCaptureData]"
 				     " capture->GetNextPacketSize"
-				     " failed: %lX",
-				     res);
+				     " failed: %lX [%s]",
+				     res, device_name.c_str());
 			return false;
 		}
 
@@ -472,12 +749,33 @@ bool WASAPISource::ProcessCaptureData()
 		res = capture->GetBuffer(&buffer, &frames, &flags, &pos, &ts);
 		if (FAILED(res)) {
 			if (res != AUDCLNT_E_DEVICE_INVALIDATED)
-				blog(LOG_WARNING,
-				     "[WASAPISource::GetCaptureData]"
+				warn("[WASAPISource::ProcessCaptureData]"
 				     " capture->GetBuffer"
 				     " failed: %lX",
 				     res);
 			return false;
+		}
+
+		//PRISM/WangShaohui/20210806/noissue/save PCM
+		if (pcmToSave) {
+			if (CheckCreatePCM()) {
+				DWORD temp;
+				DWORD len = frames * channels * sizeof(float);
+				WriteFile(pcmWriter, buffer, len, &temp, NULL);
+				FlushFileBuffers(pcmWriter);
+
+				if (GetTickCount() >=
+				    (pcmStartTime + pcmSaveDuration)) {
+					CloseHandle(pcmWriter);
+					pcmWriter = 0;
+					pcmToSave = false;
+				}
+			}
+		} else {
+			if (pcmWriter && pcmWriter != INVALID_HANDLE_VALUE) {
+				CloseHandle(pcmWriter);
+				pcmWriter = 0;
+			}
 		}
 
 		obs_source_audio data = {};
@@ -487,6 +785,10 @@ bool WASAPISource::ProcessCaptureData()
 		data.samples_per_sec = sampleRate;
 		data.format = format;
 		data.timestamp = useDeviceTiming ? ts * 100 : os_gettime_ns();
+
+		//PRISM/WangShaohui/20201124/noissue/monitor audio delay
+		delayMonitor.OnFrameCaptured(this, ts / 10000,
+					     os_gettime_ns() / 1000000);
 
 		if (!useDeviceTiming)
 			//PRISM/LiuHaibin/20200803/#None/https://github.com/obsproject/obs-studio/pull/2657
@@ -512,38 +814,85 @@ static inline bool WaitForCaptureSignal(DWORD numSignals, const HANDLE *signals,
 	return ret == WAIT_OBJECT_0 || ret == WAIT_TIMEOUT;
 }
 
+//PRISM/WangShaohui/20210406/#7526/handle default device changed
+bool WASAPISource::DefaultDeviceChanged()
+{
+	std::wstring usingID = usedDefaultDev;
+	std::wstring dftID = eventMonitor->GetDefaultDevice(isInputDevice);
+	if (!usingID.empty() && !dftID.empty() && usingID != dftID) {
+		return true;
+	}
+
+	return false;
+}
+
 DWORD WINAPI WASAPISource::CaptureThread(LPVOID param)
 {
-	WASAPISource *source = (WASAPISource *)param;
+	WASAPISource *wasSource = (WASAPISource *)param;
 	bool reconnect = false;
 
-	/* Output devices don't signal, so just make it check every 10 ms */
-	DWORD dur = source->isInputDevice ? RECONNECT_INTERVAL : 10;
+	//PRISM/WangShaohui/20210406/#7526/modify log
+	obs_source_t *source = wasSource->source;
+	bool isInputDevice = wasSource->isInputDevice;
 
-	HANDLE sigs[2] = {source->receiveSignal, source->stopSignal};
+	/* Output devices don't signal, so just make it check every 10 ms */
+	DWORD dur = wasSource->isInputDevice ? RECONNECT_INTERVAL : 10;
+
+	HANDLE sigs[2] = {wasSource->receiveSignal, wasSource->stopSignal};
 
 	os_set_thread_name("win-wasapi: capture thread");
 
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	cw_update_thread_id(&wasSource->writer, GetCurrentThreadId(),
+			    cw_thread_type::CW_CAPTURE_AUDIO);
+
+	//PRISM/WangShaohui/20201124/noissue/monitor audio delay
+	memset(&wasSource->delayMonitor, 0, sizeof(delayMonitor));
+
+	//PRISM/WangShaohui/20210406/#7526/handle default device changed
+	wasSource->usedDefaultDev = L"";
+	if (wasSource->isDefaultDevice) {
+		LPWSTR pwszID = NULL;
+		if (SUCCEEDED(wasSource->device->GetId(&pwszID)) && pwszID) {
+			wasSource->usedDefaultDev = pwszID;
+			CoTaskMemFree(pwszID);
+			info("Using default device and device id is : %s",
+			     UnicodeToUtf8(wasSource->usedDefaultDev).c_str());
+		}
+	}
+
 	while (WaitForCaptureSignal(2, sigs, dur)) {
-		if (!source->ProcessCaptureData()) {
+		if (!wasSource->ProcessCaptureData()) {
 			//PRISM/WangShaohui/20200117/#281/for source unavailable
-			source->SetInvalidState();
+			wasSource->SetInvalidState();
+			reconnect = true;
+			break;
+		}
+
+		//PRISM/WangShaohui/20210406/#7526/handle default device changed
+		if (wasSource->isDefaultDevice &&
+		    wasSource->DefaultDeviceChanged()) {
+			info("Stop capture audio from '%s' because default device is changed.",
+			     wasSource->device_name.c_str());
 			reconnect = true;
 			break;
 		}
 	}
 
-	source->client->Stop();
+	wasSource->client->Stop();
 
-	source->captureThread = nullptr;
-	source->active = false;
+	//PRISM/WangShaohui/20210302/noissue/stop capture thread
+	//source->captureThread = nullptr;
+	wasSource->active = false;
 
 	if (reconnect) {
-		blog(LOG_INFO, "Device '%s' invalidated.  Retrying",
-		     source->device_name.c_str());
-		source->Reconnect();
+		info("[WASAPISource::CaptureThread] Device '%s' invalidated.  Retrying",
+		     wasSource->device_name.c_str());
+		wasSource->Reconnect();
 	}
 
+	//PRISM/ZengQin/20210226/#none/for save device info to file.
+	cw_remove_thread_id(&wasSource->writer, GetCurrentThreadId());
 	return 0;
 }
 
@@ -557,6 +906,22 @@ static const char *GetWASAPIInputName(void *)
 static const char *GetWASAPIOutputName(void *)
 {
 	return obs_module_text("AudioOutput");
+}
+
+//PRISM/WangShaohui/20210406/#7526/handle default device changed
+static std::string UnicodeToUtf8(const std::wstring &id)
+{
+	std::string ret = "";
+
+	char *str = NULL;
+	os_wcs_to_utf8_ptr(id.c_str(), 0, &str);
+
+	if (str) {
+		ret = str;
+		bfree(str);
+	}
+
+	return ret;
 }
 
 static void GetWASAPIDefaultsInput(obs_data_t *settings)
@@ -577,7 +942,10 @@ static void *CreateWASAPISource(obs_data_t *settings, obs_source_t *source,
 	try {
 		return new WASAPISource(settings, source, input);
 	} catch (const char *error) {
-		blog(LOG_ERROR, "[CreateWASAPISource] %s", error);
+		//PRISM/WangShaohui/20210406/#7526/modify log
+		bool isInputDevice = input;
+		err("[WASAPISource] Error happen in CreateWASAPISource : %s",
+		    error);
 	}
 
 	return nullptr;
@@ -609,7 +977,7 @@ static void UpdateWASAPISource(void *obj, obs_data_t *settings)
 
 //PRISM/WangShaohui/20200414/#2224/for lost audio device
 static bool on_audio_list_changed(obs_properties_t *ppts, obs_property_t *p,
-				     obs_data_t *settings)
+				  obs_data_t *settings)
 {
 	const char *cur_val = obs_data_get_string(settings, OPT_DEVICE_ID);
 	if (!cur_val) {
@@ -621,7 +989,11 @@ static bool on_audio_list_changed(obs_properties_t *ppts, obs_property_t *p,
 	DecodeAudioString(cur_val, current_name, current_id);
 
 	if (current_name.empty()) {
-		return false;
+		if (current_id == "default") {
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	bool match = false;
@@ -653,7 +1025,7 @@ static bool on_audio_list_changed(obs_properties_t *ppts, obs_property_t *p,
 	return false;
 }
 
-static obs_properties_t *GetWASAPIProperties(bool input)
+static obs_properties_t *GetWASAPIProperties(void *obj, bool input)
 {
 	obs_properties_t *props = obs_properties_create();
 	vector<AudioDeviceInfo> devices;
@@ -662,7 +1034,16 @@ static obs_properties_t *GetWASAPIProperties(bool input)
 		props, OPT_DEVICE_ID, obs_module_text("Device"),
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 
+	//PRISM/ZengQin/20210226/#none/for crash writer
+	WASAPISource *source = reinterpret_cast<WASAPISource *>(obj);
+	if (source)
+		cw_update_invoke_mark(source->GetCrashWriter(), true);
+
 	GetWASAPIAudioDevices(devices, input);
+
+	//PRISM/ZengQin/20210226/#none/for crash writer
+	if (source)
+		cw_update_invoke_mark(source->GetCrashWriter(), false);
 
 	//PRISM/WangShaohui/20200414/#2224/for lost audio device
 	/*if (devices.size())*/ {
@@ -673,9 +1054,11 @@ static obs_properties_t *GetWASAPIProperties(bool input)
 	for (size_t i = 0; i < devices.size(); i++) {
 		AudioDeviceInfo &device = devices[i];
 		//PRISM/WangShaohui/20200414/#2224/for lost audio device
-		obs_property_list_add_string(device_prop, device.name.c_str(),
+		obs_property_list_add_string(
+			device_prop, device.name.c_str(),
 			EncodeAudioString(device.name.c_str(),
-						device.id.c_str()).c_str());
+					  device.id.c_str())
+				.c_str());
 	}
 
 	//PRISM/WangShaohui/20200414/#2224/for lost audio device
@@ -687,14 +1070,87 @@ static obs_properties_t *GetWASAPIProperties(bool input)
 	return props;
 }
 
-static obs_properties_t *GetWASAPIPropertiesInput(void *)
+static obs_properties_t *GetWASAPIPropertiesInput(void *obj)
 {
-	return GetWASAPIProperties(true);
+	return GetWASAPIProperties(obj, true);
 }
 
-static obs_properties_t *GetWASAPIPropertiesOutput(void *)
+static obs_properties_t *GetWASAPIPropertiesOutput(void *obj)
 {
-	return GetWASAPIProperties(false);
+	return GetWASAPIProperties(obj, false);
+}
+
+//PRISM/WangShaohui/20201124/noissue/monitor audio delay
+void AudioDelayMonitor::OnFrameCaptured(WASAPISource *plugin, uint64_t dev,
+					uint64_t sys)
+{
+#define FRAME_DELAY_REVISE 5            // ms
+#define MAX_FRAME_INTERVAL (2 * 1000)   // ms
+#define STATUS_LOG_INTERVAL (60 * 1000) // ms
+
+	++totalFrames;
+
+	bool ignoreCalc = (preDevTs == 0 || preSysTs == 0 || dev <= preDevTs ||
+			   sys <= preSysTs ||
+			   (sys - preSysTs) >= MAX_FRAME_INTERVAL);
+
+	if (ignoreCalc) {
+		preLogSysTs = sys;
+	} else {
+		uint64_t dataSpace = dev - preDevTs;
+		uint64_t sysSpace = sys - preSysTs;
+		if (sysSpace > dataSpace &&
+		    (sysSpace - dataSpace >= FRAME_DELAY_REVISE)) {
+			++delayFrames;
+		}
+	}
+
+	preDevTs = dev;
+	preSysTs = sys;
+
+	if (totalFrames > 0 && (sys - preLogSysTs) > STATUS_LOG_INTERVAL) {
+		preLogSysTs = sys;
+		SaveDelayStatus(plugin);
+	}
+}
+
+//PRISM/WangShaohui/20201124/noissue/monitor audio delay
+void AudioDelayMonitor::SaveDelayStatus(WASAPISource *plugin)
+{
+	double delayPercent = (double)delayFrames / (double)totalFrames * 100;
+
+	obs_source_t *source = plugin->source;
+	bool isInputDevice = plugin->isInputDevice;
+
+	info("[%s] Statistic information. totalPkt:%llu delayPkt:%llu delayPercent:%.2lf%%",
+	     plugin->device_name.c_str(), totalFrames, delayFrames,
+	     delayPercent);
+}
+
+//PRISM/ZengQin/20210604/#none/Get properties parameters
+static obs_data_t *GetPropsParams(void *data)
+{
+	if (!data)
+		return NULL;
+
+	return static_cast<WASAPISource *>(data)->getPropsParams();
+}
+
+//PRISM/WangShaohui/20210806/noissue/save PCM
+static bool SetPrivateData(void *obj, obs_data_t *data)
+{
+	if (!obj || !data) {
+		return false;
+	}
+
+	const char *method = obs_data_get_string(data, "method");
+	if (method && 0 == strcmp(method, "save_pcm")) {
+		int sec = (int)obs_data_get_int(data, "duration_seconds");
+		static_cast<WASAPISource *>(obj)->StartSavePCM(sec);
+		return true;
+	}
+
+	return false;
 }
 
 void RegisterWASAPIInput()
@@ -710,6 +1166,11 @@ void RegisterWASAPIInput()
 	info.get_defaults = GetWASAPIDefaultsInput;
 	info.get_properties = GetWASAPIPropertiesInput;
 	info.icon_type = OBS_ICON_TYPE_AUDIO_INPUT;
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	info.props_params = GetPropsParams;
+	//PRISM/WangShaohui/20210806/noissue/save PCM
+	info.set_private_data = SetPrivateData;
+
 	obs_register_source(&info);
 }
 
@@ -727,5 +1188,10 @@ void RegisterWASAPIOutput()
 	info.get_defaults = GetWASAPIDefaultsOutput;
 	info.get_properties = GetWASAPIPropertiesOutput;
 	info.icon_type = OBS_ICON_TYPE_AUDIO_OUTPUT;
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	info.props_params = GetPropsParams;
+	//PRISM/WangShaohui/20210806/noissue/save PCM
+	info.set_private_data = SetPrivateData;
+
 	obs_register_source(&info);
 }

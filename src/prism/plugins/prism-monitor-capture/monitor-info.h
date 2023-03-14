@@ -8,6 +8,7 @@
 using namespace std;
 
 struct monitor_info {
+	HMONITOR handle;
 	string friendly_name;
 	bool is_primary;
 	int rotation;

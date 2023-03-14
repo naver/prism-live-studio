@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>527</width>
+    <width>653</width>
     <height>732</height>
    </rect>
   </property>
@@ -86,7 +86,7 @@
    <item>
     <widget class="QStackedWidget" name="stackedWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="page_normal">
       <layout class="QVBoxLayout" name="verticalLayout_page_normal">
@@ -205,7 +205,7 @@
               <rect>
                <x>0</x>
                <y>0</y>
-               <width>508</width>
+               <width>630</width>
                <height>16</height>
               </rect>
              </property>
@@ -263,8 +263,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>525</width>
-            <height>558</height>
+            <width>651</width>
+            <height>546</height>
            </rect>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_scroll">
@@ -693,7 +693,7 @@
              <enum>Qt::NoFocus</enum>
             </property>
             <property name="text">
-             <string>main.beauty.face.reset</string>
+             <string>Reset</string>
             </property>
            </widget>
           </item>
@@ -709,7 +709,7 @@
              <enum>Qt::NoFocus</enum>
             </property>
             <property name="text">
-             <string>main.beauty.face.delete</string>
+             <string>Delete</string>
             </property>
            </widget>
           </item>
@@ -798,6 +798,9 @@
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
          </property>
         </widget>
        </item>

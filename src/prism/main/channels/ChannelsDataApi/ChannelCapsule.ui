@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1161</width>
-    <height>765</height>
+    <width>895</width>
+    <height>558</height>
    </rect>
   </property>
   <property name="focusPolicy">
@@ -342,6 +342,12 @@
          </property>
          <item>
           <widget class="QFrame" name="ViewerFrame">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <layout class="QHBoxLayout" name="horizontalLayout_3">
             <property name="spacing">
              <number>2</number>
@@ -360,6 +366,12 @@
             </property>
             <item>
              <widget class="QLabel" name="ViewerPicLabel">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="maximumSize">
                <size>
                 <width>86</width>
@@ -401,6 +413,12 @@
          </item>
          <item>
           <widget class="QFrame" name="LikeInfo">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <layout class="QHBoxLayout" name="horizontalLayout_4">
             <property name="spacing">
              <number>2</number>
@@ -419,6 +437,12 @@
             </property>
             <item>
              <widget class="QLabel" name="LikePicLabel">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
               <property name="text">
                <string>LikePic</string>
               </property>
@@ -447,7 +471,7 @@
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>120</width>
+             <width>20</width>
              <height>20</height>
             </size>
            </property>

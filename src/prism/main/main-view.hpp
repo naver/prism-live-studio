@@ -8,9 +8,11 @@
 #include "PLSLivingMsgView.hpp"
 #include "frontend-api.h"
 #include "PLSToplevelView.hpp"
+#include "PLSUSBWiFiHelpView.h"
 
 namespace Ui {
 class PLSMainView;
+
 }
 
 class QPushButton;
@@ -21,6 +23,8 @@ class QLabel;
 class PLSToastMsgPopup;
 class PLSToastButton;
 class PLSBasic;
+class QButtonGroup;
+class ResolutionGuidePage;
 
 class PLSMainView : public PLSToplevelView<QFrame> {
 	Q_OBJECT
@@ -40,6 +44,26 @@ class PLSMainView : public PLSToplevelView<QFrame> {
 public:
 	explicit PLSMainView(QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSMainView();
+
+public:
+	struct IconData {
+		QString iconOffNormal;
+		QString iconOffHover;
+		QString iconOffPress;
+		QString iconOffDisabled;
+
+		QString iconOnNormal;
+		QString iconOnHover;
+		QString iconOnPress;
+		QString iconOnDisabled;
+
+		QString tooltip;
+
+		int minWidth{26};
+		int minHeight{26};
+		int maxWidth{26};
+		int maxHeight{26};
+	};
 
 public:
 	QWidget *content() const;
@@ -93,20 +117,7 @@ public:
 	QRect &getGeometryOfNormal() { return geometryOfNormal; }
 
 	void initToastMsgView(bool isInitShow = true);
-	void InitBeautyView();
-	void CreateBeautyView();
-	void OnBeautyViewVisibleChanged(bool visible);
-	void RefreshBeautyButtonStyle(bool state);
-	void RefreshStickersButtonStyle(bool state);
-
-	// bgm
-	void InitBgmView();
-	void OnBgmViewVisibleChanged(bool visible);
-
-	PLSToastButton *getToastButton();
-
-	void showMainFloatView();
-	void hideMainFloatView();
+	void initMobileHelperView(bool isInitShow);
 
 	QRect titleBarRect() const;
 	bool canMaximized() const;
@@ -118,13 +129,26 @@ public:
 	bool isClosing() const;
 	void close();
 	void OnBeautySourceDownloadFinished();
+	void registerSideBarButton(ConfigId id, const IconData &data, bool inFixedArea = true);
+	void updateSideBarButtonStyle(ConfigId id, bool on);
+
+	QList<SideWindowInfo> getSideWindowInfo() const;
+	int getToastMessageCount() const;
+	void setSidebarWindowVisible(int windowId, bool visible);
 
 public slots:
-	void onUpdateChatSytle(bool isShow);
+	//void onUpdateChatSytle(bool isShow);
 
 private:
 	static void resetToastViewPostion(pls_frontend_event event, const QVariantList &params, void *context);
 	void helpMenuAboutToHide();
+	void initSideBarButtons();
+	void addSideBarSeparator(bool inFixedArea = true);
+	void addSideBarStretch();
+	QString generalStyleSheet(const QString &objectName, IconData data);
+	QWidget *getSiderBarButton(const QString &objName);
+	void toggleResolutionButton(bool isVisible);
+	void AdjustSideBarMenu();
 
 signals:
 	void popupSettingView(const QString &tab, const QString &group);
@@ -132,28 +156,34 @@ signals:
 	void isshowSignal(bool isShow);
 	void beginResizeSignal();
 	void endResizeSignal();
-	void beautyClicked();
-	void bgmClicked();
-	void stickersClicked();
-	void setBeautyViewVisible(bool state);
-	void setBgmViewVisible(bool state);
 	void maxFullScreenStateChanged(bool isMaxState, bool isFullScreenState);
-	void CreateBeautyInstance();
 	void BeautySourceDownloadFinished();
 	void visibleSignal(bool visible);
+	void virtualButtonClicked();
+	void sideBarButtonClicked(int id);
 
-private slots:
+	void mainViewUIChanged();
+
+public slots:
 	void on_menu_clicked();
 	void on_user_clicked();
 	void on_studioMode_clicked();
 	void on_chat_clicked();
 	void on_alert_clicked();
+
+	void showResolutionGuidePage(bool visible = true);
+
+	void showResolutionTips(const QString &platform);
+
 	void on_help_clicked();
 	void on_settings_clicked();
 	void on_listWidget_itemClicked(QListWidgetItem *item);
-	void on_beauty_clicked();
-	void on_bgmBtn_clicked();
-	void on_stickers_clicked();
+	void onSideBarButtonClicked(int buttonId);
+
+	void wifiHelperclicked();
+	void on_mobile_lost();
+	void on_mobile_disconnect();
+	void on_mobile_connected(QString mobileName); //Not use reference param, it may be invoked in different thread.
 
 protected:
 	void closeEvent(QCloseEvent *event);
@@ -183,14 +213,17 @@ private:
 	QMap<qint64, QString> toastMessages;
 	QMenu *helpMenu;
 	PLSToastView *toast;
-	bool m_isFirstLogin = true;
-	PLSLivingMsgView m_livingMsgView;
+	PLSLivingMsgView *m_livingMsgView;
 	PLSToastMsgPopup *m_toastMsg;
 	bool m_livingToastViewShow;
 	bool m_IsChatShowWhenRebackLogin = false;
 	bool closing = false;
+	QButtonGroup *sideBarBtnGroup = nullptr;
+	QList<SideWindowInfo> windowInfo;
 
 	friend class PLSBasic;
+	friend class ResolutionGuidePage;
+	PLSUSBWiFiHelpView *m_usbWiFiView;
 };
 
 #endif // PLSMAINVIEW_H

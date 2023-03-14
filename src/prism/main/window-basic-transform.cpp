@@ -41,6 +41,7 @@ PLSBasicTransform::PLSBasicTransform(PLSBasic *parent, PLSDpiHelper dpiHelper) :
 {
 	dpiHelper.setInitSize(this, {604, 647});
 	ui->setupUi(this->content());
+	dpiHelper.setCss(this, {PLSCssIndex::PLSBasicTransform});
 	QMetaObject::connectSlotsByName(this);
 
 	HookWidget(ui->positionX, DSCROLL_CHANGED, SLOT(OnControlChanged()));

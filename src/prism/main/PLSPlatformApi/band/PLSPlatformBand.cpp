@@ -15,7 +15,7 @@
 #include "PLSLiveInfoBand.h"
 #include "PLSBandDataHandler.h"
 
-#define EXPIRE_OFFSET(X) (((X) - (30 * 1000 * 60)) / 1000) //half hour(s)
+#define EXPIRE_OFFSET(X) (((X) - (30 * 60))) //half hour(s)
 
 PLSPlatformBand::PLSPlatformBand()
 {
@@ -61,7 +61,7 @@ void PLSPlatformBand::getBandRefreshTokenInfo(refreshTokenCallback callbackfunc,
 			m_bandLoginInfo.insert(ChannelData::g_expires_in, EXPIRE_OFFSET(expire_in.toLongLong()));
 			m_bandLoginInfo.insert(ChannelData::g_createTime, QDateTime::currentDateTime());
 
-			for (auto band : bandInfos) {
+			for (const auto &band : bandInfos) {
 				QString bandUUID = band.value(ChannelData::g_channelUUID).toString();
 				PLSCHANNELS_API->setValueOfChannel(bandUUID, ChannelData::g_channelToken, token);
 				PLSCHANNELS_API->setValueOfChannel(bandUUID, ChannelData::g_refreshToken, refreshToken);
@@ -172,11 +172,11 @@ void PLSPlatformBand::getBandCategoryInfo(const QVariantMap &srcInfo, UpdateCall
 		QVariantList bands;
 		PLSJsonDataHandler::getValuesFromByteArray(data, "bands", bands);
 		if (!bands.isEmpty()) {
-			for (auto band : bands) {
+			for (const auto &band : bands) {
 				QVariantMap tmpband;
 				tmpband[ChannelData::g_channelToken] = m_bandLoginInfo[ChannelData::g_channelToken];
 				tmpband[ChannelData::g_channelCode] = m_bandLoginInfo[ChannelData::g_channelCode];
-				tmpband[ChannelData::g_channelName] = m_bandLoginInfo[ChannelData::g_channelName];
+				tmpband[ChannelData::g_platformName] = m_bandLoginInfo[ChannelData::g_platformName];
 				tmpband[ChannelData::g_expires_in] = m_bandLoginInfo[ChannelData::g_expires_in];
 				tmpband[ChannelData::g_createTime] = m_bandLoginInfo[ChannelData::g_createTime];
 				tmpband[ChannelData::g_refreshToken] = m_bandLoginInfo[ChannelData::g_refreshToken];
@@ -231,7 +231,9 @@ void PLSPlatformBand::getBandCategoryInfo(const QVariantMap &srcInfo, UpdateCall
 QPair<bool, QString> PLSPlatformBand::getChannelEmblemSync(const QString &url)
 {
 	PLSNetworkReplyBuilder builder(url);
-	return PLSHttpHelper::downloadImageSync(builder.get(), this, getChannelCacheDir(), BAND);
+	auto reply = builder.get();
+	reply->setProperty("urlMasking", pls_masking_person_info(url));
+	return PLSHttpHelper::downloadImageSync(reply, this, getTmpCacheDir(), BAND);
 }
 
 PLSServiceType PLSPlatformBand::getServiceType() const
@@ -245,8 +247,9 @@ void PLSPlatformBand::onPrepareLive(bool value)
 		PLSPlatformBase::onPrepareLive(value);
 		return;
 	}
+	PLS_INFO(MODULE_PLATFORM_NAVERTV, "%s %s show liveinfo value(%s)", PrepareInfoPrefix, __FUNCTION__, BOOL2STR(value));
 	value = pls_exec_live_Info_band(getChannelUUID(), getInitData()) == QDialog::Accepted;
-
+	PLS_INFO(MODULE_PLATFORM_NAVERTV, "%s %s liveinfo closed value(%s)", PrepareInfoPrefix, __FUNCTION__, BOOL2STR(value));
 	PLSPlatformBase::onPrepareLive(value);
 }
 
@@ -264,17 +267,17 @@ void PLSPlatformBand::onAlLiveStarted(bool value)
 void PLSPlatformBand::onAllPrepareLive(bool isOk)
 {
 	if (!isOk && m_isRequestStart) {
-		requesetLiveStop([this] { PLSPlatformBase::onAllPrepareLive(false); });
+		requesetLiveEnd([this] { PLSPlatformBase::onAllPrepareLive(false); });
 		return;
 	}
 	PLSPlatformBase::onAllPrepareLive(isOk);
 }
 
-void PLSPlatformBand::onLiveStopped()
+void PLSPlatformBand::onLiveEnded()
 {
 	m_isRequestStart = false;
 
-	requesetLiveStop([this] { liveStoppedCallback(); });
+	requesetLiveEnd([this] { liveEndedCallback(); });
 	setTitle(std::string());
 }
 
@@ -292,7 +295,7 @@ PLSPlatformApiResult PLSPlatformBand::getApiResult(int code, QNetworkReply::Netw
 			result = PLSPlatformApiResult::PAR_TOKEN_EXPIRED;
 			break;
 		case 403:
-			result = PLSPlatformApiResult::PAR__API_ERROR_FORBIDDEN;
+			result = PLSPlatformApiResult::PAR_API_ERROR_FORBIDDEN;
 			break;
 		case 60106:
 			result = PLSPlatformApiResult::BAND_API_ERROR_NO_PERMISSION;
@@ -308,20 +311,18 @@ PLSPlatformApiResult PLSPlatformBand::getApiResult(int code, QNetworkReply::Netw
 
 void PLSPlatformBand::showApiRefreshError(PLSPlatformApiResult value)
 {
-	auto alertParent = getAlertParent();
-
 	switch (value) {
 	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		PLSAlertView::warning(nullptr, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Network.Error"));
+		PLSAlertView::warning(nullptr, QTStr("Alert.Title"), QTStr("login.check.note.network"));
 		break;
 	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-	case PLSPlatformApiResult::PAR__API_ERROR_FORBIDDEN:
-		//PLSAlertView::warning(nullptr, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Band.Expired"));
+	case PLSPlatformApiResult::PAR_API_ERROR_FORBIDDEN:
+		//PLSAlertView::warning(nullptr, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Band.Expired"));
 		break;
 	case PLSPlatformApiResult::BAND_API_ERROR_NO_PERMISSION:
 		break;
 	default:
-		PLSAlertView::warning(nullptr, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Band.Failed"));
+		PLSAlertView::warning(nullptr, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Band.Failed"));
 		break;
 	}
 }
@@ -336,7 +337,7 @@ void PLSPlatformBand::showChannelInfoError(PLSPlatformApiResult value)
 		break;
 
 	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-	case PLSPlatformApiResult::PAR__API_ERROR_FORBIDDEN:
+	case PLSPlatformApiResult::PAR_API_ERROR_FORBIDDEN:
 		m_bandLoginInfo[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Expired;
 		break;
 	case PLSPlatformApiResult::PAR_API_ERROR_Live_Invalid:
@@ -349,7 +350,6 @@ void PLSPlatformBand::showChannelInfoError(PLSPlatformApiResult value)
 }
 void PLSPlatformBand::requestLiveStreamKey(std::function<void(int value)> callback)
 {
-	auto alertParent = getAlertParent();
 	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
 		Q_UNUSED(networkReplay)
 		Q_UNUSED(context)
@@ -386,15 +386,15 @@ void PLSPlatformBand::requestLiveStreamKey(std::function<void(int value)> callba
 			} else if (resultCode == 60903) {
 				//TODO:alert
 				PLS_WARN(MODULE_PLATFORM_BAND, __FUNCTION__, "band aleardy boardcast");
-				PLSAlertView::warning(nullptr, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.Band.Have.Broardcast"));
+				PLSAlertView::warning(nullptr, QTStr("Alert.Title"), QTStr("Live.Check.Band.Have.Broardcast"));
 				result = PLSPlatformApiResult::PAR_API_FAILED;
 			} else if (resultCode == 60106) {
 				PLS_ERROR(MODULE_PLATFORM_BAND, __FUNCTION__, "band have no perssion");
-				PLSAlertView::warning(nullptr, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.LiveInfo.Band.Have.No.Perssion"));
+				PLSAlertView::warning(nullptr, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Band.Have.No.Perssion"));
 				result = PLSPlatformApiResult::PAR_API_FAILED;
 			} else {
 				PLS_ERROR(MODULE_PLATFORM_BAND, __FUNCTION__, "band unkonow error");
-				PLSAlertView::warning(nullptr, QTStr("Live.Check.Alert.Title"), QTStr("Live.Check.Band.Other.Error"));
+				PLSAlertView::warning(nullptr, QTStr("Alert.Title"), QTStr("Live.Check.Band.Other.Error"));
 				result = PLSPlatformApiResult::PAR_API_FAILED;
 			}
 		}
@@ -419,8 +419,8 @@ void PLSPlatformBand::requestLiveStreamKey(std::function<void(int value)> callba
 
 	auto callbackFun = [this, _onSucceed, _onFail](bool) {
 		auto channelInfo = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-		auto bandKey = channelInfo[ChannelData::g_subChannelId];
-		auto accessToken = channelInfo[ChannelData::g_channelToken];
+		const auto &bandKey = channelInfo[ChannelData::g_subChannelId];
+		const auto &accessToken = channelInfo[ChannelData::g_channelToken];
 		PLSNetworkReplyBuilder builder(CHANNEL_BAND_LIVE_CREATE);
 		builder.setContentType("application/json;charset=UTF-8");
 		QVariantMap fieldMaps;
@@ -436,7 +436,7 @@ void PLSPlatformBand::requestLiveStreamKey(std::function<void(int value)> callba
 	getBandRefreshTokenInfo(callbackFun);
 }
 
-void PLSPlatformBand::requesetLiveStop(std::function<void()> callback)
+void PLSPlatformBand::requesetLiveEnd(std::function<void()> callback)
 {
 	auto _onSucceed = [=](QNetworkReply *networkReplay, int code, QByteArray data, void *context) {
 		Q_UNUSED(networkReplay)
@@ -466,8 +466,8 @@ void PLSPlatformBand::requesetLiveStop(std::function<void()> callback)
 
 	auto callbackFun = [this, _onSucceed, _onFail](bool) {
 		auto channelInfo = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-		auto bandKey = channelInfo[ChannelData::g_subChannelId];
-		auto accessToken = channelInfo[ChannelData::g_channelToken];
+		const auto &bandKey = channelInfo[ChannelData::g_subChannelId];
+		const auto &accessToken = channelInfo[ChannelData::g_channelToken];
 		PLSNetworkReplyBuilder builder(CHANNEL_BAND_LIVE_OFF);
 		builder.setContentType("application/json;charset=UTF-8");
 		QVariantMap fieldMaps;
@@ -476,8 +476,14 @@ void PLSPlatformBand::requesetLiveStop(std::function<void()> callback)
 		fieldMaps.insert(COOKIE_ACCESS_TOKEN, accessToken);
 
 		builder.setQuerys(fieldMaps);
+		extern QString maskUrl(const QString &url, const QVariantMap &queryInfo);
 
-		PLSHttpHelper::connectFinished(builder.post(), this, _onSucceed, _onFail);
+		auto maskUrlStr = maskUrl(CHANNEL_BAND_LIVE_OFF,
+					  {{"band_key", pls_masking_person_info(bandKey.toString())}, {"live_id", pls_masking_person_info(getLiveId())}, {COOKIE_ACCESS_TOKEN, accessToken}});
+		auto reply = builder.post();
+
+		reply->setProperty("urlMasking", maskUrlStr);
+		PLSHttpHelper::connectFinished(reply, this, _onSucceed, _onFail);
 	};
 
 	//refresh token

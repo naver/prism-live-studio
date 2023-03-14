@@ -7,7 +7,7 @@ static pthread_mutex_t init_mutex = PTHREAD_MUTEX_INITIALIZER;
 NV_ENCODE_API_FUNCTION_LIST nv = {NV_ENCODE_API_FUNCTION_LIST_VER};
 NV_CREATE_INSTANCE_FUNC nv_create_instance = NULL;
 
-#define error(format, ...) blog(LOG_ERROR, "[jim-nvenc] " format, ##__VA_ARGS__)
+#define error(format, ...) plog(LOG_ERROR, "[jim-nvenc] " format, ##__VA_ARGS__)
 
 static inline bool nv_failed(NVENCSTATUS err, const char *func,
 			     const char *call)
@@ -137,11 +137,16 @@ bool init_nvenc(void)
 }
 
 extern struct obs_encoder_info nvenc_info;
+//PRISM/Wangshaohui/20201230/#3786/support HEVC
+extern struct obs_encoder_info jim_nvenc_hevc_info;
 
 void jim_nvenc_load(void)
 {
 	pthread_mutex_init(&init_mutex, NULL);
 	obs_register_encoder(&nvenc_info);
+
+	//PRISM/Wangshaohui/20201230/#3786/support HEVC
+	obs_register_encoder(&jim_nvenc_hevc_info);
 }
 
 void jim_nvenc_unload(void)

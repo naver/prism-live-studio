@@ -44,7 +44,7 @@ void alpha_filter_update(void *data, obs_data_t *settings)
 	UNUSED_PARAMETER(settings);
 }
 
-void *alpha_filter_create(obs_data_t *settings, obs_source_t *source)
+void *alpha_filter_create(obs_data_t * /*settings*/, obs_source_t *source)
 {
 	struct alpha_filter *s = (struct alpha_filter *)bzalloc(sizeof(struct alpha_filter));
 	s->context = source;

@@ -125,7 +125,7 @@ bool gl_copy_texture(struct gs_device *device, struct gs_texture *dst,
 		success = gl_copy_fbo(dst, dst_x, dst_y, src, src_x, src_y,
 				      width, height);
 		if (!success)
-			blog(LOG_ERROR, "gl_copy_texture failed");
+			plog(LOG_ERROR, "gl_copy_texture failed");
 	}
 
 	return success;

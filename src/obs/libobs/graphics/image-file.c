@@ -19,8 +19,8 @@
 #include "../util/base.h"
 #include "../util/platform.h"
 
-#define blog(level, format, ...) \
-	blog(level, "%s: " format, __FUNCTION__, __VA_ARGS__)
+#define plog(level, format, ...) \
+	plog(level, "%s: " format, __FUNCTION__, __VA_ARGS__)
 
 static void *bi_def_bitmap_create(int width, int height)
 {
@@ -68,7 +68,12 @@ static inline void *alloc_mem(gs_image_file_t *image, uint64_t *mem_usage,
 
 	if (mem_usage)
 		*mem_usage += size;
-	return bzalloc(size);
+
+	//PRISM/WangShaohui/20210427/NoIssue/fix breakpoint
+	//return bzalloc(size);
+	void *ptr = NULL;
+	Z_MALLOC(ptr, size);
+	return ptr;
 }
 
 static bool init_animated_gif(gs_image_file_t *image, const char *path,
@@ -91,7 +96,7 @@ static bool init_animated_gif(gs_image_file_t *image, const char *path,
 
 	file = os_fopen(path, "rb");
 	if (!file) {
-		blog(LOG_WARNING, "Failed to open file '%s'", path);
+		plog(LOG_WARNING, "Failed to open file.");
 		goto fail;
 	}
 
@@ -99,27 +104,31 @@ static bool init_animated_gif(gs_image_file_t *image, const char *path,
 	size = (size_t)os_ftelli64(file);
 	fseek(file, 0, SEEK_SET);
 
-	image->gif_data = bmalloc(size);
+	//PRISM/WangShaohui/20210427/NoIssue/fix breakpoint
+	//image->gif_data = bmalloc(size);
+	MALLOC(image->gif_data, size);
+	if (!image->gif_data) {
+		goto fail;
+	}
+
 	size_read = fread(image->gif_data, 1, size, file);
 	if (size_read != size) {
-		blog(LOG_WARNING, "Failed to fully read gif file '%s'.", path);
+		plog(LOG_WARNING, "Failed to fully read gif file.");
 		goto fail;
 	}
 
 	do {
 		result = gif_initialise(&image->gif, size, image->gif_data);
 		if (result < 0) {
-			blog(LOG_WARNING,
-			     "Failed to initialize gif '%s', "
-			     "possible file corruption",
-			     path);
+			plog(LOG_WARNING, "Failed to initialize gif, "
+					  "possible file corruption");
 			goto fail;
 		}
 	} while (result != GIF_OK);
 
 	if (image->gif.width > 4096 || image->gif.height > 4096) {
-		blog(LOG_WARNING, "Bad texture dimensions (%dx%d) in '%s'",
-		     image->gif.width, image->gif.height, path);
+		plog(LOG_WARNING, "Bad texture dimensions (%dx%d)",
+		     image->gif.width, image->gif.height);
 		goto fail;
 	}
 
@@ -127,8 +136,7 @@ static bool init_animated_gif(gs_image_file_t *image, const char *path,
 		   (uint64_t)image->gif.frame_count * 4LLU;
 
 	if ((uint64_t)get_full_decoded_gif_size(image) != max_size) {
-		blog(LOG_WARNING, "Gif '%s' overflowed maximum pointer size",
-		     path);
+		plog(LOG_WARNING, "Gif overflowed maximum pointer size");
 		goto fail;
 	}
 
@@ -142,12 +150,26 @@ static bool init_animated_gif(gs_image_file_t *image, const char *path,
 		image->animation_frame_data = alloc_mem(
 			image, mem_usage, get_full_decoded_gif_size(image));
 
+		//PRISM/WangShaohui/20210427/NoIssue/fix breakpoint
+		if (!image->animation_frame_cache ||
+		    !image->animation_frame_data) {
+			gif_finalise(&image->gif);
+			if (image->animation_frame_cache) {
+				bfree(image->animation_frame_cache);
+				image->animation_frame_cache = NULL;
+			}
+
+			if (image->animation_frame_data) {
+				bfree(image->animation_frame_data);
+				image->animation_frame_data = NULL;
+			}
+			goto fail;
+		}
+
 		for (unsigned int i = 0; i < image->gif.frame_count; i++) {
 			if (gif_decode_frame(&image->gif, i) != GIF_OK)
-				blog(LOG_WARNING,
-				     "Couldn't decode frame %u "
-				     "of '%s'",
-				     i, path);
+				plog(LOG_WARNING, "Couldn't decode frame %u",
+				     i);
 		}
 
 		gif_decode_frame(&image->gif, 0);
@@ -210,7 +232,7 @@ static void gs_image_file_init_internal(gs_image_file_t *image,
 
 	image->loaded = !!image->texture_data;
 	if (!image->loaded) {
-		blog(LOG_WARNING, "Failed to load file '%s'", file);
+		plog(LOG_WARNING, "Failed to load file");
 		gs_image_file_free(image);
 	}
 }

@@ -20,22 +20,23 @@
 #define ALIGN_SIZE(size, align) size = (((size) + (align - 1)) & (~(align - 1)))
 
 /* messy code alarm */
-void video_frame_init(struct video_frame *frame, enum video_format format,
+//PRISM/LiuHaibin/20210428/NoIssue/fix breakpoint, return bool result to mark if init succeeded
+bool video_frame_init(struct video_frame *frame, enum video_format format,
 		      uint32_t width, uint32_t height)
 {
-	size_t size;
+	size_t size = 0;
 	size_t offsets[MAX_AV_PLANES];
 	int alignment = base_get_alignment();
 
 	if (!frame)
-		return;
+		return false;
 
 	memset(frame, 0, sizeof(struct video_frame));
 	memset(offsets, 0, sizeof(offsets));
 
 	switch (format) {
 	case VIDEO_FORMAT_NONE:
-		return;
+		return false;
 
 	case VIDEO_FORMAT_I420:
 		size = width * height;
@@ -46,7 +47,10 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 		offsets[1] = size;
 		size += (width / 2) * (height / 2);
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size);
+		//frame->data[0] = bmalloc(size);
+		MALLOC(frame->data[0], size);
+		if (!frame->data[0])
+			goto fail;
 		frame->data[1] = (uint8_t *)frame->data[0] + offsets[0];
 		frame->data[2] = (uint8_t *)frame->data[0] + offsets[1];
 		frame->linesize[0] = width;
@@ -60,7 +64,10 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 		offsets[0] = size;
 		size += (width / 2) * (height / 2) * 2;
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size);
+		//frame->data[0] = bmalloc(size);
+		MALLOC(frame->data[0], size);
+		if (!frame->data[0])
+			goto fail;
 		frame->data[1] = (uint8_t *)frame->data[0] + offsets[0];
 		frame->linesize[0] = width;
 		frame->linesize[1] = width;
@@ -69,7 +76,10 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 	case VIDEO_FORMAT_Y800:
 		size = width * height;
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size);
+		//frame->data[0] = bmalloc(size);
+		MALLOC(frame->data[0], size);
+		if (!frame->data[0])
+			goto fail;
 		frame->linesize[0] = width;
 		break;
 
@@ -78,7 +88,10 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 	case VIDEO_FORMAT_UYVY:
 		size = width * height * 2;
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size);
+		//frame->data[0] = bmalloc(size);
+		MALLOC(frame->data[0], size);
+		if (!frame->data[0])
+			goto fail;
 		frame->linesize[0] = width * 2;
 		break;
 
@@ -88,14 +101,20 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 	case VIDEO_FORMAT_AYUV:
 		size = width * height * 4;
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size);
+		//frame->data[0] = bmalloc(size);
+		MALLOC(frame->data[0], size);
+		if (!frame->data[0])
+			goto fail;
 		frame->linesize[0] = width * 4;
 		break;
 
 	case VIDEO_FORMAT_I444:
 		size = width * height;
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size * 3);
+		//frame->data[0] = bmalloc(size * 3);
+		MALLOC(frame->data[0], size * 3);
+		if (!frame->data[0])
+			goto fail;
 		frame->data[1] = (uint8_t *)frame->data[0] + size;
 		frame->data[2] = (uint8_t *)frame->data[1] + size;
 		frame->linesize[0] = width;
@@ -106,7 +125,10 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 	case VIDEO_FORMAT_BGR3:
 		size = width * height * 3;
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size);
+		//frame->data[0] = bmalloc(size);
+		MALLOC(frame->data[0], size);
+		if (!frame->data[0])
+			goto fail;
 		frame->linesize[0] = width * 3;
 		break;
 
@@ -119,7 +141,10 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 		offsets[1] = size;
 		size += (width / 2) * height;
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size);
+		//frame->data[0] = bmalloc(size);
+		MALLOC(frame->data[0], size);
+		if (!frame->data[0])
+			goto fail;
 		frame->data[1] = (uint8_t *)frame->data[0] + offsets[0];
 		frame->data[2] = (uint8_t *)frame->data[0] + offsets[1];
 		frame->linesize[0] = width;
@@ -139,7 +164,10 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 		offsets[2] = size;
 		size += width * height;
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size);
+		//frame->data[0] = bmalloc(size);
+		MALLOC(frame->data[0], size);
+		if (!frame->data[0])
+			goto fail;
 		frame->data[1] = (uint8_t *)frame->data[0] + offsets[0];
 		frame->data[2] = (uint8_t *)frame->data[0] + offsets[1];
 		frame->data[3] = (uint8_t *)frame->data[0] + offsets[2];
@@ -161,7 +189,10 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 		offsets[2] = size;
 		size += width * height;
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size);
+		//frame->data[0] = bmalloc(size);
+		MALLOC(frame->data[0], size);
+		if (!frame->data[0])
+			goto fail;
 		frame->data[1] = (uint8_t *)frame->data[0] + offsets[0];
 		frame->data[2] = (uint8_t *)frame->data[0] + offsets[1];
 		frame->data[3] = (uint8_t *)frame->data[0] + offsets[2];
@@ -183,7 +214,10 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 		offsets[2] = size;
 		size += width * height;
 		ALIGN_SIZE(size, alignment);
-		frame->data[0] = bmalloc(size);
+		//frame->data[0] = bmalloc(size);
+		MALLOC(frame->data[0], size);
+		if (!frame->data[0])
+			goto fail;
 		frame->data[1] = (uint8_t *)frame->data[0] + offsets[0];
 		frame->data[2] = (uint8_t *)frame->data[0] + offsets[1];
 		frame->data[3] = (uint8_t *)frame->data[0] + offsets[2];
@@ -193,6 +227,12 @@ void video_frame_init(struct video_frame *frame, enum video_format format,
 		frame->linesize[3] = width;
 		break;
 	}
+	return true;
+fail:
+	plog(LOG_WARNING,
+	     "Fail to allocate buffer for (format %d) frame (%d x %d), requist buffer size %d (alignment %d)",
+	     format, width, height, size, alignment);
+	return false;
 }
 
 void video_frame_copy(struct video_frame *dst, const struct video_frame *src,

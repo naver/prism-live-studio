@@ -11,6 +11,7 @@
 
 #include "PLSChannelDataAPI.h"
 #include "PLSDpiHelper.h"
+#include "ResolutionGuidePage.h"
 #include "combobox.hpp"
 #include "pls-app.hpp"
 #include "pls-gpop-data.hpp"
@@ -19,7 +20,7 @@
 
 using namespace ChannelData;
 
-PLSRtmpChannelView::PLSRtmpChannelView(QVariantMap &oldData, QWidget *parent) : WidgetDpiAdapter(parent), ui(new Ui::RtmpChannelView), mOldData(oldData), isEdit(false)
+PLSRtmpChannelView::PLSRtmpChannelView(QVariantMap &oldData, QWidget *parent) : PLSDialogView(parent), ui(new Ui::RtmpChannelView), mOldData(oldData), isEdit(false)
 {
 	PLSDpiHelper dpiHelper;
 	dpiHelper.setCss(this, {PLSCssIndex::PLSRTMPChannelView});
@@ -38,6 +39,8 @@ PLSRtmpChannelView::PLSRtmpChannelView(QVariantMap &oldData, QWidget *parent) : 
 				Qt::QueuedConnection);
 		}
 	});
+
+	updateSaveBtnAvailable();
 }
 
 PLSRtmpChannelView::~PLSRtmpChannelView()
@@ -47,7 +50,14 @@ PLSRtmpChannelView::~PLSRtmpChannelView()
 
 void PLSRtmpChannelView::initUi()
 {
-	ui->setupUi(this);
+	ui->setupUi(this->content());
+	this->setHasCaption(false);
+	this->setIsMoveInContent(true);
+	QMetaObject::connectSlotsByName(this);
+
+	auto btnsWidget = ResolutionGuidePage::createResolutionButtonsFrame(this);
+	ui->horizontalLayout_8->addWidget(btnsWidget);
+	ui->horizontalLayout_8->setAlignment(btnsWidget, Qt::AlignRight);
 	setWindowFlag(Qt::FramelessWindowHint);
 	languageChange();
 	updateRtmpInfos();
@@ -77,7 +87,7 @@ QVariantMap PLSRtmpChannelView::SaveResult()
 		platfromName = ui->PlatformCombbox->currentText();
 	}
 
-	tmpData[g_channelName] = platfromName;
+	tmpData[g_platformName] = platfromName;
 
 	QString userID = ui->UserIDEdit->text();
 	tmpData[g_rtmpUserID] = userID;
@@ -108,7 +118,7 @@ void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
 		return;
 	}
 
-	QString platform = getInfo(oldData, g_channelName);
+	QString platform = getInfo(oldData, g_platformName);
 	updatePlatform(platform);
 
 	QString displayName = getInfo(oldData, g_nickName);
@@ -126,6 +136,13 @@ void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
 	ui->UserIDEdit->setText(userID);
 	QString password = getInfo(oldData, g_password);
 	ui->UserPasswordEdit->setText(password);
+
+	ResolutionGuidePage::checkResolution(this, getInfo(oldData, g_channelUUID));
+}
+
+void PLSRtmpChannelView::showResolutionGuide()
+{
+	ResolutionGuidePage::showResolutionGuideCloseAfterChange(this);
 }
 
 void PLSRtmpChannelView::changeEvent(QEvent *e)
@@ -159,26 +176,36 @@ bool PLSRtmpChannelView::eventFilter(QObject *watched, QEvent *event)
 }
 void PLSRtmpChannelView::on_SaveBtn_clicked()
 {
+	PRE_LOG_UI_MSG("save clicked", PLSRtmpChannelView);
 	QSignalBlocker blocker(ui->NameEdit);
-	verify();
-	this->accept();
+	verifyRename();
+	if (checkIsModified()) {
+		this->accept();
+		return;
+	}
+	this->reject();
 }
+
 void PLSRtmpChannelView::on_CancelBtn_clicked()
 {
+	PRE_LOG_UI_MSG("cancle clicked", PLSRtmpChannelView);
 	this->reject();
 }
 void PLSRtmpChannelView::on_StreamKeyVisible_toggled(bool isCheck)
 {
+	PRE_LOG_UI_MSG("StreamKeyVisible clicked", PLSRtmpChannelView);
 	ui->StreamKeyEdit->setEchoMode(isCheck ? QLineEdit::Password : QLineEdit::Normal);
 }
 void PLSRtmpChannelView::on_PasswordVisible_toggled(bool isCheck)
 {
+	PRE_LOG_UI_MSG("PasswordVisible clicked", PLSRtmpChannelView);
 	ui->UserPasswordEdit->setEchoMode(isCheck ? QLineEdit::Password : QLineEdit::Normal);
 }
 
 void PLSRtmpChannelView::on_RTMPUrlEdit_textChanged(const QString &rtmpUrl)
 {
 	if (ui->PlatformCombbox->currentIndex() == 0) {
+		QSignalBlocker bloker(ui->PlatformCombbox);
 		ui->PlatformCombbox->setCurrentText(CHANNELS_TR(UserInput));
 	}
 
@@ -203,15 +230,23 @@ void PLSRtmpChannelView::on_RTMPUrlEdit_textChanged(const QString &rtmpUrl)
 
 void PLSRtmpChannelView::on_PlatformCombbox_currentIndexChanged(const QString &platForm)
 {
+	PRE_LOG_UI_MSG(QString("PlatformCombbox clicked to:" + platForm).toUtf8().constData(), PLSRtmpChannelView);
 	if (ui->PlatformCombbox->currentIndex() == (ui->PlatformCombbox->count() - 1) || ui->PlatformCombbox->currentIndex() == 0) {
 
 		ui->RTMPUrlEdit->setEnabled(true);
 
-		if (!ui->NameEdit->isModified()) {
-			ui->NameEdit->clear();
-		}
 		if (!ui->RTMPUrlEdit->isModified()) {
+			QSignalBlocker block(ui->RTMPUrlEdit);
 			ui->RTMPUrlEdit->clear();
+		}
+
+		if (!ui->NameEdit->isModified()) {
+			QSignalBlocker block(ui->NameEdit);
+			if (ui->PlatformCombbox->currentIndex() == (ui->PlatformCombbox->count() - 1)) {
+				ui->NameEdit->setText(CUSTOM_RTMP);
+			} else {
+				ui->NameEdit->clear();
+			}
 		}
 		updateSaveBtnAvailable();
 		return;
@@ -235,9 +270,9 @@ void PLSRtmpChannelView::on_PlatformCombbox_currentIndexChanged(const QString &p
 
 void PLSRtmpChannelView::on_OpenLink_clicked()
 {
+	PRE_LOG_UI_MSG("open link clicked", PLSRtmpChannelView);
 	QString urlStr;
-	QString langguage = App()->GetLocale();
-	if (langguage.contains("en")) {
+	if (!IS_KR()) {
 		urlStr = g_streamKeyPrismHelperEn;
 	} else {
 		urlStr = g_streamKeyPrismHelperKr;
@@ -250,7 +285,7 @@ void PLSRtmpChannelView::on_OpenLink_clicked()
 
 void PLSRtmpChannelView::updateSaveBtnAvailable()
 {
-	ui->SaveBtn->setEnabled(checkIsModified());
+	ui->SaveBtn->setEnabled(isInfoValid());
 }
 void PLSRtmpChannelView::languageChange()
 {
@@ -261,7 +296,7 @@ void PLSRtmpChannelView::languageChange()
 void PLSRtmpChannelView::initCommbox()
 {
 	QStringList rtmpNames;
-	rtmpNames += CHANNELS_TR(Select);
+	rtmpNames += TR_SELECT;
 	ui->PlatformCombbox->addItems(rtmpNames << mPlatforms << CHANNELS_TR(UserInput));
 	auto view = dynamic_cast<QListView *>(ui->PlatformCombbox->view());
 	view->setRowHidden(0, true);
@@ -269,7 +304,7 @@ void PLSRtmpChannelView::initCommbox()
 	ui->PlatformCombbox->update();
 }
 
-void PLSRtmpChannelView::verify()
+void PLSRtmpChannelView::verifyRename()
 {
 	const auto &infos = PLSCHANNELS_API->getAllChannelInfoReference();
 	auto myName = ui->NameEdit->text();
@@ -294,19 +329,38 @@ void PLSRtmpChannelView::verify()
 		}
 		ui->NameEdit->setText(newName);
 		++countN;
-		verify();
+		verifyRename();
 	}
 	countN = 1;
 }
 
-bool PLSRtmpChannelView::checkIsModified()
+void PLSRtmpChannelView::ValidateNameEdit()
 {
+	static QRegularExpression regx("[\\r\\n]");
+	auto txt = ui->NameEdit->text();
+	if (txt.contains(regx)) {
+		txt.remove(regx);
+		QSignalBlocker bloker(ui->NameEdit);
+		auto cursor = ui->NameEdit->cursorPosition();
+		ui->NameEdit->setText(txt);
+		ui->NameEdit->setCursorPosition(cursor);
+	}
+}
+
+bool PLSRtmpChannelView::isInfoValid()
+{
+	ValidateNameEdit();
 	if (ui->NameEdit->text().isEmpty() || ui->RTMPUrlEdit->text().isEmpty() || ui->StreamKeyEdit->text().isEmpty()) {
 		return false;
 	}
 	if (!isRtmUrlRight()) {
 		return false;
 	}
+	return true;
+}
+
+bool PLSRtmpChannelView::checkIsModified()
+{
 	auto tmp = SaveResult();
 	return tmp != mOldData;
 }

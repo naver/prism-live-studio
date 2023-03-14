@@ -52,7 +52,7 @@ gs_indexbuffer_t *device_indexbuffer_create(gs_device_t *device,
 					       : GL_UNSIGNED_SHORT;
 
 	if (!init_ib(ib)) {
-		blog(LOG_ERROR, "device_indexbuffer_create (GL) failed");
+		plog(LOG_ERROR, "device_indexbuffer_create (GL) failed");
 		gs_indexbuffer_destroy(ib);
 		return NULL;
 	}
@@ -75,7 +75,7 @@ static inline void gs_indexbuffer_flush_internal(gs_indexbuffer_t *ib,
 						 const void *data)
 {
 	if (!ib->dynamic) {
-		blog(LOG_ERROR, "Index buffer is not dynamic");
+		plog(LOG_ERROR, "Index buffer is not dynamic");
 		goto fail;
 	}
 
@@ -85,7 +85,7 @@ static inline void gs_indexbuffer_flush_internal(gs_indexbuffer_t *ib,
 	return;
 
 fail:
-	blog(LOG_ERROR, "gs_indexbuffer_flush (GL) failed");
+	plog(LOG_ERROR, "gs_indexbuffer_flush (GL) failed");
 }
 
 void gs_indexbuffer_flush(gs_indexbuffer_t *ib)

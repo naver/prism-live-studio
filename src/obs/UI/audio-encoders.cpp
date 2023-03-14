@@ -48,7 +48,7 @@ static void HandleListProperty(obs_property_t *prop, const char *id)
 {
 	obs_combo_format format = obs_property_list_format(prop);
 	if (format != OBS_COMBO_FORMAT_INT) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Encoder '%s' (%s) returned bitrate "
 		     "OBS_PROPERTY_LIST property of unhandled "
 		     "format %d",
@@ -74,7 +74,7 @@ static void HandleSampleRate(obs_property_t *prop, const char *id)
 		obs_encoder_defaults(id), ReleaseData};
 
 	if (!data) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Failed to get defaults for encoder '%s' (%s) "
 		     "while populating bitrate map",
 		     EncoderName(id), id);
@@ -83,7 +83,7 @@ static void HandleSampleRate(obs_property_t *prop, const char *id)
 
 	auto main = reinterpret_cast<OBSMainWindow *>(App()->GetMainWindow());
 	if (!main) {
-		blog(LOG_ERROR, "Failed to get main window while populating "
+		plog(LOG_ERROR, "Failed to get main window while populating "
 				"bitrate map");
 		return;
 	}
@@ -105,7 +105,7 @@ static void HandleEncoderProperties(const char *id)
 		obs_get_encoder_properties(id), DestroyProperties};
 
 	if (!props) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "Failed to get properties for encoder "
 		     "'%s' (%s)",
 		     EncoderName(id), id);
@@ -131,7 +131,7 @@ static void HandleEncoderProperties(const char *id)
 		break;
 	}
 
-	blog(LOG_ERROR,
+	plog(LOG_ERROR,
 	     "Encoder '%s' (%s) returned bitrate property "
 	     "of unhandled type %d",
 	     EncoderName(id), id, static_cast<int>(type));
@@ -183,7 +183,7 @@ static void PopulateBitrateMap()
 		}
 
 		if (bitrateMap.empty()) {
-			blog(LOG_ERROR, "Could not enumerate any AAC encoder "
+			plog(LOG_ERROR, "Could not enumerate any AAC encoder "
 					"bitrates");
 			return;
 		}
@@ -194,7 +194,7 @@ static void PopulateBitrateMap()
 			   << " kbit/s: '" << EncoderName(entry.second) << "' ("
 			   << entry.second << ')';
 
-		blog(LOG_DEBUG, "AAC encoder bitrate mapping:%s",
+		plog(LOG_DEBUG, "AAC encoder bitrate mapping:%s",
 		     ss.str().c_str());
 	});
 }

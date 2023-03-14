@@ -25,11 +25,27 @@
 extern "C" {
 #endif
 
+#define ALIGNMENT 32
+
 struct base_allocator {
 	void *(*malloc)(size_t);
 	void *(*realloc)(void *, size_t);
 	void (*free)(void *);
 };
+
+//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
+EXPORT unsigned mem_failed_length();
+EXPORT void *pls_bmalloc(size_t size, const char *func);
+EXPORT void *pls_brealloc(void *ptr, size_t size, const char *func);
+
+//PRISM/WangShaohui/20210301/NoIssue/fix breakpoint
+#define MALLOC(ptr, size) ptr = pls_bmalloc(size, __FUNCTION__);
+#define RE_MALLOC(ptr, size) ptr = pls_brealloc(ptr, size, __FUNCTION__);
+#define Z_MALLOC(ptr, size)                    \
+	ptr = pls_bmalloc(size, __FUNCTION__); \
+	if (ptr) {                             \
+		memset(ptr, 0, size);          \
+	}
 
 EXPORT void base_set_allocator(struct base_allocator *defs);
 

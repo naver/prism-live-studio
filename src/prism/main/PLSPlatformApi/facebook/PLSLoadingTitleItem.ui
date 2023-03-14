@@ -86,7 +86,7 @@
    <item>
     <widget class="QLabel" name="labelDetailTitle">
      <property name="text">
-      <string>LiveInfo.Youtube.loading.scheduled</string>
+      <string>LiveInfo.live.loading.scheduled</string>
      </property>
     </widget>
    </item>

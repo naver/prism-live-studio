@@ -17,6 +17,8 @@ public:
 	explicit PLSSceneListView(QWidget *parent = nullptr);
 	~PLSSceneListView();
 
+	void SetSceneDisplayMethod(int method);
+
 	void AddScene(const QString &name, OBSScene scene, SignalContainer<OBSScene> handler, bool loadingScene = false);
 	void DeleteScene(const QString &name);
 	void RefreshScene(bool scrollToCurrent = true);
@@ -24,6 +26,7 @@ public:
 	void MoveSceneToDown();
 	void MoveSceneToTop();
 	void MoveSceneToBottom();
+	void SetRenderCallback();
 
 	QList<PLSSceneItemView *> FindItems(const QString &name);
 
@@ -51,6 +54,8 @@ public slots:
 	void OnSceneSwitchEffectBtnClicked();
 	void OnDragFinished();
 	void OnDeleteSceneButtonClicked(PLSSceneItemView *item);
+	void StartRefreshThumbnailTimer();
+	void StopRefreshThumbnailTimer();
 
 protected:
 	void resizeEvent(QResizeEvent *event) override;
@@ -61,6 +66,7 @@ private slots:
 	void OnModifySceneButtonClicked(PLSSceneItemView *item);
 	void OnFinishingEditName(const QString &text, PLSSceneItemView *item);
 	void contextMenuEvent(QContextMenuEvent *event) override;
+	void RefreshSceneThumbnail();
 
 private:
 	void RenameSceneItem(PLSSceneItemView *item, obs_source_t *source, const QString &name);
@@ -74,6 +80,9 @@ private:
 	obs_data_array_t *loadTransitions{};
 	int loadTransitionDuration;
 	QString loadCurrentTransition;
+
+	DisplayMethod displayMethod{0};
+	QTimer *thumbnailTimer;
 };
 
 #endif // PLSSCENELISTVIEW_H

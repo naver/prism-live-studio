@@ -269,8 +269,8 @@ OBSBasic::OBSBasic(QWidget *parent)
 
 	stringstream name;
 	name << "OBS " << App()->GetVersionString();
-	blog(LOG_INFO, "%s", name.str().c_str());
-	blog(LOG_INFO, "---------------------------------");
+	plog(LOG_INFO, "%s", name.str().c_str());
+	plog(LOG_INFO, "---------------------------------");
 
 	UpdateTitleBar();
 
@@ -643,7 +643,7 @@ void OBSBasic::Save(const char *file)
 	}
 
 	if (!obs_data_save_json_safe(saveData, file, "tmp", "bak"))
-		blog(LOG_ERROR, "Could not save scene data to %s", file);
+		plog(LOG_ERROR, "Could not save scene data to %s", file);
 
 	obs_data_release(saveData);
 	obs_data_array_release(sceneOrder);
@@ -796,7 +796,7 @@ static void LogFilter(obs_source_t *, obs_source_t *filter, void *v_val)
 	for (int i = 0; i < val; i++)
 		indent += "    ";
 
-	blog(LOG_INFO, "%s- filter: '%s' (%s)", indent.c_str(), name, id);
+	plog(LOG_INFO, "%s- filter: '%s' (%s)", indent.c_str(), name, id);
 }
 
 static bool LogSceneItem(obs_scene_t *, obs_sceneitem_t *item, void *v_val)
@@ -810,7 +810,7 @@ static bool LogSceneItem(obs_scene_t *, obs_sceneitem_t *item, void *v_val)
 	for (int i = 0; i < indent_count; i++)
 		indent += "    ";
 
-	blog(LOG_INFO, "%s- source: '%s' (%s)", indent.c_str(), name, id);
+	plog(LOG_INFO, "%s- source: '%s' (%s)", indent.c_str(), name, id);
 
 	obs_monitoring_type monitoring_type =
 		obs_source_get_monitoring_type(source);
@@ -821,7 +821,7 @@ static bool LogSceneItem(obs_scene_t *, obs_sceneitem_t *item, void *v_val)
 				? "monitor only"
 				: "monitor and output";
 
-		blog(LOG_INFO, "    %s- monitoring: %s", indent.c_str(), type);
+		plog(LOG_INFO, "    %s- monitoring: %s", indent.c_str(), type);
 	}
 	int child_indent = 1 + indent_count;
 	obs_source_enum_filters(source, LogFilter,
@@ -834,8 +834,8 @@ static bool LogSceneItem(obs_scene_t *, obs_sceneitem_t *item, void *v_val)
 
 void OBSBasic::LogScenes()
 {
-	blog(LOG_INFO, "------------------------------------------------");
-	blog(LOG_INFO, "Loaded scenes:");
+	plog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "Loaded scenes:");
 
 	for (int i = 0; i < ui->scenes->count(); i++) {
 		QListWidgetItem *item = ui->scenes->item(i);
@@ -844,12 +844,12 @@ void OBSBasic::LogScenes()
 		obs_source_t *source = obs_scene_get_source(scene);
 		const char *name = obs_source_get_name(source);
 
-		blog(LOG_INFO, "- scene '%s':", name);
+		plog(LOG_INFO, "- scene '%s':", name);
 		obs_scene_enum_items(scene, LogSceneItem, (void *)(intptr_t)1);
 		obs_source_enum_filters(source, LogFilter, (void *)(intptr_t)1);
 	}
 
-	blog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "------------------------------------------------");
 }
 
 void OBSBasic::Load(const char *file)
@@ -859,7 +859,7 @@ void OBSBasic::Load(const char *file)
 	obs_data_t *data = obs_data_create_from_json_file_safe(file, "bak");
 	if (!data) {
 		disableSaving--;
-		blog(LOG_INFO, "No scene file found, creating default scene");
+		plog(LOG_INFO, "No scene file found, creating default scene");
 		CreateDefaultScene(true);
 		SaveProject();
 		return;
@@ -1033,14 +1033,14 @@ retryScene:
 		opt_starting_scene.clear();
 
 	if (opt_start_streaming) {
-		blog(LOG_INFO, "Starting stream due to command line parameter");
+		plog(LOG_INFO, "Starting stream due to command line parameter");
 		QMetaObject::invokeMethod(this, "StartStreaming",
 					  Qt::QueuedConnection);
 		opt_start_streaming = false;
 	}
 
 	if (opt_start_recording) {
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "Starting recording due to command line parameter");
 		QMetaObject::invokeMethod(this, "StartRecording",
 					  Qt::QueuedConnection);
@@ -1086,7 +1086,7 @@ void OBSBasic::SaveService()
 	obs_data_set_obj(data, "settings", settings);
 
 	if (!obs_data_save_json_safe(data, serviceJsonPath, "tmp", "bak"))
-		blog(LOG_WARNING, "Failed to save service");
+		plog(LOG_WARNING, "Failed to save service");
 
 	obs_data_release(settings);
 	obs_data_release(data);
@@ -1580,7 +1580,7 @@ void OBSBasic::OBSInit()
 
 	obs_set_audio_monitoring_device(device_name, device_id);
 
-	blog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s",
+	plog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s",
 	     device_name, device_id);
 #endif
 
@@ -1588,11 +1588,11 @@ void OBSBasic::OBSInit()
 	InitHotkeys();
 
 	AddExtraModulePaths();
-	blog(LOG_INFO, "---------------------------------");
+	plog(LOG_INFO, "---------------------------------");
 	obs_load_all_modules();
-	blog(LOG_INFO, "---------------------------------");
+	plog(LOG_INFO, "---------------------------------");
 	obs_log_loaded_modules();
-	blog(LOG_INFO, "---------------------------------");
+	plog(LOG_INFO, "---------------------------------");
 	obs_post_load_modules();
 
 #ifdef BROWSER_AVAILABLE
@@ -1603,7 +1603,7 @@ void OBSBasic::OBSInit()
 
 	CheckForSimpleModeX264Fallback();
 
-	blog(LOG_INFO, STARTUP_SEPARATOR);
+	plog(LOG_INFO, STARTUP_SEPARATOR);
 
 	ResetOutputs();
 	CreateHotkeys();
@@ -2107,7 +2107,7 @@ void OBSBasic::CreateHotkeys()
 	[](void *data, obs_hotkey_pair_id, obs_hotkey_t *, bool pressed) { \
 		OBSBasic &basic = *static_cast<OBSBasic *>(data);          \
 		if ((pred) && pressed) {                                   \
-			blog(LOG_INFO, log_action " due to hotkey");       \
+			plog(LOG_INFO, log_action " due to hotkey");       \
 			method();                                          \
 			return true;                                       \
 		}                                                          \
@@ -2537,7 +2537,7 @@ void OBSBasic::AddScene(OBSSource source)
 
 	if (!disableSaving) {
 		obs_source_t *source = obs_scene_get_source(scene);
-		blog(LOG_INFO, "User added scene '%s'",
+		plog(LOG_INFO, "User added scene '%s'",
 		     obs_source_get_name(source));
 
 		OBSProjector::UpdateMultiviewProjectors();
@@ -2573,7 +2573,7 @@ void OBSBasic::RemoveScene(OBSSource source)
 	SaveProject();
 
 	if (!disableSaving) {
-		blog(LOG_INFO, "User Removed scene '%s'",
+		plog(LOG_INFO, "User Removed scene '%s'",
 		     obs_source_get_name(source));
 
 		OBSProjector::UpdateMultiviewProjectors();
@@ -2608,7 +2608,7 @@ void OBSBasic::AddSceneItem(OBSSceneItem item)
 	if (!disableSaving) {
 		obs_source_t *sceneSource = obs_scene_get_source(scene);
 		obs_source_t *itemSource = obs_sceneitem_get_source(item);
-		blog(LOG_INFO, "User added source '%s' (%s) to scene '%s'",
+		plog(LOG_INFO, "User added source '%s' (%s) to scene '%s'",
 		     obs_source_get_name(itemSource),
 		     obs_source_get_id(itemSource),
 		     obs_source_get_name(sceneSource));
@@ -3325,7 +3325,7 @@ void OBSBasic::SourceRenamed(void *data, calldata_t *params)
 				  Q_ARG(QString, QT_UTF8(newName)),
 				  Q_ARG(QString, QT_UTF8(prevName)));
 
-	blog(LOG_INFO, "Source '%s' renamed to '%s'", prevName, newName);
+	plog(LOG_INFO, "Source '%s' renamed to '%s'", prevName, newName);
 }
 
 void OBSBasic::DrawBackdrop(float cx, float cy)
@@ -3586,14 +3586,14 @@ int OBSBasic::ResetVideo()
 	ret = AttemptToResetVideo(&ovi);
 	if (IS_WIN32 && ret != OBS_VIDEO_SUCCESS) {
 		if (ret == OBS_VIDEO_CURRENTLY_ACTIVE) {
-			blog(LOG_WARNING, "Tried to reset when "
+			plog(LOG_WARNING, "Tried to reset when "
 					  "already active");
 			return ret;
 		}
 
 		/* Try OpenGL if DirectX fails on windows */
 		if (astrcmpi(ovi.graphics_module, DL_OPENGL) != 0) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Failed to initialize obs video (%d) "
 			     "with graphics_module='%s', retrying "
 			     "with graphics_module='%s'",
@@ -3797,8 +3797,8 @@ void OBSBasic::ClearSceneData()
 
 	disableSaving--;
 
-	blog(LOG_INFO, "All scene data cleared");
-	blog(LOG_INFO, "------------------------------------------------");
+	plog(LOG_INFO, "All scene data cleared");
+	plog(LOG_INFO, "------------------------------------------------");
 }
 
 void OBSBasic::closeEvent(QCloseEvent *event)
@@ -3834,7 +3834,7 @@ void OBSBasic::closeEvent(QCloseEvent *event)
 	if (!event->isAccepted())
 		return;
 
-	blog(LOG_INFO, SHUTDOWN_SEPARATOR);
+	plog(LOG_INFO, SHUTDOWN_SEPARATOR);
 
 	if (introCheckThread)
 		introCheckThread->wait();
@@ -4790,7 +4790,7 @@ static BPtr<char> ReadLogFile(const char *subdir, const char *log)
 
 	BPtr<char> file = os_quick_read_utf8_file(path.c_str());
 	if (!file)
-		blog(LOG_WARNING, "Failed to read log file %s", path.c_str());
+		plog(LOG_WARNING, "Failed to read log file %s", path.c_str());
 
 	return file;
 }
@@ -5206,7 +5206,7 @@ void OBSBasic::StreamingStart()
 
 	OnActivate();
 
-	blog(LOG_INFO, STREAMING_START);
+	plog(LOG_INFO, STREAMING_START);
 }
 
 void OBSBasic::StreamStopping()
@@ -5282,7 +5282,7 @@ void OBSBasic::StreamingStop(int code, QString last_error)
 
 	OnDeactivate();
 
-	blog(LOG_INFO, STREAMING_STOP);
+	plog(LOG_INFO, STREAMING_STOP);
 
 	if (encode_error) {
 		OBSMessageBox::information(
@@ -5412,7 +5412,7 @@ void OBSBasic::RecordingStart()
 	OnActivate();
 	UpdatePause();
 
-	blog(LOG_INFO, RECORDING_START);
+	plog(LOG_INFO, RECORDING_START);
 }
 
 void OBSBasic::RecordingStop(int code, QString last_error)
@@ -5424,7 +5424,7 @@ void OBSBasic::RecordingStop(int code, QString last_error)
 	if (sysTrayRecord)
 		sysTrayRecord->setText(ui->recordButton->text());
 
-	blog(LOG_INFO, RECORDING_STOP);
+	plog(LOG_INFO, RECORDING_STOP);
 
 	if (code == OBS_OUTPUT_UNSUPPORTED && isVisible()) {
 		OBSMessageBox::critical(this, QTStr("Output.RecordFail.Title"),
@@ -5612,7 +5612,7 @@ void OBSBasic::ReplayBufferStart()
 
 	OnActivate();
 
-	blog(LOG_INFO, REPLAY_BUFFER_START);
+	plog(LOG_INFO, REPLAY_BUFFER_START);
 }
 
 void OBSBasic::ReplayBufferSave()
@@ -5640,7 +5640,7 @@ void OBSBasic::ReplayBufferStop(int code)
 	if (sysTrayReplayBuffer)
 		sysTrayReplayBuffer->setText(replayBufferButton->text());
 
-	blog(LOG_INFO, REPLAY_BUFFER_STOP);
+	plog(LOG_INFO, REPLAY_BUFFER_STOP);
 
 	if (code == OBS_OUTPUT_UNSUPPORTED && isVisible()) {
 		OBSMessageBox::critical(this, QTStr("Output.RecordFail.Title"),
@@ -7579,7 +7579,7 @@ const char *OBSBasic::GetCurrentOutputPath()
 
 void OBSBasic::DiskSpaceMessage()
 {
-	blog(LOG_ERROR, "Recording stopped because of low disk space");
+	plog(LOG_ERROR, "Recording stopped because of low disk space");
 
 	OBSMessageBox::critical(this, QTStr("Output.RecordNoSpace.Title"),
 				QTStr("Output.RecordNoSpace.Msg"));

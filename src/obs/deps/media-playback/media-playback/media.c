@@ -146,9 +146,6 @@ static void set_open_timeout(mp_media_t *m, bool loading)
 
 		if (m->load_cb)
 			m->load_cb(m->opaque, true);
-
-		blog(LOG_INFO,
-		     "MP: Opening input stream timeout, loading start.");
 	} else {
 		if (m->load_cb)
 			m->load_cb(m->opaque, false);
@@ -157,9 +154,6 @@ static void set_open_timeout(mp_media_t *m, bool loading)
 		m->open_timeout = false;
 		m->opening_input_ts = 0;
 		pthread_mutex_unlock(&m->mutex);
-
-		blog(LOG_INFO,
-		     "MP: Opening input stream timeout, loading end.");
 	}
 }
 
@@ -173,9 +167,6 @@ static void set_read_timeout(mp_media_t *m, bool loading)
 
 		if (m->load_cb)
 			m->load_cb(m->opaque, true);
-
-		blog(LOG_INFO,
-		     "MP: Reading frame stream timeout, loading start.");
 	} else {
 		if (m->load_cb)
 			m->load_cb(m->opaque, false);
@@ -184,9 +175,6 @@ static void set_read_timeout(mp_media_t *m, bool loading)
 		m->read_timeout = false;
 		m->read_frame_ts = 0;
 		pthread_mutex_unlock(&m->mutex);
-
-		blog(LOG_INFO,
-		     "MP: Reading frame stream timeout, loading end.");
 	}
 }
 
@@ -227,18 +215,44 @@ static int mp_media_next_packet(mp_media_t *media)
 	pthread_mutex_lock(&media->mutex);
 	if (media->first_read)
 		media->read_frame_ts = os_gettime_ns();
+
+	//PRISM/LiuHaibin/20210111/#None/prevent crash when force exiting ffmpeg
+	if (media->exit_ffmpeg) {
+		plog(LOG_DEBUG,
+		     "MP: mp_media_next_packet - DO NOT call av_read_frame when force exiting");
+		pthread_mutex_unlock(&media->mutex);
+		return AVERROR_EXIT;
+	}
+
 	pthread_mutex_unlock(&media->mutex);
 
 	int ret = av_read_frame(media->fmt, &pkt);
 
 	mp_media_read_loading_stopped(media);
 
+	//PRISM/LiuHaibin/20210804/#9087/reduce log times
 	if (ret < 0) {
 		//PRISM/ZengQin/20201102/#5142 #5546/for bgm and audio file with cover
-		if (ret != AVERROR_EOF && ret != AVERROR_EXIT)
-			blog(LOG_WARNING, "MP: av_read_frame failed: %s (%d)",
-			     av_err2str(ret), ret);
+		if (ret != AVERROR_EOF && ret != AVERROR_EXIT) {
+			if (!media->consecutive_read_failures)
+				plog(LOG_WARNING,
+				     "MP: av_read_frame failed: %s (%d)",
+				     av_err2str(ret), ret);
+			media->consecutive_read_failures++;
+		} else if (media->consecutive_read_failures) {
+			plog(LOG_WARNING,
+			     "MP: av_read_frame failed %lld times in a row before EOF or EXIT, latest error code %d (%s).",
+			     media->consecutive_read_failures, ret,
+			     av_err2str(ret));
+			media->consecutive_read_failures = 0;
+		}
+
 		return ret;
+	} else if (media->consecutive_read_failures) {
+		plog(LOG_INFO,
+		     "MP: av_read_frame succeeded after failed %lld times in a row.",
+		     media->consecutive_read_failures);
+		media->consecutive_read_failures = 0;
 	}
 
 	struct mp_decode *d = get_packet_decoder(media, &pkt);
@@ -303,35 +317,109 @@ static inline int get_sws_range(enum AVColorRange r)
 
 #define FIXED_1_0 (1 << 16)
 
-static bool mp_media_init_scaling(mp_media_t *m)
+//PRISM/LiuHaibin/20201127/#None/Use parameters of frame instead of decoder to initialize swscale
+//PRISM/LiuHaibin/20210622/#None/modify checking scale
+//PRISM/LiuHaibin/20210804/#9087/reduce log times
+static bool mp_media_init_scaling(mp_media_t *m, const AVFrame *frame,
+				  enum AVPixelFormat dst_fmt)
 {
-	int space = get_sws_colorspace(m->v.decoder->colorspace);
-	int range = get_sws_range(m->v.decoder->color_range);
+	int space = get_sws_colorspace(frame->colorspace);
+	int range = get_sws_range(frame->color_range);
 	const int *coeff = sws_getCoefficients(space);
 
-	m->swscale = sws_getCachedContext(NULL, m->v.decoder->width,
-					  m->v.decoder->height,
-					  m->v.decoder->pix_fmt,
-					  m->v.decoder->width,
-					  m->v.decoder->height, m->scale_format,
+	m->swscale = sws_getCachedContext(NULL, frame->width, frame->height,
+					  frame->format, frame->width,
+					  frame->height, dst_fmt,
 					  SWS_FAST_BILINEAR, NULL, NULL, NULL);
 	if (!m->swscale) {
-		blog(LOG_WARNING, "MP: Failed to initialize scaler");
+		if (!m->consecutive_init_scale_failures)
+			plog(LOG_WARNING, "MP: Failed to initialize scaler");
 		return false;
 	}
 
 	sws_setColorspaceDetails(m->swscale, coeff, range, coeff, range, 0,
 				 FIXED_1_0, FIXED_1_0);
 
-	int ret = av_image_alloc(m->scale_pic, m->scale_linesizes,
-				 m->v.decoder->width, m->v.decoder->height,
-				 m->scale_format, 1);
+	//PRISM/LiuHaibin/20210118/#None/Merge from OBS https://github.com/obsproject/obs-studio/pull/2836
+	int ret = av_image_alloc(m->scale_pic, m->scale_linesizes, frame->width,
+				 frame->height, dst_fmt, 32);
 	if (ret < 0) {
-		blog(LOG_WARNING, "MP: Failed to create scale pic data");
+		if (!m->consecutive_init_scale_failures)
+			plog(LOG_WARNING,
+			     "MP: Failed to create scale pic data");
 		return false;
 	}
 
+	m->scale_format = dst_fmt;
+	m->scale_range = range;
+	m->scale_space = space;
+	m->scale_src_format = frame->format;
+	m->scale_src_width = frame->width;
+	m->scale_src_height = frame->height;
+
 	return true;
+}
+
+//PRISM/LiuHaibin/20210622/#None/modify checking scale
+static bool mp_media_check_scale(mp_media_t *m)
+{
+	bool need_new_scaling = false;
+	enum AVPixelFormat scale_fmt = closest_format(m->v.frame->format);
+	int space = get_sws_colorspace(m->v.frame->colorspace);
+	int range = get_sws_range(m->v.frame->color_range);
+
+	// no need for scaling
+	if (scale_fmt == m->v.frame->format) {
+		if (m->swscale)
+			plog(LOG_INFO,
+			     "MP: swscale %p is not needed any more [fmt %d], free it.",
+			     m->swscale, scale_fmt);
+		sws_freeContext(m->swscale);
+		m->swscale = NULL;
+		av_freep(&m->scale_pic[0]);
+		m->scale_format = AV_PIX_FMT_NONE;
+		m->scale_src_format = AV_PIX_FMT_NONE;
+		m->scale_src_width = 0;
+		m->scale_src_height = 0;
+		m->scale_range = 0;
+		m->scale_space = 0;
+		return true;
+	}
+
+	if (!m->swscale || scale_fmt != m->scale_format ||
+	    m->v.frame->format != m->scale_src_format ||
+	    m->v.frame->width != m->scale_src_width ||
+	    m->v.frame->height != m->scale_src_height) {
+		need_new_scaling = true;
+		if (!m->consecutive_init_scale_failures)
+			plog(LOG_INFO,
+			     "MP: new swscale is needed [old/new]: swscale %p/?, dst_fmt %d/%d, width %d/%d, height %d/%d, range %d/%d, space %d/%d",
+			     m->swscale, m->scale_format, scale_fmt,
+			     m->scale_src_format, m->v.frame->format,
+			     m->scale_src_width, m->v.frame->width,
+			     m->scale_src_height, m->v.frame->height,
+			     m->scale_range, range, m->scale_space, space);
+	} else if (m->swscale &&
+		   (range != m->scale_range || space != m->scale_space)) {
+		plog(LOG_INFO,
+		     "MP: swscale [%p] needs update [old/new]: range %d/%d, space %d/%d",
+		     m->swscale, m->scale_range, range, m->scale_space, space);
+		const int *coeff = sws_getCoefficients(space);
+		sws_setColorspaceDetails(m->swscale, coeff, range, coeff, range,
+					 0, FIXED_1_0, FIXED_1_0);
+		m->scale_range = range;
+		m->scale_space = space;
+		return true;
+	}
+
+	if (!need_new_scaling)
+		return true;
+
+	sws_freeContext(m->swscale);
+	m->swscale = NULL;
+	av_freep(&m->scale_pic[0]);
+
+	return mp_media_init_scaling(m, m->v.frame, scale_fmt);
 }
 
 static bool mp_media_prepare_frames(mp_media_t *m)
@@ -402,13 +490,26 @@ static bool mp_media_prepare_frames(mp_media_t *m)
 		}
 	}
 
-	if (m->has_video && m->v.frame_ready && !m->swscale) {
-		m->scale_format = closest_format(m->v.frame->format);
-		if (m->scale_format != m->v.frame->format) {
-			if (!mp_media_init_scaling(m)) {
-				return false;
-			}
+	//PRISM/LiuHaibin/20210622/#None/modify checking scale
+	//PRISM/LiuHaibin/20210804/#9087/reduce log times
+	if (m->has_video && m->v.frame_ready) {
+		if (!mp_media_check_scale(m)) {
+			m->consecutive_init_scale_failures++;
+			return false;
+		} else if (m->consecutive_init_scale_failures) {
+			plog(LOG_WARNING,
+			     "MP: init swscale failed for %lld times in a row before succeeded.",
+			     m->consecutive_init_scale_failures);
+			m->consecutive_init_scale_failures = 0;
 		}
+
+		//m->scale_format = closest_format(m->v.frame->format);
+		//if (m->scale_format != m->v.frame->format) {
+		//	//PRISM/LiuHaibin/20201127/#None/Use parameters of frame instead of decoder to initialize swscale
+		//	if (!mp_media_init_scaling(m, m->v.frame)) {
+		//		return false;
+		//	}
+		//}
 	}
 
 	return true;
@@ -548,10 +649,12 @@ static void mp_media_next_audio(mp_media_t *m)
 		m->started_cb(m->opaque);
 	}
 
+	//PRISM/LiuHaibin/20201202/mark audio frames has been decoded since opened
+	m->a_frame_count++;
+
 	//PRISM/ZengQin/20200618/#3179/for media controller
 	if (m->pause)
 		return;
-
 	m->a_cb(m->opaque, &audio);
 }
 
@@ -602,7 +705,8 @@ static void mp_media_next_video(mp_media_t *m, bool preload)
 	if (flip)
 		frame->data[0] -= frame->linesize[0] * (f->height - 1);
 
-	new_format = convert_pixel_format(m->scale_format);
+	//PRISM/LiuHaibin/20210622/#None/modify checking scale
+	new_format = convert_pixel_format(closest_format(f->format));
 	new_space = convert_color_space(f->colorspace);
 	new_range = m->force_range == VIDEO_RANGE_DEFAULT
 			    ? convert_color_range(f->color_range)
@@ -651,6 +755,9 @@ static void mp_media_next_video(mp_media_t *m, bool preload)
 
 	//PRISM/LiuHaibin/20200924/#2174/cover for audio
 	frame->is_cover = d->is_cover;
+
+	//PRISM/LiuHaibin/20201202/mark video frames has been decoded since opened
+	m->v_frame_count++;
 
 	if (preload)
 		m->v_preload_cb(m->opaque, frame);
@@ -732,6 +839,14 @@ static void seek_to(mp_media_t *m, int64_t pos)
 
 	if (m->first_read && !eof && m->active)
 		m->read_frame_ts = os_gettime_ns();
+
+	//PRISM/LiuHaibin/20210111/#None/prevent potential crash when force exiting ffmpeg
+	if (m->exit_ffmpeg) {
+		plog(LOG_DEBUG, "Is exiting ffmpeg, do not seek.");
+		pthread_mutex_unlock(&m->mutex);
+		return;
+	}
+
 	pthread_mutex_unlock(&m->mutex);
 
 	//PRISM/ZengQin/20200713/#3179/for media controller
@@ -744,8 +859,19 @@ static void seek_to(mp_media_t *m, int64_t pos)
 
 	if (ret < 0) {
 		m->just_seek = false;
-		blog(LOG_WARNING, "MP: Failed to seek: %s", av_err2str(ret));
+		//PRISM/ZengQin/20210809/#9137/reduce log times
+		if (!m->consecutive_seek_failures)
+			plog(LOG_WARNING, "MP: Failed to seek: %s",
+			     av_err2str(ret));
+		m->consecutive_seek_failures++;
 		return;
+	}
+	//PRISM/ZengQin/20210809/#9137/reduce log times
+	if (m->consecutive_seek_failures) {
+		plog(LOG_INFO,
+		     "MP: avformat_seek_file succeeded after failed %lld times in a row.",
+		     m->consecutive_seek_failures);
+		m->consecutive_seek_failures = 0;
 	}
 
 	//PRISM/ZengQin/20200806/#3179/for media controller
@@ -758,17 +884,8 @@ static void seek_to(mp_media_t *m, int64_t pos)
 	if (m->has_audio /* && m->is_local_file*/)
 		mp_decode_flush(&m->a);
 
-	//PRISM/LiuHaibin/20200813/#4192/back to start
-	/* only clear audio cache when seeking back to start position,
-	 * because the first frame of the file may have not been rendered to async texture
-	 * before cleared */
-	if (m->back_to_start) {
-		m->back_to_start = false;
-		if (m->a_cb)
-			m->a_cb(m->opaque, NULL);
-	}
 	//PRISM/ZengQin/20200717/#3179/for media controller
-	else if (m->clear_cb)
+	if (m->clear_cb)
 		m->clear_cb(m->opaque, true);
 
 	//PRISM/ZengQin/20200818/#4261/for media controller
@@ -813,7 +930,7 @@ static void mp_media_stop_cb(mp_media_t *m)
 		mp_media_open_loading_stopped(m);
 		mp_media_read_loading_stopped(m);
 
-		blog(LOG_INFO, "MP: media stopped.");
+		plog(LOG_INFO, "MP: media stopped.");
 
 		m->stop_cb(m->opaque, true);
 		m->stop_callback_called = true;
@@ -822,7 +939,7 @@ static void mp_media_stop_cb(mp_media_t *m)
 
 //PRISM/ZengQin/20200811/#4018/for media controller
 //static bool mp_media_reset(mp_media_t *m);
-static bool mp_media_reset(mp_media_t *m, bool starting)
+static bool mp_media_reset(mp_media_t *m, bool ignore_seek)
 {
 	//PRISM/LiuHaibin/20200820/#4079/for media controller
 	//bool stopping;
@@ -853,10 +970,8 @@ static bool mp_media_reset(mp_media_t *m, bool starting)
 
 	pthread_mutex_unlock(&m->mutex);
 
-	if (starting) {
+	if (!ignore_seek) {
 		seek_to(m, start_pos);
-	} else {
-		seek_to(m, 0);
 	}
 
 	if (!mp_media_prepare_frames(m)) {
@@ -900,7 +1015,6 @@ static inline bool mp_media_sleepto(mp_media_t *m)
 		if (m->next_ns > t && (m->next_ns - t) > timeout_ns) {
 			os_sleepto_ns(t + timeout_ns);
 			timeout = true;
-			blog(LOG_WARNING, "MP: timeout.");
 		} else {
 			os_sleepto_ns(m->next_ns);
 		}
@@ -915,72 +1029,24 @@ static inline bool mp_media_eof(mp_media_t *m)
 	bool a_ended = !m->has_audio || !m->a.frame_ready;
 	bool eof = v_ended && a_ended;
 
-	//PRISM/ZengQin/20200713/#3179/for media controller
-	//if (eof) {
-	//	bool looping;
-
-	//	pthread_mutex_lock(&m->mutex);
-	//	looping = m->looping;
-	//	if (!looping) {
-	//		m->active = false;
-	//		m->stopping = true;
-	//	}
-	//	pthread_mutex_unlock(&m->mutex);
-
-	//	mp_media_reset(m);
-	//}
-
-	//PRISM/ZengQin/20200713/#3179/for media controller
-	bool looping;
-	pthread_mutex_lock(&m->mutex);
-	looping = m->looping;
-	pthread_mutex_unlock(&m->mutex);
-
+	//PRISM/ZengQin/20210114/#none/for media controller
 	if (eof) {
+		bool looping;
+
 		pthread_mutex_lock(&m->mutex);
-		bool pause = m->pause;
-		m->just_seek = false;
-		pthread_mutex_unlock(&m->mutex);
-		if (pause) {
-			pthread_mutex_lock(&m->mutex);
-			m->eof = false;
-			pthread_mutex_unlock(&m->mutex);
-			return false;
-		}
-
-		if (m->eof_cb && !m->just_seek)
-			m->eof_cb(m->opaque);
-	}
-
-	if (!looping) {
-		if (eof && !m->just_eof && !m->just_seek) {
-			seek_to(m, 0);
-			reset_ts(m);
-
-			pthread_mutex_lock(&m->mutex);
-			m->eof = false;
-			m->just_eof = true;
-			pthread_mutex_unlock(&m->mutex);
-			return false;
-		}
-
-		if (m->just_eof && !m->just_seek) {
-			pthread_mutex_lock(&m->mutex);
+		looping = m->looping;
+		if (!looping) {
 			m->active = false;
 			m->stopping = true;
-			m->just_eof = false;
-			pthread_mutex_unlock(&m->mutex);
-
-			//PRISM/LiuHaibin/20200813/#4192/back to start
-			m->back_to_start = true;
-
-			mp_media_reset(m, false);
-
-			return true;
 		}
+		pthread_mutex_unlock(&m->mutex);
 
-	} else if (eof) {
-		mp_media_reset(m, false);
+		/* Do not seek to start position when not looping, */
+		mp_media_reset(m, !looping);
+		reset_ts(m);
+		if (m->eof_cb)
+			m->eof_cb(m->opaque);
+		return eof;
 	}
 
 	return eof;
@@ -1034,10 +1100,6 @@ static int interrupt_callback(void *data)
 
 		m->interrupt_poll_ts = ts;
 	}
-
-	if (stop)
-		blog(LOG_INFO, "MP: FFmpeg interrupt.");
-
 	return stop;
 }
 
@@ -1048,15 +1110,16 @@ static bool init_avformat(mp_media_t *m)
 
 	m->file_changed = false;
 
+	//PRISM/ZengQin/20210604/#none/video width and height
+	m->width = 0;
+	m->height = 0;
+
 	AVInputFormat *format = NULL;
 
 	if (m->format_name && *m->format_name) {
 		format = av_find_input_format(m->format_name);
 		if (!format)
-			blog(LOG_INFO,
-			     "MP: Unable to find input format for "
-			     "'%s'",
-			     m->path);
+			plog(LOG_INFO, "MP: Unable to find input format.");
 	}
 
 	AVDictionary *opts = NULL;
@@ -1078,13 +1141,20 @@ static bool init_avformat(mp_media_t *m)
 	m->fmt->interrupt_callback.opaque = m;
 	m->opening_input_ts = os_gettime_ns();
 
+	if (m->is_prism_mobile) {
+		m->fmt->probesize = 512 * 1024;
+	}
+
+	char name[256] = {0};
+	os_extract_file_name(m->path, name, ARRAY_SIZE(name) - 1);
+
 	//PRISM/ZengQin/20200817/#4290/for media controller
 	av_dict_set(&opts, "http_persistent", "0", 0);
 	av_dict_set(&opts, "reconnect", "1", 0); // http reconnection
 	av_dict_set(&opts, "stimeout", "3000000",
 		    0); // I/O operation timeout for rtsp
 
-	blog(LOG_INFO, "MP: Opening media: '%s'", m->path);
+	plog(LOG_INFO, "MP: Opening media: '%s'", name);
 
 	int ret = avformat_open_input(&m->fmt, m->path, format,
 				      opts ? &opts : NULL);
@@ -1092,8 +1162,8 @@ static bool init_avformat(mp_media_t *m)
 
 	if (ret < 0) {
 		//PRISM/WangShaohui/20200219/#461/for error code of openning file
-		blog(LOG_WARNING, "MP: Failed to open media: [%d] '%s'", ret,
-		     m->path);
+		plog(LOG_WARNING, "MP: Failed to open media '%s': [%d] '%s'",
+		     name, ret, av_err2str(ret));
 		return false;
 	}
 
@@ -1101,8 +1171,8 @@ static bool init_avformat(mp_media_t *m)
 	m->first_read = false;
 
 	if (avformat_find_stream_info(m->fmt, NULL) < 0) {
-		blog(LOG_WARNING, "MP: Failed to find stream info for '%s'",
-		     m->path);
+		plog(LOG_WARNING, "MP: Failed to find stream info for '%s'.",
+		     name);
 		return false;
 	}
 
@@ -1115,11 +1185,15 @@ static bool init_avformat(mp_media_t *m)
 	m->has_audio = mp_decode_init(m, AVMEDIA_TYPE_AUDIO, m->hw);
 
 	if (!m->has_video && !m->has_audio) {
-		blog(LOG_WARNING,
-		     "MP: Could not initialize audio or video: "
-		     "'%s'",
-		     m->path);
+		plog(LOG_WARNING, "MP: Could not initialize audio or video.");
 		return false;
+	}
+
+	//PRISM/ZengQin/20210604/#none/video width and height
+	ret = av_find_best_stream(m->fmt, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
+	if (ret >= 0) {
+		m->width = m->fmt->streams[ret]->codecpar->width;
+		m->height = m->fmt->streams[ret]->codecpar->height;
 	}
 
 	//PRISM/ZengQin/202000803/#3179/for media controller
@@ -1186,7 +1260,7 @@ static inline bool mp_media_reopen(mp_media_t *m)
 
 	bool succeed = true;
 	pthread_mutex_lock(&m->mutex);
-	m->exit_ffmpeg = true;
+	m->exit_ffmpeg = false;
 	pthread_mutex_unlock(&m->mutex);
 
 	mp_decode_free(&m->v);
@@ -1196,16 +1270,16 @@ static inline bool mp_media_reopen(mp_media_t *m)
 	m->swscale = NULL;
 	av_freep(&m->scale_pic[0]);
 
-	pthread_mutex_lock(&m->mutex);
-	m->exit_ffmpeg = false;
-	pthread_mutex_unlock(&m->mutex);
+	//PRISM/LiuHaibin/20201202/Reset video&audio frame counts
+	m->v_frame_count = 0;
+	m->a_frame_count = 0;
 
 	if (!init_avformat(m)) {
 		succeed = false;
 		goto fail;
 	}
 
-	if (!mp_media_reset(m, true)) {
+	if (!mp_media_reset(m, false)) {
 		succeed = false;
 		goto fail;
 	}
@@ -1227,6 +1301,9 @@ static inline bool mp_media_thread(mp_media_t *m)
 	m->stop_callback_called = false;
 	/* flag shows if it's force exit by user */
 	bool force_exit_ffmpg = false;
+	m->consecutive_read_failures = 0;
+	m->consecutive_init_scale_failures = 0;
+	m->consecutive_seek_failures = 0;
 
 	for (;;) {
 		bool reset, kill, is_active, seek, pause, reset_time, reopen,
@@ -1283,20 +1360,12 @@ static inline bool mp_media_thread(mp_media_t *m)
 				info = m->update_info_array.array[i];
 				if (m->skipped_cb)
 					m->skipped_cb(m->opaque, info.path);
-
-				blog(LOG_DEBUG, "[TEST] SKIP ----- URL %s",
-				     info.path);
-
 				bfree(info.path);
 				bfree(info.format);
 			}
 
 			info = m->update_info_array
 				       .array[m->update_info_array.num - 1];
-
-			blog(LOG_DEBUG, "[TEST] UPDATE/OPEN ----- URL %s",
-			     info.path);
-
 			mp_media_update_internal(m, &info);
 			bfree(info.path);
 			bfree(info.format);
@@ -1340,6 +1409,15 @@ static inline bool mp_media_thread(mp_media_t *m)
 
 			} else
 				reopen_succeed = true;
+
+			//PRISM/LiuHaibin/20210804/#9087/reduce log times
+			if (m->consecutive_read_failures)
+				m->consecutive_read_failures = 0;
+			if (m->consecutive_init_scale_failures)
+				m->consecutive_init_scale_failures = 0;
+			if (m->consecutive_seek_failures)
+				m->consecutive_seek_failures = 0;
+
 			reset_ts(m);
 			continue;
 		}
@@ -1393,17 +1471,57 @@ static inline bool mp_media_thread(mp_media_t *m)
 				pthread_mutex_lock(&m->mutex);
 				force_exit_ffmpg = m->exit_ffmpeg;
 				pthread_mutex_unlock(&m->mutex);
-				if (!force_exit_ffmpg && m->error_cb)
+				if (!force_exit_ffmpg && m->error_cb) {
+					os_sleep_ms(5);
 					m->error_cb(m->opaque, false);
-				else
+				} else
 					continue;
 			}
 
-			if (mp_media_eof(m))
+			if (mp_media_eof(m)) {
+				//PRISM/LiuHaibin/20201202/Reach EOF and none frames has been decoded, we treated these kind of files as invalid
+				if (!m->a_frame_count && !m->v_frame_count) {
+
+					// We pass true to error callback here, to change file validity
+					char name[256] = {0};
+					os_extract_file_name(m->path, name,
+							     ARRAY_SIZE(name) -
+								     1);
+					plog(LOG_INFO,
+					     "MP: '%s' can not be decoded correctly, mark it as invalid source.",
+					     name);
+					if (m->error_cb)
+						m->error_cb(m->opaque, true);
+					// We reset reopen_succeed to false, to make thread continue before other file is selected
+					reopen_succeed = false;
+				}
 				continue;
+			}
 
 			mp_media_calc_next_ns(m);
 		}
+	}
+
+	//PRISM/LiuHaibin/20210804/#9087/reduce log times
+	if (m->consecutive_read_failures) {
+		plog(LOG_INFO,
+		     "MP: decode thread exit, av_read_frame failed %lld times in a row before that.",
+		     m->consecutive_read_failures);
+		m->consecutive_read_failures = 0;
+	}
+
+	if (m->consecutive_init_scale_failures) {
+		plog(LOG_INFO,
+		     "MP: decode thread exit, init swscale failed %lld times in a row before that.",
+		     m->consecutive_init_scale_failures);
+		m->consecutive_init_scale_failures = 0;
+	}
+
+	if (m->consecutive_seek_failures) {
+		plog(LOG_INFO,
+		     "MP: decode thread exit, seek frame failed %lld times in a row before that.",
+		     m->consecutive_seek_failures);
+		m->consecutive_seek_failures = 0;
 	}
 
 	return true;
@@ -1411,7 +1529,14 @@ static inline bool mp_media_thread(mp_media_t *m)
 
 static void *mp_media_thread_start(void *opaque)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	mp_media_t *m = opaque;
+
+	//PRISM/Wangshaohui/20210818/#none/for debug
+	plog(LOG_INFO, "MP: %s decode thread started. source: %p", __FUNCTION__,
+	     m->attached_source);
 
 	if (!mp_media_thread(m)) {
 		//PRISM/ZengQin/20200812/#4168/for media controller and bgm
@@ -1430,11 +1555,11 @@ static inline bool mp_media_init_internal(mp_media_t *m,
 					  const struct mp_media_info *info)
 {
 	if (pthread_mutex_init(&m->mutex, NULL) != 0) {
-		blog(LOG_WARNING, "MP: Failed to init mutex");
+		plog(LOG_WARNING, "MP: Failed to init mutex");
 		return false;
 	}
 	if (os_sem_init(&m->sem, 0) != 0) {
-		blog(LOG_WARNING, "MP: Failed to init semaphore");
+		plog(LOG_WARNING, "MP: Failed to init semaphore");
 		return false;
 	}
 
@@ -1443,7 +1568,7 @@ static inline bool mp_media_init_internal(mp_media_t *m,
 	m->hw = info->hardware_decoding;
 
 	if (pthread_create(&m->thread, NULL, mp_media_thread_start, m) != 0) {
-		blog(LOG_WARNING, "MP: Could not create media thread");
+		plog(LOG_WARNING, "MP: Could not create media thread");
 		return false;
 	}
 
@@ -1451,7 +1576,8 @@ static inline bool mp_media_init_internal(mp_media_t *m,
 	return true;
 }
 
-bool mp_media_init(mp_media_t *media, const struct mp_media_info *info)
+bool mp_media_init(mp_media_t *media, const struct mp_media_info *info,
+		   void *source)
 {
 	memset(media, 0, sizeof(*media));
 	pthread_mutex_init_value(&media->mutex);
@@ -1488,6 +1614,12 @@ bool mp_media_init(mp_media_t *media, const struct mp_media_info *info)
 	media->first_time_open = true;
 	//PRISM/LiuHaibin/20201029/#None/media skipped message for BGM
 	media->skipped_cb = info->skipped_cb;
+	//PRISM/WuLongue/20201126/For PRISM Mobile source
+	media->is_prism_mobile = info->is_prism_mobile;
+	//PRISM/LiuHaibin/20210106/#6461/mark if current source is virtual background source
+	media->virtual_background_source = info->virtual_background_source;
+	//PRISM/Wangshaohui/20210818/#none/for debug
+	media->attached_source = source;
 
 	if (!info->is_local_file || media->speed < 1 || media->speed > 200)
 		media->speed = 100;
@@ -1550,10 +1682,9 @@ void mp_media_free(mp_media_t *media)
 		struct mp_media_info info = media->update_info_array.array[i];
 		if (media->skipped_cb) {
 			media->skipped_cb(media->opaque, info.path);
-			blog(LOG_DEBUG, "[TEST] SKIP ----- URL %s", info.path);
+			bfree(info.path);
+			bfree(info.format);
 		}
-		bfree(info.path);
-		bfree(info.format);
 	}
 	da_free(media->update_info_array);
 	memset(media, 0, sizeof(*media));
@@ -1661,11 +1792,10 @@ bool mp_media_is_update_done(mp_media_t *m)
 void mp_media_update(mp_media_t *m, const struct mp_media_info *info)
 {
 	pthread_mutex_lock(&m->mutex);
-	blog(LOG_DEBUG, "[TEST] PUSH ----- URL %s", info->path);
 	da_push_back(m->update_info_array, info);
-	if (info->file_changed) {
+	if (info->file_changed && !m->virtual_background_source) {
 		m->exit_ffmpeg = true;
-		blog(LOG_INFO, "MP: path changed, force exit ffmpeg");
+		plog(LOG_INFO, "MP: path changed, force exit ffmpeg.");
 	}
 
 	pthread_mutex_unlock(&m->mutex);
@@ -1768,4 +1898,14 @@ int64_t mp_media_get_duration(mp_media_t *m)
 	int64_t duration = m->duration / INT64_C(1000);
 	pthread_mutex_unlock(&m->mutex);
 	return duration;
+}
+
+//PRISM/ZengQin/20200604/#none/get video width and height
+void mp_media_get_width_height(mp_media_t *m, int64_t *width, int64_t *height)
+{
+	if (!m)
+		return;
+
+	*width = m->width;
+	*height = m->height;
 }

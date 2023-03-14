@@ -1,7 +1,7 @@
 
 PLSLiveInfoTwitch #lineEditTitle {
-	qproperty-maximumSize: /*hdpi*/ 555px /*hdpi*/ 40px;
 	qproperty-minimumSize: /*hdpi*/ 555px /*hdpi*/ 40px;
+	qproperty-maximumSize: /*hdpi*/ 555px /*hdpi*/ 40px;
 }
 
 PLSLiveInfoTwitch #labelTitle {

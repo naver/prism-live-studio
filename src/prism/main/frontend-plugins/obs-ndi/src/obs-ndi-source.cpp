@@ -25,6 +25,7 @@ along with this program; If not, see <https://www.gnu.org/licenses/>
 #include <util/threading.h>
 #include <chrono>
 #include <thread>
+#include "log/log.h"
 
 #include "obs-ndi.h"
 
@@ -71,7 +72,7 @@ struct ndi_source {
 	bool is_all_defaults;
 };
 
-static obs_source_t *find_filter_by_id(obs_source_t *context, const char *id)
+/*static obs_source_t *find_filter_by_id(obs_source_t *context, const char *id)
 {
 	if (!context)
 		return nullptr;
@@ -99,7 +100,7 @@ static obs_source_t *find_filter_by_id(obs_source_t *context, const char *id)
 		&filter_search);
 
 	return filter_search.result;
-}
+}*/
 
 static speaker_layout channel_count_to_layout(int channels)
 {
@@ -152,6 +153,10 @@ static video_range_type prop_to_range_type(int index)
 static obs_source_frame *blank_video_frame()
 {
 	obs_source_frame *frame = obs_source_frame_create(VIDEO_FORMAT_NONE, 0, 0);
+	if (!frame) {
+		return nullptr;
+	}
+
 	frame->timestamp = os_gettime_ns();
 	return frame;
 }
@@ -162,9 +167,9 @@ const char *ndi_source_getname(void *data)
 	return obs_module_text("NDIPlugin.NDISourceName");
 }
 
-obs_properties_t *ndi_source_getproperties(void *data)
+obs_properties_t *ndi_source_getproperties(void * /*data*/)
 {
-	auto s = (struct ndi_source *)data;
+	//auto s = (struct ndi_source *)data;
 
 	obs_properties_t *props = obs_properties_create();
 	// obs_properties_set_flags(props, OBS_PROPERTIES_DEFER_UPDATE);
@@ -186,7 +191,7 @@ obs_properties_t *ndi_source_getproperties(void *data)
 	obs_property_list_add_int(bw_modes, obs_module_text("NDIPlugin.BWMode.Lowest"), PROP_BW_LOWEST);
 	obs_property_list_add_int(bw_modes, obs_module_text("NDIPlugin.BWMode.AudioOnly"), PROP_BW_AUDIO_ONLY);
 
-	obs_property_set_modified_callback(bw_modes, [](obs_properties_t *props, obs_property_t *property, obs_data_t *settings) {
+	obs_property_set_modified_callback(bw_modes, [](obs_properties_t *props, obs_property_t * /*property*/, obs_data_t *settings) {
 		bool is_audio_only = (obs_data_get_int(settings, PROP_BANDWIDTH) == PROP_BW_AUDIO_ONLY);
 
 		obs_property_t *yuv_range = obs_properties_get(props, PROP_YUV_RANGE);
@@ -249,7 +254,7 @@ void *ndi_source_poll_audio_video(void *data)
 {
 	auto s = (struct ndi_source *)data;
 
-	blog(LOG_INFO, "A/V thread for '%s' started", obs_source_get_name(s->source));
+	PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "A/V thread for '%s' started", obs_source_get_name(s->source));
 
 	NDIlib_audio_frame_v2_t audio_frame;
 	obs_source_audio obs_audio_frame = {0};
@@ -353,7 +358,7 @@ void *ndi_source_poll_audio_video(void *data)
 	os_end_high_performance(s->perf_token);
 	s->perf_token = NULL;
 
-	blog(LOG_INFO, "audio thread for '%s' completed", obs_source_get_name(s->source));
+	PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "audio thread for '%s' completed", obs_source_get_name(s->source));
 	return nullptr;
 }
 
@@ -448,7 +453,7 @@ void ndi_source_update(void *data, obs_data_t *settings)
 	// if sync mode is set to the unsupported "Internal" mode, set it
 	// to "Source Timing" mode and apply that change to the settings data
 	if (s->sync_mode == PROP_SYNC_INTERNAL) {
-		s->sync_mode == PROP_SYNC_NDI_SOURCE_TIMECODE;
+		s->sync_mode = PROP_SYNC_NDI_SOURCE_TIMECODE;
 		obs_data_set_int(settings, PROP_SYNC, PROP_SYNC_NDI_SOURCE_TIMECODE);
 	}
 
@@ -469,14 +474,14 @@ void ndi_source_update(void *data, obs_data_t *settings)
 		s->running = true;
 		pthread_create(&s->av_thread, nullptr, ndi_source_poll_audio_video, data);
 
-		blog(LOG_INFO, "started A/V threads for source '%s'", recv_desc.source_to_connect_to.p_ndi_name);
+		PLS_INFO(FRONTEND_PLUGINS_NDI_SOURCE, "started A/V threads for source '%s'", recv_desc.source_to_connect_to.p_ndi_name);
 
 		// Update tally status
 		s->tally.on_preview = obs_source_showing(s->source);
 		s->tally.on_program = obs_source_active(s->source);
 		ndiLib->recv_set_tally(s->ndi_receiver, &s->tally);
 	} else {
-		blog(LOG_ERROR, "can't create a receiver for NDI source '%s'", recv_desc.source_to_connect_to.p_ndi_name);
+		PLS_ERROR(FRONTEND_PLUGINS_NDI_SOURCE, "can't create a receiver for NDI source '%s'", recv_desc.source_to_connect_to.p_ndi_name);
 	}
 }
 

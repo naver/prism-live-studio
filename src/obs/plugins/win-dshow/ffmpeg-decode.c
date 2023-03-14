@@ -68,7 +68,7 @@ static void init_hw_decoder(struct ffmpeg_decode *d)
 #endif
 
 int ffmpeg_decode_init(struct ffmpeg_decode *decode, enum AVCodecID id,
-		       bool use_hw)
+		       bool use_hw, uint8_t *extra_data, int extra_data_size)
 {
 	int ret;
 
@@ -91,6 +91,22 @@ int ffmpeg_decode_init(struct ffmpeg_decode *decode, enum AVCodecID id,
 #else
 	(void)use_hw;
 #endif
+	//PRISM/LiuHaibin/20210304/#None/add extra data and extra data size
+	if (extra_data && extra_data_size > 0) {
+		size_t new_size = extra_data_size + INPUT_BUFFER_PADDING_SIZE;
+
+		if (decode->extra_data_size < new_size) {
+			decode->extra_data =
+				brealloc(decode->extra_data, new_size);
+			decode->extra_data_size = new_size;
+		}
+		memset(decode->extra_data + extra_data_size, 0,
+		       INPUT_BUFFER_PADDING_SIZE);
+		memcpy(decode->extra_data, extra_data, extra_data_size);
+		decode->decoder->extradata = decode->extra_data;
+		decode->decoder->extradata_size = extra_data_size;
+		decode->decoder->flags |= AV_CODEC_FLAG_LOW_DELAY;
+	}
 
 	ret = avcodec_open2(decode->decoder, decode->codec, NULL);
 	if (ret < 0) {
@@ -119,6 +135,9 @@ void ffmpeg_decode_free(struct ffmpeg_decode *decode)
 
 	if (decode->packet_buffer)
 		bfree(decode->packet_buffer);
+
+	if (decode->extra_data)
+		bfree(decode->extra_data);
 
 	memset(decode, 0, sizeof(*decode));
 }
@@ -217,7 +236,7 @@ static inline void copy_data(struct ffmpeg_decode *decode, uint8_t *data,
 }
 
 bool ffmpeg_decode_audio(struct ffmpeg_decode *decode, uint8_t *data,
-			 size_t size, struct obs_source_audio *audio,
+			 size_t size, bool copy, struct obs_source_audio *audio,
 			 bool *got_output)
 {
 	AVPacket packet = {0};
@@ -226,10 +245,11 @@ bool ffmpeg_decode_audio(struct ffmpeg_decode *decode, uint8_t *data,
 
 	*got_output = false;
 
-	copy_data(decode, data, size);
+	if (copy)
+		copy_data(decode, data, size);
 
 	av_init_packet(&packet);
-	packet.data = decode->packet_buffer;
+	packet.data = copy ? decode->packet_buffer : data;
 	packet.size = (int)size;
 
 	if (!decode->frame) {
@@ -271,7 +291,7 @@ bool ffmpeg_decode_audio(struct ffmpeg_decode *decode, uint8_t *data,
 }
 
 bool ffmpeg_decode_video(struct ffmpeg_decode *decode, uint8_t *data,
-			 size_t size, long long *ts,
+			 size_t size, bool copy, long long *ts,
 			 enum video_range_type range,
 			 struct obs_source_frame2 *frame, bool *got_output)
 {
@@ -282,10 +302,11 @@ bool ffmpeg_decode_video(struct ffmpeg_decode *decode, uint8_t *data,
 
 	*got_output = false;
 
-	copy_data(decode, data, size);
+	if (copy)
+		copy_data(decode, data, size);
 
 	av_init_packet(&packet);
-	packet.data = decode->packet_buffer;
+	packet.data = copy ? decode->packet_buffer : data;
 	packet.size = (int)size;
 	packet.pts = *ts;
 
@@ -349,7 +370,7 @@ bool ffmpeg_decode_video(struct ffmpeg_decode *decode, uint8_t *data,
 			VIDEO_CS_601, range, frame->color_matrix,
 			frame->color_range_min, frame->color_range_max);
 		if (!success) {
-			blog(LOG_ERROR,
+			plog(LOG_ERROR,
 			     "Failed to get video format "
 			     "parameters for video format %u",
 			     VIDEO_CS_601);
@@ -365,11 +386,16 @@ bool ffmpeg_decode_video(struct ffmpeg_decode *decode, uint8_t *data,
 	frame->height = decode->frame->height;
 
 	//PRISM/LiuHaibin/20200609/#3174/camera effect
-	frame->ori_img_flip = frame->flip = false;
+	frame->flip = false;
 
 	if (frame->format == VIDEO_FORMAT_NONE)
 		return false;
 
 	*got_output = true;
 	return true;
+}
+
+void ffmpeg_decode_flush(struct ffmpeg_decode* decode)
+{
+	avcodec_flush_buffers(decode->decoder);
 }

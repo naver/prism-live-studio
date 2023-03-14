@@ -35,14 +35,16 @@ AEffect *VSTPlugin::loadEffect()
 
 		// Display the error message and exit the process
 		if (errorCode == ERROR_BAD_EXE_FORMAT) {
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Could not open library, "
 			     "wrong architecture.");
 		} else {
-			blog(LOG_WARNING,
+			char temp[256];
+			os_extract_file_name(pluginPath.c_str(), temp, ARRAY_SIZE(temp) - 1);
+			plog(LOG_WARNING,
 			     "Failed trying to load VST from '%s'"
 			     ", error %d\n",
-			     pluginPath.c_str(),
+			     temp,
 			     GetLastError());
 		}
 		return nullptr;
@@ -59,12 +61,21 @@ AEffect *VSTPlugin::loadEffect()
 	}
 
 	if (mainEntryPoint == nullptr) {
-		blog(LOG_WARNING, "Couldn't get a pointer to plug-in's main()");
+		plog(LOG_WARNING, "Couldn't get a pointer to plug-in's main()");
 		return nullptr;
 	}
 
 	// Instantiate the plug-in
-	plugin       = mainEntryPoint(hostCallback_static);
+	plugin = mainEntryPoint(hostCallback_static);
+
+	// PRISM/WangShaohui/20210112/noissue/check null
+	if (!plugin) {
+		char temp[256];
+		os_extract_file_name(pluginPath.c_str(), temp, ARRAY_SIZE(temp) - 1);
+		plog(LOG_WARNING, "mainEntryPoint failed for '%s'", temp);
+		return nullptr;
+	}
+
 	plugin->user = this;
 	return plugin;
 }

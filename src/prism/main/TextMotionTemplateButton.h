@@ -19,7 +19,7 @@ public:
 	explicit TextMotionTemplateButton(QWidget *parent = nullptr);
 	~TextMotionTemplateButton();
 
-	void attachGifResource(const QString &resourcePath, const QString &resourceBackupPath);
+	void attachGifResource(const QString &resourcePath, const QString &resourceBackupPath, const QString &resourceUrl);
 	void setTemplateData(const TextMotionTemplateData &data);
 	void setGroupName(const QString &groupName);
 	QString getGroupName() const;

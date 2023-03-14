@@ -58,7 +58,7 @@ gs_stagesurf_t *device_stagesurface_create(gs_device_t *device, uint32_t width,
 	surf->bytes_per_pixel = gs_get_format_bpp(color_format) / 8;
 
 	if (!create_pixel_pack_buffer(surf)) {
-		blog(LOG_ERROR, "device_stagesurface_create (GL) failed");
+		plog(LOG_ERROR, "device_stagesurface_create (GL) failed");
 		gs_stagesurface_destroy(surf);
 		return NULL;
 	}
@@ -79,27 +79,27 @@ void gs_stagesurface_destroy(gs_stagesurf_t *stagesurf)
 static bool can_stage(struct gs_stage_surface *dst, struct gs_texture_2d *src)
 {
 	if (!src) {
-		blog(LOG_ERROR, "Source texture is NULL");
+		plog(LOG_ERROR, "Source texture is NULL");
 		return false;
 	}
 
 	if (src->base.type != GS_TEXTURE_2D) {
-		blog(LOG_ERROR, "Source texture must be a 2D texture");
+		plog(LOG_ERROR, "Source texture must be a 2D texture");
 		return false;
 	}
 
 	if (!dst) {
-		blog(LOG_ERROR, "Destination surface is NULL");
+		plog(LOG_ERROR, "Destination surface is NULL");
 		return false;
 	}
 
 	if (src->base.format != dst->format) {
-		blog(LOG_ERROR, "Source and destination formats do not match");
+		plog(LOG_ERROR, "Source and destination formats do not match");
 		return false;
 	}
 
 	if (src->width != dst->width || src->height != dst->height) {
-		blog(LOG_ERROR, "Source and destination must have the same "
+		plog(LOG_ERROR, "Source and destination must have the same "
 				"dimensions");
 		return false;
 	}
@@ -152,7 +152,7 @@ failed_unbind_buffer:
 
 failed:
 	if (!success)
-		blog(LOG_ERROR, "device_stage_texture (GL) failed");
+		plog(LOG_ERROR, "device_stage_texture (GL) failed");
 
 	UNUSED_PARAMETER(device);
 }
@@ -182,7 +182,7 @@ void device_stage_texture(gs_device_t *device, gs_stagesurf_t *dst,
 failed:
 	gl_bind_buffer(GL_PIXEL_PACK_BUFFER, 0);
 	gl_bind_texture(GL_TEXTURE_2D, 0);
-	blog(LOG_ERROR, "device_stage_texture (GL) failed");
+	plog(LOG_ERROR, "device_stage_texture (GL) failed");
 
 	UNUSED_PARAMETER(device);
 }
@@ -221,7 +221,7 @@ bool gs_stagesurface_map(gs_stagesurf_t *stagesurf, uint8_t **data,
 	return true;
 
 fail:
-	blog(LOG_ERROR, "stagesurf_map (GL) failed");
+	plog(LOG_ERROR, "stagesurf_map (GL) failed");
 	return false;
 }
 

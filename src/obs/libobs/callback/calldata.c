@@ -146,7 +146,7 @@ static inline bool cd_ensure_capacity(calldata_t *data, uint8_t **pos,
 	if (new_size < data->capacity)
 		return true;
 	if (data->fixed) {
-		blog(LOG_ERROR, "Tried to go above fixed calldata stack size!");
+		plog(LOG_ERROR, "Tried to go above fixed calldata stack size!");
 		return false;
 	}
 

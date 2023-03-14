@@ -1,4 +1,4 @@
-﻿#include <sstream>
+#include <sstream>
 
 #include "decklink-device.hpp"
 
@@ -30,9 +30,9 @@ ULONG DeckLinkDevice::Release()
 
 bool DeckLinkDevice::Init()
 {
-	ComPtr<IDeckLinkAttributes> attributes;
-	const HRESULT result = device->QueryInterface(IID_IDeckLinkAttributes,
-						      (void **)&attributes);
+	ComPtr<IDeckLinkProfileAttributes> attributes;
+	const HRESULT result = device->QueryInterface(
+		IID_IDeckLinkProfileAttributes, (void **)&attributes);
 
 	if (result == S_OK) {
 		decklink_bool_t detectable = false;

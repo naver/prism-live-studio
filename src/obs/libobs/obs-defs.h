@@ -48,3 +48,10 @@
 #define OBS_VIDEO_INVALID_PARAM -3
 #define OBS_VIDEO_CURRENTLY_ACTIVE -4
 #define OBS_VIDEO_MODULE_NOT_FOUND -5
+//PRISM/Wang.Chuanjing/20200219/#NoIssue/for render engine version check
+#define OBS_VIDEO_NOT_SUPPORTED_ENGINE_VERSION -6
+
+//PRISM/Liu.Haibin/20200420/#None/limit min resolution to 4
+#define RESOLUTION_SIZE_MIN 4
+//PRISM/Liu.Haibin/20200410/#None/Refer to OBS, limit max resolution to 16384
+#define RESOLUTION_SIZE_MAX 16384

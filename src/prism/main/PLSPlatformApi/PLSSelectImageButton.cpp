@@ -1,3 +1,5 @@
+#include <Windows.h>
+
 #include "PLSSelectImageButton.h"
 #include "ui_PLSSelectImageButton.h"
 
@@ -15,9 +17,26 @@
 #include "PLSCropImage.h"
 #include "PLSTakeCameraSnapshot.h"
 #include "ChannelCommonFunctions.h"
+#include "pls-app.hpp"
 
 #define MIN_PHOTO_WIDTH 440
 #define MIN_PHOTO_HEIGHT 245
+
+static QString setImageDir(const QString &imageDir)
+{
+	config_set_string(App()->GlobalConfig(), "SelectImageButton", "ImageDir", imageDir.toUtf8().constData());
+	config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
+	return imageDir;
+}
+
+static QString getImageDir()
+{
+	const char *dir = config_get_string(App()->GlobalConfig(), "SelectImageButton", "ImageDir");
+	if (!dir || !dir[0]) {
+		return setImageDir(QStandardPaths::standardLocations(QStandardPaths::PicturesLocation).first());
+	}
+	return QString::fromUtf8(dir);
+}
 
 static void initButton(QPushButton *button)
 {
@@ -42,9 +61,14 @@ QString getTempImageFilePath(const QString &suffix)
 	return tempImageFilePath;
 }
 
-PLSSelectImageButton::PLSSelectImageButton(QWidget *parent, PLSDpiHelper dpiHelper) : QLabel(parent), ui(new Ui::PLSSelectImageButton)
+PLSSelectImageButton::PLSSelectImageButton(QWidget *parent, PLSDpiHelper dpiHelper)
+	: QLabel(parent), ui(new Ui::PLSSelectImageButton), imageSize(MIN_PHOTO_WIDTH, MIN_PHOTO_HEIGHT), imageChecker([](const QPixmap &, const QString &) -> QPair<bool, QString> {
+		  return {true, QString()};
+	  })
 {
 	dpiHelper.setCss(this, {PLSCssIndex::PLSSelectImageButton});
+	setAttribute(Qt::WA_Hover);
+	setAttribute(Qt::WA_NativeWindow);
 
 	ui->setupUi(this);
 	initButton(ui->takeButton);
@@ -72,6 +96,11 @@ PLSSelectImageButton::~PLSSelectImageButton()
 	delete ui;
 }
 
+QString PLSSelectImageButton::getLanguage() const
+{
+	return pls_get_current_language();
+}
+
 QString PLSSelectImageButton::getImagePath() const
 {
 	return imagePath;
@@ -88,6 +117,7 @@ void PLSSelectImageButton::setImagePath(const QString &imagePath)
 }
 void PLSSelectImageButton::setPixmap(const QPixmap &pixmap, const QSize &size)
 {
+	originPixmap = pixmap;
 	if (pixmap.isNull()) {
 		QLabel::setPixmap(pixmap);
 		icon->show();
@@ -121,6 +151,34 @@ void PLSSelectImageButton::setEnabled(bool enabled)
 	pls_flush_style(icon);
 }
 
+void PLSSelectImageButton::setImageSize(const QSize &imageSize)
+{
+	this->imageSize = imageSize;
+}
+
+void PLSSelectImageButton::setImageChecker(const ImageChecker &imageChecker)
+{
+	this->imageChecker = imageChecker;
+}
+
+void PLSSelectImageButton::mouseEnter()
+{
+	if (!mouseHover) {
+		mouseHover = true;
+		ui->takeButton->setVisible(icon->isEnabled());
+		ui->selectButton->setVisible(icon->isEnabled());
+	}
+}
+
+void PLSSelectImageButton::mouseLeave()
+{
+	if (mouseHover) {
+		mouseHover = false;
+		ui->takeButton->hide();
+		ui->selectButton->hide();
+	}
+}
+
 void PLSSelectImageButton::on_takeButton_clicked()
 {
 	ui->takeButton->hide();
@@ -130,15 +188,15 @@ void PLSSelectImageButton::on_takeButton_clicked()
 
 	setFocus();
 
-	for (;;) {
-		PLSTakeCameraSnapshot takeCameraSnapshot(this);
+	for (QString camera;;) {
+		PLSTakeCameraSnapshot takeCameraSnapshot(camera, this);
 		QString imageFilePath = takeCameraSnapshot.getSnapshot();
 		if (imageFilePath.isEmpty()) {
 			break;
 		}
 
 		QPixmap cropedImage;
-		int button = PLSCropImage::cropImage(cropedImage, imageFilePath, QSize(MIN_PHOTO_WIDTH, MIN_PHOTO_HEIGHT), PLSCropImage::Back | PLSCropImage::Ok, this);
+		int button = PLSCropImage::cropImage(cropedImage, imageFilePath, imageSize, PLSCropImage::Back | PLSCropImage::Ok, this);
 		if (button == PLSCropImage::Back) {
 			continue;
 		} else if (button != PLSCropImage::Ok || cropedImage.isNull()) {
@@ -147,6 +205,11 @@ void PLSSelectImageButton::on_takeButton_clicked()
 
 		QString cropedImageFile = getTempImageFilePath(".png");
 		cropedImage.save(cropedImageFile, "PNG");
+
+		if (auto result = imageChecker(cropedImage, cropedImageFile); !result.first) {
+			PLSAlertView::warning(pls_get_toplevel_view(this), tr("Alert.Title"), result.second);
+			return;
+		}
 
 		setPixmap(cropedImage);
 
@@ -164,27 +227,40 @@ void PLSSelectImageButton::on_selectButton_clicked()
 
 	setFocus();
 
-	QString imageDir = QStandardPaths::standardLocations(QStandardPaths::PicturesLocation).first();
+	QString imageDir = getImageDir();
 	QWidget *toplevelView = pls_get_toplevel_view(this);
 	QString imageFilePath = QFileDialog::getOpenFileName(toplevelView, tr("Browse"), imageDir, "Image Files (*.jpg *.jpeg *.bmp *.png)");
 	if (imageFilePath.isEmpty()) {
 		return;
 	}
 
+	QFileInfo fileInfo(imageFilePath);
+	setImageDir(fileInfo.dir().absolutePath());
+
 	QPixmap originalImagge(imageFilePath);
-	if (originalImagge.width() < MIN_PHOTO_WIDTH || originalImagge.height() < MIN_PHOTO_HEIGHT) {
-		PLSAlertView::warning(toplevelView, tr("SelectImage.Alert.Title"), tr("SelectImage.Alert.Message.PhotoTooSmall"));
+	if (originalImagge.isNull()) {
+		PLSAlertView::warning(toplevelView, tr("Alert.Title"), tr("SelectImage.Alert.Message.ErrorPhoto"));
+		return;
+	}
+
+	if (originalImagge.width() < imageSize.width() || originalImagge.height() < imageSize.height()) {
+		PLSAlertView::warning(toplevelView, tr("Alert.Title"), tr("SelectImage.Alert.Message.PhotoTooSmall").arg(imageSize.width()).arg(imageSize.height()));
 		return;
 	}
 
 	QPixmap cropedImage;
-	int button = PLSCropImage::cropImage(cropedImage, originalImagge, QSize(MIN_PHOTO_WIDTH, MIN_PHOTO_HEIGHT), PLSCropImage::Ok | PLSCropImage::Cancel, this);
+	int button = PLSCropImage::cropImage(cropedImage, originalImagge, imageSize, PLSCropImage::Ok | PLSCropImage::Cancel, this);
 	if (button != PLSCropImage::Ok || cropedImage.isNull()) {
 		return;
 	}
 
 	QString cropedImageFile = getTempImageFilePath(".png");
 	cropedImage.save(cropedImageFile, "PNG");
+
+	if (auto result = imageChecker(cropedImage, cropedImageFile); !result.first) {
+		PLSAlertView::warning(toplevelView, tr("Alert.Title"), result.second);
+		return;
+	}
 
 	setPixmap(cropedImage);
 
@@ -195,19 +271,11 @@ void PLSSelectImageButton::on_selectButton_clicked()
 bool PLSSelectImageButton::event(QEvent *event)
 {
 	switch (event->type()) {
-	case QEvent::Enter:
-		if (!mouseHover) {
-			mouseHover = true;
-			ui->takeButton->setVisible(icon->isEnabled());
-			ui->selectButton->setVisible(icon->isEnabled());
-		}
+	case QEvent::HoverEnter:
+		mouseEnter();
 		break;
-	case QEvent::Leave:
-		if (mouseHover) {
-			mouseHover = false;
-			ui->takeButton->hide();
-			ui->selectButton->hide();
-		}
+	case QEvent::HoverLeave:
+		mouseLeave();
 		break;
 	case QEvent::Resize: {
 		QResizeEvent *resizeEvent = dynamic_cast<QResizeEvent *>(event);
@@ -231,4 +299,14 @@ bool PLSSelectImageButton::eventFilter(QObject *watched, QEvent *event)
 		}
 	}
 	return QLabel::eventFilter(watched, event);
+}
+
+bool PLSSelectImageButton::nativeEvent(const QByteArray &eventType, void *message, long *result)
+{
+	MSG *msg = (MSG *)message;
+	if (msg->message == WM_MOUSEMOVE) {
+		mouseEnter();
+	}
+
+	return QLabel::nativeEvent(eventType, message, result);
 }

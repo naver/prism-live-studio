@@ -214,22 +214,27 @@ bool PLSDuplicatorCore::check_device_error(HRESULT hr)
 
 bool PLSDuplicatorCore::update_texture()
 {
-	DXGI_OUTDUPL_FRAME_INFO info;
-	ComPtr<IDXGIResource> res;
+	try {
+		DXGI_OUTDUPL_FRAME_INFO info;
+		ComPtr<IDXGIResource> res;
 
-	HRESULT hr = output_duplicator->AcquireNextFrame(0, &info, res.Assign());
-	if (hr == DXGI_ERROR_ACCESS_LOST) {
+		HRESULT hr = output_duplicator->AcquireNextFrame(0, &info, res.Assign());
+		if (hr == DXGI_ERROR_ACCESS_LOST) {
+			inited = false; // should reset capture
+			return false;
+		} else if (hr == DXGI_ERROR_WAIT_TIMEOUT) {
+			return true;
+		} else if (FAILED(hr)) {
+			return check_device_error(hr);
+		}
+
+		bool bRet = copy_texture(res, info);
+		output_duplicator->ReleaseFrame(); // must be invoked if we successed to call AcquireNextFrame()
+		return bRet;
+	} catch (...) {
 		inited = false; // should reset capture
 		return false;
-	} else if (hr == DXGI_ERROR_WAIT_TIMEOUT) {
-		return true;
-	} else if (FAILED(hr)) {
-		return check_device_error(hr);
 	}
-
-	bool bRet = copy_texture(res, info);
-	output_duplicator->ReleaseFrame(); // must be invoked if we successed to call AcquireNextFrame()
-	return bRet;
 }
 
 bool PLSDuplicatorCore::copy_texture(ComPtr<IDXGIResource> res, DXGI_OUTDUPL_FRAME_INFO &info)

@@ -64,7 +64,10 @@ public:
 	QJsonObject getWebChatParams() override;
 	bool getIsChatDisabled();
 	void setIsChatDisabled(bool needAuth) { m_IsChatDisabled = needAuth; }
+
 	QString getServiceLiveLink() override;
+	QString getShareUrl() override;
+	QString getShareUrlEnc() override;
 signals:
 	void closeDialogByExpired();
 
@@ -72,10 +75,10 @@ private:
 	//finish selected data when click ok;
 	PLSAfreecaTVLiveinfoData m_selectData;
 	vector<PLSAfreecaTVCategory> m_vecCategories;
-	bool m_IsChatDisabled;
+	bool m_IsChatDisabled{false};
 
 private:
-	QString getShareUrl(const QString &id, bool isLiveUrl = false);
+	QString getShareUrl(const QString &id, bool isLiveUrl = false, bool isEnc = false);
 	void onPrepareLive(bool value) override;
 	PLSPlatformApiResult getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data);
 	void showApiRefreshError(PLSPlatformApiResult value);
@@ -84,7 +87,7 @@ private:
 	void requestCategories(function<void(bool)> onNext, QObject *reciever);
 	void updateLiveinfo(function<void(bool)> onNext, QObject *reciever, const QString &title);
 
-	void onLiveStopped() override;
+	void onLiveEnded() override;
 	void onAlLiveStarted(bool) override;
 
 	void setSelectData(PLSAfreecaTVLiveinfoData data);

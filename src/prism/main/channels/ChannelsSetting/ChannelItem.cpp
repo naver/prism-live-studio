@@ -32,7 +32,7 @@ void ChannelItem::setData(const QVariantMap &data)
 	if (channelState == Valid) {
 		getComplexImageOfChannel(uuid, userIcon, platformIcon);
 	} else {
-		auto platformName = getInfo(mLastData, g_channelName);
+		auto platformName = getInfo(mLastData, g_platformName);
 		userIcon = getPlatformImageFromName(platformName);
 		toSharp = false;
 	}
@@ -68,7 +68,7 @@ void ChannelItem::resizeEvent(QResizeEvent *event)
 
 void ChannelItem::onSelectStateChanged(bool isChecked)
 {
-	QString msg = getInfo(mLastData, g_nickName) + QString(" select state changed:") + (isChecked ? "true" : "false");
+	QString msg = getInfo(mLastData, g_displayPlatformName) + QString(" select state changed:") + (isChecked ? "true" : "false");
 	PRE_LOG_UI_MSG(msg.toStdString().c_str(), ChannelItem);
 	emit sigSelectionChanged(mLastUUid, isChecked);
 }

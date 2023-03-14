@@ -4,6 +4,7 @@
 #include <QToolButton>
 #include "ChannelCommonFunctions.h"
 #include "ChannelConst.h"
+#include "ComplexButton.h"
 #include "LogPredefine.h"
 #include "PLSChannelDataAPI.h"
 #include "PLSChannelsVirualAPI.h"
@@ -38,12 +39,13 @@ void ChannelsAddWin::updateItem(int index)
 	auto item = ui->ItemGridLayout->itemAt(index);
 	auto widget = dynamic_cast<QToolButton *>(item->widget());
 	if (widget) {
-		QString platForm = getInfoOfObject(widget, g_channelName.toStdString().c_str(), QString());
+		QString platForm = getInfoOfObject(widget, g_platformName.toStdString().c_str(), QString());
 		auto &info = PLSCHANNELS_API->getChanelInfoRefByPlatformName(platForm, ChannelType);
 
 		if (info.isEmpty()) {
 			widget->setEnabled(true);
-			widget->setText(platForm);
+			QString txt = getInfoOfObject(widget, g_nickName.toStdString().c_str(), QString());
+			widget->setText(txt);
 			return;
 		}
 		widget->setEnabled(false);
@@ -65,11 +67,11 @@ void ChannelsAddWin::changeEvent(QEvent *e)
 
 bool ChannelsAddWin::eventFilter(QObject *watched, QEvent *event)
 {
-	auto srcBtn = dynamic_cast<QToolButton *>(watched);
+	auto srcBtn = dynamic_cast<QAbstractButton *>(watched);
 	if (srcBtn == nullptr) {
 		return false;
 	}
-	auto hoverBtn = srcBtn->findChild<QToolButton *>();
+	auto hoverBtn = srcBtn->findChild<QAbstractButton *>();
 	if (hoverBtn == nullptr) {
 		return false;
 	}
@@ -85,44 +87,54 @@ bool ChannelsAddWin::eventFilter(QObject *watched, QEvent *event)
 	return false;
 }
 
-void ChannelsAddWin::appendItem(const QString &text)
+void ChannelsAddWin::appendItem(const QString &platformName)
 {
-	QToolButton *btn = new QToolButton(ui->scrollAreaWidgetContents);
-	btn->setProperty(g_channelName.toStdString().c_str(), text);
-	btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-	btn->setObjectName(text);
-	btn->setText(text);
-	btn->installEventFilter(this);
-
-	if (text.contains(CUSTOM_RTMP)) {
-		btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
+	QAbstractButton *btn = nullptr;
+	bool isCustomRTMP = platformName.contains(CUSTOM_RTMP);
+	if (isCustomRTMP) {
+		auto btn = ui->AddRTMPBtn;
+		ui->AddRTMPBtn->setAliginment(Qt::AlignCenter);
+		btn->setText(CHANNELS_TR(AddRTMP));
+		pls_flush_style(ui->AddRTMPBtn);
+		btn->setProperty(g_platformName.toStdString().c_str(), platformName);
+		connect(btn, &ComplexButton::clicked, this, &ChannelsAddWin::runBtnCMD, Qt::QueuedConnection);
+		return;
 	}
+	QString txt;
+	auto tBtn = new QToolButton(ui->scrollAreaWidgetContents);
+	tBtn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+	txt = translatePlatformName(platformName);
 
+	tBtn->setObjectName(platformName);
+	btn = tBtn;
+
+	btn->installEventFilter(this);
+	tBtn->setText(txt);
+	btn->setProperty(g_nickName.toStdString().c_str(), txt);
+	btn->setProperty(g_platformName.toStdString().c_str(), platformName);
+	QSize iconSize(0, 0);
+	QString iconPath, disablePath;
+
+	iconPath = getPlatformImageFromName(platformName, "btn.+", "\\.svg");
+	disablePath = getPlatformImageFromName(platformName, "btn.+", "\\-on.svg");
+	iconSize = QSize(115, 40);
+	QIcon Icon;
+	Icon.addFile(iconPath, iconSize, QIcon::Normal);
+	Icon.addFile(disablePath, iconSize, QIcon::Disabled);
+	btn->setIcon(Icon);
 	PLSDpiHelper dpiHelper;
-	dpiHelper.notifyDpiChanged(btn, [=](double dpi) {
-		extern QPixmap paintSvg(const QString &pixmapPath, const QSize &pixSize);
+	dpiHelper.notifyDpiChanged(btn, [=](double dpi) { btn->setIconSize(PLSDpiHelper::calculate(dpi, iconSize)); });
 
-		QString iconPath, disablePath;
-		if (text.contains(CUSTOM_RTMP)) {
-			iconPath = g_defaultRTMPAddButtonIcon;
-			disablePath = iconPath;
-		} else {
-			iconPath = getPlatformImageFromName(text, "btn.+", "\\.svg");
-			disablePath = getPlatformImageFromName(text, "btn.+", "\\-on.svg");
-		}
+	QAbstractButton *hoverBtn = nullptr;
 
-		QIcon Icon;
-		Icon.addPixmap(paintSvg(iconPath, PLSDpiHelper::calculate(dpi, QSize(115, 40))), QIcon::Normal);
-		Icon.addPixmap(paintSvg(disablePath, PLSDpiHelper::calculate(dpi, QSize(115, 40))), QIcon::Disabled);
-		btn->setIcon(Icon);
-	});
-
-	auto hoverBtn = new QToolButton(btn);
+	auto thoverBtn = new QToolButton(btn);
+	thoverBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
+	hoverBtn = thoverBtn;
 	hoverBtn->setObjectName("hoverBtn");
-	hoverBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
-	hoverBtn->setProperty(g_channelName.toStdString().c_str(), text);
+
+	hoverBtn->setProperty(g_platformName.toStdString().c_str(), platformName);
 	hoverBtn->hide();
-	connect(hoverBtn, &QToolButton::clicked, this, &ChannelsAddWin::runBtnCMD, Qt::QueuedConnection);
+	connect(hoverBtn, &QAbstractButton::clicked, this, &ChannelsAddWin::runBtnCMD, Qt::QueuedConnection);
 
 	static int countOfRow = 4;
 	auto layout = ui->ItemGridLayout;
@@ -146,8 +158,8 @@ void ChannelsAddWin::initDefault()
 
 void ChannelsAddWin::runBtnCMD()
 {
-	PRE_LOG_UI(try add channel, ChannelsAddWin);
-	auto btn = dynamic_cast<QToolButton *>(sender());
-	auto cmdStr = getInfoOfObject(btn, g_channelName.toStdString().c_str(), QString("add"));
+	auto btn = sender();
+	auto cmdStr = getInfoOfObject(btn, g_platformName.toStdString().c_str(), QString("add"));
+	PRE_LOG_UI_MSG_STRING("ADD " + cmdStr, "Clicked");
 	runCMD(cmdStr);
 }

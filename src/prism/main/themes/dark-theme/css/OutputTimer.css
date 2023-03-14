@@ -4,26 +4,37 @@ OutputTimer#OutputTimer *{
 }
 
 OutputTimer#OutputTimer QLabel{
-    color: #bababa;
+	color: #bababa;
 	font-size:/*hdpi*/ 14px;
 }
 
 OutputTimer#OutputTimer QLabel[useFor="FormLabelRole"] {
     font-weight: bold;
 }
-OutputTimer#OutputTimer[language="en-US"] #streamingLabel, OutputTimer#OutputTimer[language="en-US"] #recordingLabel {
-	min-width:/*hdpi*/ 143px;
-	max-width:/*hdpi*/ 143px;
+
+
+OutputTimer#OutputTimer #hoursLabel,
+OutputTimer#OutputTimer #hoursLabel_2,
+OutputTimer#OutputTimer #minutesLabel,
+OutputTimer#OutputTimer #minutesLabel_2,
+OutputTimer#OutputTimer #secondsLabel,
+OutputTimer#OutputTimer #secondsLabel_2 {
+	margin-left: /*hdpi*/ 9px;
+	margin-right: /*hdpi*/ 20px;
+	min-width: /*hdpi*/ 20px;
 }
+
 OutputTimer#OutputTimer[language="en-US"] #hoursLabel,
 OutputTimer#OutputTimer[language="en-US"] #hoursLabel_2,
 OutputTimer#OutputTimer[language="en-US"] #minutesLabel,
 OutputTimer#OutputTimer[language="en-US"] #minutesLabel_2,
 OutputTimer#OutputTimer[language="en-US"] #secondsLabel,
 OutputTimer#OutputTimer[language="en-US"] #secondsLabel_2 {
-	margin-left:/*hdpi*/ 9px;
-	margin-right:/*hdpi*/ 20px;
+	margin-left: /*hdpi*/ 9px;
+	margin-right: /*hdpi*/ 20px;
+	min-width: /*hdpi*/ 20px;
 }
+
 OutputTimer#OutputTimer[language="en-US"] #outputTimerStream,
 OutputTimer#OutputTimer[language="en-US"] #outputTimerRecord {
 	min-width:/*hdpi*/ 118px;
@@ -55,7 +66,7 @@ OutputTimer#OutputTimer #recordingTimerHours,
 OutputTimer#OutputTimer #recordingTimerMinutes,
 OutputTimer#OutputTimer #recordingTimerSeconds {
 	font-size:/*hdpi*/ 14px;
-    color: #ffffff;
+	 color: #ffffff;
 	width:/*hdpi*/84px;
 
 }

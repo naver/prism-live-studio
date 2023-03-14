@@ -250,12 +250,21 @@ set(libobs_pls_SOURCES
 	pls/outro.c
 	pls/watermark.c
 	pls/thumbnail.c
-	pls/media-info.c)
+	pls/media-info.c
+	pls/hardware-info.c
+	pls/crash-writer.c
+	pls/win-power-monitor.c
+	)
+
 set(libobs_pls_HEADERS
 	pls/outro.h
 	pls/watermark.h
 	pls/thumbnail.h
-	pls/media-info.h)
+	pls/media-info.h
+	pls/hardware-info.h
+	pls/crash-writer.h
+	pls/win-power-monitor.h
+	)
 
 set(libobs_callback_SOURCES
 	callback/calldata.c
@@ -379,6 +388,7 @@ set(libobs_libobs_SOURCES
 	${libobs_PLATFORM_SOURCES}
 	obs-audio-controls.c
 	obs-avc.c
+	obs-hevc.c
 	obs-encoder.c
 	obs-service.c
 	obs-source.c
@@ -403,6 +413,7 @@ set(libobs_libobs_HEADERS
 	obs-audio-controls.h
 	obs-defs.h
 	obs-avc.h
+	obs-hevc.h
 	obs-encoder.h
 	obs-service.h
 	obs-internal.h

@@ -1,0 +1,48 @@
+
+PLSShoppingComboxMenu {
+    background: #2d2d2d;
+	border-width: /*hdpi*/1px;
+	border-style:solid;
+	border-color:#111111;
+    padding:0px;
+	border-radius:/*hdpi*/ 3px;
+}
+
+	
+PLSShoppingComboxMenu #listWidget {
+	border: /*hdpi*/ none;
+	outline: none;
+	padding:/*hdpi*/0px;
+	margin-left:/*hdpi*/1px;
+	margin-right:/*hdpi*/1px;
+	margin-top:/*hdpi*/2px;
+	margin-bottom:/*hdpi*/2px;
+	background-color:transparent;
+}
+
+PLSShoppingComboxMenu #listWidget::item {
+	padding:0px;
+	font-size: /*hdpi*/ 14px;
+	text-align:center;
+	font-weight: normal;
+	color: white;
+	background-color:transparent;
+	border: /*hdpi*/0px solid transparent;
+}
+
+PLSShoppingComboxMenu #listWidget::item:hover {
+    background-color: #373737;
+}
+
+PLSShoppingComboxMenu #listWidget::item:selected:hover {
+    background-color: #373737;
+}
+
+PLSShoppingComboxMenu #listWidget::item:selected {
+    background-color: #373737;
+	color:#effc35;
+}
+
+PLSShoppingComboxMenu #listWidget:focus {
+    outline:none;
+}

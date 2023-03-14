@@ -87,6 +87,12 @@ enum cam_effect_message_type {
 
 	// effect process ==> camera source
 	effect_message_process_exception = 0X00000002,
+
+	// camera source ==> effect process
+	effect_message_segmentation = 0X00000004,
+
+	// effect process ==> camera source
+	effect_message_status_action = 0X00000008,
 };
 
 enum cam_effect_process_exit_code {
@@ -100,6 +106,17 @@ enum cam_effect_exception_type {
 	effect_exception_unknown = 0,
 	effect_exception_sensetime,
 	effect_exception_d3d,
+	effect_exception_segmentation,
+};
+
+enum cam_effect_status {
+	effect_status_action_init_sensear = 0,
+};
+
+enum cam_seg_type {
+	cam_seg_type_original_total = 0,
+	cam_seg_type_original,
+	cam_seg_type_remvoe_bg,
 };
 
 //--------------------------------------------------------------
@@ -193,6 +210,48 @@ struct face_beauty_message : public cam_effect_message {
 	float smooth;
 };
 
+struct chromakey_message_info {
+	bool enable;
+	int color; //rgb
+	int similarity;
+	int smooth;
+	int spill;
+	int opacity;
+	float contrast;
+	float brightness;
+	float gamma;
+};
+
+struct segmentation_message : public cam_effect_message {
+	segmentation_message()
+		: cam_effect_message(effect_message_segmentation),
+		  enable(false),
+		  blur(0),
+		  blur_enable(false),
+		  seg_method(0),
+		  segment_type(cam_seg_type_original_total)
+	{
+		memset(&ck_info, 0, sizeof(ck_info));
+	};
+
+	void CopyData(const segmentation_message *segmentation_msg)
+	{
+		enable = segmentation_msg->enable;
+		seg_method = segmentation_msg->seg_method;
+		blur = segmentation_msg->blur;
+		blur_enable = segmentation_msg->blur_enable;
+		memcpy(&ck_info, &segmentation_msg->ck_info,
+		       sizeof(chromakey_message_info));
+		segment_type = segmentation_msg->segment_type;
+	}
+	bool enable;
+	int seg_method;            //0: clova, 1: chromakey, 2 sensetime
+	cam_seg_type segment_type; //0: original_total, 1:original  2:removebg
+	int blur;
+	bool blur_enable;
+	chromakey_message_info ck_info;
+};
+
 struct heart_beat_message : public cam_effect_message {
 	heart_beat_message()
 		: cam_effect_message(effect_message_process_heartbeat)
@@ -211,6 +270,20 @@ struct process_exception_message : public cam_effect_message {
 
 	cam_effect_exception_type exception_type;
 	int sub_code;
+	char desc[EXCEPTION_DESC_MAX_LEN];
+};
+
+struct process_status_message : public cam_effect_message {
+	process_status_message()
+		: cam_effect_message(effect_message_status_action),
+		  effect_status(effect_status_action_init_sensear),
+		  code(0)
+	{
+		memset(desc, 0, sizeof(desc));
+	}
+
+	cam_effect_status effect_status;
+	int code;
 	char desc[EXCEPTION_DESC_MAX_LEN];
 };
 

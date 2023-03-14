@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>RtmpChannelView</class>
- <widget class="QDialog" name="RtmpChannelView">
+ <widget class="QWidget" name="RtmpChannelView">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>552</width>
-    <height>295</height>
+    <width>556</width>
+    <height>304</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -85,7 +85,7 @@
    <item>
     <widget class="QFrame" name="CategoryFrame">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+      <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
@@ -468,7 +468,7 @@
             </sizepolicy>
            </property>
            <property name="text">
-            <string>setting.channel.rtmp.pass</string>
+            <string>password</string>
            </property>
           </widget>
          </item>
@@ -784,7 +784,7 @@
          <enum>Qt::NoFocus</enum>
         </property>
         <property name="text">
-         <string>Channels.Save</string>
+         <string>Save</string>
         </property>
         <property name="autoDefault">
          <bool>false</bool>
@@ -797,7 +797,7 @@
          <enum>Qt::NoFocus</enum>
         </property>
         <property name="text">
-         <string>Channels.Cancel</string>
+         <string>Cancel</string>
         </property>
         <property name="autoDefault">
          <bool>false</bool>

@@ -102,8 +102,8 @@ namespace common {
 #define LANGUAGE_SETTING_ENGLISH "en-US,en;q=0.9"
 #define LANGUAGE_SETTING_KOREAN "ko-KR,ko;q=0.9"
 
-#define ENCODING_SETTINGS_GUIDE_EN_US_URL ""
-#define ENCODING_SETTINGS_GUIDE_KO_KR_URL ""
+#define ENCODING_SETTINGS_GUIDE_EN_US_URL "http://prismlive.com/en_us/faq/faq.html?app=pcapp"
+#define ENCODING_SETTINGS_GUIDE_KO_KR_URL "http://prismlive.com/ko_kr/faq/faq.html?app=pcapp"
 
 /*****************resources******************/
 #define RESOURCES_PATH "resources/"
@@ -143,6 +143,7 @@ namespace common {
 #define RtmpChannelDataVec "RtmpChannelDataVec"
 
 /***************configs*********************/
+#define CONFIG_SHOW_MODE "showMode"
 #define CONFIGS_GROUP_LOGIN "login"
 #define CONFIGS_GROUP_COOKIE "prism_cookie"
 #define CONFIGS_LOGIN_TOKEN "login/token"
@@ -156,8 +157,10 @@ namespace common {
 #define CONFIGS_USER_TEXTMOTION_PATH "PRISMLiveStudio/textmotion/%1"
 #define CONFIGS_CATEGORYS_PATH "PRISMLiveStudio/user/categorys.json"
 #define CONFIGS_CATEGORYS_LIBRARY_PATH "PRISMLiveStudio/user/library.json"
+#define CONFIGS_RESOLUTIONGUIDE_PATH "PRISMLiveStudio/user/Library_Policy_PC/ResolutionGuide.json"
 #define CONFIGS_GPOP_PATH "PRISMLiveStudio/user/gpop.json"
 #define CONFIGS_BEATURY_USER_PATH "PRISMLiveStudio/beauty/"
+#define CONFIGS_BEATURY_JSON_FILE "beauty.json"
 #define CONFIGS_BEATURY_PRESET_IMAGE_PATH "/thumb x3/"
 #define CONFIGS_BEATURY_CUSTOM_IMAGE_PATH "beauty_"
 #define CONFIGS_BEATURY_DEFAULT_IMAGE_PATH "PRISMLiveStudio/beauty/image/"
@@ -168,11 +171,23 @@ namespace common {
 #define GIPHY_STICKERS_CACHE_PATH "PRISMLiveStudio/sticker/cache/"
 #define GIPHY_STICKERS_JSON_FILE "PRISMLiveStudio/sticker/sticker.json"
 
+#define PRISM_STICKER_USER_PATH "PRISMLiveStudio/prism_sticker/"
+#define PRISM_STICKER_CACHE_PATH "PRISMLiveStudio/prism_sticker/cache/"
+#define PRISM_STICKER_JSON_FILE "PRISMLiveStudio/prism_sticker/reaction.json"
+#define PRISM_STICKER_DOWNLOAD_CACHE_FILE "PRISMLiveStudio/prism_sticker/download_cache.json"
+#define PRISM_STICKER_RECENT_JSON_FILE "PRISMLiveStudio/prism_sticker/recent_used.json"
+#define PRISM_DEFAULT_STICKER_ICON ":/images/giphy/thumb-loading.svg"
+
+#define VIRTUAL_BACKGROUND_CONFIG "VirtualbackgroundConfig"
+
 #define SENSETIME_UNZIP_PATH "PRISMLiveStudio/beauty"
 #define SENSETIME_ZIP "PRISMLiveStudio/beauty/library_SenseTime_PC.zip"
 #define SENSETIME_FILE_PATH "PRISMLiveStudio/beauty/library_SenseTime_PC/"
+#define SENSETIME_NEW_VERSION_FILE_PATH "PRISMLiveStudio/beauty/library_SenseTime_PC/2.5.0/"
+#define SENSETIME_NEW_VERSION_FILE_NAME "sense_license_encode.lic"
 #define SENSETIME_OLD_FILE_NAME "sensetime_license.lic"
 #define SENSETIME_NEW_FILE_NAME "license_online.lic"
+#define SENSETIME_VERSION "2.5.0"
 
 #define BGM_CONFIG "BgmConfig"
 #define CONFIGS_MUSIC_USER_PATH "PRISMLiveStudio/music/"
@@ -215,6 +230,7 @@ namespace common {
 #define LOGIN_USERINFO_PROFILEURL "profileThumbnailUrl"
 #define LOGIN_USERINFO_AUTHTYPE "authType"
 #define LOGIN_USERINFO_TOKEN "token"
+#define LOGIN_USERINFO_HASHUSERCODE "hashedUserCode"
 #define LOGIN_USERINFO_AUThSTATUS_CODE "authStatusCode"
 #define LOGIN_USERINFO_USER_CODE "userCode"
 #define LOGIN_CODE "code"
@@ -238,6 +254,7 @@ namespace common {
 
 /**************channel cookie************************/
 #define COOKIE_NEO_SES "NEO_SES"
+#define COOKIE_NEO_CHK "NEO_CHK"
 #define COOKIE_SNS_TOKEN "snsToken"
 #define COOKIE_SNS_CD "snsCd"
 #define COOKIE_OAUTH_TOKEN "oauth_token"
@@ -312,7 +329,9 @@ namespace common {
 #define COLOR_FILTER_TMP_PATH "tmp/"
 #define CONFIG_COLOR_FILTER_PATH "data/prism-studio/color_filter/"
 #define CONFIG_BEAUTY_PATH "data/prism-studio/beauty/"
+#define CONFIG_BEAUTY_IMAGE_PATH "data/prism-studio/beauty/image"
 #define CONFIG_BEAUTY_TMP_PATH "tmp/"
+#define CONFIGS_COLOR_FILTER_USER_PATH "PRISMLiveStudio/color_filter/"
 
 #define COLOR_FILTER_ORDER_NUMBER 10
 
@@ -419,9 +438,9 @@ namespace common {
 #define AUDIO_ROOT "audio_root"
 
 /************RegExp************************/
-#define EMAIL_REGEXP "^[\\w!#$\%&'*+/=?`{|}~^-]+(?:\\.[\\w!#$\%&'*+/=?`{|}~^-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,6}$"
+#define EMAIL_REGEXP "^[\\w!#$\\\\%&'*+/=?`{|}~^-]+(?:\\.[\\w!#$\\\\%&'*+/=?`{|}~^-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,6}$"
 
-#define PASSWORD_REGEXP "^(?![A-Za-z0-9]{6,20}$)(?![0-9\\W]{6,20}$)(?![a-zA-Z\\W]{6,20}$)(?![\\_\\W]{6,20}$)(?![0-9\\_\\W]{6,20}$)(?![A-Za-z\\_\\W]{6,20}$)[a-zA-Z0-9\\_\\W]{6,20}"
+#define PASSWORD_REGEXP "^(?![A-Za-z0-9]{8,20}$)(?![0-9\\W]{8,20}$)(?![a-zA-Z\\W]{8,20}$)(?![\\_\\W]{8,20}$)(?![0-9\\_\\W]{8,20}$)(?![A-Za-z\\_\\W]{8,20}$)[a-zA-Z0-9\\_\\W]{8,20}"
 #define NICK_REGEXP "[^.]{1,20}"
 #define SNS_LOG_URL_REGEXP "https://([\\w-]+\\.)+apis.naver.com+(/[\\w-]*)+\\/callback\\?\\w.*"
 #define TWITTER_URL_FILTER "#_="
@@ -473,11 +492,10 @@ namespace common {
 /**************scene module****************/
 #define SCENE "scene"
 #define SCENE_DRAG_MIME_TYPE "sceneItem"
+#define SCENE_DRAG_GRID_MODE "gridMode"
 #define FILTER_DRAG_MIME_TYPE "filterItem"
 #define BUTTON_CHECK "check"
 #define SCENE_MOVE_STEP 6
-#define SCENE_SCROLLCONTENT_ITEM_LEFT 10
-#define SCENE_SCROLLCONTENT_SPACEING 10
 #define SCENE_SCROLLCONTENT_OFFSET 5
 #define SCENE_SCROLLCONTENT_ITEM_HEIGHT 68
 #define SCENE_SCROLLCONTENT_ITEM_WIDTH 81
@@ -485,6 +503,7 @@ namespace common {
 #define SCENE_SCROLLCONTENT_DEFAULT_COLOR "#272727"
 #define SCENE_SCROLLCONTENT_COLUMN 2
 #define SCENE_TRANSITION_DEFAULT_DURATION_VALUE 300
+#define SCENE_ITEM_AUTO_SCROLL_MARGIN 15
 /**************source module****************/
 #define SOURCE_ITME_WIDTH 45
 #define SOURCE_MAXINTERVAL 5
@@ -618,9 +637,9 @@ namespace common {
 /*************** const int variable ****************/
 #define LOADING_PICTURE_MAX_NUMBER 8
 #define LOADING_TIMER_TIMEROUT 100 // ms
-#define TIMING_TIMEOUT 1000 // ms
-#define CPU_TIMER_TIMEOUT 1000 // ms
-#define FEED_UI_MAX_TIME 100 // ms
+#define TIMING_TIMEOUT 1000        // ms
+#define CPU_TIMER_TIMEOUT 1000     // ms
+#define FEED_UI_MAX_TIME 100       // ms
 #define MAINWINDOW_MIN_WIDTH 625
 #define ONE_HOUR_MINUTES 60
 #define ONE_HOUR_SECONDS 3600
@@ -632,14 +651,20 @@ namespace common {
 #define DPI_VALUE_NINTY_SIX 96
 #define DPI_VALUE_ONE 1
 
-#define SCENE_LEFT_SPACING 10
+#define SCENE_LEFT_SPACING 20
+#define SCENE_LIST_MODE_LEFT_SPACING 0
 #define SCENE_ITEM_VSPACING 0
+#define SCENE_ITEM_LIST_MODE_VSPACING 10
 #define SCENE_ITEM_HSPACING 15
-#define SCENE_COLUMNS 2
+#define SCENE_ITEM_LIST_MODE_HSPACING 0
 #define SCENE_ITEM_FIX_HEIGHT 155
+#define SCENE_ITEM_LIST_MODE_FIX_HEIGHT 40
 #define SCENE_SCROLL_AREA_SPACING_HEIGHT 10
 #define SCENE_ITEM_FIX_WIDTH 112
+#define SCENE_DISPLAY_DEFAULT_WIDTH 112
+#define SCENE_DISPLAY_DEFAULT_HEIGHT 64
 #define SCENE_RENDER_NUMBER 10
+#define SCENE_ITEM_DO_NOT_NEED_AUTO_SCROLL -1
 
 /*************** const for encodingsettingview ****************/
 #define ENCODING_SETTING_VIEW_WIDTH 310
@@ -655,7 +680,7 @@ namespace common {
 #define GDIP_TEXT_SOURCE_ID "text_gdiplus"
 #define GAME_SOURCE_ID "game_capture"
 #define WINDOW_SOURCE_ID "window_capture"
-#define PRISM_MONITOR_REGION_MENU "prism_monitor_region_menu"
+#define PRISM_MONITOR_REGION_MENU "monitor_region_menu"
 #define PRISM_MONITOR_SOURCE_ID "prism_monitor_capture"
 #define PRISM_REGION_SOURCE_ID "prism_region_source"
 #define BROWSER_SOURCE_ID "browser_source"
@@ -664,10 +689,15 @@ namespace common {
 #define SLIDESHOW_SOURCE_ID "slideshow"
 #define COLOR_SOURCE_ID "color_source"
 #define BGM_SOURCE_ID "prism_bgm_source"
-#define PRISM_STICKER_SOURCE_ID "prism_sticker_source"
+#define PRISM_GIPHY_STICKER_SOURCE_ID "prism_sticker_source"
+#define PRISM_STICKER_SOURCE_ID "prism_sticker_reaction"
 #define PRISM_CHAT_SOURCE_ID "prism_chat_source"
 #define PRISM_TEXT_MOTION_ID "prism_text_motion_source"
 #define PRISM_NDI_SOURCE_ID "ndi_source"
+#define PRISM_SPECTRALIZER_SOURCE_ID "prism_audio_visualizer_source"
+#define PRISM_BACKGROUND_TEMPLATE_SOURCE_ID "prism_background_template_source"
+#define PRISM_MOBILE_SOURCE_ID "prism_mobile"
+#define PRISM_TIMER_SOURCE_ID "prism_timer_source"
 
 /***************    filter id     ****************/
 #define FILTER_TYPE_ID_APPLYLUT "clut_filter"
@@ -684,6 +714,7 @@ namespace common {
 #define FILTER_TYPE_ID_LUMAKEY "luma_key_filter"
 #define FILTER_TYPE_ID_NOISEGATE "noise_gate_filter"
 #define FILTER_TYPE_ID_NOISE_SUPPRESSION "noise_suppress_filter"
+#define FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE "noise_suppress_filter_rnnoise"
 #define FILTER_TYPE_ID_RENDER_DELAY "gpu_delay"
 #define FILTER_TYPE_ID_SCALING_ASPECTRATIO "scale_filter"
 #define FILTER_TYPE_ID_SCROLL "scroll_filter"
@@ -698,7 +729,7 @@ namespace common {
 
 #define DOCK_DEATTACH_MIN_SIZE 20
 #define DISPLAY_VIEW_DEFAULT_WIDTH 690
-#define DISPLAY_VIEW_DEFAULT_HEIGHT 210
+#define DISPLAY_VIEW_DEFAULT_HEIGHT 211
 #define DISPLAY_LABEL_DEFAULT_HEIGHT 339
 #define DISPLAY_VIEW_MIN_HEIGHT 150
 #define DISPLAY_VIEW_MAX_HEIGHT 368
@@ -723,6 +754,7 @@ namespace common {
 #define OBJECT_NMAE_ADD_BUTTON "addBtn"
 #define OBJECT_NMAE_ADD_SOURCE_BUTTON "addSourceBtn"
 #define OBJECT_NMAE_SWITCH_EFFECT_BUTTON "switchEffectBtn"
+#define OBJECT_NMAE_SWITCH_GRID_BUTTON "switchGridBtn"
 #define OBJECT_NMAE_SEPERATE_BUTTON "seperateBtn"
 #define OBJECT_NMAE_SEPERATE_SOURCE_BUTTON "seperateSourceBtn"
 #define OBJECT_NAME_BUTTON "button"
@@ -738,7 +770,9 @@ namespace common {
 #define OBJECT_NAME_EDITABLELIST "editableList"
 #define OBJECT_NAME_COMBOBOX "combobox"
 #define OBJECT_NAME_FONTLABEL "fontLabel"
+#define OBJECT_NAME_FONTBUTTON "fontButton"
 #define OBJECT_NAME_FORMLABEL "formLabel"
+#define OBJECT_NAME_FORMCHECKBOX "formCheckBox"
 #define OBJECT_NAME_SPACELABEL "spaceLabel"
 #define OBJECT_NAME_SEPERATOR_LABEL "seperatorLabel"
 #define OBJECT_NAME_DISPLAYTEXT "displayText"
@@ -753,6 +787,9 @@ namespace common {
 #define OBJECT_NAME_FILTER_ITEM_MENU "filterItemMenu"
 #define OBJECT_NAME_BASIC_FILTER_MENU "basicFilterMenu"
 #define OBJECT_NAME_ADD_STICKER_BUTTON "addStickerBtn"
+#define OBJECT_NAME_IMAGE_GROUP "imageGroupBtn"
+
+#define OBJECT_NAME_PROPERTIES_CONTENT_WIDGET "properties_content"
 
 /*************** property name ****************/
 #define PROPERTY_NAME_SHOW_IMAGE "showImage"
@@ -776,6 +813,92 @@ namespace common {
 #define PROPERTY_VALUE_MOUSE_STATUS_NORMAL "normal"
 #define PROPERTY_VALUE_MOUSE_STATUS_HOVER "hover"
 #define PROPERTY_VALUE_MOUSE_STATUS_PRESSED "pressed"
+
+/*************** side bar button icons file ****************/
+#define BEAUTYEFFECT_OFF_NORMAL ":/images/ic-beautyeffect-off-normal.svg"
+#define BEAUTYEFFECT_OFF_OVER ":/images/ic-beautyeffect-off-over.svg"
+#define BEAUTYEFFECT_OFF_CLICKED ":/images/ic-beautyeffect-off-click.svg"
+#define BEAUTYEFFECT_OFF_DISABLE ":/images/ic-beautyeffect-off-disable.svg"
+#define BEAUTYEFFECT_ON_NORMAL ":/images/ic-beautyeffect-on-normal.svg"
+#define BEAUTYEFFECT_ON_OVER ":/images/ic-beautyeffect-on-over.svg"
+#define BEAUTYEFFECT_ON_CLICKED ":/images/ic-beautyeffect-on-click.svg"
+#define BEAUTYEFFECT_ON_DISABLE ":/images/ic-beautyeffect-on-disable.svg"
+
+#define GIPHY_OFF_NORMAL ":/images/giphy/ic-giphy-off-normal.svg"
+#define GIPHY_OFF_OVER ":/images/giphy/ic-giphy-off-over.svg"
+#define GIPHY_OFF_CLICKED ":/images/giphy/ic-giphy-off-click.svg"
+#define GIPHY_OFF_DISABLE ":/images/giphy/ic-giphy-off-disable.svg"
+#define GIPHY_ON_NORMAL ":/images/giphy/ic-giphy-on-normal.svg"
+#define GIPHY_ON_OVER ":/images/giphy/ic-giphy-on-over.svg"
+#define GIPHY_ON_CLICKED ":/images/giphy/ic-giphy-on-click.svg"
+#define GIPHY_ON_DISABLE ":/images/giphy/ic-giphy-on-disable.svg"
+
+#define BGM_OFF_NORMAL ":/images/bgm/ic-bgm-off-normal.svg"
+#define BGM_OFF_OVER ":/images/bgm/ic-bgm-off-over.svg"
+#define BGM_OFF_CLICKED ":/images/bgm/ic-bgm-off-click.svg"
+#define BGM_OFF_DISABLE ":/images/bgm/ic-bgm-off-disable.svg"
+#define BGM_ON_NORMAL ":/images/bgm/ic-bgm-on-normal.svg"
+#define BGM_ON_OVER ":/images/bgm/ic-bgm-on-over.svg"
+#define BGM_ON_CLICKED ":/images/bgm/ic-bgm-on-click.svg"
+#define BGM_ON_DISABLE ":/images/bgm/ic-bgm-on-disable.svg"
+
+#define TOAST_OFF_NORMAL ":/images/ic-error-off-normal.svg"
+#define TOAST_OFF_OVER ":/images/ic-error-off-over.svg"
+#define TOAST_OFF_CLICKED ":/images/ic-error-off-click.svg"
+#define TOAST_OFF_DISABLE ":/images/ic-error-off-disable.svg"
+#define TOAST_ON_NORMAL ":/images/ic-error-on-normal.svg"
+#define TOAST_ON_OVER ":/images/ic-error-on-over.svg"
+#define TOAST_ON_CLICKED ":/images/ic-error-on-click.svg"
+#define TOAST_ON_DISABLE ":/images/ic-error-on-disable.svg"
+
+#define CHAT_OFF_NORMAL ":/images/ic-chat-off-normal.svg"
+#define CHAT_OFF_OVER ":/images/ic-chat-off-over.svg"
+#define CHAT_OFF_CLICKED ":/images/ic-chat-off-click.svg"
+#define CHAT_OFF_DISABLE ":/images/ic-chat-off-disable.svg"
+#define CHAT_ON_NORMAL ":/images/ic-chat-on-normal.svg"
+#define CHAT_ON_OVER ":/images/ic-chat-on-over.svg"
+#define CHAT_ON_CLICKED ":/images/ic-chat-on-click.svg"
+#define CHAT_ON_DISABLE ":/images/ic-chat-on-disable.svg"
+
+#define WIFI_OFF_NORMAL ":/images/wifi-help/ic-mobile-off-normal.svg"
+#define WIFI_OFF_OVER ":/images/wifi-help/ic-mobile-off-over.svg"
+#define WIFI_OFF_CLICKED ":/images/wifi-help/ic-mobile-off-click.svg"
+#define WIFI_OFF_DISABLE ":/images/wifi-help/ic-mobile-off-disable.svg"
+#define WIFI_ON_NORMAL ":/images/wifi-help/ic-mobile-on-normal.svg"
+#define WIFI_ON_OVER ":/images/wifi-help/ic-mobile-on-over.svg"
+#define WIFI_ON_CLICKED ":/images/wifi-help/ic-mobile-on-click.svg"
+#define WIFI_ON_DISABLE ":/images/wifi-help/ic-mobile-on-disable.svg"
+
+#define VIRTUAL_OFF_NORMAL ":/images/virtual/ic-vbg-off-normal.svg"
+#define VIRTUAL_OFF_OVER ":/images/virtual/ic-vbg-off-over.svg"
+#define VIRTUAL_OFF_CLICKED ":/images/virtual/ic-vbg-off-click.svg"
+#define VIRTUAL_OFF_DISABLE ":/images/virtual/ic-vbg-off-disable.svg"
+#define VIRTUAL_ON_NORMAL ":/images/virtual/ic-vbg-on-normal.svg"
+#define VIRTUAL_ON_OVER ":/images/virtual/ic-vbg-on-over.svg"
+#define VIRTUAL_ON_CLICKED ":/images/virtual/ic-vbg-on-click.svg"
+#define VIRTUAL_ON_DISABLE ":/images/virtual/ic-vbg-on-disable.svg"
+
+#define PRISM_STICKER_OFF_NORMAL ":/images/prism-sticker/ic-priemsticker-off-normal.svg"
+#define PRISM_STICKER_OFF_OVER ":/images/prism-sticker/ic-priemsticker-off-over.svg"
+#define PRISM_STICKER_OFF_CLICKED ":/images/prism-sticker/ic-priemsticker-off-click.svg"
+#define PRISM_STICKER_OFF_DISABLE ":/images/prism-sticker/ic-priemsticker-off-disable.svg"
+#define PRISM_STICKER_ON_NORMAL ":/images/prism-sticker/ic-priemsticker-on-normal.svg"
+#define PRISM_STICKER_ON_OVER ":/images/prism-sticker/ic-priemsticker-on-over.svg"
+#define PRISM_STICKER_ON_CLICKED ":/images/prism-sticker/ic-priemsticker-on-click.svg"
+#define PRISM_STICKER_ON_DISABLE ":/images/prism-sticker/ic-priemsticker-on-disable.svg"
+
+/************ app crash notice *********/
+#define IS_THIRD_PARTY_PLUGINS "isThirdPartyPlugins"
+#define PLUGIN_DLL_NAME "dllName"
+
+#define PRISM_CRASH_CONFIG_PATH "PRISMLiveStudio/crashDump/crash.json"
+#define CURRENT_PRISM "currentPrism"
+#define PRISM_SESSION "prismSession"
+#define IS_CRASHED "crashed"
+#define VIDEO_ADAPTER "videoAdapter"
+#define MODULES "modules"
+
+#define LIVEINFO_STAR_HTML_TEMPLATE "<html><head/><body><p style='white-space: pre-wrap;'>%1<span style='color:#c34151;font-weight:normal;'>*</span></p></body></html>"
 
 } // namespace common
 

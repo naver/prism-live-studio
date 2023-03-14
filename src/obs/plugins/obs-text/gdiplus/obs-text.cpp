@@ -13,7 +13,7 @@ using namespace std;
 using namespace Gdiplus;
 
 #define warning(format, ...)                                           \
-	blog(LOG_WARNING, "[%s] " format, obs_source_get_name(source), \
+	plog(LOG_WARNING, "[%s] " format, obs_source_get_name(source), \
 	     ##__VA_ARGS__)
 
 #define warn_stat(call)                                                   \
@@ -405,6 +405,25 @@ void TextSource::RemoveNewlinePadding(const StringFormat &format, RectF &box)
 
 	float offset_cx = after.Width - before.Width;
 	float offset_cy = after.Height - before.Height;
+
+	/*
+	PRISM/WangShaohui/20210721/#8832/calc extra size of '\n'
+	With specific version of GDIPlus.dll, offset_cx will be wrong because MeasureString returns different RectF even we using same params.
+	So here we have to calculate offset_cx distinguishingly.
+	*/
+	{
+		stat = graphics.MeasureString(L"W", 1, font.get(),
+					      PointF(0.0f, 0.0f), &format,
+					      &before);
+		warn_stat("MeasureString (without newline)");
+
+		stat = graphics.MeasureString(L"W\n", 3, font.get(),
+					      PointF(0.0f, 0.0f), &format,
+					      &after);
+		warn_stat("MeasureString (with newline)");
+
+		offset_cx = after.Width - before.Width;
+	}
 
 	if (!vertical) {
 		if (offset_cx >= 1.0f)

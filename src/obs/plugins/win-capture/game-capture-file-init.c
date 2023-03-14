@@ -256,7 +256,7 @@ static bool update_hook_file(bool b64)
 }
 
 #define warn(format, ...) \
-	blog(LOG_WARNING, "%s: " format, "[Vulkan Capture Init]", ##__VA_ARGS__)
+	plog(LOG_WARNING, "%s: " format, "[Vulkan Capture Init]", ##__VA_ARGS__)
 
 /* Sets vulkan layer registry if it doesn't already exist */
 static void init_vulkan_registry(bool b64)

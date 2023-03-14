@@ -72,7 +72,9 @@ static inline void vec2_mul(struct vec2 *dst, const struct vec2 *v1,
 static inline void vec2_div(struct vec2 *dst, const struct vec2 *v1,
 			    const struct vec2 *v2)
 {
-	vec2_set(dst, v1->x / v2->x, v1->y / v2->y);
+	if (v2->x != 0 && v2->y != 0) {
+		vec2_set(dst, v1->x / v2->x, v1->y / v2->y);
+	}
 }
 
 static inline void vec2_addf(struct vec2 *dst, const struct vec2 *v, float f)
@@ -92,7 +94,9 @@ static inline void vec2_mulf(struct vec2 *dst, const struct vec2 *v, float f)
 
 static inline void vec2_divf(struct vec2 *dst, const struct vec2 *v, float f)
 {
-	vec2_set(dst, v->x / f, v->y / f);
+	if (f != 0) {
+		vec2_set(dst, v->x / f, v->y / f);
+	}
 }
 
 static inline void vec2_neg(struct vec2 *dst, const struct vec2 *v)

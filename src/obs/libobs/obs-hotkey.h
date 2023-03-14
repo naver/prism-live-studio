@@ -60,8 +60,10 @@ enum obs_hotkey_registerer_type {
 };
 typedef enum obs_hotkey_registerer_type obs_hotkey_registerer_t;
 
-/* getter functions */
+//PRSIM/Liuying/20210622/set visible/invisible for hotkey in timer source.
+#define HOTKEY_FLAG_INVISIBLE 1 << 0
 
+/* getter functions */
 EXPORT obs_hotkey_id obs_hotkey_get_id(const obs_hotkey_t *key);
 EXPORT const char *obs_hotkey_get_name(const obs_hotkey_t *key);
 EXPORT const char *obs_hotkey_get_description(const obs_hotkey_t *key);
@@ -77,6 +79,9 @@ obs_hotkey_binding_get_hotkey_id(obs_hotkey_binding_t *binding);
 EXPORT obs_hotkey_t *
 obs_hotkey_binding_get_hotkey(obs_hotkey_binding_t *binding);
 
+//PRSIM/Liuying/20210622/set visible/invisible for hotkey in timer source.
+EXPORT uint32_t obs_hotkey_get_flags(const obs_hotkey_t *key);
+
 /* setter functions */
 
 EXPORT void obs_hotkey_set_name(obs_hotkey_id id, const char *name);
@@ -86,6 +91,10 @@ EXPORT void obs_hotkey_pair_set_names(obs_hotkey_pair_id id, const char *name0,
 EXPORT void obs_hotkey_pair_set_descriptions(obs_hotkey_pair_id id,
 					     const char *desc0,
 					     const char *desc1);
+
+//PRSIM/Liuying/20210622/set visible/invisible for hotkey in timer source.
+EXPORT void obs_hotkey_add_flags(obs_hotkey_id id, uint32_t flag);
+EXPORT void obs_hotkey_remove_flags(obs_hotkey_id id, uint32_t flag);
 
 #ifndef SWIG
 struct obs_hotkeys_translations {

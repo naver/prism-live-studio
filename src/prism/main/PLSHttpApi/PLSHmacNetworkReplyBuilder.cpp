@@ -30,10 +30,10 @@ QUrl PLSHmacNetworkReplyBuilder::buildUrl(const QUrl &url)
 	QString hmacKey;
 	switch (hmacType) {
 	case HmacType::HT_PRISM: {
-		hmacKey = PLS_HMAC_KEY;
+		hmacKey = PLS_PC_HMAC_KEY;
 		QVariantMap headers;
 		pls_http_request_head(headers, true);
-		setRawHeaders(headers);
+		setDefaultHeaders(headers);
 	} break;
 	case HmacType::HT_VLIVE:
 		hmacKey = PLS_VLIVE_HMAC_KEY;
@@ -43,7 +43,7 @@ QUrl PLSHmacNetworkReplyBuilder::buildUrl(const QUrl &url)
 	}
 
 	if (!hmacKey.isEmpty()) {
-		return pls_get_encrypt_url(urlEncrypted.toString(), hmacKey);
+		return pls_get_encrypt_url(urlEncrypted.toString(QUrl::FullyEncoded), hmacKey);
 	}
 
 	return urlEncrypted;

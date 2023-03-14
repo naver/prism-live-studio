@@ -9,6 +9,8 @@
 #include "log/module_names.h"
 #include "liblog.h"
 #include "PLSBeautyFilterView.h"
+#include "PLSResources/PLSResourceMgr.h"
+#include "platform.hpp"
 
 const int maxIdInputLength = 20;
 const char *filterIndexProperty = "filterIndex";
@@ -54,7 +56,9 @@ QString PLSBeautyFaceItemView::GetNameElideString(int maxWith)
 
 void PLSBeautyFaceItemView::SetFilterIconPixmap()
 {
-	ui->faceIconLabel->SetPixmap(PLSBeautyFilterView::getIconFileByIndex(filterType, filterIndex));
+	auto fileName = PLSBeautyFilterView::getIconFileByIndex(filterType, filterIndex);
+	ui->faceIconLabel->SetPixmap(fileName);
+	iconPath = fileName;
 }
 
 PLSBeautyFaceItemView::~PLSBeautyFaceItemView()
@@ -132,6 +136,16 @@ void PLSBeautyFaceItemView::SetFilterType(int type)
 	SetFilterIconPixmap();
 }
 
+bool PLSBeautyFaceItemView::IsItemIconValid()
+{
+	if (iconPath.isEmpty())
+		return false;
+	QFile file(iconPath);
+	if (!file.exists())
+		return false;
+	return true;
+}
+
 void PLSBeautyFaceItemView::mousePressEvent(QMouseEvent *event)
 {
 	if (event->button() == Qt::LeftButton && !isChecked) {
@@ -156,7 +170,7 @@ void PLSBeautyFaceItemView::enterEvent(QEvent *event)
 	QFrame::enterEvent(event);
 }
 
-void PLSBeautyFaceItemView::resizeEvent(QResizeEvent *event)
+void PLSBeautyFaceItemView::resizeEvent(QResizeEvent *)
 {
 	if (nullptr != customFlagIcon)
 		customFlagIcon->move(ui->iconFace->width() - customFlagIcon->width() - 4, ui->iconFace->height() - customFlagIcon->height() - 4);
@@ -230,8 +244,16 @@ void FilterItemIcon::SetPixmap(const QPixmap &pixmap)
 
 void FilterItemIcon::SetPixmap(const QString &pixpath)
 {
+	if (pixpath.isEmpty())
+		return;
+
+	if (!QFile::exists(pixpath)) {
+		PLS_ERROR(MAIN_BEAUTY_MODULE, "Pixmap [%s] does not exist", GetFileName(pixpath.toStdString().c_str()).c_str());
+		return;
+	}
+
 	if (!this->iconPixmap.load(pixpath)) {
-		PLS_ERROR(MAIN_BEAUTY_MODULE, "Load pixmap [%s] failed", pixpath.toStdString().c_str());
+		PLS_ERROR(MAIN_BEAUTY_MODULE, "Load pixmap [%s] failed", GetFileName(pixpath.toStdString().c_str()).c_str());
 	}
 	this->update();
 }

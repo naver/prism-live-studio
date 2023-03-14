@@ -150,3 +150,31 @@ VolControl MuteCheckBox::indicator:unchecked:hover {
 VolControl MuteCheckBox::indicator:unchecked:pressed {
 	image:url(":/images/sound-on-click.svg");
 }
+
+VolControl #volumeRNNoiseCheckbox {
+    outline: none;
+	qproperty-minimumSize:/*hdpi*/22px /*hdpi*/22px;
+	qproperty-maximumSize:/*hdpi*/22px /*hdpi*/22px;
+}
+VolControl #volumeRNNoiseCheckbox::indicator {
+	width: /*hdpi*/ 22px;
+	height: /*hdpi*/ 22px;
+}
+VolControl #volumeRNNoiseCheckbox::indicator:checked {
+	image:url(":/images/rnnoise/ic-noise-on-normal.svg");
+}
+VolControl #volumeRNNoiseCheckbox::indicator:checked:hover {
+	image:url(":/images/rnnoise/ic-noise-on-over.svg");
+}
+VolControl #volumeRNNoiseCheckbox::indicator:checked:pressed {
+	image:url(":/images/rnnoise/ic-noise-on-click.svg");
+}
+VolControl #volumeRNNoiseCheckbox::indicator:unchecked {
+	image:url(":/images/rnnoise/ic-noise-off-normal.svg");
+}
+VolControl #volumeRNNoiseCheckbox::indicator:unchecked:hover {
+	image:url(":/images/rnnoise/ic-noise-off-over.svg");
+}
+VolControl #volumeRNNoiseCheckbox::indicator:unchecked:pressed {
+	image:url(":/images/rnnoise/ic-noise-off-click.svg");
+}

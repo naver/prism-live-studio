@@ -19,7 +19,7 @@ static bool socket_event(struct rtmp_stream *stream, bool *can_write,
 	success = !WSAEnumNetworkEvents(stream->rtmp.m_sb.sb_socket, NULL,
 					&net_events);
 	if (!success) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "socket_thread_windows: Aborting due to "
 		     "WSAEnumNetworkEvents failure, %d",
 		     WSAGetLastError());
@@ -35,7 +35,7 @@ static bool socket_event(struct rtmp_stream *stream, bool *can_write,
 			uint32_t diff =
 				(os_gettime_ns() / 1000000) - last_send_time;
 
-			blog(LOG_ERROR,
+			plog(LOG_ERROR,
 			     "socket_thread_windows: Received "
 			     "FD_CLOSE, %u ms since last send "
 			     "(buffer: %d / %d)",
@@ -44,14 +44,14 @@ static bool socket_event(struct rtmp_stream *stream, bool *can_write,
 		}
 
 		if (os_event_try(stream->stop_event) != EAGAIN)
-			blog(LOG_ERROR,
+			plog(LOG_ERROR,
 			     "socket_thread_windows: Aborting due "
 			     "to FD_CLOSE during shutdown, "
 			     "%d bytes lost, error %d",
 			     stream->write_buf_len,
 			     net_events.iErrorCode[FD_CLOSE_BIT]);
 		else
-			blog(LOG_ERROR,
+			plog(LOG_ERROR,
 			     "socket_thread_windows: Aborting due "
 			     "to FD_CLOSE, error %d",
 			     net_events.iErrorCode[FD_CLOSE_BIT]);
@@ -80,7 +80,7 @@ static bool socket_event(struct rtmp_stream *stream, bool *can_write,
 			}
 
 			if (fatal) {
-				blog(LOG_ERROR,
+				plog(LOG_ERROR,
 				     "socket_thread_windows: "
 				     "Socket error, recv() returned "
 				     "%d, GetLastError() %d",
@@ -117,7 +117,7 @@ static void ideal_send_backlog_event(struct rtmp_stream *stream,
 					   (const char *)&bufsize,
 					   sizeof(bufsize));
 
-				blog(LOG_INFO,
+				plog(LOG_INFO,
 				     "socket_thread_windows: "
 				     "Increasing send buffer to "
 				     "ISB %d (buffer: %d / %d)",
@@ -125,14 +125,14 @@ static void ideal_send_backlog_event(struct rtmp_stream *stream,
 				     stream->write_buf_size);
 			}
 		} else {
-			blog(LOG_ERROR,
+			plog(LOG_ERROR,
 			     "socket_thread_windows: Got "
 			     "send_backlog_event but "
 			     "getsockopt() returned %d",
 			     WSAGetLastError());
 		}
 	} else {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "socket_thread_windows: Got "
 		     "send_backlog_event but WSAIoctl() "
 		     "returned %d",
@@ -156,7 +156,7 @@ static enum data_ret write_data(struct rtmp_stream *stream, bool *can_write,
 		 * it's filled in a previous loop cycle, especially if using
 		 * low latency mode. */
 		pthread_mutex_unlock(&stream->write_buf_mutex);
-		/* blog(LOG_DEBUG, "socket_thread_windows: Trying to send, "
+		/* plog(LOG_DEBUG, "socket_thread_windows: Trying to send, "
 				"but no data available"); */
 		return RET_BREAK;
 	}
@@ -206,7 +206,7 @@ static enum data_ret write_data(struct rtmp_stream *stream, bool *can_write,
 		if (fatal_err) {
 			/* connection closed, or connection was aborted /
 			 * socket closed / etc, that's a fatal error. */
-			blog(LOG_ERROR,
+			plog(LOG_ERROR,
 			     "socket_thread_windows: "
 			     "Socket error, send() returned %d, "
 			     "GetLastError() %d",
@@ -268,7 +268,7 @@ static inline void socket_thread_windows_internal(struct rtmp_stream *stream)
 		idealsendbacklognotify(stream->rtmp.m_sb.sb_socket,
 				       &send_backlog_overlapped, NULL);
 	} else {
-		blog(LOG_INFO, "socket_thread_windows: Send window "
+		plog(LOG_INFO, "socket_thread_windows: Send window "
 			       "optimization disabled by user.");
 	}
 
@@ -282,7 +282,7 @@ static inline void socket_thread_windows_internal(struct rtmp_stream *stream)
 		if (os_event_try(stream->send_thread_signaled_exit) != EAGAIN) {
 			pthread_mutex_lock(&stream->write_buf_mutex);
 			if (stream->write_buf_len == 0) {
-				//blog(LOG_DEBUG, "Exiting on empty buffer");
+				//plog(LOG_DEBUG, "Exiting on empty buffer");
 				pthread_mutex_unlock(&stream->write_buf_mutex);
 				os_event_reset(
 					stream->send_thread_signaled_exit);
@@ -294,7 +294,7 @@ static inline void socket_thread_windows_internal(struct rtmp_stream *stream)
 
 		int status = WaitForMultipleObjects(3, objs, false, INFINITE);
 		if (status == WAIT_ABANDONED || status == WAIT_FAILED) {
-			blog(LOG_ERROR, "socket_thread_windows: Aborting due "
+			plog(LOG_ERROR, "socket_thread_windows: Aborting due "
 					"to WaitForMultipleObjects failure");
 			fatal_sock_shutdown(stream);
 			return;
@@ -337,11 +337,14 @@ static inline void socket_thread_windows_internal(struct rtmp_stream *stream)
 		WSAEventSelect(stream->rtmp.m_sb.sb_socket,
 			       stream->socket_available_event, 0);
 
-	blog(LOG_INFO, "socket_thread_windows: Normal exit");
+	plog(LOG_INFO, "socket_thread_windows: Normal exit");
 }
 
 void *socket_thread_windows(void *data)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct rtmp_stream *stream = data;
 	socket_thread_windows_internal(stream);
 	return NULL;

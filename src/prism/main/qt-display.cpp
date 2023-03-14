@@ -15,6 +15,7 @@
 #include "liblog.h"
 #include "log/module_names.h"
 #include <algorithm>
+#include "log/log.h"
 
 static inline long long color_to_int(const QColor &color)
 {
@@ -38,16 +39,16 @@ static QWidget *getDock(PLSQTDisplay *display)
 	return nullptr;
 }
 
-void PLSQTDisplay::OnSourceCaptureState(void *data, calldata_t *calldata)
+void PLSQTDisplay::OnSourceCaptureState(void *data, calldata_t *)
 {
 	QMetaObject::invokeMethod(static_cast<PLSQTDisplay *>(data), "OnSourceStateChanged");
 }
 
 PLSQTDisplay::PLSQTDisplay(QWidget *parent, Qt::WindowFlags flags, PLSDpiHelper dpiHelper) : QWidget(parent, flags)
 {
-	PLS_INFO(DISPLAY_MODULE, "[%p] display is created", this);
+	PLS_INIT_INFO(DISPLAY_MODULE, "[%p] display is created", this);
 
-	dpiHelper.setCss(this, {PLSCssIndex::PLSQTDisplay});
+	dpiHelper.setCss(this, {PLSCssIndex::PLSQTDisplay, PLSCssIndex::QMenu});
 
 	setAttribute(Qt::WA_PaintOnScreen);
 	setAttribute(Qt::WA_StaticContents);
@@ -75,6 +76,11 @@ PLSQTDisplay::PLSQTDisplay(QWidget *parent, Qt::WindowFlags flags, PLSDpiHelper 
 
 	connect(windowHandle(), &QWindow::visibleChanged, windowVisible);
 	connect(windowHandle(), &QWindow::screenChanged, sizeChanged);
+	dpiHelper.notifyDpiChanged(this, [=](double dpi, double oldDpi, bool /*firstShow*/) {
+		if (dpi == oldDpi)
+			return;
+		resizeManual();
+	});
 
 	displayText = new QLabel(this);
 	displayText->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -99,18 +105,23 @@ PLSQTDisplay::PLSQTDisplay(QWidget *parent, Qt::WindowFlags flags, PLSDpiHelper 
 	layout->addWidget(displayText);
 	layout->addWidget(resizeScreen);
 
-	if (QWidget *dock = getDock(this)) {
-		connect(dock, SIGNAL(beginResizeSignal()), this, SLOT(beginResizeSlot()));
-		connect(dock, SIGNAL(endResizeSignal()), this, SLOT(endResizeSlot()));
-		connect(dock, SIGNAL(visibleSignal(bool)), this, SLOT(visibleSlot(bool)), Qt::QueuedConnection);
-	} else {
-		QWidget *toplevelView = pls_get_toplevel_view(this);
-		connect(toplevelView, SIGNAL(beginResizeSignal()), this, SLOT(beginResizeSlot()));
-		connect(toplevelView, SIGNAL(endResizeSignal()), this, SLOT(endResizeSlot()));
-		connect(toplevelView, SIGNAL(visibleSignal(bool)), this, SLOT(visibleSlot(bool)), Qt::QueuedConnection);
-	}
-
 	resizeScreen->installEventFilter(this);
+
+	QMetaObject::invokeMethod(
+		this,
+		[this]() {
+			if (QWidget *dock = getDock(this)) {
+				connect(dock, SIGNAL(beginResizeSignal()), this, SLOT(beginResizeSlot()));
+				connect(dock, SIGNAL(endResizeSignal()), this, SLOT(endResizeSlot()));
+				connect(dock, SIGNAL(visibleSignal(bool)), this, SLOT(visibleSlot(bool)), Qt::QueuedConnection);
+			} else {
+				QWidget *toplevelView = pls_get_toplevel_view(this);
+				connect(toplevelView, SIGNAL(beginResizeSignal()), this, SLOT(beginResizeSlot()));
+				connect(toplevelView, SIGNAL(endResizeSignal()), this, SLOT(endResizeSlot()));
+				connect(toplevelView, SIGNAL(visibleSignal(bool)), this, SLOT(visibleSlot(bool)), Qt::QueuedConnection);
+			}
+		},
+		Qt::QueuedConnection);
 }
 
 PLSQTDisplay::~PLSQTDisplay()
@@ -140,20 +151,24 @@ void PLSQTDisplay::UpdateDisplayBackgroundColor()
 
 void PLSQTDisplay::CreateDisplay()
 {
-	if (display || !windowHandle()->isExposed())
+	if (display || (!windowHandle()->isExposed() && !createImmediately) || obs_get_source_is_loading())
 		return;
 
 	QSize size = GetPixelSize(this);
 
 	gs_init_data info = {};
-	info.cx = size.width();
-	info.cy = size.height();
+	double dpi = PLSDpiHelper::getDpi(this);
+	info.cx = createImmediately ? PLSDpiHelper::calculate(dpi, SCENE_DISPLAY_DEFAULT_WIDTH) : size.width();
+	info.cy = createImmediately ? PLSDpiHelper::calculate(dpi, SCENE_DISPLAY_DEFAULT_HEIGHT) : size.height();
 	info.format = GS_BGRA;
 	info.zsformat = GS_ZS_NONE;
 
 	QTToGSWindow(winId(), info.window);
 
 	display = obs_display_create(&info, backgroundColor);
+
+	if (!display)
+		return;
 
 	emit DisplayCreated(this);
 }
@@ -217,6 +232,15 @@ void PLSQTDisplay::paintEvent(QPaintEvent *event)
 void PLSQTDisplay::resizeManual()
 {
 	if (!display) {
+		return;
+	}
+
+	// scene display used fixed width height
+	if (createImmediately) {
+		double dpi = PLSDpiHelper::getDpi(this);
+		int width = PLSDpiHelper::calculate(dpi, SCENE_DISPLAY_DEFAULT_WIDTH);
+		int height = PLSDpiHelper::calculate(dpi, SCENE_DISPLAY_DEFAULT_HEIGHT);
+		obs_display_resize(display, width, height);
 		return;
 	}
 	QSize size = GetPixelSize(this);
@@ -303,6 +327,11 @@ void PLSQTDisplay::setDisplayTextVisible(bool visible)
 	if (!displayTextAsGuide) {
 		displayText->setVisible(visible);
 	}
+}
+
+void PLSQTDisplay::SetCreateImmediately(bool create)
+{
+	createImmediately = create;
 }
 
 void PLSQTDisplay::visibleSlot(bool visible)

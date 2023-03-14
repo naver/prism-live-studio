@@ -1,4 +1,5 @@
 #include "captions-handler.hpp"
+#include "log/log.h"
 
 captions_handler::captions_handler(captions_cb callback, enum audio_format format, uint32_t sample_rate) : cb(callback)
 {
@@ -21,7 +22,7 @@ try {
 	return true;
 
 } catch (std::string text) {
-	blog(LOG_WARNING, "%s: %s", __FUNCTION__, text.c_str());
+	PLS_WARN(FRONTEND_TOOLS_CAPTIONS, "%s: %s", __FUNCTION__, text.c_str());
 	return false;
 }
 

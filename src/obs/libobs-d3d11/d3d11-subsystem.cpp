@@ -33,6 +33,21 @@ struct UnsupportedHWError : HRError {
 	}
 };
 
+//PRISM/Wang.Chuanjing/20200219/#NoIssue/for dx version check
+struct UnsupportedDeviceError : HRError {
+	inline UnsupportedDeviceError(const char *str, HRESULT hr)
+		: HRError(str, hr)
+	{
+	}
+};
+
+//PRISM/Wang.Chuanjing/20210415/#NoIssue/for test module
+struct InvalidParamError : HRError {
+	inline InvalidParamError(const char *str, HRESULT hr) : HRError(str, hr)
+	{
+	}
+};
+
 #ifdef _MSC_VER
 /* alignment warning - despite the fact that alignment is already fixed */
 #pragma warning(disable : 4316)
@@ -40,10 +55,14 @@ struct UnsupportedHWError : HRError {
 
 static inline void LogD3D11ErrorDetails(HRError error, gs_device_t *device)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	if (error.hr == DXGI_ERROR_DEVICE_REMOVED) {
 		HRESULT DeviceRemovedReason =
 			device->device->GetDeviceRemovedReason();
-		blog(LOG_ERROR, "  Device Removed Reason: %08lX",
+		plog(LOG_ERROR, "  Device Removed Reason: %08lX",
 		     DeviceRemovedReason);
 	}
 }
@@ -88,6 +107,10 @@ static inline void make_swap_desc(DXGI_SWAP_CHAIN_DESC &desc,
 
 void gs_swap_chain::InitTarget(uint32_t cx, uint32_t cy)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	HRESULT hr;
 
 	target.width = cx;
@@ -119,6 +142,10 @@ void gs_swap_chain::InitZStencilBuffer(uint32_t cx, uint32_t cy)
 
 void gs_swap_chain::Resize(uint32_t cx, uint32_t cy)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	RECT clientRect;
 	HRESULT hr;
 
@@ -172,6 +199,10 @@ gs_swap_chain::gs_swap_chain(gs_device *device, const gs_init_data *data)
 	  hwnd((HWND)data->window.hwnd),
 	  initData(*data)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	HRESULT hr;
 
 	make_swap_desc(swapDesc, data);
@@ -218,6 +249,23 @@ void gs_device::InitCompiler()
 	      "DirectX components</a> that OBS Studio requires.";
 }
 
+//PRISM/LiuHaibin/20201201/#None/Get hardware info
+static void reset_adapters_info(gs_adapters_info *adaptersInfo)
+{
+	for (int i = 0; i < adaptersInfo->adapters.num; ++i) {
+		adapter_info info = adaptersInfo->adapters.array[i];
+		if (info.name)
+			bfree(info.name);
+		if (info.feature_level)
+			bfree(info.feature_level);
+		if (info.driver_version)
+			bfree(info.driver_version);
+		da_free(info.monitors);
+	}
+	da_free(adaptersInfo->adapters);
+	adaptersInfo->current_index = -1;
+}
+
 //PRISM/LiuHaibin/20200630/#3174/camera effect
 void gs_device::InitFactory(uint32_t &adapterIdx)
 {
@@ -230,6 +278,9 @@ void gs_device::InitFactory(uint32_t &adapterIdx)
 		throw UnsupportedHWError("Failed to create DXGIFactory", hr);
 
 	int index = 0;
+
+	//PRISM/LiuHaibin/20201201/#None/Get hardware info
+	reset_adapters_info(&adaptersInfo);
 
 	//PRISM/LiuHaibin/20200630/#3174/camera effect
 	while (factory->EnumAdapters1(index++, &adapter) == S_OK) {
@@ -246,55 +297,112 @@ void gs_device::InitFactory(uint32_t &adapterIdx)
 		BPtr<char> adapterNameUTF8;
 		os_wcs_to_utf8_ptr(adapterName.c_str(), 0, &adapterNameUTF8);
 
+		bool adapter_driver_normal = true;
 		/* ignore adapters that has wrong dedicated video memory size */
 		if (desc.DedicatedVideoMemory <= 1) {
-			blog(LOG_INFO,
-			     "Adapter %s (%" PRIu32
+			plog(LOG_WARNING,
+			     "[Abnormal] adapter %s (%" PRIu32
 			     "): dedicated video memory is smaller than 1: %llu",
 			     adapterNameUTF8.Get(), index - 1,
 			     desc.DedicatedVideoMemory);
-			continue;
+			adapter_driver_normal = false;
 		}
 
-		adapterIdx = index - 1;
+		//PRISM/LiuHaibin/20201201/#None/Get hardware info
+		adapter_info info = {0};
+		info.name = bstrdup(adapterNameUTF8.Get());
+		info.is_driver_normal = adapter_driver_normal;
+		info.index = index - 1;
+		info.vendor_id = desc.VendorId;
+		info.device_id = desc.DeviceId;
+		info.sub_system_id = desc.SubSysId;
+		info.revision = desc.Revision;
+		info.dedicated_vram = desc.DedicatedVideoMemory / 1024 / 1024;
+		info.shared_vram = desc.SharedSystemMemory / 1024 / 1024;
+		info.luid.low_part = desc.AdapterLuid.LowPart;
+		info.luid.high_part = desc.AdapterLuid.HighPart;
+		memmove(info.description, desc.Description,
+			sizeof(desc.Description));
+		LARGE_INTEGER umd_version;
+		hr = adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice),
+						    &umd_version);
+		if (SUCCEEDED(hr)) {
+			char tmp[128] = {0};
+			sprintf(tmp, "%d.%d.%d.%d",
+				HIWORD(umd_version.HighPart),
+				LOWORD(umd_version.HighPart),
+				HIWORD(umd_version.LowPart),
+				LOWORD(umd_version.LowPart));
+			info.driver_version = bstrdup(tmp);
+		} else {
+			plog(LOG_WARNING,
+			     "Unable to retrieve the umd version of adapter %s, hr 0x%x",
+			     info.name, hr);
+			info.driver_version = bstrdup("Unknown driver version");
+		}
 
-		blog(LOG_INFO, "Building D3D11 on adapter %s (%" PRIu32 ")",
-		     adapterNameUTF8.Get(), adapterIdx);
-		break;
+		ComPtr<IDXGIOutput> output;
+		for (int i = 0; adapter->EnumOutputs(i, &output) == S_OK; ++i) {
+			DXGI_OUTPUT_DESC desc;
+			if (FAILED(output->GetDesc(&desc)))
+				continue;
+
+			gs_monitor_info monitor_info = {0};
+			switch (desc.Rotation) {
+			case DXGI_MODE_ROTATION_UNSPECIFIED:
+			case DXGI_MODE_ROTATION_IDENTITY:
+				monitor_info.rotation_degrees = 0;
+				break;
+
+			case DXGI_MODE_ROTATION_ROTATE90:
+				monitor_info.rotation_degrees = 90;
+				break;
+
+			case DXGI_MODE_ROTATION_ROTATE180:
+				monitor_info.rotation_degrees = 180;
+				break;
+
+			case DXGI_MODE_ROTATION_ROTATE270:
+				monitor_info.rotation_degrees = 270;
+				break;
+			}
+
+			RECT rect = desc.DesktopCoordinates;
+			monitor_info.x = desc.DesktopCoordinates.left;
+			monitor_info.y = desc.DesktopCoordinates.top;
+			monitor_info.cx =
+				desc.DesktopCoordinates.right - monitor_info.x;
+			monitor_info.cy =
+				desc.DesktopCoordinates.bottom - monitor_info.y;
+			da_push_back(info.monitors, &monitor_info);
+		}
+
+		if (adaptersInfo.current_index < 0 && adapter_driver_normal) {
+			adaptersInfo.current_index = adapterIdx = index - 1;
+			adapterLuid.low_part = desc.AdapterLuid.LowPart;
+			adapterLuid.high_part = desc.AdapterLuid.HighPart;
+			plog(LOG_INFO,
+			     "Building D3D11 on adapter %s (%" PRIu32
+			     "), with LUID: LowPart %lu, HighPart %ld, driver version %s.",
+			     adapterNameUTF8.Get(), adapterIdx,
+			     desc.AdapterLuid.LowPart,
+			     desc.AdapterLuid.HighPart, info.driver_version);
+		}
+		da_push_back(adaptersInfo.adapters, &info);
 	}
 
 	hr = factory->EnumAdapters1(adapterIdx, &adapter);
-	if (FAILED(hr))
+	if (FAILED(hr)) {
+		plog(LOG_WARNING,
+		     "Failed to enumerate DXGIAdapter, error code: %08lX", hr);
 		throw UnsupportedHWError("Failed to enumerate DXGIAdapter", hr);
-
-	//PRISM/Liu.Haibin/20200708/#3296/for adapter check
-	memset(&adapterLuid, 0, sizeof(adapterLuid));
-	DXGI_ADAPTER_DESC desc;
-	hr = adapter->GetDesc(&desc);
-	if (FAILED(hr))
-		blog(LOG_WARNING,
-		     "Failed to get adapter (index %d) LUID, err %ld",
-		     adapterIdx, hr);
-	else {
-		wstring adapterName = desc.Description;
-		BPtr<char> adapterNameUTF8;
-		os_wcs_to_utf8_ptr(adapterName.c_str(), 0, &adapterNameUTF8);
-
-		blog(LOG_INFO,
-		     "LUID for adapter %s (%" PRIu32
-		     "): LowPart %lu, HighPart %ld.",
-		     adapterNameUTF8.Get(), adapterIdx,
-		     desc.AdapterLuid.LowPart, desc.AdapterLuid.HighPart);
-		adapterLuid.low_part = desc.AdapterLuid.LowPart;
-		adapterLuid.high_part = desc.AdapterLuid.HighPart;
 	}
 }
 
 const static D3D_FEATURE_LEVEL featureLevels[] = {
-	D3D_FEATURE_LEVEL_11_0,
-	D3D_FEATURE_LEVEL_10_1,
-	D3D_FEATURE_LEVEL_10_0,
-	D3D_FEATURE_LEVEL_9_3,
+	D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1,
+	D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_9_3,
+	D3D_FEATURE_LEVEL_9_1, //PRISM/Wang.Chuanjing/20200219/#NoIssue/for dx version check
 };
 
 /* ------------------------------------------------------------------------- */
@@ -335,6 +443,10 @@ VertInOut main(VertInOut vert_in) \
 
 bool gs_device::HasBadNV12Output()
 try {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device_valid)
+		throw "Device invalid";
+
 	vec3 points[4];
 	vec3_set(&points[0], -1.0f, -1.0f, 0.0f);
 	vec3_set(&points[1], -1.0f, 1.0f, 0.0f);
@@ -367,26 +479,36 @@ try {
 	device_enable_depth_test(this, false);
 	device_enable_blending(this, false);
 	LoadVertexBufferData();
+	plog(LOG_INFO, "NV12 Check: load vertex buffer data success");
 
 	device_set_render_target(this, &nv12_y, nullptr);
+	plog(LOG_INFO, "NV12 Check: set nv12_y render target success");
 	device_load_pixelshader(this, &nv12_y_ps);
+	plog(LOG_INFO, "NV12 Check: load nv12_y pixelshader success");
 	UpdateBlendState();
 	UpdateRasterState();
 	UpdateZStencilState();
+	plog(LOG_INFO, "NV12 Check: set nv12_y_ps render params success");
 	context->Draw(4, 0);
+	plog(LOG_INFO, "NV12 Check: nv12_y draw success");
 
 	device_set_viewport(this, 0, 0, NV12_CX / 2, NV12_CY / 2);
 	device_set_render_target(this, &nv12_uv, nullptr);
+	plog(LOG_INFO, "NV12 Check: set nv12_uv render target success");
 	device_load_pixelshader(this, &nv12_uv_ps);
+	plog(LOG_INFO, "NV12 Check: load nv12_uv pixelshader success");
 	UpdateBlendState();
 	UpdateRasterState();
 	UpdateZStencilState();
+	plog(LOG_INFO, "NV12 Check: set nv12_uv_ps render params success");
 	context->Draw(4, 0);
+	plog(LOG_INFO, "NV12 Check: nv12_uv draw success");
 
 	device_load_pixelshader(this, nullptr);
 	device_load_vertexbuffer(this, nullptr);
 	device_load_vertexshader(this, nullptr);
 	device_set_render_target(this, nullptr, nullptr);
+	plog(LOG_INFO, "NV12 Check: reset params success");
 
 	device_stage_texture(this, &nv12_stage, &nv12_y);
 
@@ -402,17 +524,17 @@ try {
 	}
 
 	if (bad_driver) {
-		blog(LOG_WARNING, "Bad NV12 texture handling detected!  "
+		plog(LOG_WARNING, "Bad NV12 texture handling detected!  "
 				  "Disabling NV12 texture support.");
 	}
 	return bad_driver;
 
 } catch (const HRError &error) {
-	blog(LOG_WARNING, "HasBadNV12Output failed: %s (%08lX)", error.str,
+	plog(LOG_WARNING, "HasBadNV12Output failed: %s (%08lX)", error.str,
 	     error.hr);
 	return false;
 } catch (const char *error) {
-	blog(LOG_WARNING, "HasBadNV12Output failed: %s", error);
+	plog(LOG_WARNING, "HasBadNV12Output failed: %s", error);
 	return false;
 }
 
@@ -430,13 +552,13 @@ static bool set_priority(ID3D11Device *device)
 
 	ComQIPtr<IDXGIDevice> dxgiDevice(device);
 	if (!dxgiDevice) {
-		blog(LOG_DEBUG, "%s: Failed to get IDXGIDevice", __FUNCTION__);
+		plog(LOG_DEBUG, "%s: Failed to get IDXGIDevice", __FUNCTION__);
 		return false;
 	}
 
 	HMODULE gdi32 = GetModuleHandleW(L"GDI32");
 	if (!gdi32) {
-		blog(LOG_DEBUG, "%s: Failed to get GDI32", __FUNCTION__);
+		plog(LOG_DEBUG, "%s: Failed to get GDI32", __FUNCTION__);
 		return false;
 	}
 
@@ -444,26 +566,26 @@ static bool set_priority(ID3D11Device *device)
 	d3dkmt_spspc = (decltype(d3dkmt_spspc))GetProcAddress(
 		gdi32, "D3DKMTSetProcessSchedulingPriorityClass");
 	if (!d3dkmt_spspc) {
-		blog(LOG_DEBUG, "%s: Failed to get d3dkmt_spspc", __FUNCTION__);
+		plog(LOG_DEBUG, "%s: Failed to get d3dkmt_spspc", __FUNCTION__);
 		return false;
 	}
 
 	NTSTATUS status = d3dkmt_spspc(GetCurrentProcess(),
 				       D3DKMT_SCHEDULINGPRIORITYCLASS_REALTIME);
 	if (status != 0) {
-		blog(LOG_DEBUG, "%s: Failed to set process priority class: %d",
+		plog(LOG_DEBUG, "%s: Failed to set process priority class: %d",
 		     __FUNCTION__, (int)status);
 		return false;
 	}
 
 	HRESULT hr = dxgiDevice->SetGPUThreadPriority(GPU_PRIORITY_VAL);
 	if (FAILED(hr)) {
-		blog(LOG_DEBUG, "%s: SetGPUThreadPriority failed",
+		plog(LOG_DEBUG, "%s: SetGPUThreadPriority failed",
 		     __FUNCTION__);
 		return false;
 	}
 
-	blog(LOG_INFO, "D3D11 GPU priority setup success");
+	plog(LOG_INFO, "D3D11 GPU priority setup success");
 	return true;
 }
 
@@ -473,12 +595,43 @@ static bool is_intel(const wstring &name)
 }
 #endif
 
+//PRISM/Liu.Haibin/20210207/#None/Save feature level
+static const char *FeatureLevelString(D3D_FEATURE_LEVEL level)
+{
+	switch (level) {
+	case D3D_FEATURE_LEVEL_1_0_CORE:
+		return "1_0_core";
+	case D3D_FEATURE_LEVEL_9_1:
+		return "9_1";
+	case D3D_FEATURE_LEVEL_9_2:
+		return "9_2";
+	case D3D_FEATURE_LEVEL_9_3:
+		return "9_3";
+	case D3D_FEATURE_LEVEL_10_0:
+		return "10_0";
+	case D3D_FEATURE_LEVEL_10_1:
+		return "10_1";
+	case D3D_FEATURE_LEVEL_11_0:
+		return "11_0";
+	case D3D_FEATURE_LEVEL_11_1:
+		return "11_1";
+	case D3D_FEATURE_LEVEL_12_0:
+		return "12_0";
+	case D3D_FEATURE_LEVEL_12_1:
+		return "12_1";
+	default:
+		break;
+	}
+	return "Unknown";
+}
+
 void gs_device::InitDevice(uint32_t adapterIdx)
 {
 	wstring adapterName;
 	DXGI_ADAPTER_DESC desc;
 	D3D_FEATURE_LEVEL levelUsed = D3D_FEATURE_LEVEL_9_3;
 	HRESULT hr = 0;
+	support_dx11 = false;
 
 	adpIdx = adapterIdx;
 
@@ -492,7 +645,7 @@ void gs_device::InitDevice(uint32_t adapterIdx)
 
 	BPtr<char> adapterNameUTF8;
 	os_wcs_to_utf8_ptr(adapterName.c_str(), 0, &adapterNameUTF8);
-	blog(LOG_INFO, "Loading up D3D11 on adapter %s (%" PRIu32 ")",
+	plog(LOG_INFO, "Loading up D3D11 on adapter %s (%" PRIu32 ")",
 	     adapterNameUTF8.Get(), adapterIdx);
 
 	hr = D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL,
@@ -504,6 +657,11 @@ void gs_device::InitDevice(uint32_t adapterIdx)
 	if (FAILED(hr))
 		throw UnsupportedHWError("Failed to create device", hr);
 
+	//PRISM/Wang.Chuanjing/20200219/#NoIssue/for dx version check
+	if (levelUsed < D3D_FEATURE_LEVEL_9_3) {
+		throw UnsupportedDeviceError("Failed to create device", 0);
+	}
+
 	//PRISM/Liu.Haibin/20200413/#None/for resolution limitation
 	if (levelUsed == D3D_FEATURE_LEVEL_11_0 ||
 	    levelUsed == D3D_FEATURE_LEVEL_11_1) {
@@ -512,14 +670,32 @@ void gs_device::InitDevice(uint32_t adapterIdx)
 		maxTextureSize = D3D10_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 	}
 
-	blog(LOG_INFO,
-	     "D3D11 loaded successfully, feature level used: %x, max texture size: %llu",
-	     (unsigned int)levelUsed, maxTextureSize);
+	support_dx11 = levelUsed >= D3D_FEATURE_LEVEL_11_0;
+
+	//PRISM/Liu.Haibin/20210207/#None/Save feature level
+	for (int i = 0; i < adaptersInfo.adapters.num; i++) {
+		if (adaptersInfo.adapters.array[i].index == adapterIdx) {
+			adaptersInfo.adapters.array[i].feature_level =
+				bstrdup(FeatureLevelString(levelUsed));
+			break;
+		}
+	}
+	// save current index
+	if (adaptersInfo.current_index != adapterIdx)
+		adaptersInfo.current_index = adapterIdx;
+
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	device_valid = true;
+
+	plog(LOG_INFO,
+	     "D3D11 loaded successfully, feature level used: %s(%x), max texture size: %llu",
+	     FeatureLevelString(levelUsed), (unsigned int)levelUsed,
+	     maxTextureSize);
 
 	/* adjust gpu thread priority */
 #if USE_GPU_PRIORITY
 	if (!is_intel(adapterName) && !set_priority(device)) {
-		blog(LOG_INFO, "D3D11 GPU priority setup "
+		plog(LOG_INFO, "D3D11 GPU priority setup "
 			       "failed (not admin?)");
 	}
 #endif
@@ -556,15 +732,18 @@ void gs_device::InitDevice(uint32_t adapterIdx)
 	UINT support = 0;
 	hr = device->CheckFormatSupport(DXGI_FORMAT_NV12, &support);
 	if (FAILED(hr)) {
+		plog(LOG_INFO, "Device CheckFormatSupport invalid");
 		return;
 	}
 
 	if ((support & D3D11_FORMAT_SUPPORT_TEXTURE2D) == 0) {
+		plog(LOG_INFO, "Device do not support nv12 2d-texture");
 		return;
 	}
 
 	/* must be usable as a render target */
 	if ((support & D3D11_FORMAT_SUPPORT_RENDER_TARGET) == 0) {
+		plog(LOG_INFO, "Device do not support nv12 target");
 		return;
 	}
 
@@ -573,6 +752,62 @@ void gs_device::InitDevice(uint32_t adapterIdx)
 	}
 
 	nv12Supported = true;
+}
+
+//PRISM/Wang.Chuanjing/20200414/#NoIssue/for test module
+void gs_device::InitDeviceForTest(uint32_t adapterIdx,
+				  gs_engine_test_type test_type)
+{
+	wstring adapterName;
+	DXGI_ADAPTER_DESC desc;
+	D3D_FEATURE_LEVEL levelUsed = D3D_FEATURE_LEVEL_9_3;
+	HRESULT hr = 0;
+	support_dx11 = false;
+
+	adpIdx = adapterIdx;
+
+	uint32_t createFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+#ifdef _DEBUG
+	//createFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+	adapterName = (adapter->GetDesc(&desc) == S_OK) ? desc.Description
+							: L"<unknown>";
+
+	BPtr<char> adapterNameUTF8;
+	os_wcs_to_utf8_ptr(adapterName.c_str(), 0, &adapterNameUTF8);
+	plog(LOG_INFO, "Loading up D3D11 on adapter %s (%" PRIu32 ")",
+	     adapterNameUTF8.Get(), adapterIdx);
+
+	D3D_DRIVER_TYPE d_type = D3D_DRIVER_TYPE_UNKNOWN;
+	if (test_type == GS_E_TEST_INIT_INVALID_PARAM ||
+	    test_type == GS_E_TEST_INIT_FAILED) {
+		d_type = D3D_DRIVER_TYPE_HARDWARE;
+	}
+
+	hr = D3D11CreateDevice(
+		adapter, d_type, NULL, createFlags, featureLevels,
+		sizeof(featureLevels) / sizeof(D3D_FEATURE_LEVEL),
+		D3D11_SDK_VERSION, device.Assign(), &levelUsed,
+		context.Assign());
+	if (FAILED(hr) && test_type == GS_E_TEST_INIT_INVALID_PARAM) {
+		throw InvalidParamError("Failed to create device", hr);
+	} else if (FAILED(hr)) {
+		throw UnsupportedHWError("Failed to create device", hr);
+	}
+
+	if (test_type == GS_E_TEST_NOT_SUPPORT_VERSION) {
+		levelUsed = D3D_FEATURE_LEVEL_9_1;
+	}
+	//PRISM/Wang.Chuanjing/20200219/#NoIssue/for dx version check
+	if (levelUsed < D3D_FEATURE_LEVEL_9_3) {
+		throw UnsupportedDeviceError("Failed to create device", 0);
+	}
+
+	plog(LOG_INFO,
+	     "D3D11 loaded successfully, feature level used: %s(%x), max texture size: %llu",
+	     FeatureLevelString(levelUsed), (unsigned int)levelUsed,
+	     maxTextureSize);
 }
 
 //PRISM/Liu.Haibin/20200413/#None/for resolution limitation
@@ -592,6 +827,12 @@ bool gs_device::GetAdapterLuid(struct gs_luid *luid)
 	return false;
 }
 
+//PRISM/LiuHaibin/20201201/#None/Get hardware info
+gs_adapters_info_t *gs_device::GetAdaptersInfo()
+{
+	return &adaptersInfo;
+}
+
 static inline void ConvertStencilSide(D3D11_DEPTH_STENCILOP_DESC &desc,
 				      const StencilSide &side)
 {
@@ -603,6 +844,10 @@ static inline void ConvertStencilSide(D3D11_DEPTH_STENCILOP_DESC &desc,
 
 ID3D11DepthStencilState *gs_device::AddZStencilState()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device_valid)
+		throw "Device invalid";
+
 	HRESULT hr;
 	D3D11_DEPTH_STENCIL_DESC dsd;
 	ID3D11DepthStencilState *state;
@@ -633,6 +878,10 @@ ID3D11DepthStencilState *gs_device::AddZStencilState()
 
 ID3D11RasterizerState *gs_device::AddRasterState()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device_valid)
+		throw "Device invalid";
+
 	HRESULT hr;
 	D3D11_RASTERIZER_DESC rd;
 	ID3D11RasterizerState *state;
@@ -658,6 +907,10 @@ ID3D11RasterizerState *gs_device::AddRasterState()
 
 ID3D11BlendState *gs_device::AddBlendState()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device_valid)
+		throw "Device invalid";
+
 	HRESULT hr;
 	D3D11_BLEND_DESC bd;
 	ID3D11BlendState *state;
@@ -701,6 +954,10 @@ ID3D11BlendState *gs_device::AddBlendState()
 
 void gs_device::UpdateZStencilState()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device_valid)
+		return;
+
 	ID3D11DepthStencilState *state = NULL;
 
 	if (!zstencilStateChanged)
@@ -727,6 +984,10 @@ void gs_device::UpdateZStencilState()
 
 void gs_device::UpdateRasterState()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device_valid)
+		return;
+
 	ID3D11RasterizerState *state = NULL;
 
 	if (!rasterStateChanged)
@@ -753,6 +1014,10 @@ void gs_device::UpdateRasterState()
 
 void gs_device::UpdateBlendState()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device_valid)
+		return;
+
 	ID3D11BlendState *state = NULL;
 
 	if (!blendStateChanged)
@@ -813,11 +1078,43 @@ gs_device::gs_device(uint32_t adapterIdx)
 	InitCompiler();
 	InitFactory(adapterIdx);
 	InitDevice(adapterIdx);
+
+	device_set_render_target(this, NULL, NULL);
+}
+
+//PRISM/Wang.Chuanjing/20210415/#NoIssue/for test module
+gs_device::gs_device(uint32_t adapterIdx, gs_engine_test_type test_type)
+	: curToplogy(D3D11_PRIMITIVE_TOPOLOGY_UNDEFINED)
+{
+	matrix4_identity(&curProjMatrix);
+	matrix4_identity(&curViewMatrix);
+	matrix4_identity(&curViewProjMatrix);
+
+	memset(&viewport, 0, sizeof(viewport));
+
+	for (size_t i = 0; i < GS_MAX_TEXTURES; i++) {
+		curTextures[i] = NULL;
+		curSamplers[i] = NULL;
+	}
+
+	InitCompiler();
+	InitFactory(adapterIdx);
+	InitDeviceForTest(adapterIdx, test_type);
+
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	device_valid = true;
 	device_set_render_target(this, NULL, NULL);
 }
 
 gs_device::~gs_device()
 {
+	//PRISM/LiuHaibin/20201201/#None/Get hardware info
+	reset_adapters_info(&adaptersInfo);
+
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device_valid) {
+		return;
+	}
 	context->ClearState();
 }
 
@@ -879,7 +1176,7 @@ bool device_enum_adapters(bool (*callback)(void *param, const char *name,
 		return true;
 
 	} catch (const HRError &error) {
-		blog(LOG_WARNING, "Failed enumerating devices: %s (%08lX)",
+		plog(LOG_WARNING, "Failed enumerating devices: %s (%08lX)",
 		     error.str, error.hr);
 		return false;
 	}
@@ -896,7 +1193,7 @@ static inline void LogAdapterMonitors(IDXGIAdapter1 *adapter)
 			continue;
 
 		RECT rect = desc.DesktopCoordinates;
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "\t  output %u: "
 		     "pos={%d, %d}, "
 		     "size={%d, %d}, "
@@ -914,7 +1211,7 @@ static inline void LogD3DAdapters()
 	HRESULT hr;
 	UINT i;
 
-	blog(LOG_INFO, "Available Video Adapters: ");
+	plog(LOG_INFO, "Available Video Adapters: ");
 
 	IID factoryIID = (GetWinVer() >= 0x602) ? dxgiFactory2
 						: __uuidof(IDXGIFactory1);
@@ -936,11 +1233,24 @@ static inline void LogD3DAdapters()
 			continue;
 
 		os_wcs_to_utf8(desc.Description, 0, name, sizeof(name));
-		blog(LOG_INFO, "\tAdapter %u: %s", i, name);
-		blog(LOG_INFO, "\t  Dedicated VRAM: %u",
+		plog(LOG_INFO, "\tAdapter %u: %s", i, name);
+		plog(LOG_INFO, "\t  Dedicated VRAM: %u",
 		     desc.DedicatedVideoMemory);
-		blog(LOG_INFO, "\t  Shared VRAM:    %u",
+		plog(LOG_INFO, "\t  Shared VRAM:    %u",
 		     desc.SharedSystemMemory);
+
+		LARGE_INTEGER umd_version;
+		hr = adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice),
+						    &umd_version);
+		if (SUCCEEDED(hr)) {
+			char tmp[128] = {0};
+			sprintf(tmp, "%d.%d.%d.%d",
+				HIWORD(umd_version.HighPart),
+				LOWORD(umd_version.HighPart),
+				HIWORD(umd_version.LowPart),
+				LOWORD(umd_version.LowPart));
+			plog(LOG_INFO, "\t  Driver Version: %s", tmp);
+		}
 
 		LogAdapterMonitors(adapter);
 	}
@@ -948,26 +1258,30 @@ static inline void LogD3DAdapters()
 
 //PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild, add callback
 int device_create(gs_device_t **p_device, uint32_t adapter,
-		  void (*callback)(bool render_working))
+		  void (*callback)(int type, int code, void *ext_param))
 {
 	gs_device *device = NULL;
 	int errorcode = GS_SUCCESS;
 
 	try {
-		blog(LOG_INFO, "Initializing D3D11...");
+		plog(LOG_INFO, "Initializing D3D11...");
 		LogD3DAdapters();
 
 		device = new gs_device(adapter);
 		if (device)
-			device->render_working_cb = callback;
+			device->engine_notify_cb = callback;
 
 	} catch (const UnsupportedHWError &error) {
-		blog(LOG_ERROR, "device_create (D3D11): %s (%08lX)", error.str,
+		plog(LOG_ERROR, "device_create (D3D11): %s (%08lX)", error.str,
 		     error.hr);
 		errorcode = GS_ERROR_NOT_SUPPORTED;
-
+	} catch (const UnsupportedDeviceError &error) {
+		//PRISM/Wang.Chuanjing/20200219/#NoIssue/for dx version check
+		plog(LOG_ERROR, "device_create (D3D11): %s (%08lX)", error.str,
+		     error.hr);
+		errorcode = GS_ERROR_NOT_SUPPORTED_ENGINE_VERSION;
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "device_create (D3D11): %s (%08lX)", error.str,
+		plog(LOG_ERROR, "device_create (D3D11): %s (%08lX)", error.str,
 		     error.hr);
 		errorcode = GS_ERROR_FAIL;
 	}
@@ -1006,9 +1320,12 @@ gs_swapchain_t *device_swapchain_create(gs_device_t *device,
 	try {
 		swap = new gs_swap_chain(device, data);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "device_swapchain_create (D3D11): %s (%08lX)",
+		plog(LOG_ERROR, "device_swapchain_create (D3D11): %s (%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
+	} catch (const char *error) {
+		//PRISM/WangChuanjing/20211013/#9974/device valid check
+		plog(LOG_ERROR, "device_swapchain_create (D3D11): %s", error);
 	}
 
 	return swap;
@@ -1016,8 +1333,14 @@ gs_swapchain_t *device_swapchain_create(gs_device_t *device,
 
 void device_resize(gs_device_t *device, uint32_t cx, uint32_t cy)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid) {
+		plog(LOG_WARNING, "Device invalid");
+		return;
+	}
+
 	if (!device->curSwapChain) {
-		blog(LOG_WARNING, "device_resize (D3D11): No active swap");
+		plog(LOG_WARNING, "device_resize (D3D11): No active swap");
 		return;
 	}
 
@@ -1036,7 +1359,7 @@ void device_resize(gs_device_t *device, uint32_t cx, uint32_t cy)
 		device->context->OMSetRenderTargets(1, &renderView, depthView);
 
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "device_resize (D3D11): %s (%08lX)", error.str,
+		plog(LOG_ERROR, "device_resize (D3D11): %s (%08lX)", error.str,
 		     error.hr);
 		LogD3D11ErrorDetails(error, device);
 		//PRISM/Wang.Chuanjing/20200527/for device remove
@@ -1053,7 +1376,7 @@ void device_get_size(const gs_device_t *device, uint32_t *cx, uint32_t *cy)
 		*cx = device->curSwapChain->target.width;
 		*cy = device->curSwapChain->target.height;
 	} else {
-		blog(LOG_ERROR, "device_get_size (D3D11): no active swap");
+		plog(LOG_ERROR, "device_get_size (D3D11): no active swap");
 		*cx = 0;
 		*cy = 0;
 	}
@@ -1064,7 +1387,7 @@ uint32_t device_get_width(const gs_device_t *device)
 	if (device->curSwapChain) {
 		return device->curSwapChain->target.width;
 	} else {
-		blog(LOG_ERROR, "device_get_size (D3D11): no active swap");
+		plog(LOG_ERROR, "device_get_size (D3D11): no active swap");
 		return 0;
 	}
 }
@@ -1074,7 +1397,7 @@ uint32_t device_get_height(const gs_device_t *device)
 	if (device->curSwapChain) {
 		return device->curSwapChain->target.height;
 	} else {
-		blog(LOG_ERROR, "device_get_size (D3D11): no active swap");
+		plog(LOG_ERROR, "device_get_size (D3D11): no active swap");
 		return 0;
 	}
 }
@@ -1091,11 +1414,11 @@ gs_texture_t *device_texture_create(gs_device_t *device, uint32_t width,
 					    levels, data, flags, GS_TEXTURE_2D,
 					    false);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "device_texture_create (D3D11): %s (%08lX)",
+		plog(LOG_ERROR, "device_texture_create (D3D11): %s (%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
 	} catch (const char *error) {
-		blog(LOG_ERROR, "device_texture_create (D3D11): %s", error);
+		plog(LOG_ERROR, "device_texture_create (D3D11): %s", error);
 	}
 
 	return texture;
@@ -1112,13 +1435,13 @@ gs_texture_t *device_cubetexture_create(gs_device_t *device, uint32_t size,
 					    levels, data, flags,
 					    GS_TEXTURE_CUBE, false);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "device_cubetexture_create (D3D11): %s "
 		     "(%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
 	} catch (const char *error) {
-		blog(LOG_ERROR, "device_cubetexture_create (D3D11): %s", error);
+		plog(LOG_ERROR, "device_cubetexture_create (D3D11): %s", error);
 	}
 
 	return texture;
@@ -1151,9 +1474,12 @@ gs_zstencil_t *device_zstencil_create(gs_device_t *device, uint32_t width,
 		zstencil =
 			new gs_zstencil_buffer(device, width, height, format);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "device_zstencil_create (D3D11): %s (%08lX)",
+		plog(LOG_ERROR, "device_zstencil_create (D3D11): %s (%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
+	} catch (const char *error) {
+		//PRISM/WangChuanjing/20211013/#9974/device valid check
+		plog(LOG_ERROR, "device_zstencil_create (D3D11): %s", error);
 	}
 
 	return zstencil;
@@ -1168,11 +1494,15 @@ gs_stagesurf_t *device_stagesurface_create(gs_device_t *device, uint32_t width,
 		surf = new gs_stage_surface(device, width, height,
 					    color_format);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "device_stagesurface_create (D3D11): %s "
 		     "(%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
+	} catch (const char *error) {
+		//PRISM/WangChuanjing/20211013/#9974/device valid check
+		plog(LOG_ERROR, "device_stagesurface_create (D3D11): %s",
+		     error);
 	}
 
 	return surf;
@@ -1186,11 +1516,15 @@ device_samplerstate_create(gs_device_t *device,
 	try {
 		ss = new gs_sampler_state(device, info);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "device_samplerstate_create (D3D11): %s "
 		     "(%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
+	} catch (const char *error) {
+		//PRISM/WangChuanjing/20211013/#9974/device valid check
+		plog(LOG_ERROR, "device_samplerstate_create (D3D11): %s",
+		     error);
 	}
 
 	return ss;
@@ -1205,7 +1539,7 @@ gs_shader_t *device_vertexshader_create(gs_device_t *device,
 		shader = new gs_vertex_shader(device, file, shader_string);
 
 	} catch (const HRError &error) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "device_vertexshader_create (D3D11): %s "
 		     "(%08lX)",
 		     error.str, error.hr);
@@ -1216,13 +1550,15 @@ gs_shader_t *device_vertexshader_create(gs_device_t *device,
 			(const char *)error.errors->GetBufferPointer();
 		if (error_string)
 			*error_string = bstrdup(buf);
-		blog(LOG_ERROR,
+		char temp[256];
+		os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+		plog(LOG_ERROR,
 		     "device_vertexshader_create (D3D11): "
 		     "Compile warnings/errors for %s:\n%s",
-		     file, buf);
+		     temp, buf);
 
 	} catch (const char *error) {
-		blog(LOG_ERROR, "device_vertexshader_create (D3D11): %s",
+		plog(LOG_ERROR, "device_vertexshader_create (D3D11): %s",
 		     error);
 	}
 
@@ -1238,7 +1574,7 @@ gs_shader_t *device_pixelshader_create(gs_device_t *device,
 		shader = new gs_pixel_shader(device, file, shader_string);
 
 	} catch (const HRError &error) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "device_pixelshader_create (D3D11): %s "
 		     "(%08lX)",
 		     error.str, error.hr);
@@ -1249,13 +1585,15 @@ gs_shader_t *device_pixelshader_create(gs_device_t *device,
 			(const char *)error.errors->GetBufferPointer();
 		if (error_string)
 			*error_string = bstrdup(buf);
-		blog(LOG_ERROR,
+		char temp[256];
+		os_extract_file_name(file, temp, ARRAY_SIZE(temp) - 1);
+		plog(LOG_ERROR,
 		     "device_pixelshader_create (D3D11): "
 		     "Compiler warnings/errors for %s:\n%s",
-		     file, buf);
+		     temp, buf);
 
 	} catch (const char *error) {
-		blog(LOG_ERROR, "device_pixelshader_create (D3D11): %s", error);
+		plog(LOG_ERROR, "device_pixelshader_create (D3D11): %s", error);
 	}
 
 	return shader;
@@ -1269,13 +1607,13 @@ gs_vertbuffer_t *device_vertexbuffer_create(gs_device_t *device,
 	try {
 		buffer = new gs_vertex_buffer(device, data, flags);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "device_vertexbuffer_create (D3D11): %s "
 		     "(%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
 	} catch (const char *error) {
-		blog(LOG_ERROR, "device_vertexbuffer_create (D3D11): %s",
+		plog(LOG_ERROR, "device_vertexbuffer_create (D3D11): %s",
 		     error);
 	}
 
@@ -1291,9 +1629,12 @@ gs_indexbuffer_t *device_indexbuffer_create(gs_device_t *device,
 	try {
 		buffer = new gs_index_buffer(device, type, indices, num, flags);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "device_indexbuffer_create (D3D11): %s (%08lX)",
+		plog(LOG_ERROR, "device_indexbuffer_create (D3D11): %s (%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
+	} catch (const char *error) {
+		//PRISM/WangChuanjing/20211013/#9974/device valid check
+		plog(LOG_ERROR, "device_indexbuffer_create (D3D11): %s", error);
 	}
 
 	return buffer;
@@ -1305,9 +1646,12 @@ gs_timer_t *device_timer_create(gs_device_t *device)
 	try {
 		timer = new gs_timer(device);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "device_timer_create (D3D11): %s (%08lX)",
+		plog(LOG_ERROR, "device_timer_create (D3D11): %s (%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
+	} catch (const char *error) {
+		//PRISM/WangChuanjing/20211013/#9974/device valid check
+		plog(LOG_ERROR, "device_timer_create (D3D11): %s", error);
 	}
 
 	return timer;
@@ -1319,9 +1663,12 @@ gs_timer_range_t *device_timer_range_create(gs_device_t *device)
 	try {
 		range = new gs_timer_range(device);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "device_timer_range_create (D3D11): %s (%08lX)",
+		plog(LOG_ERROR, "device_timer_range_create (D3D11): %s (%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
+	} catch (const char *error) {
+		//PRISM/WangChuanjing/20211013/#9974/device valid check
+		plog(LOG_ERROR, "device_timer_range_create (D3D11): %s", error);
 	}
 
 	return range;
@@ -1334,6 +1681,10 @@ enum gs_texture_type device_get_texture_type(const gs_texture_t *texture)
 
 void gs_device::LoadVertexBufferData()
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device_valid)
+		return;
+
 	if (curVertexBuffer == lastVertexBuffer &&
 	    curVertexShader == lastVertexShader)
 		return;
@@ -1371,6 +1722,10 @@ void device_load_vertexbuffer(gs_device_t *device, gs_vertbuffer_t *vertbuffer)
 
 void device_load_indexbuffer(gs_device_t *device, gs_indexbuffer_t *indexbuffer)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	DXGI_FORMAT format;
 	ID3D11Buffer *buffer;
 
@@ -1400,6 +1755,10 @@ void device_load_indexbuffer(gs_device_t *device, gs_indexbuffer_t *indexbuffer)
 
 void device_load_texture(gs_device_t *device, gs_texture_t *tex, int unit)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	ID3D11ShaderResourceView *view = NULL;
 
 	if (device->curTextures[unit] == tex)
@@ -1415,6 +1774,10 @@ void device_load_texture(gs_device_t *device, gs_texture_t *tex, int unit)
 void device_load_samplerstate(gs_device_t *device,
 			      gs_samplerstate_t *samplerstate, int unit)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	ID3D11SamplerState *state = NULL;
 
 	if (device->curSamplers[unit] == samplerstate)
@@ -1429,6 +1792,10 @@ void device_load_samplerstate(gs_device_t *device,
 
 void device_load_vertexshader(gs_device_t *device, gs_shader_t *vertshader)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	ID3D11VertexShader *shader = NULL;
 	ID3D11InputLayout *layout = NULL;
 	ID3D11Buffer *constants = NULL;
@@ -1440,7 +1807,7 @@ void device_load_vertexshader(gs_device_t *device, gs_shader_t *vertshader)
 
 	if (vertshader) {
 		if (vertshader->type != GS_SHADER_VERTEX) {
-			blog(LOG_ERROR, "device_load_vertexshader (D3D11): "
+			plog(LOG_ERROR, "device_load_vertexshader (D3D11): "
 					"Specified shader is not a vertex "
 					"shader");
 			return;
@@ -1459,6 +1826,10 @@ void device_load_vertexshader(gs_device_t *device, gs_shader_t *vertshader)
 
 static inline void clear_textures(gs_device_t *device)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	ID3D11ShaderResourceView *views[GS_MAX_TEXTURES];
 	memset(views, 0, sizeof(views));
 	memset(device->curTextures, 0, sizeof(device->curTextures));
@@ -1467,6 +1838,10 @@ static inline void clear_textures(gs_device_t *device)
 
 void device_load_pixelshader(gs_device_t *device, gs_shader_t *pixelshader)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	ID3D11PixelShader *shader = NULL;
 	ID3D11Buffer *constants = NULL;
 	ID3D11SamplerState *states[GS_MAX_TEXTURES];
@@ -1478,7 +1853,7 @@ void device_load_pixelshader(gs_device_t *device, gs_shader_t *pixelshader)
 
 	if (pixelshader) {
 		if (pixelshader->type != GS_SHADER_PIXEL) {
-			blog(LOG_ERROR, "device_load_pixelshader (D3D11): "
+			plog(LOG_ERROR, "device_load_pixelshader (D3D11): "
 					"Specified shader is not a pixel "
 					"shader");
 			return;
@@ -1541,6 +1916,10 @@ gs_zstencil_t *device_get_zstencil_target(const gs_device_t *device)
 void device_set_render_target(gs_device_t *device, gs_texture_t *tex,
 			      gs_zstencil_t *zstencil)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	if (device->curSwapChain) {
 		if (!tex)
 			tex = &device->curSwapChain->target;
@@ -1553,14 +1932,14 @@ void device_set_render_target(gs_device_t *device, gs_texture_t *tex,
 		return;
 
 	if (tex && tex->type != GS_TEXTURE_2D) {
-		blog(LOG_ERROR, "device_set_render_target (D3D11): "
+		plog(LOG_ERROR, "device_set_render_target (D3D11): "
 				"texture is not a 2D texture");
 		return;
 	}
 
 	gs_texture_2d *tex2d = static_cast<gs_texture_2d *>(tex);
 	if (tex2d && !tex2d->renderTarget[0]) {
-		blog(LOG_ERROR, "device_set_render_target (D3D11): "
+		plog(LOG_ERROR, "device_set_render_target (D3D11): "
 				"texture is not a render target");
 		return;
 	}
@@ -1578,6 +1957,10 @@ void device_set_render_target(gs_device_t *device, gs_texture_t *tex,
 void device_set_cube_render_target(gs_device_t *device, gs_texture_t *tex,
 				   int side, gs_zstencil_t *zstencil)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	if (device->curSwapChain) {
 		if (!tex) {
 			tex = &device->curSwapChain->target;
@@ -1593,14 +1976,14 @@ void device_set_cube_render_target(gs_device_t *device, gs_texture_t *tex,
 		return;
 
 	if (tex->type != GS_TEXTURE_CUBE) {
-		blog(LOG_ERROR, "device_set_cube_render_target (D3D11): "
+		plog(LOG_ERROR, "device_set_cube_render_target (D3D11): "
 				"texture is not a cube texture");
 		return;
 	}
 
 	gs_texture_2d *tex2d = static_cast<gs_texture_2d *>(tex);
 	if (!tex2d->renderTarget[side]) {
-		blog(LOG_ERROR, "device_set_cube_render_target (D3D11): "
+		plog(LOG_ERROR, "device_set_cube_render_target (D3D11): "
 				"texture is not a render target");
 		return;
 	}
@@ -1618,8 +2001,16 @@ inline void gs_device::CopyTex(ID3D11Texture2D *dst, uint32_t dst_x,
 			       uint32_t src_x, uint32_t src_y, uint32_t src_w,
 			       uint32_t src_h)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device_valid)
+		throw "Device invalid";
+
 	if (src->type != GS_TEXTURE_2D)
 		throw "Source texture must be a 2D texture";
+
+	//PRISM/Wang.Chuanjing/20210715/#8724
+	if (!dst)
+		throw "Destination texture must be valid";
 
 	gs_texture_2d *tex2d = static_cast<gs_texture_2d *>(src);
 
@@ -1693,7 +2084,7 @@ void device_copy_texture_region(gs_device_t *device, gs_texture_t *dst,
 				copyWidth, copyHeight);
 
 	} catch (const char *error) {
-		blog(LOG_ERROR, "device_copy_texture (D3D11): %s", error);
+		plog(LOG_ERROR, "device_copy_texture (D3D11): %s", error);
 	}
 }
 
@@ -1724,7 +2115,7 @@ void device_stage_texture(gs_device_t *device, gs_stagesurf_t *dst,
 		device->CopyTex(dst->texture, 0, 0, src, 0, 0, 0, 0);
 
 	} catch (const char *error) {
-		blog(LOG_ERROR, "device_copy_texture (D3D11): %s", error);
+		plog(LOG_ERROR, "device_copy_texture (D3D11): %s", error);
 	}
 }
 
@@ -1736,6 +2127,10 @@ void device_begin_scene(gs_device_t *device)
 void device_draw(gs_device_t *device, enum gs_draw_mode draw_mode,
 		 uint32_t start_vert, uint32_t num_verts)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	try {
 		if (!device->curVertexShader)
 			throw "No vertex shader specified";
@@ -1762,11 +2157,11 @@ void device_draw(gs_device_t *device, enum gs_draw_mode draw_mode,
 		device->curPixelShader->UploadParams();
 
 	} catch (const char *error) {
-		blog(LOG_ERROR, "device_draw (D3D11): %s", error);
+		plog(LOG_ERROR, "device_draw (D3D11): %s", error);
 		return;
 
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "device_draw (D3D11): %s (%08lX)", error.str,
+		plog(LOG_ERROR, "device_draw (D3D11): %s (%08lX)", error.str,
 		     error.hr);
 		LogD3D11ErrorDetails(error, device);
 		return;
@@ -1823,6 +2218,10 @@ void device_load_swapchain(gs_device_t *device, gs_swapchain_t *swapchain)
 void device_clear(gs_device_t *device, uint32_t clear_flags,
 		  const struct vec4 *color, float depth, uint8_t stencil)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	int side = device->curRenderSide;
 	if ((clear_flags & GS_CLEAR_COLOR) != 0 && device->curRenderTarget)
 		device->context->ClearRenderTargetView(
@@ -1845,6 +2244,10 @@ void device_clear(gs_device_t *device, uint32_t clear_flags,
 
 void device_present(gs_device_t *device)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	HRESULT hr;
 
 	if (device->curSwapChain) {
@@ -1854,7 +2257,7 @@ void device_present(gs_device_t *device)
 			device->RebuildDevice();
 		}
 	} else {
-		blog(LOG_WARNING, "device_present (D3D11): No active swap");
+		plog(LOG_WARNING, "device_present (D3D11): No active swap");
 	}
 }
 
@@ -1862,6 +2265,10 @@ extern "C" void reset_duplicators(void);
 
 void device_flush(gs_device_t *device)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	device->context->Flush();
 	reset_duplicators();
 }
@@ -2033,6 +2440,10 @@ void device_stencil_op(gs_device_t *device, enum gs_stencil_side side,
 void device_set_viewport(gs_device_t *device, int x, int y, int width,
 			 int height)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	D3D11_VIEWPORT vp;
 	memset(&vp, 0, sizeof(vp));
 	vp.MaxDepth = 1.0f;
@@ -2055,6 +2466,10 @@ void device_get_viewport(const gs_device_t *device, struct gs_rect *rect)
 
 void device_set_scissor_rect(gs_device_t *device, const struct gs_rect *rect)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		return;
+
 	D3D11_RECT d3drect;
 
 	device->rasterState.scissorEnabled = (rect != NULL);
@@ -2179,6 +2594,10 @@ enum gs_color_format gs_texture_get_color_format(const gs_texture_t *tex)
 
 bool gs_texture_map(gs_texture_t *tex, uint8_t **ptr, uint32_t *linesize)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!tex->device->device_valid)
+		return false;
+
 	HRESULT hr;
 
 	if (tex->type != GS_TEXTURE_2D)
@@ -2199,6 +2618,10 @@ bool gs_texture_map(gs_texture_t *tex, uint8_t **ptr, uint32_t *linesize)
 
 void gs_texture_unmap(gs_texture_t *tex)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!tex->device->device_valid)
+		return;
+
 	if (tex->type != GS_TEXTURE_2D)
 		return;
 
@@ -2296,6 +2719,11 @@ gs_stagesurface_get_color_format(const gs_stagesurf_t *stagesurf)
 bool gs_stagesurface_map(gs_stagesurf_t *stagesurf, uint8_t **data,
 			 uint32_t *linesize)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!stagesurf->device->device_valid) {
+		return false;
+	}
+
 	D3D11_MAPPED_SUBRESOURCE map;
 	if (FAILED(stagesurf->device->context->Map(stagesurf->texture, 0,
 						   D3D11_MAP_READ, 0, &map)))
@@ -2308,6 +2736,10 @@ bool gs_stagesurface_map(gs_stagesurf_t *stagesurf, uint8_t **data,
 
 void gs_stagesurface_unmap(gs_stagesurf_t *stagesurf)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!stagesurf->device->device_valid)
+		return;
+
 	stagesurf->device->context->Unmap(stagesurf->texture, 0);
 }
 
@@ -2345,12 +2777,13 @@ static inline void gs_vertexbuffer_flush_internal(gs_vertbuffer_t *vertbuffer,
 				 : vertbuffer->uvBuffers.size();
 
 	if (!vertbuffer->dynamic) {
-		blog(LOG_ERROR, "gs_vertexbuffer_flush: vertex buffer is "
+		plog(LOG_ERROR, "gs_vertexbuffer_flush: vertex buffer is "
 				"not dynamic");
 		return;
 	}
 
-	if (data->points)
+	//PRISM/WangChuanjing/20200204/for nelo crash
+	if (data->points && vertbuffer->vertexBuffer)
 		vertbuffer->FlushBuffer(vertbuffer->vertexBuffer, data->points,
 					sizeof(vec3));
 
@@ -2397,6 +2830,10 @@ void gs_indexbuffer_destroy(gs_indexbuffer_t *indexbuffer)
 static inline void gs_indexbuffer_flush_internal(gs_indexbuffer_t *indexbuffer,
 						 const void *data)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!indexbuffer->device->device_valid)
+		return;
+
 	HRESULT hr;
 
 	if (!indexbuffer->dynamic)
@@ -2446,16 +2883,29 @@ void gs_timer_destroy(gs_timer_t *timer)
 
 void gs_timer_begin(gs_timer_t *timer)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!timer->device->device_valid)
+		return;
+
 	timer->device->context->End(timer->query_begin);
 }
 
 void gs_timer_end(gs_timer_t *timer)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!timer->device->device_valid)
+		return;
+
 	timer->device->context->End(timer->query_end);
 }
 
 bool gs_timer_get_data(gs_timer_t *timer, uint64_t *ticks)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!timer->device->device_valid) {
+		return false;
+	}
+
 	uint64_t begin, end;
 	HRESULT hr_begin, hr_end;
 	do {
@@ -2481,17 +2931,30 @@ void gs_timer_range_destroy(gs_timer_range_t *range)
 
 void gs_timer_range_begin(gs_timer_range_t *range)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!range->device->device_valid)
+		return;
+
 	range->device->context->Begin(range->query_disjoint);
 }
 
 void gs_timer_range_end(gs_timer_range_t *range)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!range->device->device_valid)
+		return;
+
 	range->device->context->End(range->query_disjoint);
 }
 
 bool gs_timer_range_get_data(gs_timer_range_t *range, bool *disjoint,
 			     uint64_t *frequency)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!range->device->device_valid) {
+		return false;
+	}
+
 	D3D11_QUERY_DATA_TIMESTAMP_DISJOINT timestamp_disjoint;
 	HRESULT hr;
 	do {
@@ -2565,11 +3028,11 @@ device_texture_create_gdi(gs_device_t *device, uint32_t width, uint32_t height)
 					    nullptr, GS_RENDER_TARGET,
 					    GS_TEXTURE_2D, true);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "device_texture_create_gdi (D3D11): %s (%08lX)",
+		plog(LOG_ERROR, "device_texture_create_gdi (D3D11): %s (%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
 	} catch (const char *error) {
-		blog(LOG_ERROR, "device_texture_create_gdi (D3D11): %s", error);
+		plog(LOG_ERROR, "device_texture_create_gdi (D3D11): %s", error);
 	}
 
 	return texture;
@@ -2578,7 +3041,7 @@ device_texture_create_gdi(gs_device_t *device, uint32_t width, uint32_t height)
 static inline bool TextureGDICompatible(gs_texture_2d *tex2d, const char *func)
 {
 	if (!tex2d->isGDICompatible) {
-		blog(LOG_ERROR, "%s (D3D11): Texture is not GDI compatible",
+		plog(LOG_ERROR, "%s (D3D11): Texture is not GDI compatible",
 		     func);
 		return false;
 	}
@@ -2588,6 +3051,11 @@ static inline bool TextureGDICompatible(gs_texture_2d *tex2d, const char *func)
 
 extern "C" EXPORT void *gs_texture_get_dc(gs_texture_t *tex)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!tex->device->device_valid) {
+		return nullptr;
+	}
+
 	HDC hDC = nullptr;
 
 	if (tex->type != GS_TEXTURE_2D)
@@ -2606,6 +3074,11 @@ extern "C" EXPORT void *gs_texture_get_dc(gs_texture_t *tex)
 
 extern "C" EXPORT void gs_texture_release_dc(gs_texture_t *tex)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!tex->device->device_valid) {
+		return;
+	}
+
 	if (tex->type != GS_TEXTURE_2D)
 		return;
 
@@ -2623,11 +3096,11 @@ extern "C" EXPORT gs_texture_t *device_texture_open_shared(gs_device_t *device,
 	try {
 		texture = new gs_texture_2d(device, handle);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "gs_texture_open_shared (D3D11): %s (%08lX)",
+		plog(LOG_ERROR, "gs_texture_open_shared (D3D11): %s (%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
 	} catch (const char *error) {
-		blog(LOG_ERROR, "gs_texture_open_shared (D3D11): %s", error);
+		plog(LOG_ERROR, "gs_texture_open_shared (D3D11): %s", error);
 	}
 
 	return texture;
@@ -2644,6 +3117,11 @@ extern "C" EXPORT uint32_t device_texture_get_shared_handle(gs_texture_t *tex)
 
 int device_texture_acquire_sync(gs_texture_t *tex, uint64_t key, uint32_t ms)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!tex->device->device_valid) {
+		return -1;
+	}
+
 	gs_texture_2d *tex2d = reinterpret_cast<gs_texture_2d *>(tex);
 	if (tex->type != GS_TEXTURE_2D)
 		return -1;
@@ -2669,6 +3147,11 @@ int device_texture_acquire_sync(gs_texture_t *tex, uint64_t key, uint32_t ms)
 extern "C" EXPORT int device_texture_release_sync(gs_texture_t *tex,
 						  uint64_t key)
 {
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!tex->device->device_valid) {
+		return -1;
+	}
+
 	gs_texture_2d *tex2d = reinterpret_cast<gs_texture_2d *>(tex);
 	if (tex->type != GS_TEXTURE_2D)
 		return -1;
@@ -2710,13 +3193,13 @@ device_texture_create_nv12(gs_device_t *device, gs_texture_t **p_tex_y,
 		tex_uv = new gs_texture_2d(device, tex_y->texture, flags);
 
 	} catch (const HRError &error) {
-		blog(LOG_ERROR, "gs_texture_create_nv12 (D3D11): %s (%08lX)",
+		plog(LOG_ERROR, "gs_texture_create_nv12 (D3D11): %s (%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
 		return false;
 
 	} catch (const char *error) {
-		blog(LOG_ERROR, "gs_texture_create_nv12 (D3D11): %s", error);
+		plog(LOG_ERROR, "gs_texture_create_nv12 (D3D11): %s", error);
 		return false;
 	}
 
@@ -2736,11 +3219,15 @@ device_stagesurface_create_nv12(gs_device_t *device, uint32_t width,
 	try {
 		surf = new gs_stage_surface(device, width, height);
 	} catch (const HRError &error) {
-		blog(LOG_ERROR,
+		plog(LOG_ERROR,
 		     "device_stagesurface_create (D3D11): %s "
 		     "(%08lX)",
 		     error.str, error.hr);
 		LogD3D11ErrorDetails(error, device);
+	} catch (const char *error) {
+		//PRISM/WangChuanjing/20211013/#9974/device valid check
+		plog(LOG_ERROR, "device_stagesurface_create (D3D11): %s",
+		     error);
 	}
 
 	return surf;
@@ -2837,4 +3324,87 @@ extern "C" EXPORT bool adapter_get_luid(gs_device_t *device,
 	if (device)
 		return device->GetAdapterLuid(luid);
 	return 0;
+}
+
+//PRISM/LiuHaibin/20201201/#None/Get hardware info
+extern "C" EXPORT gs_adapters_info_t *adapter_get_info(gs_device_t *device)
+{
+	if (device)
+		return device->GetAdaptersInfo();
+	return NULL;
+}
+
+//PRISM/ZengQin/20210204/#None/check device support dx11
+extern "C" EXPORT bool check_device_support_dx11(gs_device_t *device)
+{
+	if (device)
+		return device->CheckDeviceSupportDX11();
+	return false;
+}
+
+//PRISM/Wang.Chuanjing/20210414/NoIssue/ for test module
+int device_create_for_test(gs_device_t **p_device, uint32_t adapter,
+			   gs_engine_test_type test_type,
+			   void (*callback)(int type, int code,
+					    void *ext_param))
+{
+	gs_device *device = NULL;
+	int errorcode = GS_SUCCESS;
+
+	try {
+		plog(LOG_INFO, "Initializing D3D11...");
+		LogD3DAdapters();
+
+		device = new gs_device(adapter, test_type);
+		if (device)
+			device->engine_notify_cb = callback;
+
+		if (test_type == GS_E_TEST_REBUILD_FAILED) {
+			device->device_rebuild_fail_test = true;
+			for (int i = 0; i < 10; i++) {
+				device->RebuildDevice();
+			}
+		}
+
+	} catch (const UnsupportedHWError &error) {
+		plog(LOG_ERROR, "device_create (D3D11): %s (%08lX)", error.str,
+		     error.hr);
+		errorcode = GS_ERROR_NOT_SUPPORTED;
+	} catch (const UnsupportedDeviceError &error) {
+		//PRISM/Wang.Chuanjing/20200219/#NoIssue/for dx version check
+		plog(LOG_ERROR, "device_create (D3D11): %s (%08lX)", error.str,
+		     error.hr);
+		errorcode = GS_ERROR_NOT_SUPPORTED_ENGINE_VERSION;
+	} catch (const InvalidParamError &error) {
+		//PRISM/Wang.Chuanjing/20210415/#NoIssue/for test module
+		plog(LOG_ERROR, "device_create (D3D11): %s (%08lX)", error.str,
+		     error.hr);
+		errorcode = GS_ERROR_ENGINE_INVALID_PARAM;
+	} catch (const HRError &error) {
+		plog(LOG_ERROR, "device_create (D3D11): %s (%08lX)", error.str,
+		     error.hr);
+		errorcode = GS_ERROR_FAIL;
+	}
+
+	*p_device = device;
+	return errorcode;
+}
+
+//PRISM/WangChuanjing/20210915/#None/rebuild test mode
+extern "C" EXPORT bool device_set_rebuild_status(gs_device_t *device,
+						 bool normal)
+{
+	if (device) {
+		device->device_rebuild_normal = normal;
+	}
+	return false;
+}
+
+//PRISM/WangChuanjing/20211013/#9974/device valid check
+extern "C" EXPORT bool device_is_valid(gs_device_t *device)
+{
+	if (device) {
+		return device->device_valid;
+	}
+	return false;
 }

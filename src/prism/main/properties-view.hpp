@@ -11,6 +11,7 @@
 #include <memory>
 #include <functional>
 #include <qfontdatabase.h>
+#include <QPointer>
 
 class QFormLayout;
 class PLSPropertiesView;
@@ -23,14 +24,14 @@ class QListWidgetItem;
 class PLSComboBox;
 class QCheckBox;
 class QButtonGroup;
-class ITextMotionTemplateHelper;
+struct ITextMotionTemplateHelper;
 
 typedef obs_properties_t *(*PropertiesReloadCallback)(void *obj);
 typedef void (*PropertiesUpdateCallback)(void *obj, obs_data_t *settings);
 
 /* ------------------------------------------------------------------------- */
 
-class WidgetInfo : public QObject {
+class WidgetInfo : public QObject, public std::enable_shared_from_this<WidgetInfo> { //RenJinbo #9685 font color select crash add shared
 	Q_OBJECT
 
 	friend class PLSPropertiesView;
@@ -63,11 +64,22 @@ private:
 	void EditableListChanged();
 	void ButtonClicked();
 	void ButtonGroupClicked(const char *setting);
+	void TextButtonClicked();
 
 	void TogglePasswordText(bool checked);
 	void SelectRegionClicked(const char *setting);
+	void ImageGroupChanged(const char *setting);
+	void intCustomGroupChanged(const char *setting);
+	void CustomGroupChanged(const char *setting);
+	void CheckboxGroupChanged(const char *setting);
+	void intGroupChanged();
+	void FontSimpleChanged(const char *setting);
+	void ColorCheckBoxChanged(const char *setting);
+	void timerListenListChanged(const char *setting);
+
 signals:
 	void IntValueChanged(int value);
+	void PropertyUpdateNotify();
 
 public:
 	explicit inline WidgetInfo(PLSPropertiesView *view_, obs_property_t *prop, QObject *object_, bool isOriginColorFilter_ = false)
@@ -78,10 +90,16 @@ public:
 	~WidgetInfo() { isOriginColorFilter = false; }
 	void CheckValue();
 	void SetOriginalColorFilter(bool state);
+
 public slots:
 	void UserOperation();
 	void ControlChanged();
 	void OnOpenMusicButtonClicked();
+	void VirtualBackgroundResourceMotionDisabledChanged(bool motionDisabled);
+	void VirtualBackgroundResourceSelected(const QString &itemId, int type, const QString &resourcePath, const QString &staticImgPath, const QString &thumbnailPath, bool prismResource,
+					       const QString &foregroundPath, const QString &foregroundStaticImgPath);
+	void VirtualBackgroundResourceDeleted(const QString &itemId);
+	void VirtualBackgroundMyResourceDeleteAll(const QStringList &itemIds);
 
 	/* editable list */
 	void EditListAdd();
@@ -118,7 +136,7 @@ protected:
 	PropertiesUpdateCallback callback = nullptr;
 	int minSize;
 	int maxSize;
-	std::vector<std::unique_ptr<WidgetInfo>> children;
+	std::vector<std::shared_ptr<WidgetInfo>> children; //RenJinbo #9685 font color select crash add shared
 	std::string lastFocused;
 	QWidget *lastWidget = nullptr;
 	bool deferUpdate;
@@ -130,12 +148,14 @@ protected:
 	bool isForPropertyWindow = false;
 	bool setCustomContentMargins = false;
 	bool setCustomContentWidth = false;
+	bool resolutionChanged = false; // zhangdewen check camera(dshow) resolution changed
 	SliderIgnoreScroll *sliderView{};
 	PLSSpinBox *spinsView{};
 	WidgetInfo *infoView{};
 	PLSCommonScrollBar *scroll{};
 	QWidget *NewWidget(obs_property_t *prop, QWidget *widget, const char *signal);
-	QWidget *AddCheckbox(obs_property_t *prop, QFormLayout *layout);
+	QWidget *AddCheckbox(obs_property_t *prop, QFormLayout *layout, Qt::LayoutDirection layoutDirection = Qt::LeftToRight);
+	QWidget *AddSwitch(obs_property_t *prop, QFormLayout *layout);
 	QWidget *AddText(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 	void AddPath(obs_property_t *prop, QFormLayout *layout, QLabel **label);
 	void AddInt(obs_property_t *prop, QFormLayout *layout, QLabel **label);
@@ -149,11 +169,18 @@ protected:
 	void AddButtonGroup(obs_property_t *prop, QFormLayout *layout);
 	void AddRadioButtonGroup(obs_property_t *prop, QFormLayout *layout);
 	void AddColor(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddColorCheckbox(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 	void AddFont(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddFontSimple(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 	void AddFrameRate(obs_property_t *prop, bool &warning, QFormLayout *layout, QLabel *&label);
+	void AddMobileGuider(obs_property_t *prop, QFormLayout *layout);
+	void AddMobileHelp(obs_property_t *prop, QFormLayout *layout);
+	QWidget *AddMobileName(obs_property_t *prop);
+	QWidget *AddMobileStatus(obs_property_t *prop);
+	QWidget *AddPrivateDataText(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 
 	void AddGroup(obs_property_t *prop, QFormLayout *layout);
-	void AddProperty(obs_property_t *property, QFormLayout *layout);
+	void AddProperty(obs_property_t *property, QLayout *layout);
 	void AddSpacer(const obs_property_type &currentType, QFormLayout *layout);
 	void AddChatTemplateList(obs_property_t *prop, QFormLayout *layout);
 	void AddChatFontSize(obs_property_t *prop, QFormLayout *layout);
@@ -164,13 +191,29 @@ protected:
 	void AddTmTabTemplateList(obs_property_t *prop, QFormLayout *layout);
 	void AddTmColor(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 	void AddTmMotion(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddCameraVirtualBackgroundState(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddVirtualBackgroundResource(obs_property_t *prop, QBoxLayout *layout);
+
+	void AddImageGroup(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddCustomGroup(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddHLine(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	QWidget *addIntForCustomGroup(obs_property_t *prop, int index);
+
+	void AddCheckboxGroup(obs_property_t *prop, QFormLayout *layout);
+	void AddIntGroup(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddTimerListListen(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddLabelTip(obs_property_t *prop, QFormLayout *layout);
 
 	void resizeEvent(QResizeEvent *event) override;
-
 	void GetScrollPos(int &h, int &v);
 	void SetScrollPos(int h, int v);
 
-	void RefreshProperties(std::function<void(QWidget *)> callback, bool update);
+	void ReloadProperties(bool refreshProperties);
+	virtual void RefreshProperties(std::function<void(QWidget *)> callback, bool update);
+
+	virtual bool isFirstAddSource() const;
+
+	const char *getSourceId() const;
 
 public slots:
 	void ReloadProperties();
@@ -181,6 +224,10 @@ public slots:
 	void UpdateColorFilterValue(int value, bool isOriginal);
 	void OnShowScrollBar(bool isShow);
 	void OnOpenMusicButtonClicked(OBSSource source);
+	void OnVirtualBackgroundResourceOpenFilter();
+	void PropertyUpdateNotify(const QString &name);
+	void ResetProperties(obs_properties_t *newProperties);
+
 signals:
 	void PropertiesResized();
 	void Changed();
@@ -190,16 +237,21 @@ signals:
 	void OpenStickers();
 	void OpenMusicButtonClicked(OBSSource source);
 	void okButtonControl(bool enable);
+	void reloadOldSettings();
 
 public:
 	explicit PLSPropertiesView(OBSData settings, void *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, int minSize = 0, int maxSize = -1,
-				   bool showFiltersBtn = false, bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, PLSDpiHelper dpiHelper = PLSDpiHelper());
+				   bool showFiltersBtn = false, bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true,
+				   PLSDpiHelper dpiHelper = PLSDpiHelper(), bool reloadPropertyOnInit = true);
 	explicit PLSPropertiesView(OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize = 0, int maxSize = -1, bool showFiltersBtn = false,
-				   bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, PLSDpiHelper dpiHelper = PLSDpiHelper());
+				   bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true, PLSDpiHelper dpiHelper = PLSDpiHelper(),
+				   bool reloadPropertyOnInit = true);
 	explicit PLSPropertiesView(QWidget *parent, OBSData settings, void *obj, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, int minSize = 0, int maxSize = -1,
-				   bool showFiltersBtn = false, bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, PLSDpiHelper dpiHelper = PLSDpiHelper());
+				   bool showFiltersBtn = false, bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true,
+				   PLSDpiHelper dpiHelper = PLSDpiHelper(), bool reloadPropertyOnInit = true);
 	explicit PLSPropertiesView(QWidget *parent, OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize = 0, int maxSize = -1, bool showFiltersBtn = false,
-				   bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, PLSDpiHelper dpiHelper = PLSDpiHelper());
+				   bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true, PLSDpiHelper dpiHelper = PLSDpiHelper(),
+				   bool reloadPropertyOnInit = true);
 
 	inline obs_data_t *GetSettings() const { return settings; }
 
@@ -211,12 +263,18 @@ public:
 	void SetForProperty(bool forPropertyWindow) { isForPropertyWindow = forPropertyWindow; }
 	void SetCustomContentMargins(bool setCustomContentMargins_) { setCustomContentMargins = setCustomContentMargins_; }
 	void SetCustomContentWidth(bool setCustomContentWidth_) { setCustomContentWidth = setCustomContentWidth_; }
+	bool isResolutionChanged() const { return resolutionChanged; }
+
+	void textColorChanged(const QByteArray &_id, const QColor &color);
+	void refreshViewAfterUIChanged(obs_property_t *p);
 
 private:
 	enum ButtonType { RadioButon, PushButton, CustomButton, LetterButton };
 	QFontDatabase m_fontDatabase;
 	bool m_tmTabChanged = true;
 	bool m_tmTemplateChanged = false;
+	QVector<QLabel *> m_tmLabels;
+	QList<QPointer<QPushButton>> m_movieButtons;
 
 private:
 	void createTMSlider(obs_property_t *prop, int propertyValue, int minVal, int maxVal, int stepVal, int val, QHBoxLayout *&hLayout, bool isSuffix, bool isEnable = true,
@@ -233,4 +291,6 @@ private:
 	void updateTMTemplateButtons(const int templateTabIndex, const QString &templateTabName, QGridLayout *gLayout);
 	void updateFontSytle(const QString &family, PLSComboBox *fontStyleBox);
 	void setLayoutEnable(QLayout *layout, bool isEnable);
+	void createColorTemplate(obs_property_t *prop, QLabel *colorLabel, QPushButton *button, QHBoxLayout *subLayout);
+	void setPlaceholderColor_666666(QWidget *widget);
 };

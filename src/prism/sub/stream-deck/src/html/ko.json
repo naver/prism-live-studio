@@ -1,0 +1,135 @@
+{
+  "Description": "PRISM Live Studio를 제어합니다.",
+  "Name": "PRISM Live Studio",
+  "com.naver.streamdeck.pls.mixeraudio": {
+    "Name": "오디오 소스",
+    "Tooltip": "오디오 소스 음소거 / 음소거 해제",
+    "States": [
+      {
+        "Name": "Active"
+      },
+      {
+        "Name": "Deactive"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.muteall": {
+    "Name": "전체 오디오",
+    "Tooltip": "오디오 소스 음소거 / 음소거 해제",
+    "States": [
+      {
+        "Name": "Active"
+      },
+      {
+        "Name": "Deactive"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.record": {
+    "Name": "녹화",
+    "Tooltip": "녹화 시작 / 종료",
+    "States": [
+      {
+        "Name": "Start"
+      },
+      {
+        "Name": "Stop"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.scene": {
+    "Name": "장면 전환",
+    "Tooltip": "장면 전환"
+  },
+  "com.naver.streamdeck.pls.source": {
+    "Name": "소스",
+    "Tooltip": "소스 숨기기 / 숨기기 취소",
+    "States": [
+      {
+        "Name": "Active"
+      },
+      {
+        "Name": "Deactive"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.stream": {
+    "Name": "라이브",
+    "Tooltip": "라이브 시작 / 종료",
+    "States": [
+      {
+        "Name": "Start"
+      },
+      {
+        "Name": "Stop"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.sidewindow": {
+    "Name": "사이드바 메뉴",
+    "Tooltip": "사이드바 메뉴 끄기 / 켜기",
+    "States": [
+      {
+        "Name": "Open"
+      },
+      {
+        "Name": "Close"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.cpuusage": {
+    "Name": "CPU 사용",
+    "Tooltip": "CPU 사용",
+    "States": [
+      {
+        "Name": "Open"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.studiomode": {
+    "Name": "스튜디오 모드",
+    "Tooltip": "스튜디오 모드 끄기 / 켜기",
+    "States": [
+      {
+        "Name": "Enable"
+      },
+      {
+        "Name": "Disable"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.toastmessage": {
+    "Name": "알림",
+    "Tooltip": "알림"
+  },
+  "com.naver.streamdeck.pls.framedrop": {
+    "Name": "프레임 드롭",
+    "Tooltip": "손실된 프레임",
+    "States": [
+      {
+        "Name": "open"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.bitrate": {
+    "Name": "비트레이트",
+    "Tooltip": "비트레이트",
+    "States": [
+      {
+        "Name": "open"
+      }
+    ]
+  },
+  "Localization": {
+    "Please launch Prism Live Studio": "PRISM Live Studio를 실행하세요.",
+    "Source": "소스",
+    "Collection": "장면 모음",
+    "Scene": "장면",
+    "Window": "사이드바 메뉴",
+    "CPUUsagePiTip": "제목을 입력하시는 경우, CPU 사용율이 표시할 수 없습니다.",
+    "FramedropPiTip": "제목을 입력하시는 경우, 손실된 프레임 정보 표시할 수 없습니다.",
+    "BitratePiTip": "제목을 입력하시는 경우, 비트레이트 정보 표시할 수 없습니다.",
+    "Loading": "로딩중…",
+    "NoneOption": "없음"
+  }
+}

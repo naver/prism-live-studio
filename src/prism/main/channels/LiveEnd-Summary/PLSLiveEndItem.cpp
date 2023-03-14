@@ -11,12 +11,11 @@
 #include <sstream>
 #include <string>
 
-PLSLiveEndItem::PLSLiveEndItem(const QString &uuid, QWidget *parent, int superWidth) : QFrame(parent), ui(new Ui::PLSLiveEndItem), mSourceData(PLSCHANNELS_API->getChanelInfoRef(uuid))
+PLSLiveEndItem::PLSLiveEndItem(const QString &uuid, QWidget *parent) : QFrame(parent), ui(new Ui::PLSLiveEndItem), mSourceData(PLSCHANNELS_API->getChanelInfoRef(uuid))
 {
 	ui->setupUi(this);
 	ui->channelIcon->setPadding(0);
 	ui->channelIcon->setUseContentsRect(true);
-	m_superWidth = superWidth;
 	setupData();
 }
 
@@ -27,27 +26,13 @@ PLSLiveEndItem::~PLSLiveEndItem()
 
 void PLSLiveEndItem::setupData()
 {
-	QString platformName = mSourceData.value(ChannelData::g_channelName, "--").toString();
-	QString userNname = mSourceData.value(ChannelData::g_nickName, "--").toString();
+	QString platformName = mSourceData.value(ChannelData::g_platformName, "--").toString();
 
 	ui->channelLabel->adjustSize();
-	ui->channelLabel->setText(platformName);
+	ui->channelLabel->setText(translatePlatformName(platformName));
 	ui->dotLabel->setText("");
 
-	QFontMetrics fontMetrics(ui->channelLabel->font());
-	int platformWidth = fontMetrics.width(platformName);
-
-	const int labelPadding = 6;
-	const int dotWidth = 3;
-	int titleMaxWidth = m_superWidth - platformWidth - labelPadding - dotWidth - labelPadding - labelPadding;
-
-	ui->liveTitleLabel->adjustSize();
-	QFontMetrics titleFont(ui->liveTitleLabel->font());
-	QString elidedText = titleFont.elidedText(userNname, Qt::ElideRight, titleMaxWidth);
-	ui->liveTitleLabel->setText(elidedText);
-
-	QPixmap pix(":/images/img-youtube-profile.svg");
-	QPixmap fixMap = pix.scaled(34, 34, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+	setNameElideString();
 
 	combineTwoImage();
 	setupStatusWidget();
@@ -73,13 +58,13 @@ void PLSLiveEndItem::setupStatusWidget()
 	ui->statusWidget->setHidden(true);
 
 	auto dataType = getInfo(mSourceData, ChannelData::g_data_type, ChannelData::RTMPType);
-	QString platformName = mSourceData.value(ChannelData::g_channelName, "").toString();
+	QString platformName = mSourceData.value(ChannelData::g_platformName, "").toString();
 
 	if (dataType != ChannelData::ChannelType) {
 		return;
 	}
 
-	if (platformName != YOUTUBE && platformName != VLIVE && platformName != NAVER_TV && platformName != AFREECATV && platformName != FACEBOOK) {
+	if (platformName != YOUTUBE && platformName != VLIVE && platformName != NAVER_TV && platformName != AFREECATV && platformName != FACEBOOK && platformName != NAVER_SHOPPING_LIVE) {
 		return;
 	}
 
@@ -102,7 +87,7 @@ void PLSLiveEndItem::setupStatusWidget()
 		QPixmap pix2(paintSvg(getInfo(mSourceData, ChannelData::g_likesPix, QString(":/images/ic-liveend-like.svg")), PLSDpiHelper::calculate(dpi, QSize(15, 15))));
 		QPixmap pix3(paintSvg(getInfo(mSourceData, ChannelData::g_commentsPix, QString(":/images/reply-icon.svg")), PLSDpiHelper::calculate(dpi, QSize(15, 15))));
 		QPixmap pix4(paintSvg(getInfo(mSourceData, ChannelData::g_commentsPix, QString(":/images/ic-liveend-chat-fb.svg")), PLSDpiHelper::calculate(dpi, QSize(15, 15))));
-		if (platformName == YOUTUBE) {
+		if (platformName == YOUTUBE || platformName == NAVER_SHOPPING_LIVE) {
 			ui->statusImage3->setHidden(true);
 			ui->statusLabel3->setHidden(true);
 		} else if (platformName == VLIVE) {
@@ -152,4 +137,23 @@ QString PLSLiveEndItem::toThousandsNum(QString numString)
 	}
 
 	return QString::fromStdString(str);
+}
+
+void PLSLiveEndItem::setNameElideString()
+{
+	QString userNname = mSourceData.value(ChannelData::g_displayLine1, "--").toString();
+
+	QFontMetrics fontMetrics(ui->channelLabel->font());
+	int platformWidth = fontMetrics.width(ui->channelLabel->text());
+
+	int superWidgetWidth = ui->nameWidget->width();
+	double dpi = PLSDpiHelper::getDpi(this);
+
+	int labelPadding = PLSDpiHelper::calculate(dpi, 5);
+	int dotWidth = PLSDpiHelper::calculate(dpi, 3);
+	int titleMaxWidth = superWidgetWidth - platformWidth - labelPadding - dotWidth - labelPadding - PLSDpiHelper::calculate(dpi, 10);
+
+	QFontMetrics titleFont(ui->liveTitleLabel->font());
+	QString elidedText = titleFont.elidedText(userNname, Qt::ElideRight, titleMaxWidth);
+	ui->liveTitleLabel->setText(elidedText);
 }

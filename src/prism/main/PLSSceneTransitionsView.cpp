@@ -180,6 +180,9 @@ void PLSSceneTransitionsView::AddTransition()
 		main = PLSBasic::Get();
 		if (main) {
 			main->CreatePropertiesWindow(source, OPERATION_NONE, this);
+			const char *dllName = obs_get_external_module_display_name(obs_source_get_id(source));
+			if (dllName)
+				main->OnUsingThirdPartyPlugins(dllName, main->GetPropertiesView());
 			main->OnTransitionAdded();
 		}
 		obs_source_release(source);
@@ -302,7 +305,9 @@ int PLSSceneTransitionsView::GetTransitionDurationValue()
 
 void PLSSceneTransitionsView::SetTransitionDurationValue(const int &value)
 {
+	initTransitionDuration = true;
 	ui->transitionDuration->setValue(value);
+	initTransitionDuration = false;
 }
 
 void PLSSceneTransitionsView::on_transitions_currentIndexChanged(int index)
@@ -344,7 +349,7 @@ void PLSSceneTransitionsView::on_transitionRemove_clicked()
 	OBSSource tr = GetCurrentTransition();
 
 	main = PLSBasic::Get();
-	if (!tr || !obs_source_configurable(tr) || !main || !main->QueryRemoveSource(tr))
+	if (!tr || !obs_source_configurable(tr) || !main || !main->QueryRemoveSource(tr, this))
 		return;
 
 	int idx = ui->transitions->findData(QVariant::fromValue<OBSSource>(tr));
@@ -385,7 +390,8 @@ void PLSSceneTransitionsView::on_transitionProps_clicked()
 
 void PLSSceneTransitionsView::on_transitionDuration_valueChanged(int value)
 {
-	PLS_UI_STEP(MAINSCENE_MODULE, "Scene Transition Value Changed", ACTION_CLICK);
+	if (!initTransitionDuration)
+		PLS_UI_STEP(MAINSCENE_MODULE, QString("Scene Transition Value Changed: %1 ms").arg(value).toUtf8().constData(), ACTION_EDIT);
 
 	main = PLSBasic::Get();
 	if (main) {
@@ -396,6 +402,9 @@ void PLSSceneTransitionsView::on_transitionDuration_valueChanged(int value)
 void PLSSceneTransitionsView::OnCurrentTextChanged(const QString &text)
 {
 	currentText = text;
+	if (!currentText.isEmpty()) {
+		PLS_INFO(MAIN_TRANSITION_MODULE, "User switched to transition : %s", currentText.toUtf8().constData());
+	}
 }
 
 void PLSSceneTransitionsView::showEvent(QShowEvent *event)

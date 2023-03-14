@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>777</width>
-    <height>528</height>
+    <height>710</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,1,0">
    <property name="spacing">
     <number>0</number>
    </property>
@@ -32,28 +32,22 @@
    <item>
     <widget class="QWidget" name="titleWidget" native="true">
      <layout class="QHBoxLayout" name="horizontalLayout">
-      <property name="spacing">
-       <number>0</number>
-      </property>
       <property name="leftMargin">
-       <number>25</number>
+       <number>24</number>
       </property>
       <property name="topMargin">
-       <number>0</number>
+       <number>20</number>
       </property>
       <property name="rightMargin">
-       <number>0</number>
+       <number>26</number>
       </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-      <item alignment="Qt::AlignLeft">
+      <item alignment="Qt::AlignVCenter">
        <widget class="QLabel" name="titleLabel">
         <property name="text">
          <string>V LIVE</string>
         </property>
         <property name="alignment">
-         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
         </property>
         <property name="indent">
          <number>0</number>
@@ -67,73 +61,59 @@
         </property>
         <property name="sizeHint" stdset="0">
          <size>
-          <width>40</width>
+          <width>20</width>
           <height>20</height>
          </size>
         </property>
        </spacer>
       </item>
-      <item>
-       <widget class="QWidget" name="thumWidget" native="true">
-        <layout class="QVBoxLayout" name="verticalLayout_4">
-         <property name="spacing">
-          <number>0</number>
-         </property>
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="thumTopPlaceLabel">
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item alignment="Qt::AlignHCenter">
-          <widget class="PLSSelectImageButton" name="thumbnailButton">
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item alignment="Qt::AlignHCenter|Qt::AlignTop">
-          <widget class="QLabel" name="thumDetailLabel">
-           <property name="text">
-            <string>LiveInfo.thum.schedule.diabale.edit</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="verticalSpacer">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>40</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLabel" name="label_placehoder">
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="thumWidget" native="true">
+     <layout class="QVBoxLayout" name="verticalLayout_4">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item alignment="Qt::AlignHCenter">
+       <widget class="PLSSelectImageButton" name="thumbnailButton">
         <property name="text">
          <string/>
         </property>
        </widget>
+      </item>
+      <item alignment="Qt::AlignHCenter|Qt::AlignTop">
+       <widget class="QLabel" name="thumDetailLabel">
+        <property name="text">
+         <string>LiveInfo.thum.schedule.diabale.edit</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="verticalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>40</height>
+         </size>
+        </property>
+       </spacer>
       </item>
      </layout>
     </widget>
@@ -142,42 +122,73 @@
     <widget class="QWidget" name="midwidget" native="true">
      <layout class="QFormLayout" name="formLayout">
       <property name="horizontalSpacing">
-       <number>20</number>
+       <number>10</number>
       </property>
       <property name="verticalSpacing">
        <number>10</number>
       </property>
       <property name="leftMargin">
-       <number>25</number>
+       <number>20</number>
       </property>
       <property name="topMargin">
        <number>0</number>
       </property>
       <property name="rightMargin">
-       <number>24</number>
+       <number>23</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
       </property>
       <item row="0" column="0">
-       <widget class="QLabel" name="scheduleLabel">
+       <widget class="QLabel" name="profileLabel">
         <property name="text">
-         <string>LiveInfo.Youtube.scheduled.title</string>
+         <string>LiveInfo.profile.title</string>
         </property>
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="PLSScheduleCombox" name="scheCombox">
+       <widget class="PLSScheduleCombox" name="profileCombox">
         <property name="text">
          <string/>
         </property>
        </widget>
       </item>
       <item row="1" column="0">
+       <widget class="QLabel" name="scheduleLabel">
+        <property name="text">
+         <string>LiveInfo.Youtube.scheduled.title</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="PLSScheduleCombox" name="scheCombox">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="boardLabel">
+        <property name="text">
+         <string>LiveInfo.board.title</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="PLSScheduleCombox" name="boardCombox">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
        <widget class="QLabel" name="liveTitleLabel">
         <property name="text">
          <string>LiveInfo.base.Title</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
+      <item row="3" column="1">
        <widget class="QLineEdit" name="lineEditTitle">
         <property name="text">
          <string/>
@@ -187,17 +198,131 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="PLSFanshipWidget" name="fanshipWidget" native="true"/>
-      </item>
      </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QScrollArea" name="uerScrollArea">
+     <property name="verticalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="horizontalScrollBarPolicy">
+      <enum>Qt::ScrollBarAlwaysOff</enum>
+     </property>
+     <property name="widgetResizable">
+      <bool>true</bool>
+     </property>
+     <widget class="QWidget" name="userScrollAreaWidgetContents">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>775</width>
+        <height>391</height>
+       </rect>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QWidget" name="userWidget" native="true">
+         <layout class="QFormLayout" name="userFormLayout">
+          <property name="horizontalSpacing">
+           <number>10</number>
+          </property>
+          <property name="verticalSpacing">
+           <number>5</number>
+          </property>
+          <property name="leftMargin">
+           <number>20</number>
+          </property>
+          <property name="topMargin">
+           <number>10</number>
+          </property>
+          <property name="rightMargin">
+           <number>24</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="userBoardLeftLabel">
+            <property name="text">
+             <string>LiveInfo.live.title.board.user</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLabel" name="usrLabel">
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="countryLeftLabel">
+            <property name="text">
+             <string>LiveInfo.live.title.board.user</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+            <property name="indent">
+             <number>-4</number>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QLabel" name="countryLabel">
+            <property name="text">
+             <string>TextLabel</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QLabel" name="boardTipLabel">
+            <property name="text">
+             <string>LiveInfo.live.title.board.tip</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="placeholder_label">
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
    <item>
@@ -228,7 +353,7 @@
           <number>0</number>
          </property>
          <property name="rightMargin">
-          <number>30</number>
+          <number>28</number>
          </property>
          <property name="bottomMargin">
           <number>0</number>
@@ -262,7 +387,7 @@
          <item>
           <widget class="QPushButton" name="rehearsalButton">
            <property name="text">
-            <string>broadcast.create.set_rehearsal</string>
+            <string>Rehearsal</string>
            </property>
            <property name="useFor" stdset="0">
             <string notr="true">Rehearsal</string>
@@ -300,12 +425,6 @@
    <class>PLSSelectImageButton</class>
    <extends>QLabel</extends>
    <header>plsselectimagebutton.h</header>
-  </customwidget>
-  <customwidget>
-   <class>PLSFanshipWidget</class>
-   <extends>QWidget</extends>
-   <header>PLSFanshipWidget.h</header>
-   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

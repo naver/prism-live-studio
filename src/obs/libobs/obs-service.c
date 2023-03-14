@@ -43,7 +43,8 @@ static obs_service_t *obs_service_create_internal(const char *id,
 	struct obs_service *service;
 
 	if (!info) {
-		blog(LOG_ERROR, "Service '%s' not found", id);
+		//PRISM/Zhangdewen/20210723/#/optimize log
+		//plog(LOG_ERROR, "Service '%s' not found", id);
 		return NULL;
 	}
 
@@ -59,7 +60,7 @@ static obs_service_t *obs_service_create_internal(const char *id,
 	service->context.data =
 		service->info.create(service->context.settings, service);
 	if (!service->context.data)
-		blog(LOG_ERROR, "Failed to create service '%s'!", name);
+		plog(LOG_ERROR, "Failed to create service '%s'!", name);
 
 	service->control = bzalloc(sizeof(obs_weak_service_t));
 	service->control->service = service;
@@ -67,7 +68,7 @@ static obs_service_t *obs_service_create_internal(const char *id,
 	obs_context_data_insert(&service->context, &obs->data.services_mutex,
 				&obs->data.first_service);
 
-	blog(LOG_DEBUG, "service '%s' (%s) created", name, id);
+	plog(LOG_DEBUG, "service '%s' (%s) created", name, id);
 	return service;
 }
 
@@ -92,7 +93,7 @@ static void actually_destroy_service(struct obs_service *service)
 	if (service->output)
 		service->output->service = NULL;
 
-	blog(LOG_DEBUG, "service '%s' destroyed", service->context.name);
+	plog(LOG_DEBUG, "service '%s' destroyed", service->context.name);
 
 	obs_context_data_free(&service->context);
 	if (service->owns_info_id)
@@ -252,7 +253,7 @@ void obs_service_activate(struct obs_service *service)
 	if (!obs_service_valid(service, "obs_service_activate"))
 		return;
 	if (!service->output) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs_service_deactivate: service '%s' "
 		     "is not assigned to an output",
 		     obs_service_get_name(service));
@@ -272,7 +273,7 @@ void obs_service_deactivate(struct obs_service *service, bool remove)
 	if (!obs_service_valid(service, "obs_service_deactivate"))
 		return;
 	if (!service->output) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "obs_service_deactivate: service '%s' "
 		     "is not assigned to an output",
 		     obs_service_get_name(service));
@@ -326,7 +327,7 @@ void obs_service_addref(obs_service_t *service)
 		return;
 
 	//PRISM/WangShaohui/20201030/#5529/monitor invalid reference
-	obs_ref_addref(&service->control->ref, service->info.id, NULL);
+	obs_ref_addref(&service->control->ref, service->info.id, NULL, service);
 }
 
 void obs_service_release(obs_service_t *service)

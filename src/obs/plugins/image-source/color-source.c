@@ -106,6 +106,20 @@ static void color_source_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "height", 400);
 }
 
+//PRISM/ZengQin/20210604/#none/Get properties parameters
+static obs_data_t *color_source_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+
+	struct color_source *context = data;
+	obs_data_t *params = obs_data_create();
+	obs_data_set_int(params, "width", context->width);
+	obs_data_set_int(params, "height", context->height);
+
+	return params;
+}
+
 struct obs_source_info color_source_info = {
 	.id = "color_source",
 	.type = OBS_SOURCE_TYPE_INPUT,
@@ -120,4 +134,6 @@ struct obs_source_info color_source_info = {
 	.video_render = color_source_render,
 	.get_properties = color_source_properties,
 	.icon_type = OBS_ICON_TYPE_COLOR,
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	.props_params = color_source_props_params,
 };

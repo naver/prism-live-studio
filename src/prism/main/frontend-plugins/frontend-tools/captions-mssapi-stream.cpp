@@ -8,7 +8,7 @@
 using namespace std;
 
 #if 0
-#define debugfunc(format, ...) blog(LOG_DEBUG, "[Captions] %s(" format ")", __FUNCTION__, ##__VA_ARGS__)
+#define debugfunc(format, ...) PLS_DEBUG(FRONTEND_TOOLS_CAPTIONS, "[Captions] %s(" format ")", __FUNCTION__, ##__VA_ARGS__)
 #else
 #define debugfunc(format, ...)
 #endif

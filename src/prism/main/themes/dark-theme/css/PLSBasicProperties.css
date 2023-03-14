@@ -7,7 +7,12 @@ PLSBasicProperties {
 	background-color: #272727;
 }
 
-PLSBasicProperties[sourceId="prism_chat_source"], PLSBasicProperties[sourceId="prism_text_motion_source"] {
+PLSBasicProperties[sourceId="prism_chat_source"],
+PLSBasicProperties[sourceId="prism_text_motion_source"],
+PLSBasicProperties[sourceId="prism_background_template_source"],
+PLSBasicProperties[sourceId="prism_audio_visualizer_source"],
+PLSBasicProperties[sourceId="prism_mobile"],
+PLSBasicProperties[sourceId="prism_timer_source"] {
 	min-width: /*hdpi*/ 720px;
 	max-width: /*hdpi*/ 720px;
 }
@@ -18,8 +23,13 @@ PLSBasicProperties #propertyWindowSplitter::handle:vertical {
 	background-color: #272727;
 }
 PLSBasicProperties #propertyViewContainer{
-	background: transparent;
+	background: #272727;
 	border: none;
+}
+
+PLSBasicProperties #playButton{
+	padding-left: /*hdpi*/ 10px;
+	padding-right: /*hdpi*/ 10px;
 }
 
 PLSBasicProperties #previewBtn{
@@ -34,7 +44,7 @@ PLSBasicProperties #previewBtn{
 
 	PLSBasicProperties #propertyPreview {
 		min-height: /*hdpi*/ 150px;
-		max-height: /*hdpi*/ 368px;
+		max-height: /*hdpi*/ 320px;
 		background-color: #000000;
 	}
 
@@ -103,9 +113,6 @@ PLSBasicProperties #previewBtn{
 			border: /*hdpi*/ 1px solid #EFFC35;
 		}
 
-		PLSBasicProperties QLineEdit:!focus {
-			border: /*hdpi*/ 1px solid transparent;
-		}
 
 	PLSBasicProperties QDialogButtonBox[owner="PLSBasicProperties"] {
 		min-height: /*hdpi*/ 68px;
@@ -122,7 +129,7 @@ PLSBasicProperties #previewBtn{
 		}
 
 		PLSBasicProperties QDialogButtonBox[owner="PLSBasicProperties"] QPushButton[useFor="Cancel"] {
-			margin-left: /*hdpi*/ 5px;
+			margin-left: /*hdpi*/ 3px;
 			padding: 0;
 			min-width: /*hdpi*/ 128px;
 			max-width: /*hdpi*/ 128px;
@@ -138,3 +145,19 @@ PLSBasicProperties #previewBtn{
 			min-height: /*hdpi*/ 40px;
 			max-height: /*hdpi*/ 40px;
 		}
+
+PLSBasicProperties #preview_container {
+	background-color: #151515;
+}
+
+PLSBasicProperties #loadingBG {
+	background-color: rgba(39, 39, 39, 0.8);
+}
+
+PLSBasicProperties #loadingBtn {
+	background-color: transparent;
+}
+
+PLSBasicProperties #PropertiesViewVScrollBar::handle:vertical {
+    margin:/*hdpi*/0px /*hdpi*/2px /*hdpi*/8px /*hdpi*/2px;
+}

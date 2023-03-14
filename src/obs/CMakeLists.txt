@@ -12,8 +12,8 @@ option(BUILD_CAPTIONS "Build captions" FALSE)
 if(WIN32)
 	cmake_minimum_required(VERSION 3.16)
 
-	# Check for Win SDK version 10.0.18362 or above
-	if(MSVC AND MSVC_VERSION LESS 1920)
+	# Check for Win SDK version 10.0.20348 or above
+	if(MSVC)
 		message(STATUS "Windows API version is ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
 		string(REPLACE "." ";" WINAPI_VER "${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
 
@@ -24,7 +24,7 @@ if(WIN32)
 		set(WINAPI_COMPATIBLE FALSE)
 		if(WINAPI_VER_MAJOR EQUAL 10)
 			if (WINAPI_VER_MINOR EQUAL 0)
-				if (WINAPI_VER_BUILD GREATER_EQUAL 18362)
+				if (WINAPI_VER_BUILD GREATER_EQUAL 20348)
 					set(WINAPI_COMPATIBLE TRUE)
 				endif()
 			else()
@@ -35,7 +35,7 @@ if(WIN32)
 		endif()
 
 		if(NOT WINAPI_COMPATIBLE)
-			message(FATAL_ERROR "OBS requires Windows 10 SDK version 10.0.18362.0 and above to compile.\nPlease download the most recent Windows 10 SDK in order to compile (or update to Visual Studio 2019).")
+			message(FATAL_ERROR "OBS requires Windows 10 SDK version 10.0.20348.0 and above to compile.\nPlease download the most recent Windows 10 SDK in order to compile (or update to Visual Studio 2019).")
 		endif()
 	endif()
 	
@@ -218,3 +218,20 @@ else()
 endif()
 
 include(CopyMSVCBins)
+
+set(TargetListFile ${CMAKE_SOURCE_DIR}/../prism/sub/PRISMLogger/TargetList.h)
+
+function (ListTargets Dir)
+	get_directory_property(SubDirs DIRECTORY ${Dir} SUBDIRECTORIES)
+	foreach (Item ${SubDirs})
+		ListTargets(${Item})
+	endforeach()
+
+	get_directory_property(Targets DIRECTORY ${Dir} BUILDSYSTEM_TARGETS)
+	foreach (Item ${Targets})
+		file(APPEND ${TargetListFile} "\tL\"" ${Item} "\"," \n)
+	endforeach()	
+endfunction()
+
+file(WRITE ${TargetListFile} "const wchar_t* TargetList[] = {\n")
+ListTargets(.)

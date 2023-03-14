@@ -65,6 +65,9 @@ static bool null_output_start(void *data)
 
 static void *stop_thread(void *data)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct null_output *context = data;
 	obs_output_end_data_capture(context->output);
 	context->stop_thread_active = false;

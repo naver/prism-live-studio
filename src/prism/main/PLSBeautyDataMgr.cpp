@@ -312,6 +312,11 @@ void PLSBeautyDataMgr::AddBeautyPresetConfig(const QString &filterId, const Beau
 	beautyPresetConfig.emplace_back(BeautyConfigMap::value_type(filterId, copyConfig));
 }
 
+void PLSBeautyDataMgr::ClearBeautyPresetConfig()
+{
+	beautyPresetConfig.clear();
+}
+
 const BeautyConfigMap &PLSBeautyDataMgr::GetBeautyPresetConfig() const
 {
 	return beautyPresetConfig;
@@ -566,4 +571,31 @@ bool PLSBeautyDataMgr::ParseJsonArrayToBeautyConfig(const QByteArray &array, Bea
 	beautyConfig.beautyModel = beautyModel;
 
 	return true;
+}
+
+void PLSBeautyDataMgr::UpdateRecommendConfig()
+{
+	auto getPresetConfig = [=](const QString &id) {
+		for (auto &data : beautyPresetConfig) {
+			if (data.first == id) {
+				return data.second;
+			}
+		}
+		return BeautyConfig();
+	};
+
+	auto iter = beautySourceIdData.begin();
+	while (iter != beautySourceIdData.end()) {
+		auto &data = iter->second;
+		for (auto &config : data) {
+			BeautyConfig preset = getPresetConfig(config.second.beautyModel.token.category);
+			config.second.smoothModel.default_value = preset.smoothModel.default_value;
+			config.second.beautyModel.defaultParam.cheek = preset.beautyModel.defaultParam.cheek;
+			config.second.beautyModel.defaultParam.cheekbone = preset.beautyModel.defaultParam.cheekbone;
+			config.second.beautyModel.defaultParam.chin = preset.beautyModel.defaultParam.chin;
+			config.second.beautyModel.defaultParam.eyes = preset.beautyModel.defaultParam.eyes;
+			config.second.beautyModel.defaultParam.nose = preset.beautyModel.defaultParam.nose;
+		}
+		iter++;
+	}
 }

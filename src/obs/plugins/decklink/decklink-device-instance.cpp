@@ -97,7 +97,7 @@ void DeckLinkDeviceInstance::HandleAudioPacket(
 		//	(uint64_t)currentPacket.samples_per_sec;
 		currentPacket.timestamp -=
 			util_mul_div64(frameCount, 1000000000ULL,
-			       currentPacket.samples_per_sec);
+				       currentPacket.samples_per_sec);
 	}
 
 	int maxdevicechannel = device->GetMaxChannel();
@@ -248,6 +248,8 @@ bool DeckLinkDeviceInstance::StartCapture(DeckLinkDeviceMode *mode_,
 				    bmdVideoConnection);
 			}
 		}
+		//PRISM/LiuHaibin/20210924/#None/Release COM object
+		deckLinkConfiguration->Release();
 	}
 
 	videoConnection = bmdVideoConnection;
@@ -374,6 +376,8 @@ bool DeckLinkDeviceInstance::StartOutput(DeckLinkDeviceMode *mode_)
 		} else {
 			deckLinkKeyer->Disable();
 		}
+		//PRISM/LiuHaibin/20210924/#None/Release COM object
+		deckLinkKeyer->Release();
 	}
 
 	auto decklinkOutput = dynamic_cast<DeckLinkOutput *>(decklink);
@@ -396,7 +400,7 @@ bool DeckLinkDeviceInstance::StartOutput(DeckLinkDeviceMode *mode_)
 					  pixelFormat, bmdFrameFlagDefault,
 					  &decklinkOutputFrame);
 	if (result != S_OK) {
-		blog(LOG_ERROR, "failed to make frame 0x%X", result);
+		plog(LOG_ERROR, "failed to make frame 0x%X", result);
 		return false;
 	}
 
@@ -495,14 +499,6 @@ HRESULT STDMETHODCALLTYPE DeckLinkDeviceInstance::VideoInputFormatChanged(
 	BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *newMode,
 	BMDDetectedVideoInputFormatFlags detectedSignalFlags)
 {
-	input->PauseStreams();
-
-	mode->SetMode(newMode);
-
-	if (events & bmdVideoInputDisplayModeChanged) {
-		displayMode = mode->GetDisplayMode();
-	}
-
 	if (events & bmdVideoInputColorspaceChanged) {
 		switch (detectedSignalFlags) {
 		case bmdDetectedVideoInputRGB444:
@@ -516,20 +512,32 @@ HRESULT STDMETHODCALLTYPE DeckLinkDeviceInstance::VideoInputFormatChanged(
 		}
 	}
 
-	const HRESULT videoResult = input->EnableVideoInput(
-		displayMode, pixelFormat, bmdVideoInputEnableFormatDetection);
-	if (videoResult != S_OK) {
-		LOG(LOG_ERROR, "Failed to enable video input");
-		input->StopStreams();
-		FinalizeStream();
+	//PRISM/LiuHaibin/20201229/#None/Merge from OBS :
+	//SHA-1: 65daf2c86dc78fb42a7c9267275494971cab47e3 /
+	//decklink: Fix format detection loop
+	//Ignore color space change in format detection to fix endless
+	//https://github.com/obsproject/obs-studio/pull/3681
+	if (events & bmdVideoInputDisplayModeChanged) {
+		input->PauseStreams();
+		mode->SetMode(newMode);
+		displayMode = mode->GetDisplayMode();
 
-		return E_FAIL;
+		const HRESULT videoResult = input->EnableVideoInput(
+			displayMode, pixelFormat,
+			bmdVideoInputEnableFormatDetection);
+		if (videoResult != S_OK) {
+			LOG(LOG_ERROR, "Failed to enable video input");
+			input->StopStreams();
+			FinalizeStream();
+
+			return E_FAIL;
+		}
+
+		SetupVideoFormat(mode);
+
+		input->FlushStreams();
+		input->StartStreams();
 	}
-
-	SetupVideoFormat(mode);
-
-	input->FlushStreams();
-	input->StartStreams();
 
 	return S_OK;
 }

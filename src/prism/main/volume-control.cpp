@@ -15,6 +15,7 @@
 #include "log/log.h"
 #include "window-basic-main.hpp"
 #include "PLSDpiHelper.h"
+#include "pls-common-define.hpp"
 
 using namespace std;
 
@@ -54,7 +55,8 @@ void VolControl::VolumeChanged()
 	slider->blockSignals(false);
 
 	updateText();
-	PLS_UI_STEP(AUDIO_MIXER, QString("volume slider changed value:" + volLabel->text()).toUtf8().data(), ACTION_CLICK);
+	if (!volInit)
+		PLS_UI_STEP(AUDIO_MIXER, QString("volume slider changed value:" + volLabel->text()).toUtf8().data(), ACTION_CLICK);
 }
 
 void VolControl::VolumeMuted(bool muted)
@@ -71,13 +73,24 @@ void VolControl::SetMuted(bool checked)
 	obs_source_set_muted(source, checked);
 	slider->setEnabled(!checked);
 	mute->setChecked(checked);
-	PLS_UI_STEP(AUDIO_MIXER, "mute control", ACTION_CLICK);
+	QString log = QString("[%1 : %2] mute control: %3").arg(obs_source_get_id(source)).arg(obs_source_get_name(source)).arg(mute->toolTip());
+	PLS_UI_STEP(AUDIO_MIXER, log.toUtf8(), ACTION_CLICK);
 }
 
 void VolControl::SliderChanged(int vol)
 {
 	obs_fader_set_deflection(obs_fader, float(vol) / FADER_PRECISION);
 	updateText();
+}
+
+void VolControl::SliderRelease()
+{
+	if (!volLabel) {
+		return;
+	}
+	QString sourceName = obs_source_get_name(source);
+	if (volLabel)
+		PLS_UI_STEP(AUDIO_MIXER, QString("source[%1] volume slider changed value:" + volLabel->text()).arg(sourceName).toUtf8().data(), ACTION_CLICK);
 }
 
 void VolControl::updateText()
@@ -96,7 +109,7 @@ void VolControl::updateText()
 	const char *accTextLookup = muted ? "VolControl.SliderMuted" : "VolControl.SliderUnmuted";
 
 	QString sourceName = obs_source_get_name(source);
-	QString accText = QTStr(accTextLookup).arg(sourceName, db);
+	QString accText = QTStr(accTextLookup).arg(sourceName).arg(db);
 
 	slider->setAccessibleName(accText);
 }
@@ -133,8 +146,92 @@ void VolControl::monitorCheckChange(int index)
 		break;
 	}
 	PLSBasic ::Get()->getApi()->on_event(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_VOLUME_MONTY_BACK);
-	QString log = QString("User changed audio monitoring for source %1 to: %2").arg(obs_source_get_name(source)).arg(type);
+	QString log = QString("[%1 : %2] monitoring control: %3").arg(obs_source_get_id(source)).arg(obs_source_get_name(source)).arg(type);
 	PLS_UI_STEP(AUDIO_MIXER, log.toUtf8(), ACTION_CLICK);
+}
+
+void VolControl::rnNoiseClicked()
+{
+	PLS_UI_STEP(AUDIO_MIXER, "RNNoise checkbox", ACTION_CLICK);
+	QString type;
+	auto currentState = rnNoiseCheckbox->checkState();
+	switch (currentState) {
+	case Qt::Unchecked: {
+		type = "unchecked";
+		if (rnNoiseFilter) {
+			obs_source_set_enabled(rnNoiseFilter, false);
+		}
+		break;
+	}
+	case Qt::Checked: {
+		type = "checked";
+		if (rnNoiseFilter) {
+			obs_source_set_enabled(rnNoiseFilter, true);
+			return;
+		}
+		// No RNNoise applyed yet, create a new one
+		QString strFilterName = QString::asprintf("%s_%1", FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE).arg(QDateTime::currentMSecsSinceEpoch());
+		obs_source_t *existing_filter = obs_source_get_filter_by_name(source, strFilterName.toUtf8().constData());
+		if (existing_filter) {
+			PLS_INFO(AUDIO_MIXER, "source %s is already exsit", strFilterName.toUtf8().constData());
+			obs_source_release(existing_filter);
+			return;
+		}
+		obs_source_t *filter = obs_source_create(FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE, strFilterName.toUtf8().constData(), nullptr, nullptr);
+		if (filter) {
+			rnNoiseCheckbox->setEnabled(false);
+			const char *sourceName = obs_source_get_name(source);
+			PLS_INFO(AUDIO_MIXER,
+				 "User added '%s' filter "
+				 "to source '%s'",
+				 FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE, sourceName);
+			obs_source_filter_add(source, filter);
+			obs_source_release(filter);
+		}
+		break;
+	}
+	default:
+		break;
+	}
+
+	QString log = QString("[%1 : %2] rnnoise control: %3").arg(obs_source_get_id(source)).arg(obs_source_get_name(source)).arg(type);
+	PLS_UI_STEP(AUDIO_MIXER, log.toUtf8(), ACTION_CLICK);
+}
+
+void VolControl::AddFilter(OBSSource filter)
+{
+	// add RNNoise filter succeed callback
+	rnNoiseFilter = filter;
+	signal_handler_connect_ref(obs_source_get_signal_handler(rnNoiseFilter), "enable", VolControl::OBSSourceFilterEnabled, this);
+	if (rnNoiseCheckbox) {
+		rnNoiseCheckbox->setEnabled(true);
+		rnNoiseCheckbox->setChecked(true);
+		rnNoiseCheckbox->setToolTip(QTStr("audio.mixer.rnnoise.off"));
+	}
+}
+
+void VolControl::RemoveFilter()
+{
+	// remove RNNoise filter succeed callback
+	if (rnNoiseCheckbox) {
+		rnNoiseCheckbox->setEnabled(true);
+		rnNoiseCheckbox->setChecked(false);
+		rnNoiseCheckbox->setToolTip(QTStr("audio.mixer.rnnoise.on"));
+	}
+
+	PLSBasic *main = PLSBasic::Get();
+	if (main)
+		main->SaveProject();
+}
+
+void VolControl::SourceEnabled(bool enabled)
+{
+	// set RNNoise filter enable state succeed callback
+	PLS_INFO(AUDIO_MIXER, "%s RNNoise %s", obs_source_get_name(source), enabled ? "on" : "off");
+	if (rnNoiseCheckbox) {
+		rnNoiseCheckbox->setChecked(enabled);
+		rnNoiseCheckbox->setToolTip(enabled ? QTStr("audio.mixer.rnnoise.off") : QTStr("audio.mixer.rnnoise.on"));
+	}
 }
 
 QString VolControl::GetName() const
@@ -181,6 +278,39 @@ void VolControl::monitorStateChangeFromAdv(Qt::CheckState state)
 	}
 }
 
+void VolControl::UpdateRnNoiseState()
+{
+	// Get RNNoise filter from this source
+	struct FilterData {
+		bool isRNNoiseOn;
+		obs_source_t *source;
+	};
+
+	FilterData data;
+	data.isRNNoiseOn = false;
+	data.source = nullptr;
+	obs_source_enum_filters(
+		source,
+		[](obs_source_t *, obs_source_t *filter, void *param) {
+			if (filter) {
+				const char *id = obs_source_get_id(filter);
+				if (id && *id && strcmp(id, FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE) == 0) {
+					auto filterData = reinterpret_cast<FilterData *>(param);
+					filterData->isRNNoiseOn = obs_source_enabled(filter);
+					filterData->source = filter;
+				}
+			}
+		},
+		&data);
+	if (rnNoiseCheckbox) {
+		rnNoiseCheckbox->setChecked(data.isRNNoiseOn);
+		rnNoiseCheckbox->setToolTip(data.isRNNoiseOn ? QTStr("audio.mixer.rnnoise.off") : QTStr("audio.mixer.rnnoise.on"));
+	}
+	rnNoiseFilter = data.source;
+	if (rnNoiseFilter)
+		signal_handler_connect_ref(obs_source_get_signal_handler(rnNoiseFilter), "enable", VolControl::OBSSourceFilterEnabled, this);
+}
+
 void VolControl::SetMeterDecayRate(qreal q)
 {
 	volMeter->setPeakDecayRate(q);
@@ -211,6 +341,38 @@ void VolControl::monitorChange(pls_frontend_event event, const QVariantList &par
 		control->monitorStateChangeFromAdv(static_cast<Qt::CheckState>(obs_source_get_monitoring_type(control->source)));
 	}
 }
+
+void VolControl::OBSSourceFilterAdded(void *param, calldata_t *data)
+{
+	obs_source_t *filter = (obs_source_t *)calldata_ptr(data, "filter");
+	const char *id = obs_source_get_id(filter);
+	if (id && strcmp(id, FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE) == 0) {
+		VolControl *window = reinterpret_cast<VolControl *>(param);
+		QMetaObject::invokeMethod(window, "AddFilter", Q_ARG(OBSSource, OBSSource(filter)));
+	}
+}
+
+void VolControl::OBSSourceFilterRemoved(void *param, calldata_t *data)
+{
+	obs_source_t *filter = (obs_source_t *)calldata_ptr(data, "filter");
+	const char *id = obs_source_get_id(filter);
+	if (id && strcmp(id, FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE) == 0) {
+		VolControl *window = reinterpret_cast<VolControl *>(param);
+		QMetaObject::invokeMethod(window, "RemoveFilter");
+	}
+}
+
+void VolControl::OBSSourceFilterEnabled(void *param, calldata_t *data)
+{
+	obs_source_t *filter = (obs_source_t *)calldata_ptr(data, "source");
+	const char *id = obs_source_get_id(filter);
+	bool enabled = calldata_bool(data, "enabled");
+	if (id && strcmp(id, FILTER_TYPE_ID_NOISE_SUPPRESSION_RNNOISE) == 0) {
+		VolControl *window = reinterpret_cast<VolControl *>(param);
+		QMetaObject::invokeMethod(window, "SourceEnabled", Q_ARG(bool, enabled));
+	}
+}
+
 VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical, PLSDpiHelper dpiHelper)
 	: source(std::move(source_)), levelTotal(0.0f), levelCount(0.0f), obs_fader(obs_fader_create(OBS_FADER_LOG)), obs_volmeter(obs_volmeter_create(OBS_FADER_LOG)), vertical(vertical)
 {
@@ -229,6 +391,17 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical, PLSDpi
 	monitorCheckbox->setObjectName("volumeMonitorCheck");
 	connect(monitorCheckbox, &QCheckBox::stateChanged, this, &VolControl::monitorCheckChange);
 	monitorStateChangeFromAdv(static_cast<Qt::CheckState>(obs_source_get_monitoring_type(source)));
+
+	//PRISM/XieWei/20201110/#None/Add a switch for RNNoise
+	const char *id = obs_source_get_id(source);
+	if (id && *id && (strcmp(AUDIO_INPUT_SOURCE_ID, id) == 0 || strcmp(PRISM_MOBILE_SOURCE_ID, id) == 0 || strcmp(DSHOW_SOURCE_ID, id) == 0 || 0 == strcmp(PRISM_NDI_SOURCE_ID, id))) {
+		rnNoiseCheckbox = new QCheckBox(this);
+		rnNoiseCheckbox->setChecked(false);
+		rnNoiseCheckbox->setObjectName("volumeRNNoiseCheckbox");
+		rnNoiseCheckbox->setToolTip(QTStr("audio.mixer.rnnoise.on"));
+		connect(rnNoiseCheckbox, &QCheckBox::clicked, this, &VolControl::rnNoiseClicked);
+		UpdateRnNoiseState();
+	}
 
 	mute = new MuteCheckBox();
 
@@ -284,12 +457,20 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical, PLSDpi
 	textLayout->setAlignment(textRightLayout, Qt::AlignRight);
 	textLayout->setSpacing(0);
 
-	volLayout->addWidget(slider);
+	QHBoxLayout *layout_slider = new QHBoxLayout;
+	layout_slider->setContentsMargins(0, 0, 2, 0);
+	layout_slider->setSpacing(0);
+	layout_slider->addWidget(slider);
+
+	volLayout->addItem(layout_slider);
 	volLayout->addWidget(mute);
+	if (rnNoiseCheckbox) {
+		volLayout->addWidget(rnNoiseCheckbox);
+	}
 	volLayout->setContentsMargins(0, 0, 0, 0);
-	volLayout->setSpacing(15);
-	botLayout->setContentsMargins(0, 3, 4, 0);
-	botLayout->setSpacing(5);
+	volLayout->setSpacing(10);
+	botLayout->setContentsMargins(0, 3, 0, 0);
+	botLayout->setSpacing(10);
 	botLayout->addLayout(volLayout);
 
 	if (showConfig) {
@@ -317,9 +498,12 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical, PLSDpi
 	obs_fader_add_callback(obs_fader, PLSVolumeChanged, this);
 	obs_volmeter_add_callback(obs_volmeter, PLSVolumeLevel, this);
 
-	signal_handler_connect(obs_source_get_signal_handler(source), "mute", PLSVolumeMuted, this);
+	signal_handler_connect_ref(obs_source_get_signal_handler(source), "mute", PLSVolumeMuted, this);
+	signal_handler_connect_ref(obs_source_get_signal_handler(source), "filter_add", VolControl::OBSSourceFilterAdded, this);
+	signal_handler_connect_ref(obs_source_get_signal_handler(source), "filter_remove", VolControl::OBSSourceFilterRemoved, this);
 
 	QWidget::connect(slider, SIGNAL(valueChanged(int)), this, SLOT(SliderChanged(int)));
+	QWidget::connect(slider, SIGNAL(mouseReleaseSignal()), this, SLOT(SliderRelease()));
 	QWidget::connect(mute, &MuteCheckBox::clicked, [=](bool cliked) { SetMuted(cliked); });
 
 	obs_fader_attach_source(obs_fader, source);
@@ -338,7 +522,9 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical, PLSDpi
 	slider->setStyle(style);
 
 	/* Call volume changed once to init the slider position and label */
+	volInit = true;
 	VolumeChanged();
+	volInit = false;
 }
 
 VolControl::~VolControl()
@@ -349,6 +535,10 @@ VolControl::~VolControl()
 	obs_volmeter_remove_callback(obs_volmeter, PLSVolumeLevel, this);
 
 	signal_handler_disconnect(obs_source_get_signal_handler(source), "mute", PLSVolumeMuted, this);
+	signal_handler_disconnect(obs_source_get_signal_handler(source), "filter_add", VolControl::OBSSourceFilterAdded, this);
+	signal_handler_disconnect(obs_source_get_signal_handler(source), "filter_remove", VolControl::OBSSourceFilterRemoved, this);
+	if (rnNoiseFilter)
+		signal_handler_disconnect(obs_source_get_signal_handler(rnNoiseFilter), "enable", VolControl::OBSSourceFilterEnabled, this);
 
 	obs_fader_destroy(obs_fader);
 	obs_volmeter_destroy(obs_volmeter);
@@ -792,6 +982,10 @@ void VolumeMeter::ClipEnding()
 
 void VolumeMeter::paintHMeter(QPainter &painter, int x, int y, int width, int height, float magnitude, float peak, float peakHold)
 {
+	if (minimumLevel == 0) {
+		return;
+	}
+
 	double dpi = PLSDpiHelper::getDpi(this);
 
 	qreal scale = width / minimumLevel;
@@ -799,11 +993,11 @@ void VolumeMeter::paintHMeter(QPainter &painter, int x, int y, int width, int he
 	QMutexLocker locker(&dataMutex);
 	int minimumPosition = x + 0;
 	int maximumPosition = x + width;
-	int magnitudePosition = int(x + width - (magnitude * scale));
-	int peakPosition = int(x + width - (peak * scale));
-	int peakHoldPosition = int(x + width - (peakHold * scale));
-	int warningPosition = int(x + width - (warningLevel * scale));
-	int errorPosition = int(x + width - (errorLevel * scale));
+	int magnitudePosition = scaleToInt32(x + width - (magnitude * scale));
+	int peakPosition = scaleToInt32(x + width - (peak * scale));
+	int peakHoldPosition = scaleToInt32(x + width - (peakHold * scale));
+	int warningPosition = scaleToInt32(x + width - (warningLevel * scale));
+	int errorPosition = scaleToInt32(x + width - (errorLevel * scale));
 
 	int nominalLength = warningPosition - minimumPosition;
 	int warningLength = errorPosition - warningPosition;
@@ -846,14 +1040,14 @@ void VolumeMeter::paintHMeter(QPainter &painter, int x, int y, int width, int he
 	if (peakHoldPosition - 3 * dpi < minimumPosition)
 		; // Peak-hold below minimum, no drawing.
 	else if (peakHoldPosition < warningPosition)
-		painter.fillRect(peakHoldPosition - 3 * dpi, y, 3 * dpi, height, foregroundNominalColor);
+		painter.fillRect(scaleToInt32(peakHoldPosition - 3 * dpi), y, 3 * dpi, height, foregroundNominalColor);
 	else if (peakHoldPosition < errorPosition)
-		painter.fillRect(peakHoldPosition - 3 * dpi, y, 3 * dpi, height, foregroundWarningColor);
+		painter.fillRect(scaleToInt32(peakHoldPosition - 3 * dpi), y, 3 * dpi, height, foregroundWarningColor);
 	else
-		painter.fillRect(peakHoldPosition - 3 * dpi, y, 3 * dpi, height, foregroundErrorColor);
+		painter.fillRect(scaleToInt32(peakHoldPosition - 3 * dpi), y, 3 * dpi, height, foregroundErrorColor);
 
 	if (magnitudePosition - 3 >= minimumPosition)
-		painter.fillRect(magnitudePosition - 3 * dpi, y, 3 * dpi, height, magnitudeColor);
+		painter.fillRect(scaleToInt32(magnitudePosition - 3 * dpi), y, 3 * dpi, height, magnitudeColor);
 }
 
 void VolumeMeter::paintEvent(QPaintEvent *event)
@@ -864,7 +1058,6 @@ void VolumeMeter::paintEvent(QPaintEvent *event)
 
 	const QRect rect = event->region().boundingRect();
 	int width = rect.width();
-	int height = rect.height();
 
 	handleChannelCofigurationChange(dpi);
 	calculateBallistics(ts, timeSinceLastRedraw);
@@ -875,7 +1068,7 @@ void VolumeMeter::paintEvent(QPaintEvent *event)
 
 	for (int channelNr = 0; channelNr < displayNrAudioChannels; channelNr++) {
 
-		int channelNrFixed = (displayNrAudioChannels == 1 && channels > 2) ? 2 : channelNr;
+		int channelNrFixed = (displayNrAudioChannels == 1 && channels > 2) ? 0 : channelNr;
 
 		paintHMeter(painter, 0, channelNr * 7 * dpi + 10 * dpi, width - 4 * dpi, 2 * dpi, displayMagnitude[channelNrFixed], displayPeak[channelNrFixed], displayPeakHold[channelNrFixed]);
 

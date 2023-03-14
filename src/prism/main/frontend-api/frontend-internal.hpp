@@ -8,6 +8,7 @@
 #include <string>
 #include <QNetworkCookie>
 #include "../../prism/main/pls-gpop-data.hpp"
+#include "../../prism/main/login-web-handler.hpp"
 #include "login-info.hpp"
 
 struct pls_frontend_callbacks : public obs_frontend_callbacks {
@@ -22,17 +23,18 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 	virtual QJsonObject pls_ssmap_to_json(const QMap<QString, QString> &ssmap) = 0;
 
 	virtual bool pls_browser_view(QJsonObject &result, const QUrl &url, pls_result_checking_callback_t callback, QWidget *parent) = 0;
-	virtual bool pls_browser_view(QJsonObject &result, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelName, pls_result_checking_callback_t callback,
-				      QWidget *parent) = 0;
+	virtual bool pls_browser_view(QJsonObject &result, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelName, const std::string &script,
+				      pls_result_checking_callback_t callback, QWidget *parent) = 0;
 	virtual bool pls_rtmp_view(QJsonObject &result, PLSLoginInfo *login_info, QWidget *parent) = 0;
 	virtual bool pls_channel_login(QJsonObject &result, QWidget *parent) = 0;
 
 	virtual bool pls_sns_user_info(QJsonObject &result, const QList<QNetworkCookie> &cookies, const QString &urlStr) = 0;
+	virtual bool pls_google_user_info(std::function<void(bool ok, const QJsonObject &)> callback, const QString &redirect_uri, const QString &code, QObject *receiver) = 0;
 	virtual bool pls_network_environment_reachable() = 0;
 
 	virtual bool pls_prism_token_is_vaild(const QString &urlStr) = 0;
 	virtual void pls_prism_change_over_login_view() = 0;
-	virtual void pls_prism_logout() = 0;
+	virtual void pls_prism_logout(const QString &urlStr, LoginInfoType infoType = LoginInfoType::PrismLogoutInfo) = 0;
 	virtual QString pls_prism_user_thumbnail_path() = 0;
 	virtual Common pls_get_common() = 0;
 	virtual VliveNotice pls_get_vlive_notice() = 0;
@@ -101,7 +103,7 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 
 	virtual ITextMotionTemplateHelper *pls_get_text_motion_template_helper_instance() = 0;
 
-	virtual QString pls_get_curreng_language() = 0;
+	virtual QString pls_get_current_language() = 0;
 
 	virtual int pls_get_actived_chat_channel_count() = 0;
 	virtual int pls_get_prism_live_seq() = 0;
@@ -109,6 +111,34 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 
 	virtual void pls_network_state_monitor(std::function<void(bool)> &&callback) = 0;
 	virtual bool pls_get_network_state() = 0;
+
+	virtual void pls_show_virtual_background() = 0;
+	virtual QWidget *pls_create_virtual_background_resource_widget(QWidget *parent, std::function<void(QWidget *)> &&init, bool forProperty, const QString &itemId, bool checkBoxState,
+								       bool switchToPrismFirst) = 0;
+
+	virtual QPixmap pls_load_svg(const QString &path, const QSize &size) = 0;
+
+	virtual void pls_show_mobile_source_help() = 0;
+
+	virtual pls_blacklist_type pls_is_blacklist(QString value, pls_blacklist_type type) = 0;
+	virtual void pls_alert_third_party_plugins(QString pluginName, QWidget *parent = nullptr) = 0;
+
+	//PRISM/Xiewei/20210113/#/add apis for stream deck
+	virtual void pls_set_side_window_visible(int key, bool visible) = 0;
+	virtual void pls_mixer_mute_all(bool mute) = 0;
+	virtual bool pls_mixer_is_all_mute() = 0;
+	virtual QList<SideWindowInfo> pls_get_side_windows_info() = 0;
+	virtual int pls_get_toast_message_count() = 0;
+	virtual QString pls_get_login_state() = 0;
+	virtual QString pls_get_stream_state() = 0;
+	virtual QString pls_get_record_state() = 0;
+	virtual bool pls_get_live_record_available() = 0;
+
+	virtual QDialogButtonBox::StandardButton pls_alert_warning(const char *title, const char *message) = 0;
+
+	virtual void pls_singletonWakeup() = 0;
+
+	virtual uint pls_get_live_start_time() = 0;
 };
 
 FRONTEND_API void pls_frontend_set_callbacks_internal(pls_frontend_callbacks *callbacks);

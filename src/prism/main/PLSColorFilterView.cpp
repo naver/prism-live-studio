@@ -1,4 +1,5 @@
 #include "PLSColorFilterView.h"
+#include "PLSResourceMgr.h"
 #include "ui_PLSColorFilterView.h"
 
 #include "pls-common-define.hpp"
@@ -9,6 +10,7 @@
 #include "log.h"
 #include "log/module_names.h"
 #include "action.h"
+#include "platform.hpp"
 
 #include <QDir>
 #include <QLabel>
@@ -19,6 +21,7 @@
 #include <QPainter>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QImageReader>
 
 #define ORIGINAL_THUMBNAIL_PNG "original_thumbnail.png"
 #define ORIGINAL_PNG "original.png"
@@ -122,7 +125,7 @@ void PLSColorFilterView::OnColorFilterImageMousePressd(PLSColorFilterImage *imag
 	if (!image) {
 		return;
 	}
-	PLS_UI_STEP(MAINFILTER_MODULE, image->GetPath().toStdString().c_str(), ACTION_CLICK);
+	PLS_UI_STEP(MAINFILTER_MODULE, GetFileName(image->GetPath().toStdString().c_str()).c_str(), ACTION_CLICK);
 	UpdateFilterItemStyle(image);
 	UpdateColorFilterSource(image->GetPath());
 }
@@ -142,18 +145,26 @@ void PLSColorFilterView::CreateColorFilterImage(const QString &name, const QStri
 	}
 
 	connect(filterImage, &PLSColorFilterImage::MousePressd, this, &PLSColorFilterView::OnColorFilterImageMousePressd);
-	QImage image;
-	if (image.load(thumbnailPath)) {
-		QPixmap pixmap = QPixmap::fromImage(image).scaled(QSize(this->width(), this->height()), Qt::KeepAspectRatio, Qt::SmoothTransformation);
-		filterImage->SetPixMap(pixmap);
-		filterImage->setObjectName(OBJECT_NAME_COLOR_FILTER_LABEL);
-		ImageVec.push_back(filterImage);
+	QImageReader reader(thumbnailPath);
+	reader.setDecideFormatFromContent(true);
+	if (reader.canRead()) {
+		QImage image;
+		if (reader.read(&image)) {
+			QPixmap pixmap = QPixmap::fromImage(image).scaled(QSize(this->width(), this->height()), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+			filterImage->SetPixMap(pixmap);
+			filterImage->setObjectName(OBJECT_NAME_COLOR_FILTER_LABEL);
+			ImageVec.push_back(filterImage);
 
-		if (0 == thumbnailPath.compare(pls_get_color_filter_dir_path().append(ORIGINAL_THUMBNAIL_PNG))) {
-			ui->horizontalLayout->insertWidget(0, filterImage);
+			if (0 == thumbnailPath.compare(pls_get_color_filter_dir_path().append(ORIGINAL_THUMBNAIL_PNG))) {
+				ui->horizontalLayout->insertWidget(0, filterImage);
+			} else {
+				ui->horizontalLayout->addWidget(filterImage);
+			}
 		} else {
-			ui->horizontalLayout->addWidget(filterImage);
+			PLS_WARN(MAIN_COLOR_FILTER_MODULE, "Load pixmap[%s] failed.", GetFileName(thumbnailPath.toStdString().c_str()).c_str());
 		}
+	} else {
+		PLS_WARN(MAIN_COLOR_FILTER_MODULE, "Can not read image[%s].", GetFileName(thumbnailPath.toStdString().c_str()).c_str());
 	}
 }
 
@@ -221,12 +232,22 @@ void PLSColorFilterView::LoadDefaultColorFilter()
 	QDir dir(pls_get_color_filter_dir_path());
 
 	// origin thumbnail + N1
+	CheckLocalImageExisted();
 	CreateColorFilterImage(ORIGINAL_PNG, "", pls_get_color_filter_dir_path() + ORIGINAL_PNG, pls_get_color_filter_dir_path() + ORIGINAL_THUMBNAIL_PNG);
 	CreateColorFilterImage(N1_PNG, N1_SHORT_TITLE, pls_get_color_filter_dir_path() + N1_PNG, pls_get_color_filter_dir_path() + N1_THUMBNAIL_PNG);
 
+	QString colorJsonPath = pls_get_color_filter_dir_path() + COLOR_FILTER_JSON_FILE;
+	if (!QFile::exists(colorJsonPath)) {
+		colorJsonPath = QString(CONFIG_COLOR_FILTER_PATH).append(COLOR_FILTER_JSON_FILE);
+		QMap<QString, QString> urlMap;
+		urlMap.insert(PLSResourceMgr::instance()->getResourceJson(PLSResourceMgr::ResourceFlag::Color), pls_get_color_filter_dir_path() + COLOR_FILTER_JSON_FILE);
+		PLSResourceMgr::instance()->downloadPartResources(PLSResourceMgr::ResourceFlag::Color, urlMap);
+	}
+
 	QByteArray array;
 	int index = 1;
-	if (PLSJsonDataHandler::getJsonArrayFromFile(array, pls_get_color_filter_dir_path() + COLOR_FILTER_JSON_FILE)) {
+	QMap<QString, QString> urlMap;
+	if (PLSJsonDataHandler::getJsonArrayFromFile(array, colorJsonPath)) {
 		QJsonObject objectJson = QJsonDocument::fromJson(array).object();
 		const QJsonArray &jsonArray = objectJson.value(HTTP_ITEMS).toArray();
 		for (auto item : jsonArray) {
@@ -243,10 +264,24 @@ void PLSColorFilterView::LoadDefaultColorFilter()
 			QString path = pls_get_color_filter_dir_path() + colorFilterName;
 			QString thumbnailName = pls_get_color_filter_dir_path() + number + "_" + name + "_" + shortTitle + COLOR_FILTER_THUMBNAIL + COLOR_FILTER_IMAGE_FORMAT_PNG;
 
-			CreateColorFilterImage(colorFilterName, shortTitle, path, thumbnailName);
+			bool thumbnailExisted = QFile::exists(thumbnailName);
+			bool pathExisted = QFile::exists(path);
+			if (!pathExisted || !thumbnailExisted) {
+				if (!pathExisted) {
+					urlMap.insert(item[HTTP_RESOURCE_URL].toString(), pls_get_color_filter_dir_path() + colorFilterName);
+				}
+
+				if (!thumbnailExisted) {
+					urlMap.insert(item[COLOR_THUMBNAILURL].toString(), thumbnailName);
+				}
+			} else {
+				CreateColorFilterImage(colorFilterName, shortTitle, path, thumbnailName);
+			}
 		}
 	}
-
+	if (!urlMap.isEmpty()) {
+		PLSResourceMgr::instance()->downloadPartResources(PLSResourceMgr::ResourceFlag::Color, urlMap);
+	}
 	WriteConfigFile();
 }
 
@@ -420,6 +455,30 @@ bool PLSColorFilterView::GetValueFromConfigFile(const QString &name, int &value)
 	obs_data_release(privateData);
 
 	return find;
+}
+
+void PLSColorFilterView::CopyLocalImageToUserPath()
+{
+	QString originalPath = pls_get_color_filter_dir_path() + ORIGINAL_PNG;
+	QString originalThumbnailPath = pls_get_color_filter_dir_path() + ORIGINAL_THUMBNAIL_PNG;
+	QString n1Path = pls_get_color_filter_dir_path() + N1_PNG;
+	QString n1ThumbnailPath = pls_get_color_filter_dir_path() + N1_THUMBNAIL_PNG;
+
+	QFile::copy(QString(CONFIG_COLOR_FILTER_PATH).append(ORIGINAL_PNG), originalPath);
+	QFile::copy(QString(CONFIG_COLOR_FILTER_PATH).append(ORIGINAL_THUMBNAIL_PNG), originalThumbnailPath);
+	QFile::copy(QString(CONFIG_COLOR_FILTER_PATH).append(N1_PNG), n1Path);
+	QFile::copy(QString(CONFIG_COLOR_FILTER_PATH).append(N1_THUMBNAIL_PNG), n1ThumbnailPath);
+}
+
+void PLSColorFilterView::CheckLocalImageExisted()
+{
+	QString originalPath = pls_get_color_filter_dir_path() + ORIGINAL_PNG;
+	QString originalThumbnailPath = pls_get_color_filter_dir_path() + ORIGINAL_THUMBNAIL_PNG;
+	QString n1Path = pls_get_color_filter_dir_path() + N1_PNG;
+	QString n1ThumbnailPath = pls_get_color_filter_dir_path() + N1_THUMBNAIL_PNG;
+	if (!QFile::exists(originalPath) || !QFile::exists(originalThumbnailPath) || !QFile::exists(n1Path) || !QFile::exists(n1ThumbnailPath)) {
+		CopyLocalImageToUserPath();
+	}
 }
 
 PLSColorFilterImage::PLSColorFilterImage(const QString &name_, const QString &shortTitle_, const QString &path_, const QString &thumbnail_, QWidget *parent /*= nullptr*/)

@@ -18,7 +18,7 @@
 #include <map>
 #include <math.h>
 #include <mutex>
-
+#include "util/platform.h"
 using namespace std;
 
 /* clang-format off */
@@ -81,7 +81,6 @@ static const char *NAME_FONT = "name_font";
 static const char *NAME_COLOR = "name_color";
 static const char *NAME_OPACITY = "name_opacity";
 static const char *TIPS = "Tips";
-static const char *IS_LISTEN = "is_listen";
 static const char *IS_CURRENT = "is_current";
 static const char *IS_LOCAL_FILE = "is_local_file";
 static const char *IS_DISABLE = "is_disable";
@@ -92,15 +91,8 @@ static const char *URLS = "urls";
 static const char *DEFAULT_COVER_IMAGE = "bgm-default.png";
 
 #define TEXT_MUSIC obs_module_text("PlayList")
-#define TEXT_PLAY_SETTINGS obs_module_text("PlaySettings")
-#define TEXT_LOOP obs_module_text("Repeat")
 #define TEXT_SHOW obs_module_text("ShowMusicInfo")
 #define TEXT_SCENE_ENABLE obs_module_text("PlayWhenActivate")
-#define TEXT_FIFTEEN_SECOND obs_module_text("FifteenSeconds")
-#define TEXT_THIRTY_SECOND obs_module_text("ThirtySeconds")
-#define TEXT_SIXTY_SECOND obs_module_text("SixtySeconds")
-#define TEXT_RANDOM_PLAY obs_module_text("Shuffle")
-#define TEXT_PLAY_IN_ORDER obs_module_text("PlayInOrder")
 #define TEXT_SONG_COUNT obs_module_text("SongCount")
 #define TEXT_TIPS obs_module_text("Tips")
 
@@ -335,6 +327,12 @@ static void media_state_changed(void *data, calldata_t *calldata)
 			source->playing_id = url.id;
 			source->mtx.unlock();
 
+			if (source->urls.empty()) {
+				source->playing_url.clear();
+				source->playing_id.clear();
+				obs_source_media_stop(source->source);
+			}
+
 			obs_data_t *settings = obs_source_get_settings(source->source);
 			obs_source_update(source->source, settings);
 			obs_data_release(settings);
@@ -361,7 +359,9 @@ static void bgm_erase_queue_first_url(struct prism_bgm_source *source)
 		auto url = source->queue_urls[0];
 		source->queue_urls.erase(source->queue_urls.begin());
 		source->mtx.unlock();
-		blog(LOG_DEBUG, "bgm: pop select music. url is %s .", url.url.c_str());
+		char temp[256];
+		os_extract_file_name(url.url.c_str(), temp, ARRAY_SIZE(temp) - 1);
+		PLS_PLUGIN_INFO("bgm: pop select music. url is %s .", temp);
 	}
 }
 
@@ -765,7 +765,9 @@ static void bgm_source_start(struct prism_bgm_source *s)
 		return;
 	}
 
-	blog(LOG_DEBUG, "bgm: push select music. url is %s .", s->select_music.c_str());
+	char temp[256];
+	os_extract_file_name(s->select_music.c_str(), temp, ARRAY_SIZE(temp) - 1);
+	PLS_PLUGIN_DEBUG("bgm: push select music. url is %s .", temp);
 	set_current_url(s, s->select_music, s->select_id);
 	s->real_stop = false;
 
@@ -932,7 +934,7 @@ static void update_cover(prism_bgm_source *source, obs_data_t *settings)
 
 static void prism_bgm_defaults(obs_data_t *settings)
 {
-	obs_data_set_flags(settings, PROPERTY_FLAG_NO_LABEL_HEADER);
+	obs_data_add_flags(settings, PROPERTY_FLAG_NO_LABEL_HEADER);
 
 	//default text
 	obs_data_t *font_obj = obs_data_create();
@@ -1041,6 +1043,7 @@ static gs_texture_t *render_source_internal(obs_source_t *source, gs_texture_t *
 	gs_viewport_push();
 	gs_projection_push();
 
+	gs_texture_t *pre_target = gs_get_render_target();
 	gs_set_render_target(texture, NULL);
 	gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
 
@@ -1052,6 +1055,7 @@ static gs_texture_t *render_source_internal(obs_source_t *source, gs_texture_t *
 		obs_source_video_render(source);
 	}
 
+	gs_set_render_target(pre_target, NULL);
 	gs_projection_pop();
 	gs_viewport_pop();
 fail:
@@ -1405,7 +1409,7 @@ static void update_cover_mask(void *data, uint32_t width, uint32_t height)
 
 	source->cover_source.mask = gs_texture_create(width, height, GS_RGBA, 1, nullptr, GS_RENDER_TARGET);
 	if (!source->cover_source.mask) {
-		blog(LOG_WARNING, "cover mask texture is not created.");
+		PLS_PLUGIN_WARN("cover mask texture is not created.");
 		return;
 	}
 
@@ -1415,7 +1419,7 @@ static void update_cover_mask(void *data, uint32_t width, uint32_t height)
 		bfree(filename);
 
 		if (!source->mask_mixer_effect) {
-			blog(LOG_WARNING, "mask mixer effect is not created.");
+			PLS_PLUGIN_WARN("mask mixer effect is not created.");
 			return;
 		}
 	}
@@ -1496,7 +1500,9 @@ static void prism_bgm_tick(void *data, float seconds)
 			obs_source_update(source->media_source, media_settings);
 			obs_data_release(media_settings);
 			url.update = true;
-			blog(LOG_INFO, "bgm: play select music. url is %s .", url.url.c_str());
+			char temp[256];
+			os_extract_file_name(url.url.c_str(), temp, ARRAY_SIZE(temp) - 1);
+			PLS_PLUGIN_INFO("bgm: play select music. url is %s .", temp);
 		}
 	}
 
@@ -1507,7 +1513,7 @@ static void prism_bgm_tick(void *data, float seconds)
 		source->output_texture = gs_texture_create(source->output_width, source->output_height, GS_RGBA, 1, NULL, GS_RENDER_TARGET);
 	}
 	if (!source->output_texture) {
-		blog(LOG_WARNING, "Fail to create texture for prism bgm source, w/h : %d/%d", source->output_width, source->output_height);
+		PLS_PLUGIN_WARN("Fail to create texture for prism bgm source, w/h : %d/%d", source->output_width, source->output_height);
 		obs_leave_graphics();
 		return;
 	}
@@ -1550,6 +1556,7 @@ static void prism_bgm_tick(void *data, float seconds)
 		return;
 	}
 
+	gs_texture_t *pre_rt = gs_get_render_target();
 	gs_set_render_target(source->output_texture, NULL);
 
 	struct vec4 clear_color;
@@ -1565,6 +1572,7 @@ static void prism_bgm_tick(void *data, float seconds)
 	render_source(&source->producer_source, producer_width > PRODUCER_WIDTH, PRODUCER_WIDTH);
 	render_cover_source(data);
 
+	gs_set_render_target(pre_rt, NULL);
 	gs_matrix_pop();
 	gs_blend_state_pop();
 	obs_leave_graphics();
@@ -1649,7 +1657,11 @@ static void prism_bgm_stop(void *data)
 	struct prism_bgm_source *s = reinterpret_cast<prism_bgm_source *>(data);
 	s->real_stop = true;
 	obs_source_media_stop(s->media_source);
-	blog(LOG_INFO, "bgm: stop music. url is %s .", s->select_music.c_str());
+	if (!s->select_music.empty()) {
+		char temp[256];
+		os_extract_file_name(s->select_music.c_str(), temp, ARRAY_SIZE(temp) - 1);
+		PLS_PLUGIN_INFO("bgm: stop music. url is %s .", temp);
+	}
 }
 
 static void bgm_bgm_restart(void *data)
@@ -1780,9 +1792,61 @@ static bool bgm_source_setting_changed(struct prism_bgm_source *source, obs_data
 	return false;
 }
 
+static void audio_capture(void *param, obs_source_t *src, const struct audio_data *data, bool muted)
+{
+	if (!param || !src || !data || muted)
+		return;
+
+	struct prism_bgm_source *source = reinterpret_cast<prism_bgm_source *>(param);
+	struct obs_source_audio source_data = {};
+
+	for (int i = 0; i < MAX_AV_PLANES; i++)
+		source_data.data[i] = data->data[i];
+
+	source_data.frames = data->frames;
+	source_data.timestamp = data->timestamp;
+
+	uint32_t samples_per_sec = 0;
+	int speakers = 0;
+	obs_audio_output_get_info(&samples_per_sec, &speakers);
+	source_data.samples_per_sec = samples_per_sec;
+	source_data.speakers = (speaker_layout)speakers;
+	source_data.format = AUDIO_FORMAT_FLOAT_PLANAR;
+
+	obs_source_output_audio(source->source, &source_data);
+	return;
+}
+
+static void create_media_source(struct prism_bgm_source *source)
+{
+	if (!source) {
+		return;
+	}
+
+	if (source->media_source) {
+		return;
+	}
+
+	obs_data_t *ffmpeg_settings = obs_data_create();
+	obs_data_set_bool(ffmpeg_settings, "bgm_source", true);
+	obs_data_set_string(ffmpeg_settings, "looping", false);
+
+	source->media_source = obs_source_create_private("ffmpeg_source", "prism_bgm_play_source", ffmpeg_settings);
+	obs_source_add_audio_capture_callback(source->media_source, audio_capture, source);
+
+	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_state_changed", media_state_changed, source);
+	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_load", media_load, source);
+	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_skipped", media_skip, source);
+
+	obs_source_inc_active(source->media_source);
+	obs_data_release(ffmpeg_settings);
+}
+
 static void prism_bgm_update(void *data, obs_data_t *settings)
 {
 	struct prism_bgm_source *source = reinterpret_cast<prism_bgm_source *>(data);
+
+	create_media_source(source);
 
 	if (bgm_source_setting_changed(source, settings)) {
 		obs_source_properties_changed(source->source);
@@ -1831,6 +1895,9 @@ std::string wchar_to_string(const wchar_t *str)
 	int n = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
 	char *pBuffer = new (std::nothrow) char[n + 1];
 	n = WideCharToMultiByte(CP_UTF8, 0, str, -1, pBuffer, n, NULL, NULL);
+	if (pBuffer == NULL) {
+		return "";
+	}
 	pBuffer[n] = 0;
 	std::string ret = pBuffer;
 	delete[] pBuffer;
@@ -1903,20 +1970,6 @@ static void *prism_bgm_create(obs_data_t *settings, obs_source_t *source_)
 	struct prism_bgm_source *source = new prism_bgm_source();
 	source->source = source_;
 
-	obs_data_t *ffmpeg_settings = obs_data_create();
-	obs_data_set_bool(ffmpeg_settings, "bgm_source", true);
-	obs_data_set_string(ffmpeg_settings, "looping", false);
-
-	source->media_source = obs_source_create_private("ffmpeg_source", "prism_bgm_play_source", ffmpeg_settings);
-	obs_source_set_parent(source->media_source, source->source);
-	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_state_changed", media_state_changed, source);
-	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_load", media_load, source);
-	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_skip", media_skip, source);
-
-	obs_source_set_monitoring_type(source->media_source, OBS_MONITORING_TYPE_MONITOR_ONLY);
-	obs_source_inc_active(source->media_source);
-	obs_data_release(ffmpeg_settings);
-
 	source->output_width = BASE_WIDTH;
 	source->output_height = BASE_HEIGHT;
 
@@ -1929,7 +1982,8 @@ static void *prism_bgm_create(obs_data_t *settings, obs_source_t *source_)
 
 	int font_index = prism_get_valid_font_index();
 	if (font_index >= 0) {
-		source->valid_font_name = wchar_to_string(font_array[font_index]);
+		auto _fontName = wchar_to_string(font_array[font_index]);
+		source->valid_font_name = _fontName == "" ? "Arial" : _fontName;
 	} else {
 		source->valid_font_name = "Arial";
 	}
@@ -1937,6 +1991,8 @@ static void *prism_bgm_create(obs_data_t *settings, obs_source_t *source_)
 
 	source->arc_vert = nullptr;
 	source->rect_vert = nullptr;
+
+	obs_source_set_monitoring_type(source->source, OBS_MONITORING_TYPE_MONITOR_ONLY);
 
 	obs_source_update(source_, settings);
 	return source;
@@ -1946,6 +2002,8 @@ static void prism_bgm_destroy(void *data)
 {
 	struct prism_bgm_source *source = reinterpret_cast<prism_bgm_source *>(data);
 
+	obs_enter_graphics();
+
 	if (source->output_texture) {
 		gs_texture_destroy(source->output_texture);
 	}
@@ -1953,23 +2011,15 @@ static void prism_bgm_destroy(void *data)
 	if (source->name_source.texture) {
 		gs_texture_destroy(source->name_source.texture);
 	}
-	if (source->name_source.source) {
-		obs_source_release(source->name_source.source);
-	}
 
 	if (source->producer_source.texture) {
 		gs_texture_destroy(source->producer_source.texture);
-	}
-	if (source->producer_source.source) {
-		obs_source_release(source->producer_source.source);
 	}
 
 	if (source->cover_source.texture) {
 		gs_texture_destroy(source->cover_source.texture);
 	}
-	if (source->cover_source.default_source) {
-		obs_source_release(source->cover_source.default_source);
-	}
+
 	if (source->cover_source.mask) {
 		gs_texture_destroy(source->cover_source.mask);
 		source->cover_source.mask = nullptr;
@@ -1977,21 +2027,6 @@ static void prism_bgm_destroy(void *data)
 	if (source->mask_mixer_effect) {
 		gs_effect_destroy(source->mask_mixer_effect);
 		source->mask_mixer_effect = nullptr;
-	}
-
-	if (source->name_scroll_source) {
-		obs_source_release(source->name_scroll_source);
-	}
-	if (source->producer_scroll_source) {
-		obs_source_release(source->producer_scroll_source);
-	}
-
-	if (source->media_source) {
-		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_state_changed", media_state_changed, source);
-		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_load", media_load, source);
-		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_skip", media_skip, source);
-		obs_source_dec_active(source->media_source);
-		obs_source_release(source->media_source);
 	}
 
 	if (source->arc_vert) {
@@ -2002,6 +2037,38 @@ static void prism_bgm_destroy(void *data)
 	if (source->rect_vert) {
 		gs_vertexbuffer_destroy(source->rect_vert);
 		source->rect_vert = nullptr;
+	}
+
+	obs_leave_graphics();
+
+	if (source->name_source.source) {
+		obs_source_release(source->name_source.source);
+	}
+
+	if (source->producer_source.source) {
+		obs_source_release(source->producer_source.source);
+	}
+
+	if (source->name_scroll_source) {
+		obs_source_release(source->name_scroll_source);
+	}
+	if (source->producer_scroll_source) {
+		obs_source_release(source->producer_scroll_source);
+	}
+
+	if (source->cover_source.default_source) {
+		obs_source_release(source->cover_source.default_source);
+	}
+
+	if (source->media_source) {
+		obs_source_media_stop(source->source);
+		obs_source_dec_active(source->media_source);
+		obs_source_remove_audio_capture_callback(source->media_source, audio_capture, source);
+
+		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_state_changed", media_state_changed, source);
+		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_load", media_load, source);
+		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_skipped", media_skip, source);
+		obs_source_release(source->media_source);
 	}
 
 	if (source->cover_source.source) {
@@ -2221,6 +2288,28 @@ static void prism_bgm_get_private_data(void *data, obs_data_t *private_data)
 	obs_data_array_release(data_array);
 }
 
+//PRISM/ZengQin/20210604/#none/Get properties parameters
+static obs_data_t *prism_bgm_get_props_params(void *data)
+{
+	if (!data)
+		return NULL;
+
+	auto pSource = reinterpret_cast<prism_bgm_source *>(data);
+	obs_data_t *private_settings = obs_source_get_private_settings(pSource->source);
+	bool loop = obs_data_get_bool(private_settings, IS_LOOP);
+	bool play_in_order = obs_data_get_bool(private_settings, PLAY_IN_ORDER);
+	bool is_random = obs_data_get_bool(private_settings, RANDOM_PLAY);
+	bool is_enable = obs_data_get_bool(private_settings, SCENE_ENABLE);
+	obs_data_release(private_settings);
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_bool(params, IS_LOOP, loop);
+	obs_data_set_bool(params, PLAY_IN_ORDER, play_in_order);
+	obs_data_set_bool(params, RANDOM_PLAY, is_random);
+	obs_data_set_bool(params, SCENE_ENABLE, is_enable);
+	return params;
+}
+
 void register_prism_bgm_source()
 {
 	obs_source_info info = {};
@@ -2252,6 +2341,8 @@ void register_prism_bgm_source()
 	info.is_update_done = prism_bgm_is_update_done;
 	info.set_private_data = prism_bgm_set_private_data;
 	info.get_private_data = prism_bgm_get_private_data;
+	//PRISM/ZengQin/20210604/#none/Get properties parameters
+	info.props_params = prism_bgm_get_props_params;
 	obs_register_source(&info);
 }
 

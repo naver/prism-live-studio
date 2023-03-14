@@ -71,14 +71,14 @@ static inline bool gl_success(const char *funcname)
 	if (errorcode != GL_NO_ERROR) {
 		int attempts = 8;
 		do {
-			blog(LOG_ERROR,
+			plog(LOG_ERROR,
 			     "%s failed, glGetError returned %s(0x%X)",
 			     funcname, gl_error_to_str(errorcode), errorcode);
 			errorcode = glGetError();
 
 			--attempts;
 			if (attempts == 0) {
-				blog(LOG_ERROR,
+				plog(LOG_ERROR,
 				     "Too many GL errors, moving on");
 				break;
 			}

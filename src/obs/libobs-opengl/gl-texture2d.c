@@ -131,7 +131,7 @@ gs_texture_t *device_texture_create(gs_device_t *device, uint32_t width,
 
 fail:
 	gs_texture_destroy((gs_texture_t *)tex);
-	blog(LOG_ERROR, "device_texture_create (GL) failed");
+	plog(LOG_ERROR, "device_texture_create (GL) failed");
 	return NULL;
 }
 
@@ -139,7 +139,7 @@ static inline bool is_texture_2d(const gs_texture_t *tex, const char *func)
 {
 	bool is_tex2d = tex->type == GS_TEXTURE_2D;
 	if (!is_tex2d)
-		blog(LOG_ERROR, "%s (GL) failed:  Not a 2D texture", func);
+		plog(LOG_ERROR, "%s (GL) failed:  Not a 2D texture", func);
 	return is_tex2d;
 }
 
@@ -198,7 +198,7 @@ bool gs_texture_map(gs_texture_t *tex, uint8_t **ptr, uint32_t *linesize)
 		goto fail;
 
 	if (!tex2d->base.is_dynamic) {
-		blog(LOG_ERROR, "Texture is not dynamic");
+		plog(LOG_ERROR, "Texture is not dynamic");
 		goto fail;
 	}
 
@@ -216,7 +216,7 @@ bool gs_texture_map(gs_texture_t *tex, uint8_t **ptr, uint32_t *linesize)
 	return true;
 
 fail:
-	blog(LOG_ERROR, "gs_texture_map (GL) failed");
+	plog(LOG_ERROR, "gs_texture_map (GL) failed");
 	return false;
 }
 
@@ -248,14 +248,14 @@ void gs_texture_unmap(gs_texture_t *tex)
 failed:
 	gl_bind_buffer(GL_PIXEL_UNPACK_BUFFER, 0);
 	gl_bind_texture(GL_TEXTURE_2D, 0);
-	blog(LOG_ERROR, "gs_texture_unmap (GL) failed");
+	plog(LOG_ERROR, "gs_texture_unmap (GL) failed");
 }
 
 bool gs_texture_is_rect(const gs_texture_t *tex)
 {
 	const struct gs_texture_2d *tex2d = (const struct gs_texture_2d *)tex;
 	if (!is_texture_2d(tex, "gs_texture_unmap")) {
-		blog(LOG_ERROR, "gs_texture_is_rect (GL) failed");
+		plog(LOG_ERROR, "gs_texture_is_rect (GL) failed");
 		return false;
 	}
 
@@ -266,7 +266,7 @@ void *gs_texture_get_obj(gs_texture_t *tex)
 {
 	struct gs_texture_2d *tex2d = (struct gs_texture_2d *)tex;
 	if (!is_texture_2d(tex, "gs_texture_unmap")) {
-		blog(LOG_ERROR, "gs_texture_get_obj (GL) failed");
+		plog(LOG_ERROR, "gs_texture_get_obj (GL) failed");
 		return NULL;
 	}
 

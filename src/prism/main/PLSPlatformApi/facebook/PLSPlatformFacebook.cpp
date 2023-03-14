@@ -5,6 +5,9 @@
 #include "../channels/ChannelsDataApi/PLSChannelDataAPI.h"
 #include "../PLSLiveInfoDialogs.h"
 #include "../../frontend-api/alert-view.hpp"
+#include "prism/PLSPlatformPrism.h"
+#include "log.h"
+#include "log/log.h"
 
 const QString TimelinePublicId = "{value:'EVERYONE'}";
 const QString TimelineFriendId = "{value:'ALL_FRIENDS'}";
@@ -32,8 +35,11 @@ const QString FacebookLiveUrl_Key = "FacebookLiveUrl_Key";
 const QString FacebookShareLink_Key = "FacebookShareLink_Key";
 const QString FacebookLiveStatus_Key = "FacebookLiveStatus_Key";
 
+const QString REMOVE_DASHBOARD_KEY = "REMOVE_DASHBOARD_KEY";
+
 PLSPlatformFacebook::PLSPlatformFacebook() : PLSPlatformBase()
 {
+	setSingleChannel(true);
 	connect(
 		PLS_PLATFORM_API, &PLSPlatformApi::liveEndedForUi, this, [=]() { resetLiveInfo(); }, Qt::DirectConnection);
 }
@@ -161,9 +167,9 @@ void PLSPlatformFacebook::onPrepareLive(bool value)
 		return;
 	}
 
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ "show liveinfo");
+	PLS_INFO(MODULE_PlatformService, "%s %s show liveinfo value(%s)", PrepareInfoPrefix, __FUNCTION__, BOOL2STR(value));
 	value = pls_exec_live_Info_facebook(getChannelUUID(), getInitData()) == QDialog::Accepted;
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__ "liveinfo closed with:%d", value);
+	PLS_INFO(MODULE_PlatformService, "%s %s liveinfo closed value(%s)", PrepareInfoPrefix, __FUNCTION__, BOOL2STR(value));
 	prepareLiveCallback(value);
 }
 
@@ -194,13 +200,13 @@ void PLSPlatformFacebook::onAllPrepareLive(bool value)
 	PLSPlatformBase::onAllPrepareLive(value);
 }
 
-void PLSPlatformFacebook::onLiveStopped()
+void PLSPlatformFacebook::onLiveEnded()
 {
 	if (m_statusTimer && m_statusTimer->isActive()) {
 		m_statusTimer->stop();
 		m_statusTimer = nullptr;
 	}
-	auto callBack = [=](PLSAPIFacebookType type) { liveStoppedCallback(); };
+	auto callBack = [=](PLSAPIFacebookType) { liveEndedCallback(); };
 	PLSFaceBookRquest->stopFacebookLiving(PLSAPIFacebook::PLSAPIStopFacebookLiving, getLiveInfoValue(FacebookLiveId_Key), callBack);
 	if (m_facebookLivingExpired) {
 		PLSCHANNELS_API->setValueOfChannel(getChannelUUID(), ChannelData::g_channelStatus, ChannelData::Expired);
@@ -263,7 +269,7 @@ void PLSPlatformFacebook::startLiving(QMap<QString, QString> info, MyRequestType
 	QString shareObjectName = info.value(FacebookShareObjectName_Key);
 	QString accessToken;
 	QString itemId;
-	PLSAPIFacebook::PLSAPI apiType;
+	PLSAPIFacebook::PLSAPI apiType = PLSAPIFacebook::PLSAPIStartTimelineLiving;
 	if (shareObjectName == TimelineObjectFlags) {
 		itemId = FacebookTimelineItemId;
 		accessToken = getAccessToken();
@@ -344,11 +350,17 @@ void PLSPlatformFacebook::requestItemInfoRequest(QMap<QString, QString> requestI
 			//update dashboard
 			QVariantMap map;
 			map.insert(ChannelData::g_nickName, nickname);
-			map.insert(ChannelData::g_userIconCachePath, profilePath);
+			map.insert(ChannelData::g_displayLine1, nickname);
+			if (profilePath.length() > 0) {
+				map.insert(ChannelData::g_userIconCachePath, profilePath);
+			} else {
+				map.insert(ChannelData::g_userIconCachePath, REMOVE_DASHBOARD_KEY);
+			}
 			if (shareObjectName == TimelineObjectFlags) {
 				QString privacyId = getLiveInfoValue(FacebookPrivacyId_Key);
 				QString privacyName = getItemName(privacyId, FacebookPrivacyItemType);
 				map.insert(ChannelData::g_catogry, privacyName);
+				map.insert(ChannelData::g_displayLine2, privacyName);
 				m_timelineNickname = nickname;
 				m_timelineProfilePath = profilePath;
 			} else if (shareObjectName == GroupObjectFlags || shareObjectName == PageObjectFlags) {
@@ -356,8 +368,10 @@ void PLSPlatformFacebook::requestItemInfoRequest(QMap<QString, QString> requestI
 				QString gameId = getGameId(gameName);
 				if (gameId.size() > 0) {
 					map.insert(ChannelData::g_catogry, gameName);
+					map.insert(ChannelData::g_displayLine2, gameName);
 				} else {
 					map.insert(ChannelData::g_catogry, "");
+					map.insert(ChannelData::g_displayLine2, "");
 				}
 			}
 			updateChannelInfos(map, true);
@@ -379,6 +393,10 @@ void PLSPlatformFacebook::updateChannelInfos(const QVariantMap &channelInfos, bo
 	auto latInfo = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
 	QVariantMap::const_iterator i;
 	for (i = channelInfos.constBegin(); i != channelInfos.constEnd(); ++i) {
+		if (i.value().toString() == REMOVE_DASHBOARD_KEY) {
+			latInfo.remove(i.key());
+			continue;
+		}
 		latInfo.insert(i.key(), i.value());
 	}
 	PLSCHANNELS_API->setChannelInfos(latInfo, refresh);
@@ -399,10 +417,15 @@ void PLSPlatformFacebook::resetLiveInfo()
 	clearInfoData();
 	QVariantMap updateInfoMap;
 	updateInfoMap.insert(ChannelData::g_nickName, m_timelineNickname);
-	updateInfoMap.insert(ChannelData::g_userIconCachePath, m_timelineProfilePath);
+	updateInfoMap.insert(ChannelData::g_displayLine1, m_timelineNickname);
+	updateInfoMap.insert(ChannelData::g_userIconCachePath, REMOVE_DASHBOARD_KEY);
+	if (m_timelineProfilePath.length() > 0) {
+		updateInfoMap.insert(ChannelData::g_userIconCachePath, m_timelineProfilePath);
+	}
 	QString privacyId = getLiveInfoValue(FacebookPrivacyId_Key);
 	QString privacyName = getItemName(privacyId, FacebookPrivacyItemType);
 	updateInfoMap.insert(ChannelData::g_catogry, privacyName);
+	updateInfoMap.insert(ChannelData::g_displayLine2, privacyName);
 	updateInfoMap.insert(ChannelData::g_shareUrl, "");
 	updateInfoMap.insert(ChannelData::g_likes, "0");
 	updateInfoMap.insert(ChannelData::g_viewers, "0");
@@ -455,10 +478,13 @@ void PLSPlatformFacebook::requestStatisticsInfo()
 			}
 			const auto channelName = getChannelName();
 			if (PLS_PLATFORM_API->getActivePlatforms().size() == 1) {
-				PLSAlertView::warning(PLSBasic::Get(), QTStr("Live.Check.Alert.Title"), QTStr("MQTT.Aborted.Error").arg(channelName));
+				QString content = QTStr("LiveInfo.live.error.stoped.byRemote").arg(channelName);
+				PLSAlertView::warning(PLSBasic::Get(), QTStr("Alert.Title"), content);
+				PLS_LIVE_ABORT_INFO(MODULE_PlatformService, "live abort because live platform stop", "FinishedBy facebook stop streaming because reason: %s",
+						    content.toUtf8().constData());
 				PLSCHANNELS_API->toStopBroadcast();
 			} else {
-				pls_toast_message(pls_toast_info_type::PLS_TOAST_ERROR, QTStr("MQTT.Aborted.Error").arg(channelName));
+				pls_toast_message(pls_toast_info_type::PLS_TOAST_ERROR, QTStr("LiveInfo.live.error.stoped.byRemote").arg(channelName));
 				PLSCHANNELS_API->setChannelStatus(getChannelUUID(), ChannelData::Error);
 			}
 		}
@@ -580,7 +606,8 @@ void PLSPlatformFacebook::updatePrivateChat()
 {
 	bool newPrivate = isPrivateChat();
 	if (m_privateChat != newPrivate) {
-
+		//emit privateChatChanged(m_privateChat, newPrivate);
+		PLSPlatformApi::instance()->forwardWebMessagePrivateChanged(this, newPrivate);
 	}
 	m_privateChat = newPrivate;
 }
@@ -625,10 +652,14 @@ void PLSPlatformFacebook::setPrivacyToTimeline()
 	insertLiveInfo(FacebookShareObjectName_Key, TimelineObjectFlags);
 	insertLiveInfo(FacebookPrivacyId_Key, TimelinePublicId);
 	updateInfoMap.insert(ChannelData::g_nickName, m_timelineNickname);
-	updateInfoMap.insert(ChannelData::g_userIconCachePath, m_timelineProfilePath);
+	updateInfoMap.insert(ChannelData::g_userIconCachePath, REMOVE_DASHBOARD_KEY);
+	if (m_timelineProfilePath.length() > 0) {
+		updateInfoMap.insert(ChannelData::g_userIconCachePath, m_timelineProfilePath);
+	}
 	QString privacyId = getLiveInfoValue(FacebookPrivacyId_Key);
 	QString privacyName = getItemName(privacyId, FacebookPrivacyItemType);
 	updateInfoMap.insert(ChannelData::g_catogry, privacyName);
+	updateInfoMap.insert(ChannelData::g_displayLine2, privacyName);
 	updateChannelInfos(updateInfoMap, true);
 }
 

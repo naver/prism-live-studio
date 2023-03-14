@@ -688,7 +688,7 @@ static bool gl_shader_buildstring(struct gl_shader_parser *glsp)
 
 	main_func = shader_parser_getfunc(&glsp->parser, "main");
 	if (!main_func) {
-		blog(LOG_ERROR, "function 'main' not found");
+		plog(LOG_ERROR, "function 'main' not found");
 		return false;
 	}
 
@@ -712,7 +712,7 @@ bool gl_shader_parse(struct gl_shader_parser *glsp, const char *shader_str,
 	bool success = shader_parse(&glsp->parser, shader_str, file);
 	char *str = shader_parser_geterrors(&glsp->parser);
 	if (str) {
-		blog(LOG_WARNING, "Shader parser errors/warnings:\n%s\n", str);
+		plog(LOG_WARNING, "Shader parser errors/warnings:\n%s\n", str);
 		bfree(str);
 	}
 

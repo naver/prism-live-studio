@@ -21,14 +21,6 @@
 #include <obs-module.h>
 #include <vector>
 
-/* Logging */
-#define log_src(log_level, format, ...) blog(log_level, "[spectralizer: '%s'] " format, obs_source_get_name(context->source), ##__VA_ARGS__)
-#define write_log(log_level, format, ...) blog(log_level, "[spectralizer] " format, ##__VA_ARGS__)
-
-#define debug(format, ...) write_log(LOG_DEBUG, format, ##__VA_ARGS__)
-#define info(format, ...) write_log(LOG_INFO, format, ##__VA_ARGS__)
-#define warn(format, ...) write_log(LOG_WARNING, format, ##__VA_ARGS__)
-
 /* clang-format off */
 
 #define UTIL_EULER 2.7182818284590452353
@@ -39,7 +31,6 @@
 #define T_(v)                           obs_module_text(v)
 
 #define T_SOURCE                        T_("Spectralizer.Source")
-#define T_SOURCE_MODE                   T_("Spectralizer.Mode")
 #define T_MODE_BARS_BASIC               T_("Spectralizer.Mode.BasicBars")
 #define T_MODE_BARS_FILLET              T_("Spectralizer.Mode.FilletBars")
 #define T_MODE_BARS_LINEAR              T_("Spectralizer.Mode.LinearBars")
@@ -47,13 +38,11 @@
 #define T_STEREO                        T_("Spectralizer.Stereo")
 #define T_STEREO_SPACE			T_("Spectralizer.Stereo.Space")
 #define T_DETAIL                        T_("Spectralizer.Detail")
-#define T_REFRESH_RATE                  T_("Spectralizer.RefreshRate")
 #define T_AUDIO_SOURCE                  T_("Spectralizer.AudioSource")
 #define T_AUDIO_SOURCE_NONE             T_("Spectralizer.AudioSource.None")
 #define T_BAR_SETTINGS                  T_("Spectralizer.Bar.Settings")
 #define T_BAR_WIDTH                     T_("Spectralizer.Bar.Width")
 #define T_BAR_HEIGHT                    T_("Spectralizer.Bar.Height")
-#define T_SAMPLE_RATE                   T_("Spectralizer.SampleRate")
 #define T_BAR_SPACING                   T_("Spectralizer.Bar.Space")
 #define T_COLOR                         T_("Spectralizer.Color")
 #define T_SOLID_COLOR			T_COLOR
@@ -67,7 +56,6 @@
 #define T_SGS_PASSES			T_("Spectralizer.Filter.SGS.Passes")
 #define T_SGS_POINTS			T_("Spectralizer.Filter.SGS.Points")
 #define T_FILTER_STRENGTH    		T_("Spectralizer.Filter.Strength")
-#define T_AUTO_CLEAR			T_("Spectralizer.AutoClear")
 #define T_AUTO_SCALE			T_("Spectralizer.Use.AutoScale")
 #define T_SCALE_BOOST			T_("Spectralizer.Scale.Boost")
 #define T_SCALE_SIZE			T_("Spectralizer.Scale.Size")

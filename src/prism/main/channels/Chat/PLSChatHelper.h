@@ -20,6 +20,7 @@ public:
 		ChatIndexNaverTV,
 		ChatIndexVLive,
 		ChatIndexAfreecaTV,
+		ChatIndexNaverShopping,
 		ChatIndexUnDefine,
 	};
 

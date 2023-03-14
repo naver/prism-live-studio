@@ -6,7 +6,10 @@
 #include "window-basic-main-outputs.hpp"
 #include "alert-view.hpp"
 #include "main-view.hpp"
+#include "PLSServerStreamHandler.hpp"
 #include "PLSChannelDataAPI.h"
+#include "pls/media-info.h"
+#include "platform.hpp"
 
 using namespace std;
 
@@ -22,6 +25,16 @@ volatile bool replaybuf_active = false;
 //PRISM/LiuHaibin/20200320/#865/for outro
 static bool StartOutro(void)
 {
+	QString path;
+	uint timeOut = 0;
+	if (PLSServerStreamHandler::instance()->getOutroInfo(path, &timeOut)) {
+		if (obs_outro_activate(path.toStdString().c_str(), timeOut * 1000))
+			return true;
+		else
+			PLS_WARN(MAIN_OUTPUT, "Activate Outro Failed, path %s, timeout %d (ms)", GetFileName(path.toStdString()).c_str(), timeOut);
+	} else
+		PLS_WARN(MAIN_OUTPUT, "No available Outro file");
+
 	return false;
 }
 
@@ -43,7 +56,7 @@ static void AsyncStopStreaming(OBSOutput streamOutput)
 {
 	if (streamOutput && obs_output_active(streamOutput) && IsSyncStopping()) {
 		if (!StartOutro()) {
-			blog(LOG_INFO, "[Sync Stopping], async start outro failed, stop streaming.");
+			PLS_INFO(MAIN_OUTPUT, "[Sync Stopping], async start outro failed, stop streaming.");
 			obs_output_stop(streamOutput);
 		}
 	}
@@ -52,25 +65,25 @@ static void AsyncStopStreaming(OBSOutput streamOutput)
 static void TryToStopStreaming(BasicOutputHandler *outputHander)
 {
 	if (!outputHander) {
-		blog(LOG_WARNING, "Error with params for output hander");
+		PLS_WARN(MAIN_OUTPUT, "Error with params for output hander");
 		return;
 	}
 
 	if (IsSyncStopping()) {
 		if (obs_output_active(outputHander->fileOutput)) {
-			blog(LOG_INFO, "[Sync Stopping], recording is active, WILL start outro when recording stopped.");
+			PLS_INFO(MAIN_OUTPUT, "[Sync Stopping], recording is active, WILL start outro when recording stopped.");
 			return;
 		} else if (!StartOutro()) {
-			blog(LOG_INFO, "[Sync Stopping], start outro failed, stop streaming.");
+			PLS_INFO(MAIN_OUTPUT, "[Sync Stopping], start outro failed, stop streaming.");
 			obs_output_stop(outputHander->streamOutput);
 		}
 
 	} else {
 		if (obs_output_active(outputHander->fileOutput)) {
-			blog(LOG_INFO, "[Async Stopping], recording is active, do not start outro.");
+			PLS_INFO(MAIN_OUTPUT, "[Async Stopping], recording is active, do not start outro.");
 			obs_output_stop(outputHander->streamOutput);
 		} else if (!StartOutro()) {
-			blog(LOG_INFO, "[Async Stopping], start outro failed, stop streaming.");
+			PLS_INFO(MAIN_OUTPUT, "[Async Stopping], start outro failed, stop streaming.");
 			obs_output_stop(outputHander->streamOutput);
 		}
 	}
@@ -80,14 +93,14 @@ static void TryToStopStreaming(BasicOutputHandler *outputHander)
 static void ResetWatermarkStatus(BasicOutputHandler *outputHander, bool isStreaming)
 {
 	if (!outputHander) {
-		blog(LOG_WARNING, "Error with params for output hander");
+		PLS_WARN(MAIN_OUTPUT, "Error with params for output hander");
 		return;
 	}
 
 	OBSOutput theOther = isStreaming ? outputHander->fileOutput : outputHander->streamOutput;
 
 	if (!obs_output_active(theOther)) {
-		blog(LOG_INFO, "No streaming & recording is active, set watermark refresh.");
+		PLS_INFO(MAIN_OUTPUT, "No streaming & recording is active, set watermark refresh.");
 		obs_watermark_set_refresh(true);
 	}
 }
@@ -124,9 +137,38 @@ static void PLSStartStreaming(void *data, calldata_t *params)
 	BasicOutputHandler *output = static_cast<BasicOutputHandler *>(data);
 	output->streamingActive = true;
 	os_atomic_set_bool(&streaming_active, true);
+
+	const char *fields[][2] = {{"outputStats", "Streaming Started"}};
+	PLS_LOGEX(PLS_LOG_INFO, MAIN_OUTPUT, fields, 1, "[Output] %s :'%s' started.", obs_output_get_id(output->streamOutput), obs_output_get_name(output->streamOutput));
+
 	QMetaObject::invokeMethod(output->main, "StreamingStart");
 
 	UNUSED_PARAMETER(params);
+}
+
+static const char *StopCodeString(int code)
+{
+	switch (code) {
+	case OBS_OUTPUT_BAD_PATH:
+		return "Bad Path";
+	case OBS_OUTPUT_CONNECT_FAILED:
+		return "Connect Failed";
+	case OBS_OUTPUT_INVALID_STREAM:
+		return "Invalid Stream";
+	case OBS_OUTPUT_ERROR:
+		return "Error";
+	case OBS_OUTPUT_DISCONNECTED:
+		return "Disconnected";
+	case OBS_OUTPUT_UNSUPPORTED:
+		return "Unsupported";
+	case OBS_OUTPUT_NO_SPACE:
+		return "No Space";
+	case OBS_OUTPUT_ENCODE_ERROR:
+		return "Encoder Error";
+	default:
+		break;
+	}
+	return "Unknown";
 }
 
 static void PLSStopStreaming(void *data, calldata_t *params)
@@ -137,10 +179,22 @@ static void PLSStopStreaming(void *data, calldata_t *params)
 
 	QString arg_last_error = QString::fromUtf8(last_error);
 
+	if (code != OBS_OUTPUT_SUCCESS) {
+		const char *fields[][2] = {{"outputStats", "Streaming Abnormal Stopped"}, {"outputExceptionStats", StopCodeString(code)}};
+		PLS_LOGEX(PLS_LOG_WARN, MAIN_OUTPUT, fields, 2, "[Output] %s :'%s' unexpected stopped due to error %d('%s'), msg '%s'.", obs_output_get_id(output->streamOutput),
+			  obs_output_get_name(output->streamOutput), code, StopCodeString(code), last_error);
+	} else {
+		const char *fields[][2] = {{"outputStats", "Streaming Normally Stopped"}};
+		PLS_LOGEX(PLS_LOG_INFO, MAIN_OUTPUT, fields, 1, "[Output] %s :'%s' successfully stopped.", obs_output_get_id(output->streamOutput), obs_output_get_name(output->streamOutput));
+	}
+
 	output->streamingActive = false;
 	output->delayActive = false;
 	os_atomic_set_bool(&streaming_active, false);
 	QMetaObject::invokeMethod(output->main, "StreamingStop", Q_ARG(int, code), Q_ARG(QString, arg_last_error));
+
+	//PRISM/LiuHaibin/20210621/#None/clear id3v2 queue after streaming stopped.
+	mi_clear_id3v2_queue();
 
 	//PRISM/LiuHaibin/20200320/#none/for watermark
 	ResetWatermarkStatus(output, true);
@@ -149,6 +203,9 @@ static void PLSStopStreaming(void *data, calldata_t *params)
 static void PLSStartRecording(void *data, calldata_t *params)
 {
 	BasicOutputHandler *output = static_cast<BasicOutputHandler *>(data);
+
+	const char *fields[][2] = {{"outputStats", "Recording Started"}};
+	PLS_LOGEX(PLS_LOG_INFO, MAIN_OUTPUT, fields, 1, "[Output] %s :'%s' started.", obs_output_get_id(output->fileOutput), obs_output_get_name(output->fileOutput));
 
 	output->recordingActive = true;
 	os_atomic_set_bool(&recording_active, true);
@@ -164,6 +221,15 @@ static void PLSStopRecording(void *data, calldata_t *params)
 	const char *last_error = calldata_string(params, "last_error");
 
 	QString arg_last_error = QString::fromUtf8(last_error);
+
+	if (code != OBS_OUTPUT_SUCCESS) {
+		const char *fields[][2] = {{"outputStats", "Recording Abnormal Stopped"}, {"outputExceptionStats", StopCodeString(code)}};
+		PLS_LOGEX(PLS_LOG_WARN, MAIN_OUTPUT, fields, 2, "[Output] %s :'%s' unexpected stopped due to error %d('%s'), msg '%s'.", obs_output_get_id(output->fileOutput),
+			  obs_output_get_name(output->fileOutput), code, StopCodeString(code), last_error);
+	} else {
+		const char *fields[][2] = {{"outputStats", "Recording Normally Stopped"}};
+		PLS_LOGEX(PLS_LOG_INFO, MAIN_OUTPUT, fields, 1, "[Output] %s :'%s' successfully stopped.", obs_output_get_id(output->fileOutput), obs_output_get_name(output->fileOutput));
+	}
 
 	output->recordingActive = false;
 	os_atomic_set_bool(&recording_active, false);
@@ -192,6 +258,9 @@ static void PLSStartReplayBuffer(void *data, calldata_t *params)
 {
 	BasicOutputHandler *output = static_cast<BasicOutputHandler *>(data);
 
+	const char *fields[][2] = {{"outputStats", "ReplayBuffer Started"}};
+	PLS_LOGEX(PLS_LOG_INFO, MAIN_OUTPUT, fields, 1, "[Output] %s :'%s' started.", obs_output_get_id(output->replayBuffer), obs_output_get_name(output->replayBuffer));
+
 	output->replayBufferActive = true;
 	os_atomic_set_bool(&replaybuf_active, true);
 	QMetaObject::invokeMethod(output->main, "ReplayBufferStart");
@@ -203,6 +272,15 @@ static void PLSStopReplayBuffer(void *data, calldata_t *params)
 {
 	BasicOutputHandler *output = static_cast<BasicOutputHandler *>(data);
 	int code = (int)calldata_int(params, "code");
+
+	if (code != OBS_OUTPUT_SUCCESS) {
+		const char *fields[][2] = {{"outputStats", "ReplayBuffer Abnormal Stopped"}, {"outputExceptionStats", StopCodeString(code)}};
+		PLS_LOGEX(PLS_LOG_WARN, MAIN_OUTPUT, fields, 2, "[Output] %s :'%s' unexpected stopped due to error %d('%s').", obs_output_get_id(output->replayBuffer),
+			  obs_output_get_name(output->replayBuffer), code, StopCodeString(code));
+	} else {
+		const char *fields[][2] = {{"outputStats", "ReplayBuffer Normally Stopped"}};
+		PLS_LOGEX(PLS_LOG_INFO, MAIN_OUTPUT, fields, 1, "[Output] %s :'%s' successfully stopped.", obs_output_get_id(output->replayBuffer), obs_output_get_name(output->replayBuffer));
+	}
 
 	output->replayBufferActive = false;
 	os_atomic_set_bool(&replaybuf_active, false);
@@ -224,6 +302,16 @@ static void PLSReplayBufferSaved(void *data, calldata_t *params)
 	BasicOutputHandler *output = static_cast<BasicOutputHandler *>(data);
 	int code = (int)calldata_int(params, "code");
 	const char *lastError = calldata_string(params, "last_error");
+
+	if (code != OBS_OUTPUT_SUCCESS) {
+		const char *fields[][2] = {{"outputStats", "ReplayBuffer Abnormal Saved"}, {"outputExceptionStats", StopCodeString(code)}};
+		PLS_LOGEX(PLS_LOG_WARN, MAIN_OUTPUT, fields, 2, "[Output] %s :'%s' unexpected stopped due to error %d('%s'), msg '%s'.", obs_output_get_id(output->replayBuffer),
+			  obs_output_get_name(output->replayBuffer), code, StopCodeString(code), lastError);
+	} else {
+		const char *fields[][2] = {{"outputStats", "ReplayBuffer Normally Saved"}};
+		PLS_LOGEX(PLS_LOG_INFO, MAIN_OUTPUT, fields, 1, "[Output] %s :'%s' successfully stopped.", obs_output_get_id(output->replayBuffer), obs_output_get_name(output->replayBuffer));
+	}
+
 	QMetaObject::invokeMethod(output->main, "ReplayBufferSaved", Q_ARG(int, code), Q_ARG(QString, QString::fromUtf8(lastError)));
 }
 
@@ -293,6 +381,11 @@ struct SimpleOutput : BasicOutputHandler {
 	string aacRecEncID;
 	string aacStreamEncID;
 
+	OBSEncoder immersiveAACStreaming[BTRS_TOTAL_TRACKS];
+	OBSEncoder immersiveAACRecording[BTRS_TOTAL_TRACKS];
+	string immersiveAACRecEncID[BTRS_TOTAL_TRACKS];
+	string immersiveAACStreamEncID[BTRS_TOTAL_TRACKS];
+
 	string videoEncoder;
 	string videoQuality;
 	bool usingRecordingPreset = false;
@@ -334,6 +427,10 @@ struct SimpleOutput : BasicOutputHandler {
 	virtual bool StreamingActive() const override;
 	virtual bool RecordingActive() const override;
 	virtual bool ReplayBufferActive() const override;
+
+	//PRISM/LiuHaibin/20210906/Pre-check encoders
+	bool CheckStreamEncoder() override;
+	bool CheckRecordEncoder() override;
 };
 
 void SimpleOutput::LoadRecordingPreset_Lossless()
@@ -383,6 +480,10 @@ void SimpleOutput::LoadRecordingPreset()
 	if (strcmp(quality, "Stream") == 0) {
 		h264Recording = h264Streaming;
 		aacRecording = aacStreaming;
+
+		for (size_t i = 0; i < BTRS_TOTAL_TRACKS; i++)
+			immersiveAACRecording[i] = immersiveAACStreaming[i];
+
 		usingRecordingPreset = false;
 		return;
 
@@ -413,6 +514,13 @@ void SimpleOutput::LoadRecordingPreset()
 		if (!CreateAACEncoder(aacRecording, aacRecEncID, 192, "simple_aac_recording", 0))
 			throw "Failed to create aac recording encoder "
 			      "(simple output)";
+
+		for (size_t i = 0; i < BTRS_TOTAL_TRACKS; i++) {
+			std::string name = "simple_immersive_aac_recording_" + std::to_string(i);
+			if (!CreateAACEncoder(immersiveAACRecording[i], immersiveAACRecEncID[i], 192, name.c_str(), i))
+				throw "Failed to create aac recording encoder "
+				      "(simple output)";
+		}
 	}
 }
 
@@ -436,6 +544,15 @@ SimpleOutput::SimpleOutput(PLSBasic *main_) : BasicOutputHandler(main_)
 
 	if (!CreateAACEncoder(aacStreaming, aacStreamEncID, GetAudioBitrate(), "simple_aac", 0))
 		throw "Failed to create aac streaming encoder (simple output)";
+
+	//Create all immersive aac encoder in constructor
+	for (size_t i = 0; i < BTRS_TOTAL_TRACKS; i++) {
+		std::string id;
+		std::string name = "simple_immersive_aac_stream_" + std::to_string(i);
+		if (!CreateAACEncoder(immersiveAACStreaming[i], id, GetAudioBitrate(), name.c_str(), i))
+			throw "Failed to create streaming audio encoder "
+			      "(advanced output)";
+	}
 
 	LoadRecordingPreset();
 
@@ -490,6 +607,11 @@ void SimpleOutput::Update()
 	bool enforceBitrate = config_get_bool(main->Config(), "SimpleOutput", "EnforceBitrate");
 	const char *custom = config_get_string(main->Config(), "SimpleOutput", "x264Settings");
 	const char *encoder = config_get_string(main->Config(), "SimpleOutput", "StreamEncoder");
+
+	int simpleBTRSTrack = config_get_int(main->Config(), "SimpleOutput", "TrackIndex") - 1;
+	if (simpleBTRSTrack != 0)
+		simpleBTRSTrack = 1;
+
 	const char *presetType;
 	const char *preset;
 
@@ -535,6 +657,8 @@ void SimpleOutput::Update()
 
 	obs_encoder_update(h264Streaming, h264Settings);
 	obs_encoder_update(aacStreaming, aacSettings);
+	for (size_t i = 0; i <= simpleBTRSTrack; i++)
+		obs_encoder_update(immersiveAACStreaming[i], aacSettings);
 
 	obs_data_release(h264Settings);
 	obs_data_release(aacSettings);
@@ -547,6 +671,11 @@ void SimpleOutput::UpdateRecordingAudioSettings()
 	obs_data_set_string(settings, "rate_control", "CBR");
 
 	obs_encoder_update(aacRecording, settings);
+	int simpleBTRSTrack = config_get_int(main->Config(), "SimpleOutput", "TrackIndex") - 1;
+	if (simpleBTRSTrack != 0)
+		simpleBTRSTrack = 1;
+	for (size_t i = 0; i <= simpleBTRSTrack; i++)
+		obs_encoder_update(immersiveAACRecording[i], settings);
 
 	obs_data_release(settings);
 }
@@ -707,12 +836,24 @@ inline void SimpleOutput::SetupOutputs()
 	obs_encoder_set_video(h264Streaming, obs_get_video());
 	obs_encoder_set_audio(aacStreaming, obs_get_audio());
 
+	int simpleBTRSTrack = config_get_int(main->Config(), "SimpleOutput", "TrackIndex") - 1;
+	if (simpleBTRSTrack != 0)
+		simpleBTRSTrack = 1;
+	for (size_t i = 0; i <= simpleBTRSTrack; i++)
+		obs_encoder_set_audio(immersiveAACStreaming[i], obs_get_audio());
+
+	obs_output_set_media(streamOutput, obs_get_video(), obs_get_audio());
+	obs_output_set_media(fileOutput, obs_get_video(), obs_get_audio());
+	obs_output_set_media(replayBuffer, obs_get_video(), obs_get_audio());
+
 	if (usingRecordingPreset) {
 		if (ffmpegOutput) {
 			obs_output_set_media(fileOutput, obs_get_video(), obs_get_audio());
 		} else {
 			obs_encoder_set_video(h264Recording, obs_get_video());
 			obs_encoder_set_audio(aacRecording, obs_get_audio());
+			for (size_t i = 0; i <= simpleBTRSTrack; i++)
+				obs_encoder_set_audio(immersiveAACRecording[i], obs_get_audio());
 		}
 	}
 }
@@ -734,6 +875,7 @@ const char *FindAudioEncoderFromCodec(const char *type)
 
 bool SimpleOutput::StartStreaming(obs_service_t *service)
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] SimpleOutput::StartStreaming, service(%p, %s).", service, obs_service_get_output_type(service));
 	if (!Active())
 		SetupOutputs();
 
@@ -756,10 +898,10 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 
 		streamOutput = obs_output_create(type, "simple_stream", nullptr, nullptr);
 		if (!streamOutput) {
-			blog(LOG_WARNING,
-			     "Creation of stream output type '%s' "
-			     "failed!",
-			     type);
+			PLS_WARN(MAIN_OUTPUT,
+				 "Creation of stream output type '%s' "
+				 "failed!",
+				 type);
 			return false;
 		}
 		obs_output_release(streamOutput);
@@ -775,25 +917,28 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 		if (isEncoded) {
 			const char *codec = obs_output_get_supported_audio_codecs(streamOutput);
 			if (!codec) {
-				blog(LOG_WARNING, "Failed to load audio codec");
+				PLS_WARN(MAIN_OUTPUT, "Failed to load audio codec");
 				return false;
 			}
 
-			if (strcmp(codec, "aac") != 0) {
-				const char *id = FindAudioEncoderFromCodec(codec);
-				int audioBitrate = GetAudioBitrate();
-				obs_data_t *settings = obs_data_create();
-				obs_data_set_int(settings, "bitrate", audioBitrate);
+			// BTRS support FDK-AAC only
+			if (!pls_is_immersive_audio()) {
+				if (strcmp(codec, "aac") != 0) {
+					const char *id = FindAudioEncoderFromCodec(codec);
+					int audioBitrate = GetAudioBitrate();
+					obs_data_t *settings = obs_data_create();
+					obs_data_set_int(settings, "bitrate", audioBitrate);
 
-				aacStreaming = obs_audio_encoder_create(id, "alt_audio_enc", nullptr, 0, nullptr);
-				obs_encoder_release(aacStreaming);
-				if (!aacStreaming)
-					return false;
+					aacStreaming = obs_audio_encoder_create(id, "alt_audio_enc", nullptr, 0, nullptr);
+					obs_encoder_release(aacStreaming);
+					if (!aacStreaming)
+						return false;
 
-				obs_encoder_update(aacStreaming, settings);
-				obs_encoder_set_audio(aacStreaming, obs_get_audio());
+					obs_encoder_update(aacStreaming, settings);
+					obs_encoder_set_audio(aacStreaming, obs_get_audio());
 
-				obs_data_release(settings);
+					obs_data_release(settings);
+				}
 			}
 		}
 
@@ -801,7 +946,18 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 	}
 
 	obs_output_set_video_encoder(streamOutput, h264Streaming);
-	obs_output_set_audio_encoder(streamOutput, aacStreaming, 0);
+	// remove all audio encoders before set new audio encoders
+	for (size_t i = 0; i <= MAX_AUDIO_MIXES; i++)
+		obs_output_remove_audio_encoder(streamOutput, nullptr, i);
+	if (pls_is_immersive_audio()) {
+		int simpleBTRSTrack = config_get_int(main->Config(), "SimpleOutput", "TrackIndex") - 1;
+		if (simpleBTRSTrack != 0)
+			simpleBTRSTrack = 1;
+		for (size_t i = 0; i <= simpleBTRSTrack; i++)
+			obs_output_set_audio_encoder(streamOutput, immersiveAACStreaming[i], i);
+	} else
+		obs_output_set_audio_encoder(streamOutput, aacStreaming, 0);
+
 	obs_output_set_service(streamOutput, service);
 
 	/* --------------------- */
@@ -832,7 +988,7 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 	obs_output_set_delay(streamOutput, useDelay ? delaySec : 0, preserveDelay ? OBS_OUTPUT_DELAY_PRESERVE : 0);
 
 	obs_output_set_reconnect_settings(streamOutput, maxRetries, retryDelay);
-
+	obs_output_set_immersive_audio(streamOutput, pls_is_immersive_audio());
 	if (obs_output_start(streamOutput)) {
 		return true;
 	}
@@ -844,7 +1000,8 @@ bool SimpleOutput::StartStreaming(obs_service_t *service)
 	else
 		lastError = string();
 
-	blog(LOG_WARNING, "Stream output type '%s' failed to start!%s%s", type, hasLastError ? "  Last Error: " : "", hasLastError ? error : "");
+	PLS_WARN(MAIN_OUTPUT, "Stream output type '%s' failed to start!%s%s", type, hasLastError ? "  Last Error: " : "", hasLastError ? error : "");
+	ResetWatermarkStatus(this, true);
 	return false;
 }
 
@@ -888,13 +1045,41 @@ void SimpleOutput::UpdateRecording()
 	if (!Active())
 		SetupOutputs();
 
-	if (!ffmpegOutput) {
-		obs_output_set_video_encoder(fileOutput, h264Recording);
-		obs_output_set_audio_encoder(fileOutput, aacRecording, 0);
+	// remove all audio encoders before set new audio encoders
+	for (size_t i = 0; i <= MAX_AUDIO_MIXES; i++) {
+		obs_output_remove_audio_encoder(fileOutput, nullptr, i);
+		if (replayBuffer)
+			obs_output_remove_audio_encoder(replayBuffer, nullptr, i);
 	}
-	if (replayBuffer) {
-		obs_output_set_video_encoder(replayBuffer, h264Recording);
-		obs_output_set_audio_encoder(replayBuffer, aacRecording, 0);
+
+	if (pls_is_immersive_audio()) {
+		const char *recFormat = config_get_string(main->Config(), "SimpleOutput", "RecFormat");
+		bool flv = strcmp(recFormat, "flv") == 0;
+		int simpleBTRSTrack = config_get_int(main->Config(), "SimpleOutput", "TrackIndex") - 1;
+		if (simpleBTRSTrack != 0)
+			simpleBTRSTrack = 1;
+		// flv only support one track
+		if (flv)
+			simpleBTRSTrack = 0;
+		if (!ffmpegOutput) {
+			obs_output_set_video_encoder(fileOutput, h264Recording);
+			for (size_t i = 0; i <= simpleBTRSTrack; i++)
+				obs_output_set_audio_encoder(fileOutput, immersiveAACRecording[i], i);
+		}
+		if (replayBuffer) {
+			obs_output_set_video_encoder(replayBuffer, h264Recording);
+			for (size_t i = 0; i <= simpleBTRSTrack; i++)
+				obs_output_set_audio_encoder(replayBuffer, immersiveAACRecording[i], i);
+		}
+	} else {
+		if (!ffmpegOutput) {
+			obs_output_set_video_encoder(fileOutput, h264Recording);
+			obs_output_set_audio_encoder(fileOutput, aacRecording, 0);
+		}
+		if (replayBuffer) {
+			obs_output_set_video_encoder(replayBuffer, h264Recording);
+			obs_output_set_audio_encoder(replayBuffer, aacRecording, 0);
+		}
 	}
 
 	recordingConfigured = true;
@@ -914,7 +1099,6 @@ bool SimpleOutput::ConfigureRecording(bool updateReplayBuffer)
 	int rbSize = config_get_int(main->Config(), "SimpleOutput", "RecRBSize");
 
 	os_dir_t *dir = path && path[0] ? os_opendir(path) : nullptr;
-
 	if (!dir) {
 		if (main->isVisible())
 			PLSMessageBox::warning(main, QTStr("Output.BadPath.Title"), QTStr("Output.BadPath.Text"));
@@ -980,6 +1164,7 @@ bool SimpleOutput::ConfigureRecording(bool updateReplayBuffer)
 
 bool SimpleOutput::StartRecording()
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] SimpleOutput::StartRecording.");
 	UpdateRecording();
 	if (!ConfigureRecording(false))
 		return false;
@@ -991,6 +1176,9 @@ bool SimpleOutput::StartRecording()
 		else
 			error_reason = QTStr("Output.StartFailedGeneric");
 		PLSAlertView::critical(main->getMainView(), QTStr("Output.StartRecordingFailed"), error_reason);
+
+		PLS_WARN(MAIN_OUTPUT, "Recording for SimpleOutput failed to start!%s", error_reason.toUtf8().constData());
+		ResetWatermarkStatus(this, false);
 		return false;
 	}
 
@@ -999,6 +1187,7 @@ bool SimpleOutput::StartRecording()
 
 bool SimpleOutput::StartReplayBuffer()
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] SimpleOutput::StartReplayBuffer.");
 	UpdateRecording();
 	if (!ConfigureRecording(true))
 		return false;
@@ -1012,6 +1201,7 @@ bool SimpleOutput::StartReplayBuffer()
 
 void SimpleOutput::StopStreaming(bool force)
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] SimpleOutput::StopStreaming is called, force = %s.", (force ? "true" : "false"));
 	if (force)
 		obs_output_force_stop(streamOutput);
 	else
@@ -1020,6 +1210,7 @@ void SimpleOutput::StopStreaming(bool force)
 
 void SimpleOutput::StopRecording(bool force)
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] SimpleOutput::StopRecording is called, force = %s.", (force ? "true" : "false"));
 	if (force)
 		obs_output_force_stop(fileOutput);
 	else
@@ -1028,6 +1219,7 @@ void SimpleOutput::StopRecording(bool force)
 
 void SimpleOutput::StopReplayBuffer(bool force)
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] SimpleOutput::StopReplayBuffer is called, force = %s.", (force ? "true" : "false"));
 	if (force)
 		obs_output_force_stop(replayBuffer);
 	else
@@ -1049,6 +1241,101 @@ bool SimpleOutput::ReplayBufferActive() const
 	return obs_output_active(replayBuffer);
 }
 
+//PRISM/LiuHaibin/20210906/Pre-check encoders
+bool SimpleOutput::CheckStreamEncoder()
+{
+	// NOTE!!!
+	// FFmpegOutput is disabled currently, modify this function when it's enabled.
+
+	if (streamEncoderChecked) {
+		PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for streaming is already checked, availability : %s.", __FUNCTION__, streamEncoderAvailable ? "true" : "false");
+		return streamEncoderAvailable;
+	}
+
+	streamEncoderChecked = true;
+	streamEncoderAvailable = true;
+
+	// encoder has already been running for stream output, return true directly.
+	if (obs_output_active(streamOutput)) {
+		PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for streaming is available because it's already been running.", __FUNCTION__);
+		return streamEncoderAvailable;
+	}
+
+	if (!usingRecordingPreset && obs_output_active(fileOutput)) {
+		/* When usingRecordingPreset == false the recording/replaybuffer and streaming are using the same encoder,
+		 * if file output is active, it means stream encoder has already been running,
+		 * so there is no need to check it again. */
+		PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for streaming is available because it's already been running with fileOutput.", __FUNCTION__);
+		return streamEncoderAvailable;
+	}
+
+	SimpleOutput::Update();
+	obs_encoder_set_video(h264Streaming, obs_get_video());
+	obs_encoder_set_audio(aacStreaming, obs_get_audio());
+
+	int simpleBTRSTrack = config_get_int(main->Config(), "SimpleOutput", "TrackIndex") - 1;
+	if (simpleBTRSTrack != 0)
+		simpleBTRSTrack = 1;
+	for (size_t i = 0; i <= simpleBTRSTrack; i++)
+		obs_encoder_set_audio(immersiveAACStreaming[i], obs_get_audio());
+
+	obs_output_set_media(streamOutput, obs_get_video(), obs_get_audio());
+
+	// audio encoder is barely failed, so we only need to check video encoder here.
+	if (!obs_encoder_avaliable(h264Streaming)) {
+		QString id = obs_encoder_get_id(h264Streaming);
+		QString name = obs_encoder_get_name(h264Streaming);
+		PLS_WARN(MAIN_OUTPUT, "[%s] Encoder '%s: %s' for SimpleOutput is not available.", __FUNCTION__, id.toStdString().c_str(), name.toStdString().c_str());
+		streamEncoderAvailable = false;
+		return streamEncoderAvailable;
+	}
+
+	return streamEncoderAvailable;
+}
+
+//PRISM/LiuHaibin/20210906/Pre-check encoders
+bool SimpleOutput::CheckRecordEncoder()
+{
+	// NOTE!!!
+	// FFmpegOutput is disabled currently, modify this function when it's enabled.
+
+	if (recordEncoderChecked) {
+		PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for recording is already checked, availability : %s.", __FUNCTION__, recordEncoderAvailable ? "true" : "false");
+		return recordEncoderAvailable;
+	}
+
+	if (!usingRecordingPreset) {
+		/* When usingRecordingPreset == false the recording/replaybuffer are using the same encoder with streaming,
+		 * and encoder has already been running for stream output, return true directly. */
+		if (obs_output_active(streamOutput)) {
+			PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for recording is available because it use the same encoder with the running streamOutput.", __FUNCTION__);
+			return true;
+		}
+
+		return CheckStreamEncoder();
+	}
+
+	recordEncoderChecked = true;
+	recordEncoderAvailable = true;
+
+	if (obs_output_active(fileOutput)) {
+		PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for recording is available because it's already been running.", __FUNCTION__);
+		return recordEncoderAvailable;
+	}
+
+	UpdateRecording();
+
+	if (!obs_encoder_avaliable(h264Recording)) {
+		QString id = obs_encoder_get_id(h264Recording);
+		QString name = obs_encoder_get_name(h264Recording);
+		PLS_WARN(MAIN_OUTPUT, "[%s] Encoder '%s: %s' for SimpleOutput is not available.", __FUNCTION__, id.toStdString().c_str(), name.toStdString().c_str());
+		recordEncoderAvailable = false;
+		return recordEncoderAvailable;
+	}
+
+	return recordEncoderAvailable;
+}
+
 /* ------------------------------------------------------------------------ */
 
 struct AdvancedOutput : BasicOutputHandler {
@@ -1056,6 +1343,9 @@ struct AdvancedOutput : BasicOutputHandler {
 	OBSEncoder aacTrack[MAX_AUDIO_MIXES];
 	OBSEncoder h264Streaming;
 	OBSEncoder h264Recording;
+	OBSEncoder immersiveStreamAudioEnc[BTRS_TOTAL_TRACKS];
+	OBSEncoder immersiveRecordAudioEnc[BTRS_TOTAL_TRACKS];
+	string immersiveAACEncoderID[BTRS_TOTAL_TRACKS];
 
 	bool ffmpegOutput;
 	bool ffmpegRecording;
@@ -1075,7 +1365,7 @@ struct AdvancedOutput : BasicOutputHandler {
 	inline void SetupRecording();
 	inline void SetupFFmpeg();
 	void SetupOutputs();
-	int GetAudioBitrate(size_t i) const;
+	int GetAudioBitrate(size_t i, bool immersive) const;
 
 	virtual bool StartStreaming(obs_service_t *service) override;
 	virtual bool StartRecording() override;
@@ -1086,9 +1376,13 @@ struct AdvancedOutput : BasicOutputHandler {
 	virtual bool StreamingActive() const override;
 	virtual bool RecordingActive() const override;
 	virtual bool ReplayBufferActive() const override;
+
+	//PRISM/LiuHaibin/20210906/Pre-check encoders
+	bool CheckStreamEncoder() override;
+	bool CheckRecordEncoder() override;
 };
 
-static OBSData GetDataFromJsonFile(const char *jsonFile)
+OBSData GetDataFromJsonFile(const char *jsonFile)
 {
 	char fullPath[512];
 	obs_data_t *data = nullptr;
@@ -1188,16 +1482,29 @@ AdvancedOutput::AdvancedOutput(PLSBasic *main_) : BasicOutputHandler(main_)
 		char name[9];
 		sprintf(name, "adv_aac%d", i);
 
-		if (!CreateAACEncoder(aacTrack[i], aacEncoderID[i], GetAudioBitrate(i), name, i))
+		if (!CreateAACEncoder(aacTrack[i], aacEncoderID[i], GetAudioBitrate(i, false), name, i))
 			throw "Failed to create audio encoder "
 			      "(advanced output)";
 	}
 
-	std::string id;
 	int streamTrack = config_get_int(main->Config(), "AdvOut", "TrackIndex") - 1;
-	if (!CreateAACEncoder(streamAudioEnc, id, GetAudioBitrate(streamTrack), "avc_aac_stream", streamTrack))
+	std::string id;
+	if (!CreateAACEncoder(streamAudioEnc, id, GetAudioBitrate(streamTrack, false), "avc_aac_stream", streamTrack))
 		throw "Failed to create streaming audio encoder "
 		      "(advanced output)";
+
+	// for immersive audio, create it even not enabled
+	for (size_t i = 0; i < BTRS_TOTAL_TRACKS; i++) {
+		std::string id;
+		std::string name = "adv_immersive_aac_stream_" + std::to_string(i);
+		if (!CreateAACEncoder(immersiveStreamAudioEnc[i], id, GetAudioBitrate(i, true), name.c_str(), i))
+			throw "Failed to create streaming audio encoder (advanced output)";
+
+		name = "adv_immersive_aac_record_" + std::to_string(i);
+		if (!CreateAACEncoder(immersiveRecordAudioEnc[i], immersiveAACEncoderID[i], GetAudioBitrate(i, true), name.c_str(), i))
+			throw "Failed to create audio encoder "
+			      "(advanced output)";
+	}
 
 	startRecording.Connect(obs_output_get_signal_handler(fileOutput), "start", PLSStartRecording, this);
 	stopRecording.Connect(obs_output_get_signal_handler(fileOutput), "stop", PLSStopRecording, this);
@@ -1262,7 +1569,18 @@ inline void AdvancedOutput::SetupStreaming()
 		}
 	}
 
-	obs_output_set_audio_encoder(streamOutput, streamAudioEnc, streamTrack);
+	// remove all audio encoders before set new audio encoders
+	for (size_t i = 0; i <= MAX_AUDIO_MIXES; i++)
+		obs_output_remove_audio_encoder(streamOutput, nullptr, i);
+	if (pls_is_immersive_audio()) {
+		int immersiveTrack = config_get_int(main->Config(), "AdvOut", "ImmersiveTrackIndex") - 1;
+		// 0: Stereo Only, 1: Stereo/Immersive
+		if (immersiveTrack != 0)
+			immersiveTrack = 1;
+		for (size_t i = 0; i <= immersiveTrack; i++)
+			obs_output_set_audio_encoder(streamOutput, immersiveStreamAudioEnc[i], i);
+	} else
+		obs_output_set_audio_encoder(streamOutput, streamAudioEnc, streamTrack);
 	obs_encoder_set_scaled_size(h264Streaming, cx, cy);
 	obs_encoder_set_video(h264Streaming, obs_get_video());
 }
@@ -1314,6 +1632,24 @@ inline void AdvancedOutput::SetupRecording()
 		obs_output_set_video_encoder(fileOutput, h264Recording);
 		if (replayBuffer)
 			obs_output_set_video_encoder(replayBuffer, h264Recording);
+	}
+
+	if (pls_is_immersive_audio()) {
+		tracks = config_get_int(main->Config(), "AdvOut", "ImmersiveRecTracks");
+		// ImmersiveRecTracks can only be 1 or 2
+		if (tracks == 0)
+			tracks = config_get_int(main->Config(), "AdvOut", "ImmersiveTrackIndex");
+
+		// flv only support 1 track
+		if (flv)
+			tracks = 1;
+	}
+
+	// remove all audio encoders before set new audio encoders
+	for (size_t i = 0; i <= MAX_AUDIO_MIXES; i++) {
+		obs_output_remove_audio_encoder(fileOutput, nullptr, i);
+		if (replayBuffer)
+			obs_output_remove_audio_encoder(replayBuffer, nullptr, i);
 	}
 
 	if (!flv) {
@@ -1401,11 +1737,18 @@ inline void AdvancedOutput::UpdateAudioSettings()
 {
 	bool applyServiceSettings = config_get_bool(main->Config(), "AdvOut", "ApplyServiceSettings");
 	int streamTrackIndex = config_get_int(main->Config(), "AdvOut", "TrackIndex");
+
 	obs_data_t *settings[MAX_AUDIO_MIXES];
+	obs_data_t *immersive_settings[BTRS_TOTAL_TRACKS];
 
 	for (size_t i = 0; i < MAX_AUDIO_MIXES; i++) {
 		settings[i] = obs_data_create();
-		obs_data_set_int(settings[i], "bitrate", GetAudioBitrate(i));
+		obs_data_set_int(settings[i], "bitrate", GetAudioBitrate(i, false));
+	}
+
+	for (size_t i = 0; i < BTRS_TOTAL_TRACKS; i++) {
+		immersive_settings[i] = obs_data_create();
+		obs_data_set_int(immersive_settings[i], "bitrate", GetAudioBitrate(i, true));
 	}
 
 	for (size_t i = 0; i < MAX_AUDIO_MIXES; i++) {
@@ -1432,6 +1775,12 @@ inline void AdvancedOutput::UpdateAudioSettings()
 
 		obs_data_release(settings[i]);
 	}
+
+	for (size_t i = 0; i < BTRS_TOTAL_TRACKS; i++) {
+		obs_encoder_update(immersiveStreamAudioEnc[i], immersive_settings[i]);
+		obs_encoder_update(immersiveRecordAudioEnc[i], immersive_settings[i]);
+		obs_data_release(immersive_settings[i]);
+	}
 }
 
 void AdvancedOutput::SetupOutputs()
@@ -1443,6 +1792,18 @@ void AdvancedOutput::SetupOutputs()
 		obs_encoder_set_audio(aacTrack[i], obs_get_audio());
 	obs_encoder_set_audio(streamAudioEnc, obs_get_audio());
 
+	//for immversive audio
+	int immersiveTrack = config_get_int(main->Config(), "AdvOut", "ImmersiveTrackIndex") - 1;
+	// 0: Stereo Only, 1: Stereo/Immersive
+	if (immersiveTrack != 0)
+		immersiveTrack = 1;
+	for (size_t i = 0; i <= immersiveTrack; i++)
+		obs_encoder_set_audio(immersiveStreamAudioEnc[i], obs_get_audio());
+
+	obs_output_set_media(streamOutput, obs_get_video(), obs_get_audio());
+	obs_output_set_media(fileOutput, obs_get_video(), obs_get_audio());
+	obs_output_set_media(replayBuffer, obs_get_video(), obs_get_audio());
+
 	SetupStreaming();
 
 	if (ffmpegOutput)
@@ -1451,17 +1812,28 @@ void AdvancedOutput::SetupOutputs()
 		SetupRecording();
 }
 
-int AdvancedOutput::GetAudioBitrate(size_t i) const
+int AdvancedOutput::GetAudioBitrate(size_t i, bool immersive) const
 {
-	static const char *names[] = {
-		"Track1Bitrate", "Track2Bitrate", "Track3Bitrate", "Track4Bitrate", "Track5Bitrate", "Track6Bitrate",
-	};
-	int bitrate = (int)config_get_uint(main->Config(), "AdvOut", names[i]);
+	int bitrate;
+	if (immersive) {
+		static const char *names[] = {
+			"TrackStereoBitrate",
+			"TrackImmersiveBitrate",
+		};
+		bitrate = (int)config_get_uint(main->Config(), "AdvOut", names[i]);
+	} else {
+		static const char *names[] = {
+			"Track1Bitrate", "Track2Bitrate", "Track3Bitrate", "Track4Bitrate", "Track5Bitrate", "Track6Bitrate",
+		};
+		bitrate = (int)config_get_uint(main->Config(), "AdvOut", names[i]);
+	}
+
 	return FindClosestAvailableAACBitrate(bitrate);
 }
 
 bool AdvancedOutput::StartStreaming(obs_service_t *service)
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] AdvancedOutput::StartStreaming, service(%p, %s).", service, obs_service_get_output_type(service));
 	int streamTrack = config_get_int(main->Config(), "AdvOut", "TrackIndex") - 1;
 
 	if (!useStreamEncoder || (!ffmpegOutput && !obs_output_active(fileOutput))) {
@@ -1492,10 +1864,10 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 
 		streamOutput = obs_output_create(type, "adv_stream", nullptr, nullptr);
 		if (!streamOutput) {
-			blog(LOG_WARNING,
-			     "Creation of stream output type '%s' "
-			     "failed!",
-			     type);
+			PLS_WARN(MAIN_OUTPUT,
+				 "Creation of stream output type '%s' "
+				 "failed!",
+				 type);
 			return false;
 		}
 		obs_output_release(streamOutput);
@@ -1511,24 +1883,26 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 		if (isEncoded) {
 			const char *codec = obs_output_get_supported_audio_codecs(streamOutput);
 			if (!codec) {
-				blog(LOG_WARNING, "Failed to load audio codec");
+				PLS_WARN(MAIN_OUTPUT, "Failed to load audio codec");
 				return false;
 			}
 
-			if (strcmp(codec, "aac") != 0) {
-				OBSData settings = obs_encoder_get_settings(streamAudioEnc);
-				obs_data_release(settings);
+			if (!pls_is_immersive_audio()) {
+				if (strcmp(codec, "aac") != 0) {
+					OBSData settings = obs_encoder_get_settings(streamAudioEnc);
+					obs_data_release(settings);
 
-				const char *id = FindAudioEncoderFromCodec(codec);
+					const char *id = FindAudioEncoderFromCodec(codec);
 
-				streamAudioEnc = obs_audio_encoder_create(id, "alt_audio_enc", nullptr, streamTrack, nullptr);
+					streamAudioEnc = obs_audio_encoder_create(id, "alt_audio_enc", nullptr, streamTrack, nullptr);
 
-				if (!streamAudioEnc)
-					return false;
+					if (!streamAudioEnc)
+						return false;
 
-				obs_encoder_release(streamAudioEnc);
-				obs_encoder_update(streamAudioEnc, settings);
-				obs_encoder_set_audio(streamAudioEnc, obs_get_audio());
+					obs_encoder_release(streamAudioEnc);
+					obs_encoder_update(streamAudioEnc, settings);
+					obs_encoder_set_audio(streamAudioEnc, obs_get_audio());
+				}
 			}
 		}
 
@@ -1536,7 +1910,19 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 	}
 
 	obs_output_set_video_encoder(streamOutput, h264Streaming);
-	obs_output_set_audio_encoder(streamOutput, streamAudioEnc, 0);
+	// remove all audio encoders before set new audio encoders
+	for (size_t i = 0; i <= MAX_AUDIO_MIXES; i++)
+		obs_output_remove_audio_encoder(streamOutput, nullptr, i);
+	if (pls_is_immersive_audio()) {
+		int immersiveStreamTrack = config_get_int(main->Config(), "AdvOut", "ImmersiveTrackIndex") - 1;
+		// 0: Stereo Only, 1: Stereo/Immersive
+		if (immersiveStreamTrack != 0)
+			immersiveStreamTrack = 1;
+		for (size_t i = 0; i <= immersiveStreamTrack; i++)
+			obs_output_set_audio_encoder(streamOutput, immersiveStreamAudioEnc[i], i);
+	} else {
+		obs_output_set_audio_encoder(streamOutput, streamAudioEnc, 0);
+	}
 
 	/* --------------------- */
 
@@ -1568,7 +1954,7 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 	obs_output_set_delay(streamOutput, useDelay ? delaySec : 0, preserveDelay ? OBS_OUTPUT_DELAY_PRESERVE : 0);
 
 	obs_output_set_reconnect_settings(streamOutput, maxRetries, retryDelay);
-
+	obs_output_set_immersive_audio(streamOutput, pls_is_immersive_audio());
 	if (obs_output_start(streamOutput)) {
 		return true;
 	}
@@ -1580,12 +1966,14 @@ bool AdvancedOutput::StartStreaming(obs_service_t *service)
 	else
 		lastError = string();
 
-	blog(LOG_WARNING, "Stream output type '%s' failed to start!%s%s", type, hasLastError ? "  Last Error: " : "", hasLastError ? error : "");
+	PLS_WARN(MAIN_OUTPUT, "Stream output type '%s' failed to start!%s%s", type, hasLastError ? "  Last Error: " : "", hasLastError ? error : "");
+	ResetWatermarkStatus(this, true);
 	return false;
 }
 
 bool AdvancedOutput::StartRecording()
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] AdvancedOutput::StartRecording.");
 	const char *path;
 	const char *recFormat;
 	const char *filenameFormat;
@@ -1652,6 +2040,9 @@ bool AdvancedOutput::StartRecording()
 		else
 			error_reason = QTStr("Output.StartFailedGeneric");
 		PLSAlertView::critical(main->getMainView(), QTStr("Output.StartRecordingFailed"), error_reason);
+
+		PLS_WARN(MAIN_OUTPUT, "Recording for AdvancedOutput failed to start!%s", error_reason.toUtf8().constData());
+		ResetWatermarkStatus(this, false);
 		return false;
 	}
 
@@ -1660,6 +2051,7 @@ bool AdvancedOutput::StartRecording()
 
 bool AdvancedOutput::StartReplayBuffer()
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] AdvancedOutput::StartRecording.");
 	const char *path;
 	const char *recFormat;
 	const char *filenameFormat;
@@ -1758,6 +2150,8 @@ bool AdvancedOutput::StartReplayBuffer()
 
 void AdvancedOutput::StopStreaming(bool force)
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] AdvancedOutput::StopStreaming is called, force = %s.", (force ? "true" : "false"));
+
 	if (force)
 		obs_output_force_stop(streamOutput);
 	else
@@ -1766,6 +2160,7 @@ void AdvancedOutput::StopStreaming(bool force)
 
 void AdvancedOutput::StopRecording(bool force)
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] AdvancedOutput::StopRecording is called, force = %s.", (force ? "true" : "false"));
 	if (force)
 		obs_output_force_stop(fileOutput);
 	else
@@ -1774,6 +2169,7 @@ void AdvancedOutput::StopRecording(bool force)
 
 void AdvancedOutput::StopReplayBuffer(bool force)
 {
+	PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "[Output] AdvancedOutput::StopReplayBuffer is called, force = %s.", (force ? "true" : "false"));
 	if (force)
 		obs_output_force_stop(replayBuffer);
 	else
@@ -1795,6 +2191,119 @@ bool AdvancedOutput::ReplayBufferActive() const
 	return obs_output_active(replayBuffer);
 }
 
+//PRISM/LiuHaibin/20210906/Pre-check encoders
+bool AdvancedOutput::CheckStreamEncoder()
+{
+	// NOTE!!!
+	// FFmpegOutput is disabled currently, modify this function when it's enabled.
+
+	if (streamEncoderChecked) {
+		PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for streaming is already checked, availability : %s.", __FUNCTION__, streamEncoderAvailable ? "true" : "false");
+		return streamEncoderAvailable;
+	}
+
+	streamEncoderChecked = true;
+	streamEncoderAvailable = true;
+
+	// encoder has already been running for stream output, return true directly.
+	if (obs_output_active(streamOutput)) {
+		PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for streaming is available because it's already been running.", __FUNCTION__);
+		return streamEncoderAvailable;
+	}
+
+	// stream encoder has already been running for file output, return true directly.
+	if (useStreamEncoder && obs_output_active(fileOutput)) {
+		PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for streaming is available because it's already been running with fileOutput.", __FUNCTION__);
+		return streamEncoderAvailable;
+	}
+
+	UpdateStreamSettings();
+	obs_encoder_set_video(h264Streaming, obs_get_video());
+	obs_encoder_set_audio(streamAudioEnc, obs_get_audio());
+
+	// for immversive audio
+	int immersiveTrack = config_get_int(main->Config(), "AdvOut", "ImmersiveTrackIndex") - 1;
+	// 0: Stereo Only, 1: Stereo/Immersive
+	if (immersiveTrack != 0)
+		immersiveTrack = 1;
+	for (size_t i = 0; i <= immersiveTrack; i++)
+		obs_encoder_set_audio(immersiveStreamAudioEnc[i], obs_get_audio());
+
+	obs_output_set_media(streamOutput, obs_get_video(), obs_get_audio());
+	SetupStreaming();
+
+	// audio encoder is barely failed, so we only need to check video encoder here.
+	if (!obs_encoder_avaliable(h264Streaming)) {
+		QString id = obs_encoder_get_id(h264Streaming);
+		QString name = obs_encoder_get_name(h264Streaming);
+		PLS_WARN(MAIN_OUTPUT, "[%s] Encoder '%s: %s' for AdvancedOutput is not available.", __FUNCTION__, id.toStdString().c_str(), name.toStdString().c_str());
+		streamEncoderAvailable = false;
+		return streamEncoderAvailable;
+	}
+
+	return streamEncoderAvailable;
+}
+
+//PRISM/LiuHaibin/20210906/Pre-check encoders
+bool AdvancedOutput::CheckRecordEncoder()
+{
+	// NOTE!!!
+	// FFmpegOutput is disabled currently, modify this function when it's enabled.
+
+	if (recordEncoderChecked) {
+		PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for recording is already checked, availability : %s.", __FUNCTION__, recordEncoderAvailable ? "true" : "false");
+		return recordEncoderAvailable;
+	}
+
+	if (useStreamEncoder) {
+		// encoder has already been running for stream output, return true directly.
+		if (obs_output_active(streamOutput)) {
+			PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for recording is available because it use the same encoder with the running streamOutput.", __FUNCTION__);
+			return true;
+		}
+
+		return CheckStreamEncoder();
+	}
+
+	recordEncoderChecked = true;
+	recordEncoderAvailable = true;
+
+	if (obs_output_active(fileOutput)) {
+		PLS_INFO(MAIN_OUTPUT, "[%s] Encoder for recording is available because it's already been running.", __FUNCTION__);
+		return recordEncoderAvailable;
+	}
+
+	UpdateRecordingSettings();
+	UpdateAudioSettings();
+
+	obs_encoder_set_video(h264Recording, obs_get_video());
+	for (size_t i = 0; i < MAX_AUDIO_MIXES; i++)
+		obs_encoder_set_audio(aacTrack[i], obs_get_audio());
+
+	//for immversive audio
+	int immersiveTrack = config_get_int(main->Config(), "AdvOut", "ImmersiveTrackIndex") - 1;
+	// 0: Stereo Only, 1: Stereo/Immersive
+	if (immersiveTrack != 0)
+		immersiveTrack = 1;
+	for (size_t i = 0; i <= immersiveTrack; i++)
+		obs_encoder_set_audio(immersiveRecordAudioEnc[i], obs_get_audio());
+
+	obs_output_set_media(fileOutput, obs_get_video(), obs_get_audio());
+	obs_output_set_media(replayBuffer, obs_get_video(), obs_get_audio());
+
+	SetupRecording();
+
+	if (!obs_encoder_avaliable(h264Recording)) {
+		QString id = obs_encoder_get_id(h264Recording);
+		QString name = obs_encoder_get_name(h264Recording);
+		PLS_WARN(MAIN_OUTPUT, "[%s] Encoder '%s: %s' for AdvancedOutput is not available.", __FUNCTION__, id.toStdString().c_str(), name.toStdString().c_str());
+		recordEncoderAvailable = false;
+		return recordEncoderAvailable;
+	}
+
+	return recordEncoderAvailable;
+}
+
 /* ------------------------------------------------------------------------ */
 
 BasicOutputHandler *CreateSimpleOutputHandler(PLSBasic *main)
@@ -1805,4 +2314,25 @@ BasicOutputHandler *CreateSimpleOutputHandler(PLSBasic *main)
 BasicOutputHandler *CreateAdvancedOutputHandler(PLSBasic *main)
 {
 	return new AdvancedOutput(main);
+}
+
+//PRISM/LiuHaibin/20210906/Pre-check encoders
+bool BasicOutputHandler::CheckEncoders(ENC_CHECKER flag)
+{
+	PLS_INFO(MAIN_OUTPUT, "======================= Run Encoder Checking =======================");
+
+	bool available = true;
+	if (flag == ENCODER_CHECK_ALL)
+		available = CheckRecordEncoder() & CheckStreamEncoder();
+	else if (flag == ENCODER_CHECK_STREAM)
+		available = CheckStreamEncoder();
+	else if (flag == ENCODER_CHECK_RECORD)
+		available = CheckRecordEncoder();
+
+	if (!available) {
+		auto showWarning = [this]() { PLSAlertView::warning(main->getMainView(), QTStr("Output.Encoder.CheckingFailed.Title"), QTStr("Output.Encoder.CheckingFailed.Text")); };
+		QMetaObject::invokeMethod(main->getMainView(), showWarning, Qt::QueuedConnection);
+	}
+	PLS_INFO(MAIN_OUTPUT, "----------------------- Encoder Checking End -----------------------");
+	return available;
 }

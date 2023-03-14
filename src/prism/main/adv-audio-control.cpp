@@ -184,46 +184,63 @@ PLSAdvAudioCtrl::PLSAdvAudioCtrl(QWidget *parent, obs_source_t *source_) : sourc
 	dpiHelper.setMaximumSize(mixerContainer, {TRACKS_MAX_CONTAINER_WIDTH, NAME_LABEL_HEIGHT});
 	mixerContainer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
 
-	QString checkBoxSheet = "font-size: /*hdpi*/14px; spacing: /*hdpi*/5px; min-width: /*hdpi*/43px; max-width: /*hdpi*/43px;";
-	mixer1 = new QCheckBox();
-	dpiHelper.setStyleSheet(mixer1, checkBoxSheet);
-	mixer2 = new QCheckBox();
-	dpiHelper.setStyleSheet(mixer2, checkBoxSheet);
-	mixer3 = new QCheckBox();
-	dpiHelper.setStyleSheet(mixer3, checkBoxSheet);
-	mixer4 = new QCheckBox();
-	dpiHelper.setStyleSheet(mixer4, checkBoxSheet);
-	mixer5 = new QCheckBox();
-	dpiHelper.setStyleSheet(mixer5, checkBoxSheet);
-	mixer6 = new QCheckBox();
-	dpiHelper.setStyleSheet(mixer6, checkBoxSheet);
-	mixer1->setText("1");
-	mixer1->setChecked(mixers & (1 << 0));
-	mixer2->setText("2");
-	mixer2->setChecked(mixers & (1 << 1));
-	mixer3->setText("3");
-	mixer3->setChecked(mixers & (1 << 2));
-	mixer4->setText("4");
-	mixer4->setChecked(mixers & (1 << 3));
-	mixer5->setText("5");
-	mixer5->setChecked(mixers & (1 << 4));
-	mixer6->setText("6");
-	mixer6->setChecked(mixers & (1 << 5));
+	if (!pls_is_immersive_audio()) {
+		QString checkBoxSheet = "font-size: /*hdpi*/14px; spacing: /*hdpi*/5px; min-width: /*hdpi*/43px; max-width: /*hdpi*/43px;";
+		mixer1 = new QCheckBox();
+		dpiHelper.setStyleSheet(mixer1, checkBoxSheet);
+		mixer2 = new QCheckBox();
+		dpiHelper.setStyleSheet(mixer2, checkBoxSheet);
+		mixer3 = new QCheckBox();
+		dpiHelper.setStyleSheet(mixer3, checkBoxSheet);
+		mixer4 = new QCheckBox();
+		dpiHelper.setStyleSheet(mixer4, checkBoxSheet);
+		mixer5 = new QCheckBox();
+		dpiHelper.setStyleSheet(mixer5, checkBoxSheet);
+		mixer6 = new QCheckBox();
+		dpiHelper.setStyleSheet(mixer6, checkBoxSheet);
+		mixer1->setText("1");
+		mixer1->setChecked(mixers & (1 << 0));
+		mixer2->setText("2");
+		mixer2->setChecked(mixers & (1 << 1));
+		mixer3->setText("3");
+		mixer3->setChecked(mixers & (1 << 2));
+		mixer4->setText("4");
+		mixer4->setChecked(mixers & (1 << 3));
+		mixer5->setText("5");
+		mixer5->setChecked(mixers & (1 << 4));
+		mixer6->setText("6");
+		mixer6->setChecked(mixers & (1 << 5));
 
-	mixerContainer->layout()->addWidget(mixer1);
-	mixerContainer->layout()->addWidget(mixer2);
-	mixerContainer->layout()->addWidget(mixer3);
-	mixerContainer->layout()->addWidget(mixer4);
-	mixerContainer->layout()->addWidget(mixer5);
-	mixerContainer->layout()->addWidget(mixer6);
+		mixerContainer->layout()->addWidget(mixer1);
+		mixerContainer->layout()->addWidget(mixer2);
+		mixerContainer->layout()->addWidget(mixer3);
+		mixerContainer->layout()->addWidget(mixer4);
+		mixerContainer->layout()->addWidget(mixer5);
+		mixerContainer->layout()->addWidget(mixer6);
 
-	QWidget::connect(mixer1, SIGNAL(clicked(bool)), this, SLOT(mixer1Changed(bool)));
-	QWidget::connect(mixer2, SIGNAL(clicked(bool)), this, SLOT(mixer2Changed(bool)));
-	QWidget::connect(mixer3, SIGNAL(clicked(bool)), this, SLOT(mixer3Changed(bool)));
-	QWidget::connect(mixer4, SIGNAL(clicked(bool)), this, SLOT(mixer4Changed(bool)));
-	QWidget::connect(mixer5, SIGNAL(clicked(bool)), this, SLOT(mixer5Changed(bool)));
-	QWidget::connect(mixer6, SIGNAL(clicked(bool)), this, SLOT(mixer6Changed(bool)));
+		QWidget::connect(mixer1, SIGNAL(clicked(bool)), this, SLOT(mixer1Changed(bool)));
+		QWidget::connect(mixer2, SIGNAL(clicked(bool)), this, SLOT(mixer2Changed(bool)));
+		QWidget::connect(mixer3, SIGNAL(clicked(bool)), this, SLOT(mixer3Changed(bool)));
+		QWidget::connect(mixer4, SIGNAL(clicked(bool)), this, SLOT(mixer4Changed(bool)));
+		QWidget::connect(mixer5, SIGNAL(clicked(bool)), this, SLOT(mixer5Changed(bool)));
+		QWidget::connect(mixer6, SIGNAL(clicked(bool)), this, SLOT(mixer6Changed(bool)));
+	} else {
+		QString checkBoxSheet = "font-size: /*hdpi*/14px; spacing: /*hdpi*/5px; min-width: /*hdpi*/43px; margin-right: /*hdpi*/5px;";
+		stereo = new QCheckBox();
+		dpiHelper.setStyleSheet(stereo, checkBoxSheet);
+		immersiveAudio = new QCheckBox();
+		dpiHelper.setStyleSheet(immersiveAudio, checkBoxSheet);
+		stereo->setText("Stereo");
+		stereo->setChecked(mixers & (1 << 0));
+		immersiveAudio->setText("Immersive Audio");
+		immersiveAudio->setChecked(mixers & (1 << 1));
 
+		mixerContainer->layout()->addWidget(stereo);
+		mixerContainer->layout()->addWidget(immersiveAudio);
+
+		QWidget::connect(stereo, SIGNAL(clicked(bool)), this, SLOT(stereoChanged(bool)));
+		QWidget::connect(immersiveAudio, SIGNAL(clicked(bool)), this, SLOT(immersiveAudioChanged(bool)));
+	}
 	setObjectName(sourceName);
 }
 
@@ -251,7 +268,6 @@ PLSAdvAudioCtrl::~PLSAdvAudioCtrl()
 void PLSAdvAudioCtrl::ShowAudioControl(QGridLayout *layout)
 {
 	int lastRow = layout->rowCount();
-	QSpacerItem *horizontalSpacer;
 	int idx = 0;
 
 	// the first column is the source name
@@ -325,7 +341,7 @@ void PLSAdvAudioCtrl::OBSSourceMixersChanged(void *param, calldata_t *calldata)
 	QMetaObject::invokeMethod(reinterpret_cast<PLSAdvAudioCtrl *>(param), "SourceMixersChanged", Q_ARG(uint32_t, mixers));
 }
 
-void PLSAdvAudioCtrl::monitorControlChange(pls_frontend_event event, const QVariantList &params, void *context)
+void PLSAdvAudioCtrl::monitorControlChange(pls_frontend_event event, const QVariantList &, void *context)
 {
 	if (pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_VOLUME_MONTY_BACK == event) {
 		PLSAdvAudioCtrl *control = (PLSAdvAudioCtrl *)context;
@@ -368,12 +384,17 @@ void PLSAdvAudioCtrl::SourceSyncChanged(int64_t offset)
 
 void PLSAdvAudioCtrl::SourceMixersChanged(uint32_t mixers)
 {
-	setCheckboxState(mixer1, mixers & (1 << 0));
-	setCheckboxState(mixer2, mixers & (1 << 1));
-	setCheckboxState(mixer3, mixers & (1 << 2));
-	setCheckboxState(mixer4, mixers & (1 << 3));
-	setCheckboxState(mixer5, mixers & (1 << 4));
-	setCheckboxState(mixer6, mixers & (1 << 5));
+	if (!pls_is_immersive_audio()) {
+		setCheckboxState(mixer1, mixers & (1 << 0));
+		setCheckboxState(mixer2, mixers & (1 << 1));
+		setCheckboxState(mixer3, mixers & (1 << 2));
+		setCheckboxState(mixer4, mixers & (1 << 3));
+		setCheckboxState(mixer5, mixers & (1 << 4));
+		setCheckboxState(mixer6, mixers & (1 << 5));
+	} else {
+		setCheckboxState(stereo, mixers & (1 << 0));
+		setCheckboxState(immersiveAudio, mixers & (1 << 1));
+	}
 }
 
 /* ------------------------------------------------------------------------- */
@@ -404,7 +425,10 @@ void PLSAdvAudioCtrl::downmixMonoChanged(bool checked)
 
 		obs_source_set_flags(source, flags);
 	}
-	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, "Mono checkBox", ACTION_CLICK);
+	const char *name = obs_source_get_name(source);
+	const char *id = obs_source_get_id(source);
+	const char *checkedStr = checked ? "checked" : "unchecked";
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, QString("[%1 : %2]Mono checkBox %3").arg(id).arg(name).arg(checkedStr).toUtf8().constData(), ACTION_CLICK);
 }
 
 void PLSAdvAudioCtrl::balanceChanged(int val)
@@ -453,7 +477,9 @@ void PLSAdvAudioCtrl::monitoringTypeChanged(int index)
 		break;
 	}
 
-	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, "Audio Monitoring ComboBox", ACTION_CLICK);
+	const char *name = obs_source_get_name(source);
+	const char *id = obs_source_get_id(source);
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, QString("[%1 : %2]Audio Monitoring ComboBox %3").arg(id).arg(name).arg(type).toUtf8().constData(), ACTION_CLICK);
 	PLSBasic ::Get()->getApi()->on_event(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_VOLUME_MONTY);
 }
 
@@ -473,35 +499,71 @@ static inline void setMixer(obs_source_t *source, const int mixerIdx, const bool
 void PLSAdvAudioCtrl::mixer1Changed(bool checked)
 {
 	setMixer(source, 0, checked);
-	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, "Track1 CheckBox", ACTION_CLICK);
+	const char *name = obs_source_get_name(source);
+	const char *id = obs_source_get_id(source);
+	const char *checkedStr = checked ? "checked" : "unchecked";
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, QString("[%1 : %2]Track1 CheckBox %3").arg(id).arg(name).arg(checkedStr).toUtf8().constData(), ACTION_CLICK);
 }
 
 void PLSAdvAudioCtrl::mixer2Changed(bool checked)
 {
 	setMixer(source, 1, checked);
-	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, "Track2 CheckBox", ACTION_CLICK);
+	const char *name = obs_source_get_name(source);
+	const char *id = obs_source_get_id(source);
+	const char *checkedStr = checked ? "checked" : "unchecked";
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, QString("[%1 : %2]Track2 CheckBox %3").arg(id).arg(name).arg(checkedStr).toUtf8().constData(), ACTION_CLICK);
 }
 
 void PLSAdvAudioCtrl::mixer3Changed(bool checked)
 {
 	setMixer(source, 2, checked);
-	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, "Track3 CheckBox", ACTION_CLICK);
+	const char *name = obs_source_get_name(source);
+	const char *id = obs_source_get_id(source);
+	const char *checkedStr = checked ? "checked" : "unchecked";
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, QString("[%1 : %2]Track3 CheckBox %3").arg(id).arg(name).arg(checkedStr).toUtf8().constData(), ACTION_CLICK);
 }
 
 void PLSAdvAudioCtrl::mixer4Changed(bool checked)
 {
 	setMixer(source, 3, checked);
-	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, "Track4 CheckBox", ACTION_CLICK);
+	const char *name = obs_source_get_name(source);
+	const char *id = obs_source_get_id(source);
+	const char *checkedStr = checked ? "checked" : "unchecked";
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, QString("[%1 : %2]Track4 CheckBox %3").arg(id).arg(name).arg(checkedStr).toUtf8().constData(), ACTION_CLICK);
 }
 
 void PLSAdvAudioCtrl::mixer5Changed(bool checked)
 {
 	setMixer(source, 4, checked);
-	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, "Track5 CheckBox", ACTION_CLICK);
+	const char *name = obs_source_get_name(source);
+	const char *id = obs_source_get_id(source);
+	const char *checkedStr = checked ? "checked" : "unchecked";
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, QString("[%1 : %2]Track5 CheckBox %3").arg(id).arg(name).arg(checkedStr).toUtf8().constData(), ACTION_CLICK);
 }
 
 void PLSAdvAudioCtrl::mixer6Changed(bool checked)
 {
 	setMixer(source, 5, checked);
-	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, "Track6 CheckBox", ACTION_CLICK);
+	const char *name = obs_source_get_name(source);
+	const char *id = obs_source_get_id(source);
+	const char *checkedStr = checked ? "checked" : "unchecked";
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, QString("[%1 : %2]Track6 CheckBox %3").arg(id).arg(name).arg(checkedStr).toUtf8().constData(), ACTION_CLICK);
+}
+
+void PLSAdvAudioCtrl::stereoChanged(bool checked)
+{
+	setMixer(source, 0, checked);
+	const char *name = obs_source_get_name(source);
+	const char *id = obs_source_get_id(source);
+	const char *checkedStr = checked ? "checked" : "unchecked";
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, QString("[%1 : %2]Track Stereo CheckBox %3").arg(id).arg(name).arg(checkedStr).toUtf8().constData(), ACTION_CLICK);
+}
+
+void PLSAdvAudioCtrl::immersiveAudioChanged(bool checked)
+{
+	setMixer(source, 1, checked);
+	const char *name = obs_source_get_name(source);
+	const char *id = obs_source_get_id(source);
+	const char *checkedStr = checked ? "checked" : "unchecked";
+	PLS_UI_STEP(AUDIO_MIXER_ADV_MODULE, QString("[%1 : %2]Track ImmersiveAudio CheckBox %3").arg(id).arg(name).arg(checkedStr).toUtf8().constData(), ACTION_CLICK);
 }

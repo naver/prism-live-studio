@@ -37,9 +37,20 @@ gs_stage_surface::gs_stage_surface(gs_device_t *device, uint32_t width,
 	td.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 	td.Usage = D3D11_USAGE_STAGING;
 
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	hr = device->device->CreateTexture2D(&td, NULL, texture.Assign());
-	if (FAILED(hr))
+	if (FAILED(hr)) {
+		//PRISM/WangChuanjing/20210311/#6941/notify engine status
+		if (device->engine_notify_cb) {
+			int code = gs_engine_notify_code(hr);
+			device->engine_notify_cb(GS_ENGINE_NOTIFY_EXCEPTION,
+						 code, nullptr);
+		}
 		throw HRError("Failed to create staging surface", hr);
+	}
 }
 
 gs_stage_surface::gs_stage_surface(gs_device_t *device, uint32_t width,
@@ -62,7 +73,18 @@ gs_stage_surface::gs_stage_surface(gs_device_t *device, uint32_t width,
 	td.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
 	td.Usage = D3D11_USAGE_STAGING;
 
+	//PRISM/WangChuanjing/20211013/#9974/device valid check
+	if (!device->device_valid)
+		throw "Device invalid";
+
 	hr = device->device->CreateTexture2D(&td, NULL, texture.Assign());
-	if (FAILED(hr))
+	if (FAILED(hr)) {
+		//PRISM/WangChuanjing/20210311/#6941/notify engine status
+		if (device->engine_notify_cb) {
+			int code = gs_engine_notify_code(hr);
+			device->engine_notify_cb(GS_ENGINE_NOTIFY_EXCEPTION,
+						 code, nullptr);
+		}
 		throw HRError("Failed to create staging surface", hr);
+	}
 }

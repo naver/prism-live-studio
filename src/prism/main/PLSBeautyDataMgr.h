@@ -25,6 +25,7 @@ public:
 	// APIs for preset config.
 	void SetBeautyPresetConfig(const QList<BeautyConfig> &configList);
 	void AddBeautyPresetConfig(const QString &filterId, const BeautyConfig &config);
+	void ClearBeautyPresetConfig();
 	const BeautyConfigMap &GetBeautyPresetConfig() const;
 	BeautyConfig GetBeautyPresetConfigById(const QString &filterId) const;
 
@@ -53,6 +54,8 @@ public:
 	bool RenameFilterId(const QString &filterId, const QString &newId);
 	int GetValidFilterIndex(OBSSceneItem item, const QString &baseId);
 	bool ParseJsonArrayToBeautyConfig(const QByteArray &byteArray, BeautyConfig &config);
+
+	void UpdateRecommendConfig();
 
 private:
 	PLSBeautyDataMgr();

@@ -26,14 +26,14 @@ void PLSFileItemView::setFileName(const QString &filename)
 	ui->fileNameLabel->setText(filename);
 }
 
-void PLSFileItemView::enterEvent(QEvent *event)
+void PLSFileItemView::enterEvent(QEvent *)
 {
 	this->setStyleSheet("background-color:#666666");
 	ui->deleteIcon->setProperty(STATUS, STATUS_HOVER);
 	LoginCommonHelpers::refreshStyle(ui->deleteIcon);
 }
 
-void PLSFileItemView::leaveEvent(QEvent *event)
+void PLSFileItemView::leaveEvent(QEvent *)
 {
 	this->setStyleSheet("background-color:#444444");
 	ui->deleteIcon->setProperty(STATUS, STATUS_NORMAL);

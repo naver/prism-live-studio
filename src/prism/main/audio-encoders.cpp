@@ -10,6 +10,7 @@
 #include "audio-encoders.hpp"
 #include "pls-app.hpp"
 #include "window-main.hpp"
+#include "log/log.h"
 
 using namespace std;
 
@@ -48,11 +49,11 @@ static void HandleListProperty(obs_property_t *prop, const char *id)
 {
 	obs_combo_format format = obs_property_list_format(prop);
 	if (format != OBS_COMBO_FORMAT_INT) {
-		blog(LOG_ERROR,
-		     "Encoder '%s' (%s) returned bitrate "
-		     "OBS_PROPERTY_LIST property of unhandled "
-		     "format %d",
-		     EncoderName(id), id, static_cast<int>(format));
+		PLS_ERROR(MAIN_AUDIO_ENCODER,
+			  "Encoder '%s' (%s) returned bitrate "
+			  "OBS_PROPERTY_LIST property of unhandled "
+			  "format %d",
+			  EncoderName(id), id, static_cast<int>(format));
 		return;
 	}
 
@@ -72,17 +73,17 @@ static void HandleSampleRate(obs_property_t *prop, const char *id)
 	std::unique_ptr<obs_data_t, decltype(ReleaseData)> data{obs_encoder_defaults(id), ReleaseData};
 
 	if (!data) {
-		blog(LOG_ERROR,
-		     "Failed to get defaults for encoder '%s' (%s) "
-		     "while populating bitrate map",
-		     EncoderName(id), id);
+		PLS_ERROR(MAIN_AUDIO_ENCODER,
+			  "Failed to get defaults for encoder '%s' (%s) "
+			  "while populating bitrate map",
+			  EncoderName(id), id);
 		return;
 	}
 
 	auto main = reinterpret_cast<PLSMainWindow *>(App()->GetMainWindow());
 	if (!main) {
-		blog(LOG_ERROR, "Failed to get main window while populating "
-				"bitrate map");
+		PLS_ERROR(MAIN_AUDIO_ENCODER, "Failed to get main window while populating "
+					      "bitrate map");
 		return;
 	}
 
@@ -99,10 +100,10 @@ static void HandleEncoderProperties(const char *id)
 	std::unique_ptr<obs_properties_t, decltype(DestroyProperties)> props{obs_get_encoder_properties(id), DestroyProperties};
 
 	if (!props) {
-		blog(LOG_ERROR,
-		     "Failed to get properties for encoder "
-		     "'%s' (%s)",
-		     EncoderName(id), id);
+		PLS_ERROR(MAIN_AUDIO_ENCODER,
+			  "Failed to get properties for encoder "
+			  "'%s' (%s)",
+			  EncoderName(id), id);
 		return;
 	}
 
@@ -124,10 +125,10 @@ static void HandleEncoderProperties(const char *id)
 		break;
 	}
 
-	blog(LOG_ERROR,
-	     "Encoder '%s' (%s) returned bitrate property "
-	     "of unhandled type %d",
-	     EncoderName(id), id, static_cast<int>(type));
+	PLS_ERROR(MAIN_AUDIO_ENCODER,
+		  "Encoder '%s' (%s) returned bitrate property "
+		  "of unhandled type %d",
+		  EncoderName(id), id, static_cast<int>(type));
 }
 
 static const char *GetCodec(const char *id)
@@ -159,7 +160,10 @@ static void PopulateBitrateMap()
 		}
 
 		for (auto &encoder : encoders) {
-			if (encoder == fallbackEncoder)
+			//PRISM/LiuHaibin/20210623/#None/for immersive audio
+			/* Here we only try fdk-aac, because immersive audio only support fdk-aac.
+			 * While the ffmpeg-aac is already kept as a backup (fallbackEncoder) */
+			if (encoder == fallbackEncoder || encoder == "mf_aac" || encoder == "CoreAudio_AAC")
 				continue;
 
 			if (aac_ != GetCodec(encoder.c_str()))
@@ -173,8 +177,8 @@ static void PopulateBitrateMap()
 		}
 
 		if (bitrateMap.empty()) {
-			blog(LOG_ERROR, "Could not enumerate any AAC encoder "
-					"bitrates");
+			PLS_ERROR(MAIN_AUDIO_ENCODER, "Could not enumerate any AAC encoder "
+						      "bitrates");
 			return;
 		}
 
@@ -182,7 +186,7 @@ static void PopulateBitrateMap()
 		for (auto &entry : bitrateMap)
 			ss << "\n	" << setw(3) << entry.first << " kbit/s: '" << EncoderName(entry.second) << "' (" << entry.second << ')';
 
-		blog(LOG_DEBUG, "AAC encoder bitrate mapping:%s", ss.str().c_str());
+		PLS_DEBUG(MAIN_AUDIO_ENCODER, "AAC encoder bitrate mapping:%s", ss.str().c_str());
 	});
 }
 

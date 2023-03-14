@@ -17,10 +17,9 @@ Q_DECLARE_METATYPE(StickerDownloadType)
 using PointerValue = unsigned long long;
 Q_DECLARE_METATYPE(PointerValue)
 
-enum class ResultStatus {
-	GIPHY_NO_ERROR,
-	ERROR_OCCUR,
-};
+enum class ResultStatus { GIPHY_NO_ERROR, ERROR_OCCUR };
+
+enum class ErrorSubType { Error_Timeout, Error_Other };
 
 Q_DECLARE_METATYPE(ResultStatus)
 
@@ -63,14 +62,23 @@ struct RequestTaskData {
 Q_DECLARE_METATYPE(RequestTaskData)
 
 // downloading task struct for requesting a sticker resource.
+struct TaskResponData;
 struct DownloadTaskData {
 	QString uniqueId;
 	QString url;
+	QString outputPath;
+	QString outputFileName;
+	qint64 version;
 	StickerDownloadType type = StickerDownloadType::THUMBNAIL;
 	QSize SourceSize;
 	PointerValue randomId{0LL};
 	QVariant extraData = QVariant();
 	bool needRetry{true};
+	int timeoutMs = 0;
+	std::function<void(const TaskResponData &)> callback;
+	std::function<void(const QByteArray &, const TaskResponData &)> rawDataCallback;
+
+	bool equals(const DownloadTaskData &other) { return (this->uniqueId == other.uniqueId && this->url == other.url); }
 };
 
 Q_DECLARE_METATYPE(DownloadTaskData)
@@ -81,6 +89,7 @@ struct TaskResponData {
 	DownloadTaskData taskData;
 	QString fileName;
 	QString errorString;
+	ErrorSubType subType = ErrorSubType::Error_Other;
 };
 
 Q_DECLARE_METATYPE(TaskResponData)

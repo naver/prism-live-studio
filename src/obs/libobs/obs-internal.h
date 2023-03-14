@@ -69,7 +69,7 @@ static inline bool obs_object_valid(const void *obj, const char *f,
 				    const char *t)
 {
 	if (!obj) {
-		blog(LOG_DEBUG, "%s: Null '%s' parameter", f, t);
+		plog(LOG_DEBUG, "%s: Null '%s' parameter", f, t);
 		return false;
 	}
 
@@ -85,6 +85,13 @@ static inline bool obs_object_valid(const void *obj, const char *f,
 /* ------------------------------------------------------------------------- */
 /* modules */
 
+//PRISM/Liuying/20200128/for third-party plugins notification
+struct obs_external_module_dll_info {
+	char *dll_name;
+	char *source_id;
+	char *display_name;
+};
+
 struct obs_module {
 	char *mod_name;
 	const char *file;
@@ -92,6 +99,9 @@ struct obs_module {
 	char *data_path;
 	void *module;
 	bool loaded;
+
+	//PRISM/Liuying/20200121/Identifying third-party plugins
+	bool internal_module;
 
 	bool (*load)(void);
 	void (*unload)(void);
@@ -122,6 +132,17 @@ static inline void free_module_path(struct obs_module_path *omp)
 	}
 }
 
+//PRISM/Liuying/20200128/for third-party plugins notification
+static inline void
+free_module_dll_info(struct obs_external_module_dll_info *info)
+{
+	if (info) {
+		bfree(info->dll_name);
+		bfree(info->source_id);
+		bfree(info->display_name);
+	}
+}
+
 static inline bool check_path(const char *data, const char *path,
 			      struct dstr *output)
 {
@@ -138,6 +159,9 @@ struct obs_hotkey {
 	obs_hotkey_id id;
 	char *name;
 	char *description;
+
+	//PRSIM/Liuying/20210622/set visible/invisible for hotkey in timer source.
+	uint32_t flags;
 
 	obs_hotkey_func func;
 	void *data;
@@ -244,6 +268,13 @@ struct obs_task_info {
 	void *param;
 };
 
+//PRISM/Wang.Chuanjing/20200315//#6941/notify engine status
+struct obs_engine_notify_info {
+	int type;
+	int code;
+	bool notify_done;
+};
+
 struct obs_core_video {
 	graphics_t *graphics;
 	gs_stagesurf_t *copy_surfaces[NUM_TEXTURES][NUM_CHANNELS];
@@ -281,6 +312,9 @@ struct obs_core_video {
 	pthread_t gpu_encode_thread;
 	bool gpu_encode_thread_initialized;
 	volatile bool gpu_encode_stop;
+	//PRISM/LiuHaibin/20210316/#None/async stop gpu encoder
+	pthread_t gpu_encode_exit_thread;
+	volatile bool gpu_encode_exit_thread_active;
 
 	uint64_t video_time;
 	uint64_t video_frame_interval_ns;
@@ -329,11 +363,14 @@ struct obs_core_video {
 	//PRISM/LiuHaibin/20200217/#215/for thumbnail
 	obs_thumbnail_t *thumbnail;
 
-	//PRISM/Wang.Chuanjing/20200408/#2321 for device rebuild
-	volatile bool render_working;
+	//PRISM/Wang.Chuanjing/20200315//#6941/notify engine status
+	DARRAY(struct obs_engine_notify_info) engine_notify_array;
 
 	//PRISM/WangChuanjing/20200825/#3423/for main view load delay
 	volatile bool system_initialized;
+
+	//PRISM/Liuying/20201216/#6183/for create display must after source was loaded finished.
+	volatile bool source_is_loading;
 };
 
 struct audio_monitor;
@@ -438,6 +475,9 @@ struct obs_core {
 	DARRAY(struct obs_modal_ui) modal_ui_callbacks;
 	DARRAY(struct obs_modeless_ui) modeless_ui_callbacks;
 
+	//PRISM/Liuying/20200128/for third-party plugins notification
+	DARRAY(struct obs_external_module_dll_info) external_module_dll_info;
+
 	signal_handler_t *signals;
 	proc_handler_t *procs;
 
@@ -454,6 +494,9 @@ struct obs_core {
 	struct obs_core_hotkeys hotkeys;
 
 	obs_task_handler_t ui_task_handler;
+#ifdef _WIN32
+	power_monitor_t *win_power_monitor;
+#endif
 };
 
 extern struct obs_core *obs;
@@ -480,6 +523,7 @@ extern void stop_raw_video(video_t *video,
 
 struct obs_context_data {
 	char *name;
+	char *name_ext; //PRISM/WuLongyue/20201210/None/PRISM Mobile source
 	void *data;
 	obs_data_t *settings;
 	signal_handler_t *signals;
@@ -513,6 +557,10 @@ extern void obs_context_data_remove(struct obs_context_data *context);
 extern void obs_context_data_setname(struct obs_context_data *context,
 				     const char *name);
 
+//PRISM/WuLongyue/20201210/None/PRISM Mobile source
+extern void obs_context_data_set_nameext(struct obs_context_data *context,
+					 const char *name);
+
 /* ------------------------------------------------------------------------- */
 /* ref-counting  */
 
@@ -524,14 +572,16 @@ struct obs_weak_ref {
 //PRISM/WangShaohui/20201030/#5529/monitor invalid reference
 static inline void obs_ref_addref(struct obs_weak_ref *ref,
 				  const char *plugin_id,
-				  const char *source_name)
+				  const char *source_name, void *obj)
 {
 	if (ref->refs < 0) {
-		blog(LOG_ERROR,
-		     "A crash must happen later because object will be deleted again. plugin:%s name:%s",
-		     plugin_id ? plugin_id : "unknown",
-		     source_name ? source_name : "unknown");
+		plog(LOG_ERROR,
+		     "This object you are using has been deleted! A crash must happen later. obj:%p pluginID:%s name:%s obs_weak_ref:%p refs:%ld",
+		     obj, plugin_id ? plugin_id : "(null)",
+		     source_name ? source_name : "(null)", ref, ref->refs);
+
 		assert(false && "A crash must happen and you must fix it!");
+		popup_messagebox("obs_ref_addref exception!");
 	}
 	os_atomic_inc_long(&ref->refs);
 }
@@ -569,6 +619,12 @@ static inline bool obs_weak_ref_get_ref(struct obs_weak_ref *ref)
 
 struct async_frame {
 	struct obs_source_frame *frame;
+	long unused_count;
+	bool used;
+};
+
+struct async_texture {
+	struct obs_source_texture *texture;
 	long unused_count;
 	bool used;
 };
@@ -683,6 +739,8 @@ struct obs_source {
 	int64_t sync_offset;
 	int64_t last_sync_offset;
 	float balance;
+	//PRISM/WangChuanjing/20211018/#None/for audio output flag
+	volatile bool audio_output_flag;
 
 	/* async video data */
 	gs_texture_t *async_textures[MAX_AV_PLANES];
@@ -773,25 +831,31 @@ struct obs_source {
 
 	obs_data_t *private_settings;
 
-	/* camera effect */
-	//PRISM/LiuHaibin/20200609/#3174/camera effect
-	struct obs_source_frame *cam_frame;
-	int cam_frame_state;
-	gs_texture_t *cam_shared_texture;
-	gs_texture_t *cam_result_texture;
-	bool cam_shared_texture_ready;
-	bool cam_result_texture_ready;
-	uint32_t cam_result_texture_null_count;
-	uint32_t cam_current_shared_handle;
-	uint32_t cam_result_texture_width;
-	uint32_t cam_result_texture_height;
-	struct gs_luid cam_adapter_luid;
-
 	//PRISM/LiuHaibin/20200716/#None/clear video
 	bool async_clear_video;
 
-	//PRISM/Liuying/20200904/#None/for Music PlayList
-	struct obs_source *parent;
+	//PRISM/LiuHaibin/20210225/#None/for async texture render
+	DARRAY(struct async_texture) async_texture_cache;
+	DARRAY(struct obs_source_texture *) async_textures_array;
+	uint32_t async_texture_cache_width;
+	uint32_t async_texture_cache_height;
+	enum gs_color_format async_texture_cache_format;
+	struct gs_luid shared_luid;
+	struct obs_source_texture *cur_async_texture;
+	gs_texture_t *final_texture;
+	bool final_texture_ready;
+
+	//PRISM/LiuHaibin/20210311/#None/Debug performance of mobile source
+	bool mobile_mark;
+	uint64_t mobile_frame_sys_timestamp;
+	uint64_t mobile_frame_count;
+	uint64_t mobile_total_ns;
+	uint64_t mobile_async_cache_ts;
+	uint64_t mobile_async_cached_frame_count;
+#ifdef ENABLE_MOBILE_SOURCE_PERFORMANCE_STATS
+	uint64_t mobile_period_frame_count;
+	uint64_t mobile_period_total_ns;
+#endif
 };
 
 extern struct obs_source_info *get_source_info(const char *id);
@@ -811,6 +875,8 @@ extern void obs_transition_load(obs_source_t *source, obs_data_t *data);
 struct audio_monitor *audio_monitor_create(obs_source_t *source);
 void audio_monitor_reset(struct audio_monitor *monitor);
 extern void audio_monitor_destroy(struct audio_monitor *monitor);
+//PRISM/LiuHaibin/20201207/#5992/clear audio buffer
+void audio_monitor_clear_buffer(struct audio_monitor *monitor);
 
 extern obs_source_t *obs_source_create_set_last_ver(const char *id,
 						    const char *name,
@@ -1031,6 +1097,12 @@ struct obs_output {
 
 	//PRISM/LiuHaibin/20200703/#3195/for force stop
 	bool stopped_internal;
+	//PRISM/LiuHaibin/20210310/#6892/mark if stop is needed in end_data_capture_thread
+	bool signal_stop;
+	//PRISM/LiuHaibin/20210622/#None/Immersive audio
+	bool immersive_audio;
+	//PRISM/LiuHaibin/20211021/#None/mark if stop is signaled already
+	volatile bool stop_signalled;
 };
 
 static inline void do_output_signal(struct obs_output *output,
@@ -1136,6 +1208,9 @@ struct obs_encoder {
 	struct pause_data pause;
 
 	const char *profile_encoder_encode_name;
+
+	/* reconfigure encoder at next possible opportunity */
+	bool reconfigure_requested;
 
 	//PRISM/LiuHaibin/20200701/#2440/support NOW
 	uint64_t base_timestamp;
@@ -1265,11 +1340,3 @@ extern bool obs_thumbnail_requested();
 
 //End
 /* ------------------------------------------------------------------------- */
-
-//PRISM/Liu.Haibin/20200409/#2321/for device rebuild
-/** returns true if render is working, false otherwise */
-extern bool is_render_working(void);
-
-//PRISM/LiuHaibin/20200609/#/camera effect
-/* return true if camera effect is on, false otherwise */
-extern bool obs_source_cam_effect_on(const obs_source_t *source);

@@ -1,14 +1,14 @@
 PLSDock#scenesDock PLSDockTitle{
-	qproperty-marginLeft:/*hdpi*/23;
-	qproperty-marginRight:/*hdpi*/5;
+	qproperty-marginLeft:/*hdpi*/19;
+	qproperty-marginRight:/*hdpi*/9;
 	qproperty-contentSpacing:/*hdpi*/10;
 	qproperty-captionHeight:/*hdpi*/50;
 }
 
 PLSDock#scenesDock {
-	qproperty-contentMarginLeft: /*hdpi*/ 10;
-	qproperty-contentMarginRight: /*hdpi*/ 15;
-	qproperty-contentMarginBottom: /*hdpi*/ 15;
+	qproperty-contentMarginLeft: /*hdpi*/ 1;
+	qproperty-contentMarginRight: /*hdpi*/ 1;
+	qproperty-contentMarginBottom: /*hdpi*/ 1;
 	background-color: #272727;
 	background-color: #272727;
 	min-width: /*hdpi*/ 186px;

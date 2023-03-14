@@ -188,7 +188,7 @@ void obs_output_set_delay(obs_output_t *output, uint32_t delay_sec,
 		return;
 
 	if ((output->info.flags & OBS_OUTPUT_ENCODED) == 0) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "Output '%s': Tried to set a delay "
 		     "value on a non-encoded output",
 		     output->context.name);

@@ -218,10 +218,15 @@ void ipc_pipe_server_free(ipc_pipe_server_t *pipe)
 		return;
 
 	if (pipe->thread) {
-		CancelIoEx(pipe->handle, &pipe->overlap);
-		SetEvent(pipe->ready_event);
-		WaitForSingleObject(pipe->thread, INFINITE);
-		CloseHandle(pipe->thread);
+		while (pipe->thread) {
+			CancelIoEx(pipe->handle, &pipe->overlap);
+			SetEvent(pipe->ready_event);
+			if (WAIT_OBJECT_0 ==
+			    WaitForSingleObject(pipe->thread, 200)) {
+				CloseHandle(pipe->thread);
+				pipe->thread = 0;
+			}
+		}
 	}
 	if (pipe->ready_event)
 		CloseHandle(pipe->ready_event);

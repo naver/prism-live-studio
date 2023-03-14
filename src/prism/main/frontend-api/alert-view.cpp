@@ -4,6 +4,8 @@
 #include <QPushButton>
 #include <QApplication>
 #include <QHBoxLayout>
+#include <QList>
+#include <QPointer>
 
 #include <log.h>
 
@@ -115,7 +117,7 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon_, const QString &title, co
 		int width = calcButtonWidth(ui->buttonBox, dpi);
 		return css.arg(width);
 	});
-	dpiHelper.notifyDpiChanged(this, [=](double dpi, double, bool firstShow) {
+	dpiHelper.notifyDpiChanged(this, [=](double, double, bool firstShow) {
 		if (firstShow) {
 			updateGeometry();
 		}
@@ -139,6 +141,7 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon_, const QString &title, co
 		setHasHLine(false);
 	}
 
+	setHasCloseButton(false);
 	setIcon(icon_);
 
 	ui->nameLabel->hide();
@@ -408,6 +411,19 @@ void PLSAlertView::setIcon(Icon icon)
 	} else {
 		ui->icon->hide();
 	}
+}
+
+int PLSAlertView::exec()
+{
+	pls_push_dialog_view(this);
+	int retval = PLSDialogView::exec();
+	pls_pop_dialog_view(this);
+	return retval;
+}
+
+void PLSAlertView::closeNoButton()
+{
+	done(QDialogButtonBox::NoButton);
 }
 
 void PLSAlertView::onButtonClicked(QAbstractButton *button)

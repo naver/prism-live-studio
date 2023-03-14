@@ -2,6 +2,7 @@
 #include "monitor-info.h"
 #include "graphics/graphics.h"
 #include "monitor-duplicator-core.h"
+#include <atomic>
 
 class PLSDuplicatorInstance {
 public:
@@ -13,6 +14,9 @@ public:
 	int get_monitor_dev_id();
 	bool is_adapter_valid();
 	bool update_frame();
+
+	void set_removed();
+	bool is_removed();
 
 	// Warning :
 	// while invoking this func, you should request obs_enter_graphics() firstly and call obs_leave_graphics() after using returned texture.
@@ -26,15 +30,17 @@ private:
 	void release_frame();
 
 private:
-	int display_id;
+	std::atomic<bool> removed = false;
+
+	int display_id = 0;
 
 	HANDLE active_event;
 	HANDLE exit_event;
 	HANDLE capture_thread;
 	PLSDuplicatorCore monitor_capture;
 
-	gs_texture *gs_frame; // texture on system graphics
-	HANDLE shared_handle;
+	gs_texture *gs_frame = NULL; // texture on system graphics
+	HANDLE shared_handle = 0;
 
 	DWORD previous_active_time;
 };

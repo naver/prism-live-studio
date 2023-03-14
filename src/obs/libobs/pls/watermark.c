@@ -28,6 +28,7 @@ static void reset_watermark(obs_watermark_t *watermark)
 	watermark->updated = false;
 	watermark->next_timestamp = 0;
 	watermark->need_update = true;
+	watermark->update_failure_times = 0;
 	dstr_free(&watermark->file_path);
 }
 
@@ -45,6 +46,9 @@ static void set_info(struct obs_watermark *watermark,
 	watermark->fade_in_time_nsec = info->fade_in_time_usec * USEC_TO_NSEC;
 	watermark->fade_out_time_nsec = info->fade_out_time_usec * USEC_TO_NSEC;
 	watermark->interval_nsec = info->interval_usec * USEC_TO_NSEC;
+	watermark->bottom_margin_ratio = info->bottom_margin_ratio;
+	watermark->right_margin_ratio = info->right_margin_ratio;
+	watermark->scale_ratio = info->scale_ratio;
 	dstr_free(&watermark->file_path);
 	dstr_copy(&watermark->file_path, info->file_path);
 	os_atomic_set_bool(&watermark->updated, true);
@@ -142,7 +146,7 @@ static bool reset_texture_and_effect(obs_watermark_t *watermark,
 			gs_texture_create_from_file(watermark_file_path);
 		if (!watermark->texture) {
 			gs_leave_context();
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Fail to create texture for watermark.");
 			return false;
 		}
@@ -160,7 +164,7 @@ static bool reset_texture_and_effect(obs_watermark_t *watermark,
 			gs_texture_destroy(watermark->texture);
 			watermark->texture = NULL;
 			gs_leave_context();
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Fail to create render texture for watermark.");
 			return false;
 		}
@@ -175,7 +179,7 @@ static bool reset_texture_and_effect(obs_watermark_t *watermark,
 		bfree(filename);
 
 		if (!watermark->opaque_effect)
-			blog(LOG_WARNING,
+			plog(LOG_WARNING,
 			     "Opaque effect for watermark is not created.");
 	}
 
@@ -207,6 +211,9 @@ static gs_texture_t *obs_watermark_render_internal(obs_watermark_t *watermark,
 	uint32_t base_width = gs_texture_get_width(watermark->texture);
 	uint32_t base_height = gs_texture_get_height(watermark->texture);
 
+	if (!target_width || !target_height || !base_width || !base_height)
+		return texture;
+
 	struct vec4 clear_color;
 	vec4_set(&clear_color, 0.0f, 0.0f, 0.0f, 0.0f);
 	gs_set_render_target(watermark->render_texture, NULL);
@@ -231,18 +238,44 @@ static gs_texture_t *obs_watermark_render_internal(obs_watermark_t *watermark,
 
 	gs_draw_sprite(texture, 0, 0, 0);
 
+	uint32_t x = 0;
+	uint32_t y = 0;
+	uint32_t cx = 0;
+	uint32_t cy = 0;
+
+	uint32_t to_right_margin = watermark->right_margin_ratio * target_width;
+	uint32_t to_bottom_margin =
+		watermark->bottom_margin_ratio * target_height;
+
+	float x_ratio = (float)base_width / (float)target_width;
+	float y_ratio = (float)base_height / (float)target_height;
+	if (x_ratio > y_ratio) {
+		cx = target_width * watermark->scale_ratio;
+		cy = cx * ((float)base_height / (float)base_width);
+
+	} else {
+		cy = target_height * watermark->scale_ratio;
+		cx = cy * ((float)base_width / (float)base_height);
+	}
+	x = target_width - to_right_margin - cx;
+	y = target_height - to_bottom_margin - cy;
+
 	param = gs_effect_get_param_by_name(effect, "opacity");
 	gs_effect_set_float(param, opacity);
 
-	gs_set_viewport(watermark->left_margin, watermark->top_margin,
-			base_width, base_height);
+	gs_enable_depth_test(false);
+	gs_set_cull_mode(GS_NEITHER);
+
+	gs_ortho(0.0f, (float)base_width, 0.0f, (float)base_height, -100.0f,
+		 100.0f);
+	gs_set_viewport(x, y, cx, cy);
 
 	param = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(param, watermark->texture);
 
 	gs_reset_blend_state();
 
-	gs_draw_sprite(watermark->texture, 0, target_width, target_height);
+	gs_draw_sprite(watermark->texture, 0, 0, 0);
 
 	gs_blend_state_pop();
 
@@ -258,8 +291,8 @@ static bool obs_watermark_update_internal(obs_watermark_t *watermark,
 	if (!obs_ptr_valid(watermark, "obs_watermark_update_internal"))
 		return false;
 	else if (!info) {
-		blog(LOG_INFO,
-		     "watermark info is null, aka, output resolution is not support.");
+		plog(LOG_INFO,
+		     "watermark info is null. No watermark until next update.");
 		watermark->policy = OBS_WATERMARK_POLICY_NONE;
 		return false;
 	} else if (!obs_ptr_valid(info->file_path,
@@ -267,21 +300,21 @@ static bool obs_watermark_update_internal(obs_watermark_t *watermark,
 		return false;
 
 	set_info(watermark, info);
-	blog(LOG_INFO,
-	     "Watermark updated: \n\tfile : %s \n\tposition : (%d, %d) \n\tpolicy : %d \
+	plog(LOG_INFO, "Watermark updated: \n\tpolicy : %d \
 		\n\tstart_time_usec : %d \n\tshow_time_usec : %d \n\tfade_in_time_usec : %d \
-		\n\tfade_out_time_usec : %d \n\tinterval_usec : %d.",
-	     info->file_path, info->top_margin, info->left_margin, info->policy,
-	     info->start_time_usec, info->show_time_usec,
+		\n\tfade_out_time_usec : %d \n\tinterval_usec : %d \
+		\n\tright_margin_ratio : %f \n\tbottom_margin_ratio : %f \n\tscale_ratio : %f.",
+	     info->policy, info->start_time_usec, info->show_time_usec,
 	     info->fade_in_time_usec, info->fade_out_time_usec,
-	     info->interval_usec);
+	     info->interval_usec, info->right_margin_ratio,
+	     info->bottom_margin_ratio, info->scale_ratio);
 	return true;
 }
 
 obs_watermark_t *obs_get_watermark(void)
 {
 	if (!obs || !obs->video.graphics) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "Can not get watermark, because obs or video has not been initialized.");
 		return NULL;
 	}
@@ -300,7 +333,7 @@ obs_watermark_t *obs_watermark_create(void)
 {
 	struct obs_watermark *watermark = bzalloc(sizeof(struct obs_watermark));
 	if (!watermark) {
-		blog(LOG_WARNING, "Fail to alloc watermark.");
+		plog(LOG_WARNING, "Fail to alloc watermark.");
 		return NULL;
 	}
 
@@ -320,10 +353,11 @@ void obs_watermark_destroy(obs_watermark_t *watermark)
 		release_texture_and_effect(watermark);
 		reset_watermark(watermark);
 		bfree(watermark);
-		blog(LOG_INFO, "Watermark destroyed.");
+		plog(LOG_INFO, "Watermark destroyed.");
 	}
 }
 
+#define MAX_UPDATE_TRY_TIMES 5
 gs_texture_t *obs_watermark_render(obs_watermark_t *watermark,
 				   gs_texture_t *texture)
 {
@@ -332,9 +366,16 @@ gs_texture_t *obs_watermark_render(obs_watermark_t *watermark,
 		return texture;
 
 	if (os_atomic_load_bool(&watermark->updated)) {
+		// Failed more than MAX_UPDATE_TRY_TIMES times in a row, do not try again.
+		// To avoid too many failure logs
+		if (watermark->update_failure_times > MAX_UPDATE_TRY_TIMES)
+			return texture;
 		if (!reset_texture_and_effect(watermark,
-					      watermark->file_path.array))
-			return false;
+					      watermark->file_path.array)) {
+			watermark->update_failure_times++;
+			return texture;
+		}
+		watermark->update_failure_times = 0;
 		os_atomic_set_bool(&watermark->updated, false);
 	}
 
@@ -368,8 +409,13 @@ void obs_watermark_set_refresh(bool update)
 	obs_watermark_t *watermark = obs_get_watermark();
 	if (watermark) {
 		os_atomic_set_bool(&watermark->need_update, update);
-		char *msg = update ? "NEED UPDATE" : "NO NEED TO UPDATE";
-		blog(LOG_INFO, "Watermark is set to be %s.", msg);
+		if (update)
+			watermark->policy = OBS_WATERMARK_POLICY_NONE;
+		watermark->update_failure_times = 0;
+		char *msg =
+			update ? "NEED UPDATE. No watermark until next update."
+			       : "NO NEED TO UPDATE";
+		plog(LOG_INFO, "Watermark is set to be %s.", msg);
 	}
 }
 
@@ -379,7 +425,7 @@ void obs_watermark_set_enabled(bool enabled)
 	if (watermark) {
 		os_atomic_set_bool(&watermark->enabled, enabled);
 		char *msg = enabled ? "ON" : "OFF";
-		blog(LOG_INFO, "Watermark is %s.", msg);
+		plog(LOG_INFO, "Watermark is %s.", msg);
 	}
 }
 
@@ -388,4 +434,5 @@ bool obs_watermark_update(const struct obs_watermark_info *info)
 	obs_watermark_t *watermark = obs_get_watermark();
 	if (watermark && os_atomic_load_bool(&watermark->need_update))
 		return obs_watermark_update_internal(watermark, info);
+	return false;
 }

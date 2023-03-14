@@ -5,10 +5,11 @@ if(MSVC)
 		w32-pthreads)
 endif()
 
-option(ENABLE_FFMPEG_LOGGING "Enables obs-ffmpeg logging" OFF)
+option(ENABLE_FFMPEG_LOGGING "Enables obs-ffmpeg logging" ON)
 
 find_package(FFmpeg REQUIRED
 	COMPONENTS avcodec avfilter avdevice avutil swscale avformat swresample)
+
 include_directories(${FFMPEG_INCLUDE_DIRS})
 
 configure_file(
@@ -22,7 +23,8 @@ set(obs-ffmpeg_config_HEADERS
 set(obs-ffmpeg_HEADERS
 	obs-ffmpeg-formats.h
 	obs-ffmpeg-compat.h
-	closest-pixel-format.h)
+	closest-pixel-format.h	
+	)
 
 set(obs-ffmpeg_SOURCES
 	obs-ffmpeg.c
@@ -30,7 +32,8 @@ set(obs-ffmpeg_SOURCES
 	obs-ffmpeg-nvenc.c
 	obs-ffmpeg-output.c
 	obs-ffmpeg-mux.c
-	obs-ffmpeg-source.c)
+	obs-ffmpeg-source.c	
+	)
 
 if(UNIX AND NOT APPLE)
 	list(APPEND obs-ffmpeg_SOURCES

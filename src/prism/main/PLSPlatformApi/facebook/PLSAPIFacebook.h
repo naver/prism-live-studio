@@ -14,6 +14,7 @@ enum class PLSAPIFacebookType {
 	PLSFacebookObjectDontExist,
 	PLSRequestPermissionReject,
 	PLSLivingPermissionReject,
+	PLSUpdateLivingPermissionReject,
 	PLSUpdateLiveInfoFailed,
 	PLSFacebookNetworkError,
 };
@@ -79,8 +80,8 @@ public:
 
 private:
 	static QString getFaceboolURL(const QString &endpoint);
-	QUrl getPermissionRequestUrl(QString &permission);
-	bool goFacebookRequestPermission(QString &permission, QWidget *parent);
+	QUrl getPermissionRequestUrl(const QString &permission);
+	bool goFacebookRequestPermission(const QString &permission, QWidget *parent);
 	void startRequestApi(PLSAPI requestType, QNetworkReply *requestReply, MyRequestSuccessFunction successFunction, MyRequestTypeFunction failedFunction);
 	PLSAPIFacebookType handleApiErrorCode(PLSAPI requestType, int statusCode, QByteArray data, QNetworkReply::NetworkError error);
 	const char *getApiName(PLSAPI requestType);

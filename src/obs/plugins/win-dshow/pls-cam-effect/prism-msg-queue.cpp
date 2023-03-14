@@ -1,7 +1,6 @@
 #include "prism-msg-queue.h"
 
-void PLSMsgQueue::PushMessage(EFFECT_MESSAGE_PTR msg, int length,
-			      bool remove_old)
+void PLSMsgQueue::PushMessage(EFFECT_MESSAGE_PTR msg, int length, bool remove_old)
 {
 	cam_effect_message_info info;
 	info.msg = msg;

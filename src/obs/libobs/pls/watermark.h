@@ -12,7 +12,7 @@ struct obs_watermark {
 	enum obs_watermark_policy policy;
 	enum obs_watermark_show_type show_type;
 
-	/* must */
+	/* deprecated, use new position parameters */
 	uint32_t top_margin;
 	uint32_t left_margin;
 
@@ -35,4 +35,11 @@ struct obs_watermark {
 	bool first_show;
 	uint64_t next_timestamp;
 	struct dstr file_path;
+
+	/* new position parameters */
+	float right_margin_ratio;
+	float bottom_margin_ratio;
+	float scale_ratio;
+
+	int update_failure_times;
 };

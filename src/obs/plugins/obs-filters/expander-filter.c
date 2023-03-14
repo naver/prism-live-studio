@@ -11,7 +11,7 @@
 /* -------------------------------------------------------- */
 
 #define do_log(level, format, ...)              \
-	blog(level, "[expander: '%s'] " format, \
+	plog(level, "[expander: '%s'] " format, \
 	     obs_source_get_name(cd->context), ##__VA_ARGS__)
 
 #define warn(format, ...) do_log(LOG_WARNING, format, ##__VA_ARGS__)

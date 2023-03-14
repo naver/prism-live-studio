@@ -1,11 +1,12 @@
 #pragma once
 
 #include "frontend-api-global.h"
-
+#include "frontend-api.h"
+#include <functional>
 #include <QJsonObject>
 #include <QWidget>
 
-enum class PLSPlatformType { Twitch, YouTube, Facebook, Google, Twitter, Naver, Line, NaverTv, Vlive, Band, AfreecaTV, WhaleSpace };
+enum class PLSPlatformType { Twitch, YouTube, Facebook, Google, Twitter, Naver, Line, NaverTv, Vlive, Band, AfreecaTV, WhaleSpace, NaverShoppingLive };
 
 class FRONTEND_API PLSLoginInfo {
 protected:
@@ -14,15 +15,22 @@ protected:
 
 public:
 	enum class UseFor {
-		Prism,   // only for prism login
-		Channel, // only for channel login
-		Both     // both
+		Prism = 0x01,                    // only for prism login
+		Channel = 0x02,                  // only for channel login
+		Store = 0x04,                    // only for naver shopping live store login
+		Prism_Channel = Prism | Channel, // Prism and Channel
+		Channel_Store = Channel | Store, // Channel and Store
+		All = Prism | Channel | Store,   // all
 	};
 	enum class ChannelSupport {
 		Account, // only support account login
 		Rtmp,    // only support rtmp
 		Both     // both
 	};
+	enum class ImplementType { Synchronous, Asynchronous };
+
+public:
+	static inline bool isUseFor(UseFor useFor, UseFor checkFor) { return (static_cast<int>(useFor) & static_cast<int>(checkFor)) ? true : false; }
 
 public:
 	/**
@@ -58,6 +66,12 @@ public:
 	  *     Account, Rtmp, Both
 	  */
 	virtual ChannelSupport channelSupport() const;
+	/**
+	  * loginWithAccount implement type
+	  * return:
+	  *     ImplementType
+	  */
+	virtual ImplementType loginWithAccountImplementType() const;
 
 	/**
 	  * login by account way
@@ -68,7 +82,8 @@ public:
 	  * return:
 	  *     true for success, false for failed
 	  */
-	virtual bool loginWithAccount(QJsonObject &result, UseFor useFor, QWidget *parent = nullptr) const = 0;
+	virtual bool loginWithAccount(QJsonObject &result, UseFor useFor, QWidget *parent = nullptr) const;
+	virtual void loginWithAccountAsync(std::function<void(bool ok, const QJsonObject &)> callback, UseFor useFor, QWidget *parent = nullptr) const;
 
 	/**
 	  * get rtmp server url address

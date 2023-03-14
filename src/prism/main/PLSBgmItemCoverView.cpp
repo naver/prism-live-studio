@@ -20,7 +20,6 @@ PLSBgmItemCoverView::PLSBgmItemCoverView(QWidget *parent) : QFrame(parent), ui(n
 	ui->setupUi(this);
 
 	blurEffect = new QGraphicsBlurEffect(ui->backgroundLabel);
-	double radius = 90 * this->width() / PLSDpiHelper::calculate(this, 300);
 	blurEffect->setBlurRadius(90 * this->width() / PLSDpiHelper::calculate(this, 300));
 
 	opacityEffect = new QGraphicsOpacityEffect(this);
@@ -94,7 +93,7 @@ void PLSBgmItemCoverView::SetMusicInfo(const QString &title, const QString &prod
 	producerLabel->SetText(producer);
 }
 
-void PLSBgmItemCoverView::SetCoverPath(const QString &coverPath, bool isFreeMusic)
+void PLSBgmItemCoverView::SetCoverPath(const QString &coverPath, bool)
 {
 	if (coverPath.isEmpty()) {
 		return;
@@ -137,7 +136,7 @@ void PLSBgmItemCoverView::ShowPlayingGif(bool show)
 		Qt::QueuedConnection);
 }
 
-void PLSBgmItemCoverView::DpiChanged(double dpi)
+void PLSBgmItemCoverView::DpiChanged(double)
 {
 	if (movie) {
 		movie->setScaledSize(QSize(PLSDpiHelper::calculate(this, 16), PLSDpiHelper::calculate(this, 16)));
@@ -179,7 +178,6 @@ void PLSBgmItemCoverView::mouseReleaseEvent(QMouseEvent *event)
 void PLSBgmItemCoverView::ResizeUI()
 {
 	if (blurEffect) {
-		double radius = 90 * this->width() / PLSDpiHelper::calculate(this, 300);
 		blurEffect->setBlurRadius(90 * this->width() / PLSDpiHelper::calculate(this, 300));
 	}
 

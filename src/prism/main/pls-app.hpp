@@ -34,14 +34,20 @@
 #include <QPluginLoader>
 
 #include "window-main.hpp"
-
-class PLSMainView;
+#include "main-view.hpp"
 
 std::string CurrentTimeString();
 std::string CurrentDateTimeString();
 std::string GenerateTimeDateFilename(const char *extension, bool noSpace = false);
 std::string GenerateSpecifiedFilename(const char *extension, bool noSpace, const char *format);
 QObject *CreateShortcutFilter();
+
+enum init_exception_code {
+	init_exception_code_common = 0x1001,
+	init_exception_code_engine_not_support,
+	init_exception_code_engine_param_error,
+	init_exception_code_engine_not_support_dx_version,
+};
 
 typedef std::function<bool(QObject *, QEvent *)> EventFilterFunc;
 class PLSEventFilter : public QObject {
@@ -85,11 +91,12 @@ private:
 	ConfigFile globalConfig;
 	ConfigFile cookieConfig;
 	ConfigFile updateConfig;
+	ConfigFile naverShoppingConfig;
 	TextLookup textLookup;
 	OBSContext obsContext;
 	QPointer<PLSMainWindow> mainWindow;
 	profiler_name_store_t *profilerNameStore = nullptr;
-	PLSMainView *mainView = nullptr;
+	QPointer<PLSMainView> mainView;
 	bool appRunning = false;
 
 	os_inhibit_t *sleepInhibitor = nullptr;
@@ -97,6 +104,7 @@ private:
 
 	bool enableHotkeysInFocus = true;
 	bool enableHotkeysOutOfFocus = true;
+	bool hotkeyEnable = true;
 
 	std::deque<obs_frontend_translate_ui_cb> translatorHooks;
 
@@ -107,7 +115,6 @@ private:
 	bool InitGlobalConfig();
 	bool InitGlobalConfigDefaults();
 	bool InitLocale();
-	bool InitTheme();
 
 	inline void ResetHotkeyState(bool inFocus);
 
@@ -115,6 +122,11 @@ private:
 
 	void ParseExtraThemeData(const char *path);
 	void AddExtraThemeColor(QPalette &pal, int group, const char *name, uint32_t color);
+	void InitSideBarWindowVisible();
+	void InitCrashConfigDefaults();
+
+public:
+	bool InitTheme();
 
 public:
 	explicit PLSApp(int &argc, char **argv, profiler_name_store_t *store);
@@ -123,9 +135,10 @@ public:
 	void AppInit();
 	bool PLSInit();
 
-	void UpdateHotkeyFocusSetting(bool reset = true);
-	void DisableHotkeys();
+	Q_INVOKABLE void UpdateHotkeyFocusSetting(bool reset = true);
+	Q_INVOKABLE void DisableHotkeys();
 	bool InitWatermark();
+	bool HotkeyEnable();
 
 	inline bool HotkeysEnabledInFocus() const { return enableHotkeysInFocus; }
 
@@ -137,6 +150,8 @@ public:
 	inline config_t *CookieConfig() const { return cookieConfig; }
 
 	inline config_t *UpdateConfig() const { return updateConfig; }
+	inline config_t *NaverShoppingConfig() const { return naverShoppingConfig; }
+	void clearNaverShoppingConfig();
 
 	inline const char *GetLocale() const { return locale.c_str(); }
 
@@ -191,10 +206,15 @@ public:
 	inline bool isAppRunning() const { return appRunning; }
 	inline void setAppRunning(bool appRunning) { this->appRunning = appRunning; }
 
+	const char *getProjectName();
+	const char *getProjectName_kr();
+
 public slots:
 	void Exec(VoidFunc func);
+	void sessionExpiredhandler();
 signals:
 	void StyleChanged();
+	void HotKeyEnabled(bool);
 };
 
 int GetConfigPath(char *path, size_t size, const char *name);
@@ -213,7 +233,10 @@ inline config_t *GetGlobalConfig()
 	return App()->GlobalConfig();
 }
 
-std::vector<std::pair<std::string, std::string>> GetLocaleNames();
+std::vector<std::pair<std::string, std::pair<int, std::string>>> &GetLocaleNames();
+std::string languageID2Locale(int languageID, const std::string &defaultLanguage = "en-US");
+int locale2languageID(const std::string &locale, int defaultLanguageID = 1033 /* en-US */);
+
 inline const char *Str(const char *lookup)
 {
 	return App()->GetString(lookup);
@@ -231,13 +254,34 @@ static inline int GetProfilePath(char *path, size_t size, const char *file)
 	return window->GetProfilePath(path, size, file);
 }
 
+template<typename T> int scaleToInt32(T value)
+{
+	if (!isfinite(value)) {
+		return 0;
+	}
+
+	if (value > INT32_MAX) {
+		return INT32_MAX;
+	}
+
+	if (value < INT32_MIN) {
+		return INT32_MIN;
+	}
+
+	return value;
+}
+
 extern std::string prismSession;
+extern std::string videoAdapter;
+extern std::string crashFileMutexUuid;
+extern std::string prism_cpuName;
 
 extern bool portable_mode;
 
 extern bool remuxAfterRecord;
 extern std::string remuxFilename;
 extern std::string logUserID;
+extern std::string maskingLogUserID;
 
 extern bool opt_start_streaming;
 extern bool opt_start_recording;
@@ -247,3 +291,8 @@ extern bool opt_studio_mode;
 extern bool opt_allow_opengl;
 extern bool opt_always_on_top;
 extern std::string opt_starting_scene;
+
+static const char *PRISM_ALERT_INIT_FAILED = "prism.alert.init.failed";
+static const char *ENGINE_ALERT_INIT_FAILED = "engine.alert.init.failed";
+static const char *ENGINE_ALERT_INIT_PARAM_ERROR = "engine.alert.init.param.error";
+static const char *ENGINE_ALERT_INIT_DX_VERSION = "engine.alert.init.dx.version";

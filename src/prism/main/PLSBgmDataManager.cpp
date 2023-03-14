@@ -1,7 +1,7 @@
 #include "PLSBgmDataManager.h"
 #include "PLSBgmItemCoverView.h"
 #include "PLSBgmItemView.h"
-
+#include "PLSResourceMgr.h"
 #include <QDir>
 
 #include "frontend-api.h"
@@ -187,12 +187,19 @@ BgmItemCacheType PLSBgmDataViewManager::GetCachePlayList()
 
 bool PLSBgmDataViewManager::LoadDataFormLocalFile(QByteArray &array)
 {
-	QString paths = pls_get_user_path(QString(CONFIGS_MUSIC_USER_PATH).append(MUSIC_JSON_FILE));
+	QString musicJsonPath = pls_get_user_path(QString(CONFIGS_MUSIC_USER_PATH).append(MUSIC_JSON_FILE));
+	if (!QFile::exists(musicJsonPath)) {
+		musicJsonPath = QString(CONFIG_MUSIC_PATH).append(MUSIC_JSON_FILE);
+		QMap<QString, QString> urlMap;
+		urlMap.insert(PLSResourceMgr::instance()->getResourceJson(PLSResourceMgr::ResourceFlag::Music), pls_get_user_path(QString(CONFIGS_MUSIC_USER_PATH).append(MUSIC_JSON_FILE)));
+		PLSResourceMgr::instance()->downloadPartResources(PLSResourceMgr::ResourceFlag::Music, urlMap);
+	}
+	QString paths = musicJsonPath;
 	if (PLSJsonDataHandler::getJsonArrayFromFile(array, paths)) {
 		return true;
 	}
 
-	PLS_ERROR("Load %s Failed", paths.toStdString().c_str());
+	PLS_ERROR("Load %s Failed", MUSIC_JSON_FILE);
 	return false;
 }
 

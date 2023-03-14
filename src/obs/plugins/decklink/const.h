@@ -37,5 +37,8 @@
 #define TEXT_DWNS obs_module_text("DeactivateWhenNotShowing")
 #define TEXT_AUTO_START obs_module_text("AutoStart")
 #define TEXT_ENABLE_KEYER obs_module_text("Keyer")
+#define TEXT_ENABLE_KEYER_DISABLED obs_module_text("Keyer.Disabled")
+#define TEXT_ENABLE_KEYER_EXTERNAL obs_module_text("Keyer.External")
+#define TEXT_ENABLE_KEYER_INTERNAL obs_module_text("Keyer.Internal")
 #define TEXT_SWAP obs_module_text("SwapFC-LFE")
 #define TEXT_SWAP_TOOLTIP obs_module_text("SwapFC-LFE.Tooltip")

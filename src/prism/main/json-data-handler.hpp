@@ -74,6 +74,16 @@ public:
 	bool static getValues(const QJsonObject &jsonObject, const QString &key, QJsonObject &object);
 	bool static getValues(const QJsonObject &jsonObject, const QString &key, QVariantMap &values);
 
+	template<typename destType> static bool jsonTo(const QByteArray &source, destType &values)
+	{
+		auto doc = QJsonDocument::fromJson(source);
+		if (doc.isNull()) {
+			return false;
+		}
+		values = doc.toVariant().value<destType>();
+		return true;
+	}
+
 	/**
      * @brief getArray :parse arrayJson
      * @param array

@@ -1,6 +1,7 @@
 add_subdirectory(decklink-output-ui)
 add_subdirectory(frontend-tools)
 add_subdirectory(obs-ndi)
+add_subdirectory(prism-stream-deck)
 if ($ENV{DEVTOOL})
 	add_subdirectory(devtool)
 endif()

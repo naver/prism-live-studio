@@ -130,7 +130,7 @@ obs_output_t *obs_output_create(const char *id, const char *name,
 	os_event_signal(output->stopping_event);
 
 	if (!info) {
-		blog(LOG_ERROR, "Output ID '%s' not found", id);
+		plog(LOG_ERROR, "Output ID '%s' not found", id);
 
 		output->info.id = bstrdup(id);
 		output->owns_info_id = true;
@@ -161,9 +161,9 @@ obs_output_t *obs_output_create(const char *id, const char *name,
 		output->context.data =
 			info->create(output->context.settings, output);
 	if (!output->context.data)
-		blog(LOG_ERROR, "Failed to create output '%s'!", name);
+		plog(LOG_ERROR, "Failed to create output '%s'!", name);
 
-	blog(LOG_DEBUG, "output '%s' (%s) created", name, id);
+	plog(LOG_DEBUG, "output '%s' (%s) created", name, id);
 	return output;
 
 fail:
@@ -193,7 +193,7 @@ void obs_output_destroy(obs_output_t *output)
 	if (output) {
 		obs_context_data_remove(&output->context);
 
-		blog(LOG_DEBUG, "output '%s' destroyed", output->context.name);
+		plog(LOG_DEBUG, "output '%s' destroyed", output->context.name);
 
 		if (output->valid && active(output))
 			obs_output_actual_stop(output, true, 0);
@@ -263,9 +263,18 @@ bool obs_output_actual_start(obs_output_t *output)
 		success = output->info.start(output->context.data);
 
 		//PRISM/Wangshaohui/20201110/NoIssue/for save unixtime to filter database
-		blog(LOG_INFO,
-		     "%sOutput module is started. pluginID:%s unixTime:%lldms",
-		     TRACE_OUTPUT_EVENT, output->info.id, time(NULL) * 1000);
+		const char *ve = NULL;
+		const char *ae = NULL;
+		if (output->video_encoder) {
+			ve = output->video_encoder->info.id;
+		}
+		if (output->audio_encoders[0]) {
+			ae = output->audio_encoders[0]->info.id;
+		}
+		plog(LOG_INFO,
+		     "%s %s is called. pluginID:%s videoEncoder:%s audioEncoder:%s unixTime:%lldms output:%p",
+		     TRACE_OUTPUT_EVENT, __FUNCTION__, output->info.id,
+		     ve ? ve : "", ae ? ae : "", time(NULL) * 1000, output);
 	}
 
 	if (success && output->video) {
@@ -292,17 +301,23 @@ bool obs_output_start(obs_output_t *output)
 		return false;
 
 	//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
-	if (!is_render_working()) {
-		blog(LOG_WARNING,
+	if (!obs_render_engine_is_valid()) {
+		plog(LOG_WARNING,
 		     "Render is not working, can not start output right now.");
 		return false;
 	}
 
 	if (obs_outro_active(obs_get_outro())) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "Outro is active, can not start a new output");
 		return false;
 	}
+
+	//PRISM/LiuHaibin/20211021/#None/reset flag 'stop_signalled'
+	os_atomic_set_bool(&output->stop_signalled, false);
+
+	//PRISM/LiuHaibin/20210621/#None/clear id3v2 queue before output started.
+	mi_clear_id3v2_queue();
 
 	has_service = (output->info.flags & OBS_OUTPUT_SERVICE) != 0;
 	if (has_service && !obs_service_initialize(output->service, output))
@@ -344,32 +359,32 @@ static void log_frame_info(struct obs_output *output)
 	if (dropped)
 		percentage_dropped = (double)dropped / (double)total * 100.0;
 
-	blog(LOG_INFO, "Output '%s': stopping", output->context.name);
+	plog(LOG_INFO, "Output '%s': stopping", output->context.name);
 	if (!dropped || !total)
-		blog(LOG_INFO, "Output '%s': Total frames output: %d",
+		plog(LOG_INFO, "Output '%s': Total frames output: %d",
 		     output->context.name, total);
 	else
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "Output '%s': Total frames output: %d"
 		     " (%d attempted)",
 		     output->context.name, total - dropped, total);
 
 	if (!lagged || !drawn)
-		blog(LOG_INFO, "Output '%s': Total drawn frames: %" PRIu32,
+		plog(LOG_INFO, "Output '%s': Total drawn frames: %" PRIu32,
 		     output->context.name, drawn);
 	else
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "Output '%s': Total drawn frames: %" PRIu32 " (%" PRIu32
 		     " attempted)",
 		     output->context.name, drawn - lagged, drawn);
 
 	if (drawn && lagged)
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "Output '%s': Number of lagged frames due "
 		     "to rendering lag/stalls: %" PRIu32 " (%0.1f%%)",
 		     output->context.name, lagged, percentage_lagged);
 	if (total && dropped)
-		blog(LOG_INFO,
+		plog(LOG_INFO,
 		     "Output '%s': Number of dropped frames due "
 		     "to insufficient bandwidth/connection stalls: "
 		     "%d (%0.1f%%)",
@@ -392,6 +407,12 @@ void obs_output_actual_stop(obs_output_t *output, bool force, uint64_t ts)
 
 	was_reconnecting = reconnecting(output) && !delay_active(output);
 	if (reconnecting(output)) {
+		//PRISM/LiuHaibin/20210819/#9280/add log
+		plog(LOG_INFO,
+		     "%s is called during reconnecting. pluginID:%s unixTime:%lldms, output:%p, force %d, ts %llu, delay_active %d",
+		     __FUNCTION__, output->info.id, time(NULL) * 1000, output,
+		     force, ts, delay_active(output));
+
 		os_event_signal(output->reconnect_stop_event);
 		if (output->reconnect_thread_active)
 			pthread_join(output->reconnect_thread, NULL);
@@ -413,18 +434,21 @@ void obs_output_actual_stop(obs_output_t *output, bool force, uint64_t ts)
 	}
 
 	if (output->context.data && call_stop) {
-		//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
-		if (force && output->info.force_stop)
-			output->info.force_stop(output->context.data);
-		else
-			output->info.stop(output->context.data, ts);
-
 		//PRISM/Wangshaohui/20201110/NoIssue/for save unixtime to filter database
-		blog(LOG_INFO,
-		     "%sOutput module is stopped. pluginID:%s unixTime:%lldms",
-		     TRACE_OUTPUT_EVENT, output->info.id, time(NULL) * 1000);
+		plog(LOG_INFO,
+		     "%s %s is called. pluginID:%s unixTime:%lldms output:%p",
+		     TRACE_OUTPUT_EVENT, __FUNCTION__, output->info.id,
+		     time(NULL) * 1000, output);
 
+		output->info.stop(output->context.data, ts);
 	} else if (was_reconnecting) {
+		//PRISM/LiuHaibin/20210819/#9280/add log
+		plog(LOG_INFO,
+		     "%s %s is called during reconnecting, signal stop directly. pluginID:%s unixTime:%lldms output:%p, force %d, ts %llu, delay_active %d",
+		     TRACE_OUTPUT_EVENT, __FUNCTION__, output->info.id,
+		     time(NULL) * 1000, output, force, ts,
+		     delay_active(output));
+
 		output->stop_code = OBS_OUTPUT_SUCCESS;
 		signal_stop(output);
 		os_event_signal(output->stopping_event);
@@ -452,7 +476,7 @@ void obs_output_stop(obs_output_t *output)
 	}
 
 	//PRISM/Liu.Haibin/20200410/#2321/for device rebuild
-	if (!is_render_working()) {
+	if (!obs_render_engine_is_valid()) {
 		obs_output_force_stop(output);
 		return;
 	}
@@ -717,7 +741,7 @@ bool obs_output_pause(obs_output_t *output, bool pause)
 		os_atomic_set_bool(&output->paused, pause);
 		do_output_signal(output, pause ? "pause" : "unpause");
 
-		blog(LOG_INFO, "output %s %spaused", output->context.name,
+		plog(LOG_INFO, "output %s %spaused", output->context.name,
 		     pause ? "" : "un");
 	}
 	return success;
@@ -843,8 +867,19 @@ void obs_output_set_video_encoder(obs_output_t *output, obs_encoder_t *encoder)
 	if (!obs_output_valid(output, "obs_output_set_video_encoder"))
 		return;
 	if (encoder && encoder->info.type != OBS_ENCODER_VIDEO) {
-		blog(LOG_WARNING, "obs_output_set_video_encoder: "
+		plog(LOG_WARNING, "obs_output_set_video_encoder: "
 				  "encoder passed is not a video encoder");
+		return;
+	}
+
+	//PRISM/LiuHaibin/20210119/#None/Merge from OBS :SHA-1: e1447c22db4f168fcf641bfaa994e9af6bdfc172
+	//libobs: Check if output active when setting encoders
+	//This fixes an issue where someone might mistakenly try to change an audio video encoder before the output is complete.
+	if (active(output)) {
+		plog(LOG_WARNING,
+		     "%s: tried to set video encoder on output \"%s\" "
+		     "while the output is still active!",
+		     __FUNCTION__, output->context.name);
 		return;
 	}
 
@@ -862,14 +897,64 @@ void obs_output_set_video_encoder(obs_output_t *output, obs_encoder_t *encoder)
 					    output->scaled_height);
 }
 
+//PRISM/LiuHaibin/20210624/#None/Immersive audio
+void obs_output_remove_audio_encoder(obs_output_t *output,
+				     obs_encoder_t *encoder, size_t idx)
+{
+	if (!obs_output_valid(output, "obs_output_remove_audio_encoder"))
+		return;
+	if (encoder && encoder->info.type != OBS_ENCODER_AUDIO) {
+		plog(LOG_WARNING, "obs_output_remove_audio_encoder: "
+				  "encoder passed is not an audio encoder");
+		return;
+	}
+	if (active(output)) {
+		plog(LOG_WARNING,
+		     "%s: tried to remove audio encoder %d on output \"%s\" "
+		     "while the output is still active!",
+		     __FUNCTION__, (int)idx, output->context.name);
+		return;
+	}
+
+	if ((output->info.flags & OBS_OUTPUT_MULTI_TRACK) != 0) {
+		if (idx >= MAX_AUDIO_MIXES) {
+			return;
+		}
+	} else {
+		if (idx > 0) {
+			return;
+		}
+	}
+
+	if (encoder && output->audio_encoders[idx] != encoder)
+		return;
+
+	obs_encoder_remove_output(output->audio_encoders[idx], output);
+	if (encoder)
+		obs_output_remove_encoder(output, encoder);
+	else
+		output->audio_encoders[idx] = NULL;
+}
+
 void obs_output_set_audio_encoder(obs_output_t *output, obs_encoder_t *encoder,
 				  size_t idx)
 {
 	if (!obs_output_valid(output, "obs_output_set_audio_encoder"))
 		return;
 	if (encoder && encoder->info.type != OBS_ENCODER_AUDIO) {
-		blog(LOG_WARNING, "obs_output_set_audio_encoder: "
+		plog(LOG_WARNING, "obs_output_set_audio_encoder: "
 				  "encoder passed is not an audio encoder");
+		return;
+	}
+
+	//PRISM/LiuHaibin/20210119/#None/Merge from OBS :SHA-1: e1447c22db4f168fcf641bfaa994e9af6bdfc172
+	//libobs: Check if output active when setting encoders
+	//This fixes an issue where someone might mistakenly try to change an audio video encoder before the output is complete.
+	if (active(output)) {
+		plog(LOG_WARNING,
+		     "%s: tried to set audio encoder %d on output \"%s\" "
+		     "while the output is still active!",
+		     __FUNCTION__, (int)idx, output->context.name);
 		return;
 	}
 
@@ -987,7 +1072,7 @@ void obs_output_set_preferred_size(obs_output_t *output, uint32_t width,
 		return;
 
 	if (active(output)) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "output '%s': Cannot set the preferred "
 		     "resolution while the output is active",
 		     obs_output_get_name(output));
@@ -1073,11 +1158,11 @@ static inline size_t num_audio_mixes(const struct obs_output *output)
 {
 	size_t mix_count = 1;
 
-	if ((output->info.flags & OBS_OUTPUT_SERVICE) != 0) {
-		if (!service_supports_multitrack(output)) {
-			return 1;
-		}
-	}
+	//PRISM/LiuHaibin/20210622/#None/Immersive audio
+	if (!obs_output_immersive_audio(output))
+		if ((output->info.flags & OBS_OUTPUT_SERVICE) != 0)
+			if (!service_supports_multitrack(output))
+				return 1;
 
 	if ((output->info.flags & OBS_OUTPUT_MULTI_TRACK) != 0) {
 		mix_count = 0;
@@ -1317,7 +1402,7 @@ static inline void send_interleaved(struct obs_output *output)
 
 		if (output->caption_head &&
 		    output->caption_timestamp <= frame_timestamp) {
-			blog(LOG_DEBUG, "Sending caption: %f \"%s\"",
+			plog(LOG_DEBUG, "Sending caption: %f \"%s\"",
 			     frame_timestamp, &output->caption_head->text[0]);
 
 			double display_duration =
@@ -1448,11 +1533,11 @@ static bool prune_interleaved_packets(struct obs_output *output)
 	int prune_start = prune_premature_packets(output);
 
 #if DEBUG_STARTING_PACKETS == 1
-	blog(LOG_DEBUG, "--------- Pruning! %d ---------", prune_start);
+	plog(LOG_DEBUG, "--------- Pruning! %d ---------", prune_start);
 	for (size_t i = 0; i < output->interleaved_packets.num; i++) {
 		struct encoder_packet *packet =
 			&output->interleaved_packets.array[i];
-		blog(LOG_DEBUG, "packet: %s %d, ts: %lld, pruned = %s",
+		plog(LOG_DEBUG, "packet: %s %d, ts: %lld, pruned = %s",
 		     packet->type == OBS_ENCODER_AUDIO ? "audio" : "video",
 		     (int)packet->track_idx, packet->dts_usec,
 		     (int)i < prune_start ? "true" : "false");
@@ -1597,7 +1682,7 @@ static bool initialize_interleaved_packets(struct obs_output *output)
 	int64_t a = audio[0]->dts_usec;
 	int64_t diff = v - a;
 
-	blog(LOG_DEBUG,
+	plog(LOG_DEBUG,
 	     "output '%s' offset for video: %lld, audio: %lld, "
 	     "diff: %lldms",
 	     output->context.name, v, a, diff / 1000LL);
@@ -1925,7 +2010,7 @@ static void hook_data_capture(struct obs_output *output, bool encoded,
 			encoded_callback = process_delay;
 			os_atomic_set_bool(&output->delay_active, true);
 
-			blog(LOG_INFO,
+			plog(LOG_INFO,
 			     "Output '%s': %" PRIu32 " second delay "
 			     "active, preserve on disconnect is %s",
 			     output->context.name, output->delay_sec,
@@ -1955,32 +2040,46 @@ static inline void signal_start(struct obs_output *output)
 static inline void signal_reconnect(struct obs_output *output)
 {
 	struct calldata params;
-	uint8_t stack[128];
+	uint8_t stack[512];
 
 	calldata_init_fixed(&params, stack, sizeof(stack));
 	calldata_set_int(&params, "timeout_sec",
 			 output->reconnect_retry_cur_sec);
 	calldata_set_ptr(&params, "output", output);
+	calldata_set_string(&params, "id", obs_output_get_id(output));
+	calldata_set_string(&params, "name", obs_output_get_name(output));
 	signal_handler_signal(output->context.signals, "reconnect", &params);
 }
 
 static inline void signal_reconnect_success(struct obs_output *output)
 {
+	struct calldata params;
+	uint8_t stack[512];
+
+	calldata_init_fixed(&params, stack, sizeof(stack));
+	calldata_set_string(&params, "id", obs_output_get_id(output));
+	calldata_set_string(&params, "name", obs_output_get_name(output));
 	do_output_signal(output, "reconnect_success");
 }
 
 static inline void signal_stop(struct obs_output *output)
 {
-	struct calldata params;
+	//PRISM/LiuHaibin/20211021/#None/check 'stop_signalled' flag
+	if (!os_atomic_load_bool(&output->stop_signalled)) {
+		struct calldata params;
 
-	calldata_init(&params);
-	calldata_set_string(&params, "last_error", output->last_error_message);
-	calldata_set_int(&params, "code", output->stop_code);
-	calldata_set_ptr(&params, "output", output);
+		calldata_init(&params);
+		calldata_set_string(&params, "last_error",
+				    output->last_error_message);
+		calldata_set_int(&params, "code", output->stop_code);
+		calldata_set_ptr(&params, "output", output);
 
-	signal_handler_signal(output->context.signals, "stop", &params);
+		signal_handler_signal(output->context.signals, "stop", &params);
 
-	calldata_free(&params);
+		calldata_free(&params);
+
+		os_atomic_set_bool(&output->stop_signalled, true);
+	}
 }
 
 static inline void convert_flags(const struct obs_output *output,
@@ -2231,6 +2330,9 @@ static inline void stop_raw_audio(obs_output_t *output)
 
 static void *end_data_capture_thread(void *data)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	bool encoded, has_video, has_audio, has_service;
 	encoded_callback_t encoded_callback;
 	obs_output_t *output = data;
@@ -2267,6 +2369,11 @@ static void *end_data_capture_thread(void *data)
 
 	do_output_signal(output, "deactivate");
 	os_atomic_set_bool(&output->active, false);
+	//PRISM/LiuHaibin/20210310/#6892/signal stop
+	if (output->signal_stop) {
+		signal_stop(output);
+		output->stop_code = OBS_OUTPUT_SUCCESS;
+	}
 	os_event_signal(output->stopping_event);
 	os_atomic_set_bool(&output->end_data_capture_thread_active, false);
 
@@ -2309,21 +2416,25 @@ static void obs_output_end_data_capture_internal(obs_output_t *output,
 	if (data_capture_ending(output))
 		pthread_join(output->end_data_capture_thread, NULL);
 
+	//PRISM/LiuHaibin/20210310/#6892/mark if stop is needed in end_data_capture_thread
+	output->signal_stop = signal;
+
 	os_atomic_set_bool(&output->end_data_capture_thread_active, true);
 	ret = pthread_create(&output->end_data_capture_thread, NULL,
 			     end_data_capture_thread, output);
 	if (ret != 0) {
-		blog(LOG_WARNING,
+		plog(LOG_WARNING,
 		     "Failed to create end_data_capture_thread "
 		     "for output '%s'!",
 		     output->context.name);
 		end_data_capture_thread(output);
 	}
 
-	if (signal) {
-		signal_stop(output);
-		output->stop_code = OBS_OUTPUT_SUCCESS;
-	}
+	//PRISM/LiuHaibin/20210310/#6892/move this signal to end_data_capture_thread
+	//if (signal) {
+	//	signal_stop(output);
+	//	output->stop_code = OBS_OUTPUT_SUCCESS;
+	//}
 }
 
 void obs_output_end_data_capture(obs_output_t *output)
@@ -2333,6 +2444,9 @@ void obs_output_end_data_capture(obs_output_t *output)
 
 static void *reconnect_thread(void *param)
 {
+	//PRISM/WangChuanjing/20210913/NoIssue/thread info
+	THREAD_START_LOG;
+
 	struct obs_output *output = param;
 	unsigned long ms = output->reconnect_retry_cur_sec * 1000;
 
@@ -2387,10 +2501,10 @@ static void output_reconnect(struct obs_output *output)
 	ret = pthread_create(&output->reconnect_thread, NULL, &reconnect_thread,
 			     output);
 	if (ret < 0) {
-		blog(LOG_WARNING, "Failed to create reconnect thread");
+		plog(LOG_WARNING, "Failed to create reconnect thread");
 		os_atomic_set_bool(&output->reconnecting, false);
 	} else {
-		blog(LOG_INFO, "Output '%s':  Reconnecting in %d seconds..",
+		plog(LOG_INFO, "Output '%s':  Reconnecting in %d seconds..",
 		     output->context.name, output->reconnect_retry_sec);
 
 		signal_reconnect(output);
@@ -2430,7 +2544,7 @@ void obs_output_addref(obs_output_t *output)
 		return;
 
 	//PRISM/WangShaohui/20201030/#5529/monitor invalid reference
-	obs_ref_addref(&output->control->ref, output->info.id, NULL);
+	obs_ref_addref(&output->control->ref, output->info.id, NULL, output);
 }
 
 void obs_output_release(obs_output_t *output)
@@ -2550,7 +2664,7 @@ void obs_output_output_caption_text2(obs_output_t *output, const char *text,
 
 	// split text into 32 character strings
 	int size = (int)strlen(text);
-	blog(LOG_DEBUG, "Caption text: %s", text);
+	plog(LOG_DEBUG, "Caption text: %s", text);
 
 	pthread_mutex_lock(&output->caption_mutex);
 
@@ -2658,4 +2772,44 @@ long obs_output_get_dbr_bitrate(obs_output_t *output)
 		return output->info.dbr_bitrate(output->context.data);
 
 	return 0;
+}
+
+//PRISM/Liu.Haibin/20201207/#None/get buffered duration
+void obs_output_get_buffered_duration_usec(obs_output_t *output,
+					   int64_t *v_duration,
+					   int64_t *a_duration)
+{
+	if (!obs_output_valid(output, "obs_output_get_dbr_bitrate"))
+		return;
+
+	if (output->info.buffered_duration_usec)
+		output->info.buffered_duration_usec(output->context.data,
+						    v_duration, a_duration);
+}
+
+//PRISM/Liu.Haibin/20201214/#None/get original bitrate
+long obs_output_get_orig_bitrate(obs_output_t *output)
+{
+	if (!obs_output_valid(output, "obs_output_get_orig_bitrate"))
+		return 0;
+
+	if (output->info.orig_bitrate)
+		return output->info.orig_bitrate(output->context.data);
+
+	return 0;
+}
+
+//PRISM/LiuHaibin/20210622/#None/Immersive audio
+bool obs_output_immersive_audio(obs_output_t *output)
+{
+	return obs_output_valid(output, __FUNCTION__) ? output->immersive_audio
+						      : false;
+}
+
+void obs_output_set_immersive_audio(obs_output_t *output,
+				    bool is_immersive_audio)
+{
+	if (!obs_output_valid(output, "obs_output_set_immersive_audio"))
+		return;
+	output->immersive_audio = is_immersive_audio;
 }

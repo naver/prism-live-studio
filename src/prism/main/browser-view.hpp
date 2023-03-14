@@ -24,10 +24,16 @@ public:
 	explicit PLSBrowserView(QJsonObject *result, const QUrl &url, PLSResultCheckingCallback callback = nullptr, QWidget *parent = nullptr);
 	explicit PLSBrowserView(QJsonObject *result, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelCookieName = QString(),
 				PLSResultCheckingCallback callback = nullptr, QWidget *parent = nullptr);
+	explicit PLSBrowserView(QJsonObject *result, const QUrl &url, const std::map<std::string, std::string> &headers, const QString &pannelCookieName = QString(),
+				const std::string &script = std::string(), PLSResultCheckingCallback callback = nullptr, QWidget *parent = nullptr);
 	~PLSBrowserView();
+
+public:
+	int exec() override;
 
 protected:
 	virtual void resizeEvent(QResizeEvent *event) override;
+	virtual void closeNoButton() override;
 
 signals:
 	void doneSignal(int code);

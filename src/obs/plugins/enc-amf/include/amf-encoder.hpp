@@ -343,7 +343,8 @@ namespace Plugin {
 			virtual bool IsMotionEstimationHalfPixelEnabled()        = 0;
 #pragma endregion Motion Estimation
 #pragma endregion        Settings
-
+			//PRISM/ZengQin/20210528/#none/get encoder props params
+			virtual obs_data_t* GetPropsPramas() = 0;
 #pragma region Control
 			void Start();
 			void Restart();

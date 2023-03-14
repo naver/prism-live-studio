@@ -74,7 +74,9 @@ PLSVisualizerResource::PLSVisualizerResource()
 	obs_leave_graphics();
 }
 
-PLSVisualizerResource::~PLSVisualizerResource()
+PLSVisualizerResource::~PLSVisualizerResource() {}
+
+void PLSVisualizerResource::freeVisualizerResource()
 {
 	signal_handler_disconnect(obs_get_signal_handler(), "source_create", source_changed, &this->create_type);
 	signal_handler_disconnect(obs_get_signal_handler(), "source_destroy", source_changed, &this->destroy_type);
@@ -140,6 +142,7 @@ void PLSVisualizerResource::source_changed(void *data, calldata_t *calldata)
 visualizer_source::visualizer_source(obs_source_t *source, obs_data_t *settings)
 {
 	config.settings = settings;
+	obs_data_addref(config.settings);
 	config.source = source;
 
 	init_params();
@@ -512,35 +515,35 @@ obs_properties_t *visualizer_source::get_properties_for_visualiser()
 	/*template setting*/
 	obs_property_t *template_group = obs_properties_add_image_group(props, S_TEMPLATE_LIST, "", 1, 4, OBS_IMAGE_STYLE_TEMPLATE);
 	obs_property_add_flags(template_group, PROPERTY_FLAG_NO_LABEL_SINGLE);
-	obs_property_image_group_add_item(template_group, T_MODE_BARS_BASIC, P_BASIC_BARS, (int)VM_BASIC_BARS);
-	obs_property_image_group_add_item(template_group, T_MODE_BARS_FILLET, P_FILLET_BARS, (int)VM_FILLET_BARS);
-	obs_property_image_group_add_item(template_group, T_MODE_BARS_LINEAR, P_LINEAR_BARS, (int)VM_LINEAR_BARS);
-	obs_property_image_group_add_item(template_group, T_MODE_BARS_GRADIENT, P_GRADIENT_BARS, (int)VM_GRADIENT_BARS);
+	obs_property_image_group_add_item(template_group, T_MODE_BARS_BASIC, P_BASIC_BARS, (int)VM_BASIC_BARS, nullptr);
+	obs_property_image_group_add_item(template_group, T_MODE_BARS_FILLET, P_FILLET_BARS, (int)VM_FILLET_BARS, nullptr);
+	obs_property_image_group_add_item(template_group, T_MODE_BARS_LINEAR, P_LINEAR_BARS, (int)VM_LINEAR_BARS, nullptr);
+	obs_property_image_group_add_item(template_group, T_MODE_BARS_GRADIENT, P_GRADIENT_BARS, (int)VM_GRADIENT_BARS, nullptr);
 	obs_property_set_modified_callback2(template_group, template_changed, this);
 
 	/*solid color setting*/
 	obs_property_t *solid_color_group = obs_properties_add_image_group(props, S_SOLID_COLOR, T_SOLID_COLOR, 1, 13, OBS_IMAGE_STYLE_SOLID_COLOR);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_0, P_SOLID_COLOR_0, (int)SOLID_COLOR_0);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_1, P_SOLID_COLOR_1, (int)SOLID_COLOR_1);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_2, P_SOLID_COLOR_2, (int)SOLID_COLOR_2);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_3, P_SOLID_COLOR_3, (int)SOLID_COLOR_3);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_4, P_SOLID_COLOR_4, (int)SOLID_COLOR_4);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_5, P_SOLID_COLOR_5, (int)SOLID_COLOR_5);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_6, P_SOLID_COLOR_6, (int)SOLID_COLOR_6);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_7, P_SOLID_COLOR_7, (int)SOLID_COLOR_7);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_8, P_SOLID_COLOR_8, (int)SOLID_COLOR_8);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_9, P_SOLID_COLOR_9, (int)SOLID_COLOR_9);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_10, P_SOLID_COLOR_10, (int)SOLID_COLOR_10);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_11, P_SOLID_COLOR_11, (int)SOLID_COLOR_11);
-	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_12, P_SOLID_COLOR_12, (int)SOLID_COLOR_12);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_0, P_SOLID_COLOR_0, (int)SOLID_COLOR_0, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_1, P_SOLID_COLOR_1, (int)SOLID_COLOR_1, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_2, P_SOLID_COLOR_2, (int)SOLID_COLOR_2, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_3, P_SOLID_COLOR_3, (int)SOLID_COLOR_3, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_4, P_SOLID_COLOR_4, (int)SOLID_COLOR_4, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_5, P_SOLID_COLOR_5, (int)SOLID_COLOR_5, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_6, P_SOLID_COLOR_6, (int)SOLID_COLOR_6, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_7, P_SOLID_COLOR_7, (int)SOLID_COLOR_7, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_8, P_SOLID_COLOR_8, (int)SOLID_COLOR_8, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_9, P_SOLID_COLOR_9, (int)SOLID_COLOR_9, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_10, P_SOLID_COLOR_10, (int)SOLID_COLOR_10, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_11, P_SOLID_COLOR_11, (int)SOLID_COLOR_11, nullptr);
+	obs_property_image_group_add_item(solid_color_group, S_SOLID_COLOR_12, P_SOLID_COLOR_12, (int)SOLID_COLOR_12, nullptr);
 
 	/*gradient color setting*/
 	obs_property_t *gradient_color = obs_properties_add_image_group(props, S_GRADIENT_COLOR, T_GRADIENT_COLOR, 1, 5, OBS_IMAGE_STYLE_GRADIENT_COLOR);
-	obs_property_image_group_add_item(gradient_color, S_GRADIENT_COLOR_0, P_GRADIENT_COLOR_0, (int)GRADIENT_COLOR_0);
-	obs_property_image_group_add_item(gradient_color, S_GRADIENT_COLOR_1, P_GRADIENT_COLOR_1, (int)GRADIENT_COLOR_1);
-	obs_property_image_group_add_item(gradient_color, S_GRADIENT_COLOR_2, P_GRADIENT_COLOR_2, (int)GRADIENT_COLOR_2);
-	obs_property_image_group_add_item(gradient_color, S_GRADIENT_COLOR_3, P_GRADIENT_COLOR_3, (int)GRADIENT_COLOR_3);
-	obs_property_image_group_add_item(gradient_color, S_GRADIENT_COLOR_4, P_GRADIENT_COLOR_4, (int)GRADIENT_COLOR_4);
+	obs_property_image_group_add_item(gradient_color, S_GRADIENT_COLOR_0, P_GRADIENT_COLOR_0, (int)GRADIENT_COLOR_0, nullptr);
+	obs_property_image_group_add_item(gradient_color, S_GRADIENT_COLOR_1, P_GRADIENT_COLOR_1, (int)GRADIENT_COLOR_1, nullptr);
+	obs_property_image_group_add_item(gradient_color, S_GRADIENT_COLOR_2, P_GRADIENT_COLOR_2, (int)GRADIENT_COLOR_2, nullptr);
+	obs_property_image_group_add_item(gradient_color, S_GRADIENT_COLOR_3, P_GRADIENT_COLOR_3, (int)GRADIENT_COLOR_3, nullptr);
+	obs_property_image_group_add_item(gradient_color, S_GRADIENT_COLOR_4, P_GRADIENT_COLOR_4, (int)GRADIENT_COLOR_4, nullptr);
 
 	/*basic color setting*/
 	obs_properties_add_color(props, S_COLOR, T_COLOR);
@@ -635,6 +638,35 @@ visual_mode visualizer_source::get_old_visual_mode()
 	return config.visual;
 }
 
+obs_data_t *visualizer_source::getPropsParams()
+{
+	std::string templ = "";
+	switch (config.visual) {
+	case VM_BASIC_BARS:
+		templ = "Basic Bars";
+		break;
+	case VM_FILLET_BARS:
+		templ = "Fillet Bars";
+		break;
+	case VM_LINEAR_BARS:
+		templ = "Linear Bars";
+		break;
+	case VM_GRADIENT_BARS:
+		templ = "Gradient Bars";
+		break;
+	}
+
+	obs_data_t *params = obs_data_create();
+	obs_data_set_string(params, S_AUDIO_SOURCE, config.audio_source_name.c_str());
+	obs_data_set_string(params, "visualizer_template", templ.c_str());
+	obs_data_set_bool(params, S_STEREO, config.vm_params[config.visual].stereo);
+	obs_data_set_int(params, S_STEREO_SPACE, config.vm_params[config.visual].stereo_space);
+	obs_data_set_int(params, S_DETAIL, config.vm_params[config.visual].detail);
+	obs_data_set_int(params, "width", config.cx);
+	obs_data_set_int(params, "height", config.cy);
+	return params;
+}
+
 void visualizer_source::SaveTexture(gs_texture_t *tex, const char *path)
 {
 	obs_enter_graphics();
@@ -664,7 +696,6 @@ void visualizer_source::SaveTexture(gs_texture_t *tex, const char *path)
 
 void register_visualiser()
 {
-	std::thread([] { PLSVisualizerResource::Instance(); }).detach();
 	obs_source_info si = {};
 	si.id = "prism_audio_visualizer_source";
 	si.type = OBS_SOURCE_TYPE_INPUT;
@@ -678,8 +709,14 @@ void register_visualiser()
 		reinterpret_cast<visualizer_source *>(data)->destory();
 		delete reinterpret_cast<visualizer_source *>(data);
 	};
-	si.get_width = [](void *data) { return reinterpret_cast<visualizer_source *>(data)->get_width(); };
-	si.get_height = [](void *data) { return reinterpret_cast<visualizer_source *>(data)->get_height(); };
+	si.get_width = [](void *data) {
+		auto x = reinterpret_cast<visualizer_source *>(data)->get_width();
+		return x;
+	};
+	si.get_height = [](void *data) {
+		auto x = reinterpret_cast<visualizer_source *>(data)->get_height();
+		return x;
+	};
 
 	si.get_defaults = [](obs_data_t *settings) {
 		obs_data_set_default_int(settings, S_COLOR, 0xFFFFFFFF);
@@ -706,6 +743,8 @@ void register_visualiser()
 	si.video_tick = [](void *data, float seconds) { reinterpret_cast<visualizer_source *>(data)->tick(seconds); };
 	si.video_render = [](void *data, gs_effect_t *effect) { reinterpret_cast<visualizer_source *>(data)->render(effect); };
 	si.set_private_data = [](void *data, obs_data_t *private_data) { return reinterpret_cast<visualizer_source *>(data)->set_private_data(private_data); };
-
+	si.type_data = PLSVisualizerResource::Instance();
+	si.free_type_data = [](void *type_data) { reinterpret_cast<PLSVisualizerResource *>(type_data)->freeVisualizerResource(); };
+	si.props_params = [](void *data) { return reinterpret_cast<visualizer_source *>(data)->getPropsParams(); };
 	obs_register_source(&si);
 }

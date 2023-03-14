@@ -3,6 +3,10 @@ PLSPropertiesView QLabel {
 	font-weight: bold;
 }
 
+PLSPropertiesView{
+	background-color: #272727;
+}
+
 PLSPropertiesView #noPropertiesLabel {
 	font-size: /*hdpi*/ 14px;
 	font-weight: bold;
@@ -18,6 +22,8 @@ PLSPropertiesView #lineedit {
 	max-height: /*hdpi*/ 40px;
 	background-color: #1e1e1e;
 	border-radius: /*hdpi*/ 3px;
+	padding-left:  /*hdpi*/9px;
+	font-size:/*hdpi*/ 14px;
 }
 
 PLSPropertiesView #checkbox{
@@ -26,6 +32,15 @@ PLSPropertiesView #checkbox{
 	font-size:/*hdpi*/ 14px;
 	color: #e1e1e1;
 	background-color: #272727;
+}
+
+PLSPropertiesView #formCheckBox {
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #bababa;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	spacing: /*hdpi*/ 6px;
 }
 
 PLSPropertiesView #browse {
@@ -63,11 +78,19 @@ PLSPropertiesView #fontLabel {
 	min-height: /*hdpi*/ 38px;
 	max-height: /*hdpi*/ 38px;
 	font-size: /*hdpi*/ 14px;
-        border-radius: /*hdpi*/ 3px;
+	border-radius: /*hdpi*/ 3px;
+}
+
+PLSPropertiesView #fontButton {
+	font-weight: /*hdpi*/ bold;
+	padding-left: /*hdpi*/ 10px;
+	padding-right: /*hdpi*/ 10px;
+	min-width: /*hdpi*/ 130px;
 }
 
 PLSPropertiesView #baseColorLabel {
 	border-radius: /*hdpi*/ 3px;
+        font-weight: normal;
 }
 
 PLSPropertiesView #spaceLabel {
@@ -97,6 +120,11 @@ PLSPropertiesView #plainTextEdit {
 
 PLSPropertiesView #spinBox {
 	min-width: /*hdpi*/ 49px;
+}
+
+PLSPropertiesView #spinBox[subLabel="true"] {
+	color: bababa;
+	font-weight: normal;
 }
 
 PLSPropertiesView #button1 {
@@ -129,6 +157,24 @@ PLSPropertiesView #button3 {
 	font-size: /*hdpi*/ 14px;
 }
 
+PLSPropertiesView #FixedButton {
+	padding: /*hdpi*/ 0px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	max-width: /*hdpi*/ 120px;
+	min-width: /*hdpi*/ 120px;
+	font-weight: bold;
+}
+
+PLSPropertiesView #FixedButton[yellowText="true"] {
+	color: #effc35;
+}
+
+PLSPropertiesView #button1[yellowText="true"], PLSPropertiesView #button2[yellowText="true"],
+PLSPropertiesView #button3[yellowText="true"] {
+	color: #effc35;
+}
+
 PLSPropertiesView #formLabel {
 	font-size: /*hdpi*/ 14px;
 	font-weight: bold;
@@ -136,7 +182,21 @@ PLSPropertiesView #formLabel {
 	background-color: #272727;
 	min-height: /*hdpi*/ 40px;
 	max-height: /*hdpi*/ 40px;
+	
 }
+
+PLSBasicProperties[sourceId="prism_timer_source"] PLSPropertiesView #formLabel {
+	min-width: /*hdpi*/ 144px;
+	max-width: /*hdpi*/ 144px;
+	background-color: transparent;
+}
+
+PLSBasicProperties[sourceId="prism_timer_source"] PLSPropertiesView #formCheckBox {
+	min-width: /*hdpi*/ 40px;
+	max-width: /*hdpi*/ 144px;
+	background-color: transparent;
+}
+
 
 PLSPropertiesView QListWidget {
 	background-color: #1e1e1e;
@@ -448,6 +508,70 @@ PLSPropertiesView #chatTemplateList > #chatTemplateList_template > #icon {
 	border: none;
 }
 
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="1"] > #icon {
+	border-image: url(":/images/chat-source/img-style-1-en-normal.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="2"] > #icon {
+	border-image: url(":/images/chat-source/img-style-2-en-normal.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="3"] > #icon {
+	border-image: url(":/images/chat-source/img-style-3-en-normal.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="4"] > #icon {
+	border-image: url(":/images/chat-source/img-style-4-en-normal.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="1"][hovered="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-1-en-over.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="2"][hovered="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-2-en-over.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="3"][hovered="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-3-en-over.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="4"][hovered="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-4-en-over.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="1"][pressed="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-1-en-click.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="2"][pressed="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-2-en-click.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="3"][pressed="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-3-en-click.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="4"][pressed="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-4-en-click.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="1"][checked="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-1-en-select.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="2"][checked="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-2-en-select.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="3"][checked="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-3-en-select.png");
+}
+
+PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="4"][checked="true"] > #icon {
+	border-image: url(":/images/chat-source/img-style-4-en-select.png");
+}
+
 PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="1"] > #icon {
 	border-image: url(":/images/chat-source/img-style-1-normal.png");
 }
@@ -462,22 +586,6 @@ PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][s
 
 PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="4"] > #icon {
 	border-image: url(":/images/chat-source/img-style-4-normal.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="1"] > #icon {
-	border-image: url(":/images/chat-source/img-style-1-en-normal.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="2"] > #icon {
-	border-image: url(":/images/chat-source/img-style-2-en-normal.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="3"] > #icon {
-	border-image: url(":/images/chat-source/img-style-3-en-normal.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="4"] > #icon {
-	border-image: url(":/images/chat-source/img-style-4-en-normal.png");
 }
 
 PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="1"][hovered="true"] > #icon {
@@ -496,22 +604,6 @@ PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][s
 	border-image: url(":/images/chat-source/img-style-4-over.png");
 }
 
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="1"][hovered="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-1-en-over.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="2"][hovered="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-2-en-over.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="3"][hovered="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-3-en-over.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="4"][hovered="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-4-en-over.png");
-}
-
 PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="1"][pressed="true"] > #icon {
 	border-image: url(":/images/chat-source/img-style-1-click.png");
 }
@@ -528,22 +620,6 @@ PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][s
 	border-image: url(":/images/chat-source/img-style-4-click.png");
 }
 
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="1"][pressed="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-1-en-click.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="2"][pressed="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-2-en-click.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="3"][pressed="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-3-en-click.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="4"][pressed="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-4-en-click.png");
-}
-
 PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="1"][checked="true"] > #icon {
 	border-image: url(":/images/chat-source/img-style-1-select.png");
 }
@@ -558,22 +634,6 @@ PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][s
 
 PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="4"][checked="true"] > #icon {
 	border-image: url(":/images/chat-source/img-style-4-select.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="1"][checked="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-1-en-select.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="2"][checked="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-2-en-select.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="3"][checked="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-3-en-select.png");
-}
-
-PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="en-US"][style="4"][checked="true"] > #icon {
-	border-image: url(":/images/chat-source/img-style-4-en-select.png");
 }
 
 PLSPropertiesView #chatTemplateList > #chatTemplateList_template > #text {
@@ -627,21 +687,31 @@ PLSPropertiesView QWidget > #horiLine {
 
 PLSPropertiesView #TMTabFrame {
 	border-bottom: /*hdpi*/ 1px solid #12ffffff;
-	min-height: /*hdpi*/ 48px;
-	max-height: /*hdpi*/ 48px;
 }
 
 PLSPropertiesView #TMTabButton {
 	border-radius: /*hdpi*/ 0px;
-	border: none;
+	border-bottom: /*hdpi*/ 2px solid transparent;
 	background-color: transparent;
 	color: #bababa;
 	font-weight: normal;
 	font-size: /*hdpi*/ 14px;
-	qproperty-maximumSize: /*hdpi*/ 150px /*hdpi*/ 48px;
-	qproperty-minimumSize: /*hdpi*/ 150px /*hdpi*/ 48px;
+	qproperty-maximumSize: /*hdpi*/ 1570px /*hdpi*/ 48px;
+	qproperty-minimumSize: /*hdpi*/ 170px /*hdpi*/ 48px;
 }
 
+PLSPropertiesView #TMTabFrame[height_timer="true"] #TMTabButton{
+	qproperty-maximumSize: /*hdpi*/ 157px /*hdpi*/ 34px;
+	qproperty-minimumSize: /*hdpi*/ 157px /*hdpi*/ 34px;
+	text-align: top;
+}
+
+PLSPropertiesView #TMTabButton:checked {
+	color: #effc35;
+	font-weight: bold;
+	border-bottom: /*hdpi*/ 2px solid #effc35;
+
+}
 PLSPropertiesView #propertyMusicList QScrollBar:vertical {
 	background-color: #1e1e1e;
 	min-width: /*hdpi*/ 10px;
@@ -670,12 +740,6 @@ PLSPropertiesView PLSComboBox QLabel#itemLabel {
 	font-weight: normal;
 }
 
-PLSPropertiesView #TMTabButton:checked {
-	color: #effc35;
-	font-weight: bold;
-	border-bottom: /*hdpi*/ 2px solid #effc35;
-}
-
 PLSPropertiesView #TMTabTemplistFrame {
 	border: none;
 	min-height: /*hdpi*/ 35px;
@@ -689,7 +753,14 @@ PLSPropertiesView #TMTabTemplistBtn {
 	qproperty-maximumSize: /*hdpi*/ 95px /*hdpi*/ 35px;
 	qproperty-minimumSize: /*hdpi*/ 95px /*hdpi*/ 35px;
 }
-
+PLSPropertiesView #TMTabTemplistBtn:hover {
+	border-radius: /*hdpi*/ 17px;
+	background-color: #444444;
+}
+PLSPropertiesView #TMTabTemplistBtn:pressed {
+	border-radius: /*hdpi*/ 17px;
+	background-color: #2d2d2d;
+}
 PLSPropertiesView #TMTabTemplistBtn:checked {
 	color: #effc35;
 	border-radius: /*hdpi*/ 17px;
@@ -706,8 +777,22 @@ PLSPropertiesView #subLabel {
 	font-size: /*hdpi*/ 14px;
 	font-weight: normal;
 	color: #bababa;
-	min-width: /*hdpi*/ 128px;
+	min-width: /*hdpi*/ 135px;
 }
+
+PLSPropertiesView #subLabel:disabled {
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #666666;
+}
+
+PLSPropertiesView #spinSubLabel {
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #bababa;
+	margin-right: /*hdpi*/11px;
+}
+
 PLSPropertiesView #sliderLabel, PLSPropertiesView #bk_outlineLabel {
 	font-size: /*hdpi*/ 14px;
 	font-weight: normal;
@@ -836,6 +921,39 @@ PLSPropertiesView #Label_AA {
 	qproperty-minimumSize: /*hdpi*/ 22px /*hdpi*/ 12px;
 }
 
+PLSPropertiesView #listenBtn {
+	/*background-color: white;*/
+	qproperty-maximumSize: /*hdpi*/ 44px /*hdpi*/ 40px;
+	qproperty-minimumSize: /*hdpi*/ 44px /*hdpi*/ 40px;
+	background-repeat:  no-repeat;
+	background-position: center;
+}
+
+PLSPropertiesView #listenBtn[selected="true"] {
+	image:  url(":/images/timer-source/icon-listening-on-normal.svg");
+}
+PLSPropertiesView #listenBtn[selected="true"]:hover {
+	image:  url(":/images/timer-source/icon-listening-on-over.svg");
+}
+PLSPropertiesView #listenBtn[selected="true"]:pressed {
+	image:  url(":/images/timer-source/icon-listening-on-click.svg");
+}
+PLSPropertiesView #listenBtn[selected="true"]:disabled {
+	image:  url(":/images/timer-source/icon-listening-on-disable.svg");
+}
+
+PLSPropertiesView #listenBtn[selected="false"] {
+	image:  url(":/images/timer-source/icon-listening-off-normal.svg");
+}
+PLSPropertiesView #listenBtn[selected="false"]:hover {
+	image:  url(":/images/timer-source/icon-listening-off-over.svg");
+}
+PLSPropertiesView #listenBtn[selected="false"]:pressed {
+	image:  url(":/images/timer-source/icon-listening-off-click.svg");
+}
+PLSPropertiesView #listenBtn[selected="false"]:disabled {
+	image:  url(":/images/timer-source/icon-listening-off-disable.svg");
+}
 
 PLSPropertiesView #Label_AA[checked="true"] {
 	image: url(":/images/text-template/txt-source-AA-on-normal.svg");
@@ -969,28 +1087,7 @@ PLSPropertiesView QPushButton#open_button {
 	min-width: 0;
 	max-width: 1000000px;
 }
-PLSPropertiesView #slider::groove:horizontal {
-	background-color: #1e1e1f;
-	height: /*hdpi*/ 4px;
-	border: /*hdpi*/ none;
-}
-PLSPropertiesView #slider {
-	min-height: /*hdpi*/ 22px;
-	max-height: /*hdpi*/ 22px;
-	margin-left: /*hdpi*/ 2px;
-}
-PLSPropertiesView #slider::handle:horizontal {
-	image:url(":/images/img-handle-normal.svg");
-	height:/*hdpi*/ 14px;
-	width:/*hdpi*/ 14px;
-	margin:/*hdpi*/-5px/*hdpi*/0px/*hdpi*/-5px/*hdpi*/-2px;
-}
 
-PLSPropertiesView #slider::handle:horizontal[handle="false"],
-PLSPropertiesView #slider::handle:horizontal[handle="false"][enter="false"],
-PLSPropertiesView #slider::handle:horizontal[handle="false"][enter="true"]{
-	width:/*hdpi*/ 0px;
-}
 /* ok button */
 PLSPropertiesView PLSRegionCapture #frameMenu > #cancelBtn
 {
@@ -1039,22 +1136,6 @@ PLSPropertiesView #selectRegionBtn{
 	color: white;
 }
 
-PLSPropertiesView #slider::handle:horizontal[enter="false"],
-PLSPropertiesView #slider::handle:horizontal[enter="false"][handle="true"] {
-	image:url(":/images/img-handle-normal.svg");
-	height:/*hdpi*/ 14px;
-	width:/*hdpi*/ 14px;
-	margin:/*hdpi*/-5px/*hdpi*/0px/*hdpi*/-5px/*hdpi*/-2px;
-}
-
-PLSPropertiesView #slider::handle:horizontal[enter="true"],
-PLSPropertiesView #slider::handle:horizontal[enter="true"][handle="true"] {
-	image:url(":/images/img-handle-over.svg");
-	height:/*hdpi*/ 18px;
-	width:/*hdpi*/ 18px;
-	margin:/*hdpi*/-7px/*hdpi*/0px/*hdpi*/-7px/*hdpi*/-2px;
-}
-
 PLSPropertiesView #slider::sub-page:horizontal {
 	background-color: #effc35;
 }
@@ -1064,6 +1145,242 @@ PLSPropertiesView #slider::sub-page:horizontal:disabled {
 PLSPropertiesView #slider::add-page:horizontal:disabled {
 	background-color: #131314;
 }
-PLSPropertiesView #slider::handle:horizontal:disabled {
-	image:none;
+PLSPropertiesView #slider {
+	margin-left:/*hdpi*/ 0px;
+}
+PLSPropertiesView #imageGroupBtn {
+	background-color: transparent;
+}
+
+PLSPropertiesView #imageGroupBtn[type="0"] {
+	min-width: /*hdpi*/ 157px;
+	max-width: /*hdpi*/ 157px;
+	min-height: /*hdpi*/ 88px;
+	max-height: /*hdpi*/ 88px;
+}
+PLSPropertiesView #imageGroupBtn[type="4"] {
+	min-width: /*hdpi*/ 157px;
+	max-width: /*hdpi*/ 157px;
+	min-height: /*hdpi*/ 88px;
+	max-height: /*hdpi*/ 88px;
+}
+
+PLSPropertiesView #imageGroupBtn[type="4"][checked="true"]  #movieBorderLabel {
+	background-color: transparent;
+	image: url(":/images/timer-source/select_radius.png");
+}
+PLSPropertiesView #imageGroupBtn[type="4"][checked="false"]  #movieBorderLabel {
+	background-color: transparent;
+	image: url(":/images/timer-source/dis_connect_radius.png");
+}
+
+
+PLSPropertiesView #imageGroupBtn[type="0"]:checked{
+	border: /*hdpi*/ 2px solid #effc35;
+	border-radius: /*hdpi*/ 3px;
+}
+
+PLSPropertiesView #imageGroupBtn[type="0"]:unchecked {
+	border: /*hdpi*/ 2px solid #1E1E1F;
+}
+
+	PLSPropertiesView #imageGroupBtn[type="0"][id="0"][checked="false"]:hover {
+		border-image: url(":/images/spectralizer/img-audiov-template-1-over@3x.png");
+	}
+
+	PLSPropertiesView #imageGroupBtn[type="0"][id="1"][checked="false"]:hover {
+		border-image: url(":/images/spectralizer/img-audiov-template-2-over@3x.png");
+	}
+
+	PLSPropertiesView #imageGroupBtn[type="0"][id="2"][checked="false"]:hover {
+		border-image: url(":/images/spectralizer/img-audiov-template-3-over@3x.png");
+	}
+
+	PLSPropertiesView #imageGroupBtn[type="0"][id="3"][checked="false"]:hover {
+		border-image: url(":/images/spectralizer/img-audiov-template-4-over@3x.png");
+	}
+
+PLSPropertiesView #imageGroupBtn[type="1"] {
+	min-width: /*hdpi*/ 30px;
+	max-width: /*hdpi*/ 30px;
+	min-height: /*hdpi*/ 30px;
+	max-height: /*hdpi*/ 30px;
+	background: transparent;
+	border: /*hdpi*/ 1px solid transparent;
+}
+
+PLSPropertiesView #imageGroupBtn[type="1"]:checked {
+	background: transparent;
+	border-image: url(":/images/spectralizer/img-audiov-color-select@3x.png");
+}
+
+PLSPropertiesView #imageGroupBtn[type="1"]:unchecked {
+	border: /*hdpi*/ 2px solid #1E1E1F;
+}
+
+PLSPropertiesView #imageGroupBtn[type="2"] {
+	min-width: /*hdpi*/ 95px;
+	max-width: /*hdpi*/ 95px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+}
+
+PLSPropertiesView #imageGroupBtn[type="2"]:checked {
+	border: /*hdpi*/ 2px solid #effc35;
+	border-radius: /*hdpi*/ 3px;
+}
+
+PLSPropertiesView #imageGroupBtn[type="2"]:unchecked {
+	border: /*hdpi*/ 2px solid #1E1E1F;
+}
+
+PLSPropertiesView #imageGroupBtn[type="3"] {
+	min-width: /*hdpi*/ 32px;
+	max-width: /*hdpi*/ 32px;
+	min-height: /*hdpi*/ 32px;
+	max-height: /*hdpi*/ 32px;
+	background-color: transparent;
+	border:/*hdpi*/1px solid transparent;
+}
+
+PLSPropertiesView #imageGroupBtn[type="3"][checked="false"] #boderLabel {
+	image:  none;
+	background-color: transparent;
+}
+
+PLSPropertiesView #imageGroupBtn[type="3"][checked="true"] #boderLabel {
+	border-image: url(":/images/timer-source/img-audiov-color-select.png");
+	background-color: transparent;
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundState {
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #666666;
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton > #icon {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	background: transparent;
+	image: url(":/images/camera-virtual-background-normal.svg");
+}
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[hovered="true"] > #icon,
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[pressed="true"][hovered="false"] > #icon {
+	image: url(":/images/camera-virtual-background-over.svg");
+}
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[pressed="true"][hovered="true"] > #icon {
+	image: url(":/images/camera-virtual-background-click.svg");
+}
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[enabled="false"] > #icon {
+	image: url(":/images/camera-virtual-background-disable.svg");
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton > #text {
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #bababa;
+	background: transparent;
+}
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[hovered="true"] > #text,
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[pressed="true"][hovered="false"] > #text {
+	color: #ffffff;
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[pressed="true"][hovered="true"] > #text {
+	color: #444444;
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[enabled="false"] > #text {
+	color: #666666;
+}
+
+PLSPropertiesView #switch {
+	qproperty-minimumSize: /*hdpi*/ 28px /*hdpi*/ 17px;
+	qproperty-maximumSize: /*hdpi*/ 28px /*hdpi*/ 17px;
+}
+PLSPropertiesView #switch::indicator {
+	width: /*hdpi*/ 28px;
+	height: /*hdpi*/ 17px;
+}
+PLSPropertiesView #switch::indicator:disabled {
+	image: url(":/images/slider-off-disable.svg");
+}
+PLSPropertiesView #switch::indicator:checked {
+	image: url(":/images/slider-on.svg");
+}
+PLSPropertiesView #switch::indicator:checked:hover {
+	image: url(":/images/slider-on-over.svg");
+}
+PLSPropertiesView #switch::indicator:checked:disabled {
+	image: url(":/images/slider-on-disable.svg");
+}
+PLSPropertiesView #switch::indicator:checked:pressed {
+	image: url(":/images/slider-on-click.svg");
+}
+PLSPropertiesView #switch::indicator:unchecked {
+	image: url(":/images/slider-off-default.svg");
+}
+PLSPropertiesView #switch::indicator:unchecked:hover {
+	image: url(":/images/slider-off-over.svg");
+}
+PLSPropertiesView #switch::indicator:unchecked:disabled {
+	image: url(":/images/slider-off-disable.svg");
+}
+PLSPropertiesView #switch::indicator:unchecked:pressed {
+	image: url(":/images/slider-off-click.svg");
+}
+PLSPropertiesView #prismMobileButtonHelp {
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22x;
+	background: transparent;
+	border-radius: none;
+	image: url(":/images/prism-mobile/ic-help-normal.svg");
+}
+
+PLSPropertiesView #prismMobileButtonHelp:hover {
+	image: url(":/images/prism-mobile/ic-help-over.svg");
+}
+
+PLSPropertiesView #prismMobileButtonHelp:pressed {
+	image: url(":/images/prism-mobile/ic-help-click.svg");
+}
+
+PLSPropertiesView #prismMobileButtonHelp:disabled {
+	image: url(":/images/prism-mobile/ic-help-disable.svg");
+}
+
+PLSPropertiesView #prismMobileLabelHelp {
+	font-weight: normal;
+	color: #bababa;
+}
+
+PLSPropertiesView #prismMobileLabelGuide {
+	font-weight: normal;
+	font-size: /*hdpi*/ 12px;
+	color: #666666;
+}
+
+PLSPropertiesView #tipLabel {
+	font-weight: normal;
+	font-size: /*hdpi*/ 12px;
+	color: #666666;
+	min-height: /*hdpi*/ 16px;
+	padding-top: /*hdpi*/0px;
+}
+
+PLSPropertiesView #prismMobileLabelStatus {
+	font-weight: normal;
+}
+
+PLSPropertiesView #titleLabel {
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #ffffff;
+	min-height: /*hdpi*/ 18px;
+	max-height: /*hdpi*/ 18px;
 }

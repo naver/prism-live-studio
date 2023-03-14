@@ -34,7 +34,7 @@ private:
 	static void OBSSourceRenamed(void *param, calldata_t *data);
 	QString GetNameElideString();
 	void OnMouseStatusChanged(const QString &status);
-	void OnFinishingEditName();
+	void OnFinishingEditName(bool cancel);
 	void CreatePopupMenu();
 	void UpdateNameStyle();
 	void SetProperty(QWidget *widget, const char *property, const QVariant &value);
@@ -58,6 +58,7 @@ private:
 	QString name;
 	bool current{false};
 	bool isFinishEditing{true};
+	bool editActive{false};
 
 	OBSSignal enabledSignal;
 	OBSSignal renamedSignal;

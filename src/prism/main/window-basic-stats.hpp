@@ -7,6 +7,7 @@
 #include <QTimer>
 #include <QLabel>
 #include <QList>
+#include <atomic>
 
 #include <dialog-view.hpp>
 
@@ -20,10 +21,7 @@ class PLSBasicStats : public QWidget {
 	Q_OBJECT
 
 	Ui::PLSBasicStats *ui;
-
 	QGridLayout *outputLayout = nullptr;
-
-	os_cpu_usage_info_t *cpu_info = nullptr;
 
 	QTimer timer;
 	uint64_t num_bytes = 0;
@@ -35,7 +33,7 @@ class PLSBasicStats : public QWidget {
 		int first_total = 0;
 		int first_dropped = 0;
 
-		void Update(QLabel *framedropState, QLabel *framedropLabel, QLabel *framedrop, QLabel *bitrateLabel, QLabel *bitrate, obs_output_t *output, bool rec);
+		void Update(PLSBasicStats *stats, Ui::PLSBasicStats *ui, obs_output_t *output, bool rec);
 		void Reset(obs_output_t *output);
 
 		long double kbps = 0.0l;
@@ -45,12 +43,34 @@ class PLSBasicStats : public QWidget {
 	PLSDialogView *dialogView;
 
 	void Update();
+	void UpdatePerfStats();
+
+	std::atomic_bool resetting = false;
+	void ResetInternal();
 
 public:
 	explicit PLSBasicStats(PLSDialogView *dialogView, QWidget *parent = nullptr, PLSDpiHelper dpiHelper = PLSDpiHelper());
 	~PLSBasicStats();
 
-	static void InitializeValues();
+	static void InitializeValues(bool ready = false);
+
+	// add for popup notice when streaming state was warning or error
+	// even number: warning, cardinal number : error
+	enum class StreamingNoticeType {
+		NoticeTransmissionBitrateWarning = 0,
+		NoticeTransmissionBitrateError,
+		NoticeBufferedDurationWarning,
+		NoticeBufferedDurationError,
+		NoticeDropNetworkFrameWarning,
+		NoticeDropNetworkFrameError,
+		NoticeDropRenderingFrameWarning,
+		NoticeDropRenderingFrameError,
+		NoticeDropEncodingFrameWarning,
+		NoticeDropEncodingFrameError
+	};
+	Q_ENUM(StreamingNoticeType)
+	void PopupNotice(StreamingNoticeType type, bool recoverNormal = false, int dropFrame = 0, double dropPercentFrame = 0);
+	void SetNotified(StreamingNoticeType type, bool notified);
 
 private:
 	QPointer<QObject> shortcutFilter;
