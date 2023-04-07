@@ -1,0 +1,55 @@
+{
+  "name": "prism-chat",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint"
+  },
+  "dependencies": {
+    "axios": "^0.19.2",
+    "axios-retry": "^3.1.5",
+    "core-js": "^3.4.4",
+    "eventemitter3": "^4.0.0",
+    "hmacsha1": "^1.0.0",
+    "js-cookie": "^2.2.1",
+    "querystring": "^0.2.0",
+    "timeago.js": "^4.0.2",
+    "vue": "^2.6.10",
+    "vue-virtual-scroller": "^1.0.0-rc.2"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "^4.1.0",
+    "@vue/cli-plugin-eslint": "^4.1.0",
+    "@vue/cli-service": "^4.1.0",
+    "babel-eslint": "^10.0.3",
+    "babel-plugin-component": "^1.1.1",
+    "eslint": "^5.16.0",
+    "eslint-plugin-vue": "^5.0.0",
+    "node-sass": "^4.13.1",
+    "sass-loader": "^8.0.2",
+    "svg-sprite-loader": "^5.0.0",
+    "vue-template-compiler": "^2.6.10"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
+    },
+    "extends": [
+      "plugin:vue/essential",
+      "eslint:recommended"
+    ],
+    "rules": {
+      "no-console": "off"
+    },
+    "parserOptions": {
+      "parser": "babel-eslint"
+    }
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions"
+  ]
+}
