@@ -1,0 +1,115 @@
+{
+  "noLive": "PRISM LIVE Studio統合チャットは<br>配信開始後にご利用いただけます。",
+  "noLiveNaver": "${platform}チャットは<br>配信開始後にご利用いただけます。",
+  "noLiveFaceBook": "Facebookチャットは<br>配信開始後にご利用いただけます。",
+  "noLiveYoutube": "YouTubeチャットは非公開送出時には提供されません。",
+  "youtubeReady": "YouTubeチャットは配信開始後にご利用いただけます。",
+  "placeholder": "チャットで会話してみましょう。",
+  "addChatSource": "PRISMチャットソースを追加",
+  "rtmp": "RTMP連携チャンネルのコメントは<br>各プラットフォームのWebページで確認してください。",
+  "notice": "お知らせ",
+  "alert": {
+    "text": "最大${length}文字まで入力できます。",
+    "defaultText": "一時的なエラーが発生しました。<br>しばらくしてからもう一度実行してください。",
+    "sensitiveText": "コメントに不適切な単語が含まれています。",
+    "confirmButton": "確認"
+  },
+  "confirm": {
+    "deleteText": "選択したコメントを削除しますか？",
+    "reportText": "このユーザーを通報しますか？",
+    "deleteConfirmButton": "削除",
+    "cancelButton": "キャンセル"
+  },
+  "tooltip": {
+    "sendError": "再送信または削除することができます。",
+    "deleteText": "コメントを削除します。",
+    "deleteNotice": "お知らせを削除します。",
+    "retry": "再試行"
+  },
+  "report": "通報",
+  "forbiddenAFREECATV": "afreeca TVのチャット情報を照会できません。Afreeca TVページを確認してください。",
+  "forbiddenFACEBOOK": "Facebookチャットはタイムライン全体公開またはページ送出時のみご利用いただけます。",
+  "facebookNoSend": "Facebook配信はチャット入力機能を提供していません。",
+  "afreecaTV": {
+    "tempBanChat": "%s様がチャット禁止%d回になりました。",
+    "starBalloon": "%s様が星風船%d個プレゼント！",
+    "sticker": "%s様がステッカー%d個プレゼント！",
+    "participant": {
+      "enter": "熱烈なファンの%s様がチャットルームに参加しました。",
+      "forced_leave": "%s様が強制退出されました。"
+    },
+    "cancelForcedWithdrawl": "%s様の強制退出がキャンセルされました。",
+    "freezeOrMeltChat": "チャットルームをフリーズしました。BJとマネージャーだけがチャットに参加できます。",
+    "cancelFreezeOrMeltChat": "チャットルームのフリーズが解除されました。チャットルームに参加できます。"
+  },
+  "youtubev1": {
+    "text": "コメントはYouTubeウェブページで\n確認してください。",
+    "button": "今すぐ見る"
+  },
+  "shoppingLive": {
+    "name": "NAVERショッピングLIVE",
+    "deleteText": "選択したお知らせを削除しますか？",
+    "pin": "固定",
+    "noticeCantSend": "お知らせを入力できません。",
+    "liveStarted": "LIVEを開始します。",
+    "placeholder": "お知らせを入力してください。"
+  },
+  "timeago": [
+    [
+      "たった今",
+      "たった今"
+    ],
+    [
+      "%s秒前",
+      "たった今"
+    ],
+    [
+      "1分前",
+      "たった今"
+    ],
+    [
+      "%s分前",
+      "jたった今"
+    ],
+    [
+      "1時間前",
+      "たった今"
+    ],
+    [
+      "%s時間前",
+      "たった今"
+    ],
+    [
+      "1日前",
+      "たった今"
+    ],
+    [
+      "%s日前",
+      "たった今"
+    ],
+    [
+      "1週間前",
+      "たった今"
+    ],
+    [
+      "%s週間前",
+      "たった今"
+    ],
+    [
+      "1か月前",
+      "たった今"
+    ],
+    [
+      "%sか月前",
+      "たった今"
+    ],
+    [
+      "1年前",
+      "たった今"
+    ],
+    [
+      "%s年前",
+      "たった今"
+    ]
+  ]
+}
