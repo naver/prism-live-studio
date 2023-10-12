@@ -1,0 +1,73 @@
+{
+  "noLive": "PRISM Live Studio 통합 채팅은<br>방송 시작 후 이용하실 수 있습니다.",
+  "noLiveNaver": "${platform} 채팅은<br>방송 시작 후 이용하실 수 있습니다.",
+  "noLiveFaceBook": "Facebook 채팅은<br>방송 시작 후 이용하실 수 있습니다.",
+  "noLiveYoutube": "YouTube 채팅은 비공개 송출 시에는 지원되지 않습니다.",
+  "youtubeReady": "YouTube 채팅은 방송 시작 후 이용하실 수 있습니다.",
+  "placeholder": "대화를 나눠 보세요",
+  "addChatSource": "PRISM 채팅 소스 추가",
+  "rtmp": "RTMP 연동 채널의 댓글은<br>각 플랫폼의 웹페이지에서 확인해주세요.",
+  "notice": "알림",
+  "alert": {
+    "text": "최대 ${length}자까지 입력 가능합니다.",
+    "defaultText": "일시적인 오류가 발생했습니다.<br>잠시 후 다시 시도해주세요.",
+    "sensitiveText": "댓글에 부적절한 단어가 포함되어 있습니다.",
+    "confirmButton": "확인"
+  },
+  "confirm": {
+    "deleteText": "선택하신 댓글을 삭제하시겠습니까?",
+    "reportText": "이 사용자를 신고하시겠습니까?",
+    "deleteConfirmButton": "삭제",
+    "cancelButton": "취소"
+  },
+  "tooltip": {
+    "sendError": "재전송하거나 삭제할 수 있습니다",
+    "deleteText": "댓글을 삭제합니다",
+    "deleteNotice": "공지를 삭제합니다.",
+    "retry": "재시도"
+  },
+  "report": "신고",
+  "forbiddenAFREECATV": "afreecaTV의 채팅 정보를 조회할 수 없습니다. afreecaTV 페이지를 확인해주세요.",
+  "forbiddenFACEBOOK": "Facebook 채팅은 타임라인 전체공개 또는 페이지 송출일 때만 이용 가능합니다.",
+  "facebookNoSend": "Facebook 방송은 채팅 입력 기능이 지원되지 않습니다.",
+  "afreecaTV": {
+    "tempBanChat": "%s님이 채팅금지 %d회가 되었습니다.",
+    "starBalloon": "%s님이 별풍선 %d개 선물!",
+    "sticker": "%s님이 스티커 %d개 선물!",
+    "participant": {
+      "enter": "열혈팬 %s님이 대화방에 참여했습니다.",
+      "forced_leave": "%s님이 강제퇴장 되었습니다."
+    },
+    "cancelForcedWithdrawl": "%s님이 강제퇴장이 취소되었습니다.",
+    "freezeOrMeltChat": "채팅창을 얼렸습니다. BJ와 매니저만 채팅에 참여할 수 있습니다.",
+    "cancelFreezeOrMeltChat": "채팅창을 녹였습니다. 채팅에 참여하실 수 있습니다."
+  },
+  "youtubev1": {
+    "text": "댓글은 Youtube 웹페이지에서\n확인해주세요.",
+    "button": "바로가기"
+  },
+  "shoppingLive": {
+    "name": "네이버 쇼핑라이브",
+    "deleteText": "선택하신 공지를 삭제하시겠습니까?",
+    "pin": "고정",
+    "noticeCantSend": "공지를 입력할 수 없습니다.",
+    "liveStarted": "라이브를 시작합니다.",
+    "placeholder": "공지를 입력해 보세요."
+  },
+  "timeago": [
+    ["방금 전", "방금 전"],
+    ["%s초 전", "%s초 후"],
+    ["1분 전", "1분 후"],
+    ["%s분 전", "%s분 후"],
+    ["1시간 전", "1시간 후"],
+    ["%s시간 전", "%s시간 후"],
+    ["1일 전", "1일 후"],
+    ["%s일 전", "%s일 후"],
+    ["1주일 전", "1주일 후"],
+    ["%s주일 전", "%s주일 후"],
+    ["1개월 전", "1개월 후"],
+    ["%s개월 전", "%s개월 후"],
+    ["1년 전", "1년 후"],
+    ["%s년 전", "%s년 후"]
+  ]
+}
