@@ -1,0 +1,115 @@
+{
+  "noLive": "The integrated chatting service for PRISM Live Studio is available after the broadcast has started.",
+  "noLiveNaver": "You can start chatting in ${platform} after the broadcast has started.",
+  "noLiveFaceBook": "You can start chatting in Facebook after the broadcast has started.",
+  "noLiveYoutube": "YouTube chat is not supported for private broadcasts.",
+  "youtubeReady": "You can start chatting in YouTube after the broadcast has started.",
+  "placeholder": "Write a comment...",
+  "addChatSource": "Add PRISM Chat Source",
+  "rtmp": "Comments for RTMP-linked channels<br>can be checkedon the website of the respective platform.",
+  "notice": "Notice",
+  "alert": {
+    "text": "Up to ${length} characters can be entered.",
+    "defaultText": "A temporary error has occurred.<br>Please try again.",
+    "sensitiveText": "Your comment contains sensitive words.",
+    "confirmButton": "OK"
+  },
+  "confirm": {
+    "deleteText": "Delete the selected comment?",
+    "reportText": "Are you sure you want to report this user?",
+    "deleteConfirmButton": "Delete",
+    "cancelButton": "Cancel"
+  },
+  "tooltip": {
+    "sendError": "You can retry or delete it.",
+    "deleteText": "Delete a comment.",
+    "deleteNotice": "Delete a notice",
+    "retry": "Retry"
+  },
+  "report": "Report",
+  "forbiddenAFREECATV": "Failed to show chat info for afreecaTV. Check on afreecaTV.",
+  "forbiddenFACEBOOK": "Facebook Chat is available only when the page is streamed or the timeline is set to public.",
+  "facebookNoSend": "Chatting is not supported for Facebook streaming.",
+  "afreecaTV": {
+    "tempBanChat": "%s has been banned from chatting %d time%t.",
+    "starBalloon": "%s %d star balloon gifts!",
+    "sticker": "%s %d sticker gifts!",
+    "participant": {
+      "enter": "%s has joined the chat room.",
+      "forced_leave": "%s has been kicked out."
+    },
+    "cancelForcedWithdrawl": "Kick out has been canceled for %s.",
+    "freezeOrMeltChat": "The chat has been frozen. Only the BJ and the manager can participate in the chat.",
+    "cancelFreezeOrMeltChat": "The chat window has been unfrozen. You can participate in the chat."
+  },
+  "youtubev1": {
+    "text": "Please view the chat\non the YouTube web page.",
+    "button": "View on Web"
+  },
+  "shoppingLive": {
+    "name": "NAVER Shopping LIVE",
+    "deleteText": "Delete the selected notice?",
+    "pin": "Pin",
+    "noticeCantSend": "Notice cannot be posted.",
+    "liveStarted": "Live has started.",
+    "placeholder": "Post a notice."
+  },
+  "timeago": [
+    [
+      "just now",
+      "just now"
+    ],
+    [
+      "%s seconds ago",
+      "just now"
+    ],
+    [
+      "1 minute ago",
+      "just now"
+    ],
+    [
+      "%s minutes ago",
+      "just now"
+    ],
+    [
+      "1 hour ago",
+      "just now"
+    ],
+    [
+      "%s hours ago",
+      "just now"
+    ],
+    [
+      "1 day ago",
+      "just now"
+    ],
+    [
+      "%s days ago",
+      "just now"
+    ],
+    [
+      "1 week ago",
+      "just now"
+    ],
+    [
+      "%s weeks ago",
+      "just now"
+    ],
+    [
+      "1 month ago",
+      "just now"
+    ],
+    [
+      "%s months ago",
+      "just now"
+    ],
+    [
+      "1 year ago",
+      "just now"
+    ],
+    [
+      "%s years ago",
+      "just now"
+    ]
+  ]
+}
