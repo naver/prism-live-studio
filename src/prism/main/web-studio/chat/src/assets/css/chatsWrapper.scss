@@ -1,0 +1,99 @@
+.prism-chat-container {
+  position: relative;
+  padding-top: 10px;
+  color: #ffffff;
+  font-size: 12px;
+  height: 100%;
+}
+
+.chart-info-container {
+  position: relative;
+  height: calc(100% - 58px);
+  margin-bottom: 8px;
+}
+
+.tips-no-video {
+  position: absolute;
+  top: 50%;
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  transform: translateY(-50%);
+  color: #666;
+  text-align: center;
+
+  .icon-chat {
+    display: inline-block;
+    width: 90px;
+    height: 90px;
+    margin-bottom: 14px;
+    background: url(~@/assets/img/chat-zero.svg) no-repeat;
+    background-size: 100%;
+  }
+}
+
+.chat-info-scrollbar {
+  width: 100%;
+  height: 100%;
+}
+
+.scroll-to-bottom {
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  width: 50px;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  transform: translateX(-20px);
+  background: url(~@/assets/img/btn-recentchat-normal.svg) no-repeat;
+  background-size: 100% 100%;
+  cursor: pointer;
+
+  &:hover, &:focus {
+    background-image: url(~@/assets/img/btn-recentchat-over.svg);
+  }
+
+  &:active {
+    background-image: url(~@/assets/img/btn-recentchat-click.svg);
+  }
+}
+
+.chart-send-container {
+  position: relative;
+  height: 50px;
+  border-top: 1px solid #111111;
+
+  .input {
+    width: 100%;
+    height: 100%;
+    font-size: 14px;
+    padding: 12px 50px 12px 20px;
+    border: none;
+    color: #fff;
+    background-color: #272727;
+    user-select: none;
+
+    &:focus + .icon-send:not(:disabled) {
+      background-image: url(~@/assets/img/chatsend-on-normal.svg);
+    }
+  }
+
+  .icon-send {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    background: url(~@/assets/img/chatsend-normal.svg) no-repeat;
+    transition: all .2s;
+
+    &:disabled {
+      cursor: not-allowed;
+      background-image: url(~@/assets/img/chatsend-disable.svg);
+    }
+  }
+}
