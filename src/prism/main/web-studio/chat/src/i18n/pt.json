@@ -1,0 +1,73 @@
+{
+  "noLive": "O serviço de chat integrado para PRISM Live Studio estará disponível após o início da transmissão.",
+  "noLiveNaver": "Você pode conversar no ${platform} após o início da transmissão.",
+  "noLiveFaceBook": "Você pode conversar no Facebook após o início da transmissão.",
+  "noLiveYoutube": "O chat do YouTube não é compatível com transmissões privadas.",
+  "youtubeReady": "Você pode conversar no YouTube após o início da transmissão.",
+  "placeholder": "Escreva um comentário...",
+  "addChatSource": "Adicionar fonte de chat PRISM",
+  "rtmp": "Os comentários dos canais vinculados ao RTMP<br>podem ser verificados no site da respectiva plataforma.",
+  "notice": "Aviso",
+  "alert": {
+    "text": "Podem ser inseridos até ${length} caracteres.",
+    "defaultText": "Ocorreu um erro temporário.<br>Tente novamente.",
+    "sensitiveText": "Seu comentário contém palavras inapropriadas.",
+    "confirmButton": "OK"
+  },
+  "confirm": {
+    "deleteText": "Excluir o comentário selecionado?",
+    "reportText": "Tem certeza que deseja denunciar este usuário?",
+    "deleteConfirmButton": "Excluir",
+    "cancelButton": "Cancelar"
+  },
+  "tooltip": {
+    "sendError": "Você pode tentar novamente ou excluir.",
+    "deleteText": "Excluir um comentário.",
+    "deleteNotice": "Excluir um aviso.",
+    "retry": "Tentar novamente"
+  },
+  "report": "Denunciar",
+  "forbiddenAFREECATV": "Falha ao mostrar informações de chat para afreecaTV. Verifique na afreecaTV.",
+  "forbiddenFACEBOOK": "O chat do Facebook está disponível apenas quando a página é transmitida ou a linha do tempo está definida como pública.",
+  "facebookNoSend": "O chat não é compatível com transmissão do Facebook.",
+  "afreecaTV": {
+    "tempBanChat": "%s foi banido da conversa %d tempo%t.",
+    "starBalloon": "%s %d balões de estrela de presente!",
+    "sticker": "%s %d adesivos de presentes!",
+    "participant": {
+      "enter": "%s entrou na sala de chat.",
+      "forced_leave": "%s foi expulso."
+    },
+    "cancelForcedWithdrawl": "A expulsão foi cancelada para %s.",
+    "freezeOrMeltChat": "O chat foi bloqueado. Apenas o BJ e o administrador podem participar do chat.",
+    "cancelFreezeOrMeltChat": "A janela de chat foi desbloqueada. Você pode participar do chat."
+  },
+  "youtubev1": {
+    "text": "Por favor veja o chat\nna página da web do YouTube.",
+    "button": "Ver na web"
+  },
+  "shoppingLive": {
+    "name": "NAVER Shopping LIVE",
+    "deleteText": "Excluir o aviso selecionado?",
+    "pin": "Fixar",
+    "noticeCantSend": "Aviso não pode ser postado.",
+    "liveStarted": "A Live começou.",
+    "placeholder": "Poste um aviso."
+  },
+  "timeago": [
+    ["Um pouco antes", "Um pouco antes"],
+    ["%s segundos atrás", "Um pouco antes"],
+    ["1 minuto atrás", "Um pouco antes"],
+    ["%s minutos atrás", "Um pouco antes"],
+    ["1 hora atrás", "Um pouco antes"],
+    ["%s horas atrás", "Um pouco antes"],
+    ["1 dia atrás", "Um pouco antes"],
+    ["%s dias atrás", "Um pouco antes"],
+    ["1 semana atrás", "Um pouco antes"],
+    ["%s uma semana atrás", "Um pouco antes"],
+    ["1 mês atrás", "Um pouco antes"],
+    ["%s meses atrás", "Um pouco antes"],
+    ["1 ano atrás", "Um pouco antes"],
+    ["%s anos atrás", "Um pouco antes"]
+  ]
+}

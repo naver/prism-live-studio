@@ -1,0 +1,73 @@
+{
+  "noLive": "Layanan obrolan terintegrasi untuk PRISM Live Studio tersedia setelah siaran dimulai.",
+  "noLiveNaver": "Anda dapat mulai mengobrol di ${platform} setelah siaran dimulai.",
+  "noLiveFaceBook": "Anda dapat mulai mengobrol di Facebook setelah siaran dimulai.",
+  "noLiveYoutube": "Obrolan YouTube tidak didukung untuk siaran privat.",
+  "youtubeReady": "Anda dapat mulai mengobrol di YouTube setelah siaran dimulai.",
+  "placeholder": "Tuliskan komentar...",
+  "addChatSource": "Tambahkan Sumber Obrolan PRISM",
+  "rtmp": "Komentar untuk saluran yang tertaut RTMP<br>dapat dilihat di situs web platform masing-masing.",
+  "notice": "Pemberitahuan",
+  "alert": {
+    "text": "Hingga ${length} karakter dapat dimasukkan.",
+    "defaultText": "Eror sementara telah terjadi.<br>Silakan coba lagi.",
+    "sensitiveText": "Komentar Anda mengandung kata-kata sensitif.",
+    "confirmButton": "Oke"
+  },
+  "confirm": {
+    "deleteText": "Hapus komentar yang dipilih?",
+    "reportText": "Anda yakin ingin melaporkan pengguna ini?",
+    "deleteConfirmButton": "Hapus",
+    "cancelButton": "Batalkan"
+  },
+  "tooltip": {
+    "sendError": "You can retry or delete it.",
+    "deleteText": "Hapus komentar.",
+    "deleteNotice": "Hapus pemberitahuan.",
+    "retry": "Coba ulang"
+  },
+  "report": "Laporan",
+  "forbiddenAFREECATV": "Gagal memperlihatkan informasi obrolan untuk afreecaTV. Lihat di afreecaTV.",
+  "forbiddenFACEBOOK": "Obrolan di Facebook hanya tersedia jika halaman sedang streaming atau linimasa ditetapkan untuk publik.",
+  "facebookNoSend": "Obrolan tidak didukung untuk streaming Facebook.",
+  "afreecaTV": {
+    "tempBanChat": "%s telah dilarang mengobrol %d time%t.",
+    "starBalloon": "%s %d hadiah balon bintang!",
+    "sticker": "%s %d hadiah stiker!",
+    "participant": {
+      "enter": "%s telah masuk ke dalam ruang obrolan.",
+      "forced_leave": "%s telah dikeluarkan."
+    },
+    "cancelForcedWithdrawl": "%s telah batal dikeluarkan.",
+    "freezeOrMeltChat": "Obrolan telah dibekukan. Hanya BJ dan manajer yang dapat berpartisipasi dalam obrolan.",
+    "cancelFreezeOrMeltChat": "Jendela obrolan telah dipulihkan. Anda dapat berpartisipasi dalam obrolan."
+  },
+  "youtubev1": {
+    "text": "Silakan lihat obrolan ini\ndi halaman web YouTube.",
+    "button": "Lihat di Web"
+  },
+  "shoppingLive": {
+    "name": "NAVER Shopping LIVE",
+    "deleteText": "Hapus pemberitahuan yang dipilih?",
+    "pin": "Pin",
+    "noticeCantSend": "Pemberitahuan tidak dapat dimuat.",
+    "liveStarted": "Siaran langsung telah dimulai.",
+    "placeholder": "Muat pemberitahuan."
+  },
+  "timeago": [
+    ["baru saja", "baru saja"],
+    ["%s detik lalu", "baru saja"],
+    ["1 menit lalu", "baru saja"],
+    ["%s menit lalu", "baru saja"],
+    ["1 jam lalu", "baru saja"],
+    ["%s jam lalu", "baru saja"],
+    ["1 hari lalu", "baru saja"],
+    ["%s hari lalu", "baru saja"],
+    ["1 minggu lalu", "baru saja"],
+    ["%s minggu lalu", "baru saja"],
+    ["1 bulan lalu", "baru saja"],
+    ["%s bulan lalu", "baru saja"],
+    ["1 tahun lalu", "baru saja"],
+    ["%s tahun lalu", "baru saja"]
+  ]
+}
