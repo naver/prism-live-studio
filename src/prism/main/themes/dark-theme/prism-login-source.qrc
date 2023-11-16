@@ -1,9 +1,0 @@
-<RCC>
-    <qresource prefix="/prism-login">
-        <file>images/login-whale.svg</file>
-    </qresource>
-    <qresource prefix="/">
-        <file>images/login-loop/2_login_loop.png</file>
-        <file>images/login-begin/1_login_begin.png</file>
-    </qresource>
-</RCC>

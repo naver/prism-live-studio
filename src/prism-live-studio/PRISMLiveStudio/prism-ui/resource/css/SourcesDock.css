@@ -1,0 +1,38 @@
+PLSDock#sourcesDock {
+	qproperty-contentMarginLeft: /*hdpi*/ 1;
+	qproperty-contentMarginRight: /*hdpi*/ 1;
+	qproperty-contentMarginBottom: /*hdpi*/ 1;
+	background-color: #272727;
+}
+
+PLSDock#sourcesDock QScrollBar::handle:vertical {
+	margin-bottom: /*hdpi*/ 3px;
+}
+
+	PLSDock#sourcesDock QListView:focus {
+		outline: none;
+	}
+
+	PLSDock#sourcesDock PLSDockTitle {
+		qproperty-marginLeft: /*hdpi*/ 19;
+		qproperty-marginRight: /*hdpi*/ 9;
+		qproperty-contentSpacing: /*hdpi*/ 10;
+		qproperty-captionHeight: /*hdpi*/ 50;
+	}
+
+	PLSDock#sourcesDock #seperateSourceBtn {
+		min-width: /*hdpi*/ 22px;
+		max-width: /*hdpi*/ 22px;
+		min-height: /*hdpi*/ 22px;
+		max-height: /*hdpi*/ 22px;
+		border-style: none;
+	}
+
+	PLSDock#sourcesDock PLSPopupMenu PLSPopupMenuItem QLabel {
+		background-color: transparent;
+	}
+
+	PLSDock#sourcesDock PLSPopupMenu {
+		min-width: /*hdpi*/ 180px;
+		max-width: /*hdpi*/ 180px;
+	}

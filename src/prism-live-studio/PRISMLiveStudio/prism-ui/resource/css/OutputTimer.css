@@ -1,0 +1,28 @@
+#OutputTimer {
+    background-color: #272727;
+  
+}
+
+    #OutputTimer #outputTimerStream, #OutputTimer #outputTimerRecord {
+        min-width: 109px;
+        max-width: 109px;
+        min-height: 40px;
+        max-height: 40px;
+        padding: 0;
+        margin: 0;
+    }
+
+    #OutputTimer #buttonBox QPushButton{
+        min-width: 128px;
+        max-width: 128px;
+        min-height: 40px;
+        max-height: 40px;
+        padding: 0;
+        margin-right: 30px;
+        margin-top: 10px;
+        margin-bottom: 0px;
+    }
+
+    #OutputTimer #line {
+        background-color: #151515;
+    }

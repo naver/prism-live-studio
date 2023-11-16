@@ -1,0 +1,20 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resource/images/filter-ui/ic_add_click.svg</file>
+        <file>resource/images/filter-ui/ic_add_disable.svg</file>
+        <file>resource/images/filter-ui/ic_add_normal.svg</file>
+        <file>resource/images/filter-ui/ic_add_over.svg</file>
+        <file>resource/images/filter-ui/ic_down_click.svg</file>
+        <file>resource/images/filter-ui/ic_down_disable.svg</file>
+        <file>resource/images/filter-ui/ic_down_normal.svg</file>
+        <file>resource/images/filter-ui/ic_down_over.svg</file>
+        <file>resource/images/filter-ui/ic_trash_click.svg</file>
+        <file>resource/images/filter-ui/ic_trash_disable.svg</file>
+        <file>resource/images/filter-ui/ic_trash_normal.svg</file>
+        <file>resource/images/filter-ui/ic_trash_over.svg</file>
+        <file>resource/images/filter-ui/ic_up_click.svg</file>
+        <file>resource/images/filter-ui/ic_up_disable.svg</file>
+        <file>resource/images/filter-ui/ic_up_normal.svg</file>
+        <file>resource/images/filter-ui/ic_up_over.svg</file>
+    </qresource>
+</RCC>

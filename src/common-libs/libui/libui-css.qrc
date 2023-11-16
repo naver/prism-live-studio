@@ -1,0 +1,34 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resource/css/Common.css</file>
+        <file>resource/css/CommonDialog.css</file>
+        <file>resource/css/PLSAlertView.css</file>
+        <file>resource/css/PLSColorDialogView.css</file>
+        <file>resource/css/PLSDialogView.css</file>
+        <file>resource/css/PLSFontDialogView.css</file>
+        <file>resource/css/QCheckBox.css</file>
+        <file>resource/css/QColorDialog.css</file>
+        <file>resource/css/QComboBox.css</file>
+        <file>resource/css/QFontDialog.css</file>
+        <file>resource/css/QGroupBox.css</file>
+        <file>resource/css/QLineEdit.css</file>
+        <file>resource/css/QMenu.css</file>
+        <file>resource/css/QPlainTextEdit.css</file>
+        <file>resource/css/QPushButton.css</file>
+        <file>resource/css/QRadioButton.css</file>
+        <file>resource/css/QScrollBar.css</file>
+        <file>resource/css/QSlider.css</file>
+        <file>resource/css/QSpinBox.css</file>
+        <file>resource/css/QTableView.css</file>
+        <file>resource/css/QTabWidget.css</file>
+        <file>resource/css/QTextEdit.css</file>
+        <file>resource/css/QToolButton.css</file>
+        <file>resource/css/QToolTip.css</file>
+        <file>resource/css/PLSDock.css</file>
+        <file>resource/css/PLSPopupMenu.css</file>
+        <file>resource/css/PLSSearchLineEdit.css</file>
+        <file>resource/css/PLSMenuPushButton.css</file>
+        <file>resource/css/PLSEdit.css</file>
+        <file>resource/css/QDialog.css</file>
+    </qresource>
+</RCC>

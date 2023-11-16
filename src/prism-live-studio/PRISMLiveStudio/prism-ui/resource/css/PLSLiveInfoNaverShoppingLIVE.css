@@ -1,0 +1,764 @@
+#PLSLiveInfoNaverShoppingLIVE #nvtTitleWidget #nvtTitleLabel {
+	color: #ffffff;
+	font-size: /*hdpi*/ 20px;
+	font-weight: bold;
+	min-width: /*hdpi*/ 212px;
+	max-width: /*hdpi*/ 212px;
+	min-height: /*hdpi*/ 27px;
+	max-height: /*hdpi*/ 27px;
+	background-color:transparent;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #nvtTitleWidget #lineView {
+	min-width: /*hdpi*/ 1px;
+	max-width: /*hdpi*/ 1px;
+	min-height: /*hdpi*/ 12px;
+	max-height: /*hdpi*/ 12px;
+	background-color: rgba(216, 216, 216, 0.31);
+	margin-top:/*hdpi*/ 2px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #scrollArea {
+	border: none;
+}
+
+PLSLiveInfoNaverShoppingLIVE #thumbnaiBg {
+	min-height: /*hdpi*/ 173px;
+	max-height: /*hdpi*/ 173px;
+	background-color:transparent;
+	padding:0px;
+	margin:0px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #starLabel {
+	background-color: transparent;
+	max-width: /*hdpi*/ 136px;
+	min-height: /*hdpi*/ 18px;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	font-style: normal;
+	color: #c34151;
+	padding-top:/*hdpi*/ 0px;
+	margin:0px;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #thumbnailButton {
+	min-width: /*hdpi*/ 130px;
+	max-width: /*hdpi*/ 130px;
+	min-height: /*hdpi*/ 173px;
+	max-height: /*hdpi*/ 173px;
+}
+
+#PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton > #icon {
+	background-color: transparent;
+	min-width:/*hdpi*/ 54px;
+	max-width:/*hdpi*/ 54px;
+	min-height:/*hdpi*/ 53px;
+	max-height:/*hdpi*/ 53px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton {
+	background-color: transparent;
+	border-radius:/*hdpi*/ 3px;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #scheduleLabel, 
+#PLSLiveInfoNaverShoppingLIVE #liveTitleLabel,
+#PLSLiveInfoNaverShoppingLIVE #goodsLabel,
+#PLSLiveInfoNaverShoppingLIVE #summaryLabel,
+#PLSLiveInfoNaverShoppingLIVE #categoryLabel,
+#PLSLiveInfoNaverShoppingLIVE #dateLabel,
+#PLSLiveInfoNaverShoppingLIVE #searchTitleLabel {
+	color: #bababa;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	background-color: transparent;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #guideLabel {
+	color: #666666;
+	font-size: /*hdpi*/ 12px;
+	background-color: transparent;
+	min-height: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #labelToast {
+	border-radius:/*hdpi*/3px;
+	border:/*hdpi*/1px solid rgba(255, 255, 255, 0.1);	
+	background-color: rgba(30, 30, 30, 0.95);
+    padding-left:/*hdpi*/20px;
+    padding-right:/*hdpi*/26px;
+	text-align:left;
+    font-size:/*hdpi*/14px;
+    color: #bababa;
+}
+
+PLSLiveInfoNaverShoppingLIVE #dateBgWidget {
+	min-width:/*hdpi*/ 554px;
+	max-width:/*hdpi*/ 554px;
+	min-height:/*hdpi*/ 40px;
+	max-height:/*hdpi*/ 40px;
+	background-color:transparent;
+}
+
+PLSLiveInfoNaverShoppingLIVE #apButton,
+PLSLiveInfoNaverShoppingLIVE #hourButton, 
+PLSLiveInfoNaverShoppingLIVE #minuteButton {
+	background-color: #444444;
+	border-radius:/*hdpi*/ 3px;
+	font-size:/*hdpi*/14px;
+    color: white;
+	font-weight: normal;
+	margin: 0px;
+	padding: 0px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #yearButton {
+	background-color: #444444;
+	border-radius:/*hdpi*/ 3px;
+	font-size:/*hdpi*/14px;
+    color: white;
+	font-weight: normal;
+	margin: 0px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #yearButton[lang="en-US"] {
+	min-width:/*hdpi*/144px;
+    max-width:/*hdpi*/144px;
+    min-height:/*hdpi*/40px;
+    max-height:/*hdpi*/40px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #yearButton[lang="ko-KR"] {
+	min-width:/*hdpi*/132px;
+    max-width:/*hdpi*/132px;
+    min-height:/*hdpi*/40px;
+    max-height:/*hdpi*/40px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #yearButton:checked,
+PLSLiveInfoNaverShoppingLIVE #hourButton:checked,
+PLSLiveInfoNaverShoppingLIVE #minuteButton:checked,
+PLSLiveInfoNaverShoppingLIVE #apButton:checked
+{
+	background-color: #1e1e1e;
+}
+
+PLSLiveInfoNaverShoppingLIVE #yearButton:checked:hover,
+PLSLiveInfoNaverShoppingLIVE #hourButton:checked:hover,
+PLSLiveInfoNaverShoppingLIVE #minuteButton:checked:hover,
+PLSLiveInfoNaverShoppingLIVE #apButton:checked:hover
+{
+	background-color: #1e1e1e;
+}
+
+PLSLiveInfoNaverShoppingLIVE #yearButton:hover,
+PLSLiveInfoNaverShoppingLIVE #hourButton:hover,
+PLSLiveInfoNaverShoppingLIVE #minuteButton:hover,
+PLSLiveInfoNaverShoppingLIVE #apButton:hover
+{
+	background-color: #555555;
+}
+
+PLSLiveInfoNaverShoppingLIVE #yearButton:disabled,
+PLSLiveInfoNaverShoppingLIVE #hourButton:disabled,
+PLSLiveInfoNaverShoppingLIVE #minuteButton:disabled,
+PLSLiveInfoNaverShoppingLIVE #apButton:disabled
+{
+	background-color: #444444;
+	color: #666666;
+}
+
+PLSLiveInfoNaverShoppingLIVE #hourButton, 
+PLSLiveInfoNaverShoppingLIVE #minuteButton  {
+	min-width:/*hdpi*/46px;
+    max-width:/*hdpi*/46px;
+    min-height:/*hdpi*/40px;
+    max-height:/*hdpi*/40px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #apButton {
+	min-width:/*hdpi*/52px;
+    max-width:/*hdpi*/52px;
+    min-height:/*hdpi*/40px;
+    max-height:/*hdpi*/40px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #searchIcon {
+	min-width:/*hdpi*/ 18px;
+	max-width:/*hdpi*/ 18px;
+	min-height:/*hdpi*/ 18px;
+	max-height:/*hdpi*/ 18px;
+	background-color: transparent;
+	margin:1px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #searchIcon:hover {
+	
+}
+
+PLSLiveInfoNaverShoppingLIVE #searchRadioWidget {
+	min-width:/*hdpi*/ 554px;
+	max-width:/*hdpi*/ 554px;
+	min-height:/*hdpi*/ 40px;
+	max-height:/*hdpi*/ 40px;
+	background-color:transparent;
+}
+
+PLSLiveInfoNaverShoppingLIVE #searchRadioWidget > .QRadioButton {
+	font-size:/*hdpi*/ 14px;
+	spacing: /*hdpi*/ 10px;
+    font-weight: normal;
+    background-color: transparent;
+}
+
+PLSLiveInfoYoutube #searchRadioWidget #radioButton_allow,
+PLSLiveInfoYoutube #searchRadioWidget #radioButton_disallow {
+	margin-right: /*hdpi*/10px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #colonLabel {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/img-colon.svg);
+	min-width:/*hdpi*/3px;
+    max-width:/*hdpi*/3px;
+    min-height:/*hdpi*/14px;
+    max-height:/*hdpi*/14px;
+	background-color:transparent;
+}
+
+PLSLiveInfoNaverShoppingLIVE #pushButtonClear {
+	min-width:/*hdpi*/16px;
+    max-width:/*hdpi*/16px;
+    min-height:/*hdpi*/16px;
+    max-height:/*hdpi*/16px;
+	margin: 0px;
+	padding: 0px;
+    border-style: none;
+    background-color: transparent;
+    image: url(":/libui/resource/images/btn-close-normal.svg");
+}
+
+PLSLiveInfoNaverShoppingLIVE #pushButtonClear:hover {
+    image: url(":/libui/resource/images/btn-close-over.svg");
+}
+
+PLSLiveInfoNaverShoppingLIVE #pushButtonClear:pressed {
+    image: url(":/libui/resource/images/btn-close-click.svg");
+}
+
+PLSLiveInfoNaverShoppingLIVE #shareFirstObject,
+PLSLiveInfoNaverShoppingLIVE #shareSecondObject {
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	min-width: /*hdpi*/ 272px;
+	max-width: /*hdpi*/ 272px;
+	background-color: #444444;
+	border-radius:/*hdpi*/ 3px;
+	margin: 0px;
+	padding: 0px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #shareFirstObject:hover,
+PLSLiveInfoNaverShoppingLIVE #shareSecondObject:hover{
+	background-color: #555555;
+}
+
+PLSLiveInfoNaverShoppingLIVE #shareFirstObject:checked,
+PLSLiveInfoNaverShoppingLIVE #shareSecondObject:checked{
+	background-color: #1e1e1e;
+}
+
+PLSLiveInfoNaverShoppingLIVE #shareFirstObject:disabled,
+PLSLiveInfoNaverShoppingLIVE #shareSecondObject:disabled{
+	background-color: #444444;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #linkButton  {
+	border-radius:0px;
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-copyurl-normal.svg);
+	background-color:transparent;
+	min-height: /*hdpi*/ 20px;
+	max-height: /*hdpi*/ 20px;
+	min-width: /*hdpi*/ 20px;
+	max-width: /*hdpi*/ 20px;
+	margin: 0px;
+	padding: 0px;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #linkButton:hover {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-copyurl-over.svg);
+}
+
+#PLSLiveInfoNaverShoppingLIVE #linkButton:pressed {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-copyurl-click.svg);
+}
+
+
+#PLSLiveInfoNaverShoppingLIVE #goodsLabel {
+	margin-top:/*hdpi*/10px;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #scheCombox {
+	min-width:/*hdpi*/ 554px;
+	max-width:/*hdpi*/ 554px;
+	min-height:/*hdpi*/ 40px;
+	max-height:/*hdpi*/ 40px;
+	margin: 0px;
+	padding: 0px;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #lineEditTitle,
+#PLSLiveInfoNaverShoppingLIVE #summaryLineEdit {
+	min-width: /*hdpi*/ 544px;
+	max-width: /*hdpi*/ 544px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	padding-left: /*hdpi*/ 10px;
+	margin: 0px;
+	color: white;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #bottomFrame {
+	border:/*hdpi*/ none;
+	border-top:/*hdpi*/ 1px solid #151515;
+	min-height:/*hdpi*/ 78px;
+	max-height:/*hdpi*/ 78px;
+}
+
+#PLSLiveInfoNaverShoppingLIVE #bottomFrame QPushButton {
+	min-width:/*hdpi*/ 128px;
+	max-width:/*hdpi*/ 128px;
+	min-height:/*hdpi*/ 40px;
+	max-height:/*hdpi*/ 40px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noProductPage #noProductTipLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #bababa;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noProductPage #noProductLimitTipLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	color: #666666;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noProductPage #nppAddButton {
+	font-size: /*hdpi*/ 12px;
+	font-weight: bold;
+	color: #bababa;
+	min-width: /*hdpi*/ 108px;
+	max-width: 9999999px;
+	min-height: /*hdpi*/ 25px;
+	max-height: /*hdpi*/ 25px;
+	border-radius: /*hdpi*/ 3px;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+	padding-left: /*hdpi*/ 12px;
+	padding-right: /*hdpi*/ 12px;
+	background-color: transparent;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noProductPage #nppAddButton[lang="en-US"],
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noProductPage #nppAddButton[lang="ko-KR"] {
+	min-width: /*hdpi*/ 108px;
+	max-width: /*hdpi*/ 108px;
+	padding-left: 0px;
+	padding-right: 0px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noProductPage #nppAddButton:hover {
+	color: white;
+	border: /*hdpi*/ 1px solid white;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noProductPage #nppAddButton:pressed {
+	color: #222222;
+	border: /*hdpi*/ 1px solid #222222;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noProductPage #nppAddButton:disabled {
+	color: #666666;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noNetPage #noNetTipLabel {
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #bababa;
+	background-color: transparent;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noNetPage #noNetRetryButton {
+	font-size: /*hdpi*/ 12px;
+	font-weight: bold;
+	color: #bababa;
+	min-width: /*hdpi*/ 108px;
+	max-width: 9999999px;
+	min-height: /*hdpi*/ 25px;
+	max-height: /*hdpi*/ 25px;
+	border-radius: /*hdpi*/ 3px;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+	padding-left: /*hdpi*/ 12px;
+	padding-right: /*hdpi*/ 12px;
+	background-color: transparent;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noNetPage #noNetRetryButton[lang="en-US"],
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noNetPage #noNetRetryButton[lang="ko-KR"] {
+	min-width: /*hdpi*/ 108px;
+	max-width: /*hdpi*/ 108px;
+	padding-left: 0px;
+	padding-right: 0px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noNetPage #noNetRetryButton:hover {
+	color: white;
+	border: /*hdpi*/ 1px solid white;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noNetPage #noNetRetryButton:pressed {
+	color: #222222;
+	border: /*hdpi*/ 1px solid #222222;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #noNetPage #noNetRetryButton:disabled {
+	color: #666666;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #productPage {
+	min-width: /*hdpi*/ 554px;
+	max-width: /*hdpi*/ 554px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #productPage #fixGuideIcon {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	background-color: transparent;
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-pin-off-normal.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #productPage #fixGuideText {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #bababa;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #productPage #ppAddButton {
+	background-color: transparent;
+	min-width: /*hdpi*/ 108px;
+	max-width: 9999999px;
+	min-height: /*hdpi*/ 25px;
+	max-height: /*hdpi*/ 25px;
+	border-radius: /*hdpi*/ 3px;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+	font-size: /*hdpi*/ 12px;
+	font-weight: bold;
+	color: #bababa;
+	padding-left: /*hdpi*/ 12px;
+	padding-right: /*hdpi*/ 12px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #productPage #ppAddButton[lang="en-US"],
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #productPage #ppAddButton[lang="ko-KR"] {
+	min-width: /*hdpi*/ 108px;
+	max-width: /*hdpi*/ 108px;
+	padding-left: 0px;
+	padding-right: 0px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #productPage #ppAddButton:hover {
+	color: white;
+	border: /*hdpi*/ 1px solid white;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #productPage #ppAddButton:pressed {
+	color: #222222;
+	border: /*hdpi*/ 1px solid #222222;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #productPage #ppAddButton:disabled {
+	color: #666666;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #productPage #hline2 {
+	background-color: #343435;
+	min-height: /*hdpi*/ 1px;
+	max-height: /*hdpi*/ 1px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView {
+	background-color: #1e1e1e;
+	min-height: /*hdpi*/ 90px;
+	max-height: /*hdpi*/ 90px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #titleWidget,
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #titleWidget #titleSpacer {
+	background-color: transparent;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #iconLabel {
+	background-color: transparent;
+	min-width: /*hdpi*/ 90px;
+	max-width: /*hdpi*/ 90px;
+	min-height: /*hdpi*/ 90px;
+	max-height: /*hdpi*/ 90px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #titleLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: white;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView[state="hover"] #titleLabel {
+	text-decoration: underline;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #discountLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #f24443;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #priceLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: white;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #discountPriceLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	color: #f24443;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #storeLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	color: #858585;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #statusLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #999999;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #fixButton {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	background-color: transparent;
+	padding: 0px;
+	margin: 0px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #fixButton[fixed="false"] {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-pin-off-normal.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #fixButton[fixed="false"]:hover {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-pin-off-over.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #fixButton[fixed="false"]:pressed {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-pin-off-click.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #fixButton[fixed="false"]:disabled {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-pin-off-disable.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #fixButton[fixed="true"] {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-pin-on-normal.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #fixButton[fixed="true"]:hover {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-pin-on-over.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #fixButton[fixed="true"]:pressed {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-pin-on-click.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #fixButton[fixed="true"]:disabled {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-pin-on-disable.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #removeButton {
+	min-width: /*hdpi*/ 19px;
+	max-width: /*hdpi*/ 19px;
+	min-height: /*hdpi*/ 19px;
+	max-height: /*hdpi*/ 19px;
+	background-color: transparent;
+	padding: 0px;
+	margin: 0px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #removeButton {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-delete-normal.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #removeButton:hover {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-delete-over.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #removeButton:pressed {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-delete-click.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLiveInfoNaverShoppingLIVEProductItemView #removeButton:disabled {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-delete-disable.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList {
+	qproperty-titleLabelY: /*hdpi*/ 19;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList > #titleWidget {
+	background-color: transparent;
+	min-width: /*hdpi*/ 104px;
+	max-width: /*hdpi*/ 104px;
+	min-height: /*hdpi*/ 23px;
+	max-height: /*hdpi*/ 23px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList > #titleWidget > #titleLabel {
+	color: #bababa;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	background-color: transparent;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList > #titleWidget > #productCountBadge {
+	color: black;
+	font-size: /*hdpi*/ 11px;
+	font-weight: bold;
+	min-height: /*hdpi*/ 20px;
+	max-height: /*hdpi*/ 20px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList > #titleWidget > #productCountBadge[textLength="1"] {
+	min-width: /*hdpi*/ 20px;
+	max-width: /*hdpi*/ 20px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList > #titleWidget > #productCountBadge[textLength="2"] {
+	min-width: /*hdpi*/ 25px;
+	max-width: /*hdpi*/ 25px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList PLSLoadingView {
+	background-color: #272727;
+	border: none;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget {
+	background-color: transparent;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget #gotoNaverShoppingToolTipLabel1,
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget #gotoNaverShoppingToolTipLabel2 {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #bababa;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget #gotoNaverShoppingToolButton {
+	background-color: transparent;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+	border-radius: /*hdpi*/ 3px;
+	min-width: /*hdpi*/ 108px;
+	max-width: /*hdpi*/ 999999px;
+	min-height: /*hdpi*/ 25px;
+	max-height: /*hdpi*/ 25px;
+	padding-left: /*hdpi*/ 14px;
+	padding-right: /*hdpi*/ 14px;
+	font-size: /*hdpi*/ 12px;
+	font-weight: bold;
+	color: #bababa;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget #gotoNaverShoppingToolButton:hover {
+	color: white;
+	border: /*hdpi*/ 1px solid white;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget #gotoNaverShoppingToolButton:pressed {
+	color: #222222;
+	border: /*hdpi*/ 1px solid #222222;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget #gotoNaverShoppingToolButton:disabled {
+	color: #666666;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #placeholder {
+	min-height: /*hdpi*/ 139px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #guideBackView {
+	background-color: transparent;
+	min-height: /*hdpi*/ 17px;
+	max-height: /*hdpi*/ 17px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #manageButton {
+	background: transparent;
+}
+
+PLSLiveInfoNaverShoppingLIVE #manageButton > #guideButtonIcon {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-menu-next-normal.svg);
+	min-height: /*hdpi*/ 13px;
+	max-height: /*hdpi*/ 13px;
+	min-width: /*hdpi*/ 9px;
+	max-width: /*hdpi*/ 9px;
+	background-color:transparent;
+	margin-top:/*hdpi*/2px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #manageButton[hovered="true"] > #guideButtonIcon {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-menu-next-over.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE #manageButton[pressed="true"][hovered="true"] > #guideButtonIcon {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-menu-next-click.svg);
+}
+
+PLSLiveInfoNaverShoppingLIVE #manageButton > #guideButtonText {
+	color: #bababa;
+	font-size: /*hdpi*/ 13px;
+	font-weight: bold;
+	background-color:transparent;
+	min-height: /*hdpi*/ 17px;
+	max-height: /*hdpi*/ 17px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #manageButton[hovered="true"] > #guideButtonText {
+	color:white;
+}
+
+PLSLiveInfoNaverShoppingLIVE #manageButton[pressed="true"][hovered="true"] > #guideButtonText {
+	color:#444444;
+}
+
+

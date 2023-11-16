@@ -1,0 +1,85 @@
+{
+	"tipsContent": [
+		{
+			"sourceText": "你看到的是第一个参考样例,编辑main//data//newinfo.json可以修改 需要显示的提示  <br/> --sourceText 是显示的文本源key，因此需要自行添加翻译到ini中，如果需要手动换行，使用html的 'br'  <br/>   --aliginWidgetName 用于作为提示的参照对齐控件(如果存在重名 则需要传递路径 )，你需要保证主窗口创建的时候该控件已经创建 <br/> --refrenceWidget 作为参照，用于参考坐标提示，确定箭头的方向 <br/> --otherListenedWidgets 用于 额外的监听事件对象，主要用于大小位置变化，提供刷新UI坐标等,编辑格式是字符串','分割控件名称,程序会自动拆分为list <br/> --displayVersion 默认为空，表示匹配当前版本，一般来说可以不填写，因为每次更新，程序会删除上次的配置标记 <br/> --watchType  主要用于告知你监视的控件类型，如按钮，则点击按钮按照UX需要消失 ，如果是dock 则监视的对象会因为dock 的停靠和悬浮消失，该字符串来自于 PLSGuideTipsframe.h 中的枚举定义 可以查看示例 <br/> --debug 模式下该tip需要每次都点击才消失 ",
+
+			"aliginWidgetName": "ChannelScrollArea",
+
+			"refrenceWidget": "PLSMainView",
+
+			"otherListenedWidgets": "",
+
+			"displayVersion": "",
+
+			"watchType": "WidgetType"
+		},
+		{
+			"sourceText": "sourceText this is a test 2",
+
+			"aliginWidgetName": "GoLiveShift",
+
+			"refrenceWidget": "PLSMainView",
+
+			"otherListenedWidgets": "",
+
+			"displayVersion": "",
+
+			"watchType": "ButtonType"
+		},
+
+		{
+			"sourceText": "sourceText this is a test 3 for dock",
+
+			"aliginWidgetName": "scenesDock",
+
+			"refrenceWidget": "PLSMainView",
+
+			"otherListenedWidgets": "",
+
+			"displayVersion": "",
+
+			"watchType": "DockType"
+		},
+		{
+			"sourceText": "sourceText this is a test 4 for menu",
+
+			"aliginWidgetName": "menu",
+
+			"refrenceWidget": "PLSMainView",
+
+			"otherListenedWidgets": "",
+
+			"displayVersion": "",
+
+			"watchType": "ButtonType"
+		},
+		{
+			"sourceText": " test 5 for sidebar",
+
+			"aliginWidgetName": "WiFiConfig",
+
+			"refrenceWidget": "PLSMainView",
+
+			"otherListenedWidgets": "",
+
+			"displayVersion": "",
+
+			"watchType": "ButtonType"
+		},
+
+		{
+			"sourceText": "sourceText this is a test 6 for dock button",
+
+			"aliginWidgetName": "PLSMainView.sourcesDock.advButton",
+
+			"refrenceWidget": "PLSMainView",
+
+			"otherListenedWidgets": "sourcesDock",
+
+			"displayVersion": "",
+
+			"watchType": "ButtonType"
+		}
+
+	]
+}

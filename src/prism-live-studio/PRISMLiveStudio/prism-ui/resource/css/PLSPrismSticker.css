@@ -1,0 +1,208 @@
+PLSPrismSticker{
+    min-width:/*hdpi*/300px;
+	min-height: /*hdpi*/ 550px;
+    max-width:/*hdpi*/1472;
+	max-height: /*hdpi*/ 1036px;
+}
+
+PLSPrismSticker #category{
+    border: none;
+    border-bottom: /*hdpi*/ 1px solid #343435;
+	padding:0;
+	margin: 0;
+}
+
+PLSPrismSticker #prismStickerMoreIcon{
+    min-width: /*hdpi*/15px;
+    max-width: /*hdpi*/15px;
+    min-height: /*hdpi*/3px;
+    max-height: /*hdpi*/3px;
+    background-color: transparent;
+    image:url(:/resource/images/prism-sticker/ic_sticker_more.svg);
+}
+
+PLSPrismSticker #prismStickerContainer{
+    background-color: #1e1e1f;
+}
+
+PLSPrismSticker #prismStickerCategoryBtn {
+	border-radius: /*hdpi*/17px;
+	min-height: /*hdpi*/ 33px;
+	max-height: /*hdpi*/ 33px;
+	color:#bababa;
+	font-weight: bold;
+	font-size: /*hdpi*/13px;
+	background-color: #2d2d2d;
+	padding: 0 0 2px 0;
+}
+
+PLSPrismSticker #prismStickerMore{
+    min-width: /*hdpi*/ 39px;
+    max-width: /*hdpi*/ 39px;
+    min-height: /*hdpi*/ 35px;
+    max-height: /*hdpi*/ 35px;
+    border-radius: /*hdpi*/ 17px;
+    background-color: #2d2d2d;
+	padding: 0;
+	margin: 0;
+}
+
+PLSPrismSticker #prismStickerMore:hover,#prismStickerCategoryBtn:hover{
+	background-color: #444444;
+}
+
+PLSPrismSticker #prismStickerMore:pressed,#prismStickerCategoryBtn:pressed{
+	background-color: #242424;
+}
+
+PLSPrismSticker #prismStickerCategoryBtn:checked{
+	color:#effc35;
+	background-color: #444444;
+    font-weight: bold;
+}
+
+PLSPrismSticker #prismStickerLabel {
+	min-width: /*hdpi*/ 80px;
+	max-width: /*hdpi*/ 80px;
+	min-height: /*hdpi*/ 80px;
+	max-height: /*hdpi*/ 80px;
+	border-radius: /*hdpi*/ 3px;
+    background: transparent;
+}
+
+PLSPrismSticker #prismStickerLabel[useDefault=true]{
+	image: url(:/resource/images/giphy/thumb-loading.svg);
+}
+
+PLSPrismSticker QScrollBar:vertical {
+	background-color: transparent;
+	min-width: /*hdpi*/ 10px;
+	max-width: /*hdpi*/ 10px;
+	margin: 0px;
+}
+
+PLSPrismSticker #stickerScrollArea{
+	border: none;
+	min-height: /*hdpi*/ 133px;
+	background-color: #1e1e1f;
+}
+
+PLSPrismSticker #stickerScrollArea > #pageNoData > #iconNoData {
+	image: url(:/resource/images/prism-sticker/ic-prism.svg);
+}
+
+PLSPrismSticker #stickerScrollArea > #pageNoData > #iconNoData[pageType="0"] {
+	image: url(:/resource/images/prism-sticker/ic-prism.svg);
+}
+
+PLSPrismSticker #stickerScrollArea > #pageNoData > #iconNoData[pageType="1"] {
+	image: url(:/resource/images/giphy/ic-unconnect.svg);
+}
+
+PLSPrismSticker #iconNetworkErrorPage > #iconNoData[pageType="1"]{
+	image: url(:/resource/images/giphy/ic-unconnect.svg);
+}
+
+PLSPrismSticker NoDataPage{
+	background: #1e1e1f;
+}
+
+PLSPrismSticker NoDataPage #iconNoData{
+	min-width: /*hdpi*/ 90px;
+	max-width: /*hdpi*/ 90px;
+	min-height: /*hdpi*/ 90px;
+	max-height: /*hdpi*/ 90px;
+	background: transparent;
+}
+
+PLSPrismSticker NoDataPage #textNoData {
+	color: #666666;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	background: transparent;
+}
+
+PLSPrismSticker NoDataPage #noDataPageBottomSpace{
+	min-height: /*hdpi*/ 94px;
+	max-height: /*hdpi*/ 94px;
+	background: transparent;
+}
+
+PLSPrismSticker NoDataPage #networkErrorRetryBtn {
+	min-width: /*hdpi*/ 110px;
+	max-width: /*hdpi*/ 110px;
+	min-height: /*hdpi*/ 27px;
+	max-height: /*hdpi*/ 27px;
+	background: transparent;
+	border-radius: /*hdpi*/ 3px;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	color: #bababa;
+	padding: 0;
+	margin: 0;
+}
+
+PLSPrismSticker NoDataPage #networkErrorRetryBtn:disabled{
+	color:#3d3d3d;
+	border:/*hdpi*/1px solid #3d3d3d;
+}
+
+PLSPrismSticker NoDataPage #networkErrorRetryBtn:hover {
+	background-color:transparent;
+	border:/*hdpi*/1px solid #ffffff;
+	color:#ffffff;
+}
+
+PLSPrismSticker NoDataPage #networkErrorRetryBtn:pressed {
+	background-color:transparent;
+	border:/*hdpi*/1px solid #272727;
+	color:#272727;
+}
+
+PLSPrismSticker #loadingBG {
+	background-color: rgba(39, 39, 39, 0.8);
+}
+
+PLSPrismSticker #loadingBtn {
+	min-width: /*hdpi*/ 24px;
+	max-width: /*hdpi*/ 24px;
+	min-height: /*hdpi*/ 24px;
+	max-height: /*hdpi*/ 24px;
+	background-color: transparent;
+	margin: 0;
+	padding: 0;
+	border: none;
+}
+
+PLSPrismSticker #loadingBtn[status="1"] {
+	image:url(":/resource/images/loading/loading-1.svg");
+}
+
+PLSPrismSticker #loadingBtn[status="2"] {
+	image:url(":/resource/images/loading/loading-2.svg");
+}
+
+PLSPrismSticker #loadingBtn[status="3"] {
+	image:url(":/resource/images/loading/loading-3.svg");
+}
+
+PLSPrismSticker #loadingBtn[status="4"] {
+	image:url(":/resource/images/loading/loading-4.svg");
+}
+
+PLSPrismSticker #loadingBtn[status="5"] {
+	image:url(":/resource/images/loading/loading-5.svg");
+}
+
+PLSPrismSticker #loadingBtn[status="6"] {
+	image:url(":/resource/images/loading/loading-6.svg");
+}
+
+PLSPrismSticker #loadingBtn[status="7"] {
+	image:url(":/resource/images/loading/loading-7.svg");
+}
+
+PLSPrismSticker #loadingBtn[status="8"] {
+	image:url(":/resource/images/loading/loading-8.svg");
+}

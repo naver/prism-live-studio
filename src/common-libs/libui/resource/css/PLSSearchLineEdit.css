@@ -1,0 +1,90 @@
+PLSSearchLineEdit{
+	padding-right: /*hdpi*/ 35px;
+	padding-top: /*hdpi*/ 0px;
+	padding-bottom: /*hdpi*/ 0px;
+	padding-left: /*hdpi*/ 10px;
+	border: none;
+	border-radius: /*hdpi*/ 3px;
+	min-height: /*hdpi*/ 38px;
+	max-height: /*hdpi*/ 38px;
+	background-color: #1e1e1e;
+	font-size: /*hdpi*/ 14px;
+    color: #FFFFFF;
+}
+
+PLSSearchLineEdit[showPlaceholder="true"]{
+    color: #666666
+}
+
+PLSSearchLineEdit[showPlaceholder="false"]{
+    color: #FFFFFF
+}
+
+PLSSearchLineEdit[usedFor="collection"]{
+    padding-right: /*hdpi*/ 62px;
+    background-color: #1e1e1f;
+}
+
+PLSSearchLineEdit:focus {
+	border: /*hdpi*/ 1px solid #EFFC35;
+}
+
+PLSSearchLineEdit[usedFor="giphy"]:!focus {
+	border: /*hdpi*/ 1px solid transparent;
+}
+
+PLSSearchLineEdit[usedFor="collection"]:!focus {
+	border: /*hdpi*/ 1px solid #343434;
+}
+
+PLSSearchLineEdit #toolBtnSearch {
+	min-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	padding: 0;
+	margin: 0;
+	background: transparent;
+	border: none;
+}
+
+PLSSearchLineEdit[usedFor="giphy"] #toolBtnSearch[searchOn=true] {
+	image: url(":/libui/resource/images/btn-search-on-normal-g.svg");
+}
+
+PLSSearchLineEdit[usedFor="giphy"] #toolBtnSearch[searchOn=false] {
+	image: url(":/libui/resource/images/btn-search-normal-g.svg");
+}
+
+PLSSearchLineEdit[usedFor="collection"] #toolBtnSearch[searchOn=true] {
+	image: url(":/libui/resource/images/btn-search-on-normal.svg");
+}
+
+PLSSearchLineEdit[usedFor="collection"] #toolBtnSearch,
+PLSSearchLineEdit[usedFor="collection"] #toolBtnSearch[searchOn=false] {
+	image: url(":/libui/resource/images/btn-search-normal.svg");
+}
+
+PLSSearchLineEdit #deleteBtn {
+	margin: 0;
+	padding: 0;
+	min-width: /*hdpi*/ 16px;
+	min-height: /*hdpi*/ 16px;
+	max-width: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+	background: transparent;
+    margin-top: /*hdpi*/ 3px;
+    image: url(":/libui/resource/images/ic-scene-delete-normal.svg");
+}
+
+PLSSearchLineEdit #deleteBtn:hover {
+    image: url(":/libui/resource/images/ic-scene-delete-over.svg");
+}
+
+PLSSearchLineEdit #deleteBtn:pressed {
+    image: url(":/libui/resource/images/ic-scene-delete-click.svg");
+}
+
+PLSSearchLineEdit #deleteBtn:!enable {
+    image: url(":/libui/resource/images/ic-scene-delete-disable.svg");
+}

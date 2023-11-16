@@ -1,0 +1,278 @@
+OBSBasicFilters {
+	qproperty-minimumSize:  930px  700px;
+	qproperty-maximumSize:  930px  700px;
+	border:  1px solid #111111;
+	background-color: #272727;
+}
+
+OBSBasicFilters QSlider::add-page:horizontal {
+	background-color: #131314;
+}
+
+OBSBasicFilters #previewFrame {
+	min-width: 690px;
+	max-width: 690px;
+	min-height: 319px;
+	max-height: 319px;
+	margin: 15px;
+}
+
+	OBSBasicFilters #separatorLine, OBSBasicFilters #separatorLine_2, OBSBasicFilters #separatorLine_3 {
+		background-color: #111111;
+	}
+
+	OBSBasicFilters #effectFilters, OBSBasicFilters #asyncFilters {
+		background-color: #272727;
+		border:  none;
+
+	}
+		OBSBasicFilters #effectFilters::item, OBSBasicFilters #asyncFilters::item {
+			padding: 0;
+			margin: 0;
+		}
+	OBSBasicFilters #asyncWidget, OBSBasicFilters #effectWidget {
+		min-width: 210px;
+		max-width: 210px;
+		background-color: #272727;
+	}
+
+	OBSBasicFilters #asyncEmptyDesLabel, OBSBasicFilters #effectEmptyDesLabel {
+		background-color: #272727;
+		font-size:  14px;
+		color: #666666;
+		margin: 10px;
+	}
+
+	OBSBasicFilters #asyncLabel, OBSBasicFilters #effectLabel {
+		margin-left: 16px;
+		font-weight: bold;
+	}
+
+	OBSBasicFilters #asyncLabel, OBSBasicFilters #effectLabel {
+		min-height: 50px;
+		max-height: 50px;
+	}
+	 OBSBasicFilters #asyncControlWidget, OBSBasicFilters #effectControlWidget {
+		min-height: 56px;
+		max-height: 56px;
+	}
+
+	OBSBasicFilters #asyncControlWidget, OBSBasicFilters #effectControlWidget {
+		padding: 0;
+		margin: 0;
+	}
+
+	OBSBasicFilters #addAsyncFilter, OBSBasicFilters #addEffectFilter,
+	OBSBasicFilters #removeAsyncFilter, OBSBasicFilters #removeEffectFilter,
+	OBSBasicFilters #moveAsyncFilterDown, OBSBasicFilters #moveEffectFilterDown,
+	OBSBasicFilters #moveAsyncFilterUp, OBSBasicFilters #moveEffectFilterUp {
+		min-width: 28px;
+		max-width: 28px;
+		min-height: 28px;
+		max-height: 28px;
+		padding: 0;
+		margin: 0;
+	}
+
+
+	OBSBasicFilters #addAsyncFilter, OBSBasicFilters #addEffectFilter {
+		image: url(":/resource/images/filter-ui/ic_add_normal.svg");
+	}
+		OBSBasicFilters #addAsyncFilter:hover, OBSBasicFilters #addEffectFilter:hover {
+			image: url(:/resource/images/filter-ui/ic_add_over.svg);
+		}
+		OBSBasicFilters #addAsyncFilter:pressed, OBSBasicFilters #addEffectFilter:pressed {
+			image: url(":/resource/images/filter-ui/ic_add_click.svg");
+		}
+		OBSBasicFilters #addAsyncFilter:!enable, OBSBasicFilters #addEffectFilter:!enable {
+			image: url(:/resource/images/filter-ui/ic_add_disable.svg);
+		}
+
+	OBSBasicFilters #removeAsyncFilter, OBSBasicFilters #removeEffectFilter {
+		image: url(":/resource/images/filter-ui/ic_trash_normal.svg");
+	}
+
+		OBSBasicFilters #removeAsyncFilter:hover, OBSBasicFilters #removeEffectFilter:hover {
+			image: url(:/resource/images/filter-ui/ic_trash_over.svg);
+		}
+
+		OBSBasicFilters #removeAsyncFilter:pressed, OBSBasicFilters #removeEffectFilter:pressed {
+			image: url(:/resource/images/filter-ui/ic_trash_click.svg);
+		}
+
+		OBSBasicFilters #removeAsyncFilter:!enable, OBSBasicFilters #removeEffectFilter:!enable {
+			image: url(:/resource/images/filter-ui/ic_trash_disable.svg);
+		}
+
+	OBSBasicFilters #moveAsyncFilterDown, OBSBasicFilters #moveEffectFilterDown {
+		image: url(:/resource/images/filter-ui/ic_down_normal.svg);
+	}
+
+		OBSBasicFilters #moveAsyncFilterDown:hover, OBSBasicFilters #moveEffectFilterDown:hover {
+			image: url(:/resource/images/filter-ui/ic_down_over.svg);
+		}
+
+		OBSBasicFilters #moveAsyncFilterDown:pressed, OBSBasicFilters #moveEffectFilterDown:pressed {
+			image: url(:/resource/images/filter-ui/ic_down_click.svg);
+		}
+
+		OBSBasicFilters #moveAsyncFilterDown:!enable, OBSBasicFilters #moveEffectFilterDown:!enable {
+			image: url(:/resource/images/filter-ui/ic_down_disable.svg);
+		}
+
+	OBSBasicFilters #moveAsyncFilterUp, OBSBasicFilters #moveEffectFilterUp {
+		image: url(:/resource/images/filter-ui/ic_up_normal.svg);
+	}
+
+		OBSBasicFilters #moveAsyncFilterUp:hover, OBSBasicFilters #moveEffectFilterUp:hover {
+			image: url(:/resource/images/filter-ui/ic_up_over.svg);
+		}
+
+		OBSBasicFilters #moveAsyncFilterUp:pressed, OBSBasicFilters #moveEffectFilterUp:pressed {
+			image: url(:/resource/images/filter-ui/ic_up_click.svg);
+		}
+
+		OBSBasicFilters #moveAsyncFilterUp:!enable, OBSBasicFilters #moveEffectFilterUp:!enable {
+			image: url(:/resource/images/filter-ui/ic_up_disable.svg);
+		}
+
+	OBSBasicFilters #property_buttonBox {
+		min-width: 720px;
+		max-width: 720px;
+		min-height: 80px;
+		max-height: 80px;
+	}
+
+	OBSBasicFilters #property_buttonBox QPushButton[useFor="Close"] {
+		margin-top: 5px;
+		margin-right: 30px;
+		padding: 0;
+		min-width: 128px;
+		max-width: 128px;
+		min-height: 40px;
+		max-height: 40px;
+	}
+
+	OBSBasicFilters #property_buttonBox QPushButton[useFor="RestoreDefaults"] {
+		padding: 0;
+		margin-top: 5px;
+		margin-left: 30px;
+		min-width: 142px;
+		max-width: 142px;
+		min-height: 40px;
+		max-height: 40px;
+	}
+
+PLSFiltersItemView {
+	background-color: #272727;
+	min-width: 210px;
+	max-width: 210px;
+    min-height: 40px;
+    max-height: 40px;
+	padding: 0;
+	margin: 0;
+}
+PLSFiltersItemView #nameLineEdit{
+    min-height:/*hdpi*/ 32px;
+    max-height:/*hdpi*/ 32px;
+    background-color: #1e1e1e;
+    margin:0;
+    padding:0;
+}
+
+PLSFiltersItemView #advButton{
+    padding: 0px;
+    margin: 0px;
+    min-width:  22px;
+    max-width:  22px;
+    min-height:  22px;
+    max-height:  22px;
+    background: transparent;
+}
+
+PLSFiltersItemView #visibleButton {
+    padding: 0px;
+    margin: 0px;
+    min-width:  22px;
+    max-width:  22px;
+    min-height:  22px;
+    max-height:  22px;
+    background: transparent;;
+}
+
+	PLSFiltersItemView, PLSFiltersItemView[status="normal"] {
+		background-color: #272727;
+	}
+
+		PLSFiltersItemView[status="hover"] {
+			background-color: #444444;
+		}
+
+		PLSFiltersItemView[status="pressed"] {
+			background-color: #2d2d2d;
+		}
+
+		PLSFiltersItemView #nameLabel {
+			background: transparent;
+			font-size: 14px;
+			color: #ffffff;
+		}
+
+			PLSFiltersItemView #nameLabel[status="visible.unselected"] {
+				color: #ffffff;
+				font-weight: normal;
+			}
+
+			PLSFiltersItemView #nameLabel[status="invisible.unselected"] {
+				color: #666666;
+				font-weight: normal;
+			}
+
+			PLSFiltersItemView #nameLabel[status="invisible.selected"] {
+				color: #7a7f34;
+				font-weight: bold;
+			}
+
+			PLSFiltersItemView #nameLabel[status="visible.selected"] {
+				color: #effc35;
+				font-weight: bold;
+			}
+
+		PLSFiltersItemView #advButton {
+			image: url(":/resource/images/icon-more-default.svg");
+		}
+
+			PLSFiltersItemView #advButton:hover {
+				image: url(":/resource/images/icon-more-over.svg");
+			}
+
+			PLSFiltersItemView #advButton:pressed {
+				image: url(":/resource/images/icon-more-click.svg");
+			}
+
+			PLSFiltersItemView #advButton:!enabled {
+				image: url(":/resource/images/icon-more-disable.svg");
+			}
+
+		PLSFiltersItemView QMenu#filterItemMenu {
+			min-width: 180px;
+			max-width: 180px;
+			padding: 0;
+			margin: 0;
+		}
+
+			PLSFiltersItemView QMenu#filterItemMenu QLabel {
+				background-color: transparent;
+			}
+			PLSFiltersItemView QMenu#filterItemMenu::item {
+				min-height: 56px;
+				max-height: 56px;
+			}
+			PLSFiltersItemView QMenu#filterItemMenu::item:selected {
+				background-color: #444444;
+			}
+
+		PLSFiltersItemView QLineEdit {
+			font-size:  14px;
+		}
+

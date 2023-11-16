@@ -1,0 +1,125 @@
+MediaControls #previousButton, MediaControls #playPauseButton,
+MediaControls #nextButton, MediaControls #stopButton {
+    border: none;
+    min-width: /*hdpi*/ 28px;
+    max-width: /*hdpi*/ 28px;
+    min-height: /*hdpi*/ 28px;
+    max-height: /*hdpi*/ 28px;
+    background-color: #444444;
+    padding: /*hdpi*/ 1px;
+    margin: 0;
+}
+
+MediaControls #previousButton:hover, MediaControls #playPauseButton:hover,
+MediaControls #nextButton:hover, MediaControls #stopButton:hover {
+    background-color: #555555;
+}
+
+MediaControls #previousButton:pressed, MediaControls #playPauseButton:pressed,
+MediaControls #nextButton:pressed, MediaControls #stopButton:pressed {
+    background-color: #2d2d2d;
+}
+
+MediaControls #previousButton:disabled, MediaControls #playPauseButton:disabled,
+MediaControls #nextButton:disabled, MediaControls #stopButton:disabled {
+    background-color: #444444;
+}
+
+MediaControls #previousButton[themeID="previousIcon"]{
+    image: url(":/resource/images/toolbar/ic-toolbar-previous-normal.svg");
+}
+
+MediaControls #previousButton[themeID="previousIcon"]:hover {
+    image: url(":/resource/images/toolbar/ic-toolbar-previous-over.svg");
+}
+
+MediaControls #previousButton[themeID="previousIcon"]:disabled {
+    image: url(":/resource/images/toolbar/ic-toolbar-previous-disable.svg");
+}
+
+MediaControls #nextButton[themeID="nextIcon"]{
+    image: url(":/resource/images/toolbar/ic-toolbar-next-normal.svg");
+}
+
+MediaControls #nextButton[themeID="nextIcon"]:hover {
+    image: url(":/resource/images/toolbar/ic-toolbar-next-over.svg");
+}
+
+MediaControls #nextButton[themeID="nextIcon"]:disabled {
+    image: url(":/resource/images/toolbar/ic-toolbar-next-disable.svg");
+}
+
+MediaControls #stopButton[themeID="stopIcon"]{
+    image: url(":/resource/images/toolbar/ic-toolbar-stop-normal.svg");
+}
+
+MediaControls #stopButton[themeID="stopIcon"]:hover {
+    image: url(":/resource/images/toolbar/ic-toolbar-stop-over.svg");
+}
+
+MediaControls #stopButton[themeID="stopIcon"]:disabled {
+    image: url(":/resource/images/toolbar/ic-toolbar-stop-disable.svg");
+}
+
+MediaControls #playPauseButton, MediaControls #playPauseButton[themeID="playIcon"] {
+    image: url(":/resource/images/toolbar/ic-toolbar-play-normal.svg");
+}
+
+MediaControls #playPauseButton:hover , MediaControls #playPauseButton[themeID="playIcon"]:hover{
+    image: url(":/resource/images/toolbar/ic-toolbar-play-over.svg");
+}
+
+MediaControls #playPauseButton:disabled, MediaControls #playPauseButton[themeID="playIcon"]:disabled {
+    image: url(":/resource/images/toolbar/ic-toolbar-play-disable.svg");
+}
+
+MediaControls #playPauseButton[themeID="pauseIcon"] {
+    image: url(":/resource/images/toolbar/ic-toolbar-pause-normal.svg");
+}
+
+MediaControls #playPauseButton[themeID="pauseIcon"]:hover {
+    image: url(":/resource/images/toolbar/ic-toolbar-pause-over.svg");
+}
+
+MediaControls #playPauseButton[themeID="pauseIcon"]:disabled {
+    image: url(":/resource/images/toolbar/ic-toolbar-pause-disable.svg");
+}
+
+MediaControls #playPauseButton[themeID="restartIcon"] {
+    border: none;
+    min-width: /*hdpi*/ 18px;
+    max-width: /*hdpi*/ 18px;
+    min-height: /*hdpi*/ 18px;
+    max-height: /*hdpi*/ 18px;
+    background-color: #444444;
+    padding: 6px 5px 6px 7px;
+    margin: 0;
+}
+
+MediaControls #playPauseButton[themeID="restartIcon"] {
+    background-color: #444444;
+    image: url(":/resource/images/wizard/ic-reroad-normal.svg");
+}
+
+MediaControls #playPauseButton[themeID="restartIcon"]:hover {
+    background-color: #555555;
+    image: url(":/resource/images/wizard/ic-reroad-over.svg");
+}
+
+MediaControls #playPauseButton[themeID="restartIcon"]:pressed {
+    background-color: #2d2d2d;
+    image: url(":/resource/images/wizard/ic-reroad-over.svg");
+}
+
+MediaControls #playPauseButton[themeID="restartIcon"]:disabled {
+    background-color: #444444;
+    image: url(":/resource/images/wizard/ic-reroad-disable.svg");
+}
+
+MediaControls #slider {
+    margin-left: 3px;
+    margin-right: 8px;
+}
+MediaControls #durationLabel {
+    margin-right: 11px;
+}

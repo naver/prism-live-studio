@@ -1,0 +1,150 @@
+PLSLiveInfoYoutube #titleWidget {
+	min-height:/*hdpi*/ 75px;
+	max-height:/*hdpi*/75px;
+    background-color: transparent;
+}
+
+PLSLiveInfoYoutube #titleWidget #titleLabel {
+    margin:0px;
+	font-size:/*hdpi*/ 20px;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: transparent;
+ 
+}
+
+PLSLiveInfoYoutube #scrollArea  {
+        border:/*hdpi*/none;
+        background-color: transparent;
+        padding-right:/*hdpi*/ 8px;
+}
+
+
+PLSLiveInfoYoutube #scrollAreaWidgetContents {
+        border:/*hdpi*/none;
+        background-color: transparent;
+}
+
+
+PLSLiveInfoYoutube #thumWidget {
+    margin:/*hdpi*/ 0px/*hdpi*/ 0px/*hdpi*/ 0px/*hdpi*/ 0px;
+    min-height: /*hdpi*/155px;
+    max-height: /*hdpi*/155px;
+   background-color: transparent;
+}
+
+PLSLiveInfoYoutube #thumWidget #thumbnailButton {
+    margin: 0;
+    min-width:/*hdpi*/ 214px;
+    max-width:/*hdpi*/ 214px;
+    min-height:/*hdpi*/ 120px;
+    max-height:/*hdpi*/ 120px;
+}
+
+PLSLiveInfoYoutube #thumWidget #thumDetailLabel {
+    font-size:/*hdpi*/ 12px;
+    font-weight: normal;
+    color: #666666;
+}
+
+
+
+PLSLiveInfoYoutube #midwidget > QLabel {
+	min-width:/*hdpi*/ 105px;
+	max-width:/*hdpi*/ 105px;
+	font-size:/*hdpi*/ 14px;
+    font-weight: bold;
+    color: #bababa;
+    background-color: transparent;
+}
+
+PLSLiveInfoYoutube #midwidget #latencyLeftWidget > QLabel {
+	font-size:/*hdpi*/ 14px;
+    font-weight: bold;
+    color: #bababa;
+    background-color: transparent;
+}
+
+PLSLiveInfoYoutube #midwidget #latencyLeftWidget {
+	min-width:/*hdpi*/ 105px;
+	max-width:/*hdpi*/ 105px;
+	background-color: transparent;
+}
+
+PLSLiveInfoYoutube #bottomWidget {
+	min-height:/*hdpi*/ 79px;
+	max-height:/*hdpi*/ 79px;
+}
+
+PLSLiveInfoYoutube  #bottomWidget #lineView {
+	min-height:/*hdpi*/ 1px;
+	max-height:/*hdpi*/ 1px;
+    background-color: #151515;
+	margin-bottom:/*hdpi*/ 0px;
+}
+
+PLSLiveInfoYoutube #textEditDescribe {
+	min-height:/*hdpi*/ 75px;
+	max-height:/*hdpi*/ 75px;
+}
+
+PLSLiveInfoYoutube #textEditDescribe,
+PLSLiveInfoYoutube #lineEditTitle {
+	font-size:/*hdpi*/ 14px;
+	border-radius:/*hdpi*/ 3px;
+}
+
+PLSLiveInfoYoutube #sPushButton QLabel {
+      background-color: transparent;
+}
+
+PLSLiveInfoYoutube QTextEdit {
+	border:/*hdpi*/ none;
+    background-color: #1e1e1e;
+}
+
+
+PLSLiveInfoYoutube #kidsRadioWidget > PLSRadioButton,
+PLSLiveInfoYoutube #latencyRadioWidget > PLSRadioButton {
+	font-size:/*hdpi*/ 14px;
+	spacing: /*hdpi*/ 10px;
+    font-weight: normal;
+    background-color: transparent;
+}
+
+PLSLiveInfoYoutube #latencyRadioWidget #radioButton_normal,
+PLSLiveInfoYoutube #latencyRadioWidget #radioButton_low {
+	margin-right: /*hdpi*/10px;
+}
+
+PLSLiveInfoYoutube #latencyRadioWidget #ultraLowTipLabel {
+	font-size: /*hdpi*/12px;
+	font-weight: normal;
+	color: #666666;
+}
+
+PLSLiveInfoYoutube #latencyLeftWidget QToolTip {
+		max-width:  /*hdpi*/ 510px;
+		margin: /*hdpi*/ 2px;
+		padding:/*hdpi*/5px;
+}
+
+PLSLiveInfoYoutube #midwidget #latencyIcon {
+	image:url(":resource/images/ic-help-off-normal.svg");
+	min-width:/*hdpi*/ 18px;
+	max-width:/*hdpi*/ 18px;
+	min-height:/*hdpi*/ 18px;
+	max-height:/*hdpi*/ 18px;
+	background-color: transparent;
+	margin-left: /*hdpi*/ 5px;
+}
+
+PLSLiveInfoYoutube #midwidget #latencyIcon:hover {
+	image:url(":resource/images/ic-help-off-over.svg");
+}
+
+PLSLiveInfoYoutube #hlsTipLabel {
+	font-size:/*hdpi*/ 14px;
+    color: #bababa;
+    background-color: transparent;
+}

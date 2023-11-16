@@ -1,0 +1,668 @@
+PLSNaverShoppingLIVEProductDialogView #tabWidget {
+	min-height: /*hdpi*/ 60px;
+	max-height: /*hdpi*/ 60px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #recentButton,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #storeButton,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #searchButton {
+	min-width: 0px;
+	max-width: 999999px;
+	min-height: 0px;
+	max-height: 999999px;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	padding: 0px;
+	margin: 0px;
+	color: #bababa;
+	background-color: transparent;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #recentButton {
+	min-width: /*hdpi*/ 28px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #storeButton {
+	min-width: /*hdpi*/ 61px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #searchButton {
+	min-width: /*hdpi*/ 28px;
+}
+
+PLSNaverShoppingLIVEProductDialogView[lang="en-US"] #tabWidget #recentButton {
+	min-width: /*hdpi*/ 46px;
+}
+
+PLSNaverShoppingLIVEProductDialogView[lang="en-US"] #tabWidget #storeButton {
+	min-width: /*hdpi*/ 61px;
+}
+
+PLSNaverShoppingLIVEProductDialogView[lang="en-US"] #tabWidget #searchButton {
+	min-width: /*hdpi*/ 46px;
+}
+
+PLSNaverShoppingLIVEProductDialogView[lang="id-ID"] #tabWidget #recentButton {
+	min-width: /*hdpi*/ 52px;
+}
+
+PLSNaverShoppingLIVEProductDialogView[lang="id-ID"] #tabWidget #storeButton {
+	min-width: /*hdpi*/ 67px;
+}
+
+PLSNaverShoppingLIVEProductDialogView[lang="id-ID"] #tabWidget #searchButton {
+	min-width: /*hdpi*/ 28px;
+}
+
+PLSNaverShoppingLIVEProductDialogView[lang="pt-BR"] #tabWidget #recentButton {
+	min-width: /*hdpi*/ 53px;
+}
+
+PLSNaverShoppingLIVEProductDialogView[lang="pt-BR"] #tabWidget #storeButton {
+	min-width: /*hdpi*/ 70px;
+}
+
+PLSNaverShoppingLIVEProductDialogView[lang="pt-BR"] #tabWidget #searchButton {
+	min-width: /*hdpi*/ 64px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #recentButton:hover,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #storeButton:hover,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #searchButton:hover {
+	color: white;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #recentButton:pressed,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #storeButton:pressed,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #searchButton:pressed {
+	color: #222222;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #recentButton:disabled,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #storeButton:disabled,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #searchButton:disabled {
+	color: #666666;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #recentButton[state="current"],
+PLSNaverShoppingLIVEProductDialogView #tabWidget #storeButton[state="current"],
+PLSNaverShoppingLIVEProductDialogView #tabWidget #searchButton[state="current"] {
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #effc35;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #recentButton[state="current"]:hover,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #storeButton[state="current"]:hover,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #searchButton[state="current"]:hover {
+	color: #f1fa75;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #recentButton[state="current"]:pressed,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #storeButton[state="current"]:pressed,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #searchButton[state="current"]:pressed {
+	color: #7a7f34;
+}
+
+PLSNaverShoppingLIVEProductDialogView #tabWidget #recentButton[state="current"]:disabled,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #storeButton[state="current"]:disabled,
+PLSNaverShoppingLIVEProductDialogView #tabWidget #searchButton[state="current"]:disabled {
+	color: #666666;
+}
+
+PLSNaverShoppingLIVEProductDialogView #hline1 {
+	min-height: /*hdpi*/ 1px;
+	max-height: /*hdpi*/ 1px;
+	background-color: #343435;
+}
+
+PLSNaverShoppingLIVEProductDialogView #bottomWidget {
+	min-height: /*hdpi*/ 78px;
+	max-height: /*hdpi*/ 78px;
+	border-top: /*hdpi*/ 1px solid #151515;
+}
+
+PLSNaverShoppingLIVEProductDialogView #bottomWidget #countTipWidget #countTipLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: white;
+}
+
+PLSNaverShoppingLIVEProductDialogView #recentPage,
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentContent,
+PLSNaverShoppingLIVEProductDialogView #storePage,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeWidget,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeContent,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBarWidget,
+PLSNaverShoppingLIVEProductDialogView #searchPage,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBarWidget,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchContent,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchKeywordsContent,
+PLSNaverShoppingLIVEProductDialogView #searchPage #titleWidget,
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentScrollArea QScrollBar:vertical,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeScrollArea QScrollBar:vertical,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchScrollArea QScrollBar:vertical,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchKeywordsScrollArea QScrollBar:vertical,
+PLSNaverShoppingLIVEProductDialogView #storePage #noSmartStoreWidget,
+PLSNaverShoppingLIVEProductDialogView #storePage #noStoreProductsWidget,
+PLSNaverShoppingLIVEProductDialogView #storePage #noStoreProductsWidget #noStoreProductsTipLabel,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeProductsLoadingView,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNameWidget,
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentEmpty,
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentNoNet,
+PLSNaverShoppingLIVEProductDialogView #searchPage #contentsWidget,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNoNetWidget,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchNoNetWidget,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchNoNetWidget,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeScrollAreaWidget,
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentScrollAreaWidget,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeApiFailedWidget,
+PLSNaverShoppingLIVEProductDialogView #searchPage #emptySearchResultWidget,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeChangeStoreButtonContainer,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNameWidgetContainer,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNameWidgetSpacer,
+PLSNaverShoppingLIVEProductDialogView #storePage #noStoreSearchResultWidget,
+PLSNaverShoppingLIVEProductDialogView #storePage #noStoreSearchResultWidget #noStoreSearchResultTipLabel,
+PLSNaverShoppingLIVEProductDialogView PLSLoadingView {
+	background-color: #1e1e1f;
+}
+
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentEmpty #recentEmptyTipsLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #bababa;
+}
+
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentNoNet #recentNoNetTipsLabel,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNoNetWidget #storeNoNetLabel,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchNoNetWidget #searchNoNetLabel,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeApiFailedWidget #storeApiFailedTipabel,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchNoNetWidget #storeSearchNoNetLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #bababa;
+}
+
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentNoNet #recentNoNetRetryButton,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNoNetWidget #storeNoNetButton,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchNoNetWidget #searchNoNetButton,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeApiFailedWidget #storeApiFailedRetryButton,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchNoNetWidget #storeSearchNoNetButton {
+	background-color: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: bold;
+	color: #bababa;
+	min-width: /*hdpi*/ 108px;
+	max-width: 9999999px;
+	min-height: /*hdpi*/ 25px;
+	max-height: /*hdpi*/ 25px;
+	border-radius: /*hdpi*/ 3px;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+	padding-left: /*hdpi*/ 12px;
+	padding-right: /*hdpi*/ 12px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentNoNet #recentNoNetRetryButton[lang="en-US"],
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentNoNet #recentNoNetRetryButton[lang="ko-KR"],
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNoNetWidget #storeNoNetButton[lang="en-US"],
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNoNetWidget #storeNoNetButton[lang="ko-KR"],
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchNoNetWidget #searchNoNetButton[lang="en-US"],
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchNoNetWidget #searchNoNetButton[lang="ko-KR"],
+PLSNaverShoppingLIVEProductDialogView #storePage #storeApiFailedWidget #storeApiFailedRetryButton[lang="en-US"],
+PLSNaverShoppingLIVEProductDialogView #storePage #storeApiFailedWidget #storeApiFailedRetryButton[lang="ko-KR"],
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchNoNetWidget #storeSearchNoNetButton[lang="en-US"],
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchNoNetWidget #storeSearchNoNetButton[lang="ko-KR"] {
+	min-width: /*hdpi*/ 108px;
+	max-width: /*hdpi*/ 108px;
+	padding-left: 0px;
+	padding-right: 0px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentNoNet #recentNoNetRetryButton:hover,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNoNetWidget #storeNoNetButton:hover,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchNoNetWidget #searchNoNetButton:hover,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeApiFailedWidget #storeApiFailedRetryButton:hover,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchNoNetWidget #storeSearchNoNetButton:hover {
+	color: white;
+	border: /*hdpi*/ 1px solid white;
+}
+
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentNoNet #recentNoNetRetryButton:pressed,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNoNetWidget #storeNoNetButton:pressed,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchNoNetWidget #searchNoNetButton:pressed,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeApiFailedWidget #storeApiFailedRetryButton:pressed,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchNoNetWidget #storeSearchNoNetButton:pressed {
+	color: #222222;
+	border: /*hdpi*/ 1px solid #222222;
+}
+
+PLSNaverShoppingLIVEProductDialogView #recentPage #recentNoNet #recentNoNetRetryButton:disabled,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeNoNetWidget #storeNoNetButton:disabled,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchNoNetWidget #searchNoNetButton:disabled,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeApiFailedWidget #storeApiFailedRetryButton:disabled,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchNoNetWidget #storeSearchNoNetButton:disabled {
+	color: #666666;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeWidget #storeNameLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 20px;
+	font-weight: bold;
+	color: white;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeWidget #storeNameIconLabel {
+	background-color: transparent;
+	min-width: /*hdpi*/ 11px;
+	max-width: /*hdpi*/ 11px;
+	min-height: /*hdpi*/ 6px;
+	max-height: /*hdpi*/ 6px;
+	margin: 0px;
+	padding: 0px;
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-strore-name-nomal.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeWidget #storeChangeStoreButton {
+	background-color: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: bold;
+	color: #bababa;
+	min-width: /*hdpi*/ 108px;
+	max-width: 9999999px;
+	min-height: /*hdpi*/ 25px;
+	max-height: /*hdpi*/ 25px;
+	border-radius: /*hdpi*/ 3px;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+	padding-left: /*hdpi*/ 12px;
+	padding-right: /*hdpi*/ 12px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeWidget #storeChangeStoreButton[lang="en-US"],
+PLSNaverShoppingLIVEProductDialogView #storePage #storeWidget #storeChangeStoreButton[lang="ko-KR"] {
+	min-width: /*hdpi*/ 108px;
+	max-width: /*hdpi*/ 108px;
+	padding-left: 0px;
+	padding-right: 0px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeWidget #storeChangeStoreButton:hover {
+	color: white;
+	border: /*hdpi*/ 1px solid white;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeWidget #storeChangeStoreButton:pressed {
+	color: #222222;
+	border: /*hdpi*/ 1px solid #222222;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeWidget #storeChangeStoreButton:disabled {
+	color: #666666;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar {
+	min-height: /*hdpi*/ 38px;
+	max-height: /*hdpi*/ 38px;
+	border: /*hdpi*/ 1px solid #343435;
+	background-color: #1e1e1e;
+	border-radius: /*hdpi*/ 3px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar[hasFocus="true"],
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar[hasFocus="true"] {
+	border: /*hdpi*/ 1px solid #effc35;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar #storeSearchBarLineEdit,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar #searchSearchBarLineEdit {
+	min-height: 0px;
+	max-height: 999999px;
+	border: none;
+	background-color: #1e1e1e;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: white;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar #storeSearchBarClearButton,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar #searchSearchBarClearButton {
+	min-width: /*hdpi*/ 16px;
+	max-width: /*hdpi*/ 16px;
+	min-height: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+	border: none;
+	background-color: #1e1e1e;
+	margin: 0px;
+	padding: 0px;
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-search-delete-normal.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar #storeSearchBarClearButton:hover,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar #searchSearchBarClearButton:hover {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-search-delete-over.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar #storeSearchBarClearButton:pressed,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar #searchSearchBarClearButton:pressed {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-search-delete-click.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar #storeSearchBarClearButton:disabled,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar #searchSearchBarClearButton:disabled {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-search-delete-disable.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar #storeSearchBarSearchButton,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar #searchSearchBarSearchButton,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar[hasFocus="false"] #storeSearchBarSearchButton[inputing="true"],
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar[hasFocus="false"] #searchSearchBarSearchButton[inputing="true"] {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	border: none;
+	background-color: #1e1e1e;
+	margin: 0px;
+	padding: 0px;
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-search-normal.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar[hasFocus="true"] #storeSearchBarSearchButton,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar[hasFocus="true"] #searchSearchBarSearchButton,
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBar #storeSearchBarSearchButton[inputing="true"],
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBar #searchSearchBarSearchButton[inputing="true"] {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-search-on-normal.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #noSmartStoreWidget #noSmartStoreTipLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #bababa;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #noSmartStoreWidget #noSmartStoreButton {
+	background-color: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: bold;
+	color: #bababa;
+	min-width: /*hdpi*/ 108px;
+	max-width: 9999999px;
+	min-height: /*hdpi*/ 25px;
+	max-height: /*hdpi*/ 25px;
+	border-radius: /*hdpi*/ 3px;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+	padding-left: /*hdpi*/ 12px;
+	padding-right: /*hdpi*/ 12px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #noSmartStoreWidget #noSmartStoreButton[lang="en-US"],
+PLSNaverShoppingLIVEProductDialogView #storePage #noSmartStoreWidget #noSmartStoreButton[lang="ko-KR"] {
+	min-width: /*hdpi*/ 108px;
+	max-width: /*hdpi*/ 108px;
+	padding-left: 0px;
+	padding-right: 0px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #noStoreProductsWidget #noStoreProductsTipLabel,
+PLSNaverShoppingLIVEProductDialogView #storePage #noStoreSearchResultWidget #noStoreSearchResultTipLabel {
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #bababa;
+}
+
+PLSNaverShoppingLIVEProductDialogView #searchPage #emptySearchResultLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #bababa;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView {
+	min-height: /*hdpi*/ 90px;
+	max-height: /*hdpi*/ 90px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView,
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #infoWidget,
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #infoWidget #nameWidget,
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #infoWidget #nameWidget #nameSpacer {
+	background-color: #1e1e1e;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #iconLabel {
+	background-color: transparent;
+	min-width: /*hdpi*/ 90px;
+	max-width: /*hdpi*/ 90px;
+	min-height: /*hdpi*/ 90px;
+	max-height: /*hdpi*/ 90px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #infoWidget #priceWidget {
+	background-color: transparent;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #nameLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: white;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView[state="hover"] #nameLabel {
+	text-decoration: underline;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #discountLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #f24443;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #priceLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: white;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #discountPriceLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	color: #f24443;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #storeLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	color: #858585;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #statusLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #999999;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	margin: 0px;
+	padding: 0px;
+	background-color: transparent;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="false"] {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/icon-addproduct-normal.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="false"]:hover {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/icon-addproduct-over.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="false"]:pressed {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/icon-addproduct-click.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="false"]:disabled {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/icon-addproduct-disable.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="true"] {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-addproduct-done-normal.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="true"]:hover {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-addproduct-done-over.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="true"]:pressed {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-addproduct-done-click.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="true"]:disabled {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-addproduct-done-disable.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVESearchKeywordItemView #removeButton {
+	min-width: /*hdpi*/ 16px;
+	max-width: /*hdpi*/ 16px;
+	min-height: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+	margin: 0px;
+	padding: 0px;
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-search-delete-normal.svg);
+	background-color: transparent;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVESearchKeywordItemView[hovered="true"] #removeButton {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-search-delete-over.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchTitleLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #666666;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVESearchKeywordItemView {
+	min-width: 0px;
+	max-width: 999999px;
+	min-height: 0px;
+	max-height: 999999px;
+	background-color: transparent;
+	border-radius: 0px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVESearchKeywordItemView #textLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #bababa;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVESearchKeywordItemView[hovered="true"] #textLabel {
+	color: white;
+}
+
+PLSNaverShoppingLIVEProductDialogView #smartStoresPopupList {
+	min-width: /*hdpi*/ 180px;
+}
+
+PLSNaverShoppingLIVEProductDialogView #smartStoresPopupList::item {
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	padding: /*hdpi*/ 0px /*hdpi*/ 20px /*hdpi*/ 0px /*hdpi*/ 20px;
+	height: /*hdpi*/ 40px;
+	color: #ffffff;
+	background-color: #2d2d2d;
+}
+
+PLSNaverShoppingLIVEProductDialogView #smartStoresPopupList::item:selected {
+	color: #effc35;
+}
+
+
+PLSNaverShoppingLIVEProductDialogView #smartStoresPopupList::item:hover {
+	background-color: #444444;
+}
+
+PLSNaverShoppingLIVEProductDialogView #smartStoresPopupList:focus {
+	outline: none;
+}
+
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVENextPageItemView {
+	background-color: #1e1e1e;
+}
+
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVENextPageItemView #loadingFrame {
+	background-color: transparent;
+	min-width: /*hdpi*/ 90px;
+	max-width: /*hdpi*/ 90px;
+	min-height: /*hdpi*/ 90px;
+	max-height: /*hdpi*/ 90px;
+}
+
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVENextPageItemView #textLabel {
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: white;
+}
+
+PLSNaverShoppingLIVEProductDialogView #storePage #storeSearchBarLineEdit,
+PLSNaverShoppingLIVEProductDialogView #searchPage #searchSearchBarLineEdit {
+	padding-left: /*hdpi*/ 2px;
+	padding-right: /*hdpi*/ 1px;
+}
+
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVEStoreNameList {
+	background-color: #2d2d2d;
+	border: /*hdpi*/ 1px solid #111111;
+	min-width: /*hdpi*/ 180px;
+}
+
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVEStoreNameList #scrollArea #scrollAreaContent {
+	background-color: #2d2d2d;
+}
+
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVEStoreNameList QScrollBar:vertical,
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVEStoreNameList QScrollBar:horizontal {
+	background-color: #2d2d2d;
+}
+
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVEStoreNameList #scrollArea #scrollAreaContent #smartStoreLabel {
+	background-color: #2d2d2d;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: white;
+	padding-left: /*hdpi*/ 16px;
+}
+
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVEStoreNameList #scrollArea #scrollAreaContent #smartStoreLabel[selected="true"] {
+	background-color: #2d2d2d;
+	color: #effc35;
+}
+
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVEStoreNameList #scrollArea #scrollAreaContent #smartStoreLabel[hovered="true"] {
+	background-color: #444444;
+}
+
+PLSNaverShoppingLIVEProductDialogView PLSNaverShoppingLIVEStoreNameList #scrollArea #scrollAreaContent #smartStoreLabel[hovered="true"][selected="true"] {
+	background-color: #444444;
+	color: #effc35;
+}

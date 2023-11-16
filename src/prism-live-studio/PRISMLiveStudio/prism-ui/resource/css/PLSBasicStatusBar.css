@@ -1,0 +1,89 @@
+PLSBasicStatusBar #encodesPt {
+	background-color: #666666;
+	border-radius: /*hdpi*/ 1px;
+	border: /*hdpi*/ none;
+	min-width: /*hdpi*/ 2px;
+	max-width: /*hdpi*/ 2px;
+	min-height: /*hdpi*/ 2px;
+	max-height: /*hdpi*/ 2px;
+}
+
+PLSBasicStatusBar #encodingSettingIcon {
+	background-color: #272727;
+	image: url(":/resource/images/ic-setting-s-normal.svg");
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	border: /*hdpi*/ none;
+}
+
+PLSBasicStatusBar QLabel[encodingText="true"] {
+	font-size: /*hdpi*/ 12px;
+	color: #bababa;
+	font-weight: bold;
+}
+
+PLSBasicStatusBar #frameDropState {
+	min-width: /*hdpi*/ 10px;
+	max-width: /*hdpi*/ 10px;
+	min-height: /*hdpi*/ 10px;
+	max-height: /*hdpi*/ 10px;
+}
+
+PLSBasicStatusBar QLabel[statsText="true"] {
+	font-size: /*hdpi*/ 12px;
+	color: #bababa;
+}
+
+PLSBasicStatusBar #statsDropIcon[open="false"] {
+	image: url(":/resource/images/txt-dropbox-close-normal.svg");
+	min-width: /*hdpi*/ 11px;
+	min-height: /*hdpi*/ 6px;
+	max-width: /*hdpi*/ 11px;
+	max-height: /*hdpi*/ 6px;
+}
+
+PLSBasicStatusBar #statsDropIcon[open="true"] {
+	min-width: /*hdpi*/ 11px;
+	min-height: /*hdpi*/ 6px;
+	max-width: /*hdpi*/ 11px;
+	max-height: /*hdpi*/ 6px;
+	image: url(":/resource/images/txt-dropbox-open-normal.svg");
+}
+
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="hover"] QLabel[encodingText="true"] {
+	color: #ffffff;
+}
+
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="hover"] #encodesPt {
+	background-color: #ffffff;
+}
+
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="hover"] #encodingSettingIcon {
+	image: url(":/resource/images/ic-setting-s-over.svg");
+}
+
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="pressed"] QLabel[encodingText="true"] {
+	color: #1e1e1e;
+}
+
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="pressed"] #encodesPt {
+	background-color: #1e1e1e;
+}
+
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[state="pressed"] #encodingSettingIcon {
+	image: url(":/resource/images/ic-setting-s-click.svg");
+}
+
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[active="false"] QLabel[encodingText="true"] {
+	color: #666666;
+}
+
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[active="false"] #encodesPt {
+	background-color: #666666;
+}
+
+PLSBasicStatusBar PLSBasicStatusBarButtonFrame[active="false"] #encodingSettingIcon {
+	image: url(":/resource/images/ic-setting-s-disable.svg");
+}

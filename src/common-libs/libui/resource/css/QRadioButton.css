@@ -1,0 +1,37 @@
+QRadioButton {
+	outline: none;
+	spacing: /*hdpi*/ 6px;
+}
+QRadioButton::indicator {
+	padding-top: /*hdpi*/1px;
+	width: /*hdpi*/ 18px;
+	height: /*hdpi*/ 18px;
+}
+QRadioButton::indicator:checked {
+	image:url(":/libui/resource/images/radio-button-checked.svg");
+}
+QRadioButton::indicator:checked:disabled {
+	image:url(":/libui/resource/images/radio-button-checked-disable.svg");
+}
+QRadioButton::indicator:unchecked {
+	image:url(":/libui/resource/images/radio-button-unchecked.svg");
+}
+QRadioButton::indicator:unchecked:disabled {
+	image:url(":/libui/resource/images/radio-button-unchecked-disable.svg");
+}
+
+QRadioButton:disabled {
+	color: #666666;
+}
+
+PLSRadioButton {
+	border: none;
+	background: transparent;
+	min-height: 20px;
+}
+
+	PLSRadioButton > #plsRadioButton_text {
+		font-size: 14px;
+		font-weight: normal;
+	}
+

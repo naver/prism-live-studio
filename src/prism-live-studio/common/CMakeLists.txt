@@ -1,0 +1,2 @@
+add_subdirectory(libbrowser)
+add_subdirectory(log)

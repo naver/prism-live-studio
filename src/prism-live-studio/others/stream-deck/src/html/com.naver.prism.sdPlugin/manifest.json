@@ -1,0 +1,231 @@
+{
+  "Actions": [
+    {
+      "UUID": "com.naver.streamdeck.pls.mixeraudio",
+      "Icon": "Images/actions/prism-action-allsource",
+      "Name": "Audio Source",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-allaudio-off"
+        },
+        {
+          "Image": "Images/keys/prism-key-allaudio-on"
+        }
+      ],
+      "Tooltip": "Audio Source Mute / Unmute"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.scene",
+      "Icon": "Images/actions/prism-action-scene",
+      "Name": "Scene Transition",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-scene-off"
+        },
+        {
+          "Image": "Images/keys/prism-key-scene"
+        }
+      ],
+      "Tooltip": "Scene Transition"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.source",
+      "Icon": "Images/actions/prism-action-sourceshow",
+      "Name": "Source",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-source-hide"
+        },
+        {
+          "Image": "Images/keys/prism-key-source-show"
+        }
+      ],
+      "Tooltip": "Source Hide / Show"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.record",
+      "Icon": "Images/actions/prism-action-rec",
+      "Name": "Record",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-rec-start",
+          "Name": "Start"
+        },
+        {
+          "Image": "Images/keys/prism-key-rec-finish",
+          "Name": "Stop"
+        },
+        {
+          "Image": "Images/keys/prism-key-rec-start-dimmed",
+          "Name": "Disable"
+        }
+      ],
+      "Tooltip": "Start / End Recording"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.stream",
+      "Icon": "Images/actions/prism-action-live",
+      "Name": "Stream",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-live-start",
+          "Name": "Start"
+        },
+        {
+          "Image": "Images/keys/prism_key_live_finish",
+          "Name": "Stop"
+        },
+        {
+          "Image": "Images/keys/prism-key-live-start-dimmed",
+          "Name": "Disable"
+        }
+      ],
+      "Tooltip": "Start / End Streaming"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.muteall",
+      "Icon": "Images/actions/prism-action-allaudio",
+      "Name": "All Audio",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-audio-off",
+          "Name": "On"
+        },
+        {
+          "Image": "Images/keys/prism-key-allmixer-on",
+          "Name": "Off"
+        }
+      ],
+      "Tooltip": "Mute All Audio / Unmute All Audio"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.studiomode",
+      "Icon": "Images/actions/prism-action-studiomode",
+      "Name": "Studio Mode",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-studiomode-off",
+          "Name": "Off"
+        },
+        {
+          "Image": "Images/keys/prism-key-studiomode-on",
+          "Name": "On"
+        }
+      ],
+      "Tooltip": "Studio Mode On / Off"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.toastmessage",
+      "Icon": "Images/actions/prism-action-alert",
+      "Name": "Alert",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-alert"
+        },
+        {
+          "Image": "Images/keys/prism-key-alert-red"
+        }
+      ],
+      "Tooltip": "Alert"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.sidewindow",
+      "Icon": "Images/actions/prism-action-sidebar",
+      "Name": "Side-bar Menu",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-sidebar-close"
+        },
+        {
+          "Image": "Images/keys/prism-keysidebar-on"
+        }
+      ],
+      "Tooltip": "Side-bar Menu On / Off"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.cpuusage",
+      "Icon": "Images/actions/prism-action-cpu",
+      "Name": "CPU",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-cpu",
+          "TitleAlignment": "middle",
+          "Name": "On",
+          "FontSize": "10",
+          "FontStyle": "bold",
+          "TitleColor": "black",
+          "FontFamily": "Tahoma",
+          "Title": "0%"
+        }
+      ],
+      "Tooltip": "CPU"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.framedrop",
+      "Icon": "Images/actions/prism-action-cpu",
+      "Name": "Frame Drop",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-cpu",
+          "TitleAlignment": "middle",
+          "FontSize": "10",
+          "FontStyle": "bold",
+          "TitleColor": "black",
+          "FontFamily": "Tahoma",
+          "Title": "0%"
+        }
+      ],
+      "Tooltip": "Frame Drop"
+    },
+    {
+      "UUID": "com.naver.streamdeck.pls.bitrate",
+      "Icon": "Images/actions/prism-action-cpu",
+      "Name": "Bitrate",
+      "States": [
+        {
+          "Image": "Images/keys/prism-key-cpu",
+          "TitleAlignment": "middle",
+          "FontSize": "9",
+          "FontStyle": "bold",
+          "TitleColor": "black",
+          "FontFamily": "Tahoma",
+          "Title": "0mb"
+        }
+      ],
+      "Tooltip": "Bitrate"
+    }
+  ],
+  "SDKVersion": 2,
+  "Author": "NAVER Corp.",
+  "CodePathWin": "prismPlugin.exe",
+  "CodePathMac": "prismPlugin",
+  "Description": "Control the prism live studio",
+  "PropertyInspectorPath": "propertyinspector/index_pi.html",
+  "Name": "PRISM Live Studio",
+  "Category": "PRISM Live Studio",
+  "CategoryIcon": "Images/icons/prism-category",
+  "Icon": "Images/icons/plugin",
+  "URL": "https://prismlive.com/ko_kr/pcapp/",
+  "Version": "1.2",
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
+    },
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12.6"
+    }
+  ],
+  "Software": {
+    "MinimumVersion": "4.1"
+  },
+  "ApplicationsToMonitor": {
+    "windows": [
+      "PRISMLiveStudio.exe"
+    ],
+    "mac": [
+      "PRISMLiveStudio"
+    ]
+  }
+}

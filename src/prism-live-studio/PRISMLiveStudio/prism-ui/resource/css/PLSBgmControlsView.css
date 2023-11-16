@@ -1,0 +1,198 @@
+PLSBgmControlsView #preBtn, PLSBgmControlsView #playBtn,
+PLSBgmControlsView #nextBtn, PLSBgmControlsView #loopBtn {
+	min-width: /*hdpi*/ 30px;
+	max-width: /*hdpi*/ 30px;
+	min-height: /*hdpi*/ 30px;
+	max-height: /*hdpi*/ 30px;
+	padding: -1px 0px 0px 0px;
+	margin: 0px;
+	background-color: #444444;
+	border-radius: /*hdpi*/ 3px;
+}
+
+PLSBgmControlsView #preBtn:hover, PLSBgmControlsView #playBtn:hover,
+PLSBgmControlsView #nextBtn:hover, PLSBgmControlsView #loopBtn:hover {
+	background-color: #555555;
+}
+
+PLSBgmControlsView #preBtn:pressed, PLSBgmControlsView #playBtn:pressed,
+PLSBgmControlsView #nextBtn:pressed, PLSBgmControlsView #loopBtn:pressed {
+	background-color: #2d2d2d;
+}
+
+PLSBgmControlsView #preBtn:disabled, PLSBgmControlsView #playBtn:disabled,
+PLSBgmControlsView #nextBtn:disabled, PLSBgmControlsView #loopBtn:disabled {
+	background-color: #444444;
+}
+
+
+/* play button */
+PLSBgmControlsView #playBtn, PLSBgmControlsView #playBtn[status=disable]{
+	image:url(":/resource/images/toolbar/ic-toolbar-play-disable.svg");	
+}
+
+PLSBgmControlsView #playBtn[state=play]{
+	image:url(":/resource/images/toolbar/ic-toolbar-play-normal.svg");	
+}
+
+PLSBgmControlsView #playBtn[state=play]:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-play-over.svg");	
+}
+
+PLSBgmControlsView #playBtn[state=play]:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-play-over.svg");	
+}
+
+PLSBgmControlsView #playBtn[state=play]:!enable{
+	image:url(":/resource/images/toolbar/ic-toolbar-play-disable.svg");	
+}
+
+PLSBgmControlsView #playBtn[state=play][status=disable]{
+	image:url(":/resource/images/toolbar/ic-toolbar-play-disable.svg");	
+}
+
+PLSBgmControlsView #playBtn[state=pause][status=disable]{
+	image:url(":/resource/images/toolbar/ic-toolbar-pause-disable.svg");	
+}
+
+PLSBgmControlsView #playBtn[state=pause]{
+	image:url(":/resource/images/toolbar/ic-toolbar-pause-normal.svg");	
+}
+
+PLSBgmControlsView #playBtn[state=pause]:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-pause-over.svg");	
+}
+
+PLSBgmControlsView #playBtn[state=pause]:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-pause-over.svg");	
+}
+
+PLSBgmControlsView #playBtn[state=pause]:!enable{
+	image:url(":/resource/images/toolbar/ic-toolbar-pause-disable.svg");	
+}
+
+/* pre button */
+PLSBgmControlsView #preBtn {
+	image: url(":/resource/images/toolbar/ic-toolbar-player-previous-normal.svg");
+}
+
+PLSBgmControlsView #preBtn:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-player-previous-over.svg");	
+}
+
+PLSBgmControlsView #preBtn:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-player-previous-over.svg");	
+}
+
+PLSBgmControlsView #preBtn:!enable, PLSBgmControlsView #preBtn[status=disable]{
+	image:url(":/resource/images/toolbar/ic-toolbar-player-previous-disable.svg");	
+}
+
+/* next button */
+PLSBgmControlsView #nextBtn {
+	image: url(":/resource/images/toolbar/ic-toolbar-player-next-normal.svg");
+}
+
+PLSBgmControlsView #nextBtn:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-player-next-over.svg");	
+}
+
+PLSBgmControlsView #nextBtn:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-player-next-over.svg");	
+}
+
+PLSBgmControlsView #nextBtn:!enable, PLSBgmControlsView #nextBtn[status=disable]{
+	image:url(":/resource/images/toolbar/ic-toolbar-player-next-disable.svg");	
+}
+
+/* loop button */
+PLSBgmControlsView #loopBtn:indicator{
+	width: 0px;
+	height: 0px;
+}
+
+PLSBgmControlsView #loopBtn, PLSBgmControlsView #loopBtn[pressed=false]{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-normal.svg");	
+}
+
+PLSBgmControlsView #loopBtn:hover, PLSBgmControlsView #loopBtn[pressed=false]:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-over.svg");	
+}
+
+PLSBgmControlsView #loopBtn:pressed, PLSBgmControlsView #loopBtn[pressed=false]:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-over.svg");	
+}
+
+PLSBgmControlsView #loopBtn:!enable, PLSBgmControlsView #loopBtn[pressed=false]:!enable{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-disable.svg");	
+}
+
+PLSBgmControlsView #loopBtn[status=disable][pressed=true]{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-disable.svg");	
+}
+
+PLSBgmControlsView #loopBtn[status=disable][pressed=false],
+PLSBgmControlsView #loopBtn[status=disable]{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-disable.svg");	
+}
+
+PLSBgmControlsView #loopBtn[pressed=true]{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-normal.svg");	
+}
+
+PLSBgmControlsView #loopBtn[pressed=true]:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-over.svg");	
+}
+
+PLSBgmControlsView #loopBtn[pressed=true]:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-over.svg");	
+}
+
+PLSBgmControlsView #loopBtn[pressed=true]:!enable{
+	image:url(":/resource/images/toolbar/ic-toolbar-repeat-select-disable.svg");	
+}
+
+PLSBgmControlsView #playingSlider[enter="false"]:handle:horizontal {
+	height: /*hdpi*/ 0px;
+	width: /*hdpi*/ 0px;
+	image: none;
+	margin-top: /*hdpi*/ 0px;
+	margin-left: -1px;
+	margin-bottom: /*hdpi*/ 0px;
+	margin-right: 1px;
+}
+
+PLSBgmControlsView #playingSlider::handle:horizontal[enter="true"] {
+	border-image: url(":/resource/images/img-handle-over.svg");
+	width: /*hdpi*/ 12px;
+	margin: /*hdpi*/ -4px /*hdpi*/ 0px /*hdpi*/ -4px /*hdpi*/ 0px;
+}
+
+PLSBgmControlsView #playingSlider:sub-page:horizontal {
+	border-radius: /*hdpi*/ 2px;
+	background-color: #effc35;
+}
+
+PLSBgmControlsView #playingSlider:groove:horizontal {
+	border-radius: /*hdpi*/ 2px;
+	height: /*hdpi*/ 4px;
+	background-color: #555555;
+}
+
+PLSBgmControlsView #currentTimeLabel, PLSBgmControlsView #durationLabel, PLSBgmControlsView #timeLabel {
+	font-size: /*hdpi*/ 12px;
+	color: #bababa;
+}
+
+PLSBgmControlsView #currentTimeLabel, PLSBgmControlsView #durationLabel, PLSBgmControlsView #timeLabel {
+	min-height: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+}
+
+PLSBgmControlsView #currentTimeLabel[playing=true]{
+	color: #effc35;
+}
+
+PLSBgmControlsView #currentTimeLabel[playing=false]{
+	color: #bababa;
+}

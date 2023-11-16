@@ -1,0 +1,165 @@
+OBSRemux {
+    min-width: /*hdpi*/ 848px;
+    max-width: /*hdpi*/ 848px;
+    min-height: /*hdpi*/ 531px;
+    max-height: /*hdpi*/ 531px;
+    background-color: #272727;
+}
+
+OBSRemux QTableView{
+    border: none;
+    gridline-color: transparent; 
+    margin-top: /*hdpi*/20px;
+    margin-left: /*hdpi*/ 20px;
+    margin-right: /*hdpi*/ 18px;
+}
+
+OBSRemux QTableView QHeaderView::section{
+    border: none;
+    background-color: #272727;
+    font-size: /*hdpi*/ 12px;
+    color: #bababa;
+    text-align: center;
+    border-radius: none;
+}
+
+OBSRemux QTableView::item{
+   background-color: #1e1e1e;
+   margin: 0;
+   padding: 0;
+   margin-bottom: /*hdpi*/ 10px;
+   margin-right: /*hdpi*/ 2px;
+   min-height:/*hdpi*/ 40px;
+   max-height:/*hdpi*/ 40px;
+}
+
+OBSRemux #container{
+    background-color: #272727;
+    min-height:/*hdpi*/ 40px;
+    max-height:/*hdpi*/ 40px;
+}
+
+OBSRemux #text {
+    border: /*hdpi*/ 1px solid #1e1e1e;
+    background-color: #1e1e1e;
+    border-radius: none;
+    font-size: /*hdpi*/ 14px;
+    padding-left:/*hdpi*/ 12px;
+    min-height:/*hdpi*/ 38px;
+	max-height:/*hdpi*/ 38px;
+}
+
+OBSRemux #text:focus{
+    border: /*hdpi*/ 1px solid #effc35;
+    border-radius: /*hdpi*/ 3px;
+} 
+
+OBSRemux #text[For="SelectPath"]{
+    background-color: #1e1e1e;
+}
+
+OBSRemux #browseButton {
+    border: none;
+    min-width: /*hdpi*/ 28px;
+    max-width: /*hdpi*/ 28px;
+    min-height: /*hdpi*/ 28px;
+    max-height: /*hdpi*/ 28px;
+    background: #1e1e1e;
+    padding: /*hdpi*/6px;
+    margin: 0;
+}
+
+OBSRemux #browseButton {
+    image: url(":/resource/images/ic_browse_normal.svg");
+}
+
+OBSRemux #browseButton:hover {
+    image: url(":/resource/images/ic_browse_over.svg");
+}
+
+OBSRemux #browseButton:pressed {
+    image: url(":/resource/images/ic_browse_click.svg");
+}
+
+OBSRemux #browseButton:disabled {
+    image: url(":/resource/images/ic_browse_disable.svg");
+}
+
+OBSRemux #clearButton {
+    min-width: /*hdpi*/ 28px;
+    max-width: /*hdpi*/ 28px;
+    min-height: /*hdpi*/ 28px;
+    max-height: /*hdpi*/ 28px;
+    background: #1e1e1e;
+    padding: /*hdpi*/6px;
+    margin: 0;
+    image: url(":/resource/images/ic_trash_normal.svg");
+}
+
+OBSRemux #clearButton:hover {
+	image: url(":/resource/images/ic_trash_over.svg");
+}
+
+OBSRemux #clearButton:pressed {
+	image: url(":/resource/images/ic_trash_click.svg");
+}
+
+OBSRemux #clearButton:disabled {
+	image: url(":/resource/images/ic_trash_disable.svg");
+}
+
+OBSRemux PLSDialogButtonBox QPushButton[useFor="Ok"],
+OBSRemux PLSDialogButtonBox QPushButton[useFor="Close"] {
+    min-width: /*hdpi*/ 128px;
+    max-width: /*hdpi*/ 128px;
+    padding: 0;
+    margin: 0;
+}
+
+OBSRemux PLSDialogButtonBox QPushButton[useFor="Reset"] {
+    min-width: /*hdpi*/ 158px;
+    max-width: /*hdpi*/ 158px;
+    padding: 0;
+    margin: 0;
+}
+
+OBSRemux PLSDialogButtonBox QPushButton[useFor="RestoreDefaults"] {
+    min-width: /*hdpi*/ 138px;
+    max-width: /*hdpi*/ 138px;
+    padding: 0;
+    margin: 0;
+}
+
+OBSRemux #progressLabel, OBSRemux #progressSlider{
+    margin-left: /*hdpi*/ 30px;
+    margin-right: /*hdpi*/ 30px;
+}
+
+OBSRemux #prismLabel, OBSRemux #remuxLabel {
+    color: #bababa;
+    font-size: /*hdpi*/ 12px;
+    background-color: transparent;
+}
+
+OBSRemux #titleWidget {
+    min-height: /*hdpi*/ 40px;
+    max-height: /*hdpi*/ 40px;
+}
+
+OBSRemux #lineLabel {
+    min-height: /*hdpi*/ 1px;
+    max-height: /*hdpi*/ 1px;
+    background-color: #343435;
+}
+
+OBSRemux #bottomLabel{
+    min-height: /*hdpi*/ 1px;
+    max-height: /*hdpi*/ 1px;
+    background-color: #151515;
+}
+
+OBSRemux #buttonBox {
+    min-height: /*hdpi*/ 79px;
+    max-height: /*hdpi*/ 79px;
+    border-top: /*hdpi*/ 1px solid #151515;
+}

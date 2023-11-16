@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ColorSelectNew</class>
+ <widget class="QFrame" name="ColorSelectNew">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>463</width>
+    <height>292</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">ColorSelect QPushButton[bgColor=&quot;1&quot;]{
+	background-color: #9e3737;
+}
+
+ColorSelect QPushButton[bgColor=&quot;2&quot;]{
+	background-color: #9e9e37;
+}
+
+ColorSelect QPushButton[bgColor=&quot;3&quot;]{
+	background-color: #379e37;
+}
+
+ColorSelect QPushButton[bgColor=&quot;4&quot;]{
+	background-color: #6fd96f;
+}
+
+ColorSelect QPushButton[bgColor=&quot;5&quot;]{
+	background-color: #379e9e;
+}
+
+ColorSelect QPushButton[bgColor=&quot;6&quot;]{
+	background-color: #37379e;
+}
+
+ColorSelect QPushButton[bgColor=&quot;7&quot;]{
+	background-color: #373737;
+}
+
+ColorSelect QPushButton[bgColor=&quot;8&quot;]{
+	background-color: #63676f;
+}
+</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>0</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QFrame" name="recentColorWidget">
+     <property name="styleSheet">
+      <string notr="true"/>
+     </property>
+     <layout class="QHBoxLayout" name="recentWidgetLayout">
+      <property name="spacing">
+       <number>3</number>
+      </property>
+      <property name="leftMargin">
+       <number>15</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>16</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="presetFrame">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <property name="spacing">
+       <number>3</number>
+      </property>
+      <property name="leftMargin">
+       <number>15</number>
+      </property>
+      <property name="topMargin">
+       <number>9</number>
+      </property>
+      <property name="rightMargin">
+       <number>16</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources>
+  <include location="pls.qrc"/>
+ </resources>
+ <connections/>
+</ui>

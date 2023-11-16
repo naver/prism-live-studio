@@ -1,0 +1,17 @@
+OBSBasicVCamConfig{
+    background-color: #272727;
+    min-width: 400px;
+    max-width: 400px;
+    min-height: 250px;
+    max-height: 250px;
+}
+OBSBasicVCamConfig #buttonBox QPushButton{
+    min-width: 128px;
+    max-width: 128px;
+    min-height: 40px;
+    max-height: 40px;
+    padding: 0;
+    margin-right: 30px;
+    margin-top: 10px;
+    margin-bottom: 0px;
+}

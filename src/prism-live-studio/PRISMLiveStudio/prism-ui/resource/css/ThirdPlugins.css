@@ -1,0 +1,394 @@
+ConnectInfo#ConnectInfo,
+#DownstreamKeyerDock,
+#CaptionsDialog,
+#Output,
+#OutputSettings,
+#Adv-ss-dock,
+SceneNotesDock > QWidget,
+NameDialog,
+CanvasDock > #contextContainer,
+CanvasTransitionsDock > #contextContainer,
+OBSBasicSettings,
+UpdateDialog,
+#io_config_dialog,
+#push-widget,
+#obs-multi-rtmp-dock,
+#AdvSceneSwitcher,
+#push-widget QDialog,
+#AdvSceneSwitcher QDialog,
+#io_config_dialog QDialog,
+QMessageBox,
+#io_config_dialog #tabs,
+#AdvSceneSwitcher #generalTab #scrollAreaWidgetContents {
+    background-color: #272727;
+    color: white;
+}
+#formLayoutWidget QLineEdit {
+    padding-top: 0;
+    padding-bottom: 0;
+    min-height: 35px;
+    max-height: 35px;
+    margin: 0;
+}
+
+#formLayoutWidget QPushButton {
+    min-height: 35px;
+    max-height: 35px;
+}
+
+#Output QPushButton,
+#scenesToolbar QPushButton,
+#push-widget QPushButton,
+#obs-multi-rtmp-dock QPushButton,
+#SettingsDialog QPushButton,
+#AdvSceneSwitcher QPushButton,
+#io_config_dialog QPushButton,
+QMessageBox QPushButton {
+    min-width: 80px;
+    max-width: 99999px;
+    min-height: 30px;
+    max-height: 30px;
+    margin: 5px;
+    padding: 5px;
+}
+
+#push-widget QPushButton[flat="true"] ,
+#AdvSceneSwitcher QPushButton[flat="true"] ,
+#io_config_dialog QPushButton[flat="true"]{
+    margin: 0;
+    padding: 0;
+    min-width: 22px;
+    min-height: 22px;
+    max-width: 22px;
+    max-height: 22px;
+    background-color: transparent;
+}
+#Adv-ss-dock  QToolButton
+{
+    margin: 0;
+    padding: 0;
+    min-width: 40px;
+    min-height: 40px;
+    max-width: 40px;
+    max-height: 40px;
+	background-color: #444444;
+	border-radius:/*hdpi*/ 3px;
+}
+#Adv-ss-dock  QToolButton:hover
+{
+    background-color:#555555;
+}
+#Adv-ss-dock  QToolButton:pressed {
+    background-color: #2d2d2d;
+}
+
+#AdvSceneSwitcher QSplitter::handle {
+    background-color: #1E1E1F;
+}
+
+#AdvSceneSwitcher QListView,
+#AdvSceneSwitcher QListWidget {
+    background-color: #1E1E1F;
+}
+
+#AdvSceneSwitcher QTabBar::tab,
+#io_config_dialog QTabBar::tab {
+    background-color: rgb(31,30,31);
+}
+
+    #AdvSceneSwitcher QTabBar::tab:selected,
+    #io_config_dialog QTabBar::tab:selected {
+        background-color: rgb(76,76,76);
+    }
+
+    #AdvSceneSwitcher QTabBar::tab:hover,
+    #io_config_dialog QTabBar::tab:hover {
+        background-color: rgb(122,121,122);
+    }
+
+    #AdvSceneSwitcher QTabBar::tab:pressed,
+    #io_config_dialog QTabBar::tab:pressed {
+        background-color: rgb(31,30,31);
+    }
+
+AudioOutputControl, AudioOutputControl VolumeMeter, AudioControl, AudioControl VolumeMeter {
+    background-color: #272727;
+}
+
+#AudioMonitorDock #stackedMixerArea QScrollArea {
+    border: none;
+}
+
+    #AudioMonitorDock #stackedMixerArea QScrollArea #qt_scrollarea_viewport > QWidget {
+        background-color: #272727;
+    }
+
+        #AudioMonitorDock #stackedMixerArea QScrollArea #qt_scrollarea_viewport > QWidget QLabel {
+            color: white;
+        }
+
+#AdvSceneSwitcher #macroConditions QScrollArea #qt_scrollarea_viewport > QWidget {
+    background-color: #1E1E1F;
+}
+
+    #AdvSceneSwitcher #macroConditions QScrollArea #qt_scrollarea_viewport > QWidget QLabel {
+        color: white;
+    }
+
+#AdvSceneSwitcher #macroActions QScrollArea #qt_scrollarea_viewport > QWidget {
+    background-color: #1E1E1F;
+}
+
+    #AdvSceneSwitcher #macroActions QScrollArea #qt_scrollarea_viewport > QWidget QLabel {
+        color: white;
+    }
+
+#obs-multi-rtmp-dock QScrollArea #qt_scrollarea_viewport > QWidget {
+    background-color: #1E1E1F;
+}
+
+    #obs-multi-rtmp-dock QScrollArea #qt_scrollarea_viewport > QWidget QLabel {
+        color: white;
+    }
+
+UpdateDialog QScrollArea #qt_scrollarea_viewport > QWidget {
+    background-color: #1E1E1F;
+}
+
+    UpdateDialog QScrollArea #qt_scrollarea_viewport > QWidget QLabel {
+        color: white;
+    }
+
+OBSBasicSettings QScrollArea #qt_scrollarea_viewport > QWidget {
+    background-color: #272727;
+}
+
+    OBSBasicSettings QScrollArea #qt_scrollarea_viewport > QWidget QLabel {
+        color: white;
+    }
+
+#Output QScrollArea #qt_scrollarea_viewport #PropertiesContainer {
+    background-color: #1E1E1F;
+}
+
+#Output QScrollArea #qt_scrollarea_viewport #PropertiesContainert QLabel {
+    color: white;
+}
+
+#io_config_dialog {
+    min-height: 720px;
+}
+
+#SettingsDialog {
+    min-height: 620px;
+    min-width: 650px;
+}
+
+#obs-multi-rtmp-dock {
+    min-width: 255px;
+}
+
+QDockWidget::title {
+    background-color: #272727;
+}
+
+CanvasSourcesDock #contextContainer SourceTree,
+CanvasScenesDock #contextContainer QListWidget {
+    background-color: #272727;
+}
+
+    CanvasSourcesDock #contextContainer SourceTree::item:pressed {
+        background-color: #2d2d2d;
+    }
+
+    CanvasSourcesDock #contextContainer SourceTree::item:hover {
+        background-color: #444444;
+    }
+
+    CanvasSourcesDock #contextContainer SourceTree QLabel {
+        min-height: /*hdpi*/ 30px;
+        max-height: /*hdpi*/ 30px;
+        background: none;
+    }
+
+    CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:unchecked {
+        image: url(":/resource/images/icon-source-view-off-normal.svg");
+    }
+
+        CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:unchecked:hover {
+            image: url(":/resource/images/icon-source-view-off-over.svg");
+        }
+
+        CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:unchecked:pressed {
+            image: url(":/resource/images/icon-source-view-off-click.svg");
+        }
+
+    CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:checked {
+        image: url(":/resource/images/ic-source-view-normal.svg");
+    }
+
+        CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:checked:hover {
+            image: url(":/resource/images/ic-source-view-over.svg");
+        }
+
+        CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:checked:pressed {
+            image: url(":/resource/images/ic-source-view-click.svg");
+        }
+
+    CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:unchecked {
+        image: url(":/resource/images/ic-source-unlock-normal.svg");
+    }
+
+        CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:unchecked:hover {
+            image: url(":/resource/images/ic-source-unlock-over.svg");
+        }
+
+        CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:unchecked:pressed {
+            image: url(":/resource/images/ic-source-unlock-click.svg");
+        }
+
+    CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:checked {
+        image: url(":/resource/images/ic-source-lock-normal.svg");
+    }
+
+        CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:checked:hover {
+            image: url(":/resource/images/ic-source-lock-over.svg");
+        }
+
+        CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:checked:pressed {
+            image: url(":/resource/images/ic-source-lock-click.svg");
+        }
+
+    CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator,
+    CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator {
+        min-width: /*hdpi*/ 22px;
+        max-width: /*hdpi*/ 22px;
+        min-height: /*hdpi*/ 22px;
+        max-height: /*hdpi*/ 22px;
+    }
+
+CanvasDock QPushButton {
+    padding: 0;
+    margin: 0;
+    min-width: /*hdpi*/ 44px;
+    max-width: /*hdpi*/ 44px;
+    min-height: /*hdpi*/ 30px;
+    max-height: /*hdpi*/ 30px;
+}
+
+AudioOutputControl > MuteCheckBox, AudioControl > MuteCheckBox {
+    outline: none;
+    qproperty-minimumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
+    qproperty-maximumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
+}
+
+    AudioOutputControl > MuteCheckBox::indicator, AudioControl > MuteCheckBox::indicator,
+    AudioOutputControl > LockedCheckBox::indicator, AudioControl > LockedCheckBox::indicator {
+        width: /*hdpi*/ 22px;
+        height: /*hdpi*/ 22px;
+    }
+
+        AudioOutputControl > MuteCheckBox::indicator:checked, AudioControl > MuteCheckBox::indicator:checked,
+        AudioOutputControl > MuteCheckBox::indicator:checked:disabled, AudioControl > MuteCheckBox::indicator:checked:disabled {
+            image: url(":/resource/images/audio-mixer/sound/sound-off-normal.svg");
+        }
+
+        AudioOutputControl > MuteCheckBox::indicator:checked:hover, AudioControl > MuteCheckBox::indicator:checked:hover {
+            image: url(":/resource/images/audio-mixer/sound/sound-off-over.svg");
+        }
+
+        AudioOutputControl > MuteCheckBox::indicator:checked:pressed, AudioControl > MuteCheckBox::indicator:checked:pressed {
+            image: url(":/resource/images/audio-mixer/sound/sound-off-click.svg");
+        }
+
+        AudioOutputControl > MuteCheckBox::indicator:unchecked, AudioControl > MuteCheckBox::indicator:unchecked,
+        AudioOutputControl > MuteCheckBox::indicator:unchecked:disabled, AudioControl > MuteCheckBox::indicator:unchecked:disabled {
+            image: url(":/resource/images/audio-mixer/sound/sound-on-normal.svg");
+        }
+
+        AudioOutputControl > MuteCheckBox::indicator:unchecked:hover, AudioControl > MuteCheckBox::indicator:unchecked:hover {
+            image: url(":/resource/images/audio-mixer/sound/sound-on-over.svg");
+        }
+
+AudioOutputControl > LockedCheckBox, AudioControl > LockedCheckBox {
+    outline: none;
+    background: transparent;
+    min-width: /*hdpi*/ 22px;
+    max-width: /*hdpi*/ 22px;
+    min-height: /*hdpi*/ 22px;
+    max-height: /*hdpi*/ 22px;
+}
+
+    AudioOutputControl > LockedCheckBox::indicator:unchecked, AudioControl > LockedCheckBox::indicator:unchecked,
+    AudioOutputControl > LockedCheckBox::indicator:unchecked:disabled, AudioControl > LockedCheckBox::indicator:unchecked:disabled {
+        image: url(":/resource/images/ic-source-unlock-normal.svg");
+    }
+
+        AudioOutputControl > LockedCheckBox::indicator:unchecked:hover, AudioControl > LockedCheckBox::indicator:unchecked:hover {
+            image: url(":/resource/images/ic-source-unlock-over.svg");
+        }
+
+        AudioOutputControl > LockedCheckBox::indicator:unchecked:pressed, AudioControl > LockedCheckBox::indicator:unchecked:pressed {
+            image: url(":/resource/images/ic-source-unlock-click.svg");
+        }
+
+    AudioOutputControl > LockedCheckBox::indicator:checked, AudioControl > LockedCheckBox::indicator:checked,
+    AudioOutputControl > LockedCheckBox::indicator:checked:disabled, AudioControl > LockedCheckBox::indicator:checked:disabled {
+        image: url(":/resource/images/ic-source-lock-normal.svg");
+    }
+
+        AudioOutputControl > LockedCheckBox::indicator:checked:hover, AudioControl > LockedCheckBox::indicator:checked:hover {
+            image: url(":/resource/images/ic-source-lock-over.svg");
+        }
+
+    AudioOutputControl > LockedCheckBox::indicator:checked:pressed, AudioControl > LockedCheckBox::indicator:checked:pressed {
+        image: url(":/resource/images/ic-source-lock-click.svg");
+    }
+
+DownstreamKeyer #scenesToolbar [themeID="addIconSmall"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/plus.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="removeIconSmall"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/minus.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="clearIconSmall"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/entry-clear.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="propertiesIconSmall"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/settings/general.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="configIconSmall"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/settings/general.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="refreshIconSmall"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/refresh.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="upArrowIconSmall"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/up.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="downArrowIconSmall"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/down.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="pauseIconSmall"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/media-pause.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="menuIconSmall"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/dots-vert.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="cogsIcon"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/cogs.svg);
+}
+
+DownstreamKeyer #scenesToolbar [themeID="filtersIcon"] {
+    qproperty-icon: url(:/obs/Dark/resource/images/Dark/filter.svg);
+}

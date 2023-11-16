@@ -1,0 +1,442 @@
+PLSLaunchWizardView {
+    qproperty-hasHLine: /*hdpi*/ false;
+    qproperty-isMoveInContent: /*hdpi*/ true;
+    qproperty-captionHeight: /*hdpi*/ 30;
+    qproperty-closeButtonMarginRight: /*hdpi*/ 10;
+    qproperty-captionButtonMargin: /*hdpi*/ 10;
+    margin: /*hdpi*/ 0px;
+    padding: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+    background-color: #1e1e1f;
+    border: none;
+}
+
+
+#PLSLaunchWizardView[type="normal"] {
+    max-height: /*hdpi*/ 660px;
+}
+
+#PLSLaunchWizardView[type="alert"] {
+    max-height: /*hdpi*/ 774px;
+}
+
+
+#PLSLaunchWizardView #contentScroll {
+    background-color: #1e1e1f;
+    border: none;
+    margin: 0px;
+    padding: 0px;
+    max-width: /*hdpi*/ 648px;
+    min-width: /*hdpi*/ 648px;
+}
+
+#PLSLaunchWizardView > #plsDialogViewBorderFrame > #titleBar {
+    background-color: transparent;
+    max-height: /*hdpi*/ 20px;
+    min-height: /*hdpi*/ 20px;
+    padding-top: /*hdpi*/ 10px;
+    border: none;
+    /*border: 1px solid red;*/
+}
+
+    #PLSLaunchWizardView > #plsDialogViewBorderFrame > #titleBar #titleLabel,
+    #PLSLaunchWizardView > #plsDialogViewBorderFrame > #titleBar #min,
+    #PLSLaunchWizardView > #plsDialogViewBorderFrame > #titleBar #maxres,
+    #PLSLaunchWizardView > #plsDialogViewBorderFrame > #titleBar #close {
+        background-color: #1e1e1f;
+        color: transparent;
+        border: none;
+    }
+
+    #PLSLaunchWizardView > #plsDialogViewBorderFrame > #titleBar #min {
+        margin-right: /*hdpi*/ 0px;
+    }
+
+#PLSLaunchWizardView #userThumbnailLabel {
+    min-width: /*hdpi*/ 50px;
+    min-height: /*hdpi*/ 50px;
+    max-width: /*hdpi*/ 50px;
+    max-height: /*hdpi*/ 50px;
+    background-color: transparent;
+    /*border: 1px solid red;*/
+    color: transparent;
+    margin-bottom: 10px;
+}
+
+PLSLaunchWizardView #nickNameLabel {
+    padding: 0px;
+    margin: 0px;
+    min-width: /*hdpi*/ 50px;
+    background-color: transparent;
+    font-size: /*hdpi*/ 16px;
+    font-weight: bold;
+    font-style: normal;
+    color: white;
+    margin-bottom: 27px;
+    border: none;
+}
+
+
+PLSLaunchWizardView #wizardScrollArea {
+    border: none;
+    background-color: transparent;
+    margin: 0px;
+    padding: 0px;
+    min-height: /*hdpi*/ 0px;
+}
+
+    PLSLaunchWizardView #wizardScrollArea QScrollBar:vertical {
+        background-color: #1e1e1f;
+        max-height: /*hdpi*/ 294px;
+        min-width: /*hdpi*/ 10px;
+        max-width: /*hdpi*/ 10px;
+    }
+
+PLSLaunchWizardView #scrollAreaWidgetContents, PLSLaunchWizardView #contentScrollWidgetContents {
+    border: none;
+    background-color: transparent;
+}
+
+
+PLSLaunchWizardView #stackedWidget {
+    border: none;
+    background-color: transparent;
+    min-width: /*hdpi*/ 570px;
+    min-height: /*hdpi*/ 210px;
+    max-width: /*hdpi*/ 570px;
+    max-height: /*hdpi*/ 210px;
+    /*border: 1px solid red;*/
+}
+
+PLSLaunchWizardView #bannerScrollArea {
+    border: none;
+    background-color: transparent;
+    margin: 0px;
+    padding: 0px;
+}
+
+PLSLaunchWizardView #bannerContentLabel {
+    min-width: /*hdpi*/ 570px;
+    min-height: /*hdpi*/ 210px;
+    max-width: /*hdpi*/ 570px;
+    max-height: /*hdpi*/ 210px;
+}
+
+PLSLaunchWizardView #leftButton,
+PLSLaunchWizardView #rightButton {
+    margin: 0px;
+    padding: 0px;
+    border: none;
+    qproperty-minimumSize: /*hdpi*/ 12px /*hdpi*/ 20px;
+    qproperty-maximumSize: /*hdpi*/ 12px /*hdpi*/ 20px;
+    background-color: transparent;
+}
+
+    PLSLaunchWizardView #leftButton[isOn="false"], PLSLaunchWizardView #rightButton[isOn="false"] {
+        image: none;
+    }
+
+PLSLaunchWizardView #leftButton {
+   
+    image: url(":/resource/images/wizard/ic-pre-normal.svg");
+}
+
+    PLSLaunchWizardView #leftButton:hover {
+        image: url(":/resource/images/wizard/ic-pre-over.svg");
+    }
+
+    PLSLaunchWizardView #leftButton:pressed {
+        image: url(":/resource/images/wizard/ic-pre-click.svg");
+    }
+
+    PLSLaunchWizardView #leftButton[isOn="true"]:disabled {
+        image: url(":/resource/images/wizard/ic-pre-disable.svg");
+    }
+
+PLSLaunchWizardView #rightButton {
+    
+    image: url(":/resource/images/wizard/ic-next-normal.svg");
+}
+
+    PLSLaunchWizardView #rightButton:hover {
+        image: url(":/resource/images/wizard/ic-next-over.svg");
+    }
+
+    PLSLaunchWizardView #rightButton:pressed {
+        image: url(":/resource/images/wizard/ic-next-clik.svg");
+    }
+
+    PLSLaunchWizardView #rightButton[isOn="true"]:disabled {
+        image: url(":/resource/images/wizard/ic-next-disable.svg");
+    }
+
+
+PLSLaunchWizardView #bannerPointFrame {
+    background-color: transparent;
+}
+
+
+
+PLSLaunchWizardView #wizardBannerPointer {
+    min-height: /*hdpi*/ 5px;
+    max-height: /*hdpi*/ 5px;
+    min-width: /*hdpi*/ 5px;
+    max-width: /*hdpi*/ 5px;
+    background-color: transparent;
+    border: none;
+    color: transparent;
+    margin:0px;
+    padding:0px;
+}
+
+    PLSLaunchWizardView #wizardBannerPointer:disabled {
+        image: url(":/resource/images/wizard/ic-dot-disable.svg");
+    }
+
+PLSLaunchWizardView #wizardBannerPointer {
+    image: url(":/resource/images/wizard/ic-dot-active.svg");
+}
+
+PLSLaunchWizardView #bannerFrame {
+    background-color: transparent;
+    border: /*hdpi*/ none;
+    padding: 0px;
+    margin: 0px;
+}
+
+PLSLaunchWizardView #bannerContentLabel {
+    border: none;
+    background-color: black;
+    background-origin: content;
+}
+
+PLSLaunchWizardView #overlay {
+    border: none;
+    background-color: transparent;
+    image: url(":/resource/images/wizard/img-banner-overlay.svg");
+    margin: 0;
+    padding: 0;
+}
+
+PLSLaunchWizardView #InfosFrame {
+    background-color: transparent;
+    padding-top: /*hdpi*/ 17px;
+    margin: /*hdpi*/ 0px /*hdpi*/ 39px /*hdpi*/ 0px /*hdpi*/ 39px;
+}
+
+PLSLaunchWizardView #PLSWizardInfoView {
+    border: /*hdpi*/ 1px solid #272727;
+    background-color: #272727;
+    border-radius: /*hdpi*/ 14px;
+    min-height: /*hdpi*/ 82px;
+    max-height: /*hdpi*/ 102px;
+    min-width: /*hdpi*/ 568px;
+    max-width: /*hdpi*/ 568px;
+    margin: 0px;
+    padding: 0px;
+    margin-top: /*hdpi*/ 1px;
+}
+
+PLSLaunchWizardView #alertView {
+    border: /*hdpi*/ 1px solid #272727;
+    background-color: #272727;
+    border-radius: /*hdpi*/ 14px;
+    min-height: /*hdpi*/ 82px;
+    max-height: /*hdpi*/ 500px;
+    min-width: /*hdpi*/ 568px;
+    max-width: /*hdpi*/ 568px;
+    margin: 0px;
+    padding: 0px;
+}
+
+PLSLaunchWizardView #buttonInfoView {
+    border: /*hdpi*/ 1px solid #272727;
+    background-color: #272727;
+    border-radius: /*hdpi*/ 14px;
+    min-height: /*hdpi*/ 64px;
+    max-height: /*hdpi*/ 64px;
+    min-width: /*hdpi*/ 278px;
+    max-width: /*hdpi*/ 278px;
+    margin: 0px;
+    padding: 0px;
+}
+
+    PLSLaunchWizardView #buttonInfoView:hover {
+        background-color: #373737;
+        border: none;
+    }
+
+    PLSLaunchWizardView #buttonInfoView:pressed {
+        background-color: #373737;
+        border: none;
+    }
+
+PLSWizardInfoView #contentFrame {
+    background-color: transparent;
+    padding: 0px;
+    margin: /*hdpi*/ 23px /*hdpi*/ 0px /*hdpi*/ 24px /*hdpi*/ 0px;
+}
+
+PLSWizardInfoView #infoFrame {
+    border: none;
+    background-color: transparent;
+}
+
+PLSWizardInfoView #refreshBtn {
+    border: none;
+    min-height: /*hdpi*/ 15px;
+    max-height: /*hdpi*/ 15px;
+    max-width: /*hdpi*/ 15px;
+    min-width: /*hdpi*/ 15px;
+    background-color: transparent;
+    image: url(":/resource/images/wizard/ic-reroad-normal.svg");
+    margin-right: /*hdpi*/ 30px;
+    padding:0px;
+}
+
+    PLSWizardInfoView #refreshBtn:hover {
+        image: url(":/resource/images/wizard/ic-reroad-over.svg");
+    }
+
+    PLSWizardInfoView #refreshBtn:disabled {
+        image: url(":/resource/images/wizard/ic-reroad-disable.svg");
+    }
+
+    PLSWizardInfoView #refreshBtn:pressed {
+        image: url(":/resource/images/wizard/ic-reroad-click.svg");
+    }
+
+PLSWizardInfoView #iconLabel {
+    border: none;
+    background-color: transparent;
+    min-height: /*hdpi*/ 30px;
+    max-height: /*hdpi*/ 30px;
+    min-width: /*hdpi*/ 30px;
+    max-width: /*hdpi*/ 30px;
+    padding:0px;
+    margin: /*hdpi*/ 0px /*hdpi*/ 16px /*hdpi*/ 0px /*hdpi*/ 22px;
+}
+
+    PLSWizardInfoView #iconLabel[type="calendar"] {
+        image: url(":/resource/images/wizard/ic-calendar.svg");
+    }
+
+    PLSWizardInfoView #iconLabel[type="alert"] {
+        image: url(":/resource/images/wizard/ic-alert.svg");
+    }
+
+    PLSWizardInfoView #iconLabel[type="blog"] {
+        image: url(":/resource/images/wizard/ic-blog.svg");
+    }
+
+    PLSWizardInfoView #iconLabel[type="que"] {
+        image: url(":/resource/images/wizard/ic-discord.svg");
+    }
+
+
+
+PLSWizardInfoView #infoLabel {
+    min-height: /*hdpi*/ 20px;
+    max-height: /*hdpi*/ 20px;
+    font-size: /*hdpi*/ 14px;
+    color: white;
+    font-weight: normal;
+    background-color: transparent;
+    border: none;
+    min-width: /*hdpi*/ 200px;
+}
+
+PLSLaunchWizardView #alertView #infoLabel {
+    max-height: /*hdpi*/ 1024px;
+    min-width: /*hdpi*/ 466px;
+}
+
+
+PLSWizardInfoView #infoLabel:hover {
+    color: transparent;
+}
+
+PLSWizardInfoView #infoLabel:disabled {
+    color: #666;
+}
+
+PLSWizardInfoView #timeLabel {
+    color: #effc35;
+    font-size: /*hdpi*/ 12px;
+    font-weight: normal;
+    background-color: transparent;
+}
+
+PLSWizardInfoView #pointLabel {
+    background-color: transparent;
+    min-height: /*hdpi*/ 3px;
+    max-height: /*hdpi*/ 3px;
+    min-width: /*hdpi*/ 3px;
+    max-width: /*hdpi*/ 3px;
+    image: url(":/resource/images/wizard/ic-dot.svg");
+}
+
+PLSWizardInfoView #tipLabel {
+    font-size: /*hdpi*/ 12px;
+    font-weight: normal;
+    background-color: transparent;
+    margin-bottom: /*hdpi*/ 1px;
+}
+
+    PLSWizardInfoView #tipLabel[type="normal"] {
+        color: #bababa;
+    }
+
+    PLSWizardInfoView #tipLabel[type="calendar"] {
+        color: #bababa;
+    }
+
+    PLSWizardInfoView #tipLabel[type="alert"] {
+        color: #666;
+    }
+
+PLSWizardInfoView #loading {
+    background-color: transparent;
+    min-height: /*hdpi*/ 20px;
+    min-width: /*hdpi*/ 20px;
+    max-height: /*hdpi*/ 20px;
+    max-width: /*hdpi*/ 20px;
+    margin: /*hdpi*/ 0px /*hdpi*/ 11px /*hdpi*/ 0px /*hdpi*/ 0px;
+    border: none;
+    color: transparent;
+}
+
+PLSLaunchWizardView #wizardFrame {
+    border-top: /*hdpi*/ 1px solid #151515;
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
+    background-color: transparent;
+    padding: /*hdpi*/ 19px /*hdpi*/ 29px /*hdpi*/ 20px /*hdpi*/ 26px;
+}
+
+/* bottom tip*/
+PLSLaunchWizardView #tipsLabel {
+    background-color: transparent;
+    font-size: /*hdpi*/ 12px;
+    font-weight: normal;
+    font-stretch: normal;
+    font-style: normal;
+    color: #bababa;
+    padding: 0px;
+    margin: 0px;
+    margin-right: /*hdpi*/ 50px;
+}
+
+PLSLaunchWizardView #hideButton {
+    min-width: /*hdpi*/ 128px;
+    min-height: /*hdpi*/ 40px;
+    max-width: /*hdpi*/ 128px;
+    max-height: /*hdpi*/ 40px;
+    margin:0;
+    padding:0;
+}
+
+PLSLaunchWizardView #spaceLabel {
+    background-color: transparent;
+    border: none;
+}

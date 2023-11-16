@@ -1,0 +1,38 @@
+
+PLSNewIconActionWidget {
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+}
+
+PLSNewIconActionWidget:hover {
+	background: transparent;
+}
+
+PLSNewIconActionWidget #titleLabel:hover {
+	background: transparent;
+}
+
+PLSNewIconActionWidget[type="mainMenu"]:hover {
+	background: #373737;
+}
+
+PLSNewIconActionWidget[type="mainMenu"] #titleLabel:hover {
+	background: #373737;
+}
+
+PLSNewIconActionWidget #titleLabel {
+	color: white;
+	font-size: /*hdpi*/ 14px;
+	background-color:transparent;
+	padding: 0px;
+}
+
+PLSNewIconActionWidget #badgeNew {
+	image: url(":/resource/images/ic-badge-new.svg");
+	min-width: /*hdpi*/ 34px;
+	min-height: /*hdpi*/ 16px;
+	max-width: /*hdpi*/ 34px;
+	max-height: /*hdpi*/ 16px;
+	background-color: transparent;
+	padding: 0px;
+}

@@ -1,0 +1,16 @@
+#ScriptLogWindow {
+    background-color: #272727;
+    min-height: 600px;
+    min-width: 750px;
+}
+
+    #ScriptLogWindow #content {
+        padding: 25px;
+    }
+
+    #ScriptLogWindow #close {
+        min-width: 128px;
+        max-width: 128px;
+        min-height: 40px;
+        max-height: 40px;
+    }

@@ -1,0 +1,86 @@
+PLSNoticeView {
+	qproperty-hasHLine: false;
+	qproperty-hasMinButton: false;
+	qproperty-hasCloseButton: false;
+	qproperty-isMoveInContent: true;
+	qproperty-hasBorder: false;
+	min-width: 720px;
+	max-width: 720px;
+	min-height: 488px;
+	max-height: 488px;
+	background-color: #1e1e1e;
+}
+
+PLSNoticeView[type="Mac"] {
+	qproperty-hasCaption:/*hdpi*/true;
+}
+
+PLSNoticeView[type="Win"] {
+	qproperty-hasCaption:/*hdpi*/false;
+}
+
+PLSNoticeView #lineView {
+	background-color: #151515;
+	min-height: /*hdpi*/ 1px;
+	max-height: /*hdpi*/ 1px;
+}
+
+PLSNoticeView #middleWidget {
+	background-color:#1e1e1e;
+}
+
+PLSNoticeView #topLabel {
+	color: #effc35;
+	font-size:/*hdpi*/ 20px;
+	font-weight: bold;
+	min-height: /*hdpi*/60px;
+	max-height: /*hdpi*/60px;
+	border:none;
+}
+
+PLSNoticeView #confirmButton {
+	min-width: /*hdpi*/175px;
+	max-width: /*hdpi*/ 175px;
+	min-height:/*hdpi*/ 38px;
+	max-height:/*hdpi*/ 38px;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	border-radius: /*hdpi*/ 3px;
+	padding: 0px;
+	color: white;
+	background-color: #444444;
+}
+
+PLSNoticeView #confirmButton:hover {
+	background-color: #555555;
+}
+
+PLSNoticeView #confirmButton:pressed {
+	background-color:#1e1e1f;
+}
+
+PLSNoticeView #learnMoreButton {
+	min-width: /*hdpi*/175px;
+	max-width: /*hdpi*/ 175px;
+    	min-height:/*hdpi*/ 38px;
+	max-height:/*hdpi*/ 38px;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	border-radius: /*hdpi*/ 3px;
+	padding: 0px;
+	color: white;
+	background-color: #444444;
+}
+
+PLSNoticeView #learnMoreButton:hover {
+	background-color:#555555;
+}
+
+PLSNoticeView #learnMoreButton:pressed {
+	background-color:#1e1e1f;
+}
+
+PLSNoticeView #topWidget {
+	min-height: /*hdpi*/ 246px;
+	max-height: /*hdpi*/ 246px;
+}

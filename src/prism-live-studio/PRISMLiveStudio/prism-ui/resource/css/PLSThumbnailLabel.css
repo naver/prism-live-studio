@@ -1,0 +1,26 @@
+PLSThumbnailLabel {
+	padding: 0;
+	margin: 0;
+	qproperty-loadingIconSize: /*hdpi*/ 24px /*hdpi*/ 24px;
+	qproperty-radio: 0.75;
+	min-width: /*hdpi*/ 80px;
+	max-width: /*hdpi*/ 80px;
+	min-height: /*hdpi*/ 80px;
+	max-height: /*hdpi*/ 80px;
+	border-radius: /*hdpi*/ 3px;
+	background: transparent;
+}
+
+PLSThumbnailLabel [useDefault=true]{
+	image: none;
+}
+
+PLSThumbnailLabel #thunbnailLabelBorder{
+    border-radius: /*hdpi*/ 3px;
+    background: transparent;
+    border:none;
+}
+
+PLSThumbnailLabel #thunbnailLabelBorder[select=true]{
+    border: /*hdpi*/ 2px solid #effc35;
+}

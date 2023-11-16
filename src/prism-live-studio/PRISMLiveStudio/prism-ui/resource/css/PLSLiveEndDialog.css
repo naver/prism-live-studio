@@ -1,0 +1,298 @@
+
+PLSLiveEndDialog * {
+	margin:/*hdpi*/0px;
+	padding:/*hdpi*/0px;
+	border-radius:/*hdpi*/ 0px;
+}
+
+
+PLSLiveEndDialog #content{
+	min-height:/*hdpi*/ 100px;
+	max-height:/*hdpi*/ 1500px;
+}
+
+
+PLSLiveEndDialog QToolTip{
+	padding:/*hdpi*/5px;
+}
+
+PLSLiveEndDialog .QScrollArea{
+	border:/*hdpi*/ none;
+}
+
+PLSLiveEndDialog{
+	border-radius:/*hdpi*/ 6px;
+/*	qproperty-contentBkgColor: #272727;*/
+}
+
+PLSLiveEndDialog #topWidget {
+	max-height:/*hdpi*/ 58px;
+	min-height:/*hdpi*/ 58px;
+	background: transparent;
+}
+
+PLSLiveEndDialog #topWidget #titleLabel {
+	font-size:/*hdpi*/ 20px;
+	max-height:/*hdpi*/ 120px;
+	font-weight: bold;
+	color: #f1fd56;
+	background: transparent;
+}
+
+
+PLSLiveEndDialog #Rehearsalwidget #rehearsalLabel {
+	font-size:/*hdpi*/ 12px;
+	color: #cccccc;
+	background: transparent;
+}
+
+PLSLiveEndDialog #channelScroll {
+	border-radius:/*hdpi*/ 3px;
+	margin:/*hdpi*/0px/*hdpi*/0px/*hdpi*/0px/*hdpi*/0px;
+	padding-right:/*hdpi*/ 15px;
+	background-color: transparent;
+}
+
+PLSLiveEndDialog #bottomViewWidget {
+	
+
+	background-color: transparent;
+}
+PLSLiveEndDialog #bottomViewWidget #placehoderLabel {
+	background: transparent;
+}
+PLSLiveEndDialog #bottomViewWidget #saveWidget {
+	min-height:/*hdpi*/ 22;
+	max-height:/*hdpi*/ 22;
+	margin:/*hdpi*/4px/*hdpi*/0px/*hdpi*/0px/*hdpi*/0px;
+	background: transparent;
+}
+
+PLSLiveEndDialog #bottomViewWidget #saveInLabel{
+	margin:/*hdpi*/0px/*hdpi*/0px/*hdpi*/0px/*hdpi*/0px;
+	background-color: transparent;
+	border-style:none;
+	color: #cccccc;
+	font-size:/*hdpi*/ 12px;
+	font-weight: normal;
+}
+
+PLSLiveEndDialog #bottomViewWidget #savePushButton{
+	min-width:/*hdpi*/ 18px;
+	min-height:/*hdpi*/ 20px;
+	max-height:/*hdpi*/ 20px;
+	margin:/*hdpi*/0px/*hdpi*/0px/*hdpi*/0px/*hdpi*/4px;
+	border-style:none;
+	padding:/*hdpi*/0px;
+	background-color: transparent;
+	border-image: none;
+	font-size:/*hdpi*/ 12px;
+	font-weight: normal;
+	text-align: left;
+	color: #cccccc;
+	image:url(":/channels/resource/images/ChannelsSource/end/folder-icon-normal.svg");
+	image-position: right;
+}
+
+PLSLiveEndDialog #bottomViewWidget #savePushButton:hover {
+	color: #effc35;
+	image:url(":/channels/resource/images/ChannelsSource/end/folder-icon-over.svg");
+}
+
+PLSLiveEndDialog #savePushButton:pressed {
+	color: #788023;
+	image:url(":/channels/resource/images/ChannelsSource/end/folder-icon-clicked.svg");
+}
+
+
+PLSLiveEndDialog #bottomViewWidget #lineView {
+	min-height:/*hdpi*/ 1px;
+	max-height:/*hdpi*/ 1px;
+	background-color: #151515;
+	margin:/*hdpi*/0px/*hdpi*/0px/*hdpi*/18px/*hdpi*/0px;
+}
+
+PLSLiveEndDialog #okButton {
+	min-width:/*hdpi*/128px;
+	max-width:/*hdpi*/128px;
+	min-height:/*hdpi*/40px;
+	max-height:/*hdpi*/40px;
+	border-radius:/*hdpi*/ 3px;
+}
+
+PLSLiveEndItem * {
+	margin:/*hdpi*/0px;
+	padding:/*hdpi*/0px;
+	border-radius:/*hdpi*/ 0px;
+	border:/*hdpi*/ none;
+}
+
+PLSLiveEndItem .QLabel,
+PLSLiveEndItem .QWidget {
+	background-color: transparent;
+}
+
+PLSLiveEndItem {
+	border-radius:/*hdpi*/ 3px;
+	background-color: #363636;
+	min-height:/*hdpi*/70px;
+	max-height:/*hdpi*/70px;
+	min-width:/*hdpi*/660px;
+	max-width:/*hdpi*/660px;
+	margin:/*hdpi*/0px/*hdpi*/15px/*hdpi*/0px/*hdpi*/29px;
+}
+
+PLSLiveEndItem #channelIcon {
+	min-width:/*hdpi*/ 34px;
+	max-width:/*hdpi*/ 34px;
+	max-height:/*hdpi*/ 34px;
+	min-height:/*hdpi*/ 34px;
+	margin-left:/*hdpi*/ 0px;
+	margin-right:/*hdpi*/ 13px;
+	margin-bottom: 2px;
+}
+
+PLSLiveEndItem #channelLabel {
+	font-size:/*hdpi*/ 12px;
+	font-weight: bold;
+	color: #ffffff;
+}
+
+PLSLiveEndItem #dotLabel {
+	min-width:/*hdpi*/  3px;
+	max-width:/*hdpi*/  3px;
+	max-height:/*hdpi*/ 3px;
+	min-height:/*hdpi*/ 3px;
+	image:url(":/channels/resource/images/ChannelsSource/end/img-bullet.svg");
+	margin:/*hdpi*/1px/*hdpi*/5px/*hdpi*/0px/*hdpi*/5px;
+}
+
+PLSLiveEndItem #liveTitleLabel {
+	padding-right:/*hdpi*/ 6px;
+	font-size:/*hdpi*/ 12px;
+	font-weight: normal;
+	color: #ffffff;
+}
+
+PLSLiveEndItem #statusWidget {
+	margin-left:/*hdpi*/ 3px;
+	margin-top:/*hdpi*/ 6px;
+}
+
+PLSLiveEndItem #statusImage1, #statusImage2, #statusImage3 {
+	min-width:/*hdpi*/ 15px;
+	max-width:/*hdpi*/ 15px;
+	max-height:/*hdpi*/ 15px;
+	min-height:/*hdpi*/ 15px;
+}
+
+PLSLiveEndItem #statusLabel1, #statusLabel2, #statusLabel3 {
+	margin-right:/*hdpi*/ 4px;
+	font-size:/*hdpi*/ 12px;
+	color: #999999;
+}
+
+
+PLSLiveEndItem PLSImageTextButton,
+PLSLiveEndItem PLSImageTextButton:hover,
+PLSLiveEndItem PLSImageTextButton:pressed,
+PLSLiveEndItem PLSImageTextButton:disabled {
+   background-color: transparent;
+}
+
+
+PLSLiveEndItem #pushButton_tip #labelRight  {
+  font-size: /*hdpi*/12px;
+  font-weight: normal;
+  color: #bababa;
+}
+
+PLSLiveEndItem #pushButton_tip[status="normal"] #labelRight {
+  color: #bababa;
+}
+
+PLSLiveEndItem #pushButton_tip[status="hover"] #labelRight {
+     color: white;
+}
+PLSLiveEndItem #pushButton_tip[status="clicked"] #labelRight {
+     color: #444444;
+}
+PLSLiveEndItem #pushButton_tip[status="disable"] #labelRight {
+      color: #666666;
+}
+
+PLSLiveEndItem #pushButton_tip {
+	max-height:/*hdpi*/ 60px;
+	min-height:/*hdpi*/ 40px;
+	min-width:/*hdpi*/ 198px;
+	max-width:/*hdpi*/ 198px;
+}
+
+PLSLiveEndItem #pushButton_tip #labelLeft,
+PLSLiveEndItem #pushButton_tip[status="normal"] #labelLeft {
+    image:  url(":/channels/resource/images/ChannelsSource/end/ic-end-info-normal.svg");
+    min-width:/*hdpi*/  16px;
+    max-width:/*hdpi*/  16px;
+    min-height:/*hdpi*/ 16px;
+    max-height:/*hdpi*/ 16px;
+}
+
+PLSLiveEndItem #pushButton_tip[status="hover"] #labelLeft {
+        image:url(":/channels/resource/images/ChannelsSource/end/ic-end-info-over.svg");
+}
+PLSLiveEndItem #pushButton_tip[status="clicked"] #labelLeft {
+    image:url(":/channels/resource/images/ChannelsSource/end/ic-end-info-click.svg");
+}
+PLSLiveEndItem #pushButton_tip[status="disable"] #labelLeft {
+    image:url(":/channels/resource/images/ChannelsSource/end/ic-end-info-disable.svg");
+}
+
+PLSLiveEndItem #pushButton_share {
+	margin-top: /*hdpi*/2px;
+	min-width:/*hdpi*/  400px;
+    max-width:/*hdpi*/  400px;
+
+    min-height:/*hdpi*/ 20px;
+    max-height:/*hdpi*/ 20px;
+}
+
+
+
+PLSLiveEndItem #pushButton_share #labelLeft,
+PLSLiveEndItem #pushButton_share[status="normal"] #labelLeft {
+    image:url(":/channels/resource/images/ChannelsSource/ic-share-normal.svg");
+    min-width:/*hdpi*/  14px;
+    max-width:/*hdpi*/  14px;
+    min-height:/*hdpi*/ 14px;
+    max-height:/*hdpi*/ 14px;
+}
+
+PLSLiveEndItem #pushButton_share[status="hover"] #labelLeft {
+    image:url(":/channels/resource/images/ChannelsSource/ic-share-over.svg");
+}
+PLSLiveEndItem #pushButton_share[status="clicked"] #labelLeft {
+    image:url(":/channels/resource/images/ChannelsSource/ic-share-click.svg");
+}
+PLSLiveEndItem #pushButton_share[status="disable"] #labelLeft {
+    image:url(":/channels/resource/images/ChannelsSource/ic-share-disable.svg");
+}
+
+PLSLiveEndItem  #pushButton_share #labelRight  {
+  font-size: /*hdpi*/12px;
+  font-weight: normal;
+  color: #999999;
+}
+
+PLSLiveEndItem #pushButton_share[status="normal"] #labelRight {
+	color: #999999;
+}
+
+PLSLiveEndItem #pushButton_share[status="hover"] #labelRight {
+     color: white;
+}
+PLSLiveEndItem #pushButton_share[status="clicked"] #labelRight {
+     color: #444444;
+}
+PLSLiveEndItem #pushButton_share[status="disable"] #labelRight {
+      color: #666666;
+}

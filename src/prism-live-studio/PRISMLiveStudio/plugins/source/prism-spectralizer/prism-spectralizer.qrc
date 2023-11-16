@@ -1,0 +1,31 @@
+<RCC>
+    <qresource prefix="/prism-spectralizer">
+       <file>images/img-audiov-template-1@3x.png</file>
+       <file>images/img-audiov-template-2@3x.png</file>
+       <file>images/img-audiov-template-3@3x.png</file>
+       <file>images/img-audiov-template-4@3x.png</file>
+       <file>images/img-audiov-template-1-over@3x.png</file>
+       <file>images/img-audiov-template-2-over@3x.png</file>
+       <file>images/img-audiov-template-3-over@3x.png</file>
+       <file>images/img-audiov-template-4-over@3x.png</file>
+      <file>images/img-audiov-color-01.svg</file>
+      <file>images/img-audiov-color-02.svg</file>
+       <file>images/img-audiov-color-03.svg</file>
+       <file>images/img-audiov-color-04.svg</file>
+       <file>images/img-audiov-color-05.svg</file>
+       <file>images/img-audiov-color-06.svg</file>
+       <file>images/img-audiov-color-07.svg</file>
+       <file>images/img-audiov-color-08.svg</file>
+       <file>images/img-audiov-color-09.svg</file>
+       <file>images/img-audiov-color-10.svg</file>
+       <file>images/img-audiov-color-11.svg</file>
+       <file>images/img-audiov-color-12.svg</file>
+       <file>images/img-audiov-color-13.svg</file>
+       <file>images/img-audiov-color-select.svg</file>
+      <file>images/img_audiov_gradation_1.png</file>
+      <file>images/img_audiov_gradation_2.png</file>
+      <file>images/img_audiov_gradation_3.png</file>
+      <file>images/img_audiov_gradation_4.png</file>
+      <file>images/img_audiov_gradation_5.png</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,232 @@
+PLSScheduleCombox,
+PLSScheduleCombox[type="Ty_Normal"] {
+	 background-color: #444444;
+}
+PLSScheduleCombox[type="Ty_Hover"] {
+	background-color: #555555;
+}
+PLSScheduleCombox[type="Ty_On"] {
+	background-color: #1e1e1e;
+}
+PLSScheduleCombox[type="Ty_Disabled"] {
+	background-color: #373737;
+}
+
+PLSScheduleCombox QLabel {
+	font-size:/*hdpi*/ 14px;
+	font-weight: normal;
+	color: #ffffff;
+	background-color: transparent;
+}
+
+PLSScheduleCombox[type="Ty_Normal"] > .QLabel {
+	color: #ffffff;
+}
+PLSScheduleCombox[type="Ty_Hover"] > .QLabel {
+	color: #ffffff;
+}
+PLSScheduleCombox[type="Ty_On"] > .QLabel {
+	color: #ffffff;
+}
+PLSScheduleCombox[type="Ty_Disabled"] > .QLabel {
+	color: #666666;
+}
+
+PLSScheduleCombox #scheduleLabel1 {
+	min-width: /*hdpi*/ 10px;
+    max-width: /*hdpi*/ 10px;
+	min-height: /*hdpi*/ 1px;
+    max-height: /*hdpi*/ 1px;
+	background-color: transparent;
+}
+
+PLSScheduleCombox[platform="NaverShopping"] #scheduleLabel1 {
+	min-width: /*hdpi*/ 12px;
+    max-width: /*hdpi*/ 12px;
+	min-height: /*hdpi*/ 1px;
+    max-height: /*hdpi*/ 1px;
+	background-color: transparent;
+}
+
+PLSScheduleCombox #scheduletTitleLabel {
+	padding-left:/*hdpi*/ 0px;
+	background-color: transparent;
+}
+
+PLSScheduleCombox[platform="NaverShopping"] #scheduleIconLabel {
+	image:url(":/channels/resource/images/ChannelsSource/navershopping/ic-badge-test.svg");
+	background-color: transparent;
+	margin-left:/*hdpi*/ 4px;
+	margin-top:/*hdpi*/ 2px;
+	min-width: /*hdpi*/ 34px;
+    max-width: /*hdpi*/ 34px;
+	min-height: /*hdpi*/ 16px;
+    max-height: /*hdpi*/ 16px;
+}
+
+PLSScheduleCombox #dropLabel {
+	min-width: /*hdpi*/ 10px;
+    max-width: /*hdpi*/ 10px;
+	min-height: /*hdpi*/ 10px;
+    max-height: /*hdpi*/ 10px;
+	padding-left:/*hdpi*/ 12px;
+	padding-right:/*hdpi*/ 15px;
+	background-color: transparent;
+}
+
+PLSScheduleCombox[platform="NaverShopping"] #dropLabel {
+	padding-left:/*hdpi*/ 10px;
+	padding-right:/*hdpi*/ 12px;
+	background-color: transparent;
+}
+
+PLSScheduleCombox #dropLabel,
+PLSScheduleCombox[type="Ty_Normal"] #dropLabel {
+	image:url(":/resource/images/txt-dropbox-open-normal.svg");
+}
+PLSScheduleCombox[type="Ty_Hover"] #dropLabel {
+	image:url(":/resource/images/txt-dropbox-open-over.svg");
+}
+PLSScheduleCombox[type="Ty_On"] #dropLabel {
+	image:url(":/resource/images/txt-dropbox-open-click.svg");
+}
+PLSScheduleCombox[type="Ty_Disabled"] #dropLabel {
+	image:url(":/resource/images/txt-dropbox-open-disable.svg");
+}
+
+PLSScheduleCombox #scheduleListWidget {
+	background-color: #2d2d2d;
+	border:/*hdpi*/ 1px solid #111111;
+    border-radius:/*hdpi*/ 3px;
+    outline: none;
+}
+
+PLSScheduleCombox #scheduleListWidget::item {
+	padding-left:/*hdpi*/ 0px;
+	background-color: #2d2d2d;
+}
+
+PLSScheduleCombox QMenu {
+	background-color: #111111;
+	border:/*hdpi*/ none;
+	min-width:/*hdpi*/ 10px;
+	max-width:/*hdpi*/ 999999px;
+	padding:/*hdpi*/0px;
+	background: #2d2d2d;
+}
+
+PLSScheduleCombox QMenu::item {
+	background-color: transparent;
+	padding:/*hdpi*/0px;
+	min-height:/*hdpi*/ 10px;
+	max-height:/*hdpi*/ 4000px;
+	font-size:/*hdpi*/ 14px;
+	color: #ffffff;
+	border:/*hdpi*/ none;
+}
+
+PLSScheduleComboxItem QLabel {
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #ffffff;
+	background-color: transparent;
+}
+
+PLSScheduleComboxItem #imgLabel {
+	margin: 0px;
+	padding: 0px;
+}
+
+PLSScheduleComboxItem #imgLabel[loading="true"] {
+	min-height:/*hdpi*/ 24px;
+	max-height:/*hdpi*/ 24px;
+	min-width:/*hdpi*/ 24px;
+	max-width:/*hdpi*/ 24px;
+	background-color: transparent;
+}
+
+PLSScheduleComboxItem #imgLabel[loading="false"] {
+	min-height:/*hdpi*/ 34px;
+	max-height:/*hdpi*/ 34px;
+	min-width:/*hdpi*/ 34px;
+	max-width:/*hdpi*/ 34px;
+	background-color: transparent;
+}
+
+
+PLSScheduleComboxItem #titleLabel[selected="true"],
+PLSScheduleComboxItem #bgWidget[status="header"] #titleLabel[selected="true"]{
+color: #effc35;
+}
+
+PLSScheduleComboxItem #titleLabel[selected="false"] {
+color: #ffffff;
+}
+
+PLSScheduleComboxItem #iconLabel {
+	image:url(":/channels/resource/images/ChannelsSource/navershopping/ic-badge-test.svg");
+	background-color: transparent;
+	min-width: /*hdpi*/ 34px;
+    max-width: /*hdpi*/ 34px;
+	min-height: /*hdpi*/ 16px;
+    max-height: /*hdpi*/ 16px;
+	margin-top:/*hdpi*/ 2px;
+}
+
+PLSScheduleComboxItem #detailLabel {
+	font-size:/*hdpi*/ 12px;
+	font-weight: normal;
+	color: #777777;
+}
+
+PLSScheduleComboxItem #detailLabel[selected="true"] {
+	color: #7a7f34;
+}
+
+PLSScheduleComboxItem #detailLabel[selected="false"] {
+	color: #777777;
+}
+
+PLSScheduleComboxItem #detailLabel[expired="true"] {
+	color:#666666;
+}
+
+PLSScheduleComboxItem #detailLabel[expired="false"] {
+	color: #bababa;
+}
+
+PLSScheduleComboxItem #rightImageLabel {
+	min-height:/*hdpi*/ 22px;
+	max-height:/*hdpi*/ 22px;
+	min-width:/*hdpi*/ 22px;
+	max-width:/*hdpi*/ 22px;
+	image:url(":/resource/images/ic-source-lock-normal.svg");
+}
+
+PLSScheduleCombox #scheduleListWidget:focus {
+	outline: none;
+}
+
+PLSScheduleComboxItem #bgWidget > .QWidget {
+	    background-color: transparent;
+}
+
+PLSScheduleComboxItem #bgWidget,
+PLSScheduleComboxItem #bgWidget:disabled {
+    background-color: #2d2d2d;
+}
+
+PLSScheduleComboxItem #bgWidget:hover,
+PLSScheduleComboxItem #bgWidget:pressed {
+    background-color: #373737;
+}
+
+PLSScheduleComboxItem #bgWidget[status="header"]  {
+    background-color: #272727;
+}
+
+PLSScheduleComboxItem #bgWidget[status="header"] QLabel {
+    font-size: /*hdpi*/ 12px;
+	font-weight: bold;
+	color: #bababa;
+}

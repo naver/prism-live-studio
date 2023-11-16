@@ -1,0 +1,354 @@
+PLSSceneCollectionView {
+	qproperty-maximumSize: /*hdpi*/ 580px /*hdpi*/ 1000px;
+	qproperty-minimumSize: /*hdpi*/ 580px /*hdpi*/ 430px;
+	border: /*hdpi*/ none;
+	background-color: #272727;
+}
+
+PLSSceneCollectionView PLSAlertView #content{
+	background-color: #272727;
+}
+
+PLSSceneCollectionView #listView, PLSSceneCollectionView #searchListView, PLSSceneCollectionView #content,
+PLSSceneCollectionView #itemPage, PLSSceneCollectionView #noDataPage, PLSSceneCollectionView #searchPage{
+	background-color: #1e1e1f;
+	outline: none;
+}
+
+PLSSceneCollectionView #listView:focus, PLSSceneCollectionView #searchListView:focus {
+	outline: none;
+}
+
+PLSSceneCollectionView #listView::item, PLSSceneCollectionView #searchListView::item {
+	height:/*hdpi*/ 40px;
+	outline: none;
+	border:/*hdpi*/none;
+}
+
+PLSSceneCollectionView #listView::item:hover, PLSSceneCollectionView #searchListView::item:hover {
+	background-color: #444444;
+}
+
+PLSSceneCollectionView #listView QScrollBar:vertical {
+	background-color: #1e1e1f;
+    width: /*hdpi*/ 10px;
+}
+
+PLSSceneCollectionView #listView QScrollBar::handle:vertical {
+    margin-right: /*hdpi*/ 1px;
+    margin-left:/*hdpi*/3px;
+    margin-top: /*hdpi*/ 2px;
+    margin-bottom: /*hdpi*/ 2px;
+}
+
+PLSSceneCollectionView #searchLineEdit:focus{
+	border: /*hdpi*/ 1px solid #effc35;
+}
+
+PLSSceneCollectionView #searchLineEdit:!focus{
+    border: /*hdpi*/ 1px solid #343434;
+}
+
+PLSSceneCollectionView #collectionLabel {
+	font-size:/*hdpi*/ 12px;
+	font-weight: normal;
+	background-color: transparent;
+}
+
+PLSSceneCollectionView #newBtn, PLSSceneCollectionView #newBtn[status=normal] {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	padding: 0;
+	margin: 0;
+	border: none;
+	background: transparent;
+    padding-right: /*hdpi*/ 2px;
+    padding-top: /*hdpi*/ 7px;
+    padding-bottom: /*hdpi*/ 7px;
+	image: url(":/resource/images/collection/ic-addscene-normal.svg");
+}
+
+PLSSceneCollectionView #newBtn:hover, PLSSceneCollectionView #newBtn[status=enter] {
+	image: url(":/resource/images/collection/ic-addscene-over.svg");
+}
+
+PLSSceneCollectionView #newBtn:pressed, PLSSceneCollectionView #newBtn[status=clicked] {
+	image: url(":/resource/images/collection/ic-addscene-click.svg");
+}
+
+PLSSceneCollectionView #newBtn:!enabled {
+image: url(":/resource/images/collection/ic-addscene-disable.svg");
+}
+
+PLSSceneCollectionView #newLabel, PLSSceneCollectionView #newLabel[status=normal],
+PLSSceneCollectionView #importLabel, PLSSceneCollectionView #importLabel[status=normal]{
+    color:#bababa;
+    font-size: /*hdpi*/ 14px;
+    min-height: /*hdpi*/ 36px;
+    max-height: /*hdpi*/ 36px;
+}
+
+PLSSceneCollectionView #newLabel[status=enter],
+PLSSceneCollectionView #importLabel[status=enter]{
+    color:#ffffff;
+}
+
+PLSSceneCollectionView #newLabel[status=clicked],
+PLSSceneCollectionView #importLabel[status=clicked]{
+    color:#444444;
+}
+
+PLSSceneCollectionView #newLabel[status=disable],
+PLSSceneCollectionView #importLabel[status=disable]{
+    color:#666666;
+}
+
+PLSSceneCollectionView #importBtn, PLSSceneCollectionView #importBtn[status=normal] {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	border: none;
+	padding: 0;
+	margin: 0;
+	background: transparent;
+    margin-right: /*hdpi*/ 2px;
+    margin-top: /*hdpi*/ 7px;
+    margin-bottom: /*hdpi*/ 7px;
+	image: url(":/resource/images/collection/ic-import-normal.svg");
+}
+
+PLSSceneCollectionView #importBtn:hover, PLSSceneCollectionView #importBtn[status=enter] {
+	image: url(":/resource/images/collection/ic-import-over.svg");
+}
+
+PLSSceneCollectionView #importBtn:pressed, PLSSceneCollectionView #importBtn[status=clicked] {
+	image: url(":/resource/images/collection/ic-import-click.svg");
+}
+
+PLSSceneCollectionView #importBtn:!enabled, PLSSceneCollectionView #importBtn[status=disable] {
+	image: url(":/resource/images/collection/ic-import-disable.svg");
+}
+
+PLSSceneCollectionView #closeBtn {
+	min-width: /*hdpi*/ 128px;
+	max-width: /*hdpi*/ 128px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	padding: 0;
+	margin: 0;
+	border-style: none;
+	background-color: #444444;
+    color: #ffffff;
+}
+
+PLSSceneCollectionView #closeBtn:hover {
+	background-color: #555555;
+}
+
+PLSSceneCollectionView #closeBtn:pressed {
+	background-color: #2d2d2d;
+}
+
+PLSSceneCollectionView #closeBtn:!enabled {
+	background-color: #444444;
+}
+
+PLSSceneCollectionView #macHelpBtn {
+	min-width: /*hdpi*/ 18px;
+	max-width: /*hdpi*/ 18px;
+	min-height: /*hdpi*/ 18px;
+	max-height: /*hdpi*/ 18px;
+	padding: 0;
+	margin: 0;
+	border-style: none;
+	background: transparent;
+	image: url(":/resource/images/collection/ic_help_s_normal.png");
+}
+
+PLSSceneCollectionView #macHelpBtn:hover {
+	image: url(":/resource/images/collection/ic_help_s_over.png");
+}
+
+PLSSceneCollectionView #buttonFrame{
+    min-height: /*hdpi*/ 78px;
+	max-height: /*hdpi*/ 78px;
+    background-color: #272727;
+    border-top: /*hdpi*/ 1px solid #151515;
+}
+
+PLSSceneCollectionView #noDataIcon{
+    min-height: /*hdpi*/ 90px;
+	max-height: /*hdpi*/ 90px;
+    min-width: /*hdpi*/ 90px;
+	max-width: /*hdpi*/ 90px;
+    background: transparent;
+	image: url(":/resource/images/collection/ic-search.svg");
+}
+
+PLSSceneCollectionView #noDataLabel{
+	background: transparent;
+    font-size: /*hdpi*/ 14px;
+    color: #666666;
+}
+
+PLSSceneCollectionView PLSPopupMenu#importerButton PLSPopupMenuItem {
+	min-width: /*hdpi*/ 230px;
+	max-width: /*hdpi*/ 230px;
+}
+
+PLSSceneCollectionItem PLSPopupMenu#advButtonMenu PLSPopupMenuItem,
+PLSSceneCollectionItem PLSPopupMenu#advButtonMenu {
+	min-width: /*hdpi*/ 180px;
+	max-width: /*hdpi*/ 180px;
+}
+
+PLSSceneCollectionItem {
+	font-size: /*hdpi*/ 11px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	border-radius: /*hdpi*/ 3px;
+}
+
+PLSSceneCollectionItem[status="normal"], PLSSceneCollectionItem #nameLabel[status="normal"],
+PLSSceneCollectionItem #timeLabel[status="normal"] {
+	background-color: #1e1e1f;
+}
+
+PLSSceneCollectionItem[status="hover"], PLSSceneCollectionItem #nameLabel[status="hover"],
+PLSSceneCollectionItem #timeLabel[status="hover"] {
+	background-color: #444444;
+}
+
+PLSSceneCollectionItem[status="pressed"],PLSSceneCollectionItem #nameLabel[status="pressed"],
+PLSSceneCollectionItem #timeLabel[status="pressed"] {
+	background-color: #2d2d2d;
+}
+
+PLSSceneCollectionItem #nameLabel {
+	font-size: /*hdpi*/ 14px;
+	color: #ffffff;
+	font-weight: normal;
+    min-height: /*hdpi*/ 38px;
+    max-height: /*hdpi*/ 38px;
+}
+
+PLSSceneCollectionItem #timeLabel{
+    font-size: /*hdpi*/ 12px;
+    color: #666666;
+    min-height: /*hdpi*/ 38px;
+    max-height: /*hdpi*/ 38px;
+}
+
+PLSSceneCollectionItem #nameLabel[current=true]{
+	color: #effc35;
+}
+
+PLSSceneCollectionItem #nameLabel[current=false]{
+	color: #ffffff;
+}
+
+PLSSceneCollectionItem #applyBtn{
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	padding: 0;
+	margin: 0;
+    background: transparent;
+    image: url(":/resource/images/collection/ic-apply-normal.svg");
+}
+
+PLSSceneCollectionItem #applyBtn:hover {
+    image: url(":/resource/images/collection/ic-apply-over.svg");
+}
+
+PLSSceneCollectionItem #applyBtn:pressed {
+    image: url(":/resource/images/collection/ic-apply-click.svg");
+}
+
+PLSSceneCollectionItem #applyBtn:!enable {
+    image: url(":/resource/images/collection/ic-apply-disable.svg");
+}
+
+PLSSceneCollectionItem #renameBtn{
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	padding: 0;
+	margin: 0;
+    background: transparent;
+    image: url(":/resource/images/collection/ic-rename-normal.svg");
+}
+
+PLSSceneCollectionItem #renameBtn:hover {
+    image: url(":/resource/images/collection/ic-rename-over.svg");
+}
+
+PLSSceneCollectionItem #renameBtn:pressed {
+    image: url(":/resource/images/collection/ic-rename-click.svg");
+}
+
+PLSSceneCollectionItem #renameBtn:!enable {
+    image: url(":/resource/images/collection/ic-rename-disable.svg");
+}
+
+PLSSceneCollectionItem #deleteBtn{
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+    background: transparent;
+	padding: 0;
+	margin: 0;
+    image: url(":/resource/images/collection/ic-trash-normal.svg");
+}
+
+PLSSceneCollectionItem #deleteBtn:hover {
+    image: url(":/resource/images/collection/ic-trash-over.svg");
+}
+
+PLSSceneCollectionItem #deleteBtn:pressed {
+    image: url(":/resource/images/collection/ic-trash-click.svg");
+}
+
+PLSSceneCollectionItem #deleteBtn:disabled {
+    image: url(":/resource/images/collection/ic-trash-disable.svg");
+}
+
+PLSSceneCollectionItem #advBtn{
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+    background: transparent;
+	padding: 0;
+	margin: 0;
+    image: url(":/resource/images/collection/ic-more-default.svg");
+}
+
+PLSSceneCollectionItem #advBtn:hover {
+    image: url(":/resource/images/collection/ic-more-over.svg");
+}
+
+PLSSceneCollectionItem #advBtn:pressed {
+    image: url(":/resource/images/collection/ic-more-click.svg");
+}
+
+PLSSceneCollectionItem #advBtn:!enable {
+    image: url(":/resource/images/collection/ic-more-disable.svg");
+}
+
+PLSSceneCollectionItem #buttonFrame {
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	background: transparent;
+    border: none;
+}
+
+PLSSceneCollectionView PLSDialogView #content {
+	background-color: #272727;
+}

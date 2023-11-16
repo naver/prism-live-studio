@@ -1,0 +1,17 @@
+
+PLSLoadingCombox #titleLabel {
+     font-size:/*hdpi*/ 14px;
+	 font-weight: normal;
+	 color: #ffffff;
+	 background-color: transparent;
+}
+
+PLSLoadingCombox #arrowLabel {
+	background-color: transparent;
+	min-width:/*hdpi*/ 11px;
+	max-width:/*hdpi*/ 11px;
+	min-height:/*hdpi*/ 6px;
+	max-height:/*hdpi*/ 6px;
+	padding-right:/*hdpi*/ 12px;
+	image:url(":/channels/resource/images/navershopping/txt-dropbox-open-normal.svg");
+}

@@ -1,0 +1,42 @@
+PLSEndTipView {
+    qproperty-hasHLine: true;
+    qproperty-hasMinButton: false;
+    qproperty-hasCloseButton: false;
+    qproperty-isMoveInContent: true;
+    qproperty-hasBorder: true;
+
+	min-width: /*hdpi*/ 410px;
+	max-width: /*hdpi*/ 410px;
+	min-height: /*hdpi*/ 440px;
+	max-height: /*hdpi*/ 490px;
+}
+
+
+PLSEndTipView #topTitle {
+	color:#effc35;
+	font-size:/*hdpi*/18px;
+	font-weight: bold;
+
+	min-height: /*hdpi*/ 52px;
+	max-height: /*hdpi*/ 102px;
+
+	margin-top:  /*hdpi*/ 5px;
+	margin-bottom:  /*hdpi*/ 5px;
+}
+
+
+PLSEndTipView #widget_content {
+	min-height: /*hdpi*/ 228px;
+	max-height: /*hdpi*/ 228px;
+}
+
+PLSEndTipView #pushButton_ok {
+	border-radius: /*hdpi*/3px;
+}
+
+PLSEndTipView #widget_ok {
+	min-height: /*hdpi*/ 60px;
+	max-height: /*hdpi*/ 60px;
+}
+
+ 

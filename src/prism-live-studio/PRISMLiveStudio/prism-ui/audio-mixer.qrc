@@ -1,0 +1,28 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resource/images/audio-mixer/rnnoise/ic-noise-off-click.svg</file>
+        <file>resource/images/audio-mixer/rnnoise/ic-noise-off-disable.svg</file>
+        <file>resource/images/audio-mixer/rnnoise/ic-noise-off-normal.svg</file>
+        <file>resource/images/audio-mixer/rnnoise/ic-noise-off-over.svg</file>
+        <file>resource/images/audio-mixer/rnnoise/ic-noise-on-click.svg</file>
+        <file>resource/images/audio-mixer/rnnoise/ic-noise-on-disable.svg</file>
+        <file>resource/images/audio-mixer/rnnoise/ic-noise-on-normal.svg</file>
+        <file>resource/images/audio-mixer/rnnoise/ic-noise-on-over.svg</file>
+        <file>resource/images/audio-mixer/sound/sound-off-click.svg</file>
+        <file>resource/images/audio-mixer/sound/sound-off-disable.svg</file>
+        <file>resource/images/audio-mixer/sound/sound-off-normal.svg</file>
+        <file>resource/images/audio-mixer/sound/sound-off-over.svg</file>
+        <file>resource/images/audio-mixer/sound/sound-on-click.svg</file>
+        <file>resource/images/audio-mixer/sound/sound-on-disable.svg</file>
+        <file>resource/images/audio-mixer/sound/sound-on-normal.svg</file>
+        <file>resource/images/audio-mixer/sound/sound-on-over.svg</file>
+        <file>resource/images/audio-mixer/audio-control/icon-source-audio-disable-mute.svg</file>
+        <file>resource/images/audio-mixer/audio-control/icon-source-audio-disable-unmute.svg</file>
+        <file>resource/images/audio-mixer/audio-control/icon-source-audio-normal-mute.svg</file>
+        <file>resource/images/audio-mixer/audio-control/icon-source-audio-normal-unmute.svg</file>
+        <file>resource/images/audio-mixer/audio-control/icon-source-audio-over-mute.svg</file>
+        <file>resource/images/audio-mixer/audio-control/icon-source-audio-over-unmute.svg</file>
+        <file>resource/images/audio-mixer/audio-control/icon-source-audio-pressed-mute.svg</file>
+        <file>resource/images/audio-mixer/audio-control/icon-source-audio-pressed-unmute.svg</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,48 @@
+
+QMenu#helpMenu {
+	border: /*hdpi*/ 1px solid #111111;
+	background: #2d2d2d;
+	min-height: /*hdpi*/ 216px;
+	max-height: /*hdpi*/ 216px;
+	min-width: /*hdpi*/ 180px;
+	max-width: /*hdpi*/ 180px;
+	padding: 0px;
+}
+
+PLSMainView #helpListWidget {
+	border: /*hdpi*/ none;
+	background-color: transparent;
+	min-height: /*hdpi*/ 216px;
+	max-height: /*hdpi*/ 216px;
+	min-width: /*hdpi*/ 180px;
+	max-width: /*hdpi*/ 180px;
+	padding-top: /*hdpi*/ 8px;
+	padding-bottom: /*hdpi*/ 8px;
+}
+
+PLSMainView #helpListWidget:focus {
+	outline: none;
+}
+
+PLSMainView #helpListWidget::item {
+	padding: /*hdpi*/ 0px /*hdpi*/ 20px /*hdpi*/ 0px /*hdpi*/ 20px;
+	min-height: /*hdpi*/ 40px;
+	min-width: /*hdpi*/ 180px;
+}
+
+PLSMainView #helpListWidget::item:hover {
+	background-color: #444444;
+}
+
+PLSMainView #helpListWidget::item:selected {
+	background-color: transparent;
+}
+
+PLSMainView #helpListWidget::item:selected:!active {
+	background-color: transparent;
+}
+
+PLSMainView #helpListWidget::item {
+	padding: 0px;
+	margin: 0px;
+}

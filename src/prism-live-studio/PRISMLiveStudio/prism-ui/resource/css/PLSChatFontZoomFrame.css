@@ -1,0 +1,51 @@
+PLSChatFontZoomFrame {
+        min-width: /*hdpi*/172px;
+        max-width: /*hdpi*/172px;
+        min-height: /*hdpi*/48px;
+        max-height: /*hdpi*/48px;
+        background-color: #2d2d2d;
+        border:/*hdpi*/ 1px solid #111111;
+        margin:/*hdpi*/0px;
+        padding:/*hdpi*/0px;
+}
+
+PLSChatFontZoomFrame #sizeLabel {
+  font-size: /*hdpi*/14px;
+  color: white;
+  background-color: #2d2d2d;
+}
+
+PLSChatFontZoomFrame >.QPushButton {
+        min-width: /*hdpi*/48px;
+        max-width: /*hdpi*/48px;
+        min-height: /*hdpi*/46px;
+        max-height: /*hdpi*/46px;
+        background-color: transparent;
+}
+
+
+PLSChatDialog #pushButton_minus {
+        image: url("://resource/images/chat/ic-font-minus-normal.svg");
+}
+PLSChatDialog #pushButton_minus:hover {
+        image: url("://resource/images/chat/ic-font-minus-over.svg");
+}
+PLSChatDialog #pushButton_minus:pressed {
+        image: url("://resource/images/chat/ic-font-minus-click.svg");
+}
+PLSChatDialog #pushButton_minus:disabled {
+        image: url("://resource/images/chat/ic-font-minus-disable.svg");
+}
+
+PLSChatDialog #pushButton_plus {
+        image: url("://resource/images/chat/ic-font-plus-normal.svg");
+}
+PLSChatDialog #pushButton_plus:hover {
+        image: url("://resource/images/chat/ic-font-plus-over.svg");
+}
+PLSChatDialog #pushButton_plus:pressed {
+        image: url("://resource/images/chat/ic-font-plus-click.svg");
+}
+PLSChatDialog #pushButton_plus:disabled {
+        image: url("://resource/images/chat/ic-font-plus-disable.svg");
+}

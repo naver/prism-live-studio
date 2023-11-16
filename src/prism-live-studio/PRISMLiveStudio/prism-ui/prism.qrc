@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resource/images/logo/PRISMLiveStudio.ico</file>
+        <file>resource/images/logo/PRISMLiveStudio.svg</file>
+    </qresource>
+</RCC>

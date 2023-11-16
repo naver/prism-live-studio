@@ -1,0 +1,25 @@
+OBSBasicAdvAudio #scrollArea{
+    border: 0;
+}
+
+OBSBasicAdvAudio QLabel {
+    min-width: 0px;
+}
+
+OBSBasicAdvAudio #nameContainer > #nameLabel
+OBSBasicAdvAudio > #activeLabel {
+    color: #BABABA;
+    font-size: 14px;
+}
+
+OBSBasicAdvAudio #monoContainer > #forceMono {
+    min-width: 15px;
+    max-width: 15px;
+    min-height: 15px;
+    max-height: 15px;
+}
+
+OBSBasicAdvAudio #monoContainer #forceMono > #plsCheckBox_text {
+    min-width: 0px;
+    max-width: 0px;
+}

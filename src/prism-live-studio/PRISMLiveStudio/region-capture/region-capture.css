@@ -1,0 +1,61 @@
+#frameMenu {
+    background: rgba(39, 39, 39, 0.953);
+    border: 1px solid rgba(255, 255, 255, 0.098);
+}
+
+#frameMenu > #label_space {
+    background: rgba(255, 255, 255, 0.071);
+    min-width: 1px;
+    max-width: 1px;
+    border: none;
+}
+
+/* ok button */
+#frameMenu > #cancelBtn {
+    border: none;
+    background: transparent;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    margin: 0;
+    padding: 0;
+    image: url(:/images/btn-close-normal.svg);
+}
+
+#frameMenu > #cancelBtn:hover {
+    image: url(:/images/btn-close-over.svg);
+}
+
+#frameMenu > #cancelBtn:pressed {
+    image: url(:/images/btn-close-click.svg);
+}
+
+#frameMenu > #cancelBtn:disabled {
+    image: url(:/images/btn-close-disable.svg);
+}
+
+/* cancel button */
+#frameMenu > #confirmBtn {
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    border: none;
+    background: transparent;
+    margin: 0;
+    padding: 0;
+    image: url(:/images/btn-add-playlist-done-normal.svg);
+}
+
+#frameMenu > #confirmBtn:hover {
+    image: url(:/images/btn-add-playlist-done-over.svg);
+}
+
+#frameMenu > #confirmBtn:pressed {
+    image: url(:/images/btn-add-playlist-done-click.svg);
+}
+
+#frameMenu > #confirmBtn:disabled {
+    image: url(:/images/btn-add-playlist-done-disable.svg);
+}

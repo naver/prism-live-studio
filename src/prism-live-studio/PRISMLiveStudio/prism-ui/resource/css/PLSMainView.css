@@ -1,0 +1,1456 @@
+OBSBasic {
+	qproperty-imageIcon: url(":/resource/images/icon-source/icon-source-image.svg");
+	qproperty-colorIcon: url(":/resource/images/icon-source/icon-source-color-normal.svg");
+	qproperty-slideshowIcon: url(":/resource/images/icon-source/icon-source-imageslide-normal.svg");
+	qproperty-audioInputIcon: url(":/resource/images/icon-source/icon-source-audio.svg");
+	qproperty-audioOutputIcon: url(":/resource/images/icon-source/icon-source-audio-normal.svg");
+	qproperty-desktopCapIcon: url(":/resource/images/icon-source/icon-source-display.svg");
+	qproperty-windowCapIcon: url(":/resource/images/icon-source/icon-source-window.svg");
+	qproperty-gameCapIcon: url(":/resource/images/icon-source/icon-source-game.svg");
+	qproperty-cameraIcon: url(":/resource/images/icon-source/icon-source-camera.svg");
+	qproperty-textIcon: url(":/resource/images/icon-source/icon-source-text.svg");
+	qproperty-mediaIcon: url(":/resource/images/icon-source/icon-source-media.svg");
+	qproperty-browserIcon: url(":/resource/images/icon-source/icon-source-url.svg");
+	qproperty-groupIcon: url(":/resource/images/icon-source/icon-source-group-normal.svg");
+	qproperty-sceneIcon: url(":/resource/images/icon-source/icon-source-scene-normal.svg");
+	qproperty-bgmIcon: url(":/resource/images/bgm/icon-source-bgm-normal.svg");
+	qproperty-stickerIcon: url(":/resource/images/giphy/icon-source-giphy.svg");
+	qproperty-textMotionIcon: url(":/resource/images/text-template/icon-source-texttemplate-normal.svg");
+	qproperty-ndiIcon: url(":/resource/images/icon-source/icon-source-ndi-normal.svg");
+	qproperty-chatIcon: url(":/resource/images/icon-source/icon-source-chat-normal.svg");
+	qproperty-audiovIcon: url(":/resource/images/icon-source/icon-source-audiov-normal.svg");
+	qproperty-virtualBackgroundIcon: url(":/resource/images/icon-source/icon-source-bgtemplate-normal.svg");
+	qproperty-prismMobileIcon: url(":/resource/images/mobile-source/icon-source-mobile-normal.svg");
+	qproperty-timerIcon: url(":/resource/images/icon-source/icon-source-clock-normal.svg");
+	qproperty-appAudioIcon: url(":/resource/images/app-audio/visible-unselect-valid-appAudio.svg");
+	qproperty-viewerCountIcon: url(":/resource/images/add-source-view/icon-source-viewercount-normal.svg");
+	qproperty-decklinkInputIcon: url(":/resource/images/add-source-view/icon-source-decklinkinput-normal.svg");
+	qproperty-regionIcon: url(":/resource/images/icon-source/icon-source-display.svg");
+	qproperty-audioProcessOutputIcon: url(":/resource/images/app-audio/visible-unselect-valid-appAudio.svg");
+	qproperty-prismStickerIcon: url(":/resource/images/prism-sticker/icon-source-prismsticker-normal.svg");
+}
+
+PLSMainView {
+	qproperty-captionHeight: /*hdpi*/ 35;
+	qproperty-captionButtonSize: /*hdpi*/ 22;
+	qproperty-captionButtonMargin: /*hdpi*/ 10;
+	qproperty-menuButtonMarginLeft: /*hdpi*/ 12;
+	qproperty-menuButtonSize: /*hdpi*/ 20px /*hdpi*/ 18px;
+	qproperty-logoMarginLeft: /*hdpi*/ 50;
+	qproperty-closeButtonMarginRight: /*hdpi*/ 8;
+	qproperty-rightAreaWidth: /*hdpi*/ 52;
+	qproperty-bottomAreaHeight: /*hdpi*/ 51;
+	qproperty-channelsAreaHeight: /*hdpi*/ 60;
+	qproperty-titleBarBkgColor: #272727;
+	border: none;
+	background: #111111;
+}
+
+	PLSMainView > #plsMainViewBorderFrame {
+		background-color: transparent;
+	}
+	PLSMainView[afterWin10="false"] > #plsMainViewBorderFrame {
+		border: 1px solid #111111;
+	}
+	PLSMainView[afterWin10="true"] > #plsMainViewBorderFrame {
+		border: none;
+	}
+	PLSMainView > #plsMainViewBorderFrame > #body > #content {
+		margin-top: /*hdpi*/ 5px;
+		background-color: #1e1e1f;
+	}
+
+	PLSMainView > #plsMainViewBorderFrame > #titleBar {
+		border: none;
+		background-color: #272727;
+		border-bottom: /*hdpi*/ 1px solid #111111;
+	}
+
+		PLSMainView > #plsMainViewBorderFrame > #titleBar > #devLabel {
+			min-width: /*hdpi*/ 30px;
+			max-width: /*hdpi*/ 30px;
+			min-height: /*hdpi*/ 22px;
+			max-height: /*hdpi*/ 22px;
+			font-size: /*hdpi*/ 12px;
+		}
+
+	PLSMainView > #plsMainViewBorderFrame > #hline {
+		background-color: #111111;
+	}
+
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #menu {
+		background-color: #272727;
+		image: url(":/resource/images/main-menu-normal.svg");
+		min-width: /*hdpi*/ 22px;
+		max-width: /*hdpi*/ 22px;
+		min-height: /*hdpi*/ 22px;
+		max-height: /*hdpi*/ 22px;
+		padding: /*hdpi*/ 0;
+		border: none;
+	}
+
+		PLSMainView > #plsMainViewBorderFrame > #titleBar > #menu:hover {
+			image: url(":/resource/images/main-menu-over.svg");
+		}
+
+		PLSMainView > #plsMainViewBorderFrame > #titleBar > #menu:pressed {
+			image: url(":/resource/images/main-menu-click.svg");
+		}
+
+		PLSMainView > #plsMainViewBorderFrame > #titleBar > #menu:disabled {
+			image: url(":/resource/images/main-menu-disable.svg");
+		}
+
+		PLSMainView > #plsMainViewBorderFrame > #titleBar > #menu::menu-indicator {
+			image: none;
+		}
+
+	PLSMainView #menubar QMenu::indicator {
+		width: 22px;
+		height: 22px;
+		margin-left: 8px;
+		margin-right: -12px;
+	}
+
+	PLSMainView #menubar QMenu::indicator:checked {
+		image: url(":/resource/images/ic_menucheck_normal.svg");
+	}
+
+	PLSMainView #menubar QMenu::item:checked {
+		color: white;
+	}
+
+	QMenu#camMenu::indicator {
+		width: 22px;
+		height: 22px;
+		margin-left: 8px;
+		margin-right: -12px;
+	}
+
+	QMenu#camMenu::indicator:checked {
+	image: url(":/resource/images/ic_menucheck_normal.svg");
+}
+
+	 QMenu#camMenu::item:checked {
+		color: white;
+	}
+
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #min,
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #maxres,
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #close {
+		border: none;
+		background-color: #272727;
+		min-width: /*hdpi*/ 22px;
+		max-width: /*hdpi*/ 22px;
+		min-height: /*hdpi*/ 22px;
+		max-height: /*hdpi*/ 22px;
+	}
+
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #min {
+		image: url(":/resource/images/btn-min-normal.svg");
+	}
+
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #min:hover {
+		image: url(":/resource/images/btn-min-over.svg");
+	}
+
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #min:pressed {
+		image: url(":/resource/images/btn-min-click.svg");
+	}
+
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #min:disabled {
+		image: url(":/resource/images/btn-min-disable.svg");
+	}
+
+	PLSMainView[maxState="false"] > #plsMainViewBorderFrame > #titleBar > #maxres,
+	PLSMainView[fullScreenState="false"] > #plsMainViewBorderFrame > #titleBar > #maxres {
+		image: url(":/resource/images/btn-max-normal.svg");
+	}
+
+	PLSMainView[maxState="false"] > #plsMainViewBorderFrame > #titleBar > #maxres:hover,
+	PLSMainView[fullScreenState="false"] > #plsMainViewBorderFrame > #titleBar > #maxres:hover {
+		image: url(":/resource/images/btn-max-over.svg");
+	}
+
+	PLSMainView[maxState="false"] > #plsMainViewBorderFrame > #titleBar > #maxres:pressed,
+	PLSMainView[fullScreenState="false"] > #plsMainViewBorderFrame > #titleBar > #maxres:pressed {
+		image: url(":/resource/images/btn-max-click.svg");
+	}
+
+	PLSMainView[maxState="false"] > #plsMainViewBorderFrame > #titleBar > #maxres:disabled,
+	PLSMainView[fullScreenState="false"] > #plsMainViewBorderFrame > #titleBar > #maxres:disabled {
+		image: url(":/resource/images/btn-max-disable.svg");
+	}
+
+	PLSMainView[maxState="true"] > #plsMainViewBorderFrame > #titleBar > #maxres,
+	PLSMainView[fullScreenState="true"] > #plsMainViewBorderFrame > #titleBar > #maxres {
+		image: url(":/resource/images/btn-maxres-normal.svg");
+	}
+
+	PLSMainView[maxState="true"] > #plsMainViewBorderFrame > #titleBar > #maxres:hover,
+	PLSMainView[fullScreenState="true"] > #plsMainViewBorderFrame > #titleBar > #maxres:hover {
+		image: url(":/resource/images/btn-maxres-over.svg");
+	}
+
+	PLSMainView[maxState="true"] > #plsMainViewBorderFrame > #titleBar > #maxres:pressed,
+	PLSMainView[fullScreenState="true"] > #plsMainViewBorderFrame > #titleBar > #maxres:pressed {
+		image: url(":/resource/images/btn-maxres-click.svg");
+	}
+
+	PLSMainView[maxState="true"] > #plsMainViewBorderFrame > #titleBar > #maxres:disabled,
+	PLSMainView[fullScreenState="true"] > #plsMainViewBorderFrame > #titleBar > #maxres:disabled {
+		image: url(":/resource/images/btn-maxres-disable.svg");
+	}
+
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #close {
+		image: url(":/resource/images/btn-close-normal.svg");
+	}
+	
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #close:hover {
+		image: url(":/resource/images/btn-close-over.svg");
+	}
+
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #close:pressed {
+		image: url(":/resource/images/btn-close-click.svg");
+	}
+
+	PLSMainView > #plsMainViewBorderFrame > #titleBar > #close:disabled {
+		image: url(":/resource/images/btn-close-disable.svg");
+	}
+
+	PLSMainView PLSPopupMenu#mainMenu {
+		min-width: /*hdpi*/ 180px;
+		max-width: /*hdpi*/ 180px;
+	}
+
+	PLSMainView PLSPopupMenu#menuFile, PLSMainView PLSPopupMenu#menuFile PLSPopupMenu,
+	PLSMainView PLSPopupMenu#viewMenu, PLSMainView PLSPopupMenu#viewMenu PLSPopupMenu,
+	PLSMainView PLSPopupMenu#menuEdit, PLSMainView PLSPopupMenu#menuEdit PLSPopupMenu,
+	PLSMainView PLSPopupMenu#sceneCollectionMenu, PLSMainView PLSPopupMenu#sceneCollectionMenu PLSPopupMenu,
+	PLSMainView PLSPopupMenu#profileMenu, PLSMainView PLSPopupMenu#profileMenu PLSPopupMenu,
+	PLSMainView PLSPopupMenu#menuTools, PLSMainView PLSPopupMenu#menuTools PLSPopupMenu,
+	PLSMainView PLSPopupMenu#menuHelp, PLSMainView PLSPopupMenu#menuHelp PLSPopupMenu,
+	PLSMainView PLSPopupMenu#VirtualCameraMenu, PLSMainView QMenu#audioMixer {
+		min-width: /*hdpi*/ 260px;
+		max-width: /*hdpi*/ 260px;
+	}
+
+	PLSMainView PLSPopupMenu PLSPopupMenuItem#actionShowAbout {
+		qproperty-isLeftIcon: /*hdpi*/ false;
+	}
+
+	PLSMainView PLSPopupMenu PLSPopupMenuItem#actionSceneCollectionManagement {
+		qproperty-isLeftIcon: /*hdpi*/ false;
+	}
+
+	PLSMainView PLSPopupMenu #actionLaboratory {
+		qproperty-isLeftIcon: /*hdpi*/ false;
+	}
+
+	PLSMainView PLSPopupMenu PLSPopupMenuItem[isLeftIcon="false"] QLabel[menuItemRole="icon"] {
+		margin-left: /*hdpi*/ 10px;
+	}
+
+	PLSMainView PLSPopupMenu PLSPopupMenuItem[isLeftIcon="true"] QLabel[menuItemRole="icon"] {
+		margin-right: /*hdpi*/ 10px;
+	}
+
+	PLSMainView PLSPopupMenu PLSPopupMenuItem#actionShowAbout QLabel[menuItemRole="icon"],
+	PLSMainView PLSPopupMenu PLSPopupMenuItem#actionLaboratory QLabel[menuItemRole="icon"],
+	PLSMainView PLSPopupMenu PLSPopupMenuItem#actionSceneCollectionManagement QLabel[menuItemRole="icon"] {
+		image: url(":/resource/images/ic-badge-new.svg");
+		margin-left: /*hdpi*/ 10px;
+		margin-top: /*hpdi*/ 2px;
+		min-width: /*hdpi*/ 34px;
+		max-width: /*hdpi*/ 34px;
+		min-height: /*hdpi*/ 16px;
+		max-height: /*hdpi*/ 16px;
+	}
+
+PLSMainView > #plsMainViewBorderFrame > #body {
+	border: none;
+	background-color: #1e1e1f;
+	/*border-left: 1px solid #111111;*/
+}
+
+PLSMainView #rightArea {
+	border: none;
+	border-left: /*hdpi*/ 1px solid #111111;
+	background-color: #272727;
+}
+
+		PLSMainView #rightArea QPushButton[useFor="QToolButton"] {
+			background-color: #272727;
+		}
+
+			PLSMainView #rightArea QPushButton[useFor="QToolButton"]:hover {
+				background-color: #272727;
+			}
+
+			PLSMainView #rightArea QPushButton[useFor="QToolButton"]:pressed {
+				background-color: #272727;
+			}
+
+	PLSMainView #rightArea #user {
+		qproperty-iconSize: /*hdpi*/ 26px /*hdpi*/ 26px;
+		padding: 0;
+		margin: 0;
+		border:none;
+	}
+
+		PLSMainView #rightArea #chat {
+			image: url(":/resource/images/ic-chat-off-normal.svg");
+			min-width: /*hdpi*/ 20px;
+			max-width: /*hdpi*/ 20px;
+			min-height: /*hdpi*/ 20px;
+			max-height: /*hdpi*/ 20px;
+		}
+
+			PLSMainView #rightArea #chat[hasShowChat="false"] {
+				image: url(":/resource/images/ic-chat-off-normal.svg");
+			}
+
+				PLSMainView #rightArea #chat[hasShowChat="false"]:hover {
+					image: url(":/resource/images/ic-chat-off-over.svg");
+				}
+
+				PLSMainView #rightArea #chat[hasShowChat="false"]:pressed {
+					image: url(":/resource/images/ic-chat-off-click.svg");
+				}
+
+			PLSMainView #rightArea #chat[hasShowChat="true"] {
+				image: url(":/resource/images/ic-chat-on-normal.svg");
+			}
+
+				PLSMainView #rightArea #chat[hasShowChat="true"]:hover {
+					image: url(":/resource/images/ic-chat-on-over.svg");
+				}
+
+				PLSMainView #rightArea #chat[hasShowChat="true"]:pressed {
+					image: url(":/resource/images/ic-chat-on-click.svg");
+				}
+
+		PLSMainView #rightArea #studioMode {
+			image: url(":/resource/images/ic-studiomode-off-normal.svg");
+			min-width: /*hdpi*/ 22px;
+			max-width: /*hdpi*/ 22px;
+			min-height: /*hdpi*/ 22px;
+			max-height: /*hdpi*/ 22px;
+			padding:0;
+			margin:0;
+		}
+
+			PLSMainView #rightArea #studioMode:hover {
+				image: url(":/resource/images/ic-studiomode-off-over.svg");
+			}
+
+			PLSMainView #rightArea #studioMode:!checked:pressed {
+				image: url(":/resource/images/ic-studiomode-off-click.svg");
+			}
+
+			PLSMainView #rightArea #studioMode:checked {
+				image: url(":/resource/images/ic-studiomode-on-normal.svg");
+			}
+
+				PLSMainView #rightArea #studioMode:checked:hover {
+					image: url(":/resource/images/ic-studiomode-on-over.svg");
+				}
+
+					PLSMainView #rightArea #studioMode:checked:hover:pressed {
+						image: url(":/resource/images/ic-studiomode-on-click.svg");
+					}
+
+		PLSMainView #rightArea PLSToastButton #alertNumLabel[maxNum="false"] {
+			min-width: /*hdpi*/ 18px;
+			max-width: /*hdpi*/ 18px;
+			min-height: /*hdpi*/ 18px;
+			max-height: /*hdpi*/ 18px;
+			font-size: /*hdpi*/ 11px;
+			padding: 0px;
+			font-weight: bold;
+			image: url(":/resource/images/ic-alert-min.svg");
+			background-color: transparent;
+		}
+
+		PLSMainView #rightArea PLSToastButton #alertNumLabel[maxNum="true"] {
+			min-width: /*hdpi*/ 23px;
+			max-width: /*hdpi*/ 23px;
+			min-height: /*hdpi*/ 23px;
+			max-height: /*hdpi*/ 23px;
+			font-size: /*hdpi*/ 11px;
+			padding: 0px;
+			font-weight: bold;
+			image: url(":/resource/images/ic-alert-max.svg");
+			background-color: transparent;
+		}
+
+		PLSMainView #rightArea #alert {
+			min-width: /*hdpi*/ 52px;
+			max-width: /*hdpi*/ 52px;
+			min-height: /*hdpi*/ 34px;
+			max-height: /*hdpi*/ 34px;
+			background-color: transparent;
+		}
+
+			PLSMainView #rightArea #alert QPushButton {
+				min-width: /*hdpi*/ 22px;
+				max-width: /*hdpi*/ 22px;
+				min-height: /*hdpi*/ 22px;
+				max-height: /*hdpi*/ 22px;
+				background-color: transparent;
+				padding:0px;
+				margin:0px;
+				image: url(":/resource/images/ic-error-off-normal.svg");
+			}
+
+				PLSMainView #rightArea #alert QPushButton[showAlert="false"] {
+					image: url(":/resource/images/ic-error-off-normal.svg");
+				}
+
+					PLSMainView #rightArea #alert QPushButton[showAlert="false"]:hover {
+						image: url(":/resource/images/ic-error-off-over.svg");
+					}
+
+					PLSMainView #rightArea #alert QPushButton[showAlert="false"]:pressed {
+						image: url(":/resource/images/ic-error-off-click.svg");
+					}
+
+				PLSMainView #rightArea #alert QPushButton[showAlert="true"] {
+					image: url(":/resource/images/ic-error-on-normal.svg");
+				}
+
+					PLSMainView #rightArea #alert QPushButton[showAlert="true"]:hover {
+						image: url(":/resource/images/ic-error-on-over.svg");
+					}
+
+					PLSMainView #rightArea #alert QPushButton[showAlert="true"]:pressed {
+						image: url(":/resource/images/ic-error-on-click.svg");
+					}
+
+		PLSMainView #rightArea #alertState {
+			background-color: #c32828;
+			border-radius: /*hdpi*/ 2px;
+			border: /*hdpi*/ none;
+		}
+
+		PLSMainView #rightArea #help {
+			image: url(":/resource/images/ic-help-off-normal.svg");
+			min-width: /*hdpi*/ 22px;
+			max-width: /*hdpi*/ 22px;
+			min-height: /*hdpi*/ 22px;
+			max-height: /*hdpi*/ 22px;
+			padding:0;
+			margin:0;
+		}
+
+			PLSMainView #rightArea #help:hover {
+				image: url(":/resource/images/ic-help-off-over.svg");
+			}
+
+			PLSMainView #rightArea #help:!checked:pressed {
+				image: url(":/resource/images/ic-help-off-click.svg");
+			}
+
+			PLSMainView #rightArea #help:checked {
+				image: url(":/resource/images/ic-help-on-normal.svg");
+			}
+
+				PLSMainView #rightArea #help:checked:hover {
+					image: url(":/resource/images/ic-help-on-over.svg");
+				}
+
+					PLSMainView #rightArea #help:checked:hover:pressed {
+						image: url(":/resource/images/ic-help-on-click.svg");
+					}
+
+		PLSMainView #rightArea #settings {
+			image: url(":/resource/images/ic-setting-off-normal.svg");
+			min-width: /*hdpi*/ 22px;
+			max-width: /*hdpi*/ 22px;
+			min-height: /*hdpi*/ 22px;
+			max-height: /*hdpi*/ 22px;
+			padding:0;
+			margin:0;
+		}
+
+			PLSMainView #rightArea #settings:hover {
+				image: url(":/resource/images/ic-setting-off-over.svg");
+			}
+
+			PLSMainView #rightArea #settings:!checked:pressed {
+				image: url(":/resource/images/ic-setting-off-click.svg");
+			}
+
+			PLSMainView #rightArea #settings:checked {
+				image: url(":/resource/images/ic-setting-on-normal.svg");
+			}
+
+			PLSMainView #rightArea #settings:disabled {
+				image: url(":/resource/images/ic-setting-off-disable.svg");
+			}
+
+		PLSMainView #rightArea #beauty {
+			image: url(":/resource/images/ic-beautyeffect-off-normal.svg");
+			min-width: /*hdpi*/ 26px;
+			max-width: /*hdpi*/ 26px;
+			min-height: /*hdpi*/ 26px;
+			max-height: /*hdpi*/ 26px;
+			background: transparent;
+		}
+
+			PLSMainView #rightArea #beauty[showMode="false"] {
+				image: url(":/resource/images/ic-beautyeffect-off-normal.svg");
+			}
+
+				PLSMainView #rightArea #beauty[showMode="false"]:hover {
+					image: url(":/resource/images/ic-beautyeffect-off-over.svg");
+				}
+
+				PLSMainView #rightArea #beauty[showMode="false"]:pressed {
+					image: url(":/resource/images/ic-beautyeffect-off-click.svg");
+				}
+
+				PLSMainView #rightArea #beauty[showMode="false"]:!enable {
+					image: url(":/resource/images/ic-beautyeffect-off-disable.svg");
+				}
+
+			PLSMainView #rightArea #beauty[showMode="true"] {
+				image: url(":/resource/images/ic-beautyeffect-on-normal.svg");
+			}
+
+				PLSMainView #rightArea #beauty[showMode="true"]:hover {
+					image: url(":/resource/images/ic-beautyeffect-on-over.svg");
+				}
+
+				PLSMainView #rightArea #beauty[showMode="true"]:pressed {
+					image: url(":/resource/images/ic-beautyeffect-on-click.svg");
+				}
+
+				PLSMainView #rightArea #beauty[showMode="true"]:!enable {
+					image: url(":/resource/images/ic-beautyeffect-on-disable.svg");
+				}
+
+		/*virtual button start*/
+		PLSMainView #rightArea #virtualBtn {
+			image: url(":/resource/images/virtual/ic-vbg-off-normal.svg");
+			min-width: /*hdpi*/ 26px;
+			max-width: /*hdpi*/ 26px;
+			min-height: /*hdpi*/ 26px;
+			max-height: /*hdpi*/ 26px;
+			background: transparent;
+		}
+
+			PLSMainView #rightArea #virtualBtn[showMode="false"] {
+				image: url(":/resource/images/virtual/ic-vbg-off-normal.svg");
+			}
+
+				PLSMainView #rightArea #virtualBtn[showMode="false"]:hover {
+					image: url(":/resource/images/virtual/ic-vbg-off-over.svg");
+				}
+
+				PLSMainView #rightArea #virtualBtn[showMode="false"]:pressed {
+					image: url(":/resource/images/virtual/ic-vbg-off-click.svg");
+				}
+
+				PLSMainView #rightArea #virtualBtn[showMode="false"]:!enable {
+					image: url(":/resource/images/virtual/ic-vbg-off-disable.svg");
+				}
+
+			PLSMainView #rightArea #virtualBtn[showMode="true"] {
+				image: url(":/resource/images/virtual/ic-vbg-on-normal.svg");
+			}
+
+				PLSMainView #rightArea #virtualBtn[showMode="true"]:hover {
+					image: url(":/resource/images/virtual/ic-vbg-on-over.svg");
+				}
+
+				PLSMainView #rightArea #virtualBtn[showMode="true"]:pressed {
+					image: url(":/resource/images/virtual/ic-vbg-on-click.svg");
+				}
+
+				PLSMainView #rightArea #virtualBtn[showMode="true"]:!enable {
+					image: url(":/resource/images/virtual/ic-vbg-on-disable.svg");
+				}
+
+
+		/*virtual button end*/
+
+
+		PLSMainView #rightArea #bgmBtn {
+			image: url(":/resource/images/bgm/ic-bgm-off-normal.svg");
+			min-width: /*hdpi*/ 26px;
+			max-width: /*hdpi*/ 26px;
+			min-height: /*hdpi*/ 26px;
+			max-height: /*hdpi*/ 26px;
+			background: transparent;
+		}
+
+			PLSMainView #rightArea #bgmBtn[showMode="false"] {
+				image: url(":/resource/images/bgm/ic-bgm-off-normal.svg");
+			}
+
+				PLSMainView #rightArea #bgmBtn[showMode="false"]:hover {
+					image: url(":/resource/images/bgm/ic-bgm-off-over.svg");
+				}
+
+				PLSMainView #rightArea #bgmBtn[showMode="false"]:pressed {
+					image: url(":/resource/images/bgm/ic-bgm-off-click.svg");
+				}
+
+				PLSMainView #rightArea #bgmBtn[showMode="false"]:!enable {
+					image: url(":/resource/images/bgm/ic-bgm-off-disable.svg");
+				}
+
+			PLSMainView #rightArea #bgmBtn[showMode="true"] {
+				image: url(":/resource/images/bgm/ic-bgm-on-normal.svg");
+			}
+
+				PLSMainView #rightArea #bgmBtn[showMode="true"]:hover {
+					image: url(":/resource/images/bgm/ic-bgm-on-over.svg");
+				}
+
+				PLSMainView #rightArea #bgmBtn[showMode="true"]:pressed {
+					image: url(":/resource/images/bgm/ic-bgm-on-click.svg");
+				}
+
+				PLSMainView #rightArea #bgmBtn[showMode="true"]:!enable {
+					image: url(":/resource/images/bgm/ic-bgm-on-disable.svg");
+				}
+
+		PLSMainView #rightArea #label_separate {
+			min-width: /*hdpi*/ 24px;
+			max-width: /*hdpi*/ 24px;
+			min-height: /*hdpi*/ 1px;
+			max-height: /*hdpi*/ 1px;
+			border: none;
+			background-color: #343435;
+		}
+
+QMenu#helpMenu {
+	border: /*hdpi*/ 1px solid #111111;
+	background: #2d2d2d;
+	min-height: /*hdpi*/ 176px;
+	max-height: /*hdpi*/ 176px;
+	min-width: /*hdpi*/ 180px;
+	max-width: /*hdpi*/ 180px;
+	padding: 0px;
+}
+
+CustomHelpMenuItem #titleLabel {
+	color: white;
+	font-size: /*hdpi*/ 14px;
+}
+
+CustomHelpMenuItem #badgeNew {
+	image: url(":/resource/images/ic-badge-new.svg");
+	min-width: /*hdpi*/ 34px;
+	min-height: /*hdpi*/ 16px;
+	max-width: /*hdpi*/ 34px;
+	max-height: /*hdpi*/ 16px;
+}
+
+/*sticker button start*/
+PLSMainView #rightArea #stickers {
+	image: url(":/resource/images/giphy/ic-giphy-off-normal.svg");
+	min-width: /*hdpi*/ 26px;
+	max-width: /*hdpi*/ 26px;
+	min-height: /*hdpi*/ 26px;
+	max-height: /*hdpi*/ 26px;
+	background: transparent;
+}
+
+	PLSMainView #rightArea #stickers[showMode="false"] {
+		image: url(":/resource/images/giphy/ic-giphy-off-normal.svg");
+	}
+
+		PLSMainView #rightArea #stickers[showMode="false"]:hover {
+			image: url(":/resource/images/giphy/ic-giphy-off-over.svg");
+		}
+
+		PLSMainView #rightArea #stickers[showMode="false"]:pressed {
+			image: url(":/resource/images/giphy/ic-giphy-off-click.svg");
+		}
+
+		PLSMainView #rightArea #stickers[showMode="false"]:!enable {
+			image: url(":/resource/images/giphy/ic-giphy-off-disable.svg");
+		}
+
+	PLSMainView #rightArea #stickers[showMode="true"] {
+		image: url(":/resource/images/giphy/ic-giphy-on-normal.svg");
+	}
+
+		PLSMainView #rightArea #stickers[showMode="true"]:hover {
+			image: url(":/resource/images/giphy/ic-giphy-on-over.svg");
+		}
+
+		PLSMainView #rightArea #stickers[showMode="true"]:pressed {
+			image: url(":/resource/images/giphy/ic-giphy-on-click.svg");
+		}
+
+		PLSMainView #rightArea #stickers[showMode="true"]:!enable {
+			image: url(":/resource/images/giphy/ic-giphy-on-disable.svg");
+		}
+/*sticker button end*/
+
+PLSMainView #bottomArea {
+	border: none;
+	border-top: /*hdpi*/ 1px solid #111111;
+	background-color: #272727;
+	padding-top: /*hdpi*/ 0px;
+}
+
+PLSMainView QPushButton[useFor="QToolButton"] {
+	background-color: #1e1e1f;
+}
+
+	PLSMainView QPushButton[useFor="QToolButton"]:hover {
+		background-color: #363636;
+	}
+
+	PLSMainView QPushButton[useFor="QToolButton"]:pressed {
+		background-color: #111111;
+	}
+
+QMainWindow, QMainWindow QMenuBar, QMainWindow #centralwidget {
+	background-color: #1e1e1f;
+}
+
+QMainWindow::separator {
+	background-color: #1e1e1f;
+	width: /*hdpi*/ 5px;
+	height: /*hdpi*/ 5px;
+}
+
+	QMainWindow::separator:hover {
+		background-color: #1e1e1f;
+	}
+
+QMainWindow #transitionsDock PLSSpinBox {
+	background-color: #1c1c1c;
+	border: /*hdpi*/ none;
+	border-radius: /*hdpi*/ 1px;
+	padding-left: /*hdpi*/ 12px;
+	min-height: /*hdpi*/ 32px;
+	max-height: /*hdpi*/ 32px;
+}
+
+	QMainWindow QStatusBar, QMainWindow QStatusBar::item, QMainWindow QStatusBar QWidget {
+		border: none;
+		border-top: /*hdpi*/ #111111;
+		background-color: #1e1e1f;
+	}
+
+PLSMainView #addBtn {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	border-style: none;
+	background: transparent;
+	image: url(":/resource/images/icon-addsource-default.svg");
+}
+
+	PLSMainView #addBtn:hover {
+		background-color: #272727;
+		image: url(":/resource/images/icon-addsource-over.svg");
+	}
+
+	PLSMainView #addBtn:pressed {
+		image: url(":/resource/images/icon-addsource-click.svg");
+	}
+
+	PLSMainView #addBtn:!enabled {
+		image: url(":/resource/images/icon-addsource-disable.svg");
+	}
+
+PLSMainView #addSourceBtn {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	border-style: none;
+	image: url(":/resource/images/icon-addsource-default.svg");
+}
+
+PLSMainView #addSourceBtn:hover {
+	background-color: #272727;
+	background: transparent;
+	image: url(":/resource/images/icon-addsource-over.svg");
+}
+
+PLSMainView #addSourceBtn:pressed {
+	image: url(":/resource/images/icon-addsource-click.svg");
+}
+
+PLSMainView #addSourceBtn:!enabled {
+	image: url(":/resource/images/icon-addsource-disable.svg");
+}
+
+PLSMainView #switchEffectBtn {
+	margin-right: 10px;
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	border-style: none;
+	background: transparent;
+	image: url(":/resource/images/ic-transition-normal.svg");
+}
+
+	PLSMainView #switchEffectBtn:hover {
+		background: transparent;
+		image: url(":/resource/images/ic-transition-over.svg");
+	}
+
+	PLSMainView #switchEffectBtn:pressed {
+		background: transparent;
+		image: url(":/resource/images/ic-transition-click.svg");
+	}
+
+	PLSMainView #switchEffectBtn:!enabled {
+		image: url(":/resource/images/ic-transition-disable.svg");
+	}
+
+PLSMainView #seperateBtn {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	border-style: none;
+	background: transparent;
+	image: url(":/resource/images/ic-transition-normal.svg");
+}
+
+	PLSMainView #seperateBtn:hover {
+		background-color: #272727;
+		image: url(":/resource/images/icon-more-over.svg");
+	}
+
+	PLSMainView #seperateBtn:pressed {
+		image: url(":/resource/images/icon-more-click.svg");
+	}
+
+	PLSMainView #seperateBtn:!enabled {
+		image: url(":/resource/images/icon-more-disable.svg");
+	}
+
+PLSMainView #helpListWidget {
+	border: /*hdpi*/ none;
+	background-color: transparent;
+	min-height: /*hdpi*/ 176px;
+	max-height: /*hdpi*/ 176px;
+	min-width: /*hdpi*/ 180px;
+	max-width: /*hdpi*/ 180px;
+	padding-top: /*hdpi*/ 8px;
+	padding-bottom: /*hdpi*/ 8px;
+}
+
+	PLSMainView #helpListWidget:focus {
+		outline: none;
+	}
+
+	PLSMainView #helpListWidget::item {
+		padding: /*hdpi*/ 0px /*hdpi*/ 20px /*hdpi*/ 0px /*hdpi*/ 20px;
+		min-height: /*hdpi*/ 40px;
+		min-width: /*hdpi*/ 180px;
+	}
+
+		PLSMainView #helpListWidget::item:hover {
+			background-color: #444444;
+		}
+
+		PLSMainView #helpListWidget::item:selected {
+			background-color: transparent;
+		}
+
+			PLSMainView #helpListWidget::item:selected:!active {
+				background-color: transparent;
+			}
+
+
+
+PLSMainView #sourceIconViewCheckbox, PLSMainView #sourceLockCheckbox {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	background: none;
+}
+
+PLSMainView #sourceNameLabel {
+	min-width: /*hdpi*/ 40px;
+	font-size: /*hdpi*/ 14px;
+	color: #ffffff;
+	padding-left: /*hdpi*/ 5px;
+	font-weight: normal;
+}
+
+PLSMainView #sourceRenameEditor {
+	padding-left: /*hdpi*/ 5px;
+	min-height: /*hdpi*/ 24px;
+	max-height: /*hdpi*/ 24px;
+}
+
+PLSMainView #sourceNameLabel[status="visible.unselect"] {
+	color: #ffffff;
+	font-weight: normal;
+}
+
+PLSMainView #sourceNameLabel[status="visible.select"] {
+	color: #effc35;
+	font-weight: bold;
+}
+
+PLSMainView #sourceNameLabel[status="invisible.unselect"] {
+	color: #666666;
+	font-weight: normal;
+}
+
+PLSMainView #sourceNameLabel[status="invisible.select"] {
+	color: #7a7f34;
+	font-weight: bold;
+}
+
+PLSMainView #PLSToastMsgPopup {
+	padding: /*hdpi*/ 12px;
+	qproperty-minimumSize: /*hdpi*/ 325px /*hdpi*/ 68px;
+}
+
+	PLSMainView #PLSToastMsgPopup[toastWaning="true"] {
+		qproperty-minimumSize: /*hdpi*/ 325px /*hdpi*/ 68px;
+		background-color: #666666;
+		border-radius: /*hdpi*/ 3px;
+		font-size: /*hdpi*/ 14px;
+		font-weight: normal;
+		color: #ffffff;
+	}
+
+	PLSMainView #PLSToastMsgPopup[toastWaning="false"] {
+		qproperty-minimumSize: /*hdpi*/ 325px /*hdpi*/ 68px;
+		border-radius: /*hdpi*/ 3px;
+		background-color: #c34151;
+		font-size: /*hdpi*/ 14px;
+		font-weight: normal;
+		color: #ffffff;
+	}
+
+
+#transitionApplyButton {
+	padding: /*hdpi*/ 0px;
+	margin: /*hdpi*/ 0px;
+	min-width: /*hdpi*/ 34px;
+	max-width: /*hdpi*/ 34px;
+	min-height: /*hdpi*/ 34px;
+	max-height: /*hdpi*/ 34px;
+	background: transparent;
+	image: url(":/resource/images/btn-apply-normal.svg");
+}
+
+	#transitionApplyButton:hover {
+		image: url(":/resource/images/btn-apply-over.svg");
+	}
+
+	#transitionApplyButton:pressed {
+		image: url(":/resource/images/btn-apply-click.svg");
+	}
+
+	#transitionApplyButton:disabled {
+		image: url(":/resource/images/btn-apply-disable.svg");
+	}
+
+/*------studio mode off------*/
+#previewTitleLabel {
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #ffffff;
+}
+
+PLSBasicStatusBar #previewTitleLabel {
+	font-size: /*hdpi*/ 12px;
+}
+
+#previewTitleLabelEdit {
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #666666;
+}
+
+#previewTitleLabel[status="false"] {
+	color: #ffffff;
+}
+
+#previewTitleLabel[status="true"] {
+	color: #ff273b;
+}
+
+#previewTitleLabel[timerType="TimerRehearsal"][status="true"] {
+	color: white;
+}
+/*------studio mode off------*/
+
+/*------studio mode on------*/
+#previewTitleLabelEdit[studio_mode="on"] {
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #effc35;
+}
+
+#previewTitleLabelDrawPen[studio_mode="on"] {
+	padding: /*hdpi*/ 0px;
+	margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+	min-width: /*hdpi*/ 20px;
+	max-width: /*hdpi*/ 20px;
+	min-height: /*hdpi*/ 20px;
+	max-height: /*hdpi*/ 20px;
+	background: transparent;
+	image: url(":/resource/images/draw-pen/ic-drawing-edit.svg");
+}
+
+
+#previewTitleLabel[timerType="TimerRecord"][status="false"][studio_mode="on"] {
+	color: #666666;
+}
+
+#previewTitleLabel[timerType="TimerRecord"][status="true"][studio_mode="on"] {
+	color: #ff273b;
+}
+
+#previewTitleLabel[timerType="TimerLive"][status="false"][record="off"][studio_mode="on"] {
+	color: white;
+}
+
+#previewTitleLabel[timerType="TimerLive"][status="false"][record="on"][studio_mode="on"] {
+	color: #666666;
+}
+
+#previewTitleLabel[timerType="TimerLive"][status="true"][studio_mode="on"] {
+	color: #ff273b;
+}
+
+#previewTitleLabel[timerType="TimerRehearsal"][status="true"][studio_mode="on"] {
+	color: white;
+}
+
+#previewTitleLabel[timerType="TimerRehearsal"][status="false"][studio_mode="on"] {
+	color: #666666;
+}
+
+#previewContainer #editLabel {
+	color: #effc35;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+}
+
+#previewContainer #liveSceneLabel, #previewContainer #editSceneLabel {
+	color: #bababa;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+}
+
+#previewContainer #liveLabel {
+	color: #ffffff;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+}
+
+#previewContainer #horApplyBtn, #previewContainer #porApplyBtn {
+	padding: /*hdpi*/ 0px;
+	margin: /*hdpi*/ 0px;
+	min-width: /*hdpi*/ 34px;
+	max-width: /*hdpi*/ 34px;
+	min-height: /*hdpi*/ 34px;
+	max-height: /*hdpi*/ 34px;
+	background: transparent;
+}
+
+#previewContainer #horApplyBtn {
+	image: url(":/resource/images/btn-apply-normal.svg");
+}
+
+#previewContainer #horApplyBtn:hover {
+	image: url(":/resource/images/btn-apply-over.svg");
+}
+
+#previewContainer #horApplyBtn:pressed {
+	image: url(":/resource/images/btn-apply-click.svg");
+}
+
+#previewContainer #horApplyBtn:disabled {
+	image: url(":/resource/images/btn-apply-disable.svg");
+}
+
+#previewContainer #porApplyBtn {
+	image: url(":/resource/images/btn_apply_vertical_normal.svg");
+}
+
+#previewContainer #porApplyBtn:hover {
+	image: url(":/resource/images/btn_apply_vertical_over.svg");
+}
+
+#previewContainer #porApplyBtn:pressed {
+	image: url(":/resource/images/btn_apply_vertical_click.svg");
+}
+
+#previewContainer #porApplyBtn:disabled {
+	image: url(":/resource/images/btn_apply_vertical_disable.svg");
+}
+
+/*------studio mode on------*/
+#previewLiveRecTime {
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #585858;
+}
+
+	#previewLiveRecTime[activate="true"] {
+		color: #bababa;
+	}
+
+#previewLiveRecSpace {
+	min-width: /*hdpi*/ 3px;
+	max-width: /*hdpi*/ 3px;
+	min-height: /*hdpi*/ 3px;
+	max-height: /*hdpi*/ 3px;
+	image: url(":/resource/images/bgm/img-music-dot.svg");
+}
+
+
+#enablePreviewLabel {
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #666666;
+}
+
+#enablePreviewButton {
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	color: #FFFFFF;
+	min-width: /*hdpi*/ 201px;
+	max-width: /*hdpi*/ 201px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+}
+
+OBSBasic #mainviewSpaceLabelL, OBSBasic #mainviewSpaceLabelR {
+	min-width: /*hdpi*/ 5px;
+	max-width: /*hdpi*/ 10px;
+}
+
+OBSBasic #centralwidget #previewContainer {
+	min-height: /*hdpi*/ 153px;
+	min-width: /*hdpi*/ 232px;
+	padding: /*hdpi*/ 25px;
+}
+
+	OBSBasic #centralwidget #previewContainer[studio_mode="on"] {
+		min-height: /*hdpi*/ 153px;
+		min-width: /*hdpi*/ 514px;
+		padding: /*hdpi*/ 25px;
+	}
+/* ok button */
+OBSBasic PLSRegionCapture #frameMenu > #cancelBtn {
+	border: none;
+	background: transparent;
+	image: url(":/resource/images/btn-close-normal.svg");
+}
+
+	OBSBasic PLSRegionCapture #frameMenu > #cancelBtn:hover {
+		image: url(":/resource/images/btn-close-over.svg");
+	}
+
+	OBSBasic PLSRegionCapture #frameMenu > #cancelBtn:pressed {
+		image: url(":/resource/images/btn-close-click.svg");
+	}
+
+	OBSBasic PLSRegionCapture #frameMenu > #cancelBtn:disabled {
+		image: url(":/resource/images/btn-close-disable.svg");
+	}
+
+/* cancel button */
+OBSBasic PLSRegionCapture #frameMenu > #confirmBtn {
+	border: none;
+	background: transparent;
+	image: url(":/resource/images/bgm/btn-add-playlist-done-normal.svg");
+}
+
+	OBSBasic PLSRegionCapture #frameMenu > #confirmBtn:hover {
+		image: url(":/resource/images/bgm/btn-add-playlist-done-over.svg");
+	}
+
+	OBSBasic PLSRegionCapture #frameMenu > #confirmBtn:pressed {
+		image: url(":/resource/images/bgm/btn-add-playlist-done-click.svg");
+	}
+
+	OBSBasic PLSRegionCapture #frameMenu > #confirmBtn:disabled {
+		image: url(":/resource/images/bgm/btn-add-playlist-done-disable.svg");
+	}
+
+PLSBasicPreview {
+	min-width: /*hdpi*/ 270px;
+	min-height: /*hdpi*/ 158px;
+}
+
+PLSMainView #ResolutionBtn {
+	min-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	image: url(:/resource/images/ResolutionGuide/ic-resolution-off-normal.svg);
+	background-color: transparent;
+	padding:0;
+	margin:0;
+}
+
+	PLSMainView #ResolutionBtn:hover {
+		image: url(:/resource/images/ResolutionGuide/ic-resolution-off-over.svg);
+	}
+
+	PLSMainView #ResolutionBtn:!checked:pressed {
+		image: url(:/resource/images/ResolutionGuide/ic-resolution-off-click.svg);
+	}
+
+	PLSMainView #ResolutionBtn:disabled {
+		image: url(:/resource/images/ResolutionGuide/ic-resolution-off-disable.svg);
+	}
+
+	PLSMainView #ResolutionBtn:checked {
+		image: url(:/resource/images/ResolutionGuide/ic-resolution-on-normal.svg);
+	}
+
+		PLSMainView #ResolutionBtn:checked:hover {
+			image: url(:/resource/images/ResolutionGuide/ic-resolution-on-over.svg);
+		}
+
+	PLSMainView #ResolutionBtn:checked:pressed {
+		image: url(:/resource/images/ResolutionGuide/ic-resolution-on-click.svg);
+	}
+
+	PLSMainView #ResolutionBtn:checked:disabled {
+		image: url(:/resource/images/ResolutionGuide/ic-resolution-on-disable.svg);
+	}
+
+
+PLSMainView ResolutionTipFrame {
+	background-color: transparent;
+	margin: 0px;
+	padding: 5px;
+	border: none;
+	min-width: /*hdpi*/ 264px;
+	max-width: /*hdpi*/ 264px;
+}
+
+
+	PLSMainView ResolutionTipFrame #ContentLabel {
+		padding: 0px;
+		margin: /*hdpi*/ 3px /*hdpi*/ 0px /*hdpi*/ 5px /*hdpi*/ 8px;
+		font-size: /*hdpi*/ 14px;
+		font-weight: normal;
+		color: white;
+		background-color: transparent;
+		/*border: 1px solid red;*/
+		min-width: /*hdpi*/ 210px;
+		max-width: /*hdpi*/ 210px;
+	}
+
+	PLSMainView ResolutionTipFrame #ButtonFrame {
+		margin: /*hdpi*/ 0px /*hdpi*/ 16px /*hdpi*/ 5px /*hdpi*/ 5px;
+		background-color: transparent;
+		border: none;
+		/*border: 1px solid red;*/
+	}
+
+	PLSMainView ResolutionTipFrame #CloseBtn {
+		min-width: /*hdpi*/ 22px;
+		min-height: /*hdpi*/ 22px;
+		max-width: /*hdpi*/ 22px;
+		max-height: /*hdpi*/ 22px;
+		margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px;
+		image: url(":/resource/images/btn-close-normal.svg");
+		background-color: transparent;
+		border: none;
+		/*border: 1px solid red;*/
+	}
+
+
+		PLSMainView ResolutionTipFrame #CloseBtn:hover {
+			image: url(":/resource/images/btn-close-over.svg");
+		}
+
+		PLSMainView ResolutionTipFrame #CloseBtn:pressed {
+			image: url(":/resource/images/btn-close-click.svg");
+		}
+
+		PLSMainView ResolutionTipFrame #CloseBtn:disabled {
+			image: url(":/resource/images/btn-close-disable.svg");
+		}
+
+PLSMainView #sidebarMenuScrollarea {
+	border: none;
+}
+
+PLSMainView #side_bar_menus {
+	background-color: #272727;
+}
+
+PLSMainView #label_space {
+	background: transparent;
+	min-height: /*hdpi*/ 20px;
+	max-height: /*hdpi*/ 20px;
+}
+
+PLSMainView #label_separator_bottom {
+	background: transparent;
+	min-height: /*hdpi*/ 30px;
+	max-height: /*hdpi*/ 30px;
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	border: 0;
+	border-top: /*hdpi*/ 1px solid #343435;
+	padding:0;
+	margin:0;
+}
+
+PLSBasic > #mainMenu {
+	max-width: 260px;
+}
+	PLSBasic > #mainMenu::item {
+		min-width: 100px;
+	}
+
+PLSBasic > QTabBar::tab {
+	margin: /*hdpi*/ 0px;
+	padding: 0;
+	min-width: 52px;
+	border: /*hdpi*/ none;
+	padding-left: 12px;
+	padding-right: 12px;
+	background-color: #222222;
+	font-size: 14px;
+	max-width: 300px;
+	min-height: 32px;
+	max-height: 32px;
+	color: #bababa;
+	margin-right: 3px;
+}
+
+PLSBasic > QTabBar::tab:top {
+	border-bottom: 0;
+	border-top-left-radius: /*hdpi*/ 3px;
+	border-top-right-radius: /*hdpi*/ 3px;
+}
+PLSBasic > QTabBar::tab:selected {
+	background-color: #272727;
+	color: #effc35;
+	font-weight:bold;
+}
+PLSBasic > QTabBar::tab:!selected:hover {
+	background-color: #333333;
+	color: #bababa;
+}
+PLSBasic > QTabBar::tab:hover {
+	background-color: #333333;
+}
+
+PLSBasic > QTabBar::tab:pressed {
+	background-color: #333333;
+	color: #effc35;
+}
+
+PLSBasic > QTabBar #ScrollRightButton {
+	border-bottom-right-radius: /*hdpi*/ 3px;
+	background-color: #222222;
+}
+PLSBasic > QTabBar #ScrollRightButton:hover {
+	background-color: #333333;
+}
+PLSBasic > QTabBar #ScrollRightButton:pressed {
+	background-color: #272727;
+}
+PLSBasic > QTabBar QToolButton::right-arrow {
+	min-height:10px;
+	max-height:10px;
+	min-width:10px;
+	max-width:10px;
+	image: url(:/resource/images/ic_next_normal.svg);
+}
+
+PLSBasic > QTabBar QToolButton::right-arrow:disabled {
+	image: url(:/resource/images/ic_next_disable.svg);
+}
+PLSBasic > QTabBar QToolButton::left-arrow:disabled {
+	image: url(:/resource/images/ic_fre_disable.svg);
+}
+PLSBasic > QTabBar QToolButton::left-arrow {
+	min-height: 10px;
+	max-height: 10px;
+	min-width: 10px;
+	max-width: 10px;
+	image: url(:/resource/images/ic_fre_normal.svg);
+}
+PLSBasic > QTabBar #ScrollLeftButton {
+	border-bottom-left-radius: /*hdpi*/ 3px;
+	background-color: #222222;
+}
+PLSBasic > QTabBar #ScrollLeftButton:hover {
+		background-color: #333333;
+	}
+PLSBasic > QTabBar #ScrollLeftButton:pressed {
+		background-color: #272727;
+	}
+PLSMainView PLSIconButton[useFor="giphy"] {
+	min-width: 24px;
+	min-height: 24px;
+	max-width: 24px;
+	max-height: 24px;
+	padding: 0;
+	margin: 0;
+	qproperty-iconWidth: 22;
+	qproperty-iconHeight: 22;
+	qproperty-iconOffNormal: ":/resource/images/giphy/ic-giphy-off-normal.svg";
+	qproperty-iconOffHover: ":/resource/images/giphy/ic-giphy-off-over.svg";
+	qproperty-iconOffPressed: ":/resource/images/giphy/ic-giphy-off-click.svg";
+	qproperty-iconOffDisabled: ":/resource/images/giphy/ic-giphy-off-disable.svg";
+	qproperty-iconOnNormal: ":/resource/images/giphy/ic-giphy-on-normal.svg";
+	qproperty-iconOnHover: ":/resource/images/giphy/ic-giphy-on-over.svg";
+	qproperty-iconOnPressed: ":/resource/images/giphy/ic-giphy-on-click.svg";
+	qproperty-iconOnDisabled: ":/resource/images/giphy/ic-giphy-on-disable.svg";
+}
+
+PLSMainView PLSIconButton[useFor="prismSticker"] {
+	min-width: 24px;
+	min-height: 24px;
+	max-width: 24px;
+	max-height: 24px;
+	padding: 0;
+	margin: 0;
+	qproperty-iconWidth: 22;
+	qproperty-iconHeight: 22;
+	qproperty-iconOffNormal: ":/resource/images/prism-sticker/ic-priemsticker-off-normal.svg";
+	qproperty-iconOffHover: ":/resource/images/prism-sticker/ic-priemsticker-off-over.svg";
+	qproperty-iconOffPressed: ":/resource/images/prism-sticker/ic-priemsticker-off-click.svg";
+	qproperty-iconOffDisabled: ":/resource/images/prism-sticker/ic-priemsticker-off-disable.svg";
+	qproperty-iconOnNormal: ":/resource/images/prism-sticker/ic-priemsticker-on-normal.svg";
+	qproperty-iconOnHover: ":/resource/images/prism-sticker/ic-priemsticker-on-over.svg";
+	qproperty-iconOnPressed: ":/resource/images/prism-sticker/ic-priemsticker-on-click.svg";
+	qproperty-iconOnDisabled: ":/resource/images/prism-sticker/ic-priemsticker-on-disable.svg";
+}
+
+PLSMainView PLSIconButton[useFor="drawPen"] {
+	min-width: 24px;
+	min-height: 24px;
+	max-width: 24px;
+	max-height: 24px;
+	padding: 0;
+	margin: 0;
+	qproperty-iconWidth: 22;
+	qproperty-iconHeight: 22;
+	qproperty-iconOffNormal: ":/resource/images/draw-pen/ic-drawing-off-normal.svg";
+	qproperty-iconOffHover: ":/resource/images/draw-pen/ic-drawing-off-over.svg";
+	qproperty-iconOffPressed: ":/resource/images/draw-pen/ic-drawing-off-click.svg";
+	qproperty-iconOffDisabled: ":/resource/images/draw-pen/ic-drawing-off-disable.svg";
+	qproperty-iconOnNormal: ":/resource/images/draw-pen/ic-drawing-on-normal.svg";
+	qproperty-iconOnHover: ":/resource/images/draw-pen/ic-drawing-on-over.svg";
+	qproperty-iconOnPressed: ":/resource/images/draw-pen/ic-drawing-on-click.svg";
+	qproperty-iconOnDisabled: ":/resource/images/draw-pen/ic-drawing-on-disable.svg";
+}

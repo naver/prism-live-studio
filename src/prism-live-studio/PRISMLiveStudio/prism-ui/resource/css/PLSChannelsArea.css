@@ -1,0 +1,307 @@
+
+
+PLSChannelsArea {
+	border-bottom:1px solid #111111;
+	border-top: /*hdpi*/ none;
+	background-color: #272727;
+	padding: /*hdpi*/ 0px;
+	margin: /*hdpi*/ 0px;
+	qproperty-maximumSize: /*hdpi*/ 9999999px /*hdpi*/ 60px;
+	qproperty-minimumSize: /*hdpi*/ 400px /*hdpi*/ 30px;
+}
+
+	PLSChannelsArea #HeaderFrame {
+		background-color: #272727;
+		margin: /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px;
+		padding-left: /*hdpi*/ 25px;
+		padding-right: /*hdpi*/ 3px;
+		border-right: /*hdpi*/ 1px solid #111111;
+		qproperty-maximumSize: /*hdpi*/ 150px /*hdpi*/ 60px;
+		qproperty-minimumSize: /*hdpi*/ 150px /*hdpi*/ 29px;
+	}
+
+	PLSChannelsArea #MyChannelsTxtBtn {
+		margin: /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px;
+		border: /*hdpi*/ 1px solid transparent;
+		background-color: transparent;
+		image: none;
+		min-height: /*hdpi*/ 30px;
+		max-height: /*hdpi*/ 30px;
+		font-size: /*hdpi*/ 14px;
+		font-weight: bold;
+		font-style: normal;
+		text-align: left center;
+		color: #ffffff;
+	}
+
+		PLSChannelsArea #MyChannelsTxtBtn:disabled {
+			color: #666666;
+		}
+
+	PLSChannelsArea #MyChannelsIconBtn {
+		margin: /*hdpi*/ 2px /*hdpi*/ 5px /*hdpi*/ 0px /*hdpi*/ 5px;
+		padding: /*hdpi*/ 0px;
+		border: /*hdpi*/ 1px solid transparent;
+		background-color: transparent;
+		color: transparent;
+		min-height: /*hdpi*/ 30px;
+		max-height: /*hdpi*/ 30px;
+		min-width: /*hdpi*/ 22px;
+		max-width: /*hdpi*/ 22px;
+		image-position: center center;
+		image: url(":/channels/resource/images/ChannelsSource/icon-more-default.svg");
+	}
+
+
+		PLSChannelsArea #MyChannelsIconBtn:hover {
+			image: url(":/channels/resource/images/ChannelsSource/icon-more-over.svg");
+		}
+
+		PLSChannelsArea #MyChannelsIconBtn:pressed {
+			image: url(":/channels/resource/images/ChannelsSource/icon-more-click.svg");
+		}
+
+		PLSChannelsArea #MyChannelsIconBtn:disabled {
+			image: url(":/channels/resource/images/ChannelsSource/icon-more-disable.svg");
+		}
+
+	PLSChannelsArea #MidFrame[showRightBorder = "false"]{
+		border: /*hdpi*/ none;
+		padding: /*hdpi*/ 0px;
+		margin: /*hdpi*/ 0px;
+		background-color: #272727;
+	}
+	PLSChannelsArea #MidFrame[showRightBorder = "true"] {
+		padding: /*hdpi*/ 0px;
+		margin: /*hdpi*/ 0px;
+		background-color: #272727;
+		border-right: /*hdpi*/ 1px solid #111111;
+	}
+
+		PLSChannelsArea #MidFrame:disabled {
+			background-color: #272727;
+			qproperty-windowOpacity: /*hdpi*/ 0.4px;
+		}
+
+	PLSChannelsArea #ChannelScrollArea {
+		border: /*hdpi*/ none;
+		background-color: transparent;
+	}
+
+	PLSChannelsArea #scrollAreaWidgetContents {
+		background-color: transparent;
+		border: /*hdpi*/ none;
+	}
+
+	PLSChannelsArea #FoldDisPlay {
+		border: /*hdpi*/ none;
+		padding: /*hdpi*/ 0px;
+		margin: /*hdpi*/ 0px;
+		background-color: #272727;
+	}
+	PLSChannelsArea #AddFrame {
+		border: /*hdpi*/ none;
+		background: transparent;
+		padding: /*hdpi*/ 0px;
+		margin: /*hdpi*/ 0px;
+	}
+
+	PLSChannelsArea #RightButton, PLSChannelsArea #LeftButton {
+		min-width: /*hdpi*/ 10px;
+		max-width: /*hdpi*/ 10px;
+		min-height: /*hdpi*/ 10px;
+		max-height: /*hdpi*/ 10px;
+		margin: /*hdpi*/ 0px;
+		padding-left: /*hdpi*/ 13px;
+		padding-right: /*hdpi*/ 13px;
+		background-color: transparent;
+		border: /*hdpi*/ none;
+	}
+
+	PLSChannelsArea #TailFrame {
+		margin: /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px;
+		border: none;
+		qproperty-maximumSize: /*hdpi*/ 50px /*hdpi*/ 60px;
+		qproperty-minimumSize: /*hdpi*/ 50px /*hdpi*/ 30px;
+	}
+
+	PLSChannelsArea #FoldUpButton {
+		min-height: /*hdpi*/ 22px;
+		max-height: /*hdpi*/ 22px;
+		max-width:22px;
+		min-width:22px;
+		margin-left: /*hdpi*/ 14px;
+		margin-right: /*hdpi*/ 14px;
+		margin-top: 19px;
+		margin-bottom: 17px;
+		padding: /*hdpi*/ 0px;
+		background-color: transparent;
+		border: /*hdpi*/ none;
+	}
+	PLSChannelsArea #FoldDownButton {
+		min-height: /*hdpi*/ 22px;
+		max-height: /*hdpi*/ 22px;
+		max-width: 22px;
+		min-width: 22px;
+		margin-left: /*hdpi*/ 14px;
+		margin-right: /*hdpi*/ 14px;
+		margin-top: 3px;
+		margin-bottom: 5px;
+		padding: /*hdpi*/ 0px;
+		background-color: transparent;
+		border: /*hdpi*/ none;
+	}
+
+	PLSChannelsArea #FoldUpButton {
+		image: url(":/resource/images/ChannelsSource/ic-dropbox-up-normal.svg");
+	}
+		PLSChannelsArea #FoldUpButton:hover {
+			image: url(":/resource/images/ChannelsSource/ic-dropbox-up-over.svg");
+		}
+
+		PLSChannelsArea #FoldUpButton:pressed {
+			image: url(":/resource/images/ChannelsSource/ic-dropbox-up-click.svg");
+		}
+
+		PLSChannelsArea #FoldUpButton:disabled {
+			image: url(":/resource/images/ChannelsSource/ic-dropbox-up-disable.svg");
+		}
+
+	PLSChannelsArea #FoldDownButton {
+		image: url(":/resource/images/ChannelsSource/ic-dropbox-down-normal.svg");
+	}
+
+		PLSChannelsArea #FoldDownButton:hover {
+			image: url(":/resource/images/ChannelsSource/ic-dropbox-down-over.svg");
+		}
+
+		PLSChannelsArea #FoldDownButton:pressed {
+			image: url(":/resource/images/ChannelsSource/ic-dropbox-down-click.svg");
+		}
+
+		PLSChannelsArea #FoldDownButton:disabled {
+			image: url(":/resource/images/ChannelsSource/ic-dropbox-down-disable.svg");
+		}
+
+	PLSChannelsArea #LeftButton {
+		image: url(":/channels/resource/images/ChannelsSource/ic-ch-pre-normal.svg");
+	}
+
+		PLSChannelsArea #LeftButton:hover {
+			image: url(":/channels/resource/images/ChannelsSource/ic-ch-pre-over.svg");
+		}
+
+		PLSChannelsArea #LeftButton:pressed {
+			image: url(":/channels/resource/images/ChannelsSource/ic-ch-pre-click.svg");
+		}
+
+		PLSChannelsArea #LeftButton:disabled {
+			image: url(":/channels/resource/images/ChannelsSource/ic-ch-pre-disable.svg");
+		}
+
+	PLSChannelsArea #RightButton {
+		image: url(":/channels/resource/images/ChannelsSource/ic-ch-next-normal.svg");
+	}
+
+		PLSChannelsArea #RightButton:hover {
+			image: url(":/channels/resource/images/ChannelsSource/ic-ch-next-over.svg");
+		}
+
+		PLSChannelsArea #RightButton:pressed {
+			image: url(":/channels/resource/images/ChannelsSource/ic-ch-next-click.svg");
+		}
+
+		PLSChannelsArea #RightButton:disabled {
+			image: url(":/channels/resource/images/ChannelsSource/ic-ch-next-disable.svg");
+		}
+
+
+	PLSChannelsArea PLSAddingFrame {
+		border-radius: /*hdpi*/ 3px;
+		border: /*hdpi*/ 1px solid rgba(255, 255, 255, 0.1);
+		background-color: rgba(39, 39, 39, 0.90);
+		padding: /*hdpi*/ 15px;
+	}
+
+		PLSChannelsArea PLSAddingFrame #PixLabel {
+			qproperty-maximumSize: /*hdpi*/ 24px /*hdpi*/ 24px;
+			qproperty-minimumSize: /*hdpi*/ 24px /*hdpi*/ 24px;
+		}
+
+		PLSChannelsArea PLSAddingFrame #TextLabel {
+			qproperty-maximumSize: /*hdpi*/ 300px /*hdpi*/ 24px;
+			font-size: /*hdpi*/ 14px;
+			font-weight: normal;
+			font-style: normal;
+		}
+
+
+
+	PLSChannelsArea #GotoAddWinButton {
+		padding: /*hdpi*/ 0px /*hdpi*/ 5px /*hdpi*/ 0px /*hdpi*/ 5px;
+		margin: /*hdpi*/ 0px /*hdpi*/ 5px /*hdpi*/ 0px /*hdpi*/ 5px;
+		min-width: /*hdpi*/ 200px;
+		min-height: /*hdpi*/ 22px;
+		font-size: /*hdpi*/ 15px;
+		font-weight: bold;
+		font-style: normal;
+		color: #a8a8a8;
+		background-color: transparent;
+		border: none;
+	}
+
+		PLSChannelsArea #GotoAddWinButton:hover {
+			color: white;
+		}
+
+		PLSChannelsArea #GotoAddWinButton:pressed {
+			color: #666666;
+		}
+
+		PLSChannelsArea #GotoAddWinButton:disabled {
+			color: #666666;
+		}
+
+		PLSChannelsArea #GotoAddWinButton::indicator {
+			min-width: /*hdpi*/ 22px;
+			min-height: /*hdpi*/ 22px;
+			max-width: /*hdpi*/ 22px;
+			max-height: /*hdpi*/ 22px;
+			image: url(":/channels/resource/images/ChannelsSource/ChannelsSource/icon-addsource-default.svg");
+			background-color: transparent;
+			border: none;
+		}
+
+			PLSChannelsArea #GotoAddWinButton::indicator:hover {
+				image: url(":/channels/resource/images/ChannelsSource/ChannelsSource/icon-addsource-over.svg");
+			}
+
+			PLSChannelsArea #GotoAddWinButton::indicator:pressed {
+				image: url(":/channels/resource/images/ChannelsSource/ChannelsSource/icon-addsource-default.svg");
+			}
+
+			PLSChannelsArea #GotoAddWinButton::indicator:disabled {
+				image: url(":/channels/resource/images/ChannelsSource/ChannelsSource/icon-addsource-default.svg");
+			}
+
+	PLSChannelsArea #ErrorText {
+		max-width: /*hdpi*/ 400px;
+		color: #666666;
+		padding: /*hdpi*/ 0px;
+		margin-top: /*hdpi*/ 5px;
+		font-size: /*hdpi*/ 12px;
+		font-weight: normal;
+		font-style: normal;
+	}
+
+	PLSChannelsArea #LoadingFrame {
+		padding:0;
+		margin:0;
+	}
+
+		PLSChannelsArea #LoadingFrame #TextLabel {
+			color: #ffffff;
+		}

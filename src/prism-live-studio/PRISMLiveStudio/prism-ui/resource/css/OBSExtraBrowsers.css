@@ -1,0 +1,119 @@
+OBSExtraBrowsers {
+	min-width: /*hdpi*/ 848px;
+	max-width: /*hdpi*/ 848px;
+	min-height: /*hdpi*/ 531px;
+	max-height: /*hdpi*/ 531px;
+	background-color: #272727;
+}
+
+OBSExtraBrowsers QTableView {
+	border: none;
+	gridline-color: transparent;
+	margin-top: /*hdpi*/ 20px;
+	margin-left: /*hdpi*/ 20px;
+	margin-right: /*hdpi*/ 18px;
+}
+
+OBSExtraBrowsers QTableView QHeaderView::section {
+	border: none;
+	background-color: #272727;
+	font-size: /*hdpi*/ 12px;
+	color: #bababa;
+	text-align: center;
+	border-radius: none;
+}
+
+OBSExtraBrowsers QTableView::item {
+	background-color: #1e1e1e;
+	margin: 0;
+	padding: 0;
+	margin-bottom: /*hdpi*/ 10px;
+	margin-right: /*hdpi*/ 2px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	border-radius: /*hdpi*/ 3px;
+}
+
+OBSExtraBrowsers #text {
+    border: /*hdpi*/ 1px solid #1e1e1e;
+    background-color: #1e1e1e;
+    border-radius: none;
+    font-size: /*hdpi*/ 14px;
+    padding-left:/*hdpi*/ 12px;
+    min-height:/*hdpi*/ 38px;
+	max-height:/*hdpi*/ 38px;
+}
+
+OBSExtraBrowsers #text:focus{
+    border: /*hdpi*/ 1px solid #effc35;
+    border-radius: /*hdpi*/ 3px;
+} 
+
+OBSExtraBrowsers #text[For="SelectPath"]{
+    background-color: #1e1e1e;
+}
+
+OBSExtraBrowsers #titleLabel, OBSExtraBrowsers #urlLabel {
+	color: #bababa;
+	font-size: /*hdpi*/ 12px;
+	background-color: transparent;
+}
+
+OBSExtraBrowsers #titleWidget {
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+}
+
+OBSExtraBrowsers #lineLabel {
+	min-height: /*hdpi*/ 1px;
+	max-height: /*hdpi*/ 1px;
+	background-color: #343435;
+}
+
+OBSExtraBrowsers #extraPanelDelete{
+	min-width: /*hdpi*/ 28px;
+    max-width: /*hdpi*/ 28px;
+    min-height: /*hdpi*/ 28px;
+    max-height: /*hdpi*/ 28px;
+    background: #1e1e1e;
+    padding: /*hdpi*/6px;
+    margin-right: 0;
+    image: url(":/resource/images/ic_trash_normal.svg");
+}
+
+OBSExtraBrowsers #extraPanelDelete:hover {
+	image: url(":/resource/images/ic_trash_over.svg");
+}
+
+OBSExtraBrowsers #extraPanelDelete:pressed {
+	image: url(":/resource/images/ic_trash_click.svg");
+}
+
+OBSExtraBrowsers #extraPanelDelete:disabled {
+	image: url(":/resource/images/ic_trash_disable.svg");
+}
+
+
+OBSExtraBrowsers #bottomWidget{
+	min-height: /*hdpi*/ 80px;
+    max-height: /*hdpi*/ 80px;
+    border-top: /*hdpi*/ 1px solid #151515;
+}
+
+OBSExtraBrowsers #bottomWidget #apply{
+	min-height: /*hdpi*/ 40px;
+    max-height: /*hdpi*/ 40px;
+	min-width: /*hdpi*/ 128px;
+    max-width: /*hdpi*/ 128px;
+	padding: 0;
+	margin: 0;
+}
+
+OBSExtraBrowsers #bottomWidget #close{
+	min-height: /*hdpi*/ 40px;
+    max-height: /*hdpi*/ 40px;
+	min-width: /*hdpi*/ 128px;
+    max-width: /*hdpi*/ 128px;
+	padding: 0;
+	margin: 0;
+}

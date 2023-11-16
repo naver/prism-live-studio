@@ -1,0 +1,135 @@
+
+PLSDialogView {
+	qproperty-captionHeight: /*hdpi*/ 38;
+	qproperty-captionButtonSize: /*hdpi*/ 22;
+	qproperty-textMarginLeft: /*hdpi*/ 17;
+	qproperty-closeButtonMarginRight: /*hdpi*/ 8;
+	qproperty-captionButtonMargin: /*hdpi*/ 9;
+	background-color: #272727;
+	qproperty-titleBarBkgColor: #272727;
+}
+	PLSDialogView > #plsDialogViewBorderFrame {
+		background-color: transparent;
+	}
+	PLSDialogView[afterWin10="false"] > #plsDialogViewBorderFrame {
+		border: 1px solid #111111;
+	}
+
+	PLSDialogView[afterWin10="true"] > #plsDialogViewBorderFrame {
+		border: none;
+	}
+	PLSDialogView > #plsDialogViewBorderFrame > #hline {
+		background-color: #111111;
+		min-height: /*hdpi*/ 1px;
+		max-height: /*hdpi*/ 1px;
+	}
+	PLSDialogView > #plsDialogViewBorderFrame > #titleBar {
+		border: none;
+	}
+		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #titleLabel,
+		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #min,
+		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #maxres,
+		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #close {
+			background-color: #272727;
+			border: none;
+		}
+
+
+
+		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #titleLabel {
+			font-size: /*hdpi*/ 12px;
+			color: #ffffff;
+		}
+
+		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #min {
+			image: url(":/libui/resource/images/btn-min-normal.svg");
+		}
+
+		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #min:hover {
+			image: url(":/libui/resource/images/btn-min-over.svg");
+		}
+		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #min:pressed {
+			image: url(":/libui/resource/images/btn-min-click.svg");
+		}
+		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #min:disabled {
+			image: url(":/libui/resource/images/btn-min-disable.svg");
+		}
+
+	PLSDialogView[maxState="false"] > #plsDialogViewBorderFrame > #titleBar > #maxres {
+		image: url(":/libui/resource/images/btn-max-normal.svg");
+	}
+
+	PLSDialogView[maxState="false"] > #plsDialogViewBorderFrame > #titleBar > #maxres:hover {
+		image: url(":/libui/resource/images/btn-max-over.svg");
+	}
+	PLSDialogView[maxState="false"] > #plsDialogViewBorderFrame > #titleBar > #maxres:pressed {
+		image: url(":/libui/resource/images/btn-max-click.svg");
+	}
+	PLSDialogView[maxState="false"] > #plsDialogViewBorderFrame > #titleBar > #maxres:disabled {
+		image: url(":/libui/resource/images/btn-max-disable.svg");
+	}
+
+	PLSDialogView[maxState="true"] > #plsDialogViewBorderFrame > #titleBar > #maxres {
+		image: url(":/libui/resource/images/btn-maxres-normal.svg");
+	}
+
+	PLSDialogView[maxState="true"] > #plsDialogViewBorderFrame > #titleBar > #maxres:hover {
+		image: url(":/libui/resource/images/btn-maxres-over.svg");
+	}
+	PLSDialogView[maxState="true"] > #plsDialogViewBorderFrame > #titleBar > #maxres:pressed {
+		image: url(":/libui/resource/images/btn-maxres-click.svg");
+	}
+	PLSDialogView[maxState="true"] > #plsDialogViewBorderFrame > #titleBar > #maxres:disabled {
+		image: url(":/libui/resource/images/btn-maxres-disable.svg");
+	}
+
+	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #close {
+		image: url(":/libui/resource/images/btn-close-normal.svg");
+	}
+
+	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #close:hover {
+		image: url(":/libui/resource/images/btn-close-over.svg");
+	}
+	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #close:pressed {
+		image: url(":/libui/resource/images/btn-close-click.svg");
+	}
+	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #close:disabled {
+		image: url(":/libui/resource/images/btn-close-disable.svg");
+	}
+
+	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #helpBtn {
+		min-width: /*hdpi*/ 15px;
+		max-width: /*hdpi*/ 15px;
+		min-height: /*hdpi*/ 16px;
+		max-height: /*hdpi*/ 16px;
+		margin-top: /*hdpi*/ -1px;
+		margin-left: /*hdpi*/ 1px;
+		margin: 0;
+		padding: 0;
+		background: transparent;
+	}
+	PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #helpBtn {
+		image: url(":/libui/resource/images/ic-scene-help-normal.svg");
+	}
+		PLSDialogView > #plsDialogViewBorderFrame > #titleBar > #helpBtn:hover {
+			image: url(":/libui/resource/images/ic-scene-help-over.svg");
+		}
+
+PLSDialogView .QWidget,
+PLSDialogView .QLabel,
+PLSDialogView .QFrame,
+PLSDialogView .QCheckBox,
+PLSDialogView .QRadioButton,
+PLSDialogView .QToolButton,
+PLSDialogView .QTableView,
+PLSDialogView .QHeaderView,
+PLSDialogView .QScrollArea,
+PLSDialogView QPushButton[useFor="QToolButton"] {
+	background-color: #272727;
+}
+PLSDialogView QLineEdit {
+	background-color: #222222;
+}
+PLSDialogView PLSSpinBox, PLSDialogView PLSDoubleSpinBox {
+	background-color: #222222;
+}

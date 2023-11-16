@@ -1,0 +1,12 @@
+OBSBasicTransform {
+    min-width:/*hdpi*/720px;
+    max-width:/*hdpi*/720px;
+    min-height:/*hdpi*/580px;
+    max-height:/*hdpi*/875px;
+}
+
+OBSBasicTransform QLabel {
+	font-size: /*hdpi*/ 14px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+}

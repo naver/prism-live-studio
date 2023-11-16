@@ -1,0 +1,737 @@
+#OBSBasicSettings[windows="true"] {
+    qproperty-minimumSize: /*hdpi*/ 720px /*hdpi*/ 555px;
+    padding: 0;
+}
+
+#OBSBasicSettings[windows="false"] {
+    qproperty-minimumSize: /*hdpi*/ 720px /*hdpi*/ 515px;
+    padding: 0;
+}
+
+    #OBSBasicSettings QWidget:disabled {
+        color: #666666;
+    }
+
+    #OBSBasicSettings #leftLabel, #OBSBasicSettings #rightLabel {
+        min-width: 1px;
+        max-width: 1px;
+    }
+
+    #OBSBasicSettings #listWidget {
+        min-width: /*hdpi*/ 140px;
+        max-width: /*hdpi*/ 140px;
+        margin: 25px 25px 25px 24px;
+    }
+
+    #OBSBasicSettings #settingsPages {
+        margin: 30px 15px 0px 25px;
+    }
+
+    #OBSBasicSettings #vLineLabel {
+        background-color: #111111;
+        max-width: 1px;
+    }
+
+    #OBSBasicSettings #hLineLabel {
+        background-color: #111111;
+        max-height: 1px;
+    }
+
+
+    #OBSBasicSettings #buttonBoxFrame {
+        margin: 0 30px 0 30px;
+        border: none;
+        min-height: 79px;
+        max-height: 79px;
+    }
+
+    #OBSBasicSettings #scrollAreaWidgetContents_2 {
+        margin-right: 25px;
+    }
+
+    #OBSBasicSettings QGroupBox {
+        border: none;
+        padding-top: /*hdpi*/ 47px;
+        font-size: /*hdpi*/ 20px;
+        font-weight: bold;
+        color: #ffffff;
+        padding-bottom: 50px;
+    }
+
+        #OBSBasicSettings[windows="false"] QGroupBox::title {
+            subcontrol-origin: margin;
+            left: /*hdpi*/ -1px;
+            top: /*hdpi*/ 1px;
+        }
+        #OBSBasicSettings[windows="true"] QGroupBox::title {
+            subcontrol-origin: margin;
+            left: /*hdpi*/ -3px;
+            top: /*hdpi*/ 1px;
+        }
+
+        #OBSBasicSettings QGroupBox[useFor="GroupBoxLevel2"] {
+            border: none;
+            padding-top: /*hdpi*/ 17px;
+            font-size: /*hdpi*/ 14px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+            #OBSBasicSettings QGroupBox[useFor="GroupBoxLevel2"]::title {
+                subcontrol-origin: margin;
+                left: /*hdpi*/ -2px;
+                top: /*hdpi*/ 1px;
+            }
+
+    #OBSBasicSettings QLabel[useFor="QGroupBox"] {
+        font-size: /*hdpi*/ 20px;
+        font-weight: bold;
+        color: #ffffff;
+        margin-top: 25px;
+        margin-bottom: 10px;
+    }
+
+    #OBSBasicSettings > #close {
+        background-color: #272727;
+    }
+
+    #OBSBasicSettings QListWidget {
+        background-color: #272727;
+        border: /*hdpi*/ none;
+        font-size: /*hdpi*/ 14px;
+        font-weight: bold;
+        color: #ffffff;
+    }
+
+    #OBSBasicSettings #hotkeyScrollArea {
+        border: none;
+        margin: 0px;
+        padding: 0px;
+    }
+    #OBSBasicSettings #hotkeysList {
+        margin: 0px;
+        padding: 0px;
+        border: none;
+    }
+    #OBSBasicSettings QListWidget::item {
+        height: /*hdpi*/ 40px;
+        border-radius: /*hdpi*/ 3px;
+        padding-left: /*hdpi*/ 9px;
+    }
+
+        #OBSBasicSettings #hotkeysList::item {
+            height: /*hdpi*/ 60px;
+            padding-right: 25px;
+        }
+            #OBSBasicSettings #hotkeysList::item:selected {
+                background-color: #272727;
+            }
+
+            #OBSBasicSettings QListWidget::item:selected {
+                background-color: #effc35;
+                color: black;
+            }
+
+        #OBSBasicSettings QListWidget::item:selected:!active {
+            background-color: #effc35;
+            color: black;
+        }
+
+    #OBSBasicSettings QListWidget::item:hover {
+        background-color: #272727;
+    }
+
+    #OBSBasicSettings QListWidget::item:selected:hover {
+        background-color: #effc35;
+        color: black;
+    }
+
+    #OBSBasicSettings QListWidget:focus {
+        outline: none;
+    }
+
+    #OBSBasicSettings QComboBox {
+        min-height: 40px;
+        max-height: 40px;
+    }
+
+    #OBSBasicSettings QLineEdit, #OBSBasicSettings QComboBox, #OBSBasicSettings QSpinBox, #OBSBasicSettings QDoubleSpinBox, #OBSBasicSettings QRadioButton {
+        color: #ffffff;
+        font-size: /*hdpi*/ 14px;
+    }
+
+    #OBSBasicSettings QCheckBox {
+        color: #e1e1e1;
+        font-size: /*hdpi*/ 14px;
+    }
+
+    #OBSBasicSettings QLabel[useFor="WhiteLable"] {
+        /*color: #ffffff;*/
+        font-size: /*hdpi*/ 14px;
+    }
+
+    #OBSBasicSettings QLabel[useFor="FormLabelRole"] {
+            color: #bababa;
+            font-size: /*hdpi*/ 14px;
+            font-weight: bold;
+    }
+
+    #OBSBasicSettings PLSCheckBox #plsCheckBox_text {
+        color: #e1e1e1;
+        font-size: /*hdpi*/ 14px;
+    }
+
+    #OBSBasicSettings OBSHotkeyLabel {
+        font-weight: bold;
+        max-width: 190px;
+        min-width: 190px;
+        margin-top: 10px;
+    }
+
+    #OBSBasicSettings #hotkeyFilterLabel, #OBSBasicSettings #hotkeySearchLabel {
+        max-width: 190px;
+        min-width: 190px;
+    }
+
+    #OBSBasicSettings QCheckBox {
+        margin: /*hdpi*/ 0;
+        padding: /*hdpi*/ 0;
+        min-height: /*hdpi*/ 18px;
+        max-height: /*hdpi*/ 18px;
+    }
+
+    #OBSBasicSettings #advReplayBuf{
+        color: #bababa;
+        font-weight: bold;
+    }
+
+    #OBSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs {
+        min-height: /*hdpi*/ 35px;
+        max-height: /*hdpi*/ 35px;
+    }
+
+        #OBSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs #outputSettingsAdvTabsHLine {
+            background-color: #111111;
+        }
+
+        #OBSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton {
+            min-width: /*hdpi*/ 100px;
+            max-width: /*hdpi*/ 100px;
+            min-height: /*hdpi*/ 0;
+            max-height: /*hdpi*/ 10000px;
+            background-color: transparent;
+            color: #666666;
+            border: /*hdpi*/ none;
+            border-radius: /*hdpi*/ 0;
+            border-bottom: /*hdpi*/ 3px solid transparent;
+            font-weight: normal;
+        }
+
+            #OBSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="false"] {
+                color: #666666;
+                font-weight: normal;
+            }
+
+                #OBSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="false"]:hover {
+                    color: #ffffff;
+                }
+
+                #OBSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="false"]:pressed {
+                    color: #444444;
+                }
+
+            #OBSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="true"] {
+                color: #effc35;
+                border-bottom: /*hdpi*/ 3px solid #effc35;
+                font-weight: bold;
+            }
+
+                #OBSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="true"]:hover {
+                    color: #f1fa75;
+                    border-bottom: /*hdpi*/ 3px solid #f1fa75;
+                    font-weight: bold;
+                }
+
+                #OBSBasicSettings #outputPage #groupBox_23 #advOutputModeContainer #outputSettingsAdvTabs QPushButton[selected="true"]:pressed {
+                    color: #7a7f34;
+                    border-bottom: /*hdpi*/ 3px solid #7a7f34;
+                    font-weight: bold;
+                }
+
+    #OBSBasicSettings #ToResolutionBtn {
+        background-color: transparent;
+        min-height: /*hdpi*/ 17px;
+        max-height: /*hdpi*/ 17px;
+        margin: /*hdpi*/ 0px;
+        padding: /*hdpi*/ 0px;
+        font-size: /*hdpi*/ 13px;
+        font-weight: bold;
+        font-style: normal;
+        color: #bababa;
+        spacing: /*hdpi*/ 5px;
+    }
+
+        #OBSBasicSettings #ToResolutionBtn:hover {
+            color: white;
+        }
+
+        #OBSBasicSettings #ToResolutionBtn:pressed {
+            color: #444444;
+        }
+
+        #OBSBasicSettings #ToResolutionBtn:disabled {
+            color: #666666;
+        }
+
+        #OBSBasicSettings #ToResolutionBtn::indicator {
+            min-height: /*hdpi*/ 14px;
+            max-height: /*hdpi*/ 14px;
+            min-width: /*hdpi*/ 12px;
+            max-width: /*hdpi*/ 12px;
+            margin: /*hdpi*/ 0px;
+            padding: /*hdpi*/ 0px;
+            padding-top: /*hdpi*/ 2px;
+            background-color: transparent;
+            image: url(:/resource/images/ResolutionGuide/ic-setting-liveinfo-normal.svg);
+        }
+
+            #OBSBasicSettings #ToResolutionBtn::indicator:hover {
+                image: url(:/resource/images/ResolutionGuide/ic-setting-liveinfo-over.svg);
+            }
+
+            #OBSBasicSettings #ToResolutionBtn::indicator:pressed {
+                image: url(:/resource/images/ResolutionGuide/ic-setting-liveinfo-click.svg);
+            }
+
+            #OBSBasicSettings #ToResolutionBtn::indicator:disabled {
+                image: url(:/resource/images/ResolutionGuide/ic-setting-liveinfo-disable.svg);
+            }
+
+    #OBSBasicSettings #outputPage #groupBox_23 #advOutputEndLine {
+        background-color: #111111;
+        min-height: /*hdpi*/ 1px;
+        max-height: /*hdpi*/ 1px;
+    }
+
+    #OBSBasicSettings #pushButton, #OBSBasicSettings #hotkeyFilterReset {
+        image: url(":/resource/images/btn-ic-undo-normal.svg");
+        padding: 6px;
+        min-width: 28px;
+        max-width: 28px;
+        min-height: 28px;
+        max-height: 28px;
+        background-color: #1e1e1e;
+        border-top-left-radius: /*hdpi*/ 0;
+        border-bottom-left-radius: /*hdpi*/ 0;
+        border: none;
+    }
+
+        #OBSBasicSettings #pushButton:disabled, #OBSBasicSettings #hotkeyFilterReset:disabled {
+            image: url(":/resource/images/btn-ic-undo-disable.svg");
+        }
+
+        #OBSBasicSettings #pushButton:hover, #OBSBasicSettings #hotkeyFilterReset:hover {
+            image: url(":/resource/images/btn-ic-undo-over.svg");
+        }
+
+        #OBSBasicSettings #pushButton:pressed, #OBSBasicSettings #hotkeyFilterReset:pressed {
+            image: url(":/resource/images/btn-ic-undo-click.svg");
+        }
+
+    #OBSBasicSettings #hotkeyFilterSearch, #OBSBasicSettings #hotkeyFilterInput {
+        border-top-right-radius: /*hdpi*/ 0;
+        border-bottom-right-radius: /*hdpi*/ 0;
+        min-height: 40px;
+        max-height: 40px;
+        padding-left: 12px;
+        background-color: #1e1e1e;
+        border: none;
+    }
+
+
+    #OBSBasicSettings OBSHotkeyWidget OBSHotkeyEdit {
+        border-top-right-radius: /*hdpi*/ 0;
+        border-bottom-right-radius: /*hdpi*/ 0;
+        min-width: 318px;
+        /*max-width:318px;*/
+        padding-left: 12px;
+        margin-top: 10px;
+        background-color: #1e1e1e;
+        border: none;
+        min-height: 40px;
+        max-height: 40px;
+    }
+
+    #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="revertIcon"] {
+        padding: 6px;
+        min-width: 28px;
+        max-width: 28px;
+        min-height: 28px;
+        max-height: 28px;
+        image: url(":/resource/images/btn-ic-undo-normal.svg");
+        margin-top: 10px;
+        background-color: #1e1e1e;
+        border: none;
+        border-radius: 0;
+     
+    }
+
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="revertIcon"]:disabled {
+            image: url(":/resource/images/btn-ic-undo-disable.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="revertIcon"]:hover {
+            image: url(":/resource/images/btn-ic-undo-over.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="revertIcon"]:pressed {
+            image: url(":/resource/images/btn-ic-undo-click.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+
+
+    #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="clearIconSmall"] {
+        padding: 6px 6px 6px 2px;
+        min-width: 28px;
+        max-width: 28px;
+        min-height: 28px;
+        max-height: 28px;
+        image: url(":/resource/images/btn-ic-clear-normal.svg");
+        margin-top: 10px;
+        background-color: #1e1e1e;
+        border: none;
+        border-radius: 0;
+    }
+
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="clearIconSmall"]:disabled {
+            image: url(":/resource/images/btn-ic-clear-disable.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="clearIconSmall"]:hover {
+            image: url(":/resource/images/btn-ic-clear-over.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="clearIconSmall"]:pressed {
+            image: url(":/resource/images/btn-ic-clear-click.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+
+    #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newAddIconSmall"] {
+        padding: 6px 6px 6px 2px;
+        min-width: 28px;
+        max-width: 28px;
+        min-height: 28px;
+        max-height: 28px;
+        image: url(":/resource/images/btn-ic-add-normal.svg");
+        margin-top: 10px;
+        background-color: #1e1e1e;
+        border: none;
+        border-radius: 0;
+    }
+
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newAddIconSmall"]:disabled {
+            image: url(":/resource/images/btn-ic-add-disable.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+        
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newAddIconSmall"]:hover {
+            image: url(":/resource/images/btn-ic-add-over.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newAddIconSmall"]:pressed {
+            image: url(":/resource/images/btn-ic-add-click.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+
+    #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newRemoveIconSmall"] {
+        padding: 6px 5px 6px 2px;
+        min-width: 28px;
+        max-width: 28px;
+        min-height: 28px;
+        max-height: 28px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        image: url(":/resource/images/btn-ic-sourcedelete-normal.svg");
+        margin-top: 10px;
+        background-color: #1e1e1e;
+        border: none;
+    }
+
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newRemoveIconSmall"]:disabled {
+            image: url(":/resource/images/btn-ic-sourcedelete-disable.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newRemoveIconSmall"]:hover {
+            image: url(":/resource/images/btn-ic-sourcedelete-over.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+
+        #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newRemoveIconSmall"]:pressed {
+            image: url(":/resource/images/btn-ic-sourcedelete-click.svg");
+            background-color: #1e1e1e;
+            margin-top: 10px;
+        }
+
+    #OBSBasicSettings QLineEdit {
+        border: /*hdpi*/ 1px solid #222222;
+    }
+
+        #OBSBasicSettings QLineEdit:focus {
+            border: /*hdpi*/ 1px solid #effc35;
+        }
+
+    #OBSBasicSettings #buttonBox QPushButton {
+        min-width: /*hdpi*/ 128px;
+        max-width: /*hdpi*/ 128px;
+        min-height: /*hdpi*/ 40px;
+        max-height: /*hdpi*/ 40px;
+    }
+
+    #OBSBasicSettings #simpleOutputBrowse, #OBSBasicSettings #advOutFFPathBrowse, #OBSBasicSettings #advOutRecPathBrowse {
+        padding: /*hdpi*/ 0px;
+        min-height: /*hdpi*/ 40px;
+        max-height: /*hdpi*/ 40px;
+        min-width: /*hdpi*/ 136px;
+        max-width: /*hdpi*/ 136px;
+    }
+
+    #OBSBasicSettings PLSPropertiesView #formLabel {
+        font-size: /*hdpi*/ 14px;
+        font-weight: bold;
+        color: #bababa;
+        background-color: #272727;
+        min-height: /*hdpi*/ 40px;
+        max-height: /*hdpi*/ 40px;
+        min-width: /*hdpi*/ 170px;
+        max-width: /*hdpi*/ 170px;
+    }
+
+    #OBSBasicSettings #alertMessageFrame {
+        background-color: transparent;
+        border: /*hdpi*/ none;
+        font-size: /*hdpi*/ 14px;
+    }
+
+        #OBSBasicSettings #alertMessageFrame > #alertMessageLabel {
+            padding: /*hdpi*/ 12px /*hdpi*/ 20px /*hdpi*/ 12px /*hdpi*/ 20px;
+            background-color: rgba(30, 30, 30, 0.9);
+            border: /*hdpi*/ 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: /*hdpi*/ 3px;
+            font-size: /*hdpi*/ 14px;
+        }
+
+            #OBSBasicSettings #alertMessageFrame > #alertMessageLabel[alertMessageType="Error"] {
+                color: #b33e4c;
+            }
+
+            #OBSBasicSettings #alertMessageFrame > #alertMessageLabel[alertMessageType="Warning"] {
+                color: #bababa;
+            }
+
+
+    #OBSBasicSettings #groupBox_21:disabled,
+    #OBSBasicSettings #groupBox_19:disabled,
+    PLSSettingGeneralView #nickName:disabled {
+        color: #666666;
+    }
+
+PLSSettingGeneralView #nickName {
+    min-height: /*hdpi*/ 29px;
+    max-height: /*hdpi*/ 29px;
+    font-size: /*hdpi*/ 20px;
+    font-weight: bold;
+    color: white;
+}
+
+#OBSBasicSettings #groupBox_20::title {
+    left: /*hdpi*/ -3px;
+}
+
+PLSSettingGeneralView #label_3, PLSSettingGeneralView #label_6, PLSSettingGeneralView #userCode {
+    min-height: /*hdpi*/ 18px;
+    max-height: /*hdpi*/ 18px;
+    font-size: /*hdpi*/ 14px;
+    font-weight: normal;
+    color: #666666;
+}
+
+PLSSettingGeneralView #email {
+    font-size: /*hdpi*/ 14px;
+    font-weight: normal;
+    color: #666666;
+}
+
+PLSSettingGeneralView #pushButton_logout, PLSSettingGeneralView #pushButton_del_account, PLSSettingGeneralView #pushButton_change_pwd {
+    qproperty-minimumSize: /*hdpi*/ 116px /*hdpi*/ 27px;
+    qproperty-maximumSize: /*hdpi*/ 116px /*hdpi*/ 27px;
+    border-image: none;
+    border: /*hdpi*/ 1px solid #3d3d3d;
+    padding: /*hdpi*/ 0px;
+    background-color: transparent;
+    color: #bababa;
+    font-size: /*hdpi*/ 12px;
+    font-weight: normal;
+    margin-right: /*hdpi*/ 6px;
+}
+
+PLSSettingGeneralView #pushButton_change_pwd {
+    qproperty-minimumSize: /*hdpi*/ 10px /*hdpi*/ 27px;
+    padding-left: /*hdpi*/ 6px;
+    padding-right: /*hdpi*/ 6px;
+    margin-right: /*hdpi*/ 0px;
+}
+
+    PLSSettingGeneralView #pushButton_logout:disabled, PLSSettingGeneralView #pushButton_del_account:disabled, PLSSettingGeneralView #pushButton_change_pwd:disabled {
+        qproperty-minimumSize: /*hdpi*/ 110px /*hdpi*/ 27px;
+        qproperty-maximumSize: /*hdpi*/ 110px /*hdpi*/ 27px;
+        border-image: none;
+        border: /*hdpi*/ 1px solid #3d3d3d;
+        padding: /*hdpi*/ 0px;
+        background-color: transparent;
+        color: #3d3d3d;
+        font-size: /*hdpi*/ 12px;
+        font-weight: normal;
+    }
+
+    PLSSettingGeneralView #pushButton_change_pwd:hover, PLSSettingGeneralView #pushButton_del_account:hover, PLSSettingGeneralView #pushButton_logout:hover {
+        background-color: transparent;
+        border: /*hdpi*/ 1px solid #ffffff;
+        color: #ffffff;
+    }
+
+    PLSSettingGeneralView #pushButton_change_pwd:pressed, PLSSettingGeneralView #pushButton_del_account:pressed, PLSSettingGeneralView #pushButton_logout:pressed {
+        background-color: transparent;
+        border: /*hdpi*/ 1px solid #1e1e1e;
+        color: #1e1e1e;
+    }
+
+/*#OBSBasicSettings #label, #OBSBasicSettings #label_21, #OBSBasicSettings #label_45 {
+    min-width:134px;
+    max-width:134px;
+}*/
+
+#OBSBasicSettings #label_45 {
+    min-width: 124px;
+    max-width: 124px;
+}
+
+PLSComplexHeaderIcon {
+    qproperty-minimumSize: /*hdpi*/ 127px /*hdpi*/ 110px;
+    qproperty-maximumSize: /*hdpi*/ 127px /*hdpi*/ 110px;
+    border-radius: /*hdpi*/ 55px;
+    color: transparent;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-position: left;
+}
+
+    PLSComplexHeaderIcon #userIconLabel {
+        border: /*hdpi*/ none;
+        background-color: transparent;
+    }
+
+    PLSComplexHeaderIcon #PlatformLabel {
+        min-width: /*hdpi*/ 34px;
+        min-height: /*hdpi*/ 34px;
+        max-height: /*hdpi*/ 34px;
+        max-width: /*hdpi*/ 34px;
+        background-color: transparent;
+        background-repeat: no-repeat;
+        background-position: center;
+        border-radius: /*hdpi*/ 17px;
+        border: /*hdpi*/ none;
+    }
+
+PLSSettingGeneralView {
+    min-height: /*hdpi*/ 112px;
+    max-height: /*hdpi*/ 112px;
+}
+
+    PLSSettingGeneralView:disabled {
+        color: #666666;
+    }
+
+#OBSBasicSettings QLineEdit#filenameFormatting, #OBSBasicSettings QLineEdit#filenameFormatting[focusState="FocusOut"] {
+    border: /*hdpi*/ 1px solid #222222;
+}
+
+    #OBSBasicSettings QLineEdit#filenameFormatting[focusState="FocusIn"] {
+        border: /*hdpi*/ 1px solid #effc35;
+    }
+
+#OBSBasicSettings #outputModePages {
+    padding-top: 20px;
+}
+
+#OBSBasicSettings #advOutTabs {
+    padding-top: 200px;
+}
+#OBSBasicSettings QTabWidget::pane {
+    margin: 0px;
+    margin-top: -2px;
+    padding: 0px;
+    padding-top: 20px;
+    border-top: 1px solid #111111;
+    background-color: transparent;
+}
+
+#OBSBasicSettings QTabBar::tab {
+    background-color: #272727;
+    border-bottom: 1px solid #111111;
+    padding: /*hdpi*/ 0px;
+    min-width: /*hdpi*/ 100px;
+    max-width: 100px;
+    margin: /*hdpi*/ 0px;
+    margin-bottom: 1px;
+}
+
+
+    #OBSBasicSettings QTabBar::tab:selected {
+        color: #effc35;
+        border-bottom-color: /*hdpi*/ #effc35;
+        border-bottom-width:2px;
+        font-weight:bold;
+    }
+
+    #OBSBasicSettings QTabBar::tab:!selected {
+        border-bottom-color: /*hdpi*/ #111111;
+        border-bottom-width: 1px;
+    }
+
+
+#OBSBasicSettings #colorsGroupBox #colorPresetLabel, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_1, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_2, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_3, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_4,
+#OBSBasicSettings #colorsGroupBox #colorSelectLabel_5, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_6, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_7, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_8, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_9 {
+    min-width: 194px;
+    max-width: 194px;
+    margin-right: 14px;
+}
+
+#OBSBasicSettings #colorsGroupBox QPushButton{
+
+    font-weight:normal;
+}
+
+#OBSBasicSettings #colorsGroupBox {
+    padding-top: /*hdpi*/ 30px;
+}
+
+#OBSBasicSettings #colorCheckBox QLabel {
+    font-size: /*hdpi*/ 14px;
+    font-weight: normal;
+    color: #ffffff;
+}
+

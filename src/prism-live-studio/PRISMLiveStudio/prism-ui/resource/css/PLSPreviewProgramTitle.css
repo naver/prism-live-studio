@@ -1,0 +1,27 @@
+PLSPreviewProgramTitle #editArea {
+    min-height: /*hdpi*/ 35px;
+    max-height: /*hdpi*/ 35px;
+}
+
+PLSPreviewProgramTitle #liveArea, PLSPreviewProgramTitle #titleArea{
+    min-height: /*hdpi*/ 40px;
+    max-height: /*hdpi*/ 40px;
+}
+
+PLSPreviewProgramTitle #editLabel {
+    color: #effc35;
+    font-size: /*hdpi*/ 14px;
+    font-weight: normal;
+}
+
+PLSPreviewProgramTitle #liveSceneLabel, PLSPreviewProgramTitle #editSceneLabel {
+    color: #bababa;
+    font-size: /*hdpi*/ 14px;
+    font-weight: normal;
+}
+
+PLSPreviewProgramTitle #liveLabel {
+    color: #ffffff;
+    font-size: /*hdpi*/ 14px;
+    font-weight: normal;
+}

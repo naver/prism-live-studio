@@ -1,0 +1,21 @@
+#SettingsDialog {
+    background-color: #272727;
+
+}
+
+
+    #SettingsDialog #websocketSessionTable {
+        background-color: #272727;
+        border-radius:2px;
+    }
+    #SettingsDialog QHeaderView,#SettingsDialog QHeaderView::selection {
+        background-color: #272727;
+        min-width:100px;
+    }
+
+    #SettingsDialog #buttonBox QPushButton {
+        min-width: 128px;
+        max-width: 128px;
+        min-height: 40px;
+        max-height: 40px;
+    }

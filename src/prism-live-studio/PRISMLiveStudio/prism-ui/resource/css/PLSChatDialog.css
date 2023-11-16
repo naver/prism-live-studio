@@ -1,0 +1,187 @@
+PLSChatDialog {
+        min-width:/*hdpi*/200px;
+}
+
+PLSChatDialog QPushButton {
+    margin: 0px;
+    padding: 0px;
+}
+
+
+PLSChatDialog #titleWidget {
+        border:/*hdpi*/none;
+        background-color: transparent;
+        min-height:/*hdpi*/49px;
+        max-height:/*hdpi*/49px;
+}
+
+PLSChatDialog #scrollArea {
+        border:/*hdpi*/none;
+        background-color: transparent;
+        min-height:/*hdpi*/49px;
+        max-height:/*hdpi*/49px;
+}
+
+
+PLSChatDialog #scrollAreaWidgetContents {
+        border:/*hdpi*/none;
+        background-color: transparent;
+}
+
+PLSChatDialog #lineView {
+        min-height:/*hdpi*/1px;
+        max-height:/*hdpi*/1px;
+        background-color: #343435;
+}
+PLSChatDialog #scrollAreaWidgetContents #leftPlaceholder {
+        max-width:/*hdpi*/ 5px;
+        min-width:/*hdpi*/ 5px;
+        margin: 0px;  
+        background-color: transparent;
+}
+PLSChatDialog #scrollAreaWidgetContents>QPushButton {
+        min-height:/*hdpi*/34px;
+        max-height:/*hdpi*/34px;
+        max-width:/*hdpi*/ 40px;
+        min-width:/*hdpi*/ 40px;
+        
+/*        background-color: rgba(0,0,255,0.3);*/
+        /*background-color: orange;*/
+        background-color: transparent;
+        color: #bababa;
+        font-weight: bold;
+        border-radius:/*hdpi*/0px;
+        font-size:/*hdpi*/14px;
+}
+
+PLSChatDialog #scrollAreaWidgetContents #navershoppingbtn {
+        max-width:/*hdpi*/ 72px;
+        min-width:/*hdpi*/ 72px;
+}
+PLSChatDialog #titleWidget #fontChangeBtn{
+        background-color: transparent;
+        min-height:/*hdpi*/27px;
+        max-height:/*hdpi*/27px;
+        max-width:/*hdpi*/ 29px;
+        min-width:/*hdpi*/ 29px;
+        image: url("://resource/images/chat/icon-font-en-normal.svg");
+        border-radius:/*hdpi*/3px;
+}
+
+PLSChatDialog #titleWidget #fontChangeBtn[isKR=true] {
+        border:/*hdpi*/1px solid #3d3d3d;
+        image: url("://resource/images/chat/icon-font-kr-normal.svg");
+}
+PLSChatDialog #titleWidget #fontChangeBtn[isKR=true]:hover {
+       border:/*hdpi*/1px solid #a2a2a2;
+        image: url("://resource/images/chat/icon-font-kr-over.svg");
+}
+PLSChatDialog #titleWidget #fontChangeBtn[isKR=true]:pressed {
+       border:/*hdpi*/1px solid #333333;
+        image: url("://resource/images/chat/icon-font-kr-click.svg");
+}
+PLSChatDialog #titleWidget #fontChangeBtn[isKR=true]:disabled {
+        border:/*hdpi*/1px solid #3d3d3d;
+        image: url("://resource/images/chat/icon-font-kr-disable.svg");
+}
+
+PLSChatDialog #titleWidget #fontChangeBtn[isKR=false] {
+        border:/*hdpi*/1px solid #3d3d3d;
+        image: url("://resource/images/chat/icon-font-en-normal.svg");
+}
+PLSChatDialog #titleWidget #fontChangeBtn[isKR=false]:hover {
+       border:/*hdpi*/1px solid #a2a2a2;
+        image: url("://resource/images/chat/icon-font-en-over.svg");
+}
+PLSChatDialog #titleWidget #fontChangeBtn[isKR=false]:pressed {
+       border:/*hdpi*/1px solid #333333;
+        image: url("://resource/images/chat/icon-font-en-click.svg");
+}
+PLSChatDialog #titleWidget #fontChangeBtn[isKR=false]:disabled {
+       border:/*hdpi*/1px solid #3d3d3d;
+        image: url("://resource/images/chat/icon-font-en-disable.svg");
+}
+
+PLSChatDialog #scrollAreaWidgetContents>.QPushButton:disabled {
+        color: #666666;
+}
+
+PLSChatDialog #scrollAreaWidgetContents>.QPushButton[status="select"] {
+        color: #effc35;
+}
+
+PLSChatDialog #scrollAreaWidgetContents>.QPushButton[status="select"]:hover {
+        color: #f1fa75;
+}
+
+PLSChatDialog #scrollAreaWidgetContents>.QPushButton[status="select"]:pressed {
+        color: #7a7f34;
+}
+
+PLSChatDialog #scrollAreaWidgetContents>.QPushButton[status="nomarl"]:hover {
+        color: #ffffff;
+}
+
+PLSChatDialog #scrollAreaWidgetContents>.QPushButton[status="nomarl"]:pressed {
+        color: #444444;
+}
+
+PLSChatDialog #rtmpWidget {
+        background-color: #1E1E1F;
+}
+
+PLSChatDialog #chatPlaceImageLabel {
+        background-color: transparent;
+                min-height:/*hdpi*/90px;
+        max-height:/*hdpi*/90px;
+        max-width:/*hdpi*/ 90px;
+        min-width:/*hdpi*/ 90px;
+        image: url("://resource/images/chat/chat-zero.svg");
+}
+
+PLSChatDialog #rtmpPlaceTextLabel {
+        background-color: transparent;
+        margin:/*hdpi*/20px/*hdpi*/20px/*hdpi*/20px/*hdpi*/20px;
+        font-size:/*hdpi*/14px;
+        font-weight: normal;
+        color: #666666;
+}
+
+PLSChatDialog #CheckInvalidTipFrame {
+        min-height: /*hdpi*/ 40px;
+        background-color: rgba(30, 30, 30, 0.95);
+        border: /*hdpi*/ 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: /*hdpi*/ 3px;
+        padding: /*hdpi*/ 10px /*hdpi*/ 10px /*hdpi*/ 10px /*hdpi*/ 10px;
+}
+
+PLSChatDialog #labelToast {
+     background-color: transparent;
+        font-size: /*hdpi*/ 12px;
+        font-weight: normal;
+        font-stretch: normal;
+        color: #bababa;
+}
+
+PLSChatDialog #pushButtonClear {
+        min-width:/*hdpi*/16px;
+        max-width:/*hdpi*/16px;
+        min-height:/*hdpi*/16px;
+        max-height:/*hdpi*/16px;
+        border-style: none;
+        background-color: transparent;
+        image: url(":/libui/resource/images/btn-close-normal.svg");
+}
+
+PLSChatDialog #pushButtonClear:hover {
+        image: url(":/libui/resource/images/btn-close-over.svg");
+}
+
+PLSChatDialog #pushButtonClear:pressed {
+        image: url(":/libui/resource/images/btn-close-click.svg");
+}
+
+PLSChatDialog #pushButtonClear: !enabled {
+        image: url(":/libui/resource/images/btn-close-disable.svg");
+}
+

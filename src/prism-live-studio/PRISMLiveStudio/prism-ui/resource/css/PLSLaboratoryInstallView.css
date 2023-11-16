@@ -1,0 +1,44 @@
+
+PLSLaboratoryInstallView {
+	background-color:#111111;
+    min-width:/*hdpi*/410px;
+	max-width:/*hdpi*/410px;
+	min-height:/*hdpi*/210px;
+	max-height:/*hdpi*/210px;
+}
+
+PLSLaboratoryInstallView #titleLabel {
+	font-weight:normal;
+	color:white;
+	font-size:/*hdpi*/14px;
+	background-color:transparent;
+}
+
+PLSLaboratoryInstallView #confirmBackView {
+	background-color: #444444;
+	border-radius:/*hdpi*/ 3px;
+	min-height:/*hdpi*/ 40px;
+    min-width:/*hdpi*/140px;
+	max-height:/*hdpi*/40px;
+}
+
+PLSLaboratoryInstallView #loadingBtn {
+	background-color: #444444;
+	border-radius:/*hdpi*/ 3px;
+	min-height:/*hdpi*/ 20px;
+    min-width:/*hdpi*/20px;
+	max-height:/*hdpi*/20px;
+	max-width:/*hdpi*/20px;
+}
+
+PLSLaboratoryInstallView #installLabel {
+	font-weight:bold;
+	color:white;
+	font-size:/*hdpi*/14px;
+	min-height:/*hdpi*/ 18px;
+	max-height:/*hdpi*/18px;
+	background-color:transparent;
+}
+
+
+

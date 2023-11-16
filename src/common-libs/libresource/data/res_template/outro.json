@@ -1,0 +1,56 @@
+{
+    "moduleName":"outro",
+    "moduleJson": "library/Library_Policy_PC/Policy_Outro_PC_v2.6.0.json",
+    "saveDir": "library/Library_Policy_PC",
+    "files": [
+        {
+            "type": "gif",
+            "basePath":["prism", "outroUrl", "kr"],
+            "url": ["resource_land"]
+
+        },
+        {
+            "type": "gif",
+            "basePath":["prism", "outroUrl", "kr"],
+            "url": ["resource_portrait"]
+
+        },
+        {
+            "type": "gif",
+            "basePath":["prism", "outroUrl", "en"],
+            "url": ["resource_land"]
+
+        },
+        {
+            "type": "gif",
+            "basePath":["prism", "outroUrl", "en"],
+            "url": ["resource_portrait"]
+
+        },
+        {
+            "type": "gif",
+            "basePath":["vlive", "outroUrl", "kr"],
+            "url": ["resource_land"]
+
+        },
+        {
+            "type": "gif",
+            "basePath":["vlive", "outroUrl", "en"],
+            "url": ["resource_land"]
+
+        },
+        
+        {
+            "type": "gif",
+            "basePath":["navertv", "outroUrl", "kr"],
+            "url": ["resource_land"]
+
+        },
+        {
+            "type": "gif",
+            "basePath":["navertv", "outroUrl", "en"],
+            "url": ["resource_land"]
+
+        }
+    ]
+}

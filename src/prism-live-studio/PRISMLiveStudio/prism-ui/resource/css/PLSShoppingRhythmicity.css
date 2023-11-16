@@ -1,0 +1,91 @@
+PLSShoppingRhythmicity {
+    qproperty-hasHLine: true;
+    qproperty-hasMinButton: false;
+    qproperty-hasCloseButton: false;
+    qproperty-isMoveInContent: true;
+    qproperty-hasBorder: true;
+	background-color: #272727;
+}
+
+PLSShoppingRhythmicity #topTitleLabel {
+    color:#effc35;
+    font-size:/*hdpi*/18px;
+    font-weight: bold;
+    min-height:/*hdpi*/52px;
+    max-height:/*hdpi*/52px;
+	background-color:transparent;
+}
+
+PLSShoppingRhythmicity #topTitleLabel[lang="id-ID"] {
+	min-height:/*hdpi*/78px;
+    max-height:/*hdpi*/78px;
+}
+
+PLSShoppingRhythmicity #subTitleLabel {
+    color:#bababa;
+    font-size:/*hdpi*/12px;
+	min-height:/*hdpi*/54px;
+    max-height:/*hdpi*/54px;
+	background-color:transparent;
+}
+
+PLSShoppingRhythmicity #subTitleLabel[lang="ko-KR"] {
+    color:#bababa;
+    font-size:/*hdpi*/12px;
+	min-height:/*hdpi*/36px;
+    max-height:/*hdpi*/36px;
+}
+
+PLSShoppingRhythmicity #cefBackView{
+	min-height:/*hdpi*/ 160px;
+    max-height:/*hdpi*/ 160px;
+}
+
+PLSShoppingRhythmicity #agreeButton,
+PLSShoppingRhythmicity #declineButton {
+    font-size:/*hdpi*/14px;
+    font-weight:bold;
+    border-radius:/*hdpi*/3px;
+    padding:0px;
+    color:white;
+    background-color:#444444;
+}
+
+PLSShoppingRhythmicity #agreeButton,
+PLSShoppingRhythmicity #declineButton {
+	min-height:/*hdpi*/ 74px;
+    max-height:/*hdpi*/ 74px;
+	min-weight:/*hdpi*/ 175px;
+    max-weight:/*hdpi*/ 175px;
+}
+
+PLSShoppingRhythmicity #agreeButton[lang="ko-KR"],
+PLSShoppingRhythmicity #declineButton[lang="ko-KR"] {
+	min-height:/*hdpi*/ 58px;
+    max-height:/*hdpi*/ 58px;
+	min-weight:/*hdpi*/ 175px;
+    max-weight:/*hdpi*/ 175px;
+}
+
+PLSShoppingRhythmicity #agreeButton:hover,
+PLSShoppingRhythmicity #declineButton:hover {
+    background-color:#555555;
+}
+
+PLSShoppingRhythmicity #agreeButton:pressed,
+PLSShoppingRhythmicity #declineButton:pressed {
+    background-color:#1e1e1f;
+}
+
+PLSShoppingRhythmicity #buttonLine1 {
+	font-size:/*hdpi*/14px;
+    font-weight:bold;
+    color:white;
+	background-color:transparent;
+}
+
+PLSShoppingRhythmicity #buttonLine2 {
+	font-size:/*hdpi*/12px;
+    color:#bababa;
+	background-color:transparent;
+}

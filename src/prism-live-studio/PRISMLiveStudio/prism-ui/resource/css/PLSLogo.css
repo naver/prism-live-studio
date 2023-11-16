@@ -1,0 +1,70 @@
+
+PLSLogo {
+    min-width: /*hdpi*/ 140px;
+    min-height:18px;
+    max-height:18px;
+    background-color: transparent;
+    padding: 0;
+    border: none;
+    margin:0;
+}
+PLSLogo[updateSize="true"] {
+    min-width: /*hdpi*/ 195px;
+    max-width: /*hdpi*/ 195px;
+
+}
+PLSLogo [updateSize="false"]{
+    min-width: /*hdpi*/ 140px;
+    max-width: /*hdpi*/ 140px;
+
+}
+
+PLSLogo:pressed {
+    background-color: transparent;
+}
+
+PLSLogo:hover {
+    background-color: transparent;
+}
+
+PLSLogo:disabled {
+    background-color: transparent;
+}
+
+PLSLogo #logo {
+    min-width: /*hdpi*/ 140px;
+    max-width: /*hdpi*/ 140px;
+    min-height: /*hdpi*/ 18px;
+    max-height: /*hdpi*/ 18px;
+    padding: 0;
+    border: 0;
+}
+
+PLSLogo #update_info {
+    color: #effc35;
+    background-color: transparent;
+    font-size: /*hdpi*/ 12px;
+    padding: 0;
+    border: 0;
+    font-weight:bold;
+}
+
+    PLSLogo #update_info:disabled {
+        color: #666666;
+    }
+
+    PLSLogo #update_info[hover="false"] {
+        color: #effc35;
+    }
+
+    PLSLogo #update_info[hover="true"] {
+        color: #ffffff;
+    }
+
+    PLSLogo #update_info[press="false"] {
+        color: #effc35;
+    }
+
+    PLSLogo #update_info[press="true"][hover="true"]:enabled {
+        color: #7A7F34;
+    }

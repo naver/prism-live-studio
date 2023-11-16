@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="28px" height="28px" viewBox="0 0 28 28" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>3E8A4479-1211-4875-9A3A-79F3384D63EB</title>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="GUIDE-_-Drawing-_-202202" transform="translate(-424.000000, -5367.000000)">
+            <g id="Group-13" transform="translate(70.000000, 5341.000000)">
+                <g id="ic_redo_normal" transform="translate(354.000000, 26.000000)">
+                    <g id="icon_path" transform="translate(13.500000, 13.625000) scale(-1, 1) translate(-13.500000, -13.625000) translate(6.500000, 7.250000)">
+                        <g id="icon_arrow1" transform="translate(1.350000, 2.531250) rotate(-270.000000) translate(-1.350000, -2.531250) translate(-1.181250, 1.181250)" stroke="#BABABA" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5">
+                            <polyline id="Path-3" transform="translate(2.531250, 1.350000) rotate(-270.000000) translate(-2.531250, -1.350000) " points="1.18125 -1.18125 3.88125 1.35 1.18125 3.88125"></polyline>
+                        </g>
+                        <path d="M8.5,1.75 C11.5375661,1.75 14,4.21243388 14,7.25 C14,10.2875661 11.5375661,12.75 8.5,12.75 L2.79966587,12.75 L2.79966587,11.25 L8.5,11.25 C10.709139,11.25 12.5,9.459139 12.5,7.25 C12.5,5.10780461 10.8160315,3.35892112 8.69964034,3.25489531 L8.5,3.25 L1.5,3.25 C1.33038641,3.25 1.16323852,3.26055692 0.999177551,3.28104952 L0.999387889,1.7724767 C1.16426775,1.7576001 1.33124633,1.75 1.5,1.75 L8.5,1.75 Z" id="Combined-Shape" fill="#BABABA" fill-rule="nonzero"></path>
+                        <circle id="Oval" fill="#BABABA" cx="2.75" cy="12" r="1"></circle>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

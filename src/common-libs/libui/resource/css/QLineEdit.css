@@ -1,0 +1,22 @@
+QLineEdit {
+    background-color: #222222;
+	border: /*hdpi*/ 1px solid #222222;
+	border-radius:/*hdpi*/ 3px;
+	padding-left:/*hdpi*/ 12px;
+	min-height:/*hdpi*/ 38px;
+	max-height:/*hdpi*/ 38px;
+}
+QLineEdit[For="SelectPath"] {
+    background-color: #222222;
+	border: /*hdpi*/ 1px solid #222222;
+	border-radius:/*hdpi*/ 3px;
+	padding-left:/*hdpi*/ 12px;
+	min-height:/*hdpi*/ 38px;
+	max-height:/*hdpi*/ 38px;
+}
+QLineEdit {
+	border: /*hdpi*/ 1px solid #222222;
+}
+QLineEdit:focus {
+	border: /*hdpi*/ 1px solid #effc35;
+}

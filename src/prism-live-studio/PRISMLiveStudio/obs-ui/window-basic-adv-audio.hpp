@@ -1,0 +1,46 @@
+#pragma once
+
+#include <obs.hpp>
+#include <vector>
+#include <memory>
+#include "PLSDialogView.h"
+
+class OBSAdvAudioCtrl;
+class Ui_OBSAdvAudio;
+
+// "Basic advanced audio"?  ...
+
+class OBSBasicAdvAudio : public PLSDialogView {
+	Q_OBJECT
+
+private:
+	OBSSignal sourceAddedSignal;
+	OBSSignal sourceRemovedSignal;
+	bool showInactive;
+	bool showVisible;
+
+	std::vector<OBSAdvAudioCtrl *> controls;
+
+	inline void AddAudioSource(obs_source_t *source);
+
+	static bool EnumSources(void *param, obs_source_t *source);
+
+	static void OBSSourceAdded(void *param, calldata_t *calldata);
+	static void OBSSourceRemoved(void *param, calldata_t *calldata);
+
+	std::unique_ptr<Ui_OBSAdvAudio> ui;
+
+public slots:
+	void SourceAdded(OBSSource source);
+	void SourceRemoved(OBSSource source);
+
+	void on_usePercent_toggled(bool checked);
+	void on_activeOnly_toggled(bool checked);
+	void on_closeButton_clicked();
+
+public:
+	OBSBasicAdvAudio(QWidget *parent);
+	~OBSBasicAdvAudio();
+	void SetShowInactive(bool showInactive);
+	void SetIconsVisible(bool visible);
+};

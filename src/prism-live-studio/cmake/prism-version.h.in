@@ -1,0 +1,28 @@
+#pragma once
+
+#include <libutils-api.h>
+
+#define PLS_VERSION "@PRISM_VERSION@"
+#define PLS_VERSION_MAJOR @PRISM_VERSION_MAJOR@
+#define PLS_VERSION_MINOR @PRISM_VERSION_MINOR@
+#define PLS_VERSION_PATCH @PRISM_VERSION_PATCH@
+#define PLS_VERSION_BUILD @PRISM_VERSION_TWEAK@
+
+#define PRISM_VERSION PLS_VERSION
+#define PRISM_VERSION_MAJOR PLS_VERSION_MAJOR
+#define PRISM_VERSION_MINOR PLS_VERSION_MINOR
+#define PRISM_VERSION_PATCH PLS_VERSION_PATCH
+#define PRISM_VERSION_BUILD PLS_VERSION_BUILD
+
+class PLSPrismVersion : public pls::Initializer<PLSPrismVersion> {
+public:
+	PLSPrismVersion() { pls_set_prism_version(PRISM_VERSION_MAJOR, PRISM_VERSION_MINOR, PRISM_VERSION_PATCH, PRISM_VERSION_BUILD); }
+
+	static PLSPrismVersion *instance() { return &s_initializer; }
+
+	const char *version() const { return PRISM_VERSION; }
+	int major() const { return PRISM_VERSION_MAJOR; }
+	int minor() const { return PRISM_VERSION_MINOR; }
+	int patch() const { return PRISM_VERSION_PATCH; }
+	int build() const { return PRISM_VERSION_BUILD; }
+};

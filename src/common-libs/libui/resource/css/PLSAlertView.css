@@ -1,0 +1,94 @@
+/* PLSAlertView */
+
+PLSAlertView > #plsDialogViewBorderFrame > #titleBar > #titleLabel {
+	font-weight: normal;
+}
+
+PLSAlertView #message, PLSAlertView #nameLabel {
+	font-size: /*hdpi*/ 14px;
+	color: #ffffff;
+	margin: 0;
+	padding: 0;
+	min-width: /*hdpi*/ 358px;
+	max-width: /*hdpi*/ 358px;
+	font-weight: normal;
+}
+
+PLSAlertView #widget > #buttonBox {
+	min-height: 0;
+	max-height: 99999px;
+	margin: 0;
+	padding: 0;
+}
+
+PLSAlertView #errMsgErrorContainer {
+	border-radius: /*hdpi*/ 3px;
+	background-color: #1e1e1f;
+	border: none;
+}
+
+PLSAlertView #errMsgErrorCodeLabel, PLSAlertView #errMsgUserIdLabel, PLSAlertView #errMsgCurrentTimeLabel {
+	background: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	color: #bababa;
+}
+
+PLSAlertView #errMsgGuideLabel {
+	background: transparent;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	color: #666666;
+}
+
+PLSAlertView #errMsgContactUsButton {
+	min-height: 0;
+	max-height: 99999px;
+	min-width: 0;
+	max-width: 99999px;
+	margin: 0;
+	padding: 0;
+	color: white;
+	background: transparent;
+}
+
+	PLSAlertView #errMsgContactUsButton #errMsgContactUsButtonText {
+		font-size: /*hdpi*/ 14px;
+		font-weight: normal;
+		color: #effc35;
+		background: transparent;
+	}
+
+	PLSAlertView #errMsgContactUsButton[pressed="true"] #errMsgContactUsButtonText,
+	PLSAlertView #errMsgContactUsButton[hovered="true"] #errMsgContactUsButtonText {
+		color: white;
+	}
+
+	PLSAlertView #errMsgContactUsButton #errMsgContactUsButtonIconContainer {
+		background: transparent;
+	}
+
+	PLSAlertView #errMsgContactUsButton #errMsgContactUsButtonIcon {
+		min-height: /*hdpi*/ 7px;
+		max-height: /*hdpi*/ 11px;
+		min-width: /*hdpi*/ 7px;
+		max-width: /*hdpi*/ 11px;
+		image: url(":/libui/resource/images/error-message/ic-alert-arrow-over.svg");
+		background: transparent;
+	}
+
+	PLSAlertView #errMsgContactUsButton[pressed="true"] #errMsgContactUsButtonIcon,
+	PLSAlertView #errMsgContactUsButton[hovered="true"] #errMsgContactUsButtonIcon {
+		image: url(":/libui/resource/images/error-message/ic-alert-arrow-normal.svg");
+	}
+
+PLSAlertView #countdownLabel {
+	min-height: /*hdpi*/ 46px;
+	min-width: /*hdpi*/ 46px;
+	max-height: /*hdpi*/ 46px;
+	max-width: /*hdpi*/ 46px;
+	padding: /*hdpi*/ 1px;
+	margin-top: /*hdpi*/ 0px;
+	margin-bottom: /*hdpi*/ 14px;
+	font-size: /*hdpi*/ 14px;
+}

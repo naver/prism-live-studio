@@ -1,0 +1,13 @@
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED YES)
+add_library(log STATIC log.cpp log.h)
+add_library(common::log ALIAS log)
+add_library(prism::common::log ALIAS log)
+add_dependencies(log common-libs::log)
+target_link_libraries(log common-libs::log OBS::libobs)
+set_target_properties(log PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")
+set_target_properties(log PROPERTIES FOLDER prism/common)
+
+if(OS_MACOS)
+    copy_static_lib_target(log)
+endif()

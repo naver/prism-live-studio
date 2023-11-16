@@ -1,0 +1,74 @@
+PLSBasicStatusPanel {
+    background-color: #272727;
+    border: 1px solid #111111;
+}
+
+PLSBasicStatusPanel #renderingFramedropState, PLSBasicStatusPanel #encodingFramedropState, PLSBasicStatusPanel #networkFramedropState,
+PLSBasicStatusPanel #realtimeFramerateState, PLSBasicStatusPanel #streamBitrateState, PLSBasicStatusPanel #bufferedDurationState,
+PLSBasicStatusPanel #recordedMegabytesState {
+	min-width: 8px;
+	max-width: 8px;
+	min-height: 8px;
+	max-height: 8px;
+	border-radius: 4px;
+	background-color: #01cb06;
+}
+
+PLSBasicStatusPanel #resourcesHdr, PLSBasicStatusPanel #performanceHdr, PLSBasicStatusPanel #streamHdr, PLSBasicStatusPanel #recordHdr {
+	font-size: 14px;
+	font-weight: bold;
+	color: #eeeeee;
+}
+
+PLSBasicStatusPanel #cpuUsageLabel, PLSBasicStatusPanel #gpuUsageLabel, PLSBasicStatusPanel #diskAvailableLabel, PLSBasicStatusPanel #memoryUsageLabel,
+PLSBasicStatusPanel #renderingFramedropLabel, PLSBasicStatusPanel #encodingFramedropLabel, PLSBasicStatusPanel #networkFramedropLabel,
+PLSBasicStatusPanel #streamBitrateLabel, PLSBasicStatusPanel #StreamMegabytesLabel, PLSBasicStatusPanel #recordingBitrateLabel, PLSBasicStatusPanel #realtimeFramerateLabel,
+PLSBasicStatusPanel #bufferedDurationLabel, PLSBasicStatusPanel #recordedMegabytesLabel {
+	font-size: 14px;
+	color: #eeeeee;
+}
+
+PLSBasicStatusPanel #cpuUsage, PLSBasicStatusPanel #gpuUsage, PLSBasicStatusPanel #diskAvailable, PLSBasicStatusPanel #memoryUsage,
+PLSBasicStatusPanel #renderingFramedrop, PLSBasicStatusPanel #encodingFramedrop, PLSBasicStatusPanel #networkFramedrop,
+PLSBasicStatusPanel #streamBitrate, PLSBasicStatusPanel #streamMegabytes, PLSBasicStatusPanel #recordingBitrate, PLSBasicStatusPanel #realtimeFramerate,
+PLSBasicStatusPanel #bufferedDuration, PLSBasicStatusPanel #recordedMegabytes, PLSBasicStatusPanel #realtimeBitrate,
+PLSBasicStatusPanel #dynamicBitrate, PLSBasicStatusPanel #desiredBitrate {
+	font-size: 14px;
+	color: #bababa;
+}
+
+PLSBasicStatusPanel #networkFramedropLabel[active="false"], PLSBasicStatusPanel #streamBitrateLabel[active="false"], PLSBasicStatusPanel #recordingBitrateLabel[active="false"],
+PLSBasicStatusPanel #networkFramedrop[active="false"], PLSBasicStatusPanel #streamBitrate[active="false"], PLSBasicStatusPanel #recordingBitrate[active="false"],
+PLSBasicStatusPanel #StreamMegabytesLabel[active="false"], PLSBasicStatusPanel #streamMegabytes[active="false"],
+PLSBasicStatusPanel #recordedMegabytesLabel[active="false"], PLSBasicStatusPanel #recordedMegabytes[active="false"],
+PLSBasicStatusPanel #encodingFramedropLabel[active="false"], PLSBasicStatusPanel #encodingFramedrop[active="false"],
+PLSBasicStatusPanel #realtimeBitrate[active="false"], PLSBasicStatusPanel #dynamicBitrate[active="false"], PLSBasicStatusPanel #desiredBitrate[active="false"] {
+	color: #666666;
+}
+
+PLSBasicStatusPanel #renderingFramedropState[state="error"],
+PLSBasicStatusPanel #encodingFramedropState[state="error"],
+PLSBasicStatusPanel #networkFramedropState[state="error"],
+PLSBasicStatusPanel #realtimeFramerateState[state="error"],
+PLSBasicStatusPanel #streamBitrateState[state="error"],
+PLSBasicStatusPanel #bufferedDurationState[state="error"] {
+	background-color: #c34151;
+}
+
+PLSBasicStatusPanel #renderingFramedropState[state="warning"],
+PLSBasicStatusPanel #encodingFramedropState[state="warning"],
+PLSBasicStatusPanel #networkFramedropState[state="warning"],
+PLSBasicStatusPanel #realtimeFramerateState[state="warning"],
+PLSBasicStatusPanel #streamBitrateState[state="warning"],
+PLSBasicStatusPanel #bufferedDurationState[state="warning"] {
+	background-color: #effc35;
+}
+
+PLSBasicStatusPanel #renderingFramedropState[state="disabled"],
+PLSBasicStatusPanel #encodingFramedropState[state="disabled"],
+PLSBasicStatusPanel #networkFramedropState[state="disabled"],
+PLSBasicStatusPanel #realtimeFramerateState[state="disabled"],
+PLSBasicStatusPanel #streamBitrateState[state="disabled"],
+PLSBasicStatusPanel #bufferedDurationState[state="disabled"] {
+	background-color: #147916;
+}

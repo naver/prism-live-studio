@@ -1,0 +1,87 @@
+
+set(SOURCE_BUNDLE_CONTENTS_PATH ${SOURCE_BUNDLE_CONTENTS_PATH})
+set(DEST_BUNDLE_CONTENTS_PATH ${DEST_BUNDLE_CONTENTS_PATH})
+set(SOURCE_BUNDLE_FRAMEWORK_PATH ${SOURCE_BUNDLE_CONTENTS_PATH}/Frameworks)
+set(DEST_BUNDLE_FRAMEWORK_PATH ${DEST_BUNDLE_CONTENTS_PATH}/Frameworks)
+set(SOURCE_HELPER_INFO_PLIST_DIR ${SOURCE_HELPER_INFO_PLIST_DIR})
+set(DEST_HELPER_INFO_PLST_DIR ${DEST_HELPER_INFO_PLST_DIR})
+set(SOURCE_CEF_HELPER_NAME "${SOURCE_HELPER_NAME} Helper")
+set(DEST_CEF_HELPER_NAME "${DEST_HELPER_NAME} Helper")
+
+message(STATUS "SOURCE_BUNDLE_CONTENTS_PATH is ${SOURCE_BUNDLE_CONTENTS_PATH}")
+message(STATUS "SOURCE_BUNDLE_FRAMEWORK_PATH is ${SOURCE_BUNDLE_FRAMEWORK_PATH}")
+message(STATUS "SOURCE_HELPER_INFO_PLIST_DIR is ${SOURCE_HELPER_INFO_PLIST_DIR}")
+message(STATUS "DEST_HELPER_INFO_PLST_DIR is ${DEST_HELPER_INFO_PLST_DIR}")
+message(STATUS "DEST_CEF_HELPER_NAME is ${DEST_CEF_HELPER_NAME}")
+message(STATUS "SOURCE_CEF_HELPER_NAME is ${SOURCE_CEF_HELPER_NAME}")
+
+function(write_helper_plist executableName)
+  set(CEF_HELPER_APP_SUFFIXES
+    "${DEST_CEF_HELPER_NAME}:_helper:.helper" "${DEST_CEF_HELPER_NAME} (GPU):_gpu:.gpu" "${DEST_CEF_HELPER_NAME} (Plugin):_plugin:.plugin"
+    "${DEST_CEF_HELPER_NAME} (Renderer):_renderer:.renderer")
+  foreach(_SUFFIXES ${CEF_HELPER_APP_SUFFIXES})
+    string(REPLACE ":" ";" _SUFFIXES ${_SUFFIXES})
+    list(GET _SUFFIXES 0 _NAME_SUFFIX)
+    if("${_NAME_SUFFIX}" STREQUAL "${executableName}")
+      list(GET _SUFFIXES 2 _PLIST_SUFFIX)
+      file(READ "${SOURCE_HELPER_INFO_PLIST_DIR}/helper-info.plist" _PLIST_CONTENTS)
+      string(REPLACE "\${EXECUTABLE_NAME}" "${executableName}"
+        _PLIST_CONTENTS ${_PLIST_CONTENTS})
+      string(REPLACE "\${PRODUCT_NAME}" "${executableName}" _PLIST_CONTENTS
+        ${_PLIST_CONTENTS})
+      string(REPLACE "\${BUNDLE_ID_SUFFIX}" "${_PLIST_SUFFIX}" _PLIST_CONTENTS
+        ${_PLIST_CONTENTS})
+      string(REPLACE "\${MINIMUM_VERSION}" "${CMAKE_OSX_DEPLOYMENT_TARGET}"
+        _PLIST_CONTENTS ${_PLIST_CONTENTS})
+      string(REPLACE "\${CURRENT_YEAR}" "${CURRENT_YEAR}" _PLIST_CONTENTS
+        ${_PLIST_CONTENTS})
+      set(_HELPER_INFO_PLIST
+        "${DEST_HELPER_INFO_PLST_DIR}/helper-info${_PLIST_SUFFIX}.plist" PARENT_SCOPE)
+      file(WRITE ${DEST_HELPER_INFO_PLST_DIR}/helper-info${_PLIST_SUFFIX}.plist ${_PLIST_CONTENTS})
+    endif()
+  endforeach()
+endfunction()
+
+function(copy_source_framework_to_dest_bundle)
+  file(GLOB SOURCE_FRAMEWORK_LIST ${SOURCE_BUNDLE_FRAMEWORK_PATH}/*)
+  
+  foreach(_SOURCE_FRAMEWORK ${SOURCE_FRAMEWORK_LIST})
+    get_filename_component(_SOURCE_FRAMEWORK_DIR ${_SOURCE_FRAMEWORK} PATH)
+    get_filename_component(_SOURCE_FRAMEWORK_NAME ${_SOURCE_FRAMEWORK} NAME)
+    get_filename_component(_SOURCE_FRAMEWORK_NAME_WE ${_SOURCE_FRAMEWORK} NAME_WE)
+
+    if("${_SOURCE_FRAMEWORK_NAME}" MATCHES "${SOURCE_CEF_HELPER_NAME}.*\\.app")
+      string(REPLACE "${SOURCE_CEF_HELPER_NAME}" "${DEST_CEF_HELPER_NAME}" _PRISM_APP_BUNDLE_NAME ${_SOURCE_FRAMEWORK_NAME})
+      string(REPLACE "${SOURCE_CEF_HELPER_NAME}" "${DEST_CEF_HELPER_NAME}" _PRISM_APP_BUNDLE_NAME_WE ${_SOURCE_FRAMEWORK_NAME_WE})
+      write_helper_plist(${_PRISM_APP_BUNDLE_NAME_WE})
+      file(GLOB_RECURSE HELPER_APP_FILES ${_SOURCE_FRAMEWORK}/*)
+
+      foreach(_HELPER_APP_FILE ${HELPER_APP_FILES})
+        get_filename_component(_HELPER_APP_FILE_DIR "${_HELPER_APP_FILE}" PATH)
+        file(RELATIVE_PATH _RELATIVE_PATH ${_SOURCE_FRAMEWORK}/ ${_HELPER_APP_FILE})
+        get_filename_component(_RELATIVE_FOLDER_PATH "${_RELATIVE_PATH}" PATH)
+        get_filename_component(_RELATIVE_FILENAME_NAME "${_RELATIVE_PATH}" NAME)
+
+        string(REPLACE "${SOURCE_CEF_HELPER_NAME}" "${DEST_CEF_HELPER_NAME}" _RELATIVE_FILENAME_NAME ${_RELATIVE_FILENAME_NAME})
+
+        if("${_RELATIVE_FOLDER_PATH}" STREQUAL "Contents/MacOS")
+          message(STATUS "rename macos file, source file is ${_HELPER_APP_FILE} , dest file is ${_HELPER_APP_FILE_DIR}/${_RELATIVE_FILENAME_NAME}")
+          execute_process(COMMAND mv -f ${_HELPER_APP_FILE} ${_HELPER_APP_FILE_DIR}/${_RELATIVE_FILENAME_NAME})
+        elseif("${_RELATIVE_FILENAME_NAME}" STREQUAL "Info.plist")
+          message(STATUS "rename info plist file, source file is ${_HELPER_INFO_PLIST} , dest _HELPER_APP_FILE_DIR is ${_HELPER_APP_FILE_DIR}")
+          message(STATUS "rename info plist file, source file is ${_HELPER_APP_FILE} , dest _RELATIVE_FILENAME_NAME is ${_RELATIVE_FILENAME_NAME}")
+          #file(RENAME ${_HELPER_INFO_PLIST} ${_HELPER_APP_FILE_DIR}/${_RELATIVE_FILENAME_NAME})
+          execute_process(COMMAND mv -f ${_HELPER_INFO_PLIST} ${_HELPER_APP_FILE_DIR}/${_RELATIVE_FILENAME_NAME})
+        endif()
+      endforeach()
+
+      message(STATUS "rename dir,  source dir is ${_SOURCE_FRAMEWORK} , dest dir is ${DEST_BUNDLE_FRAMEWORK_PATH}/${_PRISM_APP_BUNDLE_NAME}")
+      execute_process(
+        COMMAND mv -f ${_SOURCE_FRAMEWORK} ${DEST_BUNDLE_FRAMEWORK_PATH}/${_PRISM_APP_BUNDLE_NAME}
+      )
+    endif()
+  endforeach()
+endfunction()
+
+copy_source_framework_to_dest_bundle()
+

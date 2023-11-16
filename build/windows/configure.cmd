@@ -1,85 +1,30 @@
 @echo off
 
 setlocal
+cd %~dp0
+call common_values.cmd
+rem cd %_PROJECT_DIR%
+rem git submodule update --init --recursive
 
-set PROJECT_DIR=%~dp0..\..
-set BIN_DIR=%PROJECT_DIR%\bin
-set SRC_DIR=%PROJECT_DIR%\src
-set OBS_DIR=%SRC_DIR%\obs
-set PRISM_DIR=%SRC_DIR%\prism
-set OBS_SRC_DIR=%OBS_DIR%
-set PRISM_SRC_DIR=%PRISM_DIR%
-set OBS_BUILD_DIR=%OBS_DIR%\build
-set PRISM_BUILD_DIR=%PRISM_DIR%\build
-set /p PRISM_VER=<%~dp0version_win.txt
+call powershell %_PROJECT_DIR%\src\obs-studio\CI\windows\01_install_dependencies.ps1
 
-rem set DEBUG_API=DEBUG_API
-set NOT "%1"=="" set MULTI_ARCH=%1
-
-if "%QTDIR32%"=="" set QTDIR32=C:\Qt\Qt5.12.6\5.12.6\msvc2017
-if "%QTDIR64%"=="" set QTDIR64=C:\Qt\Qt5.12.6\5.12.6\msvc2017_64
-rem ARCH=Win32/x64
-if NOT "%MULTI_ARCH%"=="" (
-    set ARCH=%MULTI_ARCH%
-) else (
-    if "%ARCH%"=="" set ARCH=x64
-)
-rem BUILD_TYPE=Debug/Release
-if "%BUILD_CONFIG%"=="Debug" (
-	set BUILD_TYPE=Debug
-) else (
-	set BUILD_TYPE=RelWithDebInfo
-)
-
-
-@echo %QTDIR32%
-@echo %QTDIR64%
-@echo %ARCH%
-@echo %BUILD_TYPE%
-@echo %BUILD_RANGE%
-if "%GENERATOR_VS%"=="" (
-    set GENERATOR=Visual Studio 16 2019
-) else (
-    set GENERATOR=%GENERATOR_VS%
-)
-rem set TOOLSET=v141
-if "%VERSION%"=="" (
-    if "%PRISM_VER%"=="" (
-        set RELEASE_CANDIDATE = 2.0.0.0
-    ) else (
-        set RELEASE_CANDIDATE=%PRISM_VER%
-    )
-) else (
-    set RELEASE_CANDIDATE=%VERSION%
-)
-
-if NOT "%ARCH%"=="Win32" (
-    if NOT "%ARCH%"=="x64" (
-        set ARCH=x64
-    )
-)
-
-if "%ARCH%"=="Win32" (
-    set QTDIR=%QTDIR32%
-    set CEF_ROOT_DIR=%OBS_DIR%\deps\cef\win32
-) else (
-    set QTDIR=%QTDIR64%
-    set CEF_ROOT_DIR=%OBS_DIR%\deps\cef\win64
-)
-
-set OUTPUT_BIN_DIR=%BIN_DIR%\%BUILD_TYPE%\%ARCH%
-set PRISM_BUILD_ARCH_DIR=%PRISM_BUILD_DIR%
-if NOT "%MULTI_ARCH%"=="" set PRISM_BUILD_ARCH_DIR=%PRISM_BUILD_ARCH_DIR%\%MULTI_ARCH%
-
-if EXIST "%QTDIR%" (
-    if NOT "%ARCH%"=="" (
-        echo cmake -S "%PRISM_SRC_DIR%" -B "%PRISM_BUILD_ARCH_DIR%" -G "%GENERATOR%" -A %ARCH% -T v142 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DCMAKE_PREFIX_PATH="%QTDIR%" -DRELEASE_CANDIDATE=%RELEASE_CANDIDATE% -DBROWSER_AVAILABLE_INTERNAL="ON"
-        cmake -S "%PRISM_SRC_DIR%" -B "%PRISM_BUILD_ARCH_DIR%" -G "%GENERATOR%" -A %ARCH% -T v142 -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DCMAKE_PREFIX_PATH="%QTDIR%" -DRELEASE_CANDIDATE=%RELEASE_CANDIDATE% -DBROWSER_AVAILABLE_INTERNAL="ON"
-    ) else (
-        echo Missing ARCH.
-    )
-) else (
-    echo Missing QTDIR.
-)
-
-
+cmake -Wno-dev ^
+	-S "%SRC_DIR%" ^
+ 	-B "%PRISM_BUILD_DIR%" ^
+	-G "%GENERATOR%" ^
+	-A %ARCH% ^
+	-T %COMPILER% ^
+	-DCMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
+	-DCMAKE_PREFIX_PATH="%ALL_DEPS%" ^
+	-DRELEASE_CANDIDATE=%VERSION% ^
+	-DCOPY_DEPENDENCIES=ON ^
+	-DBUILD_CAPTIONS=ON ^
+	-DCOMPILE_D3D12_HOOK=ON ^
+	-DENABLE_BROWSER=ON ^
+	-DCEF_ROOT_DIR=%CEF_ROOT_DIR% ^
+	-DVIRTUALCAM_GUID="%VIRTUALCAM_GUID%" ^
+	-DENABLE_UI=ON ^
+    -DVLC_PATH=%VLC_DIR% ^
+    -DENABLE_VLC=ON ^
+	-DCMAKE_POLICY_DEFAULT_CMP0048=NEW ^
+	-DENABLE_SETUP=%ENABLE_SETUP%

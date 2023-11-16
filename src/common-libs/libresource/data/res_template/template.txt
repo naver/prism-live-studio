@@ -1,0 +1,67 @@
+{
+    "moduleName":"textmotion",
+    "moduleJson": "textmotion/textmotion.json",
+    "saveDir": "textmotion",
+    "files": [
+        {
+            "type": "gif",
+            "basePath":["group[]", "items[]"],
+            "url": ["properties","template","baseInfoPC","adjustableAttribute","en","thumbnailUrl"],
+            "version": ["version"],
+            "title":["title"],
+            "renameRule":
+                    { 
+                        "prefix":["PC_en_","en"],
+                        "suffix":["",""]
+                    }, 
+                    "copys":[
+                        {
+                        "src":"***",
+                        "dst":"***",
+                        "fileList":[
+                            {
+                                "srcFileName":"****",
+                                "dstFileName":"****"
+                            }
+                        ]
+                    }
+
+                    ]
+        },
+        {
+            "type": "gif",
+            "basePath":["group[]", "items[]"],
+            "url": ["properties","template","baseInfoPC","adjustableAttribute","ko","thumbnailUrl"],
+            "version": ["version"],
+            "title":["title"],
+            "renameRule":
+                {
+                    "prefix":["PC_ko_","ko"],
+                    "suffix":["",""]
+                }
+        }
+    ]
+}
+
+
+
+
+
+modulename:资源模块名称
+moduleJson:资源模块json文件存放的相对目录（根目录是"C:\Users\Administrator\AppData\Roaming\PRISMLiveStudio\resources\)"
+saveDir:资源存放的文件夹
+files需要下载的模板配置信息
+type:文件类型(主要分为压缩文件和普通文件)
+basePath:资源json解析的公共路径
+url:在json中资源url值的解析路径
+version:在json中version值的解析路径
+title:在json中title值的解析路径(可选)
+copys:里面描述的就是将压缩包里面的文件及文件夹移动到目标目录(这个是必写项目，下载的压缩文件和解压都是放在临时目录下，处理完会被删除)
+src:相对压缩包中的里面的路径
+dst:相对于saveDir的路径(不写就复用src这个路径)
+srcFileName:子目录下的文件名字
+dstFileName:重命名的文件名字(可选项，不写复用srcFileName)
+renameRule:针对普通文件的重命名规则，压缩文件不用写
+
+*****规则可以复用的文件，则只需要写一个就可以，无法复用的则需要单独定义；
+*****json解析时路径定义："***"表示JsonObject;"[]":表示json文件开始就是jsonArray;"***[]":表示jsonArray.

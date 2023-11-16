@@ -1,0 +1,47 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resource/css/PLSLoginMainView.css</file>
+        <file>resource/images/btn-close-click.svg</file>
+        <file>resource/images/btn-close-disable.svg</file>
+        <file>resource/images/btn-close-normal.svg</file>
+        <file>resource/images/btn-close-over.svg</file>
+        <file>resource/images/btn-max-click.svg</file>
+        <file>resource/images/btn-max-disable.svg</file>
+        <file>resource/images/btn-max-normal.svg</file>
+        <file>resource/images/btn-max-over.svg</file>
+        <file>resource/images/btn-maxres-click.svg</file>
+        <file>resource/images/btn-maxres-disable.svg</file>
+        <file>resource/images/btn-maxres-normal.svg</file>
+        <file>resource/images/btn-maxres-over.svg</file>
+        <file>resource/images/btn-min-click.svg</file>
+        <file>resource/images/btn-min-disable.svg</file>
+        <file>resource/images/btn-min-normal.svg</file>
+        <file>resource/images/btn-min-over.svg</file>
+        <file>resource/images/img-profile-blank.svg</file>
+        <file>resource/css/PLSUpdateTipView.css</file>
+        <file>resource/css/PrismLoginView.css</file>
+        <file>resource/images/prism-login/login-facebook.svg</file>
+        <file>resource/images/prism-login/login-google.svg</file>
+        <file>resource/images/prism-login/login-line.svg</file>
+        <file>resource/images/prism-login/login-logo.svg</file>
+        <file>resource/images/prism-login/login-naver.svg</file>
+        <file>resource/images/prism-login/login-twitch.svg</file>
+        <file>resource/images/prism-login/login-twitter.svg</file>
+        <file>resource/css/PrismPasswordView.css</file>
+        <file>resource/css/prismTermOfAgreeView.css</file>
+        <file>resource/images/prism-login/login-begin/1_login_begin.png</file>
+        <file>resource/images/prism-login/login-loop/2_login_loop.png</file>
+        <file>resource/images/prism-login/login-facebook_sign.svg</file>
+        <file>resource/images/prism-login/login-whalespace.svg</file>
+        <file>resource/images/prism-login/invisible.svg</file>
+        <file>resource/images/prism-login/sign-up-with.svg</file>
+        <file>resource/images/prism-login/visible.svg</file>
+        <file>resource/images/txt-chekedbox-clicked.svg</file>
+        <file>resource/images/txt-chekedbox-disable.svg</file>
+        <file>resource/images/txt-chekedbox-normal.svg</file>
+        <file>resource/images/txt-chekedbox-over.svg</file>
+        <file>resource/images/txt-unchekedbox-disable.svg</file>
+        <file>resource/images/txt-unchekedbox-normal.svg</file>
+        <file>resource/images/txt-unchekedbox-over.svg</file>
+    </qresource>
+</RCC>

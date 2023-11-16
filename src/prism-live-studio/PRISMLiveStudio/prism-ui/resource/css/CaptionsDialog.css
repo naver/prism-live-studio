@@ -1,0 +1,14 @@
+#CaptionsDialog {
+    background-color: #272727;
+}
+
+    #CaptionsDialog #content {
+        padding: 25px;
+    }
+
+    #CaptionsDialog  QPushButton {
+        min-width: 128px;
+        max-width: 128px;
+        min-height:40px;
+        max-height:40px;
+    }

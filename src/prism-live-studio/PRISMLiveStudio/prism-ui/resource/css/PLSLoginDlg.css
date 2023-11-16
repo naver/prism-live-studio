@@ -1,0 +1,57 @@
+
+PLSLoginDlg {
+	qproperty-hasHLine: /*hdpi*/ false;
+	qproperty-hasMinButton: /*hdpi*/ false;
+	qproperty-isMoveInContent: /*hdpi*/ true;
+	qproperty-closeButtonMarginRight: /*hdpi*/ 9;
+	qproperty-captionButtonTopMargin: /*hdpi*/ 1;
+	color: #1e1e1f;
+}
+
+PLSLoginDlg #logoLabel {
+	min-width: /*hdpi*/ 230px;
+	max-width: /*hdpi*/ 230px;
+	min-height: /*hdpi*/ 66px;
+	max-height: /*hdpi*/ 66px;
+	image: url(":/channels/resource/images/ChannelsSource/navershopping/btn-login-nshoppiglive.svg");
+}
+
+PLSLoginDlg #messageLabel {
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #bababa;
+}
+
+PLSLoginDlg #naverLoginButton > #icon {
+	min-width: /*hdpi*/ 20px;
+	max-width: /*hdpi*/ 20px;
+	min-height: /*hdpi*/ 20px;
+	max-height: /*hdpi*/ 20px;
+	background-color: transparent;
+	image: url(":/channels/resource/images/ChannelsSource/navershopping/img-navershopping-naver-login.svg");
+}
+
+PLSLoginDlg #naverLoginButton > #text {
+	font-size: /*hdpi*/ 14px;
+	background-color: transparent;
+	font-weight: bold;
+	color: white;
+}
+
+PLSLoginDlg #naverLoginButton, PLSLoginDlg #storeLoginButton {
+	min-width: /*hdpi*/ 320px;
+	max-width: /*hdpi*/ 320px;
+	min-height: /*hdpi*/ 45px;
+	max-height: /*hdpi*/ 45px;
+	border-radius: /*hdpi*/ 3px;
+	font-size: /*hdpi*/ 14px;
+	background-color: #444;
+	font-weight: bold;
+	color: white;
+}
+PLSLoginDlg #naverLoginButton:hover, PLSLoginDlg #storeLoginButton:hover {
+	background-color: #555;
+}
+PLSLoginDlg #naverLoginButton:pressed, PLSLoginDlg #storeLoginButton:pressed {
+	background-color: #2d2d2d;
+}

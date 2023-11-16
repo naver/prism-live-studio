@@ -1,0 +1,34 @@
+<RCC>
+    <qresource prefix="/viewer-count">
+        <file>resource/images/bkgcolor-01.png</file>
+        <file>resource/images/bkgcolor-02.png</file>
+        <file>resource/images/bkgcolor-03.png</file>
+        <file>resource/images/bkgcolor-04.png</file>
+        <file>resource/images/bkgcolor-05.png</file>
+        <file>resource/images/bkgcolor-06.png</file>
+        <file>resource/images/bkgcolor-07.png</file>
+        <file>resource/images/bkgcolor-08.png</file>
+        <file>resource/images/bkgcolor-09.png</file>
+        <file>resource/images/bkgcolor-10.png</file>
+        <file>resource/images/bkgcolor-11.png</file>
+        <file>resource/images/close-btn-s-normal.svg</file>
+        <file>resource/images/erroricon-source-viewercount-disable.svg</file>
+        <file>resource/images/erroricon-source-viewercount-normal.svg</file>
+        <file>resource/images/erroricon-source-viewercount-select.svg</file>
+        <file>resource/images/erroricon-source-viewercount-select-disable.svg</file>
+        <file>resource/images/ic-help-s-click.svg</file>
+        <file>resource/images/ic-help-s-disable.svg</file>
+        <file>resource/images/ic-help-s-normal.svg</file>
+        <file>resource/images/ic-help-s-over.svg</file>
+        <file>resource/images/icon-source-viewercount-disable.svg</file>
+        <file>resource/images/icon-source-viewercount-normal.svg</file>
+        <file>resource/images/icon-source-viewercount-select-disable.svg</file>
+        <file>resource/images/icon-source-viewercount-select-normal.svg</file>
+        <file>resource/images/template-01.png</file>
+        <file>resource/images/template-02.png</file>
+        <file>resource/images/template-03.png</file>
+        <file>resource/images/template-04.png</file>
+        <file>resource/images/template-05.png</file>
+        <file>resource/images/template-06.png</file>
+    </qresource>
+</RCC>

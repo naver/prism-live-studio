@@ -1,0 +1,212 @@
+PLSImporter {
+	min-width: /*hdpi*/ 710px;
+	max-width: /*hdpi*/ 710px;
+	min-height: /*hdpi*/ 430px;
+	max-height: /*hdpi*/ 1000px;
+	border: /*hdpi*/ none;
+	background-color: #1e1e1f;
+}
+
+PLSImporter #content, PLSImporter #listPage, PLSImporter #noDataPage {
+	background-color: #1e1e1f;
+}
+
+PLSImporter #nameLabel, PLSImporter #programLabel, PLSImporter #selectCheckBox{
+    background-color: transparent;
+}
+
+PLSImporter #nameLabel, PLSImporter #programLabel{
+    font-size: /*hdpi*/ 14px;
+    color: #ffffff;
+}
+
+PLSImporter #titleProgramLabel, PLSImporter #titleNameLabel{
+    background-color: transparent;
+    color: #bababa;
+    font-size: /*hdpi*/ 12px;
+}
+
+PLSImporter #noDataLabel {
+    font-size: /*hdpi*/ 14px;
+    color: #666666;
+    background-color: transparent;
+}
+
+PLSImporter #nameLabel, PLSImporter #titleNameLabel{
+    min-width: /*hdpi*/ 435px;
+    max-width: /*hdpi*/ 435px;
+}
+
+PLSImporter #programLabel, PLSImporter #nameLabel {
+	min-height: /*hdpi*/ 39px;
+	max-height: /*hdpi*/ 39px;
+    padding-bottom: /*hdpi*/ 1px;
+}
+
+PLSImporter #programLabel {
+    min-width: /*hdpi*/ 188px;
+    max-width: /*hdpi*/ 188px;
+    margin-right: /*hdpi*/ 3px;
+}
+
+PLSImporter #selectCheckBox{
+    min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+    min-width: /*hdpi*/ 40px;
+    max-width: /*hdpi*/ 40px;
+    background: transparent;
+}
+
+PLSImporter #selectCheckBox:indicator{
+    width: /*hdpi*/ 22px;
+    height: /*hdpi*/ 22px;
+    margin: /*hdpi*/ 9px;
+}
+
+PLSImporter #selectCheckBox:indicator:unchecked{
+    image: url(":/resource/images/bgm/icon-addsource-default.svg");
+}
+
+PLSImporter #selectCheckBox:indicator:unchecked:hover{
+    image: url(":/resource/images/bgm/icon-addsource-over.svg");
+}
+
+PLSImporter #selectCheckBox:indicator:unchecked:pressed{
+    image: url(":/resource/images/bgm/icon-addsource-click.svg");
+}
+
+PLSImporter #selectCheckBox:indicator:unchecked:disabled{
+    image: url(":/resource/images/bgm/icon-addsource-disable.svg");
+}
+
+PLSImporter #selectCheckBox:indicator:checked{
+    image: url(":/resource/images/bgm/btn-add-playlist-done-normal.svg");
+}
+
+PLSImporter #selectCheckBox:indicator:checked:hover{
+    image: url(":/resource/images/bgm/btn-add-playlist-done-over.svg");
+}
+
+PLSImporter #selectCheckBox:indicator:checked:pressed{
+    image: url(":/resource/images/bgm/btn-add-playlist-done-click.svg");
+}
+
+PLSImporter #selectCheckBox:indicator:checked:disabled{
+    image: url(":/resource/images/bgm/btn-add-playlist-done-disable.svg");
+}
+
+PLSImporter #nameSelectLabel{
+    font-size: /*hdpi*/ 14px;
+    color: #ffffff;
+    font-weight: bold;
+    background: transparent;
+}
+
+PLSImporter #titleFrame{
+    min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	background-color: transparent;
+    border-bottom: /*hdpi*/ 1px solid #343435;
+    margin-bottom: /*hdpi*/ 6px;
+}
+
+PLSImporter #buttonFrame{
+    min-height: /*hdpi*/ 78px;
+	max-height: /*hdpi*/ 78px;
+	background-color: #272727;
+}
+
+PLSImporter #macHelpBtn {
+	min-width: /*hdpi*/ 18px;
+	max-width: /*hdpi*/ 18px;
+	min-height: /*hdpi*/ 18px;
+	max-height: /*hdpi*/ 18px;
+	padding: 0;
+	margin: 0;
+	border-style: none;
+	background: transparent;
+	image: url(":/resource/images/collection/ic_help_s_normal.png");
+}
+
+PLSImporter #macHelpBtn:hover {
+	image: url(":/resource/images/collection/ic_help_s_over.png");
+}
+
+PLSImporter #buttonBox QPushButton {
+    min-width: /*hdpi*/ 128px;
+    max-width: /*hdpi*/ 128px;
+    min-height: /*hdpi*/ 40px;
+    max-height: /*hdpi*/ 40px;
+    margin: 0;
+    padding: 0;
+    border-radius: /*hdpi*/ 3px;
+    background-color: #444444;
+    color: #ffffff;
+}
+
+PLSImporter #buttonBox QPushButton:hover{
+    background-color: #555555;
+}
+
+PLSImporter #buttonBox QPushButton:pressed{
+    background-color: #2d2d2d;
+}
+
+PLSImporter #buttonBox QPushButton:disabled{
+    background-color: #444444;
+    color: #666666;
+}
+
+PLSImporter #listView{
+    background-color: #1e1e1f;
+    outline: none;
+}
+
+PLSImporter #listView:focus {
+	outline: none;
+}
+
+PLSImporter #listView::item {
+	height: /*hdpi*/ 40px;
+	outline: none;
+	border: /*hdpi*/ none;
+}
+
+PLSImporter #listView::item:hover {
+    background-color: #373737;
+}
+
+PLSImporter #listView QScrollBar:vertical {
+	background-color: #1e1e1f;
+	width: /*hdpi*/ 10px;
+    margin: 0;
+}
+
+PLSImporter #listView QScrollBar::handle:vertical {
+	margin-left: /*hdpi*/ 3px;
+	margin-right: /*hdpi*/ 1px;
+    margin-top: /*hdpi*/ 2px;
+	margin-bottom: /*hdpi*/ 2px;
+}
+
+PLSImporter #listView PLSImporterItem{
+    font-size: /*hdpi*/ 14px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+    border-radius: /*hdpi*/ 3px;
+}
+
+PLSImporterItem[status=hover], PLSImporterItem #nameLabel[status=hover], PLSImporterItem #programLabel[status=hover] {
+	background-color: #373737;
+}
+
+PLSImporterItem #nameLabel, PLSImporterItem #programLabel {
+    margin-top: -4px;
+}
+
+PLSImporter PLSAlertView #content,
+PLSImporter PLSAlertView #content #message,
+PLSImporter PLSAlertView #content #nameLabel,
+PLSImporter PLSAlertView #content #widget {
+    background: #272727;
+}

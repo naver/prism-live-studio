@@ -1,0 +1,67 @@
+DefaultPlatformsAddList {
+	border: /*hdpi*/ none;
+	padding: /*hdpi*/ 0px;
+	margin: /*hdpi*/ 0px;
+}
+
+	DefaultPlatformsAddList QToolButton {
+		margin-top: /*hdpi*/ 12px;
+		padding: /*hdpi*/ 0px;
+		background-color: transparent;
+		border: /*hdpi*/ none;
+		border-image: none;
+		min-width: /*hdpi*/ 90px;
+		min-height: /*hdpi*/ 33px;
+		max-width: /*hdpi*/ 90px;
+		max-height: /*hdpi*/ 33px;
+		qproperty-iconSize: /*hdpi*/ 90px /*hdpi*/ 33px;
+	}
+
+	DefaultPlatformsAddList #Twitter {
+		margin-top: /*hdpi*/ 12px;
+		min-width: /*hdpi*/ 80px;
+		min-height: /*hdpi*/ 33px;
+		max-width: /*hdpi*/ 80px;
+		max-height: /*hdpi*/ 33px;
+		qproperty-iconSize: /*hdpi*/ 80px /*hdpi*/ 33px;
+	}
+
+
+
+	DefaultPlatformsAddList #hoverBtn {
+		margin-top: /*hdpi*/ 12px;
+		padding: /*hdpi*/ 0px;
+		background-color: transparent;
+		border: /*hdpi*/ none;
+		image: url(":/channels/resource/images/DefaultChannels/btn-mych-addch-mauseover-normal.svg");
+		min-width: /*hdpi*/ 90px;
+		min-height: /*hdpi*/ 33px;
+		max-width: /*hdpi*/ 90px;
+		max-height: /*hdpi*/ 33px;
+	}
+
+		DefaultPlatformsAddList #hoverBtn[channel_name="Twitter"] {
+			margin-top: /*hdpi*/ 12px;
+			min-width: /*hdpi*/ 80px;
+			min-height: /*hdpi*/ 33px;
+			max-width: /*hdpi*/ 80px;
+			max-height: /*hdpi*/ 33px;
+			image: url(":/channels/resource/images/DefaultChannels/btn-addch-mauseover-2-normal.svg");
+		}
+
+		DefaultPlatformsAddList #hoverBtn:pressed {
+			image: url(":/channels/resource/images/DefaultChannels/btn-mych-addch-mauseover-click.svg");
+		}
+
+
+
+	DefaultPlatformsAddList #spaceLabel {
+		margin: /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px;
+		background-color: transparent;
+		color: transparent;
+		min-width: /*hdpi*/ 11px;
+		max-width: /*hdpi*/ 11px;
+		min-height: /*hdpi*/ 10px;
+		max-height: /*hdpi*/ 33px;
+	}

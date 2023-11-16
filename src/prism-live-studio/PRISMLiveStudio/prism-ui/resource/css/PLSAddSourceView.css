@@ -1,0 +1,156 @@
+PLSAddSourceView#PLSAddSourceView {
+	qproperty-hasHLine: /*hdpi*/ true;
+	qproperty-hasMinButton: /*hdpi*/ false;
+	qproperty-isMoveInContent: /*hdpi*/ true;
+	qproperty-captionButtonMargin: /*hdpi*/ 10;
+}
+
+#PLSAddSourceView > #plsDialogViewBorderFrame > #content {
+	background-color: #1e1e1f;
+	border: none;
+}
+
+QFrame #frame_desc {
+	border: /*hdpi*/ 1px solid #272727;
+	border-radius: /*hdpi*/ 3px;
+	qproperty-minimumSize: /*hdpi*/ 320px /*hdpi*/ 580px;
+	qproperty-maximumSize: /*hdpi*/ 320px /*hdpi*/ 580px;
+}
+
+QFrame #frame_baseSource, QFrame #frame_prismSource {
+	border: /*hdpi*/ 1px solid #272727;
+	border-radius: /*hdpi*/ 3px;
+	min-width: 318px;
+	max-width: 318px;
+}
+QFrame #frame_desc {
+	background-color: #1e1e1f;
+	border: none;
+}
+
+QScrollArea #scrollArea_2, QScrollArea #scrollArea {
+	border: none;
+}
+
+QLabel#label_baseTitle, QLabel#label_prismTitle {
+	font-size: /*hdpi*/ 12px;
+	font-weight: bold;
+	color: #a3a3a3;
+	background-color: transparent;
+	min-height: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+	border: none;
+	padding-top: /*hdpi*/ 18px;
+	padding-bottom: /*hdpi*/ 14px;
+}
+QLabel#label_space {
+	border:none;
+	min-height:9px;
+	max-height:9px;
+	background-color:transparent;
+}
+QLabel#label_descTitle {
+	min-width: /*hdpi*/ 260px;
+	max-width: /*hdpi*/ 260px;
+	font-size: /*hdpi*/ 20px;
+	font-weight: bold;
+	color: #ffffff;
+	background-color: transparent;
+	padding: 0px;
+	margin:0px;
+}
+
+QLabel#label_descContent {
+	min-width: /*hdpi*/ 260px;
+	max-width: /*hdpi*/ 260px;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #a3a3a3;
+	background-color: transparent;
+	padding: 0px;
+	margin: 0px;
+}
+
+
+QLabel#label_descPic {
+	min-width: /*hdpi*/ 280px;
+	max-width: /*hdpi*/ 280px;
+	min-height: /*hdpi*/ 140px;
+	max-height: /*hdpi*/ 140px;
+	background-color: transparent;
+}
+
+QFrame #frame_buttonBox {
+	min-height: /*hdpi*/ 78px;
+	max-height :/*hdpi*/ 78px;
+	background-color: #272727;
+	border: none;
+	border-top: /*hdpi*/ 1px solid #151515;
+}
+
+#frame_buttonBox #buttonOK, #frame_buttonBox #buttonCancel {
+	qproperty-minimumSize: /*hdpi*/ 128px /*hdpi*/ 40px;
+	qproperty-maximumSize: /*hdpi*/ 128px /*hdpi*/ 40px;
+}
+
+PLSAddSourceItem#PLSAddSourceItem {
+	min-height: /*hdpi-u*/ 40px;
+	max-height: /*hdpi-u*/ 58px;
+	min-width: /*hdpi-u*/ 296px;
+	max-width: /*hdpi-u*/ 296px;
+	padding: 0;
+	margin: 0;
+	background-color: #272727;
+}
+
+	PLSAddSourceItem#PLSAddSourceItem:hover {
+		background-color: #444444;
+	}
+
+	PLSAddSourceItem#PLSAddSourceItem:pressed {
+		background-color: #2d2d2d;
+	}
+
+	PLSAddSourceItem#PLSAddSourceItem:checked {
+		background-color: #444444;
+	}
+
+PLSAddSourceItem #label_icon {
+	qproperty-minimumSize: /*hdpi-u*/ 30px /*hdpi-u*/ 30px;
+	qproperty-maximumSize: /*hdpi-u*/ 30px /*hdpi-u*/ 30px;
+	background-color: transparent;
+}
+
+PLSAddSourceItem #label_text {
+	font-size: /*hdpi-d*/ 14px;
+	font-weight: normal;
+	color: white;
+	background-color: transparent;
+	padding-left: /*hdpi-u*/ 2px;
+	padding-top: /*hdpi-u*/ 10px;
+	padding-right: /*hdpi-u*/ 5px;
+	padding-bottom: /*hdpi-u*/ 11px;
+}
+
+	PLSAddSourceItem #label_text[select="false"] {
+		font-size: /*hdpi-d*/ 14px;
+		font-weight: normal;
+		color: white;
+		background-color: transparent;
+	}
+
+	PLSAddSourceItem #label_text[select="true"] {
+		font-size: /*hdpi-d*/ 14px;
+		font-weight: bold;
+		color: #effc35;
+		background-color: transparent;
+	}
+
+PLSAddSourceItem #label_status {
+	min-width: /*hdpi-u*/ 34px;
+	max-width: /*hdpi-u*/ 34px;
+	min-height: /*hdpi-u*/ 16px;
+	max-height: /*hdpi-u*/ 16px;
+	background-color: transparent;
+	image: url(":resource/images/ic-badge-new.svg");
+}

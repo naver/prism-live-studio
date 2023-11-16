@@ -1,0 +1,1429 @@
+/* PLSDrawPenView icons */
+
+PLSDrawPenView {
+	min-height: /*hdpi*/ 44px;
+	max-height: /*hdpi*/ 44px;
+	background-color: #272727;
+	border-radius: /*hdpi*/ 3px;
+	margin: 0;
+	padding: 0;
+}
+
+PLSDrawPenView QPushButton {
+	margin: 0;
+	padding: 0;
+	/*background: transparent;*/
+}
+
+PLSDrawPenView #frame_Content{
+	max-width: /*hdpi*/ 636px;
+	min-width : /*hdpi*/ 564px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+}
+
+PLSDrawPenView #pushButton_Pen {
+	image: url(":/resource/images/draw-pen/ic-pen-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	margin: 0;
+	padding:0;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Pen:hover {
+	image: url(":/resource/images/draw-pen/ic-pen-off-over.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Pen:pressed {
+	image: url(":/resource/images/draw-pen/ic-pen-off-over.svg");
+	background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Pen:disabled {
+	image: url(":/resource/images/draw-pen/ic-pen-off-disable.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Pen:checked,
+PLSDrawPenView #pushButton_Pen:checked:hover,
+PLSDrawPenView #pushButton_Pen:checked:pressed {
+	image: url(":/resource/images/draw-pen/ic-pen-on-normal.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Pen:checked:disabled {
+	image: url(":/resource/images/draw-pen/ic-pen-on-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Highlighter{
+	image: url(":/resource/images/draw-pen/ic-highlighter-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Highlighter:hover {
+	image: url(":/resource/images/draw-pen/ic-highlighter-off-over.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Highlighter:pressed {
+	image: url(":/resource/images/draw-pen/ic-highlighter-off-over.svg");
+	background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Highlighter:disabled {
+	image: url(":/resource/images/draw-pen/ic-highlighter-off-disable.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Highlighter:checked,
+PLSDrawPenView #pushButton_Highlighter:checked:hover,
+PLSDrawPenView #pushButton_Highlighter:checked:pressed {
+	image: url(":/resource/images/draw-pen/ic-highlighter-on-normal.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Highlighter:checked:disabled {
+	image: url(":/resource/images/draw-pen/ic-highlighter-on-disable.svg");
+	background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_GlowPen{
+	image: url(":/resource/images/draw-pen/ic-glowpen-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_GlowPen:hover {
+	image: url(":/resource/images/draw-pen/ic-glowpen-off-over.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_GlowPen:pressed {
+	image: url(":/resource/images/draw-pen/ic-glowpen-off-over.svg");
+	background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_GlowPen:disabled {
+	image: url(":/resource/images/draw-pen/ic-glowpen-off-disable.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_GlowPen:checked,
+PLSDrawPenView #pushButton_GlowPen:checked:hover,
+PLSDrawPenView #pushButton_GlowPen:checked:pressed {
+	image: url(":/resource/images/draw-pen/ic-glowpen-on-normal.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_GlowPen:checked:disabled {
+	image: url(":/resource/images/draw-pen/ic-glowpen-on-disable.svg");
+	background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_CurShape{
+	image: url(":/resource/images/draw-pen/ic-arrow-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="0"]{
+	image: url(":/resource/images/draw-pen/ic-arrow-off-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="0"]:hover {
+	image: url(":/resource/images/draw-pen/ic-arrow-off-over.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="0"]:pressed {
+	image: url(":/resource/images/draw-pen/ic-arrow-off-over.svg");
+	background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="0"]:disabled {
+	image: url(":/resource/images/draw-pen/ic-arrow-off-disable.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="0"]:checked,
+PLSDrawPenView #pushButton_CurShape[style="0"]:checked:hover,
+PLSDrawPenView #pushButton_CurShape[style="0"]:checked:pressed {
+	image: url(":/resource/images/draw-pen/ic-arrow-on-normal.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="0"]:checked:disabled {
+	image: url(":/resource/images/draw-pen/ic-arrow-on-disable.svg");
+	background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="1"]{
+	image: url(":/resource/images/draw-pen/ic-line-off-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="1"]:hover {
+	image: url(":/resource/images/draw-pen/ic-line-off-over.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="1"]:pressed {
+	image: url(":/resource/images/draw-pen/ic-line-off-over.svg");
+	background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="1"]:disabled {
+	image: url(":/resource/images/draw-pen/ic-line-off-disable.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="1"]:checked,
+PLSDrawPenView #pushButton_CurShape[style="1"]:checked:hover,
+PLSDrawPenView #pushButton_CurShape[style="1"]:checked:pressed {
+	image: url(":/resource/images/draw-pen/ic-line-on-normal.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="1"]:checked:disabled {
+	image: url(":/resource/images/draw-pen/ic-line-on-disable.svg");
+	background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="2"]{
+	image: url(":/resource/images/draw-pen/ic-rectangle-off-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="2"]:hover {
+	image: url(":/resource/images/draw-pen/ic-rectangle-off-over.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="2"]:pressed {
+	image: url(":/resource/images/draw-pen/ic-rectangle-off-over.svg");
+	background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="2"]:disabled {
+	image: url(":/resource/images/draw-pen/ic-rectangle-off-disable.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="2"]:checked,
+PLSDrawPenView #pushButton_CurShape[style="2"]:checked:hover,
+PLSDrawPenView #pushButton_CurShape[style="2"]:checked:pressed {
+	image: url(":/resource/images/draw-pen/ic-rectangle-on-normal.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="2"]:checked:disabled {
+	image: url(":/resource/images/draw-pen/ic-rectangle-on-disable.svg");
+	background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="3"]{
+	image: url(":/resource/images/draw-pen/ic-circle-off-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="3"]:hover {
+	image: url(":/resource/images/draw-pen/ic-circle-off-over.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="3"]:pressed {
+	image: url(":/resource/images/draw-pen/ic-circle-off-over.svg");
+	background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="3"]:disabled {
+	image: url(":/resource/images/draw-pen/ic-circle-off-disable.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="3"]:checked,
+PLSDrawPenView #pushButton_CurShape[style="3"]:checked:hover,
+PLSDrawPenView #pushButton_CurShape[style="3"]:checked:pressed {
+	image: url(":/resource/images/draw-pen/ic-circle-on-normal.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="3"]:checked:disabled {
+	image: url(":/resource/images/draw-pen/ic-circle-on-disable.svg");
+	background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="4"]{
+	image: url(":/resource/images/draw-pen/ic-triangle-off-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="4"]:hover {
+	image: url(":/resource/images/draw-pen/ic-triangle-off-over.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="4"]:pressed {
+	image: url(":/resource/images/draw-pen/ic-triangle-off-over.svg");
+	background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="4"]:disabled {
+	image: url(":/resource/images/draw-pen/ic-triangle-off-disable.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="4"]:checked,
+PLSDrawPenView #pushButton_CurShape[style="4"]:checked:hover,
+PLSDrawPenView #pushButton_CurShape[style="4"]:checked:pressed {
+	image: url(":/resource/images/draw-pen/ic-triangle-on-normal.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_CurShape[style="4"]:checked:disabled {
+	image: url(":/resource/images/draw-pen/ic-triangle-on-disable.svg");
+	background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_ShapeOpen{
+	image: url(":/resource/images/draw-pen/ic-arrow-open-normal.svg");
+	min-width: /*hdpi*/ 12px;
+	max-width: /*hdpi*/ 12px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_ShapeOpen[open="true"],
+PLSDrawPenView #pushButton_ShapeOpen[open="true"]:checked,
+PLSDrawPenView #pushButton_ShapeOpen[open="true"]:checked:hover {
+		image: url(":/resource/images/draw-pen/ic-arrow-open-normal.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_ShapeOpen:hover[open="true"] {
+		image: url(":/resource/images/draw-pen/ic-arrow-open-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_ShapeOpen:pressed[open="true"] {
+		image: url(":/resource/images/draw-pen/ic-arrow-open-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_ShapeOpen:disabled{
+		image: url(":/resource/images/draw-pen/ic-arrow-open-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_ShapeOpen[open="false"],
+PLSDrawPenView #pushButton_ShapeOpen[open="false"]:checked,
+PLSDrawPenView #pushButton_ShapeOpen[open="false"]:checked:hover {
+		image: url(":/resource/images/draw-pen/ic-arrow-close-normal.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_ShapeOpen:hover[open="false"] {
+		image: url(":/resource/images/draw-pen/ic-arrow-close-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_ShapeOpen:pressed[open="false"] {
+		image: url(":/resource/images/draw-pen/ic-arrow-close-over.svg");
+		background-color:#2d2d2d;
+}
+
+
+PLSDrawPenView #label_separate{
+	image: url(":/resource/images/draw-pen/ic-drawing-toollbar-line.svg");
+	min-width: /*hdpi*/ 1px;
+	max-width: /*hdpi*/ 1px;
+	min-height: /*hdpi*/ 14px;
+	max-height: /*hdpi*/ 14px;
+	border: none;
+	background-color: #343435;
+}
+
+PLSDrawPenView #pushButton_Rubber{
+	image: url(":/resource/images/draw-pen/ic-eraser-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Rubber:hover {
+	image: url(":/resource/images/draw-pen/ic-eraser-off-over.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Rubber:pressed {
+	image: url(":/resource/images/draw-pen/ic-eraser-off-over.svg");
+	background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Rubber:disabled {
+	image: url(":/resource/images/draw-pen/ic-eraser-off-disable.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Rubber:checked,
+PLSDrawPenView #pushButton_Rubber:checked:hover,
+PLSDrawPenView #pushButton_Rubber:checked:pressed {
+	image: url(":/resource/images/draw-pen/ic-eraser-on-normal.svg");
+	background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Rubber:checked:disabled {
+	image: url(":/resource/images/draw-pen/ic-eraser-on-disable.svg");
+	background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Width{
+	image: url(":/resource/images/draw-pen/ic-toolbar-border-10-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Width[style="0"],
+PLSDrawPenView #pushButton_Width[style="0"]:checked, 
+PLSDrawPenView #pushButton_Width[style="0"]:checked:hover,
+PLSDrawPenView #pushButton_Width[style="0"]:checked:pressed{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-4-normal.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Width[style="0"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-4-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Width[style="0"]:hover {
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-4-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Width[style="0"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-4-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Width[style="0"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-4-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Width[style="1"],
+PLSDrawPenView #pushButton_Width[style="1"]:checked, 
+PLSDrawPenView #pushButton_Width[style="1"]:checked:hover,
+PLSDrawPenView #pushButton_Width[style="1"]:checked:pressed{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-8-normal.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Width[style="1"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-8-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Width[style="1"]:hover {
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-8-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Width[style="1"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-8-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Width[style="1"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-8-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Width[style="2"],
+PLSDrawPenView #pushButton_Width[style="2"]:checked, 
+PLSDrawPenView #pushButton_Width[style="2"]:checked:hover,
+PLSDrawPenView #pushButton_Width[style="2"]:checked:pressed{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-10-normal.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Width[style="2"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-10-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Width[style="2"]:hover {
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-10-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Width[style="2"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-10-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Width[style="2"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-10-disable.svg");
+		background: transparent;
+}
+PLSDrawPenView #pushButton_Width[style="3"],
+PLSDrawPenView #pushButton_Width[style="3"]:checked, 
+PLSDrawPenView #pushButton_Width[style="3"]:checked:hover,
+PLSDrawPenView #pushButton_Width[style="3"]:checked:pressed{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-14-normal.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Width[style="3"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-14-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Width[style="3"]:hover {
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-14-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Width[style="3"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-14-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Width[style="3"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-14-disable.svg");
+		background: transparent;
+}
+PLSDrawPenView #pushButton_Width[style="4"],
+PLSDrawPenView #pushButton_Width[style="4"]:checked, 
+PLSDrawPenView #pushButton_Width[style="4"]:checked:hover,
+PLSDrawPenView #pushButton_Width[style="4"]:checked:pressed{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-18-normal.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Width[style="4"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-18-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Width[style="4"]:hover {
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-18-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Width[style="4"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-18-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Width[style="4"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-toolbar-border-18-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color{
+	image: url(":/resource/images/draw-pen/ic-color-01-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="0"],
+PLSDrawPenView #pushButton_Color[style="0"]:checked, 
+PLSDrawPenView #pushButton_Color[style="0"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="0"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-01-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="0"]:hover {
+		image: url(":/resource/images/draw-pen/ic-color-01-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="0"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-01-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="0"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-01-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="1"],
+PLSDrawPenView #pushButton_Color[style="1"]:checked, 
+PLSDrawPenView #pushButton_Color[style="1"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="1"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-02-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="1"]:hover  {
+		image: url(":/resource/images/draw-pen/ic-color-02-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="1"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-02-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="1"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-02-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="1"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-02-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Color[style="2"],
+PLSDrawPenView #pushButton_Color[style="2"]:checked, 
+PLSDrawPenView #pushButton_Color[style="2"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="2"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-03-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="2"]:hover  {
+		image: url(":/resource/images/draw-pen/ic-color-03-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="2"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-03-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="2"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-03-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="2"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-03-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Color[style="3"],
+PLSDrawPenView #pushButton_Color[style="3"]:checked, 
+PLSDrawPenView #pushButton_Color[style="3"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="3"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-04-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="3"]:hover {
+		image: url(":/resource/images/draw-pen/ic-color-04-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="3"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-04-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="3"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-04-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="3"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-04-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Color[style="4"],
+PLSDrawPenView #pushButton_Color[style="4"]:checked, 
+PLSDrawPenView #pushButton_Color[style="4"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="4"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-05-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="4"]:hover {
+		image: url(":/resource/images/draw-pen/ic-color-05-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="4"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-05-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="4"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-05-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="4"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-05-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Color[style="5"],
+PLSDrawPenView #pushButton_Color[style="5"]:checked, 
+PLSDrawPenView #pushButton_Color[style="5"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="5"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-06-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="5"]:hover {
+		image: url(":/resource/images/draw-pen/ic-color-06-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="5"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-06-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="5"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-06-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="5"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-06-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Color[style="6"],
+PLSDrawPenView #pushButton_Color[style="6"]:checked, 
+PLSDrawPenView #pushButton_Color[style="6"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="6"]:checked:pressed {
+	image: url(":/resource/images/draw-pen/ic-color-07-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="6"]:hover {
+		image: url(":/resource/images/draw-pen/ic-color-07-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="6"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-07-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="6"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-07-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="6"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-07-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Color[style="7"],
+PLSDrawPenView #pushButton_Color[style="7"]:checked, 
+PLSDrawPenView #pushButton_Color[style="7"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="7"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-08-normal.svg");
+	background: transparent;
+}
+PLSDrawPenView #pushButton_Color[style="7"]:hover {
+		image: url(":/resource/images/draw-pen/ic-color-08-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="7"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-08-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="7"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-08-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="7"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-08-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Color[style="8"],
+PLSDrawPenView #pushButton_Color[style="8"]:checked, 
+PLSDrawPenView #pushButton_Color[style="8"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="8"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-09-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="8"]:hover{
+		image: url(":/resource/images/draw-pen/ic-color-09-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="8"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-09-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="8"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-09-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="8"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-09-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Color[style="9"],
+PLSDrawPenView #pushButton_Color[style="9"]:checked, 
+PLSDrawPenView #pushButton_Color[style="9"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="9"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-10-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="9"]:hover {
+		image: url(":/resource/images/draw-pen/ic-color-10-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="9"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-10-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="9"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-10-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="9"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-10-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Color[style="10"],
+PLSDrawPenView #pushButton_Color[style="10"]:checked, 
+PLSDrawPenView #pushButton_Color[style="10"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="10"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-11-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="10"]:hover{
+		image: url(":/resource/images/draw-pen/ic-color-11-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="10"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-11-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="10"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-11-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="10"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-11-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Color[style="11"],
+PLSDrawPenView #pushButton_Color[style="11"]:checked, 
+PLSDrawPenView #pushButton_Color[style="11"]:checked:hover,
+PLSDrawPenView #pushButton_Color[style="11"]:checked:pressed{
+	image: url(":/resource/images/draw-pen/ic-color-12-normal.svg");
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="11"]:hover{
+		image: url(":/resource/images/draw-pen/ic-color-12-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Color[style="11"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-color-12-normal.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Color[style="11"]:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-12-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Color[style="11"]:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-color-12-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Undo{
+	image: url(":/resource/images/draw-pen/ic-undo-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Undo:hover {
+		image: url(":/resource/images/draw-pen/ic-undo-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Undo:pressed {
+		image: url(":/resource/images/draw-pen/ic-undo-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Undo:disabled{
+		image: url(":/resource/images/draw-pen/ic-undo-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Undo:checked,
+PLSDrawPenView #pushButton_Undo:checked:hover,
+PLSDrawPenView #pushButton_Undo:checked:pressed {
+		image: url(":/resource/images/draw-pen/ic-undo-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Undo:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-undo-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Redo{
+	image: url(":/resource/images/draw-pen/ic-redo-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Redo:hover {
+		image: url(":/resource/images/draw-pen/ic-redo-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Redo:pressed {
+		image: url(":/resource/images/draw-pen/ic-redo-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Redo:disabled{
+		image: url(":/resource/images/draw-pen/ic-redo-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Redo:checked,
+PLSDrawPenView #pushButton_Redo:checked:hover,
+PLSDrawPenView #pushButton_Redo:checked:pressed {
+		image: url(":/resource/images/draw-pen/ic-redo-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Redo:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-redo-disable.svg");
+		background-color:#333333;
+}
+
+PLSDrawPenView #pushButton_Clear{
+	image: url(":/resource/images/draw-pen/ic-trash-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Clear:hover {
+		image: url(":/resource/images/draw-pen/ic-trash-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Clear:pressed {
+		image: url(":/resource/images/draw-pen/ic-trash-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Clear:disabled{
+		image: url(":/resource/images/draw-pen/ic-trash-disable.svg");
+		background: transparent;
+}
+
+PLSDrawPenView #pushButton_Clear:checked,
+PLSDrawPenView #pushButton_Clear:checked:hover,
+PLSDrawPenView #pushButton_Clear:checked:pressed {
+		image: url(":/resource/images/draw-pen/ic-trash-normal.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Clear:checked:disabled{
+		image: url(":/resource/images/draw-pen/ic-trash-disable.svg");
+		background-color:#333333;
+}
+
+
+PLSDrawPenView #pushButton_Visible{
+	image: url(":/resource/images/draw-pen/ic-hide-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #pushButton_Visible[visibled="true"] {
+		image: url(":/resource/images/draw-pen/ic-hide-off-normal.svg");
+}
+
+PLSDrawPenView #pushButton_Visible[visibled="true"]:hover {
+		image: url(":/resource/images/draw-pen/ic-hide-off-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Visible[visibled="true"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-hide-off-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #pushButton_Visible[visibled="false"] {
+		image: url(":/resource/images/draw-pen/ic-hide-on-normal.svg");
+}
+
+PLSDrawPenView #pushButton_Visible[visibled="false"]:hover {
+		image: url(":/resource/images/draw-pen/ic-hide-on-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #pushButton_Visible[visibled="false"]:pressed {
+		image: url(":/resource/images/draw-pen/ic-hide-on-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #shape_0{
+	image: url(":/resource/images/draw-pen/ic-arrow-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #shape_0:hover {
+		image: url(":/resource/images/draw-pen/ic-arrow-off-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #shape_0:pressed {
+		image: url(":/resource/images/draw-pen/ic-arrow-off-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #shape_1{
+	image: url(":/resource/images/draw-pen/ic-line-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #shape_1:hover {
+		image: url(":/resource/images/draw-pen/ic-line-off-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #shape_1:pressed {
+		image: url(":/resource/images/draw-pen/ic-line-off-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #shape_2{
+	image: url(":/resource/images/draw-pen/ic-rectangle-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #shape_2:hover {
+		image: url(":/resource/images/draw-pen/ic-rectangle-off-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #shape_2:pressed {
+		image: url(":/resource/images/draw-pen/ic-rectangle-off-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #shape_3{
+	image: url(":/resource/images/draw-pen/ic-circle-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #shape_3:hover {
+		image: url(":/resource/images/draw-pen/ic-circle-off-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #shape_3:pressed {
+		image: url(":/resource/images/draw-pen/ic-circle-off-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #shape_4{
+	image: url(":/resource/images/draw-pen/ic-triangle-off-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #shape_4:hover {
+		image: url(":/resource/images/draw-pen/ic-triangle-off-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #shape_4:pressed {
+		image: url(":/resource/images/draw-pen/ic-triangle-off-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #line_width_0{
+	image: url(":/resource/images/draw-pen/ic-layer-border-4-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #line_width_0:hover {
+		image: url(":/resource/images/draw-pen/ic-layer-border-4-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #line_width_0:pressed {
+		image: url(":/resource/images/draw-pen/ic-layer-border-4-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #line_width_1{
+	image: url(":/resource/images/draw-pen/ic-layer-border-8-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #line_width_1:hover {
+		image: url(":/resource/images/draw-pen/ic-layer-border-8-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #line_width_1:pressed {
+		image: url(":/resource/images/draw-pen/ic-layer-border-8-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #line_width_2{
+	image: url(":/resource/images/draw-pen/ic-layer-border-10-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #line_width_2:hover {
+		image: url(":/resource/images/draw-pen/ic-layer-border-10-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #line_width_2:pressed {
+		image: url(":/resource/images/draw-pen/ic-layer-border-10-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #line_width_3{
+	image: url(":/resource/images/draw-pen/ic-layer-border-14-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #line_width_3:hover {
+		image: url(":/resource/images/draw-pen/ic-layer-border-14-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #line_width_3:pressed {
+		image: url(":/resource/images/draw-pen/ic-layer-border-14-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #line_width_4{
+	image: url(":/resource/images/draw-pen/ic-layer-border-18-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #line_width_4:hover {
+		image: url(":/resource/images/draw-pen/ic-layer-border-18-over.svg");
+		background-color:#444444;
+}
+
+PLSDrawPenView #line_width_4:pressed {
+		image: url(":/resource/images/draw-pen/ic-layer-border-18-over.svg");
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_0{
+	image: url(":/resource/images/draw-pen/ic-color-01-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_0:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_0:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_1{
+	image: url(":/resource/images/draw-pen/ic-color-02-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_1:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_1:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_2{
+	image: url(":/resource/images/draw-pen/ic-color-03-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_2:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_2:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_3{
+	image: url(":/resource/images/draw-pen/ic-color-04-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_3:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_3:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_4{
+	image: url(":/resource/images/draw-pen/ic-color-05-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_4:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_4:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_5{
+	image: url(":/resource/images/draw-pen/ic-color-06-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_5:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_5:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_6{
+	image: url(":/resource/images/draw-pen/ic-color-07-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_6:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_6:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_7{
+	image: url(":/resource/images/draw-pen/ic-color-08-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_7:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_7:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_8{
+	image: url(":/resource/images/draw-pen/ic-color-09-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_8:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_8:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_9{
+	image: url(":/resource/images/draw-pen/ic-color-10-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_9:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_9:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_10{
+	image: url(":/resource/images/draw-pen/ic-color-11-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_10:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_10:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #color_11{
+	image: url(":/resource/images/draw-pen/ic-color-12-normal.svg");
+	min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+	background: transparent;
+}
+
+PLSDrawPenView #color_11:hover {
+		background-color:#444444;
+}
+
+PLSDrawPenView #color_11:pressed {
+		background-color:#2d2d2d;
+}
+
+PLSDrawPenView #popup {
+	background-color:#272727;
+	border: /*hdpi*/ 1px solid #111111;
+	padding:/*hdpi*/ 10px;
+}

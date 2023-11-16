@@ -1,0 +1,115 @@
+PLSSceneCollectionManagement {
+	min-width: /*hdpi*/ 198px;
+	max-width: /*hdpi*/ 198px;
+	min-height: /*hdpi*/ 81px;
+	background-color: #2d2d2d;
+	border: /*hdpi-d*/ 1px solid #111111;
+}
+
+PLSSceneCollectionManagement #listview {
+	background-color: #2d2d2d;
+	outline: none;
+}
+
+PLSSceneCollectionManagement #listview[fixed=true] {
+    min-height: /*hdpi*/ 40px;
+    max-height: /*hdpi*/ 40px;
+}
+PLSSceneCollectionManagement #listview[fixed=false], PLSSceneCollectionManagement #listview {
+    min-height: /*hdpi*/ 40px;
+    max-height: /*hdpi*/ 9999px;
+}
+
+PLSSceneCollectionManagement #listview:focus {
+	outline: none;
+}
+
+PLSSceneCollectionManagement #listview::item {
+	height:/*hdpi*/ 40px;
+	outline: none;
+	border:/*hdpi*/none;
+}
+
+PLSSceneCollectionManagement #listview::item:hover {
+	background-color: #444444;
+}
+
+PLSSceneCollectionManagement #listview QScrollBar:vertical {
+	background-color: #2d2d2d;
+}
+
+PLSSceneCollectionManagement #listview QScrollBar::handle:vertical {
+	margin-top: /*hdpi*/ 2px;
+	margin-bottom: /*hdpi*/ 2px;
+}
+
+PLSSceneCollectionManagement #listview PLSSceneCollectionItem{
+    font-size: /*hdpi*/ 14px;
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+    min-width: /*hdpi*/ 198px;
+	max-width: /*hdpi*/ 198px;
+    margin: 0px;
+}
+
+PLSSceneCollectionManagement #listview PLSSceneCollectionItem[status="normal"] {
+	background-color: #2d2d2d;
+}
+
+PLSSceneCollectionManagement #listview PLSSceneCollectionItem[status="hover"] {
+	background-color: #444444;
+}
+
+PLSSceneCollectionManagement #listview PLSSceneCollectionItem[status="pressed"] {
+	background-color: #2d2d2d;
+}
+
+PLSSceneCollectionManagement #listview PLSSceneCollectionItem #nameLabel {
+	min-width: /*hdpi*/ 40px;
+	font-size: /*hdpi*/ 14px;
+	color: #ffffff;
+	font-weight: normal;
+    background: transparent;
+}
+
+PLSSceneCollectionManagement #listview PLSSceneCollectionItem #nameLabel[current=true]{
+    color: #effc35;
+}
+
+PLSSceneCollectionManagement #listview PLSSceneCollectionItem #nameLabel[current=false]{
+    color: #ffffff;
+}
+
+PLSSceneCollectionManagement #managementLabel{
+    color: #ffffff;
+	font-weight: normal;
+    font-size: /*hdpi*/ 14px;
+    background: transparent;
+}
+
+PLSSceneCollectionManagement #buttonFrame, PLSSceneCollectionManagement #buttonFrame[status=normal] {
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	border-top: /*hdpi-d*/ 1px solid #1e1e1e;
+	background-color: #2d2d2d;
+}
+
+PLSSceneCollectionManagement #buttonFrame[status=clicked], PLSSceneCollectionManagement #buttonFrame[status=hover]{
+    background-color: #444444;
+}
+
+PLSSceneCollectionManagement #goBtn {
+	min-width: /*hdpi*/ 12px;
+	max-width: /*hdpi*/ 12px;
+	min-height: /*hdpi*/ 11px;
+	max-height: /*hdpi*/ 11px;
+    margin-top: /*hdpi*/ 1px;
+    background: transparent;
+	margin: 0;
+	padding: 0;
+	image: url(":/resource/images/collection/ic-scene-arrow-normal.svg");
+}
+
+PLSSceneCollectionManagement #goBtn:hover {
+	image: url(":/resource/images/collection/ic-scene-arrow-over.svg");
+}

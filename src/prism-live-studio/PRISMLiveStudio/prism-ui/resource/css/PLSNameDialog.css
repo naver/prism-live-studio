@@ -1,0 +1,61 @@
+PLSNameDialog #Ok{
+    qproperty-minimumSize:/*hdpi*/140px/*hdpi*/40px;
+    qproperty-maximumSize:/*hdpi*/140px/*hdpi*/40px;
+	padding: /*hdpi*/0px;
+	
+}
+PLSNameDialog #Cancel{
+    qproperty-minimumSize:/*hdpi*/150px/*hdpi*/40px;
+    qproperty-maximumSize:/*hdpi*/150px/*hdpi*/40px;
+	padding: /*hdpi*/0px;margin: /*hdpi*/0 /*hdpi*/5px;
+}
+
+PLSNameDialog #titleLabel{
+	background: transparent;
+	min-height:/*hdpi*/ 20px;
+	max-height:/*hdpi*/ 20px;
+	font-size:/*hdpi*/ 14px;
+	color: #ffffff;
+}
+
+PLSNameDialog #buttonBox{
+	min-height:/*hdpi*/ 79px;
+	max-height:/*hdpi*/ 79px;
+}
+
+PLSNameDialog #buttonBox QPushButton{
+    qproperty-minimumSize:/*hdpi*/140px/*hdpi*/40px;
+    qproperty-maximumSize:/*hdpi*/140px/*hdpi*/40px;
+	border-radius:/*hdpi*/ 3px;
+	background-color: #444444;
+	padding:/*hdpi*/0px;
+}
+
+PLSNameDialog #userText{
+	background-color: #1e1e1f;
+	border-radius:/*hdpi*/ 3px;
+	min-height:/*hdpi*/ 40px;
+	max-height:/*hdpi*/ 40px;
+	font-size:/*hdpi*/ 14px;
+	color: #ffffff;
+}
+
+PLSNameDialog #userText[status=editing]{
+	border:/*hdpi*/ 1px solid #effc35;
+}
+
+PLSNameDialog #userText[status=editingFinish]{
+	border:/*hdpi*/ none;
+}
+
+PLSNameDialog #buttonBox QPushButton:hover {
+    background-color: #555555;
+}
+
+PLSNameDialog #buttonBox QPushButton:pressed {
+    background-color: #2d2d2d;
+}
+PLSNameDialog #buttonBox QPushButton:disabled {
+    background-color: #444444;
+    color: #777777;
+}

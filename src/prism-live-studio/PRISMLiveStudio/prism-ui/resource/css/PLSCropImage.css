@@ -1,0 +1,47 @@
+#PLSCropImage #smallButton {
+	background-color: #272727;
+	image:url(":/resource/images/crop-small-icon.svg");
+	min-width:/*hdpi*/ 25px;
+	max-width:/*hdpi*/ 25px;
+	min-height:/*hdpi*/ 21px;
+	max-height:/*hdpi*/ 21px;
+	color: transparent;
+}
+#PLSCropImage #largeButton {
+	background-color: #272727;
+	image: url(":/resource/images/crop-large-icon.svg");
+	min-width: /*hdpi*/ 25px;
+	max-width: /*hdpi*/ 25px;
+	min-height: /*hdpi*/ 21px;
+	max-height: /*hdpi*/ 21px;
+	color: transparent;
+}
+#PLSCropImage #slider {
+	min-width:/*hdpi*/ 182px;
+	max-width:/*hdpi*/ 182px;
+}
+#PLSCropImage #slider::groove:horizontal {
+	background-color: #404040;
+	border-radius: /*hdpi-d*/ 2px;
+}
+#PLSCropImage #slider::sub-page:horizontal {
+	border-top-left-radius: /*hdpi-d*/ 2px;
+	border-bottom-left-radius: /*hdpi-d*/ 2px;
+}
+#PLSCropImage #slider::handle:horizontal[enter="false"], #PLSCropImage #slider::handle:horizontal[enter="false"][handle="true"] {
+	image: url(":/resource/images/img-handle-normal2.svg");
+	height: /*hdpi*/ 12px;
+	width: /*hdpi*/ 12px;
+	margin: /*hdpi*/ -4px /*hdpi*/ 0px /*hdpi*/ -4px /*hdpi*/ -2px;
+}
+#PLSCropImage #lineWidget {
+	min-height:/*hdpi*/ 1px;
+	max-height:/*hdpi*/ 1px;
+	background-color: #151515;
+}
+#PLSCropImage #backButton, #PLSCropImage #okButton, #PLSCropImage #cancelButton {
+	min-width:/*hdpi*/ 140px;
+	max-width:/*hdpi*/ 140px;
+	min-height:/*hdpi*/ 40px;
+	max-height:/*hdpi*/ 40px;
+}

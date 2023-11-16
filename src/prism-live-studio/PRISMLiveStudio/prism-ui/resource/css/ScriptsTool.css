@@ -1,0 +1,56 @@
+#ScriptsTool {
+    background-color: #272727;
+ 
+}
+
+    #ScriptsTool #closebtn {
+        min-width: 128px;
+        max-width: 128px;
+        min-height: 40px;
+        max-height: 40px;
+        padding: 0px;
+        margin: 0px;
+    }
+
+    #ScriptsTool #pythonPathBrowse {
+        min-width: 136px;
+        max-width: 136px;
+        min-height: 40px;
+        max-height: 40px;
+        padding: 0px;
+        margin: 0px;
+    }
+
+    #ScriptsTool #scripts {
+        min-width:330px;
+    }
+    #ScriptsTool #scripts QPushButton{
+        padding:5px;
+        margin:0px;
+    }
+    #ScriptsTool QTabWidget::pane {
+        margin: 0px;
+        margin-top: -2px;
+        padding: 0px;
+        padding-top: 20px;
+        border-top: 1px solid #111111;
+        background-color: transparent;
+    }
+
+#ScriptsTool QTabBar::tab {
+    background-color: #272727;
+    border: /*hdpi*/ 2px solid transparent;
+    padding: /*hdpi*/ 0px;
+    min-width: /*hdpi*/ 100px;
+    margin: /*hdpi*/ 1px;
+}
+
+
+    #ScriptsTool QTabBar::tab:selected {
+        color: #effc35;
+        border-bottom-color: /*hdpi*/ #effc35;
+    }
+
+    #ScriptsTool #line {
+        background-color: #151515;
+    }
