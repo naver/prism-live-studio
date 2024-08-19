@@ -63,6 +63,8 @@ inline bool SucceededPDH(PDH_STATUS pdhStatus, const char *function, const std::
 
 bool PerfCounter::Start()
 {
+	PLS_INFO(MAIN_PERFORMANCE, "[PLSPerfCounter] %s", __FUNCTION__);
+
 	m_hEventUpdate = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 	m_threadUpdate = std::thread([this] {
 		PDH_STATUS pdhStatus = ERROR_SUCCESS;
@@ -77,6 +79,8 @@ bool PerfCounter::Start()
 			PLS_WARN(MAIN_PERFORMANCE, "[PLSPerfCounter] Fail to open pdh query, HQUERY is null but error = 0x%x.", pdhStatus);
 			return;
 		}
+
+		PLS_INFO(MAIN_PERFORMANCE, "[PLSPerfCounter] %s: PdhOpenQuery=%d mQuery=%p", __FUNCTION__, pdhStatus, mQuery);
 
 		AddAdapterQuery();
 		UpdateProcessQuery();
@@ -105,16 +109,22 @@ bool PerfCounter::Start()
 
 void PerfCounter::Stop()
 {
+	PLS_INFO(MAIN_PERFORMANCE, "[PLSPerfCounter] %s: mQuery=%p", __FUNCTION__, mQuery);
+
 	SetEvent(m_hEventUpdate);
 	if (m_threadUpdate.joinable()) {
 		m_threadUpdate.join();
 	}
 
 	Close();
+
+	PLS_INFO(MAIN_PERFORMANCE, "[PLSPerfCounter] %s: Exit", __FUNCTION__);
 }
 
 void PerfCounter::Close()
 {
+	PLS_INFO(MAIN_PERFORMANCE, "[PLSPerfCounter] %s: mQuery=%p", __FUNCTION__, mQuery);
+
 	if (mQuery) {
 		PdhCloseQuery(mQuery);
 		mQuery = nullptr;
@@ -136,6 +146,8 @@ void PerfCounter::Update()
 #endif
 			DumpQueryResult();
 			mReady2Output = true;
+		} else {
+			PLS_INFO(MAIN_PERFORMANCE, "[PLSPerfCounter] %s: PdhCollectQueryData=%d, mQuery=%p", __FUNCTION__, pdhStatus, mQuery);
 		}
 	}
 }

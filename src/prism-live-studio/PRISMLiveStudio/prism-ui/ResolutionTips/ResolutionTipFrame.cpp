@@ -5,6 +5,7 @@
 #include <qregularexpression.h>
 #include <QTimer>
 #include <QPainterPath>
+#include "liblog.h"
 
 ResolutionTipFrame::ResolutionTipFrame(QWidget *parent) : QFrame(parent), ui(new Ui::ResolutionTipFrame)
 {
@@ -34,6 +35,7 @@ void ResolutionTipFrame::on_CloseBtn_clicked()
 void ResolutionTipFrame::delayShow(bool visible, int time)
 {
 	QTimer::singleShot(time, this, [this, visible]() {
+		PLS_INFO("ResolutionTipFrame", "delayShow");
 		this->setVisible(visible);
 		if (visible) {
 			this->updateUI();
@@ -127,8 +129,7 @@ void ResolutionTipFrame::calculatePos()
 	auto fontM = ui->ContentLabel->fontMetrics();
 	auto txt = ui->ContentLabel->text();
 	auto maxRect = QRect(0, 0, 205 - fontM.leftBearing('c') - fontM.rightBearing('c'), 800);
-	QRegularExpression regx("\\W+", QRegularExpression::UseUnicodePropertiesOption);
-	auto rect = fontM.boundingRect(maxRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextIncludeTrailingSpaces | Qt::TextWordWrap, txt.replace(regx, " "));
+	auto rect = fontM.boundingRect(maxRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextIncludeTrailingSpaces | Qt::TextWordWrap, txt);
 	int margin = 8 + 16 /*padding*/ + fontM.leading();
 	this->resize(QSize(this->width(), rect.height() + margin));
 

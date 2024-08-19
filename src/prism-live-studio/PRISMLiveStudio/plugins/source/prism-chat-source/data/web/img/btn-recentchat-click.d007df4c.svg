@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50">
-    <g fill="none" fill-rule="evenodd" stroke="#FFF">
-        <rect width="39" height="39" x="5.5" y="5.5" fill="#1E1E1E" stroke-opacity=".1" opacity=".901" rx="19.5" transform="matrix(1 0 0 -1 0 50)"/>
-        <g stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
-            <path d="M11.605 8.283l-5.393 5.392c-.225.226-.594.226-.82 0L0 8.283M5.802 12.386V0" transform="translate(19.257 18)"/>
-        </g>
-    </g>
-</svg>

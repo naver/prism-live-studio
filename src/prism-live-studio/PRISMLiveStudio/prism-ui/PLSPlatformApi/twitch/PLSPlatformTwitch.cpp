@@ -17,48 +17,13 @@
 #define TWTICH_CHAT QStringLiteral("TwitchChat")
 #define TWTICH_SERVER QStringLiteral("TwitchServer")
 #define TWITCH_TITLE_INVAILD QStringLiteral("Status contains banned words")
-
+const char *globalServer = "rtmp://ingest.global-contribute.live-video.net/app";
 using namespace std;
 using namespace common;
 
 PLSServiceType PLSPlatformTwitch::getServiceType() const
 {
 	return PLSServiceType::ST_TWITCH;
-}
-
-int PLSPlatformTwitch::getServerIndex() const
-{
-	return m_idxServer;
-}
-
-void PLSPlatformTwitch::setServerIndex(int idxServer)
-{
-	m_idxServer = idxServer;
-}
-
-QStringList PLSPlatformTwitch::getServerNames() const
-{
-	QStringList vecServerNames;
-	vecServerNames.reserve(m_vecTwitchServers.size());
-
-	for_each(m_vecTwitchServers.begin(), m_vecTwitchServers.end(), [&](const TwitchServer &value) { vecServerNames.append(value.name.c_str()); });
-
-	return vecServerNames;
-}
-
-void PLSPlatformTwitch::saveSettings(const string &title, const string &category, const string &categoryId, int idxServer)
-{
-	if (getTitle() != title || getCategory() != category) {
-		requestUpdateChannel(title, category, categoryId);
-	} else {
-		emit onUpdateChannel(PLSPlatformApiResult::PAR_SUCCEED);
-	}
-
-	m_idxServer = idxServer;
-	if (m_idxServer != -1 && m_idxServer < m_vecTwitchServers.size()) {
-		config_set_uint(App()->GlobalConfig(), KeyConfigLiveInfo, KeyTwitchServer, m_vecTwitchServers[m_idxServer]._id);
-	}
-	saveStreamServer();
 }
 
 void PLSPlatformTwitch::onPrepareLive(bool value)
@@ -84,46 +49,30 @@ void PLSPlatformTwitch::onLiveEnded()
 	}
 }
 
-void PLSPlatformTwitch::responseServerSuccessHandler(const QJsonDocument &doc, bool showAlert, const int &code, const QByteArray &data, const streamKeyCallback &callback)
+void PLSPlatformTwitch::serverHandler()
 {
-	pls_unused(code, data);
-	if (doc.isObject()) {
-		auto root = doc.object();
-		auto ingests = root["ingests"].toArray();
-		auto _idConfig = config_get_uint(App()->GlobalConfig(), KeyConfigLiveInfo, KeyTwitchServer);
+	auto obj = PLSLoginDataHandler::instance()->getTwitchServiceList();
 
-		m_vecTwitchServers.clear();
-		for (int i = 0; i < ingests.count() - 1; ++i) {
-			auto server = ingests[i].toObject();
-			auto name = server["name"].toString().toStdString();
-			if (0 == i) {
-				name = QTStr("LiveInfo.Twitch.Recommend").toStdString() + name;
-			}
-			auto _id = server["_id"].toInt();
-			if (_idConfig == _id) {
-				m_idxServer = i;
-			}
-			m_vecTwitchServers.push_back({_id, name, server["url_template"].toString().toStdString(), server["default"].toBool()});
-		}
+	auto ingests = obj["ingests"].toArray();
+	auto _idConfig = config_get_uint(App()->GlobalConfig(), KeyConfigLiveInfo, KeyTwitchServer);
 
-		saveStreamServer();
-
-		PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_TWITCH,
-			  {
-				  {"platformName", "twitch"},
-				  {"startLiveStatus", "Success"},
-			  },
-			  "twitch start live success");
-		callback();
+	auto ingestSize = ingests.count();
+	if (ingestSize == 0) {
+		PLS_INFO(MODULE_PLATFORM_TWITCH, "get twitch service list failed, will use globalServer = %s", globalServer);
+		setStreamServer(globalServer);
 	} else {
-		PLS_ERROR(MODULE_PLATFORM_TWITCH, "responseServerSuccessHandler .error: %d-%s", code, QString(data).toStdString().c_str());
-		PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_TWITCH,
-			  {{"platformName", "twitch"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", QString("request server api error" + data).toUtf8().constData()}},
-			  "twitch start live failed");
-		if (showAlert) {
-			pls_alert_error_message(getAlertParent(), QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
-		}
+		auto server = ingests[0].toObject().value("url_template").toString();
+		auto lastIndex = server.lastIndexOf('/');
+		auto serverUrl = server.left(lastIndex).toStdString();
+		setStreamServer(serverUrl);
+		PLS_INFO(MODULE_PLATFORM_TWITCH, "get twitch service list success, selected server = %s", serverUrl.c_str());
 	}
+	PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_TWITCH,
+		  {
+			  {"platformName", "twitch"},
+			  {"startLiveStatus", "Success"},
+		  },
+		  "twitch start live success");
 }
 
 QString maskUrl(const QString &url, const QVariantMap &queryInfo)
@@ -140,14 +89,6 @@ QString maskUrl(const QString &url, const QVariantMap &queryInfo)
 QVariantMap PLSPlatformTwitch::setHttpHead() const
 {
 	return {{"Client-ID", TWITCH_CLIENT_ID}, {"Authorization", "Bearer " + getChannelToken()}, {"Accept", HTTP_ACCEPT_TWITCH}};
-}
-
-void PLSPlatformTwitch::saveStreamServer()
-{
-	if (-1 != m_idxServer && m_idxServer < m_vecTwitchServers.size()) {
-		const auto &value = m_vecTwitchServers[m_idxServer].url_template;
-		setStreamServer(value.substr(0, value.size() - 13));
-	}
 }
 
 PLSPlatformApiResult PLSPlatformTwitch::getApiResult(int code, QNetworkReply::NetworkError error)
@@ -250,8 +191,8 @@ void PLSPlatformTwitch::requestStreamKey(bool showAlert, const streamKeyCallback
 							   setStreamKey(root["stream_key"].toString().toStdString());
 
 							   m_strOriginalTitle = getTitle();
-
-							   requestServer(showAlert, callback);
+							   serverHandler();
+							   callback();
 						   } else {
 							   PLS_ERROR(MODULE_PLATFORM_TWITCH, "requestStreamKey.error: %d", code);
 							   PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_TWITCH, {{"channel start error", "twitch"}}, "request streamKey api error, code = %d error = %s.",
@@ -300,46 +241,6 @@ void PLSPlatformTwitch::getChannelInfo()
 					   auto statusCode = reply.statusCode();
 					   QString errorStr = "channel error status code " + QString::number(statusCode);
 					   PLS_ERROR(MODULE_PLATFORM_TWITCH, errorStr.toStdString().c_str());
-				   }));
-}
-void PLSPlatformTwitch::requestServer(bool showAlert, const streamKeyCallback &callback)
-{
-	PLS_INFO(MODULE_PLATFORM_TWITCH, "start request server info");
-	if (!m_vecTwitchServers.empty()) {
-		PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_TWITCH,
-			  {
-				  {"platformName", "twitch"},
-				  {"startLiveStatus", "Success"},
-			  },
-			  "twitch start live success");
-		callback();
-
-		return;
-	}
-	pls::http::request(pls::http::Request()
-				   .method(pls::http::Method::Get)
-				   .jsonContentType()       //
-				   .withLog()               //
-				   .receiver(this)          //
-				   .url(TWITCH_API_INGESTS) //
-				   .timeout(PRISM_NET_REQUEST_TIMEOUT)
-
-				   .okResult([this, showAlert, callback](const pls::http::Reply &reply) {
-					   auto data = reply.data();
-					   auto code = reply.statusCode();
-					   auto doc = QJsonDocument::fromJson(data);
-					   pls_async_call_mt(getAlertParent(), [this, doc, showAlert, code, data, callback]() { responseServerSuccessHandler(doc, showAlert, code, data, callback); });
-				   })
-				   .failResult([this, showAlert](const pls::http::Reply &reply) {
-					   auto code = reply.statusCode();
-					   auto error = reply.error();
-					   PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_TWITCH,
-						     {{"platformName", "twitch"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "request streamKey api error"}}, "twitch start live failed");
-					   PLS_ERROR(MODULE_PLATFORM_TWITCH, "requestServer.error: %d-%d", code, error);
-					   auto result = getApiResult(code, error);
-					   if (showAlert) {
-						   pls_async_call_mt(getAlertParent(), [this, showAlert, result]() { showApiRefreshError(result); });
-					   }
 				   }));
 }
 

@@ -1,5 +1,4 @@
 #include "PLSFloatScrollBarScrollArea.h"
-//#include "PLSDpiHelper.h"
 #include "libutils-api.h"
 #include <QTimer>
 
@@ -60,7 +59,7 @@ bool PLSFloatScrollBarScrollArea::eventFilter(QObject *watcher, QEvent *e)
 {
 	if (watcher == delegateScrollBar) {
 		if (e->type() == QEvent::Show) {
-			QTimer::singleShot(0, this, &PLSFloatScrollBarScrollArea::UpdateSliderGeometry);
+			pls_async_call(this, [this]() { UpdateSliderGeometry(); });
 		}
 	}
 	return QScrollArea::eventFilter(watcher, e);

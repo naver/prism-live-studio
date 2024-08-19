@@ -19,7 +19,6 @@ using namespace common;
 
 constexpr auto facebookMoudule = "PLSLiveInfoFacebook";
 
-constexpr auto page_list_permission = "pages_show_list";
 constexpr auto granted_status = "granted";
 constexpr auto declined_status = "declined";
 constexpr auto granted_scopes = "granted_scopes";
@@ -83,6 +82,7 @@ void PLSAPIFacebook::getUserInfo(const GetUserInfoCallback &onFinished)
 		PLSJsonDataHandler::getValue(root, name2str(url), url_);
 		QString imagePath;
 		downloadSyncImage(url_.toString(), imagePath);
+		pls_check_app_exiting();
 		if (imagePath.length() > 0) {
 			QString originPath = PLS_PLATFORM_FACEBOOK->getSrcInfo().value(ChannelData::g_userIconCachePath).toString();
 			if (originPath != imagePath) {
@@ -132,14 +132,12 @@ PLSAPIFacebookType PLSAPIFacebook::checkPermissionSuccess(const QJsonObject &roo
 	}
 	if (QSet<QString> intersection = QSet<QString>(grantedPermissionList.begin(), grantedPermissionList.end()).intersect(QSet<QString>(permissionList.begin(), permissionList.end()));
 	    intersection.size() == permissionList.size()) {
-		PLS_INFO(facebookMoudule, "PLSAPIFacebook %s Include requested permissions, authorized permissions: [%s], requested permissions: [%s], all permissions: [%s]",
-			 getApiName(requestType), grantedPermissionList.join(",").toStdString().c_str(), permissionList.join(",").toStdString().c_str(),
-			 allPermissionList.join(",").toStdString().c_str());
+		PLS_INFO(facebookMoudule, "PLSAPIFacebook %s Include requested permissions, authorized permissions: [%s], requested permissions: [%s], all permissions: [%s]", getApiName(requestType),
+			 grantedPermissionList.join(",").toStdString().c_str(), permissionList.join(",").toStdString().c_str(), allPermissionList.join(",").toStdString().c_str());
 		return PLSAPIFacebookType::PLSFacebookGranted;
 	}
 	if (bool granted = goFacebookRequestPermission(permissionList, parent); granted) {
-		PLS_INFO(facebookMoudule,
-			 "PLSAPIFacebook %s Go to the Facebook window to re-authorize successfully, authorized permissions: [%s], requested permissions: [%s], all permissions: [%s]",
+		PLS_INFO(facebookMoudule, "PLSAPIFacebook %s Go to the Facebook window to re-authorize successfully, authorized permissions: [%s], requested permissions: [%s], all permissions: [%s]",
 			 getApiName(requestType), grantedPermissionList.join(",").toStdString().c_str(), permissionList.join(",").toStdString().c_str(),
 			 allPermissionList.join(",").toStdString().c_str());
 		return PLSAPIFacebookType::PLSFacebookGranted;
@@ -200,7 +198,8 @@ void PLSAPIFacebook::getMyPageListRequestAndCheckPermission(const GetMyPageListC
 		onFinished(type, QList<FacebookPageInfo>());
 	};
 	QStringList permissionList;
-	permissionList << page_list_permission;
+	permissionList << page_show_list_permission;
+	permissionList << business_management_permission;
 	checkPermission(PLSAPICheckMyPageListPermission, permissionList, finished, parent);
 }
 
@@ -287,9 +286,7 @@ void PLSAPIFacebook::startLiving(PLSAPI requestType, const QString &itemId, cons
 		printRequestSuccessLog(requestType, log);
 		onFinished(PLSAPIFacebookType::PLSFacebookSuccess, streamURL, liveId, videoId, shareLink);
 	};
-	auto failedFunction = [onFinished](PLSAPIFacebookType type) {	
-		onFinished(type, "", "", "", ""); 
-	};
+	auto failedFunction = [onFinished](PLSAPIFacebookType type) { onFinished(type, "", "", "", ""); };
 	QString log = QString("first name is %1, second name is %2, title is %3, description is %4, privacy is %5, gameName is %6")
 			      .arg(prepareInfo.firstObjectName)
 			      .arg(prepareInfo.secondObjectName)
@@ -330,7 +327,7 @@ void PLSAPIFacebook::getFacebookItemUserInfo(const QString &itemId, const ItemIn
 	QString url = getFaceboolURL(itemId);
 
 	QVariantMap params;
-	params.insert(COOKIE_ACCESS_TOKEN, PLS_PLATFORM_FACEBOOK->getAccessToken());
+	params.insert(COOKIE_ACCESS_TOKEN, PLS_PLATFORM_FACEBOOK->getLiveAccessToken());
 	params.insert("fields", "name,picture.type(large)");
 	pls::http::Request request;
 	request.url(url).urlParams(params);
@@ -449,6 +446,7 @@ void PLSAPIFacebook::stopFacebookLiving(const QString &liveVideoId, const MyRequ
 
 	printRequestStartLog(requestType, url);
 	request.receiver(App()->getMainView());
+	request.withLog();
 	request.okResult([requestType, onFinished, this](const pls::http::Reply &) {
 		       printRequestSuccessLog(requestType);
 		       onFinished(PLSAPIFacebookType::PLSFacebookSuccess);
@@ -599,12 +597,19 @@ PLSAPIFacebookType PLSAPIFacebook::handleApiErrorCode(PLSAPI requestType, int st
 		if (error == QNetworkReply::OperationCanceledError) {
 			PLS_ERROR(facebookMoudule, "PLSAPIFacebook %s request failed because cancel network request", getApiName(requestType));
 		} else {
-			PLS_ERROR(facebookMoudule, "PLSAPIFacebook %s request failed because network error: %d", getApiName(requestType), error);
+			PLS_ERROR(facebookMoudule, "PLSAPIFacebook %s request failed because network error: %d, code=%d, error_subcode=%d", getApiName(requestType), error, code, error_subcode);
 		}
 	}
 	//group manager permission and install app permission
 	if (code == 200) {
-		return PLSAPIFacebookType::PLSFacebookDeclined;
+		switch (error_subcode) {
+		case 1363120:
+			return PLSAPIFacebookType::PLSFacebookDeclined_60Days;
+		case 1363144:
+			return PLSAPIFacebookType::PLSFacebookDeclined_100Followers;
+		default:
+			return PLSAPIFacebookType::PLSFacebookDeclined;
+		}
 	} else if (code == 190) {
 		//page living access token invalid or page delete(This Page access token belongs to a Page that has been deleted.)
 		if (requestType == PLSAPI::PLSAPIStartPageLiving) {

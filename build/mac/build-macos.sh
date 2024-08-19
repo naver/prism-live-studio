@@ -1,6 +1,7 @@
 #!/bin/bash
 
 #ARCH: arm64 | x86_64 | universal
+# bash build-macos.sh --ci --build-type RelWithDebInfo -a arm64 --temp
 
 set -eE
 
@@ -73,9 +74,29 @@ setup_default_config() {
 
     source "${SCRIPT_PATH}/01_configure.sh"
 
+    delete-build-path
+
     info "PROJECT_DIR = ${PROJECT_DIR}"
     cd ${PROJECT_DIR}
 
+    if [ "${CIPackage}" ]; then
+        trap "caught_error 'python download sync json'" ERR
+           if [ "${IGNORE_SYNC}" ]; then
+            info "ignore download sync by command line"
+        else
+            /usr/bin/python3 "${SCRIPT_PATH}/../common/downSyncJson.py" "${PRISM_SRC_DIR}/PRISMLiveStudio" ${PRISM_DEV_PYTHON_DOWNLOAD}
+        fi
+        
+
+        trap "caught_error 'python download gpop'" ERR
+        if [ "${IGNORE_GPOP}" ]; then
+            info "ignore download gpop by command line"
+        else
+            /usr/bin/python3 "${SCRIPT_PATH}/../common/downloadGpop.py" "${PRISM_SRC_DIR}/PRISMLiveStudio/prism-ui/resource/DefaultResources/mac/gpop.json" ${VERSION} "mac" ${PRISM_DEV_PYTHON_DOWNLOAD}
+        fi
+    fi
+
+    info "BUILD_TYPE=${BUILD_TYPE}"
     configure-prism
 }
 
@@ -83,18 +104,17 @@ prism-build-main() {
     while true; do
         case "${1}" in
             -h | --help ) print_usage; exit 0 ;;
-            -q | --quiet ) export QUIET=TRUE; shift ;;
-            -v | --verbose ) export VERBOSE=TRUE; shift ;;
             -a | --architecture ) export ARCH="${2}"; shift 2 ;;
             -n | --notarize ) NOTARIZE=TRUE; shift ;;
             -b | --bundle ) BUNDLE=TRUE; shift ;;
-            -b | --in ) BUNDLE=TRUE; shift ;;
             --ci ) CIPackage=TRUE; PACKAGE=TRUE; BUILD=TRUE; IGNORE_COMMIT=FALSE;  NOTARIZE=TRUE; CLEAN=TRUE; shift ;;   
             --build ) BUILD=TRUE; shift ;;   
             --clean ) CLEAN=TRUE; shift ;;   
             --build-type ) export BUILD_TYPE="${2}"; shift 2 ;;
+            --ignore-sync ) IGNORE_SYNC=TRUE; shift ;;
+            --ignore-gpop ) IGNORE_GPOP=TRUE; shift ;;
             -t | --temp ) CITEMP=TRUE; shift ;;
-            --anpg-ignore) export IGNORE_APNG_BUILD="TRUE"; shift ;;
+            --dev-download) PRISM_DEV_PYTHON_DOWNLOAD="--dev"; shift ;;
             -- ) shift; break ;;
             * ) break ;;
         esac
@@ -107,7 +127,13 @@ prism-build-main() {
         cd ${PRISM_SRC_DIR}
         cmake --build ${PRISM_BUILD_DIR} --config ${BUILD_TYPE} -- -j $(nproc)
     fi
-    
+
+    if [ "${BUNDLE}" ]; then
+        trap "caught_error 'install prism app'" ERR
+        cd ${PRISM_SRC_DIR}
+        cmake --install ${PRISM_BUILD_DIR} --config ${BUILD_TYPE}
+    fi
+
     step "build-macos script done."
 }
 

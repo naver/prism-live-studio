@@ -42,11 +42,9 @@ PLSChatDialog #scrollAreaWidgetContents #leftPlaceholder {
 PLSChatDialog #scrollAreaWidgetContents>QPushButton {
         min-height:/*hdpi*/34px;
         max-height:/*hdpi*/34px;
-        max-width:/*hdpi*/ 40px;
-        min-width:/*hdpi*/ 40px;
-        
-/*        background-color: rgba(0,0,255,0.3);*/
-        /*background-color: orange;*/
+        max-width:/*hdpi*/ 30px;
+        min-width:/*hdpi*/ 30px;
+/*        background-color: rgba(100, 27, 114,0.3);*/
         background-color: transparent;
         color: #bababa;
         font-weight: bold;

@@ -13,7 +13,14 @@ constexpr QSize ICON_SIZE{18, 18};
 constexpr int SPACING = 6;
 constexpr int FACTOR = 4;
 
-PLSRadioButtonGroup::PLSRadioButtonGroup(QObject *parent) : QObject(parent) {}
+PLSRadioButtonGroup::PLSRadioButtonGroup(QObject *parent) : QObject(parent)
+{
+	pls_control_uistep_custom(this, "buttonClicked", "Click", [this]() -> QVariant {
+		if (auto btn = checkedButton(); btn)
+			return btn->text();
+		return QString();
+	});
+}
 
 PLSRadioButton *PLSRadioButtonGroup::button(int id) const
 {

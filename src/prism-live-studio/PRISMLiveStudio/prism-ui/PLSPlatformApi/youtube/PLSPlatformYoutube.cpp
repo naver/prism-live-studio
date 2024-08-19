@@ -33,6 +33,7 @@
 #include "pls-gpop-data.hpp"
 #include <qvariant.h>
 #include <qmap.h>
+
 using namespace std;
 
 const QString kDefaultCategoryID = "22"; //People & Blogs
@@ -99,7 +100,7 @@ PLSPlatformYoutube::PLSPlatformYoutube()
 	});
 
 	connect(PLS_PLATFORM_API, &PLSPlatformApi::channelRemoved, this, [this](const QVariantMap &info) {
-		QString platformName = info.value(ChannelData::g_platformName, "").toString();
+		QString platformName = info.value(ChannelData::g_channelName, "").toString();
 		auto dataType = info.value(ChannelData::g_data_type, ChannelData::RTMPType).toInt();
 
 		if (dataType == ChannelData::ChannelType && platformName == YOUTUBE) {
@@ -287,10 +288,14 @@ void PLSPlatformYoutube::setSelectData(PLSYoutubeLiveinfoData data)
 		emit selectIDChanged();
 	}
 
+	bool isChatNeeedChange = false;
 	if (oldprivacyStatus.toLower() == s_youtube_private_en.toLower() && oldprivacyStatus.toLower() != m_selectData.privacyStatus.toLower()) {
-		emit privateChangedToOther();
+		isChatNeeedChange = true;
 	}
 	if (!m_selectData.isNormalLive && oldID == m_selectData._id && oldKids != m_selectData.isForKids) {
+		isChatNeeedChange = true;
+	}
+	if (isChatNeeedChange) {
 		emit privateChangedToOther();
 	}
 }
@@ -360,12 +365,18 @@ void PLSPlatformYoutube::saveSettings(const function<void(bool)> &onNext, bool i
 
 	PLS_INFO(MODULE_PlatformService, "Youtube call saveSettings");
 
-	updateSettingIngestionType();
+	if (PLS_PLATFORM_API->isPrepareLive()) {
+		updateSettingIngestionType();
+		bool isHls = PLSPlatformYoutube::IngestionType::Hls == getSettingIngestionType();
+		const char *ingestionType = isHls ? "hls" : "rtmp";
+		PLS_INFO(MODULE_PlatformService, "youtube set ingestionType:%s", ingestionType);
+	}
 
 	auto _onSaveCompleteNext = [this, onNext](bool isSucceed) {
 		if (isSucceed) {
 
 			setSelectData(m_trySaveData);
+			emit receiveVideoId(m_selectData.isNormalLive, m_selectData._id);
 			if (m_isUploadedImage) {
 				//ignore the remote thum, use the current upload image
 				m_thumMaps[m_selectData._id].pix = m_selectData.pixMap;
@@ -447,7 +458,7 @@ void PLSPlatformYoutube::requestCurrentSelectData(const function<void(bool)> &on
 			onNext(false);
 		}
 	};
-	PLSAPIYoutube::requestCurrentSelectData(widget, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+	PLSAPIYoutube::requestCurrentSelectData(widget, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::dealCurrentSelectDataSucceed(const QByteArray &data, const std::function<void(bool)> &onNext, const QWidget *widget)
@@ -538,7 +549,7 @@ void PLSPlatformYoutube::requestCategoryID(const std::function<void(bool)> &onNe
 			onNext(false);
 		}
 	};
-	PLSAPIYoutube::requestCategoryID(widget, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh, searchID);
+	PLSAPIYoutube::requestCategoryID(widget, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh, searchID);
 }
 
 void PLSPlatformYoutube::dealCategoriesRequestDatas(const std::function<void(bool)> &onNext, const QString &searchID, const QByteArray &data, bool isShowAlert)
@@ -608,7 +619,7 @@ void PLSPlatformYoutube::requestCategoryList(const function<void(bool)> &onNext,
 		}
 	};
 
-	PLSAPIYoutube::requestCategoryList(widget, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+	PLSAPIYoutube::requestCategoryList(widget, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::dealCategoriesSucceed(const QByteArray &data)
@@ -641,24 +652,6 @@ void PLSPlatformYoutube::dealCategoriesSucceed(const QByteArray &data)
 	}
 }
 
-static void sortDatasByCustom(vector<PLSYoutubeLiveinfoData> &datas)
-{
-	sort(datas.begin(), datas.end(), [](const PLSYoutubeLiveinfoData &lhs, const PLSYoutubeLiveinfoData &rhs) { return lhs.timeStamp > rhs.timeStamp; });
-	vector<PLSYoutubeLiveinfoData> lists = datas;
-	datas.clear();
-
-	auto nowTime = PLSDateFormate::getNowTimeStamp();
-	for (const auto &info : lists) {
-		auto scheduleTime = info.timeStamp;
-		bool expired = nowTime > scheduleTime;
-		if (expired) {
-			datas.push_back(info);
-		} else {
-			datas.insert(datas.begin(), info);
-		}
-	}
-}
-
 void PLSPlatformYoutube::updateScheduleListAndSort()
 {
 	if (m_selectData.isNormalLive || m_selectData._id.isEmpty()) {
@@ -672,30 +665,36 @@ void PLSPlatformYoutube::updateScheduleListAndSort()
 		}
 	}
 	m_vecSchedules.push_back(m_selectData);
-	sortDatasByCustom(m_vecSchedules);
+	PLSAPICommon::sortScheduleListsByCustom(m_vecSchedules);
 }
 
 void PLSPlatformYoutube::requestScheduleListByGuidePage(const std::function<void(bool)> &onNext, const QObject *widget)
 {
 	auto _onSucceed = [this, onNext](QByteArray data) {
+		std::lock_guard<std::mutex> locker(m_channelScheduleMutex);
 		m_vecGuideSchedules.clear();
 		dealScheduleListGuidePageSucceed(data, onNext);
 	};
 
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
+		std::lock_guard<std::mutex> locker(m_channelScheduleMutex);
 		m_vecGuideSchedules.clear();
-		PLS_ERROR(MODULE_PlatformService, "PLSPlatformYoutube::requestScheduleListByGuidePage failed");
+		QString errorType;
+
 		auto errorRet = getApiResult(code, error, data);
 		if (errorRet == PLSPlatformApiResult::PAR_TOKEN_EXPIRED) {
+			errorType = "PlatformExpired";
 			mySharedData().m_lastError = createScheduleGetError(getChannelName(), channel_data::NetWorkErrorType::PlatformExpired);
 		} else if (errorRet == PLSPlatformApiResult::PAR_NETWORK_ERROR) {
+			errorType = "NetWorkNoStable";
 			mySharedData().m_lastError = createScheduleGetError(getChannelName(), channel_data::NetWorkErrorType::NetWorkNoStable);
 		}
+		PLS_ERROR(MODULE_PlatformService, "PLSPlatformYoutube::requestScheduleListByGuidePage failed. with type:%s", errorType.toUtf8().constData());
 		if (nullptr != onNext) {
 			onNext(false);
 		}
 	};
-	PLSAPIYoutube::requestScheduleList(widget, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+	PLSAPIYoutube::requestScheduleList(widget, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::dealScheduleListGuidePageSucceed(const QByteArray &data, const std::function<void(bool)> &onNext)
@@ -759,7 +758,7 @@ void PLSPlatformYoutube::requestScheduleList(const std::function<void(bool)> &on
 			onNext(false);
 		}
 	};
-	PLSAPIYoutube::requestScheduleList(widget, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+	PLSAPIYoutube::requestScheduleList(widget, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::dealScheduleListSucceed(const QByteArray &data, const std::function<void(bool)> &onNext, const QObject *widget, bool isShowAlert)
@@ -815,7 +814,7 @@ void PLSPlatformYoutube::dealScheduleListSucceed(const QByteArray &data, const s
 		//if the remote not found selected schedule, so add it.
 		m_vecSchedules.push_back(selectData);
 	}
-	sortDatasByCustom(m_vecSchedules);
+	PLSAPICommon::sortScheduleListsByCustom(m_vecSchedules);
 	if (nullptr != onNext) {
 		onNext(true);
 	}
@@ -851,7 +850,7 @@ void PLSPlatformYoutube::requestStartToInsertLiveBroadcasts(const std::function<
 			onNext(false);
 		}
 	};
-	PLSAPIYoutube::requestLiveBroadcastsInsert(receiver, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+	PLSAPIYoutube::requestLiveBroadcastsInsert(receiver, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::requestStartToInsertLiveStreams(const std::function<void(bool)> &onNext, const QObject *receiver)
@@ -887,7 +886,7 @@ void PLSPlatformYoutube::requestStartToInsertLiveStreams(const std::function<voi
 			onNext(false);
 		}
 	};
-	PLSAPIYoutube::requestLiveStreamsInsert(receiver, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+	PLSAPIYoutube::requestLiveStreamsInsert(receiver, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::requestStartToBindTwo(const std::function<void(bool)> &onNext, const QObject *receiver)
@@ -922,7 +921,7 @@ void PLSPlatformYoutube::requestStartToBindTwo(const std::function<void(bool)> &
 			onNext(false);
 		}
 	};
-	PLSAPIYoutube::requestLiveBroadcastsBindOrUnbind(receiver, m_trySaveData, true, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+	PLSAPIYoutube::requestLiveBroadcastsBindOrUnbind(receiver, m_trySaveData, true, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::requestUnBindStream(const std::function<void(bool)> &onNext, const QObject *receiver)
@@ -953,7 +952,7 @@ void PLSPlatformYoutube::requestUnBindStream(const std::function<void(bool)> &on
 		}
 	};
 
-	PLSAPIYoutube::requestLiveBroadcastsBindOrUnbind(receiver, m_trySaveData, false, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+	PLSAPIYoutube::requestLiveBroadcastsBindOrUnbind(receiver, m_trySaveData, false, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::requestStartTest()
@@ -970,7 +969,7 @@ void PLSPlatformYoutube::requestStartTest()
 		PLS_INFO(MODULE_PlatformService, "youtube requestStartTest failed");
 		setupApiFailedWithCode(result);
 	};
-	PLSAPIYoutube::requestTestLive(this, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+	PLSAPIYoutube::requestTestLive(this, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::requestLiveStreamKey(const std::function<void(bool)> &onNext, const QObject *receiver)
@@ -1001,7 +1000,7 @@ void PLSPlatformYoutube::requestLiveStreamKey(const std::function<void(bool)> &o
 
 	QStringList ids;
 	ids << m_trySaveData.boundStreamId;
-	PLSAPIYoutube::requestLiveStream(ids, receiver, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh, "snippet,cdn,contentDetails,status", "requestLiveStreamKey");
+	PLSAPIYoutube::requestLiveStream(ids, receiver, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh, "snippet,cdn,contentDetails,status", "requestLiveStreamKey");
 }
 
 void PLSPlatformYoutube::dealStreamKeySucceed(const QJsonDocument &doc, const std::function<void(bool)> &onNext)
@@ -1075,7 +1074,7 @@ void PLSPlatformYoutube::requestUpdateVideoData(const std::function<void(bool)> 
 			onNext(false);
 		}
 	};
-	PLSAPIYoutube::requestUpdateVideoData(receiver, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh, infoData);
+	PLSAPIYoutube::requestUpdateVideoData(receiver, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh, infoData);
 }
 
 void PLSPlatformYoutube::requestStopLive(const std::function<void()> &onNext)
@@ -1108,7 +1107,7 @@ void PLSPlatformYoutube::requestStopLive(const std::function<void()> &onNext)
 			_onStopNext(succeed);
 			return;
 		}
-		PLSAPIYoutube::requestDeleteStream(this, deleteID, nullptr, nullptr, PLSAPIYoutube::RefreshType::NotRefresh);
+		PLSAPIYoutube::requestDeleteStream(this, deleteID, nullptr, nullptr, PLSAPICommon::RefreshType::NotRefresh);
 		if (m_trySaveData.startData == m_rehearsalSaveedData) {
 			_onStopNext(succeed);
 			return;
@@ -1139,7 +1138,7 @@ void PLSPlatformYoutube::requestLiveBroadcastStatus()
 		}
 		checkLiveStatus(lifeCycleStatus);
 	};
-	PLSAPIYoutube::requestLiveBroadcastStatus(this, _onSucceed, nullptr, PLSAPIYoutube::RefreshType::NotRefresh);
+	PLSAPIYoutube::requestLiveBroadcastStatus(this, _onSucceed, nullptr, PLSAPICommon::RefreshType::NotRefresh);
 }
 
 void PLSPlatformYoutube::requestLiveStreamStatus(bool isToCheckHealth)
@@ -1160,7 +1159,7 @@ void PLSPlatformYoutube::requestLiveStreamStatus(bool isToCheckHealth)
 			}
 		}
 	};
-	PLSAPIYoutube::requestLiveStream({m_selectData.boundStreamId}, this, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh, "status", "requestLiveStreamStatus");
+	PLSAPIYoutube::requestLiveStream({m_selectData.boundStreamId}, this, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh, "status", "requestLiveStreamStatus");
 }
 
 void PLSPlatformYoutube::dealLiveStreamStatusSucceed(const QByteArray &data, bool isToCheckHealth)
@@ -1256,19 +1255,24 @@ void PLSPlatformYoutube::checkIngestionTypeNext(const std::function<void(bool)> 
 		return;
 	}
 
-	PLSPlatformYoutube::IngestionType remoteType = PLSPlatformYoutube::IngestionType::Auto;
+	PLSPlatformYoutube::IngestionType remoteType = PLSPlatformYoutube::IngestionType::Rtmps;
+	bool isSupportType = false;
 	if (m_trySaveData.streamUrl.startsWith("http")) {
 		remoteType = PLSPlatformYoutube::IngestionType::Hls;
+		isSupportType = true;
 	} else if (m_trySaveData.streamUrl.startsWith("rtmp")) {
 		remoteType = PLSPlatformYoutube::IngestionType::Rtmps;
+		isSupportType = true;
 	}
-	//other is webrtc, so must recreate rtmo or hls live.
-	if (m_ingestionType == remoteType || m_ingestionType == PLSPlatformYoutube::IngestionType::Auto) {
+
+	//the type is same with local, or is webrtc and other not support type(will show PAR_API_ERROR_TYPE_NOT_SUPPORT errmsg in other place)
+	if (m_ingestionType == remoteType || !isSupportType) {
 		if (onNext) {
 			onNext(true);
 		}
 		return;
 	}
+	//must recreate to switch rtmp and hls live.
 	PLS_INFO(MODULE_PlatformService, "ingestionType local is %s, is not support by local setting, so crate a new liveStream",
 		 remoteType == PLSPlatformYoutube::IngestionType::Hls ? "hls" : "rtmp");
 	requestStartToInsertLiveStreams(onNext, receiver);
@@ -1298,7 +1302,10 @@ void PLSPlatformYoutube::saveTheScheduleSetting(const std::function<void(bool)> 
 
 		if (isReharsalUpdate || isUpodateLatency) {
 			//#7687 because the live broadcast api may get the old value of kids, the newest kids value may not query succeed when video api updated.
-			QTimer::singleShot(1000, receiver, [this, _onDuplicateNext] { requestLiveBroadcastsUpdate(m_trySaveData.startData, _onDuplicateNext); });
+			QTimer::singleShot(1000, receiver, [this, _onDuplicateNext] {
+				PLS_INFO(MODULE_PlatformService, "PLSPlatformYoutube::saveTheScheduleSetting singleShot to request live update");
+				requestLiveBroadcastsUpdate(m_trySaveData.startData, _onDuplicateNext);
+			});
 		} else {
 			_onDuplicateNext(isSucceed);
 		}
@@ -1387,34 +1394,24 @@ void PLSPlatformYoutube::updateSettingIngestionType()
 	if (!PLS_PLATFORM_API->isPrepareLive()) {
 		return;
 	}
+	m_ingestionType = PLSPlatformYoutube::IngestionType::Rtmps;
+
 	if (PLS_PLATFORM_API->getActivePlatforms().size() > 1) {
 		PLS_INFO(MODULE_PlatformService, "preLive to check ingestionType, for set rtmp, because is multi broadcast");
-		m_ingestionType = PLSPlatformYoutube::IngestionType::Rtmps;
 		return;
 	}
 
 	const obs_service_t *service_obj = obs_frontend_get_streaming_service();
 	if (!service_obj) {
-		m_ingestionType = PLSPlatformYoutube::IngestionType::Auto;
 		return;
 	}
+
 	OBSDataAutoRelease settings = obs_service_get_settings(service_obj);
 	const char *service = obs_data_get_string(settings, "service");
-	const char *server = obs_data_get_string(settings, "server");
-
-	if (pls_is_equal(server, "ServerAuto")) {
-		if (pls_is_equal(service, "YouTube - RTMPS")) {
-			m_ingestionType = PLSPlatformYoutube::IngestionType::Rtmps;
-		} else {
-			m_ingestionType = PLSPlatformYoutube::IngestionType::Hls;
-		}
-	} else {
-		m_ingestionType = PLSPlatformYoutube::IngestionType::Auto;
+	if (pls_is_equal(service, "YouTube - HLS")) {
+		m_ingestionType = PLSPlatformYoutube::IngestionType::Hls;
 	}
-
-	std::string stdServer(server);
-	stdServer = stdServer.substr(0, qMin(5, (int)stdServer.size()));
-	PLS_INFO(MODULE_PlatformService, "preLive to check ingestionType, service:%s \tserver:%s \tgenearte type:%i", service, stdServer.c_str(), static_cast<int>(m_ingestionType));
+	PLS_INFO(MODULE_PlatformService, "preLive to check ingestionType, service:%s \tgenearte type:%i", service, static_cast<int>(m_ingestionType));
 }
 
 QString PLSPlatformYoutube::getStreamUrlFromJson(const QJsonObject &obj)
@@ -1473,7 +1470,7 @@ void PLSPlatformYoutube::requestStatisticsInfo() const
 		}
 	};
 
-	PLSAPIYoutube::requestVideoStatus(this, _onSucceed, nullptr, PLSAPIYoutube::RefreshType::NotRefresh);
+	PLSAPIYoutube::requestVideoStatus(this, _onSucceed, nullptr, PLSAPICommon::RefreshType::NotRefresh);
 }
 
 void PLSPlatformYoutube::requestLiveBroadcastsUpdate(const PLSYoutubeStart &startData, const std::function<void(bool)> &onNext)
@@ -1488,7 +1485,7 @@ void PLSPlatformYoutube::requestLiveBroadcastsUpdate(const PLSYoutubeStart &star
 		}
 	};
 	PLS_INFO(MODULE_PlatformService, "youtube start update livebroadcasts");
-	PLSAPIYoutube::requestLiveBroadcastsUpdate(this, startData, _onSucceed, _onFail, PLSAPIYoutube::RefreshType::CheckRefresh);
+	PLSAPIYoutube::requestLiveBroadcastsUpdate(this, startData, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
 
 void PLSPlatformYoutube::dealLiveBroadcastsUpdateSucceed(const QByteArray &data, const std::function<void(bool)> &onNext)
@@ -1547,7 +1544,7 @@ void PLSPlatformYoutube::forceToRefreshToken(const std::function<void(bool)> &on
 	};
 
 	PLS_INFO(MODULE_PlatformService, "forceToRefreshToken start");
-	PLSAPIYoutube::refreshYoutubeTokenBeforeRequest(PLSAPIYoutube::RefreshType::ForceRefresh, nullptr, this, _onSucceed, _onFail);
+	PLSAPIYoutube::refreshYoutubeTokenBeforeRequest(PLSAPICommon::RefreshType::ForceRefresh, nullptr, this, _onSucceed, _onFail);
 }
 
 static QString getYoutubeErrString(const QByteArray &data)
@@ -1708,7 +1705,7 @@ void PLSPlatformYoutube::setupApiFailedWithCode(PLSPlatformApiResult result)
 		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Broadcast.Error.Delete"));
 		break;
 	case PLSPlatformApiResult::PAR_API_ERROR_Live_Invalid:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.remote.have.lived").arg(getInitData().value(ChannelData::g_platformName).toString()));
+		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.remote.have.lived").arg(getInitData().value(ChannelData::g_channelName).toString()));
 		break;
 	case PLSPlatformApiResult::PAR_API_ERROR_StartLive_User_Blocked:
 		if (PLS_PLATFORM_API->getActivePlatforms().size() > 1) {
@@ -1843,7 +1840,7 @@ void PLSPlatformYoutube::createNewNormalData()
 	m_noramlData.title = tr("LiveInfo.live.title.suffix").arg(channelName);
 	m_noramlData.privacyStatus = getPrivacyEnglishDatas()[0];
 	m_noramlData.categoryID = kDefaultCategoryID;
-	auto iLatency = info.value(ChannelData::g_youtube_latency, static_cast<int>(PLSYoutubeLatency::Low)).toInt();
+	auto iLatency = info.value(ChannelData::g_youtube_latency, static_cast<int>(PLSYoutubeLatency::Normal)).toInt();
 	m_noramlData.latency = static_cast<PLSYoutubeLatency>(iLatency);
 }
 
@@ -1915,9 +1912,9 @@ void PLSPlatformYoutube::showAutoStartFalseAlertIfNeeded()
 		}
 
 		if (!model.isErrMsg) {
-			ret = PLSAlertView::warning(nullptr, QTStr("Alert.Title"), model.showStr, buttons);
+			ret = PLSAlertView::warning(pls_get_main_view(), QTStr("Alert.Title"), model.showStr, buttons);
 		} else {
-			ret = pls_alert_error_message(nullptr, QTStr("Alert.Title"), model.showStr, buttons);
+			ret = pls_alert_error_message(pls_get_main_view(), QTStr("Alert.Title"), model.showStr, buttons);
 		}
 
 		if (ret == PLSAlertView::Button::Open) {
@@ -2031,7 +2028,7 @@ void PLSPlatformYoutube::updateScheduleList()
 
 void PLSPlatformYoutube::convertScheduleListToMapList()
 {
-
+	std::lock_guard<std::mutex> locker(m_channelScheduleMutex);
 	auto uuid = this->getChannelUUID();
 	auto tmpSrc = m_vecGuideSchedules;
 	QVariantList tmpResult;
@@ -2040,7 +2037,7 @@ void PLSPlatformYoutube::convertScheduleListToMapList()
 		mapData.insert(ChannelData::g_timeStamp, QVariant::fromValue(data.timeStamp));
 		mapData.insert(ChannelData::g_nickName, data.title);
 		mapData.insert(ChannelData::g_channelUUID, uuid);
-		mapData.insert(ChannelData::g_platformName, YOUTUBE);
+		mapData.insert(ChannelData::g_channelName, YOUTUBE);
 		return QVariant::fromValue(mapData);
 	};
 	std::transform(tmpSrc.cbegin(), tmpSrc.cend(), std::back_inserter(tmpResult), convertData);

@@ -97,7 +97,7 @@ PLSComboBoxListView QLabel#itemLabel {
 	border-radius: 0;
 }
 PLSComboBoxListView QLabel#itemLabel[enable="false"] {
-	color:#666666;
+	color: #666666;
 }
 PLSComboBoxListView QLabel#itemLabel[isHover="true"][enable="false"] {
     	background-color: #2d2d2d;

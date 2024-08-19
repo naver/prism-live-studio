@@ -316,7 +316,7 @@ void PLSDockTitle::resizeEvent(QResizeEvent *event)
 
 void PLSDockTitle::showEvent(QShowEvent *event)
 {
-	QTimer::singleShot(0, this, [this]() { updateTitle(); });
+	pls_async_call(this, [this]() { updateTitle(); });
 	QFrame::showEvent(event);
 }
 
@@ -366,6 +366,61 @@ bool PLSDock::isMoving() const
 	return moving;
 }
 
+static const QScreen *_getCompareAnyScreenSize(const QSize &cmpSize)
+{
+	QStringList screenList;
+	for (const QScreen *screen : QGuiApplication::screens()) {
+		if (cmpSize == screen->size()) {
+			return screen;
+		}
+	}
+	return nullptr;
+}
+
+void PLSDock::resizeEvent(QResizeEvent *event)
+{
+#ifdef __APPLE__
+	auto printFullScreenLog = [](QResizeEvent *rEvent, const QRect &screenRect, const QRect &finnalRect, const QString &objName) {
+		auto rect2String = [](const QRect &rect) { return QString("QRect(%1,%2 %3x%4)").arg(rect.x()).arg(rect.y()).arg(rect.width()).arg(rect.height()); };
+		auto size2String = [](const QSize &size) { return QString("QSize(%1x%2)").arg(size.width()).arg(size.height()); };
+
+		QString gemoryLog = QString("QResizeEvent(%1 -> %2)\t screen:%3\t adjustGeometry:%4")
+					    .arg(size2String(rEvent->oldSize()))
+					    .arg(size2String(rEvent->size()))
+					    .arg(rect2String(screenRect))
+					    .arg(rect2String(finnalRect));
+		PLS_INFO("PLSDock", "fullScreen adjust %s: %s", objName.toUtf8().constData(), gemoryLog.toUtf8().constData());
+	};
+
+	if (testAttribute(Qt::WA_NativeWindow)) {
+		if (QSize(-1, -1) == event->oldSize()) {
+			auto screen = _getCompareAnyScreenSize(event->size());
+			if (screen) {
+				event->ignore();
+
+				auto finalRect = QRect(0, 0, 300, 300);
+				if (objectName() == "chatDock") {
+					finalRect.setSize({300, 810});
+				}
+				QRect screenGeometry = screen->availableGeometry();
+				finalRect.setX((screenGeometry.width() - finalRect.width()) / 2);
+				finalRect.setY((screenGeometry.height() - finalRect.height()) / 2);
+				setGeometry(finalRect);
+				printFullScreenLog(event, screen->geometry(), geometry(), objectName());
+
+				return;
+			}
+		} else if (event->size() == screen()->size()) {
+			event->ignore();
+
+			setGeometry(geometry().x(), geometry().y(), event->oldSize().width(), event->oldSize().height());
+			printFullScreenLog(event, screen()->geometry(), geometry(), objectName());
+			return;
+		}
+	}
+#endif
+	PLSWidgetCloseHookQt<QDockWidget>::resizeEvent(event);
+}
 void PLSDock::setMoving(bool moving_)
 {
 	if (this->moving == moving_) {
@@ -444,7 +499,9 @@ QWidget *PLSDock::widget() const
 }
 void PLSDock::setWidget(QWidget *widget)
 {
-	this->setWindowTitle(widget->windowTitle());
+	if (!widget->windowTitle().isEmpty()) {
+		this->setWindowTitle(widget->windowTitle());
+	}
 	this->owidget = widget;
 	widget->setParent(content);
 	contentLayout->addWidget(widget);
@@ -468,8 +525,12 @@ void PLSDock::delayReleaseState()
 
 void PLSDock::closeEvent(QCloseEvent *event)
 {
-	event->ignore();
-	hide();
+	if (pls_is_app_exiting()) {
+		PLSWidgetCloseHookQt<QDockWidget>::closeEvent(event);
+	} else {
+		event->ignore();
+		hide();
+	}
 }
 
 void PLSDock::paintEvent(QPaintEvent *)

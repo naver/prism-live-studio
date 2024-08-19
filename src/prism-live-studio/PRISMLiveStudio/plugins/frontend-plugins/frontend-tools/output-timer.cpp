@@ -27,15 +27,21 @@ OutputTimer::OutputTimer(QWidget *parent) : PLSDialogView(parent), ui(new Ui_Out
 	setResizeEnabled(false);
 	setHasCloseButton(true);
 	setFixedSize(720, 700);
-	QObject::connect(ui->outputTimerStream, SIGNAL(clicked()), this, SLOT(StreamingTimerButton()));
-	QObject::connect(ui->outputTimerRecord, SIGNAL(clicked()), this, SLOT(RecordingTimerButton()));
-	QObject::connect(ui->buttonBox->button(QDialogButtonBox::Close), SIGNAL(clicked()), this, SLOT(hide()));
-
+	QObject::connect(ui->outputTimerStream, &QPushButton::clicked, this, &OutputTimer::StreamingTimerButton);
+	QObject::connect(ui->outputTimerRecord, &QPushButton::clicked, this, &OutputTimer::RecordingTimerButton);
+	QObject::connect(ui->buttonBox->button(QDialogButtonBox::Close), &QPushButton::clicked, this, &OutputTimer::hide);
+	ui->streamingLabel->setWordWrap(true);
+	ui->recordingLabel->setWordWrap(true);
 	streamingTimer = new QTimer(this);
 	streamingTimerDisplay = new QTimer(this);
 
 	recordingTimer = new QTimer(this);
 	recordingTimerDisplay = new QTimer(this);
+
+	QObject::connect(streamingTimer, &QTimer::timeout, this, &OutputTimer::EventStopStreaming);
+	QObject::connect(streamingTimerDisplay, &QTimer::timeout, this, &OutputTimer::UpdateStreamTimerDisplay);
+	QObject::connect(recordingTimer, &QTimer::timeout, this, &OutputTimer::EventStopRecording);
+	QObject::connect(recordingTimerDisplay, &QTimer::timeout, this, &OutputTimer::UpdateRecordTimerDisplay);
 }
 
 void OutputTimer::showEvent(QShowEvent *event)
@@ -53,7 +59,7 @@ void OutputTimer::StreamingTimerButton()
 {
 	if (!obs_frontend_streaming_active()) {
 		blog(LOG_INFO, "Starting stream due to OutputTimer");
-		pls_start_broadcast(true);
+		pls_start_broadcast(true, ControlSrcType::OutPutTimer);
 	} else if (streamingAlreadyActive) {
 		StreamTimerStart();
 		streamingAlreadyActive = false;
@@ -96,10 +102,6 @@ void OutputTimer::StreamTimerStart()
 	streamingTimer->setInterval(total);
 	streamingTimer->setSingleShot(true);
 
-	QObject::connect(streamingTimer, SIGNAL(timeout()), SLOT(EventStopStreaming()));
-
-	QObject::connect(streamingTimerDisplay, SIGNAL(timeout()), this, SLOT(UpdateStreamTimerDisplay()));
-
 	streamingTimer->start();
 	streamingTimerDisplay->start(1000);
 	ui->outputTimerStream->setText(obs_module_text("Stop"));
@@ -127,10 +129,6 @@ void OutputTimer::RecordTimerStart()
 
 	recordingTimer->setInterval(total);
 	recordingTimer->setSingleShot(true);
-
-	QObject::connect(recordingTimer, SIGNAL(timeout()), SLOT(EventStopRecording()));
-
-	QObject::connect(recordingTimerDisplay, SIGNAL(timeout()), this, SLOT(UpdateRecordTimerDisplay()));
 
 	recordingTimer->start();
 	recordingTimerDisplay->start(1000);
@@ -195,10 +193,13 @@ void OutputTimer::UpdateRecordTimerDisplay()
 {
 	int remainingTime = 0;
 
-	if (obs_frontend_recording_paused() && ui->pauseRecordTimer->isChecked())
-		remainingTime = recordingTimeLeft / 1000;
-	else
+	if (obs_frontend_recording_paused() && ui->pauseRecordTimer->isChecked()) {
+		if (recordingTimeLeft.has_value()) {
+			remainingTime = recordingTimeLeft.value() / 1000;
+		}
+	} else {
 		remainingTime = recordingTimer->remainingTime() / 1000;
+	}
 
 	int seconds = remainingTime % 60;
 	int minutes = (remainingTime % 3600) / 60;
@@ -224,18 +225,20 @@ void OutputTimer::UnpauseRecordingTimer()
 	if (!ui->pauseRecordTimer->isChecked())
 		return;
 
-	if (!recordingTimer->isActive())
-		recordingTimer->start(recordingTimeLeft);
+	if (recordingTimeLeft.has_value() && !recordingTimer->isActive()) {
+		recordingTimer->start(recordingTimeLeft.value());
+		blog(LOG_INFO, "UnpauseRecordingTimer recordingTimeLeft is %d", recordingTimeLeft.value());
+	}
 }
 
 void OutputTimer::ShowHideDialog()
 {
 	if (!isVisible()) {
 		setVisible(true);
-		QTimer::singleShot(250, this, SLOT(show()));
+		QTimer::singleShot(250, this, &OutputTimer::show);
 	} else {
 		setVisible(false);
-		QTimer::singleShot(250, this, SLOT(hide()));
+		QTimer::singleShot(250, this, &OutputTimer::hide);
 	}
 }
 

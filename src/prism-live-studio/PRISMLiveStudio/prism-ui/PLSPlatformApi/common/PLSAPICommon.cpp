@@ -68,7 +68,7 @@ static std::string http_gmtime()
 	return os.str();
 }
 
-void PLSAPICommon::downloadImageAsync(const QObject *receiver, const QString &imageUrl, const imageCallback &callback, bool ignoreCache)
+void PLSAPICommon::downloadImageAsync(const QObject *receiver, const QString &imageUrl, const imageCallback &callback, bool ignoreCache, const QString &saveFilePath)
 {
 	if (imageUrl.isEmpty()) {
 		PLS_INFO(MODULE_PlatformService, "%s url is empty", __FUNCTION__);
@@ -89,12 +89,16 @@ void PLSAPICommon::downloadImageAsync(const QObject *receiver, const QString &im
 		.workInMainThread()
 		.forDownload(true)
 		.timeout(PRISM_NET_DOWNLOAD_TIMEOUT)
-		.saveDir(getTmpCacheDir())
 		.result([callback](const pls::http::Reply &reply) {
 			if (callback) {
 				callback(reply.isDownloadOk(), reply.downloadFilePath());
 			}
 		});
+	if (saveFilePath.isEmpty()) {
+		_request.saveDir(getTmpCacheDir());
+	} else {
+		_request.saveFilePath(saveFilePath);
+	}
 	pls::http::request(_request);
 }
 
@@ -115,6 +119,7 @@ QPair<bool, QString> PLSAPICommon::downloadImageSync(const QObject *receiver, co
 		.forDownload(true)
 		.saveDir(getTmpCacheDir())
 		.result([syncResult](const pls::http::Reply &reply) {
+			pls_check_app_exiting();
 			syncResult->set({reply.isDownloadOk(), reply.downloadFilePath()});
 		});
 	pls::http::request(_request);
@@ -140,4 +145,96 @@ QString PLSAPICommon::maskingUrlKeys(const QString &originUrl, const QStringList
 		}
 	}
 	return _urlString;
+}
+
+bool PLSAPICommon::isTokenValid(long timestamp)
+{
+	const static int expiresDiff = 3 * 60; //3min
+	auto differ = PLSDateFormate::getNowTimeStamp();
+	return ((timestamp - differ - expiresDiff) > 0);
+}
+
+QString PLSAPICommon::getMd5ImagePath(const QString &url)
+{
+	QString urlHash = QLatin1String(QCryptographicHash::hash(url.toUtf8(), QCryptographicHash::Md5).toHex());
+	auto path = getTmpCacheDir() + "/" + urlHash;
+	return path;
+}
+
+QString PLSAPICommon::getPairdString(const PLSAPICommon::privacyVec &pairs, const QString cmpStr, bool isCmpFirst, bool isCaseInsensitive)
+{
+	auto cmpFunc = [cmpStr, isCmpFirst, isCaseInsensitive](const auto &item) {
+		const auto &thisItem = isCmpFirst ? item.first : item.second;
+		return thisItem.compare(cmpStr, isCaseInsensitive ? Qt::CaseInsensitive : Qt::CaseSensitive) == 0;
+	};
+	auto itr = std::find_if(pairs.begin(), pairs.end(), cmpFunc);
+	if (itr != pairs.end()) {
+		return isCmpFirst ? itr->second : itr->first;
+	}
+	return QString();
+}
+
+void PLSAPICommon::downloadChannelImageAsync(const QString &platormName)
+{
+	auto infos = PLSCHANNELS_API->getChanelInfosByPlatformName(platormName, ChannelData::ChannelType);
+	for (const auto &item : infos) {
+		auto url = item.value(ChannelData::g_userProfileImg).toString();
+		if (url.isEmpty())
+			continue;
+
+		QString localPath = item.value(ChannelData::g_userIconCachePath).toString();
+		if (!localPath.isEmpty() && QFile(localPath).exists()) {
+			continue;
+		}
+		QString uuid = item.value(ChannelData::g_channelUUID).toString();
+		auto _callBack = [uuid](bool ok, const QString &imagePath) {
+			if (ok) {
+				if (PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_userIconCachePath, imagePath)) {
+					PLSCHANNELS_API->channelModified(uuid);
+				}
+			} else {
+				PLS_INFO(MODULE_PlatformService, "download user icon failed");
+			}
+		};
+
+		PLSAPICommon::downloadImageAsync(pls_get_main_view(), url, _callBack, false, PLSAPICommon::getMd5ImagePath(url));
+	}
+}
+
+int PLSAPICommon::findLabelPosition(QLabel *targetLabel, QFormLayout *layout)
+{
+	for (int i = 0; i < layout->rowCount(); ++i) {
+		QLayoutItem *labelItem = layout->itemAt(i, QFormLayout::LabelRole);
+		if (labelItem && labelItem->widget() == targetLabel) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int PLSAPICommon::calculateWrappedLabelWidth(QLabel *label)
+{
+	QFont font = label->font();
+	QFontMetrics fontMetrics(font);
+	QString text = label->text();
+	int maxWidth = label->width();
+
+	QTextLayout textLayout(text, font);
+	textLayout.beginLayout();
+	qreal totalWidth = 0;
+	while (true) {
+		QTextLine line = textLayout.createLine();
+		if (!line.isValid())
+			break;
+
+		line.setLineWidth(maxWidth);
+		line.setPosition(QPointF(0, 0));
+
+		qreal lineWidth = line.naturalTextWidth();
+		if (lineWidth > totalWidth) {
+			totalWidth = lineWidth;
+		}
+	}
+	textLayout.endLayout();
+	return static_cast<int>(totalWidth);
 }

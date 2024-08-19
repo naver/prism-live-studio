@@ -247,19 +247,6 @@
        </spacer>
       </item>
       <item>
-       <widget class="QPushButton" name="okButton">
-        <property name="focusPolicy">
-         <enum>Qt::NoFocus</enum>
-        </property>
-        <property name="text">
-         <string>OK</string>
-        </property>
-        <property name="useFor" stdset="0">
-         <string notr="true">Ok</string>
-        </property>
-       </widget>
-      </item>
-      <item>
        <widget class="QPushButton" name="cancelButton">
         <property name="focusPolicy">
          <enum>Qt::NoFocus</enum>
@@ -282,6 +269,19 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QPushButton" name="okButton">
+        <property name="focusPolicy">
+         <enum>Qt::NoFocus</enum>
+        </property>
+        <property name="text">
+         <string>OK</string>
+        </property>
+        <property name="useFor" stdset="0">
+         <string notr="true">Ok</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -296,7 +296,7 @@
   <customwidget>
    <class>PLSSelectImageButton</class>
    <extends>QLabel</extends>
-   <header>plsselectimagebutton.h</header>
+   <header>PLSSelectImageButton.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

@@ -15,7 +15,7 @@ add_library(libhttp-client SHARED libhttp-client.cpp libhttp-client.h)
 add_library(common-libs::http-client ALIAS libhttp-client)
 
 
-target_link_libraries(libhttp-client Qt6::Core Qt6::Network common-libs::utils-api common-libs::log)
+target_link_libraries(libhttp-client Qt6::Core Qt6::Network common-libs::utils-api  common-libs::log)
 
 set_target_properties(libhttp-client PROPERTIES FOLDER common-libs)
 set_target_properties(libhttp-client PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")

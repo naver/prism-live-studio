@@ -33,7 +33,7 @@ public:
 	inline void setAppRunning(bool appRunning_) { appRunning = appRunning_; }
 	static PLSApp *plsApp() { return static_cast<PLSApp *>(qApp); }
 	bool HotkeyEnable() const;
-	void backupSceneCollectionConfig() const;
+	void backupGolbalConfig() const;
 	const char *getProjectName() const;
 	const char *getProjectName_kr() const;
 	inline config_t *CookieConfig() const { return cookieConfig; }
@@ -45,9 +45,10 @@ public:
 	void initSideBarWindowVisible() const;
 	static void setAnalogBaseInfo(QJsonObject &obj, bool isUploadHardwareInfo = false);
 	static void uploadAnalogInfo(const QString &apiPath, const QVariantMap &paramInfos, bool isUploadHardwareInfo = false);
-	static void uploadChatWidgetAnalogInfo(int styleId, int fontSize);
+	static void uploadChatWidgetAnalogInfo(int styleId, const char *fontFamily, const QString &nickTxtColor, const QString &subcribeTxtColor, const QString &msgTxtColor);
 	static void uploadTextMotionAnalogInfo(int templateId, const QString &fontColor, const QString &fontFamily, int motion, int motionSpeed);
 	static int runProgram(PLSApp &program, int argc, char *argv[], ScopeProfiler &prof);
+	static void generatePrismSessionAndSubSession(int argc, char *argv[]);
 
 public slots:
 	void sessionExpiredhandler() const;

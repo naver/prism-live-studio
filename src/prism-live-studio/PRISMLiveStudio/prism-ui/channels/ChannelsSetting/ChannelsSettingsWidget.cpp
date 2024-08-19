@@ -7,6 +7,7 @@
 #include "PLSChannelsVirualAPI.h"
 #include "PLSComboBox.h"
 #include "PLSMessageBox.h"
+#include "PLSSyncServerManager.hpp"
 #include "ui_ChannelsSettingsWidget.h"
 using namespace item_data_role;
 
@@ -24,11 +25,13 @@ ChannelsSettingsWidget::ChannelsSettingsWidget(QWidget *parent) : PLSDialogView(
 	this->setHasCaption(true);
 	this->setWindowTitle(tr("Channels.SettingsMainTitle"));
 	this->setHasCloseButton(false);
+	ui->horizontalLayout_2->insertWidget(2, ui->ApplySettingsBtn);
 #else
 	this->setHasCaption(false);
 #endif
 	ui->CenterStack->setFocus();
 	ui->LogoLabel->setScaledContents(true);
+	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelModified, this, &ChannelsSettingsWidget::updateChannelUi, Qt::QueuedConnection);
 }
 
 ChannelsSettingsWidget::~ChannelsSettingsWidget()
@@ -38,8 +41,10 @@ ChannelsSettingsWidget::~ChannelsSettingsWidget()
 
 void ChannelsSettingsWidget::setChannelsData(const ChannelsMap &datas, const QString &platform)
 {
+	auto temp = getDefaultPlatforms();
+	removeCustomRtmpInComboxList(temp);
 
-	int index = static_cast<int>(getDefaultPlatforms().indexOf(platform)) + 1;
+	int index = static_cast<int>(temp.indexOf(platform)) + 1;
 	this->setChannelsData(datas, index);
 }
 
@@ -58,6 +63,7 @@ void ChannelsSettingsWidget::setChannelsData(const ChannelsMap &datas, int index
 		listItem->setData(ChannelItemData, var);
 		ui->channelsListWidget->addItem(listItem);
 		ui->channelsListWidget->setItemWidget(listItem, item);
+		m_items.insert(var.value(ChannelData::g_channelUUID).toString(), item);
 		connect(item, &ChannelItem::sigSelectionChanged, this, &ChannelsSettingsWidget::onSelectionChanged);
 	}
 	ui->channelsListWidget->setItemDelegate(new GeometryDelegate(this));
@@ -69,6 +75,8 @@ void ChannelsSettingsWidget::initializePlatforms(const QStringList &platforms)
 {
 
 	QStringList tmp = platforms;
+	removeCustomRtmpInComboxList(tmp);
+
 	tmp.prepend(CHANNELS_TR(ALL));
 	for (int i = 0; i < tmp.size(); ++i) {
 		const auto &platform = tmp[i];
@@ -125,8 +133,9 @@ bool ChannelsSettingsWidget::hasSelected() const
 	return false;
 }
 
-void ChannelsSettingsWidget::applyChanges() const
+void ChannelsSettingsWidget::applyChanges()
 {
+	m_bClose = true;
 	HolderReleaser releaser(&PLSChannelDataAPI::holdOnChannelArea, PLSCHANNELS_API);
 	auto lstIte = mLastChannelsInfo.cbegin();
 	for (; lstIte != mLastChannelsInfo.cend(); ++lstIte) {
@@ -137,6 +146,22 @@ void ChannelsSettingsWidget::applyChanges() const
 			continue;
 		}
 		PLSCHANNELS_API->setChannelInfos(varMap, false);
+		auto uuid = getInfo(varMap, ChannelData::g_channelUUID, QString());
+		PLSCHANNELS_API->addChannelForDashBord(uuid);
+	}
+}
+
+void ChannelsSettingsWidget::removeCustomRtmpInComboxList(QStringList &platforms)
+{
+	auto supportMap = PLSSyncServerManager::instance()->getSupportedPlatformsMap();
+	foreach(QVariant value, supportMap.values())
+	{
+		auto channelMap = value.toMap();
+		auto platform = channelMap.value("platform").toString();
+		if (platform == CUSTOM_RTMP) {
+			auto key = supportMap.key(channelMap);
+			platforms.removeOne(key);
+		}
 	}
 }
 
@@ -184,7 +209,7 @@ void ChannelsSettingsWidget::on_ChannelsListCombox_currentTextChanged(const QStr
 		auto isNotMatchPlatform = [&platform](const QListWidgetItem *item) {
 			auto varMap = item->data(ChannelItemData).toMap();
 			int tmpType = getInfo(varMap, ChannelData::g_data_type, ChannelData::NoType);
-			QString platformName = getInfo(varMap, ChannelData::g_platformName);
+			QString platformName = getInfo(varMap, ChannelData::g_channelName);
 			return (!platformName.contains(platform, Qt::CaseInsensitive) || tmpType != ChannelData::ChannelType);
 		};
 
@@ -257,12 +282,27 @@ void ChannelsSettingsWidget::setGuidePageInfo(const QString &platfom)
 		guidInfo = CHANNELS_TR(GuideInfos);
 		guidBtnText = CHANNELS_TR(GotoLogin);
 	}
+
 	ui->GuideLabel->setText(guidInfo);
 	ui->GotoLoginBtn->setText(guidBtnText);
 
-	auto pixPath = getPlatformImageFromName(platfom, "addch-", "-large");
+	auto pixPath = getPlatformImageFromName(platfom, channel_data::ImageType::channelSettingBigIcon, "addch-", "-large");
 	QPixmap pix;
 	auto size = ui->LogoLabel->size();
 	loadPixmap(pix, pixPath, size * 4);
 	ui->LogoLabel->setPixmap(pix);
+}
+
+void ChannelsSettingsWidget::updateChannelUi(const QString &uuid)
+{
+	if (m_bClose)
+		return;
+	if (m_items.find(uuid) != m_items.end()) {
+		auto item = m_items.value(uuid);
+		if (item) {
+			auto data = PLSCHANNELS_API->getChannelInfo(uuid);
+			item->setData(data);
+		}
+	}
+	mLastChannelsInfo = PLSCHANNELS_API->getAllChannelInfo();
 }

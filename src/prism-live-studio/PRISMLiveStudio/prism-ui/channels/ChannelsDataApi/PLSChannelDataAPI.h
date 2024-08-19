@@ -111,7 +111,7 @@ public:
 	int count() const;
 
 	/*current selected channels */
-	ChannelsMap getCurrentSelectedChannels(int Type = 0) const;
+	ChannelsMap getCurrentSelectedChannels(int Type = 0);
 
 	/*get current selected channels number*/
 	int currentSelectedCount() const;
@@ -258,6 +258,10 @@ public:
 
 	const QMap<QString, QString> &getRTMPInfos();
 
+	QStringList getUuidListOfRISTandSRT();
+
+	void addRISTandSRT2RtmpServer();
+
 public slots:
 
 	void stopAll();
@@ -280,7 +284,10 @@ signals:
 	void channelModified(const QString &channelUUID);
 	void channelExpired(const QString &channelUUID, bool toAsk = true);
 	void channelGoToInitialize(const QString &channelUUID);
-
+	void addChannelForDashBord(const QString &uuid) const;
+	void channelRemovedForCheckVideo(bool bLeader);
+	void channelRemovedForChzzk();
+	void channelRefreshEnd(const QString& platformName);
 	/*recording sigs*/
 	void toStartRecord();
 	void toStopRecord();
@@ -354,13 +361,18 @@ signals:
 
 	void tokenRefreshed(const QString &uuid, int returnCode);
 
-	void sigAllChannelRefreshDone();
+	void sigOperationChannelDone();
+
+	void startFailed();
+
+	void sigB2BChannelEndLivingCheckExpired(const QString &channelName);
 
 private:
 	void registerEnumsForStream() const;
 	void connectSignals();
 	void reCheckExpiredChannels();
 	void resetData() const;
+	ChannelsMap getMatchKeysInfos(const QVariantMap &keysMap);
 
 	//delete function to copy
 	PLSChannelDataAPI(const PLSChannelDataAPI &) = delete;

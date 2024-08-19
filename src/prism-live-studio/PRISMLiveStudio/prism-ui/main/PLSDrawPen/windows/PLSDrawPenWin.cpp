@@ -205,7 +205,7 @@ void PLSDrawPenWin::resize(float width, float height)
 
 void PLSDrawPenWin::setVisible(bool visible)
 {
-	if (visible)
+	if (visible && PLSDrawPenMgr::Instance()->NeedUpdateStrokesToTarget())
 		SetEvent(PLSDrawPenMgr::Instance()->GetStrokeChangedEvent());
 	drawVisible = visible;
 }

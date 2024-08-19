@@ -1,9 +1,16 @@
-OBSRemux {
+OBSRemux, OBSRemux[autoRemux=false] {
     min-width: /*hdpi*/ 848px;
     max-width: /*hdpi*/ 848px;
     min-height: /*hdpi*/ 531px;
     max-height: /*hdpi*/ 531px;
     background-color: #272727;
+}
+
+OBSRemux[autoRemux=true] {
+    min-width: /*hdpi*/ 280px;
+    max-width: /*hdpi*/ 280px;
+    min-height: /*hdpi*/ 80px;
+    max-height: /*hdpi*/ 80px;
 }
 
 OBSRemux QTableView{
@@ -128,6 +135,29 @@ OBSRemux PLSDialogButtonBox QPushButton[useFor="RestoreDefaults"] {
     max-width: /*hdpi*/ 138px;
     padding: 0;
     margin: 0;
+}
+
+OBSRemux PLSDialogButtonBox QPushButton[useFor="Open"] {
+    image:url(":resource/images/ic-help-off-normal.svg");
+    min-width:18px;
+    max-width: 18px;
+    min-height: 18px;
+    max-height: 18px;
+    background-color: transparent;
+    margin-right: 10px;
+}
+OBSRemux PLSDialogButtonBox QPushButton[useFor="Open"]:hover {
+    image:url(":resource/images/ic-help-off-over.svg");
+}
+OBSRemux PLSDialogButtonBox QPushButton[useFor="Open"]:hover {
+    image:url(":resource/images/ic-help-off-over.svg");
+    background-color: transparent;
+}
+OBSRemux PLSDialogButtonBox QPushButton[useFor="Open"]:pressed {
+    background-color: transparent;
+}
+OBSRemux PLSDialogButtonBox QPushButton[useFor="Open"]:disabled {
+    background-color: transparent;
 }
 
 OBSRemux #progressLabel, OBSRemux #progressSlider{

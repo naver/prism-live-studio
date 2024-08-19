@@ -13,7 +13,7 @@
 #endif
 
 #else
-#define LIBUTILSAPI_API
+#define LIBUTILSAPI_API __attribute__((visibility("default")))
 
 #endif
 

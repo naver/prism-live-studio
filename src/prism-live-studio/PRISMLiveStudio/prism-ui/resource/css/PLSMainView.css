@@ -1454,3 +1454,58 @@ PLSMainView PLSIconButton[useFor="drawPen"] {
 	qproperty-iconOnPressed: ":/resource/images/draw-pen/ic-drawing-on-click.svg";
 	qproperty-iconOnDisabled: ":/resource/images/draw-pen/ic-drawing-on-disable.svg";
 }
+
+PLSMainView PLSIconButton[useFor="sceneTemplate"] {
+	min-width: 24px;
+	min-height: 24px;
+	max-width: 24px;
+	max-height: 24px;
+	padding: 0;
+	margin: 0;
+	qproperty-iconWidth: 22;
+	qproperty-iconHeight: 22;
+	qproperty-iconOffNormal: ":/resource/images/icon-source/ic_scenetemplate_off_normal.svg";
+	qproperty-iconOffHover: ":/resource/images/icon-source/ic_scenetemplate_off_hover.svg";
+	qproperty-iconOffPressed: ":/resource/images/icon-source/ic_scenetemplate_off_click.svg";
+	qproperty-iconOffDisabled: ":/resource/images/icon-source/ic_scenetemplate_off_disable.svg";
+	qproperty-iconOnNormal: ":/resource/images/icon-source/ic_scenetemplate_on_normal.svg";
+	qproperty-iconOnHover: ":/resource/images/icon-source/ic_scenetemplate_on_hover.svg";
+	qproperty-iconOnPressed: ":/resource/images/icon-source/ic_scenetemplate_on_click.svg";
+	qproperty-iconOnDisabled: ":/resource/images/icon-source/ic_scenetemplate_on_disable.svg";
+}
+
+PLSMainView PLSIconButton[useFor="ncb2bBrowserSettings"] {
+	min-width: 24px;
+	min-height: 24px;
+	max-width: 24px;
+	max-height: 24px;
+	padding: 0;
+	margin: 0;
+	qproperty-iconWidth: 22;
+	qproperty-iconHeight: 22;
+	qproperty-iconOffNormal: ":/resource/images/ncp/ic_browser_off_normal.svg";
+	qproperty-iconOffHover: ":/resource/images/ncp/ic_browser_off_over.svg";
+	qproperty-iconOffPressed: ":/resource/images/ncp/ic_browser_off_click.svg";
+	qproperty-iconOffDisabled: ":/resource/images/ncp/ic_browser_off_disable.svg";
+	qproperty-iconOnNormal: ":/resource/images/ncp/ic_browser_on_normal.svg";
+	qproperty-iconOnHover: ":/resource/images/ncp/ic_browser_on_over.svg";
+	qproperty-iconOnPressed: ":/resource/images/ncp/ic_browser_on_click.svg";
+	qproperty-iconOnDisabled: ":/resource/images/ncp/ic_browser_on_disable.svg";
+}
+
+PLSMainView #discordBtn {
+	background-color:transparent;
+	image: url(":/resource/images/ic_Discord_off_normal.svg");
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	padding: 0;
+	margin: 0;
+}
+	PLSMainView #discordBtn:hover {
+		image: url(":/resource/images/ic_Discord_off_over.svg");
+	}
+PLSMainView #discordBtn:pressed {
+	image: url(":/resource/images/ic_Discord_off_click.svg");
+}

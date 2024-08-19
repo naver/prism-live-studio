@@ -75,12 +75,13 @@ private:
 	void updateLiveSummaryUI();
 	void updateLiveDateUI();
 	void updateSearchUI();
+	void updateNotifyUI();
 	void switchNewScheduleItem(PLSScheComboxItemType type, QString id);
 	void updateScheduleLiveInfoRequest(const std::function<void(bool)> &callback);
 	void createLivingRequest(const std::function<void(bool)> &callback);
 	int apIndexForString(const QString &apString) const;
 	void showToast(const QString &str);
-	void scheduleListLoadingFinished(PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList);
+	void scheduleListLoadingFinished(PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, const QByteArray &data);
 	void checkSwitchNewScheduleItem(const PLSScheComboxItemData &selelctData);
 	void updateSelectedScheduleItenInfo(const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList);
 
@@ -89,6 +90,7 @@ protected:
 #if defined(Q_OS_MACOS)
 	QList<QWidget *> moveContentExcludeWidgetList() override;
 #endif
+	void showEvent(QShowEvent *event) override;
 
 private slots:
 	void on_cancelButton_clicked();

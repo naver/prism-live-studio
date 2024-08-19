@@ -1,14 +1,15 @@
 #include <obs-module.h>
 #include <liblog.h>
-#include "monitor-info.h"
-#include "monitor-duplicator-pool.h"
-#include "window-version.h"
 #include "gdi-capture.h"
-#include "cursor-capture.h"
 #include <libutils-api.h>
 #include <pls/pls-properties.h>
 #include <pls/pls-source.h>
 #include <pls/pls-obs-api.h>
+#include "monitor-info.h"
+#include <util/platform.h>
+#include <winrt-capture.h>
+
+using namespace std;
 
 #define do_warn(format, ...) PLS_WARN("monitor capture", "[monitor(region) '%s' %p] " format, obs_source_get_name(source), source, ##__VA_ARGS__)
 #define do_info(format, ...) PLS_INFO("monitor capture", "[monitor(region) '%s' %p] " format, obs_source_get_name(source), source, ##__VA_ARGS__)
@@ -20,8 +21,6 @@ const auto REGION_MIN_CX = 0;
 const auto REGION_MIN_CY = 0;
 const auto REGION_DEFAULT_CX = REGION_MIN_CX;
 const auto REGION_DEFAULT_CY = REGION_MIN_CY;
-
-const auto RETRY_DUPLICATOR_INTERVAL = 2000; // millisecond
 
 // keys of language strings
 const auto TEXT_REGION_NAME = "RegionSourceName";
@@ -35,24 +34,42 @@ const auto REGION_KEY_TOP = "top";
 const auto REGION_KEY_WIDTH = "width";
 const auto REGION_KEY_HEIGHT = "height";
 
-#define RELEASE_TEXTURE(tex)             \
-	if (tex) {                       \
-		gs_texture_destroy(tex); \
-		tex = nullptr;           \
-	}
+typedef BOOL (*PFN_winrt_capture_supported)();
+typedef BOOL (*PFN_winrt_capture_cursor_toggle_supported)();
+typedef struct winrt_capture *(*PFN_winrt_capture_init_window)(BOOL cursor, HWND window, BOOL client_area, BOOL force_sdr);
+typedef struct winrt_capture *(*PFN_winrt_capture_init_desktop)(BOOL cursor, HMONITOR monitor, BOOL force_sdr, RECT tex_region);
+typedef void (*PFN_winrt_capture_free)(struct winrt_capture *capture);
 
-#define CHECK_TEXTURE(tex, cx, cy)                                                         \
-	if (tex) {                                                                         \
-		if (gs_texture_get_width(tex) != cx || gs_texture_get_height(tex) != cy) { \
-			gs_texture_destroy(tex);                                           \
-			tex = nullptr;                                                     \
-		}                                                                          \
-	}
+typedef BOOL (*PFN_winrt_capture_active)(const struct winrt_capture *capture);
+typedef BOOL (*PFN_winrt_capture_show_cursor)(struct winrt_capture *capture, BOOL visible);
+typedef enum gs_color_space (*PFN_winrt_capture_get_color_space)(const struct winrt_capture *capture);
+typedef void (*PFN_winrt_capture_render)(struct winrt_capture *capture);
+typedef uint32_t (*PFN_winrt_capture_width)(const struct winrt_capture *capture);
+typedef uint32_t (*PFN_winrt_capture_height)(const struct winrt_capture *capture);
 
-enum class RegionCaptureType {
-	RegionTypeNone = 0,
-	RegionTypeGDI,
-	RegionTypeGPU,
+struct winrt_exports {
+	PFN_winrt_capture_supported winrt_capture_supported;
+	PFN_winrt_capture_cursor_toggle_supported winrt_capture_cursor_toggle_supported;
+	PFN_winrt_capture_init_window winrt_capture_init_window;
+	PFN_winrt_capture_init_desktop winrt_capture_init_desktop;
+	PFN_winrt_capture_free winrt_capture_free;
+	PFN_winrt_capture_active winrt_capture_active;
+	PFN_winrt_capture_show_cursor winrt_capture_show_cursor;
+	PFN_winrt_capture_get_color_space winrt_capture_get_color_space;
+	PFN_winrt_capture_render winrt_capture_render;
+	PFN_winrt_capture_width winrt_capture_width;
+	PFN_winrt_capture_height winrt_capture_height;
+};
+
+class PLSAutoLockRender {
+public:
+	PLSAutoLockRender() { obs_enter_graphics(); }
+	virtual ~PLSAutoLockRender() { obs_leave_graphics(); }
+
+	PLSAutoLockRender(const PLSAutoLockRender &) = delete;
+	PLSAutoLockRender &operator=(const PLSAutoLockRender &) = delete;
+	PLSAutoLockRender(PLSAutoLockRender &&) = delete;
+	PLSAutoLockRender &operator=(PLSAutoLockRender &&) = delete;
 };
 
 struct prism_region_settings {
@@ -67,65 +84,20 @@ struct prism_region_settings {
 	bool region_empty() const;
 };
 
-struct hit_info {
-	int display_id;
-	int rotation;
-	int adapter_index;
-	int adapter_output_index;
-
-	// rect in monitor texture without rotation, its left-top is in duplicator texture without rotation.
-	// if there exist rotation with monitor, before using these variables, we should firstly rotate duplicator texture.
-	int src_left;
-	int src_top;
-	int src_right;
-	int src_bottom;
-
-	// rect in canvas texture
-	int canvas_left;
-	int canvas_top;
-	int canvas_right;
-	int canvas_bottom;
-};
-
-struct prism_region_gpu {
-	obs_source_t *source = nullptr;
-
-	DWORD pre_fail_time = 0;
-	gs_texture_t *output_texture = nullptr;
-	gs_texture_t *rotate_target = nullptr;
-
-	//---------------------------------------
-	prism_region_gpu() = default;
-	virtual ~prism_region_gpu();
-
-	prism_region_gpu(const prism_region_gpu &) = delete;
-	prism_region_gpu &operator=(const prism_region_gpu &) = delete;
-	prism_region_gpu(prism_region_gpu &&) = delete;
-	prism_region_gpu &operator=(prism_region_gpu &&) = delete;
-
-	void clear_texture();
-	bool update_gpu_texture(const prism_region_settings &region_settings, const std::vector<hit_info> &hit_list);
-	gs_texture_t *get_texture();
-
-private:
-	bool check_output_texture(int cx, int cy);
-	bool render_output_texture(const std::vector<hit_info> &hit_list);
-	gs_texture_t *render_rotate_texture(gs_texture_t *monitor_texture, int rotation);
-};
-
 struct prism_region_source {
 	obs_source_t *source = nullptr;
 
 	prism_region_settings region_settings;
 
-	std::atomic_bool source_valid;
+	bool bRectangleValid = false;
+	bool previously_failed = false;
+	void *winrt_module = nullptr;
+	struct winrt_exports exports;
+	struct winrt_capture *capture_winrt = nullptr;
 
 	PLSGdiCapture gdi_capture;
-	prism_region_gpu gpu_capture;
-	PLSCursorCapture cursor_capture; // used for GPU capture
-	RegionCaptureType capture_type = RegionCaptureType::RegionTypeNone;
 
-	//---------------------------------------
+	//------------------------------------------------------------------------
 	prism_region_source(obs_data_t *settings, obs_source_t *source_);
 	virtual ~prism_region_source();
 
@@ -137,18 +109,19 @@ struct prism_region_source {
 	void tick();
 	void render();
 	void update(obs_data_t *settings);
+	tuple<bool, HMONITOR, int, int> check_region();
 
 private:
-	gs_texture_t *get_region_texture();
-	void set_capture_type(RegionCaptureType type);
-	void hit_monitor_test(std::vector<hit_info> &hit_list) const;
+	bool wgc_render_region();
+	void gdi_render_region();
+
+	tuple<bool, HMONITOR, int, int> lastCheck;
 };
 
 //------------------------------------------------------------------------
 void prism_region_settings::keep_valid()
 {
 	uint64_t max_size = pls_texture_get_max_size();
-
 	if (max_size > 0) {
 		if (width > max_size) {
 			width = (int)max_size;
@@ -177,385 +150,192 @@ bool prism_region_settings::region_empty() const
 	}
 }
 
-prism_region_gpu::~prism_region_gpu()
+#define WINRT_IMPORT(func)                                           \
+	do {                                                         \
+		exports->func = (PFN_##func)os_dlsym(module, #func); \
+		if (!exports->func) {                                \
+			success = false;                             \
+			blog(LOG_ERROR,                              \
+			     "Could not load function '%s' from "    \
+			     "module '%s'",                          \
+			     #func, module_name);                    \
+		}                                                    \
+	} while (false)
+
+static bool load_winrt_imports(struct winrt_exports *exports, void *module, const char *module_name)
 {
-	clear_texture();
-}
+	bool success = true;
 
-gs_texture_t *prism_region_gpu::get_texture()
-{
-	return output_texture;
-}
+	WINRT_IMPORT(winrt_capture_supported);
+	WINRT_IMPORT(winrt_capture_cursor_toggle_supported);
+	WINRT_IMPORT(winrt_capture_init_window);
+	WINRT_IMPORT(winrt_capture_init_desktop);
+	WINRT_IMPORT(winrt_capture_free);
+	WINRT_IMPORT(winrt_capture_active);
+	WINRT_IMPORT(winrt_capture_show_cursor);
+	WINRT_IMPORT(winrt_capture_get_color_space);
+	WINRT_IMPORT(winrt_capture_render);
+	WINRT_IMPORT(winrt_capture_width);
+	WINRT_IMPORT(winrt_capture_height);
 
-bool prism_region_gpu::update_gpu_texture(const prism_region_settings &region_settings, const std::vector<hit_info> &hit_list)
-{
-	// Sometimes, duplicator is not available, we should retry it with interval
-	if (GetTickCount() - pre_fail_time < RETRY_DUPLICATOR_INTERVAL) {
-		return false;
-	}
-
-	do {
-		if (!check_output_texture(region_settings.width, region_settings.height)) {
-			break;
-		}
-
-		if (!render_output_texture(hit_list)) {
-			break;
-		}
-
-		pre_fail_time = 0;
-		return true;
-
-	} while (false);
-
-	clear_texture();
-	pre_fail_time = GetTickCount();
-
-	return false;
-}
-
-void prism_region_gpu::clear_texture()
-{
-	PLSAutoLockRender alr;
-
-	RELEASE_TEXTURE(output_texture)
-	RELEASE_TEXTURE(rotate_target)
-}
-
-bool prism_region_gpu::check_output_texture(int cx, int cy)
-{
-	PLSAutoLockRender alr;
-
-	CHECK_TEXTURE(output_texture, cx, cy)
-	if (!output_texture) {
-		output_texture = gs_texture_create(cx, cy, GS_RGBA, 1, nullptr, GS_RENDER_TARGET);
-		if (!output_texture) {
-			warn("Failed to create output texture for region source. %dx%d", cx, cy);
-		}
-	}
-
-	return !!output_texture;
-}
-
-bool prism_region_gpu::render_output_texture(const std::vector<hit_info> &hit_list)
-{
-	struct vec4 clear_color;
-	vec4_set(&clear_color, 0.0f, 0.0f, 0.0f, 0.0f);
-
-	PLSAutoLockRender alr;
-
-	gs_viewport_push();
-	gs_projection_push();
-	gs_matrix_push();
-
-	gs_texture_t *pre_target = gs_get_render_target();
-	gs_set_render_target(output_texture, nullptr);
-	gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
-
-	bool ret = true;
-	for (const auto &item : hit_list) {
-		DUPLICATOR_PTR duplicator = PLSMonitorDuplicatorPool::get_instance()->get_duplicator(item.adapter_index, item.adapter_output_index, item.display_id, true);
-		if (!duplicator) {
-			ret = false;
-			break;
-		}
-
-		if (!duplicator->is_adapter_valid()) {
-			PLSMonitorDuplicatorPool::get_instance()->clear();
-			ret = false;
-			break;
-		}
-
-		if (!duplicator->update_frame()) {
-			ret = false;
-			break;
-		}
-
-		gs_texture_t *rotated_texture = render_rotate_texture(duplicator->get_texture(), item.rotation);
-		if (!rotated_texture) {
-			ret = false;
-			break;
-		}
-
-		const gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-		gs_technique_t *tech = gs_effect_get_technique(effect, "Draw");
-		gs_eparam_t *param = gs_effect_get_param_by_name(effect, "image");
-
-		int dest_cx = (item.canvas_right - item.canvas_left);
-		int dest_cy = (item.canvas_bottom - item.canvas_top);
-
-		gs_effect_set_texture(param, rotated_texture);
-		gs_matrix_identity();
-		gs_ortho(0.0f, (float)dest_cx, 0.0f, (float)dest_cy, -100.0f, 100.0f);
-		gs_set_viewport(item.canvas_left, item.canvas_top, dest_cx, dest_cy);
-
-		size_t passes = gs_technique_begin(tech);
-		for (size_t i = 0; i < passes; i++) {
-			gs_technique_begin_pass(tech, i);
-			gs_draw_sprite_subregion(rotated_texture, false, item.src_left, item.src_top, (item.src_right - item.src_left), (item.src_bottom - item.src_top));
-			gs_technique_end_pass(tech);
-		}
-		gs_technique_end(tech);
-	}
-
-	gs_set_render_target(pre_target, nullptr);
-	gs_matrix_pop();
-	gs_projection_pop();
-	gs_viewport_pop();
-
-	return ret;
-}
-
-gs_texture_t *prism_region_gpu::render_rotate_texture(gs_texture_t *monitor_texture, int rotation)
-{
-	if (rotation == 0) {
-		return monitor_texture;
-	}
-
-	int tex_cx = gs_texture_get_width(monitor_texture);
-	int tex_cy = gs_texture_get_height(monitor_texture);
-
-	int target_cx;
-	int target_cy;
-	if ((rotation % 180) == 0) {
-		target_cx = tex_cx;
-		target_cy = tex_cy;
-	} else {
-		target_cx = tex_cy;
-		target_cy = tex_cx;
-	}
-
-	struct vec4 clear_color;
-	vec4_set(&clear_color, 0.0f, 0.0f, 0.0f, 0.0f);
-
-	PLSAutoLockRender alr;
-
-	CHECK_TEXTURE(rotate_target, target_cx, target_cy)
-	if (!rotate_target) {
-		rotate_target = gs_texture_create(target_cx, target_cy, GS_RGBA, 1, nullptr, GS_RENDER_TARGET);
-		if (!rotate_target) {
-			warn("Failed to create rotate texture for region source. %dx%d", target_cx, target_cy);
-			return nullptr;
-		}
-	}
-
-	gs_viewport_push();
-	gs_projection_push();
-	gs_matrix_push();
-	gs_texture_t *pre_target = gs_get_render_target();
-	gs_zstencil_t *pre_ztl = gs_get_zstencil_target();
-
-	gs_set_render_target(rotate_target, nullptr);
-	gs_clear(GS_CLEAR_COLOR, &clear_color, 1.0f, 0);
-
-	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-	gs_eparam_t *param = gs_effect_get_param_by_name(effect, "image");
-
-	gs_effect_set_texture(param, monitor_texture);
-	gs_matrix_identity();
-	gs_ortho(0.0f, (float)target_cx, 0.0f, (float)target_cy, -100.0f, 100.0f);
-	gs_set_viewport(0, 0, target_cx, target_cy);
-
-	while (gs_effect_loop(effect, "Draw")) {
-		if (rotation != 0) {
-			float x = 0.0f;
-			float y = 0.0f;
-			switch (rotation) {
-			case 90:
-				x = (float)tex_cy;
-				break;
-			case 180:
-				x = (float)tex_cx;
-				y = (float)tex_cy;
-				break;
-			case 270:
-				y = (float)tex_cx;
-				break;
-			default:
-				break;
-			}
-			gs_matrix_push();
-			gs_matrix_translate3f(x, y, 0.0f);
-			gs_matrix_rotaa4f(0.0f, 0.0f, 1.0f, RAD((float)rotation));
-		}
-
-		obs_source_draw(monitor_texture, 0, 0, 0, 0, false);
-
-		if (rotation != 0) {
-			gs_matrix_pop();
-		}
-	}
-
-	gs_set_render_target(pre_target, pre_ztl);
-	gs_matrix_pop();
-	gs_projection_pop();
-	gs_viewport_pop();
-
-	return rotate_target;
+	return success;
 }
 
 prism_region_source::prism_region_source(obs_data_t *settings, obs_source_t *source_) : source(source_)
 {
-	gpu_capture.source = source_;
+	static const char *const module = "libobs-winrt";
+	winrt_module = os_dlopen(module);
+	if (nullptr != winrt_module) {
+		load_winrt_imports(&exports, winrt_module, module);
+	}
+	else
+	{
+		static auto bLog = true;
+		if (bLog)
+		{
+			bLog = false;
+			warn("load %s failed", module);
+		}
+	}
+
 	update(settings);
 }
 
 prism_region_source ::~prism_region_source()
 {
 	gdi_capture.uninit();
-	if (PLSWindowVersion::is_support_monitor_duplicate()) {
-		gpu_capture.clear_texture();
-	}
 }
 
-extern void handle_hooked_message();
+void handle_hooked_message();
+
+tuple<bool, HMONITOR, int, int> prism_region_source::check_region()
+{
+	auto iMonitors = 0;
+	HMONITOR hMonitor = nullptr;
+	auto iLeft = 0;
+	auto iTop = 0;
+	auto iMinLeft = 0;
+	auto iMinTop = 0;
+
+	std::vector<monitor_info> monitors = PLSMonitorManager::get_instance()->get_monitor();
+	for (const auto &item : monitors) {
+		if (region_settings.left <= item.offset_x + item.width
+			&& region_settings.top <= item.offset_y + item.height 
+			&& region_settings.left + region_settings.width >= item.offset_x
+			&& region_settings.top + region_settings.height >= item.offset_y)
+		{
+			++iMonitors;
+			hMonitor = item.handle;
+			iLeft = item.offset_x;
+			iTop = item.offset_y;
+		}
+
+		if (item.offset_x < iMinLeft)
+			iMinLeft = item.offset_x;
+		if (item.offset_y < iMinTop)
+			iMinTop = item.offset_y;
+	}
+
+	return make_tuple(iMonitors > 0, 1 == iMonitors ? hMonitor : nullptr, 1 == iMonitors ? iLeft : iMinLeft, 1 == iMonitors ? iTop : iMinTop);
+}
+
 void prism_region_source::tick()
 {
+	if (region_settings.region_empty())
+		return;
+
 	handle_hooked_message();
 
-	if (region_settings.region_empty()) {
-		source_valid = true;
-	} else {
-		std::vector<hit_info> hit_list;
-		hit_monitor_test(hit_list);
+	auto checkResult = check_region();
+	auto [bValid, hMonitor, iLeft, iTop] = checkResult;
+	
+	bRectangleValid = bValid;
+	if (!bRectangleValid)
+	{
+		return;
+	}
 
-		if (hit_list.empty()) {
-			source_valid = false;
+	PLSAutoLockRender alr;
+
+	if (lastCheck != checkResult)
+	{
+		lastCheck = checkResult;
+		if (nullptr != capture_winrt) {
+			exports.winrt_capture_free(capture_winrt);
+			capture_winrt = nullptr;
+		}
+	}
+
+	if (nullptr == capture_winrt && !previously_failed && nullptr != exports.winrt_capture_init_desktop) {
+		
+		RECT rect = {region_settings.left - iLeft, region_settings.top - iTop, region_settings.left - iLeft + region_settings.width, region_settings.top - iTop + region_settings.height};
+		if (rect.left < 0)
+			rect.left = 0;
+		if (rect.top < 0)
+			rect.top = 0;
+		capture_winrt = exports.winrt_capture_init_desktop(region_settings.capture_cursor, hMonitor, FALSE, rect);
+
+		if (nullptr != capture_winrt) {
+			info("winrt_capture_init_desktop: %d,%d  %dx%d", rect.left, rect.top, rect.right, rect.bottom);
+			return;
 		} else {
-			source_valid = true;
+			previously_failed = true;
 		}
+	}
 
-		PLSAutoLockRender alr;
+	if (nullptr != capture_winrt)
+	{
+		return;
+	}
 
-		if (PLSWindowVersion::is_support_monitor_duplicate() && gpu_capture.update_gpu_texture(region_settings, hit_list)) {
-			return; // GPU works normally, we will skip GDI capture
-		}
-
-		// GPU is unavailable, we have to use GDI capture
-		if (gdi_capture.check_init(region_settings.width, region_settings.height)) {
-			gdi_capture.capture(region_settings.left, region_settings.top, region_settings.capture_cursor, region_settings.left, region_settings.top, 1.0);
-		}
+	if (gdi_capture.check_init(region_settings.width, region_settings.height)) {
+		gdi_capture.capture(region_settings.left, region_settings.top, region_settings.capture_cursor, region_settings.left, region_settings.top, 1.0);
 	}
 }
 
 void prism_region_source::render()
 {
+	if (!bRectangleValid) {
+		return;
+	}
+
 	PLSAutoLockRender alr;
 
-	gs_texture_t *tex = get_region_texture();
-	if (!tex) {
+	if (region_settings.region_empty())
 		return;
+
+	if (!wgc_render_region())
+		gdi_render_region();
+}
+
+bool prism_region_source::wgc_render_region()
+{
+	PLSAutoLockRender alr;
+
+	if (nullptr != capture_winrt) {
+		if (exports.winrt_capture_active(capture_winrt)) {
+			exports.winrt_capture_render(capture_winrt);
+
+			return true;
+		} else {
+			exports.winrt_capture_free(capture_winrt);
+			capture_winrt = NULL;
+		}
 	}
 
-	gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_OPAQUE);
-	while (gs_effect_loop(effect, "Draw")) {
-		obs_source_draw(tex, 0, 0, 0, 0, false);
-	}
+	return false;
+}
 
-	if (region_settings.capture_cursor && capture_type == RegionCaptureType::RegionTypeGPU) {
-		effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
+void prism_region_source::gdi_render_region()
+{
+	PLSAutoLockRender alr;
+
+	auto tex = gdi_capture.get_texture();
+	if (tex) {
+		gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_OPAQUE);
 		while (gs_effect_loop(effect, "Draw")) {
-			cursor_capture.cursor_render(-region_settings.left, -region_settings.top, 1.0f, 1.0f, region_settings.width, region_settings.height);
+			obs_source_draw(tex, 0, 0, 0, 0, false);
 		}
-	}
-}
-
-gs_texture_t *prism_region_source::get_region_texture()
-{
-	if (region_settings.region_empty()) {
-		return nullptr;
-	}
-
-	if (!source_valid) {
-		return nullptr;
-	}
-
-	if (PLSWindowVersion::is_support_monitor_duplicate()) {
-		gs_texture_t *texture = gpu_capture.get_texture();
-		if (texture) {
-			set_capture_type(RegionCaptureType::RegionTypeGPU);
-			return texture;
-		}
-	}
-
-	gs_texture_t *texture = gdi_capture.get_texture();
-	if (texture) {
-		set_capture_type(RegionCaptureType::RegionTypeGDI);
-		return texture;
-	}
-
-	return nullptr;
-}
-
-void prism_region_source::set_capture_type(RegionCaptureType type)
-{
-	if (capture_type == type) {
-		return;
-	}
-
-	capture_type = type;
-	if (type == RegionCaptureType::RegionTypeGPU) {
-		info("Region capture type is GPU.");
-	} else {
-		info("Region capture type is GDI.");
-	}
-}
-
-void prism_region_source::hit_monitor_test(std::vector<hit_info> &hit_list) const
-{
-	int dest_left = region_settings.left;
-	int dest_top = region_settings.top;
-	int dest_right = region_settings.left + region_settings.width;
-	int dest_bottom = region_settings.top + region_settings.height;
-
-	std::vector<monitor_info> monitors = PLSMonitorManager::get_instance()->get_monitor();
-	for (const auto &item : monitors) {
-		int monitor_right = item.offset_x + item.width;
-		int monitor_bottom = item.offset_y + item.height;
-
-		if (dest_right <= item.offset_x || dest_bottom <= item.offset_y || dest_left >= monitor_right || dest_top >= monitor_bottom) {
-			continue; // never hit this monitor
-		}
-
-		hit_info info;
-		info.display_id = item.display_id;
-		info.rotation = item.rotation;
-		info.adapter_index = item.adapter_index;
-		info.adapter_output_index = item.adapter_output_index;
-
-		if (dest_left < item.offset_x) {
-			info.src_left = 0;
-			info.canvas_left = item.offset_x - dest_left;
-		} else {
-			info.src_left = dest_left - item.offset_x;
-			info.canvas_left = 0;
-		}
-
-		if (dest_top < item.offset_y) {
-			info.src_top = 0;
-			info.canvas_top = item.offset_y - dest_top;
-		} else {
-			info.src_top = dest_top - item.offset_y;
-			info.canvas_top = 0;
-		}
-
-		if (dest_right < monitor_right) {
-			info.src_right = dest_right - item.offset_x;
-			info.canvas_right = region_settings.width;
-		} else {
-			info.src_right = item.width;
-			info.canvas_right = monitor_right - dest_left;
-		}
-
-		if (dest_bottom < monitor_bottom) {
-			info.src_bottom = dest_bottom - item.offset_y;
-			info.canvas_bottom = region_settings.height;
-		} else {
-			info.src_bottom = item.height;
-			info.canvas_bottom = monitor_bottom - dest_top;
-		}
-
-		hit_list.push_back(info);
 	}
 }
 
@@ -568,19 +348,25 @@ void prism_region_source::update(obs_data_t *settings)
 	temp.top = (int)obs_data_get_int(region_obj, REGION_KEY_TOP);
 	temp.width = (int)obs_data_get_int(region_obj, REGION_KEY_WIDTH);
 	temp.height = (int)obs_data_get_int(region_obj, REGION_KEY_HEIGHT);
+	temp.capture_cursor = obs_data_get_bool(settings, REGION_KEY_CAPTURE_CURSOR);
 	obs_data_release(region_obj);
 
-	temp.capture_cursor = obs_data_get_bool(settings, REGION_KEY_CAPTURE_CURSOR);
+	bool bChanged = temp.capture_cursor != region_settings.capture_cursor
+		|| temp.left != region_settings.left || temp.top != region_settings.top 
+		|| temp.width != region_settings.width || temp.height != region_settings.height;
 
 	temp.keep_valid();
-
-	//-------------------------------------------------
 	region_settings = temp;
-	info("region updated. offset:%d,%d  size:%dx%d  cursor:%d", temp.left, temp.top, temp.width, temp.height, temp.capture_cursor);
 
-	if (PLSWindowVersion::is_support_monitor_duplicate()) {
-		tick(); // Because GPU texture is updated in worker thread, so here we invoke tick() to active worker thread early.
+	if (previously_failed) {
+		previously_failed = false;
 	}
+	if (bChanged && nullptr != capture_winrt) {
+		exports.winrt_capture_free(capture_winrt);
+		capture_winrt = nullptr;
+	}
+
+	info("region updated. offset:%d,%d  size:%dx%d  cursor:%d", temp.left, temp.top, temp.width, temp.height, temp.capture_cursor);
 }
 
 static obs_properties_t *region_source_get_properties(void *)
@@ -622,26 +408,33 @@ void register_prism_region_source()
 	info.create = [](obs_data_t *settings, obs_source_t *source) -> void * {
 		PLSMonitorManager::get_instance()->reload_monitor(false);
 		return pls_new<prism_region_source>(settings, source);
-	};
+		};
 
-	info.destroy = [](void *data) { pls_delete(static_cast<prism_region_source *>(data)); };
+	info.destroy = [](void *data) {
+		obs_queue_task(
+			OBS_TASK_GRAPHICS,
+			[](void *data) {
+				auto region = static_cast<prism_region_source *>(data);
+
+				if (region->capture_winrt) {
+					region->exports.winrt_capture_free(region->capture_winrt);
+				}
+				if (region->winrt_module)
+					os_dlclose(region->winrt_module);
+
+				pls_delete(region);
+			},
+			data, false);
+	};
 
 	info.get_width = [](void *data) {
 		auto region = static_cast<prism_region_source *>(data);
-		if (region->source_valid) {
-			return (uint32_t)region->region_settings.width;
-		} else {
-			return (uint32_t)0;
-		}
+		return (uint32_t)region->region_settings.width;
 	};
 
 	info.get_height = [](void *data) {
 		auto region = static_cast<prism_region_source *>(data);
-		if (region->source_valid) {
-			return (uint32_t)region->region_settings.height;
-		} else {
-			return (uint32_t)0;
-		}
+		return (uint32_t)region->region_settings.height;
 	};
 
 	info.video_tick = [](void *data, float) { static_cast<prism_region_source *>(data)->tick(); };

@@ -27,11 +27,13 @@
         <file>resource/images/prism-login/login-naver.svg</file>
         <file>resource/images/prism-login/login-twitch.svg</file>
         <file>resource/images/prism-login/login-twitter.svg</file>
+        <file>resource/images/prism-login/login-naver cloud b2b.svg</file>
+        <file>resource/images/prism-login/ic_newpage.svg</file>
+        <file>resource/images/prism-login/ic_newpage_hover.svg</file>
         <file>resource/css/PrismPasswordView.css</file>
         <file>resource/css/prismTermOfAgreeView.css</file>
         <file>resource/images/prism-login/login-begin/1_login_begin.png</file>
         <file>resource/images/prism-login/login-loop/2_login_loop.png</file>
-        <file>resource/images/prism-login/login-facebook_sign.svg</file>
         <file>resource/images/prism-login/login-whalespace.svg</file>
         <file>resource/images/prism-login/invisible.svg</file>
         <file>resource/images/prism-login/sign-up-with.svg</file>
@@ -43,5 +45,6 @@
         <file>resource/images/txt-unchekedbox-disable.svg</file>
         <file>resource/images/txt-unchekedbox-normal.svg</file>
         <file>resource/images/txt-unchekedbox-over.svg</file>
+        <file>resource/images/sns-profile/img-naver cloud b2b-profile.svg</file>
     </qresource>
 </RCC>

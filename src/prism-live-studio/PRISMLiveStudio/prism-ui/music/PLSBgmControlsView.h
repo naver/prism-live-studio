@@ -5,11 +5,13 @@
 #include <QTimer>
 #include "obs.hpp"
 #include "PLSBgmControlsBase.h"
+#include "PLSBackgroundMusicView.h"
 
 class QRadioButton;
 class QPushButton;
 class MediaSlider;
 class QLabel;
+class PLSDelayResponseButton;
 class PLSBgmControlsView : public PLSBgmControlsBase {
 	Q_OBJECT
 
@@ -21,10 +23,12 @@ public:
 
 public slots:
 	void OnMediaLoopStateChanged(bool loop) override;
+	void OnMediaModeStateChanged(int mode);
 
 private slots:
 	void SetSliderPos();
 	void OnLoopButtonClicked(bool checked);
+	void OnModeButtonClicked();
 	void OnMediaSliderMoved(int val);
 	void OnMediaSliderClicked();
 
@@ -33,16 +37,19 @@ private:
 	virtual void SetPlayingState() override;
 	virtual void SetPauseState() override;
 	void SetLoopState();
+	void SetModeState();
 	void SeekTo(int);
 
 private:
 	QRadioButton *loopBtn = nullptr;
-	QPushButton *preBtn = nullptr;
+	QPushButton *modeBtn = nullptr;
+	PLSDelayResponseButton *preBtn = nullptr;
 	QPushButton *playBtn = nullptr;
-	QPushButton *nextBtn = nullptr;
+	PLSDelayResponseButton *nextBtn = nullptr;
 	MediaSlider *slider = nullptr;
 	QLabel *currentTimeLabel = nullptr;
 	QLabel *durationLabel = nullptr;
+	PLSBackgroundMusicView::PlayMode mode = PLSBackgroundMusicView::PlayMode::RandomMode;
 };
 
 #endif // PLSBGMCONTROLSVIEW_H

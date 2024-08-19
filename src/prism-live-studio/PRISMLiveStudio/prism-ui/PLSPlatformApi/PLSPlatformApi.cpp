@@ -34,6 +34,9 @@
 #include "PLSApp.h"
 #include "pls-frontend-api.h"
 #include "PLSSyncServerManager.hpp"
+#include "ChannelCommonFunctions.h"
+#include "PLSNCB2BError.h"
+#include "pls/pls-source.h"
 
 constexpr int PRISM_MAX_OUT_Y = 1080;
 
@@ -53,6 +56,11 @@ const auto CAMERA_DEVICE_ID = "video_device_id";
 const auto CUSTOM_AUDIO_DEVICE_ID = "audio_device_id";
 const auto USE_CUSTOM_AUDIO = "use_custom_audio_device";
 const auto GENERAL_PLATFORM = "General_Platform";
+
+const QString LIVE_ABORT_STATUS_CODE_KEY = "statusCode";
+const QString LIVE_ABORT_ERROR_CODE_KEY = "errorCode";
+const QString LIVE_ABORT_REQUEST_URL_KEY = "requestURL";
+const QString LIVE_ABORT_JSON_TEXT_KEY = "jsonText";
 
 PLSPlatformApi *PLSPlatformApi::instance()
 {
@@ -109,7 +117,7 @@ bool PLSPlatformApi::initialize()
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelModified, this, &PLSPlatformApi::onUpdateChannel, Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelRemoved, this, &PLSPlatformApi::onRemoveChannel, Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelCreateError, this, &PLSPlatformApi::onRemoveChannel, Qt::QueuedConnection);
-	connect(PLSCHANNELS_API, &PLSChannelDataAPI::sigAllChannelRefreshDone, this, &PLSPlatformApi::onAllChannelRefreshDone, Qt::QueuedConnection);
+	connect(PLSCHANNELS_API, &PLSChannelDataAPI::sigOperationChannelDone, this, &PLSPlatformApi::onAllChannelRefreshDone, Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::sigAllClear, this, &PLSPlatformApi::onClearChannel, Qt::QueuedConnection);
 	connect(
 		PLSCHANNELS_API, &PLSChannelDataAPI::broadcastGo, this,
@@ -147,12 +155,36 @@ bool PLSPlatformApi::initialize()
 		}
 	});
 	connect(this, &PLSPlatformApi::liveStarted, this, [this]() { emit enterLivePrepareState(false); });
+	connect(
+		PLSCHANNELS_API, &PLSChannelDataAPI::startFailed, this, [this]() { setLiveStatus(LiveStatus::Normal); }, Qt::QueuedConnection);
 
 	return true;
 }
 
-void PLSPlatformApi::saveStreamSettings(string platform, string server, const string_view &key) const
+QString FindProtocol(const string &server)
 {
+	obs_properties_t *props = obs_get_service_properties("rtmp_common");
+	obs_property_t *services = obs_properties_get(props, "service");
+
+	OBSDataAutoRelease settings = obs_data_create();
+
+	obs_data_set_string(settings, "service", server.data());
+	obs_property_modified(services, settings);
+
+	obs_properties_destroy(props);
+
+	const char *protocol = obs_data_get_string(settings, "protocol");
+	if (protocol && *protocol)
+		return QT_UTF8(protocol);
+
+	return QString("RTMP");
+}
+
+void PLSPlatformApi::saveStreamSettings(string platform, string server, const string_view &key, const QString &rtmpUserId, const QString &rtmpUserPassword)
+{
+	auto originPlatform = platform;
+	PLS_LIVE_INFO(MODULE_PlatformService, "save straming before info name=%s, StreamUrl=%s", platform.c_str(), server.c_str());
+	PLS_INFO_KR(MODULE_PlatformService, "save straming before info name=%s, StreamUrl=%s, StreamKey=%s", platform.c_str(), server.c_str(), key.data());
 	if (isLiving()) {
 		return;
 	}
@@ -161,28 +193,53 @@ void PLSPlatformApi::saveStreamSettings(string platform, string server, const st
 		OBSDataAutoRelease settings = obs_data_get_obj(serviceData, "settings");
 		const char *service = obs_data_get_string(settings, "service");
 		string strService = service;
-		transform(strService.begin(), strService.end(), strService.begin(), ::tolower);
-		string tmpStr = platform;
-		transform(tmpStr.begin(), tmpStr.end(), tmpStr.begin(), ::tolower);
-		if (strService.find(tmpStr) != std::string::npos) {
-			platform = service;
-			const char *chServer = obs_data_get_string(settings, "server");
-			string strServer = chServer;
-			if (strServer != "ServerAuto") {
-				server = chServer;
+		const char *chServer = obs_data_get_string(settings, "server");
+		PLS_INFO(MODULE_PlatformService, "LoadServiceData  service=%s, chServer=%s", service, chServer);
+		string strServer = chServer;
+		if (platform == "Twitch") {
+			bool bWHIP = isTwitchWHIP();
+			if (bWHIP) {
+				platform = "WHIP";
+				server = PLSSyncServerManager::instance()->getTwitchWhipServer().toStdString();
+			} else {
+				if (strServer != "auto" && strServer != "ServerAuto") {
+					server = chServer;
+				}
+			}
+		} else {
+			transform(strService.begin(), strService.end(), strService.begin(), ::tolower);
+			string tmpStr = platform;
+			transform(tmpStr.begin(), tmpStr.end(), tmpStr.begin(), ::tolower);
+			if (strService.find(tmpStr) != std::string::npos) {
+				platform = service;
+				if (strServer != "auto" && strServer != "ServerAuto") {
+					server = chServer;
+				}
+			}
+			if (platform == "YouTube") {
+				if (strService != "YouTube - HLS") {
+					platform = "YouTube - RTMPS";
+				} else {
+					platform = strService;
+				}
 			}
 		}
 	}
 
 	if (!serviceData) {
+		PLS_INFO(MODULE_PlatformService, "LoadServiceData  serviceData is null");
 		auto activiedPlatforms = getActivePlatforms();
 		if (activiedPlatforms.size() == 1 && platform == "YouTube") {
 			platform = "YouTube - RTMPS";
 		}
+		if (activiedPlatforms.size() == 1 && platform == "Twitch") {
+			platform = "WHIP";
+			server = PLSSyncServerManager::instance()->getTwitchWhipServer().toStdString();
+		}
 	}
 
-	PLS_LIVE_INFO(MODULE_PlatformService, "save straming info name=%s, StreamUrl=%s", platform.c_str(), server.c_str());
-	PLS_INFO_KR(MODULE_PlatformService, "save straming info name=%s, StreamUrl=%s, StreamKey=%s", platform.c_str(), server.c_str(), key.data());
+	PLS_LIVE_INFO(MODULE_PlatformService, "save straming after info name=%s, StreamUrl=%s", platform.c_str(), server.c_str());
+	PLS_INFO_KR(MODULE_PlatformService, "save straming after info name=%s, StreamUrl=%s, StreamKey=%s", platform.c_str(), server.c_str(), key.data());
 	OBSData settings = obs_data_create();
 	obs_data_release(settings);
 
@@ -190,9 +247,25 @@ void PLSPlatformApi::saveStreamSettings(string platform, string server, const st
 
 	if (!platform.empty()) {
 		obs_data_set_string(settings, "service", platform.data());
+		m_platFormUrlMap.insert(originPlatform.data(), server.data());
+		if ("WHIP" != platform) {
+			obs_data_set_string(settings, "protocol", QT_TO_UTF8(FindProtocol(platform)));
+		}
 	}
+
 	obs_data_set_string(settings, "server", server.data());
-	obs_data_set_string(settings, "key", key.data());
+	if (platform == "WHIP") {
+		serviceId = "whip_custom";
+		obs_data_set_string(settings, "bearer_token", key.data());
+	} else {
+		obs_data_set_string(settings, "key", key.data());
+	}
+
+	if (rtmpUserId.length() > 0 && rtmpUserPassword.length() > 0) {
+		obs_data_set_bool(settings, "use_auth", true);
+		obs_data_set_string(settings, "username", QT_TO_UTF8(rtmpUserId));
+		obs_data_set_string(settings, "password", QT_TO_UTF8(rtmpUserPassword));
+	}
 
 	saveStreamSettings(serviceId, settings);
 }
@@ -210,6 +283,25 @@ void PLSPlatformApi::saveStreamSettings(const char *serviceId, OBSData settings)
 		return;
 
 	obs_frontend_set_streaming_service(newService);
+	obs_frontend_save_streaming_service();
+}
+
+void PLSPlatformApi::setPlatformUrl()
+{
+	auto platforms = getActivePlatforms();
+	if (platforms.size() != 1) {
+		return;
+	}
+	auto platformBase = platforms.front();
+	if (platformBase->getServiceType() == PLSServiceType::ST_CUSTOM) {
+		return;
+	}
+
+	QString platformNameKey = platformBase->getNameForSettingId();
+	QString server = m_platFormUrlMap.value(platformNameKey);
+	if (!server.isEmpty()) {
+		platformBase->setStreamServer(server.toStdString());
+	}
 }
 
 list<PLSPlatformBase *> PLSPlatformApi::getActivePlatforms() const
@@ -353,6 +445,37 @@ PLSPlatformTwitch *PLSPlatformApi::getPlatformTwitchActive()
 	return nullptr;
 }
 
+bool PLSPlatformApi::isTwitchWHIP()
+{
+	auto allPlatforms = getAllPlatforms();
+	auto activePlatforms = getActivePlatforms();
+	auto twitchPlatform = getPlatformTwitch();
+	if (twitchPlatform) {
+		if (allPlatforms.size() == 1 || (activePlatforms.size() == 1 && twitchPlatform->isActive())) {
+			auto serviceData = PLSBasic::instance()->LoadServiceData();
+			if (serviceData) {
+				OBSDataAutoRelease settings = obs_data_get_obj(serviceData, "settings");
+				const char *service = obs_data_get_string(settings, "service");
+				QString strService = service;
+				PLS_INFO(MODULE_PlatformService, "get service is %s", service);
+				if (isLiving() && strService != "WHIP") {
+					PLS_INFO(MODULE_PlatformService, "living service is not whip");
+					return false;
+				}
+				if (!strService.contains("Twitch", Qt::CaseInsensitive)) {
+					PLS_INFO(MODULE_PlatformService, "service not contain twitch ,judge this is whip");
+					return true;
+				}
+			} else {
+				PLS_INFO(MODULE_PlatformService, "serviceData is empty, judge this is whip");
+				return true;
+			}
+		}
+	}
+	PLS_INFO(MODULE_PlatformService, "not contain twitch platform, judge this is not whip");
+	return false;
+}
+
 PLSPlatformBand *PLSPlatformApi::getPlatformBand()
 {
 	auto platform = getExistedPlatformByType(PLSServiceType::ST_BAND);
@@ -443,6 +566,24 @@ PLSPlatformNaverShoppingLIVE *PLSPlatformApi::getPlatformNaverShoppingLIVEActive
 	return nullptr;
 }
 
+PLSPlatformChzzk *PLSPlatformApi::getPlatformChzzk()
+{
+	auto platform = getExistedPlatformByType(PLSServiceType::ST_CHZZK);
+	if (platform) {
+		return dynamic_cast<PLSPlatformChzzk *>(platform);
+	}
+	return nullptr;
+}
+
+PLSPlatformChzzk *PLSPlatformApi::getPlatformChzzkActive()
+{
+	auto platform = getExistedPlatformByType(PLSServiceType::ST_CHZZK);
+	if (platform && platform->isActive()) {
+		return dynamic_cast<PLSPlatformChzzk *>(platform);
+	}
+	return nullptr;
+}
+
 list<PLSPlatformNaverTV *> PLSPlatformApi::getPlatformNaverTV()
 {
 	list<PLSPlatformNaverTV *> naverTVList;
@@ -466,6 +607,29 @@ PLSPlatformNaverTV *PLSPlatformApi::getPlatformNaverTVActive()
 	return nullptr;
 }
 
+list<PLSPlatformNCB2B *> PLSPlatformApi::getPlatformNCB2B()
+{
+	list<PLSPlatformNCB2B *> plist;
+	QMutexLocker locker(&platformListMutex);
+	for (auto platform : platformList) {
+		if (platform->getServiceType() == PLSServiceType::ST_NCB2B) {
+			plist.push_back(dynamic_cast<PLSPlatformNCB2B *>(platform));
+		}
+	}
+	return plist;
+}
+
+PLSPlatformNCB2B *PLSPlatformApi::getPlatformNCB2BActive()
+{
+	QMutexLocker locker(&platformListMutex);
+	for (auto platform : platformList) {
+		if (platform->getServiceType() == PLSServiceType::ST_NCB2B && platform->isActive()) {
+			return dynamic_cast<PLSPlatformNCB2B *>(platform);
+		}
+	}
+	return nullptr;
+}
+
 void PLSPlatformApi::onActive(const QString &which)
 {
 	QVariantMap info = PLSCHANNELS_API->getChannelInfo(which);
@@ -474,7 +638,7 @@ void PLSPlatformApi::onActive(const QString &which)
 		return;
 	}
 
-	const auto channelName = info.value(ChannelData::g_platformName).toString();
+	const auto channelName = info.value(ChannelData::g_channelName).toString();
 	if (!isValidChannel(info)) {
 		PLS_ERROR(MODULE_PlatformService, "PlatformAPI active channel get channel info is invalid, channel type is %d, channel name is %s, channel uuid is %s",
 			  info.value(ChannelData::g_data_type).toInt(), channelName.toStdString().c_str(), which.toStdString().c_str());
@@ -497,7 +661,7 @@ void PLSPlatformApi::onInactive(const QString &which)
 		return;
 	}
 
-	const auto channelName = info.value(ChannelData::g_platformName).toString();
+	const auto channelName = info.value(ChannelData::g_channelName).toString();
 	if (!isValidChannel(info)) {
 		PLS_ERROR(MODULE_PlatformService, "PlatformAPI inactive channel get channel info is invalid, channel type is %d, channel name is %s, channel uuid is %s",
 			  info.value(ChannelData::g_data_type).toInt(), channelName.toStdString().c_str(), which.toStdString().c_str());
@@ -532,7 +696,7 @@ void PLSPlatformApi::onAddChannel(const QString &channelUUID)
 		return;
 	}
 
-	const auto channelName = info.value(ChannelData::g_platformName).toString();
+	const auto channelName = info.value(ChannelData::g_channelName).toString();
 	if (!isValidChannel(info)) {
 		PLS_ERROR(MODULE_PlatformService, "PlatformAPI add channel get channel info is invalid, channel type is %d, channel name is %s, channel uuid is %s",
 			  info.value(ChannelData::g_data_type).toInt(), channelName.toStdString().c_str(), channelUUID.toStdString().c_str());
@@ -552,7 +716,7 @@ void PLSPlatformApi::onRemoveChannel(const QString &channelUUID)
 		platform->setActive(false);
 
 		const QVariantMap &info = platform->getInitData();
-		const auto channelName = info.value(ChannelData::g_platformName).toString();
+		const auto channelName = info.value(ChannelData::g_channelName).toString();
 		PLS_INFO(MODULE_PlatformService, "PlatformAPI remove platform success, channel type is %d, channel name is %s , channel uuid is %s", info.value(ChannelData::g_data_type).toInt(),
 			 channelName.toStdString().c_str(), channelUUID.toStdString().c_str());
 		emit channelRemoved(info);
@@ -562,6 +726,7 @@ void PLSPlatformApi::onRemoveChannel(const QString &channelUUID)
 		pls_delete(platform);
 		PLS_INFO(MODULE_PlatformService, "PlatformAPI current remove platformList count is %d", platformList.size());
 	}
+	updatePlatformViewerCount();
 }
 
 void PLSPlatformApi::onUpdateChannel(const QString &which)
@@ -572,7 +737,7 @@ void PLSPlatformApi::onUpdateChannel(const QString &which)
 		return;
 	}
 
-	const auto channelName = info.value(ChannelData::g_platformName).toString();
+	const auto channelName = info.value(ChannelData::g_channelName).toString();
 	if (!isValidChannel(info)) {
 		PLS_ERROR(MODULE_PlatformService, "PlatformAPI update channel get channel info is invalid, channel type is %d, channel name is %s, channel uuid is %s",
 			  info.value(ChannelData::g_data_type).toInt(), channelName.toStdString().c_str(), which.toStdString().c_str());
@@ -616,10 +781,16 @@ void PLSPlatformApi::onPrepareLive()
 	m_bPrismLive = true;
 	m_ignoreRequestBroadcastEnd = false;
 	m_isConnectedMQTT = false;
+	m_platFormUrlMap.clear();
 
-	//Get the list of platforms activated when the live broadcast starts
 	auto platformActived = PLS_PLATFORM_ACTIVIED;
-	
+	if (platformActived.empty()) {
+		PLS_INFO(MODULE_PlatformService, "%s %s ActiveChannel list is Empty", PrepareInfoPrefix, __FUNCTION__);
+		prepareLiveCallback(false);
+		return;
+	}
+
+
 	//reset live active platform info
 	resetPlatformsLivingInfo();
 
@@ -629,7 +800,6 @@ void PLSPlatformApi::onPrepareLive()
 
 void PLSPlatformApi::showMultiplePlatformGreater1080pAlert()
 {
-	
 }
 
 void PLSPlatformApi::sortPlatforms()
@@ -663,7 +833,6 @@ void PLSPlatformApi::resetPlatformsLivingInfo()
 
 bool PLSPlatformApi::checkWaterMarkAndOutroResource()
 {
-	//check watermark is valid
 	return true;
 }
 
@@ -790,7 +959,6 @@ void PLSPlatformApi::checkAllPlatformLiveStarted()
 
 void PLSPlatformApi::notifyLiveLeftMinutes(PLSPlatformBase *platform, int maxLiveTime, uint leftMinutes)
 {
-	
 }
 
 void PLSPlatformApi::liveStartedCallback(bool value)
@@ -873,18 +1041,17 @@ PLSServiceType PLSPlatformApi::getServiceType(const QVariantMap &info) const
 	}
 
 	const auto type = info.value(ChannelData::g_data_type).toInt();
-	const auto name = info.value(ChannelData::g_platformName).toString();
-
+	const auto platformName = info.value(ChannelData::g_fixPlatformName).toString();
 	if (type == ChannelData::ChannelType) {
 		for (int i = 1; i < PLATFORM_SIZE; ++i) {
-			if (name == NamesForChannelType[i]) {
+			if (platformName == NamesForChannelType[i]) {
 				return static_cast<PLSServiceType>(i);
 			}
 		}
 	} else if (type >= ChannelData::CustomType) {
 		return PLSServiceType::ST_CUSTOM;
 	}
-	PLS_ERROR(MODULE_PlatformService, "PlatformAPI get platform type failed, unmatched channel type is %1, channel name is %2", type, name.toStdString().c_str());
+	PLS_ERROR(MODULE_PlatformService, "PlatformAPI get platform type failed, unmatched channel type is %1, channel name is %2", type, platformName.toStdString().c_str());
 	return PLSServiceType::ST_CUSTOM;
 }
 
@@ -921,6 +1088,12 @@ PLSPlatformBase *PLSPlatformApi::buildPlatform(PLSServiceType type)
 		platform = pls_new<PLSPlatformNaverShoppingLIVE>();
 		break;
 	case PLSServiceType::ST_TWITTER:
+		break;
+	case PLSServiceType::ST_CHZZK:
+		platform = pls_new<PLSPlatformChzzk>();
+		break;
+	case PLSServiceType::ST_NCB2B:
+		platform = pls_new<PLSPlatformNCB2B>();
 		break;
 	default:
 		assert(false);
@@ -995,7 +1168,7 @@ bool PLSPlatformApi::isValidChannel(const QVariantMap &info)
 		return false;
 	}
 	const auto channelType = info.value(ChannelData::g_data_type).toInt();
-	const auto channelName = info.value(ChannelData::g_platformName).toString();
+	const auto channelName = info.value(ChannelData::g_channelName).toString();
 	if (channelType == ChannelData::ChannelType || channelType >= ChannelData::CustomType) {
 		return true;
 	}
@@ -1072,9 +1245,6 @@ void PLSPlatformApi::onLiveStarted()
 		liveStartedCallback(false);
 		return;
 	}
-	
-	//Clear the number of views, likes, and comments on each platform
-	clearLiveStatisticsInfo();
 }
 
 void PLSPlatformApi::clearLiveStatisticsInfo() const
@@ -1104,7 +1274,7 @@ void PLSPlatformApi::onLiveStopped()
 	}
 
 	setLiveStatus(LiveStatus::LiveStoped);
-	
+
 	//call each platform to stop the push method
 	auto platformActived = PLS_PLATFORM_ACTIVIED;
 	if (platformActived.empty()) {
@@ -1176,6 +1346,8 @@ void PLSPlatformApi::ensureStopOutput()
 	m_bStopForExit = true;
 
 	if (m_bRecording || m_bReplayBuffer || (LiveStatus::LiveStarted <= m_liveStatus && m_liveStatus < LiveStatus::LiveStoped) || m_bVirtualCamera) {
+		PLSBasic::Get()->m_bForceStop = true;
+
 		QEventLoop loop;
 		connect(this, &PLSPlatformApi::outputStopped, &loop, &QEventLoop::quit);
 
@@ -1212,23 +1384,19 @@ void PLSPlatformApi::ensureStopOutput()
 
 QJsonObject PLSPlatformApi::getWebPrismInit() const
 {
-
 	return QJsonObject();
 }
 
 void PLSPlatformApi::forwardWebMessagePrivateChanged(const PLSPlatformBase *platform, bool isPrivate) const
 {
-	
 }
 
 void PLSPlatformApi::sendWebChatTabShown(const QString &channelName, bool isAllTab) const
 {
-	
 }
 
 void PLSPlatformApi::stopMqtt()
 {
-	
 }
 
 const QString &PLSPlatformApi::getLiveEndReason() const
@@ -1238,53 +1406,79 @@ const QString &PLSPlatformApi::getLiveEndReason() const
 
 void PLSPlatformApi::setLiveEndReason(const QString &reason, EndLiveType endLiveType)
 {
-	
 }
 
 void PLSPlatformApi::stopStreaming(const QString &reason, EndLiveType endLiveType)
 {
+	setLiveEndReason(reason, endLiveType);
 	PLSCHANNELS_API->toStopBroadcast();
+}
+
+QString getLiveControlType()
+{
+	//live from: prism/remote-control/stream-deck/output-time
+	auto type = pls_get_current_live_control_type();
+	QString strType = "unknown";
+	switch (type) {
+	case ControlSrcType::None:
+		strType = "Prism";
+		break;
+	case ControlSrcType::RemoteControl:
+		strType = "remoteControl";
+		break;
+	case ControlSrcType::OutPutTimer:
+		strType = "outputTimer";
+		break;
+	case ControlSrcType::StreamDeck:
+		strType = "streamDeck";
+		break;
+	default:
+		strType = "unknown";
+		break;
+	}
+	return strType;
 }
 
 void PLSPlatformApi::createAnalogInfo(QVariantMap &uploadVariantMap) const
 {
-	
 }
 
 void PLSPlatformApi::sendLiveAnalog(bool success, const QString &reason, int code) const
 {
-	
+}
+
+bool isERTMPCodec(const char *codec)
+{
+	if (strcmp(codec, "av1") == 0)
+		return true;
+#ifdef ENABLE_HEVC
+	if (strcmp(codec, "hevc") == 0)
+		return true;
+#endif
+	return false;
+}
+
+static void createLiveCodecInfo(QVariantMap &uploadVariantMap)
+{
 }
 
 void PLSPlatformApi::sendLiveAnalog(const QVariantMap &info) const
 {
-	
 }
 
 void PLSPlatformApi::sendRecordAnalog(bool success, const QString &reason, int code) const
 {
-	
 }
 
 void PLSPlatformApi::sendRecordAnalog(const QVariantMap &info) const
 {
-	
 }
 
 void PLSPlatformApi::sendAnalog(AnalogType type, const QVariantMap &info) const
 {
-	
 }
 
 void PLSPlatformApi::sendBeautyAnalog(const QVariantMap &info) const
-{
-}
-
-void PLSPlatformApi::sendGiphyAnalog(const QVariantMap &info) const
-{
-}
-
-void PLSPlatformApi::sendTouchStickerAnalog(const QVariantMap &info) const
 {
 }
 
@@ -1312,93 +1506,44 @@ void PLSPlatformApi::sendVirtualCamAnalog(const QVariantMap &info) const
 {
 }
 
-void PLSPlatformApi::sendClockWidgetAnalog(const QVariantMap &info) const
-{
-}
-
 void PLSPlatformApi::sendBgTemplateAnalog(OBSData privious, OBSData current) const
 {
-	
 }
 
-void PLSPlatformApi::sendAudioVisualizerAnalog(OBSData privious, OBSData current) const
+void PLSPlatformApi::sendAudioVisualizerAnalog(const char *id, OBSData privious, OBSData current) const
 {
-	
 }
 
 void PLSPlatformApi::sendCameraDeviceAnalog(OBSData privious, OBSData current) const
 {
-	
 }
 
 void PLSPlatformApi::sendAnalogOnUserConfirm(OBSSource source, OBSData privious, OBSData current) const
 {
-	
 }
 
-void PLSPlatformApi::sendCodecAnalog(const QVariantMap& info) const {
+void PLSPlatformApi::sendCodecAnalog(const QVariantMap &info) const
+{
 }
 
-//this key is mark for update schedule list task
-const QString updateScheduleListTask = "updateScheduleListTask";
-//delay 200ms updating for call more times
+void PLSPlatformApi::sendSceneTemplateAnalog(const QVariantMap &info) const
+{
+}
+
+void PLSPlatformApi::sendPlatformOutputGuideAnalog(const QVariantMap &info) const
+{
+}
+
+void PLSPlatformApi::sendNCB2BLogin(const QVariantMap &info) const
+{
+}
+
 void PLSPlatformApi::updateAllScheduleList()
 {
-	//if task is working ,count is greater than 0
-	if (currentTaskCount(updateScheduleListTask) > 0) {
-		return;
-	}
-	static QTimer *timer = nullptr;
-	auto runUpdate = [this](PLSPlatformBase *platfrom) {
-		connect(platfrom, &PLSPlatformBase::scheduleListUpdateFinished, this, &PLSPlatformApi::onUpdateScheduleListFinished, Qt::ConnectionType(Qt::QueuedConnection | Qt::UniqueConnection));
-		platfrom->toStartGetScheduleList();
-	};
-
-	auto updateAll = [this, runUpdate]() {
-		this->loadingWidzardCheck();
-		QMutexLocker locker(&platformListMutex);
-		if (platformList.empty()) {
-			emit allScheduleListUpdated();
-			return;
-		}
-
-		setTaskCount(updateScheduleListTask, (int)platformList.size());
-		std::for_each(platformList.cbegin(), platformList.cend(), runUpdate);
-	};
-	if (timer == nullptr) {
-		timer = new QTimer(this);
-		timer->setSingleShot(true);
-		timer->setInterval(200);
-
-		connect(timer, &QTimer::timeout, this, updateAll, Qt::QueuedConnection);
-	}
-	QMetaObject::invokeMethod(
-		timer, []() { timer->start(); }, Qt::QueuedConnection);
 }
 
 void PLSPlatformApi::loadingWidzardCheck(bool isCheck)
 {
-	static QTimer *timer = nullptr;
-	if (timer == nullptr) {
-		timer = new QTimer(this);
-		timer->setInterval(15000);
-		timer->setSingleShot(true);
-		connect(
-			timer, &QTimer::timeout, this,
-			[this]() {
-				if (currentTaskCount(updateScheduleListTask) > 0) {
-					PLS_INFO(MODULE_PlatformService, "force finished update schedule list for time out");
-					resetTaskCount(updateScheduleListTask);
-					emit allScheduleListUpdated();
-				}
-			},
-			Qt::QueuedConnection);
-	}
-	if (isCheck) {
-		timer->start();
-	} else {
-		timer->stop();
-	}
 }
 
 QVariantList PLSPlatformApi::getAllScheduleList() const
@@ -1434,15 +1579,6 @@ QVariantList PLSPlatformApi::getAllLastErrors() const
 
 void PLSPlatformApi::onUpdateScheduleListFinished()
 {
-	auto platform = dynamic_cast<PLSPlatformBase *>(sender());
-	if (platform == nullptr) {
-		return;
-	}
-	decreaseCount(updateScheduleListTask);
-	if (currentTaskCount(updateScheduleListTask) > 0) {
-		return;
-	}
-	emit allScheduleListUpdated();
 }
 
 void PLSPlatformApi::setTaskCount(const QString &taskKey, int taskCount)
@@ -1474,194 +1610,119 @@ void PLSPlatformApi::resetTaskCount(const QString &taskKey)
 
 void PLSPlatformApi::doStatRequest(const QJsonObject &data)
 {
-	
 }
 
 void PLSPlatformApi::doMqttStatForPlatform(const PLSPlatformBase *base, const QJsonObject &data) const
 {
-	
 }
 
 void PLSPlatformApi::doStatusRequest(const QJsonObject &data)
 {
-	
 }
 
 void PLSPlatformApi::doStartGpopMaxTimeLiveTimer()
 {
-	
 }
 
 void PLSPlatformApi::startGeneralMaxTimeLiveTimer()
 {
-	
 }
 
 void PLSPlatformApi::stopGeneralMaxTimeLiveTimer()
 {
-	
 }
 
 void PLSPlatformApi::doNoticeLong(const QJsonObject &data) const
 {
-	
 }
 
 void PLSPlatformApi::doNaverShoppingMaxLiveTime(int leftMinutes) const
 {
-	
+}
+
+void PLSPlatformApi::doNCPMaxLiveTime(const QJsonObject &data)
+{
 }
 
 void PLSPlatformApi::doGeneralMaxLiveTime(int leftMinutes) const
 {
-	
 }
 
 void PLSPlatformApi::doLiveFnishedByPlatform(const QJsonObject &data)
 {
-	
 }
 
 void PLSPlatformApi::doOtherMqttStatusType(const QJsonObject &data, const QString &statusType)
 {
-	
 }
 
-void PLSPlatformApi::doMqttRequestBroadcastEnd(PLSPlatformBase *platform)
+void PLSPlatformApi::doMqttRequestBroadcastEnd(PLSPlatformBase *platform, const QJsonObject &jsonObject)
 {
-	
 }
 
 void PLSPlatformApi::doMqttRequestAccessToken(PLSPlatformBase *platform) const
 {
-	
 }
 
 void PLSPlatformApi::doMqttBroadcastStatus(const PLSPlatformBase *, PLSPlatformMqttStatus status) const
 {
-	
 }
 
 void PLSPlatformApi::doMqttSimulcastUnstable(PLSPlatformBase *platform, PLSPlatformMqttStatus status)
 {
-	
 }
 
 void PLSPlatformApi::doMqttSimulcastUnstableError(PLSPlatformBase *platform, PLSPlatformMqttStatus status)
 {
-	
 }
 
 void PLSPlatformApi::doMqttChatRequest(QString value)
 {
-	
 }
 
 void PLSPlatformApi::doWebTokenRequest(const QJsonObject &jsonData)
 {
-	
 }
 
 void PLSPlatformApi::sendWebPrismToken(const PLSPlatformBase *platform) const
 {
-	
 }
 
 void PLSPlatformApi::sendWebPrismPlatformClose(const PLSPlatformBase *platform) const
 {
-	
 }
 
 void PLSPlatformApi::doWebBroadcastMessage(const QJsonObject &data) const
 {
-	
 }
 
 void PLSPlatformApi::doWebPageLogsMessage(const QJsonObject &obj) const
 {
-	
 }
 
 void PLSPlatformApi::doWebSendChatRequest(const QJsonObject &data) const
 {
-	
 }
 
 const char *PLSPlatformApi::invokedByWeb(const char *data)
 {
-	static const string EMPTY = "{}";
-
-	emit PLS_PLATFORM_API->onWebRequest(QString::fromUtf8(data));
-
-	return EMPTY.c_str();
+	return "";
 }
 
 void PLSPlatformApi::doWebRequest(const QString &data)
 {
-	
 }
 
 void PLSPlatformApi::onMqttMessage(const QString topic, const QString content)
 {
-	
 }
 
 void PLSPlatformApi::showEndViewByType(PLSEndPageType pageType) const
 {
-	auto mainwindw = PLSBasic::Get();
-	QString startLog("show live end view");
-	switch (pageType) {
-	case PLSEndPageType::PLSRecordPage:
-		startLog += " - record";
-		break;
-	case PLSEndPageType::PLSRehearsalPage:
-		startLog += " - rehearsal";
-		break;
-	case PLSEndPageType::PLSLivingPage:
-		startLog += " - live";
-		break;
-	default:
-		break;
-	}
-
-	PLS_LIVE_INFO(MODULE_PlatformService, "%s", qUtf8Printable(startLog));
-	PLSLiveEndDialog dialog(pageType, mainwindw);
-	connect(mainwindw, &PLSBasic::mainClosing, &dialog, [&dialog] {
-		PLS_LIVE_INFO(MODULE_PlatformService, "PLSEnd Dialog disbind and force to close");
-		dialog.setParent(nullptr);
-		dialog.close();
-	});
-	dialog.exec();
-	PLS_INFO(MODULE_PlatformService, "PLSEnd Dialog closed");
 }
 
 void PLSPlatformApi::showEndView_Record(bool isShowDialog, bool isLivingAndRecording, bool isRehearsal)
 {
-	if (m_isIgnoreNextRecordShow) {
-		//ignore this end page
-		PLS_INFO(END_MODULE, "Show end with parameter ignore this record end page");
-		m_isIgnoreNextRecordShow = false;
-	} else if (isLivingAndRecording) {
-		//record stopped, but live still streaming
-		if (!isRehearsal) {
-			// not rehearsal mode
-			pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QObject::tr("main.message.error.recordwhenbroadcasting"));
-		} else {
-			// rehearsal mode
-			pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QObject::tr("Live.Toast.Rehaersal.Record.Ended"));
-		}
-	} else {
-		pls_toast_clear();
-		//only record and live all stopped, to clear toast.
-		if (PLSBasic::Get() && PLSBasic::instance()->getMainView() != nullptr && PLSBasic::instance()->getMainView()->isVisible() && isShowDialog) {
-			showEndViewByType(PLSEndPageType::PLSRecordPage);
-			if (pls_get_app_exiting()) {
-				return;
-			}
-		}
-	}
-	PLSCHANNELS_API->setIsClickToStopRecord(false);
-	emit liveEndPageShowComplected(true);
 }
 
 static bool isSupportRehearsalShowEndPage(enum PLSServiceType type)
@@ -1677,60 +1738,185 @@ static bool isSupportRehearsalShowEndPage(enum PLSServiceType type)
 
 void PLSPlatformApi::showEndView_Live(bool isShowDialog, bool isLivingAndRecording, bool isRehearsal, bool isStreamingRecordStopAuto)
 {
-	if (isLivingAndRecording && !isStreamingRecordStopAuto) {
-		//live ended, but still recording
-		if (isRehearsal) {
-			if (PLS_PLATFORM_ACTIVIED.empty()) {
-				PLS_INFO(END_MODULE, "show rehearsal page active platform list is empty");
-				return;
-			}
-			const PLSPlatformBase *platform = PLS_PLATFORM_ACTIVIED.front();
-			if (isSupportRehearsalShowEndPage(platform->getServiceType())) {
-				QString content = QString("%1\n%2").arg(tr("broadcast.endpage.rehearsal.title")).arg(tr("navershopping.liveinfo.rehearsal.endpage.content"));
-				pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, content);
-			} else {
-				pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QObject::tr("broadcast.end.rehearsal"));
-			}
-		} else {
-			pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QObject::tr("broadcast.end.live"));
+}
+
+QString PLSPlatformApi::getLiveAbortReason(LiveAbortStage stage, const QVariantMap &info)
+{
+	QString liveAbortReason;
+	switch (stage) {
+	case LiveAbortStage::LiveStartRequestFailed:
+		liveAbortReason = "live abort because live start call api error";
+		break;
+	case LiveAbortStage::LiveDirectStartRequestFailed:
+		liveAbortReason = "live abort because live direct start call api error";
+		break;
+	case LiveAbortStage::DuplicatedStreamingActive:
+		liveAbortReason = "live abort because duplicated streaming active";
+		break;
+	case LiveAbortStage::DisableOutputsRef:
+		liveAbortReason = "live abort because disabled output ref";
+		break;
+	case LiveAbortStage::SetupStreamingFailed:
+		liveAbortReason = "live abort because start setup push streaming failed";
+		break;
+	case LiveAbortStage::StartStreamingFailed:
+		liveAbortReason = "live abort because start prepare push streaming failed";
+		break;
+	case LiveAbortStage::ObsForceStoppingStream: {
+		int errorCode = info.value(LIVE_ABORT_ERROR_CODE_KEY).toInt();
+		liveAbortReason = QString("live abort because obs error code:%1").arg(errorCode);
+		break;
+	}
+	case LiveAbortStage::LiveFinishedByPlatform:
+		liveAbortReason = "live abort because mqtt LIVE_FINISHED_BY_PLATFORM";
+		break;
+	case LiveAbortStage::RequestBroadcastEnd:
+		liveAbortReason = "live abort because mqtt REQUEST_BROADCAST_END";
+		break;
+	case LiveAbortStage::SimulcastUnstableEndLive:
+		liveAbortReason = "live abort because mqtt SIMULCAST_UNSTABLE";
+		break;
+	default:
+		break;
+	}
+	return liveAbortReason;
+}
+
+QString PLSPlatformApi::getLiveAbortDetailReason(LiveAbortDetailStage stage, const QVariantMap &info)
+{
+	QString liveAbortDetailReason;
+	switch (stage) {
+	case LiveAbortDetailStage::LiveStartRequestNotJsonObject: {
+		int statusCode = info.value(LIVE_ABORT_STATUS_CODE_KEY).toInt();
+		QString requestURL = info.value(LIVE_ABORT_REQUEST_URL_KEY).toString();
+		liveAbortDetailReason = QString("%1 response data is not json object, statusCode is %2").arg(requestURL).arg(statusCode);
+		break;
+	}
+	case LiveAbortDetailStage::LiveStartRequestFailed: {
+		int statusCode = info.value(LIVE_ABORT_STATUS_CODE_KEY).toInt();
+		int errorCode = info.value(LIVE_ABORT_ERROR_CODE_KEY).toInt();
+		QString requestURL = info.value(LIVE_ABORT_REQUEST_URL_KEY).toString();
+		liveAbortDetailReason = QString("%1 request failed, statusCode is %2, errorCode is %3").arg(requestURL).arg(statusCode).arg(errorCode);
+		break;
+	}
+	case LiveAbortDetailStage::LiveStartRequestTimeout: {
+		int statusCode = info.value(LIVE_ABORT_STATUS_CODE_KEY).toInt();
+		QString requestURL = info.value(LIVE_ABORT_REQUEST_URL_KEY).toString();
+		liveAbortDetailReason = QString("%1 request 15s timeout, statusCode is %2").arg(requestURL).arg(statusCode);
+		break;
+	}
+	case LiveAbortDetailStage::LiveStartRequestFailedWithJson: {
+		QString requestURL = info.value(LIVE_ABORT_REQUEST_URL_KEY).toString();
+		liveAbortDetailReason = QString("%1 response json is %2").arg(requestURL).arg(QString::fromUtf8(info.value(LIVE_ABORT_JSON_TEXT_KEY).toByteArray()));
+		break;
+	}
+	case LiveAbortDetailStage::DuplicatedStreamingActive:
+		liveAbortDetailReason = getLiveAbortReason(LiveAbortStage::DuplicatedStreamingActive);
+		break;
+	case LiveAbortDetailStage::DisableOutputsRef:
+		liveAbortDetailReason = getLiveAbortReason(LiveAbortStage::DisableOutputsRef);
+		break;
+	case LiveAbortDetailStage::SetupStreamingFailed:
+		liveAbortDetailReason = getLiveAbortReason(LiveAbortStage::SetupStreamingFailed);
+		break;
+	case LiveAbortDetailStage::StartStreamingFailed:
+		liveAbortDetailReason = getLiveAbortReason(LiveAbortStage::StartStreamingFailed);
+		break;
+	case LiveAbortDetailStage::ObsForceStoppingStream:
+		liveAbortDetailReason = getLiveAbortObsErrorDetailReason(info);
+		break;
+	case LiveAbortDetailStage::LiveFinishedByPlatform: {
+		liveAbortDetailReason = QString("videoSeq is %1 , reason json is %2").arg(PLS_PLATFORM_PRSIM->getVideoSeq()).arg(QString::fromUtf8(info.value(LIVE_ABORT_JSON_TEXT_KEY).toByteArray()));
+		break;
+	}
+	case LiveAbortDetailStage::RequestBroadcastEnd: {
+		liveAbortDetailReason = QString("videoSeq is %1 , reason json is %2").arg(PLS_PLATFORM_PRSIM->getVideoSeq()).arg(QString::fromUtf8(info.value(LIVE_ABORT_JSON_TEXT_KEY).toByteArray()));
+		break;
+	}
+	case LiveAbortDetailStage::SimulcastUnstableEndLive: {
+		liveAbortDetailReason = QString("videoSeq is %1 , %2").arg(PLS_PLATFORM_PRSIM->getVideoSeq()).arg(getLiveAbortReason(LiveAbortStage::SimulcastUnstableEndLive));
+		break;
+	}
+	default:
+		break;
+	}
+	return liveAbortDetailReason;
+}
+
+QString PLSPlatformApi::getLiveAbortPlatformName()
+{
+	QStringList platformNameList;
+	for (auto item : PLS_PLATFORM_ACTIVIED) {
+		if (!item->getIsAllowPushStream()) {
+			continue;
 		}
-		emit liveEndPageShowComplected(false);
-		return;
+		const char *platformName = item->getNameForChannelType();
+		platformNameList.append(platformName);
+	}
+	return platformNameList.join(",");
+}
+
+QString PLSPlatformApi::getLiveAbortObsErrorDetailReason(const QVariantMap &info)
+{
+	int errorCode = info.value(LIVE_ABORT_ERROR_CODE_KEY).toInt();
+
+	QMap<int, QString> statMap;
+	statMap.insert(OBS_OUTPUT_BAD_PATH, "OBS_OUTPUT_BAD_PATH");
+	statMap.insert(OBS_OUTPUT_CONNECT_FAILED, "OBS_OUTPUT_CONNECT_FAILED");
+	statMap.insert(OBS_OUTPUT_INVALID_STREAM, "OBS_OUTPUT_INVALID_STREAM");
+	statMap.insert(OBS_OUTPUT_ERROR, "OBS_OUTPUT_ERROR");
+	statMap.insert(OBS_OUTPUT_DISCONNECTED, "OBS_OUTPUT_DISCONNECTED");
+	statMap.insert(OBS_OUTPUT_UNSUPPORTED, "OBS_OUTPUT_UNSUPPORTED");
+	statMap.insert(OBS_OUTPUT_NO_SPACE, "OBS_OUTPUT_NO_SPACE");
+	statMap.insert(OBS_OUTPUT_ENCODE_ERROR, "OBS_OUTPUT_ENCODE_ERROR");
+	statMap.insert(OBS_OUTPUT_HDR_DISABLED, "OBS_OUTPUT_HDR_DISABLED");
+
+	return QString("[%1] receive obs error code string is %2").arg(getLiveAbortPlatformName()).arg(statMap.value(errorCode));
+}
+
+void PLSPlatformApi::sendLiveAbortOperation(const QString &liveAbortReason, const QString &liveAbortDetailReason, int analogFailedType)
+{
+
+	// send analog request
+	sendLiveAnalog(false, liveAbortDetailReason, analogFailedType);
+
+	// send live abort info
+	PLS_LIVE_ABORT_INFO(MODULE_PlatformService, liveAbortReason.toUtf8().constData(), "%s", liveAbortDetailReason.toUtf8().constData());
+
+	// send platform abort info
+	for (auto item : PLS_PLATFORM_ACTIVIED) {
+		if (!item->getIsAllowPushStream()) {
+			continue;
+		}
+		const char *platformName = item->getNameForChannelType();
+		PLS_LOGEX(PLS_LOG_WARN, MODULE_PlatformService, {{"liveAbortService", platformName}, {"liveAbortType", liveAbortDetailReason.toUtf8().constData()}}, "%s abort living.", platformName);
+	}
+}
+
+bool PLSPlatformApi::AllowsMultiTrack() const
+{
+	auto platforms = getActivePlatforms();
+	if (platforms.size() == 1) {
+		auto platform = platforms.front();
+		if (PLSServiceType::ST_CUSTOM == platform->getServiceType()) {
+			auto streamServer = platform->getStreamServerFromInitData().toLower();
+
+			return streamServer.startsWith("srt://") || streamServer.startsWith("rist://");
+		}
 	}
 
-	pls_toast_clear();
-
-	//only record and live all stopped, to clear toast.
-	if (PLSBasic::Get() && PLSBasic::instance()->getMainView() != nullptr && PLSBasic::instance()->getMainView()->isVisible() && isShowDialog) {
-		if (PLS_PLATFORM_ACTIVIED.empty()) {
-			PLS_INFO(END_MODULE, "show end page active platform list is empty");
-			return;
-		}
-		if (!isRehearsal) {
-			showEndViewByType(PLSEndPageType::PLSLivingPage);
-		} else if (const PLSPlatformBase *platform = PLS_PLATFORM_ACTIVIED.front(); isSupportRehearsalShowEndPage(platform->getServiceType())) {
-			showEndViewByType(PLSEndPageType::PLSRehearsalPage);
-		}
-		if (pls_get_app_exiting()) {
-			return;
-		}
-	}
-	emit liveEndPageShowComplected(false);
+	return false;
 }
 
 void PLSPlatformApi::showEndView(bool isRecord, bool isShowDialog)
 {
-	PLS_INFO(MODULE_PlatformService, "show live end view isRecord(%s)", BOOL2STR(isRecord));
-
 	if (pls_get_app_exiting()) {
-		PLS_INFO(MODULE_PlatformService, "show live end view ignored, because app is exiting.");
+		PLS_INFO(MODULE_PlatformService, "Show end with ignored, because app is exiting.");
 		return;
 	}
 
 	//User clicks stop recording button
 	bool isClickToStopRecord = PLSCHANNELS_API->getIsClickToStopRecord();
-	bool isRecordingButNotToStop = PLSCHANNELS_API->currentReocrdState() == ChannelData::RecordStarted || PLSCHANNELS_API->currentReocrdState() == ChannelData::RecordStarting;
-	qDebug() << "showEndView  isRecordingButNotToStop  : " << PLSCHANNELS_API->currentReocrdState();
 
 	//When recording is stopped, the live broadcast is in progress
 	//A recording is in progress when the stream is stopped
@@ -1741,10 +1927,6 @@ void PLSPlatformApi::showEndView(bool isRecord, bool isShowDialog)
 		isLivingAndRecording = true;
 	}
 
-	qDebug() << "showEndView  isLivingAndRecording  : " << isLivingAndRecording;
-	qDebug() << "showEndView  isClickToStopRecord  : " << isClickToStopRecord;
-	qDebug() << "showEndView  isRecord  : " << isRecord;
-
 	//When streaming starts, recording starts
 	bool recordWhenStreaming = config_get_bool(GetGlobalConfig(), "BasicWindow", "RecordWhenStreaming");
 	//when stopping live sometime later but not stop complected, then start record, the keepRecordingWhenStreamStops is true.
@@ -1754,22 +1936,33 @@ void PLSPlatformApi::showEndView(bool isRecord, bool isShowDialog)
 	bool isStreamingRecordStopAuto = recordWhenStreaming && !keepRecordingWhenStreamStops;
 	bool isRehearsal = PLSCHANNELS_API->isRehearsaling();
 
+	int liveState = PLSCHANNELS_API->currentBroadcastState();
+	int recordState = PLSCHANNELS_API->currentReocrdState();
 	//End the recording page, if the recording is set to end automatically and the user does not click the end recording button, the recording End page will not be displayed
 	if (isStreamingRecordStopAuto && !isClickToStopRecord) {
-		if (isRecord) {
+		//living or in stopping living. (Living <= status <= LiveEnded)
+		bool isLivingOrStopping = (int)LiveStatus::Living <= liveState && liveState <= (int)LiveStatus::LiveEnded;
+		bool isRecordingOrStopping = (int)ChannelData::RecordStarted <= recordState && recordState <= (int)ChannelData::RecordStopped;
+		if (isRecord && isLivingOrStopping) {
 			m_isIgnoreNextRecordShow = true;
-		} else if (!isRecord && isLivingAndRecording && !isRecordingButNotToStop) {
+		} else if (!isRecord && isRecordingOrStopping) { //#4703, record enter stop after click server diconnected alert.
 			m_isIgnoreNextRecordShow = true;
 		}
 	}
 
-	qDebug() << "showEndView  m_isIgnoreNextRecordShow  : " << m_isIgnoreNextRecordShow;
-
-	PLS_INFO(
-		END_MODULE,
-		"Show end with parameter \n\tisLivingAndRecording:%s, \n\tisShowRecordEnd:%s, \n\tisClickToStopRecord:%s, \n\tisStreamingRecordStopAuto:%s, \n\tisIgnoreNextRecordShow:%s, \n\tisRehaersaling:%s, \n\tisRecordingButNotToStop:%s, \n\tisShowDialog:%s",
-		BOOL2STR(isLivingAndRecording), BOOL2STR(isRecord), BOOL2STR(isClickToStopRecord), BOOL2STR(isStreamingRecordStopAuto), BOOL2STR(m_isIgnoreNextRecordShow), BOOL2STR(isRehearsal),
-		BOOL2STR(isRecordingButNotToStop), BOOL2STR(isShowDialog));
+	PLS_INFO(END_MODULE, "Show end with parameter \n\
+\tisLivingAndRecording:%s, \n\
+\tisShowRecordEnd:%s, \n\
+\tisClickToStopRecord:%s, \n\
+\tisStreamingRecordStopAuto:%s, \n\
+\tisIgnoreNextRecordShow:%s, \n\
+\tisRehaersaling:%s, \n\
+\tisShowDialog:%s, \n\
+\tisRecord:%s, \n\
+\tcurrentReocrdState:%d, \n\
+\tcurrentBroadcastState:%d",
+		 BOOL2STR(isLivingAndRecording), BOOL2STR(isRecord), BOOL2STR(isClickToStopRecord), BOOL2STR(isStreamingRecordStopAuto), BOOL2STR(m_isIgnoreNextRecordShow), BOOL2STR(isRehearsal),
+		 BOOL2STR(isShowDialog), BOOL2STR(isRecord), recordState, liveState);
 
 	if (isRecord) {
 		showEndView_Record(isShowDialog, isLivingAndRecording, isRehearsal);
@@ -1782,7 +1975,7 @@ void PLSPlatformApi::doChannelInitialized()
 {
 	for (const auto &info : PLSCHANNELS_API->getCurrentSelectedChannels()) {
 		const auto channelUUID = info.value(ChannelData::g_channelUUID).toString();
-		const auto channelName = info.value(ChannelData::g_platformName).toString();
+		const auto channelName = info.value(ChannelData::g_channelName).toString();
 		if (isValidChannel(info)) {
 			onActive(channelUUID);
 		} else {

@@ -20,7 +20,9 @@ OBSQTDisplay QLabel#displayResizeCenter {
 OBSQTDisplay QLabel#displayText {
 	background-color: #1e1e1f;
 	color: #666666;
-	font-size: /*hdpi*/ 20px;
-	font-weight: bold;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	padding-left: 30px;
+	padding-right: 30px;
 }
 

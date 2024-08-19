@@ -23,13 +23,23 @@ OBSBasicFilters #previewFrame {
 
 	OBSBasicFilters #effectFilters, OBSBasicFilters #asyncFilters {
 		background-color: #272727;
-		border:  none;
-
+		border: none;
+		padding: 0 ;
+		margin: 0;
 	}
 		OBSBasicFilters #effectFilters::item, OBSBasicFilters #asyncFilters::item {
 			padding: 0;
 			margin: 0;
+			margin-top: 1px;
+			margin-bottom: 1px;
 		}
+
+		OBSBasicFilters #effectFilters::item:selected, OBSBasicFilters #asyncFilters::item:selected {
+			padding-left: 17px;
+			background-color: #444444;
+			color: #effc35;
+		}
+
 	OBSBasicFilters #asyncWidget, OBSBasicFilters #effectWidget {
 		min-width: 210px;
 		max-width: 210px;
@@ -154,7 +164,7 @@ OBSBasicFilters #previewFrame {
 	}
 
 	OBSBasicFilters #property_buttonBox QPushButton[useFor="RestoreDefaults"] {
-		padding: 0;
+		padding: 0px;
 		margin-top: 5px;
 		margin-left: 30px;
 		min-width: 142px;
@@ -163,21 +173,35 @@ OBSBasicFilters #previewFrame {
 		max-height: 40px;
 	}
 
+	OBSBasicFilters QListWidget QLineEdit {
+		background-color: #1e1e1e;
+		padding: 0px;
+		padding-left: 20px;
+		margin: 0px;
+		font-size: 14px;
+/*		max-width: 187px;
+		min-width: 187px;*/
+	}
+
+		OBSBasicFilters QListWidget QLineEdit:focus {
+			padding: 0px;
+			padding-left: 20px;
+			margin: 0px;
+/*			max-width: 187px;
+			min-width: 187px;*/
+			border: 1px solid #effc35;
+		}
+
 PLSFiltersItemView {
 	background-color: #272727;
 	min-width: 210px;
 	max-width: 210px;
-    min-height: 40px;
-    max-height: 40px;
+	min-height: 38px;
+	max-height: 38px;
 	padding: 0;
 	margin: 0;
-}
-PLSFiltersItemView #nameLineEdit{
-    min-height:/*hdpi*/ 32px;
-    max-height:/*hdpi*/ 32px;
-    background-color: #1e1e1e;
-    margin:0;
-    padding:0;
+	margin-top:1px;
+	margin-bottom: 1px;
 }
 
 PLSFiltersItemView #advButton{
@@ -271,8 +295,4 @@ PLSFiltersItemView #visibleButton {
 			PLSFiltersItemView QMenu#filterItemMenu::item:selected {
 				background-color: #444444;
 			}
-
-		PLSFiltersItemView QLineEdit {
-			font-size:  14px;
-		}
 

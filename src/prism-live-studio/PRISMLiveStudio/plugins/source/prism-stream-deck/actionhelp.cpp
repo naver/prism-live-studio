@@ -1024,7 +1024,7 @@ bool ActionHelp::RequestStartStreaming()
 		return false;
 	LOG_INFO_STREAMDECK("user start streaming");
 	if (!pls_is_streaming()) {
-		pls_start_broadcast(true);
+		pls_start_broadcast(true, ControlSrcType::StreamDeck);
 
 		if (pls_is_streaming()) {
 			json responseJson;

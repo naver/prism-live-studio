@@ -51,6 +51,12 @@
       </item>
       <item>
        <widget class="QPushButton" name="clearLog">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
+        </property>
         <property name="text">
          <string>清空日志</string>
         </property>
@@ -61,7 +67,7 @@
     <item row="0" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -82,7 +88,14 @@
          </widget>
         </item>
         <item row="1" column="1">
-         <widget class="QLineEdit" name="appDir"/>
+         <widget class="QLineEdit" name="appDir">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+         </widget>
         </item>
         <item row="1" column="0">
          <widget class="QLabel" name="label">
@@ -112,7 +125,14 @@
          </widget>
         </item>
         <item row="3" column="1">
-         <widget class="QLineEdit" name="outFile"/>
+         <widget class="QLineEdit" name="outFile">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+         </widget>
         </item>
         <item row="3" column="2">
          <widget class="QPushButton" name="outFileBrowse">
@@ -129,6 +149,12 @@
         </item>
         <item row="2" column="1" colspan="2">
          <widget class="QLineEdit" name="langs">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
           <property name="text">
            <string>en-US;es-ES;id-ID;ko-KR;pt-BR;vi-VN</string>
           </property>
@@ -167,6 +193,35 @@
         <property name="topMargin">
          <number>20</number>
         </property>
+        <item row="1" column="2">
+         <widget class="QPushButton" name="import_2">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>导入</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="fillColorFile">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="acceptDrops">
+           <bool>true</bool>
+          </property>
+          <property name="dragEnabled">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
         <item row="0" column="0">
          <widget class="QLabel" name="label_6">
           <property name="text">
@@ -176,18 +231,14 @@
         </item>
         <item row="0" column="2">
          <widget class="QPushButton" name="fillColorFileBrowse">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
           <property name="text">
            <string>...</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QLineEdit" name="fillColorFile"/>
-        </item>
-        <item row="1" column="2">
-         <widget class="QPushButton" name="import_2">
-          <property name="text">
-           <string>导入</string>
           </property>
          </widget>
         </item>
@@ -208,7 +259,14 @@
         <item row="0" column="1">
          <layout class="QHBoxLayout" name="horizontalLayout_4">
           <item>
-           <widget class="QLineEdit" name="lineEdit"/>
+           <widget class="QLineEdit" name="lineEdit">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>30</height>
+             </size>
+            </property>
+           </widget>
           </item>
           <item>
            <widget class="QToolButton" name="toolButton">
@@ -222,7 +280,14 @@
         <item row="1" column="1">
          <layout class="QHBoxLayout" name="horizontalLayout_5">
           <item>
-           <widget class="QLineEdit" name="lineEdit_2"/>
+           <widget class="QLineEdit" name="lineEdit_2">
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>30</height>
+             </size>
+            </property>
+           </widget>
           </item>
           <item>
            <widget class="QToolButton" name="toolButton_2">
@@ -270,7 +335,7 @@
        <attribute name="title">
         <string>配置</string>
        </attribute>
-       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0,0">
+       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0">
         <property name="spacing">
          <number>0</number>
         </property>
@@ -289,96 +354,151 @@
         <item>
          <widget class="QGroupBox" name="groupBox_4">
           <property name="title">
-           <string>存储路径</string>
-          </property>
-          <layout class="QHBoxLayout" name="horizontalLayout_7">
-           <item>
-            <widget class="QLineEdit" name="lineEdit_3"/>
-           </item>
-           <item>
-            <widget class="QPushButton" name="pushButton_4">
-             <property name="text">
-              <string>选 择</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
-        </item>
-        <item>
-         <widget class="QGroupBox" name="groupBox">
-          <property name="title">
-           <string>颜色配置</string>
+           <string>存储设置</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_2">
            <item>
             <layout class="QFormLayout" name="formLayout">
+             <property name="labelAlignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+             <property name="verticalSpacing">
+              <number>10</number>
+             </property>
              <item row="0" column="0">
               <widget class="QLabel" name="label_5">
                <property name="text">
-                <string>缺失标记：</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="0">
-              <widget class="QLabel" name="label_7">
-               <property name="text">
-                <string>重复标记：</string>
+                <string>存储路径：</string>
                </property>
               </widget>
              </item>
              <item row="0" column="1">
-              <widget class="QPushButton" name="pushButton_2">
+              <layout class="QHBoxLayout" name="horizontalLayout_3">
+               <property name="spacing">
+                <number>20</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QLineEdit" name="lineEdit_3">
+                 <property name="minimumSize">
+                  <size>
+                   <width>0</width>
+                   <height>30</height>
+                  </size>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="pushButton_4">
+                 <property name="text">
+                  <string>选 择</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_7">
                <property name="text">
-                <string/>
-               </property>
-               <property name="checkable">
-                <bool>true</bool>
-               </property>
-               <property name="autoExclusive">
-                <bool>true</bool>
+                <string>prism代码目录：</string>
                </property>
               </widget>
              </item>
              <item row="1" column="1">
-              <widget class="QPushButton" name="pushButton_3">
-               <property name="text">
-                <string/>
-               </property>
-               <property name="checkable">
-                <bool>true</bool>
-               </property>
-               <property name="autoExclusive">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item>
-            <layout class="QHBoxLayout" name="horizontalLayout_3">
-             <item>
-              <spacer name="horizontalSpacer_2">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeType">
-                <enum>QSizePolicy::Preferred</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
+              <widget class="QLineEdit" name="export_dir_edit">
+               <property name="minimumSize">
                 <size>
-                 <width>40</width>
-                 <height>20</height>
+                 <width>0</width>
+                 <height>30</height>
                 </size>
                </property>
-              </spacer>
+              </widget>
              </item>
-             <item>
-              <widget class="QPushButton" name="chooseColor">
+             <item row="2" column="0">
+              <widget class="QLabel" name="label_17">
                <property name="text">
-                <string>选择颜色</string>
+                <string>待拷贝的目录：</string>
                </property>
               </widget>
+             </item>
+             <item row="2" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_7">
+               <item>
+                <widget class="QRadioButton" name="prism_studio">
+                 <property name="text">
+                  <string>prism-studio</string>
+                 </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
+                 <property name="autoExclusive">
+                  <bool>false</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QRadioButton" name="prism_setup">
+                 <property name="text">
+                  <string>prism-setup</string>
+                 </property>
+                 <property name="checked">
+                  <bool>false</bool>
+                 </property>
+                 <property name="autoExclusive">
+                  <bool>false</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QRadioButton" name="prism_plugins">
+                 <property name="text">
+                  <string>prism-plugins</string>
+                 </property>
+                 <property name="checked">
+                  <bool>false</bool>
+                 </property>
+                 <property name="autoExclusive">
+                  <bool>false</bool>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="3" column="0">
+              <widget class="QCheckBox" name="checkBox">
+               <property name="text">
+                <string>prism运行环境</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+               <property name="tristate">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_8">
+               <item>
+                <widget class="QRadioButton" name="debug_radio">
+                 <property name="text">
+                  <string>Debug</string>
+                 </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QRadioButton" name="release_readio">
+                 <property name="text">
+                  <string>Release</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
              </item>
             </layout>
            </item>
@@ -388,7 +508,7 @@
         <item>
          <widget class="QGroupBox" name="groupBox_3">
           <property name="title">
-           <string>文件格式</string>
+           <string>导出文件格式</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout">
            <item>
@@ -409,13 +529,6 @@
             </widget>
            </item>
           </layout>
-         </widget>
-        </item>
-        <item>
-         <widget class="QGroupBox" name="groupBox_2">
-          <property name="title">
-           <string>Excel配置</string>
-          </property>
          </widget>
         </item>
        </layout>
@@ -455,6 +568,12 @@
         </item>
         <item row="2" column="1" colspan="2">
          <widget class="QLineEdit" name="cmpLangs">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
           <property name="text">
            <string>en-US;es-ES;id-ID;ko-KR;pt-BR;vi-VN</string>
           </property>
@@ -476,6 +595,12 @@
         </item>
         <item row="0" column="2">
          <widget class="QLineEdit" name="cmpSrcDir">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
           <property name="text">
            <string>C:/code/PRISMLiveStudio/src/prism/main/data/locale/</string>
           </property>
@@ -490,8 +615,105 @@
         </item>
         <item row="1" column="1" colspan="2">
          <widget class="QLineEdit" name="cmpDstDir">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
           <property name="text">
            <string>C:/code/prism-live-studio/bin/prism/windows/Debug</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tab_6">
+       <attribute name="title">
+        <string>合并</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_5">
+        <item row="1" column="1">
+         <widget class="QLineEdit" name="lineEdit_ToFile">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>C:\Users\Administrator\Desktop\4.0.0_prism_language.xlsx</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="4">
+         <widget class="QSpinBox" name="spinBox_FromCol">
+          <property name="minimumSize">
+           <size>
+            <width>60</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="value">
+           <number>9</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_16">
+          <property name="text">
+           <string>目标文件</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="3">
+         <widget class="QLabel" name="label_15">
+          <property name="styleSheet">
+           <string notr="true">margin-left: 20px</string>
+          </property>
+          <property name="text">
+           <string>源列</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QLineEdit" name="lineEdit_FromFile">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>C:\Users\Administrator\Desktop\PRISM_PC_일본어 번역_요청_240430(번역본)_추가교정.xlsx</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_14">
+          <property name="text">
+           <string>源文件</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QPushButton" name="pushButton_6">
+          <property name="text">
+           <string>浏览</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QPushButton" name="pushButton_7">
+          <property name="text">
+           <string>浏览</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1" colspan="2">
+         <widget class="QPushButton" name="pushButton_5">
+          <property name="text">
+           <string>合并</string>
           </property>
          </widget>
         </item>

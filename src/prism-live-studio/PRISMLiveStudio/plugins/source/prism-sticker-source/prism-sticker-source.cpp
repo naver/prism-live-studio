@@ -75,17 +75,12 @@ static void update_video_source(sticker_reaction *sticker, bool lastLoop)
 		obs_data_set_string(media_settings, "local_file", sticker->video_input.c_str());
 		obs_data_set_bool(media_settings, "restart_on_activate", false);
 		sticker->media = obs_source_create_private("ffmpeg_source", "ffmpeg_sticker", media_settings);
+		obs_source_inc_active(sticker->media);
 
 	} else {
 		media_settings = obs_source_get_settings(sticker->media);
-		int64_t seek_to = 0;
 		std::string last_file = obs_data_get_string(media_settings, "local_file");
 		bool file_changed = last_file != sticker->video_input;
-		if (file_changed) {
-			int64_t duration = obs_source_media_get_duration(sticker->media);
-			int64_t time = obs_source_media_get_time(sticker->media);
-			seek_to = duration ? time / duration * sticker->duration : 0;
-		}
 		obs_data_set_bool(media_settings, "looping", sticker->loop);
 		obs_data_set_string(media_settings, "local_file", sticker->video_input.c_str());
 		obs_source_update(sticker->media, media_settings);
@@ -93,7 +88,6 @@ static void update_video_source(sticker_reaction *sticker, bool lastLoop)
 		if (lastLoop && !sticker->loop && !sticker->video_input.empty()) {
 			obs_source_media_play_pause(sticker->media, true);
 		} else if (!lastLoop && sticker->loop && !sticker->video_input.empty() || file_changed) {
-			obs_source_output_video(sticker->media, nullptr);
 			obs_source_media_restart(sticker->media);
 		}
 	}
@@ -294,6 +288,24 @@ static void sticker_private_update(void *data, obs_data_t *settings)
 	obs_data_release(setting);
 }
 
+static void sticker_source_activate(void* data)
+{
+	if (!data)
+		return;
+	auto sticker = static_cast<sticker_reaction*>(data);
+	if(sticker->media)
+		obs_source_inc_active(sticker->media);
+}
+
+static void sticker_source_deactivate(void* data)
+{
+	if (!data)
+		return;
+	auto sticker = static_cast<sticker_reaction*>(data);
+	if(sticker->media)
+		obs_source_dec_active(sticker->media);
+}
+
 void RegisterPRISMStickerSource()
 {
 	obs_source_info info = {};
@@ -311,6 +323,8 @@ void RegisterPRISMStickerSource()
 	info.video_render = sticker_source_render;
 	info.video_tick = sticker_source_tick;
 	info.icon_type = static_cast<obs_icon_type>(PLS_ICON_TYPE_PRISM_STICKER);
+	info.activate = sticker_source_activate;
+	info.deactivate = sticker_source_deactivate;
 
 	pls_source_info pls_info = {};
 	pls_info.set_private_data = sticker_private_update;

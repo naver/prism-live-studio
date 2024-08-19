@@ -4,6 +4,7 @@
 #include "libui-globals.h"
 
 #include <atomic>
+#include <functional>
 
 #include <qpointer.h>
 #include <qwidget.h>
@@ -12,6 +13,7 @@
 #include <qmenu.h>
 #include <qmessagebox.h>
 #include <qdialogbuttonbox.h>
+#include <libutils-api.h>
 
 LIBUI_API QPointer<QWidget> pls_get_main_view();
 LIBUI_API void pls_set_main_view(const QPointer<QWidget> &main_view);
@@ -23,13 +25,14 @@ LIBUI_API bool pls_is_main_window_destroyed();
 LIBUI_API void pls_set_main_window_destroyed(bool);
 
 LIBUI_API bool pls_is_toplevel_view(QWidget *widget);
-LIBUI_API QWidget *pls_get_toplevel_view(QWidget *widget);
+LIBUI_API QWidget *pls_get_toplevel_view(QWidget *widget, QWidget *defval = pls_get_main_view());
 
 LIBUI_API void pls_push_modal_view(QDialog *dialog);
 LIBUI_API void pls_pop_modal_view(QDialog *dialog);
 LIBUI_API void pls_push_modal_view(QMenu *menu);
 LIBUI_API void pls_pop_modal_view(QMenu *menu);
 LIBUI_API void pls_notify_close_modal_views();
+LIBUI_API void pls_notify_close_modal_views_with_parent(QWidget *parent);
 LIBUI_API bool pls_has_modal_view();
 LIBUI_API QPointer<QDialog> pls_get_last_modal_view();
 
@@ -85,14 +88,45 @@ LIBUI_API QRect pls_get_screen_rect(const QPoint &pt);
 LIBUI_API QRect pls_get_screen_available_rect(const QPoint &pt);
 LIBUI_API bool pls_is_visible_in_some_screen(const QRect &geometry);
 
-enum class init_exception_code;
 enum class Progress;
-LIBUI_API QString pls_get_init_exit_code_str(init_exception_code code);
+
 LIBUI_API QString pls_get_process_code_str(Progress progress, bool next = false);
 
 LIBUI_API QImage pls_generate_qr_image(const QJsonObject &info, int width, int margin, const QPixmap &logo);
 
 LIBUI_API void pls_window_left_right_margin_fit(QWidget *widget);
+
+//signalName=clicked, action=Click, moduleName=, controls=full path
+LIBUI_API void pls_button_uistep_custom(QObject *object, const pls_getter_t &getter = nullptr);
+//action=Click, moduleName=, controls=full path
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const pls_getter_t &getter = nullptr);
+//moduleName=, controls=full path
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const QString &action, const pls_getter_t &getter = nullptr);
+//controls=full path
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &action, const pls_getter_t &getter = nullptr);
+//controls=controlFullname
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controlFullname, const QString &action,
+					const pls_getter_t &getter = nullptr);
+//controls=full path+controls+additional
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controls, const QString &additional, const QString &action,
+					const pls_getter_t &getter = nullptr);
+//controls=controlFullname or controls=full path+controls+additional
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controlFullname, const QString &controls, const QString &additional,
+					const QString &action, const pls_getter_t &getter = nullptr);
+
+//moduleName=, controls=full path
+LIBUI_API void pls_control_uistep_custom(QObject *object, const QString &signalName, const QString &action, const pls_getter_t &getter = nullptr);
+//controls=full path
+LIBUI_API void pls_control_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &action, const pls_getter_t &getter = nullptr);
+//controls=controlFullname
+LIBUI_API void pls_control_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controlFullname, const QString &action,
+					 const pls_getter_t &getter = nullptr);
+//controls=full path+controls+additional
+LIBUI_API void pls_control_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controls, const QString &additional, const QString &action,
+					 const pls_getter_t &getter = nullptr);
+//controls=controlFullname or controls=full path+controls+additional
+LIBUI_API void pls_control_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controlFullname, const QString &controls, const QString &additional,
+					 const QString &action, const pls_getter_t &getter = nullptr);
 
 namespace pls {
 struct ICloseDialog {

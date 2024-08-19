@@ -29,16 +29,30 @@ PLSPermissionHelper::AVStatus PLSPermissionHelper::checkPermissionWithSource(con
 		avType = AVType::None;
 		return PLSPermissionHelper::AVStatus::Allow;
 	}
+    
 	if (sourceID.startsWith(OBS_DSHOW_SOURCE_ID)) {
 		avType = AVType::Video;
 		return getVideoPermissonStatus();
 	}
-	if (sourceID.startsWith(AUDIO_INPUT_SOURCE_ID) || sourceID.startsWith(AUDIO_OUTPUT_SOURCE_ID)) {
+    if (sourceID.startsWith(PRISM_LENS_MOBILE_SOURCE_ID)) {
+        avType = AVType::Mobile;
+        return getVideoPermissonStatus();
+    }
+    if (sourceID.startsWith(PRISM_LENS_SOURCE_ID)) {
+        avType = AVType::Lens;
+        return getVideoPermissonStatus();
+    }
+	if (sourceID.startsWith(AUDIO_INPUT_SOURCE_ID) || sourceID.startsWith(AUDIO_OUTPUT_SOURCE_ID) || sourceID.startsWith(AUDIO_OUTPUT_SOURCE_ID_V2)) {
 		avType = AVType::Audio;
 		return getAudioPermissonStatus();
 	}
 	if (sourceID.startsWith(PRISM_MONITOR_SOURCE_ID) || sourceID.startsWith(WINDOW_SOURCE_ID) || sourceID.startsWith(OBS_MACOS_SCREEN_CAPTURE_SOURCE_ID)) {
 		avType = AVType::Screen;
+		return getScreenRecordPermissonStatus();
+	}
+	
+	if (sourceID.startsWith(OBS_MACOS_AUDIO_CAPTURE_SOURCE_ID)) {
+		avType = AVType::ScreenAudio;
 		return getScreenRecordPermissonStatus();
 	}
 
@@ -117,22 +131,34 @@ void PLSPermissionHelper::showPermissionAlertIfNeeded(AVType avType, AVStatus he
 	}
 	NSString *urlString;
 	QString alertMsg;
-	switch (avType) {
-	case AVType::Audio:
-		urlString = @"x-apple.systempreferences:com.apple.preference.security?Privacy_Camera";
-		alertMsg = QObject::tr("Mac.Permission.Failed.Audio");
-		break;
-	case AVType::Video:
-		urlString = @"x-apple.systempreferences:com.apple.preference.security?Privacy_Camera";
-		alertMsg = QObject::tr("Mac.Permission.Failed.Video");
-		break;
-	case AVType::Screen:
-		urlString = @"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
-		alertMsg = QObject::tr("Mac.Permission.Failed.Screen");
-		break;
-	default:
-		break;
-	}
+    switch (avType) {
+        case AVType::Audio:
+            urlString = @"x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone";
+            alertMsg = QObject::tr("Mac.Permission.Failed.Audio");
+            break;
+        case AVType::Video:
+            urlString = @"x-apple.systempreferences:com.apple.preference.security?Privacy_Camera";
+            alertMsg = QObject::tr("Mac.Permission.Failed.Video");
+            break;
+        case AVType::Lens:
+            urlString = @"x-apple.systempreferences:com.apple.preference.security?Privacy_Camera";
+            alertMsg = QObject::tr("Mac.Permission.Failed.Lens");
+            break;
+        case AVType::Mobile:
+            urlString = @"x-apple.systempreferences:com.apple.preference.security?Privacy_Camera";
+            alertMsg = QObject::tr("Mac.Permission.Failed.Mobile");
+            break;
+        case AVType::Screen:
+            urlString = @"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
+            alertMsg = QObject::tr("Mac.Permission.Failed.Screen");
+            break;
+		case AVType::ScreenAudio:
+			urlString = @"x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture";
+			alertMsg = QObject::tr("Mac.Permission.Failed.ScreenAudio");
+			break;
+        default:
+            break;
+    }
 	PLS_INFO(MAC_PERMISSION, "mac permission show alert with type: %d", avType);
 
 	PLSAlertView alertView(parent, PLSAlertView::Icon::Warning, QObject::tr("Alert.Title"), alertMsg, QString(),

@@ -14,10 +14,12 @@
 #include "PLSChannelDataAPI.h"
 #include "frontend-api.h"
 
+#include "../../PLSPlatformApi/NCB2B/PLSNCB2BDataHandler.h"
 #include "../../PLSPlatformApi/band/PLSBandDataHandler.h"
 #include "../../PLSPlatformApi/facebook/PLSFacebookDataHandler.h"
 #include "../../PLSPlatformApi/naver-shopping-live/PLSNaverShoppingLIVEDataHandler.h"
 #include "../../PLSPlatformApi/navertv/PLSNaverTVDataHandler.h"
+#include "PLSChzzkDataHandler.h"
 
 #include "PLSAfreecaTVDataHandler.h"
 #include "PLSChannelDataHandler.h"
@@ -53,6 +55,8 @@ void registerAllPlatforms()
 	PLSCHANNELS_API->registerPlatformHandler(new PLSBandDataHandler);
 	PLSCHANNELS_API->registerPlatformHandler(new PLSFacebookDataHandler);
 	PLSCHANNELS_API->registerPlatformHandler(new PLSNaverShoppingLIVEDataHandler);
+	PLSCHANNELS_API->registerPlatformHandler(new PLSNCB2BDataHandler);
+	PLSCHANNELS_API->registerPlatformHandler(new PLSChzzkDataHandler);
 }
 
 QString getYoutubeImageUrl(const QVariantMap &src)
@@ -150,32 +154,31 @@ bool isReplyContainExpired(const QByteArray &body, const QStringList &keys)
 
 QJsonObject createJsonArrayFromInfo(const QString &uuid)
 {
-	QJsonObject obj;
 
-	if (const auto &info = PLSCHANNELS_API->getChanelInfoRef(uuid); !info.isEmpty()) {
-		auto platformName = getInfo(info, g_platformName);
-
-		platformName = platformName.remove("RTMP").remove(" ").toUpper();
-		auto userID = getInfo(info, g_rtmpUserID);
-		auto disName = getInfo(info, g_nickName);
-		auto rtmpUrl = getInfo(info, g_channelRtmpUrl);
-		auto description = getInfo(info, g_otherInfo);
-		auto streamKey = getInfo(info, g_streamKey);
-
-		obj.insert("streamName", disName);
-		obj.insert("rtmpUrl", rtmpUrl);
-		obj.insert("streamKey", streamKey);
-		obj.insert("username", userID);
-		obj.insert(g_publishService, platformName);
-		obj.insert("description", description);
+	QJsonObject obj, orgData;
+	if (const auto &info = PLSCHANNELS_API->getChannelInfo(uuid); !info.isEmpty()) {
+		obj = QJsonObject::fromVariantMap(info);
+		obj.remove(g_channelUserStatus);
+		obj.remove(g_customUserDataSeq);
+		obj.remove(g_isUpdated);
+		obj.remove(g_displayState);
+		obj.remove(g_displayOrder);
 		obj.insert("resolution", "720");
 		obj.insert("bitrate", "2000");
 		obj.insert("framerate", "30");
 		obj.insert("interval", 2);
+		orgData.insert(g_customData, obj);
+	} else {
+		PLS_INFO(CHANNELDATAHANDLER, "getChanelInfoRef return null,uuid is %d", uuid.toUtf8().constData());
+		if (uuid.isEmpty()) {
+			QVariantMap map = {{g_isUseNewAPI, true}};
+			obj = QJsonObject::fromVariantMap(map);
+			orgData.insert(g_customData, obj);
+		}
 	}
 
-	return obj;
-};
+	return orgData;
+}
 
 QVariantMap createPrismHeader()
 {
@@ -193,9 +196,13 @@ bool RTMPAddToPrism(const QString &uuid)
 	return true;
 }
 
+bool AddOrgDataToNewApi(const QString &uuid, bool bAddFlag)
+{
+	return true;
+}
+
 bool RTMPUpdateToPrism(const QString &uuid)
 {
-
 	PRE_LOG_MSG_STEP("Update RTMP Begin ", g_updateChannelStep, INFO)
 	HolderReleaser releaser(&PLSChannelDataAPI::holdOnChannelArea);
 	FinishTaskReleaser finishUpdate(uuid);
@@ -256,16 +263,58 @@ struct RtmpRun : public QRunnable {
 	{
 		auto jsonDoc = QJsonDocument::fromJson(taskData);
 		auto jsArray = jsonDoc.array().toVariantList();
-		auto mapper = loadMapFromJsonFile(":/configs/configs/RTMPJsonMapper.json");
-
 		auto allChannels = PLSCHANNELS_API->getAllChannelInfo();
 		QSet<QString> matched;
-		//match
-		auto checkMatched = [&mapper, &allChannels, this, &matched](const QVariant &obj) { return this->searchMatched(mapper, allChannels, matched, obj); };
-		std::for_each(jsArray.rbegin(), jsArray.rend(), checkMatched);
+
+		if (!bNewAPIData) {
+			PLS_INFO("RTMPUpdate", "Old API Data processing");
+			auto mapper = loadMapFromJsonFile(":/configs/configs/RTMPJsonMapper.json");
+			//match
+			auto checkMatched = [&mapper, &allChannels, this, &matched](const QVariant &obj) { return this->searchMatched(mapper, allChannels, matched, obj); };
+			std::for_each(jsArray.rbegin(), jsArray.rend(), checkMatched);
+
+		} else {
+			PLS_INFO("RTMPUpdate", "New API Data processing");
+			auto checkMatchedV2 = [&allChannels, this, &matched](const QVariant &obj) { return this->searchMatchedV2(allChannels, matched, obj); };
+			std::for_each(jsArray.rbegin(), jsArray.rend(), checkMatchedV2);
+		}
 		// remove
 		removeExpiredData(allChannels, matched);
 	}
+
+	void searchMatchedV2(ChannelsMap &allChannels, QSet<QString> &matched, const QVariant &obj) const
+	{
+		QVariantMap objMap = obj.toMap();
+		auto customData = objMap[g_customData].toMap();
+		QString seq = objMap[g_customUserDataSeq].toString();
+
+		if (customData.contains(g_isUseNewAPI)) {
+			return;
+		}
+		customData.insert(g_isUpdated, true);
+		auto isSeqMatched = [&](const QVariantMap &src) {
+			int type = getInfo(src, g_data_type, ChannelType);
+			auto srcSeq = getInfo(src, g_customUserDataSeq);
+			if (type >= RTMPType && srcSeq == seq) {
+				return true;
+			}
+			return false;
+		};
+		auto retIte = std::find_if(allChannels.begin(), allChannels.end(), isSeqMatched);
+		if (retIte == allChannels.end()) {
+			auto uuid = getInfo(customData, g_channelUUID);
+			matched.insert(uuid);
+			customData[g_customUserDataSeq] = seq;
+			PLSCHANNELS_API->addChannelInfo(customData, false);
+			PLSCHANNELS_API->sortAllChannels();
+			PLSCHANNELS_API->channelAdded(uuid);
+		} else {
+			auto &lastMap = retIte.value();
+			addToMap(lastMap, customData);
+			matched.insert(getInfo(lastMap, g_channelUUID));
+			PLSCHANNELS_API->setChannelInfos(lastMap);
+		}
+	};
 
 	void searchMatched(const QVariantMap &mapper, ChannelsMap &allChannels, QSet<QString> &matched, const QVariant &obj) const
 	{
@@ -275,7 +324,7 @@ struct RtmpRun : public QRunnable {
 
 		auto urlstream = getInfo(objMap, g_channelRtmpUrl);
 		auto streamKey = getInfo(objMap, g_streamKey);
-		auto platformName = getInfo(objMap, g_platformName);
+		auto platformName = getInfo(objMap, g_channelName);
 		auto guessPlaform = guessPlatformFromRTMP(urlstream);
 
 		if (platformName.isEmpty()) {
@@ -284,7 +333,7 @@ struct RtmpRun : public QRunnable {
 			platformName = toPlatformCodeID(platformName);
 		}
 
-		if (guessPlaform != platformName && guessPlaform != BAND && guessPlaform != NOW) {
+		if (guessPlaform != platformName && guessPlaform != BAND && guessPlaform != NOW && guessPlaform != CHZZK && guessPlaform != NAVER_SHOPPING_LIVE) {
 
 			platformName = guessPlaform;
 		}
@@ -292,7 +341,7 @@ struct RtmpRun : public QRunnable {
 		PRE_LOG_MSG("platform :" + platformName + " rtmp:" + urlstream + "->stream key: " + streamKey, INFO_KR)
 		PRE_LOG_MSG("platform :" + platformName + " rtmp:" + urlstream + "->stream key: " + pls_masking_person_info(streamKey), INFO)
 
-		objMap[g_platformName] = platformName;
+		objMap[g_channelName] = platformName;
 		objMap[g_displayLine1] = objMap[g_nickName];
 		objMap[g_isUpdated] = true;
 		auto seq = getInfo(objMap, g_rtmpSeq);
@@ -305,11 +354,12 @@ struct RtmpRun : public QRunnable {
 			return false;
 		};
 		auto retIte = std::find_if(allChannels.begin(), allChannels.end(), isSeqMatched);
+		QString uuid;
 		if (retIte == allChannels.end()) {
 			auto defaultMap = createDefaultChannelInfoMap(platformName, RTMPType);
 			addToMap(defaultMap, objMap);
 			defaultMap[g_channelStatus] = Valid;
-			auto uuid = getInfo(defaultMap, g_channelUUID);
+			uuid = getInfo(defaultMap, g_channelUUID);
 			matched.insert(uuid);
 			PLSCHANNELS_API->addChannelInfo(defaultMap, false);
 			PLSCHANNELS_API->sortAllChannels();
@@ -318,9 +368,11 @@ struct RtmpRun : public QRunnable {
 			auto &lastMap = retIte.value();
 			addToMap(lastMap, objMap);
 			lastMap[g_channelStatus] = Valid;
-			matched.insert(getInfo(lastMap, g_channelUUID));
+			uuid = getInfo(lastMap, g_channelUUID);
+			matched.insert(uuid);
 			PLSCHANNELS_API->setChannelInfos(lastMap);
 		}
+		AddOrgDataToNewApi(uuid, false);
 	};
 
 	void removeExpiredData(const ChannelsMap &allChannels, const QSet<QString> &matched) const
@@ -329,19 +381,28 @@ struct RtmpRun : public QRunnable {
 		auto removeIte = allChannels.cbegin();
 		for (; removeIte != allChannels.cend(); ++removeIte) {
 			auto info = removeIte.value();
-			if (getInfo(info, g_data_type, RTMPType) == RTMPType && !matched.contains(removeIte.key())) {
-				PLSCHANNELS_API->removeChannelInfo(removeIte.key(), true, false);
+			auto type = getInfo(info, g_data_type, RTMPType);
+			if (bNewAPIData) {
+				if (type >= RTMPType && !matched.contains(removeIte.key())) {
+					PLSCHANNELS_API->removeChannelInfo(removeIte.key(), true, false);
+				}
+			} else {
+				if (type == RTMPType && !matched.contains(removeIte.key())) {
+					PLSCHANNELS_API->removeChannelInfo(removeIte.key(), true, false);
+				}
 			}
 		}
 	}
 
 	//public:
 	QByteArray taskData;
+	bool bNewAPIData = true;
 };
 
-void updateRTMPCallback(const QByteArray &retData)
+void updateRTMPCallback(const QByteArray &retData, bool bNewAPIData)
 {
 	auto run = new RtmpRun();
 	run->taskData = retData;
+	run->bNewAPIData = bNewAPIData;
 	QThreadPool::globalInstance()->start(run);
 }

@@ -273,11 +273,6 @@ static void update_source_settings_playlist_data(const struct prism_bgm_source *
 
 static void clear_current_url_info(struct prism_bgm_source *source)
 {
-	obs_media_state state = obs_source_media_get_state(source->source);
-	if (state == OBS_MEDIA_STATE_PLAYING || state == OBS_MEDIA_STATE_PAUSED) {
-		return;
-	}
-
 	set_current_url(source, "", "");
 	source->select_music.clear();
 	source->select_producer.clear();
@@ -330,6 +325,11 @@ bool need_update_queue_first_url(struct prism_bgm_source *source, latest_url &ge
 
 void push_back_queue_url(struct prism_bgm_source *source, const latest_url &url)
 {
+	if (!url.url.empty()) {
+		PLS_PLUGIN_INFO("bgm: push select music. url is %s .", pls_get_path_file_name(url.url.c_str()));
+	} else {
+		PLS_PLUGIN_INFO("bgm: push a empty url to music list queue for stop play music.");
+	}
 	std::lock_guard<std::mutex> locker(source->mtx);
 	source->queue_urls.push_back(url);
 }
@@ -344,14 +344,41 @@ bgm_url_info get_current_url_info(const struct prism_bgm_source *source)
 	return bgm_url_info();
 }
 
-static void media_state_changed(void *data, calldata_t *calldata)
+const char *get_state_string(obs_media_state state)
+{
+	switch (state) {
+	case OBS_MEDIA_STATE_NONE:
+		return "OBS_MEDIA_STATE_NONE";
+	case OBS_MEDIA_STATE_PLAYING:
+		return "OBS_MEDIA_STATE_PLAYING";
+	case OBS_MEDIA_STATE_OPENING:
+		return "OBS_MEDIA_STATE_OPENING";
+	case OBS_MEDIA_STATE_BUFFERING:
+		return "OBS_MEDIA_STATE_BUFFERING";
+	case OBS_MEDIA_STATE_PAUSED:
+		return "OBS_MEDIA_STATE_PAUSED";
+	case OBS_MEDIA_STATE_STOPPED:
+		return "OBS_MEDIA_STATE_STOPPED";
+	case OBS_MEDIA_STATE_ENDED:
+		return "OBS_MEDIA_STATE_ENDED";
+	case OBS_MEDIA_STATE_ERROR:
+		return "OBS_MEDIA_STATE_ERROR";
+	default:
+		return "default";
+	}
+}
+
+static void prism_bgm_switch_to_next_song(void *data);
+
+static void media_state_changed(obs_media_state state, void *data, calldata_t *calldata)
 {
 	auto source = static_cast<prism_bgm_source *>(data);
 	auto media_source = (obs_source_t *)calldata_ptr(calldata, "source");
 	if (media_source != source->media_source)
 		return;
 
-	obs_media_state state = obs_source_media_get_state(media_source);
+	PLS_PLUGIN_INFO("bgm: receive media state changed from source: %p, state:[%d] %s .", source, state, get_state_string(state));
+
 	if (state == OBS_MEDIA_STATE_STOPPED || state == OBS_MEDIA_STATE_ENDED) {
 		if (!source->real_stop) {
 			bgm_url_info current = get_current_url_info(source);
@@ -363,7 +390,8 @@ static void media_state_changed(void *data, calldata_t *calldata)
 				pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, state);
 				return;
 			}
-			obs_source_media_next(source->source);
+			PLS_PLUGIN_INFO("bgm: try to switch to next music when receive media stopped or ended state.");
+			prism_bgm_switch_to_next_song(source);
 			return;
 		} else {
 			clear_current_url_info(source);
@@ -402,6 +430,8 @@ static void bgm_erase_queue_first_url(struct prism_bgm_source *source)
 	auto url = erase_queue_first_url(source);
 	if (!url.url.empty()) {
 		PLS_PLUGIN_INFO("bgm: pop select music. url is %s .", pls_get_path_file_name(url.url.c_str()));
+	} else {
+		PLS_PLUGIN_INFO("bgm: pop a empty url to music list queue to stop play music.");
 	}
 }
 
@@ -415,30 +445,25 @@ static void media_skip(void *data, calldata_t *calldata)
 	}
 }
 
-static void media_play(void *data, calldata_t *calldata)
-{
-	media_state_changed(data, calldata);
-}
-
 static void media_pause(void *data, calldata_t *calldata)
 {
-	media_state_changed(data, calldata);
+	media_state_changed(OBS_MEDIA_STATE_PAUSED, data, calldata);
 }
 static void media_restart(void *data, calldata_t *calldata)
 {
-	media_state_changed(data, calldata);
+	media_state_changed(OBS_MEDIA_STATE_PLAYING, data, calldata);
 }
 static void media_stopped(void *data, calldata_t *calldata)
 {
-	media_state_changed(data, calldata);
+	media_state_changed(OBS_MEDIA_STATE_STOPPED, data, calldata);
 }
 static void media_started(void *data, calldata_t *calldata)
 {
-	media_state_changed(data, calldata);
+	media_state_changed(OBS_MEDIA_STATE_PLAYING, data, calldata);
 }
 static void media_ended(void *data, calldata_t *calldata)
 {
-	media_state_changed(data, calldata);
+	media_state_changed(OBS_MEDIA_STATE_ENDED, data, calldata);
 }
 
 static void bgm_source_start(struct prism_bgm_source *s);
@@ -602,7 +627,8 @@ static void without_loop(prism_bgm_source *source)
 		source->remove_id.clear();
 		source->played_urls.clear();
 		if (state == OBS_MEDIA_STATE_PLAYING || state == OBS_MEDIA_STATE_PAUSED || state == OBS_MEDIA_STATE_OPENING) {
-			obs_source_media_stop(source->source);
+			PLS_PLUGIN_INFO("bgm: remove last select music. url is %s .", source->select_music.c_str());
+			push_back_queue_url(source, latest_url());
 			clear_current_url_info(source);
 		}
 	} else {
@@ -610,7 +636,7 @@ static void without_loop(prism_bgm_source *source)
 			clear_current_url_info(source);
 			source->played_urls.clear();
 			source->real_stop = true;
-			pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, state);
+			push_back_queue_url(source, latest_url());
 		} else if (state == OBS_MEDIA_STATE_ERROR) {
 			clear_current_url_info(source);
 			pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, state);
@@ -623,6 +649,8 @@ static void without_loop(prism_bgm_source *source)
 		}
 	}
 }
+
+static void bgm_bgm_restart(void *data);
 
 static void prism_bgm_switch_to_next_song(void *data)
 {
@@ -651,7 +679,9 @@ static void prism_bgm_switch_to_next_song(void *data)
 			source->remove_id.clear();
 			source->played_urls.clear();
 			clear_current_url_info(source);
-			obs_source_media_stop(source->source);
+			PLS_PLUGIN_INFO("bgm: remove last select music. url is %s .", source->select_music.c_str());
+
+			push_back_queue_url(source, latest_url());
 			obs_data_release(private_settings);
 			return;
 		}
@@ -683,7 +713,7 @@ static void prism_bgm_switch_to_next_song(void *data)
 	// there are more than one songs.
 	set_settings_from_urls_info(private_settings, next_song_info);
 	obs_data_release(private_settings);
-	obs_source_media_restart(source->source);
+	bgm_bgm_restart(source);
 }
 
 static bgm_url_info get_previous_available_song_in_playorder_mode_with_loop(struct prism_bgm_source *source)
@@ -754,7 +784,7 @@ static void prism_bgm_switch_to_previous_song(void *data)
 	set_settings_from_urls_info(private_settings, previous_song_info);
 
 	obs_data_release(private_settings);
-	obs_source_media_restart(source->source);
+	bgm_bgm_restart(source);
 }
 
 static const char *prism_bgm_get_name(void *unused)
@@ -1515,7 +1545,17 @@ static void prism_bgm_tick(void *data, float)
 		obs_data_set_bool(media_settings, IS_LOCAL_FILE, true);
 		obs_source_update(source->media_source, media_settings);
 		obs_data_release(media_settings);
-		PLS_PLUGIN_INFO("bgm: play select music. url is %s .", pls_get_path_file_name(url.url.c_str()));
+
+		OBSDataAutoRelease settings = obs_source_get_settings(source->source);
+		obs_source_update(source->source, settings);
+
+		if (url.url.empty()) {
+			PLS_PLUGIN_INFO("bgm: push a empty url to media source to stop play music.");
+			pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, OBS_MEDIA_STATE_STOPPED);
+			erase_queue_first_url(source);
+		} else {
+			PLS_PLUGIN_INFO("bgm: play select music. url is %s .", pls_get_path_file_name(url.url.c_str()));
+		}
 	}
 
 	obs_enter_graphics();
@@ -1827,12 +1867,10 @@ static void create_media_source(struct prism_bgm_source *source)
 	source->media_source = obs_source_create_private("ffmpeg_source", "prism_bgm_play_source", ffmpeg_settings);
 	obs_source_add_audio_capture_callback(source->media_source, audio_capture, source);
 
-	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_state_changed", media_state_changed, source);
 	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_load", media_load, source);
 	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_skipped", media_skip, source);
 
 	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_pause", media_pause, source);
-	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_play", media_play, source);
 	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_restart", media_restart, source);
 	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_stopped", media_stopped, source);
 	signal_handler_connect_ref(obs_source_get_signal_handler(source->media_source), "media_started", media_started, source);
@@ -2032,12 +2070,10 @@ static void prism_bgm_destroy(void *data)
 		obs_source_dec_active(source->media_source);
 		obs_source_remove_audio_capture_callback(source->media_source, audio_capture, source);
 
-		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_state_changed", media_state_changed, source);
 		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_load", media_load, source);
 		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_skipped", media_skip, source);
 
 		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_pause", media_pause, source);
-		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_play", media_play, source);
 		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_restart", media_restart, source);
 		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_stopped", media_stopped, source);
 		signal_handler_disconnect(obs_source_get_signal_handler(source->media_source), "media_started", media_started, source);
@@ -2087,7 +2123,8 @@ static void bgm_remove(struct prism_bgm_source *source, obs_data_t *private_data
 	if (remove_url == source->select_music && url_id == source->select_id) {
 		source->remove_url = remove_url;
 		source->remove_id = url_id;
-		obs_source_media_next(source->source);
+		PLS_PLUGIN_INFO("bgm: try to switch to next music when remove current music.");
+		prism_bgm_switch_to_next_song(source);
 	}
 
 	bgm_remove_url(source, remove_url, url_id);
@@ -2115,11 +2152,14 @@ static void bgm_loop(struct prism_bgm_source *source, obs_data_t *private_data)
 static void bgm_play_mode(struct prism_bgm_source *source, obs_data_t *private_data)
 {
 	obs_data_t *settings = obs_source_get_private_settings(source->source);
-	obs_data_set_bool(settings, PLAY_IN_ORDER, obs_data_get_bool(private_data, PLAY_IN_ORDER));
+	bool is_play_in_order = obs_data_get_bool(private_data, PLAY_IN_ORDER);
+	obs_data_set_bool(settings, PLAY_IN_ORDER, is_play_in_order);
 
 	bool is_random = obs_data_get_bool(private_data, RANDOM_PLAY);
 	obs_data_set_bool(settings, RANDOM_PLAY, is_random);
 	obs_data_release(settings);
+
+	pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_MODE_STATE_CHANGED, is_play_in_order ? 0 : 1);
 
 	source->played_urls.clear();
 	if (!is_random) {
@@ -2159,7 +2199,8 @@ static void bgm_disable(struct prism_bgm_source *source, obs_data_t *private_dat
 
 	bool gotoNext = obs_data_get_bool(private_data, "goto_next_songs");
 	if (gotoNext) {
-		obs_source_media_next(source->source);
+		PLS_PLUGIN_INFO("bgm: try to switch to next music when current music is disabled.");
+		prism_bgm_switch_to_next_song(source);
 	}
 }
 
@@ -2299,7 +2340,7 @@ void register_prism_bgm_source()
 	obs_source_info info = {};
 	info.id = "prism_bgm_source";
 	info.type = OBS_SOURCE_TYPE_INPUT;
-	info.output_flags = OBS_SOURCE_AUDIO | OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW;
+	info.output_flags = OBS_SOURCE_AUDIO | OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW | OBS_SOURCE_CONTROLLABLE_MEDIA;
 	info.get_name = prism_bgm_get_name;
 	info.create = prism_bgm_create;
 	info.destroy = prism_bgm_destroy;

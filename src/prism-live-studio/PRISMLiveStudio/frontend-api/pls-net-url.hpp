@@ -58,6 +58,10 @@ extern const QString PLS_RTMP_ADD_DEV;
 extern const QString PLS_RTMP_MODIFY_DEV;
 extern const QString PLS_RTMP_DELETE_DEV;
 extern const QString PLS_RTMP_LIST_DEV;
+extern const QString PLS_RTMP_ADD_V2_DEV;
+extern const QString PLS_RTMP_MODIFY_V2_DEV;
+extern const QString PLS_RTMP_DELETE_V2_DEV;
+extern const QString PLS_RTMP_LIST_V2_DEV;
 
 extern const QString g_streamKeyPrismHelperEn_DEV;
 extern const QString g_streamKeyPrismHelperKr_DEV;
@@ -76,6 +80,12 @@ extern const QString LASTEST_UPDATE_URL_DEV;
 extern const QString CONTACT_SEND_EMAIL_URL_DEV;
 
 extern const QString PRISM_AUTH_API_BASE_DEV;
+
+extern const QString PRISM_NCP_SERVICE_ID_API_DEV;
+extern const QString PRISM_NCP_AUTH_API_DEV;
+extern const QString PRISM_NCP_AUTH_JOIN_API_DEV;
+extern const QString PRISM_NCP_REFRESH_TOKEN_API_DEV;
+extern const QString PRISM_NCP_SERVICE_CONFIG_API_DEV;
 
 //NaverTV
 extern const QString CHANNEL_NAVERTV_LOGIN_DEV;
@@ -111,6 +121,7 @@ extern const QString CHANNEL_FACEBOOK_SECRET_DEV;
 
 //Chat Widget
 extern const QString CHAT_SOURCE_URL_DEV;
+extern const QString CHATV2_SOURCE_URL_DEV;
 
 //Naver Shopping Live
 extern const QString CHANNEL_NAVER_SHOPPING_LIVE_LOGIN_DEV;
@@ -156,6 +167,8 @@ const auto APP_ORGANIZATION = "";
 const QString TWITCH_URL_BASE = "";
 const QString TWITCH_API_BASE = "";
 const QString TWITCH_API_INGESTS = "";
+
+const QString g_GotoChzzkStudio = "";
 
 // youtube url
 FRONTEND_API extern QString const g_plsGoogleApiHost;
@@ -211,6 +224,10 @@ FRONTEND_API extern const QString g_plsAfreecaTVCategories;
 FRONTEND_API extern const QString g_plsAfreecaTVUpdate;
 FRONTEND_API extern const QString g_plsAfreecaTVLiveID;
 
+// chzzk
+FRONTEND_API extern const QString g_plsChzzkApiHost;
+FRONTEND_API extern const QString g_plsChzzkStudioHost;
+
 //step 1 make value in class PLSNetUrlValues
 //step 2 define macro under class
 //step 3 make impl in cpp
@@ -231,11 +248,14 @@ public:
 	//rtmp urls
 	MAKE_VALUE(g_streamKeyPrismHelperEn)
 	MAKE_VALUE(g_streamKeyPrismHelperKr)
-	MAKE_VALUE(g_streamKeyPrismHelperId)
 	MAKE_VALUE(PLS_RTMP_ADD)
 	MAKE_VALUE(PLS_RTMP_MODIFY)
 	MAKE_VALUE(PLS_RTMP_DELETE)
 	MAKE_VALUE(PLS_RTMP_LIST)
+	MAKE_VALUE(PLS_RTMP_ADD_V2)
+	MAKE_VALUE(PLS_RTMP_MODIFY_V2)
+	MAKE_VALUE(PLS_RTMP_DELETE_V2)
+	MAKE_VALUE(PLS_RTMP_LIST_V2)
 
 	//Naver Shopping Live
 	MAKE_VALUE(CHANNEL_NAVER_SHOPPING_HOST)
@@ -379,6 +399,18 @@ public:
 
 	MAKE_VALUE(PRISM_API_BASE)
 #define PRISM_API_BASE PLSNetUrlValues::PRISM_API_BASE_ACT
+
+	MAKE_VALUE(PRISM_NCP_AUTH_API)
+#define PRISM_NCP_AUTH_API PLSNetUrlValues::PRISM_NCP_AUTH_API_ACT
+	MAKE_VALUE(PRISM_NCP_SERVICE_ID_API)
+#define PRISM_NCP_SERVICE_ID_API PLSNetUrlValues::PRISM_NCP_SERVICE_ID_API_ACT
+	MAKE_VALUE(PRISM_NCP_AUTH_JOIN_API)
+#define PRISM_NCP_AUTH_JOIN_API PLSNetUrlValues::PRISM_NCP_AUTH_JOIN_API_ACT
+	MAKE_VALUE(PRISM_NCP_REFRESH_TOKEN_API)
+#define PRISM_NCP_REFRESH_TOKEN_API PLSNetUrlValues::PRISM_NCP_REFRESH_TOKEN_API_ACT
+	MAKE_VALUE(PRISM_NCP_SERVICE_CONFIG_API)
+#define PRISM_NCP_SERVICE_CONFIG_API PLSNetUrlValues::PRISM_NCP_SERVICE_CONFIG_API_ACT
+
 	MAKE_VALUE(PRISM_AUTH_API_BASE)
 #define PRISM_AUTH_API_BASE PLSNetUrlValues::PRISM_AUTH_API_BASE_ACT
 	MAKE_VALUE(PRISM_API_ACTION)
@@ -396,7 +428,7 @@ public:
 	MAKE_VALUE(CHANNEL_NAVERTV_DEFAULT_HEAD_IMAGE_URL)
 #define CHANNEL_NAVERTV_DEFAULT_HEAD_IMAGE_URL PLSNetUrlValues::CHANNEL_NAVERTV_DEFAULT_HEAD_IMAGE_URL_ACT
 	MAKE_VALUE(CHANNEL_NAVERTV_GET_LIVES)
-#define CHANNEL_NAVERTV_GET_LIVES QString()
+#define CHANNEL_NAVERTV_GET_LIVES PLSNetUrlValues::CHANNEL_NAVERTV_GET_LIVES_ACT
 	MAKE_VALUE(CHANNEL_NAVERTV_GET_STREAM_INFO)
 #define CHANNEL_NAVERTV_GET_STREAM_INFO PLSNetUrlValues::CHANNEL_NAVERTV_GET_STREAM_INFO_ACT
 	MAKE_VALUE(CHANNEL_NAVERTV_QUICK_START)
@@ -465,6 +497,8 @@ public:
 	//Chat Widget
 	MAKE_VALUE(CHAT_SOURCE_URL)
 #define CHAT_SOURCE_URL PLSNetUrlValues::CHAT_SOURCE_URL_ACT
+	MAKE_VALUE(CHATV2_SOURCE_URL)
+#define CHATV2_SOURCE_URL PLSNetUrlValues::CHATV2_SOURCE_URL_ACT
 };
 
 //step 2
@@ -473,10 +507,13 @@ public:
 #define PLS_WHALESPACE_LOGIN_URL PLSNetUrlValues::PLS_WHALESPACE_LOGIN_URL_ACT
 #define g_streamKeyPrismHelperEn PLSNetUrlValues::g_streamKeyPrismHelperEn_ACT
 #define g_streamKeyPrismHelperKr PLSNetUrlValues::g_streamKeyPrismHelperKr_ACT
-#define g_streamKeyPrismHelperId PLSNetUrlValues::g_streamKeyPrismHelperId_ACT
 #define PLS_RTMP_ADD PLSNetUrlValues::PLS_RTMP_ADD_ACT
 #define PLS_RTMP_MODIFY PLSNetUrlValues::PLS_RTMP_MODIFY_ACT
 #define PLS_RTMP_DELETE PLSNetUrlValues::PLS_RTMP_DELETE_ACT
 #define PLS_RTMP_LIST PLSNetUrlValues::PLS_RTMP_LIST_ACT
+#define PLS_RTMP_ADD_V2 PLSNetUrlValues::PLS_RTMP_ADD_V2_ACT
+#define PLS_RTMP_MODIFY_V2 PLSNetUrlValues::PLS_RTMP_MODIFY_V2_ACT
+#define PLS_RTMP_DELETE_V2 PLSNetUrlValues::PLS_RTMP_DELETE_V2_ACT
+#define PLS_RTMP_LIST_V2 PLSNetUrlValues::PLS_RTMP_LIST_V2_ACT
 
 #endif // PLS_NET_URL_HPP

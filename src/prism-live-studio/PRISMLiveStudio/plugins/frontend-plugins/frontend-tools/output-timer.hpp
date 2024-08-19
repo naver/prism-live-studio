@@ -44,5 +44,5 @@ private:
 	QTimer *streamingTimerDisplay;
 	QTimer *recordingTimerDisplay;
 
-	int recordingTimeLeft;
+	std::optional<int> recordingTimeLeft;
 };

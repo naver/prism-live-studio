@@ -227,6 +227,14 @@ bool PLSAudioControl::CheckMasterAudioStatus(obs_data_t *data)
 	return hasValue;
 }
 
+void PLSAudioControl::UpdateMaster()
+{
+	auto muteStatus = GetMasterAudioStatusCurrent();
+	if (muteStatus.audioSourceCount > 0 && muteStatus.isAllAudioMuted) {
+		UpdateMasterSwitch(true);
+	}
+}
+
 void PLSAudioControl::UpdateMasterSwitch(bool mute)
 {
 	muteAll = mute;
@@ -317,6 +325,9 @@ void PLSAudioControl::ActivateAudioSource(OBSSource source) const
 
 void PLSAudioControl::VolumeMuted(const QString &sourceName, bool muted)
 {
+	if (pls_is_app_exiting())
+		return;
+
 	OBSSource source = pls_get_source_by_name(sourceName.toUtf8().constData());
 	if (!source)
 		return;
@@ -339,7 +350,8 @@ void PLSAudioControl::VolumeMuted(const QString &sourceName, bool muted)
 void PLSAudioControl::OnSourceItemVisibleChanged(OBSSceneItem item, bool visible)
 {
 	uint32_t flags = obs_source_get_output_flags(obs_sceneitem_get_source(item));
-	if (flags & OBS_SOURCE_AUDIO) {
+	obs_source_t *source = obs_sceneitem_get_source(item);
+	if (flags & OBS_SOURCE_AUDIO && obs_source_audio_active(source)) {
 		if (!visible) {
 			auto muteStatus = GetMasterAudioStatusCurrent();
 			if (muteStatus.audioSourceCount > 0) {
@@ -348,7 +360,7 @@ void PLSAudioControl::OnSourceItemVisibleChanged(OBSSceneItem item, bool visible
 			}
 		} else {
 			bool allMute = ConfigAllMuted();
-			obs_source_t *source = obs_sceneitem_get_source(item);
+			
 			if (allMute) {
 				obs_source_set_muted(source, allMute);
 				SetSourcePreviousMuted(source, allMute);
@@ -445,7 +457,7 @@ PLSAudioControl::AudioStatus PLSAudioControl::GetSourceAudioStatusCurrent(const 
 				continue;
 			uint32_t flags = obs_source_get_output_flags(source);
 			bool visible = obs_sceneitem_visible(scene_item);
-			if (!(flags & OBS_SOURCE_AUDIO) || !visible)
+			if (!(flags & OBS_SOURCE_AUDIO) || !visible || !obs_source_audio_active(source))
 				continue;
 			allAudioSourceCurrentStatus.audioSourceCount++;
 			if (!obs_source_muted(source)) {
@@ -518,7 +530,7 @@ AudioStatus PLSAudioControl::GetSourceAudioStatusPrevious() const
 			obs_source_t *source = obs_sceneitem_get_source(scene_item);
 			uint32_t flags = obs_source_get_output_flags(source);
 			bool visible = obs_sceneitem_visible(scene_item);
-			if (!(flags & OBS_SOURCE_AUDIO) || !visible)
+			if (!(flags & OBS_SOURCE_AUDIO) || !visible || !obs_source_audio_active(source))
 				continue;
 			allSourceAudioStatusPrevious.audioSourceCount++;
 			if (!SourcePreviousMuted(source)) {

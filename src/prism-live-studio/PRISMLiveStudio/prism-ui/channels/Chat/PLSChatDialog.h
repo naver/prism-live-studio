@@ -14,10 +14,10 @@
 namespace Ui {
 class PLSChatDialog;
 }
+class PLSQCefWidget;
 
 class PLSChatDialog : public QWidget {
 	Q_OBJECT
-	//Q_PROPERTY(bool btnSelected READ getHasCloseButton WRITE setHasCloseButton)
 
 public:
 	explicit PLSChatDialog(QWidget *parent = nullptr);
@@ -27,7 +27,7 @@ public:
 private:
 	struct ChatDatas {
 		QPointer<QWidget> widget;
-		QPushButton *button;
+		QPointer<QPushButton> button;
 		std::string url;
 		bool isWebLoaded = false;
 	};
@@ -37,9 +37,8 @@ private:
 	void refreshTabButtonCount();
 	void hideOrShowTabButton();
 	void setupFirstRtmpUI(QWidget *parent);
-	void refreshUI();
 	int rtmpChannelCount() const;
-	QCefWidget *createANewCefWidget(const std::string &url, int index);
+	PLSQCefWidget *createANewCefWidget(const std::string &url, int index);
 
 	void setupNewUrl(int index, const std::string &url, bool forceSet = false);
 	int foundFirstShowedButton();
@@ -61,13 +60,17 @@ private:
 
 	int getShownBtnCount();
 	void updateTabPolicy();
+	void updateTopAddSourceText();
 
+	QCefWidget *getCefWidgetByWidget(const ChatDatas &data);
+	void updateTabBtnCss();
+	std::wstring getSendWebData(const QJsonObject &data);
 signals:
 	void chatShowOrHide(bool show);
 	void fontBtnDisabled();
 
 private slots:
-	void changedSelectIndex(int index);
+	void changedSelectIndex(int index, bool isClicked = false);
 	void channelRemoveToDeleteCef(int index);
 	void facebookPrivateChatChanged(bool oldPrivate, bool newPrivate);
 	//PRISM/Zhangdewen/20200921/#/add chat source button
@@ -78,6 +81,10 @@ private slots:
 
 	void urlDidChanged(const QString &url);
 	void titleChanged(const QString &title);
+
+	void refreshUI();
+	void youtubePrivateChange();
+	void recvLocalChatWebMsg(const QString &type, const QString &msg);
 
 protected:
 	void showEvent(QShowEvent *event) override;
@@ -101,6 +108,7 @@ private:
 	//PRISM/Zhangdewen/20200921/#/add chat source button
 	QWidget *m_chatSourceButtonOnePlatform = nullptr;
 	QWidget *m_chatSourceButtonNoPlatform = nullptr;
+	QPointer<QWidget> m_chatSourceBtn = nullptr;
 
 	QPushButton *m_fontChangeBtn = nullptr;
 
@@ -111,9 +119,9 @@ private:
 
 	bool m_bShowToastAgain = false;
 	bool m_bRefeshYoutubeChat = false;
-	QMetaObject::Connection facebookPrivateConn;
-	QMetaObject::Connection youtubeIDConn;
-	QMetaObject::Connection youtubePrivateConn;
+	bool m_chatActionSelect = false;
+
+	QPointer<QFrame> m_maskWidget = nullptr;
 };
 
 #endif // PLSCHATDIALOG_H

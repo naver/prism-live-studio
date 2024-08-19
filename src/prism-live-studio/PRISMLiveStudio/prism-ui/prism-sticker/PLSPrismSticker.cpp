@@ -731,7 +731,10 @@ void PLSPrismSticker::UserApplySticker(const StickerData &data, StickerPointer l
 		label->SetShowLoad(false);
 		qint64 gap = QDateTime::currentMSecsSinceEpoch() - dateTime;
 		if (gap < LOADING_TIME_MS) {
-			QTimer::singleShot(LOADING_TIME_MS - gap, this, [label]() { label->SetShowOutline(false); });
+			QTimer::singleShot(LOADING_TIME_MS - gap, this, [label]() {
+				PLS_INFO(MAIN_PRISM_STICKER, "UserApplySticker: single shot timer triggered.");
+				label->SetShowOutline(false);
+			});
 		} else {
 			label->SetShowOutline(false);
 		}
@@ -788,7 +791,10 @@ void PLSPrismSticker::UpdateToastPos()
 	}
 }
 
-void PLSPrismSticker::DownloadResource(const StickerData &data, StickerPointer label) {}
+void PLSPrismSticker::DownloadResource(const StickerData &data, StickerPointer label)
+{
+	
+}
 
 QLayout *PLSPrismSticker::GetFlowlayout(const QString &categoryId)
 {
@@ -816,7 +822,7 @@ void PLSPrismSticker::showEvent(QShowEvent *event)
 	showMoreBtn = true;
 	isShown = true;
 	if (isDataReady) {
-		QTimer::singleShot(0, this, [this]() {
+		pls_async_call(this, [this]() {
 			InitCategory();
 			AdjustCategoryTab();
 			SwitchToCategory((!recentStickerData.empty()) ? CATEGORY_ID_RECENT : CATEGORY_ID_ALL);
@@ -877,12 +883,12 @@ void PLSPrismSticker::OnHandleStickerDataFinished()
 	if (ok) {
 		isDataReady = true;
 		if (isShown) {
-			QTimer::singleShot(0, this, [this]() {
+			pls_async_call(this, [this]() {
 				InitCategory();
 				if (!NetworkAccessible()) {
 					ShowNoNetworkPage(tr("main.giphy.network.toast.error"), NoNetwork);
 				}
-				QTimer::singleShot(0, this, [this]() {
+				pls_async_call(this, [this]() {
 					AdjustCategoryTab();
 					SwitchToCategory((!recentStickerData.empty()) ? CATEGORY_ID_RECENT : CATEGORY_ID_ALL);
 				});
@@ -931,7 +937,7 @@ void PLSPrismSticker::OnRetryOnNoNetwork()
 	}
 
 	if (!NetworkAccessible()) {
-		QTimer::singleShot(0, this, [this]() { ShowToast(QTStr("main.giphy.network.toast.error")); });
+		pls_async_call(this, [this]() { ShowToast(QTStr("main.giphy.network.toast.error")); });
 	}
 }
 
@@ -964,25 +970,16 @@ void PLSPrismSticker::HandleDownloadResult(const TaskResponData &result, const S
 	}
 }
 
-void PLSPrismSticker::DownloadJsonFileTimeOut()
+void PLSPrismSticker::OnDownloadJsonFailed(bool timeout)
 {
 	pls_check_app_exiting();
 	HideLoading();
-	ShowNoNetworkPage(tr("main.giphy.network.request.timeout"), Timeout);
+	if (timeout)
+		ShowNoNetworkPage(tr("main.giphy.network.request.timeout"), Timeout);
 	auto ret = pls_show_download_failed_alert(this);
 	if (ret == PLSAlertView::Button::Ok) {
 		PLS_INFO(MAIN_BEAUTY_MODULE, "Prism Sticker: User select retry download.");
-		DoDownloadJsonFile();
-	}
-}
-
-void PLSPrismSticker::OnDownloadJsonFailed()
-{
-	pls_check_app_exiting();
-	auto ret = pls_show_download_failed_alert(this);
-	if (ret == PLSAlertView::Button::Ok) {
-		PLS_INFO(MAIN_BEAUTY_MODULE, "Prism Sticker: User select retry download.");
-		DoDownloadJsonFile();
+		DownloadCategoryJson();
 	}
 }
 
@@ -1085,11 +1082,17 @@ void PLSPrismSticker::LoadStickerAsync(const StickerData &data, QWidget *parent,
 	layout->update();
 }
 
-void PLSPrismSticker::DownloadCategoryJson() {}
+void PLSPrismSticker::DownloadCategoryJson()
+{
+	
+}
 
 bool PLSPrismSticker::NetworkAccessible() const
 {
 	return pls_get_network_state();
 }
 
-void PLSPrismSticker::DoDownloadJsonFile() {}
+void PLSPrismSticker::DoDownloadJsonFile()
+{
+	
+}

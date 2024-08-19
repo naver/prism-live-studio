@@ -246,13 +246,13 @@ protected:
 			return;
 		}
 		QPushButton::resizeEvent(event);
-		QTimer::singleShot(0, this, [this]() { UpdateRect(); });
+		pls_async_call(this, [this]() { UpdateRect(); });
 	}
 
 	void showEvent(QShowEvent *event) override
 	{
 		QPushButton::showEvent(event);
-		QTimer::singleShot(0, this, [this]() { UpdateRect(); });
+		pls_async_call(this, [this]() { UpdateRect(); });
 	}
 
 private slots:

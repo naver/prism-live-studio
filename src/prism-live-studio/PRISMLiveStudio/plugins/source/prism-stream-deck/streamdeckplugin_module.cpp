@@ -384,6 +384,8 @@ static void OBSEvent(enum obs_frontend_event event, void *data)
 		QMetaObject::invokeMethod(LocalGlobalVars::actionHelpPtr, "CheckStudioMode");
 		break;
 	case OBS_FRONTEND_EVENT_FINISHED_LOADING:
+		/*modified by xie-wei #3946*/
+		obs_event_scene_collection_changed(result, eventJson);
 		obs_event_loading_finished(result, eventJson);
 		break;
 

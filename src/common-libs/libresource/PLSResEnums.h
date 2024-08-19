@@ -40,6 +40,7 @@ constexpr auto resourceTmpFilePath = "%1/%2";
 constexpr auto resCacheDir = "%1/res_cache";
 constexpr auto resTemplateDir = "%1/res_template";
 constexpr auto resBannerJson = "banner_resources.json";
+constexpr auto sceneTemplateJson = "sceneTemplate.json";
 }
 
 #endif // PLSRESENUMS_H

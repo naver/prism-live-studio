@@ -44,9 +44,7 @@ elseif(OS_MACOS)
 		PLSAnalysisStack.h
 		PLSAnalysisStack.cpp
 		mac/PLSAnalysisStackInterface.h
-		mac/PLSAnalysisStack.mm
-		mac/mach_backtrace.h
-		mac/mach_backtrace.c)
+		mac/PLSAnalysisStack.mm)
 
 	target_link_libraries(libdump-analyzer common-libs::third-party::kscrash)
 endif()
@@ -56,4 +54,5 @@ set_target_properties(libdump-analyzer PROPERTIES FOLDER common-libs/libdump-ana
 set_target_properties(libdump-analyzer PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")
 
 common_libs_module(libdump-analyzer "common libs dump analyzer module")
+
 copy_common_libs_binary(libdump-analyzer)

@@ -4,7 +4,7 @@
 #include <QWidget>
 #include <qbuttongroup.h>
 #include <qpointer.h>
-#include "PLSDialogView.h"
+#include "PLSWindow.h"
 #include <qsystemtrayicon.h>
 #include <qscrollarea.h>
 #include <qlayoutitem.h>
@@ -14,7 +14,7 @@ namespace Ui {
 class PLSLaunchWizardView;
 }
 class PLSWizardInfoView;
-class PLSLaunchWizardView : public PLSDialogView {
+class PLSLaunchWizardView : public PLSWindow {
 	Q_OBJECT
 
 public:
@@ -37,6 +37,7 @@ signals:
 
 protected:
 	bool eventFilter(QObject *watched, QEvent *event) override;
+	virtual void closeEvent(QCloseEvent *event) override;
 
 private:
 	void setUserInfo(const QVariantMap &info = QVariantMap());

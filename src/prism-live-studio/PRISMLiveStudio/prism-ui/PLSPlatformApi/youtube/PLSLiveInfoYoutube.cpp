@@ -42,6 +42,7 @@ PLSLiveInfoYoutube::PLSLiveInfoYoutube(PLSPlatformBase *pPlatformBase, QWidget *
 	m_enteredID = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
 
 	ui->latencyRadioWidget->setEnabled(!PLS_PLATFORM_API->isLiving());
+	ui->textEditDescribe->setAcceptRichText(false);
 
 	m_isLiveStopped = PLS_PLATFORM_YOUTUBE->isSelfStopping();
 	setupFirstUI();
@@ -63,6 +64,8 @@ PLSLiveInfoYoutube::PLSLiveInfoYoutube(PLSPlatformBase *pPlatformBase, QWidget *
 
 	ui->sPushButton->setButtonEnable(!PLS_PLATFORM_API->isLiving());
 	ui->thumbnailButton->setIsIgoreMinSize(true);
+
+	PLSAPICommon::createHelpIconWidget(ui->latencyTitle, QString("<qt>%1</qt>").arg(tr("LiveInfo.latency.title.tip")), ui->formLayout, this, &PLSLiveInfoYoutube::shown);
 
 	doUpdateOkState();
 	refreshThumbnailButton();
@@ -88,7 +91,6 @@ void PLSLiveInfoYoutube::setupFirstUI()
 	ui->textEditDescribe->setPlaceholderText(tr("Live.info.Description"));
 	ui->comboBoxPublic->clear();
 	ui->comboBoxCategory->clear();
-	ui->latencyIcon->setToolTip(QString("<qt>%1</qt>").arg(tr("LiveInfo.latency.title.tip")));
 	refreshUI();
 	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
 	if (nullptr != pPlatformYoutube) {
@@ -143,9 +145,6 @@ void PLSLiveInfoYoutube::setupFirstUI()
 	connect(ui->thumbnailButton, &PLSSelectImageButton::imageSelected, this, &PLSLiveInfoYoutube::onImageSelected);
 	connect(pPlatformYoutube, &PLSPlatformYoutube::receiveLiveStop, this, [this]() { m_isLiveStopped = true; });
 	connect(this, &PLSLiveInfoYoutube::loadingFinished, this, &PLSLiveInfoYoutube::selectScheduleCheck, Qt::QueuedConnection);
-#if defined(Q_OS_MACOS)
-	ui->latencyIcon->installEventFilter(this);
-#endif
 }
 
 void PLSLiveInfoYoutube::showEvent(QShowEvent *event)
@@ -184,19 +183,6 @@ void PLSLiveInfoYoutube::showEvent(QShowEvent *event)
 		},
 		this);
 	PLSLiveInfoBase::showEvent(event);
-}
-
-bool PLSLiveInfoYoutube::eventFilter(QObject *watched, QEvent *event)
-{
-#if defined(Q_OS_MACOS)
-	if (watched == ui->latencyIcon && event->type() == QEvent::ToolTip) {
-		QPoint pos = ui->latencyIcon->rect().center();
-		QPoint global = ui->latencyIcon->mapToGlobal(pos);
-		QToolTip::showText(QPoint(global.rx(), global.ry() - 20), ui->latencyIcon->toolTip(), ui->latencyIcon);
-		return true;
-	}
-#endif
-	return PLSDialogView::eventFilter(watched, event);
 }
 
 void PLSLiveInfoYoutube::refreshUI()
@@ -622,7 +608,7 @@ void PLSLiveInfoYoutube::titleEdited()
 	doUpdateOkState();
 
 	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
-	const auto channelName = pPlatformYoutube->getInitData().value(ChannelData::g_platformName).toString();
+	const auto channelName = pPlatformYoutube->getInitData().value(ChannelData::g_channelName).toString();
 
 	if (isLargeToMax) {
 		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(YoutubeTitleLengthLimit).arg(channelName));
@@ -640,7 +626,7 @@ void PLSLiveInfoYoutube::descriptionEdited()
 	if (ui->textEditDescribe->toPlainText().length() > YoutubeDescribeLengthLimit) {
 		QSignalBlocker signalBlocker(ui->textEditDescribe);
 		ui->textEditDescribe->setText(ui->textEditDescribe->toPlainText().left(YoutubeDescribeLengthLimit));
-		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Youtube.Description.Length.Check.arg"));
+		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Youtube.Description.Length.Check.arg").arg(PLS_PLATFORM_YOUTUBE->getChannelName()));
 	}
 
 	doUpdateOkState();

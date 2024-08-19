@@ -120,16 +120,19 @@ void PLSRemoteChatManage::openRemoteChat()
 
 	printLog("call open remote chat method");
 	if (!startWebsocketServer()) {
+		pls_alert_error_message(g_laboratoryDialog, tr("Alert.Title"), tr("laboratory.item.open.other.reason.failed.text"));
 		closeRemoteChatView();
 		return;
 	}
 
 	if (!startWebServer()) {
+		pls_alert_error_message(g_laboratoryDialog, tr("Alert.Title"), tr("laboratory.item.open.other.reason.failed.text"));
 		closeRemoteChatView();
 		return;
 	}
 
 	if (!showRemoteChatView()) {
+		pls_alert_error_message(g_laboratoryDialog, tr("Alert.Title"), tr("laboratory.item.open.other.reason.failed.text"));
 		closeRemoteChatView();
 		return;
 	}
@@ -153,15 +156,22 @@ bool PLSRemoteChatManage::startWebServer()
 	printLog("start create webserver");
 	m_tcpServer = pls_new<QTcpServer>();
 	QHostAddress ipAddress;
+	bool hasWebAddress = false;
 	QList<QHostAddress> ipAddressList = QNetworkInterface::allAddresses();
 	for (int i = 0; i < ipAddressList.size(); i++) {
 		if (ipAddressList.at(i) != QHostAddress::LocalHost && ipAddressList.at(i).toIPv4Address()) {
 			ipAddress = ipAddressList.at(i);
+			hasWebAddress = true;
 			break;
 		}
 	}
 
 	if (ipAddressList.isEmpty()) {
+		printLog("create webserver failed because the ip address list is empty");
+		return false;
+	}
+
+	if (!hasWebAddress) {
 		printLog("create webserver failed because the ip address is empty");
 		return false;
 	}
@@ -359,7 +369,7 @@ void PLSRemoteChatManage::sendNaverShoppingNotice(const QJsonObject &data) const
 	requestJsonObject.insert("broadcastId", liveInfo.id);
 	PLSNaverShoppingLIVEAPI::sendNotice(
 		platform, requestJsonObject, this, [](const QJsonDocument &) {},
-		[](PLSAPINaverShoppingType) {
+		[](PLSAPINaverShoppingType, const QByteArray &) {
 
 		});
 }

@@ -23,17 +23,19 @@ bool ::LoginCommonHelpers::isValidNickNameByRegExp(const QString &nickName)
 	return rep.match(nickName).hasMatch();
 }
 
-void LoginCommonHelpers::setCurrentStackWidget(QStackedWidget *stackWidget, const QString &ojbName)
+QWidget* LoginCommonHelpers::setCurrentStackWidget(QStackedWidget *stackWidget, const QString &ojbName)
 {
 	if (stackWidget) {
 		QWidget *widget = stackWidget->findChild<QWidget *>(ojbName);
 		if (widget) {
 			stackWidget->setCurrentWidget(widget);
 		}
+		return widget;
 	}
+	return nullptr;
 }
 
-QWidget *LoginCommonHelpers::getCurrentStackWidget(const QStackedWidget *stackWidget, const QString &ojbName)
+QWidget *LoginCommonHelpers::getWidgetFromStackWidget(const QStackedWidget *stackWidget, const QString &ojbName)
 {
 	if (stackWidget) {
 		return stackWidget->findChild<QWidget *>(ojbName);

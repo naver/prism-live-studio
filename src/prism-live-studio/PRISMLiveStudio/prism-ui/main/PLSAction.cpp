@@ -45,7 +45,7 @@ const auto DECKLINK_DEVICE_HASH = "device_hash";
 
 #define CHECK_SOURCE_ID(target)                        \
 	if (pluginID && strcmp(pluginID, target) != 0) \
-		return
+	return
 
 ActionInfo::ActionInfo(QString e1, QString e2, QString e3, QString tgt) : event1(e1), event2(e2), event3(e3), target(tgt) {}
 
@@ -189,68 +189,58 @@ QString GetActionSourceID(const char *id)
 		return ACT_SRC_GROUP;
 
 	switch (obs_source_get_icon_type(id)) {
-	case OBS_ICON_TYPE_IMAGE:
-		return ACT_SRC_IMAGE;
-
-	case OBS_ICON_TYPE_COLOR:
-		return ACT_SRC_COLOR;
-
-	case OBS_ICON_TYPE_SLIDESHOW:
-		return ACT_SRC_IMAGESLIDE;
-
+	case OBS_ICON_TYPE_CAMERA:
+		return ACT_SRC_CAMERA;
 	case OBS_ICON_TYPE_AUDIO_INPUT:
 		return ACT_SRC_AUDIO;
 	case OBS_ICON_TYPE_AUDIO_OUTPUT:
-		return ACT_SRC_OUTPUT_AUDIO;
-
-	case OBS_ICON_TYPE_DESKTOP_CAPTURE:
-		return ACT_SRC_MONITOR;
-
-	case OBS_ICON_TYPE_WINDOW_CAPTURE:
-		return ACT_SRC_WINDOW;
-
+		return "audioOutputCaptureDevice";
+	case PLS_ICON_TYPE_NDI:
+		return ACT_SRC_NDI;
 	case OBS_ICON_TYPE_GAME_CAPTURE:
 		return ACT_SRC_GAME;
-
-	case OBS_ICON_TYPE_CAMERA:
-		return ACT_SRC_CAMERA;
-
-		//case OBS_ICON_TYPE_OBS_CAMERA:
-		//	return id;
-
-	case OBS_ICON_TYPE_TEXT:
-		return ACT_SRC_TEXT;
-
-	case OBS_ICON_TYPE_MEDIA:
-		return ACT_SRC_MEDIA;
-
+	case OBS_ICON_TYPE_DESKTOP_CAPTURE:
+		return "monitorWhole";
+	case PLS_ICON_TYPE_REGION:
+		return "monitorPart";
+	case OBS_ICON_TYPE_WINDOW_CAPTURE:
+		return ACT_SRC_WINDOW;
 	case OBS_ICON_TYPE_BROWSER:
 		return ACT_SRC_WEB;
-
-		/*case OBS_ICON_TYPE_BGM:
+	case OBS_ICON_TYPE_MEDIA:
+		return ACT_SRC_MEDIA;
+	case OBS_ICON_TYPE_IMAGE:
+		return ACT_SRC_IMAGE;
+	case OBS_ICON_TYPE_SLIDESHOW:
+		return ACT_SRC_IMAGESLIDE;
+	case OBS_ICON_TYPE_COLOR:
+		return ACT_SRC_COLOR;
+	case OBS_ICON_TYPE_TEXT:
+		return ACT_SRC_TEXT;
+	case PLS_ICON_TYPE_BGM:
 		return ACT_SRC_BGM;
-
-	case OBS_ICON_TYPE_TEXT_MOTION:
+	case PLS_ICON_TYPE_TEXT_TEMPLATE:
 		return ACT_SRC_TEXT_MOTION;
-
-	case OBS_ICON_TYPE_CHAT:
+	case PLS_ICON_TYPE_CHAT:
 		return ACT_SRC_CHAT;
-
-	case OBS_ICON_TYPE_PRISM_MOBILE:
+	case PLS_ICON_TYPE_PRISM_MOBILE:
 		return ACT_SRC_PRISM_MOBILE;
-
-	case OBS_ICON_TYPE_PRISM_TIMER:
+	case PLS_ICON_TYPE_PRISM_TIMER:
 		return ACT_SRC_TIMER;
-
-	case OBS_ICON_TYPE_GIPHY:
-		return ACT_SRC_GIPHY_STICKER;
-
-	case OBS_ICON_TYPE_REGION:
-		return ACT_SRC_REGION_CAPTURER;
-
-	case OBS_ICON_TYPE_PRISM_STICKER:
-		return ACT_SRC_STICKER;*/
-
+	case PLS_ICON_TYPE_VIRTUAL_BACKGROUND:
+		return ACT_SRC_BGT;
+	case PLS_ICON_TYPE_SPECTRALIZER:
+		return ACT_SRC_AUDIO_VISUAL;
+	case PLS_ICON_TYPE_VIEWER_COUNT:
+		return ACT_SRC_VIEWER_COUNT;
+	case PLS_ICON_TYPE_DECKLINK_INPUT:
+		return ACT_SRC_DECKLINK_INPUT;
+	case PLS_ICON_TYPE_CHAT_TEMPLATE:
+		return ACT_SRC_CHATV2;
+	case PLS_ICON_TYPE_PRISM_LENS:
+		return ACT_SRC_PRISM_LENS;
+	case PLS_ICON_TYPE_CHZZK_SPONSOR:
+		return ACT_SRC_CHZZK_SPONSOR_SOURCE;
 	default:
 		return id;
 	}
@@ -460,9 +450,29 @@ void CheckText(const char *pluginID, OBSData previous, OBSData current, unsigned
 
 	QString oldText = obs_data_get_string(previous, TEXT_CONTENT);
 	QString newText = obs_data_get_string(current, TEXT_CONTENT);
+
+	QString fontFamily;
+	auto oldFontObj = obs_data_get_obj(previous, "font");
+	auto newFontObj = obs_data_get_obj(current, "font");
+	if (newFontObj) {
+		if (!oldFontObj) {
+			const char *font_face = obs_data_get_string(newFontObj, "face");
+			fontFamily = (font_face && *font_face) ? font_face : "";
+		} else {
+			const char *new_font_face = obs_data_get_string(newFontObj, "face");
+			const char *old_font_face = obs_data_get_string(oldFontObj, "face");
+			if (new_font_face && old_font_face && 0 != strcmp(new_font_face, old_font_face)) {
+				fontFamily = new_font_face;
+			}
+		}
+	}
 	if (oldText != newText && !newText.isEmpty()) {
 		SendActionLog(ActionInfo(EVENT_MAIN_EDIT, ACT_SRC_TEXT, EVENT_TYPE_CONFIRMED, newText));
 		SendPropToNelo(pluginID, "text", newText.toStdString().c_str());
+	}
+
+	if (!fontFamily.isEmpty()) {
+		SendPropToNelo(pluginID, "fontFamily", fontFamily.toStdString().c_str());
 	}
 }
 
@@ -610,7 +620,7 @@ void CheckViewerCount(const char *pluginID, OBSData previous, OBSData current, u
 	if (oldValue != newValue) {
 		std::string temp = std::to_string(newValue);
 		SendActionToNelo(pluginID, ACTION_EDIT_EVENT, temp.c_str());
-		SendActionLog(ActionInfo(EVENT_MAIN_EDIT, ACT_SRC_BGT, EVENT_TYPE_CONFIRMED, QString::number(newValue)));
+		SendActionLog(ActionInfo(EVENT_MAIN_EDIT, ACT_SRC_VIEWER_COUNT, EVENT_TYPE_CONFIRMED, QString::number(newValue)));
 		SendPropToNelo(pluginID, "templateId", temp.c_str());
 	}
 }
@@ -865,7 +875,7 @@ void CheckDeckLink(const char *pluginID, OBSData previous, OBSData current, unsi
 
 void CheckAudio(const char *pluginID, OBSData previous, OBSData current, unsigned operationFlags, QString src)
 {
-	if (strcmp(pluginID, common::AUDIO_INPUT_SOURCE_ID) != 0 && strcmp(pluginID, common::AUDIO_OUTPUT_SOURCE_ID) != 0)
+	if (strcmp(pluginID, common::AUDIO_INPUT_SOURCE_ID) != 0 && strcmp(pluginID, common::AUDIO_OUTPUT_SOURCE_ID) != 0 && strcmp(pluginID, common::AUDIO_OUTPUT_SOURCE_ID_V2) != 0)
 		return;
 
 	QString oldID = obs_data_get_string(previous, AUDIO_DEVICE_ID);
@@ -900,7 +910,7 @@ void CheckPropertyAction(OBSSource source, OBSData previous, OBSData current, un
 		return;
 
 	const char *id = obs_source_get_unversioned_id(source);
-    int iconType = obs_source_get_icon_type(obs_source_get_id(source));
+	int iconType = obs_source_get_icon_type(obs_source_get_id(source));
 	switch (iconType) {
 	case OBS_ICON_TYPE_CAMERA:
 		CheckCamera(source, id, previous, current, operationFlags);

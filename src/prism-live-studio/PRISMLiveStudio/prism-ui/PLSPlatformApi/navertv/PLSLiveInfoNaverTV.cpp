@@ -89,9 +89,6 @@ PLSLiveInfoNaverTV::PLSLiveInfoNaverTV(PLSPlatformBase *pPlatformBase, const QVa
 	ui->lineEditTitle->setCursorPosition(0);
 	doUpdateOkState();
 
-	if (PLS_PLATFORM_API->isPrepareLive()) {
-		ui->horizontalLayout->addWidget(ui->okButton);
-	}
 	if (!liveInfo->isScheLive) {
 		tmpNewLiveInfoTitle = liveInfo->title;
 		tmpNewLiveInfoThumbnailPath = liveInfo->thumbnailImagePath;
@@ -105,6 +102,11 @@ PLSLiveInfoNaverTV::PLSLiveInfoNaverTV(PLSPlatformBase *pPlatformBase, const QVa
 			},
 			this, true, false);
 	}
+#if defined(Q_OS_WIN)
+	if (!PLS_PLATFORM_API->isPrepareLive()) {
+		ui->horizontalLayout->addWidget(ui->cancelButton);
+	}
+#endif
 }
 
 PLSLiveInfoNaverTV::~PLSLiveInfoNaverTV()
@@ -272,7 +274,7 @@ void PLSLiveInfoNaverTV::titleEdited()
 	doUpdateOkState();
 
 	if (isTooLong) {
-		PLSAlertView::warning(this, tr("Alert.Title"), tr("LiveInfo.NaverTV.Title.Length.Check.Alert"));
+		PLSAlertView::warning(this, tr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TitleLengthLimit).arg(platform->getChannelName()));
 	}
 }
 

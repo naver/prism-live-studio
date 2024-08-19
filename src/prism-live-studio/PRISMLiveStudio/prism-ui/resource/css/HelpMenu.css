@@ -2,8 +2,8 @@
 QMenu#helpMenu {
 	border: /*hdpi*/ 1px solid #111111;
 	background: #2d2d2d;
-	min-height: /*hdpi*/ 216px;
-	max-height: /*hdpi*/ 216px;
+	min-height: /*hdpi*/ 176px;
+	max-height: /*hdpi*/ 176px;
 	min-width: /*hdpi*/ 180px;
 	max-width: /*hdpi*/ 180px;
 	padding: 0px;
@@ -12,8 +12,8 @@ QMenu#helpMenu {
 PLSMainView #helpListWidget {
 	border: /*hdpi*/ none;
 	background-color: transparent;
-	min-height: /*hdpi*/ 216px;
-	max-height: /*hdpi*/ 216px;
+	min-height: /*hdpi*/ 176px;
+	max-height: /*hdpi*/ 176px;
 	min-width: /*hdpi*/ 180px;
 	max-width: /*hdpi*/ 180px;
 	padding-top: /*hdpi*/ 8px;

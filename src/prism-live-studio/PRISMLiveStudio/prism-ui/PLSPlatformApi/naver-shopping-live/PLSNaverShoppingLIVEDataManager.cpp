@@ -9,6 +9,7 @@
 #include "json-data-handler.hpp"
 #include "log/log.h"
 #include "utils-api.h"
+#include "pls-shared-functions.h"
 
 #include <QApplication>
 #include <QDir>
@@ -75,8 +76,7 @@ PLSNaverShoppingLIVEDataManager::PLSNaverShoppingLIVEDataManager(QObject *parent
 	loadSmartStoreInfo();
 	loadOtherInfos();
 
-	defaultImage.load(QString(":/images/navershopping/img-nshopping-loading.svg"));
-	liveProductBadgeImage.load(QString(":/images/navershopping/badge-nshoppinglive.svg"));
+	defaultImage.load(QString(":resource/images/navershopping/img-nshopping-loading.svg"));
 
 	PLSLiveInfoNaverShoppingLIVEProductItemView::addBatchCache(MAX_LIVEINFO_PRODUCT_COUNT);
 	PLSNaverShoppingLIVEProductItemView::addBatchCache(PRODUCT_PAGE_SIZE);
@@ -527,11 +527,6 @@ QSvgRenderer &PLSNaverShoppingLIVEDataManager::getDefaultImage()
 	return defaultImage;
 }
 
-QSvgRenderer &PLSNaverShoppingLIVEDataManager::getLiveProductBadgeImage()
-{
-	return liveProductBadgeImage;
-}
-
 bool PLSNaverShoppingLIVEDataManager::hasThumbnailPixmap(const QString &url)
 {
 	QReadLocker readLocker(&downloadImagePixmapCacheRWLock);
@@ -595,7 +590,7 @@ static QPixmap roundedPixmap(const QPixmap &pixmap, int radius)
 	return image;
 }
 
-static QPixmap roundedLivePixmap(const QPixmap &pixmap, QSvgRenderer &liveBadge, const QSize &liveSize, int radius)
+static QPixmap roundedLivePixmap(const QPixmap &pixmap, const QSize &liveSize, int radius)
 {
 	QPixmap image(pixmap.size());
 	image.fill(Qt::transparent);
@@ -613,7 +608,8 @@ static QPixmap roundedLivePixmap(const QPixmap &pixmap, QSvgRenderer &liveBadge,
 	painter.fillRect(rect, QColor(30, 30, 31));
 	painter.drawPixmap(rect, pixmap);
 
-	liveBadge.render(&painter, QRectF(0, 0, liveSize.width(), liveSize.height()));
+	QPixmap pix = pls_shared_paint_svg(":resource/images/navershopping/badge_nshoppinglive.svg", liveSize);
+	painter.drawPixmap(0, 0, liveSize.width(), liveSize.height(), pix);
 
 	return image;
 }
@@ -663,7 +659,7 @@ bool PLSNaverShoppingLIVEDataManager::getThumbnailPixmap(QPixmap &normalPixmap, 
 
 	QPixmap scaled = scaledCrop(original, size);
 	normalPixmap = roundedPixmap(scaled, radius);
-	livePixmap = roundedLivePixmap(scaled, liveProductBadgeImage, liveSize, radius);
+	livePixmap = roundedLivePixmap(scaled, liveSize, radius);
 
 	QPixmap hoveredCrop = normalPixmap.copy(normalPixmap.rect() - margin);
 	hoveredPixmap = hoveredRoundedPixmap(size, roundedPixmap(hoveredCrop, radius), margin, radius);
@@ -759,7 +755,7 @@ void PLSNaverShoppingLIVEDataManager::getThumbnailPixmapAsync(PLSNaverShoppingLI
 	}
 
 	QMargins margin = QMargins(2, 2, 2, 2);
-	QSize liveSize = QSize(49, 17);
+	QSize liveSize = QSize(27, 17);
 	updateThumbnailPixmapSize(size, margin, radius, liveSize);
 
 	QPixmap normalPixmap;
@@ -789,7 +785,7 @@ void PLSNaverShoppingLIVEDataManager::updateThumbnailPixmap(const QString &url, 
 	if (isThumbnailPixmapSizeValid(size) && radius > 0) {
 		QPixmap scaled = scaledCrop(imagePixmap, size);
 		QPixmap normalPixmap = roundedPixmap(scaled, radius);
-		QPixmap livePixmap = roundedLivePixmap(scaled, liveProductBadgeImage, liveSize, radius);
+		QPixmap livePixmap = roundedLivePixmap(scaled, liveSize, radius);
 
 		QPixmap hoveredCrop = normalPixmap.copy(normalPixmap.rect() - margin);
 		QPixmap hoveredPixmap = hoveredRoundedPixmap(size, roundedPixmap(hoveredCrop, radius), margin, radius);

@@ -82,18 +82,31 @@ PLSSelectImageButton::PLSSelectImageButton(QWidget *parent) : QLabel(parent)
 	ui->setupUi(this);
 	initButton(ui->takeButton);
 	initButton(ui->selectButton);
+	initButton(ui->deleteButton);
+	pls_flush_style(ui->selectButton, "isBottom", true);
 
-	icon = pls_new<QLabel>(ui->imageLabel);
+	QVBoxLayout *layout = pls_new<QVBoxLayout>(ui->imageLabel);
+	layout->setSpacing(0);
+	icon = pls_new<QLabel>();
 	icon->setObjectName("icon");
 	icon->lower();
 	icon->installEventFilter(this);
+	layout->addWidget(icon, 0, Qt::AlignHCenter | Qt::AlignVCenter);
+
+	m_tipLabel = pls_new<QLabel>();
+	m_tipLabel->setObjectName("tipLabel");
+	m_tipLabel->lower();
+	m_tipLabel->setText("");
+	layout->addWidget(m_tipLabel, 0, Qt::AlignHCenter | Qt::AlignTop);
+	m_tipLabel->hide();
 
 	setScaledContents(true);
 	setMouseTracking(true);
 	ui->takeButton->setMouseTracking(true);
 	ui->selectButton->setMouseTracking(true);
+	ui->deleteButton->setMouseTracking(true);
 
-	ui->maskBgWidget->setHidden(true);
+	setMaskBgWidgetVisible(false);
 	setRemoveRetainSizeWhenHidden(ui->maskBgWidget);
 	setRemoveRetainSizeWhenHidden(ui->imageLabel);
 }
@@ -120,6 +133,7 @@ void PLSSelectImageButton::setImagePath(const QString &imagePath_)
 	} else {
 		setPixmap(QPixmap());
 		icon->show();
+		m_tipLabel->setVisible(icon->isVisible() && m_isShowTipLabel);
 	}
 }
 void PLSSelectImageButton::setPixmap(const QPixmap &pixmap, const QSize &size)
@@ -130,6 +144,7 @@ void PLSSelectImageButton::setPixmap(const QPixmap &pixmap, const QSize &size)
 	if (pixmap.isNull() || imgSize.isEmpty() || showSize.isEmpty()) {
 		ui->imageLabel->setPixmap(pixmap);
 		icon->show();
+		m_tipLabel->setVisible(icon->isVisible() && m_isShowTipLabel);
 		return;
 	}
 
@@ -157,6 +172,7 @@ void PLSSelectImageButton::setPixmap(const QPixmap &pixmap, const QSize &size)
 
 	ui->imageLabel->setPixmap(image);
 	icon->hide();
+	m_tipLabel->setVisible(icon->isVisible() && m_isShowTipLabel);
 }
 
 void PLSSelectImageButton::setButtonEnabled(bool enabled)
@@ -179,8 +195,9 @@ void PLSSelectImageButton::mouseEnter()
 {
 	if (!mouseHover) {
 		mouseHover = true;
-		ui->maskBgWidget->setVisible(icon->isEnabled());
+		setMaskBgWidgetVisible(icon->isEnabled());
 		ui->imageLabel->setVisible(!ui->maskBgWidget->isVisible());
+		m_tipLabel->setVisible(icon->isVisible() && m_isShowTipLabel);
 	}
 }
 
@@ -188,15 +205,15 @@ void PLSSelectImageButton::mouseLeave()
 {
 	if (mouseHover) {
 		mouseHover = false;
-		ui->maskBgWidget->hide();
+		setMaskBgWidgetVisible(false);
 		ui->imageLabel->setVisible(!ui->maskBgWidget->isVisible());
+		m_tipLabel->setVisible(icon->isVisible() && m_isShowTipLabel);
 	}
 }
 
 void PLSSelectImageButton::on_takeButton_clicked()
 {
-	ui->maskBgWidget->hide();
-
+	setMaskBgWidgetVisible(false);
 	emit takeButtonClicked();
 
 	setFocus();
@@ -233,14 +250,14 @@ void PLSSelectImageButton::on_takeButton_clicked()
 }
 void PLSSelectImageButton::on_selectButton_clicked()
 {
-	ui->maskBgWidget->hide();
-
+	setMaskBgWidgetVisible(false);
 	emit selectButtonClicked();
 
 	setFocus();
 
 	QString imageDir = getImageDir();
 	QWidget *toplevelView = pls_get_toplevel_view(this);
+	pls::HotKeyLocker locker;
 	QString imageFilePath = QFileDialog::getOpenFileName(toplevelView, tr("Browse"), imageDir, "Image Files (*.jpg *.jpeg *.bmp *.png)");
 	if (imageFilePath.isEmpty()) {
 		return;
@@ -285,6 +302,13 @@ void PLSSelectImageButton::on_selectButton_clicked()
 	emit imageSelected(cropedImageFile);
 }
 
+void PLSSelectImageButton::on_deleteButton_clicked()
+{
+	emit deleteButtonClicked();
+	setFocus();
+	setImagePath("");
+}
+
 bool PLSSelectImageButton::event(QEvent *event)
 {
 	switch (event->type()) {
@@ -295,7 +319,6 @@ bool PLSSelectImageButton::event(QEvent *event)
 		mouseLeave();
 		break;
 	case QEvent::Resize:
-		moveIconToCenter(static_cast<QResizeEvent *>(event)->size());
 		if (!imagePath.isEmpty() && QFile::exists(imagePath)) {
 			setPixmap(QPixmap(imagePath), static_cast<QResizeEvent *>(event)->size());
 		} else if (!originPixmap.isNull()) {
@@ -307,19 +330,6 @@ bool PLSSelectImageButton::event(QEvent *event)
 	}
 
 	return QLabel::event(event);
-}
-bool PLSSelectImageButton::eventFilter(QObject *watched, QEvent *event)
-{
-	if (watched == icon) {
-		switch (event->type()) {
-		case QEvent::Resize:
-			moveIconToCenter(this->size());
-			break;
-		default:
-			break;
-		}
-	}
-	return QLabel::eventFilter(watched, event);
 }
 
 bool PLSSelectImageButton::nativeEvent(const QByteArray &eventType, void *message, qintptr *result)
@@ -338,15 +348,34 @@ QPair<bool, QString> PLSSelectImageButton::defaultImageChecker(const QPixmap &, 
 	return {true, QString()};
 }
 
-void PLSSelectImageButton::moveIconToCenter(const QSize &containerSize)
-{
-	QSize size = containerSize - icon->size();
-	icon->move(size.width() / 2, size.height() / 2);
-}
-
 void PLSSelectImageButton::setRemoveRetainSizeWhenHidden(QWidget *widget) const
 {
 	QSizePolicy policy = widget->sizePolicy();
 	policy.setRetainSizeWhenHidden(false);
 	widget->setSizePolicy(policy);
+}
+
+void PLSSelectImageButton::setTipLabelString(const QString &tipLabel)
+{
+	m_isShowTipLabel = !tipLabel.isEmpty();
+	if (m_tipLabel) {
+		m_tipLabel->setText(tipLabel);
+		auto labelLayout = ui->imageLabel->layout();
+		auto tempMargins = labelLayout->contentsMargins();
+		tempMargins.setTop(25);
+		labelLayout->setContentsMargins(tempMargins);
+
+		labelLayout->setAlignment(icon, Qt::AlignHCenter | (m_isShowTipLabel ? Qt::AlignBottom : Qt::AlignVCenter));
+		m_tipLabel->setVisible(m_isShowTipLabel);
+	}
+}
+
+void PLSSelectImageButton::setMaskBgWidgetVisible(bool isVisible)
+{
+	if (isVisible) {
+		bool deleteButtonShow = m_isShowDeleteBtn && isVisible && !imagePath.isEmpty();
+		ui->deleteButton->setVisible(m_isShowDeleteBtn && isVisible && !imagePath.isEmpty());
+		pls_flush_style(ui->selectButton, "isBottom", !deleteButtonShow);
+	}
+	ui->maskBgWidget->setVisible(isVisible);
 }

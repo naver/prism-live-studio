@@ -12,8 +12,11 @@ PLSSideBarDialogView::PLSSideBarDialogView(DialogInfo info, QWidget *parent) : P
 
 PLSSideBarDialogView::~PLSSideBarDialogView()
 {
-	config_set_string(App()->GlobalConfig(), getConfigId(), "geometry", saveGeometry().toBase64().constData());
-	config_save(App()->GlobalConfig());
+	if (!PLSMainView::instance()->isFirstShow()) {
+
+		config_set_string(App()->GlobalConfig(), getConfigId(), "geometry", saveGeometry().toBase64().constData());
+		config_save(App()->GlobalConfig());
+	}
 }
 
 const char *PLSSideBarDialogView::getConfigId() const
@@ -33,6 +36,14 @@ void PLSSideBarDialogView::onRestoreGeometry()
 		QPoint mainTopRight = mainView->mapToGlobal(QPoint(mainView->frameGeometry().width(), 0));
 		auto geometryOfNormal = QRect(mainTopRight.x() + defaultInfo.defaultOffset, mainTopRight.y(), defaultInfo.defaultWidth, defaultInfo.defaultHeight);
 		this->setGeometry(geometryOfNormal);
+		/* #3503, No reason why Qt calculate dpi wrong. Add some trick code and it works. 
+		* Remove this code and test if we upgrade Qt.
+		*/
+		pls_async_call_mt(this, [this]() {
+			auto pos = this->geometry();
+			this->move(pos.x() - 1, pos.y());
+			this->move(pos.x(), pos.y());
+		});
 	} else {
 		this->restoreGeometry(QByteArray::fromBase64(QByteArray(geometry)));
 		if (config_get_bool(App()->GlobalConfig(), configId, "isMaxState")) {
@@ -43,9 +54,10 @@ void PLSSideBarDialogView::onRestoreGeometry()
 
 void PLSSideBarDialogView::showEvent(QShowEvent *event)
 {
+	disableWinSystemBorder();
 	config_set_bool(App()->GlobalConfig(), getConfigId(), "showMode", isVisible());
 	config_save(App()->GlobalConfig());
-	QTimer::singleShot(0, this, [this]() { pls_window_right_margin_fit(this); });
+	pls_async_call_mt(this, [this]() { pls_window_right_margin_fit(this); });
 	PLSDialogView::showEvent(event);
 }
 void PLSSideBarDialogView::hideEvent(QHideEvent *event)

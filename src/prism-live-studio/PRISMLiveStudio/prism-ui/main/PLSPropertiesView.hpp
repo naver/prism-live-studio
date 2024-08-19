@@ -3,6 +3,7 @@
 #include "properties-view.hpp"
 #include <QFontDatabase>
 
+class QButtonGroup;
 class QFormLayout;
 class PLSPropertiesView;
 class QLabel;
@@ -19,6 +20,7 @@ class PLSCommonScrollBar;
 class PLSCheckBox;
 class TMCheckBox;
 class PLSRadioButtonGroup;
+class QButtonGroup;
 
 class PLSWidgetInfo : public WidgetInfo {
 	Q_OBJECT
@@ -75,6 +77,16 @@ private:
 	void FontSimpleChanged(const char *setting);
 	void ColorCheckBoxChanged(const char *setting);
 	void templateListChanged(const char *setting);
+
+	void CTFontChanged(const char *setting);
+	void CTTextColorChanged(const char *setting);
+	void CTBkColorChanged(const char *setting);
+
+	void CTDisplayChanged(const char *setting);
+	void CTOptionsChanged(const char *setting);
+	void CTMotionChanged(const char *setting);
+	void ChzzkSponsorTypeChanged(const char *setting);
+
 };
 
 class PLSPropertiesView : public OBSPropertiesView {
@@ -139,6 +151,9 @@ public slots:
 	void OnVirtualBackgroundResourceOpenFilter() const;
 	void PropertyUpdateNotify(const QString &name) const;
 	void ResetProperties(obs_properties_t *newProperties);
+#if defined(Q_OS_WINDOWS)
+	void CheckEnumTimeout();
+#endif
 
 signals:
 	void OpenFilters();
@@ -152,6 +167,7 @@ protected:
 	QWidget *AddList(obs_property_t *prop, bool &warning) override;
 
 private:
+	OBSSource m_source;
 	int maxSize;
 	bool showColorFilterPath = true;
 	bool isColorFilter = false;
@@ -161,9 +177,10 @@ private:
 	SliderIgnoreScroll *sliderView{};
 	PLSSpinBox *spinsView{};
 	PLSWidgetInfo *infoView{};
-	QPointer<QWidget> m_loadingPage; 
+	QPointer<QWidget> m_loadingPage;
 
 	ITextMotionTemplateHelper *m_tmHelper = nullptr;
+	ITextMotionTemplateHelper *m_ctHelper = nullptr;
 	enum class ButtonType { RadioButon, PushButton, CustomButton, LetterButton };
 	bool m_tmTabChanged = true;
 	bool m_tmTemplateChanged = false;
@@ -171,6 +188,7 @@ private:
 	QList<QPointer<QPushButton>> m_movieButtons;
 
 	OBSBasicSettings *m_basicSettings = nullptr;
+	QList<QPointer<PLSCheckBox>> m_platfromCheckBoxs;
 
 	void setInitData(bool showFiltersBtn_, bool refreshProperties_, bool reloadPropertyOnInit_);
 	void AddMobileGuider(obs_property_t *prop, QFormLayout *layout);
@@ -211,28 +229,44 @@ private:
 	void AddTemplateList(obs_property_t *prop, QFormLayout *layout);
 	void AddColorAlphaCheckbox(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 
+	void AddCtTabTemplateList(obs_property_t *prop, QFormLayout *layout);
+	void AddCtFont(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddCtTextColor(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddCtBkColor(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+
+	void AddCtDisplay(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddCtOptions(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+	void AddCtMotion(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
+
 	/*tm ui*/
 	void creatColorList(obs_property_t *prop, QGridLayout *&hLayout, int index, const long long colorValue, const QString &colorList);
 	void createTMSlider(obs_property_t *prop, int propertyValue, int minVal, int maxVal, int stepVal, int val, QHBoxLayout *&hLayout, bool isSuffix, bool isEnable = true,
-			    bool isShowSliderIcon = false, const QString &sliderName = QString());
+			    bool isShowSliderIcon = false, const QString &sliderName = QString(), int indexOffset = 0);
 	void createTMSlider(SliderIgnoreScroll *&slider, PLSSpinBox *&spinBox, obs_property_t *prop, int minVal, int maxVal, int stepVal, int val, QHBoxLayout *&hLayout, bool isSuffix,
 			    bool isEnable = true);
 	void createTMColorCheckBox(PLSCheckBox *&controlCheckBox, obs_property_t *prop, QFrame *&frame, int index, const QString &labelName, const QHBoxLayout *layout, bool isControlOn,
 				   bool isControl);
-	void createColorButton(obs_property_t *prop, QGridLayout *&gLayout, const PLSCheckBox *checkBox, const QString &opationName, int index, bool isSuffix, bool isEnable);
+	void createColorButton(obs_property_t *prop, QGridLayout *&gLayout, const PLSCheckBox *checkBox, const QString &opationName, int index, bool isSuffix, bool isEnable, int indexOffset = 0);
 	void setLabelColor(QLabel *label, const long long colorValue, const int alaphValue, bool frameStyle = true) const;
-	void getTmColor(obs_data_t *textData, int tabIndex, bool &isControlOn, bool &isColor, long long &color, bool &isAlaph, int &alaph) const;
+	void getTmColor(obs_data_t *textData, int tabIndex, bool &isControlOn, bool &isColor, long long &color, bool &isAlaph, int &alaph, int indexOffset = 0) const;
 	void createTMButton(const int buttonCount, obs_data_t *textData, QHBoxLayout *&hLayout, QButtonGroup *&group, ButtonType buttonType, const QStringList &buttonObjs = QStringList(),
 			    bool isShowText = false, bool isAutoExclusive = true) const;
 	void createRadioButton(const int buttonCount, obs_data_t *textData, QHBoxLayout *&hLayout, PLSRadioButtonGroup *&group, const QStringList &buttonObjs = QStringList(), bool isShowText = false,
 			       QWidget *parent = nullptr);
 	void creatTMTextWidget(obs_property_t *prop, const int textCount, obs_data_t *textData, QHBoxLayout *&hLayout);
 	void updateTMTemplateButtons(const int templateTabIndex, const QString &templateTabName, QGridLayout *gLayout);
+	void updateCTTemplateButtons(const int templateTabIndex, const QString &tempalteTabName, QGridLayout *glayout);
 	void updateFontSytle(const QString &family, PLSComboBox *fontStyleBox) const;
 	void setLayoutEnable(const QLayout *layout, bool isEnable);
 	void createColorTemplate(obs_property_t *prop, QLabel *colorLabel, QPushButton *button, QHBoxLayout *subLayout);
 	void setPlaceholderColor_666666(QWidget *widget) const;
-
+	QHBoxLayout *createColorButtonNoSlider(obs_property_t *prop, long long colorValue, int colorAlpha, int index);
 	void ShowLoading();
 	void HideLoading();
+  void AddChzzkSponsor(obs_property_t *prop, QFormLayout *layout);
+	static QStringList getFilteredFontFamilies();
+
+		private slots:
+	void removeCustomChatTemplate(int removeTemplateId);
+
 };

@@ -28,7 +28,7 @@
 #define ThisIsValid [](const QObject *obj) { return pls_object_is_valid(obj); }
 
 const int MAX_SEARCH_KEYWORDS_COUNT = 15;
-const int MAX_SELECTED_PRODUCT_COUNT = 30;
+const int MAX_SELECTED_PRODUCT_COUNT = 100;
 const int TAB_MIN = 0;
 const int TAB_MAX = 3;
 const int RECENT_TAB = 0;
@@ -402,9 +402,16 @@ static void processScrollContentMarginRight(PLSNaverShoppingLIVEProductDialogVie
 
 void pls_login_async(const std::function<void(bool ok, const QJsonObject &result)> &callback, const QString &platformName, QWidget *parent, PLSLoginInfo::UseFor useFor);
 
-PLSNaverShoppingLIVEProductDialogView::PLSNaverShoppingLIVEProductDialogView(PLSPlatformNaverShoppingLIVE *platform_, const QList<Product> &selectedProducts_, bool isLiving_, bool isPlanningLive_,
-									     QWidget *parent)
-	: PLSDialogView(parent), platform(platform_), selectedProducts(selectedProducts_), originProducts(selectedProducts_), isLiving(isLiving_), isPlanningLive(isPlanningLive_)
+PLSNaverShoppingLIVEProductDialogView::PLSNaverShoppingLIVEProductDialogView(PLSPlatformNaverShoppingLIVE *platform_, PLSProductType productType_, const QList<Product> &selectedProducts_,
+									     const QList<Product> &otherProducts_, bool isLiving_, bool isPlanningLive_, QWidget *parent)
+	: PLSDialogView(parent),
+	  platform(platform_),
+	  productType(productType_),
+	  selectedProducts(selectedProducts_),
+	  otherProducts(otherProducts_),
+	  originProducts(selectedProducts_),
+	  isLiving(isLiving_),
+	  isPlanningLive(isPlanningLive_)
 {
 	ui = pls_new<Ui::PLSNaverShoppingLIVEProductDialogView>();
 	setResizeEnabled(false);
@@ -603,8 +610,8 @@ void PLSNaverShoppingLIVEProductDialogView::initRecentProducts(int currentPage)
 	}
 
 	PLSNaverShoppingLIVEAPI::productSearchByProductNos(
-		platform, recentProductNos,
-		[this, isFirstPage, currentPage, next](bool ok, const QList<PLSNaverShoppingLIVEAPI::ProductInfo> &products) {
+		platform, PLSProductType::MainProduct, recentProductNos,
+		[this, isFirstPage, currentPage, next](bool ok, PLSProductType productType, const QList<PLSNaverShoppingLIVEAPI::ProductInfo> &products) {
 			processProductSearchByProductNos(ok, products, isFirstPage, currentPage, next);
 		},
 		this, ThisIsValid);
@@ -661,6 +668,16 @@ void PLSNaverShoppingLIVEProductDialogView::searchSmartStores()
 
 void PLSNaverShoppingLIVEProductDialogView::storeSearch(const QString &text, int currentPage)
 {
+	auto iter = cancelSearchRequestMap.find(text);
+	if (iter != cancelSearchRequestMap.end()) {
+		return;
+	}
+
+	for (auto key : cancelSearchRequestMap.keys()) {
+		pls::http::Request request = cancelSearchRequestMap.value(key);
+		request.abort();
+	}
+
 	bool isFirstPage = currentPage == 0;
 
 	PLSLoadNextPage::deleteLoadNextPage(storeProductNextPage);
@@ -677,12 +694,14 @@ void PLSNaverShoppingLIVEProductDialogView::storeSearch(const QString &text, int
 		return;
 	}
 
-	PLSNaverShoppingLIVEAPI::storeChannelProductSearch(
+	pls::http::Request request = PLSNaverShoppingLIVEAPI::storeChannelProductSearch(
 		platform, currentSmartStore.storeId, text, currentPage, 20,
 		[this, isFirstPage, text, currentPage, searchIndex = getSearchIndex(storeSearchIndex)](bool ok, const QList<Product> &products, bool next, int page) {
+			cancelSearchRequestMap.remove(text);
 			processStoreChannelProductSearch(ok, products, next, page, isFirstPage, text, currentPage, searchIndex);
 		},
 		this, ThisIsValid);
+	cancelSearchRequestMap.insert(text, request);
 }
 
 void PLSNaverShoppingLIVEProductDialogView::searchSearch(const QString &text, int currentPage)
@@ -759,6 +778,12 @@ void PLSNaverShoppingLIVEProductDialogView::updateSearchKeywords(const QString &
 bool PLSNaverShoppingLIVEProductDialogView::isSelectedProductNo(qint64 productNo) const
 {
 	return std::any_of(selectedProducts.begin(), selectedProducts.end(), [productNo](const auto &selectedProduct) { return selectedProduct.productNo == productNo; });
+}
+
+bool PLSNaverShoppingLIVEProductDialogView::isOtherProductNo(qint64 productNo)
+{
+	auto iter = std::find_if(otherProducts.begin(), otherProducts.end(), [productNo](Product &pro) { return pro.productNo == productNo; });
+	return iter != otherProducts.end();
 }
 
 bool PLSNaverShoppingLIVEProductDialogView::findItemView(PLSNaverShoppingLIVEProductItemView *&itemView, const QList<PLSNaverShoppingLIVEProductItemView *> &itemViews, qint64 productNo) const
@@ -1125,6 +1150,16 @@ void PLSNaverShoppingLIVEProductDialogView::onProductItemAddRemoveButtonClicked(
 			return;
 		}
 
+		if (isOtherProductNo(productNo)) {
+			PLSAlertView::warning(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Existed"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+			return;
+		}
+
+		if (!details.attachable) {
+			PLSAlertView::warning(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Unattachable"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+			return;
+		}
+
 		selectedProducts.prepend(details);
 		itemView->setSelected(true);
 		syncItemViewSelectedState(itemViews, productNo, true);
@@ -1298,6 +1333,7 @@ void PLSNaverShoppingLIVEProductDialogView::on_searchSearchBarLineEdit_returnPre
 void PLSNaverShoppingLIVEProductDialogView::on_okButton_clicked()
 {
 	PLS_UI_STEP(MODULE_NAVER_SHOPPING_LIVE_PRODUCT_MANAGER, "Product Manager Ok Button", ACTION_CLICK);
+	PLS_INFO(MODULE_NAVER_SHOPPING_LIVE_PRODUCT_MANAGER, "Product DialogView Selected %d Product(s).", selectedProducts.size());
 
 	QList<Product> rhythmicityProducts;
 	QList<PLSNaverShoppingLIVEProductItemView *> categoryProductItemViews;
@@ -1335,17 +1371,19 @@ void PLSNaverShoppingLIVEProductDialogView::on_okButton_clicked()
 		if (view.exec() != QDialog::Accepted) {
 			for (auto itemView : categoryProductItemViews) {
 				removeAtByProductNo(selectedProducts, itemView->getProductNo());
+				PLS_INFO(MODULE_NAVER_SHOPPING_LIVE_PRODUCT_MANAGER, "Selected Product[id:%d] is voluntary review product and removed.", itemView->getProductNo());
 				itemView->setSelected(false);
 			}
 
 			for (const Product &product : rhythmicityProducts) {
+				PLS_INFO(MODULE_NAVER_SHOPPING_LIVE_PRODUCT_MANAGER, "Selected Product[id:%d] is rhythmicity product and removed.", product.productNo);
 				removeAtByProductNo(selectedProducts, product.productNo);
 			}
 			updateCountTip();
 		}
 	}
 
-	if (isLiving && selectedProducts.isEmpty()) {
+	if (isLiving && selectedProducts.isEmpty() && productType == PLSProductType::MainProduct) {
 		pls_alert_error_message(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Product.AtLeastOne"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
 		return;
 	}

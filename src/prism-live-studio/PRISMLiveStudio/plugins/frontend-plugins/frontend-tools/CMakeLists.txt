@@ -51,7 +51,11 @@ target_link_libraries(frontend-tools PRIVATE OBS::frontend-api OBS::libobs
                                              common-libs::ui
                                              prism::frontend-api)
 if(OS_WINDOWS)
-target_link_libraries(frontend-tools PRIVATE OBS::w32-pthreads)
+  set_property(
+    TARGET frontend-tools
+    APPEND
+    PROPERTY AUTORCC_OPTIONS --format-version 1)
+  target_link_libraries(frontend-tools PRIVATE OBS::w32-pthreads)
 endif()
 
 if(OS_POSIX AND NOT OS_MACOS)
@@ -94,6 +98,11 @@ elseif(OS_MACOS)
   target_link_libraries(frontend-tools PRIVATE ${COCOA})
 
   target_sources(frontend-tools PRIVATE auto-scene-switcher-osx.mm)
+  target_compile_options(frontend-tools PRIVATE -Wno-quoted-include-in-framework-header -Wno-comma)
+  set_target_properties(frontend-tools PROPERTIES XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES)
+  if(NOT XCODE)
+    set_source_files_properties(auto-scene-switcher-osx.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+  endif()
   set_source_files_properties(auto-scene-switcher-osx.mm
                               PROPERTIES COMPILE_FLAGS -fobjc-arc)
   

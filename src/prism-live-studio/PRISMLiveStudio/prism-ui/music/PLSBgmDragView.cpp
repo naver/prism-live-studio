@@ -392,7 +392,7 @@ void PLSBgmDragView::showEvent(QShowEvent *event)
 	for (auto i = 0; i < count; i++) {
 		PLSBgmItemData data_ = datas[i];
 		if (data_.isCurrent) {
-			QTimer::singleShot(0, this, [this, i]() { scrollTo(GetModelIndex(i)); });
+			pls_async_call(this, [this, i]() { scrollTo(GetModelIndex(i)); });
 			break;
 		}
 	}

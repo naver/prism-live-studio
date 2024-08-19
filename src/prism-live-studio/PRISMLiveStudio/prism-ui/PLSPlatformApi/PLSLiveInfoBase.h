@@ -34,7 +34,7 @@ protected:
 	bool eventFilter(QObject *watcher, QEvent *event) override;
 
 	void closeEvent(QCloseEvent *event) override;
-	QWidget *createResolutionButtonsFrame();
+	QWidget *createResolutionButtonsFrame(bool bNcp = false);
 
 private:
 	PLSPlatformBase *m_pPlatformBase;
@@ -42,5 +42,6 @@ private:
 	QPointer<QObject> m_pWidgetLoadingBGParent = nullptr;
 	QPointer<QWidget> m_pWidgetLoadingBG = nullptr;
 
+	QString channelUUid;
 	bool m_isRunLoading{false};
 };

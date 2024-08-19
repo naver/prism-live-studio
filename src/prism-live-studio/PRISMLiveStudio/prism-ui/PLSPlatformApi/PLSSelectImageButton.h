@@ -33,25 +33,30 @@ public:
 	void mouseLeave();
 
 	void setIsIgoreMinSize(bool isIgoreMinSize) { m_isIgoreMinSize = isIgoreMinSize; };
+	void setTipLabelString(const QString &tipLabel);
+
+	void setShowDeleteBtn(bool isShowDeleteBtn) { m_isShowDeleteBtn = isShowDeleteBtn; };
 
 signals:
 	void takeButtonClicked();
 	void selectButtonClicked();
+	void deleteButtonClicked();
 	void imageSelected(const QString &imageFilePath);
 
 private slots:
 	void on_takeButton_clicked();
 	void on_selectButton_clicked();
+	void on_deleteButton_clicked();
 
 protected:
 	bool event(QEvent *event) override;
-	bool eventFilter(QObject *watched, QEvent *event) override;
 	bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
 private:
 	static QPair<bool, QString> defaultImageChecker(const QPixmap &, const QString &);
 	void moveIconToCenter(const QSize &containerSize);
 	void setRemoveRetainSizeWhenHidden(QWidget *widget) const;
+	void setMaskBgWidgetVisible(bool isVisible);
 
 	static const int MIN_PHOTO_WIDTH = 440;
 	static const int MIN_PHOTO_HEIGHT = 245;
@@ -60,12 +65,15 @@ private:
 
 	Ui::PLSSelectImageButton *ui = nullptr;
 	QLabel *icon = nullptr;
+	QLabel *m_tipLabel = nullptr;
 	bool mouseHover = false;
 	QString imagePath;
 	QSize imageSize{MIN_PHOTO_WIDTH, MIN_PHOTO_HEIGHT};
 	ImageChecker imageChecker{defaultImageChecker};
 	QPixmap originPixmap;
 	bool m_isIgoreMinSize = false;
+	bool m_isShowTipLabel = false;
+	bool m_isShowDeleteBtn = false;
 };
 
 #endif // PLSSELECTIMAGEBUTTON_H

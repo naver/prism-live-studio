@@ -4,7 +4,6 @@
 #include <QTimer>
 #include <vector>
 #include <array>
-#include <QThread>
 
 // %APPDATA%\PRISMLiveStudio\crashDump
 class PLSModuleMonitor : public QObject {
@@ -29,5 +28,4 @@ private slots:
 
 private:
 	QTimer *updateTimer = nullptr;
-	QThread *thread = nullptr;
 };

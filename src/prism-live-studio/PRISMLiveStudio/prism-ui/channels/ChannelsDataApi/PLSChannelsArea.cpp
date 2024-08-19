@@ -14,12 +14,12 @@
 #include "GoLivePannel.h"
 #include "LogPredefine.h"
 #include "PLSAddingFrame.h"
+#include "PLSBasic.h"
 #include "PLSChannelDataAPI.h"
 #include "PLSChannelsVirualAPI.h"
 #include "libui.h"
 #include "pls-channel-const.h"
 #include "window-basic-main.hpp"
-
 using namespace ChannelData;
 
 PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
@@ -50,6 +50,22 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelAdded, this, QOverload<const QString &>::of(&PLSChannelsArea::addChannel), Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelRemoved, this, &PLSChannelsArea::removeChannel, Qt::QueuedConnection);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::channelModified, this, &PLSChannelsArea::updateChannelUi, Qt::QueuedConnection);
+	connect(
+		PLSCHANNELS_API, &PLSChannelDataAPI::addChannelForDashBord, this,
+		[this](QString uuid) {
+			auto channelInfo = PLSCHANNELS_API->getChannelInfo(uuid);
+			if (channelInfo.isEmpty()) {
+				return;
+			}
+
+			bool isToShow = getInfo(channelInfo, g_displayState, true);
+			if (isToShow) {
+				addChannel(uuid);
+			} else {
+				removeChannelWithoutYoutubeDock(uuid);
+			}
+		},
+		Qt::QueuedConnection);
 
 	connect(
 		PLSCHANNELS_API, &PLSChannelDataAPI::holdOnChannelArea, this,
@@ -131,9 +147,19 @@ void PLSChannelsArea::initializeNextStep()
 		auto channelInfo = mInitializeInfos.takeFirst();
 		auto uuid = getInfo(channelInfo, g_channelUUID);
 		channelInfo = PLSCHANNELS_API->getChannelInfo(uuid);
+
 		if (!channelInfo.isEmpty()) {
-			addChannel(channelInfo);
-			addFoldChannel(channelInfo);
+			bool isToShow = getInfo(channelInfo, g_displayState, true);
+			auto type = getInfo(channelInfo, g_data_type, NoType);
+			auto platform = getInfo(channelInfo, g_channelName);
+			if (type == ChannelType && platform.contains(YOUTUBE, Qt::CaseInsensitive)) {
+				isToShow = true;
+			}
+			if (isToShow) {
+
+				addChannel(channelInfo, true);
+				addFoldChannel(channelInfo);
+			}
 		} else {
 			PLS_WARN("PLSChannelsArea", "initialize channel,channelInfo is empty");
 		}
@@ -244,18 +270,43 @@ void PLSChannelsArea::checkScrollButtonsState(ScrollDirection direction)
 
 void PLSChannelsArea::insertFoldChannelCapsule(QWidget *wid, int index) const
 {
-	if (index >= ui->FoldCapslesFrameLayout->count()) {
-		index = -1;
+	int layoutIndex = getLayoutOrder(true, ui->FoldCapslesFrameLayout, index);
+	ui->FoldCapslesFrameLayout->insertWidget(layoutIndex, wid);
+}
+
+int PLSChannelsArea::getLayoutOrder(bool bFold, QHBoxLayout *layout, int channelOrder) const
+{
+	int count = layout->count();
+	int layoutIndex = -1;
+	for (int i = 0; i < count; i++) {
+		auto item = layout->itemAt(i);
+		if (item) {
+			QVariantMap channelInfo;
+			if (bFold) {
+				auto foldCapsule = dynamic_cast<ChannelFoldCapsule *>(item->widget());
+				channelInfo = PLSCHANNELS_API->getChannelInfo(foldCapsule->getChannelID());
+			} else {
+				auto capsule = dynamic_cast<ChannelCapsule *>(item->widget());
+				channelInfo = PLSCHANNELS_API->getChannelInfo(capsule->getChannelID());
+			}
+			int order = getInfo(channelInfo, g_displayOrder, -1);
+
+			if (order > channelOrder) {
+				layoutIndex = i;
+				break;
+			}
+		}
 	}
-	ui->FoldCapslesFrameLayout->insertWidget(index, wid);
+	if (layoutIndex >= count) {
+		layoutIndex = -1;
+	}
+	return layoutIndex;
 }
 
 void PLSChannelsArea::insertChannelCapsule(QWidget *wid, int index) const
 {
-	if (index >= ui->CapusuleLayout->count()) {
-		index = -1;
-	}
-	ui->CapusuleLayout->insertWidget(index, wid);
+	int layoutIndex = getLayoutOrder(false, ui->CapusuleLayout, index);
+	ui->CapusuleLayout->insertWidget(layoutIndex, wid);
 }
 
 void PLSChannelsArea::scrollNext(bool forwartStep)
@@ -322,6 +373,12 @@ void PLSChannelsArea::addChannel(const QString &channelUUID)
 	if (channelInfo.isEmpty()) {
 		return;
 	}
+
+	bool isToShow = getInfo(channelInfo, g_displayState, true);
+	if (!isToShow) {
+		return;
+	}
+
 	auto channelWid = addChannel(channelInfo);
 	addFoldChannel(channelInfo);
 	if (!isUiInitialized || !channelWid->isVisible()) {
@@ -345,12 +402,12 @@ ChannelFoldCapsulePtr PLSChannelsArea::addFoldChannel(const QVariantMap &channel
 	m_FoldChannelsWidget.insert(uuid, foldChannelWid);
 
 	foldChannelWid->updateUi();
-	foldChannelWid->setVisible(true);
+	foldChannelWid->setVisible(false);
 
 	return foldChannelWid;
 }
 
-ChannelCapsulePtr PLSChannelsArea::addChannel(const QVariantMap &channelInfo)
+ChannelCapsulePtr PLSChannelsArea::addChannel(const QVariantMap &channelInfo, bool bInit)
 {
 	auto channelWid = createWidgetWidthDeleter<ChannelCapsule>(this);
 	auto uuid = getInfo(channelInfo, g_channelUUID);
@@ -365,11 +422,27 @@ ChannelCapsulePtr PLSChannelsArea::addChannel(const QVariantMap &channelInfo)
 	}
 	channelWid->setVisible(isToShow);
 	auto subID = getInfo(channelInfo, g_subChannelId);
-	auto platform = getInfo(channelInfo, g_platformName);
+	auto platform = getInfo(channelInfo, g_channelName);
 
 	if (isUiInitialized && PLSCHANNELS_API->currentTransactionCMDType() == (int)ChannelTransactionsKeys::CMDTypeValue::AddChannelCMD) {
 		QString log = QString("Channel UI Added, ID:%1, sub ID:%2, order: %3, platform :%4 ").arg(uuid).arg(subID).arg(order).arg(platform);
 		PRE_LOG_MSG_STEP(log, g_addChannelStep, INFO)
+	}
+
+	auto type = getInfo(channelInfo, g_data_type, NoType);
+	if (cef_js_avail && type == ChannelType && platform.contains(YOUTUBE, Qt::CaseInsensitive)) {
+		auto basic = PLSBasic::instance();
+		if (!basic->GetYouTubeAppDock()) {
+			basic->NewYouTubeAppDock();
+		}
+		basic->GetYouTubeAppDock()->AccountConnected();
+		if (bInit) {
+			const char *dockStateStr = config_get_string(App()->GlobalConfig(), "BasicWindow", "DockState");
+			QByteArray dockState = QByteArray::fromBase64(QByteArray(dockStateStr));
+			basic->restoreState(dockState);
+		} else {
+			basic->GetYouTubeAppDock()->SettingsUpdated(false);
+		}
 	}
 
 	return channelWid;
@@ -436,6 +509,7 @@ void PLSChannelsArea::updateUi()
 		ui->MidFrame->setEnabled(false);
 		break;
 	case StreamStarted:
+		myChannelsIconBtn->setEnabled(false);
 		delayUpdateAllChannelsUi();
 		ui->MidFrame->setEnabled(true);
 		break;
@@ -518,9 +592,20 @@ void PLSChannelsArea::removeChannel(const QString &channelUUID)
 	auto ite = mChannelsWidget.find(channelUUID);
 	if (ite != mChannelsWidget.end()) {
 		auto wid = ite.value();
+		bool bYoutube = wid->isYoutube();
 		wid->hide();
 		mChannelsWidget.erase(ite);
 		delayTask(&PLSChannelsArea::refreshOrder);
+
+		if (cef_js_avail && bYoutube) {
+			auto basic = PLSBasic::instance();
+			if (!basic->GetYouTubeAppDock()) {
+				basic->NewYouTubeAppDock();
+			}
+			basic->GetYouTubeAppDock()->AccountDisconnected();
+			basic->GetYouTubeAppDock()->Update();
+			basic->DeleteYouTubeAppDock();
+		}
 	}
 
 	auto it = m_FoldChannelsWidget.find(channelUUID);
@@ -558,7 +643,7 @@ void PLSChannelsArea::refreshChannels()
 	auto matchedPlaftorms = PLSCHANNELS_API->getAllChannelInfo();
 
 	auto isMatched = [&](const QVariantMap &info) {
-		auto platform = getInfo(info, g_platformName);
+		auto platform = getInfo(info, g_fixPlatformName);
 		return g_platformsToClearData.contains(platform, Qt::CaseInsensitive) && getInfo(info, g_data_type, NoType) == ChannelType;
 	};
 
@@ -661,7 +746,10 @@ bool PLSChannelsArea::eventFilter(QObject *watched, QEvent *event)
 void PLSChannelsArea::showEvent(QShowEvent *event)
 {
 	QFrame::showEvent(event);
-	QTimer::singleShot(200, this, [this]() { ui->scrollAreaWidgetContents->adjustSize(); });
+	QTimer::singleShot(200, this, [this]() {
+		PLS_INFO("PLSChannelsArea", "singleShot showEvent");
+		ui->scrollAreaWidgetContents->adjustSize();
+	});
 }
 
 bool PLSChannelsArea::isScrollButtonsNeeded() const
@@ -696,6 +784,9 @@ void PLSChannelsArea::initializeMychannels()
 	connect(
 		myChannelsIconBtn, &QToolButton::clicked, this,
 		[this, settingAction, menu]() {
+			if (pls_is_app_exiting()) { //issue 3989
+				return;
+			}
 			settingAction->setDisabled(PLSCHANNELS_API->isEmpty());
 			auto pos = QPoint(myChannelsIconBtn->width() / 2, myChannelsIconBtn->height());
 			menu->exec(myChannelsIconBtn->mapToGlobal(pos));
@@ -732,7 +823,7 @@ void PLSChannelsArea::onFoldUpButtonClick()
 		auto channelInfo = PLSCHANNELS_API->getChannelInfo(it.key());
 		int dataType = getInfo(channelInfo, g_data_type, NoType);
 		int userState = getInfo(channelInfo, g_channelUserStatus, NotExist);
-		QString platformName = getInfo(channelInfo, g_platformName, QString());
+		QString platformName = getInfo(channelInfo, g_channelName, QString());
 
 		if (userState != Enabled) {
 			it.value()->hide();
@@ -805,4 +896,22 @@ void PLSChannelsArea::createFoldButton()
 		m_FoldDownButton, &QPushButton::clicked, PLSMainView::instance(), []() { PLSMainView::instance()->setChannelsAreaHeight(60); }, Qt::QueuedConnection);
 	m_FoldDownButton->setEnabled(false);
 	m_FoldDownButton->setVisible(false);
+}
+
+void PLSChannelsArea::removeChannelWithoutYoutubeDock(const QString &channelUUID)
+{
+	auto ite = mChannelsWidget.find(channelUUID);
+	if (ite != mChannelsWidget.end()) {
+		auto wid = ite.value();
+		wid->hide();
+		mChannelsWidget.erase(ite);
+		delayTask(&PLSChannelsArea::refreshOrder);
+	}
+
+	auto it = m_FoldChannelsWidget.find(channelUUID);
+	if (it != m_FoldChannelsWidget.end()) {
+		auto wid = it.value();
+		wid->hide();
+		m_FoldChannelsWidget.erase(it);
+	}
 }

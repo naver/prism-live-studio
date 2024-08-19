@@ -12,11 +12,11 @@
 #ifndef LOGIN_LOGINUSERINFO_H
 #define LOGIN_LOGINUSERINFO_H
 
-#include "login-common-struct.hpp"
 #include <QSettings>
 #include <QString>
 #include <qnetworkcookie.h>
 #include "json-data-handler.hpp"
+#include "login-common-struct.hpp"
 
 // prism login type
 enum class LoginInfoType { PrismLoginInfo, ChannelInfo, TokenInfo, PrismLogoutInfo, PrismSignoutInfo, PrismGCCInfo, PrismUserThumbnail, PrismNoticeInfo };
@@ -36,7 +36,7 @@ public:
 	/**
      * @brief clearPrismLoginInfo clear all prism login infomation
      */
-	void clearPrismLoginInfo() const;
+	void clearPrismLoginInfo();
 	/**
      * @brief getUserCode: get user code
      * @return
@@ -60,11 +60,6 @@ public:
      */
 	QString getAuthType() const;
 	/**
-     * @brief getUsercode
-     * @return
-     */
-	QString getUsercode() const;
-	/**
      * @brief getAuthStatusCode : get user status code
      * @return
      */
@@ -82,21 +77,28 @@ public:
 	QString getNickname() const;
 	QByteArray getPrismCookie() const;
 	QByteArray getSessionCookie() const;
-	QString getGcc() const;
 	void setPrismCookie(const QVariant &neo_sesCookies);
+	void setSessionTokenAndCookie(const QJsonObject &token, const QVariant &cookies);
 	QJsonObject &getDataObj();
 	void selfFlag(bool isSelf);
 	bool isSelf() const;
+	QString getNCPPlatformToken();
+	QString getNCPPlatformRefreshToken();
+	qint64 getNCPPlatformExpiresTime();
+	QString getNCPPlatformServiceName();
+	QString getNCPPlatformServiceId();
+	QString getLoginPlatformName();
+	QString getNCPPlatformServiceAuthUrl();
+	void updateNCB2BTokenInfo(const QString &token, const QString &refreshToken, const qint64 &expiresTime);
 
 private:
 	explicit PLSLoginUserInfo();
 	~PLSLoginUserInfo() = default;
-
-	UserInfo m_userLoginInfo;
+	void getUserInfoFromOldVersion(const QString &path);
 	QByteArray m_prismCookies;
 	QByteArray m_sessionCookies;
 	QJsonObject m_userObj;
 	bool m_isSelf = true;
 };
-
+#define PLSLOGINUSERINFO PLSLoginUserInfo::getInstance()
 #endif // PLSLoginUserInfo_H

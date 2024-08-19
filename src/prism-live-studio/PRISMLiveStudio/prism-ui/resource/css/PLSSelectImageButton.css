@@ -3,93 +3,61 @@ PLSSelectImageButton {
 	border-radius:/*hdpi*/ 3px;
 }
 
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="ko-KR"] #takeButton > #icon,
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="ko-KR"] #selectButton > #icon {
+
+
+PLSLiveInfoBase PLSSelectImageButton[lang="ko-KR"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 65px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="en-US"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 42px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="id-ID"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 42px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="pt-BR"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 42px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="ja-JP"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 63px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="es-ES"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 42px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="vi-VN"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 61px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="ko-KR"] #maskBgWidget > QPushButton > #icon {
 	margin-left: /*hdpi*/ 21px;
 }
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="en-US"] #takeButton > #icon,
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="en-US"] #selectButton > #icon {
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="en-US"] #maskBgWidget > QPushButton > #icon {
 	margin-left: /*hdpi*/ 3px;
 }
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="id-ID"] #takeButton > #icon,
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="id-ID"] #selectButton > #icon {
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="id-ID"] #maskBgWidget > QPushButton > #icon {
 	margin-left: /*hdpi*/ 3px;
 }
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="ja-JP"] #takeButton > #icon,
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="ja-JP"] #selectButton > #icon {
+
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="ja-JP"] #maskBgWidget > QPushButton > #icon {
 	margin-left: /*hdpi*/ 21px;
 }
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="pt-BR"] #takeButton > #icon,
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="pt-BR"] #selectButton > #icon {
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="pt-BR"] #maskBgWidget > QPushButton > #icon {
 	margin-left: /*hdpi*/ 3px;
 }
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="es-ES"] #takeButton > #icon,
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="es-ES"] #selectButton > #icon {
+
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="es-ES"] #maskBgWidget > QPushButton > #icon {
 	margin-left: /*hdpi*/ 3px;
 }
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="vi-VN"] #takeButton > #icon,
-PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="vi-VN"] #selectButton > #icon {
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="vi-VN"] #maskBgWidget > QPushButton > #icon {
 	margin-left: /*hdpi*/ 19px;
 }
 
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="ko-KR"] #takeButton > #icon,
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="ko-KR"] #selectButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="ko-KR"] #takeButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="ko-KR"] #selectButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="ko-KR"] #takeButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="ko-KR"] #selectButton > #icon {
-	margin-left: /*hdpi*/ 65px;
-}
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="en-US"] #takeButton > #icon,
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="en-US"] #selectButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="en-US"] #takeButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="en-US"] #selectButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="en-US"] #takeButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="en-US"] #selectButton > #icon {
-	margin-left: /*hdpi*/ 42px;
-}
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="id-ID"] #takeButton > #icon,
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="id-ID"] #selectButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="id-ID"] #takeButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="id-ID"] #selectButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="id-ID"] #takeButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="id-ID"] #selectButton > #icon {
-	margin-left: /*hdpi*/ 42px;
-}
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="pt-BR"] #takeButton > #icon,
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="pt-BR"] #selectButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="pt-BR"] #takeButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="pt-BR"] #selectButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="pt-BR"] #takeButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="pt-BR"] #selectButton > #icon {
-	margin-left: /*hdpi*/ 42px;
-}
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="ja-JP"] #takeButton > #icon,
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="ja-JP"] #selectButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="ja-JP"] #takeButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="ja-JP"] #selectButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="ja-JP"] #takeButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="ja-JP"] #selectButton > #icon {
-	margin-left: /*hdpi*/ 63px;
-}
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="es-ES"] #takeButton > #icon,
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="es-ES"] #selectButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="es-ES"] #takeButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="es-ES"] #selectButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="es-ES"] #takeButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="es-ES"] #selectButton > #icon {
-	margin-left: /*hdpi*/ 42px;
-}
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="vi-VN"] #takeButton > #icon,
-PLSLiveInfoNaverTV PLSSelectImageButton[lang="vi-VN"] #selectButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="vi-VN"] #takeButton > #icon,
-PLSLiveInfoVLive PLSSelectImageButton[lang="vi-VN"] #selectButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="vi-VN"] #takeButton > #icon,
-PLSLiveInfoYoutube PLSSelectImageButton[lang="vi-VN"] #selectButton > #icon {
-	margin-left: /*hdpi*/ 61px;
-}
-PLSSelectImageButton #takeButton > #text,
-PLSSelectImageButton #selectButton > #text {
+PLSSelectImageButton #maskBgWidget > QPushButton > #text {
 	margin-left: /*hdpi*/ 1px;
 }
 
@@ -121,29 +89,50 @@ PLSSelectImageButton #takeButton {
 	border-bottom-right-radius:/*hdpi*/ 0;
 }
 
-PLSSelectImageButton #selectButton {
-	border-top-left-radius:/*hdpi*/ 0;
-	border-top-right-radius:/*hdpi*/ 0;
-	border-bottom-left-radius:/*hdpi*/ 3px;
-	border-bottom-right-radius:/*hdpi*/ 3px;
+PLSSelectImageButton #selectButton[isBottom="true"] {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
 }
-PLSSelectImageButton #takeButton, PLSSelectImageButton #selectButton {
+PLSSelectImageButton #selectButton[isBottom="false"] {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	border-bottom-left-radius: 0px;
+	border-bottom-right-radius: 0px;
+}
+
+PLSSelectImageButton #deleteButton {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+}
+
+PLSSelectImageButton #maskBgWidget > QPushButton {
 	min-width: /*hdpi*/ 0;
 	max-width: /*hdpi*/ 99999px;
 	min-height: /*hdpi*/ 0;
 	max-height: /*hdpi*/ 99999px;
 	background: #444444;
 }
-PLSSelectImageButton #takeButton:hover, PLSSelectImageButton #selectButton:hover {
+PLSSelectImageButton #maskBgWidget > QPushButton:hover {
 	background: #555555;
 }
-PLSSelectImageButton #takeButton > #icon,
-PLSSelectImageButton #selectButton > #icon {
+PLSSelectImageButton #maskBgWidget > QPushButton > #icon {
 	min-width: /*hdpi*/ 23px;
 	max-width: /*hdpi*/ 23px;
 	min-height: /*hdpi*/ 23px;
 	max-height: /*hdpi*/ 23px;
 	background-color: transparent;
+}
+PLSSelectImageButton #maskBgWidget > #deleteButton > #icon {
+	min-width: /*hdpi*/ 19px;
+	max-width: /*hdpi*/ 19px;
+	min-height: /*hdpi*/ 23px;
+	max-height: /*hdpi*/ 23px;
+	background-color: transparent;
+	padding-left: 3px;
 }
 PLSSelectImageButton #takeButton > #icon {
 	image: url(":/resource/images/icon-cover-camera-small.svg");
@@ -151,8 +140,11 @@ PLSSelectImageButton #takeButton > #icon {
 PLSSelectImageButton #selectButton > #icon {
 	image: url(":/resource/images/icon-cover-add.svg");
 }
-PLSSelectImageButton #takeButton > #text,
-PLSSelectImageButton #selectButton > #text {
+PLSSelectImageButton #deleteButton > #icon {
+	image: url(":/resource/images/take_photo_delete.svg");
+	background-color: transparent;
+}
+PLSSelectImageButton #maskBgWidget > QPushButton > #text{
 	background-color: transparent;
 	font-size:/*hdpi*/ 14px;
 	font-weight: bold;
@@ -162,4 +154,10 @@ PLSSelectImageButton #selectButton > #text {
 PLSSelectImageButton  #maskBgWidget {
 	background-color: transparent;
 	border-radius:/*hdpi*/ 3px;
+}
+
+PLSSelectImageButton  #tipLabel {
+	background-color: transparent;
+	color: #999999;
+	font-size: 11px;
 }

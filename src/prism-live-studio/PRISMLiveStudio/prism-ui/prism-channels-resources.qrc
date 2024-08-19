@@ -30,6 +30,7 @@
         <file>resource/images/ChannelsSource/statistics/ic-view-navertv.svg</file>
         <file>resource/images/ChannelsSource/statistics/ic-view-navertv-disable.svg</file>
         <file>resource/images/DefaultChannels/btn-addch-mauseover-2-normal.svg</file>
+        <file>resource/images/DefaultChannels/btn-addch-mauseover-2-click.svg</file>
         <file>resource/images/DefaultChannels/btn-mych-addch-afreecatv.svg</file>
         <file>resource/images/DefaultChannels/btn-mych-addch-band.svg</file>
         <file>resource/images/DefaultChannels/btn-mych-addch-facebook.svg</file>
@@ -42,7 +43,7 @@
         <file>resource/images/DefaultChannels/btn-mych-addch-youtube.svg</file>
         <file>resource/images/DefaultChannels/btn-mych-custom-rtmp-normal.svg</file>
         <file>resource/images/DefaultChannels/btn-mych-twitter.svg</file>
-        <file>resource/images/navershopping/badge-nshoppinglive.svg</file>
+        <file>resource/images/navershopping/badge_nshoppinglive.svg</file>
         <file>resource/images/navershopping/btn-addproduct-done-click.svg</file>
         <file>resource/images/navershopping/btn-addproduct-done-disable.svg</file>
         <file>resource/images/navershopping/btn-addproduct-done-normal.svg</file>
@@ -241,7 +242,6 @@
         <file>resource/images/ChannelsSource/loading-6.svg</file>
         <file>resource/images/ChannelsSource/loading-7.svg</file>
         <file>resource/images/ChannelsSource/loading-8.svg</file>
-        <file>resource/images/ChannelsSource/navershopping/badge-nshoppinglive.svg</file>
         <file>resource/images/ChannelsSource/navershopping/btn-addproduct-done-click.svg</file>
         <file>resource/images/ChannelsSource/navershopping/btn-addproduct-done-disable.svg</file>
         <file>resource/images/ChannelsSource/navershopping/btn-addproduct-done-normal.svg</file>
@@ -305,5 +305,17 @@
         <file>resource/images/ChannelsSource/end/folder-icon-normal.svg</file>
         <file>resource/images/ChannelsSource/end/folder-icon-over.svg</file>
         <file>resource/images/ChannelsSource/statistics/ic-liveend-chat-fb.svg</file>
+        <file>resource/images/ChannelsSource/btn-addch-chzzk.svg</file>
+        <file>resource/images/ChannelsSource/btn-addch-chzzk-large.svg</file>
+        <file>resource/images/ChannelsSource/btn-addch-chzzk-on.svg</file>
+        <file>resource/images/DefaultChannels/btn-mych-chzzk.svg</file>
+        <file>resource/images/ChannelsSource/img-chzzk-profile.png</file>
+        <file>resource/images/ChannelsSource/stremsetting-chzzk-s.svg</file>
+        <file>resource/images/ChannelsSource/img-chzzk-user-icon.png</file>
+        <file>resource/images/ChannelsSource/btn-addch-default.svg</file>
+        <file>resource/images/ChannelsSource/btn-addch-default-large.svg</file>
+        <file>resource/images/ChannelsSource/btn-addch-default-on.svg</file>
+        <file>resource/images/ChannelsSource/stremsetting-tagIcon.png</file>
+        <file>resource/images/DefaultChannels/btn-mych-addch-default.svg</file>
     </qresource>
 </RCC>

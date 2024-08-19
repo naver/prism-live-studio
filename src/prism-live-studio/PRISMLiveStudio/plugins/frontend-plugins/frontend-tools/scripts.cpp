@@ -407,14 +407,14 @@ void ScriptsTool::on_scripts_customContextMenuRequested(const QPoint &pos)
 
 	obs_frontend_push_ui_translation(obs_module_get_string);
 
-	popup.addAction(tr("Add"), this, SLOT(on_addScripts_clicked()));
+	popup.addAction(tr("Add"), this, &ScriptsTool::on_addScripts_clicked);
 
 	if (item) {
 		popup.addSeparator();
-		popup.addAction(obs_module_text("Reload"), this, SLOT(on_reloadScripts_clicked()));
-		popup.addAction(obs_module_text("OpenFileLocation"), this, SLOT(OpenScriptParentDirectory()));
+		popup.addAction(obs_module_text("Reload"), this, &ScriptsTool::on_reloadScripts_clicked);
+		popup.addAction(obs_module_text("OpenFileLocation"), this, &ScriptsTool::OpenScriptParentDirectory);
 		popup.addSeparator();
-		popup.addAction(tr("Remove"), this, SLOT(on_removeScripts_clicked()));
+		popup.addAction(tr("Remove"), this, &ScriptsTool::on_removeScripts_clicked);
 	}
 	obs_frontend_pop_ui_translation();
 
@@ -503,7 +503,9 @@ void ScriptsTool::on_scripts_currentRowChanged(int row)
 
 	OBSDataAutoRelease settings = obs_script_get_settings(script);
 
-	propertiesView = new OBSPropertiesView(settings.Get(), script, (PropertiesReloadCallback)obs_script_get_properties, nullptr, (PropertiesVisualUpdateCb)obs_script_update);
+	auto _propertiesView = new OBSPropertiesView(settings.Get(), script, (PropertiesReloadCallback)obs_script_get_properties, nullptr, (PropertiesVisualUpdateCb)obs_script_update);
+	_propertiesView->SetDeferrable(false);
+	propertiesView = _propertiesView;
 	ui->propertiesLayout->addWidget(propertiesView);
 	ui->description->setText(obs_script_get_description(script));
 }

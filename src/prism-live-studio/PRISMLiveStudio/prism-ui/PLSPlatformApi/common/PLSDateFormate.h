@@ -47,5 +47,11 @@ public:
 
 	static QString navertvTimeStampToString(qint64 timeStamp);
 
+	/**
+ *  @param 2020-11-14T21:22:24+09:00
+ *  @return 1605356544
+ */
+	static long iso8601ToStamp(QString time);
+
 	static long getNowTimeStamp();
 };

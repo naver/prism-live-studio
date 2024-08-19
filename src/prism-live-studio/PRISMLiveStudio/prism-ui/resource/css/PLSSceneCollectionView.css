@@ -1,6 +1,4 @@
-PLSSceneCollectionView {
-	qproperty-maximumSize: /*hdpi*/ 580px /*hdpi*/ 1000px;
-	qproperty-minimumSize: /*hdpi*/ 580px /*hdpi*/ 430px;
+PLSSceneCollectionView, PLSSceneCollectionView[platform=win] {
 	border: /*hdpi*/ none;
 	background-color: #272727;
 }
@@ -11,7 +9,7 @@ PLSSceneCollectionView PLSAlertView #content{
 
 PLSSceneCollectionView #listView, PLSSceneCollectionView #searchListView, PLSSceneCollectionView #content,
 PLSSceneCollectionView #itemPage, PLSSceneCollectionView #noDataPage, PLSSceneCollectionView #searchPage{
-	background-color: #1e1e1f;
+	background-color: #272727;
 	outline: none;
 }
 
@@ -30,7 +28,7 @@ PLSSceneCollectionView #listView::item:hover, PLSSceneCollectionView #searchList
 }
 
 PLSSceneCollectionView #listView QScrollBar:vertical {
-	background-color: #1e1e1f;
+	background-color: #272727;
     width: /*hdpi*/ 10px;
 }
 
@@ -46,7 +44,7 @@ PLSSceneCollectionView #searchLineEdit:focus{
 }
 
 PLSSceneCollectionView #searchLineEdit:!focus{
-    border: /*hdpi*/ 1px solid #343434;
+    border: /*hdpi*/ 1px solid #272727;
 }
 
 PLSSceneCollectionView #collectionLabel {
@@ -88,6 +86,10 @@ PLSSceneCollectionView #importLabel, PLSSceneCollectionView #importLabel[status=
     font-size: /*hdpi*/ 14px;
     min-height: /*hdpi*/ 36px;
     max-height: /*hdpi*/ 36px;
+	background: transparent;
+	padding: 0;
+	margin: 0;
+	font-weight: normal;
 }
 
 PLSSceneCollectionView #newLabel[status=enter],
@@ -179,6 +181,14 @@ PLSSceneCollectionView #buttonFrame{
     border-top: /*hdpi*/ 1px solid #151515;
 }
 
+PLSSceneCollectionView #buttonFrame #tipLabel{
+	font-size: 14px;
+	font-weight: bold;
+	color: #bababa;
+	min-height: /*hdpi*/ 18px;
+	max-height: /*hdpi*/ 18px;
+}
+
 PLSSceneCollectionView #noDataIcon{
     min-height: /*hdpi*/ 90px;
 	max-height: /*hdpi*/ 90px;
@@ -199,6 +209,130 @@ PLSSceneCollectionView PLSPopupMenu#importerButton PLSPopupMenuItem {
 	max-width: /*hdpi*/ 230px;
 }
 
+PLSSceneCollectionView #sceneTemplateButton{
+	min-width: /*hdpi*/ 322px;
+	max-width: /*hdpi*/ 322px;
+    min-height: /*hdpi*/ 290px;
+	max-height: /*hdpi*/ 290px;
+	border-radius: /*hdpi*/ 10px;
+	background-color: #444444;
+	padding: 0;
+	margin: 0;
+}
+
+PLSSceneCollectionView #sceneTemplateButton:hover {
+	background-color: #555555;
+}
+
+PLSSceneCollectionView #sceneTemplateButton:pressed {
+	background-color: #2d2d2d;
+}
+
+PLSSceneCollectionView #sceneTemplateButton:!enabled {
+	background-color: #444444;
+}
+
+PLSSceneCollectionView #sceneTemplateButton #imageLabel{
+	min-width: /*hdpi*/ 262px;
+	max-width: /*hdpi*/ 262px;
+    min-height: /*hdpi*/ 153px;
+	max-height: /*hdpi*/ 153px;
+	background: transparent;
+	image: url(":/resource/images/collection/img_scenecollection.png");
+}
+
+PLSSceneCollectionView #sceneTemplateButton #textLabel{
+	min-height: /*hdpi*/ 20px;
+	max-height: /*hdpi*/ 20px;
+	color: white;
+	font-size: 14px;
+	font-weight: bold;
+	background: transparent;
+}
+
+PLSSceneCollectionView #sceneTemplateButton #descLabel{
+	min-height: /*hdpi*/ 18px;
+	color: #bababa;
+	font-size: 12px;
+	font-weight: normal;
+	background: transparent;
+}
+
+PLSSceneCollectionView PLSClickButton, PLSSceneCollectionView PLSClickButton #overlay,
+PLSSceneCollectionView PLSClickButton #baseContent {
+	margin: 0;
+	padding: 0;
+	min-width: /*hdpi*/ 322px;
+	max-width: /*hdpi*/ 322px;
+    min-height: 112px;
+	max-height: 112px;
+	border-radius: /*hdpi*/ 10px;
+	background-color: #444444;
+}
+
+PLSSceneCollectionView PLSClickButton #overlay:hover, PLSSceneCollectionView PLSClickButton #baseContent:hover{
+	background-color: #555555;
+}
+
+PLSSceneCollectionView PLSClickButton #overlay:pressed, PLSSceneCollectionView PLSClickButton #baseContent:pressed{
+	background-color: #2d2d2d;
+}
+
+PLSSceneCollectionView PLSClickButton #overlay:!enabled, PLSSceneCollectionView PLSClickButton #baseContent:!enabled{
+	background-color: #444444;
+}
+
+PLSSceneCollectionView PLSClickButton #textLabel{
+	min-height: /*hdpi*/ 20px;
+	max-height: /*hdpi*/ 20px;
+	font-size: 14px;
+	color: #ffffff;
+	font-weight: bold;
+	background: transparent;
+}
+
+PLSSceneCollectionView #newButton #iconButton{
+    min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+    min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	margin: 0;
+	padding: 0;
+    background: transparent;
+	image: url(":/resource/images/collection/ic_add_normal.svg");
+}
+
+PLSSceneCollectionView #importButton #iconButton{
+    min-height: /*hdpi*/ 28px;
+	max-height: /*hdpi*/ 28px;
+    min-width: /*hdpi*/ 28px;
+	max-width: /*hdpi*/ 28px;
+	margin: 0;
+	padding: 0;
+    background: transparent;
+	image: url(":/resource/images/collection/ic_import_normal.svg");
+}
+
+PLSSceneCollectionView #importButton #importFromLocalBtn{
+    min-height: /*hdpi*/ 56px;
+	max-height: /*hdpi*/ 56px;
+	border-radius: 0px;
+	border-top-left-radius: 10px;
+	border-top-right-radius: 10px;
+	color: #ffffff;
+	font-size: 14px;
+}
+
+PLSSceneCollectionView #importButton #importFromOtherBtn{
+    min-height: /*hdpi*/ 56px;
+	max-height: /*hdpi*/ 56px;
+	border-radius: 0px;
+	border-bottom-left-radius: 10px;
+	border-bottom-right-radius: 10px;
+	color: #ffffff;
+	font-size: 14px;
+}
+
 PLSSceneCollectionItem PLSPopupMenu#advButtonMenu PLSPopupMenuItem,
 PLSSceneCollectionItem PLSPopupMenu#advButtonMenu {
 	min-width: /*hdpi*/ 180px;
@@ -214,7 +348,7 @@ PLSSceneCollectionItem {
 
 PLSSceneCollectionItem[status="normal"], PLSSceneCollectionItem #nameLabel[status="normal"],
 PLSSceneCollectionItem #timeLabel[status="normal"] {
-	background-color: #1e1e1f;
+	background-color: #272727;
 }
 
 PLSSceneCollectionItem[status="hover"], PLSSceneCollectionItem #nameLabel[status="hover"],

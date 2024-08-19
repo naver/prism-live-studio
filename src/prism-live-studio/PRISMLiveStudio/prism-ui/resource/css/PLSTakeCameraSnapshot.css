@@ -15,12 +15,14 @@
 	min-height:/*hdpi*/ 64px;
 	max-height:/*hdpi*/ 64px;
 }
-#PLSTakeCameraSnapshot #cameraUninitMask #cameraUninitMaskText {
-	background-color: transparent;
-	font-size:/*hdpi*/ 14px;
-	font-weight: normal;
-	color: rgba(255, 255, 255, 0.5);
-}
+	#PLSTakeCameraSnapshot #cameraUninitMask #cameraUninitMaskText {
+		background-color: transparent;
+		font-size: /*hdpi*/ 14px;
+		font-weight: normal;
+		color: rgba(255, 255, 255, 0.5);
+		padding-left: /*hdpi*/ 30px;
+		padding-right: /*hdpi*/ 30px;
+	}
 #PLSTakeCameraSnapshot #cameraSettingButton {
 	min-width:/*hdpi*/ 40px;
 	max-width:/*hdpi*/ 40px;

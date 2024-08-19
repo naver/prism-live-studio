@@ -224,7 +224,7 @@ void PLSBgmItemCoverImage::paintEvent(QPaintEvent *event)
 	QPainter painter(this);
 
 	if (!pixmap.isNull()) {
-		painter.setRenderHints(QPainter::Antialiasing, true);
+		painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
 		if (setRoundedRect) {
 			QPainterPath painterPath;
 			painterPath.addRoundedRect(this->rect(), 3.0, 3.0);

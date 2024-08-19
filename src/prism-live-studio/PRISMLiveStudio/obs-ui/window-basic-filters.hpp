@@ -1,5 +1,5 @@
 /******************************************************************************
-    Copyright (C) 2015 by Hugh Bailey <obs.jim@gmail.com>
+    Copyright (C) 2023 by Lain Bailey <lain@obsproject.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -41,6 +41,10 @@ private:
 	OBSSource source;
 	QWidget *view = nullptr;
 
+	//PRISM/FanZirong/20240326/4824/Create copy and past Action in advance
+	QAction* copyAction;
+	QAction* pasteAction;
+
 	OBSSignal addSignal;
 	OBSSignal removeSignal;
 	OBSSignal reorderSignal;
@@ -67,20 +71,18 @@ private:
 	QMenu *CreateAddFilterPopupMenu(bool async);
 
 	void AddNewFilter(const char *id);
-	void ReorderFilter(FocusList *list, obs_source_t *filter, size_t idx,
-			   bool async);
+	void ReorderFilter(QListWidget* list, obs_source_t* filter, size_t idx);
 
 	void CustomContextMenu(const QPoint &pos, bool async);
 	void EditItem(QListWidgetItem *item, bool async);
 	void DuplicateItem(QListWidgetItem *item);
 
-	void FilterNameEdited(QWidget *editor, PLSFiltersItemView *item,
-			      FocusList *list, bool async);
+	void FilterNameEdited(QWidget * editor, QListWidget * list);
 
 	void delete_filter(OBSSource filter);
 
-	void SetupFiltersItem(FocusList *list, QListWidgetItem *item,
-			      obs_source_t *source, bool current);
+	void PLSSetupVisibilityItem(QListWidget* list, QListWidgetItem* item,
+		obs_source_t* source);
 
 	bool isAsync;
 
@@ -94,11 +96,7 @@ private slots:
 	void ReorderFilters();
 	void RenameAsyncFilter();
 	void RenameEffectFilter();
-	void DuplicateAsyncFilter();
-	void DuplicateEffectFilter();
 	void ResetFilters();
-
-	void AddFilterFromAction();
 
 	void on_addAsyncFilter_clicked();
 	void on_removeAsyncFilter_clicked();
@@ -120,15 +118,14 @@ private slots:
 	void on_actionMoveUp_triggered();
 	void on_actionMoveDown_triggered();
 
-	void AsyncFilterNameEdited(QWidget *editor,
-				   QAbstractItemDelegate::EndEditHint endHint);
-	void EffectFilterNameEdited(QWidget *editor,
-				    QAbstractItemDelegate::EndEditHint endHint);
+	void on_actionRenameFilter_triggered();
 
 	void CopyFilter();
 	void PasteFilter();
-	void SetCurrentItem(PLSFiltersItemView *item, FocusList *filtersList,
-			    bool async);
+
+	void FiltersMoved(const QModelIndex &srcParent, int srcIdxStart,
+			  int srcIdxEnd, const QModelIndex &dstParent,
+			  int dstIdx);
 
 public:
 	OBSBasicFilters(QWidget *parent, OBSSource source_);
@@ -145,11 +142,6 @@ public:
 
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 	virtual bool nativeEvent(const QByteArray &eventType, void *message,
 				 qintptr *result) override;
-#else
-	virtual bool nativeEvent(const QByteArray &eventType, void *message,
-				 long *result) override;
-#endif
 };

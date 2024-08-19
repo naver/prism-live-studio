@@ -10,7 +10,7 @@
 		</data>
 		<key>Resources/Info.plist</key>
 		<data>
-		Y2SZ8sQ/ff7Ew9h0O4dZiLJslWM=
+		pLVR52769zFs1E9Oxoj+nJ3pte8=
 		</data>
 		<key>Resources/LICENSE.TXT</key>
 		<data>
@@ -44,14 +44,14 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			16snEB6rCyk/l35YCRZ6xFdJDHB6EwLYypPlgCr+BOU=
+			//BTSH6zcaayDvr7pRdRPhVJP1IRUfq2RH1whdH+HBQ=
 			</data>
 		</dict>
 		<key>Headers/KSCrashC.h</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			wlhuLdZJFrE1CZDYwpidouEhajMkkdJPwNv8AtvKRzU=
+			UTyNNPeMtbrZcjQjJfdCL6nlddRoiyj06tYfj8gzinw=
 			</data>
 		</dict>
 		<key>Headers/KSCrashFramework.h</key>
@@ -408,7 +408,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			FqJAGYW2vakkfltTOLQfiuY5L6Y9+5fmeERhHeN9Br4=
+			+AbB/cbBEzk/tK579CkXhA3nwefeb9wjDXqeO8m9ooM=
 			</data>
 		</dict>
 		<key>PrivateHeaders/KSCrashReportVersion.h</key>
@@ -632,7 +632,7 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			pHsQRpn5H158kWZ5Fvv695id4+IQl26QlRpXrIGod8w=
+			Eck4XSwP98XpNAfXxMgLwNO5C1xgS94xmpTMQNcsWSg=
 			</data>
 		</dict>
 		<key>Resources/LICENSE.TXT</key>

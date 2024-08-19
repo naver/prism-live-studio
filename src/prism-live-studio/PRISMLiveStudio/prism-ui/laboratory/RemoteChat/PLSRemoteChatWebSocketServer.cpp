@@ -72,16 +72,23 @@ bool PLSRemoteChatWebSocketServer::startWebsocketServer()
 	}
 
 	QHostAddress ipAddress;
+	bool hasWebAddress = false;
 	QList<QHostAddress> ipAddressList = QNetworkInterface::allAddresses();
 	for (int i = 0; i < ipAddressList.size(); i++) {
 		if (ipAddressList.at(i) != QHostAddress::LocalHost && ipAddressList.at(i).toIPv4Address()) {
 			ipAddress = ipAddressList.at(i);
+			hasWebAddress = true;
 			break;
 		}
 	}
 
 	if (ipAddressList.isEmpty()) {
 		RC_LOG("create websocket server failed, because ip address is empty");
+		return false;
+	}
+
+	if (!hasWebAddress) {
+		RC_LOG("create websocket server failed, because web server ip address is empty");
 		return false;
 	}
 

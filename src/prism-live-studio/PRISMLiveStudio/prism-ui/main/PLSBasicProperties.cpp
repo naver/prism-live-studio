@@ -23,6 +23,7 @@
 #if defined(Q_OS_MACOS)
 #include "mac/PLSPermissionHelper.h"
 #endif
+#include "PLSPlatformApi.h"
 
 using namespace std;
 using namespace common;
@@ -31,6 +32,7 @@ const auto PROPERTY_WINDOW_DEFAULT_H = 710;
 
 extern bool hasActivedChatChannel();
 extern PlatformType viewerCountCheckPlatform();
+extern void sendPrismSourceAnalog(const char *sourceId, OBSData oldSettings, OBSData newSettings);
 
 static void checkViewerCountSourceTip(PLSBasicProperties *properties, OBSQTDisplay *preview)
 {
@@ -62,7 +64,7 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 {
 
 	//invoke async to ensure sub-sources were created
-	QTimer::singleShot(0, this, [this]() { pls_source_properties_edit_start(source); });
+	pls_async_call(this, [this]() { pls_source_properties_edit_start(source); });
 
 	OBSBasicProperties::ui->windowSplitter->setObjectName(common::OBJECT_NAME_PROPERTY_SPLITTER);
 	ui->windowSplitter->setMouseTracking(true);
@@ -117,15 +119,18 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 	}
 
 	installEventFilter(this);
-	if (pls_is_equal(id, PRISM_CHAT_SOURCE_ID) && obs_frontend_streaming_active() && !hasActivedChatChannel()) {
+	if ((pls_is_equal(id, PRISM_CHAT_SOURCE_ID) || pls_is_equal(id, PRISM_CHATV2_SOURCE_ID)) && obs_frontend_streaming_active() && !hasActivedChatChannel()) {
 		ui->preview->showGuideText(tr("Chat.Property.ChatSource.NoSupportChannel.InStreaming"));
 	} else if (pls_is_equal(id, PRISM_VIEWER_COUNT_SOURCE_ID)) {
 		checkViewerCountSourceTip(this, ui->preview);
+	} else if (pls_is_equal(id, OBS_DSHOW_SOURCE_ID)) {
+		ui->preview->showGuideText("");
 	}
 
 #if defined(Q_OS_MACOS)
 	PLSPermissionHelper::AVType avType;
 	auto permissionStatus = PLSPermissionHelper::checkPermissionWithSource(source, avType);
+
 	QMetaObject::invokeMethod(
 		this,
 		[avType, permissionStatus, this]() {
@@ -140,10 +145,14 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 
 PLSBasicProperties::~PLSBasicProperties()
 {
+	pls_notify_close_modal_views_with_parent(this);
+
 	view->CheckValues();
 	if (acceptClicked) {
 		OBSData srcSettings = obs_source_get_settings(source);
 		action::CheckPropertyAction(source, oldSettings, srcSettings, operationFlags);
+		PLS_PLATFORM_API->sendAnalogOnUserConfirm(source, oldSettings, srcSettings);
+		sendPrismSourceAnalog(obs_source_get_id(source), oldSettings, srcSettings);
 		obs_data_release(srcSettings);
 	}
 }
@@ -249,10 +258,15 @@ void PLSBasicProperties::ShowMobileNotice()
 		}
 #endif // Q_OS_MACOS
 
+		QPointer guard(this);
 		std::optional<int> timeout = std::optional<int>();
-		PLSAlertView::Result res = PLSAlertView::information(this, QTStr("Confirm"), QTStr("main.property.mobile.scan.QRcode.tips"), QTStr("main.property.prism.dont.show.again"),
+		PLSAlertView::Result res = PLSAlertView::information(App()->getMainView(), QTStr("Confirm"), QTStr("main.property.mobile.scan.QRcode.tips"),
+								     QTStr("main.property.prism.dont.show.again"),
 								     {{PLSAlertView::Button::Open, QTStr("main.property.prism.mobile.open")}, {PLSAlertView::Button::No, QTStr("Close")}},
 								     PLSAlertView::Button::No, timeout, QMap<QString, QVariant>());
+		if (!guard)
+			return;
+
 		if (res.isChecked) {
 			config_set_bool(App()->GlobalConfig(), "General", "NotRemindScanQRcode", true);
 			config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
@@ -264,6 +278,9 @@ void PLSBasicProperties::ShowMobileNotice()
 				arguments << QString("--output_cam=%1").arg(outputCamIndex);
 			}
 			pls_open_cam_studio(arguments, this);
+#if defined(Q_OS_MACOS)
+			pls_set_current_lens(outputCamIndex);
+#endif
 		}
 		obs_data_set_bool(data, "showMobileNotice", true);
 	}
@@ -276,13 +293,16 @@ void PLSBasicProperties::ShowPrismLensNaverRunNotice(bool isMobileSource)
 		content = QTStr("main.property.mobile.launch");
 	}
 
-	PLSAlertView::Button button =
-		PLSAlertView::information(this, QTStr("Confirm"), content, {{PLSAlertView::Button::Open, QTStr("main.property.prism.mobile.open")}, {PLSAlertView::Button::No, QTStr("Close")}});
+	PLSAlertView::Button button = PLSAlertView::information(App()->getMainView(), QTStr("Confirm"), content,
+								{{PLSAlertView::Button::Open, QTStr("main.property.prism.mobile.open")}, {PLSAlertView::Button::No, QTStr("Close")}});
 	if (button == PLSAlertView::Button::Open) {
 		QStringList arguments{"--display_control=top"};
 		int outputCam = isMobileSource ? 2 : 0;
 		arguments << QString("--output_cam=%1").arg(outputCam);
 		pls_open_cam_studio(arguments, this);
+#if defined(Q_OS_MACOS)
+		pls_set_current_lens(outputCam);
+#endif
 		accept();
 	}
 }
@@ -354,6 +374,13 @@ void PLSBasicProperties::dialogClosedToSendNoti()
 	//RenJinbo/add is save button clicked
 	pls_source_properties_edit_end(source, m_isSaveClick);
 
+	pls_notify_close_modal_views_with_parent(this);
+
+#ifdef __APPLE__
+	if (toast)
+		PLSCustomMacWindow::removeCurrentWindowFromParentWindow(toast);
+#endif
+
 	Cleanup();
 	emit AboutToClose();
 	done(0);
@@ -423,6 +450,9 @@ void PLSBasicProperties::showToast(const QString &message)
 	connect(toastButton, &QPushButton::clicked, toastFrame, &QFrame::hide);
 	setToastMessage(message);
 
+#ifdef __APPLE__
+	PLSCustomMacWindow::addCurrentWindowToParentWindow(toast);
+#endif
 	QMetaObject::invokeMethod(
 		this, [this]() { updateToastGeometry(); }, Qt::QueuedConnection);
 }
@@ -438,6 +468,18 @@ void PLSBasicProperties::setToastMessage(const QString &message)
 	toast->show();
 
 	updateToastGeometry();
+}
+
+void PLSBasicProperties::showGuideText(const QString &guideText)
+{
+	if (ui && ui->preview)
+		ui->preview->showGuideText(guideText);
+}
+
+void PLSBasicProperties::hideGuideText()
+{
+	if (ui && ui->preview)
+		ui->preview->hideGuideText();
 }
 
 void PLSBasicProperties::updateToastGeometry()
@@ -511,6 +553,9 @@ void PLSBasicProperties::showEvent(QShowEvent *event)
 		arguments << "--display_control=keep";
 		arguments << QString("--output_cam=%1").arg(outputCamIndex);
 		pls_open_cam_studio(arguments, this);
+#if defined(Q_OS_MACOS)
+		pls_set_current_lens(outputCamIndex);
+#endif
 		return;
 	}
 
@@ -551,6 +596,9 @@ void PLSBasicProperties::showEvent(QShowEvent *event)
 		}
 
 		pls_open_cam_studio(arguments, this);
+#if defined(Q_OS_MACOS)
+		pls_set_current_lens(outputCamIndex);
+#endif
 
 		ShowMobileNotice();
 	});

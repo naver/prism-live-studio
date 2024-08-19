@@ -37,17 +37,14 @@ PLSLivingMsgView::PLSLivingMsgView(DialogInfo info, QWidget *parent) : PLSSideBa
 	});
 	m_t.start(TIMEOFFSET);
 #if defined(Q_OS_MACOS)
-	initSize(300, 360);
+	setMinimumSize(300, 360);
 #elif defined(Q_OS_WIN)
-	initSize(300, 400);
+	setMinimumSize(300, 400);
 #endif
 }
 
 PLSLivingMsgView::~PLSLivingMsgView()
 {
-	if (!isMaximized()) {
-		config_set_string(App()->GlobalConfig(), "LivingMsgView", "geometry", PLSToplevelView::saveGeometry().toBase64().constData());
-	}
 	m_t.stop();
 	pls_delete(ui);
 }

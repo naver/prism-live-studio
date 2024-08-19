@@ -1,12 +1,34 @@
 @echo off
 
 setlocal
+
 cd %~dp0
+
+if "%1"=="Debug" (
+	set QTDIR=%QTDIR_Debug%
+	set BUILD_TYPE_ARG=Debug
+)
+if "%1"=="Release" (
+	set QTDIR=%QTDIR_RelWithDebInfo%
+	set BUILD_TYPE_ARG=Release
+)
+if "%1"=="RelWithDebInfo" (
+	set QTDIR=%QTDIR_RelWithDebInfo%
+	set BUILD_TYPE_ARG=Release
+)
+
+set ENABLE_TEST=OFF
+if "%PACK_TYPE_ARG%"=="daily" (
+	set ENABLE_TEST=ON
+) else (
+	for %%i in (%*) do (
+		if "%%i"=="--test" set ENABLE_TEST=ON
+	)
+)
+
 call common_values.cmd
 rem cd %_PROJECT_DIR%
 rem git submodule update --init --recursive
-
-call powershell %_PROJECT_DIR%\src\obs-studio\CI\windows\01_install_dependencies.ps1
 
 cmake -Wno-dev ^
 	-S "%SRC_DIR%" ^
@@ -17,14 +39,8 @@ cmake -Wno-dev ^
 	-DCMAKE_BUILD_TYPE=%CMAKE_BUILD_TYPE% ^
 	-DCMAKE_PREFIX_PATH="%ALL_DEPS%" ^
 	-DRELEASE_CANDIDATE=%VERSION% ^
-	-DCOPY_DEPENDENCIES=ON ^
-	-DBUILD_CAPTIONS=ON ^
-	-DCOMPILE_D3D12_HOOK=ON ^
 	-DENABLE_BROWSER=ON ^
-	-DCEF_ROOT_DIR=%CEF_ROOT_DIR% ^
 	-DVIRTUALCAM_GUID="%VIRTUALCAM_GUID%" ^
-	-DENABLE_UI=ON ^
-    -DVLC_PATH=%VLC_DIR% ^
-    -DENABLE_VLC=ON ^
 	-DCMAKE_POLICY_DEFAULT_CMP0048=NEW ^
-	-DENABLE_SETUP=%ENABLE_SETUP%
+	-DENABLE_SETUP=%ENABLE_SETUP% ^
+	-DENABLE_TEST=%ENABLE_TEST%

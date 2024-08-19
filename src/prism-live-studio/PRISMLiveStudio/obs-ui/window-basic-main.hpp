@@ -1,5 +1,5 @@
 /******************************************************************************
-    Copyright (C) 2013-2014 by Hugh Bailey <obs.jim@gmail.com>
+    Copyright (C) 2023 by Lain Bailey <lain@obsproject.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include <QFileDialog>
 #include "window-main.hpp"
 #include "window-basic-interaction.hpp"
+#include "window-basic-vcam.hpp"
 #include "window-basic-properties.hpp"
 #include "window-basic-transform.hpp"
 #include "window-basic-adv-audio.hpp"
@@ -36,6 +37,7 @@
 #include "window-missing-files.hpp"
 #include "window-projector.hpp"
 #include "window-basic-about.hpp"
+#include "window-dock-youtube-app.hpp"
 #include "window-basic-color-select.hpp"
 #include "auth-base.hpp"
 #include "log-viewer.hpp"
@@ -43,6 +45,7 @@
 #include "PLSSceneCollectionView.h"
 #include "PLSSceneCollectionManagement.h"
 #include "PLSMenuPushButton.h"
+#include "PLSSceneTemplateModel.h"
 
 #include <obs-frontend-internal.hpp>
 #include <frontend-internal.hpp>
@@ -52,14 +55,19 @@
 
 #include <QPointer>
 #include "PLSBasicProperties.hpp"
+#include "PLSOutro.hpp"
+#include "audio-mixer/PLSAudioMixer.h"
 
 class QMessageBox;
 class QListWidgetItem;
 class VolControl;
 class OBSBasicStats;
+class OBSBasicVCamConfig;
 class PLSApp;
 class PLSAudioControl;
 class PLSPreviewProgramTitle;
+class PLSWatermark;
+class PLSPlatformBase;
 
 #include "ui_OBSBasic.h"
 #include "ui_ColorSelect.h"
@@ -93,7 +101,8 @@ enum class LoadSceneCollectionWay {
 	RunPscWhenNoPrism,
 	RunPscWhenPrismExisted,
 	ImportSceneCollection,
-	ImportSceneCollectionFromExport
+	ImportSceneCollectionFromExport,
+	ImportSceneTemplates
 };
 
 enum class SceneSetOperatorType {
@@ -256,7 +265,11 @@ private:
 
 	std::vector<OBSSignal> signalHandlers;
 
-	QList<QPointer<QDockWidget>> extraDocks;
+	QList<QPointer<QDockWidget>> oldExtraDocks;
+	QStringList oldExtraDockNames;
+
+	OBSDataAutoRelease safeModeModuleData;
+	std::vector<OBSDataAutoRelease> safeModeTransitions;
 
 	bool loaded = false;
 	long disableSaving = 1;
@@ -285,11 +298,16 @@ private:
 	bool collectionChanging = false;
 	bool isCreateSouceInLoading = true;
 
+	bool alreadyShowSceneMethodAlert = false;
+	bool deferShowSceneMethodAlert = false;
+
 	QString lastCollectionPath;
 	OBSDataAutoRelease source_recent_color_config{};
 	QString lastProfilePath;
 
 	bool closing = false;
+	bool clearingFailed = false;
+
 	QScopedPointer<QThread> devicePropertiesThread;
 	QScopedPointer<QThread> whatsNewInitThread;
 	QScopedPointer<QThread> updateCheckThread;
@@ -302,6 +320,10 @@ private:
 	QPointer<OBSBasicAdvAudio> advAudioWindow;
 	QPointer<OBSBasicFilters> filters;
 	QPointer<QDockWidget> statsDock;
+
+	QPointer<YouTubeAppDock> youtubeAppDock;
+	uint64_t lastYouTubeAppDockCreationTime = 0;
+
 	QPointer<OBSAbout> about;
 	QPointer<OBSMissingFiles> missDialog;
 	QPointer<OBSLogViewer> logView;
@@ -356,6 +378,7 @@ private:
 
 	QPointer<ControlsSplitButton> vcamButton;
 	bool vcamEnabled = false;
+	VCamConfig vcamConfig;
 
 	QScopedPointer<QSystemTrayIcon> trayIcon;
 	QPointer<QAction> sysTrayStream;
@@ -402,8 +425,10 @@ private:
 	bool showLoadSceneCollectionError = false;
 	QString showLoadSceneCollectionErrorStr;
 
-	//std::atomic<obs_scene_t *> currentScene = nullptr;
+	std::shared_ptr<PLSOutro> outro;
 
+	//std::atomic<obs_scene_t *> currentScene = nullptr;
+	std::optional<std::pair<uint32_t, uint32_t>> lastOutputResolution;
 	void UpdateMultiviewProjectorMenu();
 
 	void DrawBackdrop(float cx, float cy);
@@ -458,6 +483,8 @@ private:
 	obs_data_array_t *SaveSceneListOrder();
 	void ChangeSceneIndex(bool relative, int idx, int invalidIdx);
 
+	void checkSceneDisplayMethod();
+
 	void LoadSourceRecentColorConfig(obs_data_t *obj);
 	void UpdateSourceRecentColorConfig(QString strColor);
 
@@ -502,6 +529,11 @@ private:
 				      const QString &importFile,
 				      LoadSceneCollectionWay way,
 				      bool fromExport = false);
+
+	bool importLocalSceneTemplate(const QString &overlayFile);
+	bool importSceneTemplate(const SceneTemplateItem &model,
+				 bool checkResolution = true);
+	bool exportSceneTemplate(const QString &overlayFile);
 
 	void ExportSceneCollection(const QString &name, const QString &fileName,
 				   QWidget *parent, bool import_scene = false,
@@ -592,13 +624,14 @@ private:
 	OBSWeakSource lastScene;
 	OBSWeakSource swapScene;
 	OBSWeakSource programScene;
+	OBSWeakSource lastProgramScene;
 	OBSWeakSource m_currentScene = nullptr;
 	std::mutex mutex_current_scene;
 	bool editPropertiesMode = false;
 	bool sceneDuplicationMode = true;
 	bool swapScenesMode = false;
 	volatile bool previewProgramMode = false;
-	obs_hotkey_id togglePreviewProgramHotkey = 0;
+	obs_hotkey_pair_id togglePreviewProgramHotkeys = 0;
 	obs_hotkey_id transitionHotkey = 0;
 	obs_hotkey_id statsHotkey = 0;
 	obs_hotkey_id screenshotHotkey = 0;
@@ -634,7 +667,7 @@ private:
 	QList<QPointer<QDialog>> visDialogs;
 	QList<QDialog *> modalDialogs;
 	QList<PLSDialogView *> visMsgBoxes;
-
+	QPointer<QWidget> visWizardWidget;
 	QList<QPoint> visDlgPositions;
 
 	QByteArray startingDockLayout;
@@ -642,20 +675,37 @@ private:
 	obs_data_array_t *SaveProjectors();
 	void LoadSavedProjectors(obs_data_array_t *savedProjectors);
 
+	void MacBranchesFetched(const QString &branch, bool manualUpdate);
 	void ReceivedIntroJson(const QString &text);
 	void ShowWhatsNew(const QString &url);
 
 	void UpdatePreviewProgramIndicators();
 
+	QStringList extraDockNames;
+	QList<std::shared_ptr<QDockWidget>> extraDocks;
+
+	QStringList extraCustomDockNames;
+	QList<QPointer<QDockWidget>> extraCustomDocks;
+
+	QStringList ncb2bCustomDockUrls;
+	QStringList ncb2bCustomDockNames;
+	QList<std::shared_ptr<QDockWidget>> ncb2bCustomDocks;
+	QPointer<QAction> ncb2bMenuDocksSeparator;
+
 #ifdef BROWSER_AVAILABLE
-	QList<QSharedPointer<QDockWidget>> extraBrowserDocks;
-	QList<QSharedPointer<QAction>> extraBrowserDockActions;
+	QPointer<QAction> extraBrowserMenuDocksSeparator;
+
+	QList<std::shared_ptr<QDockWidget>> extraBrowserDocks;
+	QStringList extraBrowserDockNames;
 	QStringList extraBrowserDockTargets;
 
 	void ClearExtraBrowserDocks();
 	void LoadExtraBrowserDocks();
 	void SaveExtraBrowserDocks();
 	void ManageExtraBrowserDocks();
+
+	void loadNcb2bBrowserSettingsDocks();
+	void saveNcb2bBrowserSettingsDocks();
 
 #endif
 
@@ -711,10 +761,11 @@ private:
 	bool broadcastActive = false;
 	bool broadcastReady = false;
 	QPointer<QThread> youtubeStreamCheckThread;
-#if YOUTUBE_ENABLED
+#ifdef YOUTUBE_ENABLED
 	void YoutubeStreamCheck(const std::string &key);
 	void ShowYouTubeAutoStartWarning();
-	void YouTubeActionDialogOk(const QString &id, const QString &key,
+	void YouTubeActionDialogOk(const QString &broadcast_id,
+				   const QString &stream_id, const QString &key,
 				   bool autostart, bool autostop,
 				   bool start_now);
 #endif
@@ -738,10 +789,14 @@ private:
 	bool drawSpacingHelpers = true;
 
 	float GetDevicePixelRatio();
-	void SourceToolBarActionsSetEnabled(bool enable);
+	void SourceToolBarActionsSetEnabled();
 
 	std::string lastScreenshot;
 	std::string lastReplay;
+
+	void UpdatePreviewOverflowSettings();
+
+	bool restartingVCam = false;
 
 	QMap<int, int> states;
 
@@ -756,7 +811,7 @@ public slots:
 
 	void markState(int state, int result = 0);
 	void StartStreaming();
-	void StopStreaming();
+	void StopStreaming(bool userStop = true);
 	void ForceStopStreaming();
 
 	void StreamDelayStarting(int sec);
@@ -793,6 +848,7 @@ public slots:
 	void SaveProjectDeferred();
 	void SaveProject();
 
+	bool InterruptPrevTransiton();
 	void OverrideTransition(OBSSource transition);
 	void TransitionToScene(OBSScene scene, bool force = false);
 	void TransitionToScene(OBSSource scene, bool force = false,
@@ -800,6 +856,8 @@ public slots:
 			       int quickDuration = 0, bool black = false,
 			       bool manual = false);
 	void SetCurrentScene(OBSSource scene, bool force = false);
+	void SetCurrentSceneWithoutInterrupt(OBSSource scene,
+					     bool force = false);
 	void SetScene(OBSScene scene);
 
 	bool AddSceneCollection(bool create_new, QWidget *parent,
@@ -902,13 +960,14 @@ private slots:
 	void EnablePreview();
 	void DisablePreview();
 
+	void EnablePreviewProgram();
+	void DisablePreviewProgram();
+
 	void SceneCopyFilters();
 	void ScenePasteFilters();
 
 	void CheckDiskSpaceRemaining();
 	void OpenSavedProjector(SavedProjectorInfo *info);
-
-	void ScenesReordered();
 
 	void ResetStatsHotkey();
 
@@ -934,7 +993,11 @@ private slots:
 	void TBarReleased();
 #endif
 	void LockVolumeControl(bool lock);
-	void ResetProxyStyleSliders();
+	void ThemeChanged();
+
+	void UpdateVirtualCamConfig(const VCamConfig &config);
+	void RestartVirtualCam(const VCamConfig &config);
+	void RestartingVirtualCam();
 
 private:
 	/* OBS Callbacks */
@@ -996,6 +1059,9 @@ public:
 
 	obs_service_t *GetService();
 	void SetService(obs_service_t *service);
+	void ClearService(const QString &channelName = "");
+
+	obs_output_t *GetSrteamOutput();
 
 	int GetTransitionDuration();
 	int GetTbarPosition();
@@ -1067,8 +1133,9 @@ public:
 	void UpdateTitleBar();
 
 	QPointer<QAction> addSysTrayAction(const QString &txt,
+					   const QString &objName,
 					   const std::function<void()> &fun);
-	void SystemTrayInit();
+	void SystemTrayInit(bool isVisible);
 	void SystemTray(bool firstStarted);
 
 	void OpenSavedProjectors();
@@ -1077,21 +1144,39 @@ public:
 	void CreatePropertiesWindow(obs_source_t *source,
 				    unsigned flags = OPERATION_NONE);
 	void CreateFiltersWindow(obs_source_t *source);
+	QWidget *GetPropertiesWindow();
 
 	void DeletePropertiesWindowInScene(obs_scene_t *scene) const;
 	void DeletePropertiesWindow(obs_source_t *source) const;
 	void DeleteFiltersWindowInScene(obs_scene_t *scene) const;
 	void DeleteFiltersWindow(const obs_source_t *source) const;
+	void CreateEditTransformWindow(obs_sceneitem_t *item);
 
 	QAction *AddDockWidget(QDockWidget *dock);
+	void AddDockWidget(QDockWidget *dock, Qt::DockWidgetArea area,
+			   bool extraBrowser = false, bool ncb2b = false);
+	void RemoveDockWidget(const QString &name);
+	bool IsDockObjectNameUsed(const QString &name);
+	void AddCustomDockWidget(QDockWidget *dock);
 
 	static OBSBasic *Get();
 
 	const char *GetCurrentOutputPath();
 
 	void DeleteProjector(OBSProjector *projector);
-	void AddProjectorMenuMonitors(QMenu *parent, QObject *target,
-				      const char *slot);
+
+	static QList<QString> GetProjectorMenuMonitorsFormatted();
+	template<typename Receiver, typename... Args>
+	static void AddProjectorMenuMonitors(QMenu *parent, Receiver *target,
+					     void (Receiver::*slot)(Args...))
+	{
+		auto projectors = GetProjectorMenuMonitorsFormatted();
+		for (int i = 0; i < projectors.size(); i++) {
+			QString str = projectors[i];
+			QAction *action = parent->addAction(str, target, slot);
+			action->setProperty("monitor", i);
+		}
+	}
 
 	QIcon GetSourceIcon(const char *id) const;
 	virtual bool GetSourceIcon(QIcon &icon, int type) const;
@@ -1128,10 +1213,12 @@ public:
 	void SetDisplayAffinity(QWindow *window);
 
 	QColor GetSelectionColor() const;
+	inline bool Closing() { return closing; }
 
 	void mainViewClose(QCloseEvent *event);
 	virtual void closeMainBegin() {}
 	virtual void closeMainFinished() {}
+	virtual bool checkMainViewClose(QCloseEvent *event);
 
 	void DeleteSelectedScene(OBSScene scene);
 
@@ -1144,26 +1231,38 @@ public:
 	inline float GetPreviewScale() const { return previewScale; };
 	//202300203/zengqin/spectralizer
 	void updateSpectralizerAudioSources(OBSSource source, unsigned flags);
+	//20240514/xiewei/add output analog
+	double GetStreamingOutputFPS();
+	double GetRecordingOutputFPS();
 
 	int getState(int state);
 	void setDocksVisible(bool visible);
 	void setDocksVisibleProperty();
 	void setDockDisplayAsynchronously(PLSDock *dock, bool visible);
 
+	BrowserDock *addNcb2bCustomDock(const QString &title,
+					const QString &url, const QString &uuid,
+					bool firstCreate,
+					QByteArray geometry = QByteArray());
+	QList<std::shared_ptr<QDockWidget>> getNcb2bCustomDocks();
+	QList<QString> getNcb2bCustomDocksUrls();
+	QList<QString> getNcb2bCustomDocksNames();
+	std::shared_ptr<QDockWidget> getNcb2bCustomDock(const QString &title);
+	void updateNcb2bDockUrl(int index, const QString &url);
+	void updateNcb2bDockName(int index, const QString &name);
 #ifdef BROWSER_AVAILABLE
 	void AddExtraBrowserDock(const QString &title, const QString &url,
 				 const QString &uuid, bool firstCreate);
+	BrowserDock *createBrowserDock(const QString &title, const QString &url,
+				       const QString &uuid, bool firstCreate,
+				       QByteArray geometry = QByteArray(),
+				       bool ncb2b = false);
 #endif
 	void mainViewChangeEvent(QEvent *event);
 
 protected:
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 	virtual bool nativeEvent(const QByteArray &eventType, void *message,
 				 qintptr *result) override;
-#else
-	virtual bool nativeEvent(const QByteArray &eventType, void *message,
-				 long *result) override;
-#endif
 	virtual void changeEvent(QEvent *event) override;
 
 private slots:
@@ -1183,6 +1282,8 @@ private slots:
 	void on_actionViewCurrentLog_triggered();
 	void on_actionCheckForUpdates_triggered();
 	void on_actionRepair_triggered();
+	void on_actionShowWhatsNew_triggered();
+	void on_actionRestartSafe_triggered();
 
 	void on_actionShowCrashLogs_triggered();
 	void on_actionUploadLastCrashLog_triggered();
@@ -1241,7 +1342,6 @@ private slots:
 	void VCamButtonClicked();
 	void VCamConfigButtonClicked();
 	void on_settingsButton_clicked();
-
 	void Screenshot(OBSSource source_ = nullptr);
 	void ScreenshotSelectedSource();
 	void ScreenshotProgram();
@@ -1250,10 +1350,11 @@ private slots:
 	void on_actionHelpPortal_triggered();
 	void on_actionWebsite_triggered();
 	void on_actionDiscord_triggered();
+	void on_actionReleaseNotes_triggered();
 
-	void on_preview_customContextMenuRequested(const QPoint &pos);
-	void ProgramViewContextMenuRequested(const QPoint &pos);
-	void PreviewDisabledMenu(const QPoint &pos);
+	void on_preview_customContextMenuRequested();
+	void ProgramViewContextMenuRequested();
+	void on_previewDisabledWidget_customContextMenuRequested();
 
 	void on_actionNewSceneCollection_triggered();
 	void on_actionRenameSceneCollection_triggered();
@@ -1282,8 +1383,7 @@ private slots:
 	void on_transitionAdd_clicked();
 	void on_transitionRemove_clicked();
 	void on_transitionProps_clicked();
-	void on_transitionDuration_valueChanged(int value);
-	void on_tbar_position_valueChanged(int value);
+	void on_transitionDuration_valueChanged();
 #endif
 	void ShowTransitionProperties();
 	void HideTransitionProperties();
@@ -1302,6 +1402,7 @@ private slots:
 	void on_resetDocks_triggered(bool force = false);
 	void on_lockDocks_toggled(bool lock);
 	void on_multiviewProjectorWindowed_triggered();
+	void on_sideDocks_toggled(bool side);
 
 	void PauseToggled();
 
@@ -1311,33 +1412,22 @@ private slots:
 
 	void updateCheckFinished();
 
-	void AddSourceFromAction();
-
 	void MoveSceneToTop();
 	void MoveSceneToBottom();
 
 	void EditSceneName();
 	void EditSceneItemName();
 
-	void SceneNameEdited(QWidget *editor,
-			     QAbstractItemDelegate::EndEditHint endHint);
+	void SceneNameEdited(QWidget *editor);
 
 	void OpenSceneFilters();
 	void OpenFilters(OBSSource source = nullptr);
 	void OpenProperties(OBSSource source = nullptr);
 	void OpenInteraction(OBSSource source = nullptr);
+	void OpenEditTransform(OBSSceneItem item = nullptr);
 
 	void EnablePreviewDisplay(bool enable);
 	void TogglePreview();
-
-	void NudgeUp();
-	void NudgeDown();
-	void NudgeLeft();
-	void NudgeRight();
-	void NudgeUpFar();
-	void NudgeDownFar();
-	void NudgeLeftFar();
-	void NudgeRightFar();
 
 	void OpenStudioProgramProjector();
 	void OpenPreviewProjector();
@@ -1354,6 +1444,9 @@ private slots:
 	void StackedMixerAreaContextMenuRequested();
 
 	void ResizeOutputSizeOfSource();
+
+	void RepairOldExtraDockName();
+	void RepairCustomExtraDockName();
 
 	void OnSelectItemChanged(OBSSceneItem item, bool selected);
 	void OnVisibleItemChanged(OBSSceneItem item, bool visible);
@@ -1398,15 +1491,33 @@ public slots:
 	void ReorderSceneCollectionManageView() const;
 	void on_actionImportFromOtherSceneCollection_triggered();
 
+	void OnResizeCTClicked();
+	void resizeCTView();
+
 signals:
 	void sourceRenmame(qint64 source, const QString &sourceId,
 			   const QString &newName, const QString &prevName);
 	void itemsReorderd();
 	void mainClosing();
 	void mainCloseFinished();
+	void updateChatV2PropertBrowserSize(const QSize &size);
 
 private:
 	std::unique_ptr<Ui::OBSBasic> ui;
+	std::unique_ptr<PLSWatermark> _watermark;
+	bool updatedLiveStart = false;
+	bool m_profileMenuState = true;
+
+	PLSDialogView *m_chatTemplateDialogView = nullptr;
+	OBSProjector *m_chatTemplateProjector = nullptr;
+	bool m_bIgnoreResize = false;
+
+private:
+	void configureWatermark();
+	void updateLiveStartUI();
+	void updateLiveEndUI();
+	void updateRecordStartUI();
+	void updateRecordEndUI();
 
 public:
 	/* `undo_s` needs to be declared after `ui` to prevent an uninitialized
@@ -1425,8 +1536,19 @@ public:
 
 	static void InitBrowserPanelSafeBlock();
 
+	void NewYouTubeAppDock();
+	void DeleteYouTubeAppDock();
+	YouTubeAppDock *GetYouTubeAppDock();
+
 	static void AnalogCodecNotify(void *data, calldata_t *params);
+
+	bool isSameChzzkSourceWithChzzkId(obs_source_t *source,
+					  PLSPlatformBase *chzzkPlatform);
+
+	bool m_bForceStop = false;
 };
+
+extern bool cef_js_avail;
 
 class SceneRenameDelegate : public QStyledItemDelegate {
 	Q_OBJECT

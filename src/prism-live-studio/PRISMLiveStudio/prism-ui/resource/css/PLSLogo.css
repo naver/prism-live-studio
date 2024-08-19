@@ -57,6 +57,7 @@ PLSLogo #update_info {
         color: #effc35;
     }
 
+    PLSLogo #update_info[press="false"][hover="true"],
     PLSLogo #update_info[hover="true"] {
         color: #ffffff;
     }
@@ -67,4 +68,7 @@ PLSLogo #update_info {
 
     PLSLogo #update_info[press="true"][hover="true"]:enabled {
         color: #7A7F34;
+    }
+    PLSLogo #update_info[hover="false"]:disabled {
+        color: #666666;
     }

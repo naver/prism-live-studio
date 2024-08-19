@@ -172,6 +172,7 @@ void PLSScheduleCombox::updateTitle(const QString title)
 	if (this->property("platform").toString() == "NaverShopping") {
 		int total = 12 + 15 + 33;
 		m_iconLabel->setHidden(!m_showIcon);
+		pls_flush_style(m_iconLabel);
 		if (m_showIcon) {
 			total += 38;
 		}

@@ -716,5 +716,14 @@
         <file>resource/images/icon-source/icon-source-prismlens-normal.svg</file>
         <file>resource/images/icon-source/icon-source-prismlens-select-disable.svg</file>
         <file>resource/images/icon-source/icon-source-prismlens-select-normal.svg</file>
+        <file>resource/images/icon-source/ic_scenetemplate_off_click.svg</file>
+        <file>resource/images/icon-source/ic_scenetemplate_off_disable.svg</file>
+        <file>resource/images/icon-source/ic_scenetemplate_off_hover.svg</file>
+        <file>resource/images/icon-source/ic_scenetemplate_off_normal.svg</file>
+        <file>resource/images/icon-source/ic_scenetemplate_on_click.svg</file>
+        <file>resource/images/icon-source/ic_scenetemplate_on_disable.svg</file>
+        <file>resource/images/icon-source/ic_scenetemplate_on_hover.svg</file>
+        <file>resource/images/icon-source/ic_scenetemplate_on_normal.svg</file>
+        <file>resource/images/noimg_chzzk_defaulf.svg</file>
     </qresource>
 </RCC>

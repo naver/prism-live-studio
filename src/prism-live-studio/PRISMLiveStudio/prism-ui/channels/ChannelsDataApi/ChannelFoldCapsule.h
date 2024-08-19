@@ -51,7 +51,6 @@ private:
 	void updateErrorLabel(const QVariantMap &info);
 
 	QString getStatisticsImage(const QString &src, bool isEnabled = true);
-	QString &formatNumber(QString &number, bool isEng = true);
 	QString createStatisticsCss(const QString &srcImage);
 
 private:

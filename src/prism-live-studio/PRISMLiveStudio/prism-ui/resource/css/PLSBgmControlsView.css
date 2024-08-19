@@ -1,5 +1,5 @@
 PLSBgmControlsView #preBtn, PLSBgmControlsView #playBtn,
-PLSBgmControlsView #nextBtn, PLSBgmControlsView #loopBtn {
+PLSBgmControlsView #nextBtn, PLSBgmControlsView #loopBtn, PLSBgmControlsView #modeBtn {
 	min-width: /*hdpi*/ 30px;
 	max-width: /*hdpi*/ 30px;
 	min-height: /*hdpi*/ 30px;
@@ -11,17 +11,20 @@ PLSBgmControlsView #nextBtn, PLSBgmControlsView #loopBtn {
 }
 
 PLSBgmControlsView #preBtn:hover, PLSBgmControlsView #playBtn:hover,
-PLSBgmControlsView #nextBtn:hover, PLSBgmControlsView #loopBtn:hover {
+PLSBgmControlsView #nextBtn:hover, PLSBgmControlsView #loopBtn:hover,
+PLSBgmControlsView #nextBtn:hover, PLSBgmControlsView #modeBtn:hover {
 	background-color: #555555;
 }
 
 PLSBgmControlsView #preBtn:pressed, PLSBgmControlsView #playBtn:pressed,
-PLSBgmControlsView #nextBtn:pressed, PLSBgmControlsView #loopBtn:pressed {
+PLSBgmControlsView #nextBtn:pressed, PLSBgmControlsView #loopBtn:pressed,
+PLSBgmControlsView #nextBtn:pressed, PLSBgmControlsView #modeBtn:pressed {
 	background-color: #2d2d2d;
 }
 
 PLSBgmControlsView #preBtn:disabled, PLSBgmControlsView #playBtn:disabled,
-PLSBgmControlsView #nextBtn:disabled, PLSBgmControlsView #loopBtn:disabled {
+PLSBgmControlsView #nextBtn:disabled, PLSBgmControlsView #loopBtn:disabled,
+PLSBgmControlsView #nextBtn:disabled, PLSBgmControlsView #modeBtn:disabled {
 	background-color: #444444;
 }
 
@@ -69,6 +72,42 @@ PLSBgmControlsView #playBtn[state=pause]:pressed{
 
 PLSBgmControlsView #playBtn[state=pause]:!enable{
 	image:url(":/resource/images/toolbar/ic-toolbar-pause-disable.svg");	
+}
+
+PLSBgmControlsView #modeBtn[playMode=inOrder]{
+	image:url(":/resource/images/toolbar/ic-toolbar-allrepeat-select-normal.svg");
+}
+
+PLSBgmControlsView #modeBtn[playMode=inOrder]:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-allrepeat-select-over.svg");
+}
+
+PLSBgmControlsView #modeBtn[playMode=inOrder]:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-allrepeat-select-over.svg");
+}
+
+PLSBgmControlsView #modeBtn[playMode=inOrder]:!enable{
+	image:url(":/resource/images/toolbar/ic-toolbar-allrepeat-select-disable.svg");
+}
+
+PLSBgmControlsView #modeBtn[playMode=inOrder][status=disable]{
+	image:url(":/resource/images/toolbar/ic-toolbar-allrepeat-select-disable.svg");
+}
+
+PLSBgmControlsView #modeBtn[playMode=random]{
+	image:url(":/resource/images/toolbar/ic-toolbar-shuffle-select-normal.svg");
+}
+
+PLSBgmControlsView #modeBtn[playMode=random]:hover{
+	image:url(":/resource/images/toolbar/ic-toolbar-shuffle-select-over.svg");
+}
+
+PLSBgmControlsView #modeBtn[playMode=random]:pressed{
+	image:url(":/resource/images/toolbar/ic-toolbar-shuffle-select-over.svg");
+}
+
+PLSBgmControlsView #modeBtn[playMode=random][status=disable]{
+	image:url(":/resource/images/toolbar/ic-toolbar-shuffle-select-disable.svg");
 }
 
 /* pre button */

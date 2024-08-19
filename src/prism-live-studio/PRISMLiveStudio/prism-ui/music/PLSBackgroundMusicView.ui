@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>486</width>
+    <width>489</width>
     <height>859</height>
    </rect>
   </property>
@@ -181,7 +181,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="preBtn">
+         <widget class="PLSDelayResponseButton" name="preBtn">
           <property name="text">
            <string/>
           </property>
@@ -202,7 +202,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="nextBtn">
+         <widget class="PLSDelayResponseButton" name="nextBtn">
           <property name="text">
            <string/>
           </property>
@@ -426,7 +426,7 @@
            <number>0</number>
           </property>
           <property name="sizeConstraint">
-           <enum>QLayout::SetNoConstraint</enum>
+           <enum>QLayout::SetMaximumSize</enum>
           </property>
           <property name="leftMargin">
            <number>0</number>
@@ -482,6 +482,9 @@
          <layout class="QVBoxLayout" name="verticalLayout_5">
           <property name="spacing">
            <number>0</number>
+          </property>
+          <property name="sizeConstraint">
+           <enum>QLayout::SetMaximumSize</enum>
           </property>
           <property name="leftMargin">
            <number>0</number>
@@ -568,7 +571,7 @@
         <number>0</number>
        </property>
        <property name="sizeConstraint">
-        <enum>QLayout::SetNoConstraint</enum>
+        <enum>QLayout::SetMaximumSize</enum>
        </property>
        <property name="leftMargin">
         <number>0</number>
@@ -704,38 +707,6 @@
      </layout>
     </widget>
    </item>
-   <item>
-    <spacer name="verticalSpacer_7">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeType">
-      <enum>QSizePolicy::Fixed</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>0</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item>
-    <spacer name="verticalSpacer_3">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeType">
-      <enum>QSizePolicy::Fixed</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>0</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
   </layout>
  </widget>
  <customwidgets>
@@ -770,6 +741,11 @@
    <class>MediaSlider</class>
    <extends>QSlider</extends>
    <header>media-slider.hpp</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSDelayResponseButton</class>
+   <extends>QPushButton</extends>
+   <header>PLSPushButton.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

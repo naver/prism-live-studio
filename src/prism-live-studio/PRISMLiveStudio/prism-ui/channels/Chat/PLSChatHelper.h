@@ -14,11 +14,13 @@ struct ChatPlatformIndex {
 	const static int Twitch = 2;
 	const static int Youtube = 3;
 	const static int Facebook = 4;
-	const static int NaverTV = 5;
-	const static int VLive = 6;
-	const static int AfreecaTV = 7;
-	const static int NaverShopping = 8;
-	const static int UnDefine = 9;
+	const static int Chzzk = 5;
+	const static int NaverTV = 6;
+	const static int VLive = 7;
+	const static int AfreecaTV = 8;
+	const static int NaverShopping = 9;
+	const static int NCB2B = 10;
+	const static int UnDefine = 11;
 };
 
 class PLSChatHelper : public QObject {
@@ -35,8 +37,9 @@ public:
 	~PLSChatHelper() final;
 
 	bool isLocalHtmlPage(int index) const;
+	bool isRemoteHtmlPage(int index) const;
 	//toLowerSpace: change to lower and remove white space
-	const char *getString(int index, bool toLowerSpace = false) const;
+	QString getString(int index, bool toLowerSpace = false) const;
 	int getIndexFromInfo(const QVariantMap &info) const;
 	//only for channel select info
 	void getSelectInfoFromIndex(int index, QVariantMap &getInfo) const;
@@ -49,7 +52,7 @@ public:
 	QString getToastString() const;
 
 	void startToNotify();
-	QString getTabButtonCss(const QString &objectName, const QString &platName) const;
+	QString getTabButtonCss(const QString &objectName, const QString &platName, const QString &platNameNoLower) const;
 	void sendWebShownEventIfNeeded(int index) const;
 
 	PLSChatHelper::ChatFontSacle getFontBtnStatus(int scaleSize);

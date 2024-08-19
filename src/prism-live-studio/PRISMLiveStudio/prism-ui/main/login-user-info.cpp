@@ -3,7 +3,6 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QVariant>
-#include "login-common-struct.hpp"
 #include "json-data-handler.hpp"
 #include "obs-app.hpp"
 #include "pls-common-define.hpp"
@@ -11,7 +10,20 @@
 #include "libutils-api.h"
 
 using namespace common;
-PLSLoginUserInfo::PLSLoginUserInfo() {}
+
+PLSLoginUserInfo::PLSLoginUserInfo()
+{
+	auto prePath = pls_get_user_path("PRISMLiveStudio/user/config.ini");
+
+	if (!QFile::exists(prePath)) {
+		PLS_INFO("UserInfo", "old version have not login prism");
+	} else {
+		PLS_INFO("UserInfo", "start parse pre version user info");
+		getUserInfoFromOldVersion(prePath);
+		bool isSuccess = QFile::remove(prePath);
+		PLS_INFO("UserInfo", "del pre version  user config file %s", isSuccess ? "Success" : "Failed");
+	}
+}
 
 // Singleton mode
 PLSLoginUserInfo *PLSLoginUserInfo::getInstance()
@@ -37,6 +49,45 @@ bool PLSLoginUserInfo::isSelf() const
 	bool isSelf = m_isSelf && !m_userObj.value("isCam").toBool();
 	return isSelf;
 }
+
+QString PLSLoginUserInfo::getNCPPlatformToken()
+{
+	return m_userObj.value("NCP_access_token").toString();
+}
+QString PLSLoginUserInfo::getNCPPlatformRefreshToken()
+{
+	return m_userObj.value("NCP_refresh_token").toString();
+}
+qint64 PLSLoginUserInfo::getNCPPlatformExpiresTime()
+{
+	return m_userObj.value("NCP_expires_in").toInteger();
+}
+QString PLSLoginUserInfo::getNCPPlatformServiceName()
+{
+	return m_userObj.value("NCP_service_name").toString();
+}
+QString PLSLoginUserInfo::getNCPPlatformServiceId()
+{
+	return m_userObj.value("NCP_service_id").toString();
+}
+QString PLSLoginUserInfo::getLoginPlatformName()
+{
+	return m_userObj.value("login_name").toString();
+}
+QString PLSLoginUserInfo::getNCPPlatformServiceAuthUrl()
+{
+	return m_userObj.value("NCP_service_auth_url").toString();
+}
+void PLSLoginUserInfo::updateNCB2BTokenInfo(const QString &token, const QString &refreshToken, const qint64 &expiresTime)
+{
+	auto userPath = pls_get_user_path(CONFIGS_USER_CONFIG_PATH);
+	m_userObj.insert("NCP_access_token", token);
+	m_userObj.insert("NCP_refresh_token", refreshToken);
+	m_userObj.insert("NCP_expires_in", expiresTime);
+	bool isSuccess = pls_write_json_cbor(userPath, m_userObj);
+
+	PLS_INFO("UserInfo", "save ncb2b token is %s.", isSuccess ? "success" : "failed");
+}
 void PLSLoginUserInfo::getUserLoginInfo()
 {
 	auto userPath = pls_get_user_path(CONFIGS_USER_CONFIG_PATH);
@@ -50,19 +101,6 @@ void PLSLoginUserInfo::getUserLoginInfo()
 	}
 
 	PLS_INFO("UserInfo", "get user info is %s.", isSuccess ? "success" : "failed");
-	if (isSuccess) {
-		m_userLoginInfo.email = m_userObj.value(LOGIN_USERINFO_EMAIL).toString();
-		m_userLoginInfo.nickName = m_userObj.value(LOGIN_USERINFO_NICKNAME).toString();
-		m_userLoginInfo.userCode = m_userObj.value(LOGIN_USERINFO_USER_CODE).toString();
-		m_userLoginInfo.profileThumbnailUrl = m_userObj.value(LOGIN_USERINFO_PROFILEURL).toString();
-		m_userLoginInfo.authType = m_userObj.value(LOGIN_USERINFO_AUTHTYPE).toString();
-		m_userLoginInfo.token = m_userObj.value(LOGIN_USERINFO_TOKEN).toString();
-		m_userLoginInfo.authStatusCode = m_userObj.value(LOGIN_USERINFO_AUThSTATUS_CODE).toString();
-		m_userLoginInfo.hashUserCode = m_userObj.value(LOGIN_USERINFO_HASHUSERCODE).toString();
-		m_userLoginInfo.prismCookie = m_userObj.value(COOKIE_NEO_SES).toString();
-		m_userLoginInfo.prismSessionCookie = m_userObj.value(COOKIE_NEO_CHK).toString();
-		m_userLoginInfo.gcc = m_userObj.value("gcc").toString();
-	}
 }
 
 bool PLSLoginUserInfo::isPrismLogined() const
@@ -70,61 +108,54 @@ bool PLSLoginUserInfo::isPrismLogined() const
 	return QFile::exists(pls_get_user_path(CONFIGS_USER_CONFIG_PATH));
 }
 
-void PLSLoginUserInfo::clearPrismLoginInfo() const
+void PLSLoginUserInfo::clearPrismLoginInfo()
 {
+	m_userObj = {};
 	bool isSuccess = QFile::remove(pls_get_user_path(CONFIGS_USER_CONFIG_PATH));
 	PLS_INFO("loginUserInfo", "delete user cache file is %s", isSuccess ? "success" : "failed");
 }
 
 QString PLSLoginUserInfo::getUserCode() const
 {
-	return QString::fromUtf8(m_userLoginInfo.userCode.toByteArray());
+	return m_userObj.value(LOGIN_USERINFO_USER_CODE).toString();
 }
 QString PLSLoginUserInfo::getUserCodeWithEncode() const
 {
-	return QString::fromUtf8(m_userLoginInfo.hashUserCode.toByteArray());
+	return m_userObj.value(LOGIN_USERINFO_HASHUSERCODE).toString();
 }
 QString PLSLoginUserInfo::getEmail() const
 {
-	return QString::fromUtf8(m_userLoginInfo.email.toByteArray());
+	return m_userObj.value(LOGIN_USERINFO_EMAIL).toString();
 }
 
 QString PLSLoginUserInfo::getToken() const
 {
-	if (m_userLoginInfo.token.has_value()) {
-		return m_userLoginInfo.token.value().toString();
-	}
-	return QString();
+	return m_userObj.value(LOGIN_USERINFO_TOKEN).toString();
 }
 
 QString PLSLoginUserInfo::getAuthType() const
 {
-	return QString::fromUtf8(m_userLoginInfo.authType.toByteArray());
-}
-
-QString PLSLoginUserInfo::getUsercode() const
-{
-	return QString::fromUtf8(m_userLoginInfo.userCode.toByteArray());
+	return m_userObj.value(LOGIN_USERINFO_AUTHTYPE).toString();
 }
 
 QString PLSLoginUserInfo::getAuthStatusCode() const
 {
-	return QString::fromUtf8(m_userLoginInfo.authStatusCode.toByteArray());
+	return m_userObj.value(LOGIN_USERINFO_AUThSTATUS_CODE).toString();
 }
 
 QString PLSLoginUserInfo::getprofileThumbanilUrl() const
 {
-	return QString::fromUtf8(m_userLoginInfo.profileThumbnailUrl.toByteArray());
+	return m_userObj.value(LOGIN_USERINFO_PROFILEURL).toString();
 }
 
 void PLSLoginUserInfo::clearToken()
 {
-	m_userLoginInfo.token.reset();
+	m_userObj.insert(LOGIN_USERINFO_TOKEN, "");
 }
 
 QString PLSLoginUserInfo::getNickname() const
 {
-	return QString::fromUtf8(m_userLoginInfo.nickName.toByteArray());
+	return m_userObj.value(LOGIN_USERINFO_NICKNAME).toString();
 }
 
 QByteArray PLSLoginUserInfo::getPrismCookie() const
@@ -136,10 +167,7 @@ QByteArray PLSLoginUserInfo::getSessionCookie() const
 {
 	return m_userObj.value(COOKIE_NEO_CHK).toString().toUtf8();
 }
-QString PLSLoginUserInfo::getGcc() const
-{
-	return m_userLoginInfo.gcc.toString();
-}
+
 void PLSLoginUserInfo::setPrismCookie(const QVariant &neo_sesCookies)
 {
 	auto userPath = pls_get_user_path(CONFIGS_USER_CONFIG_PATH);
@@ -150,4 +178,59 @@ void PLSLoginUserInfo::setPrismCookie(const QVariant &neo_sesCookies)
 		}
 	}
 	pls_write_json_cbor(userPath, m_userObj);
+}
+
+void PLSLoginUserInfo::setSessionTokenAndCookie(const QJsonObject &token, const QVariant &cookies)
+{
+	auto userPath = pls_get_user_path(CONFIGS_USER_CONFIG_PATH);
+	auto tokenInfo = token.value("token");
+	for (auto cookie : cookies.value<QList<QNetworkCookie>>()) {
+		if ("NEO_CHK" == cookie.name()) {
+			m_userObj.insert("NEO_CHK", cookie.toRawForm(QNetworkCookie::NameAndValueOnly).constData());
+			break;
+		}
+	}
+	m_userObj.insert("token", tokenInfo);
+	pls_write_json_cbor(userPath, m_userObj);
+}
+
+static QString getXorEncryptDecrypt(const QString &str, const char &key = '~')
+{
+	QByteArray bs = str.toUtf8();
+
+	for (int i = 0; i < bs.size(); i++) {
+		bs[i] = bs[i] ^ key;
+	}
+
+	return QString(bs);
+}
+void PLSLoginUserInfo::getUserInfoFromOldVersion(const QString &path)
+{
+
+	/*
+     * For compatibility with user information from versions prior to 3.0. parse userinfo and save new cache file.
+     */
+	PLS_INFO("loginUserInfo", "getUserInfoFromOldVersion");
+	QSettings setings(path, QSettings::IniFormat);
+	setings.beginGroup(getXorEncryptDecrypt(CONFIGS_GROUP_LOGIN));
+	m_userObj.insert(LOGIN_USERINFO_EMAIL, QByteArray::fromBase64(setings.value(getXorEncryptDecrypt(LOGIN_USERINFO_EMAIL)).toByteArray()).constData());
+	m_userObj.insert(LOGIN_USERINFO_NICKNAME, QByteArray::fromBase64(setings.value(getXorEncryptDecrypt(LOGIN_USERINFO_NICKNAME)).toByteArray()).constData());
+	m_userObj.insert(LOGIN_USERINFO_USER_CODE, QByteArray::fromBase64(setings.value(getXorEncryptDecrypt(LOGIN_USERINFO_USER_CODE)).toByteArray()).constData());
+	m_userObj.insert(LOGIN_USERINFO_PROFILEURL, QByteArray::fromBase64(setings.value(getXorEncryptDecrypt(LOGIN_USERINFO_PROFILEURL)).toByteArray()).constData());
+	m_userObj.insert(LOGIN_USERINFO_AUTHTYPE, QByteArray::fromBase64(setings.value(getXorEncryptDecrypt(LOGIN_USERINFO_AUTHTYPE)).toByteArray()).constData());
+	m_userObj.insert(LOGIN_USERINFO_TOKEN, QByteArray::fromBase64(setings.value(getXorEncryptDecrypt(LOGIN_USERINFO_TOKEN)).toByteArray()).constData());
+	m_userObj.insert(LOGIN_USERINFO_AUThSTATUS_CODE, QByteArray::fromBase64(setings.value(getXorEncryptDecrypt(LOGIN_USERINFO_AUThSTATUS_CODE)).toByteArray()).constData());
+	m_userObj.insert(LOGIN_USERINFO_HASHUSERCODE, QByteArray::fromBase64(setings.value(getXorEncryptDecrypt(LOGIN_USERINFO_HASHUSERCODE)).toByteArray()).constData());
+	m_userObj.insert(LOGIN_USERINFO_USER_CODE, QByteArray::fromBase64(setings.value(getXorEncryptDecrypt(LOGIN_USERINFO_USER_CODE)).toByteArray()).constData());
+	setings.endGroup();
+	//init prism cookies
+	setings.beginGroup(getXorEncryptDecrypt(CONFIGS_GROUP_COOKIE));
+
+	m_userObj.insert(COOKIE_NEO_SES, setings.value(getXorEncryptDecrypt(COOKIE_NEO_SES)).toByteArray().constData());
+	m_userObj.insert(COOKIE_NEO_CHK, setings.value(getXorEncryptDecrypt(COOKIE_NEO_CHK)).toByteArray().constData());
+
+	setings.endGroup();
+	auto userPath = pls_get_user_path(CONFIGS_USER_CONFIG_PATH);
+	bool isSuccess = pls_write_json_cbor(userPath, m_userObj);
+	PLS_INFO("loginUserInfo", "save old version login info %s", isSuccess ? "success" : "failed");
 }

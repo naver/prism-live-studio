@@ -30,7 +30,6 @@ protected:
 	* show the loading UI, then request the api.
 	*/
 	void showEvent(QShowEvent *event) override;
-	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
 	Ui::PLSLiveInfoYoutube *ui;

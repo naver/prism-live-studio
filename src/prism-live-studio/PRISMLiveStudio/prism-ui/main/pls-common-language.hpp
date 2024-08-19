@@ -30,7 +30,7 @@ constexpr auto MIAN_PRISM_STICKER_TITLE = "main.prism.sticker.title";
 constexpr const char *BLACKLIST_GRAPHICS_CARD_LOWER_DX11 = "blacklist.graphicscard.lower.dx11";
 constexpr const char *BLACKLIST_GRAPHICS_CARD_LOWER_REQUIREMENT = "blacklist.graphicscard.lower.requirement";
 
-constexpr auto ABOUT_CURRENT_VERSION = "main.about.text.currentversion";
+constexpr auto ABOUT_CURRENT_VERSION = "Main.About.Text.Currentversion";
 
 constexpr auto EFFECT_EXCEPTION_VIDEO_DEVICE_STRING = "main.message.error.deviceexception";
 constexpr auto EFFECT_EXCEPTION_PRISM_VIDEO_DEVICE_STRING = "main.message.error.prism.deviceexception";

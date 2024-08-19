@@ -66,12 +66,12 @@
              <x>0</x>
              <y>0</y>
              <width>532</width>
-             <height>85</height>
+             <height>69</height>
             </rect>
            </property>
            <layout class="QHBoxLayout" name="horizontalLayout">
             <property name="spacing">
-             <number>0</number>
+             <number>10</number>
             </property>
             <property name="leftMargin">
              <number>0</number>

@@ -27,6 +27,8 @@ struct PLSBasicStatusData {
 
 	double renderTime;
 	std::tuple<double, double> renderFPS; //Current/Setting
+	double streamOutputFPS; //output
+	double recordOutputFPS;
 
 	//Droped frames, Total frames, Droped percent
 	std::tuple<uint32_t, uint32_t, double> dropedRendering;
@@ -155,8 +157,6 @@ public:
 	void setFps(const QString &fps);
 	bool isStatsOpen() const;
 	void setStatsOpen(bool open);
-	void setEncodingEnabled(bool enabled);
-	void setEncodingTips(const QString &tips = "");
 	void UpdateDelayMsg() const;
 	void StartStatusMonitor();
 	void UpdateDropFrame(double dropFrame, double dropPercent);
@@ -165,8 +165,12 @@ public:
 
 	void OnLiveStatus(bool isStarted);
 	void OnRecordStatus(bool isStarted);
+	void OnRecordPaused(bool paused);
 
 	uint getStartTime() const;
+	int getRecordDuration() const;
+
+	GoLivePannel *getGoLivePannel() { return goliveWid; }
 
 	PLSBasicStatusData m_dataStatus;
 };

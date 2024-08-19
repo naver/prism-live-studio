@@ -5,6 +5,7 @@
 #include "PLSAlertView.h"
 #include "obs-app.hpp"
 #include "PLSMotionImageListView.h"
+#include "PLSBasic.h"
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QTime>
@@ -133,10 +134,20 @@ void PLSMyMotionListView::chooseLocalFileDialog()
 	QString dir = PLSMotionFileManager::instance()->getChooseFileDir();
 	//PRISM/Liuying/20210323/#None/add JFIF Files
 	QString filter("Background Files(*.bmp *.tga *.png *.jpg *.gif *.jfif *.psd *.mp4 *.ts *.mov *.flv *.mkv *.avi *.webm)");
+	pls::HotKeyLocker locker;
 	QStringList files = QFileDialog::getOpenFileNames(this, QString(), dir, filter);
 	if (!files.isEmpty()) {
 		PLSMotionFileManager::instance()->addMyResources(this, files);
 	}
+
+#ifdef __APPLE__
+	// TODO: Revisit when QTBUG-42661 is fixed
+	pls_check_app_exiting();
+	auto view = pls_get_toplevel_view(this);
+	if (view) {
+		view->raise();
+	}
+#endif
 }
 
 PLSMotionImageListView *PLSMyMotionListView::getListView()
@@ -188,10 +199,10 @@ void PLSMyMotionListView::addResourcesFinished(const QObject *sourceUi, int erro
 	}
 
 	if (error != PLSAddMyResourcesProcessor::MaxResolutionError) {
-		pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("virtual.resource.add.file.other.error.tip"));
+		pls_alert_error_message(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.add.file.other.error.tip"));
 	}
 	if (error & PLSAddMyResourcesProcessor::MaxResolutionError) {
-		pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("virtual.resource.add.file.exceed.tip"));
+		pls_alert_error_message(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.add.file.exceed.tip"));
 	}
 }
 

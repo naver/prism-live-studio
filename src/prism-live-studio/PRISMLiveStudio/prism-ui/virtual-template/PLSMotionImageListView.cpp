@@ -541,7 +541,7 @@ void PLSMotionImageListView::onRetryDownloadFinished()
 	if (0 == reDownloadFailedCount) {
 		PLS_INFO(MAIN_VIRTUAL_BACKGROUND, "redownload all virtual background resources success.");
 	} else {
-		PLSAlertView::warning(this, QTStr("Alert.title"), QTStr("virtual.resource.part.download.failed"));
+		PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.title"), QTStr("virtual.resource.part.download.failed"));
 	}
 
 	reDownloadFailedCount = 0;
@@ -568,7 +568,7 @@ void PLSMotionImageListView::clearImage() const
 bool PLSMotionImageListView::RetryDownload()
 {
 	QPointer<PLSMotionImageListView> guard(this);
-	auto ret = pls_show_download_failed_alert(getTopLevelWidget());
+	auto ret = pls_show_download_failed_alert(PLSBasic::instance()->GetPropertiesWindow());
 	if (!pls_object_is_valid(guard))
 		return false;
 

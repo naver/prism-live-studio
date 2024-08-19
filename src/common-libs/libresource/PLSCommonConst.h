@@ -7,10 +7,10 @@
 #include "libutils-api.h"
 
 namespace pls_resource_const {
-constexpr auto RESOURCE_DOWNLOAD = "";
-constexpr auto MAIN_FRONTEND_API = "";
-constexpr auto DATA_ZIP_UZIP = "";
-constexpr auto HTTP_REQUEST_TIME_OUT = "";
+constexpr auto RESOURCE_DOWNLOAD = "resource/download";
+constexpr auto MAIN_FRONTEND_API = "main/frontend-api";
+constexpr auto DATA_ZIP_UZIP = "Zip/UZip";
+constexpr auto HTTP_REQUEST_TIME_OUT = 15000;
 constexpr auto HEADER_USER_AGENT_KEY = "";
 constexpr auto HEADER_PRISM_LANGUAGE = "";
 constexpr auto HEADER_PRISM_GCC = "";
@@ -63,63 +63,62 @@ constexpr auto PLS_LIBRARY_SENSETIME_ID = "";
 
 constexpr auto PLS_THEMES_PATH = "";
 
-constexpr auto PLS_APP_ICON_PATH = "";
+constexpr auto PLS_APP_ICON_PATH = ":/images/PRISMLiveStudio.ico";
 
 constexpr auto PLS_PRISM_THUMBNAIL_FILE_PATH = "";
-constexpr auto PLS_WHALESPACE_NAME = "";
-constexpr auto EVENT_APP = "";
-constexpr auto EVENT_APP_INIT = "";
-constexpr auto EVENT_APP_INIT_RESULT_SUCCESS = "";
-constexpr auto EVENT_APP_INIT_RESULT_FAIL = "";
-constexpr auto EVENT_APP_INIT_API_ERROR = "";
-
+constexpr auto PLS_WHALESPACE_NAME = "whalespace";
+constexpr auto EVENT_APP = "app";
+constexpr auto EVENT_APP_INIT = "init";
+constexpr auto EVENT_APP_INIT_RESULT_SUCCESS = "success";
+constexpr auto EVENT_APP_INIT_RESULT_FAIL = "fail";
+constexpr auto EVENT_APP_INIT_API_ERROR = "apiError";
 }
 namespace pls_http_api_func {
 
 static QString getPrismHost()
 {
-	return QString();
+	return "";
 }
 
 static QString getPrismAuthGateWay()
 {
-
-	return QString();
+	return "";
 }
 
 static QString getPrismSynGateWay()
 {
-	return QString();
+	return "";
 }
 
 static QString getPrismSidekickGateWay()
 {
-	return QString();
+	return "";
 }
 
 static QString getPrismLogGateWay()
 {
-	return QString();
+	return "";
 }
+
 static QByteArray getPrismHamcKey()
 {
-	return pls_prism_is_dev() ? pls_resource_const::PLS_PC_HMAC_KEY_DEV : pls_resource_const::PLS_PC_HMAC_KEY;
+	return "";
 }
 static QString getPolicyId()
 {
-	return pls_prism_is_dev() ? pls_resource_const::PLS_LIBRARY_POLICY_ID_DEV : pls_resource_const::PLS_LIBRARY_POLICY_ID;
+	return "";
 }
 static QString getSenseTimeId()
 {
-	return pls_prism_is_dev() ? pls_resource_const::PLS_LIBRARY_SENSETIME_ID_DEV : pls_resource_const::PLS_LIBRARY_SENSETIME_ID;
+	return "";
 }
 static QString getTermOfUserUrl()
 {
-	return QString();
+	return "";
 }
 static QString getPrivacyUrl()
 {
-	return QString();
+	return "";
 }
 }
 #endif // PLSCOMMONCONST_H

@@ -48,24 +48,24 @@ constexpr auto liveInfoMoudule = "PLSLiveInfoNaverShoppingLIVE";
 static const QString IMAGE_FILE_NAME_PREFIX = "navershopping-";
 static const int CHECK_STATUS_TIMESPAN = 5000;
 
-constexpr auto USE_TERM_MESSAGE_INFO = "UseTermMessageInfo";
-constexpr auto USE_TERM_URL_INFO = "UseTermURLInfo";
-constexpr auto OPERATION_POLICY_URL_INFO = "OperationPolicyURLInfo";
-constexpr auto USE_TERM_SHOW_INFO = "UseTermShowInfo";
-constexpr auto USE_TERM_CLICK_CONFIRM_INFO = "UseTermClickConfirmInfo";
-constexpr auto PRECAUTION_MESSAGE_INFO = "PrecautionMessageInfo";
-constexpr auto PRECAUTION_URL_INFO = "PrecautionUrlInfo";
-constexpr auto PRECAUTION_SHOW_INFO = "PrecautionShowInfo";
-constexpr auto SUPPORT_RESOLUTION_MESSAGE_INFO = "SupportReslolutionMessageInfo";
-constexpr auto SUPPORT_RESOLUTION_SHOW_INFO = "SupportReslolutionShowInfo";
-constexpr auto CSTR_NAVER_SHOPPING_GROUP = "navershoppingGroup";
-constexpr auto CSTR_NAVER_SHOPPING_SERVICE_ID = "serviceId";
-constexpr auto CSTR_NAVER_SHOPPING_BROADCAST_ID = "broadcasterId";
-constexpr auto CSTR_NAVER_SHOPPING_PROFILE_IMAGE_URL = "profileImageUrl";
-constexpr auto CSTR_NAVER_SHOPPING_PROFILE_IMAGE_PATH = "profileImagePath";
-constexpr auto CSTR_NAVER_SHOPPING_NICKNAME = "nickname";
-constexpr auto CSTR_NAVER_SHOPPING_TOKEN = "accessToken";
-constexpr auto CSTR_NAVER_SHOPPING_ACCOUNT_NO = "storeAccountNo";
+constexpr auto USE_TERM_MESSAGE_INFO = "";
+constexpr auto USE_TERM_URL_INFO = "";
+constexpr auto OPERATION_POLICY_URL_INFO = "";
+constexpr auto USE_TERM_SHOW_INFO = "";
+constexpr auto USE_TERM_CLICK_CONFIRM_INFO = "";
+constexpr auto PRECAUTION_MESSAGE_INFO = "";
+constexpr auto PRECAUTION_URL_INFO = "";
+constexpr auto PRECAUTION_SHOW_INFO = "";
+constexpr auto SUPPORT_RESOLUTION_MESSAGE_INFO = "";
+constexpr auto SUPPORT_RESOLUTION_SHOW_INFO = "";
+constexpr auto CSTR_NAVER_SHOPPING_GROUP = "";
+constexpr auto CSTR_NAVER_SHOPPING_SERVICE_ID = "";
+constexpr auto CSTR_NAVER_SHOPPING_BROADCAST_ID = "";
+constexpr auto CSTR_NAVER_SHOPPING_PROFILE_IMAGE_URL = "";
+constexpr auto CSTR_NAVER_SHOPPING_PROFILE_IMAGE_PATH = "";
+constexpr auto CSTR_NAVER_SHOPPING_NICKNAME = "";
+constexpr auto CSTR_NAVER_SHOPPING_TOKEN = "";
+constexpr auto CSTR_NAVER_SHOPPING_ACCOUNT_NO = "";
 
 void deleteTimer(QTimer *&timer)
 {
@@ -88,7 +88,7 @@ template<typename Callback> QTimer *startTimer(PLSPlatformNaverShoppingLIVE *pla
 PLSPlatformNaverShoppingLIVE::PLSPlatformNaverShoppingLIVE()
 {
 	connect(PLS_PLATFORM_API, &PLSPlatformApi::channelRemoved, this, [this](const QVariantMap &info) {
-		QString platformName = info.value(ChannelData::g_platformName, "").toString();
+		QString platformName = info.value(ChannelData::g_channelName, "").toString();
 		auto dataType = info.value(ChannelData::g_data_type, ChannelData::RTMPType).toInt();
 		QString token = info.value(ChannelData::g_channelToken).toString();
 		if (dataType == ChannelData::ChannelType && platformName == NAVER_SHOPPING_LIVE && token.length() > 0) {
@@ -168,9 +168,14 @@ void PLSPlatformNaverShoppingLIVE::onPrepareFinish()
 			return;
 		}
 		//If the schedule live image and live before not same
-		auto requestCallback = [this](PLSAPINaverShoppingType apiType) {
+		auto requestCallback = [this](PLSAPINaverShoppingType apiType, const QByteArray &data) {
 			if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-				pls_alert_error_message(nullptr, QTStr("Alert.Title"), QTStr("navershopping.liveinfo.choose.schedule.chaned.failed.tip"));
+				QString errorCode = "";
+				QString errorMsg = "";
+				PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
+				QString message =
+					PLSNaverShoppingLIVEAPI::generateMsgWithErrorCodeOrErrorMessage(QTStr("navershopping.liveinfo.choose.schedule.chaned.failed.tip"), errorCode, errorMsg);
+				pls_alert_error_message(nullptr, QTStr("Alert.Title"), message);
 			}
 			prepareFinishCallback();
 		};
@@ -271,20 +276,23 @@ void PLSPlatformNaverShoppingLIVE::getUserInfo(const QString channelName, const 
 	if (isClearLiveInfo) {
 		clearLiveInfo();
 	}
-	auto requestCallback = [channelName, srcInfo, finishedCall, this](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingUserInfo &userInfo) {
-		QVariantMap info = getUserInfoFinished(srcInfo, apiType, userInfo, channelName);
+	auto requestCallback = [channelName, srcInfo, finishedCall, this](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingUserInfo &userInfo, const QByteArray &data) {
+		QVariantMap info = getUserInfoFinished(srcInfo, apiType, userInfo, channelName, data);
 		finishedCall({info});
 	};
 	PLSNaverShoppingLIVEAPI::refreshChannelToken(this, requestCallback, this, [](const QObject *receiver) { return receiver != nullptr; });
 }
 
 QVariantMap PLSPlatformNaverShoppingLIVE::getUserInfoFinished(const QVariantMap &srcInfo, PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingUserInfo &userInfo,
-							      const QString &channelName)
+							      const QString &channelName, const QByteArray &data)
 {
+	QString errorCodeStr = "";
+	QString errorMsgStr = "";
+	PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCodeStr, errorMsgStr);
 	QVariantMap info = srcInfo;
 	if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 		setUserInfo(userInfo);
-		info[ChannelData::g_platformName] = channelName;
+		info[ChannelData::g_channelName] = channelName;
 		info[ChannelData::g_channelToken] = userInfo.accessToken;
 		info[ChannelData::g_nickName] = userInfo.nickname;
 		if (!userInfo.profileImagePath.isEmpty()) {
@@ -300,23 +308,31 @@ QVariantMap PLSPlatformNaverShoppingLIVE::getUserInfoFinished(const QVariantMap 
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingInvalidAccessToken) {
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Expired;
 		info[ChannelData::g_channelSreLoginFailed] = QStringLiteral("navershopping get userinfo api request token expired");
+		info[ChannelData::g_errorString] = PLSNaverShoppingLIVEAPI::generateMsgWithErrorCodeOrErrorMessage(CHANNELS_TR(expiredQuestion).arg(TR_NAVER_SHOPPING_LIVE), errorCodeStr, errorMsgStr);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingNetworkError) {
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
 		info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::NetWorkNoStable;
+		info[ChannelData::g_errorString] = PLSNaverShoppingLIVEAPI::generateMsgWithErrorCodeOrErrorMessage(QTStr("login.check.note.network"), errorCodeStr, errorMsgStr);
 		info[ChannelData::g_channelSreLoginFailed] = QStringLiteral("navershopping get userinfo api request network error");
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingNoLiveRight) {
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
-		info[ChannelData::g_errorString] = QTStr("navershopping.no.live.right");
+		info[ChannelData::g_errorString] = PLSNaverShoppingLIVEAPI::generateMsgWithErrorCodeOrErrorMessage(QTStr("navershopping.no.live.right"), errorCodeStr, errorMsgStr);
 		info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::SpecializedError;
 		info[ChannelData::g_channelSreLoginFailed] = QStringLiteral("navershopping get userinfo api request no live right");
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingLoginFailed) {
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
-		info[ChannelData::g_errorString] = QTStr("navershopping.login.fail");
+		info[ChannelData::g_errorString] = PLSNaverShoppingLIVEAPI::generateMsgWithErrorCodeOrErrorMessage(QTStr("navershopping.login.fail"), errorCodeStr, errorMsgStr);
 		info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::SpecializedError;
 		info[ChannelData::g_channelSreLoginFailed] = QStringLiteral("navershopping get userinfo api request login failed");
+	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingHMACError) {
+		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
+		info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::SystemTimeError;
+		info[ChannelData::g_errorString] = PLSNaverShoppingLIVEAPI::generateMsgWithErrorCodeOrErrorMessage(QTStr("Prism.Login.Systemtime.Error"), errorCodeStr, errorMsgStr);
+		info[ChannelData::g_channelSreLoginFailed] = QStringLiteral("navershopping get userinfo request check system time error");
 	} else {
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
 		info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::UnknownError;
+		info[ChannelData::g_errorString] = PLSNaverShoppingLIVEAPI::generateMsgWithErrorCodeOrErrorMessage(QTStr("server.unknown.error"), errorCodeStr, errorMsgStr);
 		info[ChannelData::g_channelSreLoginFailed] = QStringLiteral("navershopping get userinfo request unkown reason failed");
 	}
 	return info;
@@ -404,9 +420,12 @@ QString PLSPlatformNaverShoppingLIVE::getAccessToken() const
 
 void PLSPlatformNaverShoppingLIVE::setAccessToken(const QString &accessToken) const
 {
-	auto channelInfo = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-	channelInfo.insert(ChannelData::g_channelToken, accessToken);
-	PLSCHANNELS_API->setChannelInfos(channelInfo, true);
+	QString shoppingChannelUUID = getChannelUUID();
+	PLSCHANNELS_API->setValueOfChannel(shoppingChannelUUID, ChannelData::g_channelToken, accessToken);
+
+	PLSCHANNELS_API->channelModified(shoppingChannelUUID);
+	PLS_PLATFORM_API->onUpdateChannel(shoppingChannelUUID);
+
 	if (PLS_PLATFORM_API->isLiving()) {
 		PLS_PLATFORM_API->sendWebPrismInit();
 	}
@@ -486,32 +505,34 @@ void PLSPlatformNaverShoppingLIVE::setStreamUrlAndStreamKey()
 	setStreamServer(streamUrl.toStdString());
 }
 
-void PLSPlatformNaverShoppingLIVE::createLiving(const std::function<void(PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &livingInfo)> &callback,
-						const QObject *receiver, const PLSNaverShoppingLIVEAPI::ReceiverIsValid &receiverIsValid)
+void PLSPlatformNaverShoppingLIVE::createLiving(
+	const std::function<void(PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &livingInfo, const QByteArray &data)> &callback, const QObject *receiver,
+	const PLSNaverShoppingLIVEAPI::ReceiverIsValid &receiverIsValid)
 {
 	m_callCreateLiveSuccess = false;
 	PLSPlatformBase::setTitle(m_prepareLiveInfo.title.toStdString());
 	bool requestNowLiving = m_prepareLiveInfo.isNowLiving ||
 				(m_prepareLiveInfo.infoType == PrepareInfoType::RehearsalPrepareInfo && !m_prepareLiveInfo.isNowLiving && m_prepareLiveInfo.releaseLevel == RELEASE_LEVEL_REAL);
-	auto requestCallback = [callback, receiver, receiverIsValid, requestNowLiving, this](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &livingInfo) {
+	auto requestCallback = [callback, receiver, receiverIsValid, requestNowLiving, this](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &livingInfo,
+											     const QByteArray &data) {
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 			m_callCreateLiveSuccess = true;
 			setLivingInfo(livingInfo);
 			setStreamUrlAndStreamKey();
 			if (requestNowLiving) {
-				auto sharelinkCallback = [callback, this](PLSAPINaverShoppingType l_apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &getLivingInfo) {
+				auto sharelinkCallback = [callback, this, data](PLSAPINaverShoppingType l_apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &getLivingInfo) {
 					if (l_apiType == PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 						m_prepareLiveInfo.broadcastEndUrl = getLivingInfo.broadcastEndUrl;
 					}
-					callback(l_apiType, m_livingInfo);
+					callback(l_apiType, m_livingInfo, data);
 				};
 				PLSNaverShoppingLIVEAPI::getLivingInfo(this, false, sharelinkCallback, receiver, receiverIsValid);
 			} else {
-				callback(apiType, m_livingInfo);
+				callback(apiType, m_livingInfo, data);
 			}
 			return;
 		}
-		callback(apiType, m_livingInfo);
+		callback(apiType, m_livingInfo, data);
 	};
 	if (requestNowLiving) {
 		QJsonObject body;
@@ -527,12 +548,15 @@ void PLSPlatformNaverShoppingLIVE::createLiving(const std::function<void(PLSAPIN
 		body.insert("standByImage", m_prepareLiveInfo.standByImageURL);
 		body.insert("description", m_prepareLiveInfo.description);
 		body.insert("externalExposeAgreementStatus", m_prepareLiveInfo.externalExposeAgreementStatus);
+		body.insert("sendNotification", m_prepareLiveInfo.sendNotification);
 
 		QJsonArray jsonArray;
 		for (const auto &product : m_prepareLiveInfo.shoppingProducts) {
 			QJsonObject jsonObject;
 			jsonObject.insert("key", product.key);
 			jsonObject.insert("represent", product.represent);
+			jsonObject.insert("attachmentType", product.attachmentType);
+			jsonObject.insert("attachable", product.attachable);
 			jsonArray.append(jsonObject);
 		}
 		body.insert("shoppingProducts", jsonArray);
@@ -571,7 +595,7 @@ void PLSPlatformNaverShoppingLIVE::getLivingInfo(bool livePolling,
 	PLSNaverShoppingLIVEAPI::getLivingInfo(this, livePolling, sharelinkCallback, receiver, receiverIsValid);
 }
 
-void PLSPlatformNaverShoppingLIVE::updateLivingRequest(const std::function<void(PLSAPINaverShoppingType apiType)> &callback, const QString &liveId, const QObject *receiver,
+void PLSPlatformNaverShoppingLIVE::updateLivingRequest(const std::function<void(PLSAPINaverShoppingType apiType, const QByteArray &data)> &callback, const QString &liveId, const QObject *receiver,
 						       const PLSNaverShoppingLIVEAPI::ReceiverIsValid &receiverIsValid)
 {
 	QJsonObject body;
@@ -585,17 +609,20 @@ void PLSPlatformNaverShoppingLIVE::updateLivingRequest(const std::function<void(
 		QJsonObject jsonObject;
 		jsonObject.insert("key", product.key);
 		jsonObject.insert("represent", product.represent);
+		jsonObject.insert("attachmentType", product.attachmentType);
+		jsonObject.insert("introducing", product.introducing);
+		jsonObject.insert("attachable", product.attachable);
 		jsonArray.append(jsonObject);
 	}
 	body.insert("shoppingProducts", jsonArray);
 	body.insert("description", m_prepareLiveInfo.description);
 	body.insert("searchable", m_prepareLiveInfo.allowSearch);
-	auto requestCallback = [callback](PLSAPINaverShoppingType apiType) { callback(apiType); };
+	auto requestCallback = [callback](PLSAPINaverShoppingType apiType, const QByteArray &data) { callback(apiType, data); };
 	PLSNaverShoppingLIVEAPI::updateNowLiving(this, liveId, body, requestCallback, receiver, receiverIsValid);
 }
 
-void PLSPlatformNaverShoppingLIVE::updateScheduleRequest(const std::function<void(PLSAPINaverShoppingType apiType)> &callback, const QString &scheduleId, const QObject *receiver,
-							 const PLSNaverShoppingLIVEAPI::ReceiverIsValid &receiverIsValid)
+void PLSPlatformNaverShoppingLIVE::updateScheduleRequest(const std::function<void(PLSAPINaverShoppingType apiType, const QByteArray &data)> &callback, const QString &scheduleId,
+							 const QObject *receiver, const PLSNaverShoppingLIVEAPI::ReceiverIsValid &receiverIsValid)
 {
 	QJsonObject body;
 	body.insert("title", m_prepareLiveInfo.title);
@@ -609,6 +636,9 @@ void PLSPlatformNaverShoppingLIVE::updateScheduleRequest(const std::function<voi
 		QJsonObject jsonObject;
 		jsonObject.insert("key", product.key);
 		jsonObject.insert("represent", product.represent);
+		jsonObject.insert("attachmentType", product.attachmentType);
+		jsonObject.insert("introducing", product.introducing);
+		jsonObject.insert("attachable", product.attachable);
 		jsonArray.append(jsonObject);
 	}
 	body.insert("shoppingProducts", jsonArray);
@@ -623,9 +653,9 @@ void PLSPlatformNaverShoppingLIVE::updateScheduleRequest(const std::function<voi
 		QString expectedStartDate = koreanDateTime.toString("yyyy-MM-dd'T'HH:mm:ss.zzz");
 		body.insert("expectedStartDate", expectedStartDate);
 	}
-	auto requestCallback = [callback, this, scheduleId](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::ScheduleInfo &scheduleInfo) {
+	auto requestCallback = [callback, this, scheduleId](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::ScheduleInfo &scheduleInfo, const QByteArray &data) {
 		if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
-			callback(apiType);
+			callback(apiType, data);
 			return;
 		}
 		for (auto &info : m_scheduleList) {
@@ -634,7 +664,7 @@ void PLSPlatformNaverShoppingLIVE::updateScheduleRequest(const std::function<voi
 				break;
 			}
 		}
-		callback(apiType);
+		callback(apiType, data);
 	};
 	PLSNaverShoppingLIVEAPI::updateScheduleInfo(this, scheduleId, body, requestCallback, receiver, receiverIsValid);
 }
@@ -652,7 +682,7 @@ void PLSPlatformNaverShoppingLIVE::downloadScheduleListImage(const PLSNaverShopp
 		for (int i = 0; i < m_scheduleList.count(); ++i) {
 			m_scheduleList[i].standByImagePath = imagePaths.value(m_scheduleList[i].standByImage);
 		}
-		callback(PLSAPINaverShoppingType::PLSNaverShoppingSuccess, m_scheduleList, page, totalCount);
+		callback(PLSAPINaverShoppingType::PLSNaverShoppingSuccess, m_scheduleList, page, totalCount, "");
 	};
 	PLSNaverShoppingLIVEDataManager::instance()->downloadImages(this, urls, imageCallback, receiver, receiverIsValid);
 }
@@ -665,8 +695,8 @@ void PLSPlatformNaverShoppingLIVE::getScheduleList(const PLSNaverShoppingLIVEAPI
 		m_duplicateListMap.insert(type, QList<PLSNaverShoppingLIVEAPI::ScheduleInfo>());
 	}
 	auto RequestCallback = [callback, currentPage, flag, type, receiver, receiverIsValid, this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList,
-												    int page, int totalCount) {
-		getSchduleListRequestSuccess(flag, apiType, callback, page, totalCount, scheduleList, currentPage, type, receiver, receiverIsValid);
+												    int page, int totalCount, const QByteArray &data) {
+		getSchduleListRequestSuccess(flag, apiType, callback, page, totalCount, scheduleList, currentPage, type, receiver, receiverIsValid, data);
 	};
 	bool isNotice = (type != LIVEINFO_GET_SCHEDULE_LIST);
 	PLSNaverShoppingLIVEAPI::getScheduleList(this, currentPage, isNotice, RequestCallback, receiver, receiverIsValid);
@@ -674,14 +704,14 @@ void PLSPlatformNaverShoppingLIVE::getScheduleList(const PLSNaverShoppingLIVEAPI
 
 void PLSPlatformNaverShoppingLIVE::getSchduleListRequestSuccess(const uint64_t &flag, PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::GetScheduleListCallback &callback, int page,
 								int totalCount, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, int currentPage, const QString &type,
-								QObject *receiver, const PLSNaverShoppingLIVEAPI::ReceiverIsValid &receiverIsValid)
+								QObject *receiver, const PLSNaverShoppingLIVEAPI::ReceiverIsValid &receiverIsValid, const QByteArray &data)
 {
 	if (m_duplicateFlagMap.value(type) != flag) {
 		return;
 	}
 
 	if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
-		callback(apiType, QList<PLSNaverShoppingLIVEAPI::ScheduleInfo>(), page, totalCount);
+		callback(apiType, QList<PLSNaverShoppingLIVEAPI::ScheduleInfo>(), page, totalCount, data);
 		return;
 	}
 
@@ -696,7 +726,7 @@ void PLSPlatformNaverShoppingLIVE::getSchduleListRequestSuccess(const uint64_t &
 			downloadScheduleListImage(callback, page, totalCount, receiver, receiverIsValid);
 		} else {
 
-			callback(PLSAPINaverShoppingType::PLSNaverShoppingSuccess, m_duplicateListMap[type], page, totalCount);
+			callback(PLSAPINaverShoppingType::PLSNaverShoppingSuccess, m_duplicateListMap[type], page, totalCount, "");
 		}
 		return;
 	}
@@ -876,9 +906,9 @@ bool PLSPlatformNaverShoppingLIVE::checkGoLiveShoppingResolution(const PLSNaverS
 	if (platformFPSMap.count() == 0) {
 
 #if defined(Q_OS_WIN)
-		QString fileName = QString("PRISMLiveStudio/library/library_Policy_PC/Policy_Publish_win_v%1.%2.%3.json").arg(PRISM_VERSION_MAJOR).arg(PRISM_VERSION_MINOR).arg(PRISM_VERSION_PATCH);
+		QString fileName = "";
 #elif defined(Q_OS_MACOS)
-		QString fileName = QString("PRISMLiveStudio/library/library_Policy_PC/Policy_Publish_mac_v%1.%2.%3.json").arg(PRISM_VERSION_MAJOR).arg(PRISM_VERSION_MINOR).arg(PRISM_VERSION_PATCH);
+		QString fileName = "";
 #endif
 
 		PLS_ERROR(liveInfoMoudule, "Live Term Status: %s file is not existed", fileName.toUtf8().constData());
@@ -962,45 +992,52 @@ QString PLSPlatformNaverShoppingLIVE::getOutputResolution() const
 	return QString("%1x%2").arg(config_get_uint(main->Config(), "Video", "OutputCX")).arg(config_get_uint(main->Config(), "Video", "OutputCY"));
 }
 
-void PLSPlatformNaverShoppingLIVE::handleCommonApiType(PLSAPINaverShoppingType apiType, const ApiPropertyMap &apiPropertyMap)
+void PLSPlatformNaverShoppingLIVE::handleCommonApiType(PLSAPINaverShoppingType apiType, const QString &errorCode, const QString &errorMsg, ApiPropertyMap apiPropertyMap)
 {
 	if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingInvalidAccessToken) {
-		handleInvalidToken(apiType, apiPropertyMap);
+		handleInvalidToken(apiType, errorCode, errorMsg, apiPropertyMap);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingNetworkError) {
 		handleNetworkError(apiType, apiPropertyMap);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingUpdateFailed) {
-		handleCommonAlert(apiType, QTStr("LiveInfo.live.error.update.failed"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("LiveInfo.live.error.update.failed"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingUpdateScheduleInfoFailed) {
-		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.update.schedule.fail.tip"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.update.schedule.fail.tip"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingScheduleTimeNotReached) {
-		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.reservation.not.reached"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.reservation.not.reached"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingScheduleIsLived) {
-		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.reservation.is.lived"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.reservation.is.lived"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingScheduleDelete) {
-		handleCommonAlert(apiType, QTStr("broadcast.invalid.schedule"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("broadcast.invalid.schedule"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingCreateLivingFailed) {
-		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.create.schedule.fail"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.create.schedule.fail"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingScheduleListFailed) {
-		handleCommonAlert(apiType, QTStr("Live.Check.LiveInfo.Refresh.Failed"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("Live.Check.LiveInfo.Refresh.Failed"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingAgeRestrictedProduct) {
-		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.age.restrict.product"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.age.restrict.product"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingUploadImageFailed) {
-		handleCommonAlert(apiType, QTStr("LiveInfo.live.error.set_photo_error"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("LiveInfo.live.error.set_photo_error"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingCreateSchduleExternalStream) {
-		handleCommonAlert(apiType, QTStr("navershopping.create.schedule.external.stream"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("navershopping.create.schedule.external.stream"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingCategoryListFailed) {
-		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.load.categorylist.failed"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.load.categorylist.failed"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingAttachProductsToOwnMall) {
-		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.create.schedule.failed.by.independent.stores"), apiPropertyMap, true);
+		handleCommonAlert(apiType, QTStr("navershopping.liveinfo.create.schedule.failed.by.independent.stores"), errorCode, errorMsg, apiPropertyMap, true);
 	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingCannotAddOtherShopProduct) {
-		handleCommonAlert(apiType, QTStr("NaverShoppingLive.LiveInfo.Product.AddProduct.OtherStore"), apiPropertyMap);
+		handleCommonAlert(apiType, QTStr("NaverShoppingLive.LiveInfo.Product.AddProduct.OtherStore"), errorCode, errorMsg, apiPropertyMap, true);
+	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingHMACError) {
+		handleCommonAlert(apiType, QTStr("Prism.Login.Systemtime.Error"), errorCode, errorMsg, apiPropertyMap, true);
+	} else if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingNoLiveRight) {
+		handleCommonAlert(apiType, QTStr("navershopping.no.live.right"), errorCode, errorMsg, apiPropertyMap, true);
 	}
 }
-void PLSPlatformNaverShoppingLIVE::handleCommonAlert(PLSAPINaverShoppingType apiType, const QString &content, const ApiPropertyMap &apiPropertyMap, bool errorMessage) const
+
+void PLSPlatformNaverShoppingLIVE::handleCommonAlert(PLSAPINaverShoppingType apiType, const QString &content, const QString &errorCode, const QString &errorMsg, ApiPropertyMap apiPropertyMap,
+						     bool errorMessage)
 {
 	if (PLSNaverShoppingLIVEAPI::isShowApiAlert(apiType, apiPropertyMap)) {
 		if (errorMessage) {
-			pls_alert_error_message(nullptr, QTStr("Alert.Title"), content);
+			QString errorContent = PLSNaverShoppingLIVEAPI::generateMsgWithErrorCodeOrErrorMessage(content, errorCode, errorMsg);
+			pls_alert_error_message(nullptr, QTStr("Alert.Title"), errorContent);
 		} else {
 			PLSAlertView::warning(nullptr, QTStr("Alert.Title"), content);
 		}
@@ -1019,17 +1056,24 @@ void PLSPlatformNaverShoppingLIVE::handleNetworkError(PLSAPINaverShoppingType ap
 	}
 }
 
-void PLSPlatformNaverShoppingLIVE::handleInvalidToken(PLSAPINaverShoppingType apiType, const ApiPropertyMap &apiPropertyMap)
+void PLSPlatformNaverShoppingLIVE::handleInvalidToken(PLSAPINaverShoppingType apiType, const QString &errorCode, const QString &errorMsg, const ApiPropertyMap &apiPropertyMap)
 {
 	if (!PLSNaverShoppingLIVEAPI::isHandleTokenExpired(apiType, apiPropertyMap)) {
 		return;
 	}
+
 	if (!PLSCHANNELS_API->isLiving()) {
+		if (invalidTokenPopupShowing) {
+			return;
+		}
 		emit showLiveinfoLoading();
-		PLSAlertView::Button button = pls_alert_error_message(nullptr, QTStr("Alert.Title"), QTStr("navershopping.liveinfo.account.expired"));
+		invalidTokenPopupShowing = true;
+		QString errorContent = PLSNaverShoppingLIVEAPI::generateMsgWithErrorCodeOrErrorMessage(QTStr("navershopping.liveinfo.account.expired"), errorCode, errorMsg);
+		PLSAlertView::Button button = pls_alert_error_message(nullptr, QTStr("Alert.Title"), errorContent);
 		emit hiddenLiveinfoLoading();
 		emit closeDialogByExpired();
 		if (button == PLSAlertView::Button::Ok) {
+			invalidTokenPopupShowing = false;
 			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
 		}
 	} else {
@@ -1105,7 +1149,7 @@ void PLSPlatformNaverShoppingLIVE::onShowScheLiveNotice()
 	}
 
 	PLS_INFO(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "Naver Shopping LIVE check schedule live notice");
-	auto RequestCallback = [this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, int, int) {
+	auto RequestCallback = [this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, int, int, const QByteArray &) {
 		if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 			return;
 		}
@@ -1119,7 +1163,7 @@ void PLSPlatformNaverShoppingLIVE::onShowScheLiveNotice()
 
 void PLSPlatformNaverShoppingLIVE::updateScheduleList()
 {
-	auto RequestCallback = [this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, int, int) {
+	auto RequestCallback = [this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, int, int, const QByteArray &) {
 		emit scheduleListUpdateFinished();
 		if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 			m_wizardScheduleList.clear();
@@ -1149,7 +1193,7 @@ void PLSPlatformNaverShoppingLIVE::convertScheduleListToMapList()
 		mapData.insert(ChannelData::g_timeStamp, data.timeStamp);
 		mapData.insert(ChannelData::g_nickName, data.title);
 		mapData.insert(ChannelData::g_channelUUID, uuid);
-		mapData.insert(ChannelData::g_platformName, NAVER_SHOPPING_LIVE);
+		mapData.insert(ChannelData::g_channelName, NAVER_SHOPPING_LIVE);
 		return QVariant::fromValue(mapData);
 	};
 	std::transform(tmpList.cbegin(), tmpList.cend(), std::back_inserter(tmpRet), convertData);
@@ -1163,8 +1207,8 @@ void PLSPlatformNaverShoppingLIVE::checkPushNotification(const std::function<voi
 		return;
 	}
 
-	QMap<PLSAlertView::Button, QString> buttons = {{PLSAlertView::Button::Yes, tr("Yes")}, {PLSAlertView::Button::No, tr("No")}};
-	if (PLSAlertView::Button ret = PLSAlertView::warning(nullptr, QTStr("Alert.Title"), tr("navershopping.push.notification.alert.title"), buttons); ret != PLSAlertView::Button::Yes) {
+	PLSNaverShoppingLIVEAPI::NaverShoppingPrepareLiveInfo info = getPrepareLiveInfo();
+	if (!info.sendNotification) {
 		//not call api. direct start.
 		PLSAlertView::warning(nullptr, QTStr("Alert.Title"), QTStr("navershopping.copyright.alert.title"));
 		onNext();
@@ -1183,7 +1227,7 @@ void PLSPlatformNaverShoppingLIVE::requestNotifyApi(const std::function<void()> 
 
 	PLSNaverShoppingLIVEAPI::sendPushNotification(
 		this, this, [onNext](const QJsonDocument &) { onNext(); },
-		[this, onNext](PLSAPINaverShoppingType apiType) {
+		[this, onNext](PLSAPINaverShoppingType apiType, const QByteArray &) {
 			if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingNotFound204) {
 				onNext();
 				return;
@@ -1256,12 +1300,7 @@ bool PLSPlatformNaverShoppingLIVE::isInvalidRemoteLiving(const QString &liveStat
 void PLSPlatformNaverShoppingLIVE::showGoLiveResolutionInvalidAlert() const
 {
 	//Invalid resolution string prompt text, Korean and English
-	QString outTipString;
-	if (IS_KR()) {
-		outTipString = QString("%1 %2%3").arg(tr("navershopping.liveinfo.title")).arg(tr("Platform.resolution.fps.failed.front")).arg(tr("Platform.resolution.fps.failed.last"));
-	} else {
-		outTipString = QString("%1%2%3").arg(tr("Platform.resolution.fps.failed.front")).arg(tr("navershopping.liveinfo.title")).arg(tr("Platform.resolution.fps.failed.last"));
-	}
+	QString outTipString = PLSServerStreamHandler::instance()->getResolutionAndFpsInvalidTip(tr("navershopping.liveinfo.title"));
 	pls_alert_error_message(PLSBasic::Get(), QTStr("Alert.Title"), outTipString);
 }
 

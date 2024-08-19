@@ -2,6 +2,7 @@
 #include "PLSCustomMacWindow.h"
 #include <libutils-api.h>
 #include <QTimer>
+#include "liblog.h"
 
 #define INVALID_WIN_ID 0
 
@@ -57,7 +58,7 @@ static NSRect m_maxButtonOriginRect;
 
 namespace Cocoa {
 
-NSWindow *getMacWindow(QWidget *widget)
+NSView *getMacView(QWidget *widget)
 {
 	if (!widget) {
 		return nullptr;
@@ -66,8 +67,12 @@ NSWindow *getMacWindow(QWidget *widget)
 		return nullptr;
 	}
 	NSView *view = (__bridge NSView *)reinterpret_cast<void *>(widget->winId());
-	NSWindow *window = [view window];
-	return window;
+	return view;
+}
+
+NSWindow *getMacWindow(QWidget *widget)
+{
+	return [getMacView(widget) window];
 }
 
 NSButton *getWindowButton(QWidget *widget, NSWindowButton windowButton)
@@ -203,6 +208,20 @@ bool PLSCustomMacWindow::hasTitleBar(QWidget *widget)
 		return false;
 	}
 	return window.hasTitleBar;
+}
+
+void PLSCustomMacWindow::setApplicationHidden(bool hidden)
+{
+	if (hidden) {
+		[[NSApplication sharedApplication] hide:nil];
+	} else {
+		[[NSApplication sharedApplication] unhide:nil];
+	}
+}
+
+bool PLSCustomMacWindow::isApplicationHidden()
+{
+	return [NSApplication sharedApplication].isHidden;
 }
 
 void PLSCustomMacWindow::setWindowCornerRadius(QWidget *widget)
@@ -371,4 +390,99 @@ void PLSCustomMacWindow::moveToFullScreen(QWidget *widget, int screenIdx)
 	}
 	[window setFrame:[screens[screenIdx] visibleFrame] display:YES];
 	[window toggleFullScreen:nil];
+}
+
+void PLSCustomMacWindow::addCurrentWindowToParentWindow(QWidget *widget)
+{
+	NSWindow *window = Cocoa::getMacWindow(widget);
+	if (!window) {
+		return;
+	}
+	NSWindow *parentWindow = Cocoa::getMacWindow(widget->parentWidget());
+	if (!parentWindow) {
+		return;
+	}
+	[parentWindow addChildWindow:window ordered:NSWindowAbove];
+}
+
+void PLSCustomMacWindow::removeCurrentWindowFromParentWindow(QWidget *widget)
+{
+	NSWindow *window = Cocoa::getMacWindow(widget);
+	if (!window) {
+		return;
+	}
+	NSWindow *parentWindow = Cocoa::getMacWindow(widget->parentWidget());
+	if (!parentWindow) {
+		return;
+	}
+	[parentWindow removeChildWindow:window];
+}
+
+void PLSCustomMacWindow::clipsToBounds(QWidget *widget, bool isClips)
+{
+	Cocoa::getMacView(widget).clipsToBounds = isClips;
+}
+
+#pragma mark - pls - mac
+
+static NSString *prismRemoteNotification = @"com.prism.prismlivestudio.notify";
+@interface PLSMacRemoteNotification : NSObject
+@end
+
+@implementation PLSMacRemoteNotification {
+	pls::mac::activeCallback _callback;
+}
+
++ (instancetype)sharedInstance
+{
+	static PLSMacRemoteNotification *sharedSingleton = nil;
+	static dispatch_once_t onceToken;
+	dispatch_once(&onceToken, ^(void) {
+		sharedSingleton = [[self alloc] init];
+	});
+	return sharedSingleton;
+}
+- (void)startNotify:(pls::mac::activeCallback)callback_
+{
+	_callback = callback_;
+	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
+	[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(receiveRemoteNotify:) name:prismRemoteNotification object:nil];
+}
+
+- (void)receiveRemoteNotify:(NSNotification *)noti
+{
+	NSDictionary *dic = noti.userInfo;
+	if ([dic objectForKey:@"active"]) {
+		dispatch_async(dispatch_get_main_queue(), ^{
+			if (_callback) {
+				_callback();
+			}
+		});
+	}
+}
+
++ (void)sendAvtiveNotification
+{
+	PLS_INFO("main/main-frame", "Prism send notification to wake up already running applicaiton");
+	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:prismRemoteNotification object:nil userInfo:@{@"active": @YES} deliverImmediately:YES];
+}
+
+- (void)dealloc
+{
+	_callback = nullptr;
+	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
+}
+@end
+
+namespace pls {
+namespace mac {
+void notifyPrismActiveSignal(pls::mac::activeCallback callback)
+{
+	[[PLSMacRemoteNotification sharedInstance] startNotify:callback];
+};
+void sendPrismActiveSignal()
+{
+	[PLSMacRemoteNotification sendAvtiveNotification];
+};
+}
 }

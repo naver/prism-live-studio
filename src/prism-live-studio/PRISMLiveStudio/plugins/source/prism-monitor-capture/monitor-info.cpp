@@ -1,11 +1,9 @@
 #include "monitor-info.h"
-#include "window-version.h"
 #include <util/windows/ComPtr.hpp>
 #include <assert.h>
-#include <obs-module.h>
 #include <liblog.h>
 
-static const IID dxgi_factory2 = {0x50c83a1c, 0xe072, 0x4c48, {0x87, 0xb0, 0x36, 0x30, 0xfa, 0x36, 0xa6, 0xd0}};
+using namespace std;
 
 PLSMonitorManager::PLSMonitorManager()
 {
@@ -132,7 +130,7 @@ void fill_monitor_id(std::vector<monitor_info> &list_info_out, const monitor_inf
 
 void PLSMonitorManager::reload_monitor(bool save_log)
 {
-	CAutoLockCS alock(list_lock);
+	lock_guard locker(list_lock);
 
 	monitor_info_array.clear();
 	EnumDisplayMonitors(nullptr, nullptr, enum_monitor_proc, (LPARAM)&monitor_info_array);
@@ -156,7 +154,8 @@ void PLSMonitorManager::reload_monitor(bool save_log)
 
 std::vector<monitor_info> PLSMonitorManager::get_monitor()
 {
-	CAutoLockCS alock(list_lock);
+	lock_guard locker(list_lock);
+
 	return monitor_info_array;
 }
 
@@ -166,8 +165,7 @@ bool PLSMonitorManager::enum_duplicator_array(std::vector<monitor_info> &outputL
 	ComPtr<IDXGIAdapter1> adapter;
 	ComPtr<IDXGIOutput> output;
 
-	IID factoryIID = (PLSWindowVersion::get_win_version() >= 0x602) ? dxgi_factory2 : __uuidof(IDXGIFactory1);
-	HRESULT hr = CreateDXGIFactory1(factoryIID, (void **)m_pFactory.Assign());
+	HRESULT hr = CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void **)m_pFactory.Assign());
 	if (FAILED(hr)) {
 		PLS_ERROR("monitor capture", "create dxgi factory failed, error code:%ld", hr);
 		return false;
@@ -199,11 +197,10 @@ bool PLSMonitorManager::enum_duplicator_array(std::vector<monitor_info> &outputL
 
 bool PLSMonitorManager::find_monitor(int index, int display_id, monitor_info &info)
 {
-	CAutoLockCS alock(list_lock);
+	lock_guard locker(list_lock);
 
 	info = monitor_info();
 
-	// we should check display_id firstly
 	if (display_id > 0) {
 		for (const auto &temp : monitor_info_array) {
 			if (temp.display_id == display_id) {

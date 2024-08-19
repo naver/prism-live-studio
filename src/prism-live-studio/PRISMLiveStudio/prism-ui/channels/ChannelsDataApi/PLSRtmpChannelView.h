@@ -22,6 +22,8 @@ public:
 	void loadFromData(const QVariantMap &oldData);
 	void showResolutionGuide();
 
+	void setPlatformCombboxIndex(const QString &channleName);
+
 	enum CustomChannelType { RTMP = 0, SRT = 1, RIST = 2, OTHER = 3 };
 
 protected:
@@ -43,21 +45,27 @@ private slots:
 
 	void on_PlatformCombbox_currentTextChanged(const QString &text);
 
+	void on_ServerComboBox_currentTextChanged(const QString &text);
+
 	void on_OpenLink_clicked() const;
 
 private:
 	void languageChange();
 	void initCommbox();
-	void verifyRename();
+	bool verifyRename();
 	bool checkIsModified() const;
 	bool isInfoValid();
 	void updateRtmpInfos();
-	bool isRtmUrlRight() const;
+	bool isUrlRight(const QString &regular, const QString &url) const;
 
 	void updatePlatform(const QVariantMap &oldData);
 
 	void ValidateNameEdit();
 	void IsHideSomeFrame(bool bShow);
+
+	void UpdateTwitchServerList();
+
+	void setTwitchUI(const QString &channelName);
 
 	//private:
 	Ui::RtmpChannelView *ui;

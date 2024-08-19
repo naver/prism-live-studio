@@ -9,6 +9,6 @@ namespace pls {
 #if __APPLE__
     std::string get_device_model();
     std::string get_device_name();
-    std::string get_threads();
+	std::string generate_dump_file(std::string info, std::string message);
 #endif
 }

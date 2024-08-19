@@ -1,0 +1,470 @@
+PLSSceneTemplateContainer {
+
+}
+
+PLSSceneTemplateContainer > #plsDialogViewBorderFrame > #titleBar > #titleLabel {
+	background-color: transparent;
+	font-weight: normal;
+} 
+
+PLSSceneTemplateContainer QScrollBar:vertical {
+    background-color: #272727;
+	width:/*hdpi*/ 12px;
+    margin:/*hdpi*/0px;
+}
+
+PLSSceneTemplateContainer QScrollBar::handle:vertical {
+    background-color: #444444;
+	border-radius:/*hdpi*/ 3px;
+	border:/*hdpi*/ none;
+    margin:/*hdpi*/0px /*hdpi*/3px;
+	min-height:/*hdpi*/ 20px;
+}
+
+QScrollArea {
+	border: none;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #mainSceneTitle {
+    font-weight:normal;
+	color:#bababa;
+	font-size:/*hdpi*/12px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #mainSceneComboBox {
+    min-height: /*hdpi-u*/ 30px;
+	max-height: /*hdpi-u*/ 30px;
+	min-width: /*hdpi-u*/ 120px;
+	max-width: /*hdpi-u*/ 120px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSComboBox {
+	font-size:/*hdpi*/ 12px;
+    color: #ffffff;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSComboBox QLabel#itemLabel {
+	font-weight: normal;
+	font-size:/*hdpi*/ 12px;
+	padding-left: 10px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItem {
+    min-height: /*hdpi-u*/ 284px;
+	max-height: /*hdpi-u*/ 284px;
+	min-width: /*hdpi-u*/ 260px;
+	max-width: /*hdpi-u*/ 260px;
+	background-color: #444444;
+	border-radius: 3px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateImageView #imageLabel {
+	background-color: black;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItem #mainSceneLeftImageView,
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItem #mainSceneRightImageView {
+    min-height: /*hdpi-u*/ 65px;
+	max-height: /*hdpi-u*/ 65px;
+	min-width: /*hdpi-u*/ 115px;
+	max-width: /*hdpi-u*/ 115px;
+}
+
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItem #mainSceneTopImageView,
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItem #mainSceneTopVideoView {
+    min-height: /*hdpi-u*/ 135px;
+	max-height: /*hdpi-u*/ 135px;
+	min-width: /*hdpi-u*/ 240px;
+	max-width: /*hdpi-u*/ 240px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #nameLabel {
+    font-weight:bold;
+	color:white;
+	font-size:/*hdpi*/14px;
+	background-color: transparent;
+	max-width: 196px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #resolutionLabel {
+    font-weight:normal;
+	color:#bababa;
+	font-size:/*hdpi*/11px;
+	background-color: transparent;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #roundLabel {
+    min-height: /*hdpi-u*/ 4px;
+	max-height: /*hdpi-u*/ 4px;
+	min-width: /*hdpi-u*/ 4px;
+	max-width: /*hdpi-u*/ 4px;
+	background-color: transparent;
+	image: url(":/resource/images/scene-template/round.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #sceneCountLabel {
+    font-weight:normal;
+	color:#bababa;
+	font-size:/*hdpi*/11px;
+	background-color: transparent;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #iconLabel {
+	min-width: /*hdpi*/ 34px;
+	max-width: /*hdpi*/ 34px;
+	min-height: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+	background-color: transparent;
+	padding: 0px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #iconLabel[type="New"] {
+	image: url(":/resource/images/ic-badge-new.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #iconLabel[type="Popular"] {
+	image: url(":/resource/images/scene-template/ic-badge-hot.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #installButton {
+	min-height: /*hdpi-u*/ 40px;
+	max-height: /*hdpi-u*/ 40px;
+	min-width: /*hdpi-u*/ 150px;
+	max-width: /*hdpi-u*/ 150px;
+    background-color:#EFFC35;
+	padding: 0px;
+	margin: 0px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #installButton {
+	min-height: /*hdpi-u*/ 40px;
+	max-height: /*hdpi-u*/ 40px;
+	min-width: /*hdpi-u*/ 180px;
+	max-width: /*hdpi-u*/ 180px;
+    background-color:#EFFC35;
+	padding: 0px;
+	margin: 0px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #installButton #installLabel {
+	font-size:/*hdpi*/14px;
+    font-weight:bold;
+	color:black;
+	background-color: transparent;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #installButton #installLabel {
+	font-size:14px;
+    font-weight:bold;
+	color:black;
+	background-color: transparent;
+}
+
+PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate {
+	min-height: /*hdpi-u*/ 24px;
+	max-height: /*hdpi-u*/ 24px;
+	min-width: /*hdpi-u*/ 20px;
+	max-width: /*hdpi-u*/ 20px;
+	background-color: transparent;
+	padding: 0px;
+	margin: 0px;
+	image: url(":/resource/images/loading/black-loading-1.svg");
+}
+
+PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="1"] {
+	image: url(":/resource/images/loading/black-loading-1.svg");
+}
+
+	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="2"] {
+		image: url(":/resource/images/loading/black-loading-2.svg");
+	}
+
+	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="3"] {
+		image: url(":/resource/images/loading/black-loading-3.svg");
+	}
+
+	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="4"] {
+		image: url(":/resource/images/loading/black-loading-4.svg");
+	}
+
+	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="5"] {
+		image: url(":/resource/images/loading/black-loading-5.svg");
+	}
+
+	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="6"] {
+		image: url(":/resource/images/loading/black-loading-6.svg");
+	}
+
+	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="7"] {
+		image: url(":/resource/images/loading/black-loading-7.svg");
+	}
+
+	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="8"] {
+		image: url(":/resource/images/loading/black-loading-8.svg");
+	}
+
+PLSSceneTemplateContainer #installButton:hover {
+	background-color: #f1fa75;
+}
+
+PLSSceneTemplateContainer #installButton:pressed {
+	background-color: #7a7f34;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton {
+	min-height: /*hdpi-u*/ 40px;
+	max-height: /*hdpi-u*/ 40px;
+	min-width: /*hdpi-u*/ 80px;
+	max-width: /*hdpi-u*/ 80px;
+	font-size:/*hdpi*/14px;
+    font-weight:bold;
+    border-radius:/*hdpi*/3px;
+    color:white;
+    background-color:#666666;
+	padding: 0px;
+	margin: 0px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton:hover {
+    background-color:#777777;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton:disabled {
+    background-color:#666666;
+	color: #999999;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneInstallView #detailButton:pressed {
+    background-color:#2D2D2D;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton {
+	min-height: /*hdpi-u*/ 30px;
+	max-height: /*hdpi-u*/ 30px;
+	border: 1px solid #3D3D3D;
+	border-radius: 3px;
+	background-color: transparent;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="normal"]  {
+	border: 1px solid #3D3D3D;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="hover"]  {
+	border: 1px solid #FFFFFF;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="clicked"]  {
+	border: 1px solid #1E1E1E;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="disable"]  {
+	border: 1px solid #3D3D3D;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton #arrowLabel {
+	min-height: /*hdpi-u*/ 12px;
+	max-height: /*hdpi-u*/ 12px;
+	min-width: /*hdpi-u*/ 13px;
+	max-width: /*hdpi-u*/ 13px;
+    background-color:transparent;
+	padding: 0px;
+	margin: 0px;
+	image:url(":/resource/images/scene-template/ic_arrow_scenetemplate_normal.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="normal"] #arrowLabel {
+	image:url(":/resource/images/scene-template/ic_arrow_scenetemplate_normal.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="hover"] #arrowLabel {
+	image:url(":/resource/images/scene-template/ic_arrow_scenetemplate_hover.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="clicked"] #arrowLabel {
+	image:url(":/resource/images/scene-template/ic_arrow_scenetemplate_click.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="disable"] #arrowLabel {
+	image:url(":/resource/images/scene-template/ic_arrow_scenetemplate_disable.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton #returnLabel {
+	color: #BABABA;
+    background-color:transparent;
+	padding: 0px;
+	margin: 0px;
+	font-size: 12px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="normal"] #returnLabel {
+    color: #BABABA;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="hover"] #returnLabel {
+    color:#FFFFFF;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="clicked"] #returnLabel {
+    color:#1E1E1E;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="disable"] #returnLabel {
+    color:#3D3D3D;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame {
+	min-height: /*hdpi*/ 126px;
+	max-height: /*hdpi*/ 126px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #rightFrame {
+	min-height: /*hdpi*/ 126px;
+	max-height: /*hdpi*/ 126px;
+	min-width: /*hdpi*/ 240px;
+	max-width: /*hdpi*/ 240px;
+}
+
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneNameLabel {
+	color: #FFFFFF;
+	padding: 0px;
+	margin: 0px;
+	font-size: 32px;
+	font-weight: bold;
+	background-color: transparent;
+	max-width: 834px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneIconLabel {
+	padding: 0px;
+	margin-top: 4px;
+	min-width: /*hdpi*/ 34px;
+	max-width: /*hdpi*/ 34px;
+	min-height: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+	background-color: transparent;
+	padding: 0px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneIconLabel[type="New"] {
+	image: url(":/resource/images/ic-badge-new.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneIconLabel[type="Popular"] {
+	image: url(":/resource/images/scene-template/ic-badge-hot.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailResolutionLabel {
+	padding: 0px;
+	margin: 0px;
+	font-size: 12px;
+	font-weight: bold;
+	color: #BABABA;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneTipButton {
+	padding: 0px;
+	margin: 0px;
+	background-color: transparent;
+	min-width: /*hdpi*/ 15px;
+	max-width: /*hdpi*/ 15px;
+	min-height: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+	image:url(":/resource/images/scene-template/ic_scene_help_normal.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneTipButton:hover {
+	image:url(":/resource/images/scene-template/ic_scene_help_hover.svg");
+}
+
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneRoundLabel {
+    min-height: /*hdpi-u*/ 4px;
+	max-height: /*hdpi-u*/ 4px;
+	min-width: /*hdpi-u*/ 4px;
+	max-width: /*hdpi-u*/ 4px;
+	background-color: transparent;
+	image: url(":/resource/images/scene-template/round.svg");
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneCountLabel {
+    font-weight:normal;
+	color:#bababa;
+	font-size:/*hdpi*/12px;
+	background-color: transparent;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame {
+	min-width: /*hdpi-u*/ 200px;
+	max-width: /*hdpi-u*/ 200px;
+	background-color: transparent;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame  PLSMediaRender,
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame  PLSSceneTemplateImageView {
+    min-height: /*hdpi-u*/ 80px;
+	max-height: /*hdpi-u*/ 80px;
+	min-width: /*hdpi-u*/ 150px;
+	max-width: /*hdpi-u*/ 150px;
+	border-radius: 3px;
+	border: none;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame PLSSceneTemplateImageView #imageLabel {
+	border-radius: 3px;
+	border: none;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateBorderLabel {
+	background-color: transparent;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateBorderLabel #borderFrame {
+	background-color: transparent;
+	border-radius: 3px;
+	border: none;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateBorderLabel #borderFrame[type="select"] {
+	border: 2px solid #EFFC35;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateBorderLabel #sceneNameRoundLabel{
+	min-height: /*hdpi-u*/ 30px;
+	max-height: /*hdpi-u*/ 30px;
+	font-weight: bold;
+	font-size: 14px;
+	color: white;
+	border: 1px solid #ffffff;
+	border-radius: 16px;
+	background-color: rgba(0, 0, 0, 10%);;
+	padding-left: 16px;
+	padding-right: 16px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #labelLoading, PLSSceneTemplateContainer PLSSceneTemplateMainScene #labelRetry {
+	color: #bababa;
+	font-size: 14px;
+}
+
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #buttonRetry {
+	min-width: 108px;
+	min-height: 25px;
+	padding: 0;
+	color: #bababa;
+	font-size: 12px;
+	border: 1px solid #3d3d3d;
+	border-radius: 3px;
+}
+
+	PLSSceneTemplateContainer PLSSceneTemplateMainScene #buttonRetry:hover {
+		color: #ffffff;
+		border-color: #bababa;
+	}
+
+	PLSSceneTemplateContainer PLSSceneTemplateMainScene #buttonRetry:pressed {
+		color: #444444;
+		border-color: #444444;
+	}

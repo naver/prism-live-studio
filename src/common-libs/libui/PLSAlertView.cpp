@@ -61,7 +61,7 @@ static int getButtonCount(PLSAlertView::Buttons buttons)
 	}
 	return count;
 }
-static void setDefaultButton(const QDialogButtonBox *buttonBox, PLSAlertView::Button defaultButton)
+static void setDefaultButton(const PLSDialogButtonBox *buttonBox, PLSAlertView::Button defaultButton)
 {
 	for (int i = 0; i < 32; ++i) {
 		if (QPushButton *button = buttonBox->button(static_cast<PLSAlertView::Button>(1 << i)); button) {
@@ -74,7 +74,7 @@ static void setDefaultButton(const QDialogButtonBox *buttonBox, PLSAlertView::Bu
 		button->setDefault(true);
 	}
 }
-static void resetButtonWidth(const QDialogButtonBox *buttonBox, int minWidth, int maxWidth)
+static void resetButtonWidth(const PLSDialogButtonBox *buttonBox, int minWidth, int maxWidth)
 {
 	for (int i = 0; i < 32; ++i) {
 		if (auto button = buttonBox->button(static_cast<PLSAlertView::Button>(1 << i)); button) {
@@ -84,7 +84,7 @@ static void resetButtonWidth(const QDialogButtonBox *buttonBox, int minWidth, in
 		}
 	}
 }
-static int calcButtonWidth(const QDialogButtonBox *buttonBox, int minWidth, int maxWidth)
+static int calcButtonWidth(const PLSDialogButtonBox *buttonBox, int minWidth, int maxWidth)
 {
 	int width = minWidth;
 	for (int i = 0; i < 32; ++i) {
@@ -148,7 +148,7 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, con
 	ui->nameLabel->hide();
 	ui->message->setText(message);
 	ui->buttonBox->setStandardButtons(buttons);
-	connect(ui->buttonBox, &QDialogButtonBox::clicked, this, &PLSAlertView::onButtonClicked);
+	connect(ui->buttonBox, &PLSDialogButtonBox::clicked, this, &PLSAlertView::onButtonClicked);
 
 	ui->buttonBox->setExtraLog(QString("\t(content: %1)").arg(message));
 
@@ -226,8 +226,8 @@ QString PLSAlertView::GetNameElideString(const QString &name, const QWidget *wid
 {
 	if (widget) {
 		QFontMetrics fontWidth(widget->font());
-		if (fontWidth.horizontalAdvance(name) > widget->width() - APPEND_SPACE_WIDTH)
-			return fontWidth.elidedText(name, Qt::ElideRight, widget->width() - APPEND_SPACE_WIDTH);
+		if (fontWidth.horizontalAdvance(name) > widget->width() - APPEND_SPACE_WIDTH * 2)
+			return fontWidth.elidedText(name, Qt::ElideRight, widget->width() - APPEND_SPACE_WIDTH * 2);
 	}
 
 	return name;
@@ -659,13 +659,47 @@ void PLSAlertView::onButtonClicked(QAbstractButton *button)
 
 void PLSAlertView::showEvent(QShowEvent *event)
 {
-	adjustSize();
 #if defined(Q_OS_WIN)
+	m_needCorrectedHeight = true;
+	m_needUpdatePosWhenCorrectedHeight = false;
+#endif
+
+	adjustSize();
+
+#if defined(Q_OS_WIN)
+	m_needCorrectedHeight = true;
+	m_needUpdatePosWhenCorrectedHeight = false;
 	resize(size() - QSize(0, titleBarHeight()));
 #endif
 
-	PLS_INFO("alert-view", "UI: [ALERT] %s%s", ui->message->text().toUtf8().constData(), ui->nameLabel->text().toUtf8().constData());
+	PLS_LOGEX(PLS_LOG_INFO, "alert-view", {{"alert-msg", ui->message->text().toUtf8().constData()}}, "UI: [ALERT] %s%s", ui->message->text().toUtf8().constData(),
+		  ui->nameLabel->text().toUtf8().constData());
 	PLSDialogView::showEvent(event);
+}
+
+void PLSAlertView::nativeResizeEvent(const QSize &size, const QSize &nativeSize)
+{
+	PLSDialogView::nativeResizeEvent(size, nativeSize);
+
+#if defined(Q_OS_WIN)
+	if ((size.height() % 2) != 0) {
+		pls_async_call(this, [this, size]() {
+			if (m_needCorrectedHeight) {
+				m_needCorrectedHeight = false;
+				m_needUpdatePosWhenCorrectedHeight = true;
+				resize(QSize(size.width(), size.height() + 1));
+			}
+		});
+	} else if (auto parent = pls_get_toplevel_view(parentWidget()); parent && m_needUpdatePosWhenCorrectedHeight) {
+		m_needUpdatePosWhenCorrectedHeight = false;
+		auto g = parent->geometry();
+		QPoint pos(g.x() + (g.width() - size.width()) / 2, g.y() + (g.height() - size.height()) / 2);
+		pls_async_call(this, [this, pos]() { move(pos); });
+	} else {
+		m_needCorrectedHeight = false;
+		m_needUpdatePosWhenCorrectedHeight = false;
+	}
+#endif
 }
 
 //for countdown

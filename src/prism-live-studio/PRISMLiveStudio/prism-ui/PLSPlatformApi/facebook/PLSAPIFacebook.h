@@ -17,13 +17,17 @@ enum class PLSAPIFacebookType {
 	PLSUpdateLivingPermissionReject,
 	PLSUpdateLiveInfoFailed,
 	PLSFacebookNetworkError,
+	PLSFacebookDeclined_60Days,
+	PLSFacebookDeclined_100Followers,
 };
 
 constexpr auto timeline_living_permission = "publish_video";
 constexpr auto group_living_permission = "publish_to_groups";
 constexpr auto pages_manage_posts_permission = "pages_manage_posts";
 constexpr auto pages_read_engagement_permission = "pages_read_engagement";
+constexpr auto business_management_permission = "business_management";
 constexpr auto pages_read_user_content_permission = "pages_read_user_content";
+constexpr auto page_show_list_permission = "pages_show_list";
 
 #define TimelineObjectFlags tr("facebook.channel.type.timeline")
 #define GroupObjectFlags tr("facebook.channel.type.group")
@@ -97,7 +101,9 @@ public:
 		PLSAPICheckMyPageListPermission,
 		PLSAPICheckTimelineLivingPermission,
 		PLSAPICheckGroupLivingPermission,
+		PLSAPICheckGroupGetInfoPermission,
 		PLSAPICheckPageLivingPermission,
+		PLSAPICheckPageGetInfoPermission,
 		PLSAPIStartTimelineLiving,
 		PLSAPIStartGroupLiving,
 		PLSAPIStartPageLiving,

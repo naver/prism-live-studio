@@ -15,11 +15,15 @@
 #include "obs-properties.h"
 #include "pls/pls-properties.h"
 #include "PLSComboBox.h"
-#include "frontend-api.h"
 #include "PLSPushButton.h"
 #include "PLSSpinBox.h"
+#include "flowlayout.h"
+#include <qdir.h>
+#include "PLSNameDialog.hpp"
+#include "qt-wrappers.hpp"
+#include "window-basic-main.hpp"
 
-using namespace std;
+#define CTTEMPLATETEXTWIDTH 100
 
 ChatTemplate::ChatTemplate(QButtonGroup *buttonGroup, int id, bool checked)
 {
@@ -46,25 +50,185 @@ ChatTemplate::ChatTemplate(QButtonGroup *buttonGroup, int id, bool checked)
 	vlayout->addWidget(text);
 }
 
+ChatTemplate::ChatTemplate(QButtonGroup *buttonGroup, int id, const QString text, const QString iconPath, bool isEditUi, const QString &backgroundColor)
+{
+	m_editName = text.toUtf8().constData();
+	createFrame(isEditUi);
+	setObjectName("chat_template_btn");
+	setProperty("lang", pls_get_current_language());
+	setProperty("style", id);
+	setProperty("ID", id);
+	setCheckable(true);
+	setChecked(false);
+	buttonGroup->addButton(this, id);
+
+	QVBoxLayout *vlayout = pls_new<QVBoxLayout>(this);
+	vlayout->setContentsMargins(0, 0, 0, 0);
+
+	QFileInfo info(QDir::toNativeSeparators(iconPath));
+	QPixmap pixMap;
+	QLabel *icon = pls_new<QLabel>(this);
+	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+	icon->setObjectName("icon");
+	icon->setScaledContents(true);
+
+	if (isEditUi) {
+		auto layout = pls_new<QHBoxLayout>(icon);
+		layout->setContentsMargins(0, 0, 0, 0);
+		auto customIcon = pls_new<QLabel>();
+		customIcon->setObjectName("icon_custom");
+		layout->addWidget(customIcon);
+		layout->setAlignment(Qt::AlignHCenter);
+		customIcon->setScaledContents(true);
+		pixMap = pls_load_svg(info.absoluteFilePath(), QSize(98, 43) * 4);
+		customIcon->setPixmap(pixMap);
+		icon->setStyleSheet(QString("background-color:%1;").arg(backgroundColor));
+		icon->setObjectName("icon1");
+	} else {
+		pixMap = QPixmap(info.absoluteFilePath());
+		icon->setPixmap(pixMap);
+	}
+	vlayout->addWidget(icon);
+
+	m_textLabel = pls_new<QLabel>(this);
+	m_textLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	m_textLabel->setObjectName("chat_text");
+	m_textLabel->setText(text);
+	QString elidedText = this->fontMetrics().elidedText(text, Qt::ElideRight, CTTEMPLATETEXTWIDTH);
+	m_textLabel->setText(elidedText);
+	vlayout->addWidget(m_textLabel);
+	vlayout->setAlignment(Qt::AlignHCenter);
+	icon->setAlignment(Qt::AlignHCenter);
+	this->setLayout(vlayout);
+}
+
 bool ChatTemplate::event(QEvent *event)
 {
 	switch (event->type()) {
 	case QEvent::HoverEnter:
-		pls_flush_style_recursive(this, "hovered", true);
+		setEditBtnVisible(true);
 		break;
 	case QEvent::HoverLeave:
-		pls_flush_style_recursive(this, "hovered", false);
+		setEditBtnVisible(false);
 		break;
 	case QEvent::MouseButtonPress:
-		pls_flush_style_recursive(this, "pressed", true);
 		break;
 	case QEvent::MouseButtonRelease:
-		pls_flush_style_recursive(this, "pressed", false);
 		break;
 	default:
 		break;
 	}
 	return QPushButton::event(event);
+}
+
+void ChatTemplate::createFrame(bool isEdit)
+{
+	if (!isEdit)
+		return;
+	m_borderPixMap = pls_load_svg(":/resource/images/text-template/select.svg", QSize(157, 157) * 3);
+	m_frame = pls_new<QFrame>();
+	m_frame->installEventFilter(this);
+	m_frame->setObjectName("chatTemplateEditFrame");
+	auto btn1 = pls_new<QPushButton>();
+	btn1->setObjectName("chatTemplateRemoveBtn");
+	auto btn2 = pls_new<QPushButton>();
+	btn2->setObjectName("chatTemplateEditBtn");
+	connect(btn1, &QPushButton::clicked, [this]() {
+		if (PLSAlertView::Button::Ok == PLSAlertView::information(nullptr, tr("Alert.Title"), QString(tr("Ct.Remove.Custom.Template")).arg(m_editName.c_str()),
+									  PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel, PLSAlertView::Button::Ok)) {
+			pls_get_chat_template_helper_instance()->removeCustomTemplate(property("ID").toInt());
+			emit resetSourceProperties(property("ID").toInt());
+		}
+	});
+
+	auto layout = pls_new<QVBoxLayout>(m_frame);
+	layout->setSpacing(0);
+	layout->setContentsMargins(0, 4, 0, 10);
+	auto closeLayout = pls_new<QHBoxLayout>();
+	closeLayout->setSpacing(0);
+	closeLayout->setContentsMargins(0, 0, 4, 0);
+	closeLayout->addWidget(btn1, Qt::AlignRight);
+	closeLayout->setAlignment(Qt::AlignRight);
+	layout->addLayout(closeLayout);
+	layout->setAlignment(btn1, Qt::AlignRight);
+	layout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Expanding));
+
+	auto layout2 = pls_new<QHBoxLayout>();
+	layout2->setSpacing(0);
+	layout2->setContentsMargins(0, 0, 10, 0);
+	layout2->setAlignment(Qt::AlignRight);
+
+	layout2->addWidget(btn2);
+	layout->addLayout(layout2);
+
+	connect(btn2, &QPushButton::clicked, [this]() {
+		auto tmpEditName = m_editName;
+		for (;;) {
+			bool accepted = PLSNameDialog::AskForName(this, QObject::tr("ChatTemplate.Rename.Title"), QObject::tr("ChatTemplate.Rename.Content"), m_editName, QT_UTF8(m_editName.c_str()));
+			if (!accepted || tmpEditName == m_editName) {
+				return;
+			}
+
+			if (m_editName.empty()) {
+				OBSMessageBox::warning(this, QObject::tr("Alert.Title"), QObject::tr("NoNameEntered.Text"));
+				continue;
+			}
+			bool isExist = isChatTemplateNameExist(m_editName.c_str());
+
+			if (isExist) {
+				OBSMessageBox::warning(this, QObject::tr("Alert.Title"), QObject::tr("ChatTemplate.Rename.Exist"));
+				continue;
+			}
+			if (!pls_get_chat_template_helper_instance())
+				return;
+			pls_get_chat_template_helper_instance()->updateCustomTemplateName(m_editName.c_str(), property("ID").toInt());
+			QString elidedText = this->fontMetrics().elidedText(m_editName.c_str(), Qt::ElideRight, CTTEMPLATETEXTWIDTH);
+
+			m_textLabel->setText(elidedText);
+			return;
+		}
+	});
+}
+
+bool ChatTemplate::isChatTemplateNameExist(const QString &editName)
+{
+	if (!pls_get_chat_template_helper_instance())
+		return false;
+	auto exitNames = pls_get_chat_template_helper_instance()->getChatTemplateName();
+	return exitNames.find(editName) != exitNames.end();
+}
+void ChatTemplate::showEvent(QShowEvent *event)
+{
+	QPushButton::showEvent(event);
+
+	if (m_frame) {
+		m_frame->setParent(this);
+		m_frame->resize(this->size());
+		m_frame->show();
+		setEditBtnVisible(false);
+	}
+}
+
+bool ChatTemplate::eventFilter(QObject *watch, QEvent *event)
+{
+	if (watch == m_frame && event->type() == QEvent::Paint) {
+		if (isChecked()) {
+			QPainter painter(m_frame);
+			painter.drawPixmap(m_frame->rect(), m_borderPixMap.scaled(m_frame->size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+			return true;
+		}
+	}
+
+	return QPushButton::eventFilter(watch, event);
+}
+void ChatTemplate::setEditBtnVisible(bool isVisible)
+{
+	if (pls_object_is_valid(m_frame)) {
+		auto btns = m_frame->findChildren<QPushButton *>();
+		for (auto btn : btns) {
+			btn->setVisible(isVisible);
+		}
+	}
 }
 
 TMTextAlignBtn::TMTextAlignBtn(const QString &labelObjStr, bool isChecked, bool isAutoExcusive, QWidget *parent) : QPushButton(parent), m_isChecked(isChecked)
@@ -379,3 +543,77 @@ inline QString AddToListDialog::GetText() const
 {
 	return bobox->itemData(bobox->currentIndex()).toString();
 }
+
+FontSelectionWindow::FontSelectionWindow(const QList<ITextMotionTemplateHelper::PLSChatDefaultFamily> &families, const QString &selectFamily, QWidget *parent) : QFrame(parent)
+{
+	pls_add_css(this, {"FontSelectionWindow"});
+	auto vlayout = pls_new<QVBoxLayout>();
+	vlayout->setContentsMargins(0, 0, 0, 5);
+	vlayout->setSpacing(10);
+	auto frame = pls_new<QFrame>();
+	frame->setWindowFlags(Qt::FramelessWindowHint);
+	vlayout->addWidget(frame);
+
+	QHBoxLayout *hLayout = pls_new<QHBoxLayout>();
+	hLayout->setContentsMargins(0, 0, 0, 0);
+	hLayout->setSpacing(5);
+	frame->setLayout(hLayout);
+	int count = families.count();
+
+	auto moreFrame = pls_new<QFrame>();
+	moreFrame->setWindowFlags(Qt::FramelessWindowHint);
+	vlayout->addWidget(moreFrame);
+	auto flowLayout = pls_new<FlowLayout>(0, 5, 10);
+	moreFrame->setLayout(flowLayout);
+	moreFrame->hide();
+
+	auto btnGroup = pls_new<QButtonGroup>(this);
+	connect(btnGroup, &QButtonGroup::idClicked, this, [btnGroup, this](int id) { clickFontBtn(btnGroup->button(id)); });
+
+	if (count < 5) {
+		PLS_ERROR("FontSelectionWindow", "init font count error");
+	}
+	for (int i = 0; i < count; i++) {
+		auto family = families[i];
+		auto btn = pls_new<QPushButton>();
+		btn->setText(family.uiFamilyText);
+		btn->setStyleSheet(QString("QPushButton{font-family:%1;font-weight:%2;font-size:%3px;}").arg(family.qtFamilyText).arg(family.fontWeight).arg(family.fontSize));
+		btn->setProperty("webFamily", family.webFamilyText);
+		btn->setProperty("qtFamily", family.qtFamilyText);
+		btn->setProperty("fontWeight", family.fontWeight);
+		btn->setCheckable(true);
+		btn->setChecked(selectFamily == family.qtFamilyText);
+		if (i < 5) {
+			hLayout->addWidget(btn);
+		} else {
+			flowLayout->addWidget(btn);
+		}
+		btnGroup->addButton(btn, i);
+	}
+	flowLayout->showLayoutItemWidget();
+
+	auto moreBtn = pls_new<QPushButton>();
+	hLayout->addWidget(moreBtn);
+	hLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Fixed));
+
+	moreBtn->setText("");
+	moreBtn->setObjectName("moreBtn");
+
+	QHBoxLayout *layout = pls_new<QHBoxLayout>(moreBtn);
+	layout->setContentsMargins(0, 0, 0, 0);
+	QLabel *labelIcon = pls_new<QLabel>(moreBtn);
+	labelIcon->setObjectName("moreBtnIcon");
+	layout->addWidget(labelIcon);
+	layout->setAlignment(labelIcon, Qt::AlignCenter);
+
+	connect(moreBtn, &QPushButton::clicked, this, [vlayout, moreFrame, moreBtn]() {
+		vlayout->setContentsMargins(0, 0, 0, 0);
+
+		moreFrame->show();
+		moreBtn->hide();
+	});
+
+	this->setLayout(vlayout);
+}
+
+FontSelectionWindow::~FontSelectionWindow() {}

@@ -20,3 +20,30 @@ PLSLiveInfoTwitch #frame {
 	background-color:transparent;
 	border-bottom:1px solid #111111;
 }
+PLSLiveInfoTwitch #labelTooltip {
+	border: none;
+	background-color: transparent;
+}
+PLSLiveInfoTwitch #labelTooltip {
+	image: url(":resource/images/ic-help-off-normal.svg");
+	min-width: /*hdpi*/ 18px;
+	max-width: /*hdpi*/ 18px;
+	min-height: /*hdpi*/ 18px;
+	max-height: /*hdpi*/ 18px;
+	background-color: transparent;
+	padding: 0;
+	margin: 0;
+}
+
+PLSLiveInfoTwitch #labelTooltip:hover {
+	image: url(":resource/images/ic-help-off-over.svg");
+}
+PLSLiveInfoBase > #plsDialogViewBorderFrame > #content > #twitchService {
+	border: none;
+	background-color: transparent;
+	font-size: 12px;
+	font-weight:normal;
+	min-height:16px;
+	max-height:16px;
+	color:#bababa;
+}

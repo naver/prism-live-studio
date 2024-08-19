@@ -39,7 +39,7 @@ void onLiveStateChanged(enum obs_frontend_event event, void *context)
 		PLSCHANNELS_API->sigTrySetBroadcastState(ChannelData::StreamStopping);
 		break;
 	case OBS_FRONTEND_EVENT_STREAMING_STOPPED:
-		PLSCHANNELS_API->setBroadcastState(ChannelData::StreamStopped);
+		PLSCHANNELS_API->sigTrySetBroadcastState(ChannelData::StreamStopped);
 		break;
 		/*recording       start       */
 	case OBS_FRONTEND_EVENT_RECORDING_STARTING:

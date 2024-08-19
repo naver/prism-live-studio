@@ -16,6 +16,8 @@ public:
 	static PLSSyncServerManager *instance();
 	explicit PLSSyncServerManager(QObject *parent = nullptr);
 	void updatePolicyPublishByteArray();
+	void updateSupportedPlatforms();
+	void updateChatTagIcon();
 
 private:
 	bool getSyncServerAppBundleJsonObject(const QString &jsonName, QJsonObject &appBundleJsonObject, int &appBundleVersion);
@@ -28,8 +30,14 @@ private:
 	void initStreamServiceList(const QJsonObject &policyPublishJsonObject);
 	void initPlatformLiveTimeLimit(const QJsonObject &policyPublishJsonObject);
 	void initPlatformVersionInfo(const QJsonObject &policyPublishJsonObject);
+	void initRemoteControlInfo(const QJsonObject &policyPublishJsonObject);
 	void initNaverShoppingInfo(const QJsonObject &policyPlatformJsonObject);
-	void initOpenSourceInfo(const QJsonObject &openSourceJsonObject);
+	void initOpenSourceInfo();
+	void initTwitchWhipServer(const QJsonObject &policyPlatformJsonObject);
+	void initSupportedPlatforms(const QJsonObject &policyPublishJsonObject);
+	void initSupportedCodecs(const QJsonObject &policyPublishJsonObject);
+	void initWaterMark(const QJsonObject &waterMarkDefaultValueObject);
+	void initOutroPolicy(const QJsonObject &outroDefaultValueObject);
 
 public:
 	const QVariantList &getResolutionsList();
@@ -42,6 +50,7 @@ public:
 	QStringList getNaverPlatformWhiteList();
 	const QVariantMap &getStreamService();
 	PlatformLiveTime getPlatformLiveTime(bool isDirect, const QString &platformName);
+	QString getRemoteControlMobilePlatform(const QString &platformName);
 	const QVariantMap &getPlatformVersionInfo();
 	bool isPresetRTMP(const QString &url);
 	const QString &getNaverShoppingTermOfUse();
@@ -52,14 +61,25 @@ public:
 	const QJsonArray &getProductCategoryJsonArray();
 	std::vector<std::string> getGPUBlacklist(const QString &jsonName);
 	const QString &getOpenSourceLicense();
+	const QString &getTwitchWhipServer();
+	const QStringList &getSupportedPlatformsList();
+	const QVariantMap &getSupportedPlatformsMap();
+	const QVariantList &getNewResolutionGuide();
+	const QJsonObject &getLoginObject();
+	const QJsonObject &getWaterMarkConfigObject();
+	const QJsonObject &getOutroPolicyConfigObject();
 
+	const QString &getWaterMarkResLocalPath(const QString &platformName);
+	const QVariantMap &getOutroResLocalPathAndText(const QString &platformName);
+	int compareVersion(const QString &v1, const QString &v2) const;
 private slots:
-	void onReceiveLibraryNeedUpdate();
+	void onReceiveLibraryNeedUpdate(bool isSucceed);
 
 private:
 	QJsonObject m_policyPublishDefaultValueObject;
 	QJsonObject m_policyPlatformDefaultValueObject;
-	QJsonObject m_openSourceDefaultValueObject;
+	QJsonObject m_waterMarkDefaultValueObject;
+	QJsonObject m_outroDefaultValueObject;
 	QVariantMap m_platformFPSMap;
 	QVariantList m_resolutionsInfos;
 	QMap<QString, QVariantList> m_reaction;
@@ -68,6 +88,7 @@ private:
 	QStringList m_naverPlatformWhiteList;
 	QVariantMap m_streamService;
 	QVariantMap m_platformLiveTimeLimit;
+	QVariantMap m_remoteControlPlatformsInfo;
 	QVariantMap m_platformVersionInfo;
 	QMap<int, RtmpDestination> m_destinations;
 	QVariantMap m_rtmpFPSMap;
@@ -77,6 +98,16 @@ private:
 	QString m_voluntaryReviewProducts;
 	QString m_noticeOnAutomaticExtractionOfProductSections;
 	QString m_openSourceLicense;
+	QString m_twitchWhipServer;
+	QVariantMap m_supportedPlatformsMap;
+	QStringList m_supportedPlatformsList;
+	QJsonObject m_loginObject;
+	QJsonObject m_channelObject;
+	QVariantList m_newResolutionGuide;
+	QJsonObject m_watermarkObject;
+	QJsonObject m_outroObject;
+	QString m_watermarkLocalPath;
+	QVariantMap m_outroPathAndText;
 };
 
 #define PLS_SYNC_SERVER_MANAGE PLSSyncServerManager::instance()

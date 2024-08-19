@@ -56,13 +56,17 @@ target_include_directories(decklink-output-ui
             ${PRISMLiveStudio_SOURCE_DIR}/prism-ui/main)
 
 if(OS_WINDOWS)
+  set_property(
+    TARGET decklink-output-ui
+    APPEND
+    PROPERTY AUTORCC_OPTIONS --format-version 1)
 
 elseif(OS_MACOS)
   find_library(COCOA Cocoa)
   mark_as_advanced(COCOA)
 
   target_link_libraries(decklink-output-ui PRIVATE ${COCOA})
-
+  target_compile_options(decklink-output-ui PRIVATE -Wno-quoted-include-in-framework-header)
 elseif(OS_POSIX)
   find_package(X11 REQUIRED)
   target_link_libraries(decklink-output-ui PRIVATE X11::X11 Qt6::GuiPrivate)

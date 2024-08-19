@@ -3,6 +3,7 @@
 #include "obs-app.hpp"
 #include "window-basic-main.hpp"
 #include "json-data-handler.hpp"
+#include "PLSBasic.h"
 #include <QListWidgetItem>
 #include <QAbstractItemView>
 #include <QMimeData>
@@ -34,48 +35,43 @@ PLSSceneCollectionListView::PLSSceneCollectionListView(QWidget *parent) : QListV
 	setVerticalScrollBar(scrollBar);
 	setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-	connect(scrollBar, &PLSCommonScrollBar::isShowScrollBar, this, [this](bool show) { emit ScrollBarShow(show); });
+	connect(scrollBar, &PLSCommonScrollBar::isShowScrollBar, this, [this](bool show) {
+		pls_check_app_exiting();
+		emit ScrollBarShow(show);
+	});
 }
 
 PLSSceneCollectionView::PLSSceneCollectionView(QWidget *parent) : PLSDialogView(parent)
 {
 	ui = pls_new<Ui::PLSSceneCollectionView>();
 	setupUi(ui);
-	pls_add_css(this, {"PLSSceneCollectionView"});
-
-#if defined(Q_OS_MACOS)
-	initSize(QSize(580, 630));
-#elif defined(Q_OS_WIN)
-	initSize(QSize(580, 670));
-#endif
 
 	this->setWindowTitle(QTStr("Scene.Collection.View.Management"));
 	ui->stackedWidget->setCurrentWidget(ui->itemPage);
 	ui->searchListView->SetEnableDrops(false);
 	ui->listView->SetEnableDrops(true);
-	ui->pushButton->hide();
-	ui->macHelpBtn->hide();
 
-	ui->newBtn->installEventFilter(this);
-	ui->newLabel->installEventFilter(this);
-	ui->importBtn->installEventFilter(this);
-	ui->importLabel->installEventFilter(this);
+#if defined(Q_OS_MACOS)
+	setFixedSize(QSize(870, 630));
+#elif defined(Q_OS_WIN)
+	setFixedSize(QSize(870, 670));
+#endif
 
-#ifdef Q_OS_MACOS
-	ui->macHelpBtn->setVisible(true);
-	ui->macHelpBtn->installEventFilter(this);
-#endif // Q_OS_MACOS
+	ui->newButton->setDisplayText(QTStr("Scene.Collection.View.Add"));
+	ui->importButton->setDisplayText(QTStr("Scene.Collection.View.Import"));
+	ui->importButton->setShowOverlay(true);
+	ui->winHelpLabel->installEventFilter(this);
+	ui->tipLabel->setText(QTStr("Scene.Collection.View.Management").append(" Tip"));
+	connect(ui->newButton, &PLSClickButton::newBtnClicked, this, [this]() { emit newButtonClicked(); });
+	connect(ui->importButton, &PLSClickButton::importFromLocalBtnClicked, this, &PLSSceneCollectionView::OnImportFromLocalButtonClicked);
+	connect(ui->importButton, &PLSClickButton::importFromOtherBtnClicked, this, &PLSSceneCollectionView::OnImportFromOtherButtonClicked);
+	connect(ui->sceneTemplateButton, &PLSSceneTemplateButton::clicked, this, &PLSSceneCollectionView::OnShowSceneTemplateView);
 
 	pls_flush_style(ui->searchLineEdit, "usedFor", "collection");
-	setHasHelpButton(true);
-	setHelpButtonToolTip(QTStr("Scene.Collection.View.Help.Tooltip"), 16);
-
-	ui->newLabel->setProperty("showHandCursor", true);
-	ui->importLabel->setProperty("showHandCursor", true);
+	pls_add_css(this, {"PLSSceneCollectionView"});
 
 	setAttribute(Qt::WA_AlwaysShowToolTips, true);
 
-	connect(ui->importBtn, &QPushButton::clicked, this, &PLSSceneCollectionView::OnImportButtonClicked);
 	connect(ui->closeBtn, &QPushButton::clicked, this, [this]() { close(); });
 	connect(ui->searchLineEdit, &PLSSearchLineEdit::SearchTrigger, this, &PLSSceneCollectionView::OnSearchTriggerd, Qt::QueuedConnection);
 	connect(ui->searchLineEdit, &PLSSearchLineEdit::textChanged, this, &PLSSceneCollectionView::OnSearchTriggerd, Qt::QueuedConnection);
@@ -88,7 +84,6 @@ PLSSceneCollectionView::PLSSceneCollectionView(QWidget *parent) : PLSDialogView(
 				basic->on_actionNewSceneCollection_triggered_with_parent(this);
 		},
 		Qt::QueuedConnection);
-	connect(this, &PLSSceneCollectionView::importButtonClicked, this, &PLSSceneCollectionView::OnImportButtonClicked, Qt::QueuedConnection);
 }
 
 PLSSceneCollectionView::~PLSSceneCollectionView()
@@ -209,14 +204,6 @@ bool PLSSceneCollectionView::eventFilter(QObject *obj, QEvent *event)
 	if (event->type() == QEvent::Enter) {
 		HandleEnterEvent(obj, event);
 	}
-	if (event->type() == QEvent::Leave) {
-		HandleLeaveEvent(obj, event);
-	} else if (event->type() == QEvent::MouseButtonPress) {
-		HandlePressEvent(obj, event);
-	} else if (event->type() == QEvent::MouseButtonRelease) {
-		HandleReleaseEvent(obj, event);
-	}
-
 	return PLSDialogView::eventFilter(obj, event);
 }
 
@@ -228,24 +215,6 @@ void PLSSceneCollectionView::OnSceneCollectionItemRowChanged(int srcIndex, int d
 		basic->ReorderSceneCollectionManageView();
 	}
 	WriteSceneCollectionConfig();
-}
-
-void PLSSceneCollectionView::OnImportButtonClicked()
-{
-	QMenu popup(this);
-	popup.setWindowFlags(popup.windowFlags() | Qt::NoDropShadowWindowHint);
-	popup.setObjectName("importerButton");
-
-	auto importAction = pls_new<QAction>(QTStr("Scene.Collection.Import.From.Local"), &popup);
-	auto importFromOtherAction = pls_new<QAction>(QTStr("Scene.Collection.Import.From.Other"), &popup);
-	connect(importAction, &QAction::triggered, this, &PLSSceneCollectionView::OnImportFromLocalButtonClicked);
-	connect(importFromOtherAction, &QAction::triggered, this, &PLSSceneCollectionView::OnImportFromOtherButtonClicked);
-
-	popup.addAction(importAction);
-	popup.addAction(importFromOtherAction);
-
-	QPoint pos = mapToGlobal(this->rect().bottomLeft());
-	popup.exec(QPoint(pos.x() + 148, pos.y() - 57 - 96));
 }
 
 void PLSSceneCollectionView::OnImportFromLocalButtonClicked()
@@ -260,6 +229,12 @@ void PLSSceneCollectionView::OnImportFromOtherButtonClicked() const
 		basic->on_actionImportFromOtherSceneCollection_triggered();
 }
 
+void PLSSceneCollectionView::OnShowSceneTemplateView() const
+{
+	if (auto basic = PLSBasic::instance(); basic)
+		basic->OnSceneTemplateClicked(ShowType::ST_Show);
+}
+
 void PLSSceneCollectionView::OnCloseButtonClicked()
 {
 	close();
@@ -267,6 +242,8 @@ void PLSSceneCollectionView::OnCloseButtonClicked()
 
 void PLSSceneCollectionView::OnScrollBarShow(bool show)
 {
+	pls_check_app_exiting();
+
 	if (show) {
 		ui->horizontalLayout_3->setContentsMargins(12, 0, 2, 0);
 		ui->horizontalLayout_4->setContentsMargins(12, 0, 2, 0);
@@ -278,54 +255,11 @@ void PLSSceneCollectionView::OnScrollBarShow(bool show)
 
 void PLSSceneCollectionView::HandleEnterEvent(const QObject *obj, const QEvent *) const
 {
-	if (obj == ui->newLabel || obj == ui->newBtn) {
-		SetMouseStatus(ui->newLabel, STATUS_ENTER);
-		SetMouseStatus(ui->newBtn, STATUS_ENTER);
-	} else if (obj == ui->importLabel || obj == ui->importBtn) {
-		SetMouseStatus(ui->importLabel, STATUS_ENTER);
-		SetMouseStatus(ui->importBtn, STATUS_ENTER);
-	} else if (obj == ui->macHelpBtn) {
+	if (obj == ui->winHelpLabel) {
 		QPoint pos = this->rect().bottomLeft();
 		QPoint global = mapToGlobal(pos);
-		QPoint x = mapToParent(ui->macHelpBtn->pos());
-		QToolTip::showText(QPoint(x.x() - 1, global.y() - 46), QTStr("Scene.Collection.View.Help.Tooltip"), this->widget());
-	}
-}
-
-void PLSSceneCollectionView::HandleLeaveEvent(const QObject *obj, const QEvent *) const
-{
-	if (obj == ui->newLabel || obj == ui->newBtn) {
-		SetMouseStatus(ui->newLabel, STATUS_NORMAL);
-		SetMouseStatus(ui->newBtn, STATUS_NORMAL);
-	} else if (obj == ui->importLabel || obj == ui->importBtn) {
-		SetMouseStatus(ui->importLabel, STATUS_NORMAL);
-		SetMouseStatus(ui->importBtn, STATUS_NORMAL);
-	}
-}
-
-void PLSSceneCollectionView::HandlePressEvent(const QObject *obj, QEvent *event) const
-{
-	auto mouseEvent = static_cast<QMouseEvent *>(event);
-	if (mouseEvent && mouseEvent->button() == Qt::LeftButton) {
-		if (obj == ui->newLabel || obj == ui->newBtn) {
-			SetMouseStatus(ui->newLabel, STATUS_CLICKED);
-			SetMouseStatus(ui->newBtn, STATUS_CLICKED);
-		} else if (obj == ui->importLabel || obj == ui->importBtn) {
-			SetMouseStatus(ui->importLabel, STATUS_CLICKED);
-			SetMouseStatus(ui->importBtn, STATUS_CLICKED);
-		}
-	}
-}
-
-void PLSSceneCollectionView::HandleReleaseEvent(const QObject *obj, QEvent *event)
-{
-	auto mouseEvent = static_cast<QMouseEvent *>(event);
-	if (mouseEvent && mouseEvent->button() == Qt::LeftButton) {
-		if (obj == ui->newLabel || obj == ui->newBtn) {
-			emit newButtonClicked();
-		} else if (obj == ui->importLabel || obj == ui->importBtn) {
-			emit importButtonClicked();
-		}
+		QPoint x = mapToParent(ui->winHelpLabel->pos());
+		QToolTip::showText(QPoint(x.x() + 3, global.y() - 32), QTStr("Scene.Collection.View.Help.Tooltip"), this->widget());
 	}
 }
 
@@ -659,7 +593,7 @@ void PLSSceneCollectionView::UpdateListViewDelBtnStatus(PLSSceneCollectionListVi
 	} else {
 		view->SetDatas(QVariant::fromValue(false), SceneCollectionCustomRole::DelButtonDisableRole);
 	}
-	QTimer::singleShot(0, this, [view]() { view->UpdateWidgets(); });
+	pls_async_call(this, [view]() { view->UpdateWidgets(); });
 }
 
 void PLSSceneCollectionView::SetMouseStatus(QWidget *widget, QString status) const
@@ -991,4 +925,110 @@ PLSSceneCollectionModel *PLSSceneCollectionListView::GetModel() const
 QVector<PLSSceneCollectionData> PLSSceneCollectionListView::GetDatas() const
 {
 	return GetModel()->GetDatas();
+}
+
+PLSClickButton::PLSClickButton(QWidget *parent) : QWidget(parent)
+{
+	QHBoxLayout *hLayout = pls_new<QHBoxLayout>(this);
+	hLayout->setContentsMargins(0, 0, 0, 0);
+	hLayout->setSpacing(0);
+
+	baseContent = pls_new<QPushButton>();
+	baseContent->setObjectName("baseContent");
+	connect(baseContent, &QPushButton::clicked, this, [this]() { emit newBtnClicked(); });
+	QVBoxLayout *vLayout = pls_new<QVBoxLayout>(baseContent);
+	vLayout->setContentsMargins(0, 0, 0, 0);
+	vLayout->setSpacing(0);
+	iconButton = pls_new<QPushButton>();
+	iconButton->setObjectName("iconButton");
+	iconButton->setAttribute(Qt::WA_TransparentForMouseEvents);
+	QHBoxLayout *btnLayout = pls_new<QHBoxLayout>();
+	btnLayout->setContentsMargins(0, 0, 0, 0);
+	btnLayout->setAlignment(Qt::AlignCenter);
+	btnLayout->addWidget(iconButton);
+
+	textLabel = pls_new<QLabel>();
+	textLabel->setObjectName("textLabel");
+	textLabel->setAlignment(Qt::AlignCenter);
+	vLayout->addSpacing(26);
+	vLayout->addLayout(btnLayout);
+	vLayout->addSpacing(6);
+	vLayout->addWidget(textLabel);
+	vLayout->addStretch();
+
+	//show overlay when mouse over
+	overlay = pls_new<QPushButton>();
+	overlay->setObjectName("overlay");
+	QVBoxLayout *vLayout1 = pls_new<QVBoxLayout>(overlay);
+	vLayout1->setContentsMargins(0, 0, 0, 0);
+	vLayout1->setSpacing(0);
+	QPushButton *importFromLocalBtn = pls_new<QPushButton>();
+	importFromLocalBtn->setText(QTStr("Scene.Collection.Import.From.Local.Win"));
+	importFromLocalBtn->setObjectName("importFromLocalBtn");
+	connect(importFromLocalBtn, &QPushButton::clicked, this, [this]() { emit importFromLocalBtnClicked(); });
+	QPushButton *importFromOtherBtn = pls_new<QPushButton>();
+	importFromOtherBtn->setText(QTStr("Scene.Collection.Import.From.Other.Win").replace("PRISM", "OBS"));
+	importFromOtherBtn->setObjectName("importFromOtherBtn");
+	connect(importFromOtherBtn, &QPushButton::clicked, this, [this]() { emit importFromOtherBtnClicked(); });
+	vLayout1->addWidget(importFromLocalBtn);
+	vLayout1->addWidget(importFromOtherBtn);
+	overlay->setVisible(false);
+
+	hLayout->addWidget(baseContent);
+	hLayout->addWidget(overlay);
+}
+
+void PLSClickButton::setDisplayText(const QString &text)
+{
+	textLabel->setText(text);
+}
+
+void PLSClickButton::setShowOverlay(bool show)
+{
+	showOverlay = show;
+}
+
+void PLSClickButton::enterEvent(QEnterEvent *event)
+{
+	baseContent->setVisible(!showOverlay);
+	overlay->setVisible(showOverlay);
+
+	QWidget::enterEvent(event);
+}
+
+void PLSClickButton::leaveEvent(QEvent *event)
+{
+	baseContent->setVisible(true);
+	overlay->setVisible(false);
+
+	QWidget::leaveEvent(event);
+}
+
+PLSSceneTemplateButton::PLSSceneTemplateButton(QWidget *parent) : QPushButton(parent)
+{
+	QVBoxLayout *vLayout = pls_new<QVBoxLayout>(this);
+	vLayout->setContentsMargins(10, 28, 10, 0);
+	vLayout->setSpacing(10);
+
+	QHBoxLayout *hLayout = pls_new<QHBoxLayout>();
+	QLabel *imageLabel = pls_new<QLabel>();
+	imageLabel->setObjectName("imageLabel");
+	hLayout->addStretch();
+	hLayout->addWidget(imageLabel);
+	hLayout->addStretch();
+
+	QLabel *textLabel = pls_new<QLabel>();
+	textLabel->setText(QTStr("Scene.Collection.Select.Template"));
+	textLabel->setObjectName("textLabel");
+	textLabel->setAlignment(Qt::AlignCenter);
+	QLabel *descLabel = pls_new<QLabel>();
+	descLabel->setObjectName("descLabel");
+	descLabel->setWordWrap(true);
+	descLabel->setAlignment(Qt::AlignCenter);
+	descLabel->setText(QTStr("Scene.Collection.Select.Guide"));
+	vLayout->addLayout(hLayout);
+	vLayout->addSpacing(1);
+	vLayout->addWidget(textLabel);
+	vLayout->addWidget(descLabel);
+	vLayout->addStretch();
 }

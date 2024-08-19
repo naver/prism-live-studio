@@ -269,6 +269,13 @@ void PLSVstFilterView::updateVstState(const QString &vst_plugin_in, int state)
 		tipsString = QTStr("Basic.Filter.vstfilter.state.notvst");
 		break;
 	case VST_STATUS_UNKNOWN_ERROR:
+	case VST_STATUS_PROCESS_UNKNOWN_ERROR:
+	case VST_STATUS_PROCESS_FAILED_TO_START:
+	case VST_STATUS_PROCESS_READ_ERROR:
+	case VST_STATUS_PROCESS_WRITE_ERROR:
+	case VST_STATUS_EFFECT_NULLPTR:
+	case VST_STATUS_PROCESS_OPEN_DLL_ERROR:
+	case VST_STATUS_PROCESS_GET_SCAN_FUNC_ERROR:
 		tipsString = QTStr("Basic.Filter.vstfilter.state.unknownerror");
 		break;
 	case VST_STATUS_CHANNEL_UNSUPPORT:
@@ -278,6 +285,7 @@ void PLSVstFilterView::updateVstState(const QString &vst_plugin_in, int state)
 		tipsString = QTStr("Basic.Filter.vstfilter.state.dllloadfaild");
 		break;
 	default:
+        tipsString = QTStr("Basic.Filter.vstfilter.state.unknownerror");
 		assert(false && "unknown vst state");
 		break;
 	}

@@ -45,6 +45,8 @@ public slots:
 	void updatePreview();
 	void showToast(const QString &message);
 	void setToastMessage(const QString &message);
+	void showGuideText(const QString& guideText);
+	void hideGuideText();
 
 private:
 	QLabel *imagePreview;

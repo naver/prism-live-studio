@@ -67,7 +67,7 @@ PLSContactView::PLSContactView(const QString &message, const QString &additional
 	setResizeEnabled(false);
 	setMoveInContent(true);
 	pls_add_css(this, {"PLSLoadingBtn", "PLSContactView"});
-	initSize(480, 489);
+	setFixedSize(480, 489);
 	ui->sendButton->setEnabled(false);
 	ui->inquryTipLabel->setText("");
 	ui->tagTextEdit->setHidden(false);
@@ -306,6 +306,8 @@ bool PLSContactView::checkFileFormatValid(const QFileInfo &fileInfo) const
 			valid = false;
 		}
 	}
+	PLS_INFO(CONTACT_US_MODULE, "file name is %s, file suffix is %s, file suffix lower is %s", fileInfo.fileName().toUtf8().constData(), fileInfo.suffix().toUtf8().constData(),
+		 fileInfo.suffix().toLower().toUtf8().constData());
 	return valid;
 }
 
@@ -635,6 +637,7 @@ void PLSContactView::on_fileButton_clicked()
 		ui->inquryTipLabel->setText(QTStr("Contact.File.Max.Count"));
 		return;
 	}
+	pls::HotKeyLocker locker;
 	QString filter("Image Files(*.bmp *.jpg *.gif *.png);;Video Files(*.avi *.mp4 *.mpv *.mov);;Text Files(*.txt);;Zip Files(*.zip)");
 	QStringList paths = QFileDialog::getOpenFileNames(this, QString(), chooseFileDir, filter);
 	if (!paths.isEmpty()) {
@@ -720,18 +723,6 @@ void PLSContactView::on_cancelButton_clicked()
 
 void PLSContactView::on_textEdit_textChanged()
 {
-	QString textContent = ui->textEdit->toPlainText();
-	int length = (int)textContent.count();
-	if (length > textEditLengthLimit) {
-		QSignalBlocker signalBlocker(ui->textEdit);
-		int position = ui->textEdit->textCursor().position();
-		QTextCursor textCursor = ui->textEdit->textCursor();
-		textContent.remove(position - (length - textEditLengthLimit), length - textEditLengthLimit);
-		ui->textEdit->setText(textContent);
-		textCursor.setPosition(position - (length - textEditLengthLimit));
-		ui->textEdit->setTextCursor(textCursor);
-	}
-
 	if (m_message.length() > 0) {
 
 		QTextCursor cursor = ui->textEdit->textCursor();
@@ -749,6 +740,17 @@ void PLSContactView::on_textEdit_textChanged()
 			QSignalBlocker signalBlocker(ui->textEdit);
 			ui->textEdit->document()->undo();
 		}
+	}
+
+	QString textContent = ui->textEdit->toPlainText();
+	int length = (int)textContent.count();
+	if (length > textEditLengthLimit) {
+		QSignalBlocker signalBlocker(ui->textEdit);
+		QTextCursor textCursor = ui->textEdit->textCursor();
+		textCursor.setPosition(textEditLengthLimit, QTextCursor::MoveAnchor);
+		textCursor.setPosition(length, QTextCursor::KeepAnchor);
+		textCursor.removeSelectedText();
+		ui->textEdit->setTextCursor(textCursor);
 	}
 
 	updateSendButtonState();

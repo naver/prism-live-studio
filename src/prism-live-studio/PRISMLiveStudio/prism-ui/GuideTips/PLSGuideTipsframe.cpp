@@ -17,6 +17,7 @@
 #include "PLSLaunchWizardView.h"
 #include "PLSBasic.h"
 #include "prism-version.h"
+#include "pls-common-define.hpp"
 
 using namespace guide_tip_space;
 
@@ -526,7 +527,7 @@ void PLSGuideTipsFrame::refreshTriangleImage()
 }
 
 void GuideRegisterManager::registerGuide(const QString &sourceText, const QString &aliginWidgetName, const QString &refrenceWidget, const QStringList &otherListenedWidgets, int watchType,
-					 const QString &displayVersion)
+					 const QString &displayOS)
 {
 	GuideRegister reg;
 	reg.sourceText = sourceText;
@@ -534,13 +535,13 @@ void GuideRegisterManager::registerGuide(const QString &sourceText, const QStrin
 	reg.refrenceWidget = refrenceWidget;
 	reg.otherListenedWidgets = otherListenedWidgets;
 	reg.watchType = watchType;
-	reg.displayVersion = displayVersion;
+	reg.displayOS = displayOS;
 
 	registerGuide(reg);
 }
 
 void GuideRegisterManager::registerGuide(const QString &sourceText, WidgetPtr aliginWidget, WidgetPtr refrenceWidget, const WidgetsPtrList &otherListenedWidgets, int watchType,
-					 const QString &displayVersion)
+					 const QString &displayOS)
 {
 	GuideRegister reg;
 	reg.sourceText = sourceText;
@@ -548,7 +549,7 @@ void GuideRegisterManager::registerGuide(const QString &sourceText, WidgetPtr al
 	reg.refrenceWidgetP = refrenceWidget;
 	reg.watchType = watchType;
 	reg.otherListenedWidgetsPtrs = otherListenedWidgets;
-	reg.displayVersion = displayVersion;
+	reg.displayOS = displayOS;
 	reg.isMatched = true;
 	registerGuide(reg);
 }
@@ -685,22 +686,35 @@ GuideRegisterManager *GuideRegisterManager::instance()
 
 void GuideRegisterManager::load()
 {
+	auto displayVer = config_get_string(App()->GlobalConfig(), common::NEWFUNCTIONTIP_CONFIG, common::CONFIG_DISPLAYVERISON);
+	if (pls_is_equal(displayVer, PLS_VERSION)) {
+		return;
+	}
 	auto tipsFile = RegisterJsonPath;
 	QJsonObject obj;
 	PLSJsonDataHandler::getJsonObjFromFile(obj, tipsFile);
 	if (obj.isEmpty()) {
 		return;
 	}
+
 	auto tips = obj.value(g_tipsContent).toArray();
 	for (auto tip : tips) {
 		auto reg = convertJsonToGuideRegister(tip.toObject());
+
+#if defined(Q_OS_MACOS)
+		if (reg.displayOS.compare(g_onlyDisplayWin, Qt::CaseInsensitive) == 0) {
+			continue;
+		}
+#else
+		if (reg.displayOS.compare(g_onlyDisplayMac, Qt::CaseInsensitive) == 0) {
+			continue;
+		}
+#endif
 		registerGuide(reg);
 	}
-#ifdef _DEBUG
-	return;
-#endif // !DEBUG
 
-	QFile::remove(tipsFile);
+	config_set_string(App()->GlobalConfig(), common::NEWFUNCTIONTIP_CONFIG, common::CONFIG_DISPLAYVERISON, PLS_VERSION);
+	config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
 }
 
 void GuideRegisterManager::createCover()
@@ -716,7 +730,11 @@ void GuideRegisterManager::createCover()
 	cover->installEventFilter(this);
 	cover->show();
 
+#if defined(Q_OS_MACOS)
 	cover->setGeometry(pls_get_main_view()->frameGeometry());
+#else
+	cover->setGeometry(pls_get_main_view()->geometry());
+#endif
 
 	mCover = cover;
 }
@@ -728,18 +746,19 @@ GuideRegister convertJsonToGuideRegister(const QJsonObject &obj)
 	reg.aliginWidgetName = obj.value(g_aliginWidgetName).toString();
 	reg.refrenceWidget = obj.value(g_refrenceWidget).toString();
 	reg.otherListenedWidgets = obj.value(g_otherListenedWidgets).toString().split(",");
-	reg.displayVersion = obj.value(g_displayVersion).toString();
+	reg.displayOS = obj.value(g_displayOS).toString();
 	auto enumStr = obj.value(g_watchType).toString();
 	auto watchTypeEnum = QMetaEnum::fromType<PLSGuideTipsFrame::WatchType>();
 	reg.watchType = int(watchTypeEnum.keyToValue(enumStr.toUtf8().constData()));
-
+	QString info = "this new guide display os is %1";
+	PLS_INFO("GuideRegister", info.arg(reg.displayOS).toUtf8().constData());
 	return reg;
 }
 
 void buildGuideTip(GuideRegister &reg)
 {
 	//current version matched
-	if ((!reg.displayVersion.isEmpty() && reg.displayVersion != PLS_VERSION) || reg.isMatched) {
+	if (reg.isMatched) {
 		return;
 	}
 
@@ -783,6 +802,7 @@ void GuideRegisterManager::beginShow()
 			auto tip = createTipFrameFromRegister(reg);
 			tip->hide();
 			QTimer::singleShot(time, tip, [tip]() {
+				PLS_INFO("GuideRegisterManager", "singleShot create tip");
 				pls_check_app_exiting();
 				tip->locate();
 			});
@@ -792,9 +812,11 @@ void GuideRegisterManager::beginShow()
 		if (!mRegisters.isEmpty()) {
 			QTimer::singleShot(100, this, &GuideRegisterManager::createCover);
 		}
-		PLS_INFO(MAINFRAME_MODULE, "bringLauncherToFront the prism is shown");
-
-		PLSLaunchWizardView::instance()->firstShow();
+		bool isDontShow = config_get_bool(App()->GlobalConfig(), common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW);
+		if (!isDontShow) {
+			PLS_INFO(MAINFRAME_MODULE, "bringLauncherToFront the prism is shown");
+			PLSLaunchWizardView::instance()->firstShow();
+		}
 	};
 	QTimer::singleShot(500, pls_get_main_view(), showAll);
 }

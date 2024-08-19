@@ -25,6 +25,9 @@ std::vector<std::vector<SourceTypeInfo>> LocalGlobalVar::presetSourceList = {
 	{SourceTypeInfo(OBS_DSHOW_SOURCE_ID, false, false),
 	 SourceTypeInfo(AUDIO_INPUT_SOURCE_ID, false, false),
 	 SourceTypeInfo(AUDIO_OUTPUT_SOURCE_ID),
+#ifdef Q_OS_MACOS
+	 SourceTypeInfo(AUDIO_OUTPUT_SOURCE_ID_V2),
+#endif // Q_OS_MACOS
 	 SourceTypeInfo(PRISM_APP_AUDIO_SOURCE_ID),
 	 SourceTypeInfo(OBS_APP_AUDIO_CAPTURE_ID),
 	 SourceTypeInfo(PRISM_NDI_SOURCE_ID, false, false),
@@ -33,6 +36,7 @@ std::vector<std::vector<SourceTypeInfo>> LocalGlobalVar::presetSourceList = {
 	 SourceTypeInfo(PRISM_MONITOR_SOURCE_ID),
 	 SourceTypeInfo(OBS_MACOS_SCREEN_CAPTURE_SOURCE_ID),
 	 SourceTypeInfo(WINDOW_SOURCE_ID),
+	 SourceTypeInfo(OBS_INPUT_SPOUT_CAPTURE_ID, false, false),
 	 SourceTypeInfo(BROWSER_SOURCE_ID),
 	 SourceTypeInfo(MEDIA_SOURCE_ID),
 	 SourceTypeInfo(IMAGE_SOURCE_ID),
@@ -45,11 +49,12 @@ std::vector<std::vector<SourceTypeInfo>> LocalGlobalVar::presetSourceList = {
 	 SourceTypeInfo(SCENE_SOURCE_ID, true)},
 
 	{
-		SourceTypeInfo(PRISM_LENS_SOURCE_ID, false, true, 1),
-		SourceTypeInfo(PRISM_LENS_MOBILE_SOURCE_ID, false, true, 1),
+		SourceTypeInfo(PRISM_LENS_SOURCE_ID, false, false, 1),
+		SourceTypeInfo(PRISM_LENS_MOBILE_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_MOBILE_SOURCE_ID),
 		SourceTypeInfo(PRISM_TEXT_TEMPLATE_ID, false, false, 1),
-		SourceTypeInfo(PRISM_CHAT_SOURCE_ID, false, false, 1),
+		SourceTypeInfo(PRISM_CHATV2_SOURCE_ID, false, true, 1),
+		SourceTypeInfo(PRISM_CHZZK_SPONSOR_SOURCE_ID, false, true, 1),
 		SourceTypeInfo(PRISM_VIEWER_COUNT_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_STICKER_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_GIPHY_STICKER_SOURCE_ID, false, false, 1),
@@ -60,6 +65,7 @@ std::vector<std::vector<SourceTypeInfo>> LocalGlobalVar::presetSourceList = {
 		SourceTypeInfo(PRISM_BACKGROUND_TEMPLATE_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_TIMER_SOURCE_ID, false, false, 1),
 
+	 
 	},
 };
 }
@@ -172,7 +178,8 @@ QPushButton *PLSBasic::CreateSourcePopupMenuCustomWidget(const char *id, const Q
 {
 	QString qid = QString::fromUtf8(id);
 	if (!strcmp(id, PRISM_STICKER_SOURCE_ID) || !strcmp(id, BGM_SOURCE_ID) || !strcmp(id, PRISM_CHAT_SOURCE_ID) || !strcmp(id, PRISM_TEXT_TEMPLATE_ID) ||
-	    !strcmp(id, PRISM_SPECTRALIZER_SOURCE_ID) || !strcmp(id, PRISM_BACKGROUND_TEMPLATE_SOURCE_ID) || !strcmp(id, PRISM_MOBILE_SOURCE_ID) || !strcmp(id, PRISM_TIMER_SOURCE_ID)) {
+	    !strcmp(id, PRISM_SPECTRALIZER_SOURCE_ID) || !strcmp(id, PRISM_BACKGROUND_TEMPLATE_SOURCE_ID) || !strcmp(id, PRISM_MOBILE_SOURCE_ID) || !strcmp(id, PRISM_TIMER_SOURCE_ID) ||
+	    !strcmp(id, PRISM_CHATV2_SOURCE_ID)) {
 		QPushButton *widget = pls_new<QPushButton>();
 		widget->setObjectName("sourcePopupMenuCustomWidget");
 		widget->setProperty("sourceId", qid);

@@ -26,3 +26,9 @@
     #OutputTimer #line {
         background-color: #151515;
     }
+
+    #OutputTimer #recordingLabel, #OutputTimer #streamingLabel {
+        padding: 0;
+        margin: 0;
+        max-width: 150px;
+    }

@@ -22,6 +22,7 @@ const auto ACT_SRC_SCENE = "scene";
 const auto ACT_SRC_WEB = "web";
 const auto ACT_SRC_GROUP = "group";
 const auto ACT_SRC_BGM = "bgm";
+const auto ACT_SRC_PRISM_LENS = "prismLens";
 const auto ACT_SRC_PRISM_MOBILE = "prismMobile";
 const auto ACT_SRC_PRISM_MOBILE2 = "prismMobile2";
 const auto ACT_SRC_TIMER = "timer";
@@ -37,6 +38,8 @@ const auto ACT_SRC_REGION_CAPTURER = "Region capture";
 const auto ACT_SRC_VIEWER_COUNT = "Viewer Count";
 const auto ACT_SRC_DECKLINK_INPUT = "Decklink Input";
 const auto ACT_SRC_UNKNOWN = "unknown";
+const auto ACT_SRC_CHATV2 = "chatv2";
+const auto ACT_SRC_CHZZK_SPONSOR_SOURCE = "prismChzzkSponsor";
 
 //----------------------- event list (to NELO) -----------------------------
 const auto ACTION_ADD_EVENT = "addEvent";

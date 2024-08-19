@@ -86,6 +86,22 @@
     return self;
 }
 
+- (void)recalculatePointsWithYOffset:(CGFloat)yOffset
+{
+	if (yOffset == 0.0)
+		return;
+	
+	if (!self.points || !self.ctrlPoints)
+		return;
+	
+	for (auto iter = self.points->begin(); iter != self.points->end(); iter++) {
+		iter->y = iter->y + yOffset;
+	}
+	for (auto iter = self.ctrlPoints->begin(); iter != self.ctrlPoints->end(); iter++ ) {
+		iter->y = iter->y + yOffset;
+	}
+}
+
 - (void)dealloc
 {
     if (_cgPath) {

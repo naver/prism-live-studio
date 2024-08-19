@@ -30,8 +30,18 @@ push_commit() {
 	status $VERSION
 	status $ARCHS
     trap "caught_error 'git commit'" ERR
+
+    cd src/obs-studio
+    obs_studio_last_commit=$(git log -1)
+    cd plugins/obs-browser
+    obs_browser_last_commit=$(git log -1)
+    cd $CHECKOUT_DIR
+
     git add "${verson_file_path}"
-    git commit -m "[CI]Auto increase Mac build number to $VERSION. arch=${ARCHS}"
+    git commit -m "[CI]Auto increase Mac build number to $VERSION. arch=${ARCHS}" \
+    -m "obs-studio:${obs_studio_last_commit}" \
+    -m "obs-browser:=${obs_browser_last_commit}"
+
     git_branch=$(git branch --show-current)
     status "current barnch is ${git_branch}"
     git checkout .

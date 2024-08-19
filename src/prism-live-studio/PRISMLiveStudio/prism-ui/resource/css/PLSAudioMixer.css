@@ -1,10 +1,10 @@
 VolControl {
 	background-color: #272727;
-	border-radius: 3px;
 }
 
 VolControl[vertical="true"] {
 	background-color: #222222;
+	border-radius: 3px;
 }
 
 VolControl #nameLabel,
@@ -156,6 +156,14 @@ VolControl MuteCheckBox::indicator:checked:pressed {
 	image:url(":/resource/images/audio-mixer/sound/sound-off-click.svg");
 }
 
+VolControl MuteCheckBox::indicator:indeterminate {
+	image: url(":/resource/images/audio-mixer/sound/sound_noti_normal.svg");
+}
+
+VolControl MuteCheckBox::indicator:indeterminate:hover {
+	image: url(":/resource/images/audio-mixer/sound/sound_noti_over.svg");
+}
+
 VolControl MuteCheckBox::indicator:unchecked {
 	image:url(":/resource/images/audio-mixer/sound/sound-on-normal.svg");
 }
@@ -257,4 +265,30 @@ VolControl VolumeMeter {
 
 VolControl[vertical="true"] VolumeMeter {
 	background: #222222;
+}
+
+VolControl[vertical="false"][hover="true"] VolumeMeter {
+	background: #494949;
+}
+
+VolControl[vertical="false"][hover="false"] VolumeMeter {
+	background: #272727;
+}
+
+VolControl[vertical="false"][hover="true"] {
+	background: #494949;
+}
+
+VolControl[vertical="false"][hover="false"] {
+	background: #272727;
+}
+
+VolControl[vertical="false"][pressed="true"] #nameLabel,
+VolControl[vertical="false"][pressed="true"] #volLabel {
+	color: #effc35;
+}
+
+VolControl[vertical="false"][pressed="false"] #nameLabel,
+VolControl[vertical="false"][pressed="false"] #volLabel {
+	color: rgba(255, 255, 255, 0.9);
 }

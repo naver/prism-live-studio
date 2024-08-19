@@ -22,11 +22,11 @@
 #include <IOKit/hid/IOHIDKeys.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/IOMessage.h>
-
+#import <AppKit/AppKit.h>
 #include "libutils-api.h"
-#include "STPrivilegedTask.h"
 #include "PLSMacFunction.h"
 #include "libutils-api-log.h"
+#include "CrossProcessNotification.h"
 
 #define PROCESS_NAME_SIZE 256
 #define NSApplicationRelaunchDaemon @"PRISMRelaunch"
@@ -40,6 +40,31 @@ const NSStringEncoding kEncoding_wchar_t = CFStringConvertEncodingToNSStringEnco
 #endif
 
 static int process_exit_kq;
+
+@implementation NSString (Shared)
+
+/// - Returns: error info
+- (NSString *)runCommandAndReturnErrorWithAdminPrivilege:(BOOL)admin
+{
+	NSString *scriptText = NULL;
+	if (admin) {
+		scriptText = [NSString stringWithFormat:@"do shell script \"%@\" with administrator privileges", self];
+	} else {
+		scriptText = [NSString stringWithFormat:@"do shell script \"%@\"", self];
+	}
+
+	NSAppleScript *script = [[NSAppleScript alloc] initWithSource:scriptText];
+	NSDictionary *errorDict = NULL;
+
+	NSAppleEventDescriptor *result = [script executeAndReturnError:&errorDict];
+	if (result) { // success
+		return NULL;
+	} else {
+		return [NSString stringWithFormat:@"Failed to install %@, error is %@", self, errorDict];
+	}
+}
+
+@end
 
 namespace pls_libutil_api_mac {
 
@@ -267,6 +292,13 @@ bool pls_is_dev_environment()
 	return value;
 }
 
+bool pls_save_local_log()
+{
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	bool value = [defaults boolForKey:@"LocalLog"];
+	return value;
+}
+
 uint32_t pls_current_process_id()
 {
 	return (uint32_t)[NSProcessInfo processInfo].processIdentifier;
@@ -294,6 +326,21 @@ bool unZip(const QString &dstDirPath, const QString &srcFilePath)
 	[unzipTask launch];
 	[unzipTask waitUntilExit];
 	return [unzipTask terminationStatus] == 0;
+}
+
+bool zip(const QString &destZipPath, const QString &sourceDirName, const QString &sourceFolderPath)
+{
+
+	NSString *zipPath = [NSString stringWithCString:destZipPath.toStdString().c_str() encoding:NSUTF8StringEncoding];
+	NSString *copyFolderName = [NSString stringWithCString:sourceDirName.toStdString().c_str() encoding:NSUTF8StringEncoding];
+    NSString *directoryPath = [NSString stringWithCString:sourceFolderPath.toStdString().c_str() encoding:NSUTF8StringEncoding];
+	NSTask *zipTask = [[NSTask alloc] init];
+	[zipTask setLaunchPath:@"/usr/bin/zip"];
+    [zipTask setCurrentDirectoryPath:directoryPath];
+	[zipTask setArguments:@[@"-r", zipPath, copyFolderName]];
+	[zipTask launch];
+	[zipTask waitUntilExit];
+	return [zipTask terminationStatus] == 0;
 }
 
 pls_mac_ver_t pls_get_mac_systerm_ver()
@@ -338,6 +385,8 @@ bool pls_copy_file(const QString &fileName, const QString &newName, bool overwri
 		errorCode = (int)error.code;
 		return result;
 	}
+	
+	return true;
 }
 
 QString pls_get_system_identifier()
@@ -354,33 +403,65 @@ bool pls_file_is_existed(const QString &filePath)
 	return ret;
 }
 
-bool install_mac_package(const QString &sourceBundlePath, const QString &destBundlePath)
+bool install_mac_package(const QString &sourceBundlePath, const QString &destBundlePath, const std::string &prismSession, const std::string &prismGcc, const char *version)
 {
-	STPrivilegedTask *privilegedTask = [[STPrivilegedTask alloc] init];
-	NSFileManager *sFileManager = [[NSFileManager alloc] init];
-	[privilegedTask setLaunchPath:@"/usr/bin/ditto"];
-	[privilegedTask setArguments:@[
-		[NSString stringWithCString:sourceBundlePath.toUtf8().constData() encoding:NSUTF8StringEncoding], [NSString stringWithCString:destBundlePath.toUtf8().constData()
-																     encoding:NSUTF8StringEncoding]
-	]];
+
+	// start the replacement bundle process downloaded from the user directory
+	NSString *unzipBundlePath = getNSStringFromQString(sourceBundlePath);
+	NSString *runningBundlePath = getNSStringFromQString(destBundlePath);
+	NSString *dittoPid = [NSString stringWithFormat:@"%d", [NSRunningApplication currentApplication].processIdentifier];
+	NSString *dittoSession = [NSString stringWithCString:prismSession.c_str() encoding:NSUTF8StringEncoding];
+	NSString *dittoGcc = [NSString stringWithCString:prismGcc.c_str() encoding:NSUTF8StringEncoding];
+	NSString *dittoVersion = [NSString stringWithCString:version encoding:NSUTF8StringEncoding];
+
+	// get the replacement program path in the installation package
+	NSString *appPath = [unzipBundlePath stringByAppendingPathComponent:@"Contents/MacOS/PRISMUpdater"];
+
+	// print process log
+	PLS_INFO("Process", "mac update status: start launch ditto process, prism session is %s, prism pid is %s", dittoSession.UTF8String, dittoPid.UTF8String);
+	PLS_INFO_KR("Process", "mac update status: start launch ditto process, source bundle path is %s , dest bundle path is %s , app path is %s", unzipBundlePath.UTF8String,
+		    runningBundlePath.UTF8String, appPath.UTF8String);
+
+	// add the command line argument list for the replacement process
+	NSMutableArray *tempArguments = [[NSMutableArray alloc] init];
+	[tempArguments addObject:unzipBundlePath];
+	[tempArguments addObject:runningBundlePath];
+	[tempArguments addObject:dittoPid];
+	[tempArguments addObject:dittoSession];
+	[tempArguments addObject:dittoGcc];
+	[tempArguments addObject:dittoVersion];
+
+	// start the replacement installation package process
+	NSTask *privilegedTask = [[NSTask alloc] init];
+	[privilegedTask setLaunchPath:appPath];
+	[privilegedTask setArguments:tempArguments.copy];
+	[privilegedTask setEnvironment:@{}];
 	[privilegedTask setCurrentDirectoryPath:[[NSBundle mainBundle] resourcePath]];
-	OSStatus err = [privilegedTask launch];
-	if (err != errAuthorizationSuccess) {
+	NSError *error = nil;
+	bool result = [privilegedTask launchAndReturnError:&error];
+	PLS_INFO("Process", "mac update status: launch PRISMLauncher Process,result is %s,%s", result ? "true" : "false",
+		 [NSString stringWithFormat:@" error code:%zi - msg:%@", error.code, error.localizedDescription].UTF8String);
+	if (!result) {
 		return NO;
 	}
-	[privilegedTask waitUntilExit];
-	return YES;
+	return true;
 }
 
-bool pls_restart_mac_app(const char *restartType)
+bool pls_restart_mac_app(const QStringList &arguments)
 {
 	NSString *daemonPath = [[[[NSBundle mainBundle] executablePath] stringByDeletingLastPathComponent] stringByAppendingFormat:@"/%@", NSApplicationRelaunchDaemon];
 	NSString *executablePath = [[NSBundle mainBundle] executablePath];
 	NSString *pid = [NSString stringWithFormat:@"%d", [[NSProcessInfo processInfo] processIdentifier]];
-	NSString *startType = gettNSStringFromChar(restartType);
+    NSMutableArray *cmdlineArgument = [[NSMutableArray alloc] init];
+    [cmdlineArgument addObject:executablePath];
+    [cmdlineArgument addObject:pid];
+    for(int i = 0; i< arguments.count(); i++) {
+        [cmdlineArgument addObject: getNSStringFromQString(arguments.at(i))];
+    }
+    NSString *startType; //gettNSStringFromChar(restartType);
 	NSTask *task = [[NSTask alloc] init];
 	[task setLaunchPath:daemonPath];
-	[task setArguments:@[executablePath, pid, startType]];
+	[task setArguments:cmdlineArgument.copy];
 	NSError *error = NULL;
 	[task launchAndReturnError:&error];
 	NSLog(@"pls_restart_mac_app start daemonPath is %@, bundlePath is %@,pid is %@,error is %@", daemonPath, executablePath, pid, error);
@@ -463,6 +544,8 @@ bool pls_remove_all_downloaded_mac_app_small_equal_version(const QString &downlo
 		}
 		[fileManager removeItemAtPath:filePath error:nil];
 	}
+	
+	return true;
 }
 
 void bring_mac_window_to_front(WId winId)
@@ -493,7 +576,7 @@ MacHandle pls_process_create(const QString &program, const QStringList &argument
 	NSTask *task = [PLSMacFunction create_process:app arguments:[tempArguments copy] workDir:getNSStringFromQString(work_dir) error:&error];
 	char process_name[PROCESS_NAME_SIZE] = {0};
 	bool isRunning = pls_is_process_running(task.processIdentifier, process_name, PROCESS_NAME_SIZE);
-	PLS_INFO("Process", "mac process status: create process with program, pid is %d , program is %s, processName is %s , isRunning is %d error:%s \n", task.processIdentifier,
+	PLS_INFO("Process", "mac process status: create process with program, pid is %d , program is %s, processName is %s , isRunning is %d error:%s", task.processIdentifier,
 		 program.toUtf8().constData(), process_name, isRunning, error.localizedDescription.UTF8String);
 	MacHandle process = new MacProcessInfo;
 	process->pid = task.processIdentifier;
@@ -524,9 +607,10 @@ void pls_mac_create_process_with_not_inherit(const QString &program, const QStri
 			      PLS_INFO("Process", "mac process status: create process with program, pid is %d , program is %s, processName is %s , isRunning is %d%s", app.processIdentifier,
 				       appPath.UTF8String, app.localizedName.UTF8String, isSucceed,
 				       isSucceed ? "" : [NSString stringWithFormat:@" error code:%zi - msg:%@", error.code, error.localizedDescription].UTF8String);
+			      pid_t targetPID = app.processIdentifier;
 			      if (callback) {
 				      dispatch_async(dispatch_get_main_queue(), ^{
-					      callback(receiver, isSucceed);
+					      callback(receiver, isSucceed, targetPID);
 				      });
 			      }
 		      }];
@@ -538,28 +622,28 @@ MacHandle pls_process_create(uint32_t process_id)
 	process->pid = process_id;
 	char process_name[PROCESS_NAME_SIZE] = {0};
 	bool isRunning = pls_is_process_running(process_id, process_name, PROCESS_NAME_SIZE);
-	PLS_INFO("Process", "mac process status: create process with pid , pid is %d , processName is %s , isRunning is %d \n", process_id, process_name, isRunning);
+	PLS_INFO("Process", "mac process status: create process with pid , pid is %d , processName is %s , isRunning is %d", process_id, process_name, isRunning);
 	return process;
 }
 
 bool pls_process_destroy(MacHandle handle)
 {
 	if (!pls_is_process_running(handle->pid)) {
-		PLS_INFO("Process", "mac process status: destory process failed because process is exited, pid is %d \n", handle->pid);
+		PLS_INFO("Process", "mac process status: destory process failed because process is exited, pid is %d", handle->pid);
 		return false;
 	}
 	NSRunningApplication *runningApp = pls_current_user_proccess(handle->pid);
 	if (runningApp) {
-		PLS_INFO("Process", "mac process status: destory process running app sucess, pid is %d \n", handle->pid);
+		PLS_INFO("Process", "mac process status: destory process running app sucess, pid is %d", handle->pid);
 		return [runningApp terminate];
 	}
 	if (handle->task) {
 		NSTask *task = (__bridge NSTask *)handle->task;
 		[task terminate];
-		PLS_INFO("Process", "mac process status: destory process running task sucess, pid is %d \n", handle->pid);
+		PLS_INFO("Process", "mac process status: destory process running task sucess, pid is %d", handle->pid);
 		return [task terminationStatus] == 0;
 	}
-	PLS_INFO("Process", "mac process status: destory process failed because not process, pid is %d \n", handle->pid);
+	PLS_INFO("Process", "mac process status: destory process failed because not process, pid is %d", handle->pid);
 	return false;
 }
 
@@ -569,7 +653,7 @@ bool pls_process_force_terminte(uint32_t process_id, int &exit_code)
 		return false;
 	}
 	int result = kill(process_id, SIGKILL);
-	PLS_INFO("Process", "mac process status: force kill proces, result is %d \n", result);
+	PLS_INFO("Process", "mac process status: force kill proces, result is %d", result);
 	if (result == -1) {
 		return false;
 	}
@@ -582,7 +666,7 @@ bool pls_process_force_terminte(uint32_t process_id, int &exit_code)
 	} else if (WIFSTOPPED(status)) {
 		exit_code = WIFSTOPPED(status);
 	}
-	PLS_INFO("Process", "mac process status: force kill proces, exit code is %d \n", exit_code);
+	PLS_INFO("Process", "mac process status: force kill proces, exit code is %d", exit_code);
 
 	//    NSString *killProcessScript = [NSString stringWithFormat:@"kill %d",process_id];
 	//    NSString *processId = [NSString stringWithFormat:@"%d", process_id];
@@ -636,7 +720,7 @@ static void noteProcDeath(CFFileDescriptorRef fdref, CFOptionFlags callBackType,
 	} else if (WIFSTOPPED(status)) {
 		exitCode = WIFSTOPPED(status);
 	}
-	PLS_INFO("Process", "mac process status: process died, pid is %d, exit code is %d \n", (unsigned int)event.ident, exitCode);
+	PLS_INFO("Process", "mac process status: process died, pid is %d, exit code is %d", (unsigned int)event.ident, exitCode);
 	if (event.udata) {
 		MacHandle handle = (MacHandle)(event.udata);
 		handle->exitCode = exitCode;
@@ -673,15 +757,15 @@ void addObserverProcessExit(MacHandle handle)
 	});
 	struct kevent event = {.ident = handle->pid, .filter = EVFILT_PROC, .flags = EV_ADD | EV_ONESHOT, .fflags = NOTE_EXIT, .data = 0, .udata = ((void *)handle)};
 	kevent(process_exit_kq, &event, 1, NULL, 0, NULL);
-	PLS_INFO("Process", "mac process status: add observer process exit event, pid is %d \n", handle->pid);
+	PLS_INFO("Process", "mac process status: add observer process exit event, pid is %d", handle->pid);
 }
 
 void removeObserverProcessExit(MacHandle handle)
 {
-	PLS_INFO("Process", "mac process status: start remove observer process exit event , pid is %d \n", handle->pid);
+	PLS_INFO("Process", "mac process status: start remove observer process exit event , pid is %d", handle->pid);
 	struct kevent event = {.ident = handle->pid, .filter = EVFILT_PROC, .flags = EV_DELETE, .fflags = NOTE_EXIT, .data = 0, .udata = ((void *)handle)};
 	kevent(process_exit_kq, &event, 1, NULL, 0, NULL);
-	PLS_INFO("Process", "mac process status: end remove observer process exit event , pid is %d \n", handle->pid);
+	PLS_INFO("Process", "mac process status: end remove observer process exit event , pid is %d", handle->pid);
 }
 
 int pls_process_wait(MacHandle handle, int timeout)
@@ -718,7 +802,8 @@ bool pls_process_exit_code(MacHandle handle, uint32_t *exit_code)
 
 QUrl build_mac_hmac_url(const QUrl &url, const QByteArray &hmacKey)
 {
-	return url;
+	QByteArray originalUrl = url.toEncoded(QUrl::FullyEncoded);
+	return QUrl::fromEncoded(originalUrl);
 }
 
 bool pls_check_mac_app_is_existed(const wchar_t *executableName)
@@ -775,6 +860,7 @@ bool pls_activiate_app_bundle_id(const char *identifier)
 		NSRunningApplication *runningApp = runningApps[i];
 		return [runningApp activateWithOptions:NSApplicationActivateIgnoringOtherApps];
 	}
+	return false;
 }
 
 bool pls_activiate_app_pid(int pid)
@@ -887,7 +973,7 @@ bool pls_is_mouse_pressed_by_mac(Qt::MouseButton button)
 	case Qt::RightButton:
 		return ((1 << 1) & [NSEvent pressedMouseButtons]) == (1 << 1);
 	default:
-		PLS_INFO("Mouse", "mac not support query other mouse button is pressed %i\n", static_cast<int>(button));
+		PLS_INFO("Mouse", "mac not support query other mouse button is pressed %i", static_cast<int>(button));
 		assert(false);
 		break;
 	}
@@ -930,4 +1016,68 @@ QString pls_get_app_version_by_identifier(const char *bundleID)
 	NSString *version = [infoDict objectForKey:@"CFBundleShortVersionString"];
 	return QString(version.UTF8String);
 }
+
+void pls_set_current_lens(int index)
+{
+	if (![CrossProcessNotification.defaultInstance isStarted]) {
+		[CrossProcessNotification.defaultInstance start];
+	}
+
+	if (![CrossProcessNotification.defaultInstance isStarted]) {
+		assert(false);
+		return;
+	}
+
+	if (index < 0 || index >= 3) { // lens
+		assert(false);
+		return;
+	}
+
+	[CrossProcessNotification.defaultInstance setState:index];
+}
+
+bool pls_get_is_app_quitting_by_dock()
+{
+	NSAppleEventDescriptor *appleEvent = [[NSAppleEventManager sharedAppleEventManager] currentAppleEvent];
+
+	if (!appleEvent) {
+		return false;
+	}
+
+	if ([appleEvent eventClass] != kCoreEventClass || [appleEvent eventID] != kAEQuitApplication) {
+		return false;
+	}
+
+	NSAppleEventDescriptor *reason = [appleEvent attributeDescriptorForKeyword:kAEQuitReason];
+	if (reason) {
+		return false;
+	}
+
+	pid_t senderPID = [[appleEvent attributeDescriptorForKeyword:keySenderPIDAttr] int32Value];
+	if (senderPID == 0) {
+		return false;
+	}
+
+	NSRunningApplication *sender = [NSRunningApplication runningApplicationWithProcessIdentifier:senderPID];
+	if (!sender) {
+		return false;
+	}
+
+	return [@"com.apple.dock" isEqualToString:[sender bundleIdentifier]];
+}
+
+bool pls_open_url_mac(const QString &url)
+{
+	return [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:getNSStringFromQString(url)]];
+}
+
+bool pls_lens_needs_reboot()
+{
+	NSString *searchActiveLensCmd = @"systemextensionsctl list | grep com.prismlive.camstudio.extension1 | grep activated";
+	NSString *searchRebootLensCmd = @"systemextensionsctl list | grep com.prismlive.camstudio.extension1 | grep reboot";
+	BOOL isActiveExist = [searchActiveLensCmd runCommandAndReturnErrorWithAdminPrivilege:NO] == NULL;
+	BOOL isRebootExist = [searchRebootLensCmd runCommandAndReturnErrorWithAdminPrivilege:NO] == NULL;
+	return isActiveExist && isRebootExist;
+}
+
 }

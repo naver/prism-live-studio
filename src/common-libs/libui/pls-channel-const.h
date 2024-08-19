@@ -17,7 +17,8 @@ namespace channel_data {
 /*key to be used in channel data map*/
 
 LIBUI_API extern const QString g_channelUUID;
-const QString g_platformName = "channel_name"; //ex. twitch navertv youtube ..
+const QString g_channelName = "channel_name";          //ex. twitch navertv youtube ..
+const QString g_fixPlatformName = "fix_platform_name"; //ex. NCB2B
 LIBUI_API extern const QString g_displayPlatformName;
 
 //just for youtube
@@ -37,6 +38,7 @@ LIBUI_API extern const QString g_channelUserStatus; //enable busy disbale
 
 LIBUI_API extern const QString g_channelRtmpUrl;
 LIBUI_API extern const QString g_streamKey;
+LIBUI_API extern const QString g_isTwitchRtmpServerAuto;
 
 // auth from web
 const QString g_channelToken = "access_token";
@@ -68,6 +70,9 @@ LIBUI_API extern const QString g_otherInfo;
 LIBUI_API extern const QString g_rtmpSeq;
 LIBUI_API extern const QString g_publishService;
 LIBUI_API extern const QString g_isPresetRTMP;
+LIBUI_API extern const QString g_isUseNewAPI;
+LIBUI_API extern const QString g_customUserDataSeq;
+LIBUI_API extern const QString g_customData;
 
 //vlive only
 LIBUI_API extern const QString g_userVliveSeq;
@@ -108,6 +113,7 @@ LIBUI_API extern const QString g_likesPix;
 LIBUI_API extern const QString g_comments;
 LIBUI_API extern const QString g_commentsPix;
 LIBUI_API extern const QString g_subChannelId;
+LIBUI_API extern const QString g_showEndShare;
 
 //for scheduleList
 LIBUI_API extern const QString g_scheduleList;
@@ -125,6 +131,7 @@ LIBUI_API extern const QString g_errorIsErrMsg;
 
 //default icon qrc path
 LIBUI_API extern const QString g_defaultHeaderIcon;
+LIBUI_API extern const QString g_defaultChzzkUserIcon;
 LIBUI_API extern const QString g_defaultErrorIcon;
 LIBUI_API extern const QString g_defualtPlatformIcon;
 LIBUI_API extern const QString g_defualtPlatformSmallIcon;
@@ -132,6 +139,12 @@ LIBUI_API extern const QString g_defaultViewerIcon;
 LIBUI_API extern const QString g_defaultLikeIcon;
 LIBUI_API extern const QString g_defaultCommentsIcon;
 LIBUI_API extern const QString g_defaultRTMPAddButtonIcon;
+
+LIBUI_API extern const QString g_dashboardButtonIcon;
+LIBUI_API extern const QString g_addChannelButtonIcon;
+LIBUI_API extern const QString g_addChannelButtonConnectedIcon;
+LIBUI_API extern const QString g_channelSettingBigIcon;
+LIBUI_API extern const QString g_tagIcon;
 
 LIBUI_API extern const QString g_twitchPlatformIcon;
 LIBUI_API extern const QString g_naverTvViewersIcon;
@@ -163,6 +176,7 @@ LIBUI_API extern const QString g_youtubeChannels;
 LIBUI_API extern const QString g_broadCastType;
 LIBUI_API extern const QString g_maxResults;
 LIBUI_API extern const QString g_contentDetails;
+LIBUI_API extern const QString g_chzzkExtraData;
 LIBUI_API extern const QString g_persistentType;
 LIBUI_API extern const QString g_statusPart;
 LIBUI_API extern const QString g_comma;
@@ -214,7 +228,9 @@ enum NetWorkErrorType {
 	UnknownError = 5,
 	SpecializedError = 6,
 	RTMPNotExist = 7,
-	NeedRefresh = 8
+	NeedRefresh = 8,
+	SystemTimeError = 9,
+	NCB2BError = 10,
 };
 //Q_DECLARE_METATYPE(NetWorkErrorType)
 
@@ -240,6 +256,21 @@ const QString g_updateChannelStep = "Update Channel";
 const QString g_LiveStep = "Live Step";
 const QString g_recordStep = "Record Step";
 const QString g_removeChannelStep = "Remove Channel";
+
+enum ImageType {
+	tagIcon = 0,
+	dashboardButtonIcon = 1,
+	addChannelButtonIcon = 2,
+	addChannelButtonConnectedIcon = 3,
+	channelSettingBigIcon = 4,
+	chatIcon_offNormal = 5,
+	chatIcon_offHover = 6,
+	chatIcon_offClick = 7,
+	chatIcon_offDisable = 8,
+	chatIcon_onNormal = 9,
+	chatIcon_onHover = 10,
+	chatIcon_onClick = 11,
+};
 
 }
 
@@ -277,7 +308,9 @@ constexpr auto RTMPT_DEFAULT_TYPE = "CUSTOM";
 constexpr auto TWITTER = "Twitter";
 constexpr auto CUSTOM_SRT = "Custom SRT";
 constexpr auto CUSTOM_RIST = "Custom RIST";
-
+constexpr auto CHZZK = "CHZZK";
+constexpr auto NCB2B = "NAVER Cloud B2B";
+constexpr auto ALL_CHAT = "ALL CHAT PAGE";
 //Class template specialization of 'QMetaTypeId' must occur at global scope
 Q_DECLARE_METATYPE(channel_data::ChannelStatus)
 Q_DECLARE_METATYPE(channel_data::ChannelUserStatus)
@@ -286,5 +319,16 @@ Q_DECLARE_METATYPE(channel_data::NetWorkErrorType)
 Q_DECLARE_METATYPE(channel_data::LiveState)
 Q_DECLARE_METATYPE(channel_data::RecordState)
 Q_DECLARE_METATYPE(channel_transactions_keys::CMDTypeValue)
+
+//service
+constexpr auto YOUTUBE_HLS = "YouTube - HLS";
+constexpr auto YOUTUBE_RTMP = "YouTube - RTMPS";
+constexpr auto TWITCH_SERVICE = "Twitch";
+constexpr auto WHIP_SERVICE = "WHIP";
+constexpr auto AFREECATV_SERVICE = "AfreecaTV";
+constexpr auto FACEBOOK_SERVICE = "Facebook Live";
+
+//live start name
+constexpr auto NCP_LIVE_START_NAME = "NCP";
 
 #endif // !CHANNEL_CONST_H

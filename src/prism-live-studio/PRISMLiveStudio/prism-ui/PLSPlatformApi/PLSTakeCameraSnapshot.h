@@ -119,12 +119,17 @@ private slots:
 	void onTimerEnd();
 	void onSourceCaptureState();
 	void onSourceImageStatus(bool status);
+#if defined(Q_OS_WINDOWS)
+	void CheckEnumTimeout();
+#endif
+	
+	static void updateProperties(void *data, calldata_t *calldata);
 
 protected:
 #if defined(Q_OS_WINDOWS)
 	bool event(QEvent *event) override;
-	void done(int) override;
 #endif
+	void done(int) override;
 	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
@@ -143,6 +148,8 @@ private:
 	PLSLoadingEvent *m_pLoadingEvent = nullptr;
 	QWidget *m_pWidgetLoadingBG = nullptr;
 	QPointer<ScreenshotObj> m_pScreenCapture = nullptr;
+	
+	OBSSignal updatePropertiesSignal;
 };
 
 #endif // PLSTAKECAMERASNAPSHOT_H

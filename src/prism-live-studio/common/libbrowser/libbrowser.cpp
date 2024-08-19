@@ -22,7 +22,7 @@
 #include <libhttp-client.h>
 #include <liblog.h>
 
-#include <browser-panel.hpp>
+#include <PLSBrowserPanel.h>
 #include <util/profiler.h>
 #include <obs.h>
 #include <pls/pls-obs-api.h>
@@ -50,7 +50,7 @@ BrowserWidgetImpl *newBrowserWidgetImpl(const Params &params, const BrowserDone 
 
 struct Main {
 	static bool s_obs_startup;
-	static QCef *s_cef;
+	static PLSQCef *s_cef;
 	static QMap<QString, QCefCookieManager *> s_cookieManagers;
 };
 
@@ -82,7 +82,7 @@ public:
 };
 
 bool Main::s_obs_startup = false;
-QCef *Main::s_cef = nullptr;
+PLSQCef *Main::s_cef = nullptr;
 QMap<QString, QCefCookieManager *> Main::s_cookieManagers;
 
 struct ParamsImpl {
@@ -119,14 +119,14 @@ public:
 	ParamsImplPtr m_paramsImpl;
 	BrowserDone m_browerDone;
 	mutable QCefWidget *m_cefWidget = nullptr;
-	mutable QCefCookieManager *m_cefCookieManager = nullptr;
+	mutable PLSQCefCookieManager *m_cefCookieManager = nullptr;
 	mutable std::optional<int> m_result;
 
 	BrowserWidgetImpl(const ParamsImplPtr &paramsImpl, const BrowserDone &browerDone) : BrowserWidget(paramsImpl->m_parent.value_or(nullptr)), m_paramsImpl(paramsImpl), m_browerDone(browerDone)
 	{
 		setAttribute(Qt::WA_NativeWindow, true);
 		if (g_cef) {
-			m_cefCookieManager = newCookieManager(m_paramsImpl->m_cookieStoragePath);
+			m_cefCookieManager = dynamic_cast<PLSQCefCookieManager *>(newCookieManager(m_paramsImpl->m_cookieStoragePath));
 			pls::map<std::string, std::string> headers;
 			if (m_paramsImpl->m_headers.has_value()) {
 				pls_for_each(m_paramsImpl->m_headers.value(), [&headers](const QString &key, const QString &value) {
@@ -169,10 +169,10 @@ public:
 	void getAllCookie(QObject *receiver, const OkResult<const QList<Cookie> &> &result) const override
 	{
 		PLS_DEBUG(LIBBROWSER_MODULE, "get all browser cookies");
-		m_cefCookieManager->ReadAllCookies([receiver, result](const std::list<QCefCookieManager::Cookie> &cefCookies) {
+		m_cefCookieManager->ReadAllCookies([receiver, result](const std::list<PLSQCefCookieManager::Cookie> &cefCookies) {
 			PLS_INFO(LIBBROWSER_MODULE, "complete read browser cookies");
 			QList<Cookie> cookies;
-			std::for_each(cefCookies.begin(), cefCookies.end(), [&cookies](const QCefCookieManager::Cookie &c) {
+			std::for_each(cefCookies.begin(), cefCookies.end(), [&cookies](const PLSQCefCookieManager::Cookie &c) {
 				Cookie cookie;
 				cookie.name = QString::fromStdString(c.name);
 				cookie.value = QString::fromStdString(c.value);
@@ -192,10 +192,10 @@ public:
 		PLS_DEBUG(LIBBROWSER_MODULE, "get browser cookies");
 		m_cefCookieManager->ReadCookies(
 			url.toStdString(),
-			[receiver, result](const std::list<QCefCookieManager::Cookie> &cefCookies) {
+			[receiver, result](const std::list<PLSQCefCookieManager::Cookie> &cefCookies) {
 				PLS_INFO(LIBBROWSER_MODULE, "complete read browser cookies");
 				QList<Cookie> cookies;
-				std::for_each(cefCookies.begin(), cefCookies.end(), [&cookies](const QCefCookieManager::Cookie &c) {
+				std::for_each(cefCookies.begin(), cefCookies.end(), [&cookies](const PLSQCefCookieManager::Cookie &c) {
 					Cookie cookie;
 					cookie.name = QString::fromStdString(c.name);
 					cookie.value = QString::fromStdString(c.value);
@@ -221,7 +221,10 @@ public:
 	void send(const QString &type, const QJsonObject &msg) const override
 	{
 		if (pls_object_is_valid(m_cefWidget)) {
-			m_cefWidget->sendMsg(type.toStdWString(), pls_to_string(msg).toStdWString());
+			auto plsWidget = static_cast<PLSQCefWidget *>(m_cefWidget);
+			if (plsWidget) {
+				plsWidget->sendMsg(type.toStdWString(), pls_to_string(msg).toStdWString());
+			}
 		}
 	}
 
@@ -251,10 +254,10 @@ private slots:
 	void onCefWidgetUrlChanged(const QString &url)
 	{
 		PLS_INFO(LIBBROWSER_MODULE, "begin read browser cookies");
-		m_cefCookieManager->ReadAllCookies([url, this](const std::list<QCefCookieManager::Cookie> &cefCookies) {
+		m_cefCookieManager->ReadAllCookies([url, this](const std::list<PLSQCefCookieManager::Cookie> &cefCookies) {
 			PLS_INFO(LIBBROWSER_MODULE, "complete read browser cookies");
 			QList<Cookie> cookies;
-			std::for_each(cefCookies.begin(), cefCookies.end(), [&cookies](const QCefCookieManager::Cookie &c) {
+			std::for_each(cefCookies.begin(), cefCookies.end(), [&cookies](const PLSQCefCookieManager::Cookie &c) {
 				Cookie cookie;
 				cookie.name = QString::fromStdString(c.name);
 				cookie.value = QString::fromStdString(c.value);
@@ -745,7 +748,7 @@ LIBBROWSER_API bool init(const QString &locale)
 		return false;
 	}
 
-	g_cef = create_qcef();
+	g_cef = dynamic_cast<PLSQCef *>(create_qcef());
 	if (!g_cef) {
 		PLS_ERROR(LIBBROWSER_MODULE, "init obs-browser failed, error: create QCef failed");
 		return false;

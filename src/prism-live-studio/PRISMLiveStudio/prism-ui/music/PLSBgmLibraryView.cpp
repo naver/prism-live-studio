@@ -49,7 +49,12 @@ PLSBgmLibraryView::PLSBgmLibraryView(QWidget *parent) : PLSDialogView(parent)
 	connect(ui->buttonBox->button(QDialogButtonBox::Ok), &QPushButton::clicked, this, &PLSBgmLibraryView::OnOkButtonClicked);
 	connect(ui->buttonBox->button(QDialogButtonBox::Cancel), &QPushButton::clicked, this, &PLSBgmLibraryView::OnCancelButtonClicked);
 
-	pls_network_state_monitor([this](bool access) { OnNetWorkStateChanged(access); });
+	pls_network_state_monitor([pthis = QPointer<PLSBgmLibraryView>(this)](bool access) {
+		if (!pls_object_is_valid(pthis)) {
+			return;
+		}
+		pthis->OnNetWorkStateChanged(access);
+	});
 	networkAvailable = pls_get_network_state();
 }
 
@@ -423,6 +428,7 @@ void PLSBgmLibraryView::OnGroupScrolled()
 void PLSBgmLibraryView::OnGroupButtonClicked(const QString &group)
 {
 	if (group == selectedGroup) {
+		RefreshSelectedGroupButtonStyle(group);
 		return;
 	}
 	selectedGroup = group;
@@ -683,6 +689,8 @@ void PLSBgmLibraryView::CreateMusicList(const QString &group, const BgmLibraryDa
 	layoutContent->setAlignment(Qt::AlignTop);
 	layoutContent->setContentsMargins(0, 0, 0, 0);
 	layoutContent->setSpacing(0);
+	layoutContent->setEnabled(false);
+	ui->verticalLayout_list->addWidget(scrollArea);
 
 	auto iter = listData.cbegin();
 	std::map<QString, PLSBgmLibraryItem *> listItem;
@@ -702,8 +710,9 @@ void PLSBgmLibraryView::CreateMusicList(const QString &group, const BgmLibraryDa
 		listItem.insert({iter->second.title, musicItem});
 		++iter;
 	}
+	layoutContent->setEnabled(true);
+
 	musicListItem.insert({group, listItem});
-	ui->verticalLayout_list->addWidget(scrollArea);
 	groupWidget.insert({group, scrollArea});
 }
 
@@ -924,7 +933,7 @@ void PLSBgmLibraryItem::enterEvent(QEvent *event)
 bool PLSBgmLibraryItem::eventFilter(QObject *object, QEvent *event)
 {
 	if (object == ui->nameLabel && event->type() == QEvent::Resize) {
-		QTimer::singleShot(0, this, [this]() { ui->nameLabel->setText(GetNameElideString(data.title, ui->nameLabel)); });
+		pls_async_call(this, [this]() { ui->nameLabel->setText(GetNameElideString(data.title, ui->nameLabel)); });
 	}
 	return QFrame::eventFilter(object, event);
 }

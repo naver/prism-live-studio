@@ -23,3 +23,9 @@ void BrowserDock::closeBrowser()
 		cefWidget->closeBrowser();
 	}
 }
+
+void BrowserDock::showEvent(QShowEvent *event)
+{
+	OBSDock::showEvent(event);
+	setWindowTitle(title);
+}

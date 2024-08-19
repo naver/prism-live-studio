@@ -26,6 +26,8 @@ public:
 	void OnStatus(bool isStarted);
 	void OnEvents(EventType eventType, bool on);
 	uint getStartTime() const { return startTime; };
+	int getDuration() const { return (int)totalRecordSeconds; }
+	void Pause(bool pause);
 
 protected:
 	void timerEvent(QTimerEvent *e) override;
@@ -36,11 +38,14 @@ protected:
 
 private:
 	bool started = false;
+	bool paused = false;
 	bool showTime = false;
 	uint startTime = 0; // UNIX time in seconds
 	int timerID = 0;
+	float totalRecordSeconds = 0;
 	QLabel *title;
 	QLabel *time;
+	TimerType timerType;
 };
 
 class PLSBasic;
@@ -75,6 +80,8 @@ public:
 	void SetRecordStatus(bool isStarted);
 	void SetStudioModeStatus(bool isStudioMode);
 	uint GetStartTime() const;
+	int GetRecordDuration() const;
+	void OnRecordPaused(bool paused);
 
 protected:
 	void resizeEvent(QResizeEvent *event) override;

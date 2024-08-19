@@ -55,6 +55,7 @@ protected:
 	bool direction = true;
 
 	bool m_isSaveClick = false;
+	qreal m_dpi = 1.0;
 
 	static void SourceRemoved(void *data, calldata_t *params);
 	static void SourceRenamed(void *data, calldata_t *params);
@@ -64,9 +65,9 @@ protected:
 	void UpdateCallback(void *obj, obs_data_t *settings);
 	bool ConfirmQuit();
 	int CheckSettings();
+	void UpdateOldSettings();
 	void Cleanup();
 	void dialogClosedToSendNoti();
-
 private slots:
 	void on_buttonBox_clicked(QAbstractButton *button);
 	void AddPreviewButton();
@@ -84,11 +85,8 @@ public:
 
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 	virtual bool nativeEvent(const QByteArray &eventType, void *message,
 				 qintptr *result) override;
-#else
-	virtual bool nativeEvent(const QByteArray &eventType, void *message,
-				 long *result) override;
-#endif
+	virtual void reject() override;
+	virtual void paintEvent(QPaintEvent *event) override;
 };

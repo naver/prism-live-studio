@@ -9,7 +9,6 @@
         <file>resource/css/PLSLivingMsgView.css</file>
         <file>resource/css/PLSAudioMixer.css</file>
         <file>resource/css/MixerDock.css</file>
-        <file>resource/css/VisibilityCheckBox.css</file>
         <file>resource/css/PLSAddSourceView.css</file>
         <file>resource/css/PLSQTDisplay.css</file>
         <file>resource/css/HelpMenu.css</file>
@@ -113,7 +112,17 @@
         <file>resource/css/ColorSelect.css</file>
         <file>resource/css/PLSCompleterPopupList.css</file>
         <file>resource/css/AdvancedAudioProperties.css</file>
-		    <file>resource/css/OBSPermissions.css</file>
-        <file>resource/css/ThirdPlugins.css</file>        
+        <file>resource/css/OBSPermissions.css</file>
+        <file>resource/css/ThirdPlugins.css</file>
+        <file>resource/css/PLSLiveInfoChzzk.css</file>
+        <file>resource/css/PLSLiveInfoNCB2B.css</file>
+        <file>resource/css/FontSelectionWindow.css</file>
+        <file>resource/css/PLSNCB2bBrowserSettings.css</file>
+        <file>resource/css/PLSLiveInfoChzzk.css</file>
+        <file>resource/css/PLSLiveInfoNCB2B.css</file>
+        <file>resource/css/PLSSceneTemplateContainer.css</file>
+        <file>resource/css/PLSSearchCombobox.css</file>
+        <file>resource/css/VisibilityCheckBox.css</file>
     </qresource>
+
 </RCC>

@@ -72,7 +72,7 @@ private slots:
 	void updateButtonsStyle() const;
 
 private:
-	QMap<QString, QButtonGroup *> m_templateButtons;
+	QMap<QString, QPointer<QButtonGroup>> m_templateButtons;
 };
 
 #endif // TEXTMOTIONTEMPLATEDATAHELPER_H

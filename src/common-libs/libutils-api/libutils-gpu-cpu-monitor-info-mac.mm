@@ -415,5 +415,7 @@ bool pls_get_monitors_info(std::vector<pls_monitor_info> &infos)
         
         infos.push_back(info);
     }
+	
+	return true;
 }
 #endif

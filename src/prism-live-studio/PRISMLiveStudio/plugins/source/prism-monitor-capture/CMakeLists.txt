@@ -15,6 +15,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
 add_library(${PROJECT_NAME} MODULE ${src_files} ${hdr_files})
+
+target_include_directories(${PROJECT_NAME} PUBLIC 
+	${CMAKE_CURRENT_SOURCE_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}/gdi
+	$ENV{OBS_SRC_DIR}/libobs-winrt
+)
+
 target_link_libraries(${PROJECT_NAME}
 	common-libs::log
 	common-libs::utils-api
@@ -23,5 +30,8 @@ target_link_libraries(${PROJECT_NAME}
 	d3d9
 	d3d11
 	dxgi)
+	
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "prism/plugins/source")
 copy_prism_plugin_binary(${PROJECT_NAME})
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${src_files} ${hdr_files})

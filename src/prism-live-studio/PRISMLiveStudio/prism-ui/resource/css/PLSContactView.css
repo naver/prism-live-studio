@@ -8,14 +8,14 @@ PLSContactView {
 }
 
 PLSContactView[type="Mac"] {
-	qproperty-hasCaption:/*hdpi*/true;
+	qproperty-hasCaption:true;
 }
 
 PLSContactView[type="Win"] {
-	qproperty-hasCaption:/*hdpi*/false;
+	qproperty-hasCaption:false;
 }
 
-PLSContactView #titleLabel {
+PLSContactView #contactTitleLabel {
     color: #f1fd56;
 	font-size:/*hdpi*/ 20px;
     font-weight: bold;
@@ -168,6 +168,7 @@ PLSContactView #tagListWidget {
 	max-height:/*hdpi*/ 73px;
 	padding: 0px;
 	margin: 0px;	
+	border:/*hdpi*/none;
 }
 
 PLSContactView QListWidget::item {
@@ -179,10 +180,11 @@ PLSContactView #tagTextEdit {
     background-color:#1e1e1e;
 	font-size:/*hdpi*/12px;
 	border:/*hdpi*/none;
-	min-height:/*hdpi*/ 73px;
-	max-height:/*hdpi*/ 73px;
+	min-height:/*hdpi*/ 69px;
+	max-height:/*hdpi*/ 69px;
 	padding-left: 10px;
 	padding-top: 4px;
+	padding-bottom: 0px;
 	border-radius: 3px;
 }
 

@@ -18,6 +18,7 @@
 #include "libhttp-client.h"
 #include "pls-gpop-data-struct.hpp"
 #include "PLSResCommonFuns.h"
+#include "PLSResourceManager.h"
 
 using namespace common;
 constexpr auto MODULE_MOTION_SERVICE = "MotionService";
@@ -74,9 +75,8 @@ void PLSMotionNetwork::downloadResource(const QString &categoryJsonFilePath) con
 {
 	auto categoryPath = categoryJsonFilePath;
 	if (!QFileInfo(categoryPath).exists()) {
+		categoryPath = PLSRESOURCEMGR_INSTANCE->getCategoryPath();
 		PLS_INFO(RESOURCE_DOWNLOAD, "local category json not exist, will use app data dir.");
-		QDir appDir(pls_get_dll_dir("libresources-download"));
-		categoryPath = appDir.absoluteFilePath(QString("data/prism-studio/user/category.json"));
 	}
 	QJsonArray array;
 	pls_read_json(array, categoryPath);

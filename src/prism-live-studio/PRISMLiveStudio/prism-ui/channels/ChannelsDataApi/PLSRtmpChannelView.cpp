@@ -14,6 +14,9 @@
 #include "PLSComboBox.h"
 #include "ResolutionGuidePage.h"
 
+#include "PLSAlertView.h"
+#include "obs-app.hpp"
+#include "obs.h"
 #include "pls-gpop-data.hpp"
 #include "pls-net-url.hpp"
 #include "ui_PLSRtmpChannelView.h"
@@ -38,6 +41,8 @@ PLSRtmpChannelView::PLSRtmpChannelView(const QVariantMap &oldData, QWidget *pare
 		}
 	};
 	flushEdit(true);
+	UpdateTwitchServerList();
+	setTwitchUI(ui->PlatformCombbox->currentText());
 	updateSaveBtnAvailable();
 }
 
@@ -63,6 +68,9 @@ void PLSRtmpChannelView::initUi()
 	ui->UserPasswordEdit->installEventFilter(this);
 	ui->StreamKeyEdit->installEventFilter(this);
 
+#if defined(Q_OS_MACOS)
+	ui->horizontalLayout->addWidget(ui->SaveBtn);
+#endif
 	connect(ui->NameEdit, &QLineEdit::textEdited, this, &PLSRtmpChannelView::updateSaveBtnAvailable, Qt::QueuedConnection);
 	connect(ui->StreamKeyEdit, &QLineEdit::textEdited, this, &PLSRtmpChannelView::updateSaveBtnAvailable, Qt::QueuedConnection);
 	connect(ui->RTMPUrlEdit, &QLineEdit::textEdited, this, &PLSRtmpChannelView::updateSaveBtnAvailable, Qt::QueuedConnection);
@@ -78,12 +86,16 @@ QVariantMap PLSRtmpChannelView::SaveResult() const
 		tmpData[g_streamKey] = ui->StreamKeyEdit->text();
 		if (m_type == SRT) {
 			tmpData[g_data_type] = SRTType;
-			tmpData[g_platformName] = CUSTOM_SRT;
+			tmpData[g_channelName] = CUSTOM_SRT;
 		} else {
 			tmpData[g_data_type] = RISTType;
-			tmpData[g_platformName] = CUSTOM_RIST;
+			tmpData[g_channelName] = CUSTOM_RIST;
 		}
 		tmpData[g_nickName] = ui->NameEdit->text();
+		QString userID = ui->UserIDEdit->text();
+		tmpData[g_rtmpUserID] = userID;
+		QString password = ui->UserPasswordEdit->text();
+		tmpData[g_password] = password;
 		return tmpData;
 	}
 	auto tmpData = mOldData;
@@ -98,19 +110,28 @@ QVariantMap PLSRtmpChannelView::SaveResult() const
 		platfromName = ui->PlatformCombbox->currentText();
 	}
 
-	tmpData[g_platformName] = platfromName;
+	tmpData[g_channelName] = platfromName;
 
 	QString userID = ui->UserIDEdit->text();
 	tmpData[g_rtmpUserID] = userID;
 	QString password = ui->UserPasswordEdit->text();
 	tmpData[g_password] = password;
 
+	if (ui->PlatformCombbox->currentText() == TWITCH) {
+		QString text = QTStr("setting.output.server.auto");
+		if (ui->ServerComboBox->currentText() == text) {
+			tmpData[g_isTwitchRtmpServerAuto] = true;
+		} else {
+			tmpData[g_isTwitchRtmpServerAuto] = false;
+		}
+	}
+
 	return tmpData;
 }
 
 void PLSRtmpChannelView::updatePlatform(const QVariantMap &oldData)
 {
-	QString platform = getInfo(oldData, g_platformName);
+	QString platform = getInfo(oldData, g_channelName);
 	int index = ui->PlatformCombbox->findText(platform, Qt::MatchContains);
 	ui->PlatformCombbox->setDisabled(true);
 	if (index != -1) {
@@ -147,27 +168,28 @@ void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
 
 	updatePlatform(oldData);
 	if (m_type == SRT || m_type == RIST) {
-		QString rtmpUrl = getInfo(oldData, g_channelRtmpUrl);
-		ui->RTMPUrlEdit->setEnabled(false);
-		ui->RTMPUrlEdit->setText(rtmpUrl);
-		QString streamKey = getInfo(oldData, g_streamKey);
-		ui->StreamKeyEdit->setText(streamKey);
-		QString displayName = getInfo(oldData, g_nickName);
-		ui->NameEdit->setText(displayName);
-		ui->NameEdit->setModified(true);
-		ResolutionGuidePage::checkResolution(this, getInfo(oldData, g_channelUUID));
 		IsHideSomeFrame(true);
-		return;
+	} else {
+		IsHideSomeFrame(false);
 	}
-	IsHideSomeFrame(false);
+
+	UpdateTwitchServerList();
 	QString displayName = getInfo(oldData, g_nickName);
 	ui->TitleLabel->setText(CHANNELS_TR(RTMPEdit));
 	ui->NameEdit->setText(displayName);
 	ui->NameEdit->setModified(true);
 
+	QSignalBlocker block(ui->RTMPUrlEdit);
 	ui->RTMPUrlEdit->setEnabled(false);
 	QString rtmpUrl = getInfo(oldData, g_channelRtmpUrl);
 	ui->RTMPUrlEdit->setText(rtmpUrl);
+	if (ui->PlatformCombbox->currentText() == TWITCH) {
+		bool bServerAuto = getInfo(oldData, g_isTwitchRtmpServerAuto, false);
+		if (bServerAuto) {
+			ui->RTMPUrlEdit->setText(ui->ServerComboBox->currentData().toString());
+		}
+	}
+	ui->RTMPUrlEdit->setModified(false);
 	QString streamKey = getInfo(oldData, g_streamKey);
 	ui->StreamKeyEdit->setText(streamKey);
 
@@ -182,6 +204,12 @@ void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
 void PLSRtmpChannelView::showResolutionGuide()
 {
 	ResolutionGuidePage::showResolutionGuideCloseAfterChange(this);
+}
+
+void PLSRtmpChannelView::setPlatformCombboxIndex(const QString &channleName)
+{
+	int index = ui->PlatformCombbox->findText(channleName);
+	ui->PlatformCombbox->setCurrentIndex(index);
 }
 
 void PLSRtmpChannelView::changeEvent(QEvent *e)
@@ -217,7 +245,9 @@ void PLSRtmpChannelView::on_SaveBtn_clicked()
 {
 	PRE_LOG_UI_MSG("save clicked", PLSRtmpChannelView)
 	QSignalBlocker blocker(ui->NameEdit);
-	verifyRename();
+	if (!verifyRename()) {
+		return;
+	}
 	if (checkIsModified()) {
 		this->accept();
 		return;
@@ -254,15 +284,35 @@ void PLSRtmpChannelView::on_RTMPUrlEdit_textChanged(const QString &rtmpUrl)
 	}
 
 	auto platformStr = guessPlatformFromRTMP(rtmpUrl.trimmed());
-	if (platformStr != BAND && platformStr != NOW && platformStr != CUSTOM_RTMP) {
+	if (platformStr != BAND && platformStr != NOW && platformStr != CUSTOM_RTMP && platformStr != CHZZK && platformStr != NAVER_SHOPPING_LIVE) {
 		QSignalBlocker bloker(ui->PlatformCombbox);
 		ui->PlatformCombbox->setCurrentText(platformStr);
+		m_type = OTHER;
+		IsHideSomeFrame(false);
+		setTwitchUI(platformStr);
 	} else if (platformStr == CUSTOM_RTMP) {
 		QSignalBlocker bloker(ui->PlatformCombbox);
-		int index = ui->PlatformCombbox->findText(CHANNELS_TR(UserInputRTMP));
+		int index = 0;
+		if (isUrlRight("^srt?://\\w+", rtmpUrl.trimmed())) {
+			index = ui->PlatformCombbox->findText(CHANNELS_TR(UserInputSRT));
+			m_type = SRT;
+			platformStr = CUSTOM_SRT;
+			IsHideSomeFrame(true);
+		} else if (isUrlRight("^rist?://\\w+", rtmpUrl.trimmed())) {
+			index = ui->PlatformCombbox->findText(CHANNELS_TR(UserInputRIST));
+			m_type = RIST;
+			platformStr = CUSTOM_RIST;
+			IsHideSomeFrame(true);
+		} else {
+			index = ui->PlatformCombbox->findText(CHANNELS_TR(UserInputRTMP));
+			m_type = RTMP;
+			IsHideSomeFrame(false);
+		}
 		ui->PlatformCombbox->setCurrentIndex(index);
 	} else {
 		platformStr = CUSTOM_RTMP;
+		m_type = RTMP;
+		IsHideSomeFrame(false);
 	}
 	if (ui->NameEdit->text().isEmpty() || !ui->NameEdit->isModified()) {
 		QSignalBlocker bloker(ui->NameEdit);
@@ -310,7 +360,8 @@ void PLSRtmpChannelView::on_PlatformCombbox_currentTextChanged(const QString &pl
 			ui->NameEdit->clear();
 			IsHideSomeFrame(false);
 		}
-
+		ui->ServerFrame->hide();
+		ui->ServerComboBox->hide();
 		updateSaveBtnAvailable();
 		return;
 	}
@@ -328,6 +379,39 @@ void PLSRtmpChannelView::on_PlatformCombbox_currentTextChanged(const QString &pl
 		ui->RTMPUrlEdit->setText(retIte.value());
 		ui->RTMPUrlEdit->setModified(false);
 	}
+	if (platForm == TWITCH) {
+		ui->ServerFrame->show();
+		ui->ServerComboBox->show();
+		if (GlobalVars::g_bUseAPIServer) {
+			QSignalBlocker block(ui->RTMPUrlEdit);
+			ui->RTMPUrlEdit->setText(ui->ServerComboBox->currentData().toString());
+			ui->RTMPUrlEdit->setModified(false);
+		}
+	} else {
+		ui->ServerFrame->hide();
+		ui->ServerComboBox->hide();
+	}
+	updateSaveBtnAvailable();
+}
+
+void PLSRtmpChannelView::on_ServerComboBox_currentTextChanged(const QString &text)
+{
+	auto platform = ui->PlatformCombbox->currentText();
+	if (platform != TWITCH) {
+		PLS_INFO("PLSRtmpChannelView", "current platform is %s", platform.toUtf8().constData());
+		return;
+	}
+	ui->RTMPUrlEdit->setEnabled(false);
+	auto url = ui->ServerComboBox->currentData().toString();
+	if (!url.isEmpty()) {
+		QSignalBlocker block(ui->RTMPUrlEdit);
+		if (url == "auto" && !GlobalVars::g_bUseAPIServer) {
+			url = mRtmps.value(platform);
+		}
+		PLS_INFO("PLSRtmpChannelView", "current twitch server is %s", url.toUtf8().constData());
+		ui->RTMPUrlEdit->setText(url);
+		ui->RTMPUrlEdit->setModified(false);
+	}
 	updateSaveBtnAvailable();
 }
 
@@ -336,9 +420,7 @@ void PLSRtmpChannelView::on_OpenLink_clicked() const
 	PRE_LOG_UI_MSG("open link clicked", PLSRtmpChannelView)
 	QString urlStr;
 	QString lang = pls_get_current_country_short_str().toUpper();
-	if (lang == "ID") {
-		urlStr = g_streamKeyPrismHelperId;
-	} else if (lang == "KR") {
+	if (lang == "KR") {
 		urlStr = g_streamKeyPrismHelperKr;
 	} else {
 		urlStr = g_streamKeyPrismHelperEn;
@@ -370,11 +452,10 @@ void PLSRtmpChannelView::initCommbox()
 	ui->PlatformCombbox->update();
 }
 
-void PLSRtmpChannelView::verifyRename()
+bool PLSRtmpChannelView::verifyRename()
 {
 	const auto &infos = PLSCHANNELS_API->getAllChannelInfoReference();
 	auto myName = ui->NameEdit->text();
-	QRegularExpression regx("(-\\d+$)");
 	auto isSameName = [&](const QVariantMap &info) {
 		auto name = getInfo(info, g_nickName);
 		if (isEdit) {
@@ -385,19 +466,11 @@ void PLSRtmpChannelView::verifyRename()
 		bool ret = (name == myName);
 		return ret;
 	};
-	static int countN = 1;
-
 	if (auto ite = std::find_if(infos.cbegin(), infos.cend(), isSameName); ite != infos.end()) {
-		myName.remove(regx);
-		QString newName = myName + "-" + QString::number(countN) + QString("");
-		if (newName.count() > ui->NameEdit->maxLength()) {
-			return;
-		}
-		ui->NameEdit->setText(newName);
-		++countN;
-		verifyRename();
+		PLSAlertView::warning(this, tr("Alert.Title"), tr("setting.channel.rtmp.existname"));
+		return false;
 	}
-	countN = 1;
+	return true;
 }
 
 void PLSRtmpChannelView::ValidateNameEdit()
@@ -416,9 +489,13 @@ void PLSRtmpChannelView::ValidateNameEdit()
 void PLSRtmpChannelView::IsHideSomeFrame(bool bShow)
 {
 	if ((m_type == SRT || m_type == RIST) && bShow) {
-		ui->EditAreaFrame->hide();
+		ui->EditAreaFrame->show();
 		ui->MustBeLabelStreamKey->hide();
 		ui->OpenLink->hide();
+	} else if (m_type == OTHER && !bShow) {
+		ui->EditAreaFrame->hide();
+		ui->MustBeLabelStreamKey->show();
+		ui->OpenLink->show();
 	} else {
 		ui->EditAreaFrame->show();
 		ui->MustBeLabelStreamKey->show();
@@ -428,12 +505,16 @@ void PLSRtmpChannelView::IsHideSomeFrame(bool bShow)
 
 bool PLSRtmpChannelView::isInfoValid()
 {
-
+	auto url = ui->RTMPUrlEdit->text().trimmed();
 	if (m_type == SRT || m_type == RIST) {
 		if (ui->NameEdit->text().isEmpty() || ui->RTMPUrlEdit->text().isEmpty()) {
 			return false;
 		}
-		return true;
+		if (m_type == SRT) {
+			return isUrlRight("^srt?://\\w+", url);
+		} else {
+			return isUrlRight("^rist?://\\w+", url);
+		}
 	}
 
 	ValidateNameEdit();
@@ -441,7 +522,7 @@ bool PLSRtmpChannelView::isInfoValid()
 		return false;
 	}
 
-	if (!isRtmUrlRight()) {
+	if (!isUrlRight("^rtmp[s]?://\\w+", url)) {
 		return false;
 	}
 	return true;
@@ -459,10 +540,51 @@ void PLSRtmpChannelView::updateRtmpInfos()
 	mPlatforms = PLSCHANNELS_API->getRTMPsName();
 }
 
-bool PLSRtmpChannelView::isRtmUrlRight() const
+bool PLSRtmpChannelView::isUrlRight(const QString &regular, const QString &url) const
 {
-	QRegularExpression reg("^rtmp[s]?://\\w+");
+	QRegularExpression reg(regular);
 	reg.setPatternOptions(QRegularExpression::CaseInsensitiveOption);
-	auto matchRe = reg.match(ui->RTMPUrlEdit->text().trimmed());
+	auto matchRe = reg.match(url);
 	return matchRe.hasMatch();
+}
+
+void PLSRtmpChannelView::UpdateTwitchServerList()
+{
+	if (ui->ServerComboBox->count() != 0) {
+		return;
+	}
+	auto serverList = initTwitchServer();
+	QSignalBlocker block(ui->ServerComboBox);
+	if (serverList.isEmpty()) {
+		ui->ServerComboBox->addItem(QTStr("setting.output.server.auto"), mRtmps.value(TWITCH));
+	} else {
+
+		if (!GlobalVars::g_bUseAPIServer && serverList.at(0).second == "auto") {
+			serverList.replace(0, QPair<QString, QString>(QTStr("setting.output.server.auto"), mRtmps.value(TWITCH)));
+		}
+		for (auto pair : serverList) {
+			ui->ServerComboBox->addItem(pair.first, pair.second);
+		}
+	}
+}
+
+void PLSRtmpChannelView::setTwitchUI(const QString &channelName)
+{
+	if (channelName == TWITCH) {
+		auto text = ui->RTMPUrlEdit->text();
+		int index = ui->ServerComboBox->findData(text);
+		bool bServerAuto = getInfo(mOldData, g_isTwitchRtmpServerAuto, false);
+		if (index == 0 && !bServerAuto) {
+			index = 1;
+		}
+		if (index == -1) {
+			index = 0;
+		}
+		ui->ServerComboBox->setCurrentIndex(index);
+		ui->ServerFrame->show();
+		ui->ServerComboBox->show();
+	} else {
+		ui->ServerFrame->hide();
+		ui->ServerComboBox->hide();
+	}
 }

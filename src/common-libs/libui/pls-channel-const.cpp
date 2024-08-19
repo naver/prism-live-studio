@@ -35,6 +35,7 @@ LIBUI_API const QString g_errorType = "error_type";
 LIBUI_API const QString g_errorIsErrMsg = "error_is_err_msg";
 
 LIBUI_API const QString g_channelRtmpUrl = "rtmp_url";
+LIBUI_API const QString g_isTwitchRtmpServerAuto = "isTwitchRtmp_ServerAuto";
 LIBUI_API const QString g_streamKey = "stream_key";
 LIBUI_API const QString g_refreshToken = "refresh_token";
 LIBUI_API const QString g_tokenType = "token_type";
@@ -61,6 +62,9 @@ LIBUI_API const QString g_prismMatched = "prism_matched";
 LIBUI_API const QString g_isLeader = "is_leader";
 LIBUI_API const QString g_isUserAsked = "is_user_asked";
 LIBUI_API const QString g_isPlatformEnabled = "is_platform_enabled";
+LIBUI_API const QString g_isUseNewAPI = "isUseNewAPI";
+LIBUI_API const QString g_customUserDataSeq = "customUserDataSeq";
+LIBUI_API const QString g_customData = "customData";
 
 LIBUI_API const QString g_userIconThumbnailUrl = "usr_icon_thumbnail_url";
 LIBUI_API const QString g_profileThumbnailUrl = "profile_thumbnail_url";
@@ -90,6 +94,7 @@ LIBUI_API const QString g_likesHtml = "<p>< img src =\":/resource/images/ic-live
 LIBUI_API const QString g_displayOrder = "display_order";
 LIBUI_API const QString g_subChannelId = "sub_channel_id";
 LIBUI_API const QString g_displayState = "display_state";
+LIBUI_API const QString g_showEndShare = "show_end_share";
 
 //for scheduleList
 LIBUI_API const QString g_scheduleList = "schedule_list";
@@ -106,9 +111,17 @@ LIBUI_API const QString g_isUpdated = "is_updated";
 LIBUI_API const QString g_channelHandler = "handler";
 
 LIBUI_API const QString g_defaultHeaderIcon = ":/channels/resource/images/ChannelsSource/img-setting-profile-blank.svg";
+LIBUI_API const QString g_defaultChzzkUserIcon = ":/channels/resource/images/ChannelsSource/img-chzzk-user-icon.png";
+
 LIBUI_API const QString g_defaultErrorIcon = ":/channels/resource/images/thumb-error.svg";
 LIBUI_API const QString g_defualtPlatformIcon = ":/channels/resource/images/ChannelsSource/img-rtmp-profile.svg";
 LIBUI_API const QString g_defualtPlatformSmallIcon = ":/channels/resource/images/ChannelsSource/ic-rtmp-small.svg";
+
+LIBUI_API const QString g_dashboardButtonIcon = ":/channels/resource/images/DefaultChannels/btn-mych-addch-default.svg";
+LIBUI_API const QString g_addChannelButtonIcon = ":/channels/resource/images/ChannelsSource/btn-addch-default.svg";
+LIBUI_API const QString g_addChannelButtonConnectedIcon = ":/channels/resource/images/ChannelsSource/btn-addch-default-on.svg";
+LIBUI_API const QString g_channelSettingBigIcon = ":/channels/resource/images/ChannelsSource/btn-addch-default-large.svg";
+LIBUI_API const QString g_tagIcon = ":/channels/resource/images/ChannelsSource/stremsetting-tagIcon.png";
 
 LIBUI_API const QString g_defaultViewerIcon = ":/channels/resource/images/ChannelsSource/statistics/ic-liveend-view.svg";
 LIBUI_API const QString g_defaultLikeIcon = ":/channels/resource/images/ChannelsSource/statistics/ic-liveend-like.svg";
@@ -119,10 +132,10 @@ LIBUI_API const QString g_naverTvViewersIcon = ":/channels/resource/images/Chann
 LIBUI_API const QString g_naverTvLikeIcon = ":/channels/resource/images/ChannelsSource/statistics/ic-like-vlive.svg";
 LIBUI_API const QString g_defaultRTMPAddButtonIcon = ":/channels/resource/images/DefaultChannels/btn-mych-custom-rtmp-normal.svg";
 
-LIBUI_API const QStringList g_platformsToClearData{YOUTUBE, BAND, VLIVE, NAVER_TV, FACEBOOK, NAVER_SHOPPING_LIVE, TWITTER};
-LIBUI_API const QStringList g_exclusivePlatform{NOW, VLIVE, NAVER_SHOPPING_LIVE, CUSTOM_SRT, CUSTOM_RIST};
+LIBUI_API const QStringList g_platformsToClearData{YOUTUBE, BAND, VLIVE, NAVER_TV, FACEBOOK, NAVER_SHOPPING_LIVE, NCB2B};
+LIBUI_API const QStringList g_exclusivePlatform{NAVER_SHOPPING_LIVE, NCB2B};
 LIBUI_API const QStringList g_rehearsalingConfigEnabledList{NAVER_SHOPPING_LIVE, YOUTUBE};
-LIBUI_API const QStringList gDefaultPlatform{TWITCH, YOUTUBE, FACEBOOK, NAVER_SHOPPING_LIVE, NAVER_TV, BAND, AFREECATV, CUSTOM_RTMP};
+LIBUI_API const QStringList gDefaultPlatform{TWITCH, YOUTUBE, FACEBOOK, NAVER_SHOPPING_LIVE, CHZZK, NAVER_TV, BAND, AFREECATV, CUSTOM_RTMP};
 LIBUI_API const QStringList g_allPlatforms = gDefaultPlatform + QStringList{WHALE_SPACE, NOW};
 LIBUI_API const int g_maxActiveChannels = 6;
 
@@ -139,6 +152,7 @@ LIBUI_API const QString g_goliveLoadingPixPath = ":/resource/images/loading/blac
 LIBUI_API const QString g_broadCastType = "broadcastType";
 LIBUI_API const QString g_maxResults = "maxResults";
 LIBUI_API const QString g_contentDetails = "contentDetails";
+LIBUI_API const QString g_chzzkExtraData = g_contentDetails;
 LIBUI_API const QString g_persistentType = "persistent";
 LIBUI_API const QString g_statusPart = "status";
 LIBUI_API const QString g_comma = ",";

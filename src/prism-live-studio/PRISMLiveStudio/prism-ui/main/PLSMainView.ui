@@ -259,7 +259,7 @@
            <property name="frameShadow">
             <enum>QFrame::Plain</enum>
            </property>
-           <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0">
+           <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0">
             <property name="spacing">
              <number>0</number>
             </property>
@@ -388,7 +388,7 @@
                  <x>0</x>
                  <y>0</y>
                  <width>68</width>
-                 <height>405</height>
+                 <height>364</height>
                 </rect>
                </property>
                <property name="sizePolicy">
@@ -430,6 +430,50 @@
                <string/>
               </property>
              </widget>
+            </item>
+            <item alignment="Qt::AlignHCenter">
+             <widget class="QPushButton" name="discordBtn">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="toolTip">
+               <string>PRISM Discord</string>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="checkable">
+               <bool>false</bool>
+              </property>
+              <property name="autoDefault">
+               <bool>false</bool>
+              </property>
+              <property name="default">
+               <bool>false</bool>
+              </property>
+              <property name="flat">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="verticalSpacer">
+              <property name="orientation">
+               <enum>Qt::Vertical</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>20</width>
+                <height>17</height>
+               </size>
+              </property>
+             </spacer>
             </item>
             <item alignment="Qt::AlignHCenter|Qt::AlignBottom">
              <widget class="QPushButton" name="ResolutionBtn">

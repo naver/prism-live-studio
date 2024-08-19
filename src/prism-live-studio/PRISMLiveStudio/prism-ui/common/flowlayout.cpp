@@ -52,6 +52,7 @@
 
 #include "flowlayout.h"
 #include "utils-api.h"
+#include "libutils-api.h"
 
 //! [1]
 FlowLayout::FlowLayout(QWidget *parent, int margin, int hSpacing, int vSpacing) : QLayout(parent), m_hSpace(hSpacing), m_vSpace(vSpacing)
@@ -162,10 +163,13 @@ bool FlowLayout::hasHeightForWidth() const
 
 int FlowLayout::heightForWidth(int width) const
 {
+	if (m_fixWidth > 0) {
+		width = m_fixWidth;
+	}
 	if (this->parentWidget()) {
 		bool finishLayout = width == this->parentWidget()->width();
 		if (finishLayout)
-			QTimer::singleShot(0, this, [this]() { emit LayoutFinished(); });
+			pls_async_call(this, [this]() { emit LayoutFinished(); });
 	}
 	int height = doLayout(QRect(0, 0, width, 0), true);
 	return height;

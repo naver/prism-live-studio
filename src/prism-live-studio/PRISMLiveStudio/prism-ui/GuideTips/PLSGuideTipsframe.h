@@ -51,9 +51,9 @@ signals:
 private slots:
 	void setIsFloat(bool isFloat = true);
 	void onDockStateChanged(bool isFloating = true);
+	void updateUI();
 
 private:
-	void updateUI();
 	void updateLayout();
 	void checkPosition();
 	void checkTextLayout();
@@ -90,7 +90,7 @@ struct GuideRegister {
 	QString aliginWidgetName;
 	QString refrenceWidget;
 	QStringList otherListenedWidgets;
-	QString displayVersion;
+	QString displayOS;
 
 	int watchType = int(PLSGuideTipsFrame::WatchType::ButtonType);
 
@@ -130,10 +130,10 @@ public:
 	void registerGuide(const GuideRegister &reg);
 
 	void registerGuide(const QString &sourceText, const QString &aliginWidgetName, const QString &refrenceWidget, const QStringList &otherListenedWidgets,
-			   int watchType = int(PLSGuideTipsFrame::WatchType::ButtonType), const QString &displayVersion = "");
+			   int watchType = int(PLSGuideTipsFrame::WatchType::ButtonType), const QString &displayOS = "");
 
 	void registerGuide(const QString &sourceText, WidgetPtr aliginWidget, WidgetPtr refrenceWidget, const WidgetsPtrList &otherListenedWidgets,
-			   int watchType = int(PLSGuideTipsFrame::WatchType::ButtonType), const QString &displayVersion = "");
+			   int watchType = int(PLSGuideTipsFrame::WatchType::ButtonType), const QString &displayOS = "");
 
 	void closeAll();
 

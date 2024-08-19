@@ -1,27 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="40" height="34" viewBox="0 0 40 34">
-    <defs>
-        <path id="prefix__b" d="M0 0.382L16.847 0.382 16.847 13.243 0 13.243z"/>
-        <path id="prefix__d" d="M0 0.273L16.847 0.273 16.847 13.133 0 13.133z"/>
-        <linearGradient id="prefix__a" x1="50.003%" x2="50.003%" y1="87.265%" y2="-1.712%">
-            <stop offset="0%" stop-color="#FFF"/>
-            <stop offset="100%" stop-color="#D5D5D5"/>
-        </linearGradient>
-    </defs>
-    <g fill="none" fill-rule="evenodd">
-        <g>
-            <path fill="url(#prefix__a)" d="M0 18.214L4.857 18.214 4.857 3.643 0 3.643z" transform="translate(12 7)"/>
-            <g transform="translate(12 7)">
-                <g transform="translate(0 7.4)">
-                    <mask id="prefix__c" fill="#fff">
-                        <use xlink:href="#prefix__b"/>
-                    </mask>
-                    <path fill="#FFF" d="M16.452 1.64C15.693.387 14.092.006 12.878.789L1.22 8.299c-1.215.783-1.585 2.433-.825 3.686.759 1.253 2.36 1.634 3.574.85l11.658-7.51c1.215-.783 1.585-2.433.825-3.685" mask="url(#prefix__c)"/>
-                </g>
-                <mask id="prefix__e" fill="#fff">
-                    <use xlink:href="#prefix__d"/>
-                </mask>
-                <path fill="#FFF" d="M16.452 11.876c-.759 1.253-2.36 1.633-3.574.85L1.22 5.217C.005 4.433-.365 2.783.395 1.53 1.154.278 2.755-.103 3.969.68l11.658 7.51c1.215.783 1.585 2.433.825 3.686" mask="url(#prefix__e)"/>
-            </g>
-        </g>
-    </g>
+<svg width="30" height="34" viewBox="0 0 30 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect opacity="0.01" width="30" height="34" fill="#D8D8D8"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M7 24.0393H11.6129V10.2004H7V24.0393Z" fill="url(#paint0_linear_7183_7293)"/>
+<!-- <mask id="mask0_7183_7293" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="7" y="14" width="16" height="13">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M7 14.132H23V26.3457H7V14.132Z" fill="white"/>
+</mask> -->
+<g mask="url(#mask0_7183_7293)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M22.6253 15.3263C21.9045 14.1367 20.3843 13.7749 19.2305 14.5181L8.15837 21.6514C7.00452 22.3945 6.65363 23.9618 7.37478 25.1514C8.09558 26.341 9.61575 26.7028 10.7696 25.9593L21.8417 18.8264C22.9956 18.0829 23.3464 16.516 22.6253 15.3263Z" fill="white"/>
+</g>
+<!-- <mask id="mask1_7183_7293" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="7" y="7" width="16" height="13">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M7 7H23V19.2138H7V7Z" fill="white"/>
+</mask> -->
+<g mask="url(#mask1_7183_7293)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M22.6253 18.0194C21.9045 19.2093 20.3843 19.5707 19.2305 18.8276L8.15837 11.6943C7.00452 10.9512 6.65363 9.38389 7.37478 8.19428C8.09558 7.00466 9.61575 6.64289 10.7696 7.3864L21.8417 14.5193C22.9956 15.2628 23.3464 16.8297 22.6253 18.0194Z" fill="white"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_7183_7293" x1="11.3588" y1="22.2769" x2="11.3588" y2="9.96352" gradientUnits="userSpaceOnUse">
+<stop stop-color="white"/>
+<stop offset="1" stop-color="#D5D5D5"/>
+</linearGradient>
+</defs>
 </svg>

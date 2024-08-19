@@ -7,6 +7,7 @@
 #include <QPainter>
 #include <QStyleOption>
 #include "utils-api.h"
+#include "libutils-api.h"
 
 const int TOAST_DISAPPEAR = 5 * 1000;
 
@@ -58,7 +59,7 @@ void PLSToastMsgFrame::SetMessage(const QString &message)
 	option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
 	editMessage->document()->setDefaultTextOption(option);
 	editMessage->setText(message);
-	QTimer::singleShot(0, this, SLOT(resizeToContent()));
+	pls_async_call(this, [this]() { resizeToContent(); });
 }
 
 QString PLSToastMsgFrame::GetMessageContent() const
@@ -69,14 +70,14 @@ QString PLSToastMsgFrame::GetMessageContent() const
 void PLSToastMsgFrame::SetShowWidth(int width)
 {
 	showWidth = width;
-	QTimer::singleShot(0, this, SLOT(resizeToContent()));
+	pls_async_call(this, [this]() { resizeToContent(); });
 }
 
 void PLSToastMsgFrame::ShowToast()
 {
 	this->raise();
 	timerDisappear.start(TOAST_DISAPPEAR);
-	QTimer::singleShot(0, this, [this]() {
+	pls_async_call(this, [this]() {
 		this->show();
 		resizeToContent();
 	});

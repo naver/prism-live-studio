@@ -93,14 +93,15 @@ macro(setup_prism_project)
   set(CMAKE_INSTALL_RPATH "@executable_path/../Frameworks/")
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH OFF)
 
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=return-type")
+
   # Set bundle parameters for cmake's automatic plist generation
   set(MACOSX_BUNDLE_EXECUTABLE_NAME "PRISMLiveStudio")
   set(MACOSX_BUNDLE_BUNDLE_NAME "PRISMLiveStudio")
-  set(MACOSX_BUNDLE_BUNDLE_VERSION "${OBS_BUILD_NUMBER}")
-  set(MACOSX_BUNDLE_COPYRIGHT "${OBS_LEGAL_COPYRIGHT}")
+  set(MACOSX_BUNDLE_BUNDLE_VERSION "${PRISM_VERSION_BUILD}")
   set(MACOSX_BUNDLE_GUI_IDENTIFIER $ENV{PRISM_PRODUCT_IDENTIFIER})
   set(MACOSX_BUNDLE_ICON_FILE "AppIcon")
-  set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${OBS_VERSION_CANONICAL}")
+  set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${PRISM_VERSION_SHORT}")
   string(TIMESTAMP CURRENT_YEAR "%Y")
 
   # Set paths for distribution bundling
@@ -112,9 +113,9 @@ macro(setup_prism_project)
 
   if(BUILD_FOR_DISTRIBUTION)
     # set_option(CMAKE_BUILD_TYPE "Release")
-    set(CPACK_PACKAGE_VERSION "${OBS_VERSION_CANONICAL}")
+    set(CPACK_PACKAGE_VERSION "${PRISM_VERSION_SHORT}")
   else()
-    set(CPACK_PACKAGE_VERSION "${OBS_VERSION_CANONICAL}.${OBS_BUILD_NUMBER}")
+    set(CPACK_PACKAGE_VERSION "${PRISM_VERSION_SHORT}.${PRISM_VERSION_BUILD}")
   endif()
 
   set(CPACK_PACKAGE_NAME "PRISMLiveStudio")
@@ -137,7 +138,7 @@ macro(setup_prism_project)
   set(CPACK_PACKAGE_FILE_NAME "PRISMLiveStudio_${CPACK_PACKAGE_VERSION}")
 
   set(CPACK_COMPONENTS_ALL prism_app prism_plugins prism_frameworks 
-                           prism_libraries prism_install_obs prism_lancher prism_bundles)
+                           prism_libraries prism_lancher prism_bundles)
 
   set(CPACK_COMPONENT_PRISM_APP_DISPLAY_NAME "PRISM Live Studio")
   set(CPACK_COMPONENT_PRISM_PLUGINS_DISPLAY_NAME "PRISM Plugins")

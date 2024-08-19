@@ -10,10 +10,13 @@
 #include "pls-channel-const.h"
 #include "PLSLiveInfoAfreecaTV.h"
 #include "PLSChannelDataAPI.h"
+#include "chzzk/PLSLiveInfoChzzk.h"
+#include "ncb2b/PLSLiveInfoNCB2B.h"
+#include "ChannelCommonFunctions.h"
 
 int pls_exec_live_Info(const QVariantMap &info, QWidget *parent)
 {
-	auto channelName = info.value(ChannelData::g_platformName).toString();
+	auto channelName = info.value(ChannelData::g_fixPlatformName).toString();
 	auto channelUUID = info.value(ChannelData::g_channelUUID).toString();
 
 	if (TWITCH == channelName) {
@@ -34,6 +37,10 @@ int pls_exec_live_Info(const QVariantMap &info, QWidget *parent)
 		return pls_exec_live_Info_afreecatv(channelUUID, info, parent);
 	} else if (NAVER_SHOPPING_LIVE == channelName) {
 		return pls_exec_live_Info_naver_shopping_live(channelUUID, info, parent);
+	} else if (CHZZK == channelName) {
+		return pls_exec_live_Info_chzzk(channelUUID, info, parent);
+	} else if (NCB2B == channelName) {
+		return pls_exec_live_Info_bcb2b(channelUUID, info, parent);
 	}
 
 	auto handler = PLSCHANNELS_API->getPlatformHandler(channelName);
@@ -146,5 +153,27 @@ int pls_exec_live_Info_naver_shopping_live(PLSPlatformNaverShoppingLIVE *platfor
 	parent = (!parent) ? App()->getMainView() : parent;
 	PLSLiveInfoNaverShoppingLIVE liveInfo(platform, platform->getInitData(), parent);
 
+	return liveInfo.exec();
+}
+
+int pls_exec_live_Info_chzzk(const QString &which, const QVariantMap &info, QWidget *parent)
+{
+	auto pPlatform = PLS_PLATFORM_API->getPlatformById(which, info);
+
+	if (nullptr == pPlatform) {
+		return QDialog::Rejected;
+	}
+	PLSLiveInfoChzzk liveInfo(pPlatform, parent);
+	return liveInfo.exec();
+}
+
+int pls_exec_live_Info_bcb2b(const QString &which, const QVariantMap &info, QWidget *parent)
+{
+	auto pPlatform = PLS_PLATFORM_API->getPlatformById(which, info);
+
+	if (nullptr == pPlatform) {
+		return QDialog::Rejected;
+	}
+	PLSLiveInfoNCB2B liveInfo(pPlatform, parent);
 	return liveInfo.exec();
 }

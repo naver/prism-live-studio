@@ -50,7 +50,7 @@ void ChannelsAddWin::updateItem(int index) const
 	auto item = ui->ItemGridLayout->itemAt(index);
 	auto widget = dynamic_cast<QToolButton *>(item->widget());
 	if (widget) {
-		QString platForm = getInfoOfObject(widget, g_platformName.toStdString().c_str(), QString());
+		QString platForm = getInfoOfObject(widget, g_channelName.toStdString().c_str(), QString());
 
 		if (const auto &info = PLSCHANNELS_API->getChanelInfoRefByPlatformName(platForm, ChannelType); info.isEmpty()) {
 			widget->setEnabled(true);
@@ -110,13 +110,13 @@ void ChannelsAddWin::appendItem(const QString &platformName)
 	this->installEventFilter(this);
 	tBtn->setText(txt);
 	btn->setProperty(g_nickName.toStdString().c_str(), txt);
-	btn->setProperty(g_platformName.toStdString().c_str(), platformName);
+	btn->setProperty(g_channelName.toStdString().c_str(), platformName);
 	QSize iconSize(0, 0);
 	QString iconPath;
 	QString disablePath;
 
-	iconPath = getPlatformImageFromName(platformName, "btn.+", "\\.svg");
-	disablePath = getPlatformImageFromName(platformName, "btn.+", "\\-on.svg");
+	iconPath = getPlatformImageFromName(platformName, ImageType::addChannelButtonIcon, "btn.+", "\\.svg");
+	disablePath = getPlatformImageFromName(platformName, ImageType::addChannelButtonConnectedIcon, "btn.+", "\\-on.svg");
 	iconSize = QSize(115, 40);
 	QIcon Icon;
 	Icon.addFile(iconPath, iconSize, QIcon::Normal);
@@ -132,7 +132,7 @@ void ChannelsAddWin::appendItem(const QString &platformName)
 	hoverBtn = thoverBtn;
 	hoverBtn->setObjectName("hoverBtn");
 
-	hoverBtn->setProperty(g_platformName.toStdString().c_str(), platformName);
+	hoverBtn->setProperty(g_channelName.toStdString().c_str(), platformName);
 	hoverBtn->hide();
 	connect(hoverBtn, &QAbstractButton::clicked, this, &ChannelsAddWin::runBtnCMD, Qt::QueuedConnection);
 
@@ -149,7 +149,8 @@ void ChannelsAddWin::appendRTMPItem(const QString &platformName)
 	ui->AddRTMPBtn->setAliginment(Qt::AlignCenter);
 	btnTmp->setText(CHANNELS_TR(AddRTMP));
 	pls_flush_style(ui->AddRTMPBtn);
-	btnTmp->setProperty(g_platformName.toStdString().c_str(), platformName);
+	btnTmp->setProperty(g_channelName.toStdString().c_str(), platformName);
+	btnTmp->setProperty("showHandCursor", true);
 	connect(btnTmp, &ComplexButton::clicked, this, &ChannelsAddWin::runBtnCMD, Qt::QueuedConnection);
 }
 
@@ -169,7 +170,7 @@ void ChannelsAddWin::initDefault()
 void ChannelsAddWin::runBtnCMD()
 {
 	auto btn = sender();
-	auto cmdStr = getInfoOfObject(btn, g_platformName.toStdString().c_str(), QString("add"));
+	auto cmdStr = getInfoOfObject(btn, g_channelName.toStdString().c_str(), QString("add"));
 	PRE_LOG_UI_MSG_STRING("ADD " + cmdStr, "Clicked")
 	this->close();
 	runCMD(cmdStr);

@@ -7,11 +7,15 @@ extern const QString g_sourceText;
 extern const QString g_aliginWidgetName;
 extern const QString g_refrenceWidget;
 extern const QString g_otherListenedWidgets;
-extern const QString g_displayVersion;
+extern const QString g_displayOS;
 extern const QString g_watchType;
 extern const QString g_tipsContent;
 constexpr int g_borderWidth = 100;
 extern const QString g_tipTextHtml;
+
+extern const QString g_onlyDisplayMac;
+extern const QString g_onlyDisplayWin;
+extern const QString g_bothDisplay;
 #if defined(Q_OS_WIN)
 #define RegisterJsonPath QCoreApplication::applicationDirPath() + QDir::separator() + "../../data/prism-studio" + QDir::separator() + "newInfo.json"
 #elif defined(Q_OS_MACOS)

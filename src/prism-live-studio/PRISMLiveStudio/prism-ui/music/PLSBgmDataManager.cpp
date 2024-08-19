@@ -10,20 +10,23 @@
 #include "log/module_names.h"
 #include "pls-common-define.hpp"
 using namespace common;
+
+std::vector<QString> musicFormat = {"*.mp3", "*.wav", "*.m4a", "*.ogg", "*.flac", "*.wma", "*.aac", "*.aif"};
+
 PLSBgmDataViewManager *PLSBgmDataViewManager::Instance()
 {
 	static PLSBgmDataViewManager instance;
 	return &instance;
 }
 
-// mp3 *.aac *.ogg *.wav
+// (*.mp3 *.aac *.ogg *.wav)  =>
+// (*.mp3 *.wav *.m4a *.ogg *.flac *.wma *.aac *.aif)
 bool PLSBgmDataViewManager::IsSupportFormat(const QString &url) const
 {
-	QString format = url.toLower().right(3);
-	if (!format.compare("mp3") || !format.compare("aac") || !format.compare("ogg") || !format.compare("wav")) {
-		return true;
-	}
-	return false;
+	QString format = url.mid(url.lastIndexOf(".") + 1).toLower();
+
+	auto iter = std::find_if(musicFormat.begin(), musicFormat.end(), [format](QString value) { return value.contains(format); });
+	return iter != musicFormat.end();
 }
 
 bool PLSBgmDataViewManager::IsSupportFormat(const QList<QUrl> urls) const

@@ -73,6 +73,8 @@ int kscrs_getReportIDs(int64_t* reportIDs, int count);
  *         MEMORY MANAGEMENT WARNING: User is responsible for calling free() on the returned value.
  */
 char* kscrs_readReport(int64_t reportID);
+	
+void kscrs_getReportPath(int64_t reportID, char **reportPath);
 
 /** Add a custom report to the store.
  *

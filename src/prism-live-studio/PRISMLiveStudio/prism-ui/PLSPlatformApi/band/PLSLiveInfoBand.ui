@@ -208,6 +208,16 @@
        </spacer>
       </item>
       <item>
+       <widget class="QPushButton" name="cancelButton">
+        <property name="text">
+         <string>Cancel</string>
+        </property>
+        <property name="useFor" stdset="0">
+         <string notr="true">Cancel</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QPushButton" name="okButton">
         <property name="text">
          <string>OK</string>
@@ -220,16 +230,6 @@
         </property>
         <property name="useFor" stdset="0">
          <string notr="true">Ok</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="cancelButton">
-        <property name="text">
-         <string>Cancel</string>
-        </property>
-        <property name="useFor" stdset="0">
-         <string notr="true">Cancel</string>
         </property>
        </widget>
       </item>

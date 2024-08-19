@@ -7,7 +7,7 @@
 
 #include "module_names.h"
 
-bool log_init(const char *session_id, const std::chrono::steady_clock::time_point &startTime);
+bool log_init(const char *session_id, const std::chrono::steady_clock::time_point &startTime, const char *subsession_id = nullptr);
 void log_cleanup();
 
 void set_log_handler(log_handler_t handler, void *param);

@@ -10,6 +10,7 @@
 #if defined(Q_OS_WIN)
 #include <Windows.h>
 #include "WindowsUnzip/unzip.h"
+#include "WindowsUnzip/zip.h"
 #endif
 
 QString PLSResCommonFuns::g_gcc = "KR";
@@ -31,6 +32,7 @@ void PLSResCommonFuns::downloadResource(const QString &url, const donwloadResult
 		.saveFilePath(resPath)                                                      //
 		.withLog()                                                                  //
 		.timeout(timeout)
+		.allowAbort(true)
 		.okResult([&loop, result, url, isRecode, isSync](const pls::http::Reply &) {
 			PLSRESOURCEMGR_INSTANCE->updateResourceDownloadStatus(url, PLSResDownloadStatus::DownloadSuccess);
 
@@ -147,7 +149,7 @@ void PLSResCommonFuns::downloadResources(const QJsonArray &urlPaths, const downl
 				     .withLog()                      //
 				     .receiver(qApp)
 				     .attr("originalUrl", url)
-				     .workInGroup(pls::http::RS_DOWNLOAD_WORKER_GROUP)
+				     .workInNewThread()
 				     .okResult([isRecode, path, obj](const pls::http::Reply &reply) {
 					     PLSRESOURCEMGR_INSTANCE->updateResourceDownloadStatus(reply.request().attr("originalUrl").toString(), PLSResDownloadStatus::DownloadSuccess);
 
@@ -158,8 +160,7 @@ void PLSResCommonFuns::downloadResources(const QJsonArray &urlPaths, const downl
 					     auto zipName = requestUrl.split('/').last();
 					     if (requestUrl.contains(".zip")) {
 						     PLS_INFO(pls_resource_const::RESOURCE_DOWNLOAD, "this is zip file need uzip.");
-						     QMetaObject::invokeMethod(PLSResourceManager::instance(), "downloadedZipHandle", Qt::QueuedConnection, Q_ARG(const QString &, path),
-									       Q_ARG(const QString &, zipName), Q_ARG(const QJsonArray &, obj.value(pls_res_const::resource_sub_files).toArray()));
+						     PLSResourceManager::instance()->downloadedZipHandle(path, zipName, obj.value(pls_res_const::resource_sub_files).toArray());
 					     }
 				     })
 				     .failResult([isRecode](const pls::http::Reply &reply) {
@@ -175,6 +176,113 @@ void PLSResCommonFuns::downloadResources(const QJsonArray &urlPaths, const downl
 		replies.replies([&status](const pls::http::Reply &reply) { status[reply.request().attr("originalUrl").toString()] = reply.isDownloadOk(); });
 		if (results) {
 			results(status, !std::any_of(status.begin(), status.end(), [](bool ok) { return !ok; }), urlPaths);
+		}
+	}));
+}
+
+#if defined(Q_OS_WIN)
+void doZip(HZIP zip, const QString &zipPath, const QString &srcPath, QString &subDirPath, bool &dirRecursive)
+{
+	QDir sourceDir(srcPath);
+	QFileInfoList fileInfoList = sourceDir.entryInfoList(QDir::NoDotAndDotDot | QDir::Files | QDir::Dirs);
+	for (const auto &fileInfo : fileInfoList) {
+		if (fileInfo.isDir()) {
+			dirRecursive = true;
+			subDirPath.append("/").append(fileInfo.fileName());
+			doZip(zip, zipPath, fileInfo.filePath(), subDirPath, dirRecursive);
+			continue;
+		} else {
+			dirRecursive = false;
+		}
+
+		QString fileName = fileInfo.fileName();
+		if (!subDirPath.isEmpty()) {
+			ZipAddFolder(zip, (subDirPath + "/").toStdWString().c_str());
+			fileName = subDirPath + "/" + fileName;
+		}
+
+		ZRESULT result = ZipAdd(zip, fileName.toStdWString().c_str(), fileInfo.filePath().toStdWString().c_str());
+		if (result != ZR_OK) {
+			PLS_WARN(pls_resource_const::DATA_ZIP_UZIP, "add file [%s] to zip [%s] failed", fileName.toStdString().c_str(), zipPath.toStdString().c_str());
+			continue;
+		}
+	}
+	if (0 == fileInfoList.count()) {
+		ZipAddFolder(zip, (subDirPath + "/").toStdWString().c_str());
+		subDirPath = subDirPath.mid(0, subDirPath.lastIndexOf("/"));
+		return;
+	}
+	if (!dirRecursive) {
+		subDirPath = subDirPath.mid(0, subDirPath.lastIndexOf("/"));
+	}
+}
+#endif
+
+bool PLSResCommonFuns::zip(const QString &zipPath, const QString &srcPath)
+{
+	if (zipPath.isEmpty() || srcPath.isEmpty()) {
+		return false;
+	}
+#if defined(Q_OS_WIN)
+	HZIP zip = CreateZip(zipPath.toStdWString().c_str(), 0);
+
+	if (!zip) {
+		return false;
+	}
+
+	QString subDir = "";
+	bool dirRecursive = false;
+	doZip(zip, zipPath, srcPath, subDir, dirRecursive);
+
+	CloseZip(zip);
+#elif defined(Q_OS_MACOS)
+	QString path = srcPath.mid(0, srcPath.lastIndexOf("/") + 1);
+	QString name = srcPath.mid(srcPath.lastIndexOf("/") + 1);
+	return pls_zipFile(zipPath, name, path);
+#endif
+	return true;
+}
+
+void PLSResCommonFuns::downloadResources(const QList<QPair<QString, QString>> &urlPaths, const downloadsResultCallback &results, QObject *receiver, bool isRecode)
+{
+	if (urlPaths.isEmpty()) {
+		return;
+	}
+	pls::http::Requests requests;
+	for (auto urlInter = urlPaths.constBegin(); urlInter != urlPaths.constEnd(); ++urlInter) {
+		auto urlStr = urlInter->first;
+
+		requests.add(pls::http::Request()
+				     .method(pls::http::Method::Get) //
+				     .url(urlStr)                    //
+				     .rawHeader("gcc", g_gcc)        //
+				     .forDownload(true)              //
+				     .saveFilePath(urlInter->second) //
+				     .withLog()                      //
+				     .receiver(receiver)
+				     .attr("originalUrl", urlStr)
+				     .okResult([isRecode](const pls::http::Reply &reply) {
+					     PLSRESOURCEMGR_INSTANCE->updateResourceDownloadStatus(reply.request().attr("originalUrl").toString(), PLSResDownloadStatus::DownloadSuccess);
+					     if (isRecode) {
+						     QMetaObject::invokeMethod(PLSResourceManager::instance(), "appendResourceDownloadedNum", Qt::QueuedConnection, Q_ARG(qint64, 1));
+					     }
+				     })
+				     .failResult([isRecode](const pls::http::Reply &reply) {
+					     PLSRESOURCEMGR_INSTANCE->updateResourceDownloadStatus(reply.request().attr("originalUrl").toString(), PLSResDownloadStatus::DownloadFailed);
+
+					     if (isRecode) {
+						     QMetaObject::invokeMethod(PLSResourceManager::instance(), "appendResourceDownloadedNum", Qt::QueuedConnection, Q_ARG(qint64, 1));
+					     }
+				     }));
+	}
+	pls::http::requests(requests.results([results, receiver](const pls::http::Replies &replies) {
+		QList<QPair<QString, bool>> status;
+		replies.replies([&status, receiver](const pls::http::Reply &reply) { status.append({reply.request().attr("originalUrl").toString(), reply.isDownloadOk()}); });
+		if (results) {
+			pls_async_call_mt(receiver, [status, results]() {
+				results(status, std::any_of(status.begin(), status.end(), [](QPair<QString, bool> tmp) { return !tmp.second; }) ? PLSResEvents::RES_DOWNLOAD_FAILED
+																		: PLSResEvents::RES_DOWNLOAD_SUCCESS);
+			});
 		}
 	}));
 }
@@ -398,4 +506,23 @@ bool PLSResCommonFuns::copyDirectory(const QString &srcPath, const QString &dstP
 		}
 	}
 	return true;
+}
+
+void PLSResCommonFuns::findSpecialFile(const QDir &dir, const QString &fllename, QString &outputPath)
+{
+	foreach(const QFileInfo &fileInfo, dir.entryInfoList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot, QDir::DirsLast))
+	{
+		auto name = fileInfo.fileName();
+		if (fileInfo.isDir()) {
+			QDir subDir = fileInfo.dir();
+			subDir.cd(name);
+			findSpecialFile(subDir, fllename, outputPath);
+			if (!outputPath.isEmpty()) {
+				return;
+			}
+		} else if (name == fllename) {
+			outputPath = dir.absolutePath().append(QDir::separator());
+			return;
+		}
+	}
 }

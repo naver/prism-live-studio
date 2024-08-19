@@ -23,7 +23,8 @@ PLSOpenSourceView::PLSOpenSourceView(QWidget *parent) : PLSDialogView(parent)
 	initSize({720, 458});
 	setFixedSize({720, 458});
 
-	loadURL(PLS_SYNC_SERVER_MANAGE->getOpenSourceLicense());
+	QUrl openSourceURL = QUrl::fromLocalFile(PLS_SYNC_SERVER_MANAGE->getOpenSourceLicense());
+	loadURL(openSourceURL.toString());
 	connect(ui->confirmButton, SIGNAL(clicked()), this, SLOT(on_confirmButton_clicked()));
 
 	auto closeEvent = [this](const QCloseEvent *) {

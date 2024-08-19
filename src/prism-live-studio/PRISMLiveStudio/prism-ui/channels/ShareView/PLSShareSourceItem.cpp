@@ -99,11 +99,13 @@ void PLSShareSourceItem::onCopyPressed()
 void PLSShareSourceItem::openUrl() const
 {
 	auto obj = sender();
+	PLS_INFO("PLSShareSourceItem", "start show share link url");
 	if (obj) {
 		QString url = getInfoOfObject(obj, SHARE_URL_KEY, QString());
 		if (!QDesktopServices::openUrl(url)) {
-			qDebug() << " error on openning url :" << url;
+			PLS_ERROR("PLSShareSourceItem", "error on openning url");
 		}
+		PLS_INFO("PLSShareSourceItem", "open url finished");
 	}
 }
 
@@ -129,7 +131,7 @@ void PLSShareSourceItem::updatePixmap()
 	QString uuid = getInfo(mSource, g_channelUUID);
 	QString userHeaderPic;
 	QString platformPic;
-	getComplexImageOfChannel(uuid, userHeaderPic, platformPic, "", ".*profile");
+	getComplexImageOfChannel(uuid, ImageType::tagIcon, userHeaderPic, platformPic, "", ".*profile");
 	ui->UserIconLabel->setMainPixmap(userHeaderPic, QSize(110, 110));
 	ui->UserIconLabel->setPlatformPixmap(platformPic, QSize(34, 34));
 }

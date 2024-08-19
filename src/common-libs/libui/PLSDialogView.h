@@ -175,6 +175,7 @@ public slots:
 
 signals:
 	void shown();
+	void resizing(const QSize &size);
 
 private:
 	void flushMaxFullScreenStateStyle();

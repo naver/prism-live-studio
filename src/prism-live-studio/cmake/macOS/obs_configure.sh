@@ -2,54 +2,40 @@
 
 #!/bin/bash
 
+
+
+
 OBS_ENV=$1
 source ${OBS_ENV}
 
+source "${PROJECT_DIR}/build/mac/prism_build_support_macos.sh"
+step "\n***************************************start config obs project **************************************\n"
+
+cd ${OBS_SRC_DIR}
+
 echo \
-cmake -Wno-dev \
-	 -S "${OBS_SRC_DIR}" \
-     -B "${OBS_BUILD_DIR}" \
-     -G "${GENERATOR}" \
+cmake --preset macos \
 	 -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
 	 -DCMAKE_PREFIX_PATH="${ALL_DEPS}" \
 	 -DRELEASE_CANDIDATE=${VERSION}  \
-     -DCOPIED_DEPENDENCIES=OFF \
-     -DCOPY_DEPENDENCIES=ON \
-     -DBUILD_CAPTIONS=ON \
-	 -DBUILD_BROWSER=ON \
-	 -DCEF_ROOT_DIR="${CEF_ROOT_DIR}" \
 	 -DVIRTUALCAM_GUID="${VIRTUALCAM_GUID}" \
-     -DVLC_PATH=${VLC_DIR} \
-     -DENABLE_VLC=ON  \
 	 -DCMAKE_OSX_DEPLOYMENT_TARGET=${PRISM_OSX_DEPLOYMENT_TARGET} \
 	 -DCMAKE_OSX_ARCHITECTURES="${ARCH}" \
-	 -DENABLE_UI=ON \
-	 -DENABLE_WEBSOCKET=OFF \
-	 -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}" \
-	 -DSWIG_DIR=${OBS_SWIG_DIR}
+	 -DENABLE_WEBSOCKET=ON \
+	 -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}"
 
 
-cmake -Wno-dev \
-	 -S "${OBS_SRC_DIR}" \
-     -B "${OBS_BUILD_DIR}" \
-     -G "${GENERATOR}" \
+cmake --preset macos \
+	 -Wno-dev \
 	 -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
 	 -DCMAKE_PREFIX_PATH="${ALL_DEPS}" \
 	 -DRELEASE_CANDIDATE=${VERSION}  \
-     -DCOPIED_DEPENDENCIES=OFF \
-     -DCOPY_DEPENDENCIES=ON \
-     -DBUILD_CAPTIONS=ON \
-	 -DBUILD_BROWSER=ON \
-	 -DCEF_ROOT_DIR="${CEF_ROOT_DIR}" \
 	 -DVIRTUALCAM_GUID="${VIRTUALCAM_GUID}" \
-     -DVLC_PATH=${VLC_DIR} \
-     -DENABLE_VLC=ON  \
 	 -DCMAKE_OSX_DEPLOYMENT_TARGET=${PRISM_OSX_DEPLOYMENT_TARGET} \
 	 -DCMAKE_OSX_ARCHITECTURES="${ARCH}" \
-	 -DENABLE_UI=ON \
-	 -DENABLE_WEBSOCKET=OFF \
-	 -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}" \
-	 -DSWIG_DIR=${OBS_SWIG_DIR}
+	 -DENABLE_WEBSOCKET=ON \
+	 -DOBS_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}"
 
+step "\n***************************************end config obs project **************************************\n" 
 
 

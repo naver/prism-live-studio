@@ -184,7 +184,13 @@ void OBSHotkeyEdit::ClearKey()
 
 void OBSHotkeyEdit::UpdateDuplicationState()
 {
-	if (dupeIcon && dupeIcon->isVisible() != hasDuplicate) {
+	if (!dupeIcon && !hasDuplicate)
+		return;
+
+	if (!dupeIcon)
+		CreateDupeIcon();
+
+	if (dupeIcon->isVisible() != hasDuplicate) {
 		dupeIcon->setVisible(hasDuplicate);
 		update();
 	}
@@ -354,7 +360,7 @@ void OBSHotkeyWidget::AddEdit(obs_key_combination combo, int idx)
 		removeButtons.emplace_back(remove);
 		edits.emplace_back(edit);
 	}
-
+	layout()->setSpacing(10);
 	layout()->insertLayout(idx, subLayout);
 
 	QObject::connect(revert, &QPushButton::clicked, edit,
@@ -441,11 +447,7 @@ static inline void updateStyle(QWidget *widget)
 	widget->update();
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 void OBSHotkeyWidget::enterEvent(QEnterEvent *event)
-#else
-void OBSHotkeyWidget::enterEvent(QEvent *event)
-#endif
 {
 	if (!label)
 		return;
@@ -474,11 +476,7 @@ void OBSHotkeyLabel::highlightPair(bool highlight)
 	updateStyle(this);
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 void OBSHotkeyLabel::enterEvent(QEnterEvent *event)
-#else
-void OBSHotkeyLabel::enterEvent(QEvent *event)
-#endif
 {
 
 	if (!pairPartner)

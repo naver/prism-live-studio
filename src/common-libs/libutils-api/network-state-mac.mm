@@ -16,6 +16,7 @@ NSString *const kReachabilityChangedNotification = @"kReachabilityChangedNotific
 @property(nonatomic,assign) bool hasIPv4;
 @property(nonatomic,assign) bool hasIPv6;
 @property(nonatomic,assign) bool isConnected;
+@property(nonatomic,assign) bool isFristGot;
 @end
 
 @implementation NetWorkMonitor
@@ -36,6 +37,7 @@ NSString *const kReachabilityChangedNotification = @"kReachabilityChangedNotific
     nw_path_monitor_set_queue(self.monitor,self.monitorQueue);
     __weak NetWorkMonitor *weak_self = self;
     nw_path_monitor_set_update_handler(self.monitor,^(nw_path_t _Nonnull path){
+        bool oldIsConnected = weak_self.isConnected;
         nw_path_status_t status = nw_path_get_status(path);
         weak_self.isConnected = status == nw_path_status_satisfied ? true : false;
         weak_self.isWiFi = nw_path_uses_interface_type(path,nw_interface_type_wifi);
@@ -43,6 +45,12 @@ NSString *const kReachabilityChangedNotification = @"kReachabilityChangedNotific
         weak_self.isEthernet = nw_path_uses_interface_type(path,nw_interface_type_wired);
         weak_self.hasIPv4 = nw_path_has_ipv4(path);
         weak_self.hasIPv6 = nw_path_has_ipv6(path);
+        if (!weak_self.isFristGot) {
+            if (oldIsConnected == weak_self.isConnected) {
+                return;
+            }
+        }
+        weak_self.isFristGot = false;
         [[NSNotificationCenter defaultCenter] postNotificationName:@"kReachabilityChangedNotification" object:nil];
     });
     nw_path_monitor_start(self.monitor);

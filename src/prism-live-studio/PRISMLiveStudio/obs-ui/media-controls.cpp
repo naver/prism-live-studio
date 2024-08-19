@@ -1,5 +1,6 @@
 #include "window-basic-main.hpp"
 #include "media-controls.hpp"
+#include "pls-common-define.hpp"
 #include "obs-app.hpp"
 #include <QToolTip>
 #include <QStyle>
@@ -44,7 +45,8 @@ void MediaControls::OBSMediaPrevious(void *data, calldata_t *)
 }
 
 MediaControls::MediaControls(QWidget *parent)
-	: QWidget(parent), ui(new Ui::MediaControls)
+	: QWidget(parent),
+	  ui(new Ui::MediaControls)
 {
 	ui->setupUi(this);
 	pls_add_css(this, {"MediaControls"});
@@ -54,39 +56,49 @@ MediaControls::MediaControls(QWidget *parent)
 	ui->stopButton->setProperty("themeID", "stopIcon");
 	setFocusPolicy(Qt::StrongFocus);
 
-	connect(&mediaTimer, SIGNAL(timeout()), this,
-		SLOT(SetSliderPosition()));
-	connect(&seekTimer, SIGNAL(timeout()), this, SLOT(SeekTimerCallback()));
-	connect(ui->slider, SIGNAL(sliderPressed()), this,
-		SLOT(MediaSliderClicked()));
-	connect(ui->slider, SIGNAL(mediaSliderHovered(int)), this,
-		SLOT(MediaSliderHovered(int)));
-	connect(ui->slider, SIGNAL(sliderReleased()), this,
-		SLOT(MediaSliderReleased()));
-	connect(ui->slider, SIGNAL(sliderMoved(int)), this,
-		SLOT(MediaSliderMoved(int)));
+	connect(&mediaTimer, &QTimer::timeout, this,
+		&MediaControls::SetSliderPosition);
+	connect(&seekTimer, &QTimer::timeout, this,
+		&MediaControls::SeekTimerCallback);
+	connect(ui->slider, &MediaSlider::sliderPressed, this,
+		&MediaControls::MediaSliderClicked);
+	connect(ui->slider, &MediaSlider::mediaSliderHovered, this,
+		&MediaControls::MediaSliderHovered);
+	connect(ui->slider, &MediaSlider::sliderReleased, this,
+		&MediaControls::MediaSliderReleased);
+	connect(ui->slider, &MediaSlider::sliderMoved, this,
+		&MediaControls::MediaSliderMoved);
 
 	countDownTimer = config_get_bool(App()->GlobalConfig(), "BasicWindow",
 					 "MediaControlsCountdownTimer");
 
 	QAction *restartAction = new QAction(this);
+	restartAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
 	restartAction->setShortcut({Qt::Key_R});
-	connect(restartAction, SIGNAL(triggered()), this, SLOT(RestartMedia()));
+	connect(restartAction, &QAction::triggered, this,
+		&MediaControls::RestartMedia);
 	addAction(restartAction);
 
 	QAction *sliderFoward = new QAction(this);
 	sliderFoward->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-	connect(sliderFoward, SIGNAL(triggered()), this,
-		SLOT(MoveSliderFoward()));
+	connect(sliderFoward, &QAction::triggered, this,
+		&MediaControls::MoveSliderFoward);
 	sliderFoward->setShortcut({Qt::Key_Right});
 	addAction(sliderFoward);
 
 	QAction *sliderBack = new QAction(this);
 	sliderBack->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-	connect(sliderBack, SIGNAL(triggered()), this,
-		SLOT(MoveSliderBackwards()));
+	connect(sliderBack, &QAction::triggered, this,
+		&MediaControls::MoveSliderBackwards);
 	sliderBack->setShortcut({Qt::Key_Left});
 	addAction(sliderBack);
+
+	QAction *playPause = new QAction(this);
+	playPause->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+	connect(playPause, &QAction::triggered, this,
+		&MediaControls::on_playPauseButton_clicked);
+	playPause->setShortcut({Qt::Key_Space});
+	addAction(playPause);
 }
 
 MediaControls::~MediaControls() {}
@@ -286,7 +298,8 @@ void MediaControls::RefreshControls()
 
 	OBSDataAutoRelease settings = obs_source_get_settings(source);
 	const char *localFile = obs_data_get_string(settings, "local_file");
-	if (!localFile || 0 == strlen(localFile)) {
+	if (pls_is_empty(localFile) &&
+	    pls_is_equal(id, common::MEDIA_SOURCE_ID)) {
 		SetRestartState();
 	} else {
 		obs_media_state state = obs_source_media_get_state(source);
@@ -353,7 +366,13 @@ void MediaControls::SetSliderPosition()
 	if (time < 1) {
 		return;
 	}
-	float sliderPosition = (time / duration) * (float)ui->slider->maximum();
+	float sliderPosition;
+
+	if (duration)
+		sliderPosition =
+			(time / duration) * (float)ui->slider->maximum();
+	else
+		sliderPosition = 0.0f;
 
 	ui->slider->setValue((int)sliderPosition);
 

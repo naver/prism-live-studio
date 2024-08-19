@@ -239,6 +239,8 @@ public:
 	explicit PLSMotionFileManager(QObject *parent = nullptr);
 	QVariantList getPrismList() const;
 	QVariantList getFreeList() const;
+	bool isVirtualTemplateJsonExisted();
+	void downloadVirtualJson(const std::function<void(void)> &ok = nullptr, const std::function<void(void)> &fail = nullptr) const;
 	QString getFilePathByURL(const MotionData &data, const QString &url) const;
 	MotionType motionTypeByString(const QString &type) const;
 	bool isDownloadFileExist(const QString &filePath) const;
@@ -309,6 +311,7 @@ private:
 	void deleteMotionListItem(const QString &itemId, QList<MotionData> &list, bool deleteFile = true) const;
 	void deleteLocalFile(const QString &path) const;
 	void saveMotionListToLocalPath(const QString &listTypeKey, QJsonObject &jsonObject, const QList<MotionData> &list) const;
+	QVariantList reloadGetList(const QString &key);
 
 	QList<MotionData> m_virtualRecentList;
 	QList<MotionData> m_propertyRecentList;

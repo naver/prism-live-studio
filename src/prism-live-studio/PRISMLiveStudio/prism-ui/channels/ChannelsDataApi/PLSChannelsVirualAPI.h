@@ -22,7 +22,6 @@ void showChannelInfo(const QString &uuid);
 void showShareView(const QString &channelUUID);
 
 int showSummaryView();
-void showChatView(bool isRebackLogin = false, bool isOnlyShow = false, bool isOnlyInit = false);
 
 void addLoginChannel(const QJsonObject &retJson);
 bool updateChannelInfoFromNet(const QString &uuid);
@@ -50,9 +49,11 @@ void refreshChannel(const QString &uuid);
 
 void resetChannel(const QString &uuid);
 void resetExpiredChannel(const QString &uuid, bool toAsk = true);
-void reloginChannel(const QString &platformName, bool toAsk = true);
+void reloginChannel(const QString &platformName, bool toAsk = true, const QString &errorString = "");
 
 int getReplyContentCode(const QByteArray &data);
+
+QString getReplyErrorCode(const QByteArray &data);
 
 template<typename ReplyType> bool isPrismReplyExpired(ReplyType reply, const QByteArray &data)
 {
@@ -66,6 +67,11 @@ template<typename ReplyType> bool isPrismReplyExpired(ReplyType reply, const QBy
 	return false;
 }
 
+enum class PRISM_API_ERROR {
+	NoError = 0,
+	SystemExccedTimeLimitError = 1,
+};
+
 void reloginPrismExpired();
 //reset channel state when end live ,try check channel state and delete
 void resetAllChannels();
@@ -74,7 +80,7 @@ void refreshAllChannels();
 
 void handleEmptyChannel(const QString &uuid);
 
-void addRTMP();
+void addRTMP(const QString &channleName = QString());
 void editRTMP(const QString &uuid);
 void runCMD(const QString &cmdStr);
 
@@ -114,7 +120,8 @@ LoadingFrame *createBusyFrame(QWidget *parent = nullptr);
 
 void showNetworkErrorAlert();
 void showErrorAlert(int errorType);
-void showNetworkAlertOnlyOnce();
+void showAlertOnlyOnce(int errorType, const QString &title = QString(), const QString &text = QString(), bool isErrorMessage = false);
+PRISM_API_ERROR getPrismApiError(const QByteArray &data, const int &statusCode);
 
 void showChannelsSetting(int index = 0);
 

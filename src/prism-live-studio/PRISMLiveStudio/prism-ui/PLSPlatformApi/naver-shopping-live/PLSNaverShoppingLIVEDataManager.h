@@ -101,7 +101,6 @@ public:
 	void saveOtherInfos() const;
 
 	QSvgRenderer &getDefaultImage();
-	QSvgRenderer &getLiveProductBadgeImage();
 
 	bool hasThumbnailPixmap(const QString &url);
 	bool getThumbnailPixmap(QPixmap &normalPixmap, QPixmap &hoveredPixmap, QPixmap &livePixmap, QPixmap &liveHoveredPixmap, const QString &url, const QString &imagePath);
@@ -137,10 +136,11 @@ signals:
 public:
 	static const int MAX_RECENT_COUNT = 30;
 	static const int MAX_SEARCH_KEYWORDS_COUNT = 15;
-	static const int MAX_LIVEINFO_PRODUCT_COUNT = 30;
-	static const int MAX_FIXED_PRODUCT_COUNT = 3;
+	static const int MAX_LIVEINFO_PRODUCT_COUNT = 100;
+	static const int MAX_FIXED_PRODUCT_COUNT = 10;
 	static const int MIN_LIVEINFO_PRODUCT_COUNT = 1;
 	static const int PRODUCT_PAGE_SIZE = 20;
+	static const int LIVE_INFO_PRODUCT_PAGE_SIZE = 20;
 
 	// product status
 	static const QString PRODUCT_STATUS_WAIT;
@@ -169,7 +169,6 @@ private:
 	PLSPLSNaverShoppingLIVEImageLoadThread *imageLoadThread = nullptr;
 
 	QSvgRenderer defaultImage;
-	QSvgRenderer liveProductBadgeImage;
 
 	QReadWriteLock downloadImagePixmapCacheRWLock{QReadWriteLock::Recursive};
 	// url => (imagePixmap, scaledImagePixmapNormal, scaledImagePixmapHover, scaledImagePixmapLive, scaledImagePixmapLiveHover)

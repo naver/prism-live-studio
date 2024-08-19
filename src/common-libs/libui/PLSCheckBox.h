@@ -7,7 +7,7 @@
 
 class QLabel;
 class QHBoxLayout;
-
+constexpr int SPACING = 10;
 class LIBUI_API PLSCheckBox : public QWidget {
 	Q_OBJECT
 	Q_PROPERTY(QString text READ text WRITE setText)
@@ -17,6 +17,7 @@ class LIBUI_API PLSCheckBox : public QWidget {
 public:
 	explicit PLSCheckBox(QWidget *parent = nullptr);
 	explicit PLSCheckBox(const QString &text, QWidget *parent = nullptr);
+	explicit PLSCheckBox(const QPixmap &pixmap, const QString &text, bool textFirst, const QString &tooltip = QString(), QWidget *parent = nullptr);
 	~PLSCheckBox() override = default;
 
 	bool isCheckable() const { return true; }
@@ -31,6 +32,9 @@ public:
 
 	Qt::CheckState checkState() const;
 	void setCheckState(Qt::CheckState state);
+
+	int getSpac() const;
+	void setSpac(int spac);
 
 public slots:
 	void setIconSize(const QSize &size);
@@ -61,6 +65,7 @@ private:
 	bool m_checked = false;
 	bool m_hovered = false;
 	bool m_pressed = false;
+	int m_spac = SPACING;
 };
 
 class LIBUI_API PLSElideCheckBox : public PLSCheckBox {

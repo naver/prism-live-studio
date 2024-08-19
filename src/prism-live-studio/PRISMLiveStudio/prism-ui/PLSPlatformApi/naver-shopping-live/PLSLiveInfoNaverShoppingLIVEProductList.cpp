@@ -8,11 +8,13 @@
 #include "PLSLoadingView.h"
 #include "PLSAlertView.h"
 #include "pls-common-define.hpp"
+#include "PLSLoadNextPage.h"
 
 #include <QPainter>
 #include <QDesktopServices>
 #include <chrono>
 #include <QPainterPath>
+#include <QHBoxLayout>
 #include "liblog.h"
 
 using namespace common;
@@ -71,10 +73,18 @@ void PLSLiveInfoNaverShoppingLIVEProductCountBadge::paintEvent(QPaintEvent * /*e
 	QRect rect = this->rect();
 	painter.fillRect(rect, Qt::transparent);
 	painter.setPen(Qt::NoPen);
+	painter.setBrush(QColor(39, 39, 39));
+	painter.drawRect(rect);
+
 	painter.setBrush(QColor(239, 252, 53));
-	painter.drawEllipse(rect.adjusted(1, 1, -1, -1));
+	painter.drawRoundedRect(rect, 10, 10);
+
 	painter.setPen(Qt::black);
-	painter.drawText(rect.adjusted(0, -2, 0, 0), productCount, QTextOption(Qt::AlignCenter));
+	int yPos = 0;
+#if defined(Q_OS_WIN)
+	yPos = -2;
+#endif
+	painter.drawText(rect.adjusted(0, yPos, 0, 0), productCount, QTextOption(Qt::AlignCenter));
 }
 
 PLSLiveInfoNaverShoppingLIVEProductList::PLSLiveInfoNaverShoppingLIVEProductList(QWidget *parent) : QWidget(parent)
@@ -83,6 +93,7 @@ PLSLiveInfoNaverShoppingLIVEProductList::PLSLiveInfoNaverShoppingLIVEProductList
 
 	ui->setupUi(this);
 	updateFixProductTip();
+	updateProductBtnNumber();
 	showPage(false);
 
 	auto lang = pls_get_current_language();
@@ -96,7 +107,7 @@ PLSLiveInfoNaverShoppingLIVEProductList::PLSLiveInfoNaverShoppingLIVEProductList
 
 	QHBoxLayout *layout = pls_new<QHBoxLayout>(titleWidget);
 	layout->setContentsMargins(0, 0, 0, 0);
-	layout->setSpacing(8);
+	layout->setSpacing(4);
 
 	QHBoxLayout *layout1 = pls_new<QHBoxLayout>();
 	layout1->setContentsMargins(0, 0, 0, 1);
@@ -120,6 +131,12 @@ PLSLiveInfoNaverShoppingLIVEProductList::PLSLiveInfoNaverShoppingLIVEProductList
 	productCountBadge->hide();
 	layout2->addWidget(productCountBadge);
 
+	productBtnGroup = pls_new<QButtonGroup>(this);
+	connect(productBtnGroup, &QButtonGroup::idClicked, this, [this](int index) { OnBtnGroupClicked(static_cast<PLSProductType>(index)); });
+	productBtnGroup->addButton(ui->mainProductBtn, static_cast<int>(PLSProductType::MainProduct));
+	productBtnGroup->addButton(ui->subProductBtn, static_cast<int>(PLSProductType::SubProduct));
+	ui->mainProductBtn->setChecked(true);
+
 	ui->hline2->installEventFilter(this);
 }
 
@@ -127,6 +144,8 @@ PLSLiveInfoNaverShoppingLIVEProductList::~PLSLiveInfoNaverShoppingLIVEProductLis
 {
 	PLSLiveInfoNaverShoppingLIVEProductItemView::dealloc(itemViews, ui->productsLayout);
 	PLSLoadingView::deleteLoadingView(productLoadingView);
+	PLSLoadNextPage::deleteLoadNextPage(productNextPage);
+
 	pls_delete(ui, nullptr);
 	if (productDialogView) {
 		pls_delete(productDialogView, nullptr);
@@ -153,68 +172,162 @@ void PLSLiveInfoNaverShoppingLIVEProductList::setTitleLabelY(int titleLabelY)
 	titleWidget->move(0, titleLabelY);
 }
 
-QList<qint64> PLSLiveInfoNaverShoppingLIVEProductList::getFixedProductNos() const
+QList<PLSLiveInfoNaverShoppingLIVEProductList::Product> PLSLiveInfoNaverShoppingLIVEProductList::getFixedOrUnfixedProducts(PLSProductType productType, bool fixed) const
 {
-	return fixedProductNos;
-}
+	auto products = getProduct(productType);
+	if (products.isEmpty()) {
+		return {};
+	}
 
-QList<qint64> PLSLiveInfoNaverShoppingLIVEProductList::getUnfixedProductNos() const
-{
-	return unfixedProductNos;
-}
-
-QList<qint64> PLSLiveInfoNaverShoppingLIVEProductList::getAllProductNos() const
-{
-	QList<qint64> allProductNos;
-	for (auto productNo : this->fixedProductNos)
-		allProductNos.append(productNo);
-	for (auto productNo : this->unfixedProductNos)
-		allProductNos.append(productNo);
-	return allProductNos;
-}
-
-QList<PLSLiveInfoNaverShoppingLIVEProductList::Product> PLSLiveInfoNaverShoppingLIVEProductList::getFixedProducts() const
-{
 	QList<Product> fixedProds;
-	for (auto product : this->fixedProducts) {
-		product.represent = true;
-		fixedProds.append(product);
+	for (auto product : products) {
+		if (product.represent == fixed) {
+			fixedProds.append(product);
+		}
 	}
 	return fixedProds;
 }
 
-QList<PLSLiveInfoNaverShoppingLIVEProductList::Product> PLSLiveInfoNaverShoppingLIVEProductList::getUnfixedProducts() const
-{
-	QList<Product> unfixedProds;
-	for (auto product : this->unfixedProducts) {
-		product.represent = false;
-		unfixedProds.append(product);
-	}
-	return unfixedProds;
-}
-
 QList<PLSLiveInfoNaverShoppingLIVEProductList::Product> PLSLiveInfoNaverShoppingLIVEProductList::getAllProducts() const
 {
-	QList<Product> allProducts;
-	for (auto product : this->fixedProducts) {
-		product.represent = true;
-		allProducts.append(product);
+	QList<Product> allTempProducts;
+
+	for (auto key : allProducts.keys()) {
+		auto product = allProducts.value(key);
+		allTempProducts.append(product);
 	}
-	for (auto product : this->unfixedProducts) {
-		product.represent = false;
-		allProducts.append(product);
-	}
-	return allProducts;
+	return allTempProducts;
 }
 
-int PLSLiveInfoNaverShoppingLIVEProductList::getProductNoCount() const
+bool PLSLiveInfoNaverShoppingLIVEProductList::hasUnattachableProduct()
 {
-	return fixedProductNos.count() + unfixedProductNos.count();
+	for (const auto& value : allProducts.values()) {		
+		for (const auto &product : value) {
+			if (!product.attachable) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 int PLSLiveInfoNaverShoppingLIVEProductList::getProductCount() const
 {
-	return fixedProducts.count() + unfixedProducts.count();
+	int count = 0;
+	for (auto key : allProducts.keys()) {
+		count += allProducts.value(key).count();
+	}
+	return count;
+}
+
+QList<qint64> PLSLiveInfoNaverShoppingLIVEProductList::getFixedOrUnfixedProductNos(PLSProductType productType, bool fixed) const
+{
+	auto product = allProducts[productType];
+	if (product.isEmpty()) {
+		return {};
+	}
+
+	QList<qint64> productNos;
+	for (auto pro : product) {
+		if (pro.represent == fixed) {
+			productNos.append(pro.productNo);
+		}
+	}
+	return productNos;
+}
+
+int PLSLiveInfoNaverShoppingLIVEProductList::getProductCount(PLSProductType productType) const
+{
+	return getProduct(productType).count();
+}
+
+PLSProductType PLSLiveInfoNaverShoppingLIVEProductList::getProductType() const
+{
+	bool mainProductChecked = ui->mainProductBtn->isChecked();
+	return mainProductChecked ? PLSProductType::MainProduct : PLSProductType::SubProduct;
+}
+
+QList<PLSNaverShoppingLIVEAPI::ProductInfo> PLSLiveInfoNaverShoppingLIVEProductList::getProduct(PLSProductType productType) const
+{
+	auto iter = allProducts.find(productType);
+	if (iter != allProducts.end()) {
+		return iter.value();
+	}
+	return QList<PLSNaverShoppingLIVEAPI::ProductInfo>();
+}
+
+QList<qint64> PLSLiveInfoNaverShoppingLIVEProductList::getProductNos(PLSProductType productType) const
+{
+	auto product = getProduct(productType);
+	if (product.isEmpty()) {
+		return QList<qint64>();
+	}
+	return toProductNos(product);
+}
+
+QList<qint64> PLSLiveInfoNaverShoppingLIVEProductList::getProductNos(const QList<Product> &products, bool introducing) const
+{
+	QList<qint64> productNos;
+	for (auto pro : products) {
+		if (pro.introducing == introducing) {
+			productNos.append(pro.productNo);
+		}
+	}
+	return productNos;
+}
+
+QMap<PLSProductType, QList<PLSNaverShoppingLIVEAPI::ProductInfo>> PLSLiveInfoNaverShoppingLIVEProductList::getProducts() const
+{
+	return allProducts;
+}
+
+void PLSLiveInfoNaverShoppingLIVEProductList::setProductRepresent(PLSProductType productType, qint64 productNo, bool represent)
+{
+	auto product = allProducts[productType];
+	auto iter = std::find_if(product.begin(), product.end(), [productNo](Product &pro) { return pro.productNo == productNo; });
+	if (iter == product.end()) {
+		return;
+	}
+	auto count = getFixedOrUnfixedProductNos(productType, true).count();
+	Product newProduct = *iter;
+	newProduct.represent = represent;
+
+	int index = iter - product.begin();
+	product.takeAt(index);
+
+	if (represent) {
+		product.emplaceFront(newProduct);
+	} else {
+		product.insert(count - 1, newProduct);
+	}
+	setProduct(productType, product);
+}
+
+void PLSLiveInfoNaverShoppingLIVEProductList::setProductType(PLSProductType productType)
+{
+	ui->mainProductBtn->setChecked(productType == PLSProductType::MainProduct);
+	ui->subProductBtn->setChecked(productType == PLSProductType::SubProduct);
+}
+
+void PLSLiveInfoNaverShoppingLIVEProductList::setProduct(PLSProductType productType, QList<Product> products_)
+{
+	auto iter = allProducts.find(productType);
+	if (iter == allProducts.end()) {
+		allProducts.insert(productType, products_);
+	} else {
+		allProducts[productType] = products_;
+	}
+}
+
+void PLSLiveInfoNaverShoppingLIVEProductList::removeProduct(PLSProductType productType, qint64 productNo)
+{
+	auto product = allProducts[productType];
+	auto iter = std::find_if(product.begin(), product.end(), [productNo](Product &pro) { return pro.productNo == productNo; });
+	if (iter == product.end()) {
+		return;
+	}
+	product.erase(iter);
+	setProduct(productType, product);
 }
 
 void PLSLiveInfoNaverShoppingLIVEProductList::setOwnerScrollArea(QScrollArea *ownerScrollArea_)
@@ -222,47 +335,71 @@ void PLSLiveInfoNaverShoppingLIVEProductList::setOwnerScrollArea(QScrollArea *ow
 	this->ownerScrollArea = ownerScrollArea_;
 }
 
-void PLSLiveInfoNaverShoppingLIVEProductList::setProductNos(const QList<qint64> &fixedProductNos_, const QList<qint64> &unfixedProductNos_, std::function<void()> &&updateFinished)
+void PLSLiveInfoNaverShoppingLIVEProductList::setProductNos(PLSProductType productType, const QList<qint64> &fixedProductNos_, const QList<qint64> &unfixedProductNos_,
+							    const QList<qint64> &introducingProductNos, std::function<void()> &&updateFinished)
 {
 	setIsScheduleLiveLoading(false);
 
 	setProductNosUpdateFinished = std::move(updateFinished);
 
-	if (isEqual(this->fixedProductNos, fixedProductNos_) && isEqual(this->unfixedProductNos, unfixedProductNos_)) {
-		productUpdateFinished();
-		return;
+	PLSLoadNextPage::deleteLoadNextPage(productNextPage);
+	for (auto item : itemViews) {
+		item->setVisible(false);
 	}
 
-	this->fixedProductNos = fixedProductNos_;
-	this->unfixedProductNos = unfixedProductNos_;
-	this->fixedProducts.clear();
-	this->unfixedProducts.clear();
-	PLSLiveInfoNaverShoppingLIVEProductItemView::dealloc(itemViews, ui->productsLayout);
-
 	updateProductCountBadge();
+	updateProductBtnNumber();
 	updateFixProductTip();
-	updateAllProductsInfo();
+	updateAllProductsInfo(productType, fixedProductNos_, unfixedProductNos_, introducingProductNos);
 }
 
 void PLSLiveInfoNaverShoppingLIVEProductList::setAllProducts(const QList<Product> &products, bool update)
 {
-	QList<Product> fixedProds;
-	QList<Product> unfixedProds;
+	QList<Product> mainProducts;
+	QList<Product> subProducts;
+
+	QList<Product> mainFixedProds;
+	QList<Product> mainUnfixedProds;
+	QList<Product> subUnfixedProds;
+
 	for (const auto &product : products) {
-		if (product.represent) {
-			fixedProds.append(product);
-		} else {
-			unfixedProds.append(product);
+		if (product.productType == PLSProductType::MainProduct) {
+			mainProducts.append(product);
+			if (product.represent) {
+				mainFixedProds.append(product);
+			} else {
+				mainUnfixedProds.append(product);
+			}
+		} else if (product.productType == PLSProductType::SubProduct) {
+			subProducts.append(product);
+			subUnfixedProds.append(product);
 		}
 	}
 
-	setProducts(fixedProds, unfixedProds, update);
+	setProduct(PLSProductType::MainProduct, mainProducts);
+	setProduct(PLSProductType::SubProduct, subProducts);
+
+	auto productType = getProductType();
+	if (productType == PLSProductType::MainProduct) {
+		setProducts(productType, mainFixedProds, mainUnfixedProds, update);
+	} else {
+		setProducts(productType, {}, subUnfixedProds, update);
+	}
+	updateProductBtnNumber();
 }
 
-void PLSLiveInfoNaverShoppingLIVEProductList::setProducts(QList<Product> fixedProducts_, QList<Product> unfixedProducts_, bool update)
+void PLSLiveInfoNaverShoppingLIVEProductList::setProducts(PLSProductType productType, QList<Product> fixedProducts_, QList<Product> unfixedProducts_, bool update)
 {
+	this->fixedProducts.clear();
+	this->unfixedProducts.clear();
+
 	if (update) {
-		setProductNos(toProductNos(fixedProducts_), toProductNos(unfixedProducts_));
+		auto fixedProductsNos = toProductNos(fixedProducts_);
+		auto unfixedProductsNos = toProductNos(unfixedProducts_);
+		auto introducingNos = getProductNos(fixedProducts_, true);
+		introducingNos.append(getProductNos(unfixedProducts_, true));
+
+		setProductNos(productType, fixedProductsNos, unfixedProductsNos, introducingNos);
 		return;
 	}
 
@@ -270,12 +407,9 @@ void PLSLiveInfoNaverShoppingLIVEProductList::setProducts(QList<Product> fixedPr
 
 	setProductNosUpdateFinished = nullptr;
 
-	this->fixedProductNos = toProductNos(fixedProducts_);
-	this->unfixedProductNos = toProductNos(unfixedProducts_);
-	this->fixedProducts.clear();
-	this->unfixedProducts.clear();
-
 	if (!fixedProducts_.isEmpty() || !unfixedProducts_.isEmpty()) {
+		updateVisibleProductsInfo(productType, fixedProducts_, unfixedProducts_);
+
 		showPage(true);
 		updateProductsInfo(fixedProducts_, unfixedProducts_);
 		if (checkAgeLimitProducts(fixedProducts_, unfixedProducts_)) {
@@ -289,6 +423,7 @@ void PLSLiveInfoNaverShoppingLIVEProductList::setProducts(QList<Product> fixedPr
 		PLSLiveInfoNaverShoppingLIVEProductItemView::dealloc(itemViews, ui->productsLayout);
 		showPage(false);
 		updateProductCountBadge();
+		updateProductBtnNumber();
 		updateFixProductTip();
 	}
 
@@ -299,8 +434,8 @@ void PLSLiveInfoNaverShoppingLIVEProductList::setProductReadonly(bool readonly)
 {
 	productReadonly = readonly;
 
-	ui->ppAddButton->setEnabled(!readonly && (getProductNoCount() < PLSNaverShoppingLIVEDataManager::MAX_LIVEINFO_PRODUCT_COUNT));
-	ui->nppAddButton->setEnabled(!readonly && (getProductNoCount() < PLSNaverShoppingLIVEDataManager::MAX_LIVEINFO_PRODUCT_COUNT));
+	ui->ppAddButton->setEnabled(!readonly && (getProductCount() < PLSNaverShoppingLIVEDataManager::MAX_LIVEINFO_PRODUCT_COUNT));
+	ui->nppAddButton->setEnabled(!readonly && (getProductCount() < PLSNaverShoppingLIVEDataManager::MAX_LIVEINFO_PRODUCT_COUNT));
 
 	ui->guideWidget->setVisible(!readonly);
 	ui->hline2->setVisible(!readonly);
@@ -352,65 +487,184 @@ void PLSLiveInfoNaverShoppingLIVEProductList::updateWhenDpiChanged() const
 	PLSLiveInfoNaverShoppingLIVEProductItemView::updateWhenDpiChanged(itemViews);
 }
 
-void PLSLiveInfoNaverShoppingLIVEProductList::updateAllProductsInfo()
+void PLSLiveInfoNaverShoppingLIVEProductList::cancelSearchRequest()
 {
-	PLSLiveInfoNaverShoppingLIVEProductItemView::dealloc(itemViews, ui->productsLayout);
+	for (auto key : cancelRequestMap.keys()) {
+		qDebug() << "cancelSearchRequest abort key :" << key;
+		pls::http::Request request = cancelRequestMap.value(key).first;
+		cancelRequestMap[key].second = true;
+		request.abort();
+	}
+}
 
-	if (!fixedProductNos.isEmpty() || !unfixedProductNos.isEmpty()) {
+void PLSLiveInfoNaverShoppingLIVEProductList::searchProduct(int currentPage, PLSProductType productType, const QList<qint64> &fixedProductNos, const QList<qint64> &unfixedProductNos,
+							    const QList<qint64> &introducingProductNos)
+{
+	QString key = createSearchProductKey(fixedProductNos, unfixedProductNos);
+	if (auto iter = cancelRequestMap.find(key); iter != cancelRequestMap.end()) {
+		if (!iter.value().second) {
+			qDebug() << "searchProduct return key :" << key;
+			return;
+		}
+	}
+	qDebug() << "searchProduct -- add key :" << key;
+	cancelRequestMap.insert(key, QPair<pls::http::Request, bool>(pls::http::Request(), false));
+	for (auto key_ : cancelRequestMap.keys()) {
+		if (key_ == key) {
+			continue;
+		}
+		qDebug() << "searchProduct abort key :" << key_;
+		pls::http::Request request = cancelRequestMap.value(key_).first;
+		cancelRequestMap[key_].second = true;
+		request.abort();
+	}
+	pls::http::Request request = PLSNaverShoppingLIVEAPI::productSearchByProductNos(
+		getPlatform(), currentPage, PLSNaverShoppingLIVEDataManager::LIVE_INFO_PRODUCT_PAGE_SIZE, productType, fixedProductNos, unfixedProductNos, introducingProductNos,
+		[this, currentPage, fixedProductNos, unfixedProductNos,
+		 start = std::chrono::steady_clock::now()](bool ok, bool hasNext, PLSProductType productType, QList<PLSNaverShoppingLIVEAPI::ProductInfo> fixedProducts_,
+							   QList<PLSNaverShoppingLIVEAPI::ProductInfo> unfixedProducts_, const QString &searchKey) {
+			auto iter = cancelRequestMap.find(searchKey);
+			if (iter != cancelRequestMap.end()) {
+				if (iter.value().second) {
+					qDebug() << "searchProduct -- remove abort key :" << searchKey;
+					cancelRequestMap.remove(searchKey);
+					if (cancelRequestMap.isEmpty()) {
+						PLSLoadingView::deleteLoadingView(productLoadingView);
+					}
+					return;
+				}
+				qDebug() << "searchProduct -- remove key :" << searchKey;
+				cancelRequestMap.remove(searchKey);
+			}
+
+			updateAllProductsInfo_lambda(currentPage, productType, fixedProductNos, unfixedProductNos, ok, hasNext, fixedProducts_, unfixedProducts_, start);
+		},
+		this, [](const QObject *obj) { return pls_object_is_valid(obj); });
+	cancelRequestMap[key] = QPair<pls::http::Request, bool>(request, false);
+}
+
+void PLSLiveInfoNaverShoppingLIVEProductList::addProduct(const QList<Product> &fixedProducts, const QList<Product> &unfixedProducts)
+{
+	auto fixedProductCount = fixedProducts.count();
+	auto productCount = fixedProducts.count() + unfixedProducts.count();
+	PLSLiveInfoNaverShoppingLIVEProductItemView::addBatchCache(productCount, true);
+
+	for (int i = 0; i < productCount; ++i) {
+		bool fixed = i < fixedProductCount;
+		auto product = fixed ? fixedProducts[i] : unfixedProducts[i - fixedProductCount];
+		if (isProductItemViewExisted(product.productNo)) {
+			continue;
+		}
+
+		product.represent = fixed;
+		product.setAttachmentType(getProductType());
+		if (fixed) {
+			this->fixedProducts.append(product);
+		} else {
+			this->unfixedProducts.append(product);
+		}
+		auto view = PLSLiveInfoNaverShoppingLIVEProductItemView::alloc(ui->products, this, &PLSLiveInfoNaverShoppingLIVEProductList::onFixButtonClicked,
+									       &PLSLiveInfoNaverShoppingLIVEProductList::onRemoveButtonClicked, getPlatform(), product);
+		ui->productsLayout->addWidget(view);
+		pls_flush_style_recursive(view);
+		this->itemViews.append(view);
+		view->show();
+	}
+
+	ui->verticalLayout_2->invalidate();
+}
+
+QString PLSLiveInfoNaverShoppingLIVEProductList::createSearchProductKey(const QList<qint64> &fixedProducts, const QList<qint64> &unfixedProducts)
+{
+	QString key;
+	for (auto no : fixedProducts) {
+		key += QString::number(no).append("-");
+	}
+	for (auto no : unfixedProducts) {
+		key += QString::number(no).append("-");
+	}
+	return key;
+}
+
+void PLSLiveInfoNaverShoppingLIVEProductList::updateAllProductsInfo(PLSProductType productType, const QList<qint64> &fixedProducts, const QList<qint64> &unfixedProducts,
+								    const QList<qint64> &introducingProducts)
+{
+	if (!fixedProducts.isEmpty() || !unfixedProducts.isEmpty()) {
 		showPage(true);
 		setAddButtonEnabled(false);
 		ui->placeholder->show();
 
+		if (!pls_get_network_state()) {
+			return;
+		}
 		PLSLoadingView::newLoadingView(productLoadingView, !setProductNosUpdateFinished, this, productReadonly ? 96 : 65,
 					       [this](QRect &geometry, const PLSLoadingView *loadingView) { return getProductLoadingViewport(geometry, loadingView); });
 		titleWidget->raise();
-
-		PLSNaverShoppingLIVEAPI::productSearchByProductNos(
-			getPlatform(), fixedProductNos, unfixedProductNos,
-			[this, start = std::chrono::steady_clock::now()](bool ok, QList<PLSNaverShoppingLIVEAPI::ProductInfo> fixedProducts_,
-									 QList<PLSNaverShoppingLIVEAPI::ProductInfo> unfixedProducts_) {
-				updateAllProductsInfo_lambda(ok, fixedProducts_, unfixedProducts_, start);
-			},
-			this, [](const QObject *obj) { return pls_object_is_valid(obj); });
+		searchProduct(0, productType, fixedProducts, unfixedProducts, introducingProducts);
 	} else {
+		cancelSearchRequest();
 		showPage(false);
 		setAddButtonEnabled(true);
 		productUpdateFinished();
 	}
 }
 
-void PLSLiveInfoNaverShoppingLIVEProductList::updateAllProductsInfo_lambda(bool ok, QList<PLSNaverShoppingLIVEAPI::ProductInfo> &fixedProducts_,
+void PLSLiveInfoNaverShoppingLIVEProductList::updateAllProductsInfo_lambda(int currentPage, PLSProductType productType, const QList<qint64> &fixedProductNos, const QList<qint64> &unfixedProductNos,
+									   bool ok, bool hasNext, QList<PLSNaverShoppingLIVEAPI::ProductInfo> &fixedProducts_,
 									   QList<PLSNaverShoppingLIVEAPI::ProductInfo> &unfixedProducts_, const std::chrono::steady_clock::time_point &start)
 {
 	if (ok) {
-		updateAllProductsInfo_lambda_ok(fixedProducts_, unfixedProducts_);
+		updateAllProductsInfo_lambda_ok(currentPage, fixedProducts_, unfixedProducts_);
+
+		if (hasNext) {
+			PLSLoadNextPage::newLoadNextPage(productNextPage, ownerScrollArea, [this, currentPage, productType, fixedProductNos, unfixedProductNos, fixedProducts_, unfixedProducts_]() {
+				auto introducingNos = getProductNos(fixedProducts_, true);
+				introducingNos.append(getProductNos(unfixedProducts_, true));
+				searchProduct(currentPage + 1, productType, fixedProductNos, unfixedProductNos, introducingNos);
+			});
+		} else {
+			PLSLoadNextPage::deleteLoadNextPage(productNextPage);
+		}
+
 	} else if ((std::chrono::steady_clock::now() - start) > 300ms) {
-		PLSLoadingView::deleteLoadingView(productLoadingView);
-		showPage(false, true, true);
-		updateProductCountBadge(false);
-		updateFixProductTip();
-		setAddButtonEnabled(true);
-	} else {
-		updateProductCountBadge(false);
-		updateFixProductTip();
-		QTimer::singleShot(300, this, [this]() {
+		if (cancelRequestMap.isEmpty()) {
 			PLSLoadingView::deleteLoadingView(productLoadingView);
 			showPage(false, true, true);
+			updateProductCountBadge(false);
+			updateProductBtnNumber();
+			updateFixProductTip();
 			setAddButtonEnabled(true);
-		});
+		}
+	} else {
+		if (cancelRequestMap.isEmpty()) {
+			updateProductCountBadge(false);
+			updateProductBtnNumber();
+			updateFixProductTip();
+			QTimer::singleShot(300, this, [this]() {
+				PLS_INFO("PLSLiveInfoNaverShoppingLIVEProductList", "single shot timer triggered for update product list UI.");
+				PLSLoadingView::deleteLoadingView(productLoadingView);
+				showPage(false, true, true);
+				setAddButtonEnabled(true);
+			});
+		}
 	}
 
 	emit productChangedOrUpdated(false);
 	productUpdateFinished();
 }
 
-void PLSLiveInfoNaverShoppingLIVEProductList::updateAllProductsInfo_lambda_ok(QList<PLSNaverShoppingLIVEAPI::ProductInfo> &fixedProducts_,
+void PLSLiveInfoNaverShoppingLIVEProductList::updateAllProductsInfo_lambda_ok(int currentPage, QList<PLSNaverShoppingLIVEAPI::ProductInfo> &fixedProducts_,
 									      QList<PLSNaverShoppingLIVEAPI::ProductInfo> &unfixedProducts_)
 {
 	PLSLoadingView::deleteLoadingView(productLoadingView);
 	if (!fixedProducts_.isEmpty() || !unfixedProducts_.isEmpty()) {
 		showPage(true);
-		updateProductsInfo(fixedProducts_, unfixedProducts_);
+
+		if (currentPage == 0) {
+			updateProductsInfo(fixedProducts_, unfixedProducts_);
+		} else {
+			addProduct(fixedProducts_, unfixedProducts_);
+		}
 		if (checkAgeLimitProducts(fixedProducts_, unfixedProducts_)) {
 			if (!fixedProducts_.isEmpty() || !unfixedProducts_.isEmpty()) {
 				updateProductsInfo(fixedProducts_, unfixedProducts_);
@@ -432,7 +686,9 @@ void PLSLiveInfoNaverShoppingLIVEProductList::updateProductsInfo(const QList<Pro
 
 	this->fixedProducts = fixedProducts_;
 	this->unfixedProducts = unfixedProducts_;
+
 	updateProductCountBadge();
+	updateProductBtnNumber();
 	updateFixProductTip();
 
 	allowScrollAreaShowVerticalScrollBar();
@@ -443,14 +699,12 @@ void PLSLiveInfoNaverShoppingLIVEProductList::updateProductsInfo(const QList<Pro
 			auto view = itemViews[j];
 			const auto &product = fixedProducts_[i];
 			view->setInfo(getPlatform(), product, true);
-			view->setProductReadonly(productReadonly);
 		}
 
 		for (int i = 0, j = fixedProductCount; i < unfixedProductCount; ++i, ++j) {
 			auto view = itemViews[j];
 			const auto &product = unfixedProducts_[i];
-			view->setInfo(getPlatform(), product, false);
-			view->setProductReadonly(productReadonly);
+			view->setInfo(getPlatform(), product);
 		}
 
 		if (itemViews.count() > productCount) {
@@ -466,17 +720,14 @@ void PLSLiveInfoNaverShoppingLIVEProductList::updateProductsInfo(const QList<Pro
 		for (int i = 0, count = itemViews.count(); i < count; ++i) {
 			auto view = itemViews[i];
 			const auto &product = (i < fixedProductCount) ? fixedProducts_[i] : unfixedProducts_[i - fixedProductCount];
-			view->setInfo(getPlatform(), product, this->fixedProductNos.contains(product.productNo));
-			view->setProductReadonly(productReadonly);
+			view->setInfo(getPlatform(), product);
 		}
 
 		if (productCount > itemViews.count()) {
 			for (int i = itemViews.count(); i < productCount; ++i) {
 				const auto &product = (i < fixedProductCount) ? fixedProducts_[i] : unfixedProducts_[i - fixedProductCount];
 				auto view = PLSLiveInfoNaverShoppingLIVEProductItemView::alloc(ui->products, this, &PLSLiveInfoNaverShoppingLIVEProductList::onFixButtonClicked,
-											       &PLSLiveInfoNaverShoppingLIVEProductList::onRemoveButtonClicked, getPlatform(), product,
-											       this->fixedProductNos.contains(product.productNo));
-				view->setProductReadonly(productReadonly);
+											       &PLSLiveInfoNaverShoppingLIVEProductList::onRemoveButtonClicked, getPlatform(), product);
 				ui->productsLayout->addWidget(view);
 				pls_flush_style_recursive(view);
 				this->itemViews.append(view);
@@ -488,9 +739,38 @@ void PLSLiveInfoNaverShoppingLIVEProductList::updateProductsInfo(const QList<Pro
 	}
 }
 
+void PLSLiveInfoNaverShoppingLIVEProductList::updateVisibleProductsInfo(PLSProductType productType, QList<Product> &fixedProducts, QList<Product> &unfixedProducts)
+{
+	auto products = fixedProducts + unfixedProducts;
+	if (products.count() <= PLSNaverShoppingLIVEDataManager::LIVE_INFO_PRODUCT_PAGE_SIZE) {
+		return;
+	}
+
+	PLSLoadNextPage::deleteLoadNextPage(productNextPage);
+	PLSLoadNextPage::newLoadNextPage(productNextPage, ownerScrollArea, [this, productType, fixedProducts, unfixedProducts]() {
+		auto fixedProductsNos = toProductNos(fixedProducts);
+		auto unfixedProductsNos = toProductNos(unfixedProducts);
+		auto introducingNos = getProductNos(fixedProducts, true);
+		introducingNos.append(getProductNos(unfixedProducts, true));
+		searchProduct(1, productType, fixedProductsNos, unfixedProductsNos, introducingNos);
+	});
+	fixedProducts.clear();
+	unfixedProducts.clear();
+	for (int i = 0; i < PLSNaverShoppingLIVEDataManager::LIVE_INFO_PRODUCT_PAGE_SIZE; i++) {
+		auto product = products[i];
+		if (product.represent) {
+			fixedProducts.append(product);
+		} else {
+			unfixedProducts.append(product);
+		}
+	}
+}
+
 void PLSLiveInfoNaverShoppingLIVEProductList::updateFixProductTip(bool ok)
 {
-	ui->fixGuideText->setText(tr("NaverShoppingLive.LiveInfo.Product.FixProductTip").arg(ok ? fixedProducts.count() : 0));
+	ui->fixGuideText->setText(tr("NaverShoppingLive.LiveInfo.Product.FixProductTip").arg(ok ? getFixedOrUnfixedProducts(PLSProductType::MainProduct, true).count() : 0));
+	ui->fixGuideText->setVisible(ui->mainProductBtn->isChecked());
+	ui->fixGuideIcon->setVisible(ui->mainProductBtn->isChecked());
 }
 
 void PLSLiveInfoNaverShoppingLIVEProductList::updateProductCountBadge(bool ok)
@@ -498,9 +778,20 @@ void PLSLiveInfoNaverShoppingLIVEProductList::updateProductCountBadge(bool ok)
 	productCountBadge->setProductCount(getProductCount(), ok);
 }
 
+void PLSLiveInfoNaverShoppingLIVEProductList::updateProductBtnNumber()
+{
+	int mainProdutCount = getProductCount(PLSProductType::MainProduct);
+	int subProdutCount = getProductCount(PLSProductType::SubProduct);
+
+	ui->mainProductBtn->setTitle(QTStr("NaverShoppingLive.LiveInfo.Live.Products"));
+	ui->subProductBtn->setTitle(QTStr("NaverShoppingLive.LiveInfo.Other.Products"));
+	ui->mainProductBtn->setSelectedNumber(mainProdutCount);
+	ui->subProductBtn->setSelectedNumber(subProdutCount);
+}
+
 void PLSLiveInfoNaverShoppingLIVEProductList::setAddButtonEnabled(bool enabled)
 {
-	bool addButtonEnabled = enabled && !productReadonly && (getProductNoCount() < PLSNaverShoppingLIVEDataManager::MAX_LIVEINFO_PRODUCT_COUNT);
+	bool addButtonEnabled = enabled && !productReadonly && (getProductCount(getProductType()) < PLSNaverShoppingLIVEDataManager::MAX_LIVEINFO_PRODUCT_COUNT);
 
 	ui->ppAddButton->setEnabled(addButtonEnabled);
 	ui->nppAddButton->setEnabled(addButtonEnabled);
@@ -508,7 +799,8 @@ void PLSLiveInfoNaverShoppingLIVEProductList::setAddButtonEnabled(bool enabled)
 
 void PLSLiveInfoNaverShoppingLIVEProductList::checkProductEmpty()
 {
-	if (fixedProductNos.isEmpty() && unfixedProductNos.isEmpty()) {
+	auto count = getProductCount(getProductType());
+	if (0 == count) {
 		showPage(false);
 	}
 }
@@ -535,10 +827,9 @@ bool PLSLiveInfoNaverShoppingLIVEProductList::checkAgeLimitProducts(QList<Produc
 	}
 
 	for (const auto &product : ageLimitProducts) {
-		fixedProductNos.removeOne(product.productNo);
-		unfixedProductNos.removeOne(product.productNo);
 		removeByProductNo(fixedProducts_, product.productNo);
 		removeByProductNo(unfixedProducts_, product.productNo);
+		removeProduct(getProductType(), product.productNo);
 	}
 	return true;
 }
@@ -546,14 +837,13 @@ bool PLSLiveInfoNaverShoppingLIVEProductList::checkAgeLimitProducts(QList<Produc
 void PLSLiveInfoNaverShoppingLIVEProductList::clearAll()
 {
 	PLSLiveInfoNaverShoppingLIVEProductItemView::dealloc(itemViews, ui->productsLayout);
-	this->fixedProductNos.clear();
-	this->unfixedProductNos.clear();
 	this->fixedProducts.clear();
 	this->unfixedProducts.clear();
 	showPage(false);
 	setAddButtonEnabled(true);
 	updateFixProductTip();
 	updateProductCountBadge();
+	updateProductBtnNumber();
 }
 
 void PLSLiveInfoNaverShoppingLIVEProductList::onFixButtonClicked(PLSLiveInfoNaverShoppingLIVEProductItemView *itemView)
@@ -561,6 +851,7 @@ void PLSLiveInfoNaverShoppingLIVEProductList::onFixButtonClicked(PLSLiveInfoNave
 	PLS_UI_STEP(MODULE_NAVER_SHOPPING_LIVE_LIVEINFO, "Fix Product Button", ACTION_CLICK);
 
 	qint64 productNo = itemView->getProductNo();
+	auto fixedProductNos = getFixedOrUnfixedProductNos(getProductType(), true);
 	if (!itemView->isFixed()) {
 		if (fixedProductNos.count() >= PLSNaverShoppingLIVEDataManager::MAX_FIXED_PRODUCT_COUNT) {
 			PLSAlertView::information(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.FixProduct.Limit"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
@@ -575,7 +866,12 @@ void PLSLiveInfoNaverShoppingLIVEProductList::onFixButtonClicked(PLSLiveInfoNave
 void PLSLiveInfoNaverShoppingLIVEProductList::onRemoveButtonClicked(const PLSLiveInfoNaverShoppingLIVEProductItemView *itemView)
 {
 	PLS_UI_STEP(MODULE_NAVER_SHOPPING_LIVE_LIVEINFO, "Remove Product Button", ACTION_CLICK);
-	if (isLiving && (getProductNoCount() == PLSNaverShoppingLIVEDataManager::MIN_LIVEINFO_PRODUCT_COUNT)) {
+	if (getProductType() != PLSProductType::MainProduct) {
+		doProductRemoved(itemView);
+		return;
+	}
+
+	if (isLiving && (getProductCount(PLSProductType::MainProduct) == PLSNaverShoppingLIVEDataManager::MIN_LIVEINFO_PRODUCT_COUNT)) {
 		pls_alert_error_message(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Product.AtLeastOne"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
 	} else {
 		doProductRemoved(itemView);
@@ -584,7 +880,8 @@ void PLSLiveInfoNaverShoppingLIVEProductList::onRemoveButtonClicked(const PLSLiv
 
 void PLSLiveInfoNaverShoppingLIVEProductList::onSmartStoreChanged()
 {
-	if (!fixedProductNos.isEmpty() || !unfixedProductNos.isEmpty()) {
+	auto count = getProductCount(getProductType());
+	if (0 == count) {
 		clearAll();
 		PLSLoadingView::newLoadingView(productLoadingView, this, 65, [this](QRect &geometry, const PLSLoadingView *loadingView) { return getProductLoadingViewport(geometry, loadingView); });
 		titleWidget->raise();
@@ -597,39 +894,39 @@ void PLSLiveInfoNaverShoppingLIVEProductList::onSmartStoreChanged()
 void PLSLiveInfoNaverShoppingLIVEProductList::doProductFixed(PLSLiveInfoNaverShoppingLIVEProductItemView *itemView, bool isFixed)
 {
 	qint64 productNo = itemView->getProductNo();
+	auto productType = getProductType();
+
+	auto fixedProductNos = getFixedOrUnfixedProductNos(productType, true);
+	setProductRepresent(getProductType(), productNo, isFixed);
+
 	if (isFixed) {
 		if (!fixedProductNos.contains(productNo)) {
-			fixedProductNos.prepend(productNo);
-			fixedProducts.prepend(itemView->getProduct());
-			unfixedProductNos.removeOne(productNo);
 			removeByProductNo(unfixedProducts, productNo);
 		} else if (fixedProductNos.first() != productNo) {
-			fixedProductNos.removeOne(productNo);
 			removeByProductNo(fixedProducts, productNo);
-			fixedProductNos.prepend(productNo);
-			fixedProducts.prepend(itemView->getProduct());
 		} else {
 			return;
 		}
 
 		updateFixProductTip();
 		itemView->setFixed(true);
+		fixedProducts.prepend(itemView->getProduct());
 		ui->productsLayout->removeWidget(itemView);
 		ui->productsLayout->insertWidget(0, itemView);
 		itemViews.removeOne(itemView);
 		itemViews.insert(0, itemView);
 	} else {
-		unfixedProductNos.prepend(productNo);
-		unfixedProducts.prepend(itemView->getProduct());
-		fixedProductNos.removeOne(productNo);
 		removeByProductNo(fixedProducts, productNo);
 		updateFixProductTip();
 
 		itemView->setFixed(false);
+		unfixedProducts.prepend(itemView->getProduct());
 		ui->productsLayout->removeWidget(itemView);
-		ui->productsLayout->insertWidget(fixedProductNos.count(), itemView);
+		auto fixedProductCount = getFixedOrUnfixedProductNos(productType, true).count();
+
+		ui->productsLayout->insertWidget(fixedProductCount, itemView);
 		itemViews.removeOne(itemView);
-		itemViews.insert(fixedProductNos.count(), itemView);
+		itemViews.insert(fixedProductCount, itemView);
 	}
 
 	emit productChangedOrUpdated(true);
@@ -638,15 +935,16 @@ void PLSLiveInfoNaverShoppingLIVEProductList::doProductFixed(PLSLiveInfoNaverSho
 void PLSLiveInfoNaverShoppingLIVEProductList::doProductRemoved(const PLSLiveInfoNaverShoppingLIVEProductItemView *itemView)
 {
 	qint64 productNo = itemView->getProductNo();
-	fixedProductNos.removeOne(productNo);
-	unfixedProductNos.removeOne(productNo);
+
 	removeByProductNo(fixedProducts, productNo);
 	removeByProductNo(unfixedProducts, productNo);
+	auto productType = getProductType();
+	removeProduct(productType, productNo);
 
 	updateProductsInfo(fixedProducts, unfixedProducts);
 	setAddButtonEnabled(true);
 
-	if (getProductNoCount() == 0) {
+	if (getProductCount(getProductType()) == 0) {
 		showPage(false);
 	}
 
@@ -663,7 +961,12 @@ bool PLSLiveInfoNaverShoppingLIVEProductList::getProductLoadingViewport(QRect &g
 	const QWidget *viewport = ownerScrollArea->viewport();
 	QRect viewportRect{viewport->mapToGlobal(QPoint{0, 0}), viewport->size()};
 	QRect parentRect{this->mapToGlobal(pos), this->size()};
+
 	geometry = viewportRect & parentRect;
+	if (0 == geometry.width() || 0 == geometry.height()) {
+		geometry.setWidth(parentRect.width());
+		geometry.setHeight(parentRect.height());
+	}
 	geometry.moveTopLeft(pos);
 	return true;
 }
@@ -683,9 +986,13 @@ void PLSLiveInfoNaverShoppingLIVEProductList::showPage(bool hasProducts, bool sh
 		ui->noNetPage->hide();
 		if (!isScheduleLive && !isScheduleLiveLoading) {
 			ui->scheNoProductWidget->hide();
+			ui->noProductTipLabel->setText(ui->mainProductBtn->isChecked() ? QTStr("NaverShoppingLive.LiveInfo.Main.Product.NoProductTip")
+										       : QTStr("NaverShoppingLive.LiveInfo.Sub.Product.NoProductTip"));
 			ui->noProductPage->show();
 		} else {
 			ui->noProductPage->hide();
+			ui->gotoNaverShoppingToolTipLabel1->setText(ui->mainProductBtn->isChecked() ? QTStr("NaverShoppingLive.LiveInfo.Main.Product.NoProductTip")
+												    : QTStr("NaverShoppingLive.LiveInfo.Sub.Product.NoProductTip"));
 			ui->scheNoProductWidget->setVisible(!isScheduleLiveLoading);
 		}
 	} else {
@@ -712,6 +1019,32 @@ void PLSLiveInfoNaverShoppingLIVEProductList::allowScrollAreaShowVerticalScrollB
 	}
 }
 
+void PLSLiveInfoNaverShoppingLIVEProductList::OnBtnGroupClicked(PLSProductType productType)
+{
+	PLSLoadNextPage::deleteLoadNextPage(productNextPage);
+	auto products = getProduct(productType);
+
+	QList<Product> fixedProducts;
+	QList<Product> unfixedProducts;
+	for (auto product : products) {
+		if (product.represent) {
+			fixedProducts.append(product);
+		} else {
+			unfixedProducts.append(product);
+		}
+	}
+
+	setProducts(productType, fixedProducts, unfixedProducts, true);
+
+	setAddButtonEnabled(products.count() <= PLSNaverShoppingLIVEDataManager::MAX_LIVEINFO_PRODUCT_COUNT);
+}
+
+bool PLSLiveInfoNaverShoppingLIVEProductList::isProductItemViewExisted(qint64 productNo)
+{
+	auto iter = std::find_if(itemViews.begin(), itemViews.end(), [productNo](PLSLiveInfoNaverShoppingLIVEProductItemView *item) { return item->getProductNo() == productNo; });
+	return iter != itemViews.end();
+}
+
 void PLSLiveInfoNaverShoppingLIVEProductList::on_nppAddButton_clicked()
 {
 	on_ppAddButton_clicked();
@@ -723,7 +1056,13 @@ void PLSLiveInfoNaverShoppingLIVEProductList::on_ppAddButton_clicked()
 
 	pls_delete(productDialogView, nullptr);
 
-	productDialogView = pls_new<PLSNaverShoppingLIVEProductDialogView>(getPlatform(), getAllProducts(), isLiving, isPlanningLive, pls_get_toplevel_view(this));
+	PLSProductType productType = getProductType();
+	bool isMainProduct = productType == PLSProductType::MainProduct;
+	PLSProductType otherType = isMainProduct ? PLSProductType::SubProduct : PLSProductType::MainProduct;
+	productDialogView =
+		pls_new<PLSNaverShoppingLIVEProductDialogView>(getPlatform(), productType, getProduct(productType), getProduct(otherType), isLiving, isPlanningLive, pls_get_toplevel_view(this));
+	QString title = isMainProduct ? QTStr("NaverShoppingLive.LiveInfo.Live.Products") : QTStr("NaverShoppingLive.LiveInfo.Other.Products");
+	productDialogView->setWindowTitle(title);
 	connect(productDialogView, &PLSNaverShoppingLIVEProductDialogView::smartStoreChanged, this, &PLSLiveInfoNaverShoppingLIVEProductList::onSmartStoreChanged, Qt::DirectConnection);
 	if (productDialogView->exec() != PLSNaverShoppingLIVEProductDialogView::Accepted) {
 		return;
@@ -732,7 +1071,7 @@ void PLSLiveInfoNaverShoppingLIVEProductList::on_ppAddButton_clicked()
 	QList<qint64> selectedProductNos = productDialogView->getSelectedProductNos();
 	std::sort(selectedProductNos.begin(), selectedProductNos.end());
 
-	QList<qint64> currentProductNos = getAllProductNos();
+	QList<qint64> currentProductNos = getProductNos(productType);
 	std::sort(currentProductNos.begin(), currentProductNos.end());
 
 	if (isEqual(currentProductNos, selectedProductNos)) {
@@ -741,17 +1080,24 @@ void PLSLiveInfoNaverShoppingLIVEProductList::on_ppAddButton_clicked()
 
 	QList<Product> fixedProds;
 	QList<Product> unfixedProds;
-	for (const auto &selectedProduct : productDialogView->getSelectedProducts()) {
-		if (this->fixedProductNos.contains(selectedProduct.productNo)) {
+	for (auto &selectedProduct : productDialogView->getSelectedProducts()) {
+		selectedProduct.setAttachmentType(productType);
+		auto fixedProductNos = getFixedOrUnfixedProductNos(productType, true);
+		if (fixedProductNos.contains(selectedProduct.productNo)) {
 			fixedProds.append(selectedProduct);
 		} else {
 			unfixedProds.append(selectedProduct);
 		}
 	}
 
-	if ((getProductCount() <= 0) && fixedProds.isEmpty() && !unfixedProds.isEmpty()) {
-		fixedProds.append(unfixedProds.takeLast());
+	if (productType == PLSProductType::MainProduct && (getProductCount(productType) <= 0) && fixedProds.isEmpty() && !unfixedProds.isEmpty()) {
+		auto product = unfixedProds.takeLast();
+		product.represent = true;
+		fixedProds.append(product);
 	}
+
+	// update
+	setProduct(productType, fixedProds + unfixedProds);
 
 	if (!fixedProds.isEmpty() || !unfixedProds.isEmpty()) {
 		showPage(true, false, false, false);
@@ -759,9 +1105,8 @@ void PLSLiveInfoNaverShoppingLIVEProductList::on_ppAddButton_clicked()
 
 		showPage(true);
 		PLSNaverShoppingLIVEDataManager::instance()->addRecentProductNos(productDialogView->getNewRecentProductNos());
-		this->fixedProductNos = toProductNos(fixedProds);
-		this->unfixedProductNos = toProductNos(unfixedProds);
-		updateProductsInfo(fixedProds, unfixedProds);
+
+		setProducts(productType, fixedProds, unfixedProds, false);
 		setAddButtonEnabled(true);
 		emit productChangedOrUpdated(true);
 	} else {
@@ -773,7 +1118,11 @@ void PLSLiveInfoNaverShoppingLIVEProductList::on_ppAddButton_clicked()
 void PLSLiveInfoNaverShoppingLIVEProductList::on_noNetRetryButton_clicked()
 {
 	if (pls_get_network_state()) {
-		updateAllProductsInfo();
+		auto productType = getProductType();
+		auto fixedProducts = getFixedOrUnfixedProductNos(productType, true);
+		auto unfixedProducts = getFixedOrUnfixedProductNos(productType, false);
+		auto introducingNos = getProductNos(getProduct(productType), true);
+		updateAllProductsInfo(productType, fixedProducts, unfixedProducts, introducingNos);
 	}
 }
 
@@ -802,4 +1151,36 @@ bool PLSLiveInfoNaverShoppingLIVEProductList::eventFilter(QObject *watched, QEve
 	}
 
 	return QWidget::eventFilter(watched, event);
+}
+
+PLSProductBtn::PLSProductBtn(QWidget *parent)
+{
+	QHBoxLayout *hLayout = pls_new<QHBoxLayout>(this);
+	hLayout->setContentsMargins(0, 0, 0, 2);
+	hLayout->setSpacing(6);
+	hLayout->setAlignment(Qt::AlignCenter);
+
+	titleLabel = pls_new<QLabel>(QTStr("NaverShoppingLive.LiveInfo.Live.Products"), this);
+	titleLabel->setObjectName("proTitleLabel");
+
+	countLabel = pls_new<QLabel>(QTStr("0/100"), this);
+	countLabel->setObjectName("proCountLabel");
+
+	hLayout->addWidget(titleLabel);
+	hLayout->addWidget(countLabel);
+
+	connect(this, &QPushButton::toggled, this, [this](bool checked) {
+		pls_flush_style(titleLabel, "checked", checked);
+		pls_flush_style(countLabel, "checked", checked);
+	});
+}
+
+void PLSProductBtn::setTitle(const QString &title)
+{
+	titleLabel->setText(title);
+}
+
+void PLSProductBtn::setSelectedNumber(int count)
+{
+	countLabel->setText(QString("%1/100").arg(count));
 }

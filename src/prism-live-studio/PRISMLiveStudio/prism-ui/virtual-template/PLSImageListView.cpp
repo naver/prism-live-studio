@@ -16,6 +16,7 @@
 #include <QVBoxLayout>
 #include <QScrollBar>
 #include "liblog.h"
+#include "PLSBasic.h"
 
 const int FLOW_LAYOUT_HSPACING = 12;
 const int FLOW_LAYOUT_VSPACING = 12;
@@ -401,11 +402,11 @@ void PLSImageListView::movieViewClicked(const PLSMotionItemView *movieView)
 	const MotionData &motionData = movieView->motionData();
 	if (!PLSMotionFileManager::instance()->isValidMotionData(motionData)) {
 		if (motionData.canDelete) {
-			pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("virtual.resource.localfile.disappear.tip"));
+			pls_alert_error_message(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.localfile.disappear.tip"));
 			return;
 		} else {
 #if 0
-			PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("virtual.resource.file.disappaer.tip"));
+			PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.file.disappaer.tip"));
 			return;
 #endif
 		}
@@ -425,7 +426,8 @@ void PLSImageListView::filterButtonClicked()
 
 void PLSImageListView::deleteAllButtonClicked()
 {
-	if (PLSAlertView::question(this, tr("Alert.Title"), tr("virtual.mylist.deleteAll.popup"), PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel) != PLSAlertView::Button::Ok) {
+	if (PLSAlertView::question(PLSBasic::instance()->GetPropertiesWindow(), tr("Alert.Title"), tr("virtual.mylist.deleteAll.popup"), PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel) !=
+	    PLSAlertView::Button::Ok) {
 		return;
 	}
 
@@ -449,13 +451,13 @@ void PLSImageListView::deleteFileButtonClicked(const MotionData &data)
 	if (!isRecent) {
 		// recent no popup
 		if (isVbUsed || isSourceUsed) {
-			if (PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("virtual.resource.file.using.delete.tip"), PLSAlertView::Button::Yes | PLSAlertView::Button::No) !=
-			    PLSAlertView::Button::Yes) {
+			if (PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.file.using.delete.tip"),
+						  PLSAlertView::Button::Yes | PLSAlertView::Button::No) != PLSAlertView::Button::Yes) {
 				return;
 			}
 		} else {
-			if (PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("virtual.resource.file.delete.tip"), PLSAlertView::Button::Yes | PLSAlertView::Button::No) !=
-			    PLSAlertView::Button::Yes) {
+			if (PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.Title"), QTStr("virtual.resource.file.delete.tip"),
+						  PLSAlertView::Button::Yes | PLSAlertView::Button::No) != PLSAlertView::Button::Yes) {
 				return;
 			}
 		}

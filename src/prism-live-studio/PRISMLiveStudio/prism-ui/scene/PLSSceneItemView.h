@@ -81,13 +81,15 @@ public:
 	gs_texture_t *GetBtnTexture();
 	gs_texture_t *GetBadgeTexture();
 	void DrawThumbnail();
-	void SaveSceneTexture(uint32_t cx, uint32_t cy);
-	void DrawDefaultThumbnail() const;
+	bool CheckTextureChanged(uint32_t cx, uint32_t cy);
+	void RenderSceneTexture(uint32_t cx, uint32_t cy, uint32_t targetCX, uint32_t targetCY);
+	void DrawDefaultThumbnail();
 	void SetBadgeType(BadgeType badgeType);
 	BadgeType GetBadgeType();
 	void GetRadiusTexture() const;
 	QSize GetWidgetSize() override;
 	void ResizeDisplay();
+	void SetDpi(float dpi);
 
 protected:
 	void mousePressEvent(QMouseEvent *event) override;
@@ -135,7 +137,7 @@ private:
 	// scene display method
 	bool refreshThumbnail{true};
 	DisplayMethod displayMethod{DisplayMethod::TextView};
-	obs_display_t *curDisplay{nullptr};
+	uint64_t curDisplay;
 	// static thumbnail texture
 	gs_texture_t *item_texture{nullptr};
 	// border radius texture
@@ -159,6 +161,7 @@ private:
 
 	BadgeType badgeType;
 	QRectF rect_delete_btn;
+	double dpi = 1.0;
 };
 
 class PLSSceneItemView : public QFrame {
@@ -184,6 +187,7 @@ public:
 	bool GetCurrentFlag() const;
 	void RefreshSceneThumbnail() const;
 	void RepaintDisplay();
+	void SetDpi(float dpi);
 
 	// set status badge
 	void SetStatusBadge();

@@ -47,11 +47,7 @@ public:
 	virtual void resetWhenRefresh();
 
 	//login
-	virtual void beginLogin();
-	//call api before login
-	virtual void prelogin();
-	//actual login with webpage
-	virtual void loginWithWebPage();
+	virtual void loginWithWebPage(const QString &cmdStr);
 
 	virtual void showLiveInfo(const QString & /*uuid*/){};
 
@@ -63,7 +59,7 @@ public:
 	virtual void downloadImage();
 
 signals:
-	void preloginFinished();
+	void preloginFinished(const QString &cmdStr);
 	void loginFinished();
 	void updateFinished();
 

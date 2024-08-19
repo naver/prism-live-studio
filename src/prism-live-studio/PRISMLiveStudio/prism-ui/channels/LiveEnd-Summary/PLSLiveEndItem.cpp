@@ -27,7 +27,8 @@ PLSLiveEndItem::~PLSLiveEndItem()
 
 void PLSLiveEndItem::setupData()
 {
-	QString platformName = mSourceData.value(ChannelData::g_platformName, "--").toString();
+	ui->statusWidget->layout()->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+	QString platformName = mSourceData.value(ChannelData::g_channelName, "--").toString();
 	m_shareUrl = mSourceData.value(ChannelData::g_shareUrlTemp, "").toString();
 
 	ui->tipWidget->setHidden(!needShowTipView());
@@ -36,7 +37,7 @@ void PLSLiveEndItem::setupData()
 	ui->dotLabel->setText("");
 	ui->pushButton_tip->setLabelText(tr("nshopping.end.item.button.text"));
 
-	ui->pushButton_share->setHidden(true);
+	ui->pushButton_share->onlyHideContent(true);
 
 	setNameElideString();
 
@@ -52,14 +53,10 @@ void PLSLiveEndItem::combineTwoImage()
 	using namespace ChannelData;
 	QString userIcon;
 	QString platformIcon;
-	bool needSharp = false;
 	int type = getInfo(mSourceData, g_data_type, NoType);
-	if (type == ChannelType) {
-		needSharp = true;
-	}
-	getComplexImageOfChannel(getInfo(mSourceData, g_channelUUID), userIcon, platformIcon);
+	getComplexImageOfChannel(getInfo(mSourceData, g_channelUUID), ImageType::tagIcon, userIcon, platformIcon);
 	ui->channelIcon->setPlatformPixmap(platformIcon, QSize(18, 18));
-	ui->channelIcon->setMainPixmap(userIcon, QSize(34, 34), needSharp);
+	ui->channelIcon->setMainPixmap(userIcon, QSize(34, 34), true);
 }
 
 void PLSLiveEndItem::setupStatusWidget()
@@ -67,7 +64,7 @@ void PLSLiveEndItem::setupStatusWidget()
 	ui->statusWidget->setHidden(true);
 
 	auto dataType = getInfo(mSourceData, ChannelData::g_data_type, ChannelData::RTMPType);
-	QString platformName = mSourceData.value(ChannelData::g_platformName, "").toString();
+	QString platformName = mSourceData.value(ChannelData::g_channelName, "").toString();
 
 	if (dataType != ChannelData::ChannelType) {
 		return;
@@ -88,6 +85,13 @@ void PLSLiveEndItem::setupStatusWidget()
 
 void PLSLiveEndItem::refreshUIWhenDPIChanged(double dpi, const QString &platformName)
 {
+	auto isShowShare = getInfo(mSourceData, ChannelData::g_showEndShare, false);
+	if (platformName == YOUTUBE || isShowShare == true) {
+		ui->pushButton_share->seIsLeftAlign(true);
+		ui->pushButton_share->setLabelText(m_shareUrl, true);
+		ui->pushButton_share->onlyHideContent(false);
+	}
+
 	QString count1 = mSourceData.value(ChannelData::g_viewers, "").toString();
 	QString count2 = mSourceData.value(ChannelData::g_likes, "").toString();
 	QString count3 = mSourceData.value(ChannelData::g_comments, "").toString();
@@ -124,14 +128,20 @@ void PLSLiveEndItem::refreshUIWhenDPIChanged(double dpi, const QString &platform
 		ui->statusLabel1->setHidden(true);
 	} else {
 		auto viewList = PLSCHANNELS_API->getEndLiveList(mSourceData);
-		assert(viewList.size() >= 3);
-		for (int i = 0; i < viewList.size() && i * 2 + 1 < ui->counLayout->count(); ++i) {
-			const auto &p = viewList[i];
+		int maxSize = 3;
+		assert(viewList.size() <= 3);
+		for (int i = 0; i < maxSize && (i * 2 + 1) < ui->counLayout->count(); ++i) {
 			auto imageLb = dynamic_cast<QLabel *>(ui->counLayout->itemAt(i * 2)->widget());
 			auto txtLb = dynamic_cast<QLabel *>(ui->counLayout->itemAt(i * 2 + 1)->widget());
 			if (imageLb == nullptr || txtLb == nullptr) {
 				continue;
 			}
+			if (viewList.size() <= i) {
+				imageLb->hide();
+				txtLb->hide();
+				continue;
+			}
+			const auto &p = viewList[i];
 			if (p.first.isEmpty()) {
 				imageLb->hide();
 				txtLb->hide();
@@ -150,18 +160,12 @@ void PLSLiveEndItem::refreshUIWhenDPIChanged(double dpi, const QString &platform
 	ui->statusLabel1->setText(toThousandsNum(count1));
 	ui->statusLabel2->setText(toThousandsNum(count2));
 	ui->statusLabel3->setText(toThousandsNum(count3));
-
-	if (platformName == YOUTUBE) {
-		ui->pushButton_share->seIsLeftAlign(true);
-		ui->pushButton_share->setLabelText(m_shareUrl);
-		ui->pushButton_share->setHidden(false);
-	}
 }
 
 bool PLSLiveEndItem::needShowTipView() const
 {
 	auto dataType = getInfo(mSourceData, ChannelData::g_data_type, ChannelData::RTMPType);
-	QString platformName = mSourceData.value(ChannelData::g_platformName, "").toString();
+	QString platformName = mSourceData.value(ChannelData::g_channelName, "").toString();
 	return dataType == ChannelData::ChannelType && platformName == NAVER_SHOPPING_LIVE;
 }
 
@@ -213,5 +217,7 @@ void PLSLiveEndItem::shareButtonClicked() const
 		PLS_INFO(END_MODULE, "PLSEnd Dialog shared url is empty");
 		return;
 	}
-	QDesktopServices::openUrl(QUrl(m_shareUrl));
+	if (!QDesktopServices::openUrl(QUrl(m_shareUrl).toString())) {
+		PLS_WARN(END_MODULE, "shareButtonClicked failed");
+	}
 }

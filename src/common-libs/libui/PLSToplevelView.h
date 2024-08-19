@@ -61,6 +61,8 @@ public:
 
 	bool isAlwaysOnTop() const;
 	static bool isAlwaysOnTop(const QWidget *widget);
+	void disableWinSystemBorder() const;
+	static void disableWinSystemBorder(const QWidget *widget);
 
 public:
 	virtual QWidget *self() const = 0;
@@ -78,6 +80,8 @@ protected:
 	virtual bool moveInContentExcludeChild(QWidget *parentWidget, QWidget *childWidget) const;
 
 	virtual void onRestoreGeometry();
+
+	virtual void nativeResizeEvent(const QSize &size, const QSize &nativeSize);
 
 	QSize calcSize(const QSize &size) const;
 
@@ -116,7 +120,6 @@ public:
 		PLSToplevelWidget::initSize(sz);
 		QtBase::resize(sz);
 	}
-
 	void setFixedSize(int width, int height) { setFixedSize({width, height}); }
 	void setFixedSize(const QSize &size)
 	{
@@ -124,6 +127,10 @@ public:
 		QtBase::setFixedSize(sz);
 		initSize(sz);
 	}
+	void setMinimumSize(const QSize &size) { QtBase::setMinimumSize(calcSize(size)); }
+	void setMinimumSize(int minw, int minh) { setMinimumSize({minw, minh}); }
+	void setMaximumSize(const QSize &size) { QtBase::setMaximumSize(calcSize(size)); }
+	void setMaximumSize(int maxw, int maxh) { setMaximumSize({maxw, maxh}); }
 
 	QByteArray saveGeometry() const final { return pls::ui::toplevelView_saveGeometry(this); }
 	void restoreGeometry(const QByteArray &geometry) final { pls::ui::toplevelView_restoreGeometry(this, geometry); }

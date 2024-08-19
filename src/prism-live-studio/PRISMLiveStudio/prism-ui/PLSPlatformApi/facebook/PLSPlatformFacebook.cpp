@@ -271,6 +271,7 @@ void PLSPlatformFacebook::getLongLivedUserAccessToken(const MyRequestTypeFunctio
 void PLSPlatformFacebook::getUserInfo(const MyRequestTypeFunction &onFinished)
 {
 	auto callBack = [onFinished, this](PLSAPIFacebookType type, const QString &username, const QString &imagePath, const QString &userId) {
+		pls_check_app_exiting();
 		if (type == PLSAPIFacebookType::PLSFacebookSuccess) {
 			getUserInfoSuccess(userId, username, imagePath);
 			onFinished(type);
@@ -374,39 +375,19 @@ void PLSPlatformFacebook::startLiving(const MyRequestTypeFunction &onFinished)
 
 	auto livingFinished = [this, onFinished, shareObjectName](PLSAPIFacebookType type, const QString &streamURL, const QString &liveId, const QString &videoId, const QString &shareLink) {
 		if (type != PLSAPIFacebookType::PLSFacebookSuccess) {
-			PLS_LOGEX(PLS_LOG_ERROR, facebookMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "facebook create live api failed"}},
-				  "facebook start live failed");
 			onFinished(type);
 			return;
 		}
-		auto timeLinePrivacyFunction = [onFinished](PLSAPIFacebookType type) {
-			if (type != PLSAPIFacebookType::PLSFacebookSuccess) {
-				PLS_LOGEX(PLS_LOG_ERROR, facebookMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "facebook get timeline privacy api request failed"}},
-					  "facebook start live failed");
-			} else {
-				PLS_LOGEX(PLS_LOG_ERROR, facebookMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Success"}}, "facebook start live success");
-			}
-			onFinished(type);
-		};
-		auto itemInfoFunction = [onFinished](PLSAPIFacebookType type) {
-			if (type != PLSAPIFacebookType::PLSFacebookSuccess) {
-				PLS_LOGEX(PLS_LOG_ERROR, facebookMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "facebook get group/page/timeline info api request failed"}},
-					  "facebook start live failed");
-			} else {
-				PLS_LOGEX(PLS_LOG_ERROR, facebookMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Success"}}, "facebook start live success");
-			}
-			onFinished(type);
-		};
 		m_prepareInfo.streamURL = streamURL;
 		m_prepareInfo.liveId = liveId;
 		m_prepareInfo.videoId = videoId;
 		m_prepareInfo.shareLink = shareLink;
 		setStreamUrlAndStreamKey();
 		if (shareObjectName == TimelineObjectFlags) {
-			getTimelinePrivacyRequest(timeLinePrivacyFunction);
+			getTimelinePrivacyRequest(onFinished);
 			return;
 		}
-		requestItemInfoRequest(itemInfoFunction);
+		requestItemInfoRequest(onFinished);
 	};
 	PLSFaceBookRquest->startLiving(apiType, itemId, getTimelinePrivacy(), accessToken, livingFinished);
 }
@@ -418,14 +399,18 @@ void PLSPlatformFacebook::updateLiving(const MyRequestTypeFunction &onFinished)
 	QString gameId = m_prepareInfo.gameId;
 	m_oldTimelinePrivacy = getTimelinePrivacy();
 	auto updateFinished = [onFinished, this](PLSAPIFacebookType type) {
+
 		if (type != PLSAPIFacebookType::PLSFacebookSuccess) {
 			onFinished(type);
 			return;
 		}
-		if (QString shareObjectName = m_prepareInfo.firstObjectName; shareObjectName == TimelineObjectFlags) {
+
+		QString shareObjectName = m_prepareInfo.firstObjectName; 
+		if (shareObjectName == TimelineObjectFlags) {
 			getTimelinePrivacyRequest(onFinished);
 			return;
 		}
+
 		requestItemInfoRequest(onFinished);
 	};
 	PLSFaceBookRquest->updateFacebookLiving(m_prepareInfo.liveId, getTimelinePrivacy(), updateFinished);
@@ -440,7 +425,9 @@ void PLSPlatformFacebook::requestItemInfoRequest(const MyRequestTypeFunction &on
 		itemId = FacebookTimelineItemId;
 	}
 	auto itemInfoFinished = [onFinished, shareObjectName, this](PLSAPIFacebookType type, QString nickname, QString profilePath) {
-		this->getFacebookItemUserInfoFinished(type, nickname, profilePath, shareObjectName);
+		if (type == PLSAPIFacebookType::PLSFacebookSuccess) {
+			getFacebookItemUserInfoFinished(type, nickname, profilePath, shareObjectName);
+		}
 		onFinished(type);
 	};
 	PLSFaceBookRquest->getFacebookItemUserInfo(itemId, itemInfoFinished);
@@ -617,7 +604,8 @@ bool PLSPlatformFacebook::isPrivateChat() const
 void PLSPlatformFacebook::getTimelinePrivacyRequest(const MyRequestTypeFunction &onFinished)
 {
 	auto privacyFinished = [onFinished, this](PLSAPIFacebookType type, QString privacyId) {
-		if (QString shareObjectName = m_prepareInfo.firstObjectName; shareObjectName != TimelineObjectFlags) {
+		QString shareObjectName = m_prepareInfo.firstObjectName;
+		if (shareObjectName != TimelineObjectFlags) {
 			onFinished(PLSAPIFacebookType::PLSFacebookFailed);
 			return;
 		}

@@ -130,9 +130,10 @@ SceneSwitcher::SceneSwitcher(QWidget *parent) : PLSDialogView(parent), ui(new Ui
 
 	loading = false;
 	connect(ui->closeBtn, &QPushButton::clicked, this, &SceneSwitcher::on_close_clicked);
+	connect(this, &QDialog::finished, this, &SceneSwitcher::finished);
 }
 
-void SceneSwitcher::closeEvent(QCloseEvent *)
+void SceneSwitcher::finished()
 {
 	obs_frontend_save();
 }
@@ -250,15 +251,6 @@ void SceneSwitcher::on_remove_clicked()
 	}
 
 	delete item;
-}
-
-void SceneSwitcher::on_startAtLaunch_toggled(bool value)
-{
-	if (loading)
-		return;
-
-	lock_guard<mutex> lock(switcher->m);
-	switcher->startAtLaunch = value;
 }
 
 void SceneSwitcher::UpdateNonMatchingScene(const QString &name)

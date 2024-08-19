@@ -125,6 +125,9 @@ target_sources(
           auth-oauth.hpp
           auth-listener.cpp
           auth-listener.hpp
+          win-dll-blocklist.c
+          ffmpeg-utils.cpp
+          ffmpeg-utils.hpp
           obf.c
           obf.h
           obs-app.cpp
@@ -276,6 +279,9 @@ target_sources(
           window-log-reply.cpp
           window-projector.cpp
           window-projector.hpp
+          window-basic-vcam.hpp
+          window-dock-youtube-app.hpp
+          window-dock-youtube-app.cpp
           window-remux.cpp
           window-remux.hpp)
 

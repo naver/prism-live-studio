@@ -19,6 +19,7 @@
 #pragma comment(lib, "Comctl32.lib")
 #endif
 #include "liblog.h"
+#include "PLSUIApp.h"
 
 class PLSToplevelWidgetAccess {
 public:
@@ -30,6 +31,7 @@ public:
 			widget->onRestoreGeometry();
 		}
 	}
+	static void nativeResizeEvent(PLSToplevelWidget *widget, const QSize &size, const QSize &nativeSize) { widget->nativeResizeEvent(size, nativeSize); }
 };
 
 namespace pls {
@@ -39,6 +41,10 @@ const bool g_afterWin10 = pls_is_after_win10();
 template<typename T> static int getDpiScale(T value, double dpi)
 {
 	return qRound(value * dpi / 96.0);
+}
+template<typename T> static int getDpiScaleOriginal(T value, double dpi)
+{
+	return qRound(value * 96.0 / dpi);
 }
 static QRect toQRect(const RECT &rc)
 {
@@ -247,6 +253,13 @@ static bool wmActivate(qintptr *result, PLSToplevelWidget *widget, HWND hwnd, UI
 	*result = DefWindowProc(hwnd, message, wParam, lParam);
 	return true;
 }
+static void wmSize(PLSToplevelWidget *widget, HWND hwnd, WPARAM wParam, LPARAM lParam)
+{
+	auto width = LOWORD(lParam);
+	auto height = HIWORD(lParam);
+	UINT dpi = GetDpiForWindow(hwnd);
+	PLSToplevelWidgetAccess::nativeResizeEvent(widget, QSize(getDpiScaleOriginal(width, dpi), getDpiScaleOriginal(height, dpi)), QSize(width, height));
+}
 #endif
 
 static bool isWidgetFullscreen(QWidget *widget)
@@ -298,6 +311,13 @@ LIBUI_API bool toplevelView_nativeEvent(PLSToplevelWidget *widget, const QByteAr
 		return wmActivate(result, widget, msg->hwnd, msg->message, msg->wParam, msg->lParam);
 	case WM_GETDPISCALEDSIZE:
 		return true;
+	case WM_SIZE:
+		wmSize(widget, msg->hwnd, msg->wParam, msg->lParam);
+		break;
+	case WM_ACTIVATEAPP:
+		if (auto app = PLSUiApp::instance(); app)
+			app->setAppState(msg->wParam ? true : false);
+		break;
 	default:
 		break;
 	}
@@ -399,6 +419,24 @@ bool PLSToplevelWidget::isAlwaysOnTop(const QWidget *widget)
 #endif
 }
 
+void PLSToplevelWidget::disableWinSystemBorder() const
+{
+	disableWinSystemBorder(pls_ptr(this)->self());
+}
+
+void PLSToplevelWidget::disableWinSystemBorder(const QWidget *widget)
+{
+#ifdef Q_OS_WIN
+	auto hwnd = (HWND)widget->winId();
+	if (pls::ui::g_afterWin10) {
+		COLORREF color = RGB(17, 17, 17);
+		DwmSetWindowAttribute(hwnd, 34, &color, sizeof(color));
+	}
+#else
+
+#endif
+}
+
 int PLSToplevelWidget::titleBarHeight() const
 {
 	return m_titleBarHeight;
@@ -477,6 +515,8 @@ void PLSToplevelWidget::onRestoreGeometry()
 
 	widget->setGeometry(pos.x(), pos.y(), size.width(), size.height());
 }
+
+void PLSToplevelWidget::nativeResizeEvent(const QSize &size, const QSize &nativeSize) {}
 
 QSize PLSToplevelWidget::calcSize(const QSize &size) const
 {

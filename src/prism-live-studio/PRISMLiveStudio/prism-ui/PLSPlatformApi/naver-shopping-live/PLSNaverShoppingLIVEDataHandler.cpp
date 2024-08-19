@@ -35,7 +35,7 @@ bool PLSNaverShoppingLIVEDataHandler::tryToUpdate(const QVariantMap &srcInfo, co
 		callback({makeErrorInfo(srcInfo)});
 		return false;
 	}
-	PLS_INFO(MODULE_PlatformService, "PlatformAPI tryToUpdate navertv platform, channel type is %d , channel uuid is %s", srcInfo.value(ChannelData::g_data_type).toInt(),
+	PLS_INFO(MODULE_PlatformService, "PlatformAPI tryToUpdate Naver Shopping platform, channel type is %d , channel uuid is %s", srcInfo.value(ChannelData::g_data_type).toInt(),
 		 channelUUID.toStdString().c_str());
 	auto naverShoppingLIVE = dynamic_cast<PLSPlatformNaverShoppingLIVE *>(PLS_PLATFORM_API->getPlatformById(channelUUID, srcInfo));
 	if (!naverShoppingLIVE) {

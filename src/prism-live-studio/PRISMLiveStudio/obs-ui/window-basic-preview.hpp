@@ -18,7 +18,9 @@ class QMouseEvent;
 #define ITEM_BOTTOM (1 << 3)
 #define ITEM_ROT (1 << 4)
 
-#define ZOOM_SENSITIVITY 1.125f
+#define MAX_SCALING_LEVEL 20
+#define MAX_SCALING_AMOUNT 10.0f
+#define ZOOM_SENSITIVITY pow(MAX_SCALING_AMOUNT, 1.0f / MAX_SCALING_LEVEL)
 
 #define SPACER_LABEL_MARGIN 10.0f
 
@@ -65,6 +67,7 @@ private:
 	vec2 lastMoveOffset;
 	vec2 scrollingFrom;
 	vec2 scrollingOffset;
+	vec2 lastDrawPenPos = {0, 0};
 	bool mouseDown = false;
 	bool mouseMoved = false;
 	bool mouseOverItems = false;
@@ -74,6 +77,9 @@ private:
 	bool scrollMode = false;
 	bool fixedScaling = false;
 	bool selectionBox = false;
+	bool overflowHidden = false;
+	bool overflowSelectionHidden = false;
+	bool overflowAlwaysVisible = false;
 	int32_t scalingLevel = 0;
 	float scalingAmount = 1.0f;
 	float groupRot = 0.0f;
@@ -143,7 +149,8 @@ public:
 	virtual void mouseMoveEvent(QMouseEvent *event) override;
 	virtual void leaveEvent(QEvent *event) override;
 	virtual void tabletEvent(QTabletEvent *event) override;
-
+	virtual void focusOutEvent(QFocusEvent *event) override;
+	
 	void DrawOverflow();
 	void DrawSceneEditing();
 
@@ -176,6 +183,25 @@ public:
 	inline float GetScrollX() const { return scrollingOffset.x; }
 	inline float GetScrollY() const { return scrollingOffset.y; }
 
+	inline void SetOverflowHidden(bool hidden) { overflowHidden = hidden; }
+	inline void SetOverflowSelectionHidden(bool hidden)
+	{
+		overflowSelectionHidden = hidden;
+	}
+	inline void SetOverflowAlwaysVisible(bool visible)
+	{
+		overflowAlwaysVisible = visible;
+	}
+
+	inline bool GetOverflowSelectionHidden() const
+	{
+		return overflowSelectionHidden;
+	}
+	inline bool GetOverflowAlwaysVisible() const
+	{
+		return overflowAlwaysVisible;
+	}
+
 	/* use libobs allocator for alignment because the matrices itemToScreen
 	 * and screenToItem may contain SSE data, which will cause SSE
 	 * instructions to crash if the data is not aligned to at least a 16
@@ -187,4 +213,5 @@ public:
 	int spacerPx[4] = {0};
 
 	void DrawSpacingHelpers();
+	void ClampScrollingOffsets();
 };

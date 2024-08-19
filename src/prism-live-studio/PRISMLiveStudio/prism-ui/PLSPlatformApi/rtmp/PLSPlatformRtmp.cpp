@@ -1,6 +1,7 @@
 #include "PLSPlatformRtmp.h"
 
 #include "../PLSPlatformApi.h"
+#include "PLSChannelDataAPI.h"
 
 PLSServiceType PLSPlatformRtmp::getServiceType() const
 {
@@ -27,6 +28,11 @@ void PLSPlatformRtmp::onAlLiveStarted(bool value)
 	} else if (value && getChannelName() == BAND) {
 		pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QTStr("Live.Check.Band.Rtmp.Living.Notice"));
 	}
+}
+
+QString PLSPlatformRtmp::getShareUrlEnc()
+{
+	return mySharedData().m_strStreamServer.c_str();
 }
 
 QJsonObject PLSPlatformRtmp::getLiveStartParams()

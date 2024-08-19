@@ -1,5 +1,8 @@
+include_guard(GLOBAL)
 include(launcher_helper)
 include(prism_helper_copy_obs)
+
+set_property(GLOBAL PROPERTY PRISM_QT_THIRD_PLUGIN)
 
 function(copy_excutable_target target)
   string(TOLOWER ${target} lowercaseTarget)
@@ -32,33 +35,30 @@ function(copy_dylib_path dylibPath)
     set_property(GLOBAL APPEND PROPERTY DYLIB_ORIGIANL_PATH_LIST "${dylibPath}")
 endfunction()
 
+function(setup_qt_third_plugin target)
+    set_property(GLOBAL APPEND PROPERTY PRISM_QT_THIRD_PLUGIN "${target}")
+endfunction()
+
 # Helper function to set up OBS plugin targets
 function(setup_plugin_target target)
- set(MACOSX_PLUGIN_EXECUTABLE_NAME "${target}")
-  set(MACOSX_PLUGIN_GUI_IDENTIFIER "$ENV{PRISM_PRODUCT_IDENTIFIER_PRESUFF}.${target}")
-  set(MACOSX_PLUGIN_BUNDLE_NAME "${target}")
-  set(MACOSX_PLUGIN_SHORT_VERSION_STRING "${OBS_VERSION_CANONICAL}")
-  set(MACOSX_PLUGIN_BUNDLE_VERSION "${OBS_BUILD_NUMBER}")
-  set(MACOSX_PLUGIN_BUNDLE_TYPE "BNDL")
-
-   configure_file("$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS/Plugin-Info.plist.in"  "${CMAKE_CURRENT_BINARY_DIR}/info.plist")
 
    set_target_properties(
     ${target}
     PROPERTIES OUTPUT_NAME ${target}
     MACOSX_BUNDLE ON
-    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_BINARY_DIR}/info.plist
   )
-
-
   set_target_properties(
     ${target}
     PROPERTIES BUNDLE ON
                BUNDLE_EXTENSION "plugin"
                OUTPUT_NAME "${target}"
-               MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/info.plist"
                XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.prismlive.${target}"
-               XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS/entitlements.plist")
+               XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS/entitlements.plist"
+               XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION ${PRISM_VERSION_BUILD}
+               XCODE_ATTRIBUTE_MARKETING_VERSION ${PRISM_VERSION_SHORT}
+               XCODE_ATTRIBUTE_GENERATE_INFOPLIST_FILE YES
+               XCODE_ATTRIBUTE_INFOPLIST_KEY_CFBundleDisplayName ${target}
+               XCODE_ATTRIBUTE_INFOPLIST_KEY_NSHumanReadableCopyright "(c) NAVER Corp.")
 
   set_property(GLOBAL APPEND PROPERTY PRISM_MODULE_LIST "${target}")
   copy_folder_to_target_folder(${CMAKE_CURRENT_SOURCE_DIR}/data ${target} Resources)
@@ -181,6 +181,22 @@ function(install_prism_plugin_list target)
       POST_BUILD
       COMMAND ${CMAKE_COMMAND} --install . --config $<CONFIG> --prefix $<TARGET_BUNDLE_CONTENT_DIR:${target}> --component prism_plugins_dev
       VERBATIM)
+  endif()
+
+  #add third qt plugin
+  get_property(_prism_qt_third_plugin GLOBAL PROPERTY PRISM_QT_THIRD_PLUGIN)
+  list(LENGTH _prism_qt_third_plugin _LEN)
+  message(STATUS "install_prism_plugin_list: ${_prism_qt_third_plugin}")
+  if(_LEN GREATER 0)
+    add_dependencies(${target} ${_prism_qt_third_plugin})
+    foreach(_sub_plugin IN LISTS _prism_qt_third_plugin)
+      add_custom_command(
+        TARGET ${target}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${_sub_plugin}> $<TARGET_BUNDLE_CONTENT_DIR:${target}>/Plugins/imageformats
+        COMMENT "Installing PRISM sub qt plugin List"
+        VERBATIM)
+    endforeach()
   endif()
 endfunction()
 
@@ -317,19 +333,6 @@ function(install_and_codesign)
   get_property(EXTRA_DYLIB_PATH GLOBAL PROPERTY EXTRA_DYLIB_PATH)
   message("EXTRA_DYLIB_PATH: ${EXTRA_DYLIB_PATH}")
 
-  install(
-    CODE "
-    set(_BUNDLENAME \"$<TARGET_FILE_BASE_NAME:${target}>.app\")
-    set(_BUNDLER_COMMAND \"$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS/dylibbundler\")
-    set(_CODESIGN_IDENTITY \"${PRISM_BUNDLE_CODESIGN_IDENTITY}\")
-    set(_OBS_BUNDLE_PATH \"$ENV{OBS_BUILD_DIR}/install/OBS.app\")
-    set(_CODESIGN_ENTITLEMENTS \"$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS\")
-    set(_VERBOSE_FLAG \"$ENV{VERBOSE}\")
-    set(_QUIET_FLAG \"$ENV{QUIET}\")
-    set(_EXTRA_DEPS \"${EXTRA_DYLIB_PATH}\")
-    set(_LUT_PATH \"$ENV{PRISM_SRC_DIR}/PRISMLiveStudio/prism-ui/resource/LUTs\")"
-    COMPONENT prism_bundles)
-  
 endfunction()
 
 # Helper function to set up OBS app target
@@ -338,7 +341,7 @@ function(setup_prism_app target)
     ${target}
     PROPERTIES BUILD_WITH_INSTALL_RPATH OFF
                XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS
-               "$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS/entitlements.plist"
+               "$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS/entitlements_vr.plist"
                XCODE_SCHEME_ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
 
   install(TARGETS ${target} BUNDLE DESTINATION "." COMPONENT prism_app)
@@ -355,35 +358,7 @@ function(setup_prism_app target)
   install_dylib_path_list(${target})
   install_plugin_extra_dependency(${target})
 
-  install(CODE "execute_process(COMMAND \"${CMAKE_COMMAND}\" --install $ENV{OBS_BUILD_DIR} --config ${CMAKE_BUILD_TYPE})" COMPONENT prism_install_obs)
   install_and_codesign()
 
-add_custom_command(
-    TARGET ${target}
-    POST_BUILD
-    COMMAND "${CMAKE_COMMAND}"
-            "-DSOURCE_BUNDLE_CONTENTS_PATH=$<TARGET_BUNDLE_CONTENT_DIR:${target}>"
-            "-DDEST_BUNDLE_CONTENTS_PATH=$<TARGET_BUNDLE_CONTENT_DIR:${target}>"
-            "-DSOURCE_HELPER_INFO_PLIST_DIR=$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS"
-            "-DDEST_HELPER_INFO_PLST_DIR=${CMAKE_CURRENT_BINARY_DIR}"
-            "-DSOURCE_HELPER_NAME=OBS"
-            "-DDEST_HELPER_NAME=${target}"
-            -P "$ENV{PRISM_SRC_DIR}/cmake/macOS/prism_runtime_copy_data.cmake"
-    COMMENT "Installing obs app framework for development"
-    VERBATIM)
-
-add_custom_command(
-    TARGET ${target}
-    POST_BUILD
-    COMMAND "${CMAKE_COMMAND}"
-            "-DSOURCE_BUNDLE_CONTENTS_PATH=$ENV{OBS_BUILD_DIR}/UI/${BUILD_CONFIG}/OBS.app/Contents"
-            "-DDEST_BUNDLE_CONTENTS_PATH=$<TARGET_BUNDLE_CONTENT_DIR:${target}>"
-            "-DSOURCE_HELPER_INFO_PLIST_DIR=$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS"
-            "-DDEST_HELPER_INFO_PLST_DIR=${CMAKE_CURRENT_BINARY_DIR}"
-            "-DSOURCE_HELPER_NAME=OBS"
-            "-DDEST_HELPER_NAME=PRISMLauncher"
-            -P "$ENV{PRISM_SRC_DIR}/cmake/macOS/prism_runtime_copy_data.cmake"
-    COMMENT "Installing obs app framework for development"
-    VERBATIM)
 
 endfunction()

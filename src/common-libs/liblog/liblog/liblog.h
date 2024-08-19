@@ -85,7 +85,7 @@ using pls_ui_step_log_handler_t = void (*)(const char *module_name, const pls_da
   */
 LIBLOG_API bool pls_log_init(const char *project_name, const char *project_token, const char *project_name_kr, const char *project_token_kr, const char *project_version, const char *log_source,
 			     const char *local_log_session = nullptr);
-LIBLOG_API bool pls_prism_log_init(const char *project_version, const char *log_source, const char *local_log_session = nullptr);
+LIBLOG_API bool pls_prism_log_init(const char *project_version, const char *log_source, const char *local_log_session);
 /**
   * log cleanup
   */
@@ -310,7 +310,7 @@ LIBLOG_API void pls_ui_stepex(bool kr, const char *module_name, const char *cont
   */
 LIBLOG_API void pls_crash_flag();
 
-LIBLOG_API void pls_subprocess_exception(const char *process, const char *pid, const char *src);
+LIBLOG_API void pls_subprocess_exception(const char *process, const char *pid);
 
 LIBLOG_API void pls_set_gcc(const char *gcc);
 

@@ -11,6 +11,9 @@
 #import <sys/sysctl.h>
 #import "PLSUtilInterface.h"
 #import <execinfo.h>
+#import <KSCrash.h>
+#import <KSCrashC.h>
+#import <CommonCrypto/CommonDigest.h>
 
 NSString *callstackOfThread(thread_t thread);
 
@@ -95,74 +98,55 @@ std::string mac_get_device_name() {
     return deviceName;
 }
 
-std::string mac_get_threads() {
-	kern_return_t kr;
-	task_info_data_t tinfo;
-	mach_msg_type_number_t task_info_count;
+static std::string latest_report_path;
 
-	task_info_count = TASK_INFO_MAX;
-	kr = task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)tinfo, &task_info_count);
-	if (kr != KERN_SUCCESS) {
-		return "";
+static void crash_report_written_callback(int64_t reportID) {
+	KSCrash *reporter = [KSCrash sharedInstance];
+	NSString *blockDumpPath = [reporter reportPathWithID:@(reportID)];
+	
+	NSMutableArray *pathComponents = [blockDumpPath.pathComponents mutableCopy];
+	NSInteger pathCount = pathComponents.count;
+	if (pathCount >= 2) {
+		pathComponents[pathCount - 2] = @"BlockDump";
 	}
-
-	thread_array_t thread_list;
-	mach_msg_type_number_t thread_count;
-
-	thread_info_data_t thinfo;
-	mach_msg_type_number_t thread_info_count;
-
-	thread_basic_info_t basic_info_th;
-
-	// get threads in the task
-	kr = task_threads(mach_task_self(), &thread_list, &thread_count);
-	if (kr != KERN_SUCCESS) {
-		return "";
-	}
-
-	long total_time = 0;
-	long total_userTime = 0;
-	CGFloat total_cpu = 0;
-	int j;
-
-	NSMutableArray *threads = [NSMutableArray new];
-
-	// for each thread
-	for (j = 0; j < (int)thread_count; j++) {
-
-		thread_info_count = THREAD_INFO_MAX;
-
-		kr = thread_info(thread_list[j], THREAD_BASIC_INFO, (thread_info_t)thinfo, &thread_info_count);
-		if (kr != KERN_SUCCESS) {
-			return "";
-		}
-
-		NSString *threadCallstack = callstackOfThread(thread_list[j]);
-		[threads addObject:threadCallstack];
-	}
-
-	kr = vm_deallocate(mach_task_self(), (vm_offset_t)thread_list, thread_count * sizeof(thread_t));
-	assert(kr == KERN_SUCCESS);
-    
-    return [threads componentsJoinedByString:@"\n"].UTF8String;
+	
+	NSString *targetPath = [pathComponents componentsJoinedByString:@"/"];
+	
+	[[NSFileManager defaultManager] moveItemAtPath:blockDumpPath toPath:targetPath error:nil];
+	
+	latest_report_path = targetPath.UTF8String;
 }
 
-NSString *callstackOfThread(thread_t thread) {
-	const int stack_size = 128;
-    uintptr_t *stack = (uintptr_t *)calloc(stack_size, sizeof(uintptr_t *));
-	int frame_count = mach_backtrace(thread, stack, stack_size);
-	char **stack_symbols = backtrace_symbols((void * const *)stack, frame_count);
-	free(stack);
+std::string mac_generate_dump_file(std::string info, std::string message) {
+	KSCrash *reporter = [KSCrash sharedInstance];
+	kscrash_setReportWrittenCallback(crash_report_written_callback);
 
-	NSMutableString *backtrace = [NSMutableString new];
-	for (int i = 0; i < frame_count; i++) {
-		char *stack_info = stack_symbols[i];
+	[reporter reportUserException:@"UNKNOWN" // exclude from nelo crash statistics
+						   reason:[NSString stringWithUTF8String:message.c_str()]
+						 language:@"objc"
+					   lineOfCode:nil
+					   stackTrace:nil
+					logAllThreads:YES
+				 terminateProgram:NO];
+	
+	return latest_report_path;
+}
 
-		[backtrace appendString:[NSString stringWithUTF8String:stack_info]];
-		[backtrace appendString:@"\n"];
+NSString * mac_get_md5(NSString *input) {
+	// Convert to C string using UTF8 encoding
+	const char *cstr = [input UTF8String];
+	
+	// Create a buffer to store the hash value (16 bytes for MD5)
+	unsigned char result[CC_MD5_DIGEST_LENGTH];
+	
+	// Call the CC_MD5 function with the C string, its length, and the buffer
+	CC_MD5(cstr, (CC_LONG)strlen(cstr), result);
+	
+	// Convert the buffer into a hexadecimal string
+	NSMutableString *hexString = [NSMutableString string];
+	for (int i = 0; i < CC_MD5_DIGEST_LENGTH; i++) {
+		[hexString appendFormat:@"%02x", result[i]];
 	}
-
-	free(stack_symbols);
-
-	return [backtrace copy];
+	
+	return [hexString copy];
 }

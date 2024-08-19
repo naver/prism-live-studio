@@ -5,8 +5,6 @@
 #include "qt-wrappers.hpp"
 #include "PLSColorDialogView.h"
 
-#define I18nStr(str) QTStr(str).toStdString().c_str()
-
 enum ColorPreset {
 	COLOR_PRESET_DEFAULT,
 	COLOR_PRESET_COLOR_BLIND_1,
@@ -38,7 +36,8 @@ QColor OBSBasicSettings::GetColor(uint32_t colorVal, QString label)
 {
 	QColorDialog::ColorDialogOptions options;
 
-#ifndef _WIN32
+#ifdef __linux__
+	// TODO: Revisit hang on Ubuntu with native dialog
 	options |= QColorDialog::DontUseNativeDialog;
 #endif
 
@@ -51,6 +50,7 @@ void OBSBasicSettings::LoadA11ySettings(bool presetChange)
 {
 	config_t *config = GetGlobalConfig();
 
+	loading = true;
 	if (!presetChange) {
 		preset = config_get_int(config, "Accessibility", "ColorPreset");
 
@@ -109,6 +109,8 @@ void OBSBasicSettings::LoadA11ySettings(bool presetChange)
 	}
 
 	UpdateA11yColors();
+
+	loading = false;
 }
 
 void OBSBasicSettings::SaveA11ySettings()
@@ -135,26 +137,25 @@ void OBSBasicSettings::SaveA11ySettings()
 	main->RefreshVolumeColors();
 }
 
-#define SetStyle(label, colorVal)                                             \
-	color = color_from_int(colorVal);                                     \
-	color.setAlpha(255);                                                  \
-	palette = QPalette(color);                                            \
-	label->setFrameStyle(QFrame::Sunken | QFrame::Panel);                 \
-	label->setText(color.name(QColor::HexRgb));                           \
-	label->setPalette(palette);                                           \
-	label->setStyleSheet(QString("background-color: %1; color: %2;")      \
-				     .arg(palette.color(QPalette::Window)     \
-						  .name(QColor::HexRgb))      \
-				     .arg(palette.color(QPalette::WindowText) \
-						  .name(QColor::HexRgb)));    \
-	label->setAutoFillBackground(true);                                   \
+static void SetStyle(QLabel *label, uint32_t colorVal)
+{
+	QColor color = color_from_int(colorVal);
+	color.setAlpha(255);
+	QPalette palette = QPalette(color);
+	label->setFrameStyle(QFrame::Sunken | QFrame::Panel);
+	label->setText(color.name(QColor::HexRgb));
+	label->setPalette(palette);
+	label->setStyleSheet(QString("background-color: %1; color: %2;")
+				     .arg(palette.color(QPalette::Window)
+						  .name(QColor::HexRgb))
+				     .arg(palette.color(QPalette::WindowText)
+						  .name(QColor::HexRgb)));
+	label->setAutoFillBackground(true);
 	label->setAlignment(Qt::AlignCenter);
+}
 
 void OBSBasicSettings::UpdateA11yColors()
 {
-	QPalette palette;
-	QColor color;
-
 	ui->colorSelectLabel_1->setWordWrap(true);
 	ui->colorSelectLabel_2->setWordWrap(true);
 	ui->colorSelectLabel_3->setWordWrap(true);

@@ -13,7 +13,7 @@
 
 PLSSearchPopupMenu::PLSSearchPopupMenu(QWidget *parent) : QFrame(parent)
 {
-    setAttribute(Qt::WA_NativeWindow);
+	setAttribute(Qt::WA_NativeWindow);
 	ui = pls_new<Ui::PLSSearchPopupMenu>();
 	ui->setupUi(this);
 	this->setCursor(Qt::ArrowCursor);
@@ -24,8 +24,7 @@ PLSSearchPopupMenu::PLSSearchPopupMenu(QWidget *parent) : QFrame(parent)
 	connect(ui->historyList, &HistorySearchList::UpdateContentHeight, this, &PLSSearchPopupMenu::UpdateContentHeight);
 	connect(ui->recommendList, &RecommendSearchList::UpdateContentHeight, this, &PLSSearchPopupMenu::UpdateContentHeight);
 	QStringList list;
-    list << DEFAULT_KEY_WORD
-         << "Reactions"
+	list << DEFAULT_KEY_WORD << "Reactions"
 	     << "Thanks"
 	     << "Hi"
 	     << "Love"
@@ -50,7 +49,7 @@ void PLSSearchPopupMenu::Show(const QPoint &offset, int contentWidth_)
 void PLSSearchPopupMenu::SetContentWidth(int width)
 {
 	contentWidth = width;
-	QTimer::singleShot(0, this, SLOT(resizeToContent()));
+	pls_async_call(this, [this]() { resizeToContent(); });
 }
 
 void PLSSearchPopupMenu::AddHistoryItem(const QString &keyword)
@@ -84,7 +83,7 @@ void PLSSearchPopupMenu::UpdateContentHeight()
 		ui->historyList->show();
 		ui->verticalLayout->setContentsMargins(left, 11, right, bottom);
 	}
-	QTimer::singleShot(0, this, SLOT(resizeToContent()));
+	pls_async_call(this, [this]() { resizeToContent(); });
 }
 
 void PLSSearchPopupMenu::resizeToContent()

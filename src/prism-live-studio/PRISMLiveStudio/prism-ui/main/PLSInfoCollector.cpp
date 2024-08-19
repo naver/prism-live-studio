@@ -14,11 +14,6 @@
 using namespace std;
 using namespace common;
 
-struct StaticVars {
-	static bool init_app;
-};
-bool StaticVars::init_app = true;
-
 static void logFilter(obs_source_t *, obs_source_t *filter, void *v_val)
 {
 	const char *name = obs_source_get_name(filter);
@@ -274,11 +269,6 @@ void PLSInfoCollector::logMsg(std::string type, OBSOutput output)
 	}
 
 	QByteArray jsonString = QJsonDocument(json).toJson(QJsonDocument::Indented);
-
-	if (StaticVars::init_app) {
-		type = "Init App";
-		StaticVars::init_app = false;
-	}
 
 	PLS_INFO(INFO_COLLECTOE, "------------------------------------------------");
 	PLS_LOGEX(PLS_LOG_INFO, INFO_COLLECTOE, {{"TraceMsg", type.c_str()}}, "[TRACE-MSG] %s Msg: %s", type.c_str(), jsonString.constData());

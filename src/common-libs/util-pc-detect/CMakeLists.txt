@@ -1,0 +1,21 @@
+if(OS_WINDOWS) 
+
+set(PROJECT_NAME util-pc-detect)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /MT")
+
+add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+add_definitions(-DUNICODE -D_UNICODE)
+
+add_executable(${PROJECT_NAME} main.cpp)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER common-libs)
+
+copy_common_libs_binary(${PROJECT_NAME})
+
+endif()

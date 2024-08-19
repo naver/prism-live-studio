@@ -195,7 +195,11 @@ void PLSComboBoxListView::dataChanged(const QModelIndex &topLeft, const QModelIn
 			currentWidget->setText(index.data().toString());
 			if (index.flags() == Qt::NoItemFlags) {
 				currentWidget->setProperty("enable", false);
+				currentWidget->setProperty("isCurrent", false);
+			} else {
+				currentWidget->setProperty("enable", true);
 			}
+			pls_flush_style(currentWidget);
 		}
 		row += 1;
 		index = topLeft.siblingAtRow(row);
@@ -216,8 +220,10 @@ PLSComboBox::PLSComboBox(QWidget *parent) : QComboBox(parent)
 	view()->window()->installEventFilter(resizeEvent);
 	setMaxVisibleItems(5);
 #if defined(Q_OS_MACOS)
-    setStyle(QStyleFactory::create("Windows"));
+	setStyle(QStyleFactory::create("Windows"));
 #endif
+
+	pls_button_uistep_custom(this, "currentIndexChanged", "Click", [this]() -> QVariant { return currentText(); });
 }
 
 QSize PLSComboBox::sizeHint() const
@@ -277,6 +283,8 @@ void PLSComboBox::paintEvent(QPaintEvent *)
 	initStyleOption(&opt);
 	painter.drawComplexControl(QStyle::CC_ComboBox, opt);
 
+	QString orignalText = opt.currentText;
+
 	// check if it needs to elid text.
 	if (!opt.editable) {
 		QRect textRect = style()->subControlRect(QStyle::CC_ComboBox, &opt, QStyle::SC_ComboBoxEditField, this);
@@ -285,8 +293,23 @@ void PLSComboBox::paintEvent(QPaintEvent *)
 			opt.currentText = opt.fontMetrics.elidedText(opt.currentText, Qt::ElideRight, textSpace);
 		}
 	}
+	if (-1 == currentIndex()) {
+		opt.currentText = placeholderText();
+	}
 	// draw the icon and text
 	painter.drawControl(QStyle::CE_ComboBoxLabel, opt);
+
+	if (orignalText != opt.currentText) {
+		if (property("$orignalText").toString() != orignalText || property("$elidedText").toString() != opt.currentText) {
+			setProperty("$orignalText", orignalText);
+			setProperty("$elidedText", opt.currentText);
+			setToolTip(orignalText);
+		}
+	} else if (!property("$orignalText").toString().isEmpty() || !property("$elidedText").toString().isEmpty()) {
+		setProperty("$orignalText", QString());
+		setProperty("$elidedText", QString());
+		setToolTip(QString());
+	}
 }
 
 PLSEditableComboBox::PLSEditableComboBox(QWidget *parent) : PLSComboBox(parent) {}

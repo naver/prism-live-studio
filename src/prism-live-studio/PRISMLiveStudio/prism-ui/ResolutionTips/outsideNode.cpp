@@ -10,6 +10,11 @@
 #include "qt-wrappers.hpp"
 #include "PLSChannelDataAPI.h"
 #include "PLSSyncServerManager.hpp"
+#include "login-user-info.hpp"
+#include "PLSSceneDataMgr.h"
+#include "pls-common-define.hpp"
+
+#include <QStandardItemModel>
 
 using namespace std;
 
@@ -47,6 +52,11 @@ void intializeOutNode()
 
 void OBSBasicSettings::adjustUi()
 {
+	auto scrollareas = ui->outputPage->findChildren<QScrollArea *>();
+	for (const auto area : scrollareas) {
+		area->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Ignored);
+	}
+	ui->advOutTabs->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Ignored);
 	auto forms = this->findChildren<QFormLayout *>();
 	for (const auto form : forms) {
 		form->setLabelAlignment(Qt::AlignLeft);
@@ -54,9 +64,6 @@ void OBSBasicSettings::adjustUi()
 		form->setVerticalSpacing(10);
 		form->setHorizontalSpacing(20);
 		form->setContentsMargins(0, 0, 0, 0);
-		if (form->property("ZeroVerticalSpacing").toBool()) {
-			form->setVerticalSpacing(0);
-		}
 	}
 
 	auto grids = this->findChildren<QGridLayout *>();
@@ -67,13 +74,23 @@ void OBSBasicSettings::adjustUi()
 
 	ui->listWidget->setIconSize(QSize(0, 0));
 	ui->listWidget->setRowHidden(1, true);
+	ui->listWidget->setProperty("notShowHandCursor", true);
 
 	ui->formLayout_32->removeRow(ui->theme);
 
 	ui->openStatsOnStartup->hide();
 	ui->formLayout_32->takeRow(ui->verticalLayout_32);
 
-	ui->updateSettingsGroupBox->hide();
+	if (ui->updateSettingsGroupBox) {
+		ui->updateSettingsGroupBox->hide();
+	}
+
+	QString userServiceName = PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName();
+	if (userServiceName.isEmpty()) {
+		ui->waterMarkGroupBox->hide();
+	} else {
+		ui->waterMarkGroupBox->show();
+	}
 
 	ui->warnBeforeStreamStart->hide();
 	ui->warnBeforeStreamStop->hide();
@@ -95,12 +112,28 @@ void OBSBasicSettings::adjustUi()
 		ctw->setContentsMargins(0, 0, 25, 0);
 	}
 	ui->hotkeyScrollContents->setContentsMargins(0, 0, 0, 0);
-	ui->hotkeySearchLayout->setContentsMargins(0, 0, 0, 40);
+	ui->hotkeySearchLayout->setContentsMargins(0, 0, 35, 40);
+	ui->formLayout_5->setContentsMargins(0, 0, 35, 10);
+	ui->formLayout_9->setContentsMargins(0, 0, 35, 0);
 	alignOutputPageLabels();
 	alignLabels(ui->audioPage);
 	alignLabels(ui->advancedPage);
 	alignLabels(ui->widget_2);
 	alignVideoPage();
+
+	auto advCheckboxs = ui->recTracks->findChildren<PLSCheckBox *>();
+	for (auto checkbox : advCheckboxs) {
+		checkbox->setSpac(5);
+	}
+
+	auto simpleCheckboxs = ui->simpleRecTracks->findChildren<PLSCheckBox *>();
+	for (auto checkbox : simpleCheckboxs) {
+		checkbox->setSpac(5);
+	}
+	auto advOutFFTracks = ui->widget_10->findChildren<PLSCheckBox *>();
+	for (auto checkbox : advOutFFTracks) {
+		checkbox->setSpac(5);
+	}
 }
 
 QList<QLabel *> OBSBasicSettings::getLabelsFromForm(const QFormLayout *form) const
@@ -208,11 +241,20 @@ void OBSBasicSettings::LoadSceneDisplayMethodSettings()
 	ui->sceneDisplayComboBox->blockSignals(true);
 	ui->sceneDisplayComboBox->addItems(list);
 	ui->sceneDisplayComboBox->blockSignals(false);
-	auto currentIndex = (int)config_get_int(GetGlobalConfig(), "BasicWindow", "SceneDisplayMethod");
-	if (currentIndex > list.size() - 1 || currentIndex < 0) {
-		ui->sceneDisplayComboBox->setCurrentIndex(0);
 
-		OnSceneDisplayMethodIndexChanged(0);
+	if (PLSSceneDataMgr::Instance()->GetSceneSize() > common::SCENE_RENDER_NUMBER) {
+		ui->sceneDisplayComboBox->setItemData(static_cast<int>(DisplayMethod::DynamicRealtimeView), QVariant::fromValue(false), Qt::UserRole - 1);
+	}
+
+	auto currentIndex = (int)config_get_int(GetGlobalConfig(), "BasicWindow", "SceneDisplayMethod");
+	if (currentIndex >= list.size() || currentIndex < 0) {
+		if (PLSSceneDataMgr::Instance()->GetSceneSize() > common::SCENE_RENDER_NUMBER) {
+			ui->sceneDisplayComboBox->setCurrentIndex(1);
+			OnSceneDisplayMethodIndexChanged(1);
+		} else {
+			ui->sceneDisplayComboBox->setCurrentIndex(0);
+			OnSceneDisplayMethodIndexChanged(0);
+		}
 		loading = false;
 		return;
 	}
@@ -227,7 +269,11 @@ void OBSBasicSettings::ResetSceneDisplayMethodSettings()
 	ui->sceneDisplayComboBox->clear();
 	config_remove_value(GetGlobalConfig(), "BasicWindow", "SceneDisplayMethod");
 
-	PLSBasic::instance()->SetSceneDisplayMethod(0);
+	if (PLSSceneDataMgr::Instance()->GetSceneSize() > common::SCENE_RENDER_NUMBER) {
+		PLSBasic::instance()->SetSceneDisplayMethod(1); // 5s
+	} else {
+		PLSBasic::instance()->SetSceneDisplayMethod(0);
+	}
 }
 
 void OBSBasicSettings::SaveSceneDisplayMethodSettings() const
@@ -288,11 +334,12 @@ void OBSBasicSettings::updateOutPutRelatedUI()
 {
 	//output related
 	bool isOutputActived = pls_is_output_actived();
-	ui->groupBox_20->setEnabled(!isOutputActived);
+	ui->accountView->setEnabled(!isOutputActived);
 	ui->language->setEnabled(!isOutputActived);
+	ui->waterMarkGroupBox->setEnabled(!isOutputActived);
 
 	updateButtonsState();
-	checkOutputTipsVisible();
+	pls_async_call_mt([this]() { checkOutputTipsVisible(); });
 }
 
 void OBSBasicSettings::updateButtonsState()
@@ -306,9 +353,11 @@ void OBSBasicSettings::checkOutputTipsVisible()
 {
 	switch (ui->listWidget->currentRow()) {
 		//only general virtual  output page
-	case 0:
-	case 1:
-	case 3:
+	case GeneralPage:
+	case OutputPage:
+	case AudioPage:
+	case VideoPage:
+	case AdvancedPage:
 		updateOutputTipsUI();
 		break;
 	default:
@@ -348,6 +397,15 @@ void OBSBasicSettings::onOutputTipsVisibilityChanged(bool visible)
 
 bool OBSBasicSettings::prepareStreamServiceData(QStringList &names) const
 {
+	if (PLS_PLATFORM_API->isLiving()) {
+		obs_service_t *service_obj = main->GetService();
+		OBSDataAutoRelease serviceSettings = obs_service_get_settings(service_obj);
+		const char *service = obs_data_get_string(serviceSettings, "service");
+		if ((pls_is_equal(service, "Prism") || pls_is_equal(service, ""))) {
+			names.clear();
+			return false;
+		}
+	}
 	auto jsonMap = PLSSyncServerManager::instance()->getStreamService();
 	auto activiedPlatforms = PLS_PLATFORM_ACTIVIED;
 	if (activiedPlatforms.size() == 1) {

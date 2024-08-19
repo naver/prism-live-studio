@@ -66,17 +66,24 @@ target_link_libraries(aja-output-ui PRIVATE OBS::w32-pthreads)
 endif()
 
 if(OS_MACOS)
-  find_library(IOKIT_FRAMEWORK Iokit)
-  find_library(COREFOUNDATION_LIBRARY CoreFoundation)
-  find_library(APPKIT_FRAMEWORK AppKit)
-
-  target_link_libraries(aja-output-ui PRIVATE ${IOKIT} ${COREFOUNDATION}
-                                              ${APPKIT})
+  # cmake-format: off
+  target_link_libraries(
+    aja-output-ui
+    PRIVATE "$<LINK_LIBRARY:FRAMEWORK,AppKit.framework>"
+            "$<LINK_LIBRARY:FRAMEWORK,CoreFoundation.framework>"
+            "$<LINK_LIBRARY:FRAMEWORK,IOKit.framework>")
+  # cmake-format: on
+  target_compile_options(aja-output-ui PRIVATE -Wno-error=deprecated-declarations
+                                               -Wno-quoted-include-in-framework-header)
 elseif(OS_WINDOWS)
   target_compile_options(aja-output-ui PRIVATE /wd4996)
   target_link_libraries(aja-output-ui PRIVATE ws2_32.lib setupapi.lib Winmm.lib
                                               netapi32.lib Shlwapi.lib)
   target_link_options(aja-output-ui PRIVATE "LINKER:/IGNORE:4099")
+  set_property(
+    TARGET aja-output-ui
+    APPEND
+    PROPERTY AUTORCC_OPTIONS --format-version 1)
 else()
   find_package(X11 REQUIRED)
   target_link_libraries(aja-output-ui PRIVATE X11::X11 Qt::GuiPrivate)

@@ -6,25 +6,34 @@
 #include <QPainter>
 #include <QDesktopServices>
 #include "liblog.h"
+#include "pls-shared-functions.h"
 
 PLSNaverShoppingLIVEProductImageView::PLSNaverShoppingLIVEProductImageView(QWidget *parent) : QLabel(parent)
 {
+	QHBoxLayout *layoutInner = pls_new<QHBoxLayout>(this);
+	layoutInner->setContentsMargins(0, 0, 0, 0);
+	borderLabel = pls_new<QLabel>(this);
+	borderLabel->setObjectName("borderLabel");
+	layoutInner->addWidget(borderLabel);
+
+	liveDiscountPixmap = pls_shared_paint_svg(":/resource/images/navershopping/badge_nshoppinglive.svg", QSize(27, 17) * 4);
 	setMouseTracking(true);
 }
 
-void PLSNaverShoppingLIVEProductImageView::setImage(const QString &url_, const QString &imageUrl_, const QString &imagePath_, bool hasDiscountIcon_, bool isInLiveinfo_)
+void PLSNaverShoppingLIVEProductImageView::setImage(const QString &url_, const QString &imageUrl_, const QString &imagePath_, bool hasDiscountIcon_, bool isInLiveinfo_, double opacity)
 {
 	this->hasDiscountIcon = hasDiscountIcon_;
 	this->isInLiveinfo = isInLiveinfo_;
 	this->url = url_;
 	this->imageUrl = imageUrl_;
 	this->imagePath = imagePath_;
+	this->opacity = opacity;
 	if (minimumWidth() > 1 && minimumHeight() > 1) {
 		PLSNaverShoppingLIVEDataManager::instance()->getThumbnailPixmapAsync(this, imageUrl, imagePath, size(), 1);
 	}
 }
 
-void PLSNaverShoppingLIVEProductImageView::setImage(const QString &url_, const QPixmap &normalPixmap_, const QPixmap &hoveredPixmap_, bool hasDiscountIcon_, bool isInLiveinfo_)
+void PLSNaverShoppingLIVEProductImageView::setImage(const QString &url_, const QPixmap &normalPixmap_, const QPixmap &hoveredPixmap_, bool hasDiscountIcon_, bool isInLiveinfo_, double opacity)
 {
 	this->hasDiscountIcon = hasDiscountIcon_;
 	this->isInLiveinfo = isInLiveinfo_;
@@ -33,6 +42,7 @@ void PLSNaverShoppingLIVEProductImageView::setImage(const QString &url_, const Q
 	this->imagePath.clear();
 	this->normalPixmap = normalPixmap_;
 	this->hoveredPixmap = hoveredPixmap_;
+	this->opacity = opacity;
 	this->update();
 }
 
@@ -41,6 +51,7 @@ void PLSNaverShoppingLIVEProductImageView::mouseEnter()
 	hovered = true;
 	setCursor(Qt::PointingHandCursor);
 	update();
+	pls_flush_style(borderLabel, "enter", hasDiscountIcon);
 }
 
 void PLSNaverShoppingLIVEProductImageView::mouseLeave()
@@ -48,6 +59,7 @@ void PLSNaverShoppingLIVEProductImageView::mouseLeave()
 	hovered = false;
 	setCursor(Qt::ArrowCursor);
 	update();
+	pls_flush_style(borderLabel, "enter", false);
 }
 
 bool PLSNaverShoppingLIVEProductImageView::event(QEvent *event)
@@ -83,7 +95,7 @@ void PLSNaverShoppingLIVEProductImageView::paintEvent(QPaintEvent *)
 
 	QRect rect = this->rect();
 	painter.fillRect(rect, Qt::transparent);
-
+	painter.setOpacity(opacity);
 	if (!hasDiscountIcon) {
 		if (!normalPixmap.isNull() && !hoveredPixmap.isNull()) {
 			if (!hovered) {
@@ -110,12 +122,11 @@ void PLSNaverShoppingLIVEProductImageView::paintEvent(QPaintEvent *)
 			PLSNaverShoppingLIVEDataManager::instance()->getDefaultImage().render(&painter, imageRect);
 		}
 	} else {
-		if (!livePixmap.isNull() && !liveHoveredPixmap.isNull()) {
-			if (!hovered) {
-				painter.drawPixmap(rect, livePixmap);
-			} else {
-				painter.drawPixmap(rect, liveHoveredPixmap);
-			}
+		if (!normalPixmap.isNull()) {
+			QPixmap p = liveDiscountPixmap.scaled(QSize(27, 17) * devicePixelRatioF(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			p.setDevicePixelRatio(devicePixelRatioF());
+			painter.drawPixmap(rect, normalPixmap);
+			painter.drawPixmap(QRect(0, 0, 27, 17), p);
 		} else {
 			double dpi = 1;
 			if (hovered) {

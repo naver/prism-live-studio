@@ -27,7 +27,7 @@ const static int k_refreshDiff = 60 * 3;
 
 PLSAPIYoutube::PLSAPIYoutube(QObject *parent) : QObject(parent) {}
 
-void PLSAPIYoutube::requestTestLive(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType)
+void PLSAPIYoutube::requestTestLive(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType)
 {
 
 	auto _getNetworkReply = [receiver, onSucceed, onFailed] {
@@ -71,7 +71,7 @@ void PLSAPIYoutube::configDefaultRequest(const pls::http::Request &_request, con
 		});
 }
 
-void PLSAPIYoutube::requestLiveBroadcastStatus(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType)
+void PLSAPIYoutube::requestLiveBroadcastStatus(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed] {
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
@@ -87,7 +87,7 @@ void PLSAPIYoutube::requestLiveBroadcastStatus(const QObject *receiver, const PL
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 
-void PLSAPIYoutube::requestVideoStatus(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType)
+void PLSAPIYoutube::requestVideoStatus(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed] {
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
@@ -127,7 +127,8 @@ void PLSAPIYoutube::requestStopLive(const QObject *receiver, const std::function
 	pls::http::request(_request);
 }
 
-void PLSAPIYoutube::requestLiveBroadcastsInsert(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType)
+void PLSAPIYoutube::requestLiveBroadcastsInsert(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
+						PLSAPICommon::RefreshType refreshType)
 {
 	const auto &tryData = PLS_PLATFORM_YOUTUBE->getTrySaveDataData();
 	auto object = QJsonObject();
@@ -163,10 +164,12 @@ void PLSAPIYoutube::requestLiveBroadcastsInsert(const QObject *receiver, const P
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 
-void PLSAPIYoutube::requestLiveStreamsInsert(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType)
+void PLSAPIYoutube::requestLiveStreamsInsert(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType)
 {
 
 	auto object = QJsonObject();
+	bool isHls = PLSPlatformYoutube::IngestionType::Hls == PLS_PLATFORM_YOUTUBE->getSettingIngestionType();
+	const char *ingestionType = isHls ? "hls" : "rtmp";
 
 	const auto &itemData = PLS_PLATFORM_YOUTUBE->getTrySaveDataData();
 	if (itemData.isNormalLive) {
@@ -175,12 +178,7 @@ void PLSAPIYoutube::requestLiveStreamsInsert(const QObject *receiver, const PLSA
 		object["snippet"] = snippetObject;
 		auto cdnObject = QJsonObject();
 		cdnObject["frameRate"] = "variable";
-
-		if (PLSPlatformYoutube::IngestionType::Hls == PLS_PLATFORM_YOUTUBE->getSettingIngestionType()) {
-			cdnObject["ingestionType"] = "hls";
-		} else {
-			cdnObject["ingestionType"] = "rtmp";
-		}
+		cdnObject["ingestionType"] = ingestionType;
 
 		cdnObject["resolution"] = "variable";
 		object["cdn"] = cdnObject;
@@ -195,14 +193,7 @@ void PLSAPIYoutube::requestLiveStreamsInsert(const QObject *receiver, const PLSA
 		auto cdnObject = QJsonObject();
 
 		cdnObject["frameRate"] = itemData.streamAPIData["cdn"].toObject()["frameRate"].toString();
-
-		if (PLSPlatformYoutube::IngestionType::Auto == PLS_PLATFORM_YOUTUBE->getSettingIngestionType()) {
-			cdnObject["ingestionType"] = itemData.streamAPIData["cdn"].toObject()["ingestionType"].toString();
-		} else if (PLSPlatformYoutube::IngestionType::Hls == PLS_PLATFORM_YOUTUBE->getSettingIngestionType()) {
-			cdnObject["ingestionType"] = "hls";
-		} else {
-			cdnObject["ingestionType"] = "rtmp";
-		}
+		cdnObject["ingestionType"] = ingestionType;
 
 		cdnObject["resolution"] = itemData.streamAPIData["cdn"].toObject()["resolution"].toString();
 		object["cdn"] = cdnObject;
@@ -228,7 +219,7 @@ void PLSAPIYoutube::requestLiveStreamsInsert(const QObject *receiver, const PLSA
 }
 
 void PLSAPIYoutube::requestLiveBroadcastsBindOrUnbind(const QObject *receiver, const PLSYoutubeLiveinfoData &data, bool isBind, const PLSAPICommon::dataCallback &onSucceed,
-						      const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType)
+						      const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed, isBind, data] {
 		auto &_id = data._id;
@@ -254,7 +245,7 @@ void PLSAPIYoutube::requestLiveBroadcastsBindOrUnbind(const QObject *receiver, c
 }
 
 void PLSAPIYoutube::requestDeleteStream(const QObject *receiver, const QString &deleteID, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
-					RefreshType refreshType)
+					PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed, deleteID] {
 		QStringList ids;
@@ -278,7 +269,7 @@ void PLSAPIYoutube::requestDeleteStream(const QObject *receiver, const QString &
 }
 
 void PLSAPIYoutube::requestLiveBroadcastsUpdate(const QObject *receiver, const PLSYoutubeStart &startData, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
-						RefreshType refreshType)
+						PLSAPICommon::RefreshType refreshType)
 {
 	const auto &data = PLS_PLATFORM_YOUTUBE->getTrySaveDataData();
 	QJsonObject details = data.contentDetails;
@@ -314,7 +305,7 @@ void PLSAPIYoutube::requestLiveBroadcastsUpdate(const QObject *receiver, const P
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 
-void PLSAPIYoutube::requestCategoryID(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType,
+void PLSAPIYoutube::requestCategoryID(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType,
 				      const QString &searchID)
 {
 	QStringList ids;
@@ -347,7 +338,7 @@ void PLSAPIYoutube::requestCategoryID(const QObject *receiver, const PLSAPICommo
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 
-void PLSAPIYoutube::requestCategoryList(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType)
+void PLSAPIYoutube::requestCategoryList(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed] {
 		QMap<QString, QString> map = {{"hl", pls_get_current_language()}, {"regionCode", "US"}, {"part", "snippet"}};
@@ -364,7 +355,7 @@ void PLSAPIYoutube::requestCategoryList(const QObject *receiver, const PLSAPICom
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 
-void PLSAPIYoutube::requestScheduleList(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType)
+void PLSAPIYoutube::requestScheduleList(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed] {
 		//The API say the max is 50, but if set 50, they only return 7 items, So change to 51 > 50, they can return 50 items.
@@ -381,7 +372,7 @@ void PLSAPIYoutube::requestScheduleList(const QObject *receiver, const PLSAPICom
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 
-void PLSAPIYoutube::requestCurrentSelectData(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType)
+void PLSAPIYoutube::requestCurrentSelectData(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType)
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed] {
 		QMap<QString, QString> map = {{"part", "contentDetails,snippet,status"}, {"id", PLS_PLATFORM_YOUTUBE->getSelectData()._id}};
@@ -399,7 +390,7 @@ void PLSAPIYoutube::requestCurrentSelectData(const QObject *receiver, const PLSA
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 void PLSAPIYoutube::requestLiveStream(const QStringList &ids, const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
-				      RefreshType refreshType, const QString &queryKeys, const QByteArray &logName)
+				      PLSAPICommon::RefreshType refreshType, const QString &queryKeys, const QByteArray &logName)
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed, ids, queryKeys, logName] {
 		QMap<QString, QString> map = {{"part", queryKeys}, {"id", ids.join(",")}, {"maxResults", "50"}};
@@ -416,7 +407,7 @@ void PLSAPIYoutube::requestLiveStream(const QStringList &ids, const QObject *rec
 	refreshYoutubeTokenBeforeRequest(refreshType, _getNetworkReply, receiver, onSucceed, onFailed);
 }
 
-void PLSAPIYoutube::requestUpdateVideoData(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, RefreshType refreshType,
+void PLSAPIYoutube::requestUpdateVideoData(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType,
 					   const PLSYoutubeLiveinfoData &data)
 {
 
@@ -466,7 +457,7 @@ static void updateTheNewTokenToChannel(const QString &youtubeUUID, QJsonObject &
 	QMetaObject::invokeMethod(PLS_PLATFORM_YOUTUBE, &PLSPlatformYoutube::refreshTokenSucceed, Qt::QueuedConnection);
 }
 
-void PLSAPIYoutube::refreshYoutubeTokenBeforeRequest(RefreshType refreshType, const std::function<void()> &originNetworkReplay, const QObject *originReceiver,
+void PLSAPIYoutube::refreshYoutubeTokenBeforeRequest(PLSAPICommon::RefreshType refreshType, const std::function<void()> &originNetworkReplay, const QObject *originReceiver,
 						     const PLSAPICommon::dataCallback &originOnSucceed, const PLSAPICommon::errorCallback &originOnFailed)
 {
 	if (pls_get_app_exiting()) {
@@ -500,7 +491,7 @@ void PLSAPIYoutube::refreshYoutubeTokenBeforeRequest(RefreshType refreshType, co
 
 	assert(!youtubeUUID.isEmpty());
 
-	if (refreshType == RefreshType::NotRefresh || (refreshType == RefreshType::CheckRefresh && isTokenValid(youtubeUUID))) {
+	if (refreshType == PLSAPICommon::RefreshType::NotRefresh || (refreshType == PLSAPICommon::RefreshType::CheckRefresh && isTokenValid(youtubeUUID))) {
 		if (originNetworkReplay != nullptr) {
 			originNetworkReplay();
 
@@ -577,8 +568,11 @@ void PLSAPIYoutube::uploadImage(const QObject *receiver, const QString &imageFil
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 	PLSAPIYoutube::configDefaultRequest(_request, receiver, okCallback, failCallback, "uploadImage", false);
 
-	_request.urlParam("videoId", PLS_PLATFORM_YOUTUBE->getTrySaveDataData()._id);
-	_request.method(pls::http::Method::Post).url(QString("%1/upload/youtube/v3/thumbnails/set").arg(g_plsGoogleApiHost)).form("name", imageFilePath, true);
+	_request.urlParam("videoId", PLS_PLATFORM_YOUTUBE->getTrySaveDataData()._id)
+		.timeout(PRISM_NET_DOWNLOAD_TIMEOUT)
+		.method(pls::http::Method::Post)
+		.url(QString("%1/upload/youtube/v3/thumbnails/set").arg(g_plsGoogleApiHost))
+		.form("name", imageFilePath, true);
 	pls::http::request(_request);
 }
 
@@ -653,7 +647,9 @@ void PLSAPIYoutube::showFailedLog(const QString &logName, const pls::http::Reply
 					  errorMsg.toUtf8().constData(), errorHelp.toUtf8().constData());
 			}
 		} else {
-			PLS_ERROR(MODULE_PlatformService, "%s failed. with not object data.", logName.toUtf8().constData());
+			auto errorMsg = _data.left(200);
+			;
+			PLS_ERROR(MODULE_PlatformService, "%s failed. with not object data. data:%s", logName.toUtf8().constData(), errorMsg.constData());
 		}
 	}
 

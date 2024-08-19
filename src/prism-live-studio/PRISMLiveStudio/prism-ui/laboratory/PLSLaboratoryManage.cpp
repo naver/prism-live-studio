@@ -333,28 +333,24 @@ bool PLSLaboratoryManage::checkLabJsonValid(const QString &destPath) const
 		printLog("The laboratory.json file does not exist in the user laboratory folder");
 
 		//get app cache laboratory json file path，then open the path
-		//applicationDirPath
 		QString appJsonPath = findFileInResources(ChannelData::defaultSourcePath, "Laboratory.json");
 		printLog("Open the laboratory.json file in the App installation");
 		printKRLog(QString("Open the laboratory.json file in the App installation, the App installation laboratory.json file path is ") + appJsonPath);
 
-		QFile file(appJsonPath);
-		if (!file.open(QFile::ReadOnly | QIODevice::Text)) {
-			printLog("Failed to open the laboratory.json file in the installation package");
-			file.close();
+		QByteArray appBundleByteArray;
+		PLSJsonDataHandler::getJsonArrayFromFile(appBundleByteArray, appJsonPath);
+		if (appBundleByteArray.size() == 0) {
+			printLog("the laboratory.json file in the installation package file size is zero");
 			return false;
 		}
-
+	
 		//copy app cache file to dest path
 		printLog("Copy the laboratory.json file of the App installation package to the user directory");
-		bool result = file.copy(destPath);
+		bool result = PLSJsonDataHandler::saveJsonFile(appBundleByteArray, destPath);
 		if (!result) {
-			printLog(QString("Failed to copy the laboratory.json file of the App installation package to the user directory, reson is %1").arg(file.errorString()));
-			file.close();
+			printLog(QString("Failed to copy the laboratory.json file of the App installation package to the user directory"));
 			return false;
 		}
-
-		file.close();
 	}
 	printLog("The laboratory.json file exist in the user directory");
 	return true;
@@ -1247,6 +1243,10 @@ void PLSLaboratoryManage::initLaboratoryData()
 	for (auto variant : variantList) {
 		QVariantMap variantMap = variant.toMap();
 		QString titleValue = variantMap.value(laboratory_data::g_laboratoryTitle).toMap().value(pls_get_current_language_short_str()).toString();
+		if (titleValue.isEmpty())
+		{
+			titleValue = variantMap.value(laboratory_data::g_laboratoryTitle).toMap().value("en").toString();
+		}
 		variantMap.insert(laboratory_data::g_laboratoryTitle, titleValue);
 		QString labId = variantMap.value(laboratory_data::g_laboratoryId).toString();
 		m_LaboratoryInfos.insert(labId, variantMap);

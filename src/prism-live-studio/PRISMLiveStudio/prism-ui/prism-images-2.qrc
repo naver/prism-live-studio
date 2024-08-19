@@ -27,6 +27,7 @@
         <file>resource/images/add-source-view/ic-addsource-slideshow.svg</file>
         <file>resource/images/add-source-view/ic-addsource-text.svg</file>
         <file>resource/images/add-source-view/ic-addsource-window.svg</file>
+        <file>resource/images/add-source-view/ic-addsource-spout2.svg</file>
         <file>resource/images/add-source-view/ic-badge-new.svg</file>
         <file>resource/images/add-source-view/icon-source-appaudio-normal.svg</file>
         <file>resource/images/add-source-view/icon-source-appaudio-select.svg</file>
@@ -90,6 +91,8 @@
         <file>resource/images/add-source-view/icon-source-clock-select.svg</file>
         <file>resource/images/add-source-view/icon-source-prismlens-normal.svg</file>
         <file>resource/images/add-source-view/icon-source-prismlens-select.svg</file>
+        <file>resource/images/add-source-view/icon-source-spout2-normal.svg</file>
+        <file>resource/images/add-source-view/icon-source-spout2-select.svg</file>
         <file>resource/images/add-source-view/prismsticker.png</file>
         <file>resource/images/add-source-view/textmotion_en.png</file>
         <file>resource/images/add-source-view/textmotion_ko.png</file>
@@ -143,6 +146,9 @@
         <file>resource/images/collection/ic-trash-disable.svg</file>
         <file>resource/images/collection/ic-trash-normal.svg</file>
         <file>resource/images/collection/ic-trash-over.svg</file>
+		<file>resource/images/collection/ic_add_normal.svg</file>
+        <file>resource/images/collection/ic_import_normal.svg</file>
+        <file>resource/images/collection/img_scenecollection.png</file>
         <file>resource/images/loading/loading-1.svg</file>
         <file>resource/images/loading/loading-2.svg</file>
         <file>resource/images/loading/loading-3.svg</file>
@@ -235,6 +241,10 @@
         <file>resource/images/btn-ic-sourcedelete-over.svg</file>
         <file>resource/images/btn-ic-undo-click.svg</file>
         <file>resource/images/btn-ic-undo-over.svg</file>
+        <file>resource/images/ic_spout2_on_normal.svg</file>
+        <file>resource/images/ic_spout2_off_normal.svg</file>
+        <file>resource/images/ic_spout2_on_disable.svg</file>
+        <file>resource/images/ic_spout2_off_disable.svg</file>
         <file>resource/images/ChannelsSource/img-mychannel-listbg-over.svg</file>
         <file>resource/images/ChannelsSource/img-mychannel-listbg-click.svg</file>
         <file>resource/images/ChannelsSource/img-mychannel-listbg-normal.svg</file>
@@ -246,5 +256,12 @@
         <file>resource/images/ChannelsSource/ic-dropbox-up-click.svg</file>
         <file>resource/images/ChannelsSource/ic-dropbox-up-disable.svg</file>
         <file>resource/images/ChannelsSource/ic-dropbox-up-over.svg</file>
+		<file>resource/images/add-source-view/icon-source-chzzksponsor-normal.svg</file>
+        <file>resource/images/add-source-view/icon-source-chzzksponsor-select.svg</file>
+		<file>resource/images/add-source-view/chzzksponsor.gif</file>
+		<file>resource/images/ic_chzzksponsor_on_normal.svg</file>
+        <file>resource/images/ic_chzzksponsor_off_normal.svg</file>
+        <file>resource/images/ic_chzzksponsor_on_disable.svg</file>
+        <file>resource/images/ic_chzzksponsor_off_disable.svg</file>
     </qresource>
 </RCC>

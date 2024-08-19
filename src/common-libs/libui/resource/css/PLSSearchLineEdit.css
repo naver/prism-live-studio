@@ -22,7 +22,7 @@ PLSSearchLineEdit[showPlaceholder="false"]{
 
 PLSSearchLineEdit[usedFor="collection"]{
     padding-right: /*hdpi*/ 62px;
-    background-color: #1e1e1f;
+    background-color: #272727;
 }
 
 PLSSearchLineEdit:focus {
@@ -34,7 +34,7 @@ PLSSearchLineEdit[usedFor="giphy"]:!focus {
 }
 
 PLSSearchLineEdit[usedFor="collection"]:!focus {
-	border: /*hdpi*/ 1px solid #343434;
+	border: /*hdpi*/ 1px solid #343435;
 }
 
 PLSSearchLineEdit #toolBtnSearch {

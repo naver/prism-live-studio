@@ -15,6 +15,7 @@ public:
 	{
 		setWindowFlags(Qt::Widget);
 
+		//https://oss.navercorp.com/cd-live-platform/prism-live-studio/issues/246 layout is null
 		if (layout()) {
 			layout()->setSizeConstraint(QLayout::SetDefaultConstraint);
 		}
@@ -98,6 +99,10 @@ void PLSColorDialogView::setVisible(bool visible)
 
 QColor PLSColorDialogView::PLSColorDialogView::getColor(const QColor &initial, QWidget *parent, const QString &title, ColorDialogOptions options)
 {
+	QCursor cursor;
+	if (parent)
+		cursor = parent->cursor();
+
 	PLSColorDialogView dlg(initial, parent);
 	if (!title.isEmpty()) {
 		dlg.setWindowTitle(title);
@@ -112,6 +117,9 @@ QColor PLSColorDialogView::PLSColorDialogView::getColor(const QColor &initial, Q
 	dlg.setOptions(options);
 	dlg.setCurrentColor(initial);
 	dlg.exec();
+	if (parent)
+		parent->setCursor(cursor); //#4518
+
 	return dlg.selectedColor();
 }
 

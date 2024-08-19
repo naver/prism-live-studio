@@ -3,10 +3,13 @@ list(APPEND CMAKE_MODULE_PATH "$ENV{PRISM_SRC_DIR}/cmake/Modules")
 
 include(OBSLibs)
 
-if(OS_MACOS)
-list(APPEND CMAKE_MODULE_PATH "$ENV{PRISM_SRC_DIR}/cmake/macOS")
-include(PrismDefaults_macOS)
-endif()
+include(${CMAKE_SOURCE_DIR}/prism-live-studio/cmake/disable_api.cmake)
+InsertDisabledWinAPI()
+
+# if(OS_MACOS)
+# list(APPEND CMAKE_MODULE_PATH "$ENV{PRISM_SRC_DIR}/cmake/macOS")
+# include(PrismDefaults_macOS)
+# endif()
 
 
 add_definitions(-DHAVE_OBSCONFIG_H -DHAVE_PLSCONFIG_H -DUNICODE -D_UNICODE)
@@ -15,8 +18,6 @@ configure_file("$ENV{PRISM_SRC_DIR}/cmake/prism-version.h.in" "${CMAKE_CURRENT_B
 include_directories(SYSTEM "${CMAKE_CURRENT_BINARY_DIR}")
 
 set(OBS_ENV_PROJECT_DIR $ENV{PROJECT_DIR})
-set(OBS_ENV_CEF_ROOT_DIR $ENV{CEF_ROOT_DIR})
-set(OBS_ENV_VLC_DIR $ENV{VLC_DIR})
 set(OBS_ENV_VIRTUALCAM_GUID $ENV{VIRTUALCAM_GUID})
 set(OBS_ENV_ALL_DEPS $ENV{ALL_DEPS})
 set(OBS_ENV_GENERATOR $ENV{GENERATOR})
@@ -28,6 +29,10 @@ set(OBS_ENV_BUILD_TYPE $ENV{BUILD_TYPE})
 set(OBS_ENV_PRISM_VERSION_H_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(OBS_ENV_OSX_DEPLOYMENT_TARGET ${CMAKE_OSX_DEPLOYMENT_TARGET})
 set(OBS_ENV_SWIG_DIR ${SWIG_DIR})
+set(OBS_ENV_OBS_SRC_DIR $ENV{OBS_SRC_DIR})
+set(OBS_ENV_OBS_BUILD_DIR $ENV{OBS_BUILD_DIR})
+set(OBS_ENV_PRISM_SRC_DIR $ENV{PRISM_SRC_DIR})
+set(OBS_ENV_PRISM_BUILD_DIR $ENV{PRISM_BUILD_DIR})
 
 if(OS_WINDOWS)
 
@@ -67,7 +72,7 @@ add_custom_command(TARGET obs-build
 endif()
 
 if(OS_WINDOWS)
-add_dependencies(obs-build libutils-api liblog libhttp-client libipc libtask libui libdump-analyzer)
+add_dependencies(obs-build libutils-api liblog  libhttp-client libipc libtask libui libdump-analyzer)
 endif()
 
 add_executable(obs-copy cmake/build.cpp)

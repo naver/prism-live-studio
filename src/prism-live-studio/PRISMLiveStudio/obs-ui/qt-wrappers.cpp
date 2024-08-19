@@ -1,5 +1,5 @@
 /******************************************************************************
-    Copyright (C) 2013 by Hugh Bailey <obs.jim@gmail.com>
+    Copyright (C) 2023 by Lain Bailey <lain@obsproject.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -101,14 +101,18 @@ bool QTToGSWindow(QWindow *window, gs_window &gswindow)
 		gswindow.display = obs_get_nix_platform_display();
 		break;
 #ifdef ENABLE_WAYLAND
-	case OBS_NIX_PLATFORM_WAYLAND:
+	case OBS_NIX_PLATFORM_WAYLAND: {
 		QPlatformNativeInterface *native =
 			QGuiApplication::platformNativeInterface();
 		gswindow.display =
 			native->nativeResourceForWindow("surface", window);
 		success = gswindow.display != nullptr;
 		break;
+	}
 #endif
+	default:
+		success = false;
+		break;
 	}
 #endif
 	return success;
@@ -154,18 +158,34 @@ QDataStream &operator>>(QDataStream &in,
 
 QDataStream &operator<<(QDataStream &out, const OBSScene &scene)
 {
-	return out << QString(obs_source_get_name(obs_scene_get_source(scene)));
+	return out << QString(obs_source_get_uuid(obs_scene_get_source(scene)));
 }
 
 QDataStream &operator>>(QDataStream &in, OBSScene &scene)
 {
-	QString sceneName;
+	QString uuid;
 
-	in >> sceneName;
+	in >> uuid;
 
-	OBSSourceAutoRelease source =
-		obs_get_source_by_name(QT_TO_UTF8(sceneName));
+	OBSSourceAutoRelease source = obs_get_source_by_uuid(QT_TO_UTF8(uuid));
 	scene = obs_scene_from_source(source);
+
+	return in;
+}
+
+QDataStream &operator<<(QDataStream &out, const OBSSource &source)
+{
+	return out << QString(obs_source_get_uuid(source));
+}
+
+QDataStream &operator>>(QDataStream &in, OBSSource &source)
+{
+	QString uuid;
+
+	in >> uuid;
+
+	OBSSourceAutoRelease source_ = obs_get_source_by_uuid(QT_TO_UTF8(uuid));
+	source = source_;
 
 	return in;
 }
@@ -320,6 +340,7 @@ void setThemeID(QWidget *widget, const QString &themeID)
 
 QString SelectDirectory(QWidget *parent, QString title, QString path)
 {
+	pls::HotKeyLocker locker;
 	QString dir = QFileDialog::getExistingDirectory(
 		parent, title, path,
 		QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
@@ -330,6 +351,7 @@ QString SelectDirectory(QWidget *parent, QString title, QString path)
 QString SaveFile(QWidget *parent, QString title, QString path,
 		 QString extensions)
 {
+	pls::HotKeyLocker locker;
 	QString file =
 		QFileDialog::getSaveFileName(parent, title, path, extensions);
 
@@ -339,6 +361,7 @@ QString SaveFile(QWidget *parent, QString title, QString path,
 QString OpenFile(QWidget *parent, QString title, QString path,
 		 QString extensions)
 {
+	pls::HotKeyLocker locker;
 	QString file =
 		QFileDialog::getOpenFileName(parent, title, path, extensions);
 
@@ -348,6 +371,7 @@ QString OpenFile(QWidget *parent, QString title, QString path,
 QStringList OpenFiles(QWidget *parent, QString title, QString path,
 		      QString extensions)
 {
+	pls::HotKeyLocker locker;
 	QStringList files =
 		QFileDialog::getOpenFileNames(parent, title, path, extensions);
 
@@ -379,6 +403,10 @@ void RefreshToolBarStyling(QToolBar *toolBar)
 {
 	for (QAction *action : toolBar->actions()) {
 		QWidget *widget = toolBar->widgetForAction(action);
+
+		if (!widget)
+			continue;
+
 		widget->style()->unpolish(widget);
 		widget->style()->polish(widget);
 	}

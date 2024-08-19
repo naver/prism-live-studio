@@ -1,9 +1,5 @@
-<svg width="80" height="33" viewBox="0 0 80 33" xmlns="http://www.w3.org/2000/svg">
-    <g fill="none" fill-rule="evenodd">
-        <rect fill="#EFFC35" opacity=".947" width="80" height="33" rx="3"/>
-        <g transform="translate(33 10)" fill="#000">
-            <rect x="6" width="2" height="14" rx="1"/>
-            <rect y="6" width="14" height="2" rx="1"/>
-        </g>
-    </g>
+<svg width="95" height="33" viewBox="0 0 95 33" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect opacity="0.946848" width="95" height="33" rx="3" fill="#EFFC35"/>
+<rect x="47" y="10" width="2" height="14" rx="1" fill="black"/>
+<rect x="41" y="16" width="14" height="2" rx="1" fill="black"/>
 </svg>

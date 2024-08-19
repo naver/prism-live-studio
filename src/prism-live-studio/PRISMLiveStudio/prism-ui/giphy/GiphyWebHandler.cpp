@@ -2,6 +2,7 @@
 #include "log/module_names.h"
 #include "liblog.h"
 #include "utils-api.h"
+#include "libutils-api.h"
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonParseError>
@@ -117,7 +118,7 @@ void GiphyWebHandler::GetImageInfo(const QJsonObject &imageObj, GiphyData &data)
 void GiphyWebHandler::Append(const RequestTaskData &task)
 {
 	if (requestQueue.isEmpty())
-		QTimer::singleShot(0, this, SLOT(StartNextRequest()));
+		pls_async_call(this, [this]() { StartNextRequest(); });
 
 	QUrl requestUrl = QUrl::fromEncoded(task.url.toUtf8());
 

@@ -212,6 +212,7 @@ void PLSShoppingCalenderWidget::updateDateCell()
 			showRow += 1;
 			table_view->setRowHidden(row, false);
 		}
+		table_view->setRowHeight(row, 26);
 	}
 
 	int width = getValueForDpi(CalenderCellWeight) * table_view->model()->columnCount() + 2 * getValueForDpi(CalenderLeftPadding);

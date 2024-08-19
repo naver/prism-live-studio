@@ -21,13 +21,7 @@ class QLineEdit;
 class SourceTree;
 class QSpacerItem;
 class QHBoxLayout;
-class LockedCheckBox;
-class VisibilityCheckBox;
 class VisibilityItemWidget;
-
-class SourceTreeSubItemCheckBox : public QCheckBox {
-	Q_OBJECT
-};
 
 class SourceLabel : public QLabel {
 	Q_OBJECT
@@ -59,11 +53,8 @@ class SourceTreeItem : public QWidget {
 	void mouseDoubleClickEvent(QMouseEvent *event) override;
 	void mousePressEvent(QMouseEvent *event) override;
 	void mouseReleaseEvent(QMouseEvent *event) override;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 	void enterEvent(QEnterEvent *event) override;
-#else
-	void enterEvent(QEvent *event) override;
-#endif
+
 	void leaveEvent(QEvent *event) override;
 	void resizeEvent(QResizeEvent *event) override;
 	bool eventFilter(QObject *object, QEvent *event) override;
@@ -112,8 +103,8 @@ private:
 	QSpacerItem *spacer = nullptr;
 	QCheckBox *expand = nullptr;
 	QLabel *iconLabel = nullptr;
-	VisibilityCheckBox *vis = nullptr;
-	LockedCheckBox *lock = nullptr;
+	QCheckBox *vis = nullptr;
+	QCheckBox *lock = nullptr;
 	QHBoxLayout *boxLayout = nullptr;
 	SourceLabel *label = nullptr;
 
@@ -131,16 +122,7 @@ private:
 
 	SourceTree *tree;
 	OBSSceneItem sceneitem;
-	OBSSignal sceneRemoveSignal;
-	OBSSignal itemRemoveSignal;
-	OBSSignal groupReorderSignal;
-	OBSSignal selectSignal;
-	OBSSignal deselectSignal;
-	OBSSignal visibleSignal;
-	OBSSignal lockedSignal;
-	OBSSignal renameSignal;
-	OBSSignal renameExtSignal;
-	OBSSignal removeSignal;
+	std::vector<OBSSignal> sigs;
 
 	bool selected = false;
 	bool isScrollShowed;
@@ -209,7 +191,6 @@ signals:
 
 public:
 	explicit SourceTreeModel(SourceTree *st);
-	~SourceTreeModel() override;
 
 	virtual int rowCount(const QModelIndex &parent) const override;
 	virtual QVariant data(const QModelIndex &index,
@@ -326,7 +307,7 @@ public:
 public slots:
 	inline void ReorderItems() const { GetStm()->ReorderItems(); }
 	inline void RefreshItems() { GetStm()->SceneChanged(); }
-	void Remove(OBSSceneItem item) const;
+	void Remove(OBSSceneItem item, OBSScene scene) const;
 	void GroupSelectedItems() const;
 	void UngroupSelectedGroups() const;
 	void AddGroup() const;

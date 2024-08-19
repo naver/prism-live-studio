@@ -18,8 +18,11 @@ public:
 	~GoLivePannel() override;
 	void holdOnAll(bool holdOn);
 
+	void setRecTooltip();
+
 protected:
 	void changeEvent(QEvent *e) override;
+	void showEvent(QShowEvent *event) override;
 
 private slots:
 

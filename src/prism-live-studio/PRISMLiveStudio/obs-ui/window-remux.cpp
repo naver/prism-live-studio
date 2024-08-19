@@ -39,6 +39,7 @@
 #include <cmath>
 #include "PLSAlertView.h"
 #include "platform.hpp"
+#include <QToolTip.h>
 
 using namespace std;
 
@@ -115,8 +116,8 @@ QWidget *RemuxEntryPathItemDelegate::createEditor(
 				    QSizePolicy::ControlType::LineEdit));
 		layout->addWidget(text);
 
-		QObject::connect(text, SIGNAL(editingFinished()), this,
-				 SLOT(updateText()));
+		QObject::connect(text, &QLineEdit::editingFinished, this,
+				 &RemuxEntryPathItemDelegate::updateText);
 
 		QToolButton *browseButton = new QToolButton();
 		browseButton->setObjectName("browseButton");
@@ -210,8 +211,7 @@ void RemuxEntryPathItemDelegate::paint(QPainter *painter,
 
 void RemuxEntryPathItemDelegate::handleBrowse(QWidget *container)
 {
-	QString OutputPattern = "(*.mp4 *.flv *.mov *.mkv *.ts *.m3u8)";
-	QString InputPattern = "(*.flv *.mov *.mkv *.ts *.m3u8)";
+	QString ExtensionPattern = "(*.mp4 *.flv *.mov *.mkv *.ts *.m3u8)";
 
 	QLineEdit *text = container->findChild<QLineEdit *>();
 
@@ -223,7 +223,7 @@ void RemuxEntryPathItemDelegate::handleBrowse(QWidget *container)
 	if (isOutput) {
 		QString newPath = SaveFile(container,
 					   QTStr("Remux.SelectTarget"),
-					   currentPath, OutputPattern);
+					   currentPath, ExtensionPattern);
 
 		if (!newPath.isEmpty()) {
 			container->setProperty(PATH_LIST_PROP,
@@ -234,12 +234,16 @@ void RemuxEntryPathItemDelegate::handleBrowse(QWidget *container)
 		QStringList paths = OpenFiles(
 			container, QTStr("Remux.SelectRecording"), currentPath,
 			QTStr("Remux.OBSRecording") + QString(" ") +
-				InputPattern);
+				ExtensionPattern);
 
 		if (!paths.empty()) {
 			container->setProperty(PATH_LIST_PROP, paths);
 			isSet = true;
 		}
+#ifdef __APPLE__
+		// TODO: Revisit when QTBUG-42661 is fixed
+		container->window()->raise();
+#endif
 	}
 
 	bringWindowToTop(container);
@@ -355,7 +359,7 @@ bool RemuxQueueModel::setData(const QModelIndex &index, const QVariant &value,
 				endRemoveRows();
 			}
 		} else {
-			if (pathList.size() > 1 &&
+			if (pathList.size() >= 1 &&
 			    index.row() < queue.length()) {
 				queue[index.row()].sourcePath = pathList[0];
 				checkInputPath(index.row());
@@ -373,6 +377,7 @@ bool RemuxQueueModel::setData(const QModelIndex &index, const QVariant &value,
 				for (QString path : pathList) {
 					RemuxQueueEntry entry;
 					entry.sourcePath = path;
+					entry.state = RemuxEntryState::Empty;
 
 					queue.insert(row, entry);
 					row++;
@@ -392,6 +397,7 @@ bool RemuxQueueModel::setData(const QModelIndex &index, const QVariant &value,
 		if (!path.isEmpty()) {
 			RemuxQueueEntry entry;
 			entry.sourcePath = path;
+			entry.state = RemuxEntryState::Empty;
 
 			beginInsertRows(QModelIndex(), queue.length() + 1,
 					queue.length() + 1);
@@ -480,10 +486,18 @@ void RemuxQueueModel::checkInputPath(int row)
 		else
 			entry.state = RemuxEntryState::InvalidPath;
 
+		QString newExt = ".mp4";
+		QString suffix = fileInfo.suffix();
+
+		if (suffix.contains("mov", Qt::CaseInsensitive) ||
+		    suffix.contains("mp4", Qt::CaseInsensitive)) {
+			newExt = ".remuxed." + suffix;
+		}
+
 		if (entry.state == RemuxEntryState::Ready)
 			entry.targetPath = QDir::toNativeSeparators(
 				fileInfo.path() + QDir::separator() +
-				fileInfo.completeBaseName() + ".mp4");
+				fileInfo.completeBaseName() + newExt);
 	}
 
 	if (entry.state == RemuxEntryState::Ready && isProcessing)
@@ -581,13 +595,11 @@ void RemuxQueueModel::endProcessing()
 	}
 
 	// Signal that the insertion point exists again.
-
+	isProcessing = false;
 	if (!autoRemux) {
 		beginInsertRows(QModelIndex(), queue.length(), queue.length());
 		endInsertRows();
 	}
-
-	isProcessing = false;
 
 	emit dataChanged(index(0, RemuxEntryColumn::State),
 			 index(queue.length(), RemuxEntryColumn::State));
@@ -656,6 +668,9 @@ OBSRemux::OBSRemux(const char *path, QWidget *parent, bool autoRemux_)
 	ui->progressBar->setVisible(false);
 	ui->progressSlider->setVisible(false);
 	ui->progressLabel->setVisible(false);
+	ui->titleWidget->setVisible(!autoRemux);
+	ui->lineLabel->setVisible(!autoRemux);
+	ui->bottomLabel->setVisible(!autoRemux);
 	ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
 	ui->buttonBox->button(QDialogButtonBox::RestoreDefaults)
 		->setEnabled(false);
@@ -666,7 +681,13 @@ OBSRemux::OBSRemux(const char *path, QWidget *parent, bool autoRemux_)
 		ui->tableView->hide();
 		ui->buttonBox->hide();
 		ui->label->hide();
+		ui->verticalSpacer->changeSize(0, 0);
+		ui->verticalSpacer_2->changeSize(0, 0);
+	} else {
+		ui->verticalSpacer->changeSize(0, 18);
+		ui->verticalSpacer_2->changeSize(0, 14);
 	}
+	pls_flush_style(this, "autoRemux", autoRemux);
 
 	ui->progressBar->setMinimum(0);
 	ui->progressBar->setMaximum(1000);
@@ -712,40 +733,64 @@ OBSRemux::OBSRemux(const char *path, QWidget *parent, bool autoRemux_)
 		->setObjectName("RestoreDefaults");
 	ui->buttonBox->button(QDialogButtonBox::Close)->setObjectName("Close");
 
-	connect(ui->buttonBox->button(QDialogButtonBox::Ok), SIGNAL(clicked()),
-		this, SLOT(beginRemux()));
+	connect(ui->buttonBox->button(QDialogButtonBox::Ok),
+		&QPushButton::clicked, this, &OBSRemux::beginRemux);
 	connect(ui->buttonBox->button(QDialogButtonBox::Reset),
-		SIGNAL(clicked()), this, SLOT(clearFinished()));
+		&QPushButton::clicked, this, &OBSRemux::clearFinished);
 	connect(ui->buttonBox->button(QDialogButtonBox::RestoreDefaults),
-		SIGNAL(clicked()), this, SLOT(clearAll()));
+		&QPushButton::clicked, this, &OBSRemux::clearAll);
 	connect(ui->buttonBox->button(QDialogButtonBox::Close),
-		SIGNAL(clicked()), this, SLOT(close()));
+		&QPushButton::clicked, this, &OBSRemux::close);
 
 	worker->moveToThread(&remuxer);
 	remuxer.start();
 
-	//gcc-4.8 can't use QPointer<RemuxWorker> below
-	RemuxWorker *worker_ = worker;
-	connect(worker_, &RemuxWorker::updateProgress, this,
+	connect(worker.data(), &RemuxWorker::updateProgress, this,
 		&OBSRemux::updateProgress);
-	connect(&remuxer, &QThread::finished, worker_, &QObject::deleteLater);
-	connect(worker_, &RemuxWorker::remuxFinished, this,
+	connect(&remuxer, &QThread::finished, worker.data(),
+		&QObject::deleteLater);
+	connect(worker.data(), &RemuxWorker::remuxFinished, this,
 		&OBSRemux::remuxFinished);
-	connect(this, &OBSRemux::remux, worker_, &RemuxWorker::remux);
+	connect(this, &OBSRemux::remux, worker.data(), &RemuxWorker::remux);
 
-	// Guessing the GCC bug mentioned above would also affect
-	// QPointer<RemuxQueueModel>? Unsure.
-	RemuxQueueModel *queueModel_ = queueModel;
-	connect(queueModel_,
-		SIGNAL(rowsInserted(const QModelIndex &, int, int)), this,
-		SLOT(rowCountChanged(const QModelIndex &, int, int)));
-	connect(queueModel_, SIGNAL(rowsRemoved(const QModelIndex &, int, int)),
-		this, SLOT(rowCountChanged(const QModelIndex &, int, int)));
+	connect(queueModel.data(), &RemuxQueueModel::rowsInserted, this,
+		&OBSRemux::rowCountChanged);
+	connect(queueModel.data(), &RemuxQueueModel::rowsRemoved, this,
+		&OBSRemux::rowCountChanged);
 
 	QModelIndex index = queueModel->createIndex(0, 1);
 	QMetaObject::invokeMethod(ui->tableView, "setCurrentIndex",
 				  Qt::QueuedConnection,
 				  Q_ARG(const QModelIndex &, index));
+
+#if defined(Q_OS_MACOS)
+	ui->buttonBox->button(QDialogButtonBox::Open)->setText("");
+	ui->buttonBox->button(QDialogButtonBox::Open)
+		->setToolTip(QTStr("ExtraBrowsers.Info"));
+	ui->buttonBox->button(QDialogButtonBox::Open)
+		->setProperty("showHandCursor", QVariant(true));
+
+	ui->buttonBox->button(QDialogButtonBox::Open)->installEventFilter(this);
+#else
+	ui->buttonBox->button(QDialogButtonBox::Open)->setVisible(false);
+#endif
+}
+
+bool OBSRemux::eventFilter(QObject *watched, QEvent *event)
+{
+#if defined(Q_OS_MACOS)
+	if (watched == ui->buttonBox->button(QDialogButtonBox::Open) &&
+	    event->type() == QEvent::ToolTip) {
+		QPushButton *btn =
+			ui->buttonBox->button(QDialogButtonBox::Open);
+		QPoint pos = btn->rect().center();
+		QPoint global = btn->mapToGlobal(pos);
+		QToolTip::showText(QPoint(global.rx(), global.ry() - 20),
+				   btn->toolTip(), btn);
+		return true;
+	}
+#endif
+	return PLSDialogView::eventFilter(watched, event);
 }
 
 bool OBSRemux::stopRemux()
@@ -886,8 +931,9 @@ void OBSRemux::beginRemux()
 	// Set all jobs to "pending" first.
 	queueModel->beginProcessing();
 
-	ui->progressSlider->setVisible(true);
-	ui->progressLabel->setVisible(true);
+	ui->progressSlider->setVisible(!autoRemux);
+	ui->progressLabel->setVisible(!autoRemux);
+	ui->progressBar->setVisible(autoRemux);
 	ui->buttonBox->button(QDialogButtonBox::Ok)
 		->setText(QTStr("Remux.Stop"));
 	setAcceptDrops(false);
@@ -898,8 +944,9 @@ void OBSRemux::beginRemux()
 void OBSRemux::AutoRemux(QString inFile, QString outFile)
 {
 	if (inFile != "" && outFile != "" && autoRemux) {
-		ui->progressSlider->setVisible(true);
-		ui->progressLabel->setVisible(true);
+		ui->progressLabel->setVisible(false);
+		ui->progressSlider->setVisible(false);
+		ui->progressBar->setVisible(true);
 		emit remux(inFile, outFile);
 		autoRemuxFile = outFile;
 	}
@@ -926,8 +973,9 @@ void OBSRemux::remuxNextEntry()
 				PLSAlertView::Button::Ok);
 		}
 
-		ui->progressSlider->setVisible(autoRemux);
-		ui->progressLabel->setVisible(autoRemux);
+		ui->progressSlider->setVisible(false);
+		ui->progressLabel->setVisible(false);
+		ui->progressBar->setVisible(autoRemux);
 		ui->buttonBox->button(QDialogButtonBox::Ok)
 			->setText(QTStr("Remux.Remux"));
 		ui->buttonBox->button(QDialogButtonBox::RestoreDefaults)
@@ -968,7 +1016,7 @@ void OBSRemux::remuxFinished(bool success)
 	queueModel->finishEntry(success);
 
 	if (autoRemux && autoRemuxFile != "") {
-		QTimer::singleShot(3000, this, SLOT(close()));
+		QTimer::singleShot(3000, this, &OBSRemux::close);
 
 		OBSBasic *main = OBSBasic::Get();
 		main->ShowStatusBarMessage(
@@ -996,6 +1044,11 @@ void OBSRemux::clearAll()
 
 void RemuxWorker::UpdateProgress(float percent)
 {
+	if (percent < 0) {
+		percent = 0;
+	}else if (percent > 100){
+		percent = 100;
+	}
 	if (abs(lastProgress - percent) < 0.1f)
 		return;
 

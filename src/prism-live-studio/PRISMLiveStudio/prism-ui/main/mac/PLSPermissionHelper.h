@@ -16,7 +16,7 @@ typedef void (*PLSPermissionCallback)(void *inUserData, bool isUserClickOK);
 
 struct PLSPermissionHelper {
 	enum class AVStatus { Allow, NotDetermined, Denied, Restricted };
-	enum class AVType { None, Audio, Video, Screen };
+	enum class AVType { None, Audio, Video, Lens, Mobile, Screen, ScreenAudio };
 
 	static AVStatus checkPermissionWithSource(obs_source_t *source, AVType &avType);
 	static AVStatus checkPermissionWithSource(const QString &sourceID, AVType &avType);

@@ -10,8 +10,6 @@
 #include "ChannelCommonFunctions.h"
 #include "pls-gpop-data.hpp"
 
-#define LIBRARY_POLICY_PC_PATH QStringLiteral("PRISMLiveStudio/library/library_Policy_PC/")
-
 using namespace common;
 
 /*********Thumbnail parameter**********/
@@ -138,12 +136,13 @@ bool PLSServerStreamHandler::isSupportedResolutionFPS(QString &outTipString) con
 		channelListName.append(QString(",%1").arg(platformList.at(i)));
 	}
 
-	if (IS_KR()) {
-		outTipString = QString("%1 %2%3").arg(channelListName).arg(tr("Platform.resolution.fps.failed.front")).arg(tr("Platform.resolution.fps.failed.last"));
-	} else {
-		outTipString = QString("%1%2%3").arg(tr("Platform.resolution.fps.failed.front")).arg(channelListName).arg(tr("Platform.resolution.fps.failed.last"));
-	}
+	outTipString = getResolutionAndFpsInvalidTip(channelListName);
 	return result;
+}
+
+QString PLSServerStreamHandler::getResolutionAndFpsInvalidTip(const QString &channeName) const
+{
+	return QTStr("Platform.resolution.fps.failed").arg(channeName);
 }
 
 void PLSServerStreamHandler::checkChannelResolutionFpsValid(const QString &channelName, const QVariantMap &platformFPSMap, const QString &platformKey, bool &result, QList<QString> &platformList) const
@@ -183,7 +182,36 @@ void PLSServerStreamHandler::checkChannelResolutionFpsValid(const QString &chann
 
 void PLSServerStreamHandler::requestLiveDirectEnd() const
 {
-	
+}
+
+bool PLSServerStreamHandler::isValidWatermark(const QString &platFormName) const
+{
+	QString watermarkPath = PLSSyncServerManager::instance()->getWaterMarkResLocalPath(platFormName);
+	if (!QFile::exists(watermarkPath)) {
+		PLS_ERROR(MODULE_PlatformService, "watermark path not exist");
+		return false;
+	}
+	return true;
+}
+
+bool PLSServerStreamHandler::isValidOutro(const QString &platFormName) const
+{
+	QVariantMap outroInfoMap = PLSSyncServerManager::instance()->getOutroResLocalPathAndText(platFormName);
+	if (outroInfoMap.isEmpty()) {
+		PLS_ERROR(MODULE_PlatformService, "getOutroResLocalPathAndText not exist");
+		return false;
+	}
+	auto path = outroInfoMap.value(OUTRO_PATH).toString();
+	if (!QFile::exists(path)) {
+		PLS_ERROR(MODULE_PlatformService, "outro path not exist");
+		return false;
+	}
+	auto text = outroInfoMap.value(OUTRO_TEXT).toString();
+	if (text.isEmpty()) {
+		PLS_ERROR(MODULE_PlatformService, "outro text is empty");
+		return false;
+	}
+	return true;
 }
 
 void PLSServerStreamHandler::startThumnailRequest() const
@@ -193,7 +221,6 @@ void PLSServerStreamHandler::startThumnailRequest() const
 
 void PLSServerStreamHandler::uploadThumbnailToRemote() const
 {
-	
 }
 
 bool PLSServerStreamHandler::isLandscape() const

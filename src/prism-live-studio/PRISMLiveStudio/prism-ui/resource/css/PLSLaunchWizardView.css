@@ -414,17 +414,22 @@ PLSLaunchWizardView #wizardFrame {
     padding: /*hdpi*/ 19px /*hdpi*/ 29px /*hdpi*/ 20px /*hdpi*/ 26px;
 }
 
+PLSLaunchWizardView #checkBox #plsCheckBox_text {
+    color: #e5e5e5;
+    font-size: 14px;
+    background-color: transparent;
+    font-weight: bold;
+}
 /* bottom tip*/
 PLSLaunchWizardView #tipsLabel {
     background-color: transparent;
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     font-weight: normal;
     font-stretch: normal;
     font-style: normal;
     color: #bababa;
     padding: 0px;
-    margin: 0px;
-    margin-right: /*hdpi*/ 50px;
+    margin:0px;
 }
 
 PLSLaunchWizardView #hideButton {

@@ -130,7 +130,10 @@ PLSImporterListView::PLSImporterListView(QWidget *parent) : QListView(parent)
 	scrollBar = pls_new<PLSCommonScrollBar>(this);
 	setVerticalScrollBar(scrollBar);
 	setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-	connect(scrollBar, &PLSCommonScrollBar::isShowScrollBar, this, [this](bool show) { emit ScrollBarShow(show); });
+	connect(scrollBar, &PLSCommonScrollBar::isShowScrollBar, this, [this](bool show) {
+		pls_check_app_exiting();
+		emit ScrollBarShow(show);
+	});
 }
 
 PLSImporterModel *PLSImporterListView::GetModel() const

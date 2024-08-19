@@ -30,6 +30,7 @@
 #include <qjsonobject.h>
 #include <qcborvalue.h>
 #include <qset.h>
+#include <qversionnumber.h>
 
 #if defined(Q_OS_WIN)
 #include <malloc.h>
@@ -164,6 +165,8 @@ LIBUTILSAPI_API bool pls_shm_is_for_send(pls_shm_t *shm);
 LIBUTILSAPI_API bool pls_shm_is_for_receive(pls_shm_t *shm);
 LIBUTILSAPI_API int pls_shm_get_max_data_size(pls_shm_t *shm);
 LIBUTILSAPI_API bool pls_shm_is_online(pls_shm_t *shm);
+LIBUTILSAPI_API bool pls_shm_is_sender_online(pls_shm_t *shm);
+LIBUTILSAPI_API bool pls_shm_is_receiver_online(pls_shm_t *shm);
 
 struct pls_datetime_t {
 	int year;
@@ -193,7 +196,7 @@ LIBUTILSAPI_API bool pls_current_is_main_thread();
 
 LIBUTILSAPI_API QString pls_gen_uuid();
 
-LIBUTILSAPI_API bool pls_is_debugger_present();
+LIBUTILSAPI_API bool pls_is_debugger_present(int pid = -1);
 LIBUTILSAPI_API void pls_printf(const wchar_t *text);
 LIBUTILSAPI_API void pls_printf(const std::wstring &text);
 LIBUTILSAPI_API void pls_printf(const QString &text);
@@ -206,12 +209,16 @@ LIBUTILSAPI_API void pls_async_invoke(QObject *object, const std::function<void(
 LIBUTILSAPI_API void pls_async_invoke(QObject *object, const char *fn);
 
 LIBUTILSAPI_API bool pls_prism_is_dev();
+LIBUTILSAPI_API bool pls_prism_save_local_log();
+LIBUTILSAPI_API QVariant pls_prism_get_qsetting_value(QString key, QVariant defaultVal = {});
 
 LIBUTILSAPI_API void pls_prism_set_locale(const std::string &locale);
 LIBUTILSAPI_API QString pls_prism_get_locale();
 LIBUTILSAPI_API QString pls_get_local_ip();
 LIBUTILSAPI_API QString pls_get_local_mac();
 LIBUTILSAPI_API QList<QHostAddress> pls_get_valid_hosts();
+
+LIBUTILSAPI_API const char *pls_bool_2_string(bool b);
 
 LIBUTILSAPI_API bool pls_show_in_graphical_shell(const QString &pathIn);
 struct pls_win_ver_t {
@@ -230,11 +237,12 @@ LIBUTILSAPI_API QString pls_get_win_name_with_arch();
 #elif defined(Q_OS_MACOS)
 LIBUTILSAPI_API pls_mac_ver_t pls_get_mac_systerm_ver();
 LIBUTILSAPI_API bool pls_unZipFile(const QString &dstDirPath, const QString &srcFilePath);
+LIBUTILSAPI_API bool pls_zipFile(const QString &destZipPath, const QString &sourceDirName, const QString &sourceFolderPath);
 LIBUTILSAPI_API bool pls_copy_file_with_error_code(const QString &fileName, const QString &newName, bool overwrite, int &errorCode);
 LIBUTILSAPI_API QString pls_get_system_identifier();
 LIBUTILSAPI_API bool pls_file_is_existed(const QString &filePath);
-LIBUTILSAPI_API bool pls_install_mac_package(const QString &unzipFolderPath, const QString &destBundlePath);
-LIBUTILSAPI_API bool pls_restart_mac_app(const char *restartType);
+LIBUTILSAPI_API bool pls_install_mac_package(const QString &unzipFolderPath, const QString &destBundlePath, const std::string &prismSession, const std::string &prismGcc, const char *version);
+LIBUTILSAPI_API bool pls_restart_mac_app(const QStringList &arguments);
 LIBUTILSAPI_API QString pls_get_existed_downloaded_mac_app(const QString &downloadedBundleDir, const QString &downloadedVersion, bool deleteBundleExceptUpdatedBundle);
 LIBUTILSAPI_API bool pls_remove_all_downloaded_mac_app_small_equal_version(const QString &downloadedBundleDir, const QString &softwareVersion);
 LIBUTILSAPI_API void pls_bring_mac_window_to_front(WId winId);
@@ -300,6 +308,15 @@ LIBUTILSAPI_API qulonglong pls_get_qobject_id(const QObject *object);
 LIBUTILSAPI_API bool pls_check_qobject_id(const QObject *object, qulonglong object_id);
 LIBUTILSAPI_API bool pls_check_qobject_id(const QObject *object, qulonglong object_id, const std::function<bool(const QObject *object)> &is_valid);
 
+using pls_getter_t = std::function<QVariant()>;
+LIBUTILSAPI_API bool pls_add_object_getter(const QObject *object, const QByteArray &name, const pls_getter_t &getter);
+LIBUTILSAPI_API void pls_remove_object_getter(const QObject *object, const QByteArray &name);
+LIBUTILSAPI_API QVariant pls_call_object_getter(const QObject *object, const QByteArray &name);
+using pls_setter_t = std::function<void(QVariant)>;
+LIBUTILSAPI_API bool pls_add_object_setter(const QObject *object, const QByteArray &name, const pls_setter_t &setter);
+LIBUTILSAPI_API void pls_remove_object_setter(const QObject *object, const QByteArray &name);
+LIBUTILSAPI_API void pls_call_object_setter(const QObject *object, const QByteArray &name, const QVariant &value);
+
 LIBUTILSAPI_API int pls_get_platform_window_height_by_windows_height(int windowsHeight);
 
 struct pls_dl_t {
@@ -312,6 +329,8 @@ LIBUTILSAPI_API pls_fn_ptr_t pls_dlsym(pls_dl_t &dl, const char *func);
 LIBUTILSAPI_API void pls_dlclose(pls_dl_t &dl);
 
 LIBUTILSAPI_API std::string pls_get_cpu_name();
+
+LIBUTILSAPI_API bool pls_check_local_host();
 
 enum class pls_language_t { //
 	NotImplement = -1,
@@ -336,6 +355,15 @@ LIBUTILSAPI_API pls_language_t pls_get_os_language_from_lid(uint16_t lid);
 #endif
 
 LIBUTILSAPI_API bool pls_is_mouse_pressed(Qt::MouseButton button);
+
+#if defined(Q_OS_MACOS)
+LIBUTILSAPI_API void pls_set_current_lens(int index);
+#endif
+
+LIBUTILSAPI_API bool pls_is_os_sys_macos();
+
+//only attach, not crate or keep sharememory
+LIBUTILSAPI_API bool pls_set_temp_sharememory(const QString &key, const QString &val);
 
 namespace pls {
 template<typename QtApp> class Application : public QtApp {
@@ -646,6 +674,13 @@ template<typename T> void pls_delete_later(T *object)
 template<typename T> void pls_delete_later(T *&object, std::nullptr_t)
 {
 	if (object) {
+		object->deleteLater();
+		object = nullptr;
+	}
+}
+template<typename T> void pls_delete_later(pls::QObjectPtr<T> &object)
+{
+	if (object.valid()) {
 		object->deleteLater();
 		object = nullptr;
 	}
@@ -1408,6 +1443,80 @@ template<typename T, typename IsValid, typename Fn> void pls_async_call_mt(const
 	pls_async_call(qApp, object_ptrs, objects, isValid, fn);
 }
 
+namespace pls {
+template<typename... Args> struct TypeArray {};
+template<typename Callback, typename InArgs, typename RealArgs, bool Invocable> struct WraperCb;
+
+template<typename Callback, typename InArg, typename... InArgs, typename... RealArgs>
+struct WraperCb<Callback, TypeArray<InArg, InArgs...>, TypeArray<RealArgs...>, false>
+	: WraperCb<Callback, TypeArray<InArgs...>, TypeArray<RealArgs..., InArg>, std::is_invocable_v<Callback, RealArgs..., InArg>> {};
+
+template<typename Callback, typename InArg, typename... InArgs>
+struct WraperCb<Callback, TypeArray<InArg, InArgs...>, TypeArray<>, false> : WraperCb<Callback, TypeArray<InArgs...>, TypeArray<InArg>, std::is_invocable_v<Callback, InArg>> {};
+
+template<typename Callback, typename... InArgs, typename... RealArgs> struct WraperCb<Callback, TypeArray<InArgs...>, TypeArray<RealArgs...>, true> {
+	template<typename... Args> static void call(const Callback &callback, const std::tuple<Args...> &args) { call(callback, args, std::make_index_sequence<sizeof...(RealArgs)>{}); }
+	template<typename... Args, size_t... Idxs> static void call(const Callback &callback, const std::tuple<Args...> &args, std::index_sequence<Idxs...>) { callback(std::get<Idxs>(args)...); }
+};
+template<typename Callback, typename... InArgs> struct WraperCb<Callback, TypeArray<InArgs...>, TypeArray<>, true> {
+	template<typename... Args> static void call(const Callback &callback, const std::tuple<Args...> &args) { callback(); }
+};
+} // namespace pls
+
+template<typename Callback, typename... Args> auto pls_wrapper_cb(const QSet<pls::QObjectPtr<QObject>> &objects, const Callback &callback)
+{
+	return [callback, objects](Args... args) {
+		if (pls_objects_is_valid(objects)) {
+			pls::WraperCb<Callback, pls::TypeArray<Args...>, pls::TypeArray<>, std::is_invocable_v<Callback>>::call(callback, std::forward_as_tuple(args...));
+		}
+	};
+}
+
+template<typename Sender, typename SignalType, typename... SignalArgs, typename Receiver, typename SlotFn>
+auto pls_connect(Sender *sender, void (SignalType::*signalFn)(SignalArgs...), Receiver *receiver, SlotFn slotFn, const QSet<pls::QObjectPtr<QObject>> &objects,
+		 Qt::ConnectionType type = Qt::AutoConnection) -> std::enable_if_t<!std::is_member_function_pointer_v<SlotFn>, QMetaObject::Connection>
+{
+	pls::QObjectPtr<QObject> s(sender), r(receiver);
+	if (!s.valid() || !r.valid())
+		return {};
+	else if (objects.isEmpty())
+		return QObject::connect(sender, signalFn, receiver, pls_wrapper_cb<SlotFn, SignalArgs...>({r}, slotFn), type);
+	else {
+		QSet<pls::QObjectPtr<QObject>> objs{r};
+		pls_for_each(objects, [&objs](const auto &v) { objs.insert(v); });
+		return QObject::connect(sender, signalFn, receiver, pls_wrapper_cb<SlotFn, SignalArgs...>(objs, slotFn), type);
+	}
+}
+template<typename Sender, typename SignalType, typename... SignalArgs, typename Receiver, typename ReceiverType, typename SlotRet, typename... SlotArgs>
+QMetaObject::Connection pls_connect(Sender *sender, void (SignalType::*signalFn)(SignalArgs...), Receiver *receiver, SlotRet (ReceiverType::*slotFn)(SlotArgs...),
+				    const QSet<pls::QObjectPtr<QObject>> &objects, Qt::ConnectionType type = Qt::AutoConnection)
+{
+	return pls_connect(
+		sender, signalFn, receiver, [receiver, slotFn](SlotArgs... args) { (receiver->*slotFn)(args...); }, objects, type);
+}
+template<typename Sender, typename SignalType, typename... SignalArgs, typename SlotFn>
+QMetaObject::Connection pls_connect(Sender *sender, void (SignalType::*signalFn)(SignalArgs...), const QSet<pls::QObjectPtr<QObject>> &objects, SlotFn slotFn)
+{
+	return pls_connect(sender, signalFn, sender, slotFn, objects, Qt::DirectConnection);
+}
+
+template<typename Sender, typename SignalType, typename... SignalArgs, typename Receiver, typename SlotFn>
+auto pls_connect(Sender *sender, void (SignalType::*signalFn)(SignalArgs...), Receiver *receiver, SlotFn slotFn, Qt::ConnectionType type = Qt::AutoConnection)
+	-> std::enable_if_t<!std::is_member_function_pointer_v<SlotFn>, QMetaObject::Connection>
+{
+	return pls_connect(sender, signalFn, receiver, slotFn, {}, type);
+}
+template<typename Sender, typename SignalType, typename... SignalArgs, typename Receiver, typename ReceiverType, typename SlotRet, typename... SlotArgs>
+QMetaObject::Connection pls_connect(Sender *sender, void (SignalType::*signalFn)(SignalArgs...), Receiver *receiver, SlotRet (ReceiverType::*slotFn)(SlotArgs...),
+				    Qt::ConnectionType type = Qt::AutoConnection)
+{
+	return pls_connect(sender, signalFn, receiver, slotFn, {}, type);
+}
+template<typename Sender, typename SignalType, typename... SignalArgs, typename SlotFn> QMetaObject::Connection pls_connect(Sender *sender, void (SignalType::*signalFn)(SignalArgs...), SlotFn slotFn)
+{
+	return pls_connect(sender, signalFn, {}, slotFn);
+}
+
 template<typename K, typename V, typename Fn> void pls_for_each(const QHash<K, V> &hash, Fn fn)
 {
 	for (auto iter = hash.begin(), end_iter = hash.end(); iter != end_iter; ++iter) {
@@ -1639,5 +1748,9 @@ template<typename T, typename V> inline void pls_set_value(T *ptr, const V &valu
 		*ptr = value;
 	}
 }
+LIBUTILSAPI_API bool pls_open_url(const QString &url);
 
+LIBUTILSAPI_API bool pls_lens_needs_reboot();
+
+LIBUTILSAPI_API std::optional<bool> pls_check_version(const QByteArray &expression, const QVersionNumber &version);
 #endif // _PRISM_COMMON_LIBUTILSAPI_LIBUTILSAPI_H

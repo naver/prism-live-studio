@@ -99,8 +99,8 @@ constexpr auto LANGUAGE_KOREAN_TRANSLATE_PATH = "ko-kr/strings.xml";
 constexpr auto LANGUAGE_SETTING_ENGLISH = "en-US,en;q=0.9";
 constexpr auto LANGUAGE_SETTING_KOREAN = "ko-KR,ko;q=0.9";
 
-constexpr auto ENCODING_SETTINGS_GUIDE_EN_US_URL = "http://prismlive.com/en_us/faq/faq.html?app=pcapp";
-constexpr auto ENCODING_SETTINGS_GUIDE_KO_KR_URL = "http://prismlive.com/ko_kr/faq/faq.html?app=pcapp";
+constexpr auto ENCODING_SETTINGS_GUIDE_EN_US_URL = "";
+constexpr auto ENCODING_SETTINGS_GUIDE_KO_KR_URL = "";
 
 /*****************resources******************/
 constexpr auto RESOURCES_PATH = "resources/";
@@ -126,6 +126,7 @@ constexpr auto CHANNEL_SETTINGS_BLANK_VIEW = "ChannelSettingsBlankView";
 constexpr auto CHANNEL_SETTINGS_ITEM_VIEW = "ChannelSettingsItemView";
 constexpr auto SETTING_COMMON_LOADING_VIEW = "SettingCommonLoadingView";
 constexpr auto LOGIN_SNS_VIEW = "SelectLoginPlatformView";
+constexpr auto LOGIN_NAVER_CLOUDB2B__VIEW = "NAVER Cloud B2B";
 
 /***************struct*********************/
 constexpr auto SNS_CHANNEL_DATA = "SnsChannelData";
@@ -168,10 +169,12 @@ constexpr auto GIPHY_STICKERS_USER_PATH = "PRISMLiveStudio/sticker/";
 constexpr auto GIPHY_STICKERS_CACHE_PATH = "PRISMLiveStudio/sticker/cache/";
 constexpr auto GIPHY_STICKERS_JSON_FILE = "PRISMLiveStudio/sticker/sticker.json";
 constexpr auto CONFIGS_VIRTUAL_CAMERA_PATH = "PRISMLiveStudio/user/prism-virtualcam.txt";
+constexpr auto CONFIGS_LIBRARY_POLICY_PATH = "PRISMLiveStudio/library/Library_Policy_PC/";
+constexpr auto CONFIGS_LIBRARY_POLICY_LISCENSE_PATH = "license";
 
 constexpr auto PRISM_STICKER_USER_PATH = "PRISMLiveStudio/prism_sticker/";
 constexpr auto PRISM_STICKER_CACHE_PATH = "PRISMLiveStudio/prism_sticker/cache/";
-constexpr auto PRISM_STICKER_JSON_FILE = "PRISMLiveStudio/prism_sticker/reaction.json";
+constexpr auto PRISM_STICKER_JSON_FILE = "PRISMLiveStudio/reaction/reaction.json";
 constexpr auto PRISM_STICKER_DOWNLOAD_CACHE_FILE = "PRISMLiveStudio/prism_sticker/download_cache.json";
 constexpr auto PRISM_STICKER_RECENT_JSON_FILE = "PRISMLiveStudio/prism_sticker/recent_used.json";
 constexpr auto PRISM_DEFAULT_STICKER_ICON = ":/images/giphy/thumb-loading.svg";
@@ -192,6 +195,15 @@ constexpr auto CONFIGS_MUSIC_USER_PATH = "PRISMLiveStudio/music/";
 constexpr auto MUSIC_JSON_FILE = "music.json";
 constexpr auto BGM_MUSIC_PLAYING_GIF = ":/resource/images/bgm/BGM_equalizer.gif";
 constexpr auto CONFIG_MUSIC_PATH = "data/prism-studio/music/";
+
+constexpr auto SCENE_TEMPLATE_DIR = "PRISMLiveStudio/scene-templates/";
+constexpr auto SCENE_TEMPLATE_JSON = "PRISMLiveStudio/scene-templates/SceneTemplates.json";
+constexpr auto LAUNCHER_CONFIG = "LauncherConfig";
+constexpr auto CONFIG_DONTSHOW = "DontShow";
+constexpr auto AUDIO_MIXER_CONFIG = "AudioMixerConfig";
+
+constexpr auto NEWFUNCTIONTIP_CONFIG = "NewFunctionTipConfig";
+constexpr auto CONFIG_DISPLAYVERISON = "DisplayVerison";
 
 /* **the keys of source settings need to be same with bgm source plugins ** */
 constexpr auto RANDOM_PLAY = "random play";
@@ -476,6 +488,7 @@ constexpr auto HTTP_STATUS_CODE_500 = 500;
 constexpr auto HTTP_STATUS_CODE_501 = 501;
 constexpr auto HTTP_STATUS_CODE_406 = 406;
 constexpr auto HTTP_STATUS_CODE_401 = 401;
+constexpr auto HTTP_STATUS_CODE_403 = 403;
 constexpr auto HTTP_STATUS_CODE_404 = 404;
 constexpr auto HTTP_TOKEN_INVAILD_CODE_3000 = 3000;
 
@@ -678,6 +691,7 @@ constexpr auto GROUP_SOURCE_ID = "group";
 constexpr auto OBS_DSHOW_SOURCE_ID = "dshow_input";
 constexpr auto AUDIO_INPUT_SOURCE_ID = "wasapi_input_capture";
 constexpr auto AUDIO_OUTPUT_SOURCE_ID = "wasapi_output_capture";
+constexpr auto AUDIO_OUTPUT_SOURCE_ID_V2 = "wasapi_output_capture";
 constexpr auto PRISM_MONITOR_SOURCE_ID = "monitor_capture";
 constexpr auto GDIP_TEXT_SOURCE_ID = "text_gdiplus";
 constexpr auto GDIP_TEXT_SOURCE_ID_V2 = "text_gdiplus_v2";
@@ -687,10 +701,12 @@ constexpr auto OBS_DSHOW_SOURCE_ID = "av_capture_input";
 constexpr auto OBS_DSHOW_SOURCE_ID_V2 = "av_capture_input_v2";
 constexpr auto AUDIO_INPUT_SOURCE_ID = "coreaudio_input_capture";
 constexpr auto AUDIO_OUTPUT_SOURCE_ID = "coreaudio_output_capture";
+constexpr auto AUDIO_OUTPUT_SOURCE_ID_V2 = "sck_audio_capture";
 constexpr auto PRISM_MONITOR_SOURCE_ID = "display_capture";
 constexpr auto GDIP_TEXT_SOURCE_ID = "text_ft2_source";
 constexpr auto GDIP_TEXT_SOURCE_ID_V2 = "text_ft2_source_v2";
 constexpr auto GAME_SOURCE_ID = "syphon-input";
+constexpr auto OBS_MACOS_AUDIO_CAPTURE_SOURCE_ID = "sck_audio_capture";
 #endif
 
 constexpr auto WAVEFORM_SOURCE_ID = "phandasm_waveform_source";
@@ -724,6 +740,9 @@ constexpr auto OBS_MACOS_SCREEN_CAPTURE_SOURCE_ID = "screen_capture";
 
 constexpr auto PRISM_LENS_SOURCE_ID = "prism_lens";
 constexpr auto PRISM_LENS_MOBILE_SOURCE_ID = "prism_lens_mobile";
+constexpr auto OBS_INPUT_SPOUT_CAPTURE_ID = "spout_capture";
+constexpr auto PRISM_CHATV2_SOURCE_ID = "prism_chatv2_source";
+constexpr auto PRISM_CHZZK_SPONSOR_SOURCE_ID = "prism_chzzk_sponsor";
 
 /***************    filter id     ****************/
 constexpr auto FILTER_TYPE_ID_APPLYLUT = "clut_filter";
@@ -825,7 +844,6 @@ constexpr auto PROPERTY_NAME_ID = "id";
 constexpr auto PROPERTY_NAME_TRANSITION = "transition";
 constexpr auto PROPERTY_NAME_ICON_TYPE = "type";
 
-constexpr auto INVALID_SOURCE_ERROR_TEXT_BUTTON = "displaySourceInvalid";
 constexpr auto DISPLAY_RESIZE_SCREEN = "displayResizeScreen";
 constexpr auto DISPLAY_RESIZE_CENTER = "displayResizeCenter";
 
@@ -934,14 +952,6 @@ constexpr auto DEAW_PEN_ON_OVER = ":/images/draw-pen/ic-drawing-on-over.svg";
 constexpr auto DEAW_PEN_ON_CLICKED = ":/images/draw-pen/ic-drawing-on-click.svg";
 constexpr auto DEAW_PEN_ON_DISABLE = ":/images/draw-pen/ic-drawing-on-disable.svg";
 
-constexpr auto REMOTE_CONTROL_OFF_NORMAL = ":/images/remote-control/ic-remotecontrol-off-normal.svg";
-constexpr auto REMOTE_CONTROL_OFF_OVER = ":/images/remote-control/ic-remotecontrol-off-over.svg";
-constexpr auto REMOTE_CONTROL_OFF_CLICKED = ":/images/remote-control/ic-remotecontrol-off-click.svg";
-constexpr auto REMOTE_CONTROL_OFF_DISABLE = ":/images/remote-control/ic-remotecontrol-off-disable.svg";
-constexpr auto REMOTE_CONTROL_ON_NORMAL = ":/images/remote-control/ic-remotecontrol-on-normal.svg";
-constexpr auto REMOTE_CONTROL_ON_OVER = ":/images/remote-control/ic-remotecontrol-on-over.svg";
-constexpr auto REMOTE_CONTROL_ON_CLICKED = ":/images/remote-control/ic-remotecontrol-on-click.svg";
-constexpr auto REMOTE_CONTROL_ON_DISABLE = ":/images/remote-control/ic-remotecontrol-on-disable.svg";
 
 /************ app crash notice *********/
 constexpr auto IS_THIRD_PARTY_PLUGINS = "isThirdPartyPlugins";
@@ -1007,9 +1017,16 @@ constexpr auto ANALOG_LIVE_ABORT_MQTT_LIVE_FINISHED_BY_PLATFORM = 9019;
 constexpr auto ANALOG_LIVE_ABORT_YOUTUBE_STOP = 9020;
 constexpr auto ANALOG_LIVE_ABORT_NAVERTV_STOP = 9021;
 constexpr auto ANALOG_LIVE_ABORT_BAND_STOP = 9022;
+constexpr auto ANALOG_LIVE_ABORT_OBS_ERROR = 9023;
+constexpr auto ANALOG_LIVE_SETUP_STREAM_FAILED = 9024;
+constexpr auto ANALOG_LIVE_DIRECT_START_TIME_OUT_30S = 9025;
+constexpr auto ANALOG_LIVE_ABORT_MQTT_SIMULCAST_UNSTABLE = 9026;
 
 //common term css string
-constexpr auto TERM_WEBVIEW_CSS = "body * {font-family: system-ui, Malgun Gothic, Dotum, Gulim, sans-serif, -apple-system, BlinkMacSystemFont !important; font-size: 14px !important; background-color: #1e1e1e !important; font-weight: 400 !important; color: #bababa !important; line-height: 20px !important; -webkit-font-smoothing: antialiased !important;} ::-webkit-scrollbar-track-piece {border-radius: 0} ::-webkit-scrollbar {width: 10px;height: 6px;background-color: #272727} ::-webkit-scrollbar-thumb:vertical {width: 6px;height: 50px;border: 2px solid #272727;background-color: #444;border-radius: 5px}";
+constexpr auto TERM_WEBVIEW_CSS =
+	"body * {font-family: system-ui, Malgun Gothic, Dotum, Gulim, sans-serif, -apple-system, BlinkMacSystemFont !important; font-size: 14px !important; background-color: #1e1e1e !important; font-weight: 400 !important; color: #bababa !important; line-height: 20px !important; -webkit-font-smoothing: antialiased !important;} ::-webkit-scrollbar-track-piece {border-radius: 0} ::-webkit-scrollbar {width: 10px;height: 6px;background-color: #272727} ::-webkit-scrollbar-thumb:vertical {width: 6px;height: 50px;border: 2px solid #272727;background-color: #444;border-radius: 5px}";
+
+const int PUSHBUTTON_DELAY_RESPONSE_MS = 200;
 
 } // namespace common
 

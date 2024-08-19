@@ -83,6 +83,8 @@ typedef std::vector<PointF>* PointFsPointer;
             useCtrlPoints:(BOOL)useCtrlPoints
                  strokeID:(NSInteger)strokeID;
 
+- (void)recalculatePointsWithYOffset:(CGFloat)yOffset;
+
 - (void)dealloc;
 
 @property (copy, readonly) NSColor *strokeColor;

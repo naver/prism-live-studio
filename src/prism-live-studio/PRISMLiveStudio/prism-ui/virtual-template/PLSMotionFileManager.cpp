@@ -19,13 +19,16 @@
 #include "PLSMotionNetwork.h"
 #include "pls-common-define.hpp"
 #include "PLSVirtualBgManager.h"
+#include "PLSResourceManager.h"
+#include "log/module_names.h"
+#include "libhttp-client.h"
+#include "libutils-api.h"
 #include "utils-api.h"
 #include <sys/stat.h>
 #include <map>
 using namespace common;
 constexpr const char *MOTION_FILE_MANAGER = "MotionFileManager";
 constexpr const char *VIRTUAL_SYNC_JSON_FILE = "PRISMLiveStudio/virtual/virtual_bg.json";
-constexpr const char *VIRTUAL_SYNC_JSON_FILE_DEFAULT = "/data/prism-studio/virtual_bg/virtual_bg.json";
 constexpr const char *VIRTUAL_USER_PATH = "PRISMLiveStudio/virtual/";
 constexpr const char *VIRTUAL_USER_CACHE_JSON_FILE = "PRISMLiveStudio/virtual/cache.json";
 constexpr const char *CATEGORY_INDEX_FILE = "PRISMLiveStudio/virtual/categoryIndex.ini";
@@ -110,7 +113,7 @@ template<typename IsLast> int PLSAddMyResourcesProcessor::process(MotionData &md
 		return MaxResolutionError;
 	}
 
-	auto firstFrame = (mi_frame_t *)mi_get_obj(&mi, "first_frame_obj");
+	auto firstFrame = (mi_frame_t*)mi_get_obj(&mi, "first_frame_obj");
 	if (!firstFrame) {
 		mi_free(&mi);
 		return GetMotionFirstFrameFailedError;
@@ -118,8 +121,8 @@ template<typename IsLast> int PLSAddMyResourcesProcessor::process(MotionData &md
 
 	QString itemId = QUuid::createUuid().toString(QUuid::Id128);
 	QString thumbnailPath;
-	if (!saveImages(thumbnailPath, QImage((const uchar *)firstFrame->data, static_cast<int>(width), static_cast<int>(height), QImage::Format_RGBX8888),
-			QSize(static_cast<int>(width), static_cast<int>(height)), itemId, file)) {
+	if (!saveImages(thumbnailPath, QImage((const uchar*)firstFrame->data, static_cast<int>(width), static_cast<int>(height), QImage::Format_RGBX8888),
+		QSize(static_cast<int>(width), static_cast<int>(height)), itemId, file)) {
 		mi_free(&mi);
 		return SaveImageFailedError;
 	}
@@ -345,6 +348,39 @@ QVariantList PLSMotionFileManager::getFreeList() const
 	return getListForKey("FREE");
 }
 
+bool PLSMotionFileManager::isVirtualTemplateJsonExisted()
+{
+	QString path = getUserPath(VIRTUAL_SYNC_JSON_FILE);
+	return QFile::exists(path);
+}
+
+void PLSMotionFileManager::downloadVirtualJson(const std::function<void(void)> &ok, const std::function<void(void)> &fail) const
+{
+	auto url = PLSResourceManager::instance()->getModuleJsonUrl(PLSResourceManager::resource_modules::Virtual);
+	if (url.isEmpty()) {
+		PLS_WARN(MAIN_VIRTUAL_BACKGROUND, "Virtual template json url is empty.");
+		pls_invoke_safe(fail);
+		return;
+	}
+
+	QString saveJsonPath = getUserPath(VIRTUAL_SYNC_JSON_FILE);
+	pls::http::request(pls::http::Request()
+				   .method(pls::http::Method::Get) //
+				   .hmacUrl(url, "")               //
+				   .forDownload(true)              //
+				   .saveFilePath(saveJsonPath)     //
+				   .withLog()                      //
+				   .receiver(this)                 //
+				   .okResult([this, ok](const pls::http::Reply &) {
+					   PLS_INFO(MAIN_VIRTUAL_BACKGROUND, "Virtual template json download success.");
+					   pls_invoke_safe(ok);
+				   })
+				   .failResult([this, fail](const pls::http::Reply &) {
+					   PLS_WARN(MAIN_VIRTUAL_BACKGROUND, "Virtual template json download failed.");
+					   pls_invoke_safe(fail);
+				   }));
+}
+
 bool PLSMotionFileManager::isDownloadFileExist(const QString &filePath) const
 {
 #if defined(Q_OS_WIN)
@@ -539,7 +575,7 @@ QVariantList PLSMotionFileManager::getListForKey(const QString &key) const
 {
 	QString path = getUserPath(VIRTUAL_SYNC_JSON_FILE);
 	if (!QFile::exists(path)) {
-		path = QApplication::applicationDirPath() + VIRTUAL_SYNC_JSON_FILE_DEFAULT;
+		downloadVirtualJson();
 	}
 
 	//get local watermark file data

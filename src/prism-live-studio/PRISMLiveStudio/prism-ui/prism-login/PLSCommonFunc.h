@@ -33,6 +33,7 @@ struct PLSLoginFunc {
 
 	static QWidget *getToplevelView(QWidget *widget);
 	static QString getPrismVersion();
+	static QString getPrismVersionWithBuild();
 	static QString makePath(const QString &resDir);
 	static void saveUpdateInfo(const QVariantMap &map);
 	static QVariantMap getUpdateInfo(const QStringList &keys);
@@ -45,6 +46,7 @@ private:
 using PLSLoadingPage = QWidget;
 struct PLSUIFunc {
 	static PLSLoadingPage *showLoadingView(QWidget *parent = nullptr, const QString &tipStr = QString());
+	static void showEnumTimeoutAlertView(const QString &deviceName);
 };
 
 #endif // PLSCOMMONFUNC_H

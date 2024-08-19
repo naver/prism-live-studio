@@ -136,6 +136,7 @@ protected:
 	void closeEvent(QCloseEvent *event) override;
 	void paintEvent(QPaintEvent *event) override;
 	bool event(QEvent *event) override;
+	void resizeEvent(QResizeEvent *event) override;
 
 private:
 	Q_DISABLE_COPY(PLSDock)

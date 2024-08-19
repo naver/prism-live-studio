@@ -38,9 +38,9 @@ bool isValidNickNameByRegExp(const QString &nickName);
  * @brief setCurrentWidget: Set the form displayed by the current stack window
  * @param ojbName: display widget object name
  */
-void setCurrentStackWidget(QStackedWidget *stackWidget, const QString &ojbName);
+QWidget *setCurrentStackWidget(QStackedWidget *stackWidget, const QString &ojbName);
 
-QWidget *getCurrentStackWidget(const QStackedWidget *stackWidget, const QString &ojbName);
+QWidget *getWidgetFromStackWidget(const QStackedWidget *stackWidget, const QString &ojbName);
 
 void refreshStyle(QWidget *widget);
 

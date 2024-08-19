@@ -343,8 +343,24 @@ void visualizer_source::render(gs_effect_t *effect_)
 	}
 
 	if (config.render_texture) {
-		gs_effect_set_texture(gs_effect_get_param_by_name(effect_, "image"), config.render_texture);
+
+		const bool srgb = gs_get_color_space() == GS_CS_SRGB;
+		const bool previous = gs_framebuffer_srgb_enabled();
+		gs_enable_framebuffer_srgb(!srgb);
+
+		gs_blend_state_push();
+		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+
+		gs_eparam_t* const param = gs_effect_get_param_by_name(effect_, "image");
+		if (srgb)
+			gs_effect_set_texture(param, config.render_texture);
+		else
+			gs_effect_set_texture_srgb(param, config.render_texture);
+
 		gs_draw_sprite(config.render_texture, 0, 0, 0);
+
+		gs_blend_state_pop();
+		gs_enable_framebuffer_srgb(previous);
 	}
 }
 
@@ -625,6 +641,9 @@ obs_properties_t *visualizer_source::get_properties_for_visualiser()
 		if ((caps & OBS_SOURCE_AUDIO) == 0)
 			return true;
 
+		if (!obs_source_audio_active(source))
+			return true;
+
 		std::vector<std::string> &audio_sources_ = *static_cast<std::vector<std::string> *>(param);
 		std::string name = obs_source_get_name(source);
 		auto finder = [name](std::string const &elem) { return name < elem; };
@@ -657,7 +676,7 @@ void register_visualiser()
 	si.id = "prism_audio_visualizer_source";
 	si.type = OBS_SOURCE_TYPE_INPUT;
 	si.icon_type = static_cast<obs_icon_type>(PLS_ICON_TYPE_SPECTRALIZER);
-	si.output_flags = OBS_SOURCE_VIDEO;
+	si.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_SRGB;
 	si.get_properties = [](void *data) { return static_cast<visualizer_source *>(data)->get_properties_for_visualiser(); };
 
 	si.get_name = [](void *) { return T_SOURCE; };

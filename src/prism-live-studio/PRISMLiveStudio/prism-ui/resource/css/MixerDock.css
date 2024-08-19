@@ -125,3 +125,9 @@ PLSDock#mixerDock PLSDockTitle #audioMasterControl:disabled[muteAllAudio=true] {
 	image: url(":/resource/images/audio-mixer/audio-control/icon-source-audio-disable-mute.svg");
 }
 /*audio master control end*/
+
+
+PLSDock#mixerDock #hVolumeWidgets,
+PLSDock#mixerDock #vVolumeWidgets{
+	background: #272727;
+}

@@ -1,8 +1,10 @@
-cmake_minimum_required(VERSION 3.16)
-
+cmake_minimum_required(VERSION 3.26)
+set(QT_MINIMUM_VERSION 6.6.0)
 
 
 list(APPEND CMAKE_MODULE_PATH "$ENV{PRISM_SRC_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "$ENV{OBS_SRC_DIR}/cmake/common")
+list(APPEND CMAKE_MODULE_PATH "$ENV{OBS_SRC_DIR}/cmake/finders")
 list(APPEND CMAKE_MODULE_PATH "$ENV{OBS_SRC_DIR}/cmake/Modules")
 
 project(prism-live-studio VERSION $ENV{VERSION})
@@ -19,20 +21,25 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set(OS_WINDOWS OFF)
   set(OS_MACOS ON)
   set(OS_POSIX ON)
+  list(APPEND CMAKE_MODULE_PATH "$ENV{OBS_SRC_DIR}/cmake/macos")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
   set(OS_WINDOWS ON)
   set(OS_MACOS OFF)
   set(OS_POSIX OFF)
+  list(APPEND CMAKE_MODULE_PATH "$ENV{OBS_SRC_DIR}/cmake/windows")
 endif()
 
+message(STATUS "include OBS buildspec")
+include(buildspec)
+message(STATUS "prism configure")
 
 if(OS_MACOS)
 
   list(APPEND CMAKE_MODULE_PATH "$ENV{PRISM_SRC_DIR}/cmake/macOS")
   list(APPEND CMAKE_MODULE_PATH "$ENV{PRISM_SRC_DIR}/cmake/Modules")
   include(prism_helper)
+
   include(PrismDefaults_macOS)
-  
   setup_prism_project()
 
 endif()
@@ -198,3 +205,8 @@ endif()
 
 add_subdirectory(common-libs)
 add_subdirectory(prism-live-studio)
+
+if(ENABLE_TEST)
+    enable_testing(true)
+    add_subdirectory(test)
+endif()

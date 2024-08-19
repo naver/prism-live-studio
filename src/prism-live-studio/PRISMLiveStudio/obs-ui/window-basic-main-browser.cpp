@@ -1,5 +1,5 @@
 /******************************************************************************
-    Copyright (C) 2018 by Hugh Bailey <obs.jim@gmail.com>
+    Copyright (C) 2023 by Lain Bailey <lain@obsproject.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include "pls-net-url.hpp"
 
 #ifdef BROWSER_AVAILABLE
-#include <browser-panel.hpp>
+#include <PLSBrowserPanel.h>
 #endif
 #include "pls-channel-const.h"
 #include "platform.hpp"
@@ -33,6 +33,8 @@
 #include "PLSBasic.h"
 #include "PLSApp.h"
 #include "libutils-api.h"
+#include "login-user-info.hpp"
+#include "ChannelCommonFunctions.h"
 
 extern QCef *cef;
 extern QCefCookieManager *panel_cookies;
@@ -40,6 +42,7 @@ constexpr auto NID_AUT = "NID_AUT";
 constexpr auto NID_SES = "NID_SES";
 constexpr auto NID_INF = "nid_inf";
 constexpr auto NAVERCOOKIE = "naverCookie";
+constexpr auto CHZZKCOOKIE = "ChzzkCookie";
 namespace {
 struct GlobalCookieVars {
 	static QMap<QString, QCefCookieManager *> pannel_cookies_collect;
@@ -74,37 +77,74 @@ void CheckExistingCookieId()
 	config_save_safe(PLSApp::plsApp()->GlobalConfig(), "tmp", nullptr);
 }
 
-void setNaverTvCookie()
+void setNaverCookieToChannel(const QString &channelName)
 {
-	QCefCookieManager *naver_cookie_mgr =
-		PLSBasic::getBrowserPannelCookieMgr(NAVER_TV);
-	if (naver_cookie_mgr) {
-		auto url = pls_get_gpop_connection().ssl.toStdString();
-		naver_cookie_mgr->DeleteCookies(url, NID_SES);
-		naver_cookie_mgr->DeleteCookies(url, NID_AUT);
-		naver_cookie_mgr->DeleteCookies(url, NID_INF);
+	PLSQCefCookieManager *cookie_mgr = dynamic_cast<PLSQCefCookieManager *>(
+		PLSBasic::getBrowserPannelCookieMgr(channelName));
+	if (cookie_mgr) {
+		std::string url;
+		const char *cookieKey = NAVERCOOKIE;
+
+		if (channelName == CHZZK) {
+			url = g_plsChzzkApiHost.toStdString() + "/";
+			cookieKey = CHZZKCOOKIE;
+		} else if (channelName == NAVER_TV || channelName == ALL_CHAT) {
+			url = PRISM_SSL.toStdString();
+		} else {
+			url = PRISM_SSL.toStdString();
+		}
+
+		cookie_mgr->DeleteCookies(url, NID_SES);
+		cookie_mgr->DeleteCookies(url, NID_AUT);
+		cookie_mgr->DeleteCookies(url, NID_INF);
 
 		if (config_get_string(PLSApp::plsApp()->CookieConfig(),
-				      NAVERCOOKIE, NID_SES)) {
+				      cookieKey, NID_SES)) {
 
 			std::string ses(config_get_string(
-				PLSApp::plsApp()->CookieConfig(), NAVERCOOKIE,
+				PLSApp::plsApp()->CookieConfig(), cookieKey,
 				NID_SES));
 			std::string aut(config_get_string(
-				PLSApp::plsApp()->CookieConfig(), NAVERCOOKIE,
+				PLSApp::plsApp()->CookieConfig(), cookieKey,
 				NID_AUT));
 			std::string inf(config_get_string(
-				PLSApp::plsApp()->CookieConfig(), NAVERCOOKIE,
+				PLSApp::plsApp()->CookieConfig(), cookieKey,
 				NID_INF));
 
-			naver_cookie_mgr->SetCookie(url, NID_SES, ses,
-						    ".naver.com", "/", false);
-			naver_cookie_mgr->SetCookie(url, NID_AUT, aut,
-						    ".naver.com", "/", false);
-			naver_cookie_mgr->SetCookie(url, NID_INF, inf,
-						    ".naver.com", "/", false);
+			cookie_mgr->SetCookie(url, NID_SES, ses, ".naver.com",
+					      "/", false);
+			cookie_mgr->SetCookie(url, NID_AUT, aut, ".naver.com",
+					      "/", false);
+			cookie_mgr->SetCookie(url, NID_INF, inf, ".naver.com",
+					      "/", false);
 		}
 	}
+}
+
+void setPrismCookieToChannel(const QString &channelName)
+{
+	PLSQCefCookieManager *cookie_mgr = dynamic_cast<PLSQCefCookieManager *>(
+		PLSBasic::getBrowserPannelCookieMgr(channelName));
+	if (cookie_mgr) {
+		auto url = PRISM_SSL.toStdString();
+		cookie_mgr->DeleteCookies(url, common::COOKIE_NEO_SES);
+
+		auto cookie = QString(
+			PLSLoginUserInfo::getInstance()->getPrismCookie());
+		cookie = cookie.replace(QString(common::COOKIE_NEO_SES) + "=",
+					"");
+		if (!cookie.isEmpty()) {
+			cookie_mgr->SetCookie(url, common::COOKIE_NEO_SES,
+					      cookie.toStdString(),
+					      ".naver.com", "/", false);
+		}
+	}
+}
+
+void setAllChatCookie()
+{
+	setNaverCookieToChannel(ALL_CHAT);
+	setPrismCookieToChannel(ALL_CHAT);
 }
 
 #ifdef BROWSER_AVAILABLE
@@ -145,8 +185,15 @@ static void InitPanelCookieManager(const QString &pannelName)
 	QCefCookieManager *cookieMgr = cef->create_cookie_manager(sub_path);
 	GlobalCookieVars::pannel_cookies_collect.insert(pannelName, cookieMgr);
 	if (0 == pannelName.compare(NAVER_TV, Qt::CaseInsensitive)) {
-		setNaverTvCookie();
+		setNaverCookieToChannel(NAVER_TV);
+	} else if (0 == pannelName.compare(NCB2B, Qt::CaseInsensitive)) {
+		setPrismCookieToChannel(NCB2B);
+	} else if (0 == pannelName.compare(CHZZK, Qt::CaseInsensitive)) {
+		setNaverCookieToChannel(CHZZK);
+	} else if (0 == pannelName.compare(ALL_CHAT, Qt::CaseInsensitive)) {
+		setAllChatCookie();
 	}
+
 	PLS_INFO(COOKIE_MANAGER, "create new cookie mangaer ; save path = %s",
 		 pls_get_path_file_name(sub_path.c_str()));
 }
@@ -189,12 +236,14 @@ void PLSBasic::InitBrowserPanelSafeBlock()
 }
 
 QCefCookieManager *
-PLSBasic::getBrowserPannelCookieMgr(const QString &pannelName)
+PLSBasic::getBrowserPannelCookieMgr(const QString &channelName)
 {
 #ifdef BROWSER_AVAILABLE
 
 	if (!cef)
 		return nullptr;
+
+	auto pannelName = channleNameConvertFixPlatformName(channelName);
 
 	if (GlobalCookieVars::pannel_cookies_collect.find(pannelName) !=
 	    GlobalCookieVars::pannel_cookies_collect.end()) {
@@ -241,7 +290,13 @@ void PLSBasic::delPannelCookies(const QString &pannelName)
 void PLSBasic::setManualPannelCookies(const QString &pannelName)
 {
 	if (pannelName == NAVER_TV) {
-		setNaverTvCookie();
+		setNaverCookieToChannel(NAVER_TV);
+	} else if (pannelName == NCB2B) {
+		setPrismCookieToChannel(NCB2B);
+	} else if (pannelName == CHZZK) {
+		setNaverCookieToChannel(CHZZK);
+	} else if (pannelName == ALL_CHAT) {
+		setAllChatCookie();
 	}
 }
 

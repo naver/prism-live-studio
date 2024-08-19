@@ -71,9 +71,9 @@ add_subdirectory(prism-ui/GuideTips)
 add_subdirectory(prism-ui/laboratory)
 add_subdirectory(prism-ui/prism-login)
 
-find_package(Qt6 COMPONENTS Widgets Network Svg Xml Gui NetworkAuth WebSockets)
-
-target_link_libraries(PRISMLiveStudio PRIVATE Qt6::Widgets Qt6::Svg Qt6::Xml Qt6::Network Qt6::WebSockets)
+find_package(Qt6 COMPONENTS Widgets Network Svg Xml Gui NetworkAuth WebSockets Multimedia OpenGLWidgets)
+find_package(nlohmann_json REQUIRED)
+target_link_libraries(PRISMLiveStudio PRIVATE Qt6::Widgets Qt6::Svg Qt6::Xml Qt6::Network Qt6::WebSockets nlohmann_json::nlohmann_json Qt6::Multimedia Qt6::OpenGLWidgets)
 
 set_target_properties(
   PRISMLiveStudio
@@ -115,6 +115,8 @@ target_include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/PLSPlatformApi/twitter
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/PLSPlatformApi/vlive
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/PLSPlatformApi/youtube
+  ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/PLSPlatformApi/chzzk
+  ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/PLSPlatformApi/ncb2b
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/widzardView
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/GuideTips
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/ResolutionTips
@@ -122,6 +124,9 @@ target_include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/laboratory
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/prism-login
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/prism-login/ui
+  ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/watermark
+  ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/outro
+  ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/scene-templates
 )
 
 target_sources(PRISMLiveStudio PRIVATE obs-ui/forms/obs.qrc
@@ -138,6 +143,7 @@ target_sources(PRISMLiveStudio PRIVATE obs-ui/forms/obs.qrc
   prism-ui/prism-login.qrc
   prism-ui/filter-ui.qrc
   prism-ui/obs-dark.qrc
+  prism-ui/prism-chat-template.qrc
 )
 
 target_sources(
@@ -171,7 +177,9 @@ target_sources(
   obs-ui/forms/source-toolbar/game-capture-toolbar.ui
   obs-ui/forms/source-toolbar/image-source-toolbar.ui
   obs-ui/forms/source-toolbar/media-controls.ui
-  obs-ui/forms/source-toolbar/text-source-toolbar.ui)
+  obs-ui/forms/source-toolbar/text-source-toolbar.ui
+  obs-ui/forms/StatusBarWidget.ui
+)
 
 target_sources(
   PRISMLiveStudio
@@ -181,6 +189,8 @@ target_sources(
   obs-ui/auth-listener.hpp
   obs-ui/obf.c
   obs-ui/obf.h
+  obs-ui/ffmpeg-utils.cpp
+  obs-ui/ffmpeg-utils.hpp
   obs-ui/obs-app.cpp
   obs-ui/obs-app.hpp
   obs-ui/obs-proxy-style.cpp
@@ -201,8 +211,8 @@ target_sources(
   obs-ui/multiview.hpp
   $ENV{OBS_SRC_DIR}/deps/json11/json11.cpp
   $ENV{OBS_SRC_DIR}/deps/json11/json11.hpp
-  $ENV{OBS_SRC_DIR}/deps/libff/libff/ff-util.c
-  $ENV{OBS_SRC_DIR}/deps/libff/libff/ff-util.h
+  #$ENV{OBS_SRC_DIR}/deps/libff/libff/ff-util.c
+  #$ENV{OBS_SRC_DIR}/deps/libff/libff/ff-util.h
   ${CMAKE_CURRENT_BINARY_DIR}/ui-config.h)
 
 target_sources(
@@ -228,8 +238,6 @@ target_sources(
   obs-ui/hotkey-edit.hpp
   obs-ui/lineedit-autoresize.cpp
   obs-ui/lineedit-autoresize.hpp
-  obs-ui/locked-checkbox.cpp
-  obs-ui/locked-checkbox.hpp
   obs-ui/log-viewer.cpp
   obs-ui/log-viewer.hpp
   obs-ui/media-controls.cpp
@@ -268,8 +276,6 @@ target_sources(
   obs-ui/volume-control.hpp
   obs-ui/vertical-scroll-area.cpp
   obs-ui/vertical-scroll-area.hpp
-  obs-ui/visibility-checkbox.cpp
-  obs-ui/visibility-checkbox.hpp
   obs-ui/visibility-item-widget.cpp
   obs-ui/visibility-item-widget.hpp)
 
@@ -315,6 +321,9 @@ target_sources(
   obs-ui/window-basic-preview.hpp
   obs-ui/window-basic-vcam-config.cpp
   obs-ui/window-basic-vcam-config.hpp
+  obs-ui/window-basic-vcam.hpp
+  obs-ui/window-dock-youtube-app.hpp
+  obs-ui/window-dock-youtube-app.cpp
   obs-ui/window-dock.cpp
   obs-ui/window-dock.hpp
   obs-ui/window-importer.cpp
@@ -350,7 +359,10 @@ target_sources(
   prism-ui/common/flowlayout.h
   prism-ui/common/flowlayout.cpp
   prism-ui/common/PLSToastMsgFrame.h
-  prism-ui/common/PLSToastMsgFrame.cpp)
+  prism-ui/common/PLSToastMsgFrame.cpp
+  prism-ui/common/bubbletips.ui
+  prism-ui/common/bubbletips.h
+  prism-ui/common/bubbletips.cpp)
 
 target_sources(
   PRISMLiveStudio
@@ -483,13 +495,13 @@ target_sources(
   prism-ui/scene-collection/PLSSceneCollectionItem.ui
   prism-ui/scene-collection/PLSSceneCollectionView.h
   prism-ui/scene-collection/PLSSceneCollectionView.cpp
-  prism-ui/scene-collection/PLSSceneCollectionView.ui
   prism-ui/scene-collection/PLSSceneCollectionManagement.h
   prism-ui/scene-collection/PLSSceneCollectionManagement.cpp
   prism-ui/scene-collection/PLSSceneCollectionManagement.ui
+  prism-ui/scene-collection/PLSSceneCollectionView.ui
+  prism-ui/scene-collection/PLSImporter.ui
   prism-ui/scene-collection/PLSImporter.h
   prism-ui/scene-collection/PLSImporter.cpp
-  prism-ui/scene-collection/PLSImporter.ui
   prism-ui/scene-collection/PLSImporterItem.h
   prism-ui/scene-collection/PLSImporterItem.cpp
   prism-ui/scene-collection/PLSImporterItem.ui
@@ -548,6 +560,8 @@ target_sources(
   prism-ui/source-toolbar/PLSSourceToolbar.hpp
   prism-ui/source-toolbar/PLSSourceToolbar.cpp
   prism-ui/main/PLSCompleter.cpp
+  prism-ui/main/PLSCTPropertiesUi.cpp
+  prism-ui/main/PLSSourceAnalog.cpp
 )
 
 target_sources(
@@ -590,14 +604,22 @@ target_sources(
   prism-ui/main/PLSBrowserView.hpp
   prism-ui/main/PLSBrowserView.cpp
   prism-ui/main/PLSBrowserView.ui
+  prism-ui/main/pls-setting-general-view.hpp
+  prism-ui/main/pls-setting-general-view.cpp
+  prism-ui/main/PLSSettingGeneralView.ui
   prism-ui/main/pls-complex-header-icon.hpp
   prism-ui/main/pls-complex-header-icon.cpp
   prism-ui/main/PLSComplexHeaderIcon.ui
+  prism-ui/main/PLSChangePasswordView.ui
+  prism-ui/main/change-password-view.hpp
+  prism-ui/main/change-password-view.cpp
   prism-ui/main/TextMotionTemplateButton.h
   prism-ui/main/TextMotionTemplateButton.cpp
   prism-ui/main/PLSTemplateButton.ui
   prism-ui/main/TextMotionTemplateDataHelper.h
   prism-ui/main/TextMotionTemplateDataHelper.cpp
+  prism-ui/main/PLSChatTemplateDataHelper.h
+  prism-ui/main/PLSChatTemplateDataHelper.cpp
   prism-ui/main/PLSTemplateButton.cpp
   prism-ui/main/PLSTemplateButton.h
   prism-ui/main/PLSSideBarDialogView.h
@@ -605,12 +627,55 @@ target_sources(
   prism-ui/main/PLSOpenSourceView.h
   prism-ui/main/PLSOpenSourceView.cpp
   prism-ui/main/PLSOpenSourceView.ui
+  prism-ui/main/PLSBasicStatusPanel.ui
 )
 
 target_sources(
   PRISMLiveStudio
   PRIVATE prism-ui/main/PLSInfoCollector.cpp
   prism-ui/main/PLSInfoCollector.h)
+
+target_sources(
+  PRISMLiveStudio
+  PRIVATE prism-ui/main/MutiLanguageTestView.h
+  prism-ui/main/MutiLanguageTestView.cpp
+  prism-ui/main/MutiLanguageTestView.ui
+)
+#scene template
+add_subdirectory(prism-ui/scene-templates)
+target_sources(PRISMLiveStudio PRIVATE ${SCENE-TEMPLATE_HDR_FILES})
+target_sources(PRISMLiveStudio PRIVATE ${SCENE-TEMPLATE_SRC_FILES})
+target_sources(PRISMLiveStudio PRIVATE ${SCENE-TEMPLATE_UI_FILES})
+
+# group platformapi group all files
+set(SceneTemplateALllFiles ${SCENE-TEMPLATE_HDR_FILES} ${SCENE-TEMPLATE_SRC_FILES} ${SCENE-TEMPLATE_UI_FILES})
+
+foreach(FILE ${SceneTemplateALllFiles})
+
+  # Get the directory of the source file
+  get_filename_component(PARENT_DIR "${FILE}" DIRECTORY)
+  
+  # Remove common directory prefix to make the group
+  string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/prism-ui" "" RELATIVE_GROUP "${PARENT_DIR}")
+
+  # Make sure we are using windows slashes
+  string(REPLACE "/" "\\" RELATIVE_GROUP "${RELATIVE_GROUP}")
+
+  # group platform folder
+  if("${FILE}" MATCHES ".*\\.cpp" OR "${FILE}" MATCHES ".*\\.c" OR "${FILE}" MATCHES ".*\\.cxx" OR "${FILE}" MATCHES ".*\\.cc" OR "${FILE}" MATCHES ".*\\.mm")
+    set(RELATIVE_GROUP "Source Files${RELATIVE_GROUP}")
+    source_group("${RELATIVE_GROUP}" FILES "${FILE}")
+  elseif("${FILE}" MATCHES ".*\\.h" OR "${FILE}" MATCHES ".*\\.hpp" OR "${FILE}" MATCHES ".*\\.hxx" OR "${FILE}" MATCHES ".*\\.hh")
+    set(RELATIVE_GROUP "Header Files${RELATIVE_GROUP}")
+    source_group("${RELATIVE_GROUP}" FILES "${FILE}")
+  endif()
+endforeach()
+
+# watermark
+file(GLOB_RECURSE watermark_source prism-ui/watermark/**)
+target_sources(
+  PRISMLiveStudio
+  PRIVATE ${watermark_source})
 
 if(OS_WINDOWS)
   target_sources(
@@ -639,7 +704,9 @@ if(OS_WINDOWS)
     prism-ui/main/windows/PLSBlockDump.h
     prism-ui/main/windows/PLSModuleMonitor.cpp
 		prism-ui/main/windows/PLSModuleMonitor.h
-    prism-ui/main/PLSBasicStatusPanel.ui)
+		prism-ui/main/windows/PLSWinrtNotify.h
+		prism-ui/main/windows/PLSWinrtNotify.cpp
+    obs-ui/win-dll-blocklist.c)
 elseif(OS_MACOS)
   target_sources(
     PRISMLiveStudio
@@ -661,10 +728,20 @@ elseif(OS_MACOS)
     prism-ui/forms/PLSDrawPenView.ui
     prism-ui/main/mac/PLSBlockDump.mm
     prism-ui/main/mac/PLSBlockDump.h
-    prism-ui/main/PLSBasicStatusPanel_mac.ui
     prism-ui/main/mac/PLSPermissionHelper.mm
     prism-ui/main/mac/PLSPermissionHelper.h)
 endif()
+
+# Outro files
+file(GLOB PLSOutro_FILES prism-ui/outro/*)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/outro/ PREFIX outro FILES ${PLSOutro_FILES})
+
+target_sources(PRISMLiveStudio PRIVATE ${PLSOutro_FILES})
+
+# audio mixer files
+file(GLOB PLSAudioMixer_FILES prism-ui/audio-mixer/*)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/audio-mixer/ PREFIX audio-mixer FILES ${PLSAudioMixer_FILES})
+target_sources(PRISMLiveStudio PRIVATE ${PLSAudioMixer_FILES})
 
 # platform api
 target_sources(PRISMLiveStudio PRIVATE ${PLSPlatformApi-HDR_FILES})
@@ -830,13 +907,12 @@ if(OS_WINDOWS)
     PRISMLiveStudio
     PRIVATE obs-ui/obs.manifest
     obs-ui/platform-windows.cpp
-    prism-ui/main/win-dll-blocklist.c
-    obs-ui/win-update/update-window.cpp
-    obs-ui/win-update/update-window.hpp
-    obs-ui/win-update/win-update.cpp
-    obs-ui/win-update/win-update.hpp
-    obs-ui/win-update/win-update-helpers.cpp
-    obs-ui/win-update/win-update-helpers.hpp
+    #obs-ui/win-update/update-window.cpp
+    #obs-ui/win-update/update-window.hpp
+    #obs-ui/win-update/win-update.cpp
+    #obs-ui/win-update/win-update.hpp
+    #obs-ui/win-update/win-update-helpers.cpp
+    #obs-ui/win-update/win-update-helpers.hpp
     prism-ui/main/unzip.h
     prism-ui/main/unzip.cpp)
 
@@ -864,7 +940,7 @@ if(OS_WINDOWS)
     target_link_options(PRISMLiveStudio PRIVATE /LARGEADDRESSAWARE)
   endif()
 
-  add_subdirectory(obs-ui/win-update/updater)
+  #add_subdirectory(obs-ui/win-update/updater)
 elseif(OS_MACOS)
   set_target_properties(
     PRISMLiveStudio
@@ -878,10 +954,12 @@ elseif(OS_MACOS)
   if(XCODE)
     set_target_properties(
       PRISMLiveStudio
-      PROPERTIES XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER
-      "${MACOSX_BUNDLE_GUI_IDENTIFIER}"
+      PROPERTIES XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${MACOSX_BUNDLE_GUI_IDENTIFIER}"
       XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon
-      XCODE_ATTRIBUTE_PRODUCT_NAME "PRISMLiveStudio")
+      XCODE_ATTRIBUTE_PRODUCT_NAME "PRISMLiveStudio"
+      XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION ${PRISM_VERSION_BUILD}
+      XCODE_ATTRIBUTE_MARKETING_VERSION ${PRISM_VERSION_SHORT}
+      XCODE_ATTRIBUTE_GENERATE_INFOPLIST_FILE YES)
 
     set(APP_ICON_TARGET $ENV{PRISM_SRC_DIR}/cmake/bundle/macOS/Assets.xcassets)
 
@@ -917,13 +995,10 @@ elseif(OS_MACOS)
       PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
   endif()
 
-  find_library(APPKIT Appkit)
-  find_library(AVFOUNDATION AVFoundation)
-  find_library(APPLICATIONSERVICES ApplicationServices)
-  mark_as_advanced(APPKIT AVFOUNDATION APPLICATIONSERVICES)
-
-  target_link_libraries(PRISMLiveStudio PRIVATE ${APPKIT} ${AVFOUNDATION}
-    ${APPLICATIONSERVICES})
+  target_link_libraries(PRISMLiveStudio PRIVATE 
+    "$<LINK_LIBRARY:FRAMEWORK,Appkit.framework>"
+    "$<LINK_LIBRARY:FRAMEWORK,AVFoundation.framework>"
+    "$<LINK_LIBRARY:FRAMEWORK,ApplicationServices.framework>")
 
   if(ENABLE_SPARKLE_UPDATER)
     find_library(SPARKLE Sparkle)
@@ -1051,6 +1126,11 @@ elseif(OS_MACOS)
     DL_D3D9="")
 endif()
 
+
+get_property(obs_module_list GLOBAL PROPERTY OBS_MODULES_ENABLED)
+list(JOIN obs_module_list "|" SAFE_MODULES)
+target_compile_definitions(PRISMLiveStudio PRIVATE "SAFE_MODULES=\"${SAFE_MODULES}\"")
+
 # define_graphic_modules(PRISMLiveStudio)
 # setup_obs_app(PRISMLiveStudio)
 # setup_target_resources(PRISMLiveStudio obs-studio)
@@ -1069,4 +1149,6 @@ elseif(OS_WINDOWS)
   deploy_qt(PRISMLiveStudio)
 endif()
 
-copy_third_party_apng(PRISMLiveStudio)
+if(OS_WINDOWS)
+  copy_third_party_apng(PRISMLiveStudio)
+endif()

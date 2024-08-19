@@ -35,19 +35,29 @@ void TextMotionTemplateDataHelper::initTemplateGroup()
 
 void TextMotionTemplateDataHelper::initTemplateButtons()
 {
+	auto checkGroup = [this](const QString &key) -> QPointer<QButtonGroup> {
+		auto group = m_templateButtons.value(key);
+		if (!group) {
+			group = pls_new<QButtonGroup>();
+			group->setExclusive(false);
+			m_templateButtons.insert(key, group);
+		}
+		return group;
+	};
 	const QMap<QString, QVector<TextMotionTemplateData>> &templateInfos = TextMotionRemoteDataHandler::instance()->getTMRemoteData();
 	if (m_templateButtons.isEmpty()) {
 		initTemplateGroup();
 	}
 	for (auto group = m_templateButtons.begin(); group != m_templateButtons.end(); ++group) {
-		auto groupTmp = group.value();
+		auto groupTmp = checkGroup(group.key());
 		while (groupTmp->buttons().size()) {
 			groupTmp->removeButton(groupTmp->buttons().value(0));
 		}
 	}
 
 	for (auto templateKey : templateInfos.keys()) {
-		auto group = m_templateButtons.value(templateKey);
+		auto group = checkGroup(templateKey);
+
 		const QVector<TextMotionTemplateData> templateDatas = templateInfos.value(templateKey);
 		for (int index = 0; index != templateDatas.count(); ++index) {
 			TextMotionTemplateData data = templateDatas.value(index);

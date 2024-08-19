@@ -6,6 +6,9 @@
 #include <qstyle.h>
 #include <qmovie.h>
 #include <qstyleoption.h>
+#include <QToolTip>
+#include "libui.h"
+#include "libutils-api.h"
 
 PLSElideLabel::PLSElideLabel(QWidget *parent) : QLabel(parent) {}
 
@@ -124,7 +127,7 @@ void PLSCombinedLabel::SetAdditionalText(const QString &strText_)
 {
 	strAdditional = strText_;
 	additionalLabel->setText(strText_);
-	QTimer::singleShot(0, this, [this, strText_]() {
+	pls_async_call(this, [this, strText_]() {
 		int width = additionalLabel->fontMetrics().horizontalAdvance(strText_);
 		additionalLabel->setFixedSize(width, this->height());
 		UpdataUi();
@@ -174,7 +177,7 @@ void PLSCombinedLabel::resizeEvent(QResizeEvent *event)
 {
 	UpdataUi();
 	QLabel::resizeEvent(event);
-	QTimer::singleShot(0, this, [this]() {
+	pls_async_call(this, [this]() {
 		if (!strAdditional.isEmpty()) {
 			int width = additionalLabel->fontMetrics().horizontalAdvance(strAdditional);
 			additionalLabel->setFixedSize(width, this->height());
@@ -231,4 +234,26 @@ void PLSApngLabel::paintEvent(QPaintEvent *)
 	if (!isEnabled())
 		pix = style->generatedIconPixmap(QIcon::Disabled, pix, &opt);
 	style->drawItemPixmap(&painter, cr, align, pix);
+}
+
+PLSHelpIcon::PLSHelpIcon(QWidget *parent) : QLabel(parent)
+{
+	setFrameShape(QFrame::NoFrame);
+	setProperty("showHandCursor", QVariant(true));
+#if defined(Q_OS_MACOS)
+	installEventFilter(this);
+#endif
+}
+
+bool PLSHelpIcon::eventFilter(QObject *watched, QEvent *event)
+{
+#if defined(Q_OS_MACOS)
+	if (watched == this && event->type() == QEvent::ToolTip) {
+		QPoint pos = this->rect().center();
+		QPoint global = this->mapToGlobal(pos);
+		QToolTip::showText(QPoint(global.rx(), global.ry() - 20), this->toolTip(), this);
+		return true;
+	}
+#endif
+	return QLabel::eventFilter(watched, event);
 }

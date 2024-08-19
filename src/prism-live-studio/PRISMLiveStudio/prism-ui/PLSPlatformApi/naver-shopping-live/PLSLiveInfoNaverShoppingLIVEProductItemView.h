@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QVBoxLayout>
+#include <QLabel>
 
 #include "PLSNaverShoppingLIVEAPI.h"
 #include "PLSNaverShoppingLIVEItemViewCache.h"
@@ -15,7 +16,7 @@ class PLSPlatformNaverShoppingLIVE;
 template<typename ItemView> class PLSNaverShoppingLIVEItemViewCache;
 class PLSLoadingView;
 
-class PLSLiveInfoNaverShoppingLIVEProductItemView : public QWidget, public PLSNaverShoppingLIVEItemViewBase {
+class PLSLiveInfoNaverShoppingLIVEProductItemView : public QFrame, public PLSNaverShoppingLIVEItemViewBase {
 	Q_OBJECT
 
 public:
@@ -24,11 +25,12 @@ public:
 
 	using Product = PLSNaverShoppingLIVEAPI::ProductInfo;
 
-	void setInfo(const PLSPlatformNaverShoppingLIVE *platform, const Product &product, bool fixed);
+	void setInfo(const PLSPlatformNaverShoppingLIVE *platform, const Product &product, bool fixed = false);
 	void setProductReadonly(bool readonly);
 
 	bool isFixed() const;
 	void setFixed(bool fixed);
+	void updateAttachableUI();
 
 	qint64 getProductNo() const;
 	const Product &getProduct() const;
@@ -44,7 +46,7 @@ public:
 	static PLSLiveInfoNaverShoppingLIVEProductItemView *alloc(QWidget *parent, PLSPlatformNaverShoppingLIVE *platform, const Product &product, bool fixed);
 	template<typename ClickedReceiver, typename FixClickedSlot, typename RemoveClickedSlot>
 	static PLSLiveInfoNaverShoppingLIVEProductItemView *alloc(QWidget *parent, ClickedReceiver *receiver, FixClickedSlot fixClickedSlot, RemoveClickedSlot removeClickedSlot,
-								  PLSPlatformNaverShoppingLIVE *platform, const Product &product, bool fixed)
+								  PLSPlatformNaverShoppingLIVE *platform, const Product &product, bool fixed = false)
 	{
 		PLSLiveInfoNaverShoppingLIVEProductItemView *itemView = alloc(parent, platform, product, fixed);
 		itemView->fixButtonClickedConnection = QObject::connect(itemView, &PLSLiveInfoNaverShoppingLIVEProductItemView::fixButtonClicked, receiver, fixClickedSlot);

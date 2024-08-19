@@ -447,50 +447,70 @@ PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #info
 	background-color: transparent;
 }
 
-PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #nameLabel {
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #nameLabel,
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #nameLabel[attachable=true] {
 	background-color: transparent;
 	font-size: /*hdpi*/ 14px;
 	font-weight: normal;
 	color: white;
+	padding: 0;
+	margin: 0;
+	background: none;
+	min-height: /*hdpi*/ 19px;
+	max-height: /*hdpi*/ 19px;
 }
 
 PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView[state="hover"] #nameLabel {
 	text-decoration: underline;
 }
 
-PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #discountLabel {
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #discountLabel,
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #discountLabel[attachable=true] {
 	background-color: transparent;
 	font-size: /*hdpi*/ 14px;
 	font-weight: bold;
 	color: #f24443;
 }
 
-PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #priceLabel {
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #priceLabel,
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #priceLabel[attachable=true] {
 	background-color: transparent;
 	font-size: /*hdpi*/ 14px;
 	font-weight: bold;
 	color: white;
 }
 
-PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #discountPriceLabel {
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #discountPriceLabel,
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #discountPriceLabel[attachable=true] {
 	background-color: transparent;
 	font-size: /*hdpi*/ 12px;
 	font-weight: normal;
 	color: #f24443;
 }
 
-PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #storeLabel {
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #storeLabel,
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #storeLabel[attachable=true] {
 	background-color: transparent;
 	font-size: /*hdpi*/ 12px;
 	font-weight: normal;
 	color: #858585;
 }
 
-PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #statusLabel {
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #statusLabel,
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #statusLabel[attachable=true] {
 	background-color: transparent;
 	font-size: /*hdpi*/ 14px;
 	font-weight: bold;
 	color: #999999;
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #nameLabel[attachable=false],
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #discountLabel[attachable=false],
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #priceLabel[attachable=false],
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #discountPriceLabel[attachable=false],
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #storeLabel[attachable=false],
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #statusLabel[attachable=false] {
+	color: #666666;
 }
 
 PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton {
@@ -507,6 +527,10 @@ PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addR
 	image: url(:/channels/resource/images/ChannelsSource/navershopping/icon-addproduct-normal.svg);
 }
 
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="false"][attachable=false] {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/icon-addproduct-disable.svg);
+}
+
 PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="false"]:hover {
 	image: url(:/channels/resource/images/ChannelsSource/navershopping/icon-addproduct-over.svg);
 }
@@ -521,6 +545,10 @@ PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addR
 
 PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="true"] {
 	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-addproduct-done-normal.svg);
+}
+
+PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="true"][attachable=false] {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/btn-addproduct-done-disable.svg);
 }
 
 PLSNaverShoppingLIVEProductDialogView #PLSNaverShoppingLIVEProductItemView #addRemoveButton[added="true"]:hover {

@@ -140,28 +140,6 @@ PLSLiveInfoBase #pushButtonSearch {
 	image: url(":/libui/resource/images/btn-search-normal.svg");
 }
 
-PLSLiveInfoBase #pushButtonClear {
-	min-width: /*hdpi*/ 16px;
-	max-width: /*hdpi*/ 16px;
-	min-height: /*hdpi*/ 16px;
-	max-height: /*hdpi*/ 16px;
-	border-style: none;
-	background-color: transparent;
-	image: url(":/images/ic-liveInfo-delete-normal.svg");
-}
-
-	PLSLiveInfoBase #pushButtonClear:hover {
-		image: url(":/images/ic-liveInfo-delete-over.svg");
-	}
-
-	PLSLiveInfoBase #pushButtonClear:pressed {
-		image: url(":/images/ic-liveInfo-delete-click.svg");
-	}
-
-	PLSLiveInfoBase #pushButtonClear:disabled {
-		image: url(":/images/ic-liveInfo-delete-disable.svg");
-	}
-
 PLSLiveInfoBase #loadingBG {
 	background-color: rgba(39, 39, 39, 0.8);
 }

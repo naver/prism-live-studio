@@ -20,8 +20,6 @@
 #include "pls-channel-const.h"
 #include "qfile.h"
 #include "ui_PLSLiveEndDialog.h"
-#include <libutils-api.h>
-
 
 PLSLiveEndDialog::PLSLiveEndDialog(PLSEndPageType pageType, QWidget *parent) : PLSDialogView(parent), m_pageType(pageType)
 {
@@ -205,7 +203,9 @@ void PLSLiveEndDialog::openFileSavePath() const
 {
 	QUrl videoPath = QUrl::fromLocalFile(getRecordPath());
 	PLS_UI_STEP(END_MODULE, "PLSEnd Dialog openFileSavePath Click", ACTION_CLICK);
-	QDesktopServices::openUrl(videoPath);
+	if (!QDesktopServices::openUrl(videoPath.toString())) {
+		PLS_WARN(END_MODULE, "openFileSavePath failed");
+	}
 }
 
 void PLSLiveEndDialog::openTipView()

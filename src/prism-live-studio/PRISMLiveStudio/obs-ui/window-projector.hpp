@@ -10,6 +10,7 @@ enum class ProjectorType {
 	Preview,
 	StudioProgram,
 	Multiview,
+	ChatBrowser,
 };
 
 class QMouseEvent;
@@ -48,6 +49,8 @@ private:
 	static QList<OBSProjector *> multiviewProjectors;
 	bool isWindow;
 
+signals:
+	void notifyClose();
 private slots:
 	void EscapeTriggered();
 	void OpenFullScreenProjector();

@@ -1,10 +1,17 @@
 #include "PLSGetPropertiesThread.h"
+#include <liblog.h>
+#include "log/module_names.h"
 
 constexpr uint64_t WAIT_TIMEOUT_MS = 15 * 1000;
 
 static void PropertiesGetterThread()
 {
-	//THREAD_START_LOG;
+	PLS_LOG(PLS_LOG_INFO, MAINFRAME_MODULE, "%s: Thread started.", __FUNCTION__);
+}
+
+static void PropertiesGetterThreadEnd()
+{
+	PLS_LOG(PLS_LOG_INFO, MAINFRAME_MODULE, "%s: Thread end.", "PropertiesGetterThread");
 }
 
 PLSGetPropertiesThread *PLSGetPropertiesThread::Instance()
@@ -17,6 +24,7 @@ PLSGetPropertiesThread::PLSGetPropertiesThread(QObject *parent) : QObject(parent
 {
 	this->moveToThread(&thread);
 	connect(&thread, &QThread::started, PropertiesGetterThread);
+	connect(&thread, &QThread::finished, PropertiesGetterThreadEnd);
 	thread.start();
 }
 
@@ -27,6 +35,7 @@ PLSGetPropertiesThread::~PLSGetPropertiesThread()
 
 void PLSGetPropertiesThread::GetPropertiesBySource(OBSSource source, quint64 requstId)
 {
+	PLS_LOG(PLS_LOG_INFO, MAINFRAME_MODULE, "Start GetProperties, request id: %llu", requstId);
 	QMetaObject::invokeMethod(this, "_GetPropertiesBySource", Qt::QueuedConnection, Q_ARG(OBSSource, source), Q_ARG(quint64, requstId));
 }
 
@@ -34,12 +43,15 @@ void PLSGetPropertiesThread::GetPropertiesBySourceId(const char *id, quint64 req
 {
 	if (!id)
 		return;
+
+	PLS_LOG(PLS_LOG_INFO, MAINFRAME_MODULE, "Start GetProperties, request id: %llu", requstId);
 	QString strId(id);
 	QMetaObject::invokeMethod(this, "_GetPropertiesBySourceId", Qt::QueuedConnection, Q_ARG(QString, strId), Q_ARG(quint64, requstId));
 }
 
 void PLSGetPropertiesThread::GetprivatePropertiesBySource(OBSSource source, quint64 requstId)
 {
+	PLS_LOG(PLS_LOG_INFO, MAINFRAME_MODULE, "Start GetProperties, request id: %llu", requstId);
 	QMetaObject::invokeMethod(this, "_GetprivatePropertiesBySource", Qt::QueuedConnection, Q_ARG(OBSSource, source), Q_ARG(quint64, requstId));
 }
 
@@ -47,7 +59,9 @@ void PLSGetPropertiesThread::WaitForFinished()
 {
 	stopped = true;
 	thread.quit();
-	thread.wait(WAIT_TIMEOUT_MS);
+	if (!thread.wait(WAIT_TIMEOUT_MS)) {
+		PLS_LOG(PLS_LOG_WARN, MAINFRAME_MODULE, "Failed to wait PropertiesGetterThread end.");
+	}
 }
 
 void PLSGetPropertiesThread::_GetPropertiesBySource(OBSSource source, quint64 requstId)
@@ -60,6 +74,8 @@ void PLSGetPropertiesThread::_GetPropertiesBySource(OBSSource source, quint64 re
 		if (!stopped)
 			emit OnProperties(param);
 	}
+
+	PLS_LOG(PLS_LOG_INFO, MAINFRAME_MODULE, "End GetProperties, request id: %llu", requstId);
 }
 
 void PLSGetPropertiesThread::_GetPropertiesBySourceId(QString id, quint64 requstId)
@@ -72,6 +88,8 @@ void PLSGetPropertiesThread::_GetPropertiesBySourceId(QString id, quint64 requst
 		if (!stopped)
 			emit OnProperties(param);
 	}
+
+	PLS_LOG(PLS_LOG_INFO, MAINFRAME_MODULE, "End GetProperties, request id: %llu", requstId);
 }
 
 void PLSGetPropertiesThread::_GetprivatePropertiesBySource(OBSSource source, quint64 requstId)
@@ -84,4 +102,6 @@ void PLSGetPropertiesThread::_GetprivatePropertiesBySource(OBSSource source, qui
 		if (!stopped)
 			emit OnPrivateProperties(param);*/
 	}
+
+	PLS_LOG(PLS_LOG_INFO, MAINFRAME_MODULE, "End GetProperties, request id: %llu", requstId);
 }

@@ -10,7 +10,7 @@
 #define LIBUI_API __declspec(dllimport)
 #endif
 #else
-#define LIBUI_API
+#define LIBUI_API __attribute__((visibility("default")))
 #endif
 
 #endif // !LIBUI_GLOBALS_H

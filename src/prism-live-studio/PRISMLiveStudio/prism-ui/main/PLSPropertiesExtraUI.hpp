@@ -12,6 +12,7 @@
 #include "obs.hpp"
 #include "pls/pls-properties.h"
 #include "PLSCheckBox.h"
+#include "frontend-api.h"
 
 class QMovie;
 class QButtonGroup;
@@ -20,12 +21,32 @@ class PLSDialogView;
 class PLSComboBox;
 
 class ChatTemplate : public QPushButton {
+
+	Q_OBJECT
 public:
 	ChatTemplate(QButtonGroup *buttonGroup, int id, bool checked);
+	ChatTemplate(QButtonGroup *buttonGroup, int id, const QString text, const QString iconPath, bool isEditUi = false, const QString &backgroundColor = QString());
 	~ChatTemplate() override = default;
 
 protected:
 	bool event(QEvent *event) override;
+	void createFrame(bool isEdit);
+	bool isChatTemplateNameExist(const QString &editName);
+	void showEvent(QShowEvent *event) override;
+	bool eventFilter(QObject *watch, QEvent *event) override;
+
+signals:
+	void resetSourceProperties(int removeTemplateId);
+
+private:
+	void setEditBtnVisible(bool isVisible);
+
+private:
+	QPointer<QFrame> m_frame;
+	QLabel *m_textLabel = nullptr;
+	std::string m_editName;
+	int id = 0;
+	QPixmap m_borderPixMap;
 };
 
 class TMTextAlignBtn : public QPushButton {
@@ -124,4 +145,15 @@ class AddToListDialog : public PLSDialogView {
 public:
 	explicit AddToListDialog(QWidget *parent, OBSSource source);
 	QString GetText() const;
+};
+
+class FontSelectionWindow : public QFrame {
+	Q_OBJECT
+
+public:
+	explicit FontSelectionWindow(const QList<ITextMotionTemplateHelper::PLSChatDefaultFamily> &families, const QString &selectFamily, QWidget *parent = nullptr);
+	~FontSelectionWindow();
+
+signals:
+	void clickFontBtn(QAbstractButton *button);
 };

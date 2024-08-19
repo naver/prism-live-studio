@@ -489,6 +489,10 @@ void PLSDrawPenMgr::OnDrawVisible(bool visible)
 {
 	if (visible) {
 		UpdateCursorPixmap();
+#if defined(_WIN32)
+		if (drawPenCore && !needUpdateStrokes)
+			drawPenCore->UpdateCanvasByVisible(visible);
+#endif
 	} else {
 		auto main = OBSBasic::Get();
 		if (!main)

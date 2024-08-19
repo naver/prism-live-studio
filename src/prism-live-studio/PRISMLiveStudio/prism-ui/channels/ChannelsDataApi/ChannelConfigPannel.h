@@ -34,8 +34,6 @@ private slots:
 
 	void askDeleteChannel();
 
-	void closeBowser();
-
 private:
 	void shiftState(const QVariantMap &info);
 
@@ -51,7 +49,6 @@ private:
 	Ui::ChannelConfigPannel *ui;
 	QString mChannelID;
 	bool mIsAsking = false;
-	QPointer<pls::browser::BrowserDialog> m_Browser = nullptr;
 	bool m_isChannelSwithed{false};
 	bool m_bMenuShow = false;
 };

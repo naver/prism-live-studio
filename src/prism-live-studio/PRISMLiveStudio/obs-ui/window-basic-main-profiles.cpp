@@ -1,5 +1,5 @@
 /******************************************************************************
-    Copyright (C) 2015 by Hugh Bailey <obs.jim@gmail.com>
+    Copyright (C) 2023 by Lain Bailey <lain@obsproject.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "liblog.h"
 #include "log/module_names.h"
 #include "PLSMessageBox.h"
+#include "PLSBasic.h"
 
 extern void DestroyPanelCookieManager();
 extern void DuplicateCurrentCookieProfile(ConfigFile &config);
@@ -236,17 +237,8 @@ static bool AskForProfileName(QWidget *parent, std::string &name,
 			      const char *oldName = nullptr)
 {
 	for (;;) {
-		bool success = false;
-
-		if (showWizard) {
-			success = PLSNameDialog::AskForNameWithOption(
-				parent, title, text, name,
-				QTStr("AddProfile.WizardCheckbox"),
-				wizardChecked, QT_UTF8(oldName));
-		} else {
-			success = PLSNameDialog::AskForName(
-				parent, title, text, name, QT_UTF8(oldName));
-		}
+		bool success = PLSNameDialog::AskForName(
+			parent, title, text, name, QT_UTF8(oldName));
 
 		if (!success) {
 			return false;
@@ -416,6 +408,10 @@ bool OBSBasic::CreateProfile(const std::string &newName,
 	if (create_new) {
 		auth.reset();
 		DestroyPanelCookieManager();
+#ifdef YOUTUBE_ENABLED
+		if (youtubeAppDock)
+			DeleteYouTubeAppDock();
+#endif
 	} else if (!rename) {
 		DuplicateCurrentCookieProfile(config);
 	}
@@ -722,6 +718,7 @@ bool OBSBasic::ExportProfile(QString &exportDir)
 	if (lastProfilePath.isEmpty()) {
 		lastProfilePath = QDir::homePath();
 	}
+	pls::HotKeyLocker locker;
 	QString dir = QFileDialog::getExistingDirectory(
 		this, QTStr("Basic.MainMenu.Profile.Export"), lastProfilePath,
 		QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
@@ -885,8 +882,8 @@ void OBSBasic::on_actionDupProfile_triggered()
 		QT_TO_UTF8(action->property("name").value<QString>());
 	if (curName.empty())
 		return;
-	AddProfile(false, Str("AddProfile.Title"),
-			   Str("AddProfile.Text"), curName.c_str());
+	AddProfile(false, Str("AddProfile.Title"), Str("AddProfile.Text"),
+		   curName.c_str());
 }
 
 void OBSBasic::on_actionRenameProfile_triggered()
@@ -1070,7 +1067,8 @@ void OBSBasic::on_actionRemoveProfile_triggered(bool skipConfirmation)
 
 		if (button == QMessageBox::Yes) {
 			GlobalVars::restart = true;
-			close();
+			mainView->close();
+			PLSBasic::restartApp();
 		}
 	}
 }
@@ -1080,7 +1078,7 @@ void OBSBasic::on_actionImportProfile_triggered()
 	if (lastProfilePath.isEmpty()) {
 		lastProfilePath = QDir::homePath();
 	}
-
+	pls::HotKeyLocker locker;
 	QString dir = QFileDialog::getExistingDirectory(
 		this, QTStr("Basic.MainMenu.Profile.Import"), lastProfilePath,
 		QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
@@ -1195,6 +1193,10 @@ void OBSBasic::ChangeProfile()
 	Auth::Save();
 	auth.reset();
 	DestroyPanelCookieManager();
+#ifdef YOUTUBE_ENABLED
+	if (youtubeAppDock)
+		DeleteYouTubeAppDock();
+#endif
 
 	config.Swap(basicConfig);
 	InitBasicConfigDefaults();
@@ -1206,6 +1208,10 @@ void OBSBasic::ChangeProfile()
 	UpdateVolumeControlsDecayRate();
 
 	Auth::Load();
+#ifdef YOUTUBE_ENABLED
+	if (YouTubeAppDock::IsYTServiceSelected() && !youtubeAppDock)
+		NewYouTubeAppDock();
+#endif
 
 	CheckForSimpleModeX264Fallback();
 
@@ -1223,7 +1229,8 @@ void OBSBasic::ChangeProfile()
 
 		if (button == QMessageBox::Yes) {
 			GlobalVars::restart = true;
-			close();
+			mainView->close();
+			PLSBasic::restartApp();
 		}
 	}
 }
@@ -1250,7 +1257,7 @@ void OBSBasic::CheckForSimpleModeX264Fallback()
 	const char *id;
 
 	while (obs_enum_encoder_types(idx++, &id)) {
-		if (strcmp(id, "amd_amf_h264") == 0)
+		if (strcmp(id, "h264_texture_amf") == 0)
 			amd_supported = true;
 		else if (strcmp(id, "obs_qsv11") == 0)
 			qsv_supported = true;

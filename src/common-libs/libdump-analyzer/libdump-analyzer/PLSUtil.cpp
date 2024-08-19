@@ -40,7 +40,7 @@ static bool get_windows_os_info(DWORD &major, DWORD &minor, DWORD &build_number)
 {
 	using GetOSVersion = void(WINAPI *)(DWORD *, DWORD *, DWORD *);
 
-	HMODULE hModule = LoadLibraryA("ntdll.dll");
+	HMODULE hModule = LoadLibraryW(L"ntdll.dll");
 	if (hModule) {
 		auto pAddress = (GetOSVersion)GetProcAddress(hModule, "RtlGetNtVersionNumbers");
 		if (pAddress) {
@@ -136,9 +136,12 @@ static std::string get_windows_version()
     std::string get_device_name() {
         return mac_get_device_name();
     }
-    
-    std::string get_threads() {
-        return mac_get_threads();
-    }
+	
+	std::string generate_dump_file(std::string info, std::string message) {
+		return mac_generate_dump_file(info, message);
+	}
 #endif
+	
 }
+
+

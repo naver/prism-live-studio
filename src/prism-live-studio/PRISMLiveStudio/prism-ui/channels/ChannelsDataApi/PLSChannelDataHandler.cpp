@@ -54,7 +54,7 @@ FinishTaskReleaser::~FinishTaskReleaser()
 		PLSCHANNELS_API->channelModified(mSrcUUID);
 		PLSCHANNELS_API->holdOnChannelArea(false);
 	}
-	auto platformName = getInfo(info, g_platformName);
+	auto platformName = getInfo(info, g_channelName);
 	QString step = isUpdated ? g_updateChannelStep : g_addChannelStep;
 	PRE_LOG_MSG_STEP(QString("finished update: platform :" + platformName + "ID :" + mSrcUUID), step, INFO)
 }
@@ -115,30 +115,23 @@ void addLoginChannel(const QJsonObject &retJson)
 	PLSCHANNELS_API->addChannelInfo(newInfo);
 }
 
-void ChannelDataBaseHandler::beginLogin()
+void ChannelDataBaseHandler::loginWithWebPage(const QString &cmdStr)
 {
 	this->resetData();
-	myLastInfo() = createDefaultChannelInfoMap(getPlatformName());
-	auto ret = QMetaObject::invokeMethod(this, &ChannelDataBaseHandler::prelogin, Qt::QueuedConnection);
-	PLS_INFO("ChannelDataBaseHandler", "involke method :%s", ret ? " ok " : "false");
-}
-
-void ChannelDataBaseHandler::prelogin()
-{
-	emit preloginFinished();
-}
-
-void ChannelDataBaseHandler::loginWithWebPage()
-{
+	myLastInfo() = createDefaultChannelInfoMap(getPlatformName(), ChannelData::ChannelType, cmdStr);
 
 	QJsonObject retObj = QJsonObject::fromVariantMap(myLastInfo());
 
-	PRE_LOG_MSG_STEP(QString(" show %1 login page ").arg(g_platformName), g_addChannelStep, INFO)
+	PRE_LOG_MSG_STEP(QString(" show %1 login page ").arg(g_channelName), g_addChannelStep, INFO)
 	auto handleCallback = [retObj, this](bool ok, const QJsonObject &result) mutable {
 		if (ok) {
 			for (const auto &key : result.keys())
 				retObj[key] = result[key];
 			addLoginChannel(retObj);
+			PLSBasic::instance()->updateMainViewAlwayTop();
+		} else if (result.value(ChannelData::g_expires_in).toBool()) {
+			PLS_INFO("Channels", "%s login failed ,prism token expired", g_channelName.toUtf8().constData());
+			reloginPrismExpired();
 		}
 		emit this->loginFinished();
 	};

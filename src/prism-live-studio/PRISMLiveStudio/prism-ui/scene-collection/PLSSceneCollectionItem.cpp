@@ -25,6 +25,13 @@ PLSSceneCollectionItem::PLSSceneCollectionItem(const QString &name, const QStrin
 	setMouseTracking(true);
 	ui->horizontalLayout->setContentsMargins(12, 0, 12, 0);
 
+#ifdef Q_OS_WIN
+	this->setProperty("platform", "win");
+#else
+	this->setProperty("platform", "mac");
+
+#endif // Q_OS_WIN
+
 	ui->nameLabel->setVisible(false);
 	ui->timeLabel->setVisible(false);
 	timeVisible = !textMode;
@@ -131,6 +138,8 @@ void PLSSceneCollectionItem::DrawDropLine(DropLine type)
 void PLSSceneCollectionItem::mousePressEvent(QMouseEvent *event)
 {
 	if (textMode) {
+		QString log = QString("scene collection menu item [%1]").arg(fileName);
+		PLS_UI_STEP(MAIN_SCENE_COLLECTION, log.toStdString().c_str(), ACTION_LBUTTON_CLICK);
 		emit applyClicked(fileName, filePath, true);
 	}
 
@@ -139,6 +148,8 @@ void PLSSceneCollectionItem::mousePressEvent(QMouseEvent *event)
 
 void PLSSceneCollectionItem::mouseDoubleClickEvent(QMouseEvent *event)
 {
+	QString log = QString("scene collection item [%1]").arg(fileName);
+	PLS_UI_STEP(MAIN_SCENE_COLLECTION, log.toStdString().c_str(), ACTION_DBCLICK);
 	emit applyClicked(fileName, filePath, false);
 	QFrame::mouseDoubleClickEvent(event);
 }

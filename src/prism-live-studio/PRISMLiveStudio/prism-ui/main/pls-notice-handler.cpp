@@ -9,12 +9,12 @@
 #include "libhttp-client.h"
 #include <qeventloop.h>
 #include "liblog.h"
+#include "PLSCommonConst.h"
 
 constexpr auto PLS_NOTICE_PATH = "PRISMLiveStudio/user";
 constexpr auto NOTICE_NOTICE_SEQ = "noticeSeq";
 constexpr auto TIMEOUT = 15000;
 constexpr auto NOTICE_VAILD_UNTIL_AT = "validUntilAt";
-constexpr auto PLS_LOGIN_MODULE = "launcher/login";
 
 PLSNoticeHandler *PLSNoticeHandler::getInstance()
 {
@@ -26,25 +26,35 @@ PLSNoticeHandler::PLSNoticeHandler(QObject *parent) : QObject(parent) {}
 
 void PLSNoticeHandler::getNoticeInfoFromRemote(const QObject *obj, const QString &url, const QString &hmac, const std::function<void(const QVariantMap &noticeInfo)> &noticeCallback)
 {
+	auto headStr = [](const QNetworkRequest &request) -> QString {
+		QString headStr = QString("%1 = %2\n%3 = %4").arg("X-prism-os").arg(request.rawHeader("X-prism-os")).arg("X-prism-appversion").arg(request.rawHeader("X-prism-appversion"));
+		return headStr;
+	};
 	pls::http::request(pls::http::Request()
 				   .method(pls::http::Method::Get)          //
 				   .hmacUrl(url, hmac.toUtf8().constData()) //
 				   .jsonContentType()
-				   .rawHeader("gcc", pls_prism_get_locale().section('-', 1, 1))
+				   .rawHeader(common::HTTP_HEAD_CC_TYPE, pls_prism_get_locale().section('-', 1, 1))
 				   .rawHeader("X-prism-apptype", QString("LIVE_STUDIO"))
 				   .withLog()
 				   .workInMainThread()
 				   .receiver(obj)
 				   .timeout(TIMEOUT)
-				   .okResult([obj, this, noticeCallback](const pls::http::Reply &reply) {
+				   .okResult([obj, this, noticeCallback, headStr](const pls::http::Reply &reply) {
 					   PLS_INFO(PLS_LOGIN_MODULE, "get notice info success.");
+					   PLS_INFO("pls notice", "notice request api head: %s", headStr(reply.request().request()).toUtf8().constData());
+
 					   saveNoticeInfo(reply.data());
 					   pls_async_call_mt(obj, [noticeCallback]() { noticeCallback(PLSNoticeHandler::getInstance()->getNewNotice()); });
 				   })
-				   .failResult([obj, noticeCallback](const pls::http::Reply &reply) {
+				   .failResult([obj, noticeCallback, headStr](const pls::http::Reply &reply) {
+					   PLS_INFO("pls notice", "notice request api head: %s", headStr(reply.request().request()).toUtf8().constData());
+
 					   if (reply.statusCode() == 404) {
 						   PLS_INFO(PLS_LOGIN_MODULE, "get notice is empty.");
 
+					   } else if (reply.statusCode() == 500) {
+						   PLS_INFO(PLS_LOGIN_MODULE, "notice request api x-prism-os is empty.");
 					   } else {
 						   PLS_ERROR(PLS_LOGIN_MODULE, "get notice info failed.");
 					   }
@@ -76,6 +86,7 @@ void PLSNoticeHandler::getUsedNoticeSeqs()
 
 QVariantMap PLSNoticeHandler::getNewNotice()
 {
+	PLS_INFO("PLSNoticeHandler", "get new notice");
 	QString saveingSeq;
 	QVariantMap currentNoticeMap;
 	//get used seq into QVector container
@@ -102,5 +113,7 @@ QVariantMap PLSNoticeHandler::getNewNotice()
 		file.write(saveingSeq.toUtf8());
 		file.close();
 	}
+	PLS_INFO("PLSNoticeHandler", "get new notice finished");
+
 	return currentNoticeMap;
 }

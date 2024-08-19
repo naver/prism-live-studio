@@ -71,9 +71,9 @@ PLSNameDialog::PLSNameDialog(QWidget *parent, bool option) : PLSDialogView(paren
 	pls_add_css(this, {"PLSNameDialog"});
 
 	if (option) {
-		initSize(QSize(410, 278));
+		initSize(QSize(410, 274));
 	} else {
-		initSize(QSize(410, 243));
+		initSize(QSize(410, 239));
 	}
 
 	installEventFilter(CreateShortcutFilter(parent));

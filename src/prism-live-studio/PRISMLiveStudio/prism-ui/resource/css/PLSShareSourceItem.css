@@ -100,8 +100,8 @@ PLSShareSourceItem #DisnameLabel {
 PLSShareSourceItem #GotoBtn {
 	margin:/*hdpi*/0px;
 	margin-top:/*hdpi*/ 8px;
-	min-width:/*hdpi*/ 109px;
-	max-width:/*hdpi*/ 109px;
+	min-width:/*hdpi*/ 130px;
+	max-width:/*hdpi*/ 130px;
 	min-height:/*hdpi*/ 26px;
 	max-height:/*hdpi*/ 26px;
 	border-radius:/*hdpi*/ 3px;
@@ -183,14 +183,14 @@ PLSShareSourceItem #CopyBtn:!checked:pressed {
 }
 
 	PLSShareSourceItem #OpenUrlTwitter {
-		min-height: /*hdpi*/ 40px;
-		max-height: /*hdpi*/ 40px;
-		min-width: /*hdpi*/ 40px;
-		max-width: /*hdpi*/ 40px;
+		min-height: /*hdpi*/ 28px;
+		max-height: /*hdpi*/ 28px;
+		min-width: /*hdpi*/ 28px;
+		max-width: /*hdpi*/ 28px;
 		background-color: #444444;
 		border-radius: /*hdpi*/ 3px;
 		margin: /*hdpi*/ 0px;
-		padding: /*hdpi*/ 0px;
+		padding: /*hdpi*/ 6px;
 		border-image: none;
 		image: url(":/channels/resource/images/ChannelsSource/share-twitter.svg");
 		image-position: center;

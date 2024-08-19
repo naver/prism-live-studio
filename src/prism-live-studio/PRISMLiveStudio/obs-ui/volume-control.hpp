@@ -3,12 +3,13 @@
 #include <obs.hpp>
 #include <QWidget>
 #include <QPaintEvent>
-#include <QSharedPointer>
 #include <QTimer>
 #include <QMutex>
 #include <QList>
 #include <QMenu>
+#include <QTimer>
 #include "PLSPushButton.h"
+#include "frontend-api.h"
 
 class QPushButton;
 class VolumeMeterTimer;
@@ -95,13 +96,10 @@ class VolumeMeter : public QWidget {
 
 	friend class VolControl;
 
-private slots:
-	void ClipEnding();
-
 private:
 	obs_volmeter_t *obs_volmeter;
-	static QWeakPointer<VolumeMeterTimer> updateTimer;
-	QSharedPointer<VolumeMeterTimer> updateTimerRef;
+	static std::weak_ptr<VolumeMeterTimer> updateTimer;
+	std::shared_ptr<VolumeMeterTimer> updateTimerRef;
 
 	inline void resetLevels();
 	inline bool detectIdle(uint64_t ts);
@@ -294,11 +292,13 @@ private:
 	OBSSignal removeSignal;
 	float levelTotal;
 	float levelCount;
-	obs_fader_t *obs_fader;
-	obs_volmeter_t *obs_volmeter;
+	OBSFader obs_fader;
+	OBSVolMeter obs_volmeter;
 	bool vertical;
 	QMenu *contextMenu;
 	QString currentDisplayName;
+	bool clicked = false;
+	QTimer timerDelay;
 
 	static void OBSVolumeChanged(void *param, float db);
 	static void OBSVolumeLevel(void *data,
@@ -306,12 +306,14 @@ private:
 				   const float peak[MAX_AUDIO_CHANNELS],
 				   const float inputPeak[MAX_AUDIO_CHANNELS]);
 	static void OBSVolumeMuted(void *data, calldata_t *calldata);
-
-	static void MonitorChange(pls_frontend_event event,
-				  const QVariantList &params, void *context);
+	static void OBSMixersOrMonitoringChanged(void *data, calldata_t *);
 
 	void EmitConfigClicked();
 	void MonitorStateChangeFromAdv(Qt::CheckState state);
+	static void MonitorChange(pls_frontend_event event,
+				  const QVariantList &params, void *context);
+
+	void LogVolumeChanged();
 
 public slots:
 	void SetMuted(bool checked);
@@ -319,6 +321,7 @@ public slots:
 private slots:
 	void VolumeChanged();
 	void VolumeMuted(bool muted);
+	void MixersOrMonitoringChanged();
 
 	void SliderChanged(int vol);
 	void updateText();
@@ -345,6 +348,9 @@ public:
 	inline void SetContextMenu(QMenu *cm) { contextMenu = cm; }
 
 	void refreshColors();
+
+	void setClickState(bool clicked);
+	void updateMouseState(bool hover);
 
 protected:
 	bool eventFilter(QObject *watched, QEvent *e) override;

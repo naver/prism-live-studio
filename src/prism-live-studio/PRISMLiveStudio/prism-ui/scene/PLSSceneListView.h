@@ -20,6 +20,7 @@ public:
 
 	void SetSceneDisplayMethod(int method);
 	int GetSceneOrder(const char *name) const;
+	const char *getSceneDisplayMethodStr(DisplayMethod method);
 
 	void AddScene(const QString &name, OBSScene scene, const SignalContainer<OBSScene> &handler, bool loadingScene = false);
 	void DeleteScene(const QString &name);
@@ -54,6 +55,8 @@ public:
 	void OnRecordStatus(bool on);
 	void OnStudioModeStatus(bool on);
 	void OnPreviewSceneChanged();
+
+	void SetDpi(float dpi);
 
 public slots:
 	PLSSceneItemView *GetCurrentItem();

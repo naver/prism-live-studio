@@ -79,6 +79,7 @@ public:
 	void showLayoutItemWidget() const;
 	void setItemRetainSizeWhenHidden(bool retainSize);
 	int rowForWidth(int) const;
+	void setFixWidthForCalculate(int width) { m_fixWidth = width; };
 
 signals:
 	void LayoutFinished() const;
@@ -91,6 +92,7 @@ private:
 	int m_hSpace;
 	int m_vSpace;
 	bool retainSize{true};
+	int m_fixWidth = 0;
 };
 //! [0]
 

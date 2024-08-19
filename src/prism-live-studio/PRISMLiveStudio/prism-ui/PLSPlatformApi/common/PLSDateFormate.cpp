@@ -114,6 +114,15 @@ QString PLSDateFormate::navertvTimeStampToString(qint64 timeStamp)
 	return enTimeStr;
 }
 
+long PLSDateFormate::iso8601ToStamp(QString time)
+{
+	if (time.isEmpty()) {
+		return 0;
+	}
+	QDateTime stDTime = QDateTime::fromString(time, Qt::ISODate);
+	return stDTime.toSecsSinceEpoch();
+}
+
 long PLSDateFormate::getNowTimeStamp()
 {
 	return QDateTime::currentDateTime().toSecsSinceEpoch();

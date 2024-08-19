@@ -9,7 +9,7 @@ using namespace common;
 PLSLoadingView::PLSLoadingView(QWidget *parent) : QFrame(parent)
 {
 	for (int i = 0; i < 8; ++i) {
-		m_svgRenderers[i].load(QString(":/images/loading-%1.svg").arg(i + 1));
+		m_svgRenderers[i].load(QString(":resource/images/loading/loading-%1.svg").arg(i + 1));
 	}
 
 	m_dpi = 1;

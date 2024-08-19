@@ -71,6 +71,8 @@ static const char *const s_default_font = "Malgun Gothic";
 static const char *const s_default_font = ".AppleSystemUIFont";
 #endif
 
+static void viewer_count_cef_dispatch_js(void *data, const char *event_name, const char *json_data);
+
 struct viewer_count_source {
 	obs_source_t *m_source = nullptr;
 
@@ -84,6 +86,9 @@ struct viewer_count_source {
 	QJsonObject m_viewer_count;
 	QJsonObject m_live_start;
 
+	QByteArray m_last_event_name{};
+	QByteArray m_last_event_data{};
+
 	void update(const QString &type, const QJsonObject &data = {})
 	{
 		if (!m_browser) {
@@ -93,7 +98,7 @@ struct viewer_count_source {
 		if (!updateSize()) {
 			auto event = pls::JsonDocument<QJsonObject>().add(QStringLiteral("type"), type).add(QStringLiteral("data"), data).toByteArray();
 			PLS_PLUGIN_INFO("viewerCountEvent: %s", event.constData());
-			pls_source_dispatch_cef_js(m_browser, "viewerCountEvent", event.constData());
+			viewer_count_cef_dispatch_js(this, "viewerCountEvent", event.constData());
 		}
 	}
 	QJsonObject settingsData(obs_data_t *settings, QJsonObject &data) const
@@ -292,6 +297,8 @@ struct viewer_count_source {
 			}
 		}
 	}
+	static QString encodePercent(const QString &val) { return QUrl::toPercentEncoding(val); }
+
 	QString getUrl()
 	{
 		pls_source_send_notify(m_source, OBS_SOURCE_VIEWER_COUNT_UPDATE_PARAMS, OBS_SOURCE_VIEWER_COUNT_UPDATE_PARAMS_SUB_CODE_UPDATE_URL);
@@ -305,16 +312,18 @@ struct viewer_count_source {
 		QUrlQuery query;
 		obs_data_t *settings = obs_source_get_settings(m_source);
 		auto data = settingsData(settings);
-		query.addQueryItem(QStringLiteral("setting"), QString::fromUtf8(QJsonDocument(data).toJson(QJsonDocument::Compact)));
+		query.addQueryItem(QStringLiteral("setting"), encodePercent(QString::fromUtf8(QJsonDocument(data).toJson(QJsonDocument::Compact))));
 		obs_data_release(settings);
 
 		if (!m_viewer_count.isEmpty()) {
-			query.addQueryItem(QStringLiteral("viewerCount"), QString::fromUtf8(QJsonDocument(m_viewer_count.value(QStringLiteral("data")).toObject()).toJson(QJsonDocument::Compact)));
+			query.addQueryItem(QStringLiteral("viewerCount"),
+					   encodePercent(QString::fromUtf8(QJsonDocument(m_viewer_count.value(QStringLiteral("data")).toObject()).toJson(QJsonDocument::Compact))));
 			m_viewer_count = QJsonObject();
 		}
 
 		if (!m_live_start.isEmpty()) {
-			query.addQueryItem(QStringLiteral("liveStart"), QString::fromUtf8(QJsonDocument(m_live_start.value(QStringLiteral("data")).toObject()).toJson(QJsonDocument::Compact)));
+			query.addQueryItem(QStringLiteral("liveStart"),
+					   encodePercent(QString::fromUtf8(QJsonDocument(m_live_start.value(QStringLiteral("data")).toObject()).toJson(QJsonDocument::Compact))));
 			m_live_start = QJsonObject();
 		}
 
@@ -501,6 +510,29 @@ static obs_properties_t *viewer_count_source_properties(void *data)
 
 	return props;
 }
+static void source_sub_web_receive(void *data, calldata_t *calldata)
+{
+	const char *name = calldata_string(calldata, "msg");
+	auto viewerClass = static_cast<viewer_count_source *>(data);
+	if (!viewerClass) {
+		return;
+	}
+	auto doc = QJsonDocument::fromJson(QByteArray(name));
+	if (!doc.isObject()) {
+		return;
+	}
+	auto root = doc.object();
+	auto type = root["type"].toString();
+	if ("viewerCountWidgetMessageCopy" == type) {
+		PLS_PLUGIN_DEBUG(QString("viewercount did receive web message:").append(name).toUtf8().constData());
+		return;
+	}
+	if ("viewerWebPageLoaded" == type) {
+		PLS_PLUGIN_INFO(QString("viewercount did receive web message:").append(name).toUtf8().constData());
+		viewer_count_cef_dispatch_js(viewerClass, viewerClass->m_last_event_name.constData(), viewerClass->m_last_event_data.constData());
+		return;
+	}
+}
 
 static void init_browser_source(struct viewer_count_source *context)
 {
@@ -517,6 +549,11 @@ static void init_browser_source(struct viewer_count_source *context)
 	obs_data_set_int(browser_settings, "width", context->m_width);
 	obs_data_set_int(browser_settings, "height", context->m_height);
 	context->m_browser = obs_source_create_private("browser_source", "prism_viewer_count_browser_source", browser_settings);
+
+	auto webSingal = obs_source_get_signal_handler(context->m_browser);
+	signal_handler_add(webSingal, "void sub_web_receive(ptr source, string msg)");
+	signal_handler_connect_ref(webSingal, "sub_web_receive", source_sub_web_receive, context);
+
 	obs_data_release(browser_settings);
 
 	obs_source_inc_active(context->m_browser);
@@ -606,6 +643,7 @@ static void viewer_count_source_destroy(void *data)
 	signal_handler_disconnect(obs_get_signal_handler(), "source_create_finished", source_notified, context);
 
 	if (context->m_browser) {
+		signal_handler_disconnect(obs_source_get_signal_handler(context->m_browser), "sub_web_receive", source_sub_web_receive, context);
 		obs_source_dec_active(context->m_browser);
 		obs_source_release(context->m_browser);
 	}
@@ -743,7 +781,7 @@ static void viewer_count_update_extern_params(void *data, const calldata_t *exte
 	bool sizeChanged = false;
 	QJsonObject jobj = jdoc.object();
 	if (QString type = jobj.value("type").toString(); type == QStringLiteral("viewerCount")) {
-		context->m_platform_count = jobj.value("data").toObject().value("platforms").toArray().size();
+		context->m_platform_count = (int)jobj.value("data").toObject().value("platforms").toArray().size();
 		if (sub_data == OBS_SOURCE_VIEWER_COUNT_UPDATE_PARAMS_SUB_CODE_UPDATE_URL) {
 			context->m_viewer_count = jobj;
 		} else if (sub_data == OBS_SOURCE_VIEWER_COUNT_UPDATE_PARAMS_SUB_CODE_UPDATE_PARAMS) {
@@ -754,7 +792,7 @@ static void viewer_count_update_extern_params(void *data, const calldata_t *exte
 	}
 
 	if (sub_data == OBS_SOURCE_VIEWER_COUNT_UPDATE_PARAMS_SUB_CODE_UPDATE_PARAMS && !sizeChanged) {
-		pls_source_dispatch_cef_js(context->m_browser, "viewerCountEvent", json);
+		viewer_count_cef_dispatch_js(data, "viewerCountEvent", json);
 	}
 }
 
@@ -771,6 +809,8 @@ static void viewer_count_properties_edit_end(void *data, obs_data_t *settings, b
 static void viewer_count_cef_dispatch_js(void *data, const char *event_name, const char *json_data)
 {
 	if (auto context = (viewer_count_source *)(data); context->m_browser) {
+		context->m_last_event_name = event_name;
+		context->m_last_event_data = json_data;
 		pls_source_dispatch_cef_js(context->m_browser, event_name, json_data);
 	}
 }

@@ -1,5 +1,6 @@
 /src/obs-build-dependencies
 /bin
+/test-bin
 /src/build
 .DS_Store
 */.DS_Store

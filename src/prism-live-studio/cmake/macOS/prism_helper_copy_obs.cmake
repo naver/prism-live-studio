@@ -4,11 +4,13 @@ set(OBS_BUILD_DIR $ENV{OBS_BUILD_DIR})
 set(BUILD_CONFIG ${CMAKE_BUILD_TYPE})
 set(OBS_UI_APP_CONTENT $ENV{OBS_BUILD_DIR}/UI/${BUILD_CONFIG}/OBS.app/Contents)
 set(OBS_DEPENDENCY_PREFIX ${CMAKE_PREFIX_PATH})
+set(OBS_VCAM_EXTENSION_DIR $ENV{OBS_BUILD_DIR}/plugins/mac-virtualcam/${BUILD_CONFIG}/)
 
 message(STATUS "BUILD_CONFIG=${BUILD_CONFIG}")
 message(STATUS "OBS_BUILD_DIR is ${OBS_BUILD_DIR}")
 message(STATUS "OBS_UI_APP_CONTENT=${OBS_UI_APP_CONTENT}")
 message(STATUS "OBS_DEPENDENCY_PREFIX is ${OBS_DEPENDENCY_PREFIX}")
+message(STATUS "OBS_VCAM_EXTENSION_DIR=${OBS_VCAM_EXTENSION_DIR}")
 
 function(copy_obs_dependencies_dylib)
   foreach(_PREFIX_PATH IN LISTS OBS_DEPENDENCY_PREFIX)
@@ -85,14 +87,12 @@ function(setup_obs_python)
 endfunction()
 
 function(setup_obs_mac_virtualcam)
-  set(OBS_MAC_VIRTUALCAM_FOLDER ${OBS_UI_APP_CONTENT}/Resources/prism-mac-virtualcam.plugin)
-  #execute_process(COMMAND ${CMAKE_COMMAND} -E copy_directory ${OBS_MAC_VIRTUALCAM_FOLDER} ${DEST_FOLDER_PATH}/Resources/prism-mac-virtualcam.plugin)
   install(
-    DIRECTORY ${OBS_MAC_VIRTUALCAM_FOLDER}
-    DESTINATION "Resources"
-    USE_SOURCE_PERMISSIONS
-    COMPONENT obs_resources_dev
-    EXCLUDE_FROM_ALL)
+      DIRECTORY ${OBS_VCAM_EXTENSION_DIR}/com.prismlive.prismlivestudio.mac-camera-extension.systemextension
+      DESTINATION "Library/SystemExtensions"
+      USE_SOURCE_PERMISSIONS
+      COMPONENT obs_resources_dev
+      EXCLUDE_FROM_ALL)
 endfunction()
 
 function(install_obs_resources target)
@@ -105,10 +105,10 @@ function(install_obs_resources target)
     TARGET ${target}
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} --install . --config $<CONFIG> --prefix $<TARGET_BUNDLE_CONTENT_DIR:${target}> --component obs_resources_dev
-    COMMAND plutil -replace CFBundleShortVersionString -string "${OBS_VERSION_CANONICAL}" $<TARGET_BUNDLE_CONTENT_DIR:${target}>/Resources/prism-mac-virtualcam.plugin/Contents/Info.plist
-    COMMAND plutil -replace CFBundleVersion -string "${OBS_BUILD_NUMBER}" $<TARGET_BUNDLE_CONTENT_DIR:${target}>/Resources/prism-mac-virtualcam.plugin/Contents/Info.plist
+    # COMMAND plutil -replace CFBundleShortVersionString -string "${PRISM_VERSION_SHORT}" $<TARGET_BUNDLE_CONTENT_DIR:${target}>/Resources/prism-mac-virtualcam.plugin/Contents/Info.plist
+    # COMMAND plutil -replace CFBundleVersion -string "${PRISM_VERSION_BUILD}" $<TARGET_BUNDLE_CONTENT_DIR:${target}>/Resources/prism-mac-virtualcam.plugin/Contents/Info.plist
     COMMAND ${CMAKE_COMMAND} -E copy_directory "$ENV{PRISM_SRC_DIR}/PRISMLiveStudio/prism-ui/resource/LUTs" "$<TARGET_BUNDLE_CONTENT_DIR:${target}>/PlugIns/obs-filters.plugin/Contents/Resources/LUTs"
+    #COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different "/Users/zhongling/Desktop/com.prismlive.prismlivestudio.mac-camera-extension.systemextension" "$<TARGET_BUNDLE_CONTENT_DIR:${target}>/Library/SystemExtensions"
     VERBATIM)
 endfunction()
-
 

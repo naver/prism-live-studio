@@ -36,6 +36,8 @@ public:
 		}
 	}
 
+	bool isYoutube();
+
 protected:
 	void changeEvent(QEvent *e) override;
 	/* to show config pannel*/
@@ -65,6 +67,7 @@ private:
 	bool isPannelOutOfView() const;
 
 	void initializeConfigPannel();
+	QString translatePublicString(const QString &platform, const QString &src);
 
 private slots:
 	void showConfigPannel();
@@ -82,5 +85,6 @@ private:
 };
 
 QString getStatisticsImage(const QString &src, bool isEnabled = true);
+QString &formatNumber(QString &number);
 
 #endif // CHANNELCAPSULE_H

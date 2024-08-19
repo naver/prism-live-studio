@@ -2,7 +2,9 @@
 #include <qobject.h>
 #include <QCoreApplication>
 #include "../PLSPlatformApi/PLSPlatformApi.h"
+#include "ChannelCommonFunctions.h"
 #include "PLSChannelDataAPI.h"
+#include "PLSSyncServerManager.hpp"
 #include "pls-channel-const.h"
 #include "pls-common-define.hpp"
 #include "pls-frontend-api.h"
@@ -18,18 +20,9 @@ const char *const s_ChatStatusSelect = "select";
 
 const char *const s_fontSessionName = "PLSChatFontZoom";
 const char *const s_fontSessionKey = "scale";
-
 static QString getChatUrl(const QString &name)
 {
-	QDir appDir(QCoreApplication::applicationDirPath());
-
-#if defined(Q_OS_WIN)
-	QString fullName = QString("../../data/prism-studio/chat/").append(name);
-#elif defined(Q_OS_MACOS)
-	QString fullName = QString("../Resources/data/prism-studio/chat/").append(name);
-#endif
-	auto fullUrl = QUrl::fromLocalFile(appDir.absoluteFilePath(fullName)).toString();
-	return fullUrl;
+	return "";
 }
 
 PLSChatHelper *PLSChatHelper::instance()
@@ -38,8 +31,11 @@ PLSChatHelper *PLSChatHelper::instance()
 	return &_instance;
 }
 
-static void onPrismUserLogout(pls_frontend_event, const QVariantList &, void *ctx)
+static void onPrismUserLogout(pls_frontend_event event, const QVariantList &, void *ctx)
 {
+	if (event != pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGOUT)
+		return;
+
 	pls_unused(ctx);
 	config_set_string(App()->GlobalConfig(), "BasicWindow", "geometryChat", nullptr);
 	config_set_bool(App()->GlobalConfig(), "Basic", "chatIsHidden", false);
@@ -49,50 +45,99 @@ static void onPrismUserLogout(pls_frontend_event, const QVariantList &, void *ct
 
 PLSChatHelper::~PLSChatHelper()
 {
-	pls_frontend_remove_event_callback(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGOUT, onPrismUserLogout, this);
+	pls_frontend_remove_event_callback(onPrismUserLogout, this);
 }
 
 void PLSChatHelper::startToNotify()
 {
-	pls_frontend_add_event_callback(pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_LOGOUT, onPrismUserLogout, this);
+	pls_frontend_add_event_callback(onPrismUserLogout, this);
 }
 
-QString PLSChatHelper::getTabButtonCss(const QString &objectName, const QString &platName) const
+static QString getChatTabImagePath(const QString &objectName, const QString &platName, const QString &platNameNoLower, channel_data::ImageType type)
 {
-	auto shDisable = QString("PLSChatDialog #%1:disable {image:url(\"://resource/images/chat/btn-tab-%2-off-disable.svg\");}").arg(objectName).arg(platName);
-	auto shSelect =
-		QString("PLSChatDialog #%1[%2=%3] {image:url(\"://resource/images/chat/btn-tab-%4-on-normal.svg\");}").arg(objectName).arg(s_ChatStatusType).arg(s_ChatStatusSelect).arg(platName);
-	auto shSelectHover =
-		QString("PLSChatDialog #%1[%2=%3]:hover {image:url(\"://resource/images/chat/btn-tab-%4-on-over.svg\");}").arg(objectName).arg(s_ChatStatusType).arg(s_ChatStatusSelect).arg(platName);
-	auto shSelectPressed =
-		QString("PLSChatDialog #%1[%2=%3]:pressed {image:url(\"://resource/images/chat/btn-tab-%4-on-click.svg\");}").arg(objectName).arg(s_ChatStatusType).arg(s_ChatStatusSelect).arg(platName);
-	auto shNormal = QString("PLSChatDialog #%1 {image:url(\"://resource/images/chat/btn-tab-%2-off-normal.svg\");}").arg(objectName).arg(platName);
-	auto shNormalHover =
-		QString("PLSChatDialog #%1[%2=%3]:hover {image:url(\"://resource/images/chat/btn-tab-%4-off-over.svg\");}").arg(objectName).arg(s_ChatStatusType).arg(s_ChatStatusNormal).arg(platName);
-	auto shNormalPressed = QString("PLSChatDialog #%1[%2=%3]:pressed {image:url(\"://resource/images/chat/btn-tab-%4-off-click.svg\");}")
-				       .arg(objectName)
-				       .arg(s_ChatStatusType)
-				       .arg(s_ChatStatusNormal)
-				       .arg(platName);
-	auto shOnlyOne =
-		QString("PLSChatDialog #%1[%2=%3] {image:url(\"://resource/images/chat/btn-tab-%4-on-normal.svg\");}").arg(objectName).arg(s_ChatStatusType).arg(s_ChatStatusOnlyOne).arg(platName);
-	auto shOnlyOneHover =
-		QString("PLSChatDialog #%1[%2=%3]:hover {image:url(\"://resource/images/chat/btn-tab-%4-on-normal.svg\");}").arg(objectName).arg(s_ChatStatusType).arg(s_ChatStatusOnlyOne).arg(platName);
-	auto shOnlyOnePressed = QString("PLSChatDialog #%1[%2=%3]:pressed {image:url(\"://resource/images/chat/btn-tab-%4-on-normal.svg\");}")
-					.arg(objectName)
-					.arg(s_ChatStatusType)
-					.arg(s_ChatStatusOnlyOne)
-					.arg(platName);
+	QString typeString;
+	QString isOnOrOff;
+	switch (type) {
+	case channel_data::ImageType::chatIcon_offDisable:
+		typeString = "disable";
+		isOnOrOff = "off";
+		break;
+	case channel_data::ImageType::chatIcon_onNormal:
+		typeString = "normal";
+		isOnOrOff = "on";
+		break;
+	case channel_data::ImageType::chatIcon_onHover:
+		typeString = "over";
+		isOnOrOff = "on";
+		break;
+	case channel_data::ImageType::chatIcon_onClick:
+		typeString = "click";
+		isOnOrOff = "on";
+		break;
+	case channel_data::ImageType::chatIcon_offHover:
+		typeString = "over";
+		isOnOrOff = "off";
+		break;
+	case channel_data::ImageType::chatIcon_offClick:
+		typeString = "click";
+		isOnOrOff = "off";
+		break;
+	case channel_data::ImageType::chatIcon_offNormal:
+		typeString = "normal";
+		isOnOrOff = "off";
+		break;
+	default:
+		assert(false);
+		break;
+	}
+	auto img = getChatIcon(platNameNoLower, type, QString(":/resource/images/chat/btn-tab-%1-%2-%3.svg").arg(platName).arg(isOnOrOff).arg(typeString));
+	img = !img.isEmpty() ? img : QString(":/resource/images/chat/btn-tab-default-%1-%2.svg").arg(isOnOrOff).arg(typeString);
+	return img;
+}
 
-	QString styleSheet = shDisable.append(shSelectHover)
+#define GET_IMAGE_PATH(Type) getChatTabImagePath(objectName, platName, platNameNoLower, Type)
+QString PLSChatHelper::getTabButtonCss(const QString &objectName, const QString &platName, const QString &platNameNoLower) const
+{
+	auto img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offNormal);
+	auto shNormal = QString(R"(PLSChatDialog #%1 {image:url("%2");})").arg(objectName).arg(img);
+
+	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offDisable);
+	QString shDisable = QString(R"(PLSChatDialog #%1:disable {image:url("%3");})").arg(objectName).arg(img);
+
+	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onNormal);
+	auto shSelect = QString(R"(PLSChatDialog #%1[status=%2] {image:url("%3");})").arg(objectName).arg(s_ChatStatusSelect).arg(img);
+
+	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onNormal);
+	auto shOnlyOne = QString(R"(PLSChatDialog #%1[status=%2] {image:url("%3");})").arg(objectName).arg(s_ChatStatusOnlyOne).arg(img);
+
+	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onNormal);
+	auto shOnlyOneHover = QString(R"(PLSChatDialog #%1[status=%2]:hover {image:url("%3");})").arg(objectName).arg(s_ChatStatusOnlyOne).arg(img);
+
+	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onNormal);
+	auto shOnlyOnePressed = QString(R"(PLSChatDialog #%1[status=%2]:pressed {image:url("%3");})").arg(objectName).arg(s_ChatStatusOnlyOne).arg(img);
+
+	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onHover);
+	auto shSelectHover = QString(R"(PLSChatDialog #%1[status=%2]:hover {image:url("%3");})").arg(objectName).arg(s_ChatStatusSelect).arg(img);
+
+	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_onClick);
+	auto shSelectPressed = QString(R"(PLSChatDialog #%1[status=%2]:pressed {image:url("%3");})").arg(objectName).arg(s_ChatStatusSelect).arg(img);
+
+	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offHover);
+	auto shNormalHover = QString(R"(PLSChatDialog #%1[status=%2]:hover {image:url("%3");})").arg(objectName).arg(s_ChatStatusNormal).arg(img);
+
+	img = GET_IMAGE_PATH(channel_data::ImageType::chatIcon_offClick);
+	auto shNormalPressed = QString(R"(PLSChatDialog #%1[status=%2]:pressed {image:url("%3");})").arg(objectName).arg(s_ChatStatusNormal).arg(img);
+
+	QString styleSheet = shNormal.append(shDisable)
 				     .append(shSelect)
-				     .append(shSelectPressed)
-				     .append(shNormalHover)
-				     .append(shNormal)
-				     .append(shNormalPressed)
 				     .append(shOnlyOne)
 				     .append(shOnlyOneHover)
-				     .append(shOnlyOnePressed);
+				     .append(shOnlyOnePressed)
+				     .append(shSelectHover)
+				     .append(shSelectPressed)
+				     .append(shNormalHover)
+				     .append(shNormalPressed);
+	//	qDebug() << "\n" << styleSheet << "\n";
 	return styleSheet;
 }
 
@@ -113,9 +158,19 @@ void PLSChatHelper::sendWebShownEventIfNeeded(int index) const
 bool PLSChatHelper::isLocalHtmlPage(int index) const
 {
 	return (index == ChatPlatformIndex::All || index == ChatPlatformIndex::NaverTV || index == ChatPlatformIndex::VLive || index == ChatPlatformIndex::AfreecaTV ||
-		index == ChatPlatformIndex::Facebook || index == ChatPlatformIndex::NaverShopping);
+		index == ChatPlatformIndex::Facebook || index == ChatPlatformIndex::NaverShopping || index == ChatPlatformIndex::NCB2B);
 }
-const char *PLSChatHelper::getString(int index, bool toLowerSpace) const
+bool PLSChatHelper::isRemoteHtmlPage(int index) const
+{
+	if (isLocalHtmlPage(index)) {
+		return false;
+	}
+	if (index == ChatPlatformIndex::RTMP || index == ChatPlatformIndex::UnDefine) {
+		return false;
+	}
+	return true;
+}
+QString PLSChatHelper::getString(int index, bool toLowerSpace) const
 {
 	QString name = "";
 	switch (index) {
@@ -146,6 +201,12 @@ const char *PLSChatHelper::getString(int index, bool toLowerSpace) const
 	case ChatPlatformIndex::NaverShopping:
 		name = "Naver Shopping";
 		break;
+	case ChatPlatformIndex::NCB2B:
+		name = NCB2BConvertChannelName(NCB2B);
+		break;
+	case ChatPlatformIndex::Chzzk:
+		name = "Chzzk";
+		break;
 	default:
 		name = "Other";
 		break;
@@ -154,11 +215,8 @@ const char *PLSChatHelper::getString(int index, bool toLowerSpace) const
 		name = name.toLower();
 		name = name.replace(" ", "");
 	}
-	static std::string str;
-	str = name.toStdString();
-	return str.c_str();
+	return name;
 }
-
 int PLSChatHelper::getIndexFromInfo(const QVariantMap &info) const
 {
 	int index = ChatPlatformIndex::UnDefine;
@@ -166,9 +224,9 @@ int PLSChatHelper::getIndexFromInfo(const QVariantMap &info) const
 	if (info.empty()) {
 		return index;
 	}
-	QString platformName = info.value(ChannelData::g_platformName, "").toString();
+	QString platformName = info.value(ChannelData::g_fixPlatformName, "").toString();
 	auto dataType = info.value(ChannelData::g_data_type, ChannelData::RTMPType).toInt();
-
+	PLS_INFO("chatHelper", "platformName = %s", platformName.toUtf8().constData());
 	if (dataType >= ChannelData::CustomType) {
 		index = ChatPlatformIndex::RTMP;
 	} else if (dataType == ChannelData::ChannelType) {
@@ -186,6 +244,10 @@ int PLSChatHelper::getIndexFromInfo(const QVariantMap &info) const
 			index = ChatPlatformIndex::AfreecaTV;
 		} else if (platformName == NAVER_SHOPPING_LIVE) {
 			index = ChatPlatformIndex::NaverShopping;
+		} else if (platformName == NCB2B) {
+			index = ChatPlatformIndex::NCB2B;
+		} else if (platformName == CHZZK) {
+			index = ChatPlatformIndex::Chzzk;
 		}
 	}
 	return index;
@@ -202,7 +264,7 @@ void PLSChatHelper::getSelectInfoFromIndex(int index, QVariantMap &getInfo) cons
 			continue;
 		}
 		auto name = getPlatformNameFromIndex(index);
-		QString platformName = info.value(ChannelData::g_platformName, "").toString();
+		QString platformName = info.value(ChannelData::g_channelName, "").toString();
 		if (!name.isEmpty() && name == platformName) {
 			getInfo = info;
 			break;
@@ -230,6 +292,10 @@ QString PLSChatHelper::getPlatformNameFromIndex(int index) const
 		return AFREECATV;
 	case ChatPlatformIndex::NaverShopping:
 		return NAVER_SHOPPING_LIVE;
+	case ChatPlatformIndex::NCB2B:
+		return NCB2BConvertChannelName(NCB2B);
+	case ChatPlatformIndex::Chzzk:
+		return CHZZK;
 	default:
 		return QString();
 	}
@@ -372,8 +438,23 @@ std::string PLSChatHelper::getChatUrlWithIndex(int index, const QVariantMap &inf
 	case ChatPlatformIndex::NaverShopping:
 		showUrl = buildUrl("shopping.html");
 		break;
+	case ChatPlatformIndex::NCB2B:
+		showUrl = getChatUrl("ncp.html")
+				  .append(QString("?lang=%1&platform=%2&sub_name=%3").arg(pls_get_current_language_short_str()).arg("NCP").arg(NCB2BConvertChannelName(NCB2B)))
+				  .toStdString();
+		break;
+	case ChatPlatformIndex::Chzzk: {
+		auto channelID = info[ChannelData::g_subChannelId].toString();
+		if (channelID.isEmpty()) {
+			break;
+		}
+		showUrl = QString("%1/live/%2/chat").arg(g_plsChzzkApiHost).arg(channelID).toStdString();
+	} break;
 	default:
 		break;
+	}
+	if (QString::fromStdString(showUrl).contains(".html")) {
+		return "https://prismlive.com";
 	}
 	return showUrl;
 }
@@ -527,11 +608,10 @@ QString PLSChatHelper::getDispatchJS(int index)
 	if (PLS_CHAT_HELPER->isLocalHtmlPage(index)) {
 		return "sendToPrism('{\"type\":\"onReady\", \"data\": {}}')";
 	}
-	auto js = QString::fromStdString(pls_get_offline_javaScript());
 	if (index == ChatPlatformIndex::Youtube) {
-		return js.append(getYoutubeDisableBackupJS());
+		return getYoutubeDisableBackupJS();
 	}
-	return js;
+	return "";
 }
 
 QString PLSChatHelper::getYoutubeDisableBackupJS()

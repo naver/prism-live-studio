@@ -620,12 +620,17 @@ static void source_notified(void *data, calldata_t *calldata)
 	auto settings = obs_source_get_settings(context->m_source);
 	switch (type) {
 	case OBS_SOURCE_BROWSER_LOADED:
-		pls_async_call_mt(context, [context, settings]() { context->update(settings, true); });
+		pls_async_call_mt([context = pls_qobject_ptr<text_template_source>(context), settings]() {
+			if (pls_object_is_valid(context)) {
+				pls::get_object(context)->update(settings, true);
+			}
+			obs_data_release(settings);
+		});
 		break;
 	default:
+		obs_data_release(settings);
 		break;
 	}
-	obs_data_release(settings);
 }
 static void init_browser_source(struct text_template_source *context)
 {

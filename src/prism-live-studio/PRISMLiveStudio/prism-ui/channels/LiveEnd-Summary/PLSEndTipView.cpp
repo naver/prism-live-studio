@@ -1,15 +1,15 @@
 #include "PLSEndTipView.h"
+#include <PLSBrowserPanel.h>
 #include <QTimer>
-#include <browser-panel.hpp>
 #include "log/log.h"
 
 #include "PLSBasic.h"
-#include "libbrowser.h"
 #include "PLSSyncServerManager.hpp"
+#include "libbrowser.h"
 #include "ui_PLSEndTipView.h"
 #include "window-basic-main.hpp"
 
-extern QCef *cef;
+extern PLSQCef *plsCef;
 extern QCefCookieManager *panel_cookies;
 
 PLSEndTipView::PLSEndTipView(QWidget *parent) : PLSDialogView(parent)
@@ -23,6 +23,7 @@ PLSEndTipView::PLSEndTipView(QWidget *parent) : PLSDialogView(parent)
 	PLS_INFO(END_MODULE, "PLSEndTipView Show");
 	setWindowTitle(tr("TransitionInProgress.Title"));
 	this->setAttribute(Qt::WA_AlwaysShowToolTips, true);
+	this->setAttribute(Qt::WA_NativeWindow);
 
 	ui->topTitle->setText(tr("nshopping.end.alert.title"));
 
@@ -67,7 +68,7 @@ void PLSEndTipView::onTimeOut()
 
 	PLSBasic::InitBrowserPanelSafeBlock();
 	if (cef) {
-		m_cefWidget = cef->create_widget(nullptr, url.toUtf8().constData(), "", panel_cookies, {}, false, QColor(30, 30, 30));
+		m_cefWidget = plsCef->create_widget(nullptr, url.toUtf8().constData(), "", panel_cookies, {}, false, QColor(30, 30, 30));
 		ui->widget_content->layout()->addWidget(m_cefWidget);
 	}
 	timer->stop();

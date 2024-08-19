@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>553</width>
-    <height>497</height>
+    <width>804</width>
+    <height>775</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout_2">
    <property name="spacing">
     <number>0</number>
    </property>
@@ -30,178 +30,236 @@
     <number>0</number>
    </property>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
+    <layout class="QHBoxLayout" name="horizontalLayout_5">
      <property name="spacing">
       <number>0</number>
      </property>
-     <property name="leftMargin">
-      <number>12</number>
-     </property>
-     <property name="topMargin">
-      <number>12</number>
-     </property>
-     <property name="rightMargin">
-      <number>12</number>
-     </property>
-     <property name="bottomMargin">
-      <number>12</number>
-     </property>
      <item>
-      <widget class="PLSSearchLineEdit" name="searchLineEdit">
-       <property name="focusPolicy">
-        <enum>Qt::ClickFocus</enum>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <widget class="QStackedWidget" name="stackedWidget">
-     <property name="currentIndex">
-      <number>2</number>
-     </property>
-     <widget class="QWidget" name="itemPage">
-      <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <layout class="QVBoxLayout" name="verticalLayout_4">
        <property name="spacing">
         <number>0</number>
        </property>
        <property name="leftMargin">
-        <number>12</number>
+        <number>0</number>
        </property>
        <property name="topMargin">
         <number>0</number>
        </property>
        <property name="rightMargin">
-        <number>12</number>
+        <number>0</number>
        </property>
        <property name="bottomMargin">
         <number>0</number>
        </property>
        <item>
-        <widget class="PLSSceneCollectionListView" name="listView">
-         <property name="frameShape">
-          <enum>QFrame::NoFrame</enum>
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <property name="spacing">
+          <number>0</number>
          </property>
-         <property name="verticalScrollMode">
-          <enum>QAbstractItemView::ScrollPerPixel</enum>
+         <property name="leftMargin">
+          <number>12</number>
          </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="noDataPage">
-      <layout class="QVBoxLayout" name="verticalLayout_3">
-       <property name="spacing">
-        <number>20</number>
-       </property>
-       <item>
-        <spacer name="verticalSpacer">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
+         <property name="topMargin">
+          <number>12</number>
          </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>154</height>
-          </size>
+         <property name="rightMargin">
+          <number>12</number>
          </property>
-        </spacer>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <property name="bottomMargin">
+          <number>12</number>
+         </property>
          <item>
-          <spacer name="horizontalSpacer_5">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QLabel" name="noDataIcon">
-           <property name="text">
-            <string/>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
+          <widget class="PLSSearchLineEdit" name="searchLineEdit">
+           <property name="focusPolicy">
+            <enum>Qt::ClickFocus</enum>
            </property>
           </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_6">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
          </item>
         </layout>
        </item>
        <item>
-        <widget class="QLabel" name="noDataLabel">
-         <property name="text">
-          <string>Scene.Collection.View.No.Data</string>
+        <widget class="QStackedWidget" name="stackedWidget">
+         <property name="currentIndex">
+          <number>0</number>
          </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
+         <widget class="QWidget" name="itemPage">
+          <layout class="QHBoxLayout" name="horizontalLayout_3">
+           <property name="spacing">
+            <number>0</number>
+           </property>
+           <property name="leftMargin">
+            <number>12</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>12</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="PLSSceneCollectionListView" name="listView">
+             <property name="frameShape">
+              <enum>QFrame::NoFrame</enum>
+             </property>
+             <property name="verticalScrollMode">
+              <enum>QAbstractItemView::ScrollPerPixel</enum>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="noDataPage">
+          <layout class="QVBoxLayout" name="verticalLayout_3">
+           <property name="spacing">
+            <number>20</number>
+           </property>
+           <item>
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>154</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="horizontalLayout_2">
+             <item>
+              <spacer name="horizontalSpacer_5">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QLabel" name="noDataIcon">
+               <property name="text">
+                <string/>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_6">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <widget class="QLabel" name="noDataLabel">
+             <property name="text">
+              <string>Scene.Collection.View.No.Data</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>154</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="searchPage">
+          <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <property name="spacing">
+            <number>0</number>
+           </property>
+           <property name="leftMargin">
+            <number>12</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>12</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="PLSSceneCollectionListView" name="searchListView">
+             <property name="frameShape">
+              <enum>QFrame::NoFrame</enum>
+             </property>
+             <property name="verticalScrollMode">
+              <enum>QAbstractItemView::ScrollPerPixel</enum>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
         </widget>
        </item>
-       <item>
-        <spacer name="verticalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>154</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
       </layout>
-     </widget>
-     <widget class="QWidget" name="searchPage">
-      <layout class="QHBoxLayout" name="horizontalLayout_4">
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout">
        <property name="spacing">
-        <number>0</number>
+        <number>8</number>
        </property>
        <property name="leftMargin">
-        <number>12</number>
+        <number>10</number>
        </property>
        <property name="topMargin">
-        <number>0</number>
-       </property>
-       <property name="rightMargin">
         <number>12</number>
        </property>
+       <property name="rightMargin">
+        <number>13</number>
+       </property>
        <property name="bottomMargin">
-        <number>0</number>
+        <number>12</number>
        </property>
        <item>
-        <widget class="PLSSceneCollectionListView" name="searchListView">
-         <property name="frameShape">
-          <enum>QFrame::NoFrame</enum>
-         </property>
-         <property name="verticalScrollMode">
-          <enum>QAbstractItemView::ScrollPerPixel</enum>
+        <widget class="PLSClickButton" name="newButton" native="true"/>
+       </item>
+       <item>
+        <widget class="PLSClickButton" name="importButton" native="true"/>
+       </item>
+       <item>
+        <widget class="PLSSceneTemplateButton" name="sceneTemplateButton">
+         <property name="text">
+          <string>PushButton</string>
          </property>
         </widget>
        </item>
       </layout>
-     </widget>
-    </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <widget class="QFrame" name="buttonFrame">
@@ -216,7 +274,7 @@
        <number>0</number>
       </property>
       <property name="leftMargin">
-       <number>25</number>
+       <number>30</number>
       </property>
       <property name="topMargin">
        <number>0</number>
@@ -228,39 +286,9 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="QPushButton" name="pushButton">
-        <property name="text">
-         <string>PushButton</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="newBtn">
+       <widget class="QLabel" name="tipLabel">
         <property name="text">
          <string/>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <spacer name="horizontalSpacer_3">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Fixed</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>0</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QLabel" name="newLabel">
-        <property name="text">
-         <string>New</string>
         </property>
        </widget>
       </item>
@@ -274,29 +302,6 @@
         </property>
         <property name="sizeHint" stdset="0">
          <size>
-          <width>24</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QPushButton" name="importBtn">
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <spacer name="horizontalSpacer_4">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Fixed</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
           <width>0</width>
           <height>20</height>
          </size>
@@ -304,9 +309,9 @@
        </spacer>
       </item>
       <item>
-       <widget class="QLabel" name="importLabel">
+       <widget class="PLSHelpIcon" name="winHelpLabel">
         <property name="text">
-         <string>Import</string>
+         <string/>
         </property>
        </widget>
       </item>
@@ -318,29 +323,6 @@
         <property name="sizeHint" stdset="0">
          <size>
           <width>0</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QPushButton" name="macHelpBtn">
-        <property name="text">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <spacer name="horizontalSpacer_7">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Fixed</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
           <height>20</height>
          </size>
         </property>
@@ -368,6 +350,22 @@
    <class>PLSSearchLineEdit</class>
    <extends>QLineEdit</extends>
    <header location="global">PLSSearchLineEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSSceneTemplateButton</class>
+   <extends>QPushButton</extends>
+   <header>PLSSceneCollectionView.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSHelpIcon</class>
+   <extends>QLabel</extends>
+   <header>PLSLabel.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSClickButton</class>
+   <extends>QWidget</extends>
+   <header>PLSSceneCollectionView.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

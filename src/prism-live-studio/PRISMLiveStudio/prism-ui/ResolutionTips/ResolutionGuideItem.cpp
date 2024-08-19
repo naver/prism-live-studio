@@ -15,9 +15,18 @@ ResolutionGuideItem::~ResolutionGuideItem()
 
 void ResolutionGuideItem::initialize(const QVariantMap &data)
 {
-	auto platform = getInfo(data, ChannelData::g_platformName);
-	auto mainIconPath = getPlatformImageFromName(platform);
-	ui->PlatformIcon->setMainPixmap(mainIconPath, QSize(34, 34), false);
+	auto platform = getInfo(data, ChannelData::g_channelName);
+	auto mainIconPath = getPlatformImageFromName(platform, channel_data::ImageType::tagIcon);
+	auto mainIconName = getInfo(data, "icon", QString());
+	if (!mainIconName.isEmpty()) {
+		QString tmpPath = QString("PRISMLiveStudio/library/library_Policy_PC/%1").arg(mainIconName);
+		tmpPath = pls_get_user_path(tmpPath);
+		if (QFile::exists(tmpPath)) {
+			PLS_INFO("GuidePage", "use sync server path ! path is %s", tmpPath.toUtf8().constData());
+			mainIconPath = tmpPath;
+		}
+	}
+	ui->PlatformIcon->setMainPixmap(mainIconPath, QSize(34, 34));
 
 	if (getInfo(data, ChannelData::g_data_type, ChannelData::ChannelType) >= ChannelData::CustomType) {
 		ui->PlatformIcon->setPlatformPixmap(ChannelData::g_defualtPlatformSmallIcon, QSize(18, 18));

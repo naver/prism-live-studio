@@ -25,6 +25,7 @@
 #include "network-state.h"
 #include <qscroller.h>
 #include "window-basic-main.hpp"
+#include "pls-common-define.hpp"
 
 constexpr auto urlProperty = "url";
 constexpr auto discordUrl = "https://discord.gg/vxzDZ9V6f9";
@@ -53,13 +54,12 @@ PLSLaunchWizardView *PLSLaunchWizardView::instance()
 	return g_wizardView;
 }
 
-PLSLaunchWizardView::PLSLaunchWizardView(QWidget *parent) : PLSDialogView(parent)
+PLSLaunchWizardView::PLSLaunchWizardView(QWidget *parent) : PLSWindow(parent)
 {
 	g_wizardView = this;
 	ui = pls_new<Ui::PLSLaunchWizardView>();
 	setupUi(ui);
 	ui->banerPointLayout->setAlignment(Qt::AlignCenter);
-
 	this->setHasMinButton(true);
 
 	pls_add_css(this, {"PLSLaunchWizardView"});
@@ -99,6 +99,10 @@ PLSLaunchWizardView::PLSLaunchWizardView(QWidget *parent) : PLSDialogView(parent
 #if defined(Q_OS_MACOS)
 	this->setWindowTitle(QTStr("Basic.Main.Wizard"));
 #endif
+
+	bool isDontShow = config_get_bool(App()->GlobalConfig(), common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW);
+	PLS_INFO(ModuleName, "get dont show config is %d", isDontShow);
+	ui->checkBox->setChecked(isDontShow);
 }
 
 PLSLaunchWizardView::~PLSLaunchWizardView()
@@ -213,7 +217,12 @@ bool PLSLaunchWizardView::eventFilter(QObject *watched, QEvent *event)
 	default:
 		break;
 	}
-	return PLSDialogView::eventFilter(watched, event);
+	return PLSWindow::eventFilter(watched, event);
+}
+
+void PLSLaunchWizardView::closeEvent(QCloseEvent *event)
+{
+	hideView();
 }
 
 void PLSLaunchWizardView::loadBannerSources()
@@ -502,7 +511,8 @@ void PLSLaunchWizardView::updateBannerPath(int index, const QString &path) const
 	if (label == nullptr) {
 		return;
 	}
-	label->setStyleSheet(QString("image:url(%1);").arg(path));
+	auto pix = QPixmap(path);
+	label->setPixmap(pix);
 	auto link = mLinks.value(path);
 	if (link.isEmpty()) {
 		return;
@@ -555,7 +565,7 @@ void PLSLaunchWizardView::handleChannelMessage(const QJsonObject &body)
 	if (body.contains(ChannelData::g_errorString)) {
 		title = ScheduleError;
 		checkShowErrorAlert();
-	} else if (body.contains(ChannelData::g_platformName)) {
+	} else if (body.contains(ChannelData::g_channelName)) {
 		auto time = body.value(ChannelData::g_timeStamp).toVariant().toLongLong();
 		auto timeObj = QDateTime::fromSecsSinceEpoch(time);
 		QString html;
@@ -567,7 +577,7 @@ void PLSLaunchWizardView::handleChannelMessage(const QJsonObject &body)
 		TimeStr = formatTimeStr(timeObj);
 		TimeStr = html.arg(TimeStr);
 		title = body.value(ChannelData::g_nickName).toString();
-		platformName = body.value(ChannelData::g_platformName).toString();
+		platformName = body.value(ChannelData::g_channelName).toString();
 	} else {
 		title = NoScheduleStr;
 	}
@@ -801,22 +811,33 @@ void PLSLaunchWizardView::updateGuideButtonState(bool on)
 
 void PLSLaunchWizardView::singletonWakeup()
 {
-	this->show();
-	if (this->isMinimized()) {
-		this->setWindowState(this->windowState().setFlag(Qt::WindowMinimized, false));
+	if (m_bShowFlag) {
+		PLS_INFO(ModuleName, "launch singletonWakeup");
+		this->show();
+		if (this->isMinimized()) {
+			this->setWindowState(this->windowState().setFlag(Qt::WindowMinimized, false));
+		}
+		raise();
+		activateWindow();
+#if defined(Q_OS_MACOS)
+		this->setWindowState(windowState() & ~Qt::WindowFullScreen);
+#endif
+	} else {
+		firstShow();
 	}
-	activateWindow();
 }
 
 void PLSLaunchWizardView::hideView()
 {
-	PLS_UI_STEP("widzard", "hide button", "clicked");
 	this->hide();
 	pls_check_app_exiting();
 	if (!isLoadBannerSuccess) {
 		m_UpdateCount = 0;
 		startUpdateBanner();
 	}
+	bool state = ui->checkBox->isChecked();
+	PLS_INFO(ModuleName, "set dont show config is %d", state);
+	config_set_bool(App()->GlobalConfig(), common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW, state);
 }
 void PLSLaunchWizardView::updateLangcherTips()
 {
@@ -828,9 +849,14 @@ void PLSLaunchWizardView::firstShow(QWidget *parent)
 	pls_unused(parent);
 	this->updateUserInfo();
 	QTimer::singleShot(1000, this, [this]() {
+		pls_check_app_exiting();
 		m_bShowFlag = true;
+		PLS_INFO(ModuleName, "launch show");
 		scrollArea->horizontalScrollBar()->setValue(0);
 		this->show();
+#if defined(Q_OS_MACOS)
+		this->setWindowState(windowState() & ~Qt::WindowFullScreen);
+#endif
 		auto type = property("type").toString();
 		if (type == "normal") {
 			this->resize(QSize(650, 660));

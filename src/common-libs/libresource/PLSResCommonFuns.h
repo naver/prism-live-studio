@@ -11,6 +11,8 @@ class QObject;
 class PLSResourceMgr;
 using donwloadResultCallback = std::function<void(PLSResEvents event, const QString &url)>;
 
+using downloadsResultCallback = std::function<void(const QList<QPair<QString, bool>> &resDownloadStatus, PLSResEvents event)>;
+
 using downloadsMutilResultCallback = std::function<void(const QMap<QString, bool> &resDownloadStatus, PLSResEvents event)>;
 
 using downloadMutilCallback = std::function<void(const QMap<QString, bool> &resDownloadStatus, bool isSuccess, const QJsonArray &resSaveInfo)>;
@@ -20,10 +22,12 @@ using unzipFilesCallback = std::function<void(const QStringList &lists)>;
 struct PLSRESOURCEHANDLE_EXPORT PLSResCommonFuns {
 
 	static void downloadResource(const QString &url, const donwloadResultCallback &result, const QString &resPath = QString(), bool isRecode = true, bool isHmac = false, bool isSync = false,
-				     int timeout = 15000);
+				     int timeout = 30000);
 	static void downloadResources(const QMap<QString, QString> &urlPaths, const downloadsMutilResultCallback &results, bool isRecode = true);
 	static void downloadResources(const QJsonArray &urlPaths, const downloadMutilCallback &results, bool isRecode = true, bool isNeedSubThread = false);
+	static void downloadResources(const QList<QPair<QString, QString>> &urlPaths, const downloadsResultCallback &results, QObject *receiver, bool isRecode = true);
 
+	static bool zip(const QString &zipPath, const QString &srcPath);
 	static bool unZip(const QString &dstDirPath, const QString &srcFilePath, const QString &compressName, bool isRemoveFile = true, unzipFilesCallback callback = nullptr);
 	static bool moveDirectoryToDest(const QString &srcDir, const QString &destDir, bool isRemove = false);
 	static void findAllFiles(const QString &absolutePath, QFileInfoList &fileList);
@@ -35,6 +39,7 @@ struct PLSRESOURCEHANDLE_EXPORT PLSResCommonFuns {
 	static QByteArray readFile(const QString &absolutePath);
 	static void saveFile(const QString &absolutePath, const QByteArray &data);
 	static bool copyDirectory(const QString &srcPath, const QString &dstPath, bool coverFileIfExist);
+	static void findSpecialFile(const QDir &dir, const QString &fllename, QString &outputPath);
 	static QString g_gcc;
 };
 

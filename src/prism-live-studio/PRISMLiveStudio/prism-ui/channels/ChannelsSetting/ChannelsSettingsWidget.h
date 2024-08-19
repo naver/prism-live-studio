@@ -16,6 +16,7 @@ static const int ChannelItemData = Qt::UserRole + 1; //
 
 using WidgetMap = QMap<QString, QWidget *>;
 
+class ChannelItem;
 class ChannelsSettingsWidget : public PLSDialogView {
 	Q_OBJECT
 
@@ -36,6 +37,7 @@ public slots:
 	void on_Cancel_clicked();
 	void on_GotoLoginBtn_clicked();
 	void setGuidePageInfo(const QString &platfom);
+	void updateChannelUi(const QString &uuid);
 
 protected:
 	void changeEvent(QEvent *e) override;
@@ -43,12 +45,16 @@ protected:
 
 private:
 	bool hasSelected() const;
-	void applyChanges() const;
+	void applyChanges();
+
+	void removeCustomRtmpInComboxList(QStringList &platforms);
 
 	//private:
 	Ui::ChannelsSettingsWidget *ui;
 	ChannelsMap mLastChannelsInfo;
 	ChannelsMap mOriginalInfo;
+	QMap<QString, ChannelItem *> m_items;
+	bool m_bClose = false;
 };
 
 class GeometryDelegate : public QStyledItemDelegate {

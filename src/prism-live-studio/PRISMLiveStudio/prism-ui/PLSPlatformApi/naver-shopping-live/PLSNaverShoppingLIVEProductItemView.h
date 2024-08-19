@@ -62,6 +62,9 @@ protected:
 	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
+	void updateAttachableUI();
+
+private:
 	Ui::PLSNaverShoppingLIVEProductItemView *ui = nullptr;
 	PLSLoadingView *imageLoadingView = nullptr;
 	QMetaObject::Connection addRemoveButtonClickedConnection;

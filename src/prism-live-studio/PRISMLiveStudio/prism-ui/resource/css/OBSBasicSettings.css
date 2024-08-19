@@ -83,13 +83,18 @@
                 top: /*hdpi*/ 1px;
             }
 
+#OBSBasicSettings #simpleReplayBuf::title {
+    subcontrol-origin: margin;
+    left: /*hdpi*/ -10px;
+    top: /*hdpi*/ 1px;
+}
     #OBSBasicSettings QLabel[useFor="QGroupBox"] {
-        font-size: /*hdpi*/ 20px;
-        font-weight: bold;
-        color: #ffffff;
-        margin-top: 25px;
-        margin-bottom: 10px;
-    }
+    font-size: /*hdpi*/ 20px;
+    font-weight: bold;
+    color: #ffffff;
+    margin-top: 25px;
+    margin-bottom: 10px;
+}
 
     #OBSBasicSettings > #close {
         background-color: #272727;
@@ -170,11 +175,15 @@
         font-size: /*hdpi*/ 14px;
     }
 
-    #OBSBasicSettings QLabel[useFor="FormLabelRole"] {
-            color: #bababa;
-            font-size: /*hdpi*/ 14px;
-            font-weight: bold;
-    }
+#OBSBasicSettings QLabel[useFor="FormLabelRole"] {
+    color: #bababa;
+    font-size: /*hdpi*/ 14px;
+    font-weight: bold;
+    padding: 0px;
+    margin: 0px;
+    max-height:40px;
+    min-height:40px;
+}
 
     #OBSBasicSettings PLSCheckBox #plsCheckBox_text {
         color: #e1e1e1;
@@ -307,12 +316,6 @@
                 image: url(:/resource/images/ResolutionGuide/ic-setting-liveinfo-disable.svg);
             }
 
-    #OBSBasicSettings #outputPage #groupBox_23 #advOutputEndLine {
-        background-color: #111111;
-        min-height: /*hdpi*/ 1px;
-        max-height: /*hdpi*/ 1px;
-    }
-
     #OBSBasicSettings #pushButton, #OBSBasicSettings #hotkeyFilterReset {
         image: url(":/resource/images/btn-ic-undo-normal.svg");
         padding: 6px;
@@ -348,14 +351,18 @@
         border: none;
     }
 
+        #OBSBasicSettings #hotkeyFilterSearch:focus, #OBSBasicSettings #hotkeyFilterInput:focus {
+            border: /*hdpi*/ 1px solid #effc35;
+        }
+
 
     #OBSBasicSettings OBSHotkeyWidget OBSHotkeyEdit {
         border-top-right-radius: /*hdpi*/ 0;
         border-bottom-right-radius: /*hdpi*/ 0;
-        min-width: 318px;
+        /*min-width: 306px;*/
         /*max-width:318px;*/
         padding-left: 12px;
-        margin-top: 10px;
+        /*margin-top: 10px;*/
         background-color: #1e1e1e;
         border: none;
         min-height: 40px;
@@ -369,7 +376,7 @@
         min-height: 28px;
         max-height: 28px;
         image: url(":/resource/images/btn-ic-undo-normal.svg");
-        margin-top: 10px;
+        /*margin-top: 10px;*/
         background-color: #1e1e1e;
         border: none;
         border-radius: 0;
@@ -379,17 +386,17 @@
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="revertIcon"]:disabled {
             image: url(":/resource/images/btn-ic-undo-disable.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+            /*margin-top: 10px;*/
         }
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="revertIcon"]:hover {
             image: url(":/resource/images/btn-ic-undo-over.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+            /*margin-top: 10px;*/
         }
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="revertIcon"]:pressed {
             image: url(":/resource/images/btn-ic-undo-click.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+            /*margin-top: 10px;*/
         }
 
 
@@ -400,7 +407,7 @@
         min-height: 28px;
         max-height: 28px;
         image: url(":/resource/images/btn-ic-clear-normal.svg");
-        margin-top: 10px;
+       /* margin-top: 10px;*/
         background-color: #1e1e1e;
         border: none;
         border-radius: 0;
@@ -409,19 +416,19 @@
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="clearIconSmall"]:disabled {
             image: url(":/resource/images/btn-ic-clear-disable.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+            /*margin-top: 10px;*/
         }
 
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="clearIconSmall"]:hover {
             image: url(":/resource/images/btn-ic-clear-over.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+            /*margin-top: 10px;*/
         }
 
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="clearIconSmall"]:pressed {
             image: url(":/resource/images/btn-ic-clear-click.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+           /* margin-top: 10px;*/
         }
 
     #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newAddIconSmall"] {
@@ -431,7 +438,7 @@
         min-height: 28px;
         max-height: 28px;
         image: url(":/resource/images/btn-ic-add-normal.svg");
-        margin-top: 10px;
+        /*margin-top: 10px;*/
         background-color: #1e1e1e;
         border: none;
         border-radius: 0;
@@ -440,18 +447,18 @@
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newAddIconSmall"]:disabled {
             image: url(":/resource/images/btn-ic-add-disable.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+            /*margin-top: 10px;*/
         }
         
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newAddIconSmall"]:hover {
             image: url(":/resource/images/btn-ic-add-over.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+           /* margin-top: 10px;*/
         }
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newAddIconSmall"]:pressed {
             image: url(":/resource/images/btn-ic-add-click.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+           /* margin-top: 10px;*/
         }
 
     #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newRemoveIconSmall"] {
@@ -463,7 +470,7 @@
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
         image: url(":/resource/images/btn-ic-sourcedelete-normal.svg");
-        margin-top: 10px;
+        /*margin-top: 10px;*/
         background-color: #1e1e1e;
         border: none;
     }
@@ -471,19 +478,19 @@
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newRemoveIconSmall"]:disabled {
             image: url(":/resource/images/btn-ic-sourcedelete-disable.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+           /* margin-top: 10px;*/
         }
 
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newRemoveIconSmall"]:hover {
             image: url(":/resource/images/btn-ic-sourcedelete-over.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+            /*margin-top: 10px;*/
         }
 
         #OBSBasicSettings OBSHotkeyWidget QPushButton[themeID="newRemoveIconSmall"]:pressed {
             image: url(":/resource/images/btn-ic-sourcedelete-click.svg");
             background-color: #1e1e1e;
-            margin-top: 10px;
+            /*margin-top: 10px;*/
         }
 
     #OBSBasicSettings QLineEdit {
@@ -519,6 +526,10 @@
         min-width: /*hdpi*/ 170px;
         max-width: /*hdpi*/ 170px;
     }
+    
+    #OBSBasicSettings PLSPropertiesView #formLeftWidget #formLabel {
+        min-width: 0px;
+    }
 
     #OBSBasicSettings #alertMessageFrame {
         background-color: transparent;
@@ -526,7 +537,7 @@
         font-size: /*hdpi*/ 14px;
     }
 
-        #OBSBasicSettings #alertMessageFrame > #alertMessageLabel {
+        #OBSBasicSettings #alertMessageFrame_3 > #alertMessageLabel {
             padding: /*hdpi*/ 12px /*hdpi*/ 20px /*hdpi*/ 12px /*hdpi*/ 20px;
             background-color: rgba(30, 30, 30, 0.9);
             border: /*hdpi*/ 1px solid rgba(255, 255, 255, 0.1);
@@ -534,11 +545,11 @@
             font-size: /*hdpi*/ 14px;
         }
 
-            #OBSBasicSettings #alertMessageFrame > #alertMessageLabel[alertMessageType="Error"] {
+            #OBSBasicSettings #alertMessageFrame_3 > #alertMessageLabel[alertMessageType="Error"] {
                 color: #b33e4c;
             }
 
-            #OBSBasicSettings #alertMessageFrame > #alertMessageLabel[alertMessageType="Warning"] {
+            #OBSBasicSettings #alertMessageFrame_3 > #alertMessageLabel[alertMessageType="Warning"] {
                 color: #bababa;
             }
 
@@ -619,16 +630,6 @@ PLSSettingGeneralView #pushButton_change_pwd {
         color: #1e1e1e;
     }
 
-/*#OBSBasicSettings #label, #OBSBasicSettings #label_21, #OBSBasicSettings #label_45 {
-    min-width:134px;
-    max-width:134px;
-}*/
-
-#OBSBasicSettings #label_45 {
-    min-width: 124px;
-    max-width: 124px;
-}
-
 PLSComplexHeaderIcon {
     qproperty-minimumSize: /*hdpi*/ 127px /*hdpi*/ 110px;
     qproperty-maximumSize: /*hdpi*/ 127px /*hdpi*/ 110px;
@@ -682,7 +683,7 @@ PLSSettingGeneralView {
 }
 #OBSBasicSettings QTabWidget::pane {
     margin: 0px;
-    margin-top: -2px;
+    margin-top: -1px;
     padding: 0px;
     padding-top: 20px;
     border-top: 1px solid #111111;
@@ -696,7 +697,7 @@ PLSSettingGeneralView {
     min-width: /*hdpi*/ 100px;
     max-width: 100px;
     margin: /*hdpi*/ 0px;
-    margin-bottom: 1px;
+    padding-bottom: 8px;
 }
 
 
@@ -735,3 +736,7 @@ PLSSettingGeneralView {
     color: #ffffff;
 }
 
+#OBSBasicSettings #severiceExplainLabel, #OBSBasicSettings #sceneDisplayTipsLabel,
+#OBSBasicSettings #advNetworkDisabled {
+    color: #bababa;
+}

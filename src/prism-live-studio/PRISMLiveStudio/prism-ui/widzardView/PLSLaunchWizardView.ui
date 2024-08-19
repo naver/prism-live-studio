@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>574</width>
-    <height>488</height>
+    <width>515</width>
+    <height>518</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -48,8 +48,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>572</width>
-        <height>486</height>
+        <width>513</width>
+        <height>516</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -110,8 +110,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>572</width>
-            <height>435</height>
+            <width>513</width>
+            <height>434</height>
            </rect>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -261,9 +261,9 @@
          <property name="frameShadow">
           <enum>QFrame::Raised</enum>
          </property>
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <layout class="QHBoxLayout" name="horizontalLayout">
           <property name="spacing">
-           <number>0</number>
+           <number>10</number>
           </property>
           <property name="leftMargin">
            <number>0</number>
@@ -278,22 +278,48 @@
            <number>0</number>
           </property>
           <item>
-           <widget class="QLabel" name="tipsLabel">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
+           <layout class="QVBoxLayout" name="verticalLayout_4">
+            <property name="spacing">
+             <number>10</number>
             </property>
-            <property name="text">
-             <string>WizardView.Restart.OnError</string>
+            <property name="bottomMargin">
+             <number>0</number>
             </property>
-            <property name="wordWrap">
-             <bool>true</bool>
-            </property>
-           </widget>
+            <item>
+             <widget class="PLSCheckBox" name="checkBox">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>WizardView.DontShow</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="tipsLabel">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>WizardView.Restart.OnError</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="indent">
+               <number>-1</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
-          <item alignment="Qt::AlignRight">
+          <item>
            <widget class="QPushButton" name="hideButton">
             <property name="text">
              <string>hide.view</string>
@@ -309,6 +335,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PLSCheckBox</class>
+   <extends>QCheckBox</extends>
+   <header location="global">PLSCheckBox.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

@@ -27,15 +27,13 @@ void ChannelItem::setData(const QVariantMap &data)
 	QString userIcon;
 	QString platformIcon;
 	int channelState = getInfo(mLastData, g_channelStatus, Error);
-	bool toSharp = true;
 	if (channelState == Valid) {
-		getComplexImageOfChannel(uuid, userIcon, platformIcon);
+		getComplexImageOfChannel(uuid, ImageType::tagIcon, userIcon, platformIcon);
 	} else {
-		auto platformName = getInfo(mLastData, g_platformName);
-		userIcon = getPlatformImageFromName(platformName);
-		toSharp = false;
+		auto platformName = getInfo(mLastData, g_channelName);
+		userIcon = getPlatformImageFromName(platformName, ImageType::tagIcon);
 	}
-	ui->IconLabel->setMainPixmap(userIcon, QSize(34, 34), toSharp);
+	ui->IconLabel->setMainPixmap(userIcon, QSize(34, 34));
 	ui->IconLabel->setPlatformPixmap(platformIcon, QSize(18, 18));
 
 	updateTextLabel();

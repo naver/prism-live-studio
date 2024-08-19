@@ -107,6 +107,7 @@ struct LocalGlobalVars {
 	static bool is_initialized;
 	static pls_process_t *logger_process;
 
+	static pls_shm_t *shm;
 	static pls_log_handler_t log_handler;
 	static void *log_param;
 	static std::string log_gcc;
@@ -121,6 +122,7 @@ struct LocalGlobalVars {
 bool LocalGlobalVars::is_initialized = false;
 pls_process_t *LocalGlobalVars::logger_process = nullptr;
 
+pls_shm_t *LocalGlobalVars::shm = nullptr;
 pls_log_handler_t LocalGlobalVars::log_handler = def_log_handler;
 void *LocalGlobalVars::log_param = nullptr;
 std::string LocalGlobalVars::log_gcc;
@@ -454,8 +456,14 @@ static void process_log(log_msg_t *log_msg)
 }
 static void log_proc_thread_entry(pls_thread_t *thread)
 {
+	bool exited = false;
 	while (pls_thread_running(thread)) {
+		if (exited) {
+			break;
+		}
+
 		if (log_msg_t *log_msg = (log_msg_t *)pls_thread_queue_pop(thread); log_msg) {
+			exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
 			process_log(log_msg);
 			if (LocalGlobalVars::logger_process && LocalGlobalVars::nelo_log_proc_thread) {
 				pls_thread_queue_push(LocalGlobalVars::nelo_log_proc_thread, &log_msg->list_item);
@@ -466,6 +474,11 @@ static void log_proc_thread_entry(pls_thread_t *thread)
 	}
 
 	while (log_msg_t *log_msg = (log_msg_t *)pls_thread_queue_try_pop(thread)) {
+		if (exited) {
+			break;
+		}
+
+		exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
 		process_log(log_msg);
 		if (LocalGlobalVars::logger_process && LocalGlobalVars::nelo_log_proc_thread) {
 			pls_thread_queue_push(LocalGlobalVars::nelo_log_proc_thread, &log_msg->list_item);
@@ -476,15 +489,80 @@ static void log_proc_thread_entry(pls_thread_t *thread)
 }
 static void nelo_log_proc_thread_entry(pls_thread_t *thread)
 {
+	bool exited = false;
 	while (pls_thread_running(thread)) {
-		auto log_msg = (log_msg_t *)pls_thread_queue_pop(thread);
-		if (log_msg) {
-			pls_free(log_msg);
+		if (exited) {
+			break;
 		}
+
+		auto log_msg = (log_msg_t *)pls_thread_queue_pop(thread);
+		if (!log_msg) {
+			continue;
+		}
+
+		exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
+
+		pls_shm_send_msg(
+			LocalGlobalVars::shm, [](pls_shm_msg_t *msg) { pls_free(msg->data - sizeof(pls_queue_item_t)); },
+			[thread, &log_msg, &exited](pls_shm_msg_t *msg, int remaining, int max_data_size) {
+				if (!log_msg) {
+					log_msg = (log_msg_t *)pls_thread_queue_top(thread);
+					if (!log_msg || log_msg->total_length > remaining) {
+						return false;
+					}
+
+					pls_thread_queue_pop(thread);
+					exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
+					msg->length = log_msg->total_length;
+					msg->data = (char *)&log_msg->type;
+					log_msg = nullptr;
+					return true;
+				} else if (log_msg->total_length <= remaining) {
+					exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
+					msg->length = log_msg->total_length;
+					msg->data = (char *)&log_msg->type;
+					log_msg = nullptr;
+					return true;
+				}
+				return false;
+			},
+			[&log_msg](int count) {
+				if (count <= 0 && log_msg) {
+					pls_free(log_msg);
+					log_msg = nullptr;
+				}
+			});
 	}
 
-	for (auto log_msg = (log_msg_t *)pls_thread_queue_pop(thread); log_msg; log_msg = (log_msg_t *)pls_thread_queue_pop(thread)) {
-		pls_free(log_msg);
+	for (auto log_msg = (log_msg_t *)pls_thread_queue_top(thread); log_msg && pls_shm_is_online(LocalGlobalVars::shm);) {
+		if (exited) {
+			break;
+		}
+
+		pls_shm_send_msg(
+			LocalGlobalVars::shm, [](pls_shm_msg_t *msg) { pls_free(msg->data - sizeof(pls_queue_item_t)); },
+			[thread, &log_msg, &exited](pls_shm_msg_t *msg, int remaining, int max_data_size) {
+				if (!log_msg) {
+					log_msg = (log_msg_t *)pls_thread_queue_top(thread);
+				}
+
+				if (!log_msg || log_msg->total_length > remaining) {
+					return false;
+				}
+
+				pls_thread_queue_pop(thread);
+				exited = (log_msg->type & log_msg_t::MT_TYPE_MASK) == log_msg_t::MT_EXIT;
+				msg->length = log_msg->total_length;
+				msg->data = (char *)&log_msg->type;
+				log_msg = nullptr;
+				return true;
+			},
+			[log_msg, thread](int count) {
+				if (count <= 0 && log_msg) {
+					pls_thread_queue_pop(thread);
+					pls_free(log_msg);
+				}
+			});
 	}
 }
 static void check_logger_running_entry(pls_thread_t *thread)
@@ -492,13 +570,18 @@ static void check_logger_running_entry(pls_thread_t *thread)
 	while (pls_thread_running(thread)) {
 		if (pls_process_wait(LocalGlobalVars::logger_process, 2000) > 0) {
 			pls_delete(LocalGlobalVars::logger_process, pls_process_destroy, nullptr);
+			if (LocalGlobalVars::shm && pls_shm_is_receiver_online(LocalGlobalVars::shm)) {
+				if (LocalGlobalVars::nelo_log_proc_thread)
+					pls_thread_quit(LocalGlobalVars::nelo_log_proc_thread);
+				pls_shm_close(LocalGlobalVars::shm);
+			}
 			break;
 		}
 	}
 }
 static void init_log_file(const char *session)
 {
-	if (!LocalGlobalVars::log_file && pls_prism_is_dev()) {
+	if (!LocalGlobalVars::log_file && (pls_prism_is_dev() || pls_prism_save_local_log())) {
 		std::lock_guard guard(pls_global_mutex());
 		if (!LocalGlobalVars::log_file) {
 #if defined(Q_OS_WIN)
@@ -540,6 +623,8 @@ static void log_cleanup()
 		pls_thread_quit(LocalGlobalVars::nelo_log_proc_thread);
 		while (!pls_thread_queue_empty(LocalGlobalVars::nelo_log_proc_thread))
 			pls_sleep_ms(10);
+		if (LocalGlobalVars::shm)
+			pls_shm_close(LocalGlobalVars::shm);
 		pls_delete(LocalGlobalVars::nelo_log_proc_thread, pls_thread_destroy, nullptr);
 	}
 
@@ -550,6 +635,10 @@ static void log_cleanup()
 	if (LocalGlobalVars::logger_process) {
 		pls_process_wait(LocalGlobalVars::logger_process, 1000);
 		pls_delete(LocalGlobalVars::logger_process, pls_process_destroy, nullptr);
+	}
+
+	if (LocalGlobalVars::shm) {
+		pls_delete(LocalGlobalVars::shm, pls_shm_destroy, nullptr);
 	}
 
 	if (LocalGlobalVars::log_file) {
@@ -590,7 +679,8 @@ LIBLOG_API bool pls_log_init(const char *project_name, const char *project_token
 			      QString::fromUtf8(project_version),
 			      QString::fromUtf8(log_source),
 			      QString::number(pid),
-			      uuid};
+			      uuid,
+			      QString::fromUtf8(local_log_session)};
 	if (LocalGlobalVars::logger_process = pls_process_create(program, arguments); !LocalGlobalVars::logger_process) {
 		pls_thread_start(LocalGlobalVars::log_proc_thread);
 		return false;
@@ -600,7 +690,11 @@ LIBLOG_API bool pls_log_init(const char *project_name, const char *project_token
 	WaitLoggerStartedThread waitThread(startedSemName);
 	waitThread.waitFinished(10000);
 
-	pls_thread_start(LocalGlobalVars::log_proc_thread);
+	QString shmName = QStringLiteral("PRISMLoggerShm_%1_%2").arg(pid).arg(uuid);
+	if (LocalGlobalVars::shm = pls_shm_create(shmName, 1024 * 1024, true); !LocalGlobalVars::shm) {
+		pls_thread_start(LocalGlobalVars::log_proc_thread);
+		return false;
+	}
 
 	LocalGlobalVars::nelo_log_proc_thread = pls_thread_create(nelo_log_proc_thread_entry);
 	pls_thread_start(LocalGlobalVars::log_proc_thread);
@@ -615,10 +709,10 @@ LIBLOG_API bool pls_log_init(const char *project_name, const char *project_token
 }
 LIBLOG_API bool pls_prism_log_init(const char *project_version, const char *log_source, const char *local_log_session)
 {
-	constexpr const char *PLS_PROJECT_NAME = "";
-	constexpr const char *PLS_PROJECT_NAME_KR = "";
-	constexpr const char *PLS_PROJECT_TOKEN = "";
-	constexpr const char *PLS_PROJECT_TOKEN_KR = "";
+	constexpr const char *PLS_PROJECT_NAME = "P8e4826_PRISMLiveStudio-ZT";
+	constexpr const char *PLS_PROJECT_NAME_KR = "P8e4826_PRISMLiveStudio-KR";
+	constexpr const char *PLS_PROJECT_TOKEN = "1056c5a3501e4af2ac6728176b55e66f";
+	constexpr const char *PLS_PROJECT_TOKEN_KR = "7a1cf4783b0946d797154a4baa443a6e";
 	return pls_log_init(PLS_PROJECT_NAME, PLS_PROJECT_TOKEN, PLS_PROJECT_NAME_KR, PLS_PROJECT_TOKEN_KR, project_version, log_source, local_log_session);
 }
 LIBLOG_API void pls_log_cleanup()
@@ -888,10 +982,10 @@ static void send_kvpairs_to_cn(const pls::map<std::string, std::string> &pairs, 
 		PLS_ERROR(LIBLOG_MODULE, "cn %d send kvpairs failed, because malloc memory failed.", messate_type);
 	}
 }
-LIBLOG_API void pls_subprocess_exception(const char *process, const char *pid, const char *src)
+LIBLOG_API void pls_subprocess_exception(const char *process, const char *pid)
 {
-	if (process && process[0] && pid && pid[0] && src && src[0]) {
-		send_kvpairs_to_cn({{"process", process}, {"pid", pid}, {"src", src}}, log_msg_t::MT_SUBPROCESS_EXCEPTION | log_msg_t::MT_CN_TAG);
+	if (process && process[0] && pid && pid[0]) {
+		send_kvpairs_to_cn({{"process", process}, {"pid", pid}}, log_msg_t::MT_SUBPROCESS_EXCEPTION | log_msg_t::MT_CN_TAG);
 	}
 }
 LIBLOG_API void pls_runtime_stats(pls_runtime_stats_type_t runtime_stats_type, const std::chrono::steady_clock::time_point &time, const map_t<std::string, std::string> &values)

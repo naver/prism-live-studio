@@ -30,5 +30,7 @@
         <file>resource/css/PLSMenuPushButton.css</file>
         <file>resource/css/PLSEdit.css</file>
         <file>resource/css/QDialog.css</file>
-    </qresource>
+        <file>resource/css/PLSHelpIcon.css</file>
+		<file>resource/css/PLSWindow.css</file>
+	</qresource>
 </RCC>

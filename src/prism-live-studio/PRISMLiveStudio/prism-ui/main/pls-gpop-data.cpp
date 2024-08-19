@@ -6,6 +6,7 @@
 #include "log/module_names.h"
 #include <QDir>
 #include "ChannelCommonFunctions.h"
+#include "login-user-info.hpp"
 
 using namespace std;
 using namespace common;
@@ -53,6 +54,7 @@ Common PLSGpopData::getCommon()
 
 void PLSGpopData::initDefaultValues()
 {
+	
 }
 
 void PLSGpopData::initCommon()
@@ -82,6 +84,28 @@ void PLSGpopData::initSnscallbackUrls()
 	}
 	m_snsCallbackUrls = snscallbackUrls;
 }
+void PLSGpopData::initSupportedPlatforms()
+{
+	QVariantMap map;
+	m_channelList.clear();
+	PLSJsonDataHandler::getValuesFromByteArray(m_gpopDataArray, name2str(supportedPlatforms), map);
+	auto channelList = map.value("channel").toList();
+	for (auto value : channelList) {
+		m_channelList.append(value.toString());
+	}
+
+	auto loginList = map.value("login").toList();
+	m_loginList.clear();
+	for (auto value : loginList) {
+		m_loginList.append(value.toString());
+	}
+
+	auto resolutionList = map.value("resolutionGuide").toList();
+	m_channelResolutionGuidList.clear();
+	for (auto value : resolutionList) {
+		m_channelResolutionGuidList.append(value.toString());
+	}
+}
 
 QMap<QString, SnsCallbackUrl> PLSGpopData::getSnscallbackUrls()
 {
@@ -94,6 +118,29 @@ QMap<QString, SnsCallbackUrl> PLSGpopData::getSnscallbackUrls()
 QMap<QString, SnsCallbackUrl> PLSGpopData::getDefaultSnscallbackUrls()
 {
 	return m_defaultCallbackUrls;
+}
+
+const QStringList &PLSGpopData::getChannelList()
+{
+	initSupportedPlatforms();
+	auto serviceName = PLSLOGINUSERINFO->getNCPPlatformServiceName();
+	PLS_INFO("PLSGpopData", "current select service name = %s", serviceName.toUtf8().constData());
+
+	auto existInter = std::find_if(m_channelList.begin(), m_channelList.end(), [serviceName](const QString &channelName) { return 0 == serviceName.compare(channelName, Qt::CaseInsensitive); });
+	if (existInter == m_channelList.end() && !serviceName.isEmpty()) {
+		m_channelList.insert(0, serviceName);
+	}
+	return m_channelList.isEmpty() ? m_defaultChannelList : m_channelList;
+}
+
+const QStringList &PLSGpopData::getChannelResolutionGuidList()
+{
+	return m_channelResolutionGuidList.isEmpty() ? m_defaultChannelResolutionGuidList : m_channelResolutionGuidList;
+}
+
+const QStringList &PLSGpopData::getLoginList() const
+{
+	return m_loginList.isEmpty() ? m_defaultLoginList : m_loginList;
 }
 
 int PLSGpopData::getUIBlockingTimeS() const
@@ -114,4 +161,5 @@ void PLSGpopData::initGpopData()
 	initDefaultValues();
 	initCommon();
 	initSnscallbackUrls();
+	initSupportedPlatforms();
 }

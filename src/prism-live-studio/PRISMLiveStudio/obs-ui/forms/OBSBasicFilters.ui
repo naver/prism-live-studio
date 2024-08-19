@@ -83,7 +83,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QLabel" name="asyncEmptyDesLabel">
+           <widget class="ClickableLabel" name="asyncEmptyDesLabel">
             <property name="text">
              <string>Basic.Filters.Empty</string>
             </property>
@@ -105,6 +105,18 @@
             </property>
             <property name="contextMenuPolicy">
              <enum>Qt::CustomContextMenu</enum>
+            </property>
+            <property name="showDropIndicator" stdset="0">
+             <bool>false</bool>
+            </property>
+            <property name="dragEnabled">
+             <bool>true</bool>
+            </property>
+            <property name="dragDropMode">
+             <enum>QAbstractItemView::InternalMove</enum>
+            </property>
+            <property name="defaultDropAction">
+             <enum>Qt::TargetMoveAction</enum>
             </property>
             <property name="spacing">
              <number>0</number>
@@ -309,7 +321,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QLabel" name="effectEmptyDesLabel">
+           <widget class="ClickableLabel" name="effectEmptyDesLabel">
             <property name="text">
              <string>Basic.Filters.Empty</string>
             </property>
@@ -331,6 +343,18 @@
             </property>
             <property name="contextMenuPolicy">
              <enum>Qt::CustomContextMenu</enum>
+            </property>
+            <property name="showDropIndicator" stdset="0">
+             <bool>false</bool>
+            </property>
+            <property name="dragEnabled">
+             <bool>true</bool>
+            </property>
+            <property name="dragDropMode">
+             <enum>QAbstractItemView::InternalMove</enum>
+            </property>
+            <property name="defaultDropAction">
+             <enum>Qt::TargetMoveAction</enum>
             </property>
             <property name="spacing">
              <number>0</number>
@@ -647,23 +671,20 @@
     </layout>
    </item>
   </layout>
-  <action name="actionRemoveFilter">
-   <property name="icon">
-    <iconset resource="obs.qrc">
-     <normaloff>:/res/images/minus.svg</normaloff>:/res/images/minus.svg</iconset>
-   </property>
+  <action name="actionRenameFilter">
    <property name="text">
-    <string>Remove</string>
+    <string>Rename</string>
+   </property>
+  </action>
+  <action name="actionMoveDown">
+   <property name="text">
+    <string>Basic.MainMenu.Edit.Order.MoveDown</string>
    </property>
    <property name="shortcut">
-    <string>Del</string>
+    <string>Ctrl+Down</string>
    </property>
   </action>
   <action name="actionMoveUp">
-   <property name="icon">
-    <iconset resource="obs.qrc">
-     <normaloff>:/res/images/up.svg</normaloff>:/res/images/up.svg</iconset>
-   </property>
    <property name="text">
     <string>Basic.MainMenu.Edit.Order.MoveUp</string>
    </property>
@@ -671,16 +692,12 @@
     <string>Ctrl+Up</string>
    </property>
   </action>
-  <action name="actionMoveDown">
-   <property name="icon">
-    <iconset resource="obs.qrc">
-     <normaloff>:/res/images/down.svg</normaloff>:/res/images/down.svg</iconset>
-   </property>
+  <action name="actionRemoveFilter">
    <property name="text">
-    <string>Basic.MainMenu.Edit.Order.MoveDown</string>
+    <string>Remove</string>
    </property>
    <property name="shortcut">
-    <string>Ctrl+Down</string>
+    <string>Del</string>
    </property>
   </action>
  </widget>
@@ -700,6 +717,11 @@
    <class>PLSDialogButtonBox</class>
    <extends>QDialogButtonBox</extends>
    <header location="global">PLSDialogButtonBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ClickableLabel</class>
+   <extends>QLabel</extends>
+   <header>clickable-label.hpp</header>
   </customwidget>
  </customwidgets>
  <resources>

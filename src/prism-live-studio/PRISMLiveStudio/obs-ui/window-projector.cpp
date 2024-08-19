@@ -22,8 +22,10 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
 
 {
 	OBSSource source = GetSource();
-	destroyedSignal.Connect(obs_source_get_signal_handler(source),
-				"destroy", OBSSourceDestroyed, this);
+	if (source) {
+		destroyedSignal.Connect(obs_source_get_signal_handler(source),
+					"destroy", OBSSourceDestroyed, this);
+	}
 
 	isAlwaysOnTop = config_get_bool(GetGlobalConfig(), "BasicWindow",
 					"ProjectorAlwaysOnTop");
@@ -53,16 +55,16 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
 	else
 		SetMonitor(monitor);
 
-	if (source) {
+	if (source)
 		UpdateProjectorTitle(QT_UTF8(obs_source_get_name(source)));
-	} else {
+	else
 		UpdateProjectorTitle(QString());
-	}
 
 	QAction *action = new QAction(this);
 	action->setShortcut(Qt::Key_Escape);
 	addAction(action);
-	connect(action, SIGNAL(triggered()), this, SLOT(EscapeTriggered()));
+	connect(action, &QAction::triggered, this,
+		&OBSProjector::EscapeTriggered);
 
 	setAttribute(Qt::WA_DeleteOnClose, true);
 
@@ -185,8 +187,22 @@ void OBSProjector::OBSRender(void *data, uint32_t cx, uint32_t cy)
 	float scale;
 
 	if (source) {
-		targetCX = std::max(obs_source_get_width(source), 1u);
-		targetCY = std::max(obs_source_get_height(source), 1u);
+
+		if (window->type == ProjectorType::ChatBrowser) {
+			proc_handler_t *ph =
+				obs_source_get_proc_handler(source);
+
+			calldata_t cd = {0};
+			proc_handler_call(ph, "get_browser_size", &cd);
+
+			targetCX = calldata_int(&cd, "width");
+			targetCY = calldata_int(&cd, "height");
+
+			calldata_free(&cd);
+		} else {
+			targetCX = std::max(obs_source_get_width(source), 1u);
+			targetCY = std::max(obs_source_get_height(source), 1u);
+		}
 	} else {
 		struct obs_video_info ovi;
 		obs_get_video_info(&ovi);
@@ -217,19 +233,27 @@ void OBSProjector::OBSRender(void *data, uint32_t cx, uint32_t cy)
 		window->weakSource = nullptr;
 	}
 
-	if (source)
-		obs_source_video_render(source);
+	if (source) {
+		if (window->type == ProjectorType::ChatBrowser) {
+			proc_handler_t *ph =
+				obs_source_get_proc_handler(source);
+
+			calldata_t cd = {0};
+			proc_handler_call(ph, "chat_browser_render", &cd);
+			calldata_free(&cd);
+		}else
+			obs_source_video_render(source);
+	}
 	else
 		obs_render_main_texture();
 
 	endRegion();
 }
 
-void OBSProjector::OBSSourceDestroyed(void *data, calldata_t *params)
+void OBSProjector::OBSSourceDestroyed(void *data, calldata_t *)
 {
 	OBSProjector *window = reinterpret_cast<OBSProjector *>(data);
 	QMetaObject::invokeMethod(window, "EscapeTriggered");
-	UNUSED_PARAMETER(params);
 }
 
 void OBSProjector::mouseDoubleClickEvent(QMouseEvent *event)
@@ -240,6 +264,10 @@ void OBSProjector::mouseDoubleClickEvent(QMouseEvent *event)
 		return;
 
 	if (!transitionOnDoubleClick)
+		return;
+
+	// Only MultiView projectors handle double click
+	if (this->type != ProjectorType::Multiview)
 		return;
 
 	OBSBasic *main = (OBSBasic *)obs_frontend_get_main_window();
@@ -416,7 +444,7 @@ static int getSourceByPosition(MultiviewLayout multiviewLayout, int x, int y,
 		return pos;
 	int cx = rec->width();
 	//PRISM/Liuying/20210324/#7334/Minus the height of the title
-	int cy = rec->height() - 40;
+	int cy = pls_is_os_sys_macos() ? rec->height() : (rec->height() - 40);
 	int minX = 0;
 	int minY = 0;
 	int maxX = cx;
@@ -455,31 +483,26 @@ void OBSProjector::mousePressEvent(QMouseEvent *event)
 	OBSQTDisplay::mousePressEvent(event);
 
 	if (event->button() == Qt::RightButton) {
-		OBSBasic *main =
-			reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
-		QMenu popup(this);
-		popup.setWindowFlags(popup.windowFlags() |
-				     Qt::NoDropShadowWindowHint);
-
 		QMenu *projectorMenu = new QMenu(QTStr("Fullscreen"));
-		projectorMenu->setWindowFlags(projectorMenu->windowFlags() |
-					      Qt::NoDropShadowWindowHint);
+		OBSBasic::AddProjectorMenuMonitors(
+			projectorMenu, this,
+			&OBSProjector::OpenFullScreenProjector);
+
+		QMenu popup(this);
+		popup.addMenu(projectorMenu);
+
 		QString style(
 			"border: 1px  solid #111111;  background-color: #2d2d2d;");
 		popup.setStyleSheet(style);
 		projectorMenu->setStyleSheet(style);
 
-		main->AddProjectorMenuMonitors(projectorMenu, this,
-					       SLOT(OpenFullScreenProjector()));
-		popup.addMenu(projectorMenu);
-
 		if (GetMonitor() > -1) {
 			popup.addAction(QTStr("Windowed"), this,
-					SLOT(OpenWindowedProjector()));
+					&OBSProjector::OpenWindowedProjector);
 
 		} else if (!this->isMaximized()) {
 			popup.addAction(QTStr("ResizeProjectorWindowToContent"),
-					this, SLOT(ResizeToContent()));
+					this, &OBSProjector::ResizeToContent);
 		}
 
 		QAction *alwaysOnTopButton = new QAction(
@@ -492,7 +515,17 @@ void OBSProjector::mousePressEvent(QMouseEvent *event)
 
 		popup.addAction(alwaysOnTopButton);
 
-		popup.addAction(QTStr("Close"), this, SLOT(EscapeTriggered()));
+		popup.addAction(QTStr("Close"), this,
+				&OBSProjector::EscapeTriggered);
+
+		connect(this, &OBSProjector::notifyClose, &popup,
+			[pointerPop = QPointer<QMenu>(&popup)]() {
+				if (pointerPop) {
+					//#4786, remove parent will super closed.
+					pointerPop->setParent(nullptr);
+				}
+			});
+
 		popup.exec(QCursor::pos());
 	} else if (event->button() == Qt::LeftButton) {
 		// Only MultiView projectors handle left click

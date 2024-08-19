@@ -8,6 +8,9 @@
 #include <PLSToplevelView.h>
 #include <frontend-api.h>
 #include "PLSNewIconActionWidget.hpp"
+#if defined(_WIN32)
+#include "windows/PLSWinrtNotify.h"
+#endif
 
 namespace Ui {
 class PLSMainView;
@@ -16,7 +19,6 @@ class PLSMainView;
 
 class QPushButton;
 class PLSBasicStatusBar;
-class PLSToastView;
 class CustomHelpMenuItem;
 class QLabel;
 class PLSToastMsgPopup;
@@ -133,6 +135,7 @@ public:
 	bool isSidebarButtonInScroll(ConfigId id) const;
 	QList<SideWindowInfo> getSideWindowInfo() const;
 	bool setSidebarWindowVisible(int windowId, bool visible);
+	bool setSidebarButtonVisible(int windowId, bool visible);
 
 	Q_INVOKABLE void toastMessage(pls_toast_info_type type, const QString &message, int autoClose);
 	Q_INVOKABLE void toastMessage(pls_toast_info_type type, const QString &message, const QString &url, const QString &replaceStr, int autoClose);
@@ -141,10 +144,16 @@ public:
 
 	void setUserButtonIcon(const QIcon &icon);
 	void initToastMsgView(bool isInitShow = true);
-
+	void setToastMsgViewVisible(bool isShow);
 	void initMobileHelperView(bool isInitShow);
 
+
 	void setStudioMode(bool studioMode);
+	bool isFirstShow() const;
+	void setSettingIconCheck(bool bCheck);
+	void setResolutionBtnCheck(bool bCheck);
+
+	bool isSettingEnabled() const;
 
 public slots:
 	void onSideBarButtonClicked(int buttonId);
@@ -156,7 +165,7 @@ public slots:
 	void on_ResolutionBtn_clicked();
 	void on_chat_clicked() const;
 
-	void showChatView(bool isRebackLogin = false, bool isOnlyShow = false, bool isOnlyInit = false) const;
+	void showChatView(bool isOnlyShow = false, bool isOnlyInit = false) const;
 
 	void on_settings_clicked();
 	void on_help_clicked();
@@ -166,6 +175,7 @@ public slots:
 	void showResolutionTips(const QString &platform);
 	void showVirtualCameraTips(const QString &tips = QString());
 	void closeMobileDialog() const;
+	void on_discordBtn_clicked();
 
 protected:
 	ResolutionTipFrame *createSidebarTipFrame(const QString &txt, QWidget *aliginWidget, bool isAutoColose, const QString &objectName = "ResolutionTipsLabel");
@@ -175,6 +185,7 @@ protected:
 	void windowStateChanged(QWindowStateChangeEvent *event) override;
 	bool eventFilter(QObject *watcher, QEvent *event) override;
 	bool event(QEvent *event) override;
+	bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
 signals:
 	void popupSettingView(const QString &tab, const QString &group);
@@ -182,6 +193,7 @@ signals:
 	void studioModeChanged();
 	void isshowSignal(bool);
 	void mainViewUIChanged();
+	void onGolivePending(bool bPending);
 
 private:
 	void initSideBarButtons();
@@ -192,6 +204,11 @@ private:
 	void addSideBarStretch();
 	void AdjustSideBarMenu();
 	void hiddenWidget(QWidget *widget);
+
+#ifdef _WIN32
+	void readDetectResult();
+	void runNewDetect();
+#endif
 
 private:
 	Ui::PLSMainView *ui = nullptr;
@@ -209,8 +226,7 @@ private:
 	QButtonGroup *sideBarBtnGroup = nullptr;
 	QList<SideWindowInfo> windowInfo;
 
-	PLSToastView *toast;
-	PLSLivingMsgView *m_livingMsgView;
+	QPointer<PLSLivingMsgView> m_livingMsgView;
 	PLSToastMsgPopup *m_toastMsg;
 	QMap<qint64, QString> toastMessages;
 	QMenu *helpMenu;
@@ -227,6 +243,10 @@ private:
 	bool m_isFirstShow = true;
 	friend class PLSBasic;
 	friend class ResolutionGuidePage;
+
+#if defined(_WIN32)
+	QPointer<PLSWinRTNotify> winrt_notify;
+#endif
 };
 
 #endif // PLSMAINVIEW_H

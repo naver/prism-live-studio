@@ -52,12 +52,15 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,1">
+    <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0">
      <property name="spacing">
       <number>0</number>
      </property>
      <property name="sizeConstraint">
       <enum>QLayout::SetNoConstraint</enum>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
      </property>
      <item>
       <widget class="QLabel" name="label_text">
@@ -78,13 +81,6 @@
        </property>
        <property name="wordWrap">
         <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item alignment="Qt::AlignLeft">
-      <widget class="QLabel" name="label_status">
-       <property name="text">
-        <string/>
        </property>
       </widget>
      </item>

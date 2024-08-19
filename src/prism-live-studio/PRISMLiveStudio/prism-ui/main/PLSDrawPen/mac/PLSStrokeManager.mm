@@ -304,6 +304,8 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
     [stroke beginFrom:point];
     [self.drawingActions addObject:stroke];
     self.currentStroke = stroke;
+	// when begin a new stroke, clear all undid actions.
+	[self.undidActions removeAllObjects];
     if (self.drawPenBlock) {
         self.drawPenBlock(self.context, [self undoEmpty], [self redoEmpty]);
     }
@@ -326,7 +328,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
                            colorMode:colorMode
                        thicknessMode:thicknessMode
                             strokeID:-1];
-        [weakSelf _drawPensWithRedraw:FALSE rightNow:TRUE andDebugInfo:@"beginWithBushMode"];
+        [weakSelf _drawPensWithRedraw:FALSE
+							 rightNow:TRUE
+							  yOffset:0.0
+						 andDebugInfo:@"beginWithBushMode"];
     });
 }
 
@@ -357,7 +362,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
                                     strokeID:strokeID];
             });
         } else if ([weakSelf.currentStroke moveToPoint:point]) {
-            [weakSelf _drawPensWithRedraw:FALSE rightNow:NO andDebugInfo:@"moveTo"];
+            [weakSelf _drawPensWithRedraw:FALSE
+								 rightNow:NO
+								  yOffset:0.0
+							 andDebugInfo:@"moveTo"];
         }
     });
 }
@@ -376,7 +384,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
 - (void)_endTo:(NSPoint)point {
     [self.currentStroke endTo:point];
     self.currentStroke = NULL;
-    [self _drawPensWithRedraw:NO rightNow:TRUE andDebugInfo:@"endTo"];
+    [self _drawPensWithRedraw:NO
+					 rightNow:TRUE
+					  yOffset:0.0
+				 andDebugInfo:@"endTo"];
 }
 
 - (void)_eraseOn:(NSPoint)point
@@ -438,7 +449,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
     if (erasedStrokeID >= 0) {
         PLSStrokeActionEraser *eraser = [[PLSStrokeActionEraser alloc] initWithBaseStrokes:erasedStrokes];
         [self.drawingActions addObject:eraser];
-        [self _drawPensWithRedraw:TRUE rightNow:TRUE andDebugInfo:@"_eraseOn"];
+        [self _drawPensWithRedraw:TRUE 
+						 rightNow:TRUE
+						  yOffset:0.0
+					 andDebugInfo:@"_eraseOn"];
     }
     
     if (self.drawPenBlock) {
@@ -479,7 +493,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
                 }
             }
             if (bRefresh) {
-                [self _drawPensWithRedraw:TRUE rightNow:TRUE andDebugInfo:@"_undo 1"];
+                [self _drawPensWithRedraw:TRUE
+								 rightNow:TRUE
+								  yOffset:0.0
+							 andDebugInfo:@"_undo 1"];
             }
         }
             break;
@@ -504,7 +521,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
                     }
                 }
                 
-                [self _drawPensWithRedraw:TRUE rightNow:TRUE andDebugInfo:@"_undo 2"];
+                [self _drawPensWithRedraw:TRUE
+								 rightNow:TRUE
+								  yOffset:0.0
+							 andDebugInfo:@"_undo 2"];
             }
         }
             break;
@@ -549,7 +569,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
                 }
             }
             if (bRefresh) {
-                [self _drawPensWithRedraw:TRUE rightNow:TRUE andDebugInfo:@"_redo 1"];
+                [self _drawPensWithRedraw:TRUE
+								 rightNow:TRUE
+								  yOffset:0.0
+							 andDebugInfo:@"_redo 1"];
             }
         }
             break;
@@ -575,7 +598,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
                     }
                 }
                 
-                [self _drawPensWithRedraw:TRUE rightNow:TRUE andDebugInfo:@"_redo 2"];
+                [self _drawPensWithRedraw:TRUE
+								 rightNow:TRUE
+								  yOffset:0.0
+							 andDebugInfo:@"_redo 2"];
             }
             
         }
@@ -621,7 +647,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
         self.drawPenBlock(self.context, [self undoEmpty], [self redoEmpty]);
     }
     
-    [self _drawPensWithRedraw:TRUE rightNow:TRUE andDebugInfo:@"_clear"];
+    [self _drawPensWithRedraw:TRUE
+					 rightNow:TRUE
+					  yOffset:0.0
+				 andDebugInfo:@"_clear"];
 }
 
 - (void)clear
@@ -659,7 +688,8 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
     dispatch_async(self.renderQueue, ^{
         if (weakSelf.size.width == size.width && weakSelf.size.height == size.height)
             return;
-        
+		
+		CGFloat yOffset = size.height - weakSelf.size.height;
         weakSelf.size = size;
         
 #ifndef MAC_DEMO
@@ -673,7 +703,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
         obs_leave_graphics();
 #endif
         
-        [weakSelf _drawPensWithRedraw:TRUE rightNow:TRUE andDebugInfo:@"resize"];
+        [weakSelf _drawPensWithRedraw:TRUE 
+							 rightNow:TRUE
+							  yOffset:yOffset
+						 andDebugInfo:@"resize"];
     });
 }
 
@@ -706,6 +739,7 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
 
 - (void)_drawPensWithRedraw:(BOOL)needsRedraw
                    rightNow:(BOOL)rightNow
+				 yOffset:(CGFloat)yOffset
                andDebugInfo:(NSString *)info
 {
     if (!self.isVisible) {
@@ -736,6 +770,7 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
             for (int i = 0; i < self.drawingActions.count; i++) {
                 PLSStrokeBase *pen = (PLSStrokeBase *)self.drawingActions[i];
                 if (pen && [pen isKindOfClass:[PLSStrokeBase class]] && [pen eraseCount] <= 0) {
+					[pen recalculatePointsWithYOffset:yOffset];
                     [pen drawInContext:imageContext size:self.size];
                 }
             }
@@ -743,6 +778,7 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
             memcpy(self.currentCanvasRawData, self.previousCanvasRawData, iW * iH * 4 * sizeof(GLubyte));
             PLSStrokeBase *pen = (PLSStrokeBase *)self.drawingActions.lastObject;
             if (pen && [pen isKindOfClass:[PLSStrokeBase class]]) {
+				[pen recalculatePointsWithYOffset:yOffset];
                 [pen drawInContext:imageContext size:self.size];
             }
         }
@@ -789,7 +825,10 @@ void PLSStrokeManagerImpl::setCallback(void *context, DrawPenCallBacak cb)
 {
     __weak PLSStrokeManager *weakSelf = self;
     dispatch_async(self.renderQueue, ^{
-        [weakSelf _drawPensWithRedraw:needsRedraw rightNow:rightNow andDebugInfo:info];
+        [weakSelf _drawPensWithRedraw:needsRedraw
+							 rightNow:rightNow
+							  yOffset:0.0
+						 andDebugInfo:info];
     });
 }
 

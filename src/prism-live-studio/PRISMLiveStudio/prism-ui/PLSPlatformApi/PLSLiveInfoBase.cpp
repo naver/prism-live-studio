@@ -13,12 +13,26 @@
 //#include "main-view.hpp"
 #include "ResolutionGuidePage.h"
 #include "libutils-api.h"
+#include "PLSChannelDataAPI.h"
 
 PLSLiveInfoBase::PLSLiveInfoBase(PLSPlatformBase *pPlatformBase, QWidget *parent) : PLSDialogView(parent), m_pPlatformBase(pPlatformBase), m_pWidgetLoadingBG(nullptr)
 {
 	pls_add_css(this, {"PLSLoadingBtn", "PLSLiveInfoBase"});
 	setHasCloseButton(false);
 	setResizeEnabled(false);
+
+	channelUUid = m_pPlatformBase->getChannelUUID();
+
+	connect(
+		PLSCHANNELS_API, &PLSChannelDataAPI::channelRemoved, this,
+		[this](const QString &uuid) {
+			if (uuid == channelUUid) {
+				pls_notify_close_modal_views_with_parent(this);
+				close();
+			}
+		},
+		Qt::QueuedConnection);
+
 #if defined(Q_OS_MACOS)
 	setFixedSize({720, 670});
 #else
@@ -94,7 +108,9 @@ void PLSLiveInfoBase::hideLoading()
 void PLSLiveInfoBase::showEvent(QShowEvent *event)
 {
 	PLSDialogView::showEvent(event);
-	ResolutionGuidePage::checkResolution(this, m_pPlatformBase->getChannelUUID());
+	if (m_pPlatformBase) {
+		ResolutionGuidePage::checkResolution(this, m_pPlatformBase->getChannelUUID());
+	}
 }
 
 bool PLSLiveInfoBase::eventFilter(QObject *watcher, QEvent *event)
@@ -123,7 +139,7 @@ void PLSLiveInfoBase::closeEvent(QCloseEvent *event)
 	PLSDialogView::closeEvent(event);
 }
 
-QWidget *PLSLiveInfoBase::createResolutionButtonsFrame()
+QWidget *PLSLiveInfoBase::createResolutionButtonsFrame(bool bNcp)
 {
-	return ResolutionGuidePage::createResolutionButtonsFrame(this);
+	return ResolutionGuidePage::createResolutionButtonsFrame(this, bNcp);
 }

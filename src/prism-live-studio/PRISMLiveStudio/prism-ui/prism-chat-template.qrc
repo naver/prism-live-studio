@@ -1,0 +1,19 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resource/images/chat-template-source/en_1000.png</file>
+        <file>resource/images/chat-template-source/en_1001.png</file>
+        <file>resource/images/chat-template-source/en_1002.png</file>
+        <file>resource/images/chat-template-source/en_1003.png</file>
+        <file>resource/images/chat-template-source/en_1004.png</file>
+        <file>resource/images/chat-template-source/ko_1000.png</file>
+        <file>resource/images/chat-template-source/ko_1001.png</file>
+        <file>resource/images/chat-template-source/ko_1002.png</file>
+        <file>resource/images/chat-template-source/ko_1003.png</file>
+        <file>resource/images/chat-template-source/ko_1004.png</file>
+        <file>resource/images/chat-template-source/ic_chat_mytheme_1.svg</file>
+        <file>resource/images/chat-template-source/ic_chat_mytheme_2.svg</file>
+        <file>resource/images/chat-template-source/ic_chat_mytheme_3.svg</file>
+        <file>resource/images/chat-template-source/ic_chat_mytheme_4.svg</file>
+        <file>resource/images/chat-template-source/ic_chat_mytheme_5.svg</file>
+    </qresource>
+</RCC>

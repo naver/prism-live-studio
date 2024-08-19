@@ -74,6 +74,7 @@ protected:
 	virtual void dragEnterEvent(QDragEnterEvent *ev) override;
 
 	void remuxNextEntry();
+	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
 	void rowCountChanged(const QModelIndex &parent, int first, int last);
@@ -97,7 +98,8 @@ class RemuxQueueModel : public QAbstractTableModel {
 
 public:
 	RemuxQueueModel(QObject *parent = 0)
-		: QAbstractTableModel(parent), isProcessing(false)
+		: QAbstractTableModel(parent),
+		  isProcessing(false)
 	{
 	}
 

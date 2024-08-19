@@ -15,12 +15,13 @@
 #include "PLSShoppingHostChannel.h"
 #include "libutils-api.h"
 #include "log/log.h"
+#include "PLSGuideButton.h"
 
 using namespace common;
 static const int NAVER_SHOPPING_LIVE_MIN_PHOTO_WIDTH = 170;
 static const int NAVER_SHOPPING_LIVE_MIN_PHOTO_HEIGHT = 226;
 static const int TitleLengthLimit = 30;
-static const int SummaryLengthLimit = 20;
+static const int SummaryLengthLimit = 15;
 
 extern void loadPixmap(QPixmap &pix, const QString &pixmapPath, const QSize &pixSize);
 
@@ -29,73 +30,6 @@ extern void loadPixmap(QPixmap &pix, const QString &pixmapPath, const QSize &pix
 
 #define FIRST_CATEGORY_DEFAULT_TITLE tr("navershopping.liveinfo.first.category.title")
 #define SECOND_CATEGORY_DEFAULT_TITLE tr("navershopping.liveinfo.second.category.title")
-
-namespace {
-class GuideButton : public QFrame {
-	bool hovered = false;
-	bool pressed = false;
-	std::function<void()> clicked;
-
-public:
-	GuideButton(const QString &buttonText, bool fromLeftToRight, QWidget *parent, std::function<void()> clicked_) : QFrame(parent), clicked(std::move(clicked_))
-	{
-		setObjectName("guideButton");
-		setProperty("lang", pls_get_current_language());
-		setMouseTracking(true);
-
-		auto icon = pls_new<QLabel>(this);
-		icon->setObjectName("guideButtonIcon");
-		icon->setMouseTracking(true);
-		icon->setAlignment(Qt::AlignCenter);
-
-		auto text = pls_new<QLabel>(this);
-		text->setObjectName("guideButtonText");
-		text->setMouseTracking(true);
-		text->setText(buttonText);
-		text->setAlignment(Qt::AlignHCenter | Qt::AlignBottom);
-
-		auto layout = pls_new<QHBoxLayout>(this);
-		layout->setContentsMargins(0, 0, 0, 0);
-		layout->setSpacing(5);
-		if (fromLeftToRight) {
-			layout->addWidget(icon);
-			layout->addWidget(text);
-		} else {
-			layout->addWidget(text);
-			layout->addWidget(icon);
-		}
-	}
-	~GuideButton() override = default;
-
-private:
-	void setState(const char *name, bool &state, bool value)
-	{
-		if (state != value) {
-			pls_flush_style_recursive(this, name, state = value);
-		}
-	}
-
-protected:
-	bool event(QEvent *event) override
-	{
-		if (event->type() == QEvent::Enter) {
-			setState("hovered", hovered, true);
-		} else if (event->type() == QEvent::Leave) {
-			setState("hovered", hovered, false);
-		} else if (event->type() == QEvent::MouseButtonPress) {
-			setState("pressed", pressed, true);
-		} else if (event->type() == QEvent::MouseButtonRelease) {
-			setState("pressed", pressed, false);
-			if (rect().contains(dynamic_cast<QMouseEvent *>(event)->pos())) {
-				clicked();
-			}
-		} else if (event->type() == QEvent::MouseMove) {
-			setState("hovered", hovered, rect().contains(dynamic_cast<QMouseEvent *>(event)->pos()));
-		}
-		return QFrame::event(event);
-	}
-};
-}
 
 constexpr auto liveInfoMoudule = "PLSLiveInfoNaverShoppingLIVE";
 
@@ -143,16 +77,14 @@ PLSLiveInfoNaverShoppingLIVE::PLSLiveInfoNaverShoppingLIVE(PLSPlatformBase *pPla
 	ui->rehearsalButton->setVisible(PLS_PLATFORM_API->isPrepareLive());
 	updateStepTitle(ui->okButton);
 	getCategoryListRequest();
-	if (PLS_PLATFORM_API->isPrepareLive()) {
-		ui->horizontalLayout->addWidget(ui->okButton);
+#if defined(Q_OS_WIN)
+	if (!PLS_PLATFORM_API->isPrepareLive()) {
+		ui->horizontalLayout->addWidget(ui->cancelButton);
 	}
+#endif
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStartBroadcastInInfoView, this, &PLSLiveInfoNaverShoppingLIVE::on_okButton_clicked);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStartRehearsal, this, &PLSLiveInfoNaverShoppingLIVE::on_rehearsalButton_clicked);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStopRehearsal, this, &PLSLiveInfoNaverShoppingLIVE::on_cancelButton_clicked);
-
-	QPixmap pix;
-	loadPixmap(pix, SERACH_NORMAL_PATH, QSize(18,18) * 4);
-	ui->searchIcon->setPixmap(pix);
 }
 
 PLSLiveInfoNaverShoppingLIVE::~PLSLiveInfoNaverShoppingLIVE()
@@ -204,6 +136,8 @@ void PLSLiveInfoNaverShoppingLIVE::setupLineEdit()
 	connect(ui->summaryLineEdit, &QLineEdit::textChanged, this, &PLSLiveInfoNaverShoppingLIVE::summaryEdited, Qt::QueuedConnection);
 	ui->searchIcon->setToolTip(QString("<qt>%1</qt>").arg(tr("navershopping.liveinfo.search.hover.tip")));
 	ui->searchTitleLabel->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("navershopping.liveinfo.search.title")));
+	ui->notifyLabel->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("navershopping.liveinfo.notify.title")));
+	ui->helpLabel->setToolTip(tr("navershopping.liveinfo.notify.tooltip"));
 }
 
 void PLSLiveInfoNaverShoppingLIVE::setupThumbnailButton() const
@@ -324,7 +258,7 @@ void PLSLiveInfoNaverShoppingLIVE::prepareLiving(const std::function<void(bool)>
 	}
 
 	//During the live broadcast, if the live product is empty, no update request will be made
-	if (m_prepareLivingType == PrepareRequestType::UpdateLivingPrepareRequest && ui->productWidget->getAllProducts().isEmpty()) {
+	if (m_prepareLivingType == PrepareRequestType::UpdateLivingPrepareRequest && ui->productWidget->getProduct(PLSProductType::MainProduct).isEmpty()) {
 		callback(true);
 		return;
 	}
@@ -385,7 +319,7 @@ void PLSLiveInfoNaverShoppingLIVE::prepareLiving(const std::function<void(bool)>
 	}
 
 	showLoading(content());
-	auto requestCallback = [this, callback](PLSAPINaverShoppingType apiType, const QString &imageURL) {
+	auto requestCallback = [this, callback](PLSAPINaverShoppingType apiType, const QString &imageURL, const QByteArray &data) {
 		hideLoading();
 		m_TempPrepareInfo.standByImageURL = imageURL;
 		m_TempPrepareInfo.standByImagePath = ui->thumbnailButton->getImagePath();
@@ -400,13 +334,17 @@ void PLSLiveInfoNaverShoppingLIVE::prepareLiving(const std::function<void(bool)>
 		//Request failure apiType equal to PLSNaverShoppingFailed means that all special errors have been handled, and this error identification needs to be handled by yourself
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
 			apiType = PLSAPINaverShoppingType::PLSNaverShoppingUploadImageFailed;
-			platform->handleCommonApiType(apiType);
+			QString errorCode = "";
+			QString errorMsg = "";
+			PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
+			platform->handleCommonApiType(apiType, errorCode, errorMsg);
 		}
 
 		//Failed to upload pictures before GoLive and Rehearsal live, add SRE
 		if (m_prepareLivingType == PrepareRequestType::GoLivePrepareRequest) {
 			PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule,
-				  {{"platformName", "navershopping"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "navershopping go live upload local image api reuqest failed"}}, "navershopping start live failed");
+				  {{"platformName", "navershopping"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "navershopping go live upload local image api reuqest failed"}},
+				  "navershopping start live failed");
 		} else if (m_prepareLivingType == PrepareRequestType::RehearsalPrepareRequest) {
 			PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule,
 				  {{"platformName", "navershopping"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "navershopping rehearsal upload local image api reuqest failed"}},
@@ -432,6 +370,8 @@ void PLSLiveInfoNaverShoppingLIVE::saveLiveInfo()
 	prepareInfo.releaseLevel = m_TempPrepareInfo.releaseLevel;
 	prepareInfo.externalExposeAgreementStatus = m_TempPrepareInfo.externalExposeAgreementStatus;
 	prepareInfo.allowSearch = ui->radioButton_allow->isChecked();
+	prepareInfo.productType = ui->productWidget->getProductType();
+	prepareInfo.sendNotification = ui->sendRadioButton->isChecked();
 	if (m_prepareLivingType == PrepareRequestType::GoLivePrepareRequest) {
 		prepareInfo.infoType = PrepareInfoType::GoLivePrepareInfo;
 		if (m_TempPrepareInfo.isNowLiving) {
@@ -459,7 +399,8 @@ void PLSLiveInfoNaverShoppingLIVE::startLiving(const std::function<void(bool)> &
 			updateScheduleLiveInfoRequest([this, callback](bool result) {
 				if (!result) {
 					PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule,
-						  {{"platformName", "navershopping"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "navershopping update schedule api request failed"}}, "navershopping start live failed");
+						  {{"platformName", "navershopping"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "navershopping update schedule api request failed"}},
+						  "navershopping start live failed");
 					return;
 				}
 				createLivingRequest(callback);
@@ -468,7 +409,7 @@ void PLSLiveInfoNaverShoppingLIVE::startLiving(const std::function<void(bool)> &
 		}
 		createLivingRequest(callback);
 	} else if (m_prepareLivingType == PrepareRequestType::UpdateLivingPrepareRequest) {
-		auto requestCallback = [this, callback](PLSAPINaverShoppingType apiType) {
+		auto requestCallback = [this, callback](PLSAPINaverShoppingType apiType, const QByteArray &data) {
 			hideLoading();
 			if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 				callback(true);
@@ -476,7 +417,10 @@ void PLSLiveInfoNaverShoppingLIVE::startLiving(const std::function<void(bool)> &
 			}
 			if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
 				apiType = PLSAPINaverShoppingType::PLSNaverShoppingUpdateFailed;
-				platform->handleCommonApiType(apiType);
+				QString errorCode = "";
+				QString errorMsg = "";
+				PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
+				platform->handleCommonApiType(apiType, errorCode, errorMsg);
 			}
 		};
 		showLoading(content());
@@ -520,7 +464,9 @@ bool PLSLiveInfoNaverShoppingLIVE::isProductListChanged(const QList<PLSNaverShop
 			QString oldKey = oldProductList.at(i).key;
 			bool newPresent = newProductList.at(i).represent;
 			bool oldPresent = oldProductList.at(i).represent;
-			if (newKey != oldKey || newPresent != oldPresent) {
+			PLSProductType newType = newProductList.at(i).productType;
+			PLSProductType oldType = oldProductList.at(i).productType;
+			if (newKey != oldKey || newPresent != oldPresent || newType != oldType) {
 				productChanged = true;
 				break;
 			}
@@ -542,6 +488,9 @@ void PLSLiveInfoNaverShoppingLIVE::getPrepareInfoFromScheduleInfo(PLSNaverShoppi
 	prepareInfo.isPlanLiving = scheduleInfo.broadcastType == PLANNING_LIVING;
 	prepareInfo.externalExposeAgreementStatus = scheduleInfo.externalExposeAgreementStatus;
 	prepareInfo.allowSearch = scheduleInfo.searchable;
+	prepareInfo.sendNotification = scheduleInfo.sendNotification;
+	prepareInfo.introducing = scheduleInfo.introducing;
+	prepareInfo.attachable = scheduleInfo.attachable;
 	QString apString;
 	PLSNaverShoppingLIVEAPI::getNaverShoppingDateFormat(scheduleInfo.timeStamp, prepareInfo.ymdDate, prepareInfo.yearMonthDay, prepareInfo.hour, prepareInfo.minute, apString);
 	prepareInfo.ap = apIndexForString(apString);
@@ -599,6 +548,7 @@ void PLSLiveInfoNaverShoppingLIVE::updateLivePhotoUI()
 
 void PLSLiveInfoNaverShoppingLIVE::updateLiveSummaryUI()
 {
+	isTitleTooLong(m_TempPrepareInfo.description, SummaryLengthLimit);
 	ui->summaryLineEdit->setText(m_TempPrepareInfo.description);
 }
 
@@ -639,17 +589,39 @@ void PLSLiveInfoNaverShoppingLIVE::updateSearchUI()
 	} else {
 		ui->radioButton_disallow->setChecked(true);
 	}
+}
 
+void PLSLiveInfoNaverShoppingLIVE::updateNotifyUI()
+{
+	if (m_TempPrepareInfo.sendNotification) {
+		ui->sendRadioButton->setChecked(true);
+	} else {
+		ui->notSendRadioButton->setChecked(true);
+	}
+
+	if (m_TempPrepareInfo.isNowLiving) {
+		bool isLiving = PLS_PLATFORM_API->isLiving();
+		ui->notifyRadioButtonWidget->setEnabled(!isLiving);
+	} else {
+		if (m_TempPrepareInfo.releaseLevel == RELEASE_LEVEL_REHEARSAL) {
+			ui->sendRadioButton->setChecked(true);
+		}
+		ui->notifyRadioButtonWidget->setEnabled(false);
+	}
 }
 
 void PLSLiveInfoNaverShoppingLIVE::switchNewScheduleItem(PLSScheComboxItemType type, QString id)
 {
+	ui->productWidget->cancelSearchRequest();
+
 	//switch from nowLiving to schedule,save the nowLiving data
 	if (type == PLSScheComboxItemType::Ty_NormalLive) {
 		m_TempPrepareInfo = m_normalTempPrepareInfo;
 		m_TempPrepareInfo.isNowLiving = true;
 		m_TempPrepareInfo.isPlanLiving = false;
 		m_scheduleTempPrepareInfo = PLSNaverShoppingLIVEAPI::NaverShoppingPrepareLiveInfo();
+		updateSetupUI();
+
 	} else {
 		//switch from nowliving to schdule,need save now living data
 		if (m_TempPrepareInfo.isNowLiving) {
@@ -658,20 +630,33 @@ void PLSLiveInfoNaverShoppingLIVE::switchNewScheduleItem(PLSScheComboxItemType t
 			m_normalTempPrepareInfo.standByImagePath = ui->thumbnailButton->getImagePath();
 			m_normalTempPrepareInfo.shoppingProducts = ui->productWidget->getAllProducts();
 			m_normalTempPrepareInfo.allowSearch = ui->radioButton_allow->isChecked();
+			m_normalTempPrepareInfo.sendNotification = ui->sendRadioButton->isChecked();
 		}
-		PLSNaverShoppingLIVEAPI::ScheduleInfo scheduleInfo = platform->getSelectedScheduleInfo(id);
-		getPrepareInfoFromScheduleInfo(m_TempPrepareInfo, scheduleInfo);
-		m_scheduleTempPrepareInfo = m_TempPrepareInfo;
-		if (m_TempPrepareInfo.standByImagePath.isEmpty()) {
-			showToast(tr("navershopping.liveinfo.load.thumbnail.failed"));
-		}
+
+		auto requestCallback = [this, id](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &livingInfo) {
+			if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
+				PLSNaverShoppingLIVEAPI::ScheduleInfo scheduleInfo = platform->getSelectedScheduleInfo(id);
+				scheduleInfo.shoppingProducts = livingInfo.shoppingProducts;
+				getPrepareInfoFromScheduleInfo(m_TempPrepareInfo, scheduleInfo);
+				m_scheduleTempPrepareInfo = m_TempPrepareInfo;
+				if (m_TempPrepareInfo.standByImagePath.isEmpty()) {
+					showToast(tr("navershopping.liveinfo.load.thumbnail.failed"));
+				}
+
+			} else {
+				PLS_LIVE_ERROR(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "Naver Shopping Live call living info failed, apiType: %d", apiType);
+			}
+			hideLoading();
+			updateSetupUI();
+		};
+		showLoading(content());
+		PLSNaverShoppingLIVEAPI::getLivingInfo(platform, id, false, requestCallback, this, ThisIsValid);
 	}
-	updateSetupUI();
 }
 
 void PLSLiveInfoNaverShoppingLIVE::updateScheduleLiveInfoRequest(const std::function<void(bool)> &callback)
 {
-	auto requestCallback = [this, callback](PLSAPINaverShoppingType apiType) {
+	auto requestCallback = [this, callback](PLSAPINaverShoppingType apiType, const QByteArray &data) {
 		hideLoading();
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 			callback(true);
@@ -679,7 +664,10 @@ void PLSLiveInfoNaverShoppingLIVE::updateScheduleLiveInfoRequest(const std::func
 		}
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
 			apiType = PLSAPINaverShoppingType::PLSNaverShoppingUpdateScheduleInfoFailed;
-			platform->handleCommonApiType(apiType);
+			QString errorCode = "";
+			QString errorMsg = "";
+			PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
+			platform->handleCommonApiType(apiType, errorCode, errorMsg);
 		}
 		callback(false);
 	};
@@ -690,12 +678,15 @@ void PLSLiveInfoNaverShoppingLIVE::updateScheduleLiveInfoRequest(const std::func
 
 void PLSLiveInfoNaverShoppingLIVE::createLivingRequest(const std::function<void(bool)> &callback)
 {
-	auto requestCallback = [this, callback](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &) {
+	auto requestCallback = [this, callback](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &, const QByteArray &data) {
 		if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 			hideLoading();
 			if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
 				apiType = PLSAPINaverShoppingType::PLSNaverShoppingCreateLivingFailed;
-				platform->handleCommonApiType(apiType);
+				QString errorCode = "";
+				QString errorMsg = "";
+				PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
+				platform->handleCommonApiType(apiType, errorCode, errorMsg);
 			}
 			PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule,
 				  {{"platformName", "navershopping"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "navershopping create live api request failed"}},
@@ -703,7 +694,7 @@ void PLSLiveInfoNaverShoppingLIVE::createLivingRequest(const std::function<void(
 			return;
 		}
 		platform->checkPushNotification([this, callback]() {
-			PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule, {{"platformName", "navershopping"}, {"startLiveStatus", "Success"}}, "navershopping start live success");
+			PLS_LOGEX(PLS_LOG_INFO, liveInfoMoudule, {{"platformName", "navershopping"}, {"startLiveStatus", "Success"}}, "navershopping start live success");
 			hideLoading();
 			callback(true);
 		});
@@ -731,12 +722,15 @@ void PLSLiveInfoNaverShoppingLIVE::showToast(const QString &str)
 	adjustToastSize();
 }
 
-void PLSLiveInfoNaverShoppingLIVE::scheduleListLoadingFinished(PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList)
+void PLSLiveInfoNaverShoppingLIVE::scheduleListLoadingFinished(PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, const QByteArray &data)
 {
 	if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
 			apiType = PLSAPINaverShoppingType::PLSNaverShoppingScheduleListFailed;
-			platform->handleCommonApiType(apiType);
+			QString errorCode = "";
+			QString errorMsg = "";
+			PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
+			platform->handleCommonApiType(apiType, errorCode, errorMsg);
 		}
 		return;
 	}
@@ -842,6 +836,7 @@ void PLSLiveInfoNaverShoppingLIVE::initSetupUI(bool requestFinished)
 	//LiveInfo product list
 	ui->productWidget->setIsScheduleLive(!m_TempPrepareInfo.isNowLiving);
 	ui->productWidget->setIsPlanningLive(m_TempPrepareInfo.isPlanLiving);
+	ui->productWidget->setProductType(m_TempPrepareInfo.productType);
 	if (m_refreshProductList) {
 		ui->productWidget->setIsScheduleLiveLoading(false);
 		ui->productWidget->setAllProducts(m_TempPrepareInfo.shoppingProducts, true);
@@ -857,6 +852,9 @@ void PLSLiveInfoNaverShoppingLIVE::initSetupUI(bool requestFinished)
 
 	//LiveInfo search
 	updateSearchUI();
+
+	//LiveInfo notify
+	updateNotifyUI();
 
 	//update ok button state
 	doUpdateOkState();
@@ -878,7 +876,7 @@ void PLSLiveInfoNaverShoppingLIVE::updateRequest()
 		showLoading(content());
 		platform->getLivingInfo(false, requestCallback, this, ThisIsValid);
 	} else if (!m_TempPrepareInfo.isNowLiving) {
-		auto RequestCallback = [this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, int, int) {
+		auto RequestCallback = [this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, int, int, const QByteArray &) {
 			hideLoading();
 			if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 				ui->productWidget->setIsScheduleLiveLoading(false);
@@ -897,23 +895,34 @@ void PLSLiveInfoNaverShoppingLIVE::updateRequest()
 void PLSLiveInfoNaverShoppingLIVE::updateSelectedScheduleItenInfo(const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList)
 {
 	bool contains = false;
-	PLSNaverShoppingLIVEAPI::ScheduleInfo tempInfo;
 	for (PLSNaverShoppingLIVEAPI::ScheduleInfo info : scheduleList) {
 		if (info.id == m_TempPrepareInfo.scheduleId) {
-			tempInfo = info;
+			auto requestCallback = [this, info, &contains](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &livingInfo) {
+				if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
+					PLSNaverShoppingLIVEAPI::ScheduleInfo tempInfo = info;
+					tempInfo.shoppingProducts = livingInfo.shoppingProducts;
+
+					//update liveInfo prepareInfo data
+					auto tempPrepareInfo = platform->getPrepareLiveInfo();
+					getPrepareInfoFromScheduleInfo(tempPrepareInfo, tempInfo);
+					platform->setPrepareInfo(tempPrepareInfo);
+				} else {
+					PLS_LIVE_ERROR(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "Naver Shopping Live call living info failed, apiType: %d", apiType);
+				}
+				hideLoading();
+				initSetupUI(true);
+			};
 			contains = true;
+			showLoading(content());
+			PLSNaverShoppingLIVEAPI::getLivingInfo(platform, info.id, false, requestCallback, this, ThisIsValid);
 			break;
 		}
 	}
-	if (contains) {
-		//update liveInfo prepareInfo data
-		auto tempPrepareInfo = platform->getPrepareLiveInfo();
-		getPrepareInfoFromScheduleInfo(tempPrepareInfo, tempInfo);
-		platform->setPrepareInfo(tempPrepareInfo);
-	} else {
+
+	if (!contains) {
 		platform->clearLiveInfo();
+		initSetupUI(true);
 	}
-	initSetupUI(true);
 }
 
 void PLSLiveInfoNaverShoppingLIVE::getCategoryListRequest()
@@ -924,14 +933,17 @@ void PLSLiveInfoNaverShoppingLIVE::getCategoryListRequest()
 		return;
 	}
 
-	auto categoryCallback = [this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::LiveCategory> & /*categoryList*/) {
+	auto categoryCallback = [this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::LiveCategory> & /*categoryList*/, const QByteArray &data) {
 		if (m_refreshProductList) {
 			hideLoading();
 		}
 		doUpdateOkState();
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
 			apiType = PLSAPINaverShoppingType::PLSNaverShoppingCategoryListFailed;
-			platform->handleCommonApiType(apiType);
+			QString errorCode = "";
+			QString errorMsg = "";
+			PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
+			platform->handleCommonApiType(apiType, errorCode, errorMsg);
 		}
 	};
 
@@ -954,13 +966,17 @@ void PLSLiveInfoNaverShoppingLIVE::updateSetupUI()
 	QList<PLSNaverShoppingLIVEAPI::ProductInfo> list = m_TempPrepareInfo.shoppingProducts;
 	ui->productWidget->setIsScheduleLive(!m_TempPrepareInfo.isNowLiving);
 	ui->productWidget->setIsPlanningLive(m_TempPrepareInfo.isPlanLiving);
-	ui->productWidget->setAllProducts(list);
+	ui->productWidget->setProductType(m_TempPrepareInfo.productType);
+	ui->productWidget->setAllProducts(list, true);
 
 	//LiveInfo date
 	updateLiveDateUI();
 
 	//LiveInfo search
 	updateSearchUI();
+
+	//Live info notify
+	updateNotifyUI();
 
 	//update ok button state
 	doUpdateOkState();
@@ -1026,6 +1042,10 @@ bool PLSLiveInfoNaverShoppingLIVE::isModified(const PLSNaverShoppingLIVEAPI::Nav
 		return true;
 	}
 
+	if (ui->sendRadioButton->isChecked() != info.sendNotification) {
+		return true;
+	}
+
 	//Whether the list of products uploaded for live broadcast has changed
 	if (isProductListChanged(info.shoppingProducts)) {
 		return true;
@@ -1052,8 +1072,8 @@ bool PLSLiveInfoNaverShoppingLIVE::isOkButtonEnabled()
 	}
 
 	//If no item list is selected
-	if (ui->productWidget->getAllProducts().isEmpty()) {
-		if (m_TempPrepareInfo.isPlanLiving && !isModified(m_scheduleTempPrepareInfo)) {
+	if (ui->productWidget->getProduct(PLSProductType::MainProduct).isEmpty()) {
+		if (m_TempPrepareInfo.isPlanLiving) {
 			return true;
 		}
 		return false;
@@ -1067,12 +1087,12 @@ void PLSLiveInfoNaverShoppingLIVE::createToastWidget()
 	if (m_pLabelToast.isNull()) {
 		m_pLabelToast = pls_new<QLabel>(this, Qt::SubWindow | Qt::FramelessWindowHint);
 #if defined(Q_OS_MACOS)
-        m_pLabelToast->setAttribute(Qt::WA_DontCreateNativeAncestors);
-        m_pLabelToast->setAttribute(Qt::WA_NativeWindow);
+		m_pLabelToast->setAttribute(Qt::WA_DontCreateNativeAncestors);
+		m_pLabelToast->setAttribute(Qt::WA_NativeWindow);
 #endif
-        m_pLabelToast->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+		m_pLabelToast->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 		m_pLabelToast->setObjectName("labelToast");
-        m_pLabelToast->setMouseTracking(true);
+		m_pLabelToast->setMouseTracking(true);
 		m_pLabelToast->setWordWrap(true);
 		m_pLabelToast->show();
 		m_pLabelToast->raise();
@@ -1120,17 +1140,8 @@ bool PLSLiveInfoNaverShoppingLIVE::eventFilter(QObject *i_Object, QEvent *i_Even
 			margins.setRight(24);
 			ui->verticalLayout->setContentsMargins(margins);
 		}
-	} else if (i_Object == ui->searchIcon) {
-		if (i_Event->type() == QEvent::Enter) {
-			QPixmap pix;
-			loadPixmap(pix, SERACH_HOVER_PATH, QSize(18,18) * 4);
-			ui->searchIcon->setPixmap(pix);
-		} else if (i_Event->type() == QEvent::Leave) {
-			QPixmap pix;
-			loadPixmap(pix, SERACH_NORMAL_PATH, QSize(18, 18) * 4);
-			ui->searchIcon->setPixmap(pix);
-		}
 	}
+
 	return PLSLiveInfoBase::eventFilter(i_Object, i_Event);
 }
 
@@ -1139,7 +1150,7 @@ void PLSLiveInfoNaverShoppingLIVE::titleEdited()
 	if (QString newText = ui->lineEditTitle->text(); isTitleTooLong(newText, TitleLengthLimit)) {
 		QSignalBlocker signalBlocker(ui->lineEditTitle);
 		ui->lineEditTitle->setText(newText);
-		PLSAlertView::warning(this, tr("Alert.Title"), tr("navershopping.max.title.length"));
+		PLSAlertView::warning(this, tr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TitleLengthLimit).arg(QTStr("Channels.naver_shopping_live")));
 	}
 	doUpdateOkState();
 }
@@ -1171,6 +1182,12 @@ void PLSLiveInfoNaverShoppingLIVE::on_okButton_clicked()
 		PLS_LIVE_UI_STEP(liveInfoMoudule, "NaverShopping liveinfo ok button", ACTION_CLICK);
 		m_prepareLivingType = PrepareRequestType::LiveBeforeOkButtonPrepareRequest;
 	}
+
+	if (ui->productWidget->hasUnattachableProduct()) {
+		pls_alert_error_message(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Overseas.Food"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+		return;
+	}
+
 	prepareLiving([this](bool result) {
 		if (result) {
 			accept();
@@ -1213,8 +1230,8 @@ void PLSLiveInfoNaverShoppingLIVE::scheduleButtonClicked()
 		data.type = PLSScheComboxItemType::Ty_Loading;
 		m_vecItemDatas.push_back(data);
 	}
-	auto requestCallback = [this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, int, int) {
-		this->scheduleListLoadingFinished(apiType, scheduleList);
+	auto requestCallback = [this](PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, int, int, const QByteArray &data) {
+		this->scheduleListLoadingFinished(apiType, scheduleList, data);
 	};
 
 	ui->scheCombox->showScheduleMenu(m_vecItemDatas);
@@ -1334,5 +1351,14 @@ QList<QWidget *> PLSLiveInfoNaverShoppingLIVE::moveContentExcludeWidgetList()
 	}
 	return excludeChildList;
 }
-
 #endif
+
+void PLSLiveInfoNaverShoppingLIVE::showEvent(QShowEvent *event)
+{
+	if (ui->productWidget->hasUnattachableProduct()) {
+		pls_async_call(this, [this]() {
+			pls_alert_error_message(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Overseas.Food"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+		});
+	}
+	PLSLiveInfoBase::showEvent(event);
+}

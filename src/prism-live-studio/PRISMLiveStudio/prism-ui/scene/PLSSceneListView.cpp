@@ -36,6 +36,7 @@ PLSSceneListView::PLSSceneListView(QWidget *parent) : QFrame(parent)
 	setAttribute(Qt::WA_NativeWindow);
 #ifdef Q_OS_MACOS
 	ui->scrollArea->VerticalScrollBar()->setAttribute(Qt::WA_NativeWindow);
+	PLSCustomMacWindow::clipsToBounds(ui->scrollArea);
 #endif // Q_OS_MACOS
 
 	this->setWindowFlags(windowFlags() ^ Qt::FramelessWindowHint);
@@ -122,6 +123,20 @@ int PLSSceneListView::GetSceneOrder(const char *name) const
 		}
 	}
 	return 0;
+}
+
+const char *PLSSceneListView::getSceneDisplayMethodStr(DisplayMethod method)
+{
+	switch (method) {
+	case DisplayMethod::DynamicRealtimeView:
+		return "Real-time screen";
+	case DisplayMethod::ThumbnailView:
+		return "Thumbnail(5sec)";
+	case DisplayMethod::TextView:
+		return "Text";
+	default:
+		return "Unknown";
+	}
 }
 
 void PLSSceneListView::AddScene(const QString &name, OBSScene scene, const SignalContainer<OBSScene> &handler, bool loadingScene)
@@ -376,16 +391,30 @@ void PLSSceneListView::OnPreviewSceneChanged()
 	AsyncRefreshSceneBadge();
 }
 
+void PLSSceneListView::SetDpi(float dpi)
+{
+	SceneDisplayVector vec = PLSSceneDataMgr::Instance()->GetDisplayVector();
+	for (auto iter = vec.begin(); iter != vec.end(); ++iter) {
+		PLSSceneItemView *item = iter->second;
+		if (nullptr == item) {
+			continue;
+		}
+		item->SetDpi(dpi);
+	}
+}
+
 void PLSSceneListView::RefreshScene(bool scrollToCurrent)
 {
 	int y = ui->scrollAreaWidgetContents->Refresh(displayMethod, ui->scrollArea->VerticalScrollBar()->isVisible());
-	if (!scrollToCurrent) {
+	if (!scrollToCurrent || SCENE_ITEM_DO_NOT_NEED_AUTO_SCROLL == y) {
 		return;
 	}
 
-	if (SCENE_ITEM_DO_NOT_NEED_AUTO_SCROLL != y) {
-		ui->scrollArea->VerticalScrollBar()->setValue(y);
+	auto item = GetCurrentItem();
+	if (!item) {
+		return;
 	}
+	ui->scrollArea->verticalScrollBar()->setValue(item->pos().y());
 }
 
 void PLSSceneListView::MoveSceneToUp()
@@ -473,8 +502,18 @@ void PLSSceneListView::OnMouseButtonClicked(const PLSSceneItemView *item) const
 			return;
 		}
 		obs_source_t *source = obs_scene_get_source(scene);
-		main->SetCurrentScene(source);
-		main->OnScenesCurrentItemChanged();
+		if (main->InterruptPrevTransiton()) {
+			QMetaObject::invokeMethod(
+				main,
+				[main, source]() {
+					main->SetCurrentSceneWithoutInterrupt(source, false);
+					main->OnScenesCurrentItemChanged();
+				},
+				Qt::QueuedConnection);
+		} else {
+			main->SetCurrentSceneWithoutInterrupt(source, false);
+			main->OnScenesCurrentItemChanged();
+		}
 	}
 }
 
@@ -605,7 +644,7 @@ void PLSSceneListView::OnScrollBarVisibleChanged(bool visible)
 {
 	Q_UNUSED(visible)
 	if (displayMethod == DisplayMethod::TextView) {
-		QTimer::singleShot(0, this, [this]() { RefreshScene(false); });
+		pls_async_call(this, [this]() { RefreshScene(false); });
 	}
 }
 

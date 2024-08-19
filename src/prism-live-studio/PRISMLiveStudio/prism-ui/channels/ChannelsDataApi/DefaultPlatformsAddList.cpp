@@ -4,10 +4,13 @@
 #include "ChannelCommonFunctions.h"
 #include "PLSChannelDataAPI.h"
 #include "PLSChannelsVirualAPI.h"
+#include "PLSLoginDataHandler.h"
+#include "PLSResourceManager.h"
 #include "libui.h"
 #include "pls-channel-const.h"
 #include "pls-shared-functions.h"
 #include "ui_DefaultPlatformsAddList.h"
+
 using namespace ChannelData;
 
 DefaultPlatformsAddList::DefaultPlatformsAddList(QWidget *parent) : QFrame(parent), ui(new Ui::DefaultPlatformsAddList)
@@ -25,8 +28,9 @@ DefaultPlatformsAddList::~DefaultPlatformsAddList()
 void DefaultPlatformsAddList::runBtnCMD() const
 {
 	auto btn = dynamic_cast<QToolButton *>(sender());
-	auto cmdStr = getInfoOfObject(btn, g_platformName.toStdString().c_str(), QString("add"));
+	auto cmdStr = getInfoOfObject(btn, g_channelName.toStdString().c_str(), QString("add"));
 	PRE_LOG_UI_MSG_STRING(("Default Platform" + cmdStr), "clicked")
+	btn->hide();
 	runCMD(cmdStr);
 }
 
@@ -75,28 +79,40 @@ void DefaultPlatformsAddList::initUi()
 	auto size = platforms.size();
 	for (int i = 0; i < size; ++i) {
 		const QString &platformName = platforms[i];
+		auto fixPlatformName = channleNameConvertFixPlatformName(platformName);
 		auto btn = new QToolButton;
 
 		btn->setObjectName(platformName);
 		btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
-		auto updateIcon = [platformName, btn]() {
+		auto updateIcon = [platformName, btn, fixPlatformName]() {
+			pls_check_app_exiting();
 			QString iconPath;
 			QSize iconSize(90, 33);
 			if (platformName.contains(CUSTOM_RTMP)) {
 				iconPath = g_defaultRTMPAddButtonIcon;
 			} else {
-				iconPath = getPlatformImageFromName(platformName, "btn-mych.+", "\\.svg");
-				if (platformName.contains(TWITTER)) {
-					iconSize = QSize(80, 33);
+				iconPath = getPlatformImageFromName(platformName, ImageType::dashboardButtonIcon, "btn-mych.+", "\\.svg");
+				if (fixPlatformName.contains(NCB2B)) {
+					iconSize = QSize(95, 33);
+					btn->setObjectName("NCB2B");
 				}
 			}
 			QIcon icon;
-
-			icon.addPixmap(pls_shared_paint_svg(iconPath, iconSize * 4), QIcon::Normal);
+			QFileInfo info(iconPath);
+			if (0 == info.suffix().compare("svg", Qt::CaseInsensitive)) {
+				icon.addPixmap(pls_shared_paint_svg(iconPath, iconSize * 4), QIcon::Normal);
+			} else {
+				icon.addFile(iconPath);
+			}
 			btn->setIcon(icon);
 		};
 		updateIcon();
+		if (fixPlatformName == NCB2B) {
+			connect(PLSLOGINDATAHANDLER, &PLSLoginDataHandler::updateNCB2BIcon, updateIcon);
+		} else if (fixPlatformName == CUSTOM_RTMP) {
+			connect(PLSRESOURCEMGR_INSTANCE, &PLSResourceManager::libraryNeedUpdate, updateIcon);
+		}
 
 		btn->installEventFilter(this);
 
@@ -104,7 +120,10 @@ void DefaultPlatformsAddList::initUi()
 		hoverBtn->setObjectName("hoverBtn");
 
 		hoverBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
-		hoverBtn->setProperty(g_platformName.toStdString().c_str(), platformName);
+		hoverBtn->setProperty(g_channelName.toStdString().c_str(), platformName);
+		if (fixPlatformName.contains(NCB2B)) {
+			hoverBtn->setProperty(g_fixPlatformName.toStdString().c_str(), "NCB2B");
+		}
 		hoverBtn->hide();
 		connect(hoverBtn, &QToolButton::clicked, this, &DefaultPlatformsAddList::runBtnCMD, Qt::QueuedConnection);
 

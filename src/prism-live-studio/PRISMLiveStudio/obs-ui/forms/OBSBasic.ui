@@ -625,6 +625,7 @@
     <addaction name="separator"/>
     <addaction name="actionWebsite"/>
     <addaction name="actionHelpPortal"/>
+    <addaction name="actionPrismPolicy"/>
     <addaction name="actionBlog"/>
     <addaction name="actionPrismDiscord"/>
     <addaction name="actionContactUs"/>
@@ -633,6 +634,8 @@
     <addaction name="separator"/>
     <addaction name="actionRepair"/>
     <addaction name="actionShowMacPermissions"/>
+    <addaction name="separator"/>
+    <addaction name="actionactionReleaseNotes"/>
    </widget>
    <widget class="QMenu" name="menuBasic_MainMenu_Edit">
     <property name="title">
@@ -807,13 +810,9 @@
      <string>Basic.MainMenu.Docks</string>
     </property>
     <addaction name="lockDocks"/>
+    <addaction name="sideDocks"/>
     <addaction name="resetDocks"/>
     <addaction name="separator"/>
-    <addaction name="toggleScenes"/>
-    <addaction name="toggleSources"/>
-    <addaction name="toggleMixer"/>
-    <addaction name="toggleStats"/>
-    <addaction name="actionBasic_chat"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="sceneCollectionMenu"/>
@@ -1077,7 +1076,7 @@
            <property name="widgetResizable">
             <bool>true</bool>
            </property>
-           <widget class="QWidget" name="hVolumeWidgets">
+           <widget class="HMixerContent" name="hVolumeWidgets">
             <property name="geometry">
              <rect>
               <x>0</x>
@@ -1092,23 +1091,6 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <layout class="QVBoxLayout" name="hVolControlLayout">
-             <property name="spacing">
-              <number>0</number>
-             </property>
-             <property name="leftMargin">
-              <number>3</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>5</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
-            </layout>
            </widget>
           </widget>
           <widget class="HScrollArea" name="vMixerScrollArea">
@@ -1130,13 +1112,13 @@
            <property name="widgetResizable">
             <bool>true</bool>
            </property>
-           <widget class="QWidget" name="vVolumeWidgets">
+           <widget class="VMixerContent" name="vVolumeWidgets">
             <property name="geometry">
              <rect>
               <x>0</x>
               <y>0</y>
               <width>36</width>
-              <height>190</height>
+              <height>28</height>
              </rect>
             </property>
             <property name="sizePolicy">
@@ -1145,23 +1127,6 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <layout class="QHBoxLayout" name="vVolControlLayout">
-             <property name="spacing">
-              <number>5</number>
-             </property>
-             <property name="leftMargin">
-              <number>16</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>20</number>
-             </property>
-             <property name="bottomMargin">
-              <number>20</number>
-             </property>
-            </layout>
            </widget>
           </widget>
          </widget>
@@ -2168,6 +2133,56 @@
     <string>PRISM Discord</string>
    </property>
   </action>
+  <action name="actionPrismPolicy">
+   <property name="text">
+    <string>Basic.MainMenu.Help.Prism.Policy</string>
+   </property>
+  </action>
+  <action name="actionSceneListMode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>List</string>
+   </property>
+  </action>
+  <action name="actionSceneGridMode">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Grid</string>
+   </property>
+  </action>
+  <action name="actionRestartSafe">
+   <property name="text">
+    <string>Basic.MainMenu.Help.RestartSafeMode</string>
+   </property>
+   <property name="visible">
+    <bool>true</bool>
+   </property>
+  </action>
+  <action name="actionShowWhatsNew">
+   <property name="text">
+    <string>Basic.MainMenu.Help.WhatsNew</string>
+   </property>
+  </action>
+  <action name="actionactionReleaseNotes">
+   <property name="text">
+    <string>Basic.MainMenu.Help.ReleaseNotes</string>
+   </property>
+   <property name="visible">
+    <bool>false</bool>
+   </property>
+  </action>
+  <action name="sideDocks">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Basic.MainMenu.Docks.SideDocks</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -2224,6 +2239,18 @@
    <class>PLSChatDialog</class>
    <extends>QWidget</extends>
    <header>PLSChatDialog.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>HMixerContent</class>
+   <extends>QWidget</extends>
+   <header>audio-mixer/PLSMixerContent.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>VMixerContent</class>
+   <extends>QWidget</extends>
+   <header>audio-mixer/PLSMixerContent.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

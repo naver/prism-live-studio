@@ -102,7 +102,6 @@ void PLSPlatformBand::getBandTokenInfo(const QVariantMap &srcInfo, const UpdateC
 					   responseTokenHandler(finishedCall, data, statusCode);
 				   })
 				   .failResult([this, finishedCall](const pls::http::Reply &reply) {
-
 					   auto statusCode = reply.statusCode();
 					   auto error = reply.error();
 					   PLS_ERROR(MODULE_PLATFORM_BAND, "getBandTokenInfo .error: %d -%d", statusCode, error);
@@ -363,7 +362,7 @@ template<typename finshedCallFun> void PLSPlatformBand::responseBandCategoryHand
 			QVariantMap tmpband;
 			tmpband[ChannelData::g_channelToken] = m_bandLoginInfo[ChannelData::g_channelToken];
 			tmpband[ChannelData::g_channelCode] = m_bandLoginInfo[ChannelData::g_channelCode];
-			tmpband[ChannelData::g_platformName] = m_bandLoginInfo[ChannelData::g_platformName];
+			tmpband[ChannelData::g_channelName] = m_bandLoginInfo[ChannelData::g_channelName];
 			tmpband[ChannelData::g_expires_in] = m_bandLoginInfo[ChannelData::g_expires_in];
 			tmpband[ChannelData::g_createTime] = m_bandLoginInfo[ChannelData::g_createTime];
 			tmpband[ChannelData::g_refreshToken] = m_bandLoginInfo[ChannelData::g_refreshToken];
@@ -409,7 +408,11 @@ template<typename responseCallbackFunc> void PLSPlatformBand::responseStreamLive
 		setLiveId(liveId.toString());
 		// handler multi and single stream
 		if (resultCode == 1) {
-			PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_BAND, {{"platformName", "band"}, {"startLiveStatus", "Success"}, },
+			PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_BAND,
+				  {
+					  {"platformName", "band"},
+					  {"startLiveStatus", "Success"},
+				  },
 				  "band start live success");
 			PLS_INFO(MODULE_PLATFORM_BAND, "responseStreamLiveKeyHandler band perpare ok");
 			m_isRequestStart = true;
@@ -454,11 +457,11 @@ void PLSPlatformBand::requestLiveStreamKey(const streamLiveKeyCallback &callback
 			{"band_key", infos[ChannelData::g_subChannelId].toString()}, {"description", getDescription().c_str()}, {COOKIE_ACCESS_TOKEN, infos[ChannelData::g_channelToken].toString()}};
 		pls::http::request(pls::http::Request()
 					   .method(pls::http::Method::Post)
-					   .jsonContentType()             //
-					   .withLog()                     //
-					   .receiver(this)                //
-					   .workInMainThread()            //
-					   .url(CHANNEL_BAND_LIVE_CREATE) //
+					   .jsonContentType()                  //
+					   .withLog()                          //
+					   .receiver({this, getAlertParent()}) //
+					   .workInMainThread()                 //
+					   .url(CHANNEL_BAND_LIVE_CREATE)      //
 					   .timeout(PRISM_NET_REQUEST_TIMEOUT)
 					   .urlParams(queryParams)
 					   .okResult([this, callback](const pls::http::Reply &reply) {

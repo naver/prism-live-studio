@@ -131,7 +131,6 @@ PLSMotionImageListView #checkBoxMotionOff {
 	min-height:/*hdpi*/ 18px;
 	max-height:/*hdpi*/ 18px;
 	min-width:/*hdpi*/101px;
-	max-width:/*hdpi*/101px;
 }
 
 PLSMotionImageListView #checkBoxMotionOff #plsCheckBox_text:disabled{

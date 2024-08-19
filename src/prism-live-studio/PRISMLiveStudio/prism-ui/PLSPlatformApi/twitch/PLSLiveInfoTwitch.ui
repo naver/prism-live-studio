@@ -122,9 +122,42 @@
      <property name="spacing">
       <number>10</number>
      </property>
+     <property name="leftMargin">
+      <number>30</number>
+     </property>
      <property name="rightMargin">
       <number>30</number>
      </property>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <property name="spacing">
+        <number>5</number>
+       </property>
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="twitchService">
+         <property name="text">
+          <string>TWITCH_WHIP</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="labelTooltip">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
      <item>
       <spacer name="horizontalSpacer_3">
        <property name="orientation">
@@ -139,24 +172,34 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButtonOk">
-       <property name="text">
-        <string>Ok</string>
+      <layout class="QHBoxLayout" name="horizontalLayout_4">
+       <property name="spacing">
+        <number>10</number>
        </property>
-       <property name="useFor" stdset="0">
-        <string notr="true">Ok</string>
+       <property name="leftMargin">
+        <number>0</number>
        </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="pushButtonCancel">
-       <property name="text">
-        <string>Cancel</string>
-       </property>
-       <property name="useFor" stdset="0">
-        <string notr="true">Cancel</string>
-       </property>
-      </widget>
+       <item>
+        <widget class="QPushButton" name="pushButtonCancel">
+         <property name="text">
+          <string>Cancel</string>
+         </property>
+         <property name="useFor" stdset="0">
+          <string notr="true">Cancel</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButtonOk">
+         <property name="text">
+          <string>Ok</string>
+         </property>
+         <property name="useFor" stdset="0">
+          <string notr="true">Ok</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>

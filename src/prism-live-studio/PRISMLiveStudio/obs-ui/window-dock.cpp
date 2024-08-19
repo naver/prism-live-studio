@@ -1,6 +1,6 @@
 #include "window-dock.hpp"
 #include "obs-app.hpp"
-
+#include "window-basic-main.hpp"
 #include "PLSAlertView.h"
 
 void OBSDock::closeEvent(QCloseEvent *event)
@@ -20,10 +20,16 @@ void OBSDock::closeEvent(QCloseEvent *event)
 
 	bool warned = config_get_bool(App()->GlobalConfig(), "General",
 				      "WarnedAboutClosingDocks");
-	if (!warned) {
+	if (!OBSBasic::Get()->Closing() && !warned) {
 		QMetaObject::invokeMethod(App(), "Exec", Qt::QueuedConnection,
 					  Q_ARG(VoidFunc, msgBox));
 	}
 
-	QDockWidget::closeEvent(event);
+	PLSDock::closeEvent(event);
+}
+
+void OBSDock::showEvent(QShowEvent *event)
+{
+	setProperty("vis", true);
+	PLSDock::showEvent(event);
 }

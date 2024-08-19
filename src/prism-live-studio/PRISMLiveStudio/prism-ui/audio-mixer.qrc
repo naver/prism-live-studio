@@ -24,5 +24,7 @@
         <file>resource/images/audio-mixer/audio-control/icon-source-audio-over-unmute.svg</file>
         <file>resource/images/audio-mixer/audio-control/icon-source-audio-pressed-mute.svg</file>
         <file>resource/images/audio-mixer/audio-control/icon-source-audio-pressed-unmute.svg</file>
+        <file>resource/images/audio-mixer/sound/sound_noti_normal.svg</file>
+        <file>resource/images/audio-mixer/sound/sound_noti_over.svg</file>
     </qresource>
 </RCC>

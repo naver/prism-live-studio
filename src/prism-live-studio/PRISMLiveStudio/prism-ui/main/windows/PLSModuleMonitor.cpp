@@ -7,6 +7,8 @@
 #include <Windows.h>
 #include <TlHelp32.h>
 #include <locale.h>
+#include <QtConcurrent/QtConcurrent>
+#include <QFutureWatcher>
 #include "obs-app.hpp"
 
 #pragma comment(lib, "WinMM.lib")
@@ -20,20 +22,19 @@ PLSModuleMonitor *PLSModuleMonitor::Instance()
 
 void PLSModuleMonitor::StartMonitor()
 {
-	if (updateTimer && thread) {
+	if (updateTimer) {
 		return;
 	}
 
 	updateTimer = pls_new<QTimer>();
-
-	thread = pls_new<QThread>(this);
-
 	updateTimer->setInterval(5000);
-	updateTimer->moveToThread(thread);
 
-	connect(thread, SIGNAL(started()), updateTimer, SLOT(start()));
-	connect(updateTimer, &QTimer::timeout, this, &PLSModuleMonitor::updateModuleList, Qt::DirectConnection);
-	thread->start();
+	auto func = [this]() {
+		QtConcurrent::run([this]() { updateModuleList();});
+	};
+
+	connect(updateTimer, &QTimer::timeout, func);
+	updateTimer->start();
 }
 
 void PLSModuleMonitor::StopMonitor()
@@ -42,12 +43,6 @@ void PLSModuleMonitor::StopMonitor()
 		updateTimer->stop();
 		pls_delete(updateTimer);
 		updateTimer = nullptr;
-	}
-	if (thread) {
-		thread->quit();
-		thread->wait();
-		pls_delete(thread);
-		thread = nullptr;
 	}
 }
 
@@ -90,7 +85,7 @@ void PLSModuleMonitor::updateModuleList()
 	QJsonArray modulelist{};
 	do {
 		char *moduleName = nullptr;
-		os_wcs_to_utf8_ptr(me32.szModule, 0, &moduleName);
+		os_wcs_to_utf8_ptr(me32.szExePath, 0, &moduleName);
 
 		std::array<char, 128> modBaseAddr{};
 		snprintf(modBaseAddr.data(), 128, "%p", me32.modBaseAddr);

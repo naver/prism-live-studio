@@ -6,6 +6,7 @@
 #include "pls/pls-source.h"
 #include "pls-common-define.hpp"
 #include "PLSBgmDataManager.h"
+#include "PLSPushButton.h"
 #include "obs-app.hpp"
 using namespace common;
 
@@ -27,18 +28,26 @@ PLSBgmControlsView::PLSBgmControlsView(QWidget *parent) : PLSBgmControlsBase(par
 	loopBtn->setObjectName("loopBtn");
 	loopBtn->setToolTip(QTStr("Bgm.Repeat"));
 	connect(loopBtn, &QRadioButton::clicked, this, &PLSBgmControlsView::OnLoopButtonClicked);
-	preBtn = pls_new<QPushButton>(this);
+
+	modeBtn = pls_new<QPushButton>(this);
+	modeBtn->setObjectName("modeBtn");
+	modeBtn->setToolTip(QTStr("Bgm.Shuffle"));
+	pls_flush_style(modeBtn, "playMode", "random");
+	connect(modeBtn, &QPushButton::clicked, this, &PLSBgmControlsView::OnModeButtonClicked);
+
+	preBtn = pls_new<PLSDelayResponseButton>(this);
 	preBtn->setObjectName("preBtn");
 	preBtn->setToolTip(QTStr("Bgm.Previous"));
-
-	connect(preBtn, &QPushButton::clicked, this, &PLSBgmControlsView::OnPreButtonClicked);
+	preBtn->setDelayRespInterval(PUSHBUTTON_DELAY_RESPONSE_MS);
+	connect(preBtn, &PLSDelayResponseButton::buttonClicked, this, &PLSBgmControlsView::OnPreButtonClicked);
 	playBtn = pls_new<QPushButton>(this);
 	playBtn->setObjectName("playBtn");
 	connect(playBtn, &QPushButton::clicked, this, &PLSBgmControlsView::OnPlayButtonClicked);
-	nextBtn = pls_new<QPushButton>(this);
+	nextBtn = pls_new<PLSDelayResponseButton>(this);
 	nextBtn->setObjectName("nextBtn");
 	nextBtn->setToolTip(QTStr("Bgm.Next"));
-	connect(nextBtn, &QPushButton::clicked, this, &PLSBgmControlsView::OnNextButtonClicked);
+	nextBtn->setDelayRespInterval(PUSHBUTTON_DELAY_RESPONSE_MS);
+	connect(nextBtn, &PLSDelayResponseButton::buttonClicked, this, &PLSBgmControlsView::OnNextButtonClicked);
 
 	QWidget *timerLabel = pls_new<QWidget>(this);
 	QHBoxLayout *labelLayout = pls_new<QHBoxLayout>(timerLabel);
@@ -73,6 +82,7 @@ PLSBgmControlsView::PLSBgmControlsView(QWidget *parent) : PLSBgmControlsBase(par
 	hLayout->addWidget(playBtn);
 	hLayout->addWidget(nextBtn);
 	hLayout->addWidget(loopBtn);
+	hLayout->addWidget(modeBtn);
 	hLayout->addSpacing(13);
 	hLayout->addWidget(slider);
 	hLayout->addSpacing(5);
@@ -114,6 +124,31 @@ void PLSBgmControlsView::OnLoopButtonClicked(bool checked)
 	PLSBgmControlsBase::OnLoopButtonClicked(checked);
 }
 
+void PLSBgmControlsView::OnModeButtonClicked()
+{
+	if (mode == PLSBackgroundMusicView::PlayMode::InOrderMode) {
+		mode = PLSBackgroundMusicView::PlayMode::RandomMode;
+		modeBtn->setToolTip(QTStr("Bgm.Shuffle"));
+		pls_flush_style(modeBtn, "playMode", "random");
+	} else if (mode == PLSBackgroundMusicView::PlayMode::RandomMode) {
+		mode = PLSBackgroundMusicView::PlayMode::InOrderMode;
+		modeBtn->setToolTip(QTStr("Bgm.PlayInOrder"));
+		pls_flush_style(modeBtn, "playMode", "inOrder");
+	}
+
+	OBSSource source = OBSGetStrongRef(weakSource);
+	if (!source) {
+		return;
+	}
+
+	OBSData settings = obs_data_create();
+	obs_data_set_string(settings, "method", "bgm_play_mode");
+	obs_data_set_bool(settings, PLAY_IN_ORDER, mode == PLSBackgroundMusicView::PlayMode::InOrderMode);
+	obs_data_set_bool(settings, RANDOM_PLAY, mode == PLSBackgroundMusicView::PlayMode::RandomMode);
+	pls_source_set_private_data(source, settings);
+	obs_data_release(settings);
+}
+
 void PLSBgmControlsView::OnMediaSliderMoved(int val)
 {
 	PLSBgmControlsBase::OnMediaSliderMoved(val);
@@ -133,9 +168,15 @@ void PLSBgmControlsView::UpdateUI()
 		SetDisabledState(true);
 		return;
 	}
-
+	SetSliderPos();
+	SetModeState();
 	obs_media_state state = obs_source_media_get_state(source);
 	OnMediaStateChanged(state);
+}
+
+void PLSBgmControlsView::OnMediaModeStateChanged(int mode)
+{
+	SetModeState();
 }
 
 void PLSBgmControlsView::SetDisabledState(bool disable)
@@ -150,6 +191,7 @@ void PLSBgmControlsView::SetDisabledState(bool disable)
 
 	playBtn->setDisabled(disable);
 	loopBtn->setDisabled(disable);
+	modeBtn->setDisabled(disable);
 	preBtn->setDisabled(disable);
 	nextBtn->setDisabled(disable);
 	slider->setDisabled(disable);
@@ -157,6 +199,7 @@ void PLSBgmControlsView::SetDisabledState(bool disable)
 	pls_flush_style(slider, STATUS_ENTER, !disable);
 	pls_flush_style(playBtn, STATUS_STATE, status);
 	pls_flush_style(loopBtn, STATUS, status);
+	pls_flush_style(modeBtn, STATUS, status);
 	pls_flush_style(preBtn, STATUS, status);
 	pls_flush_style(nextBtn, STATUS, status);
 }
@@ -164,6 +207,7 @@ void PLSBgmControlsView::SetDisabledState(bool disable)
 void PLSBgmControlsView::SetPlayingState()
 {
 	SetLoopState();
+	SetModeState();
 	StartSliderPlayingTimer();
 	SetDisabledState(false);
 	prevPaused = false;
@@ -191,7 +235,7 @@ void PLSBgmControlsView::SetLoopState()
 		return;
 	}
 
-	OBSData settings = obs_source_get_private_settings(source);
+	OBSDataAutoRelease settings = obs_source_get_private_settings(source);
 	bool loop = obs_data_get_bool(settings, IS_LOOP);
 	if (loopBtn->isChecked() == loop) {
 		return;
@@ -199,6 +243,25 @@ void PLSBgmControlsView::SetLoopState()
 
 	loopBtn->setChecked(loop);
 	pls_flush_style(loopBtn, STATUS_PRESSED, loop);
+}
+
+void PLSBgmControlsView::SetModeState()
+{
+	OBSSource source = OBSGetStrongRef(weakSource);
+	if (!source || !modeBtn) {
+		return;
+	}
+	OBSDataAutoRelease settings = obs_source_get_private_settings(source);
+	bool is_play_in_order = obs_data_get_bool(settings, PLAY_IN_ORDER);
+	if (is_play_in_order) {
+		mode = PLSBackgroundMusicView::PlayMode::InOrderMode;
+		modeBtn->setToolTip(QTStr("Bgm.PlayInOrder"));
+		pls_flush_style(modeBtn, "playMode", "inOrder");
+	} else {
+		mode = PLSBackgroundMusicView::PlayMode::RandomMode;
+		modeBtn->setToolTip(QTStr("Bgm.Shuffle"));
+		pls_flush_style(modeBtn, "playMode", "random");
+	}
 }
 
 void PLSBgmControlsView::SeekTo(int val)

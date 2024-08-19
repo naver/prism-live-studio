@@ -25,8 +25,6 @@ ChannelConfigPannel::ChannelConfigPannel(QWidget *parent) : QFrame(parent), ui(n
 			btn->setAttribute(Qt::WA_AlwaysShowToolTips);
 		}
 	});
-
-	connect(PLSCHANNELS_API, &PLSChannelDataAPI::liveStateChanged, this, &ChannelConfigPannel::closeBowser, Qt::QueuedConnection);
 }
 
 ChannelConfigPannel::~ChannelConfigPannel()
@@ -94,13 +92,13 @@ void ChannelConfigPannel::askDeleteChannel()
 	int myType = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_data_type, NoType);
 	QString typeStr;
 	if (myType == ChannelType) {
-		typeStr = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_platformName, QString("RTMP"));
+		typeStr = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString("RTMP"));
 	} else {
 		typeStr = "RTMP";
 	}
 	typeStr = translatePlatformName(typeStr);
 
-	if (auto ret = PLSAlertView::question(nullptr, CHANNELS_TR(Confirm), CHANNELS_TR(DisconnectWarning).arg(typeStr),
+	if (auto ret = PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(DisconnectWarning).arg(typeStr),
 					      {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
 	    ret != PLSAlertView::Button::Yes) {
 		mIsAsking = false;
@@ -109,18 +107,6 @@ void ChannelConfigPannel::askDeleteChannel()
 
 	PLSCHANNELS_API->sigTryRemoveChannel(mChannelID, true, true);
 	mIsAsking = false;
-}
-
-void ChannelConfigPannel::closeBowser()
-{
-	int state = PLSCHANNELS_API->currentBroadcastState();
-	auto platform = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_platformName, QString());
-	auto channelT = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_data_type, ChannelData::NoType);
-	if (platform.contains(YOUTUBE, Qt::CaseInsensitive) && (channelT == ChannelData::ChannelType) && (state == StreamEnd || state == StreamStopped)) {
-		if (m_Browser) {
-			m_Browser->close();
-		}
-	}
 }
 
 void ChannelConfigPannel::on_ConfigBtn_clicked()
@@ -136,74 +122,39 @@ void ChannelConfigPannel::on_ConfigBtn_clicked()
 		deleteAction->setDisabled(true);
 	}
 	connect(deleteAction, &QAction::triggered, this, &ChannelConfigPannel::askDeleteChannel, Qt::QueuedConnection);
-	auto platform = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_platformName, QString());
+	auto platform = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_channelName, QString());
 	if (PLSCHANNELS_API->getChannelStatus(mChannelID) == UnInitialized) {
 		menu->addAction(CHANNELS_TR(GoTo), this, gotoYoutube);
 	}
 	auto channelT = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_data_type, ChannelData::NoType);
 	if (platform.contains(YOUTUBE, Qt::CaseInsensitive) && channelT == ChannelData::ChannelType) {
-
 		auto subChannelID = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_subChannelId, QString());
 		auto gotoYoutubeControlPage = [subChannelID]() { QDesktopServices::openUrl(QUrl(g_yoububeStudioManagePage.arg(subChannelID))); };
 		menu->addAction(CHANNELS_TR(GotoYoutubeOk), this, gotoYoutubeControlPage);
-
-		auto broadcastID = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_broadcastID, QString());
-		auto gotoYoutubeDashBord = [broadcastID, this]() {
-			if (m_Browser.isNull()) {
-				m_Browser = pls::browser::newBrowserDialog(
-					pls::browser::Params()
-						.url(g_youtubeDashbordPage.arg(broadcastID))
-						.showAtLoadEnded(true)
-						.cookieStoragePath(PLSBasic::cookiePath(YOUTUBE))
-						.allowPopups(false)
-						.title(CHANNELS_TR(config.gotoyoutube.dashbord))
-						.size(QSize(600, 700))
-						.autoSetTitle(false)
-						.parent(App()->getMainView())
-						.urlChanged([this, broadcastID](pls::browser::Browser *browser, const QString &urlStr, const QList<pls::browser::Cookie> &cookies) {
-							if (urlStr.startsWith("https://accounts.google.com/ServiceLogin?service=youtube") && m_isChannelSwithed == false) {
-								m_isChannelSwithed = true;
-								auto nextUrl = g_youtubeDashbordPage.arg(broadcastID);
-								QString switherUrl = QString("%1?app=desktop&next=%2").arg(g_plsYoutubeChannelSwithcerUrl).arg(nextUrl);
-								QString encodeUrl = QUrl::toPercentEncoding(switherUrl);
-
-								int index = urlStr.indexOf("&continue=");
-								if (index != -1) {
-									auto tmp = urlStr.left(index) + "&continue=" + encodeUrl + "&followup=" + encodeUrl;
-									browser->url(tmp);
-								}
-							}
-						}));
-				m_Browser->setAttribute(Qt::WA_DeleteOnClose);
-			} else {
-				m_Browser->url(g_youtubeDashbordPage.arg(broadcastID));
-			}
-			m_Browser->show();
-		};
-		auto gotoDashbord = menu->addAction(CHANNELS_TR(config.gotoyoutube.dashbord), this, gotoYoutubeDashBord);
-		if (!PLSCHANNELS_API->isLiving()) {
-			gotoDashbord->setDisabled(true);
-		}
 	}
+
 	if (platform.contains(TWITCH, Qt::CaseInsensitive) && channelT == ChannelData::ChannelType) {
 		auto nickName = PLSCHANNELS_API->getValueOfChannel(mChannelID, ChannelData::g_userName, QString());
 		auto gotoTwitch = [nickName]() { QDesktopServices::openUrl(QUrl(g_twitchHomePage.arg(nickName))); };
 		menu->addAction(CHANNELS_TR(GotoTwitchOk), this, gotoTwitch);
 	}
 	m_bMenuShow = true;
+	QPointer<ChannelConfigPannel> tmp(this);
 	menu->exec(QCursor::pos());
-	m_bMenuShow = false;
-	this->hide();
+	if (tmp) {
+		m_bMenuShow = false;
+		this->hide();
+	}
 }
 
 void ChannelConfigPannel::doChildrenExclusive(bool &retflag) const
 {
 	retflag = true;
 
-	if (auto myPlatform = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_platformName, QString()); !PLSCHANNELS_API->getCurrentSelectedPlatformChannels(myPlatform, ChannelType).isEmpty()) {
+	if (auto myPlatform = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString()); !PLSCHANNELS_API->getCurrentSelectedPlatformChannels(myPlatform, ChannelType).isEmpty()) {
 
 		//do not want to disable other child
-		if (auto typeStr = translatePlatformName(myPlatform); PLSAlertView::question(nullptr, CHANNELS_TR(Confirm), CHANNELS_TR(ChildDisableWaring).arg(typeStr),
+		if (auto typeStr = translatePlatformName(myPlatform); PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(ChildDisableWaring).arg(typeStr),
 											     {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}},
 											     PLSAlertView::Button::Cancel) != PLSAlertView::Button::Yes) {
 			QSignalBlocker blocker(ui->EnableSwitch);
@@ -226,16 +177,16 @@ void ChannelConfigPannel::checkExclusiveChannel(bool &retflag)
 	//checked now exists
 	if (auto exclusiveID = findExistEnabledExclusiveChannel(); !exclusiveID.isEmpty()) {
 
-		QString typeStr = PLSCHANNELS_API->getValueOfChannel(exclusiveID, g_platformName, QString(""));
+		QString typeStr = PLSCHANNELS_API->getValueOfChannel(exclusiveID, g_channelName, QString(""));
 		int myType = PLSCHANNELS_API->getValueOfChannel(exclusiveID, g_data_type, NoType);
+		typeStr = translatePlatformName(typeStr);
+
 		if (myType == RTMPType && !typeStr.contains("RTMP", Qt::CaseInsensitive)) {
 			typeStr = typeStr + " RTMP";
 		}
 
-		typeStr = translatePlatformName(typeStr);
-
 		//do not want to disable now
-		if (auto ret = PLSAlertView::question(nullptr, CHANNELS_TR(Confirm), CHANNELS_TR(NowDisableWarning).arg(typeStr),
+		if (auto ret = PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(NowDisableWarning).arg(typeStr),
 						      {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
 		    ret != PLSAlertView::Button::Yes) {
 			QSignalBlocker blocker(ui->EnableSwitch);
@@ -258,11 +209,11 @@ void ChannelConfigPannel::on_EnableSwitch_toggled(bool checked)
 	bool isLiving = PLSCHANNELS_API->isLiving();
 	//to uncheck and isliving
 	if (!checked && isLiving) {
-		QString typeStr = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_platformName, QString(""));
+		QString typeStr = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString(""));
 		typeStr = translatePlatformName(typeStr);
 
 		//reject disable
-		if (auto ret = PLSAlertView::question(nullptr, CHANNELS_TR(Confirm), CHANNELS_TR(DisableWarnig).arg(typeStr),
+		if (auto ret = PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(DisableWarnig).arg(typeStr),
 						      {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
 		    ret != PLSAlertView::Button::Yes) {
 			QSignalBlocker blocker(ui->EnableSwitch);
@@ -364,6 +315,7 @@ void ChannelConfigPannel::shiftState(const QVariantMap &info)
 	bool isEnabled = checkIsEnabled();
 
 	ui->EnableSwitch->setEnabled(isEnabled);
+	auto platform = getInfo(info, g_channelName);
 	if (dataType >= CustomType) {
 		ui->showInfoBtn->setProperty("shape", "pen");
 	}
@@ -409,13 +361,13 @@ void ChannelConfigPannel::toChannelTypeState(int dataState, const QVariantMap &i
 
 void ChannelConfigPannel::updateUI()
 {
-	const auto &info = PLSCHANNELS_API->getChanelInfoRef(mChannelID);
+	const auto info = PLSCHANNELS_API->getChannelInfo(mChannelID);
 	if (info.isEmpty()) {
 		return;
 	}
 	shiftState(info);
 
-	auto platform = getInfo(info, g_platformName);
+	auto platform = getInfo(info, g_channelName);
 	bool enabled = !PLSCHANNELS_API->isRehearsaling() || g_rehearsalingConfigEnabledList.contains(platform);
 	this->setEnabled(enabled);
 

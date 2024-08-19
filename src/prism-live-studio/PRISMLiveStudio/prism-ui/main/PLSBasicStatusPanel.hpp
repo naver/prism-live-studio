@@ -8,6 +8,7 @@
 
 #include <QFrame>
 #include <QLabel>
+#include <QDialog>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -15,7 +16,7 @@ class PLSBasicStatusPanel;
 }
 QT_END_NAMESPACE
 
-class PLSBasicStatusPanel : public QFrame {
+class PLSBasicStatusPanel : public QDialog {
 	Q_OBJECT
 
 	enum class State {
@@ -27,12 +28,12 @@ class PLSBasicStatusPanel : public QFrame {
 	struct OutputLabels {
 		QPointer<QLabel> droppedFramesState;
 		QPointer<QLabel> droppedFramesLabel;
-		QPointer<PLSLabel> droppedFrames;
+		QPointer<QLabel> droppedFrames;
 		QPointer<QLabel> megabytesSentLabel;
-		QPointer<PLSLabel> megabytesSent;
+		QPointer<QLabel> megabytesSent;
 		QPointer<QLabel> bitrateState;
 		QPointer<QLabel> bitrateLabel;
-		QPointer<PLSLabel> bitrate;
+		QPointer<QLabel> bitrate;
 
 		bool lastActive = false;
 		State lastState = State::Normal;
@@ -70,11 +71,14 @@ public:
 	void PopupNotice(StreamingNoticeType type, bool recoverNormal = false, int64_t dropFrame = 0, double dropPercentFrame = 0) const;
 	void SetNotified(StreamingNoticeType type, bool notified) const;
 
-	static void setTextAndAlignment(PLSLabel *, const QString &);
+	static void setTextAndAlignment(QLabel *, const QString &);
 
 public slots:
 	void updateStatusPanel(PLSBasicStatusData &dataStatus);
 
+protected:
+    void showEvent(QShowEvent *event) override;
+    
 private:
 
 	Ui::PLSBasicStatusPanel *ui;

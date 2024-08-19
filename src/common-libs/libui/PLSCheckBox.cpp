@@ -10,7 +10,6 @@
 #include <libutils-api.h>
 
 constexpr QSize ICON_SIZE{15, 15};
-constexpr int SPACING = 10;
 constexpr int FACTOR = 4;
 
 PLSCheckBox::PLSCheckBox(QWidget *parent) : PLSCheckBox(QString(), parent) {}
@@ -18,13 +17,41 @@ PLSCheckBox::PLSCheckBox(const QString &text, QWidget *parent) : QWidget(parent)
 {
 	pls_add_css(this, {"QCheckBox"});
 	m_layout = pls_new<QHBoxLayout>(this);
-	m_layout->setContentsMargins(ICON_SIZE.width() + SPACING, 0, 0, 0);
+	m_layout->setContentsMargins(ICON_SIZE.width() + m_spac, 0, 0, 0);
 	m_layout->setSpacing(0);
 
 	m_text = pls_new<QLabel>(text, this);
 	m_text->setObjectName(QStringLiteral("plsCheckBox_text"));
 	m_text->setAttribute(Qt::WA_TransparentForMouseEvents);
 	m_layout->addWidget(m_text);
+
+	pls_button_uistep_custom(this, [this]() -> QVariant { return isChecked() ? QStringLiteral("checked") : QStringLiteral("unchecked"); });
+}
+
+PLSCheckBox::PLSCheckBox(const QPixmap &pixmap, const QString &text, bool textFirst, const QString &tooltip, QWidget *parent) : QWidget(parent)
+{
+	pls_add_css(this, {"QCheckBox"});
+	m_layout = pls_new<QHBoxLayout>(this);
+	m_layout->setContentsMargins(ICON_SIZE.width() + m_spac, 0, 0, 0);
+	m_layout->setSpacing(5);
+
+	m_text = pls_new<QLabel>(text, this);
+	m_text->setObjectName(QStringLiteral("plsCheckBox_text"));
+	m_text->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	auto image = pls_new<QLabel>();
+	image->setObjectName("showImageLable");
+	image->setScaledContents(true);
+	image->setPixmap(pixmap);
+	if (!tooltip.isEmpty())
+		image->setToolTip(tooltip);
+	if (textFirst) {
+		m_layout->addWidget(m_text);
+		m_layout->addWidget(image);
+	} else {
+		m_layout->addWidget(image);
+		m_layout->addWidget(m_text);
+	}
 }
 
 QSize PLSCheckBox::iconSize() const
@@ -53,6 +80,17 @@ Qt::CheckState PLSCheckBox::checkState() const
 void PLSCheckBox::setCheckState(Qt::CheckState state)
 {
 	setChecked(state == Qt::Checked);
+}
+
+int PLSCheckBox::getSpac() const
+{
+	return m_spac;
+}
+
+void PLSCheckBox::setSpac(int spac)
+{
+	m_spac = spac;
+	m_layout->setContentsMargins(ICON_SIZE.width() + m_spac, 0, 0, 0);
 }
 
 void PLSCheckBox::setIconSize(const QSize &size) {}
@@ -117,7 +155,7 @@ bool PLSCheckBox::event(QEvent *event)
 		update();
 		break;
 	case QEvent::LayoutDirectionChange:
-		m_layout->setContentsMargins(0, 0, ICON_SIZE.width() + SPACING, 0);
+		m_layout->setContentsMargins(0, 0, ICON_SIZE.width() + m_spac, 0);
 		update();
 		break;
 	case QEvent::Enter:

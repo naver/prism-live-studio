@@ -28,7 +28,7 @@
 
 constexpr auto TAB_INDEX = "tabIndex";
 constexpr auto API_KEY = "";
-constexpr auto API = "https://api.giphy.com/v1/stickers/";
+constexpr auto API = "";
 constexpr auto PAGE_TYPE = "pageType";
 constexpr auto SEARCH_API = "search";
 constexpr auto TRENDING_API = "trending";
@@ -85,7 +85,7 @@ PLSGiphyStickerView::PLSGiphyStickerView(DialogInfo info, QWidget *parent) : PLS
 	InitStickerJson();
 	Init();
 
-	QTimer::singleShot(0, this, [this, widthRecent, widthTrending]() {
+	pls_async_call(this, [this, widthRecent, widthTrending]() {
 		ui->btn_recent->setFixedWidth(widthRecent + 20);
 		ui->btn_trending->setFixedWidth(widthTrending + 20);
 	});
@@ -160,7 +160,7 @@ void PLSGiphyStickerView::Init()
 		}
 	});
 	connect(ui->lineEdit_search, &PLSSearchLineEdit::textEdited, [this](const QString &key) { OnSearchMenuRequested(key.isEmpty()); });
-	connect(ui->lineEdit_search, &PLSSearchLineEdit::SearchMenuRequested, this, &PLSGiphyStickerView::OnSearchMenuRequested);
+	connect(ui->lineEdit_search, &PLSSearchLineEdit::SearchMenuRequested, this, &PLSGiphyStickerView::OnSearchMenuRequested, Qt::QueuedConnection);
 	ui->btn_cancel->hide();
 
 	InitMenuList();
@@ -357,29 +357,7 @@ const std::map<std::string, std::string, std::less<>> supportedLocal = {{"en", "
 QString PLSGiphyStickerView::GetRequestUrl(const QString &apiType, int limit, int offset) const
 {
 	QString url(API);
-	url.append(apiType).append("?");
-	url.append("api_key=").append(API_KEY);
-	url.append("&limit=").append(QString::number(limit));
-	url.append("&rating=").append("G");
-	url.append("&offset=").append(QString::number(offset));
 
-	const char *currentLang = App()->GetLocale();
-	if (!currentLang) {
-		url.append("&lang=").append("en");
-		return url;
-	}
-
-	if (0 == strcmp(currentLang, "zh-CN") || 0 == strcmp(currentLang, "zh-TW")) {
-		url.append("&lang=").append(currentLang);
-	} else {
-		std::string targetLang = QString(currentLang).left(2).toUtf8().constData();
-		auto iter = supportedLocal.find(targetLang);
-		if (iter != supportedLocal.end()) {
-			url.append("&lang=").append(targetLang.c_str());
-		} else {
-			url.append("&lang=").append("en");
-		}
-	}
 	return url;
 }
 
@@ -659,9 +637,15 @@ void PLSGiphyStickerView::DeleteHistoryItem(const QString &key)
 	WriteSearchHistoryToFile(key, true);
 }
 
-void PLSGiphyStickerView::QuerySearch(const QString &keyword, int limit, int offset) {}
+void PLSGiphyStickerView::QuerySearch(const QString &keyword, int limit, int offset)
+{
+	
+}
 
-void PLSGiphyStickerView::QueryTrending(int limit, int offset) {}
+void PLSGiphyStickerView::QueryTrending(int limit, int offset)
+{
+	
+}
 
 void PLSGiphyStickerView::ShowSearchPage()
 {
@@ -966,7 +950,7 @@ void PLSGiphyStickerView::ShowTrendingTab()
 	InitTrendingList();
 	ShowPageWidget(trendingScrollList);
 	if (init || needUpdateTrendingList)
-		QTimer::singleShot(0, this, [this]() { AutoFillTrendingList(); });
+		pls_async_call(this, [this]() { AutoFillTrendingList(); });
 }
 
 void PLSGiphyStickerView::ClickRecentTab()
@@ -1096,7 +1080,7 @@ void PLSGiphyStickerView::showEvent(QShowEvent *event)
 		StartWebHandler();
 		StartDownloader();
 		ui->btn_trending->setChecked(true);
-		QTimer::singleShot(0, this, [this]() { OnTabClicked(TrendingTab); });
+		pls_async_call(this, [this]() { OnTabClicked(TrendingTab); });
 	}
 }
 
@@ -1425,6 +1409,7 @@ void MovieLabel::DownloadOriginal()
 	QString fileName;
 	if (GiphyDownloader::IsDownloadFileExsit(currentTask, fileName)) {
 		QTimer::singleShot(200, this, [this, fileName, currentTask]() {
+			PLS_INFO(MAIN_GIPHY_STICKER_MODULE, "DownloadOriginal: single shot timer triggered.");
 			SetClicked(false);
 			emit OriginalDownloaded(giphyData, fileName, currentTask.extraData);
 		});
@@ -1639,7 +1624,7 @@ NoDataPage::NoDataPage(QWidget *parent) : QFrame(parent)
 	textNoDataTip = pls_new<QLabel>(this);
 	textNoDataTip->setAlignment(Qt::AlignCenter);
 	textNoDataTip->setObjectName("textNoData");
-	textNoDataTip->setWordWrap(true);
+	textNoDataTip->setWordWrap(false);
 
 	btnRetry = pls_new<QPushButton>(this);
 	btnRetry->setFocusPolicy(Qt::NoFocus);

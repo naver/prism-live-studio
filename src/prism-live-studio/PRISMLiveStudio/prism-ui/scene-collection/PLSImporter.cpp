@@ -46,22 +46,14 @@ PLSImporter::PLSImporter(QWidget *parent) : PLSDialogView(parent)
 	setAttribute(Qt::WA_AlwaysShowToolTips, true);
 
 	pls_add_css(this, {"PLSImporter"});
-	ui->macHelpBtn->hide();
 	ui->buttonBox->setFixedWidth(266);
 
 #if defined(Q_OS_MACOS)
 	initSize(QSize(710, 530));
-	ui->macHelpBtn->setVisible(true);
-	ui->macHelpBtn->installEventFilter(this);
 	ui->buttonBox->setContentsMargins(0, 0, 0, 0);
 #elif defined(Q_OS_WIN)
 	initSize(QSize(710, 570));
 #endif
-
-	setHasHelpButton(true);
-	QString tooltip = QTStr("Scene.Collection.Importer.Help.Tooltip");
-	tooltip.replace("PRISM", "OBS");
-	setHelpButtonToolTip(tooltip, 16);
 
 	connect(ui->listView, &PLSImporterListView::DataChanged, this, &PLSImporter::checkSelectedState);
 	connect(ui->listView, &PLSImporterListView::ScrollBarShow, this, &PLSImporter::OnScrollBarShow);
@@ -90,17 +82,6 @@ void PLSImporter::showEvent(QShowEvent *event)
 {
 	searchCollections();
 	PLSDialogView::showEvent(event);
-}
-
-bool PLSImporter::eventFilter(QObject *obj, QEvent *event)
-{
-	if (event->type() == QEvent::Enter && obj == ui->macHelpBtn) {
-		QPoint pos = this->rect().bottomLeft();
-		QPoint global = mapToGlobal(pos);
-		QPoint x = mapToParent(ui->macHelpBtn->pos());
-		QToolTip::showText(QPoint(x.x() - 1, global.y() - 46), QTStr("Scene.Collection.Importer.Help.Tooltip").replace("PRISM", "OBS"), this);
-	}
-	return PLSDialogView::eventFilter(obj, event);
 }
 
 bool checkExisted(const QVector<PLSSceneCollectionData> &importFiles, const std::string &name)

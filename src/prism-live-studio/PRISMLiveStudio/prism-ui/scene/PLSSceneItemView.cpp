@@ -44,22 +44,22 @@ constexpr auto BADGE_TYPE = "badge_type";
 extern QString getTempImageFilePath(const QString &suffix);
 
 // border clor
-static const float border_color_r = 239.f / 255.f;
-static const float border_color_g = 252.f / 255.f;
-static const float border_color_b = 53.f / 255.f;
-static const float border_color_a = 1.0f;
+static const int border_color_r = 239;
+static const int border_color_g = 252;
+static const int border_color_b = 53;
+static const int border_color_a = 255;
 
 // background normal color
-static const float bg_color_normal_r = 17.f / 255.f;
-static const float bg_color_normal_g = 17.f / 255.f;
-static const float bg_color_normal_b = 17.f / 255.f;
-static const float bg_color_normal_a = 1.0f;
+static const int bg_color_normal_r = 17;
+static const int bg_color_normal_g = 17;
+static const int bg_color_normal_b = 17;
+static const int bg_color_normal_a = 255;
 
 // background hover color
-static const float bg_color_hover_r = 0.f / 255.f;
-static const float bg_color_hover_g = 0.f / 255.f;
-static const float bg_color_hover_b = 0.f / 255.f;
-static const float bg_color_hover_a = 1.0f;
+static const int bg_color_hover_r = 0;
+static const int bg_color_hover_g = 0;
+static const int bg_color_hover_b = 0;
+static const int bg_color_hover_a = 255;
 
 static const double border_width = 2.0f;
 
@@ -76,6 +76,13 @@ texture_info PLSSceneDisplay::tex_record_info = texture_info();
 texture_info PLSSceneDisplay::tex_normal_info = texture_info();
 
 int PLSSceneDisplay::sceneDisplayCount = 0;
+
+static inline long long color_to_int(int r, int g, int b, int a)
+{
+	auto shift = [&](unsigned val, int shift) { return ((val & 0xff) << shift); };
+
+	return shift(r, 0) | shift(g, 8) | shift(b, 16) | shift(a, 24);
+}
 
 static void RefreshUi(QWidget *widget)
 {
@@ -101,7 +108,7 @@ PLSSceneDisplay::PLSSceneDisplay(QWidget *parent_) : OBSQTDisplay(parent_, Qt::W
 
 	connect(this, &OBSQTDisplay::DisplayCreated, this, &PLSSceneDisplay::OnDisplayCreated);
 	connect(this, &OBSQTDisplay::AdjustResizeView, adjustResize);
-
+	connect(this->windowHandle(), &QWindow::screenChanged, this, [this](QScreen *) { this->dpi = devicePixelRatioF(); });
 	setMouseTracking(true);
 }
 
@@ -283,13 +290,14 @@ void PLSSceneDisplay::resizeEvent(QResizeEvent *)
 	if (!display) {
 		CustomCreateDisplay();
 	}
-	int width = SCENE_DISPLAY_DEFAULT_WIDTH * devicePixelRatioF();
-	int height = SCENE_DISPLAY_DEFAULT_HEIGHT * devicePixelRatioF();
+	dpi = devicePixelRatioF();
+	int width = SCENE_DISPLAY_DEFAULT_WIDTH * dpi;
+	int height = SCENE_DISPLAY_DEFAULT_HEIGHT * dpi;
 
 	obs_display_resize(GetDisplay(), width, height);
 
-	qreal margin = 4 * devicePixelRatioF();
-	qreal btn_width = 16 * devicePixelRatioF();
+	qreal margin = 4 * dpi;
+	qreal btn_width = 16 * dpi;
 	qreal btn_height = btn_width;
 
 	rect_delete_btn.setX((qreal)this->width() - btn_width - margin);
@@ -332,10 +340,10 @@ void PLSSceneDisplay::AddRenderCallback()
 		return;
 	}
 
-	if (display == curDisplay && displayAdd) {
+	if ((uint64_t)display == curDisplay && displayAdd) {
 		return;
 	}
-	curDisplay = display;
+	curDisplay = (uint64_t)display;
 
 	obs_display_add_draw_callback(display, RenderScene, this);
 	obs_display_set_background_color(display, 0x222222);
@@ -353,7 +361,12 @@ void PLSSceneDisplay::RemoveRenderCallback()
 	if (!displayAdd) {
 		return;
 	}
-	obs_display_remove_draw_callback(curDisplay, RenderScene, this);
+	obs_display_t *display = GetDisplay();
+	if (!display) {
+		PLS_WARN(MAINSCENE_MODULE, "Get scene display is nullptr when remove draw callback");
+	} else {
+		obs_display_remove_draw_callback(display, RenderScene, this);
+	}
 	OBSSource source = obs_scene_get_source(scene);
 	if (source) {
 		obs_source_dec_showing(source);
@@ -370,21 +383,14 @@ void PLSSceneDisplay::DrawOverlay()
 	DrawBadgeIcons();
 }
 
-void PLSSceneDisplay::DrawRadiusOverlay() const
+void drawTextureDefault(gs_texture_t *texture)
 {
-	GetRadiusTexture();
-	gs_projection_push();
-	gs_matrix_push();
-	gs_matrix_identity();
-	gs_blend_state_push();
-	gs_blend_function(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA);
+	if (!texture)
+		return;
 
-	uint32_t tex_w = gs_texture_get_width(radius_texture.texture);
-	uint32_t tex_h = gs_texture_get_height(radius_texture.texture);
-
-	gs_rect rt = {0};
-	gs_get_viewport(&rt);
-	gs_ortho(0.0f, (float)tex_w, 0.0f, (float)tex_h, -100.0f, 100.0f);
+	const bool srgb = gs_get_color_space() == GS_CS_SRGB;
+	const bool previous = gs_framebuffer_srgb_enabled();
+	gs_enable_framebuffer_srgb(!srgb);
 
 	const gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	gs_technique_t *tech = gs_effect_get_technique(effect, "Draw");
@@ -392,15 +398,17 @@ void PLSSceneDisplay::DrawRadiusOverlay() const
 	gs_technique_begin(tech);
 	gs_technique_begin_pass(tech, 0);
 
-	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), radius_texture.texture);
-	gs_draw_sprite(radius_texture.texture, 0, 0, 0);
+	if (srgb)
+		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), texture);
+	else
+		gs_effect_set_texture_srgb(gs_effect_get_param_by_name(effect, "image"), texture);
+
+	gs_draw_sprite(texture, 0, 0, 0);
 
 	gs_technique_end_pass(tech);
 	gs_technique_end(tech);
 
-	gs_blend_state_pop();
-	gs_projection_pop();
-	gs_matrix_pop();
+	gs_enable_framebuffer_srgb(previous);
 }
 
 void drawTexture(gs_texture_t *texture)
@@ -408,46 +416,70 @@ void drawTexture(gs_texture_t *texture)
 	if (!texture)
 		return;
 
-	uint32_t tex_w = gs_texture_get_width(texture);
-	uint32_t tex_h = gs_texture_get_height(texture);
+	bool srgb = gs_get_color_space() == GS_CS_SRGB;
 
-	gs_ortho(0.0f, (float)tex_w, 0.0f, (float)tex_h, -100.0f, 100.0f);
+	const char *tech_name = "Draw";
+	float multiplier = 1.f;
+	if (!srgb && gs_get_color_space() == GS_CS_709_SCRGB) {
+		tech_name = "DrawMultiply";
+		multiplier = obs_get_video_sdr_white_level() / 80.f;
+	}
 
 	const gs_effect_t *effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
-	gs_technique_t *tech = gs_effect_get_technique(effect, "Draw");
+	gs_technique_t *tech = gs_effect_get_technique(effect, tech_name);
 
-	gs_technique_begin(tech);
-	gs_technique_begin_pass(tech, 0);
+	const bool previous = gs_framebuffer_srgb_enabled();
+	gs_enable_framebuffer_srgb(!srgb);
 
-	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), texture);
-	gs_draw_sprite(texture, 0, 0, 0);
+	if (srgb)
+		gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), texture);
+	else {
+		gs_effect_set_texture_srgb(gs_effect_get_param_by_name(effect, "image"), texture);
+		gs_effect_set_float(gs_effect_get_param_by_name(effect, "multiplier"), multiplier);
+	}
 
-	gs_technique_end_pass(tech);
+	const size_t passes = gs_technique_begin(tech);
+	for (size_t i = 0; i < passes; i++) {
+		if (gs_technique_begin_pass(tech, i)) {
+			gs_draw_sprite(texture, 0, 0, 0);
+			gs_technique_end_pass(tech);
+		}
+	}
 	gs_technique_end(tech);
+	gs_enable_framebuffer_srgb(previous);
+}
+
+void PLSSceneDisplay::DrawRadiusOverlay() const
+{
+	GetRadiusTexture();
+
+	gs_rect rt = {0};
+	gs_get_viewport(&rt);
+	uint32_t tex_w = gs_texture_get_width(radius_texture.texture);
+	uint32_t tex_h = gs_texture_get_height(radius_texture.texture);
+
+	startRegion(0, 0, rt.cx, rt.cy, 0.0f, float(tex_w), 0.0f, float(tex_h));
+	drawTexture(radius_texture.texture);
+	endRegion();
 }
 
 void PLSSceneDisplay::DrawDeleteBtn()
 {
+	if (!GetBtnTexture())
+		return;
+
 	gs_rect rt = {0};
 	gs_get_viewport(&rt);
 
-	gs_projection_push();
-	gs_viewport_push();
-	auto btn_width = static_cast<int>(16 * devicePixelRatioF());
+	auto btn_width = static_cast<int>(16 * dpi);
 	auto btn_height = btn_width;
-	auto margin = static_cast<int>(4 * devicePixelRatioF());
-	gs_set_viewport(rt.cx - btn_width - margin, margin, btn_width, btn_height);
-	gs_matrix_push();
-	gs_matrix_identity();
-	gs_blend_state_push();
-	gs_blend_function(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA);
+	auto margin = static_cast<int>(4 * dpi);
+	uint32_t tex_w = gs_texture_get_width(GetBtnTexture());
+	uint32_t tex_h = gs_texture_get_height(GetBtnTexture());
 
-	drawTexture(GetBtnTexture());
-
-	gs_blend_state_pop();
-	gs_projection_pop();
-	gs_viewport_pop();
-	gs_matrix_pop();
+	startRegion(rt.cx - btn_width - margin, margin, btn_width, btn_height, 0.0f, float(tex_w), 0.0f, float(tex_h));
+	drawTextureDefault(GetBtnTexture());
+	endRegion();
 }
 
 static void DrawLine(float x1, float y1, float x2, float y2, float scaled_thickness)
@@ -483,32 +515,35 @@ void PLSSceneDisplay::DrawSelectedBorder()
 	if (!GetCurrentFlag())
 		return;
 
-	gs_viewport_push();
-	gs_projection_push();
-
-	gs_rect rt = {0};
-	gs_get_viewport(&rt);
-
-	gs_enable_depth_test(false);
-
 	const gs_effect_t *solid = obs_get_base_effect(OBS_EFFECT_SOLID);
 	gs_eparam_t *color = gs_effect_get_param_by_name(solid, "color");
 	gs_technique_t *tech = gs_effect_get_technique(solid, "Solid");
 
+	auto bg_color_int = (uint32_t)color_to_int(border_color_r, border_color_g, border_color_b, border_color_a);
+
 	struct vec4 bg_color;
-	vec4_set(&bg_color, border_color_r, border_color_g, border_color_b, border_color_a);
+	if (gs_get_color_space() == GS_CS_SRGB)
+		vec4_from_rgba(&bg_color, bg_color_int);
+	else
+		vec4_from_rgba_srgb(&bg_color, bg_color_int);
 
 	gs_effect_set_vec4(color, &bg_color);
 
-	gs_technique_begin(tech);
-	gs_technique_begin_pass(tech, 0);
+	gs_rect rt = {0};
+	gs_get_viewport(&rt);
+
+	gs_viewport_push();
+	gs_projection_push();
 
 	gs_matrix_push();
 	gs_matrix_identity();
 	gs_matrix_scale3f(float(rt.cx), float(rt.cy), 1.0f);
 	gs_ortho((float)0.0, (float)rt.cx, 0.0f, (float)rt.cy, -100.0f, 100.0f);
 
-	auto thickness = (float)std::ceil(border_width * devicePixelRatioF()) / (float)rt.cx;
+	gs_technique_begin(tech);
+	gs_technique_begin_pass(tech, 0);
+
+	auto thickness = (float)std::ceil(border_width * dpi) / (float)rt.cx;
 	DrawLine(0.0f, 0.0f, 1.0f, 0.0f, thickness);
 	DrawLine(1.0f, 0.0f, 1.0f, 1.0f, thickness);
 	DrawLine(1.0f, 1.0f, 0.0f, 1.0f, thickness);
@@ -524,26 +559,20 @@ void PLSSceneDisplay::DrawSelectedBorder()
 
 void PLSSceneDisplay::DrawBadgeIcons()
 {
+	if (!GetBadgeTexture())
+		return;
+
 	gs_rect rt = {0};
 	gs_get_viewport(&rt);
+	auto icon_width = static_cast<int>(31 * dpi);
+	auto icon_height = static_cast<int>(16 * dpi);
+	auto margin = static_cast<int>(4 * dpi);
+	uint32_t tex_w = gs_texture_get_width(GetBadgeTexture());
+	uint32_t tex_h = gs_texture_get_height(GetBadgeTexture());
 
-	gs_projection_push();
-	gs_viewport_push();
-	auto icon_width = static_cast<int>(31 * devicePixelRatioF());
-	auto icon_height = static_cast<int>(16 * devicePixelRatioF());
-	auto margin = static_cast<int>(4 * devicePixelRatioF());
-	gs_set_viewport(margin, margin, icon_width, icon_height);
-	gs_matrix_push();
-	gs_matrix_identity();
-	gs_blend_state_push();
-	gs_blend_function(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA);
-
+	startRegion(margin, margin, icon_width, icon_height, 0.0f, float(tex_w), 0.0f, float(tex_h));
 	drawTexture(GetBadgeTexture());
-
-	gs_blend_state_pop();
-	gs_projection_pop();
-	gs_viewport_pop();
-	gs_matrix_pop();
+	endRegion();
 }
 
 void PLSSceneDisplay::DrawSceneBackground() const
@@ -553,11 +582,17 @@ void PLSSceneDisplay::DrawSceneBackground() const
 	gs_technique_t *tech = gs_effect_get_technique(solid, "Solid");
 
 	struct vec4 bg_color;
+	uint32_t bg_color_int;
 	if (isHover.load()) {
-		vec4_set(&bg_color, bg_color_hover_r, bg_color_hover_g, bg_color_hover_b, bg_color_hover_a);
+		bg_color_int = (uint32_t)color_to_int(bg_color_hover_r, bg_color_hover_g, bg_color_hover_b, bg_color_hover_a);
 	} else {
-		vec4_set(&bg_color, bg_color_normal_r, bg_color_normal_g, bg_color_normal_b, bg_color_normal_a);
+		bg_color_int = (uint32_t)color_to_int(bg_color_normal_r, bg_color_normal_g, bg_color_normal_b, bg_color_normal_a);
 	}
+
+	if (gs_get_color_space() == GS_CS_SRGB)
+		vec4_from_rgba(&bg_color, bg_color_int);
+	else
+		vec4_from_rgba_srgb(&bg_color, bg_color_int);
 
 	gs_effect_set_vec4(color, &bg_color);
 
@@ -572,7 +607,7 @@ void PLSSceneDisplay::DrawSceneBackground() const
 	gs_technique_begin(tech);
 	gs_technique_begin_pass(tech, 0);
 
-	DrawLine(0.0f, 0.0f, 1.0f, 0.0f, 1.0f);
+	gs_draw_sprite(nullptr, 0, rt.cx, rt.cy);
 
 	gs_technique_end_pass(tech);
 	gs_technique_end(tech);
@@ -682,36 +717,47 @@ void PLSSceneDisplay::DrawThumbnail()
 	gs_matrix_pop();
 }
 
-void PLSSceneDisplay::SaveSceneTexture(uint32_t cx, uint32_t cy)
-{
-	uint32_t width;
-	uint32_t height;
-	enum gs_color_format format;
-	gs_texrender_t *texrender = nullptr;
-	gs_texture_t *cur_rt = GetSceneDiaplayTexture(this, texrender, cx, cy, width, height, format, true);
-	uint32_t tex_width = gs_texture_get_width(cur_rt);
-	uint32_t tex_height = gs_texture_get_height(cur_rt);
-	gs_color_format fmt = gs_texture_get_color_format(cur_rt);
 
+bool PLSSceneDisplay::CheckTextureChanged(uint32_t cx, uint32_t cy) {
+	gs_color_format fmt = GS_BGRA;
 	if (item_texture) {
 		uint32_t item_width = gs_texture_get_width(item_texture);
 		uint32_t item_height = gs_texture_get_height(item_texture);
 		gs_color_format item_fmt = gs_texture_get_color_format(item_texture);
-		if (tex_height != item_height || tex_width != item_width || fmt != item_fmt) {
+		if (cy != item_height || cx != item_width || fmt != item_fmt) {
 			gs_texture_destroy(item_texture);
 			item_texture = nullptr;
 		}
 	}
 
 	if (!item_texture) {
-		item_texture = gs_texture_create(tex_width, tex_height, fmt, 1, nullptr, GS_DYNAMIC);
+		item_texture = gs_texture_create(cx, cy, fmt, 1, nullptr, GS_RENDER_TARGET);
+		return true;
 	}
-
-	gs_copy_texture(item_texture, cur_rt);
-	gs_texrender_destroy(texrender);
+	return false;
 }
 
-void PLSSceneDisplay::DrawDefaultThumbnail() const
+void PLSSceneDisplay::RenderSceneTexture(uint32_t cx, uint32_t cy, uint32_t targetCX, uint32_t targetCY)
+{
+	CheckTextureChanged(cx, cy);
+	if (!item_texture) {
+		return;
+	}
+
+	OBSSource source = obs_scene_get_source(scene);
+	auto pre_target = gs_get_render_target();
+	gs_set_render_target(item_texture, nullptr);
+
+	vec4 zero;
+	vec4_zero(&zero);
+	gs_clear(GS_CLEAR_COLOR, &zero, 0.0f, 0);
+	startRegion(0, 0, cx, cy, 0.0f, float(targetCX), 0.0f, float(targetCY));
+	obs_source_video_render(source);
+	endRegion();
+	gs_set_render_target(pre_target, nullptr);
+}
+
+void PLSSceneDisplay::DrawDefaultThumbnail()
 {
 	if (!default_texture) {
 		std::string path;
@@ -722,23 +768,14 @@ void PLSSceneDisplay::DrawDefaultThumbnail() const
 	gs_rect rt = {0};
 	gs_get_viewport(&rt);
 
-	gs_viewport_push();
-	gs_projection_push();
-	auto margin = static_cast<int>(24 * devicePixelRatioF());
-	auto scale_height = static_cast<int>(64 * devicePixelRatioF());
-	gs_set_viewport(0, margin, rt.cx, scale_height);
-	gs_matrix_push();
-	gs_matrix_identity();
-	gs_blend_state_push();
-	gs_blend_function(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA);
+	auto margin = static_cast<int>(24 * dpi);
+	auto scale_height = static_cast<int>(64 * dpi);
+	uint32_t tex_w = gs_texture_get_width(default_texture);
+	uint32_t tex_h = gs_texture_get_height(default_texture);
 
+	startRegion(0, margin, rt.cx, scale_height, 0.0f, float(tex_w), 0.0f, float(tex_h));
 	drawTexture(default_texture);
-
-	gs_blend_state_pop();
-	gs_projection_pop();
-	gs_reset_viewport();
-	gs_viewport_pop();
-	gs_matrix_pop();
+	endRegion();
 }
 
 void PLSSceneDisplay::SetBadgeType(BadgeType type)
@@ -767,8 +804,9 @@ QSize PLSSceneDisplay::GetWidgetSize()
 
 void PLSSceneDisplay::ResizeDisplay()
 {
-	int realWidth = SCENE_DISPLAY_DEFAULT_WIDTH * devicePixelRatioF();
-	int realHeight = SCENE_DISPLAY_DEFAULT_HEIGHT * devicePixelRatioF();
+	dpi = devicePixelRatioF();
+	int realWidth = SCENE_DISPLAY_DEFAULT_WIDTH * dpi;
+	int realHeight = SCENE_DISPLAY_DEFAULT_HEIGHT * dpi;
 
 	auto display = GetDisplay();
 	uint32_t width, height;
@@ -776,6 +814,11 @@ void PLSSceneDisplay::ResizeDisplay()
 	if (width != realWidth || height != realHeight) {
 		obs_display_resize(display, realWidth, realHeight);
 	}
+}
+
+void PLSSceneDisplay::SetDpi(float dpi)
+{
+	this->dpi = dpi;
 }
 
 PLSSceneItemView::PLSSceneItemView(const QString &name_, OBSScene scene_, DisplayMethod displayMethod, QWidget *parent) : QFrame(parent), scene(scene_), name(name_)
@@ -839,7 +882,7 @@ void PLSSceneItemView::SetCurrentFlag(bool state)
 		current = state;
 		ui->display->SetCurrentFlag(state);
 		emit CurrentItemChanged(state);
-		QTimer::singleShot(0, this, [this]() { SetStatusBadge(); });
+		pls_async_call(this, [this]() { SetStatusBadge(); });
 	}
 }
 
@@ -889,7 +932,7 @@ void PLSSceneItemView::SetSceneDisplayMethod(DisplayMethod displayMethod_)
 		ui->editWidget->hide();
 		ui->listFrame->show();
 	}
-	QTimer::singleShot(0, this, [this]() { SetStatusBadge(); });
+	pls_async_call(this, [this]() { SetStatusBadge(); });
 }
 
 DisplayMethod PLSSceneItemView::GetSceneDisplayMethod() const
@@ -942,6 +985,13 @@ void PLSSceneItemView::RepaintDisplay()
 {
 	ui->display->repaint();
 	ui->display->ResizeDisplay();
+}
+
+void PLSSceneItemView::SetDpi(float dpi)
+{
+	if (ui->display) {
+		ui->display->SetDpi(dpi);
+	}
 }
 
 void PLSSceneItemView::OnRenameOperation()
@@ -1405,19 +1455,6 @@ void PLSSceneItemView::OnCurrentItemChanged(bool state) const
 	pls_flush_style(ui->label, STATUS_CLICKED, state);
 }
 
-static QImage CaptureSceneImage(QString sceneName)
-{
-	uint32_t width;
-	uint32_t height;
-	enum gs_color_format format;
-	texture_map_info tmi;
-	QImage image;
-	if (auto ss = gs_device_canvas_map(&width, &height, &format, tmi.data, tmi.linesize); ss) {
-		image = CaptureImage(width, height, format, tmi.data, tmi.linesize, sceneName);
-	}
-	return image;
-}
-
 void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
 {
 	auto window = static_cast<PLSSceneDisplay *>(data);
@@ -1432,6 +1469,7 @@ void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
 	int newCX;
 	int newCY;
 	float scale;
+	bool previous;
 
 	OBSSource source = obs_scene_get_source(window->scene);
 	if (source) {
@@ -1465,6 +1503,11 @@ void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
 		window->DrawThumbnail();
 		endRegion();
 		window->DrawOverlay();
+
+		if (window->CheckTextureChanged(newCX, newCY)) {
+			window->RenderSceneTexture(newCX, newCY, targetCX, targetCY);
+		}
+
 		goto CAPTURE_SCENE_IMG;
 	}
 
@@ -1472,20 +1515,21 @@ void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
 	window->DrawSceneBackground();
 	endRegion();
 
-	startRegion(x, y, newCX, newCY, 0.0f, float(targetCX), 0.0f, float(targetCY));
-
 	if (source) {
-		obs_source_video_render(source);
-
 		if (window->TestSceneDisplayMethod(DisplayMethod::ThumbnailView)) {
-			window->SaveSceneTexture(cx, cy);
+			window->RenderSceneTexture(newCX, newCY, targetCX, targetCY);
 			window->SetRefreshThumbnail(false);
+		}
+		else {
+			startRegion(x, y, newCX, newCY, 0.0f, float(targetCX), 0.0f, float(targetCY));
+			obs_source_video_render(source);
+			endRegion();
 		}
 	}
 
-	endRegion();
-
+	previous = gs_set_linear_srgb(true);
 	window->DrawOverlay();
+	gs_set_linear_srgb(previous);
 
 CAPTURE_SCENE_IMG:
 	if (window->GetDragingState()) {

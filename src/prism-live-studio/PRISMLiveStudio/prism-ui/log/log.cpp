@@ -12,7 +12,6 @@
 #include "PLSApp.h"
 #include "liblog.h"
 #include "pls-shared-values.h"
-
 #include <stdlib.h>
 
 const int LOG_SUBPROCESS_EXCEPTION = -100;
@@ -101,29 +100,26 @@ static void def_obs_log_handler(bool kr, int log_level, const char *format, va_l
 		pls_logvaex(kr, PLS_LOG_DEBUG, "obs", nullptr, 0, tmp_fields, arg_count, format, args);
 		break;
 	case LOG_SUBPROCESS_EXCEPTION:
-		if (field_count == 3) {
+		if (field_count == 2) {
 			const char *process = nullptr;
 			const char *pid = nullptr;
-			const char *src = nullptr;
 			for (int i = 0; i < field_count; ++i) {
 				if (!strcmp(fields[i][0], "process")) {
 					process = fields[i][1];
 				} else if (!strcmp(fields[i][0], "pid")) {
 					pid = fields[i][1];
-				} else if (!strcmp(fields[i][0], "src")) {
-					src = fields[i][1];
 				}
 			}
 
-			if (process && pid && src) {
-				pls_subprocess_exception(process, pid, src);
+			if (process && pid) {
+				pls_subprocess_exception(process, pid);
 			}
 		}
 		break;
 	}
 }
 
-static std::string parse_bcrash_reason(const char *desc) 
+static std::string parse_bcrash_reason(const char *desc)
 {
 	std::string reason = desc;
 
@@ -177,7 +173,7 @@ static void def_pls_log_handler(bool kr, pls_log_level_t log_level, const char *
 	call_obs_handler(kr, log_level, module_name, tid, "%s", message);
 }
 
-bool log_init(const char *session_id, const std::chrono::steady_clock::time_point &startTime)
+bool log_init(const char *session_id, const std::chrono::steady_clock::time_point &startTime, const char *sub_session_id)
 {
 	log_session_id = session_id;
 	base_set_log_handler(def_obs_log_handler, nullptr);
@@ -185,13 +181,18 @@ bool log_init(const char *session_id, const std::chrono::steady_clock::time_poin
 
 	base_set_crash_handler(def_obs_crash_handler, nullptr);
 
-	pls_prism_log_init(PLS_VERSION, "prism-log");
+	pls_prism_log_init(PLS_VERSION, "prism-log", log_session_id.c_str());
 	pls_add_global_field("prismSession", session_id);
 #if defined(Q_OS_WIN)
 	pls_add_global_field("OSType", "Windows");
 #elif defined(Q_OS_MACOS)
 	pls_add_global_field("OSType", "MAC");
 #endif
+	if (!pls_is_empty(sub_session_id)) {
+		pls_add_global_field("prismSubSession", sub_session_id);
+	}
+	auto hashMac = QString("%1").arg(std::hash<std::string>()(pls_get_local_mac().toStdString()), 16, 16, QChar('0'));
+	pls_add_global_field("hashMac", hashMac.toUtf8().constData());
 	pls_runtime_stats(PLS_RUNTIME_STATS_TYPE_APP_START, startTime);
 
 	pls_set_log_handler(def_pls_log_handler, nullptr);

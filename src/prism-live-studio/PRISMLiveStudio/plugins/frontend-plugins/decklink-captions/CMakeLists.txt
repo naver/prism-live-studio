@@ -24,15 +24,17 @@ target_sources(decklink-captions PRIVATE decklink-captions.cpp
 target_link_libraries(decklink-captions PRIVATE OBS::frontend-api OBS::libobs libui)
 
 if(OS_MACOS)
-  find_library(COCOA Cocoa)
-  mark_as_advanced(COCOA)
-  target_link_libraries(decklink-captions PRIVATE ${COCOA})
-
+  target_compile_options(decklink-captions PRIVATE -Wno-quoted-include-in-framework-header -Wno-comma)
+  target_link_libraries(decklink-captions PRIVATE "$<LINK_LIBRARY:FRAMEWORK,Cocoa.framework>")
 elseif(OS_POSIX)
   find_package(X11 REQUIRED)
   mark_as_advanced(X11)
   target_link_libraries(decklink-captions PRIVATE X11::X11)
 elseif(OS_WINDOWS)
+  set_property(
+    TARGET decklink-captions
+    APPEND
+    PROPERTY AUTORCC_OPTIONS --format-version 1)
 
 endif()
 

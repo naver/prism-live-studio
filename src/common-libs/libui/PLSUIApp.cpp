@@ -50,9 +50,9 @@ PLSUiApp::PLSUiApp(int &argc, char **argv) : pls::Application<QApplication>(argc
 	fontStyle = "* {font-family : \"Segoe UI\", \"MalgunGothic\", \"Malgun Gothic\", \"Dotum\", \"Gulim\";}";
 #endif
 	QDir::setCurrent(applicationDirPath());
-	pls_add_global_css({"Common",       "QDialog",       "QCheckBox",    "QComboBox",          "QGroupBox",         "QLineEdit",  "QMenu",     "QPlainTextEdit", "QPushButton",
-			    "QRadioButton", "QScrollBar",    "QSlider",      "QSpinBox",           "QTableView",        "QTabWidget", "QTextEdit", "QToolButton",    "QToolTip",
-			    "CommonDialog", "PLSDialogView", "PLSAlertView", "PLSColorDialogView", "PLSFontDialogView", "PLSEdit"},
+	pls_add_global_css({"Common",       "QDialog",       "QCheckBox",    "QComboBox",          "QGroupBox",         "QLineEdit",  "QMenu",       "QPlainTextEdit", "QPushButton",
+			    "QRadioButton", "QScrollBar",    "QSlider",      "QSpinBox",           "QTableView",        "QTabWidget", "QTextEdit",   "QToolButton",    "QToolTip",
+			    "CommonDialog", "PLSDialogView", "PLSAlertView", "PLSColorDialogView", "PLSFontDialogView", "PLSEdit",    "PLSHelpIcon", "PLSWindow"},
 			   {fontStyle});
 	setStyle(new PLSStyle());
 
@@ -92,4 +92,10 @@ PLSUiApp::~PLSUiApp()
 PLSUiApp *PLSUiApp::instance()
 {
 	return s_instance;
+}
+
+void PLSUiApp::setAppState(bool actived)
+{
+	m_appActived = actived;
+	appStateChanged(actived);
 }

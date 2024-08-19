@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1011</width>
-    <height>739</height>
+    <width>985</width>
+    <height>775</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -164,7 +164,7 @@
       </widget>
      </item>
      <item>
-      <layout class="QVBoxLayout" name="verticalLayout_31">
+      <layout class="QVBoxLayout" name="verticalLayout_31" stretch="1,0">
        <property name="spacing">
         <number>0</number>
        </property>
@@ -212,8 +212,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>795</width>
-                <height>1521</height>
+                <width>766</width>
+                <height>1399</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_19">
@@ -250,6 +250,52 @@
                   <property name="bottomMargin">
                    <number>0</number>
                   </property>
+                  <item>
+                   <widget class="QGroupBox" name="groupBox_8">
+                    <property name="title">
+                     <string>setting.account.text.title</string>
+                    </property>
+                    <layout class="QFormLayout" name="formLayout_15">
+                     <property name="horizontalSpacing">
+                      <number>0</number>
+                     </property>
+                     <property name="verticalSpacing">
+                      <number>0</number>
+                     </property>
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <item row="0" column="0" colspan="2">
+                      <widget class="PLSSettingGeneralView" name="accountView" native="true">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
+                       </property>
+                       <property name="minimumSize">
+                        <size>
+                         <width>0</width>
+                         <height>0</height>
+                        </size>
+                       </property>
+                       <property name="styleSheet">
+                        <string notr="true"/>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
                   <item>
                    <widget class="QGroupBox" name="groupBox_15">
                     <property name="title">
@@ -306,7 +352,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="bottomMargin">
                         <number>0</number>
@@ -342,7 +388,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="PLSCheckBox" name="hideOBSFromCapture">
@@ -413,7 +459,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="rightMargin">
                         <number>0</number>
@@ -432,6 +478,59 @@
                         </widget>
                        </item>
                       </layout>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QGroupBox" name="waterMarkGroupBox">
+                    <property name="title">
+                     <string>setting.static.text.watermark</string>
+                    </property>
+                    <layout class="QFormLayout" name="formLayout_27">
+                     <property name="horizontalSpacing">
+                      <number>6</number>
+                     </property>
+                     <property name="verticalSpacing">
+                      <number>6</number>
+                     </property>
+                     <property name="leftMargin">
+                      <number>9</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>2</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>9</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>9</number>
+                     </property>
+                     <item row="0" column="0">
+                      <spacer name="horizontalSpacer_7">
+                       <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                       </property>
+                       <property name="sizeType">
+                        <enum>QSizePolicy::Fixed</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>133</width>
+                         <height>5</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
+                     <item row="0" column="1">
+                      <widget class="PLSCheckBox" name="watermarkCheckBox">
+                       <property name="text">
+                        <string>setting.static.text.watermark.enable</string>
+                       </property>
+                       <property name="checked">
+                        <bool>true</bool>
+                       </property>
+                      </widget>
                      </item>
                     </layout>
                    </widget>
@@ -565,10 +664,10 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="PLSDoubleSpinBox" name="snapDistance">
@@ -640,13 +739,13 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="rightMargin">
                         <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="QLabel" name="label_9">
@@ -864,13 +963,9 @@
                      <property name="topMargin">
                       <number>2</number>
                      </property>
-                     <item row="0" column="1">
-                      <widget class="PLSCheckBox" name="automaticSearch">
-                       <property name="text">
-                        <string>Basic.Settings.General.AutomaticCollectionSearch</string>
-                       </property>
-                      </widget>
-                     </item>
+                     <property name="bottomMargin">
+                      <number>2</number>
+                     </property>
                      <item row="0" column="0">
                       <spacer name="horizontalSpacer_16">
                        <property name="orientation">
@@ -883,6 +978,68 @@
                         </size>
                        </property>
                       </spacer>
+                     </item>
+                     <item row="0" column="1">
+                      <widget class="PLSCheckBox" name="automaticSearch">
+                       <property name="text">
+                        <string>Basic.Settings.General.AutomaticCollectionSearch</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QGroupBox" name="groupBox_11">
+                    <property name="title">
+                     <string>Basic.TogglePreviewProgramMode</string>
+                    </property>
+                    <layout class="QFormLayout" name="formLayout_31">
+                     <property name="fieldGrowthPolicy">
+                      <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                     </property>
+                     <property name="labelAlignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
+                     <property name="topMargin">
+                      <number>2</number>
+                     </property>
+                     <item row="0" column="1">
+                      <widget class="PLSCheckBox" name="doubleClickSwitch">
+                       <property name="text">
+                        <string>Basic.Settings.General.SwitchOnDoubleClick</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="0">
+                      <spacer name="horizontalSpacer_6">
+                       <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>133</width>
+                         <height>5</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
+                     <item row="1" column="1">
+                      <widget class="PLSCheckBox" name="studioPortraitLayout">
+                       <property name="text">
+                        <string>Basic.Settings.General.StudioPortraitLayout</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="1">
+                      <widget class="PLSCheckBox" name="prevProgLabelToggle">
+                       <property name="text">
+                        <string>Basic.Settings.General.TogglePreviewProgramLabels</string>
+                       </property>
+                       <property name="checked">
+                        <bool>true</bool>
+                       </property>
+                      </widget>
                      </item>
                     </layout>
                    </widget>
@@ -944,7 +1101,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="bottomMargin">
                         <number>0</number>
@@ -973,7 +1130,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="bottomMargin">
                         <number>0</number>
@@ -1020,7 +1177,7 @@
                         <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="QLabel" name="label_10">
@@ -1040,7 +1197,7 @@
                         <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="PLSComboBox" name="sceneDisplayComboBox"/>
@@ -1066,64 +1223,6 @@
                         <string/>
                        </property>
                        <property name="wordWrap">
-                        <bool>true</bool>
-                       </property>
-                       <property name="useFor" stdset="0">
-                        <string notr="true">WhiteLable</string>
-                       </property>
-                      </widget>
-                     </item>
-                    </layout>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QGroupBox" name="groupBox_11">
-                    <property name="title">
-                     <string>Basic.TogglePreviewProgramMode</string>
-                    </property>
-                    <layout class="QFormLayout" name="formLayout_31">
-                     <property name="fieldGrowthPolicy">
-                      <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
-                     </property>
-                     <property name="labelAlignment">
-                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                     </property>
-                     <property name="topMargin">
-                      <number>2</number>
-                     </property>
-                     <item row="0" column="1">
-                      <widget class="PLSCheckBox" name="doubleClickSwitch">
-                       <property name="text">
-                        <string>Basic.Settings.General.SwitchOnDoubleClick</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item row="0" column="0">
-                      <spacer name="horizontalSpacer_6">
-                       <property name="orientation">
-                        <enum>Qt::Horizontal</enum>
-                       </property>
-                       <property name="sizeHint" stdset="0">
-                        <size>
-                         <width>133</width>
-                         <height>5</height>
-                        </size>
-                       </property>
-                      </spacer>
-                     </item>
-                     <item row="1" column="1">
-                      <widget class="PLSCheckBox" name="studioPortraitLayout">
-                       <property name="text">
-                        <string>Basic.Settings.General.StudioPortraitLayout</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item row="2" column="1">
-                      <widget class="PLSCheckBox" name="prevProgLabelToggle">
-                       <property name="text">
-                        <string>Basic.Settings.General.TogglePreviewProgramLabels</string>
-                       </property>
-                       <property name="checked">
                         <bool>true</bool>
                        </property>
                       </widget>
@@ -1393,7 +1492,7 @@
                     <number>0</number>
                    </property>
                    <item>
-                    <widget class="QLineEdit" name="customServer"/>
+                    <widget class="QLineEdit" name="customServer_org"/>
                    </item>
                   </layout>
                  </widget>
@@ -1750,6 +1849,98 @@
                  <property name="bottomMargin">
                   <number>0</number>
                  </property>
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="serviceLabel">
+                   <property name="text">
+                    <string>Basic.AutoConfig.StreamPage.Service</string>
+                   </property>
+                   <property name="useFor" stdset="0">
+                    <string notr="true">FormLabelRole</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="PLSComboBox" name="service"/>
+                 </item>
+                 <item row="1" column="1">
+                  <widget class="QStackedWidget" name="stackedWidget_3">
+                   <property name="sizePolicy">
+                    <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                     <horstretch>0</horstretch>
+                     <verstretch>0</verstretch>
+                    </sizepolicy>
+                   </property>
+                   <property name="currentIndex">
+                    <number>0</number>
+                   </property>
+                   <widget class="QWidget" name="page_4">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <layout class="QHBoxLayout" name="horizontalLayout_36">
+                     <property name="spacing">
+                      <number>0</number>
+                     </property>
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <item>
+                      <widget class="PLSComboBox" name="server"/>
+                     </item>
+                    </layout>
+                   </widget>
+                   <widget class="QWidget" name="page_5">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <layout class="QHBoxLayout" name="horizontalLayout_37">
+                     <property name="spacing">
+                      <number>0</number>
+                     </property>
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <item>
+                      <widget class="PLSLineEdit" name="customServer"/>
+                     </item>
+                    </layout>
+                   </widget>
+                  </widget>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QLabel" name="serverLabel">
+                   <property name="text">
+                    <string>Basic.AutoConfig.StreamPage.Server</string>
+                   </property>
+                   <property name="useFor" stdset="0">
+                    <string notr="true">FormLabelRole</string>
+                   </property>
+                  </widget>
+                 </item>
                  <item row="2" column="0">
                   <widget class="QLabel" name="outputModeLabel">
                    <property name="minimumSize">
@@ -1798,31 +1989,22 @@
                    </item>
                   </widget>
                  </item>
-                 <item row="0" column="0">
-                  <widget class="QLabel" name="serviceLabel">
+                 <item row="3" column="1">
+                  <widget class="QLabel" name="severiceExplainLabel">
                    <property name="text">
-                    <string>Basic.AutoConfig.StreamPage.Service</string>
+                    <string>setting.service.explain</string>
                    </property>
-                   <property name="useFor" stdset="0">
-                    <string notr="true">FormLabelRole</string>
+                   <property name="wordWrap">
+                    <bool>true</bool>
                    </property>
                   </widget>
                  </item>
-                 <item row="0" column="1">
-                  <widget class="PLSComboBox" name="service"/>
-                 </item>
-                 <item row="1" column="0">
-                  <widget class="QLabel" name="serverLabel">
+                 <item row="3" column="0">
+                  <widget class="QLabel" name="label_24">
                    <property name="text">
-                    <string>Basic.AutoConfig.StreamPage.Server</string>
-                   </property>
-                   <property name="useFor" stdset="0">
-                    <string notr="true">FormLabelRole</string>
+                    <string/>
                    </property>
                   </widget>
-                 </item>
-                 <item row="1" column="1">
-                  <widget class="PLSComboBox" name="server"/>
                  </item>
                 </layout>
                </widget>
@@ -1865,8 +2047,8 @@
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>553</width>
-                       <height>602</height>
+                       <width>766</width>
+                       <height>565</height>
                       </rect>
                      </property>
                      <property name="sizePolicy">
@@ -1930,7 +2112,7 @@
                             <number>0</number>
                            </property>
                            <property name="bottomMargin">
-                            <number>5</number>
+                            <number>0</number>
                            </property>
                            <item>
                             <widget class="PLSSpinBox" name="simpleOutputVBitrate">
@@ -2025,7 +2207,7 @@
                          <item row="3" column="0">
                           <widget class="QLabel" name="simpleOutStrEncoderLabel">
                            <property name="text">
-                            <string>Basic.Settings.Output.Encoder</string>
+                            <string>Basic.Settings.Output.Encoder.Video</string>
                            </property>
                            <property name="buddy">
                             <cstring>simpleOutRecEncoder</cstring>
@@ -2063,10 +2245,10 @@
                             <number>0</number>
                            </property>
                            <property name="topMargin">
-                            <number>5</number>
+                            <number>0</number>
                            </property>
                            <property name="bottomMargin">
-                            <number>5</number>
+                            <number>0</number>
                            </property>
                            <item>
                             <widget class="PLSCheckBox" name="simpleOutAdvanced">
@@ -2108,7 +2290,7 @@
                             <number>0</number>
                            </property>
                            <property name="bottomMargin">
-                            <number>5</number>
+                            <number>0</number>
                            </property>
                            <item>
                             <widget class="QLabel" name="label_19">
@@ -2137,11 +2319,57 @@
                            </item>
                           </layout>
                          </item>
+                         <item row="8" column="0">
+                          <layout class="QVBoxLayout" name="verticalLayout_65">
+                           <property name="spacing">
+                            <number>0</number>
+                           </property>
+                           <property name="leftMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="topMargin">
+                            <number>0</number>
+                           </property>
+                           <item>
+                            <widget class="QLabel" name="simpleOutStrAEncoderLabel">
+                             <property name="text">
+                              <string>Basic.Settings.Output.Encoder.Audio</string>
+                             </property>
+                             <property name="buddy">
+                              <cstring>simpleOutStrAEncoder</cstring>
+                             </property>
+                             <property name="useFor" stdset="0">
+                              <string>FormLabelRole</string>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </item>
+                         <item row="8" column="1">
+                          <layout class="QVBoxLayout" name="verticalLayout_83">
+                           <property name="spacing">
+                            <number>0</number>
+                           </property>
+                           <property name="topMargin">
+                            <number>0</number>
+                           </property>
+                           <item>
+                            <widget class="PLSComboBox" name="simpleOutStrAEncoder">
+                             <property name="enabled">
+                              <bool>true</bool>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </item>
                         </layout>
                        </widget>
                       </item>
                       <item>
                        <widget class="QGroupBox" name="simpleRecordingGroupBox">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
                           <horstretch>0</horstretch>
@@ -2179,10 +2407,10 @@
                             <number>0</number>
                            </property>
                            <property name="rightMargin">
-                            <number>10</number>
+                            <number>0</number>
                            </property>
                            <property name="bottomMargin">
-                            <number>5</number>
+                            <number>0</number>
                            </property>
                            <item>
                             <widget class="QLabel" name="label_18">
@@ -2220,7 +2448,7 @@
                             <number>0</number>
                            </property>
                            <property name="bottomMargin">
-                            <number>5</number>
+                            <number>0</number>
                            </property>
                            <item>
                             <widget class="QLineEdit" name="simpleOutputPath">
@@ -2282,42 +2510,15 @@
                          </item>
                          <item row="3" column="1">
                           <widget class="PLSComboBox" name="simpleOutRecFormat">
-                           <item>
-                            <property name="text">
-                             <string notr="true">flv</string>
-                            </property>
-                           </item>
-                           <item>
-                            <property name="text">
-                             <string notr="true">mp4</string>
-                            </property>
-                           </item>
-                           <item>
-                            <property name="text">
-                             <string notr="true">mov</string>
-                            </property>
-                           </item>
-                           <item>
-                            <property name="text">
-                             <string notr="true">mkv</string>
-                            </property>
-                           </item>
-                           <item>
-                            <property name="text">
-                             <string notr="true">ts</string>
-                            </property>
-                           </item>
-                           <item>
-                            <property name="text">
-                             <string notr="true">m3u8</string>
-                            </property>
-                           </item>
+                           <property name="currentIndex">
+                            <number>-1</number>
+                           </property>
                           </widget>
                          </item>
                          <item row="4" column="0">
                           <widget class="QLabel" name="simpleOutRecEncoderLabel">
                            <property name="text">
-                            <string>Basic.Settings.Output.Encoder</string>
+                            <string>Basic.Settings.Output.Encoder.Video</string>
                            </property>
                            <property name="buddy">
                             <cstring>simpleOutRecEncoder</cstring>
@@ -2331,6 +2532,295 @@
                           <widget class="PLSComboBox" name="simpleOutRecEncoder"/>
                          </item>
                          <item row="5" column="0">
+                          <widget class="QLabel" name="simpleOutRecAEncoderLabel">
+                           <property name="text">
+                            <string>Basic.Settings.Output.Encoder.Audio</string>
+                           </property>
+                           <property name="buddy">
+                            <cstring>simpleOutRecAEncoder</cstring>
+                           </property>
+                           <property name="useFor" stdset="0">
+                            <string>FormLabelRole</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="5" column="1">
+                          <widget class="PLSComboBox" name="simpleOutRecAEncoder"/>
+                         </item>
+                         <item row="6" column="0">
+                          <layout class="QVBoxLayout" name="verticalLayout_84">
+                           <property name="spacing">
+                            <number>0</number>
+                           </property>
+                           <property name="leftMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="topMargin">
+                            <number>0</number>
+                           </property>
+                           <item>
+                            <widget class="QLabel" name="simplerectrack_label">
+                             <property name="text">
+                              <string>Basic.Settings.Output.Simple.RecAudioTrack</string>
+                             </property>
+                             <property name="useFor" stdset="0">
+                              <string>FormLabelRole</string>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </item>
+                         <item row="6" column="1">
+                          <layout class="QVBoxLayout" name="verticalLayout_85">
+                           <item>
+                            <widget class="QStackedWidget" name="simpleRecTrackWidget">
+                             <property name="enabled">
+                              <bool>true</bool>
+                             </property>
+                             <property name="sizePolicy">
+                              <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                               <horstretch>0</horstretch>
+                               <verstretch>0</verstretch>
+                              </sizepolicy>
+                             </property>
+                             <property name="currentIndex">
+                              <number>0</number>
+                             </property>
+                             <widget class="QWidget" name="simpleRecTracks">
+                              <property name="enabled">
+                               <bool>true</bool>
+                              </property>
+                              <layout class="QHBoxLayout" name="horizontalLayoutSimpleTracks">
+                               <property name="spacing">
+                                <number>10</number>
+                               </property>
+                               <property name="leftMargin">
+                                <number>0</number>
+                               </property>
+                               <property name="topMargin">
+                                <number>0</number>
+                               </property>
+                               <property name="rightMargin">
+                                <number>0</number>
+                               </property>
+                               <property name="bottomMargin">
+                                <number>0</number>
+                               </property>
+                               <item>
+                                <widget class="PLSCheckBox" name="simpleOutRecTrack1">
+                                 <property name="enabled">
+                                  <bool>true</bool>
+                                 </property>
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>1</string>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="PLSCheckBox" name="simpleOutRecTrack2">
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>2</string>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="PLSCheckBox" name="simpleOutRecTrack3">
+                                 <property name="enabled">
+                                  <bool>true</bool>
+                                 </property>
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>3</string>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="PLSCheckBox" name="simpleOutRecTrack4">
+                                 <property name="enabled">
+                                  <bool>true</bool>
+                                 </property>
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>4</string>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="PLSCheckBox" name="simpleOutRecTrack5">
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>5</string>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="PLSCheckBox" name="simpleOutRecTrack6">
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>6</string>
+                                 </property>
+                                </widget>
+                               </item>
+                              </layout>
+                             </widget>
+                             <widget class="QWidget" name="simpleFlvTracks">
+                              <property name="enabled">
+                               <bool>false</bool>
+                              </property>
+                              <property name="styleSheet">
+                               <string notr="true"/>
+                              </property>
+                              <layout class="QHBoxLayout" name="horizontalLayoutSimpleFLVTracks">
+                               <property name="spacing">
+                                <number>15</number>
+                               </property>
+                               <property name="leftMargin">
+                                <number>0</number>
+                               </property>
+                               <property name="topMargin">
+                                <number>0</number>
+                               </property>
+                               <property name="rightMargin">
+                                <number>0</number>
+                               </property>
+                               <property name="bottomMargin">
+                                <number>0</number>
+                               </property>
+                               <item>
+                                <widget class="PLSRadioButton" name="simpleFlvTrack1">
+                                 <property name="enabled">
+                                  <bool>false</bool>
+                                 </property>
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>1</string>
+                                 </property>
+                                 <property name="checked">
+                                  <bool>true</bool>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="PLSRadioButton" name="simpleFlvTrack2">
+                                 <property name="enabled">
+                                  <bool>false</bool>
+                                 </property>
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>2</string>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="PLSRadioButton" name="simpleFlvTrack3">
+                                 <property name="enabled">
+                                  <bool>false</bool>
+                                 </property>
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>3</string>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="PLSRadioButton" name="simpleFlvTrack4">
+                                 <property name="enabled">
+                                  <bool>false</bool>
+                                 </property>
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>4</string>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="PLSRadioButton" name="simpleFlvTrack5">
+                                 <property name="enabled">
+                                  <bool>false</bool>
+                                 </property>
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>5</string>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <widget class="PLSRadioButton" name="simpleFlvTrack6">
+                                 <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                                   <horstretch>0</horstretch>
+                                   <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                 </property>
+                                 <property name="text">
+                                  <string>6</string>
+                                 </property>
+                                </widget>
+                               </item>
+                              </layout>
+                             </widget>
+                            </widget>
+                           </item>
+                          </layout>
+                         </item>
+                         <item row="7" column="0">
                           <layout class="QVBoxLayout" name="verticalLayout_53">
                            <property name="spacing">
                             <number>0</number>
@@ -2339,13 +2829,13 @@
                             <number>0</number>
                            </property>
                            <property name="topMargin">
-                            <number>5</number>
+                            <number>0</number>
                            </property>
                            <property name="rightMargin">
                             <number>0</number>
                            </property>
                            <property name="bottomMargin">
-                            <number>5</number>
+                            <number>0</number>
                            </property>
                            <item>
                             <widget class="QLabel" name="label_420">
@@ -2365,39 +2855,32 @@
                            </item>
                           </layout>
                          </item>
-                         <item row="5" column="1">
+                         <item row="7" column="1">
                           <layout class="QVBoxLayout" name="verticalLayout_49">
                            <property name="spacing">
                             <number>0</number>
                            </property>
                            <property name="topMargin">
-                            <number>5</number>
+                            <number>0</number>
                            </property>
                            <property name="bottomMargin">
-                            <number>5</number>
+                            <number>0</number>
                            </property>
                            <item>
                             <widget class="PLSLineEdit" name="simpleOutMuxCustom"/>
                            </item>
                           </layout>
                          </item>
-                         <item row="7" column="1">
-                          <widget class="PLSCheckBox" name="simpleReplayBuf">
-                           <property name="text">
-                            <string>Basic.Settings.Output.UseReplayBuffer</string>
-                           </property>
-                           <property name="checked">
-                            <bool>true</bool>
-                           </property>
-                          </widget>
-                         </item>
                         </layout>
                        </widget>
                       </item>
                       <item>
-                       <widget class="QGroupBox" name="replayBufferGroupBox">
+                       <widget class="QGroupBox" name="simpleReplayBuf">
                         <property name="title">
                          <string>ReplayBuffer</string>
+                        </property>
+                        <property name="checkable">
+                         <bool>true</bool>
                         </property>
                         <layout class="QFormLayout" name="formLayout_24">
                          <property name="fieldGrowthPolicy">
@@ -2481,25 +2964,6 @@
                        </widget>
                       </item>
                       <item>
-                       <layout class="QVBoxLayout" name="simpleOutInfoLayout">
-                        <property name="spacing">
-                         <number>0</number>
-                        </property>
-                        <property name="leftMargin">
-                         <number>0</number>
-                        </property>
-                        <property name="topMargin">
-                         <number>0</number>
-                        </property>
-                        <property name="rightMargin">
-                         <number>0</number>
-                        </property>
-                        <property name="bottomMargin">
-                         <number>0</number>
-                        </property>
-                       </layout>
-                      </item>
-                      <item>
                        <widget class="QFrame" name="simpleOutputContainer">
                         <property name="minimumSize">
                          <size>
@@ -2542,6 +3006,13 @@
                      </layout>
                     </widget>
                    </widget>
+                  </item>
+                  <item>
+                   <layout class="QVBoxLayout" name="simpleOutInfoLayout">
+                    <property name="spacing">
+                     <number>0</number>
+                    </property>
+                   </layout>
                   </item>
                  </layout>
                 </widget>
@@ -2609,8 +3080,8 @@
                           <rect>
                            <x>0</x>
                            <y>0</y>
-                           <width>479</width>
-                           <height>157</height>
+                           <width>432</width>
+                           <height>145</height>
                           </rect>
                          </property>
                          <layout class="QVBoxLayout" name="verticalLayout_14">
@@ -2679,128 +3150,158 @@
                               </widget>
                              </item>
                              <item row="1" column="1">
-                              <widget class="QFrame" name="widget_8">
+                              <widget class="QStackedWidget" name="advStreamTrackWidget">
                                <property name="sizePolicy">
                                 <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
                                  <horstretch>0</horstretch>
                                  <verstretch>0</verstretch>
                                 </sizepolicy>
                                </property>
-                               <layout class="QHBoxLayout" name="horizontalLayout_7">
-                                <property name="spacing">
-                                 <number>10</number>
-                                </property>
-                                <property name="leftMargin">
-                                 <number>0</number>
-                                </property>
-                                <property name="topMargin">
-                                 <number>0</number>
-                                </property>
-                                <property name="rightMargin">
-                                 <number>0</number>
-                                </property>
-                                <property name="bottomMargin">
-                                 <number>0</number>
-                                </property>
-                                <item>
-                                 <widget class="PLSRadioButton" name="advOutTrack1">
-                                  <property name="text">
-                                   <string notr="true">1</string>
-                                  </property>
-                                  <property name="checked">
-                                   <bool>true</bool>
-                                  </property>
-                                 </widget>
-                                </item>
-                                <item>
-                                 <widget class="PLSRadioButton" name="advOutTrack2">
-                                  <property name="text">
-                                   <string notr="true">2</string>
-                                  </property>
-                                 </widget>
-                                </item>
-                                <item>
-                                 <widget class="PLSRadioButton" name="advOutTrack3">
-                                  <property name="text">
-                                   <string notr="true">3</string>
-                                  </property>
-                                 </widget>
-                                </item>
-                                <item>
-                                 <widget class="PLSRadioButton" name="advOutTrack4">
-                                  <property name="text">
-                                   <string notr="true">4</string>
-                                  </property>
-                                 </widget>
-                                </item>
-                                <item>
-                                 <widget class="PLSRadioButton" name="advOutTrack5">
-                                  <property name="text">
-                                   <string notr="true">5</string>
-                                  </property>
-                                 </widget>
-                                </item>
-                                <item>
-                                 <widget class="PLSRadioButton" name="advOutTrack6">
-                                  <property name="text">
-                                   <string notr="true">6</string>
-                                  </property>
-                                 </widget>
-                                </item>
-                               </layout>
-                              </widget>
-                             </item>
-                             <item row="4" column="1">
-                              <widget class="PLSComboBox" name="advOutRescale">
-                               <property name="enabled">
-                                <bool>false</bool>
-                               </property>
-                               <property name="editable">
-                                <bool>true</bool>
-                               </property>
-                              </widget>
-                             </item>
-                             <item row="4" column="0">
-                              <layout class="QHBoxLayout" name="horizontalLayout_12">
-                               <property name="spacing">
-                                <number>10</number>
-                               </property>
-                               <property name="rightMargin">
+                               <property name="currentIndex">
                                 <number>0</number>
                                </property>
-                               <property name="bottomMargin">
-                                <number>0</number>
+                               <widget class="QWidget" name="streamSingleTracks">
+                                <property name="sizePolicy">
+                                 <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                                  <horstretch>0</horstretch>
+                                  <verstretch>0</verstretch>
+                                 </sizepolicy>
+                                </property>
+                                <layout class="QHBoxLayout" name="horizontalLayout_39">
+                                 <property name="leftMargin">
+                                  <number>0</number>
+                                 </property>
+                                 <property name="topMargin">
+                                  <number>0</number>
+                                 </property>
+                                 <property name="rightMargin">
+                                  <number>0</number>
+                                 </property>
+                                 <property name="bottomMargin">
+                                  <number>0</number>
+                                 </property>
+                                 <item>
+                                  <widget class="PLSRadioButton" name="advOutTrack1">
+                                   <property name="text">
+                                    <string notr="true">1</string>
+                                   </property>
+                                   <property name="checked">
+                                    <bool>true</bool>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item>
+                                  <widget class="PLSRadioButton" name="advOutTrack2">
+                                   <property name="text">
+                                    <string notr="true">2</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item>
+                                  <widget class="PLSRadioButton" name="advOutTrack3">
+                                   <property name="text">
+                                    <string notr="true">3</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item>
+                                  <widget class="PLSRadioButton" name="advOutTrack4">
+                                   <property name="text">
+                                    <string notr="true">4</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item>
+                                  <widget class="PLSRadioButton" name="advOutTrack5">
+                                   <property name="text">
+                                    <string notr="true">5</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item>
+                                  <widget class="PLSRadioButton" name="advOutTrack6">
+                                   <property name="text">
+                                    <string notr="true">6</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                </layout>
+                               </widget>
+                               <widget class="QWidget" name="streamMultiTracks">
+                                <property name="sizePolicy">
+                                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                                  <horstretch>0</horstretch>
+                                  <verstretch>0</verstretch>
+                                 </sizepolicy>
+                                </property>
+                                <layout class="QHBoxLayout" name="horizontalLayout_38">
+                                 <property name="leftMargin">
+                                  <number>0</number>
+                                 </property>
+                                 <property name="topMargin">
+                                  <number>0</number>
+                                 </property>
+                                 <property name="rightMargin">
+                                  <number>0</number>
+                                 </property>
+                                 <property name="bottomMargin">
+                                  <number>0</number>
+                                 </property>
+                                 <item>
+                                  <widget class="PLSCheckBox" name="advOutMultiTrack1">
+                                   <property name="text">
+                                    <string>1</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item>
+                                  <widget class="PLSCheckBox" name="advOutMultiTrack2">
+                                   <property name="text">
+                                    <string>2</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item>
+                                  <widget class="PLSCheckBox" name="advOutMultiTrack3">
+                                   <property name="text">
+                                    <string>3</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item>
+                                  <widget class="PLSCheckBox" name="advOutMultiTrack4">
+                                   <property name="text">
+                                    <string>4</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item>
+                                  <widget class="PLSCheckBox" name="advOutMultiTrack5">
+                                   <property name="text">
+                                    <string>5</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item>
+                                  <widget class="PLSCheckBox" name="advOutMultiTrack6">
+                                   <property name="text">
+                                    <string>6</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                </layout>
+                               </widget>
+                              </widget>
+                             </item>
+                             <item row="2" column="0">
+                              <widget class="QLabel" name="advOutAEncLabel">
+                               <property name="text">
+                                <string>Basic.Settings.Output.Encoder.Audio</string>
                                </property>
-                               <item>
-                                <widget class="QLabel" name="label_24">
-                                 <property name="text">
-                                  <string>Basic.Settings.Output.Adv.Rescale</string>
-                                 </property>
-                                 <property name="wordWrap">
-                                  <bool>true</bool>
-                                 </property>
-                                 <property name="useFor" stdset="0">
-                                  <string notr="true">FormLabelRole</string>
-                                 </property>
-                                </widget>
-                               </item>
-                               <item>
-                                <widget class="PLSCheckBox" name="advOutUseRescale">
-                                 <property name="sizePolicy">
-                                  <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
-                                   <horstretch>0</horstretch>
-                                   <verstretch>0</verstretch>
-                                  </sizepolicy>
-                                 </property>
-                                 <property name="layoutDirection">
-                                  <enum>Qt::LeftToRight</enum>
-                                 </property>
-                                 <property name="text">
-                                  <string/>
-                                 </property>
-                                </widget>
-                               </item>
-                              </layout>
+                               <property name="useFor" stdset="0">
+                                <string notr="true">FormLabelRole</string>
+                               </property>
+                              </widget>
                              </item>
                              <item row="2" column="1">
                               <layout class="QVBoxLayout" name="verticalLayout_41">
@@ -2808,25 +3309,61 @@
                                 <number>0</number>
                                </property>
                                <property name="topMargin">
-                                <number>5</number>
+                                <number>0</number>
                                </property>
                                <property name="bottomMargin">
                                 <number>0</number>
                                </property>
                                <item>
-                                <widget class="PLSComboBox" name="advOutEncoder"/>
+                                <widget class="PLSComboBox" name="advOutAEncoder"/>
                                </item>
                               </layout>
                              </item>
-                             <item row="2" column="0">
+                             <item row="3" column="0">
                               <widget class="QLabel" name="advOutEncLabel">
                                <property name="text">
-                                <string>Basic.Settings.Output.Encoder</string>
+                                <string>Basic.Settings.Output.Encoder.Video</string>
+                               </property>
+                               <property name="useFor" stdset="0">
+                                <string>FormLabelRole</string>
+                               </property>
+                              </widget>
+                             </item>
+                             <item row="3" column="1">
+                              <widget class="PLSComboBox" name="advOutEncoder"/>
+                             </item>
+                             <item row="4" column="0">
+                              <widget class="QLabel" name="advOutUseRescale">
+                               <property name="text">
+                                <string>Basic.Settings.Output.Adv.Rescale</string>
+                               </property>
+                               <property name="wordWrap">
+                                <bool>true</bool>
                                </property>
                                <property name="useFor" stdset="0">
                                 <string notr="true">FormLabelRole</string>
                                </property>
                               </widget>
+                             </item>
+                             <item row="4" column="1">
+                              <layout class="QHBoxLayout" name="horizontalLayout_7">
+                               <property name="spacing">
+                                <number>10</number>
+                               </property>
+                               <item>
+                                <widget class="PLSComboBox" name="advOutRescaleFilter"/>
+                               </item>
+                               <item>
+                                <widget class="PLSComboBox" name="advOutRescale">
+                                 <property name="enabled">
+                                  <bool>false</bool>
+                                 </property>
+                                 <property name="editable">
+                                  <bool>true</bool>
+                                 </property>
+                                </widget>
+                               </item>
+                              </layout>
                              </item>
                             </layout>
                            </widget>
@@ -3016,8 +3553,8 @@
                               <rect>
                                <x>0</x>
                                <y>0</y>
-                               <width>557</width>
-                               <height>419</height>
+                               <width>549</width>
+                               <height>348</height>
                               </rect>
                              </property>
                              <property name="sizePolicy">
@@ -3155,10 +3692,10 @@
                                     <number>0</number>
                                    </property>
                                    <property name="topMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <property name="bottomMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <item>
                                     <widget class="PLSCheckBox" name="advOutNoSpace">
@@ -3196,39 +3733,45 @@
                                      <verstretch>0</verstretch>
                                     </sizepolicy>
                                    </property>
-                                   <item>
-                                    <property name="text">
-                                     <string notr="true">flv</string>
-                                    </property>
-                                   </item>
-                                   <item>
-                                    <property name="text">
-                                     <string notr="true">mp4</string>
-                                    </property>
-                                   </item>
-                                   <item>
-                                    <property name="text">
-                                     <string notr="true">mov</string>
-                                    </property>
-                                   </item>
-                                   <item>
-                                    <property name="text">
-                                     <string notr="true">mkv</string>
-                                    </property>
-                                   </item>
-                                   <item>
-                                    <property name="text">
-                                     <string notr="true">ts</string>
-                                    </property>
-                                   </item>
-                                   <item>
-                                    <property name="text">
-                                     <string notr="true">m3u8</string>
-                                    </property>
-                                   </item>
+                                   <property name="currentIndex">
+                                    <number>-1</number>
+                                   </property>
                                   </widget>
                                  </item>
                                  <item row="4" column="0">
+                                  <widget class="QLabel" name="advOutRecEncLabel">
+                                   <property name="text">
+                                    <string>Basic.Settings.Output.Encoder.Video</string>
+                                   </property>
+                                   <property name="useFor" stdset="0">
+                                    <string notr="true">FormLabelRole</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item row="4" column="1">
+                                  <widget class="PLSComboBox" name="advOutRecEncoder">
+                                   <property name="sizePolicy">
+                                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                                     <horstretch>0</horstretch>
+                                     <verstretch>0</verstretch>
+                                    </sizepolicy>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item row="5" column="0">
+                                  <widget class="QLabel" name="advOutRecAEncLabel">
+                                   <property name="text">
+                                    <string>Basic.Settings.Output.Encoder.Audio</string>
+                                   </property>
+                                   <property name="useFor" stdset="0">
+                                    <string>FormLabelRole</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item row="5" column="1">
+                                  <widget class="PLSComboBox" name="advOutRecAEncoder"/>
+                                 </item>
+                                 <item row="6" column="0">
                                   <widget class="QLabel" name="label_29">
                                    <property name="text">
                                     <string>Basic.Settings.Output.Adv.AudioTrack</string>
@@ -3238,7 +3781,7 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="4" column="1">
+                                 <item row="6" column="1">
                                   <widget class="QStackedWidget" name="advRecTrackWidget">
                                    <property name="sizePolicy">
                                     <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -3247,7 +3790,7 @@
                                     </sizepolicy>
                                    </property>
                                    <property name="currentIndex">
-                                    <number>1</number>
+                                    <number>0</number>
                                    </property>
                                    <widget class="QWidget" name="recTracks">
                                     <layout class="QHBoxLayout" name="horizontalLayout_9">
@@ -3258,13 +3801,13 @@
                                       <number>0</number>
                                      </property>
                                      <property name="topMargin">
-                                      <number>5</number>
+                                      <number>0</number>
                                      </property>
                                      <property name="rightMargin">
                                       <number>0</number>
                                      </property>
                                      <property name="bottomMargin">
-                                      <number>5</number>
+                                      <number>0</number>
                                      </property>
                                      <item>
                                       <widget class="PLSCheckBox" name="advOutRecTrack1">
@@ -3355,13 +3898,13 @@
                                       <number>0</number>
                                      </property>
                                      <property name="topMargin">
-                                      <number>5</number>
+                                      <number>0</number>
                                      </property>
                                      <property name="rightMargin">
                                       <number>0</number>
                                      </property>
                                      <property name="bottomMargin">
-                                      <number>5</number>
+                                      <number>0</number>
                                      </property>
                                      <item>
                                       <widget class="PLSRadioButton" name="flvTrack1">
@@ -3445,27 +3988,7 @@
                                    </widget>
                                   </widget>
                                  </item>
-                                 <item row="5" column="0">
-                                  <widget class="QLabel" name="advOutRecEncLabel">
-                                   <property name="text">
-                                    <string>Basic.Settings.Output.Encoder</string>
-                                   </property>
-                                   <property name="useFor" stdset="0">
-                                    <string notr="true">FormLabelRole</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item row="5" column="1">
-                                  <widget class="PLSComboBox" name="advOutRecEncoder">
-                                   <property name="sizePolicy">
-                                    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                                     <horstretch>0</horstretch>
-                                     <verstretch>0</verstretch>
-                                    </sizepolicy>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item row="6" column="0">
+                                 <item row="7" column="0">
                                   <layout class="QHBoxLayout" name="horizontalLayout_24">
                                    <property name="spacing">
                                     <number>10</number>
@@ -3477,7 +4000,7 @@
                                     <number>0</number>
                                    </property>
                                    <item>
-                                    <widget class="QLabel" name="label_27">
+                                    <widget class="QLabel" name="advOutRecUseRescale">
                                      <property name="text">
                                       <string>Basic.Settings.Output.Adv.Rescale</string>
                                      </property>
@@ -3489,57 +4012,7 @@
                                      </property>
                                     </widget>
                                    </item>
-                                   <item>
-                                    <widget class="PLSCheckBox" name="advOutRecUseRescale">
-                                     <property name="sizePolicy">
-                                      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-                                       <horstretch>0</horstretch>
-                                       <verstretch>0</verstretch>
-                                      </sizepolicy>
-                                     </property>
-                                     <property name="layoutDirection">
-                                      <enum>Qt::LeftToRight</enum>
-                                     </property>
-                                     <property name="text">
-                                      <string/>
-                                     </property>
-                                    </widget>
-                                   </item>
                                   </layout>
-                                 </item>
-                                 <item row="6" column="1">
-                                  <widget class="QFrame" name="advOutRecRescaleContainer">
-                                   <layout class="QHBoxLayout" name="horizontalLayout_4">
-                                    <property name="leftMargin">
-                                     <number>0</number>
-                                    </property>
-                                    <property name="topMargin">
-                                     <number>0</number>
-                                    </property>
-                                    <property name="rightMargin">
-                                     <number>0</number>
-                                    </property>
-                                    <property name="bottomMargin">
-                                     <number>0</number>
-                                    </property>
-                                    <item>
-                                     <widget class="PLSComboBox" name="advOutRecRescale">
-                                      <property name="enabled">
-                                       <bool>false</bool>
-                                      </property>
-                                      <property name="sizePolicy">
-                                       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                                        <horstretch>0</horstretch>
-                                        <verstretch>0</verstretch>
-                                       </sizepolicy>
-                                      </property>
-                                      <property name="editable">
-                                       <bool>true</bool>
-                                      </property>
-                                     </widget>
-                                    </item>
-                                   </layout>
-                                  </widget>
                                  </item>
                                  <item row="8" column="0">
                                   <widget class="QLabel" name="label_9001">
@@ -3557,10 +4030,10 @@
                                     <number>0</number>
                                    </property>
                                    <property name="topMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <property name="bottomMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <item>
                                     <widget class="PLSLineEdit" name="advOutMuxCustom">
@@ -3574,7 +4047,7 @@
                                    </item>
                                   </layout>
                                  </item>
-                                 <item row="10" column="0">
+                                 <item row="9" column="0">
                                   <layout class="QHBoxLayout" name="horizontalLayout_31">
                                    <property name="spacing">
                                     <number>10</number>
@@ -3583,7 +4056,7 @@
                                     <number>0</number>
                                    </property>
                                    <property name="bottomMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <item>
                                     <widget class="QLabel" name="label_45">
@@ -3625,13 +4098,13 @@
                                    </item>
                                   </layout>
                                  </item>
-                                 <item row="10" column="1">
+                                 <item row="9" column="1">
                                   <layout class="QVBoxLayout" name="verticalLayout_30">
                                    <property name="spacing">
                                     <number>0</number>
                                    </property>
                                    <property name="bottomMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <item>
                                     <widget class="PLSComboBox" name="advOutSplitFileType">
@@ -3657,7 +4130,17 @@
                                    </item>
                                   </layout>
                                  </item>
-                                 <item row="12" column="1">
+                                 <item row="10" column="0">
+                                  <widget class="QLabel" name="advOutSplitFileTimeLabel">
+                                   <property name="text">
+                                    <string>Basic.Settings.Output.SplitFile.Time</string>
+                                   </property>
+                                   <property name="useFor" stdset="0">
+                                    <string notr="true">FormLabelRole</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item row="10" column="1">
                                   <widget class="PLSSpinBox" name="advOutSplitFileTime">
                                    <property name="suffix">
                                     <string> min</string>
@@ -3673,17 +4156,7 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="12" column="0">
-                                  <widget class="QLabel" name="advOutSplitFileTimeLabel">
-                                   <property name="text">
-                                    <string>Basic.Settings.Output.SplitFile.Time</string>
-                                   </property>
-                                   <property name="useFor" stdset="0">
-                                    <string notr="true">FormLabelRole</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item row="13" column="0">
+                                 <item row="11" column="0">
                                   <widget class="QLabel" name="advOutSplitFileSizeLabel">
                                    <property name="text">
                                     <string>Basic.Settings.Output.SplitFile.Size</string>
@@ -3693,7 +4166,47 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="13" column="1">
+                                 <item row="7" column="1">
+                                  <widget class="QFrame" name="advOutRecRescaleContainer">
+                                   <layout class="QHBoxLayout" name="horizontalLayout_4">
+                                    <property name="spacing">
+                                     <number>10</number>
+                                    </property>
+                                    <property name="leftMargin">
+                                     <number>0</number>
+                                    </property>
+                                    <property name="topMargin">
+                                     <number>0</number>
+                                    </property>
+                                    <property name="rightMargin">
+                                     <number>0</number>
+                                    </property>
+                                    <property name="bottomMargin">
+                                     <number>0</number>
+                                    </property>
+                                    <item>
+                                     <widget class="PLSComboBox" name="advOutRecRescaleFilter"/>
+                                    </item>
+                                    <item>
+                                     <widget class="PLSComboBox" name="advOutRecRescale">
+                                      <property name="enabled">
+                                       <bool>false</bool>
+                                      </property>
+                                      <property name="sizePolicy">
+                                       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                                        <horstretch>0</horstretch>
+                                        <verstretch>0</verstretch>
+                                       </sizepolicy>
+                                      </property>
+                                      <property name="editable">
+                                       <bool>true</bool>
+                                      </property>
+                                     </widget>
+                                    </item>
+                                   </layout>
+                                  </widget>
+                                 </item>
+                                 <item row="11" column="1">
                                   <widget class="PLSSpinBox" name="advOutSplitFileSize">
                                    <property name="suffix">
                                     <string> MB</string>
@@ -3803,8 +4316,8 @@
                               <rect>
                                <x>0</x>
                                <y>0</y>
-                               <width>674</width>
-                               <height>572</height>
+                               <width>668</width>
+                               <height>491</height>
                               </rect>
                              </property>
                              <layout class="QVBoxLayout" name="verticalLayout_27">
@@ -4051,7 +4564,7 @@
                                  <item row="6" column="0">
                                   <widget class="QLabel" name="label_1337">
                                    <property name="text">
-                                    <string>Basic.Settings.Output.Adv.FFmpeg.MuxerSettings</string>
+                                    <string>Prism.Settings.Output.Adv.FFmpeg.MuxerSettings</string>
                                    </property>
                                    <property name="useFor" stdset="0">
                                     <string notr="true">FormLabelRole</string>
@@ -4113,13 +4626,13 @@
                                     <number>0</number>
                                    </property>
                                    <property name="topMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <property name="rightMargin">
                                     <number>0</number>
                                    </property>
                                    <property name="bottomMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <item>
                                     <widget class="QLabel" name="label_68">
@@ -4158,10 +4671,10 @@
                                     <number>0</number>
                                    </property>
                                    <property name="topMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <property name="bottomMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <item>
                                     <widget class="PLSComboBox" name="advOutFFRescale">
@@ -4198,10 +4711,10 @@
                                     <number>0</number>
                                    </property>
                                    <property name="topMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <property name="bottomMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <item>
                                     <widget class="PLSComboBox" name="advOutFFVEncoder"/>
@@ -4237,10 +4750,10 @@
                                     <number>0</number>
                                    </property>
                                    <property name="topMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <property name="bottomMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <item>
                                     <widget class="PLSSpinBox" name="advOutFFABitrate">
@@ -4358,10 +4871,10 @@
                                     <number>0</number>
                                    </property>
                                    <property name="topMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <property name="bottomMargin">
-                                    <number>5</number>
+                                    <number>0</number>
                                    </property>
                                    <item>
                                     <widget class="PLSComboBox" name="advOutFFAEncoder"/>
@@ -4457,8 +4970,8 @@
                              <rect>
                               <x>0</x>
                               <y>0</y>
-                              <width>253</width>
-                              <height>564</height>
+                              <width>244</width>
+                              <height>462</height>
                              </rect>
                             </property>
                             <layout class="QVBoxLayout" name="verticalLayout_28">
@@ -4603,7 +5116,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <property name="rightMargin">
                                    <number>0</number>
@@ -4632,7 +5145,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <item>
                                    <widget class="PLSLineEdit" name="advOutTrack1Name">
@@ -4775,7 +5288,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <property name="rightMargin">
                                    <number>0</number>
@@ -4804,7 +5317,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <item>
                                    <widget class="PLSLineEdit" name="advOutTrack2Name">
@@ -4947,7 +5460,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <property name="rightMargin">
                                    <number>0</number>
@@ -4976,7 +5489,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <item>
                                    <widget class="PLSLineEdit" name="advOutTrack3Name">
@@ -5119,7 +5632,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <property name="rightMargin">
                                    <number>0</number>
@@ -5148,7 +5661,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <item>
                                    <widget class="PLSLineEdit" name="advOutTrack4Name">
@@ -5291,7 +5804,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <property name="rightMargin">
                                    <number>0</number>
@@ -5320,7 +5833,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <item>
                                    <widget class="PLSLineEdit" name="advOutTrack5Name">
@@ -5463,7 +5976,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <property name="rightMargin">
                                    <number>0</number>
@@ -5492,7 +6005,7 @@
                                    <number>0</number>
                                   </property>
                                   <property name="topMargin">
-                                   <number>5</number>
+                                   <number>0</number>
                                   </property>
                                   <item>
                                    <widget class="PLSLineEdit" name="advOutTrack6Name">
@@ -5536,7 +6049,7 @@
                     </widget>
                     <widget class="QWidget" name="advOutputReplayTab">
                      <attribute name="title">
-                      <string>ReplayBuffer</string>
+                      <string>Prism.ReplayBuffer</string>
                      </attribute>
                      <layout class="QVBoxLayout" name="verticalLayout_22">
                       <property name="spacing">
@@ -5575,6 +6088,16 @@
                          <property name="bottomMargin">
                           <number>0</number>
                          </property>
+                         <item>
+                          <widget class="QLabel" name="advReplayBufCustomFFmpeg">
+                           <property name="text">
+                            <string>Basic.Settings.Output.ReplayBuffer.UnavailableCustomFFmpeg</string>
+                           </property>
+                           <property name="themeID" stdset="0">
+                            <string>warning</string>
+                           </property>
+                          </widget>
+                         </item>
                          <item>
                           <widget class="PLSCheckBox" name="advReplayBuf">
                            <property name="text">
@@ -5685,7 +6208,7 @@
                         <property name="sizeHint" stdset="0">
                          <size>
                           <width>20</width>
-                          <height>20</height>
+                          <height>0</height>
                          </size>
                         </property>
                        </spacer>
@@ -5736,8 +6259,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>640</width>
-                <height>543</height>
+                <width>634</width>
+                <height>467</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_50">
@@ -6171,7 +6694,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="PLSCheckBox" name="disableAudioDucking">
@@ -6418,7 +6941,7 @@
            <item row="6" column="1">
             <widget class="QStackedWidget" name="fpsTypes">
              <property name="currentIndex">
-              <number>0</number>
+              <number>1</number>
              </property>
              <widget class="QWidget" name="page">
               <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -6646,7 +7169,7 @@
          <widget class="QWidget" name="hotkeyPage">
           <layout class="QVBoxLayout" name="verticalLayout_25">
            <property name="spacing">
-            <number>10</number>
+            <number>0</number>
            </property>
            <property name="leftMargin">
             <number>0</number>
@@ -6661,6 +7184,106 @@
             <number>0</number>
            </property>
            <item>
+            <layout class="QFormLayout" name="hotkeySearchLayout">
+             <property name="horizontalSpacing">
+              <number>0</number>
+             </property>
+             <property name="verticalSpacing">
+              <number>0</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QLabel" name="hotkeySearchLabel">
+               <property name="text">
+                <string>Basic.Settings.Hotkeys.Filter</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_34">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="PLSLineEdit" name="hotkeyFilterSearch"/>
+               </item>
+               <item>
+                <widget class="QPushButton" name="pushButton">
+                 <property name="toolTip">
+                  <string>Clear</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="hotkeyFilterLabel">
+               <property name="text">
+                <string>Prism.Settings.Hotkeys.FilterByHotkey</string>
+               </property>
+               <property name="useFor" stdset="0">
+                <string notr="true">FormLabelRole</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_35">
+               <property name="spacing">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="OBSHotkeyEdit" name="hotkeyFilterInput"/>
+               </item>
+               <item>
+                <widget class="QPushButton" name="hotkeyFilterReset">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="minimumSize">
+                  <size>
+                   <width>0</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                 <property name="maximumSize">
+                  <size>
+                   <width>16777215</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="baseSize">
+                  <size>
+                   <width>0</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                 <property name="toolTip">
+                  <string>Clear</string>
+                 </property>
+                 <property name="iconSize">
+                  <size>
+                   <width>20</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                 <property name="flat">
+                  <bool>false</bool>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+           <item>
             <widget class="QScrollArea" name="hotkeyScrollArea">
              <property name="frameShape">
               <enum>QFrame::NoFrame</enum>
@@ -6673,11 +7296,11 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>279</width>
-                <height>54</height>
+                <width>193</width>
+                <height>28</height>
                </rect>
               </property>
-              <layout class="QVBoxLayout" name="verticalLayout_44" stretch="0,1">
+              <layout class="QVBoxLayout" name="verticalLayout_44" stretch="1">
                <property name="spacing">
                 <number>0</number>
                </property>
@@ -6693,106 +7316,6 @@
                <property name="bottomMargin">
                 <number>0</number>
                </property>
-               <item>
-                <layout class="QFormLayout" name="hotkeySearchLayout">
-                 <property name="horizontalSpacing">
-                  <number>0</number>
-                 </property>
-                 <property name="verticalSpacing">
-                  <number>0</number>
-                 </property>
-                 <item row="0" column="0">
-                  <widget class="QLabel" name="hotkeySearchLabel">
-                   <property name="text">
-                    <string>Basic.Settings.Hotkeys.Filter</string>
-                   </property>
-                   <property name="useFor" stdset="0">
-                    <string notr="true">FormLabelRole</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="0" column="1">
-                  <layout class="QHBoxLayout" name="horizontalLayout_34">
-                   <property name="spacing">
-                    <number>0</number>
-                   </property>
-                   <item>
-                    <widget class="PLSLineEdit" name="hotkeyFilterSearch"/>
-                   </item>
-                   <item>
-                    <widget class="QPushButton" name="pushButton">
-                     <property name="toolTip">
-                      <string>Clear</string>
-                     </property>
-                     <property name="text">
-                      <string/>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </item>
-                 <item row="1" column="0">
-                  <widget class="QLabel" name="hotkeyFilterLabel">
-                   <property name="text">
-                    <string>Basic.Settings.Hotkeys.FilterByHotkey</string>
-                   </property>
-                   <property name="useFor" stdset="0">
-                    <string notr="true">FormLabelRole</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="1" column="1">
-                  <layout class="QHBoxLayout" name="horizontalLayout_35">
-                   <property name="spacing">
-                    <number>0</number>
-                   </property>
-                   <item>
-                    <widget class="OBSHotkeyEdit" name="hotkeyFilterInput"/>
-                   </item>
-                   <item>
-                    <widget class="QPushButton" name="hotkeyFilterReset">
-                     <property name="sizePolicy">
-                      <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
-                       <horstretch>0</horstretch>
-                       <verstretch>0</verstretch>
-                      </sizepolicy>
-                     </property>
-                     <property name="minimumSize">
-                      <size>
-                       <width>0</width>
-                       <height>0</height>
-                      </size>
-                     </property>
-                     <property name="maximumSize">
-                      <size>
-                       <width>16777215</width>
-                       <height>16777215</height>
-                      </size>
-                     </property>
-                     <property name="baseSize">
-                      <size>
-                       <width>0</width>
-                       <height>0</height>
-                      </size>
-                     </property>
-                     <property name="toolTip">
-                      <string>Clear</string>
-                     </property>
-                     <property name="iconSize">
-                      <size>
-                       <width>20</width>
-                       <height>20</height>
-                      </size>
-                     </property>
-                     <property name="flat">
-                      <bool>false</bool>
-                     </property>
-                    </widget>
-                   </item>
-                  </layout>
-                 </item>
-                </layout>
-               </item>
                <item>
                 <widget class="QWidget" name="hotkeyScrollContents" native="true">
                  <layout class="QFormLayout" name="hotkeyFormLayout">
@@ -6814,6 +7337,16 @@
                   <property name="bottomMargin">
                    <number>0</number>
                   </property>
+                  <item row="0" column="0" colspan="2">
+                   <widget class="QLabel" name="pleaseWaitLabel">
+                    <property name="text">
+                     <string>Basic.Settings.Hotkeys.PleaseWait</string>
+                    </property>
+                    <property name="alignment">
+                     <set>Qt::AlignCenter</set>
+                    </property>
+                   </widget>
+                  </item>
                  </layout>
                 </widget>
                </item>
@@ -6856,8 +7389,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>728</width>
-                <height>291</height>
+                <width>720</width>
+                <height>279</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_42">
@@ -6896,6 +7429,9 @@
                  </item>
                  <item>
                   <widget class="QGroupBox" name="colorsGroupBox">
+                   <property name="enabled">
+                    <bool>true</bool>
+                   </property>
                    <property name="sizePolicy">
                     <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
                      <horstretch>0</horstretch>
@@ -6935,6 +7471,9 @@
                     </property>
                     <item row="0" column="0">
                      <widget class="QLabel" name="colorPresetLabel">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Accessibility.ColorOverrides.Preset</string>
                       </property>
@@ -6951,6 +7490,9 @@
                     </item>
                     <item row="0" column="1">
                      <widget class="PLSComboBox" name="colorPreset">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <item>
                        <property name="text">
                         <string>Basic.Settings.Accessibility.ColorOverrides.Preset.Default</string>
@@ -6970,6 +7512,9 @@
                     </item>
                     <item row="1" column="0">
                      <widget class="QLabel" name="colorSelectLabel_1">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Accessibility.ColorOverrides.SelectRed</string>
                       </property>
@@ -7000,6 +7545,9 @@
                       </property>
                       <item>
                        <widget class="QLabel" name="color1">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7028,6 +7576,9 @@
                       </item>
                       <item>
                        <widget class="QPushButton" name="choose1">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7055,6 +7606,9 @@
                     </item>
                     <item row="2" column="0">
                      <widget class="QLabel" name="colorSelectLabel_2">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Accessibility.ColorOverrides.SelectGreen</string>
                       </property>
@@ -7088,6 +7642,9 @@
                       </property>
                       <item>
                        <widget class="QLabel" name="color2">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7116,6 +7673,9 @@
                       </item>
                       <item>
                        <widget class="QPushButton" name="choose2">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7143,6 +7703,9 @@
                     </item>
                     <item row="3" column="0">
                      <widget class="QLabel" name="colorSelectLabel_3">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Accessibility.ColorOverrides.SelectBlue</string>
                       </property>
@@ -7176,6 +7739,9 @@
                       </property>
                       <item>
                        <widget class="QLabel" name="color3">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7204,6 +7770,9 @@
                       </item>
                       <item>
                        <widget class="QPushButton" name="choose3">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7231,6 +7800,9 @@
                     </item>
                     <item row="4" column="0">
                      <widget class="QLabel" name="colorSelectLabel_4">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Accessibility.ColorOverrides.MixerGreen</string>
                       </property>
@@ -7261,6 +7833,9 @@
                       </property>
                       <item>
                        <widget class="QLabel" name="color4">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7289,6 +7864,9 @@
                       </item>
                       <item>
                        <widget class="QPushButton" name="choose4">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7316,6 +7894,9 @@
                     </item>
                     <item row="5" column="0">
                      <widget class="QLabel" name="colorSelectLabel_5">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Accessibility.ColorOverrides.MixerYellow</string>
                       </property>
@@ -7346,6 +7927,9 @@
                       </property>
                       <item>
                        <widget class="QLabel" name="color5">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7374,6 +7958,9 @@
                       </item>
                       <item>
                        <widget class="QPushButton" name="choose5">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7401,6 +7988,9 @@
                     </item>
                     <item row="6" column="0">
                      <widget class="QLabel" name="colorSelectLabel_6">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Accessibility.ColorOverrides.MixerRed</string>
                       </property>
@@ -7431,6 +8021,9 @@
                       </property>
                       <item>
                        <widget class="QLabel" name="color6">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7459,6 +8052,9 @@
                       </item>
                       <item>
                        <widget class="QPushButton" name="choose6">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7486,6 +8082,9 @@
                     </item>
                     <item row="7" column="0">
                      <widget class="QLabel" name="colorSelectLabel_7">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Accessibility.ColorOverrides.MixerGreenActive</string>
                       </property>
@@ -7516,6 +8115,9 @@
                       </property>
                       <item>
                        <widget class="QLabel" name="color7">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7544,6 +8146,9 @@
                       </item>
                       <item>
                        <widget class="QPushButton" name="choose7">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7571,6 +8176,9 @@
                     </item>
                     <item row="8" column="0">
                      <widget class="QLabel" name="colorSelectLabel_8">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Accessibility.ColorOverrides.MixerYellowActive</string>
                       </property>
@@ -7601,6 +8209,9 @@
                       </property>
                       <item>
                        <widget class="QLabel" name="color8">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7629,6 +8240,9 @@
                       </item>
                       <item>
                        <widget class="QPushButton" name="choose8">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7656,6 +8270,9 @@
                     </item>
                     <item row="9" column="0">
                      <widget class="QLabel" name="colorSelectLabel_9">
+                      <property name="enabled">
+                       <bool>true</bool>
+                      </property>
                       <property name="text">
                        <string>Basic.Settings.Accessibility.ColorOverrides.MixerRedActive</string>
                       </property>
@@ -7686,6 +8303,9 @@
                       </property>
                       <item>
                        <widget class="QLabel" name="color9">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7714,6 +8334,9 @@
                       </item>
                       <item>
                        <widget class="QPushButton" name="choose9">
+                        <property name="enabled">
+                         <bool>true</bool>
+                        </property>
                         <property name="sizePolicy">
                          <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
                           <horstretch>0</horstretch>
@@ -7799,8 +8422,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>778</width>
-                <height>996</height>
+                <width>762</width>
+                <height>874</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_23">
@@ -7871,7 +8494,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="PLSCheckBox" name="confirmOnExit">
@@ -8044,13 +8667,13 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="rightMargin">
                         <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="PLSSpinBox" name="sdrWhiteLevel">
@@ -8105,13 +8728,13 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="rightMargin">
                         <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="QLabel" name="label_sdrWhiteLevel">
@@ -8188,7 +8811,7 @@
                         <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="PLSLineEdit" name="filenameFormatting"/>
@@ -8218,7 +8841,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="rightMargin">
                         <number>0</number>
@@ -8259,7 +8882,7 @@
                         <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="QLabel" name="label_7">
@@ -8285,7 +8908,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="QLabel" name="label_57">
@@ -8367,10 +8990,10 @@
                         <number>10</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="PLSSpinBox" name="streamDelaySec">
@@ -8418,13 +9041,13 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="rightMargin">
                         <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="QLabel" name="label_56">
@@ -8478,7 +9101,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="rightMargin">
                         <number>0</number>
@@ -8536,7 +9159,7 @@
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="rightMargin">
                         <number>0</number>
@@ -8577,24 +9200,14 @@
                      <property name="topMargin">
                       <number>2</number>
                      </property>
-                     <item row="0" column="1">
-                      <widget class="QLabel" name="advNetworkDisabled">
-                       <property name="text">
-                        <string>Basic.Settings.Advanced.Network.Disabled</string>
-                       </property>
-                       <property name="useFor" stdset="0">
-                        <string notr="true">WhiteLable</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item row="4" column="1">
+                     <item row="6" column="1">
                       <widget class="PLSCheckBox" name="enableNewSocketLoop">
                        <property name="text">
                         <string>Basic.Settings.Advanced.Network.EnableNewSocketLoop</string>
                        </property>
                       </widget>
                      </item>
-                     <item row="5" column="1">
+                     <item row="7" column="1">
                       <widget class="PLSCheckBox" name="enableLowLatencyMode">
                        <property name="enabled">
                         <bool>false</bool>
@@ -8604,7 +9217,7 @@
                        </property>
                       </widget>
                      </item>
-                     <item row="3" column="1">
+                     <item row="5" column="1">
                       <widget class="PLSCheckBox" name="dynBitrate">
                        <property name="toolTip">
                         <string>Basic.Settings.Output.DynamicBitrate.TT</string>
@@ -8614,35 +9227,35 @@
                        </property>
                       </widget>
                      </item>
-                     <item row="1" column="1">
+                     <item row="3" column="1">
                       <layout class="QVBoxLayout" name="verticalLayout_40">
                        <property name="spacing">
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="PLSComboBox" name="bindToIP"/>
                        </item>
                       </layout>
                      </item>
-                     <item row="1" column="0">
+                     <item row="3" column="0">
                       <layout class="QVBoxLayout" name="verticalLayout_81">
                        <property name="spacing">
                         <number>0</number>
                        </property>
                        <property name="topMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <property name="rightMargin">
                         <number>0</number>
                        </property>
                        <property name="bottomMargin">
-                        <number>5</number>
+                        <number>0</number>
                        </property>
                        <item>
                         <widget class="QLabel" name="bindToIPLabel">
@@ -8658,6 +9271,52 @@
                         </widget>
                        </item>
                       </layout>
+                     </item>
+                     <item row="2" column="0">
+                      <layout class="QVBoxLayout" name="verticalLayout_87">
+                       <property name="spacing">
+                        <number>0</number>
+                       </property>
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <item>
+                        <widget class="QLabel" name="ipFamilyLabel">
+                         <property name="text">
+                          <string>Basic.Settings.Advanced.Network.IPFamily</string>
+                         </property>
+                         <property name="buddy">
+                          <cstring>ipFamily</cstring>
+                         </property>
+                         <property name="useFor" stdset="0">
+                          <string>FormLabelRole</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </item>
+                     <item row="2" column="1">
+                      <layout class="QVBoxLayout" name="verticalLayout_88">
+                       <property name="spacing">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <item>
+                        <widget class="PLSComboBox" name="ipFamily"/>
+                       </item>
+                      </layout>
+                     </item>
+                     <item row="1" column="0" colspan="2">
+                      <widget class="QLabel" name="advNetworkDisabled">
+                       <property name="text">
+                        <string>Basic.Settings.Advanced.Network.Disabled</string>
+                       </property>
+                      </widget>
                      </item>
                     </layout>
                    </widget>
@@ -8814,36 +9473,67 @@
           <number>20</number>
          </property>
          <item>
-          <widget class="QFrame" name="alertMessageFrame">
+          <widget class="QScrollArea" name="alertMessageFrame">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+            <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
-           <property name="frameShape">
-            <enum>QFrame::StyledPanel</enum>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
            </property>
-           <property name="frameShadow">
-            <enum>QFrame::Raised</enum>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>300</height>
+            </size>
            </property>
-           <layout class="QVBoxLayout" name="alertMessageFrameLayout">
-            <property name="spacing">
-             <number>5</number>
+           <property name="horizontalScrollBarPolicy">
+            <enum>Qt::ScrollBarAlwaysOff</enum>
+           </property>
+           <property name="sizeAdjustPolicy">
+            <enum>QAbstractScrollArea::AdjustIgnored</enum>
+           </property>
+           <property name="widgetResizable">
+            <bool>true</bool>
+           </property>
+           <widget class="QWidget" name="alertMessageFrame_3">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>0</y>
+              <width>741</width>
+              <height>69</height>
+             </rect>
             </property>
-            <property name="leftMargin">
-             <number>0</number>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
             </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>0</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
-           </layout>
+            <layout class="QVBoxLayout" name="alertMessageFrameLayout">
+             <property name="spacing">
+              <number>5</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+            </layout>
+           </widget>
           </widget>
          </item>
         </layout>
@@ -8948,6 +9638,12 @@
    <header>PLSDialogButtonBox.h</header>
   </customwidget>
   <customwidget>
+   <class>PLSSettingGeneralView</class>
+   <extends>QWidget</extends>
+   <header>pls-setting-general-view.hpp</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
    <class>OBSHotkeyEdit</class>
    <extends>QLineEdit</extends>
    <header>hotkey-edit.hpp</header>
@@ -9018,7 +9714,7 @@
   <tabstop>connectAccount</tabstop>
   <tabstop>useStreamKey</tabstop>
   <tabstop>server_org</tabstop>
-  <tabstop>customServer</tabstop>
+  <tabstop>customServer_org</tabstop>
   <tabstop>key</tabstop>
   <tabstop>show</tabstop>
   <tabstop>getStreamKeyButton</tabstop>
@@ -9030,7 +9726,6 @@
   <tabstop>authUsername</tabstop>
   <tabstop>authPw</tabstop>
   <tabstop>authPwShow</tabstop>
-  <tabstop>outputMode</tabstop>
   <tabstop>simpleOutputABitrate</tabstop>
   <tabstop>simpleOutStrEncoder</tabstop>
   <tabstop>simpleOutPreset</tabstop>
@@ -9041,17 +9736,9 @@
   <tabstop>simpleOutRecQuality</tabstop>
   <tabstop>simpleOutRecFormat</tabstop>
   <tabstop>simpleOutRecEncoder</tabstop>
-  <tabstop>simpleReplayBuf</tabstop>
   <tabstop>simpleRBSecMax</tabstop>
   <tabstop>simpleRBMegsMax</tabstop>
   <tabstop>advOutTabs</tabstop>
-  <tabstop>advOutTrack1</tabstop>
-  <tabstop>advOutTrack2</tabstop>
-  <tabstop>advOutTrack3</tabstop>
-  <tabstop>advOutTrack4</tabstop>
-  <tabstop>advOutTrack5</tabstop>
-  <tabstop>advOutTrack6</tabstop>
-  <tabstop>advOutRescale</tabstop>
   <tabstop>advOutRecType</tabstop>
   <tabstop>advOutRecPath</tabstop>
   <tabstop>advOutRecPathBrowse</tabstop>
@@ -9062,8 +9749,6 @@
   <tabstop>advOutRecTrack4</tabstop>
   <tabstop>advOutRecTrack5</tabstop>
   <tabstop>advOutRecTrack6</tabstop>
-  <tabstop>advOutRecEncoder</tabstop>
-  <tabstop>advOutRecRescale</tabstop>
   <tabstop>advOutTrack1Bitrate</tabstop>
   <tabstop>advOutTrack2Bitrate</tabstop>
   <tabstop>advOutTrack3Bitrate</tabstop>
@@ -9122,22 +9807,6 @@
   <include location="obs.qrc"/>
  </resources>
  <connections>
-  <connection>
-   <sender>advOutUseRescale</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>advOutRescale</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>269</x>
-     <y>192</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>656</x>
-     <y>192</y>
-    </hint>
-   </hints>
-  </connection>
   <connection>
    <sender>advOutRecType</sender>
    <signal>currentIndexChanged(int)</signal>
@@ -9359,22 +10028,6 @@
     <hint type="destinationlabel">
      <x>933</x>
      <y>291</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>advOutRecUseRescale</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>advOutRecRescale</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>289</x>
-     <y>317</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>662</x>
-     <y>317</y>
     </hint>
    </hints>
   </connection>

@@ -46,10 +46,6 @@ switch_branch() {
     branch_obs=${branch_prism}
   fi 
 
-  if [ -z ${branch_common_libs} ]; then  
-    branch_common_libs=${branch_prism}
-  fi 
-
   if [ -z ${branch_obs_browser} ]; then  
     branch_obs_browser=${branch_prism}
   fi 
@@ -57,7 +53,6 @@ switch_branch() {
   info "tmp=${tmp}"
   info "branch_prism=${branch_prism}"
   info "branch_obs=${branch_obs}"
-  info "branch_common_libs=${branch_common_libs}"
   info "branch_obs_browser=${branch_obs_browser}"
 
   cd $SCRIPT_PATH
@@ -65,21 +60,22 @@ switch_branch() {
   cd $PROJECT_DIR
 
   path_prism=""
-  path_common_lib="/src/common-libs"
   path_obs_studio="/src/obs-studio"
   path_obs_browser="/src/obs-studio/plugins/obs-browser"
 
 
   statsh_single_branch "$path_prism"
-  statsh_single_branch "$path_common_lib"
   statsh_single_branch "$path_obs_studio"
   statsh_single_branch "$path_obs_browser"
 
   git submodule update --init --recursive
 
   switch_single_branch "$path_prism" "${branch_prism}"
-  switch_single_branch "$path_common_lib" ${branch_common_libs}
   switch_single_branch "$path_obs_studio" ${branch_obs}
+
+  cd "${PROJECT_DIR}/$path_obs_studio"
+  git submodule update
+  
   switch_single_branch "$path_obs_browser" ${branch_obs_browser}
 }
 
@@ -91,7 +87,6 @@ prism-build-main() {
         case "${1}" in
             -p | --prism ) export branch_prism="${2}"; shift 2 ;;
             -o | --obs ) export branch_obs="${2}"; shift 2 ;;
-            -c | --common-libs ) export branch_common_libs="${2}"; shift 2 ;;
             -b | --obs-browser ) export branch_obs_browser="${2}"; shift 2 ;;
             -- ) shift; branch_other="${2}" break ;;
             * ) break ;;

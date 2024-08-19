@@ -1,1 +1,5 @@
+if(OS_WINDOWS)
 add_subdirectory(liblog)
+elseif(OS_MACOS)
+add_subdirectory(liblog)
+endif()

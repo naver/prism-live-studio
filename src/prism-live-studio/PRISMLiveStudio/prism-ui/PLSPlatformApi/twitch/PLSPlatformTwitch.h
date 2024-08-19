@@ -31,10 +31,6 @@ public:
 	int getServerIndex() const;
 	void setServerIndex(int idxServer);
 
-	QStringList getServerNames() const;
-
-	void saveSettings(const std::string &title, const std::string &category, const std::string &categoryId, int idxServer);
-
 	void onPrepareLive(bool value) override;
 
 	void requestCategory(const QString &query);
@@ -60,8 +56,6 @@ signals:
 
 private:
 	QVariantMap setHttpHead() const;
-	void saveStreamServer();
-	void requestServer(bool showAlert, const streamKeyCallback &callback);
 	void requestUpdateChannel(const std::string &title, const std::string &category, const std::string &categoryId);
 	void requestVideos();
 
@@ -71,10 +65,8 @@ private:
 
 	void onAlLiveStarted(bool) override;
 	void onLiveEnded() override;
-	void responseServerSuccessHandler(const QJsonDocument &doc, bool showAlert, const int &code, const QByteArray &data, const streamKeyCallback &callback);
+	void serverHandler();
 
-	int m_idxServer = 0;
-	std::vector<TwitchServer> m_vecTwitchServers;
 	std::string m_strOriginalTitle;
 	QString m_strEndUrl;
 };

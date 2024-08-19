@@ -85,10 +85,7 @@ void PLSSettingGeneralView::on_pushButton_del_account_clicked()
 	qDebug() << __FUNCTION__;
 }
 
-void PLSSettingGeneralView::on_pushButton_change_pwd_clicked()
-{
-
-}
+void PLSSettingGeneralView::on_pushButton_change_pwd_clicked() {}
 
 template<typename WidgetType> void checkWidgetTxt(WidgetType *wid, int padding = 10)
 {

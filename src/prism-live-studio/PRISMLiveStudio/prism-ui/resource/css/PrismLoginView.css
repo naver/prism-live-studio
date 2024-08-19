@@ -1,659 +1,643 @@
 
 PLSLoginView {
-	min-width: /*hdpi*/ 730px;
-	min-height: /*hdpi*/ 504px;
-	max-width: /*hdpi*/ 730px;
-	max-height: /*hdpi*/ 504px;
-	qproperty-hasHLine: /*hdpi*/ false;
-	qproperty-hasMinButton: /*hdpi*/ false;
-	qproperty-isMoveInContent: /*hdpi*/ true;
-	qproperty-captionButtonMargin: /*hdpi*/ 10;
-	color: #1e1e1f;
+    min-width: /*hdpi*/ 730px;
+    min-height: /*hdpi*/ 504px;
+    max-width: /*hdpi*/ 730px;
+    max-height: /*hdpi*/ 504px;
+    qproperty-hasHLine: /*hdpi*/ false;
+    qproperty-hasMinButton: /*hdpi*/ false;
+    qproperty-isMoveInContent: /*hdpi*/ true;
+    qproperty-captionButtonMargin: /*hdpi*/ 10;
+    color: #1e1e1f;
 }
 
-	PLSLoginView > #plsDialogViewBorderFrame > #titleBar,
-	PLSLoginView > #plsDialogViewBorderFrame > #titleBar > #titleLabel {
-		color: #1e1e1f;
-		background-color: #1e1e1f;
-	}
+    PLSLoginView > #plsDialogViewBorderFrame > #titleBar,
+    PLSLoginView > #plsDialogViewBorderFrame > #titleBar > #titleLabel {
+        color: #1e1e1f;
+        background-color: #1e1e1f;
+    }
 
-		PLSLoginView > #label,
-		PLSLoginView > #plsDialogViewBorderFrame > #titleBar > #min,
-		PLSLoginView > #plsDialogViewBorderFrame > #titleBar > #close {
-			background-color: #1e1e1f;
-		}
+        PLSLoginView > #label,
+        PLSLoginView > #plsDialogViewBorderFrame > #titleBar > #min,
+        PLSLoginView > #plsDialogViewBorderFrame > #titleBar > #close {
+            background-color: #1e1e1f;
+        }
 
-PLSLoginView PLSBrowserView > #close, PLSLoginView PLSBrowserView QWidget {
-	background-color: #333333;
-}
+    PLSLoginView PLSBrowserView > #close, PLSLoginView PLSBrowserView QWidget {
+        background-color: #333333;
+    }
 
 #PLSLoginView #LoginBackgroundView, #PLSLoginView #LoginWithEmailView, #PLSLoginView #SignupWithEmailView {
-	background-color: #1e1e1f;
+    background-color: #1e1e1f;
 }
 
 #PLSLoginView #loginMainStackedWidget {
-	background-color: #1e1e1f;
+    background-color: #1e1e1f;
 }
 
 #SelectLoginPlatformView #platformButtonsScrollArea {
-	min-height: /*hdpi*/ 465px;
-	max-height: /*hdpi*/ 465px;
-	border: none;
+    /*min-height:*/ /*hdpi*/ /*465px;
+	max-height:*/ /*hdpi*/ /*465px;*/
+    border:none;
 }
 
 #SelectLoginPlatformView #scrollAreaWidgetContents {
-	background-color: #1e1e1f;
+    background-color: #1e1e1f;
 }
 
 #loginPrismLogoLabel {
-	background-color: transparent;
-	min-width: /*hdpi*/ 255px;
-	min-height: /*hdpi*/ 230px;
-	max-width: /*hdpi*/ 255px;
-	max-height: /*hdpi*/ 230px;
+    background-color: transparent;
+    min-width: /*hdpi*/ 255px;
+    min-height: /*hdpi*/ 230px;
+    max-width: /*hdpi*/ 255px;
+    max-height: /*hdpi*/ 230px;
 }
 
 #loginPrismInfoLabel {
-	min-height:/*hdpi*/ 16px;
-	font-size: /*hdpi*/ 12px;
-	color: #6a6a6a;
-	background-color: #1e1e1f;
+    min-height: /*hdpi*/ 16px;
+    font-size: /*hdpi*/ 12px;
+    color: #6a6a6a;
+    background-color: #1e1e1f;
 }
 
 LoginBackgroundView #loginTermsOfUseBtn, #loginTermsOfUseBtn2, #loginPrivacyPolicyBtn {
-	font-size: /*hdpi*/ 12px;
-	border: /*hdpi*/ none;
-	color: #a3a3a3;
-	background-color: #1e1e1f;
-	padding: 0;
-	margin: 0;
+    font-size: /*hdpi*/ 12px;
+    border: /*hdpi*/ none;
+    color: #a3a3a3;
+    background-color: #1e1e1f;
+    padding: 0;
+    margin: 0;
 }
 
-LoginBackgroundView #loginPrivacyPolicyBtn:hover, #loginTermsOfUseBtn:hover, #loginTermsOfUseBtn2:hover {
-	color: #ffeffc35;
-}
+    LoginBackgroundView #loginPrivacyPolicyBtn:hover, #loginTermsOfUseBtn:hover, #loginTermsOfUseBtn2:hover {
+        color: #ffeffc35;
+    }
 
-LoginBackgroundView #loginPrivacyPolicyBtn:pressed, #loginTermsOfUseBtn:pressed, #loginTermsOfUseBtn2:pressed {
-	color: #ff7C7F43;
-	background-color: #1e1e1f;
-}
+    LoginBackgroundView #loginPrivacyPolicyBtn:pressed, #loginTermsOfUseBtn:pressed, #loginTermsOfUseBtn2:pressed {
+        color: #ff7C7F43;
+        background-color: #1e1e1f;
+    }
 
 LoginBackgroundView #loginAndLabel, #defaultNotAMemberLabel, #loginEndLabel {
-	font-size: /*hdpi*/ 12px;
-	color: #6a6a6a;
-	background-color: #1e1e1f;
-}
-#SelectLoginPlatformView {
-	qproperty-minimumSize: /*hdpi*/ 338px /*hdpi*/ 0px;
-	qproperty-maximumSize: /*hdpi*/ 338px /*hdpi*/ 1000px;
-	
-}
-#SelectLoginPlatformView #defaultSignupBtn {
-	min-width: /*hdpi*/ 46px;
-	border:none;
-	font-size: /*hdpi*/ 12px;
-	font-weight: bold;
-	color: #ffeffc35;
-	background-color: transparent;
-	padding:0;
-	margin:0;
+    font-size: /*hdpi*/ 12px;
+    color: #6a6a6a;
+    background-color: #1e1e1f;
 }
 
+#SelectLoginPlatformView {
+    qproperty-minimumSize: /*hdpi*/ 338px /*hdpi*/ 0px;
+    qproperty-maximumSize: /*hdpi*/ 338px /*hdpi*/ 1000px;
+}
+
+    #SelectLoginPlatformView #defaultSignupBtn {
+        min-width: /*hdpi*/ 46px;
+        min-height:18px;
+        max-height:18px;
+        border: none;
+        font-size: /*hdpi*/ 12px;
+        font-weight: bold;
+        color: #ffeffc35;
+        background-color: transparent;
+        padding: 0;
+        margin: 0;
+        
+    }
+
 QPushButton > #picButtonLabel {
-	background: transparent;
+    background: transparent;
 }
 
 #SelectLoginPlatformView #defaultSignupBtn:hover {
-	background-color: #1e1e1f;
+    background-color: #1e1e1f;
 }
 
 #SelectLoginPlatformView #defaultSignupBtn:pressed {
-	color: #ff7C7F43;
-	background-color: #1e1e1f;
+    color: #ff7C7F43;
+    background-color: #1e1e1f;
 }
 
 #SelectLoginPlatformView #defaultTipsLabel {
-	min-width: /*hdpi*/ 292px;
-	max-width: /*hdpi*/ 292px;
-
-	min-height: /*hdpi*/ 9px;
-	max-height: /*hdpi*/ 9px;
-	border-image: url(":/resource/images/prism-login/or.svg");
+    min-width: /*hdpi*/ 292px;
+    max-width: /*hdpi*/ 292px;
+    min-height: /*hdpi*/ 9px;
+    max-height: /*hdpi*/ 9px;
+    border-image: url(":/resource/images/prism-login/or.svg");
 }
 
 #SelectLoginPlatformView LoginCustomButton QLabel {
-        background:transparent;
-	background-color: transparent;
-	background-position: center;
-	min-width: /*hdpi*/ 36px;
-	max-width: /*hdpi*/ 36px;
-	min-height: /*hdpi*/ 36px;
-	max-height: /*hdpi*/ 36px;
+    background: transparent;
+    background-color: transparent;
+    background-position: center;
+    min-width: /*hdpi*/ 36px;
+    max-width: /*hdpi*/ 36px;
+    min-height: /*hdpi*/ 36px;
+    max-height: /*hdpi*/ 36px;
 }
 
 #SelectLoginPlatformView LoginCustomButton {
-	qproperty-maximumSize: /*hdpi*/ 292px /*hdpi*/ 45px;
-	qproperty-minimumSize: /*hdpi*/ 292px /*hdpi*/ 45px;
-	border-top: /*hdpi*/ 0px none #ff000000;
-	border-right: /*hdpi*/ 0px none #ff000000;
-	border-bottom: /*hdpi*/ 0px none #ff000000;
-	border-left: /*hdpi*/ 0px none #ff000000;
-	border-radius: /*hdpi*/ 3px;
-	background-color: #444444;
-	font-size: /*hdpi*/ 14px;
-	font-weight: bold;
-	color: #ffffffff;
-	border-image: none;
-
+    qproperty-maximumSize: /*hdpi*/ 292px /*hdpi*/ 45px;
+    qproperty-minimumSize: /*hdpi*/ 292px /*hdpi*/ 45px;
+    border-top: /*hdpi*/ 0px none #ff000000;
+    border-right: /*hdpi*/ 0px none #ff000000;
+    border-bottom: /*hdpi*/ 0px none #ff000000;
+    border-left: /*hdpi*/ 0px none #ff000000;
+    border-radius: /*hdpi*/ 3px;
+    background-color: #444444;
+    font-size: /*hdpi*/ 14px;
+    font-weight: bold;
+    color: #ffffffff;
+    border-image: none;
 }
 
-#SelectLoginPlatformView LoginCustomButton:hover {
-	border-image: none;
-	background: #555555;
-}
+    #SelectLoginPlatformView LoginCustomButton:hover {
+        border-image: none;
+        background: #555555;
+    }
 
-#SelectLoginPlatformView LoginCustomButton:pressed {
-	border-image: none;
-	background: #2d2d2d;
-}
+    #SelectLoginPlatformView LoginCustomButton:pressed {
+        border-image: none;
+        background: #2d2d2d;
+    }
 
 #defaultLoginWithEmailBtn {
-	qproperty-minimumSize: /*hdpi*/ 292px /*hdpi*/ 45px;
-	qproperty-maximumSize: /*hdpi*/ 292px /*hdpi*/ 45px;
-	border-radius: /*hdpi*/ 3px;
-	border: /*hdpi*/ 1px solid #6a6a6a;
-	background-color: #ff1e1e1f;
-	font-size: /*hdpi*/ 14px;
-	font-weight: bold;
-	color: #ffffffff;
-	border-image: none;
+    qproperty-minimumSize: /*hdpi*/ 292px /*hdpi*/ 45px;
+    qproperty-maximumSize: /*hdpi*/ 292px /*hdpi*/ 45px;
+    border-radius: /*hdpi*/ 3px;
+    border: /*hdpi*/ 1px solid #6a6a6a;
+    background-color: #ff1e1e1f;
+    font-size: /*hdpi*/ 14px;
+    font-weight: bold;
+    color: #ffffffff;
+    border-image: none;
 }
 
-#defaultLoginWithEmailBtn:hover {
-	border: /*hdpi*/ 1px solid #FFFFFF;
-	border-image: none;
+    #defaultLoginWithEmailBtn:hover {
+        border: /*hdpi*/ 1px solid #FFFFFF;
+        border-image: none;
+    }
+
+    #defaultLoginWithEmailBtn:pressed {
+        border: 1px solid #2D2D2D;
+        color: #2D2D2D;
+        border-image: none;
+    }
+
+
+
+
+#LoginWithEmailView > QWidget {
+    background-color: #1e1e1f;
 }
-
-#defaultLoginWithEmailBtn:pressed {
-	border: 1px solid #2D2D2D ;
-	color: #2D2D2D ;
-	border-image: none;
+#LoginWithEmailView #tipIconBtn {
+    padding: 0;
+    margin: 0;
+    background-color: transparent;
 }
-
-
-
-
-#LoginWithEmailView QWidget {
-	background-color: #1e1e1f;
-	background: #1e1e1f;
+#LoginWithEmailView #tipIcon {
+    min-height: 16px;
+    max-height: 16px;
+    max-width: 16px;
+    min-width: 16px;
+    image: url(":/resource/images/prism-login/ic_newpage.svg");
+    background-color: transparent;
 }
+#LoginWithEmailView #tipIcon[status="normal"] {
+    image: url(":/resource/images/prism-login/ic_newpage.svg");
+    background-color: transparent;
 
+}
+#LoginWithEmailView #tipIcon[status="hover"] {
+    image: url(":/resource/images/prism-login/ic_newpage_hover.svg");
+    background-color: transparent;
+
+}
+#LoginWithEmailView #label_3 {
+    background-color:transparent;
+    color:#bababa;
+    font-size:12px;
+}
+#LoginWithEmailView #label_3[status="hover"] {
+    color: white;
+}
+#LoginWithEmailView #label_3[status="normal"] {
+    color:#bababa;
+}
 #LoginWithEmailView #loginEmailAddressLineEdit {
-	min-height: /*hdpi*/ 48px;
-	max-height: /*hdpi*/ 48px;
-	border-radius: /*hdpi*/ 3px;
-	background: #ffffffff;
-	padding-right: /*hdpi*/ 20px;
-	padding-left: /*hdpi*/ 20px;
-	font-size: /*hdpi*/ 14px;
-	color: #ff000000;
+    min-height: /*hdpi*/ 48px;
+    max-height: /*hdpi*/ 48px;
+    border-radius: /*hdpi*/ 3px;
+    background: #ffffffff;
+    padding-right: /*hdpi*/ 20px;
+    padding-left: /*hdpi*/ 20px;
+    font-size: /*hdpi*/ 14px;
+    color: #ff000000;
 }
 
 #LoginWithEmailView #loginPasswordLineEdit {
-	min-height: /*hdpi*/ 48px;
-	max-height: /*hdpi*/ 48px;
-	border-radius: /*hdpi*/ 3px;
-	background-color: #ffffff;
-	padding-right: /*hdpi*/ 50px;
-	padding-left: /*hdpi*/ 20px;
-	font-size: /*hdpi*/ 14px;
-	color: #ff000000;
+    min-height: /*hdpi*/ 48px;
+    max-height: /*hdpi*/ 48px;
+    border-radius: /*hdpi*/ 3px;
+    background-color: #ffffff;
+    padding-right: /*hdpi*/ 50px;
+    padding-left: /*hdpi*/ 20px;
+    font-size: /*hdpi*/ 14px;
+    color: #ff000000;
 }
 
-#LoginWithEmailView #loginPasswordLineEdit QPushButton[password="true"] {
-	background-color: transparent;
-	qproperty-minimumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
-	qproperty-maximumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
-	image: url(":/resource/images/prism-login/invisible.svg");
-	padding: 0;
-	margin: 0;
-}
+    #LoginWithEmailView #loginPasswordLineEdit QPushButton[password="true"] {
+        background-color: transparent;
+        qproperty-minimumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
+        qproperty-maximumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
+        image: url(":/resource/images/prism-login/invisible.svg");
+        padding: 0;
+        margin: 0;
+    }
 
-#LoginWithEmailView #loginPasswordLineEdit QPushButton[password="false"] {
-	background-color: transparent;
-	qproperty-minimumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
-	qproperty-maximumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
-	image: url(":/resource/images/prism-login/visible.svg");
-	padding: 0;
-	margin: 0;
-}
+    #LoginWithEmailView #loginPasswordLineEdit QPushButton[password="false"] {
+        background-color: transparent;
+        qproperty-minimumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
+        qproperty-maximumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
+        image: url(":/resource/images/prism-login/visible.svg");
+        padding: 0;
+        margin: 0;
+    }
 
 #LoginWithEmailView #loginBtn:hover[status="enable"] {
-	background: #ffF1FA75;
-	border-image: none;
+    background: #ffF1FA75;
+    border-image: none;
 }
 
 #LoginWithEmailView #loginBtn:pressed[status="enable"] {
-	background: #ff7A7F34;
-	border-image: none;
+    background: #ff7A7F34;
+    border-image: none;
 }
 
 #LoginWithEmailView #loginBtn[status="enable"] {
-	qproperty-minimumSize: /*hdpi*/ 295px /*hdpi*/ 48px;
-	qproperty-maximumSize: /*hdpi*/ 295px /*hdpi*/ 48px;
-	border-image: none;
-	border-radius: /*hdpi*/ 3px;
-	background: #ffeffc35;
-	font-size: /*hdpi*/ 14px;
-	font-weight: bold;
-	color: #ff000000;
+    qproperty-minimumSize: /*hdpi*/ 295px /*hdpi*/ 48px;
+    qproperty-maximumSize: /*hdpi*/ 295px /*hdpi*/ 48px;
+    border-image: none;
+    border-radius: /*hdpi*/ 3px;
+    background: #ffeffc35;
+    font-size: /*hdpi*/ 14px;
+    font-weight: bold;
+    color: #ff000000;
 }
 
 #LoginWithEmailView #loginBtn[status="disable"] {
-	qproperty-minimumSize: /*hdpi*/ 295px /*hdpi*/ 48px;
-	qproperty-maximumSize: /*hdpi*/ 295px /*hdpi*/ 48px;
-	border-image: none;
-	border-radius: /*hdpi*/ 3px;
-	background: #ff363636;
-	font-size: /*hdpi*/ 14px;
-	font-weight: bold;
-	color: #777777;
+    qproperty-minimumSize: /*hdpi*/ 295px /*hdpi*/ 48px;
+    qproperty-maximumSize: /*hdpi*/ 295px /*hdpi*/ 48px;
+    border-image: none;
+    border-radius: /*hdpi*/ 3px;
+    background: #ff363636;
+    font-size: /*hdpi*/ 14px;
+    font-weight: bold;
+    color: #777777;
 }
 
 #LoginWithEmailView #loginSeparatorLabel, #loginBackTipsLabel, #loginSeparatorLabel {
-	min-height: /*hdpi*/ 14px;
-	font-size: /*hdpi*/ 12px;
-	color: #ff6a6a6a;
+    min-height: /*hdpi*/ 14px;
+    font-size: /*hdpi*/ 12px;
+    color: #ff6a6a6a;
 }
 
 #LoginWithEmailView #loginSeparatorLabel {
-	min-width: /*hdpi*/ 1px;
-	max-width: /*hdpi*/ 1px;
-	min-height: /*hdpi*/ 10px;
-	max-height: /*hdpi*/ 10px;
-	background-color: #363636;
+    min-width: /*hdpi*/ 1px;
+    max-width: /*hdpi*/ 1px;
+    min-height: /*hdpi*/ 10px;
+    max-height: /*hdpi*/ 10px;
+    background-color: #363636;
 }
 
 #LoginWithEmailView #loginListBtn, #loginListBtn_2 {
-	border:none;
-	font-size: /*hdpi*/ 12px;
-	font-weight: bold;
-	color: #ffeffc35;
-	padding:0;
-	margin:0;
+    border: none;
+    font-size: /*hdpi*/ 12px;
+    font-weight: bold;
+    color: #ffeffc35;
+    padding: 0;
+    margin: 0;
 }
 
-#LoginWithEmailView #loginListBtn:hover, #loginListBtn_2:hover {
-	background-color: #1e1e1f;
-}
+    #LoginWithEmailView #loginListBtn:hover, #loginListBtn_2:hover {
+        background-color: #1e1e1f;
+    }
 
-#LoginWithEmailView #loginListBtn:pressed, #loginListBtn_2:pressed {
-	color: #ff7C7F43;
-}
+    #LoginWithEmailView #loginListBtn:pressed, #loginListBtn_2:pressed {
+        color: #ff7C7F43;
+    }
 
 #LoginWithEmailView #loginForgotPasswordBtn {
-	border: /*hdpi*/ none;
-	font-size: /*hdpi*/ 12px;
-	color: #ffa3a3a3;
+    border: /*hdpi*/ none;
+    font-size: /*hdpi*/ 12px;
+    color: #ffa3a3a3;
 }
 
-#LoginWithEmailView #loginForgotPasswordBtn:hover {
-	background-color: #1e1e1f;
-	color: #ffffffff;
-}
+    #LoginWithEmailView #loginForgotPasswordBtn:hover {
+        background-color: #1e1e1f;
+        color: #ffffffff;
+    }
 
-#LoginWithEmailView #loginForgotPasswordBtn:pressed {
-	color: #6a6a6a;
-}
+    #LoginWithEmailView #loginForgotPasswordBtn:pressed {
+        color: #6a6a6a;
+    }
 
 #LoginWithEmailView #loginTipsLabel {
-	min-width: /*hdpi*/ 580px;
-	min-height: /*hdpi*/ 31px;
-	font-size: /*hdpi*/ 11px;
-	color: #ffd32f2f;
+    min-width: /*hdpi*/ 580px;
+    min-height: /*hdpi*/ 31px;
+    font-size: /*hdpi*/ 11px;
+    color: #ffd32f2f;
 }
 
 #LoginWithEmailView #loginWithEmailLabel {
-	qproperty-minimumSize: /*hdpi*/ 200px /*hdpi*/ 27px;
-	font-size: /*hdpi*/ 20px;
-	font-weight: bold;
-	color: #fff1fd56;
+    qproperty-minimumSize: /*hdpi*/ 200px /*hdpi*/ 27px;
+    font-size: /*hdpi*/ 20px;
+    font-weight: bold;
+    color: #fff1fd56;
 }
 
+#LoginWithEmailView #b2bTipButton {
+    font-weight: normal;
+    color: #effc35;
+    font-size: /*hdpi*/ 12px;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
 
+    #LoginWithEmailView #b2bTipButton:hove {
+        background-color: #1e1e1f;
+    }
 
-#SignupWithEmailView QWidget {
-	background-color: #1e1e1f;
+    #LoginWithEmailView #b2bTipButton:pressed {
+        color: #ff7C7F43;
+    }
+
+#SignupWithEmailView > QWidget {
+    background-color: #1e1e1f;
 }
 
 #SignupWithEmailView #createNewAccountBtn:hover[status="enable"] {
-	background: #ffF1FA75;
-	border-image: none;
+    background: #ffF1FA75;
+    border-image: none;
 }
 
 #SignupWithEmailView #createNewAccountBtn:pressed[status="enable"] {
-	background: #ff7A7F34;
-	border-image: none;
+    background: #ff7A7F34;
+    border-image: none;
 }
 
 #SignupWithEmailView #createNewAccountBtn[status="enable"] {
-	qproperty-minimumSize: /*hdpi*/ 292px /*hdpi*/ 48px;
-	qproperty-maximumSize: /*hdpi*/ 292px /*hdpi*/ 48px;
-	min-height: /*hdpi*/ 48px;
-	max-height: /*hdpi*/ 48px;
-	border-radius: /*hdpi*/ 3px;
-	background: #ffeffc35;
-	font-size: /*hdpi*/ 14px;
-	font-weight: bold;
-	color: #ff000000;
-	border-image: none;
+    qproperty-minimumSize: /*hdpi*/ 292px /*hdpi*/ 48px;
+    qproperty-maximumSize: /*hdpi*/ 292px /*hdpi*/ 48px;
+    min-height: /*hdpi*/ 48px;
+    max-height: /*hdpi*/ 48px;
+    border-radius: /*hdpi*/ 3px;
+    background: #ffeffc35;
+    font-size: /*hdpi*/ 14px;
+    font-weight: bold;
+    color: #ff000000;
+    border-image: none;
 }
 
 #SignupWithEmailView #createNewAccountBtn[status="disable"] {
-	qproperty-minimumSize: /*hdpi*/ 292px /*hdpi*/ 48px;
-	qproperty-maximumSize: /*hdpi*/ 292px /*hdpi*/ 48px;
-	border-image: none;
-	border-radius: /*hdpi*/ 3px;
-	background: #ff363636;
-	font-size: /*hdpi*/ 14px;
-	font-weight: bold;
-	color: #777777;
+    qproperty-minimumSize: /*hdpi*/ 292px /*hdpi*/ 48px;
+    qproperty-maximumSize: /*hdpi*/ 292px /*hdpi*/ 48px;
+    border-image: none;
+    border-radius: /*hdpi*/ 3px;
+    background: #ff363636;
+    font-size: /*hdpi*/ 14px;
+    font-weight: bold;
+    color: #777777;
 }
 
 #SignupWithEmailView #facebookBtn {
-	min-width: /*hdpi*/ 42px;
-	min-height: /*hdpi*/ 42px;
-	max-width: /*hdpi*/ 42px;
-	max-height: /*hdpi*/ 42px;
-	border-top: /*hdpi*/ 0px none #ff000000;
-	border-right: /*hdpi*/ 0px none #ff000000;
-	border-bottom: /*hdpi*/ 0px none #ff000000;
-	border-left: /*hdpi*/ 0px none #ff000000;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	background-image: url(":/resource/images/prism-login/login-facebook.svg");
+    min-width: /*hdpi*/ 42px;
+    min-height: /*hdpi*/ 42px;
+    max-width: /*hdpi*/ 42px;
+    max-height: /*hdpi*/ 42px;
+    border-top: /*hdpi*/ 0px none #ff000000;
+    border-right: /*hdpi*/ 0px none #ff000000;
+    border-bottom: /*hdpi*/ 0px none #ff000000;
+    border-left: /*hdpi*/ 0px none #ff000000;
+    border-radius: /*hdpi*/ 20px;
+    background: #444444;
+    background-position: center;
+    background-image: url(":/resource/images/prism-login/login-facebook.svg");
 }
 
-#SignupWithEmailView #facebookBtn:hover {
-	background-color: #555555;
-}
+    #SignupWithEmailView #facebookBtn:hover {
+        background-color: #555555;
+    }
 
-#SignupWithEmailView #facebookBtn:pressed {
-	background-color: #ff2d2d2d;
-}
+    #SignupWithEmailView #facebookBtn:pressed {
+        background-color: #ff2d2d2d;
+    }
 
 #SignupWithEmailView #twitchBtn {
-	min-width: /*hdpi*/ 42px;
-	min-height: /*hdpi*/ 42px;
-	max-width: /*hdpi*/ 42px;
-	max-height: /*hdpi*/ 42px;
-	border-top: /*hdpi*/ 0px none #ff000000;
-	border-right: /*hdpi*/ 0px none #ff000000;
-	border-bottom: /*hdpi*/ 0px none #ff000000;
-	border-left: /*hdpi*/ 0px none #ff000000;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	background-image: url(":/resource/images/prism-login/login-twitch.svg");
+    min-width: /*hdpi*/ 42px;
+    min-height: /*hdpi*/ 42px;
+    max-width: /*hdpi*/ 42px;
+    max-height: /*hdpi*/ 42px;
+    border-top: /*hdpi*/ 0px none #ff000000;
+    border-right: /*hdpi*/ 0px none #ff000000;
+    border-bottom: /*hdpi*/ 0px none #ff000000;
+    border-left: /*hdpi*/ 0px none #ff000000;
+    border-radius: /*hdpi*/ 20px;
+    background: #444444;
+    background-position: center;
+    background-image: url(":/resource/images/prism-login/login-twitch.svg");
 }
 
-#SignupWithEmailView #twitchBtn:hover {
-	background-color: #555555;
-}
+    #SignupWithEmailView #twitchBtn:hover {
+        background-color: #555555;
+    }
 
-#SignupWithEmailView #twitchBtn:pressed {
-	background-color: #2d2d2d;
-}
+    #SignupWithEmailView #twitchBtn:pressed {
+        background-color: #2d2d2d;
+    }
 
 #SignupWithEmailView #googleBtn {
-	min-width: /*hdpi*/ 42px;
-	min-height: /*hdpi*/ 42px;
-	max-width: /*hdpi*/ 42px;
-	max-height: /*hdpi*/ 42px;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	background-image: url(":/resource/images/prism-login/login-google.svg");
+    min-width: /*hdpi*/ 42px;
+    min-height: /*hdpi*/ 42px;
+    max-width: /*hdpi*/ 42px;
+    max-height: /*hdpi*/ 42px;
+    border-radius: /*hdpi*/ 20px;
+    background: #444444;
+    background-position: center;
+    background-image: url(":/resource/images/prism-login/login-google.svg");
 }
 
-#SignupWithEmailView #googleBtn:hover {
-	background-color: #555555;
-}
+    #SignupWithEmailView #googleBtn:hover {
+        background-color: #555555;
+    }
 
-#SignupWithEmailView #googleBtn:pressed {
-	background-color: #2d2d2d;
-}
+    #SignupWithEmailView #googleBtn:pressed {
+        background-color: #2d2d2d;
+    }
 
 #SignupWithEmailView #lineBtn {
-	min-width: /*hdpi*/ 42px;
-	min-height: /*hdpi*/ 42px;
-	max-width: /*hdpi*/ 42px;
-	max-height: /*hdpi*/ 42px;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	background-image: url(":/resource/images/prism-login/login-line.svg");
-	font-size: /*hdpi*/ 14px;
+    min-width: /*hdpi*/ 42px;
+    min-height: /*hdpi*/ 42px;
+    max-width: /*hdpi*/ 42px;
+    max-height: /*hdpi*/ 42px;
+    border-radius: /*hdpi*/ 20px;
+    background: #444444;
+    background-position: center;
+    background-image: url(":/resource/images/prism-login/login-line.svg");
+    font-size: /*hdpi*/ 14px;
 }
 
-#SignupWithEmailView #lineBtn:hover {
-	background-color: #555555;
-}
+    #SignupWithEmailView #lineBtn:hover {
+        background-color: #555555;
+    }
 
-#SignupWithEmailView #lineBtn:pressed {
-	background-color: #2d2d2d;
-}
+    #SignupWithEmailView #lineBtn:pressed {
+        background-color: #2d2d2d;
+    }
 
 #SignupWithEmailView #lineEdit {
-	min-width: /*hdpi*/ 252px;
-	max-width: /*hdpi*/ 252px;
-	min-height: /*hdpi*/ 48px;
-	max-height: /*hdpi*/ 48px;
-	border-radius: /*hdpi*/ 3px;
-	background-color: #ffffff;
-	padding-right: /*hdpi*/ 20px;
-	padding-left: /*hdpi*/ 20px;
-	font-size: /*hdpi*/ 14px;
-	color: #ff000000;
+    min-width: /*hdpi*/ 252px;
+    max-width: /*hdpi*/ 252px;
+    min-height: /*hdpi*/ 48px;
+    max-height: /*hdpi*/ 48px;
+    border-radius: /*hdpi*/ 3px;
+    background-color: #ffffff;
+    padding-right: /*hdpi*/ 20px;
+    padding-left: /*hdpi*/ 20px;
+    font-size: /*hdpi*/ 14px;
+    color: #ff000000;
 }
 
-#SignupWithEmailView #lineEdit QPushButton[password="true"] {
-	background-color: transparent;
-	qproperty-minimumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
-	qproperty-maximumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
-	image: url(":/resource/images/prism-login/invisible.svg");
-	padding: 0;
-	margin: 0;
-}
+    #SignupWithEmailView #lineEdit QPushButton[password="true"] {
+        background-color: transparent;
+        qproperty-minimumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
+        qproperty-maximumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
+        image: url(":/resource/images/prism-login/invisible.svg");
+        padding: 0;
+        margin: 0;
+    }
 
-#SignupWithEmailView #lineEdit QPushButton[password="false"] {
-	background-color: transparent;
-	qproperty-minimumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
-	qproperty-maximumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
-	image: url(":/resource/images/prism-login/visible.svg");
-	padding: 0;
-	margin: 0;
-}
+    #SignupWithEmailView #lineEdit QPushButton[password="false"] {
+        background-color: transparent;
+        qproperty-minimumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
+        qproperty-maximumSize: /*hdpi*/ 36px /*hdpi*/ 36px;
+        image: url(":/resource/images/prism-login/visible.svg");
+        padding: 0;
+        margin: 0;
+    }
 
 #SignupWithEmailView #signEmailAddressLineEdit {
-	min-width: /*hdpi*/ 252px;
-	max-width: /*hdpi*/ 252px;
-	min-height: /*hdpi*/ 48px;
-	max-height: /*hdpi*/ 48px;
-	border-radius: /*hdpi*/ 3px;
-	background: #ffffffff;
-	padding-right: /*hdpi*/ 20px;
-	padding-left: /*hdpi*/ 20px;
-	font-size: /*hdpi*/ 14px;
-	color: #ff000000;
+    min-width: /*hdpi*/ 252px;
+    max-width: /*hdpi*/ 252px;
+    min-height: /*hdpi*/ 48px;
+    max-height: /*hdpi*/ 48px;
+    border-radius: /*hdpi*/ 3px;
+    background: #ffffffff;
+    padding-right: /*hdpi*/ 20px;
+    padding-left: /*hdpi*/ 20px;
+    font-size: /*hdpi*/ 14px;
+    color: #ff000000;
 }
 
 #SignupWithEmailView #signBackToLabel {
-	min-height: /*hdpi*/ 14px;
-	font-size: /*hdpi*/ 12px;
-	color: #ff6a6a6a;
+    min-height: /*hdpi*/ 14px;
+    font-size: /*hdpi*/ 12px;
+    color: #ff6a6a6a;
 }
 
 #SignupWithEmailView #signLoginBtn, #signLoginBtn_2 {
-	border-top: /*hdpi*/ 0px none #ff000000;
-	border-right: /*hdpi*/ 0px none #ff000000;
-	border-bottom: /*hdpi*/ 0px none #ff000000;
-	border-left: /*hdpi*/ 0px none #ff000000;
-	font-size: /*hdpi*/ 12px;
-	font-weight: bold;
-	color: #ffeffc35;
+    border-top: /*hdpi*/ 0px none #ff000000;
+    border-right: /*hdpi*/ 0px none #ff000000;
+    border-bottom: /*hdpi*/ 0px none #ff000000;
+    border-left: /*hdpi*/ 0px none #ff000000;
+    font-size: /*hdpi*/ 12px;
+    font-weight: bold;
+    color: #ffeffc35;
 }
 
-#SignupWithEmailView #signLoginBtn:hover, #signLoginBtn_2:hover {
-	background-color: #1e1e1f;
-}
+    #SignupWithEmailView #signLoginBtn:hover, #signLoginBtn_2:hover {
+        background-color: #1e1e1f;
+    }
 
-#SignupWithEmailView #signLoginBtn:pressed, #signLoginBtn_2:pressed {
-	color: #ff7C7F43;
-}
+    #SignupWithEmailView #signLoginBtn:pressed, #signLoginBtn_2:pressed {
+        color: #ff7C7F43;
+    }
 
 #SignupWithEmailView #signTipsLabel {
-	min-width: /*hdpi*/ 580px;
-	min-height: /*hdpi*/ 30px;
-	max-width: /*hdpi*/ 580px;
-	max-height: /*hdpi*/ 30px;
-	font-size: /*hdpi*/ 11px;
-	color: #ffd32f2f;
+    min-width: /*hdpi*/ 580px;
+    min-height: /*hdpi*/ 30px;
+    max-width: /*hdpi*/ 580px;
+    max-height: /*hdpi*/ 30px;
+    font-size: /*hdpi*/ 11px;
+    color: #ffd32f2f;
 }
 
 #SignupWithEmailView #signUpWithEmailLabel {
-	min-height: /*hdpi*/ 27px;
-	max-height: /*hdpi*/ 27px;
-	font-size: /*hdpi*/ 18px;
-	font-weight: bold;
-	color: #fff1fd56;
+    min-height: /*hdpi*/ 27px;
+    max-height: /*hdpi*/ 27px;
+    font-size: /*hdpi*/ 18px;
+    font-weight: bold;
+    color: #fff1fd56;
 }
 
 #SignupWithEmailView #signUsernameLineEdit {
-	min-width: /*hdpi*/ 252px;
-	max-width: /*hdpi*/ 252px;
-	min-height: /*hdpi*/ 48px;
-	max-height: /*hdpi*/ 48px;
-	border-radius: /*hdpi*/ 3px;
-	background: #ffffffff;
-	padding-right: /*hdpi*/ 20px;
-	padding-left: /*hdpi*/ 20px;
-	font-size: /*hdpi*/ 14px;
-	color: #ff000000;
+    min-width: /*hdpi*/ 252px;
+    max-width: /*hdpi*/ 252px;
+    min-height: /*hdpi*/ 48px;
+    max-height: /*hdpi*/ 48px;
+    border-radius: /*hdpi*/ 3px;
+    background: #ffffffff;
+    padding-right: /*hdpi*/ 20px;
+    padding-left: /*hdpi*/ 20px;
+    font-size: /*hdpi*/ 14px;
+    color: #ff000000;
 }
 
 #SignupWithEmailView #signupWithLabel {
-	min-width: /*hdpi*/ 293px;
-	max-width: /*hdpi*/ 293px;
-	min-height: /*hdpi*/ 11px;
-	max-height: /*hdpi*/ 11px;
-	border-image: url(":/resource/images/prism-login/or-signup.svg");
+    min-width: /*hdpi*/ 293px;
+    max-width: /*hdpi*/ 293px;
+    min-height: /*hdpi*/ 11px;
+    max-height: /*hdpi*/ 11px;
+    border-image: url(":/resource/images/prism-login/or-signup.svg");
+}
+SignupWithEmailView #signBtn {
+    qproperty-minimumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
+    qproperty-maximumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
+    border-radius: /*hdpi*/ 21px;
+    background: #444444;
+    background-position: center;
+    padding: 3px;
+    margin: 0px;
 }
 
-SignupWithEmailView #NAVER {
-	qproperty-minimumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	qproperty-maximumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	image: url(":/resource/images/prism-login/login-naver.svg");
-	padding: 0;
-	margin: 0;
+
+SignupWithEmailView #signBtn:hover {
+    background-color: #555555;
+    border-image: none;
 }
 
-SignupWithEmailView #Google {
-	qproperty-minimumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	qproperty-maximumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	image: url(":/resource/images/prism-login/login-google.svg");
-	padding: 0;
-	margin: 0;
+SignupWithEmailView #signBtn:pressed{
+    background-color: #2d2d2d;
+    border-image: none;
 }
 
-SignupWithEmailView #Facebook {
-	padding:0;
-	margin:0;
-	qproperty-minimumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	qproperty-maximumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	image: url(":/resource/images/prism-login/login-facebook_sign.svg");
-}
-
-SignupWithEmailView #LINE {
-	qproperty-minimumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	qproperty-maximumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	image: url(":/resource/images/prism-login/login-line.svg");
-	padding: 0;
-	margin: 0;
-}
-
-SignupWithEmailView #Twitch {
-	qproperty-minimumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	qproperty-maximumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	image: url(":/resource/images/prism-login/login-twitch.svg");
-	padding: 0;
-	margin: 0;
-}
-
-SignupWithEmailView #Twitter {
-	qproperty-minimumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	qproperty-maximumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	image: url(":/resource/images/prism-login/login-twitter.svg");
-	padding: 0;
-	margin: 0;
-}
-SignupWithEmailView #Whalespace {
-	qproperty-minimumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	qproperty-maximumSize: /*hdpi*/ 42px /*hdpi*/ 42px;
-	border-radius: /*hdpi*/ 20px;
-	background: #444444;
-	background-position: center;
-	image: url(":/resource/images/prism-login/login-whalespace.svg");
-	padding: 0;
-	margin: 0;
-}
-
-SignupWithEmailView #NAVER:hover, #Twitter:hover, #LINE:hover, #Facebook:hover, #Google:hover, #Twitch:hover, #Whalespace:hover {
-	background-color: #555555;
-	border-image: none;
-}
-
-SignupWithEmailView #NAVER:pressed, #Twitter:pressed, #LINE:pressed, #Facebook:pressed, #Google:pressed, #Twitch:pressed, #Whalespace:pressed {
-	background-color: #2d2d2d;
-	border-image: none;
-}
 SignupWithEmailView #signupWithLabel {
-	qproperty-minimumSize: /*hdpi*/ 292px /*hdpi*/ 11px;
-	qproperty-maximumSize: /*hdpi*/ 292px /*hdpi*/ 11px;
-	image: url(":/resource/images/prism-login/sign-up-with.svg");
+    qproperty-minimumSize: /*hdpi*/ 342px /*hdpi*/ 11px;
+    qproperty-maximumSize: /*hdpi*/ 342px /*hdpi*/ 11px;
+    image: url(":/resource/images/prism-login/sign-up-with.svg");
 }
 
 LoginLoadingView #loginLoadingProgressLabel {
-	background-color: #1e1e1f;
-	font-size: /*hdpi*/ 12px;
-	font-weight: normal;
-	color: #ffffff;
-	min-height: /*hdpi*/ 16px;
+    background-color: #1e1e1f;
+    font-size: /*hdpi*/ 12px;
+    font-weight: normal;
+    color: #ffffff;
+    min-height: /*hdpi*/ 16px;
 }
 
 LoginLoadingView #loginLoadingDescLabel {
-	background-color: #1e1e1f;
-	font-size: /*hdpi*/ 16px;
-	font-weight: normal;
-	color: #ffffff;
-	min-height: /*hdpi*/ 21px;
+    background-color: #1e1e1f;
+    font-size: /*hdpi*/ 16px;
+    font-weight: normal;
+    color: #ffffff;
+    min-height: /*hdpi*/ 21px;
 }

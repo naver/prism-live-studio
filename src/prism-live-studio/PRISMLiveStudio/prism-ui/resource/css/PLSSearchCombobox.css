@@ -1,0 +1,119 @@
+PLSSearchCombobox {
+	padding-right: 60px;
+	color: white;
+	padding-left: 8px;
+	margin-left: 0px;
+}
+
+PLSSearchCombobox[showPlaceholder="true"]{
+    color: #666666
+}
+
+PLSSearchCombobox[showPlaceholder="false"]{
+    color: white
+}
+
+PLSSearchCombobox > QPushButton {
+	padding: 0px;
+	margin: 0px;
+}
+
+PLSSearchCombobox #pushButtonSearch {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	border-style: none;
+	background-color: transparent;
+}
+PLSSearchCombobox #pushButtonSearch[searchOn=false] {
+	image: url(":/libui/resource/images/btn-search-normal.svg");
+}
+
+PLSSearchCombobox #pushButtonSearch[searchOn=true] {
+	image: url(":/libui/resource/images/btn-search-on-normal.svg");
+}
+
+PLSSearchCombobox #pushButtonClear {
+	min-width: /*hdpi*/ 16px;
+	max-width: /*hdpi*/ 16px;
+	min-height: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+	border-style: none;
+	background-color: transparent;
+	image: url(":/libui/resource/images/ic-scene-delete-normal.svg");
+}
+
+PLSSearchCombobox #pushButtonClear:hover {
+	image: url(":/libui/resource/images/ic-scene-delete-over.svg");
+}
+
+PLSSearchCombobox #pushButtonClear:pressed {
+	image: url(":/libui/resource/images/ic-scene-delete-click.svg");
+}
+
+PLSSearchCombobox #pushButtonClear:disabled {
+	image: url(":/libui/resource/images/ic-scene-delete-disable.svg");
+}
+
+
+/*searchList*/
+PLSLiveInfoSearchListWidget {
+	background: #2d2d2d;
+	border: /*hdpi*/ 1px solid #111111;
+	border-radius: /*hdpi*/ 3px;
+	outline: none;
+	font-size: /*hdpi*/ 14px;
+	color: white;
+	margin: 0px;
+	padding: 0px;
+}
+
+PLSLiveInfoSearchListWidget #categoryIconLabel {
+	min-width: 38px;
+	max-width: 38px;
+	min-height: 52px;
+	max-height: 52px;
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	padding-left: 0px;
+	margin-left: 0px;
+}
+
+PLSLiveInfoSearchListWidget #categoryLabel {
+	background-color: transparent;
+}
+
+PLSLiveInfoSearchListWidget[isEmpty="false"]::item {
+	background-color: #2d2d2d;
+	height: /*hdpi*/ 60px;
+	padding-left: 5px;
+}
+
+PLSLiveInfoSearchListWidget[isEmpty="true"]::item {
+	height: /*hdpi*/ 40px;
+	padding-left: 8px;
+}
+
+PLSLiveInfoSearchListWidget::item:selected {
+	color: white;
+	background-color: #373737;
+}
+
+PLSLiveInfoSearchListWidget::item:hover {
+	background-color: #373737;
+}
+
+PLSLiveInfoSearchListWidget .QWidget {
+	background-color: #2d2d2d;
+	height: /*hdpi*/ 60px;
+}
+
+PLSLiveInfoSearchListWidget .QWidget:selected {
+	color: white;
+	background-color: #373737;
+}
+
+PLSLiveInfoSearchListWidget .QWidget:hover {
+	background-color: #373737;
+}

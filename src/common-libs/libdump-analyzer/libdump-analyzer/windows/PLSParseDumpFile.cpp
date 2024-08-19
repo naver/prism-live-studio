@@ -10,6 +10,7 @@
 #endif
 
 #include "PLSParseDumpFile.h"
+#include "libutils-api.h"
 #include <algorithm>
 #include <array>
 
@@ -24,8 +25,11 @@ vector<ModuleInfo> GetModuleInfo(const char *pszDumpPath)
 	auto hFileMiniDump = INVALID_HANDLE_VALUE;
 	HANDLE hFileMapping = nullptr;
 	LPVOID pMappingBase = nullptr;
+	auto wPath = pls_utf8_to_unicode(pszDumpPath);
+	if (wPath.empty())
+		return vctModuleInfo;
 	do {
-		hFileMiniDump = CreateFileA(pszDumpPath, FILE_GENERIC_READ, 0, nullptr, OPEN_EXISTING, NULL, nullptr);
+		hFileMiniDump = CreateFileW(wPath.c_str(), FILE_GENERIC_READ, 0, nullptr, OPEN_EXISTING, NULL, nullptr);
 		if (INVALID_HANDLE_VALUE == hFileMiniDump) {
 			break;
 		}
@@ -53,9 +57,6 @@ vector<ModuleInfo> GetModuleInfo(const char *pszDumpPath)
 			info.BaseOfImage = pModuleStream->Modules[i].BaseOfImage;
 			info.SizeOfImage = pModuleStream->Modules[i].SizeOfImage;
 			wcscpy_s(info.ModuleName.data(), info.ModuleName.size(), ((MINIDUMP_STRING *)((LPBYTE)pMappingBase + pModuleStream->Modules[i].ModuleNameRva))->Buffer);
-			PathStripPath(info.ModuleName.data());
-			auto name = std::wstring(info.ModuleName.data());
-			auto moduleName = name.substr(0, name.rfind(L"."));
 			vctModuleInfo.push_back(info);
 		}
 	} while (false);
@@ -80,26 +81,29 @@ vector<ULONG64> GetStackTrace(const char *pszDumpPath)
 {
 	vector<ULONG64> vctStackTrace;
 
-	IDebugClient *pDebugClient = nullptr;
-	IDebugSymbols *pDebugSymbols = nullptr;
-	IDebugControl *pDebugControl = nullptr;
+	IDebugClient4 *pDebugClient = nullptr;
+	IDebugSymbols4 *pDebugSymbols = nullptr;
+	IDebugControl4 *pDebugControl = nullptr;
 	do {
-		if (S_OK != DebugCreate(__uuidof(IDebugClient), (void **)&pDebugClient)) {
+		if (S_OK != DebugCreate(__uuidof(IDebugClient4), (void **)&pDebugClient)) {
 			break;
 		}
-		if (S_OK != pDebugClient->QueryInterface(__uuidof(IDebugSymbols), (void **)&pDebugSymbols)) {
+		if (S_OK != pDebugClient->QueryInterface(__uuidof(IDebugSymbols4), (void **)&pDebugSymbols)) {
 			break;
 		}
-		if (S_OK != pDebugClient->QueryInterface(__uuidof(IDebugControl), (void **)&pDebugControl)) {
+		if (S_OK != pDebugClient->QueryInterface(__uuidof(IDebugControl4), (void **)&pDebugControl)) {
 			break;
 		}
 
-		std::array<char, MAX_PATH> szImagePath{};
-		GetModuleFileNameA(nullptr, szImagePath.data(), MAX_PATH);
-		PathRemoveFileSpecA(szImagePath.data());
-		pDebugSymbols->AppendImagePath(szImagePath.data());
+		std::array<wchar_t, MAX_PATH> szImagePath{};
+		GetModuleFileNameW(nullptr, szImagePath.data(), MAX_PATH);
+		PathRemoveFileSpecW(szImagePath.data());
+		pDebugSymbols->AppendImagePathWide(szImagePath.data());
 
-		if (S_OK != pDebugClient->OpenDumpFile(pszDumpPath)) {
+		auto wPath = pls_utf8_to_unicode(pszDumpPath);
+		if (wPath.empty())
+			break;
+		if (S_OK != pDebugClient->OpenDumpFileWide(wPath.c_str(), 0)) {
 			break;
 		}
 		if (S_OK != pDebugControl->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE)) {
@@ -144,13 +148,16 @@ ULONG64 GetThreadId(const char *pszDumpPath)
 	auto hFileMiniDump = INVALID_HANDLE_VALUE;
 	HANDLE hFileMapping = nullptr;
 	LPVOID pMappingBase = nullptr;
+	auto wPath = pls_utf8_to_unicode(pszDumpPath);
+	if (wPath.empty())
+		return 0;
 	do {
-		hFileMiniDump = CreateFileA(pszDumpPath, FILE_GENERIC_READ, 0, nullptr, OPEN_EXISTING, NULL, nullptr);
+		hFileMiniDump = CreateFileW(wPath.c_str(), FILE_GENERIC_READ, 0, nullptr, OPEN_EXISTING, NULL, nullptr);
 		if (INVALID_HANDLE_VALUE == hFileMiniDump) {
 			break;
 		}
 
-		hFileMapping = CreateFileMapping(hFileMiniDump, nullptr, PAGE_READONLY, 0, 0, nullptr);
+		hFileMapping = CreateFileMappingW(hFileMiniDump, nullptr, PAGE_READONLY, 0, 0, nullptr);
 		if (nullptr == hFileMapping) {
 			break;
 		}

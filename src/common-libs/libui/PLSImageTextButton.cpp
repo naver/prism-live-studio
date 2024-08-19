@@ -14,22 +14,26 @@ PLSImageTextButton::PLSImageTextButton(QWidget *parent) : QPushButton(parent)
 	m_leftSpacer = pls_new<QSpacerItem>(1, 1, QSizePolicy::Expanding, QSizePolicy::Minimum);
 	horizontalLayout->addItem(m_leftSpacer);
 
-	auto labelLeft = pls_new<QLabel>();
-	labelLeft->setObjectName(QString::fromUtf8("labelLeft"));
+	m_labelLeft = pls_new<QLabel>();
+	m_labelLeft->setObjectName(QString::fromUtf8("labelLeft"));
 
-	horizontalLayout->addWidget(labelLeft);
+	horizontalLayout->addWidget(m_labelLeft);
 
 	m_labelRight = pls_new<QLabel>();
 	m_labelRight->setObjectName(QString::fromUtf8("labelRight"));
-	horizontalLayout->addWidget(m_labelRight, 0, Qt::AlignLeft | Qt::AlignVCenter);
+	horizontalLayout->addWidget(m_labelRight, 1, Qt::AlignLeft | Qt::AlignVCenter);
 
 	this->setLayout(horizontalLayout);
 	pls_flush_style_recursive(this, STATUS, STATUS_NORMAL);
 }
 
-void PLSImageTextButton::setLabelText(const QString &str)
+void PLSImageTextButton::setLabelText(const QString &str, bool isElidedText)
 {
+	m_oriRightText = str;
 	m_labelRight->setText(str);
+	m_isElidedText = isElidedText;
+
+	elidedLabelText();
 }
 
 void PLSImageTextButton::setFileButtonEnabled(bool enabled)
@@ -59,7 +63,13 @@ void PLSImageTextButton::seIsLeftAlign(bool isLeft)
 		m_leftSpacer->changeSize(0, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
 	}
 }
+void PLSImageTextButton::onlyHideContent(bool hide)
+{
+	m_labelLeft->setHidden(hide);
+	m_labelRight->setHidden(hide);
 
+	setDisabled(hide);
+}
 void PLSImageTextButton::enterEvent(QEnterEvent *event)
 {
 	if (!this->isEnabled()) {
@@ -94,6 +104,20 @@ void PLSImageTextButton::mouseReleaseEvent(QMouseEvent *event)
 	}
 	pls_flush_style_recursive(this, STATUS, STATUS_NORMAL);
 	QPushButton::mouseReleaseEvent(event);
+}
+void PLSImageTextButton::resizeEvent(QResizeEvent *event)
+{
+	QPushButton::resizeEvent(event);
+	elidedLabelText();
+}
+void PLSImageTextButton::elidedLabelText()
+{
+	if (!m_isElidedText) {
+		return;
+	}
+	QFontMetrics titleFont(m_labelRight->font());
+	QString elidedText = titleFont.elidedText(m_oriRightText, Qt::ElideRight, this->geometry().width() - 20 /*left width*/);
+	m_labelRight->setText(elidedText);
 }
 
 PLSBorderButton::PLSBorderButton(QWidget *parent) : QPushButton(parent)

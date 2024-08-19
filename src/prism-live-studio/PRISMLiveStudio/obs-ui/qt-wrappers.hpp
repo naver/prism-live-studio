@@ -71,6 +71,8 @@ QDataStream &operator>>(QDataStream &in,
 			std::vector<std::shared_ptr<OBSSignal>> &signal_vec);
 QDataStream &operator<<(QDataStream &out, const OBSScene &scene);
 QDataStream &operator>>(QDataStream &in, OBSScene &scene);
+QDataStream &operator<<(QDataStream &out, const OBSSource &source);
+QDataStream &operator>>(QDataStream &in, OBSSource &source);
 
 QThread *CreateQThread(std::function<void()> func);
 
@@ -83,19 +85,6 @@ void ExecuteFuncSafeBlockMsgBox(std::function<void()> func,
 void EnableThreadedMessageBoxes(bool enable);
 void ExecThreadedWithoutBlocking(std::function<void()> func,
 				 const QString &title, const QString &text);
-
-class SignalBlocker {
-	QWidget *widget;
-	bool blocked;
-
-public:
-	inline explicit SignalBlocker(QWidget *widget_) : widget(widget_)
-	{
-		blocked = widget->blockSignals(true);
-	}
-
-	inline ~SignalBlocker() { widget->blockSignals(blocked); }
-};
 
 void DeleteLayout(QLayout *layout);
 

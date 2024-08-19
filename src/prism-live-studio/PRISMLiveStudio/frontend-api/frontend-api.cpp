@@ -10,6 +10,8 @@
 #include "pls-net-url.hpp"
 #include <util/windows/win-version.h>
 #include <QNetworkInterface>
+#include <QFontDatabase>
+#include "pls/pls-obs-api.h"
 
 #ifdef Q_OS_WIN
 #include <Windows.h>
@@ -90,6 +92,7 @@ struct LocalGlobalVars {
 	static PfnGetConfigPath getConfigPath;
 	static ControlSrcType broadcastControl;
 	static ControlSrcType recordControl;
+	static ControlSrcType liveControlType;
 	static std::recursive_mutex mutexMDNSInfo;
 	static std::list<MDNSInfo> lstMDNSInfo;
 	static pls_load_ndi_runtime_pfn loadNdiRuntime;
@@ -101,6 +104,7 @@ PfnGetConfigPath LocalGlobalVars::getConfigPath = nullptr;
 
 ControlSrcType LocalGlobalVars::broadcastControl = ControlSrcType::None;
 ControlSrcType LocalGlobalVars::recordControl = ControlSrcType::None;
+ControlSrcType LocalGlobalVars::liveControlType = ControlSrcType::None;
 
 std::recursive_mutex LocalGlobalVars::mutexMDNSInfo;
 std::list<MDNSInfo> LocalGlobalVars::lstMDNSInfo;
@@ -366,7 +370,10 @@ FRONTEND_API void pls_login_async(const std::function<void(bool ok, const QJsonO
 		PLSAlertView::warning(parent, pls_translate_qstr("Alert.Title"), pls_translate_qstr("login.check.note.network"));
 		return;
 	}
-
+	if (platformName == LOGIN_NAVER_CLOUDB2B__VIEW) {
+		callback(true, {});
+		return;
+	}
 	for (int index = 0; index != pls_get_login_info_count(); ++index) {
 		const PLSLoginInfo *channelInfo = pls_get_login_info(index);
 		if (!channelInfo)
@@ -491,6 +498,22 @@ FRONTEND_API QByteArray pls_get_prism_cookie()
 	return nullptr;
 }
 
+FRONTEND_API QString pls_get_b2b_auth_url()
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_get_b2b_auth_url();
+	}
+	return nullptr;
+}
+
+FRONTEND_API bool pls_get_b2b_acctoken(const QString &url)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_get_b2b_acctoken(url);
+	}
+	return false;
+}
+
 FRONTEND_API QJsonObject pls_get_resource_statistics_data()
 {
 	if (callbacks_valid()) {
@@ -539,40 +562,24 @@ FRONTEND_API bool pls_is_rehearsal_info_display()
 	return false;
 }
 
+FRONTEND_API QString pls_get_remote_control_mobile_name(const QString &platformName)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_get_remote_control_mobile_name(platformName);
+	}
+	return QString();
+}
+
 FRONTEND_API void pls_frontend_add_event_callback(pls_frontend_event_cb callback, void *context)
 {
 	if (callbacks_valid()) {
 		return LocalGlobalVars::fc->pls_frontend_add_event_callback(callback, context);
 	}
 }
-FRONTEND_API void pls_frontend_add_event_callback(pls_frontend_event event, pls_frontend_event_cb callback, void *context)
-{
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_frontend_add_event_callback(event, callback, context);
-	}
-}
-FRONTEND_API void pls_frontend_add_event_callback(QList<pls_frontend_event> events, pls_frontend_event_cb callback, void *context)
-{
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_frontend_add_event_callback(events, callback, context);
-	}
-}
 FRONTEND_API void pls_frontend_remove_event_callback(pls_frontend_event_cb callback, void *context)
 {
 	if (callbacks_valid()) {
 		return LocalGlobalVars::fc->pls_frontend_remove_event_callback(callback, context);
-	}
-}
-FRONTEND_API void pls_frontend_remove_event_callback(pls_frontend_event event, pls_frontend_event_cb callback, void *context)
-{
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_frontend_remove_event_callback(event, callback, context);
-	}
-}
-FRONTEND_API void pls_frontend_remove_event_callback(QList<pls_frontend_event> events, pls_frontend_event_cb callback, void *context)
-{
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_frontend_remove_event_callback(events, callback, context);
 	}
 }
 
@@ -864,6 +871,10 @@ FRONTEND_API void pls_load_dev_server()
 	LOAD_DEV_SERVER(PLS_RTMP_MODIFY);
 	LOAD_DEV_SERVER(PLS_RTMP_DELETE);
 	LOAD_DEV_SERVER(PLS_RTMP_LIST);
+	LOAD_DEV_SERVER(PLS_RTMP_ADD_V2);
+	LOAD_DEV_SERVER(PLS_RTMP_MODIFY_V2);
+	LOAD_DEV_SERVER(PLS_RTMP_DELETE_V2);
+	LOAD_DEV_SERVER(PLS_RTMP_LIST_V2);
 
 	LOAD_DEV_SERVER(g_streamKeyPrismHelperEn);
 	LOAD_DEV_SERVER(g_streamKeyPrismHelperKr);
@@ -918,12 +929,20 @@ FRONTEND_API void pls_load_dev_server()
 
 	// Chat Widget
 	LOAD_DEV_SERVER(CHAT_SOURCE_URL);
+	LOAD_DEV_SERVER(CHATV2_SOURCE_URL);
 
 	//Naver Shopping Live
 	LOAD_DEV_SERVER(CHANNEL_NAVER_SHOPPING_LIVE_LOGIN);
 	LOAD_DEV_SERVER(CHANNEL_NAVER_SHOPPING_LIVE_SMART_STORE_LOGIN);
 	LOAD_DEV_SERVER(CHANNEL_NAVER_SHOPPING_LIVE_NAVER_LOGIN);
 	LOAD_DEV_SERVER(CHANNEL_NAVER_SHOPPING_LIVE_HEADER);
+	//nvaer cloud b2b
+
+	LOAD_DEV_SERVER(PRISM_NCP_AUTH_API);
+	LOAD_DEV_SERVER(PRISM_NCP_SERVICE_ID_API);
+	LOAD_DEV_SERVER(PRISM_NCP_AUTH_JOIN_API);
+	LOAD_DEV_SERVER(PRISM_NCP_REFRESH_TOKEN_API);
+	LOAD_DEV_SERVER(PRISM_NCP_SERVICE_CONFIG_API);
 }
 
 FRONTEND_API PfnGetConfigPath pls_get_config_path(void)
@@ -956,8 +975,11 @@ FRONTEND_API QString pls_get_relative_config_path(const QString &config_path)
 	QString normal_config_path = QDir::toNativeSeparators(config_path);
 	QString vb_config_dir = QDir::toNativeSeparators(pls_get_config_dir());
 	normal_config_path.remove(vb_config_dir);
-	if (normal_config_path.startsWith(QDir::separator()))
-		return normal_config_path.mid(1);
+	if (normal_config_path.startsWith(QDir::separator())) {
+		return normal_config_path.mid(1).replace("\\", "/");
+	}
+
+	normal_config_path.replace("\\", "/");
 	return normal_config_path;
 }
 
@@ -976,23 +998,6 @@ FRONTEND_API QVariantMap pls_http_request_default_headers(bool hasGcc)
 		return LocalGlobalVars::fc->pls_http_request_head(hasGcc);
 	}
 	return QVariantMap();
-}
-FRONTEND_API std::string pls_get_offline_javaScript()
-{
-#if defined(Q_OS_WIN)
-	QString path = pls_get_app_dir() + QString("/../../data/prism-studio/webpage/pls_offline_page.js");
-#elif defined(Q_OS_MACOS)
-	QString path = pls_get_app_resource_dir() + "/data/prism-studio/webpage/pls_offline_page.js";
-#endif
-	QFile file(path);
-	file.open(QIODevice::ReadOnly | QIODevice::Text);
-	QByteArray byteArray = file.readAll();
-	file.close();
-	QString str = byteArray;
-	QString _strNet = pls_translate_qstr("login.check.note.network").replace("\n", "\\n");
-	QString _strRetry = pls_translate_qstr("Retry").replace("\n", "\\n");
-	str = str.replace("net_err_key", _strNet).replace("retry_key", _strRetry);
-	return str.toStdString();
 }
 
 FRONTEND_API QString pls_get_md5(const QString &originStr, const QString &prefix)
@@ -1023,10 +1028,18 @@ FRONTEND_API ControlSrcType pls_previous_record_control_by()
 	return LocalGlobalVars::recordControl;
 }
 
+FRONTEND_API ControlSrcType pls_get_current_live_control_type()
+{
+	return LocalGlobalVars::liveControlType;
+}
+
 FRONTEND_API void pls_start_broadcast(bool toStart, const ControlSrcType &control)
 {
 	if (callbacks_valid()) {
 		LocalGlobalVars::broadcastControl = control;
+		if (toStart) {
+			LocalGlobalVars::liveControlType = control;
+		}
 		LocalGlobalVars::fc->pls_start_broadcast(toStart);
 	}
 }
@@ -1240,6 +1253,30 @@ FRONTEND_API int pls_get_current_selected_channel_count()
 	return 0;
 }
 
+FRONTEND_API void pls_add_custom_font(const QString &fontPath)
+{
+	QDir dir(fontPath);
+	auto fileInfoList = dir.entryInfoList({"*.ttf", "*.otf", "*.ttc"}, QDir::Files, QDir::Name);
+	for (auto fileInfo : fileInfoList) {
+		QFontDatabase::addApplicationFont(fileInfo.absoluteFilePath());
+#if defined(_WIN32)
+		pls_enter_font_collection();
+		pls_add_font_to_private_collection(fileInfo.absoluteFilePath().toUtf8());
+		pls_leave_font_collection();
+#else
+		pls_freetype_add_font(fileInfo.absoluteFilePath().toUtf8());
+#endif
+	}
+}
+
+FRONTEND_API bool pls_install_scene_template(const SceneTemplateItem &item)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_install_scene_template(item);
+	}
+	return false;
+}
+
 static bool is_string_empty(const char *s)
 {
 	return !s || !s[0];
@@ -1300,7 +1337,13 @@ FRONTEND_API ITextMotionTemplateHelper *pls_get_text_motion_template_helper_inst
 	}
 	return nullptr;
 }
-
+FRONTEND_API ITextMotionTemplateHelper *pls_get_chat_template_helper_instance()
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_get_chat_template_helper_instance();
+	}
+	return nullptr;
+}
 FRONTEND_API QString pls_get_current_language()
 {
 	if (callbacks_valid()) {
@@ -1493,6 +1536,14 @@ FRONTEND_API QString pls_get_record_state()
 		return LocalGlobalVars::fc->pls_get_record_state();
 	}
 	return "";
+}
+
+FRONTEND_API int pls_get_record_duration()
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_get_record_duration();
+	}
+	return 0;
 }
 
 FRONTEND_API bool pls_get_hotkey_enable()
@@ -2182,6 +2233,11 @@ FRONTEND_API void pls_set_remote_control_server_info(quint16 port)
 	auto config = LocalGlobalVars::fc->obs_frontend_get_global_config();
 	config_set_int(config, ConfigKey(ConfigId::RemoteControlConfig), "port", port);
 	config_save(config);
+
+	struct calldata data = {0};
+	calldata_set_int(&data, "port", port);
+	signal_handler_signal(obs_get_signal_handler(), "remote_control_socket_initialized", &data);
+	calldata_free(&data);
 }
 FRONTEND_API void pls_get_remote_control_server_info(quint16 &port)
 {
@@ -2218,15 +2274,16 @@ FRONTEND_API void pls_get_remote_control_client_info(QString &peerName, bool &co
 	peerName = p == nullptr ? "" : QString(p);
 	connected = config_get_bool(config, ConfigKey(ConfigId::RemoteControlConfig), "connected");
 }
-FRONTEND_API void pls_set_remote_control_log_file(const QString &logFile)
+FRONTEND_API bool pls_set_remote_control_log_file(const QString &logFile)
 {
 	if (!LocalGlobalVars::fc || !LocalGlobalVars::fc->obs_frontend_get_global_config()) {
-		return;
+		return false;
 	}
 
 	auto config = LocalGlobalVars::fc->obs_frontend_get_global_config();
 	config_set_string(config, ConfigKey(ConfigId::RemoteControlConfig), "logFile", logFile.toStdString().c_str());
 	config_save(config);
+	return true;
 }
 FRONTEND_API void pls_get_remote_control_log_file(QString &logFile)
 {
@@ -2354,4 +2411,36 @@ FRONTEND_API const char *pls_source_get_display_name(const char *id)
 FRONTEND_API bool pls_is_always_on_top(const QWidget *widget)
 {
 	return PLSToplevelWidget::isAlwaysOnTop(widget);
+}
+
+FRONTEND_API QString get_channel_cookie_path(const QString &channelLoginName)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->get_channel_cookie_path(channelLoginName);
+	}
+	return QString();
+}
+
+FRONTEND_API QStringList getChannelWithChatList()
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->getChannelWithChatList();
+	}
+	return {};
+}
+
+FRONTEND_API bool pls_is_ncp(QString &channlName)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_is_ncp(channlName);
+	}
+	return false;
+}
+
+FRONTEND_API bool pls_is_ncp_first_login(QString &serviceName)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_is_ncp_first_login(serviceName);
+	}
+	return false;
 }

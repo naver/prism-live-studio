@@ -70,25 +70,29 @@ MuteCheckBox::indicator:checked {
     image: url(:/res/images/mute.svg);
 }
 
+MuteCheckBox::indicator:indeterminate {
+    image: url(theme:Dark/unassigned.svg);
+}
+
 MuteCheckBox::indicator:unchecked {
     image: url(:/settings/images/settings/audio.svg);
 }
 
-SourceTreeSubItemCheckBox {
+QCheckBox[sourceTreeSubItem=true] {
     background: transparent;
     outline: none;
 }
 
-SourceTreeSubItemCheckBox::indicator {
+QCheckBox[sourceTreeSubItem=true]::indicator {
     width: 10px;
     height: 10px;
 }
 
-SourceTreeSubItemCheckBox::indicator:checked {
+QCheckBox[sourceTreeSubItem=true]::indicator:checked {
     image: url(:/res/images/expand.svg);
 }
 
-SourceTreeSubItemCheckBox::indicator:unchecked {
+QCheckBox[sourceTreeSubItem=true]::indicator:unchecked {
     image: url(:/res/images/collapse.svg);
 }
 
@@ -170,13 +174,13 @@ QMainWindow::separator {
 }
 
 * [themeID="aboutHLayout"] {
-	background-color: #DCD9D7;
+    background-color: #DCD9D7;
 }
 
 /* Preview background color */
 
 OBSQTDisplay {
-	qproperty-displayBackgroundColor: rgb(76, 76, 76);
+    qproperty-displayBackgroundColor: rgb(76, 76, 76);
 }
 
 /* Preview/Program labels */
@@ -200,38 +204,38 @@ OBSBasicSettings {
     qproperty-advancedIcon: url(:settings/images/settings/advanced.svg);
 }
 
-OBSBasicSettings QListView::item {
+OBSBasicSettings QListWidget::item {
     padding-top: 5px;
     padding-bottom: 5px;
 }
 
 /* Locked CheckBox */
 
-LockedCheckBox {
+QCheckBox[lockCheckBox=true] {
     outline: none;
     background: transparent;
 }
 
-LockedCheckBox::indicator:checked {
+QCheckBox[lockCheckBox=true]::indicator:checked {
     image: url(:res/images/locked.svg);
 }
 
-LockedCheckBox::indicator:unchecked {
+QCheckBox[lockCheckBox=true]::indicator:unchecked {
     image: url(:res/images/unlocked.svg);
 }
 
 /* Visibility CheckBox */
 
-VisibilityCheckBox {
+QCheckBox[visibilityCheckBox=true] {
     outline: none;
     background: transparent;
 }
 
-VisibilityCheckBox::indicator:checked {
+QCheckBox[visibilityCheckBox=true]::indicator:checked {
     image: url(:res/images/visible.svg);
 }
 
-VisibilityCheckBox::indicator:unchecked {
+QCheckBox[visibilityCheckBox=true]::indicator:unchecked {
     image: url(:res/images/invisible.svg);
 }
 
@@ -240,7 +244,7 @@ VisibilityCheckBox::indicator:unchecked {
 }
 
 OBSMissingFiles {
-	qproperty-warningIcon: url(:res/images/alert.svg);
+    qproperty-warningIcon: url(:res/images/alert.svg);
 }
 
 /* Source Icons */
@@ -268,7 +272,7 @@ OBSBasic {
 
 SceneTree {
     qproperty-gridItemWidth: 150;
-	qproperty-gridItemHeight: 24;
+    qproperty-gridItemHeight: 24;
 }
 
 /* Save icon */
@@ -280,25 +284,25 @@ SceneTree {
 /* Studio Mode T-Bar */
 
 QSlider[themeID="tBarSlider"] {
-	height: 24px;
+    height: 24px;
 }
 
 QSlider::groove:horizontal[themeID="tBarSlider"] {
-	border: 1px solid #4c4c4c;
-	height: 5px;
-	background: #DCD9D7;
+    border: 1px solid #4c4c4c;
+    height: 5px;
+    background: #DCD9D7;
 }
 
 QSlider::sub-page:horizontal[themeID="tBarSlider"] {
-	background: #DCD9D7;
-	border: 1px solid #4c4c4c;
+    background: #DCD9D7;
+    border: 1px solid #4c4c4c;
 }
 
 QSlider::handle:horizontal[themeID="tBarSlider"] {
-	background-color: #4c4c4c;
-	width: 12px;
-	height: 24px;
-	margin: -24px 0px;
+    background-color: #4c4c4c;
+    width: 12px;
+    height: 24px;
+    margin: -24px 0px;
 }
 
 /* Source Context */
@@ -354,18 +358,18 @@ OBSYoutubeActions {
 }
 
 #ytEventList QLabel {
-	background-color: #e1e1e1;
-	border: 1px solid #ddd;
+    background-color: #e1e1e1;
+    border: 1px solid #ddd;
 }
 
 #ytEventList QLabel:hover {
     background-color: #eee;
-	border: 1px solid #777;
+    border: 1px solid #777;
 }
 
 #ytEventList QLabel[isSelectedEvent=true] {
     background-color: #ccc;
-	border: 1px solid #444;
+    border: 1px solid #444;
 }
 
 /* Calendar Widget */
@@ -374,7 +378,7 @@ QCalendarWidget QToolButton {
 }
 
 #qt_calendar_monthbutton::menu-indicator {
-    image: url(./Dark/down.svg);
+    image: url(theme:Dark/down.svg);
     subcontrol-position: right;
     padding-top: 2px;
     padding-right: 2px;
@@ -389,12 +393,17 @@ QCalendarWidget QToolButton {
 
 QCalendarWidget #qt_calendar_prevmonth {
     padding: 2px;
-    qproperty-icon: url(./Dark/left.svg);
+    qproperty-icon: url(theme:Dark/left.svg);
     icon-size: 16px, 16px;
 }
 
 QCalendarWidget #qt_calendar_nextmonth {
     padding: 2px;
-    qproperty-icon: url(./Dark/right.svg);
+    qproperty-icon: url(theme:Dark/right.svg);
     icon-size: 16px, 16px;
+}
+
+/* Status Bar */
+StatusBarWidget > QFrame {
+    padding: 0px 12px 8px;
 }

@@ -274,6 +274,7 @@ private slots:
 
 protected:
 	void showEvent(QShowEvent *event) override;
+	void nativeResizeEvent(const QSize &size, const QSize &nativeSize) override;
 
 private:
 	Ui::PLSAlertView *ui = nullptr;
@@ -282,6 +283,8 @@ private:
 	QTimer *m_delayAutoClickTimer = nullptr;
 	int m_btnCount = 0;
 	QMap<QString, QVariant> m_otherConfig{};
+	bool m_needCorrectedHeight = false;
+	bool m_needUpdatePosWhenCorrectedHeight = false;
 };
 
 #endif // PLSALERTVIEW_H

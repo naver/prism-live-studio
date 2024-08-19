@@ -31,7 +31,7 @@ using namespace std;
 PLSPlatformAfreecaTV::PLSPlatformAfreecaTV()
 {
 	connect(PLS_PLATFORM_API, &PLSPlatformApi::channelRemoved, this, [this](const QVariantMap &info) {
-		QString platformName = info.value(ChannelData::g_platformName, "").toString();
+		QString platformName = info.value(ChannelData::g_channelName, "").toString();
 		auto dataType = info.value(ChannelData::g_data_type, ChannelData::RTMPType).toInt();
 
 		if (dataType == ChannelData::ChannelType && platformName == AFREECATV) {
@@ -472,7 +472,7 @@ void PLSPlatformAfreecaTV::showApiRefreshError(PLSPlatformApiResult value)
 void PLSPlatformAfreecaTV::showTokenExpiredAlert(QWidget *alertParent)
 {
 	auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-	auto channelName = info.value(ChannelData::g_platformName).toString();
+	auto channelName = info.value(ChannelData::g_channelName).toString();
 	PLSAlertView::Button button = pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
 	if (button == PLSAlertView::Button::Ok) {
 		emit closeDialogByExpired();

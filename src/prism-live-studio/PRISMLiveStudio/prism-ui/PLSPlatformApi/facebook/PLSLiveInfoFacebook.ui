@@ -897,19 +897,6 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="okButton">
-       <property name="focusPolicy">
-        <enum>Qt::NoFocus</enum>
-       </property>
-       <property name="text">
-        <string>OK</string>
-       </property>
-       <property name="useFor" stdset="0">
-        <string notr="true">Ok</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QPushButton" name="cancelButton">
        <property name="focusPolicy">
         <enum>Qt::NoFocus</enum>
@@ -919,6 +906,19 @@
        </property>
        <property name="useFor" stdset="0">
         <string notr="true">Cancel</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="okButton">
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="text">
+        <string>OK</string>
+       </property>
+       <property name="useFor" stdset="0">
+        <string notr="true">Ok</string>
        </property>
       </widget>
      </item>
@@ -946,13 +946,13 @@
   <customwidget>
    <class>PLSLineEdit</class>
    <extends>QLineEdit</extends>
-   <header location="global">PLSEdit.h</header>
+   <header>PLSEdit.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>PLSTextEdit</class>
    <extends>QTextEdit</extends>
-   <header location="global">PLSEdit.h</header>
+   <header>PLSEdit.h</header>
   </customwidget>
   <customwidget>
    <class>PLSLoadingCombox</class>

@@ -16,6 +16,7 @@
 #include <qsemaphore.h>
 #include <qurlquery.h>
 
+
 #include <liblog.h>
 
 namespace pls {
@@ -50,15 +51,15 @@ LIBHTTPCLIENT_API const QString RS_DOWNLOAD_WORKER_GROUP = "rs-download-worker-g
 	if (variable.has_value())                     \
 		variable.value().push_back(newValue); \
 	else                                          \
-		variable = {newValue}
+		variable = std::decay_t<decltype(variable)>::value_type{newValue}
 #define optionalAddValueChkRet(variable, newValue) \
 	optionalAddValueChk(variable, newValue);   \
 	return *this
-#define optionalAddHashValueChkRet(variable, hashKey, haskValue) \
-	if (variable.has_value())                                \
-		variable.value().insert(hashKey, haskValue);     \
-	else                                                     \
-		variable = {{hashKey, haskValue}};               \
+#define optionalAddHashValueChkRet(variable, hashKey, haskValue)                                 \
+	if (variable.has_value())                                                                \
+		variable.value().insert(hashKey, haskValue);                                     \
+	else                                                                                     \
+		variable = std::decay_t<decltype(variable)>::value_type{{hashKey, haskValue}}; \
 	return *this
 #define optionalGetValueChkRet(variable, defaultValue) \
 	if (variable.has_value())                      \
@@ -84,12 +85,20 @@ LIBHTTPCLIENT_API const QString RS_DOWNLOAD_WORKER_GROUP = "rs-download-worker-g
 		return manager->sendCustomRequest(requestImpl->m_request, method, requestImpl->formBody());           \
 	}                                                                                                             \
 	return manager->sendCustomRequest(requestImpl->m_request, method, requestImpl->body())
+#define callReplyMethod(method_params)         \
+	if (auto reply = this->reply(); reply) \
+		reply->method_params;
+#define callReplyMethodRet(method_params, defval) \
+	if (auto reply = this->reply(); reply)    \
+		return reply->method_params;      \
+	return defval
 
 #define g_clientStatus Client ::s_clientStatus
 #define g_client Client::s_client
 #define g_proxy Client::s_client->m_proxy
 #define g_workers Client::s_client->m_workers
 #define g_cleanupWaitTimeout Client::s_client->s_cleanupWaitTimeout
+
 
 enum class Status { InProgress, Ok, Failed, Timeout, Aborted, RenameFailed };
 enum class ClientStatus { Uninitialized, Initialized, Initializing, Destroying };
@@ -263,14 +272,14 @@ struct RequestImpl {
 	bool isWorkInNewThread() const { return m_workInNewThread.value_or(false); }
 	QString workerGroup() const { return m_workInGroup.has_value() ? m_workInGroup.value() : DEFAULT_WORKER_GROUP; }
 
-	int timeout() const
+	int timeout(int defvalue = -1) const
 	{
 		if (m_timeout.has_value()) {
 			return m_timeout.value();
 		} else if (!isForDownload()) {
-			return REQUEST_DEFAULT_TIMEOUT;
+			return (defvalue > 0) ? defvalue : REQUEST_DEFAULT_TIMEOUT;
 		}
-		return -1;
+		return defvalue;
 	}
 
 	bool isForDownload() const { return m_forDownload.value_or(false); }
@@ -330,7 +339,7 @@ struct RequestImpl {
 struct ReplyImpl {
 	mutable NetworkAccessManagerPtr m_manager;
 	mutable RequestImplPtr m_requestImpl;
-	mutable QNetworkReply *m_reply;
+	mutable std::shared_ptr<NetworkReply> m_reply;
 	mutable std::optional<Status> m_status = Status::InProgress;
 	mutable std::optional<QByteArray> m_data;
 	mutable std::optional<qint64> m_downloadedBytes;
@@ -344,15 +353,23 @@ struct ReplyImpl {
 	mutable QMetaObject::Connection m_abortConn;
 	mutable QMetaObject::Connection m_readyToCloseConn;
 
-	explicit ReplyImpl(const NetworkAccessManagerPtr &manager, const RequestImplPtr &requestImpl, QNetworkReply *reply) : m_manager(manager), m_requestImpl(requestImpl), m_reply(reply) {}
+	explicit ReplyImpl(const NetworkAccessManagerPtr &manager, const RequestImplPtr &requestImpl, QNetworkReply *reply)
+		: m_manager(manager), m_requestImpl(requestImpl), m_reply(std::make_shared<NetworkReply>(manager, reply))
+	{
+		m_reply->init();
+	}
 	~ReplyImpl() { stopCheckTimer(); }
 
 	NetworkAccessManager *manager() const { return m_manager.get(); }
 	Request request() const { return m_requestImpl; }
-	QNetworkReply *reply() const { return m_reply; }
+	QNetworkReply *reply() const { return m_reply->get(); }
 
-	QVariant header(QNetworkRequest::KnownHeaders header) const { return m_reply->header(header); }
+	QString errorString() const { callReplyMethodRet(errorString(), {}); }
+	QVariant header(QNetworkRequest::KnownHeaders header) const { callReplyMethodRet(header(header), {}); }
+	bool hasRawHeader(const QByteArray &headerName) const { callReplyMethodRet(hasRawHeader(headerName), false); }
+	QByteArray rawHeader(const QByteArray &header) const { callReplyMethodRet(rawHeader(header), {}); }
 	QString contentType() const { return header(QNetworkRequest::ContentTypeHeader).toString(); }
+	QByteArray readAll() const { callReplyMethodRet(readAll(), {}); }
 
 	void addError(const QString &error) const { m_requestImpl->addError(error); }
 
@@ -377,12 +394,12 @@ struct ReplyImpl {
 		if (!isFinished()) {
 			setStatus(status);
 			m_requestImpl->addError(error);
-			m_reply->abort();
+			callReplyMethod(abort());
 		}
 	}
 
-	int statusCode() const { return reply()->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(); }
-	QNetworkReply::NetworkError error() const { return reply()->error(); }
+	int statusCode() const { callReplyMethodRet(attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(), -1); }
+	QNetworkReply::NetworkError error() const { callReplyMethodRet(error(), static_cast<QNetworkReply::NetworkError>(-1)); }
 
 	QByteArray data() const
 	{
@@ -394,7 +411,7 @@ struct ReplyImpl {
 			return m_data.value();
 		}
 
-		m_data = reply()->readAll();
+		m_data = readAll();
 		return m_data.value();
 	}
 	bool json(QJsonDocument &doc, const JsonParseFail &fail) const
@@ -504,8 +521,8 @@ struct ReplyImpl {
 	}
 	void saveDownloadData(const ReplyImplPtr &replyImpl, bool finished = false) const
 	{
-		if (openFile()) {
-			m_downloadFile.value().write(m_reply->readAll());
+		if (auto reply = this->reply(); reply && openFile()) {
+			m_downloadFile.value().write(reply->readAll());
 		} else {
 			abort(Status::Failed);
 		}
@@ -544,7 +561,7 @@ struct ReplyImpl {
 			return false;
 		} else if (isOk()) {
 			return true;
-		} else if (!pls_object_is_valid(m_reply)) {
+		} else if (!m_reply || !m_reply->valid()) {
 			return false;
 		} else if (m_requestImpl->m_checkResult.has_value()) {
 			return pls_invoke_safe(m_requestImpl->m_checkResult.value(), replyImpl);
@@ -590,9 +607,9 @@ struct ReplyImpl {
 		timer->setInterval(timeout);
 
 		std::weak_ptr<ReplyImpl> replyImplWeakPtr = replyImpl;
-		QObject::connect(timer, &QTimer::timeout, m_reply, [replyImplWeakPtr, timeout]() {
+		QObject::connect(timer, &QTimer::timeout, reply(), [replyImplWeakPtr, timeout]() {
 			if (auto replyImplTmp = replyImplWeakPtr.lock(); replyImplTmp) {
-				PLS_INFO(LIBHTTP_CLIENT_MODULE, "request timeout. url: %s", replyImplTmp->m_requestImpl->m_url.toString(QUrl::FullyEncoded).toUtf8().constData());
+				PLS_ERROR(LIBHTTP_CLIENT_MODULE, "request timeout. url: %s", replyImplTmp->m_requestImpl->m_url.toString(QUrl::FullyEncoded).toUtf8().constData());
 				replyImplTmp->abort(Status::Timeout, QString("request timed out, timeout: %1ms").arg(timeout));
 			}
 		});
@@ -614,7 +631,8 @@ struct ReplyImpl {
 	void checkDownloadTimeout(const ReplyImplPtr &replyImpl) const
 	{
 		checkTimeout(replyImpl);
-		newTimer(m_checkDownloadTimeoutTimer, replyImpl, REQUEST_DEFAULT_TIMEOUT);
+		int timeout = m_requestImpl->timeout(REQUEST_DEFAULT_TIMEOUT);
+		newTimer(m_checkDownloadTimeoutTimer, replyImpl, timeout);
 		m_checkDownloadTimeoutTimer->start();
 	}
 	void recheckDownloadTimeout() const { m_checkDownloadTimeoutTimer->start(); }
@@ -633,7 +651,7 @@ struct ReplyImpl {
 	{
 		QObject::disconnect(m_abortConn);
 		QObject::disconnect(m_readyToCloseConn);
-		pls_delete_later(m_reply, nullptr);
+		m_reply->destroy();
 	}
 };
 struct RequestsImpl {
@@ -702,7 +720,7 @@ struct RepliesImpl {
 			return false;
 		} else if (replyImpl->isOk()) {
 			return true;
-		} else if (!pls_object_is_valid(replyImpl->m_reply)) {
+		} else if (!replyImpl->m_reply || !replyImpl->m_reply->valid()) {
 			return false;
 		} else if (m_requestsImpl->m_checkResult.has_value()) {
 			return pls_invoke_safe(m_requestsImpl->m_checkResult.value(), replyImpl);
@@ -848,15 +866,7 @@ private:
 			workThread->setProperty("$libhttp-client.workerGroup", reqImpl->workerGroup());
 		}
 
-		auto deleteManager = [](NetworkAccessManager *ptr) {
-			if (!ptr->threadClosed()) {
-				ptr->deleteLater();
-			} else {
-				pls_delete(ptr);
-			}
-		};
-
-		NetworkAccessManagerPtr manager{pls_new<NetworkAccessManager>(), deleteManager};
+		NetworkAccessManagerPtr manager{pls_new<NetworkAccessManager>(), [](NetworkAccessManager *ptr) { ptr->deleteLater(); }};
 		manager->moveToThread(workThread);
 		m_workers[workThread] = manager;
 
@@ -867,9 +877,8 @@ private:
 		});
 
 		if (!isWorkThreadUseForHttpClient(workThread)) {
-			connect(workThread, &QThread::finished, [workThread, managerWeakPtr = NetworkAccessManagerWeakPtr(manager)]() {
+			connect(workThread, &QThread::finished, manager.get(), [workThread, managerWeakPtr = NetworkAccessManagerWeakPtr(manager)]() {
 				if (auto mgr = managerWeakPtr.lock(); mgr) {
-					mgr->setThreadClosed(true);
 					emit mgr->readyToClose();
 				}
 
@@ -975,14 +984,14 @@ public:
 		auto replyImpl = makeShared<ReplyImpl>(manager, requestImpl, buildRequest(requestImpl, manager.get()));
 		replyImpl->m_abortConn = QObject::connect(g_proxy, &Proxy::abort, replyImpl->reply(), [replyImpl](bool allowAbortCheck, const QString &error, qint64 requestId) {
 			if (!replyImpl->m_requestImpl->allowAbort(allowAbortCheck)) {
-				PLS_INFO(LIBHTTP_CLIENT_MODULE, "request abort not allowed. url: %s", replyImpl->m_requestImpl->m_url.toString(QUrl::FullyEncoded).toUtf8().constData());
+				PLS_WARN(LIBHTTP_CLIENT_MODULE, "request abort not allowed. url: %s", replyImpl->m_requestImpl->m_url.toString(QUrl::FullyEncoded).toUtf8().constData());
 			} else if ((requestId < 0) || (requestId == replyImpl->m_requestImpl->m_requestId)) {
-				PLS_INFO(LIBHTTP_CLIENT_MODULE, "request aborted. url: %s", replyImpl->m_requestImpl->m_url.toString(QUrl::FullyEncoded).toUtf8().constData());
+				PLS_WARN(LIBHTTP_CLIENT_MODULE, "request aborted. url: %s", replyImpl->m_requestImpl->m_url.toString(QUrl::FullyEncoded).toUtf8().constData());
 				replyImpl->abort(Status::Aborted, error.isEmpty() ? QStringLiteral("request aborted.") : error);
 			}
 		});
 		replyImpl->m_readyToCloseConn = QObject::connect(manager.get(), &NetworkAccessManager::readyToClose, [replyImpl]() {
-			PLS_INFO(LIBHTTP_CLIENT_MODULE, "worker thread quit, request aborted. url: %s", replyImpl->m_requestImpl->m_url.toString(QUrl::FullyEncoded).toUtf8().constData());
+			PLS_WARN(LIBHTTP_CLIENT_MODULE, "worker thread quit, request aborted. url: %s", replyImpl->m_requestImpl->m_url.toString(QUrl::FullyEncoded).toUtf8().constData());
 			replyImpl->abort(Status::Aborted, "worker thread quit, request aborted.");
 		});
 		return replyImpl;
@@ -1033,9 +1042,9 @@ public:
 	}
 	static void request(const Request &request)
 	{
-		pls_async_call(g_proxy, [requestImpl = request.m_impl]() {
+		pls_async_call(g_proxy, g_client, [](const QObject *) { return isInitialized(); }, [requestImpl = request.m_impl]() {
 			auto manager = g_client->getManager(requestImpl, requestImpl->worker(), requestImpl->isWorkInNewThread());
-			pls_async_call(manager.get(), g_proxy, [manager, requestImpl]() {
+			pls_async_call(manager.get(), g_proxy, [](const QObject *) { return isInitialized(); }, [manager, requestImpl]() {
 				requestImpl->buildUrl();
 				auto replyImpl = newReply(manager, requestImpl);
 				processReply(requestImpl, replyImpl);
@@ -1084,9 +1093,9 @@ public:
 	}
 	static void requests(const Requests &requests)
 	{
-		pls_async_call(g_proxy, g_client, [requestsImpl = requests.m_impl]() {
+		pls_async_call(g_proxy, g_client, [](const QObject *) { return isInitialized(); }, [requestsImpl = requests.m_impl]() {
 			auto manager = g_client->getManager(requestsImpl, requestsImpl->worker(), requestsImpl->isWorkInNewThread());
-			pls_async_call(manager.get(), g_proxy, [manager, requestsImpl]() {
+			pls_async_call(manager.get(), g_proxy, [](const QObject *) { return isInitialized(); }, [manager, requestsImpl]() {
 				requestsImpl->buildUrl();
 				auto repliesImpl = newReplies(manager, requestsImpl);
 				processReplies(repliesImpl);
@@ -1095,13 +1104,13 @@ public:
 	}
 	static void abort(bool allowAbortCheck, qint64 requestId)
 	{
-		pls_async_call(g_proxy, [allowAbortCheck, requestId]() {
+		pls_async_call(g_proxy, g_client, [](const QObject *) { return isInitialized(); }, [allowAbortCheck, requestId]() {
 			g_proxy->abort(allowAbortCheck, "Manual termination", requestId); // Manual termination
 		});
 	}
 	static void abortAll(bool allowAbortCheck)
 	{
-		pls_async_call(g_proxy, [allowAbortCheck]() {
+		pls_async_call(g_proxy, g_client, [](const QObject *) { return isInitialized(); }, [allowAbortCheck]() {
 			g_proxy->abort(allowAbortCheck, "Manual termination"); // Manual termination
 		});
 	}
@@ -1134,7 +1143,12 @@ public:
 		}
 
 		g_clientStatus = ClientStatus::Destroying;
-		Client::destroy();
+		try {
+			Client::destroy();
+		} catch (...) {
+			PLS_ERROR(LIBHTTP_CLIENT_MODULE, "http client destory exception");
+			assert(false);
+		}
 		g_clientStatus = ClientStatus::Uninitialized;
 	}
 };
@@ -1160,13 +1174,19 @@ bool isTextContent(const QString &contentType)
 
 NetworkAccessManager::NetworkAccessManager() : QNetworkAccessManager(nullptr) {}
 
-bool NetworkAccessManager::threadClosed() const
+NetworkReply::NetworkReply(NetworkAccessManagerPtr manager, QNetworkReply *reply) : m_manager(manager), m_reply(reply) {}
+
+void NetworkReply::init()
 {
-	return m_threadClosed;
+	QObject::connect(m_reply.object(), &QNetworkReply::destroyed, [pthis = shared_from_this()]() mutable {
+		pthis->m_manager = nullptr;
+		pthis->m_reply = nullptr;
+	});
 }
-void NetworkAccessManager::setThreadClosed(bool threadClosed)
+
+void NetworkReply::destroy()
 {
-	m_threadClosed = threadClosed;
+	pls_delete_later(m_reply);
 }
 
 Worker::Worker(bool isShared) : m_isShared(isShared)
@@ -1698,15 +1718,17 @@ const Request &Request::withAfterLog(const QString &urlMasking, LogInclude logIn
 
 template<typename OriginalUrl, typename MaskingUrl> static void processOkLog(const OriginalUrl &originalUrl, const MaskingUrl &maskingUrl, const Reply &reply)
 {
+	auto contentType = reply.contentType();
 	bool hasLogtraceId = reply.hasRawHeader(X_LOGTRACE_TRACEID);
 	if (hasLogtraceId) {
-		PLS_LOGEX(PLS_LOG_INFO, LIBHTTP_CLIENT_MODULE, {{X_LOGTRACE_TRACEID_FIELD, reply.rawHeader(X_LOGTRACE_TRACEID).constData()}}, "http response success, url = %s, statusCode = %d",
-			  maskingUrl.first.toUtf8().constData(), reply.statusCode());
+		PLS_LOGEX(PLS_LOG_INFO, LIBHTTP_CLIENT_MODULE, {{X_LOGTRACE_TRACEID_FIELD, reply.rawHeader(X_LOGTRACE_TRACEID).constData()}},
+			  "http response success, url = %s, statusCode = %d, contentType = %s", maskingUrl.first.toUtf8().constData(), reply.statusCode(), contentType.toUtf8().constData());
 	} else {
-		PLS_INFO(LIBHTTP_CLIENT_MODULE, "http response success, url = %s, statusCode = %d", maskingUrl.first.toUtf8().constData(), reply.statusCode());
+		PLS_INFO(LIBHTTP_CLIENT_MODULE, "http response success, url = %s, statusCode = %d, contentType = %s", maskingUrl.first.toUtf8().constData(), reply.statusCode(),
+			 contentType.toUtf8().constData());
 	}
 
-	if (isTextContent(reply.contentType())) {
+	if (isTextContent(contentType)) {
 		if (hasLogtraceId) {
 			PLS_LOGEX_KR(PLS_LOG_INFO, LIBHTTP_CLIENT_MODULE, {{X_LOGTRACE_TRACEID_FIELD, reply.rawHeader(X_LOGTRACE_TRACEID).constData()}},
 				     "http response success, url = %s, statusCode = %d, response data = %s", originalUrl.toUtf8().constData(), reply.statusCode(), reply.data().constData());
@@ -1718,26 +1740,27 @@ template<typename OriginalUrl, typename MaskingUrl> static void processOkLog(con
 }
 template<typename OriginalUrl, typename MaskingUrl> static void processFailLog(const OriginalUrl &originalUrl, const MaskingUrl &maskingUrl, const Reply &reply)
 {
+	auto contentType = reply.contentType();
 	bool hasLogtraceId = reply.hasRawHeader(X_LOGTRACE_TRACEID);
 	if (hasLogtraceId) {
 		//log_level, module_name, fields, format, ...
-		PLS_LOGEX(PLS_LOG_INFO, LIBHTTP_CLIENT_MODULE, {{X_LOGTRACE_TRACEID_FIELD, reply.rawHeader(X_LOGTRACE_TRACEID).constData()}},
-			  "http response failed, url = %s, networkReplyError = %d, statusCode = %d, Qt error: %s", maskingUrl.first.toUtf8().constData(), reply.error(), reply.statusCode(),
-			  getMaskedError(reply, originalUrl, maskingUrl.first).toUtf8().constData());
+		PLS_LOGEX(PLS_LOG_ERROR, LIBHTTP_CLIENT_MODULE, {{X_LOGTRACE_TRACEID_FIELD, reply.rawHeader(X_LOGTRACE_TRACEID).constData()}},
+			  "http response failed, url = %s, networkReplyError = %d, statusCode = %d, contentType = %s, Qt error: %s", maskingUrl.first.toUtf8().constData(), reply.error(),
+			  reply.statusCode(), contentType.toUtf8().constData(), getMaskedError(reply, originalUrl, maskingUrl.first).toUtf8().constData());
 	} else {
-		PLS_INFO(LIBHTTP_CLIENT_MODULE, "http response failed, url = %s, networkReplyError = %d, statusCode = %d, Qt error: %s", maskingUrl.first.toUtf8().constData(), reply.error(),
-			 reply.statusCode(), getMaskedError(reply, originalUrl, maskingUrl.first).toUtf8().constData());
+		PLS_ERROR(LIBHTTP_CLIENT_MODULE, "http response failed, url = %s, networkReplyError = %d, statusCode = %d, contentType = %s, Qt error: %s", maskingUrl.first.toUtf8().constData(),
+			  reply.error(), reply.statusCode(), contentType.toUtf8().constData(), getMaskedError(reply, originalUrl, maskingUrl.first).toUtf8().constData());
 	}
 
-	if (isTextContent(reply.contentType())) {
+	if (isTextContent(contentType)) {
 		if (hasLogtraceId) {
-			PLS_LOGEX_KR(PLS_LOG_INFO, LIBHTTP_CLIENT_MODULE, {{X_LOGTRACE_TRACEID_FIELD, reply.rawHeader(X_LOGTRACE_TRACEID).constData()}},
+			PLS_LOGEX_KR(PLS_LOG_ERROR, LIBHTTP_CLIENT_MODULE, {{X_LOGTRACE_TRACEID_FIELD, reply.rawHeader(X_LOGTRACE_TRACEID).constData()}},
 				     "http response failed, url = %s, networkReplyError = %d, statusCode = %d, Qt error: %s, response data = %s", maskingUrl.first.toUtf8().constData(), reply.error(),
 				     reply.statusCode(), getMaskedError(reply, originalUrl, maskingUrl.first).toUtf8().constData(), reply.data().constData());
 		} else {
-			PLS_INFO_KR(LIBHTTP_CLIENT_MODULE, "http response failed, url = %s, networkReplyError = %d, statusCode = %d, Qt error: %s, response data = %s",
-				    maskingUrl.first.toUtf8().constData(), reply.error(), reply.statusCode(), getMaskedError(reply, originalUrl, maskingUrl.first).toUtf8().constData(),
-				    reply.data().constData());
+			PLS_ERROR_KR(LIBHTTP_CLIENT_MODULE, "http response failed, url = %s, networkReplyError = %d, statusCode = %d, Qt error: %s, response data = %s",
+				     maskingUrl.first.toUtf8().constData(), reply.error(), reply.statusCode(), getMaskedError(reply, originalUrl, maskingUrl.first).toUtf8().constData(),
+				     reply.data().constData());
 		}
 	}
 }
@@ -1926,15 +1949,15 @@ int Reply::percent() const
 }
 bool Reply::hasErrors() const
 {
-	return m_impl->m_requestImpl->hasErrors() || (reply()->error() != QNetworkReply::NoError);
+	return m_impl->m_requestImpl->hasErrors() || (m_impl->error() != QNetworkReply::NoError);
 }
 QString Reply::errors() const
 {
-	bool qtHasError = reply()->error() != QNetworkReply::NoError;
+	bool qtHasError = m_impl->error() != QNetworkReply::NoError;
 	if (qtHasError && hasErrors()) {
-		return m_impl->m_reply->errorString() + '\n' + m_impl->m_requestImpl->errors();
+		return m_impl->errorString() + '\n' + m_impl->m_requestImpl->errors();
 	} else if (qtHasError) {
-		return m_impl->m_reply->errorString();
+		return m_impl->errorString();
 	} else if (hasErrors()) {
 		return m_impl->m_requestImpl->errors();
 	}
@@ -1948,15 +1971,15 @@ void Reply::abort(bool allowAbortCheck) const
 
 QVariant Reply::header(QNetworkRequest::KnownHeaders header) const
 {
-	return m_impl->m_reply->header(header);
+	return m_impl->header(header);
 }
 bool Reply::hasRawHeader(const QByteArray &header) const
 {
-	return m_impl->m_reply->hasRawHeader(header);
+	return m_impl->hasRawHeader(header);
 }
 QByteArray Reply::rawHeader(const QByteArray &header) const
 {
-	return m_impl->m_reply->rawHeader(header);
+	return m_impl->rawHeader(header);
 }
 QString Reply::contentType() const
 {
@@ -2240,7 +2263,7 @@ LIBHTTPCLIENT_API bool checkResult(const Reply &reply)
 
 LIBHTTPCLIENT_API QUrl buildHmacUrl(const QUrl &url, const QByteArray &hmacKey)
 {
-	return url;
+	return QUrl();
 }
 
 LIBHTTPCLIENT_API QString contentType2Suffix(const QString &contentType)

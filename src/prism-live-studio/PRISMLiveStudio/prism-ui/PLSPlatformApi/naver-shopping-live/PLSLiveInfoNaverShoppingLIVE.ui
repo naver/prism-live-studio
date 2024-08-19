@@ -116,10 +116,10 @@
         <x>0</x>
         <y>0</y>
         <width>1218</width>
-        <height>663</height>
+        <height>672</height>
        </rect>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0,0,0,0,0,0,1">
+      <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0,0,0,0,0,0,0,1">
        <property name="spacing">
         <number>0</number>
        </property>
@@ -707,7 +707,7 @@
            <widget class="QWidget" name="searchTitleWidget" native="true">
             <layout class="QHBoxLayout" name="horizontalLayout_14">
              <property name="spacing">
-              <number>0</number>
+              <number>5</number>
              </property>
              <property name="leftMargin">
               <number>0</number>
@@ -731,19 +731,10 @@
                </property>
               </widget>
              </item>
-             <item alignment="Qt::AlignLeft|Qt::AlignVCenter">
-              <widget class="QLabel" name="searchIcon">
-               <property name="toolTip">
-                <string/>
-               </property>
-               <property name="frameShape">
-                <enum>QFrame::NoFrame</enum>
-               </property>
+             <item>
+              <widget class="QPushButton" name="searchIcon">
                <property name="text">
                 <string/>
-               </property>
-               <property name="scaledContents">
-                <bool>true</bool>
                </property>
               </widget>
              </item>
@@ -782,21 +773,156 @@
               <number>0</number>
              </property>
              <item alignment="Qt::AlignLeft|Qt::AlignVCenter">
-              <widget class="PLSRadioButton" name="radioButton_allow">
-               <property name="text">
+              <widget class="PLSRadioButton" name="radioButton_allow" native="true">
+               <property name="text" stdset="0">
                 <string>navershopping.liveinfo.search.allow</string>
                </property>
               </widget>
              </item>
              <item alignment="Qt::AlignLeft|Qt::AlignVCenter">
-              <widget class="PLSRadioButton" name="radioButton_disallow">
-               <property name="text">
+              <widget class="PLSRadioButton" name="radioButton_disallow" native="true">
+               <property name="text" stdset="0">
                 <string>navershopping.liveinfo.search.disallow</string>
                </property>
               </widget>
              </item>
              <item>
               <spacer name="horizontalSpacer_8">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="notifyWidget" native="true">
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="baseSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_17" stretch="0,0">
+          <property name="spacing">
+           <number>0</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>10</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QWidget" name="notifyTitleWidget" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_16">
+             <property name="spacing">
+              <number>5</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="QLabel" name="notifyLabel">
+               <property name="text">
+                <string>navershopping.liveinfo.notify.title</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="PLSHelpIcon" name="helpLabel">
+               <property name="text">
+                <string/>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_7">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeType">
+                <enum>QSizePolicy::Expanding</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>0</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="notifyRadioButtonWidget" native="true">
+            <layout class="QHBoxLayout" name="horizontalLayout_11" stretch="0,0,0">
+             <property name="spacing">
+              <number>10</number>
+             </property>
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <widget class="PLSRadioButton" name="sendRadioButton" native="true">
+               <property name="text" stdset="0">
+                <string>navershopping.liveinfo.notify.send</string>
+               </property>
+               <property name="checked" stdset="0">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="PLSRadioButton" name="notSendRadioButton" native="true">
+               <property name="text" stdset="0">
+                <string>navershopping.liveinfo.notify.not.send</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_6">
                <property name="orientation">
                 <enum>Qt::Horizontal</enum>
                </property>
@@ -875,19 +1001,6 @@
        </spacer>
       </item>
       <item>
-       <widget class="QPushButton" name="okButton">
-        <property name="focusPolicy">
-         <enum>Qt::StrongFocus</enum>
-        </property>
-        <property name="text">
-         <string>OK</string>
-        </property>
-        <property name="useFor" stdset="0">
-         <string notr="true">Ok</string>
-        </property>
-       </widget>
-      </item>
-      <item>
        <widget class="QPushButton" name="cancelButton">
         <property name="focusPolicy">
          <enum>Qt::StrongFocus</enum>
@@ -910,6 +1023,19 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QPushButton" name="okButton">
+        <property name="focusPolicy">
+         <enum>Qt::StrongFocus</enum>
+        </property>
+        <property name="text">
+         <string>OK</string>
+        </property>
+        <property name="useFor" stdset="0">
+         <string notr="true">Ok</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -917,15 +1043,10 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>VScrollArea</class>
-   <extends>QScrollArea</extends>
-   <header>vertical-scroll-area.hpp</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>PLSLineEdit</class>
    <extends>QLineEdit</extends>
-   <header location="global">PLSEdit.h</header>
+   <header>PLSEdit.h</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>PLSScheduleCombox</class>
@@ -935,7 +1056,24 @@
   <customwidget>
    <class>PLSSelectImageButton</class>
    <extends>QLabel</extends>
-   <header>plsselectimagebutton.h</header>
+   <header>PLSSelectImageButton.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSRadioButton</class>
+   <extends>QWidget</extends>
+   <header location="global">PLSRadioButton.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>PLSHelpIcon</class>
+   <extends>QLabel</extends>
+   <header>PLSLabel.h</header>
+  </customwidget>
+  <customwidget>
+   <class>VScrollArea</class>
+   <extends>QScrollArea</extends>
+   <header>vertical-scroll-area.hpp</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>PLSLiveInfoNaverShoppingLIVEProductList</class>
@@ -952,12 +1090,6 @@
    <class>PLSPressRestoreButton</class>
    <extends>QPushButton</extends>
    <header location="global">PLSPressRestoreButton.hpp</header>
-  </customwidget>
-  <customwidget>
-   <class>PLSRadioButton</class>
-   <extends>QRadioButton</extends>
-   <header>PLSRadioButton.h</header>
-   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

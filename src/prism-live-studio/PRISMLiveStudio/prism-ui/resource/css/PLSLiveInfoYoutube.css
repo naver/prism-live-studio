@@ -53,22 +53,31 @@ PLSLiveInfoYoutube #midwidget > QLabel {
 	min-width:/*hdpi*/ 105px;
 	max-width:/*hdpi*/ 105px;
 	font-size:/*hdpi*/ 14px;
+	min-height: 40px;
     font-weight: bold;
     color: #bababa;
     background-color: transparent;
 }
+PLSLiveInfoYoutube #midwidget > #describeLabel {
+	max-height: 40px;
+}
 
-PLSLiveInfoYoutube #midwidget #latencyLeftWidget > QLabel {
+PLSLiveInfoYoutube #formLeftWidget {
+	min-width:105px;
+	max-width: 105px;
+	background-color:transparent;
+	min-height: 40px;
+}
+
+PLSLiveInfoYoutube #formLeftWidget #formLeftWidget_title{
 	font-size:/*hdpi*/ 14px;
     font-weight: bold;
     color: #bababa;
     background-color: transparent;
 }
 
-PLSLiveInfoYoutube #midwidget #latencyLeftWidget {
-	min-width:/*hdpi*/ 105px;
-	max-width:/*hdpi*/ 105px;
-	background-color: transparent;
+PLSLiveInfoYoutube #formLeftWidget #formLeftWidget_icon{
+	margin-left: 0px;
 }
 
 PLSLiveInfoYoutube #bottomWidget {
@@ -84,14 +93,19 @@ PLSLiveInfoYoutube  #bottomWidget #lineView {
 }
 
 PLSLiveInfoYoutube #textEditDescribe {
-	min-height:/*hdpi*/ 75px;
-	max-height:/*hdpi*/ 75px;
+	min-height:/*hdpi*/ 76px;
+	max-height:/*hdpi*/ 76px;
 }
 
 PLSLiveInfoYoutube #textEditDescribe,
 PLSLiveInfoYoutube #lineEditTitle {
 	font-size:/*hdpi*/ 14px;
 	border-radius:/*hdpi*/ 3px;
+}
+
+PLSLiveInfoYoutube #lineEditTitle {
+    margin: 0px;
+    padding: 0px 0px 0px 8px;
 }
 
 PLSLiveInfoYoutube #sPushButton QLabel {
@@ -127,20 +141,6 @@ PLSLiveInfoYoutube #latencyLeftWidget QToolTip {
 		max-width:  /*hdpi*/ 510px;
 		margin: /*hdpi*/ 2px;
 		padding:/*hdpi*/5px;
-}
-
-PLSLiveInfoYoutube #midwidget #latencyIcon {
-	image:url(":resource/images/ic-help-off-normal.svg");
-	min-width:/*hdpi*/ 18px;
-	max-width:/*hdpi*/ 18px;
-	min-height:/*hdpi*/ 18px;
-	max-height:/*hdpi*/ 18px;
-	background-color: transparent;
-	margin-left: /*hdpi*/ 5px;
-}
-
-PLSLiveInfoYoutube #midwidget #latencyIcon:hover {
-	image:url(":resource/images/ic-help-off-over.svg");
 }
 
 PLSLiveInfoYoutube #hlsTipLabel {

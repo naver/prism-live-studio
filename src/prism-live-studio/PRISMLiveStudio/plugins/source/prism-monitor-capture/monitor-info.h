@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <mutex>
-#include "win_lock.hpp"
 
 struct monitor_info {
 	HMONITOR handle = nullptr;
@@ -37,6 +36,6 @@ private:
 	bool enum_duplicator_array(std::vector<monitor_info> &outputList) const;
 
 	//-----------------------------------------------------
-	CCSection list_lock;
+	std::mutex list_lock;
 	std::vector<monitor_info> monitor_info_array;
 };

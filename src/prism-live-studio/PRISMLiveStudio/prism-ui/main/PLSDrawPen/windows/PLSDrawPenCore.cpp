@@ -167,72 +167,15 @@ void PLSDrawPenCore::StrokeRenderCallback()
 	return;
 }
 
-bool save_as_bitmap_file(char *path, uint8_t *data, int linesize, int width, int height, int per_pixel_byte, bool flip)
+void PLSDrawPenCore::UpdateCanvasByVisible(bool visible)
 {
-	if (!path || !data)
-		return false;
-
-	FILE *fp = nullptr;
-	errno_t err = fopen_s(&fp, path, "wb+");
-	if (err != 0)
-		return false;
-
-	unsigned dest_stride = width * per_pixel_byte;
-
-	BITMAPFILEHEADER file_head;
-	memset(&file_head, 0, sizeof(file_head));
-	file_head.bfType = 'MB';
-	file_head.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-	file_head.bfSize = file_head.bfOffBits + height * dest_stride;
-
-	BITMAPINFOHEADER info_head;
-	memset(&info_head, 0, sizeof(info_head));
-	info_head.biSize = sizeof(BITMAPINFOHEADER);
-	info_head.biWidth = width;
-	info_head.biHeight = height;
-	info_head.biPlanes = 1;
-	info_head.biBitCount = (WORD)per_pixel_byte * 8;
-	info_head.biCompression = 0; // 0±íÊ¾ÎÞÑ¹Ëõ
-	info_head.biSizeImage = height * dest_stride;
-
-	fwrite(&file_head, 1, sizeof(BITMAPFILEHEADER), fp);
-	fwrite(&info_head, 1, sizeof(BITMAPINFOHEADER), fp);
-	for (int i = 0; i < height; ++i) {
-		if (flip)
-			fwrite(data + (height - 1 - i) * linesize, 1, dest_stride, fp);
-		else
-			fwrite(data + i * linesize, 1, dest_stride, fp);
-	}
-
-	fclose(fp);
-	return true;
-}
-
-void SaveTexture(gs_texture_t *tex, char *path)
-{
-	obs_enter_graphics();
-
-	uint32_t cx = gs_texture_get_width(tex);
-	uint32_t cy = gs_texture_get_height(tex);
-	enum gs_color_format fmt = gs_texture_get_color_format(tex);
-
-	if (fmt == GS_RGBA || fmt == GS_BGRX || fmt == GS_BGRA) {
-		gs_stagesurf_t *surface = gs_stagesurface_create(cx, cy, fmt);
-		if (surface) {
-			gs_stage_texture(surface, tex);
-
-			uint8_t *data = nullptr;
-			uint32_t linesize = 0;
-			if (gs_stagesurface_map(surface, &data, &linesize)) {
-				save_as_bitmap_file(path, data, linesize, cx, cy, 4, true);
-				gs_stagesurface_unmap(surface);
-			}
-
-			gs_stagesurface_destroy(surface);
-		}
-	}
-
-	obs_leave_graphics();
+	auto main = OBSBasic::Get();
+	if (!main)
+		return;
+	if(visible)
+		pls_scene_update_canvas(main->GetCurrentScene(), renderTexture, false);
+	else
+		pls_scene_update_canvas(main->GetCurrentScene(), nullptr, false);
 }
 
 void PLSDrawPenCore::DrawRender()
@@ -266,10 +209,10 @@ void PLSDrawPenCore::DrawRender()
 			UpdateCanvas(true);
 			ResetEvent(PLSDrawPenMgr::Instance()->GetMouseReleaseEvent());
 		} else if (dwEvent == WAIT_OBJECT_0 + 3) {
+			ResetEvent(PLSDrawPenMgr::Instance()->GetStrokeChangedEvent());
 			RenderStrokesToTarget(strokesTexture);
 			CopyTexture(renderTexture, strokesTexture);
 			UpdateCanvas(true);
-			ResetEvent(PLSDrawPenMgr::Instance()->GetStrokeChangedEvent());
 		} else if (dwEvent == WAIT_OBJECT_0 + 4) {
 			CheckRubberHitsStroke();
 			ResetEvent(PLSDrawPenMgr::Instance()->GetRubberEvent());

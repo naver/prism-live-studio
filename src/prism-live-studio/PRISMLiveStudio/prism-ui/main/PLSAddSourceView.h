@@ -35,6 +35,7 @@ private:
 	QString m_text;
 	QString m_iconKey;
 	QScrollArea *m_scrollArea = nullptr;
+	QPointer<QLabel> m_newLabel;
 };
 
 class PLSAddSourceView : public PLSDialogView {
@@ -59,6 +60,7 @@ private:
 private slots:
 	void sourceItemChanged(QAbstractButton *button);
 	void okHandler();
+	void openSourceLink();
 
 private:
 	Ui::PLSAddSourceView *ui;
@@ -66,6 +68,7 @@ private:
 	QMovie m_movie;
 	QStringList m_langShortList = {"en", "ko"};
 	QString m_langShort = "en";
+	QString m_openLink;
 };
 
 #endif // PLSADDSOURCEVIEW_H

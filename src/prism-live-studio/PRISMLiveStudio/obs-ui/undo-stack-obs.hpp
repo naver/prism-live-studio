@@ -32,6 +32,7 @@ class undo_stack : public QObject {
 	int disable_refs = 0;
 	bool enabled = true;
 	bool last_is_repeatable = false;
+	bool hasOperation = false;
 
 	QTimer repeat_reset_timer;
 
@@ -58,4 +59,7 @@ public:
 			const std::string &redo_data, bool repeatable = false);
 	void undo();
 	void redo();
+
+	void resetOperationFlag();
+	bool getOperationFlag();
 };

@@ -2,9 +2,8 @@
 #include "libutils-api.h"
 #include "PLSUtil.h"
 
-#include <qstring.h>
-#include <qdir.h>
-#include <qsettings.h>
+#include <fstream>
+#include <filesystem>
 
 #if defined(Q_OS_WIN)
 #include <Windows.h>
@@ -12,25 +11,30 @@
 #endif
 
 #include "PLSAnalysisStack.h"
+#include "libutils-api.h"
 
 #if defined(Q_OS_WIN)
 
-static bool find_dump_file(QString &dump_file_path, qint64 &file_size, const QString &dump_folder, const QString &process_name, const QString &process_pid)
+static bool find_dump_file(std::string& dump_file_path, uint64_t& file_size, const std::string& dump_folder, const std::string& process_name, std::string process_pid)
 {
-	QString prefix = QString("%1.%2").arg(process_name, process_pid);
-
-	QDir dir(dump_folder);
-	for (const QFileInfo &fi : dir.entryInfoList(QDir::Files, QDir::Time)) {
-		if (fi.fileName().startsWith(prefix)) {
-			dump_file_path = fi.filePath();
-			file_size = fi.size();
-			return true;
+	auto prefix = pls_utf8_to_unicode(process_name.c_str()) + L"." + pls_utf8_to_unicode(process_pid.c_str());
+	std::filesystem::path dump_folder_path(std::filesystem::u8path(dump_folder));
+	std::error_code ec;
+	if (std::filesystem::exists(dump_folder_path, ec) && std::filesystem::is_directory(dump_folder_path, ec)) {
+		std::filesystem::directory_iterator it(dump_folder_path);
+		for (const auto& entry : it) {
+			if (entry.is_regular_file() && entry.path().wstring().find(L".dmp") != std::wstring::npos && entry.path().wstring().find(prefix) != std::wstring::npos) {
+				dump_file_path = entry.path().u8string();
+				file_size = std::filesystem::file_size(entry.path(), ec);
+				return true;
+			}
 		}
 	}
+
 	return false;
 }
 
-static bool wait_for_dump_file_generated(QString &dump_file_path, qint64 &file_size, const QString &dump_folder, const QString &process_name, const QString &process_pid)
+static bool wait_for_dump_file_generated(std::string& dump_file_path, uint64_t& file_size, const std::string& dump_folder, const std::string& process_name, std::string process_pid)
 {
 	using namespace std::chrono;
 	for (auto start = steady_clock::now(); duration_cast<seconds>(steady_clock::now() - start) < 60s;) { // wait 60s
@@ -43,23 +47,35 @@ static bool wait_for_dump_file_generated(QString &dump_file_path, qint64 &file_s
 	return false;
 }
 
-static bool check_disappear_dump(QString &dump_file_path, qint64 &file_size, const QString &process_name, const QString &process_pid)
-{
-	QSettings settings(QString("HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps\\%1").arg(process_name), QSettings::NativeFormat);
-	QString dump_folder = settings.value("DumpFolder").toString();
-	if (dump_folder.isEmpty())
-		return false;
+static bool check_disappear_dump(std::string& dump_file_path, uint64_t& file_size, const std::string& process_name, const std::string& process_pid) {
+	HKEY key;
+	std::wstring subkey = L"SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps\\" + pls_utf8_to_unicode(process_name.c_str());
 
-	if (!wait_for_dump_file_generated(dump_file_path, file_size, dump_folder, process_name, process_pid))
+	if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, subkey.c_str(), 0, KEY_READ, &key) != ERROR_SUCCESS) {
+		return false;
+	}
+
+	wchar_t buffer[MAX_PATH];
+	DWORD buffer_size = MAX_PATH;
+
+	if (RegQueryValueExW(key, L"DumpFolder", NULL, NULL, (LPBYTE)buffer, &buffer_size) != ERROR_SUCCESS) {
+		RegCloseKey(key);
+		return false;
+	}
+
+	RegCloseKey(key);
+	std::string strBuffer = pls_unicode_to_utf8(buffer);
+	if (!wait_for_dump_file_generated(dump_file_path, file_size, strBuffer, process_name, process_pid))
 		return false;
 	return true;
 }
 
-static bool check_crash_dump(QString &dump_file_path, qint64 &file_size, const QString &process_name, const QString &process_pid)
+static bool check_crash_dump(std::string& dump_file_path, uint64_t& file_size, const std::string& process_name, std::string process_pid)
 {
-	auto dump_folder = pls::get_app_data_dir("PRISMLiveStudio\\crashDump");
-	if (dump_folder.isEmpty())
-		return false;
+	std::array<wchar_t, MAX_PATH> dir{};
+	SHGetFolderPathW(nullptr, CSIDL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, dir.data());
+	std::string dump_folder = pls_unicode_to_utf8(dir.data()) + "\\PRISMLiveStudio\\crashDump";
+
 
 	if (find_dump_file(dump_file_path, file_size, dump_folder, process_name, process_pid)) {
 		return true;
@@ -70,26 +86,26 @@ static bool check_crash_dump(QString &dump_file_path, qint64 &file_size, const Q
 static bool check_dump_file_win(ProcessInfo &info)
 {
 	DumpType dump_type = DumpType::DT_NONE;
-	QString dump_file_path;
-	qint64 file_size = 0;
-	if (check_crash_dump(dump_file_path, file_size, QString::fromStdString(info.process_name), QString::fromStdString(info.pid))) {
+	std::string dump_file_path;
+	uint64_t file_size = 0;
+	if (check_crash_dump(dump_file_path, file_size, info.process_name, info.pid)) {
 		dump_type = DumpType::DT_CRASH;
 		if (info.found_dumo_func) {
 			if (file_size == 0)
-				info.found_dumo_func("CrashedWithoutDump");
+				info.found_dumo_func("CrashedWithoutDump", info.process_name);
 			else
-				info.found_dumo_func("Crashed");
+				info.found_dumo_func("Crashed", info.process_name);
 		}
-	} else if (check_disappear_dump(dump_file_path, file_size, QString::fromStdString(info.process_name), QString::fromStdString(info.pid))) {
+	} else if (check_disappear_dump(dump_file_path, file_size, info.process_name, info.pid)) {
 		dump_type = DumpType::DT_DISAPPEAR;
 		if (info.found_dumo_func)
-			info.found_dumo_func("DisappearWithDump");
+			info.found_dumo_func("DisappearWithDump", info.process_name);
 	} else {
 		if (info.found_dumo_func)
-			info.found_dumo_func("DisappearWithoutDump");
+			info.found_dumo_func("DisappearWithoutDump", info.process_name);
 		return false;
 	}
-	info.dump_file = dump_file_path.toLocal8Bit().constData();
+	info.dump_file = dump_file_path;
 	info.dump_type = dump_type;
 	return true;
 }

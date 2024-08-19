@@ -30,6 +30,7 @@
 #include "PLSPlatformNaverShoppingLIVE.h"
 #include "PLSMotionFileManager.h"
 #include "TextMotionTemplateDataHelper.h"
+#include "PLSChatTemplateDataHelper.h"
 #include "PLSChannelDataAPI.h"
 #include "PLSPlatformApi.h"
 #include "PLSPlatformPrism.h"
@@ -46,6 +47,7 @@
 #include "PLSLaboratoryManage.h"
 #include "PLSLaunchWizardView.h"
 #include "PLSSyncServerManager.hpp"
+#include "PLSLiveInfoChzzk.h"
 
 using namespace std;
 using namespace common;
@@ -70,6 +72,8 @@ constexpr auto VERSION_COMPARE_COUNT = 3;
 
 extern PLSLaboratory *g_laboratoryDialog;
 extern PLSRemoteChatView *g_remoteChatDialog;
+extern bool isHasUpdate(const QString &currentVer, const QString &remoteVer);
+extern QString getUpdateFromRegister();
 extern QString getOsVersion();
 extern void httpRequestHead(QVariantMap &headMap, bool hasGacc);
 
@@ -110,6 +114,43 @@ template<typename T> inline size_t GetCallbackIdx(vector<OBSStudioCallback<T>> &
 	return (size_t)-1;
 }
 
+class EventCallbacks {
+	std::list<std::pair<pls_frontend_event_cb, void *>> ecbs, adds, removes;
+
+	void add(std::list<std::pair<pls_frontend_event_cb, void *>> &dst, std::list<std::pair<pls_frontend_event_cb, void *>> &src)
+	{
+		while (!src.empty()) {
+			dst.push_back(src.front());
+			src.pop_front();
+		}
+	}
+	void remove(std::list<std::pair<pls_frontend_event_cb, void *>> &dst, std::list<std::pair<pls_frontend_event_cb, void *>> &src)
+	{
+		while (!src.empty()) {
+			dst.remove(src.front());
+			src.pop_front();
+		}
+	}
+
+public:
+	void add(pls_frontend_event_cb callback, void *context) { adds.push_back(std::make_pair(callback, context)); }
+	void remove(pls_frontend_event_cb callback, void *context) { removes.push_back(std::make_pair(callback, context)); }
+	void trigger(pls_frontend_event event, const QVariantList &params)
+	{
+		add(ecbs, adds);
+		remove(ecbs, removes);
+
+		for (auto iter = ecbs.begin(); iter != ecbs.end(); ++iter) {
+			auto ecb = *iter;
+			if (std::find(removes.begin(), removes.end(), ecb) == removes.end())
+				ecb.first(event, params, ecb.second);
+		}
+
+		add(ecbs, adds);
+		remove(ecbs, removes);
+	}
+};
+
 class BrowserDock;
 struct OBSStudioAPI : pls_frontend_callbacks {
 	OBSBasic *main;
@@ -117,7 +158,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	vector<OBSStudioCallback<obs_frontend_save_cb>> saveCallbacks;
 	vector<OBSStudioCallback<obs_frontend_save_cb>> preloadCallbacks;
 	QList<PLSLoginInfo *> loginInfos;
-	QList<std::tuple<QList<pls_frontend_event>, pls_frontend_event_cb, void *>> eventCallbacks;
+	EventCallbacks eventCallbacks;
 	QMap<QString, QSharedPointer<BrowserDock>> chatDocks;
 	inline OBSStudioAPI(OBSBasic *main_) : main(main_) {}
 
@@ -143,6 +184,9 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 	obs_source_t *obs_frontend_get_current_scene(void) override
 	{
+		if (pls_is_app_exiting()) {
+			return nullptr;
+		}
 		if (main->IsPreviewProgramMode()) {
 			return obs_weak_source_get_source(main->programScene);
 		} else {
@@ -321,7 +365,68 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		QObject::connect(action, &QAction::triggered, func);
 	}
 
-	void *obs_frontend_add_dock(void *dock) override { return (void *)main->AddDockWidget((QDockWidget *)dock); }
+	void *obs_frontend_add_dock(void *dock) override
+	{
+		QDockWidget *d = reinterpret_cast<QDockWidget *>(dock);
+
+		QString name = d->objectName();
+		if (name.isEmpty() || main->IsDockObjectNameUsed(name)) {
+			blog(LOG_WARNING, "The object name of the added dock is empty or already used,"
+					  " a temporary one will be set to avoid conflicts");
+
+			char *uuid = os_generate_uuid();
+			name = QT_UTF8(uuid);
+			bfree(uuid);
+			name.append("_oldExtraDock");
+
+			d->setObjectName(name);
+		}
+
+		return (void *)main->AddDockWidget(d);
+	}
+
+	bool obs_frontend_add_dock_by_id(const char *id, const char *title, void *widget) override
+	{
+		if (main->IsDockObjectNameUsed(QT_UTF8(id))) {
+			blog(LOG_WARNING,
+			     "Dock id '%s' already used!  "
+			     "Duplicate library?",
+			     id);
+			return false;
+		}
+
+		OBSDock *dock = new OBSDock(main);
+		dock->setWidget((QWidget *)widget);
+		dock->setWindowTitle(QT_UTF8(title));
+		dock->setObjectName(QT_UTF8(id));
+
+		main->AddDockWidget(dock, Qt::RightDockWidgetArea);
+
+		dock->setFloating(true);
+		dock->setVisible(false);
+
+		return true;
+	}
+
+	void obs_frontend_remove_dock(const char *id) override { main->RemoveDockWidget(QT_UTF8(id)); }
+
+	bool obs_frontend_add_custom_qdock(const char *id, void *dock) override
+	{
+		if (main->IsDockObjectNameUsed(QT_UTF8(id))) {
+			blog(LOG_WARNING,
+			     "Dock id '%s' already used!  "
+			     "Duplicate library?",
+			     id);
+			return false;
+		}
+
+		QDockWidget *d = reinterpret_cast<QDockWidget *>(dock);
+		d->setObjectName(QT_UTF8(id));
+
+		main->AddCustomDockWidget(d);
+
+		return true;
+	}
 
 	void obs_frontend_add_event_callback(obs_frontend_event_cb callback, void *private_data) override
 	{
@@ -485,6 +590,8 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 	void obs_frontend_open_source_interaction(obs_source_t *source) override { QMetaObject::invokeMethod(main, "OpenInteraction", Q_ARG(OBSSource, OBSSource(source))); }
 
+	void obs_frontend_open_sceneitem_edit_transform(obs_sceneitem_t *item) override { QMetaObject::invokeMethod(main, "OpenEditTransform", Q_ARG(OBSSceneItem, OBSSceneItem(item))); }
+
 	char *obs_frontend_get_current_record_output_path(void) override
 	{
 		const char *recordOutputPath = main->GetCurrentOutputPath();
@@ -501,6 +608,12 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	char *obs_frontend_get_last_screenshot(void) override { return bstrdup(main->lastScreenshot.c_str()); }
 
 	char *obs_frontend_get_last_replay(void) override { return bstrdup(main->lastReplay.c_str()); }
+
+	void obs_frontend_add_undo_redo_action(const char *name, const undo_redo_cb undo, const undo_redo_cb redo, const char *undo_data, const char *redo_data, bool repeatable) override
+	{
+		main->undo_s.add_action(
+			name, [undo](const std::string &data) { undo(data.c_str()); }, [redo](const std::string &data) { redo(data.c_str()); }, undo_data, redo_data, repeatable);
+	}
 
 	void on_load(obs_data_t *settings) override
 	{
@@ -621,6 +734,10 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		//
 		PLSStickerDataHandler::ClearPrismStickerData();
 		PLSLoginUserInfo::getInstance()->clearPrismLoginInfo();
+		PLSBasic::instance()->ClearService();
+		PLSBasic::instance()->removeChzzkSponsorSource();
+		PLSCHANNELS_API->clearAll();
+		PLSCHANNELS_API->saveData();
 		if (main && !pls_is_main_window_closing()) {
 			main->mainView->close();
 			PLSBasic::instance()->restartApp(RestartAppType::Logout);
@@ -641,7 +758,8 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 		PLSMotionFileManager::instance()->logoutClear();
 		PLS_INFO("logout", "clear prism info success");
-		if (!PLSLoginUserInfo::getInstance()->isSelf()) {
+
+		if (!PLSLoginUserInfo::getInstance()->isSelf() && urlStr.contains(PLS_LOGOUT_URL.arg(PRISM_SSL))) {
 			PLS_INFO("logout", "pirsm user info from prism cam, no call logout api");
 			QString vcam_path = pls_get_user_path(QString(CONFIGS_VIRTUAL_CAMERA_PATH));
 			QFile::remove(vcam_path);
@@ -695,30 +813,12 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	QString pls_get_prism_usercode() override { return PLSLoginUserInfo::getInstance()->getUserCode(); }
 
 	QByteArray pls_get_prism_cookie() override { return PLSLoginUserInfo::getInstance()->getPrismCookie(); }
+	QString pls_get_b2b_auth_url() override { return PLSLoginUserInfo::getInstance()->getNCPPlatformServiceAuthUrl(); }
+	bool pls_get_b2b_acctoken(const QString &url) override { return PLSLoginDataHandler::instance()->getNCPAccessToken(url); }
 
-	void pls_frontend_add_event_callback(pls_frontend_event_cb callback, void *context) override { eventCallbacks.append(make_tuple(QList<pls_frontend_event>{}, callback, context)); }
-	void pls_frontend_add_event_callback(pls_frontend_event event, pls_frontend_event_cb callback, void *context) override
-	{
-		eventCallbacks.append(make_tuple(QList<pls_frontend_event>{event}, callback, context));
-	}
-	void pls_frontend_add_event_callback(QList<pls_frontend_event> events, pls_frontend_event_cb callback, void *context) override { eventCallbacks.append(make_tuple(events, callback, context)); }
-	void pls_frontend_remove_event_callback(pls_frontend_event_cb callback, void *context) override { eventCallbacks.removeOne(make_tuple(QList<pls_frontend_event>{}, callback, context)); }
-	void pls_frontend_remove_event_callback(pls_frontend_event event, pls_frontend_event_cb callback, void *context) override
-	{
-		eventCallbacks.removeOne(make_tuple(QList<pls_frontend_event>{event}, callback, context));
-	}
-	void pls_frontend_remove_event_callback(QList<pls_frontend_event> events, pls_frontend_event_cb callback, void *context) override
-	{
-		eventCallbacks.removeOne(make_tuple(events, callback, context));
-	}
-	void on_event(pls_frontend_event event, const QVariantList &params) override
-	{
-		for (auto iter = eventCallbacks.begin(); iter != eventCallbacks.end(); ++iter) {
-			if (std::get<0>(*iter).isEmpty() || std::get<0>(*iter).contains(event)) {
-				std::get<1> (*iter)(event, params, std::get<2>(*iter));
-			}
-		}
-	}
+	void pls_frontend_add_event_callback(pls_frontend_event_cb callback, void *context) override { eventCallbacks.add(callback, context); }
+	void pls_frontend_remove_event_callback(pls_frontend_event_cb callback, void *context) override { eventCallbacks.remove(callback, context); }
+	void on_event(pls_frontend_event event, const QVariantList &params) override { eventCallbacks.trigger(event, params); }
 
 	QString pls_get_theme_dir_path() override { return "data/prism-studio/themes/Dark/"; }
 	QString pls_get_color_filter_dir_path() override { return pls_get_user_path("PRISMLiveStudio/color_filter/"); }
@@ -774,15 +874,16 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		QJsonObject appUpdateObject = doc.object();
 		version = appUpdateObject.value(QLatin1String("version")).toString();
 		updateInfoUrl = getUpdateInfoUrl(appUpdateObject.value("updateInfoUrlList").toObject());
-		if (version.isEmpty()) {
-			check_update_result = pls_check_update_result_t::OkNoUpdate;
+		fileUrl = appUpdateObject.value(QLatin1String("fileUrl")).toString();
+		auto versionFromFileName = PLSLoginDataHandler::instance()->getVersionFromFileUrl(fileUrl);
 
+		if (version.isEmpty() || !isHasUpdate(version, versionFromFileName)) {
+			check_update_result = pls_check_update_result_t::NoUpdate;
 			PLS_INFO(UPDATE_MODULE, "UPDATE STATUS: request update appversion api version: %s, software version: %s", version.toUtf8().constData(), verstr.toUtf8().constData());
 			return;
 		}
 
-		fileUrl = appUpdateObject.value(QLatin1String("fileUrl")).toString();
-		check_update_result = pls_check_update_result_t::OkHasUpdate;
+		check_update_result = pls_check_update_result_t::HasUpdate;
 		isForceUpdate = appUpdateObject.value(QLatin1String("updateType")).toString() == QLatin1String("FORCE");
 
 		PLS_INFO(UPDATE_MODULE, "UPDATE STATUS: update available, isForceUpdate: %s, version: %s, fileUrl: %s, updateInfoUrl: %s", isForceUpdate ? "true" : "false",
@@ -791,11 +892,20 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 	pls_check_update_result_t pls_check_app_update(bool &isForceUpdate, QString &version, QString &fileUrl, QString &updateInfoUrl) override
 	{
+
 		PLS_INFO(UPDATE_MODULE, "UPDATE STATUS: check update appversion api request start");
 
 		pls_check_update_result_t check_update_result = pls_check_update_result_t::Failed;
 		std::array<int, VERSION_COMPARE_COUNT + 1> ver = {PRISM_VERSION_MAJOR, PRISM_VERSION_MINOR, PRISM_VERSION_PATCH, PRISM_VERSION_BUILD};
 		QString verstr = QString("%1.%2.%3").arg(ver[0]).arg(ver[1]).arg(ver[2]);
+
+		auto updateInfoFormRegister = getUpdateFromRegister();
+		if (!updateInfoFormRegister.isEmpty()) {
+			PLS_INFO("PLSLoginDataHandler", "update info from register");
+			checkUpdateAppHandle(updateInfoFormRegister.toUtf8(), verstr, isForceUpdate, version, fileUrl, updateInfoUrl, check_update_result);
+			return check_update_result;
+		}
+
 		QUrl url(LASTEST_UPDATE_URL.arg(PRISM_SSL));
 
 		QUrlQuery query;
@@ -816,12 +926,14 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 						   eventLoop.quit();
 					   })
 					   .failResult([&eventLoop, &check_update_result](const pls::http::Reply &reply) {
-						   QVariant code;
 						   QByteArray array = reply.data();
-						   PLSJsonDataHandler::getValueFromByteArray(array, "code", code);
-						   if (404 == reply.statusCode()) {
-							   check_update_result = pls_check_update_result_t::OkNoUpdate;
+						   auto statusCode = reply.statusCode();
+						   if (HTTP_STATUS_CODE_404 == statusCode) {
+							   check_update_result = pls_check_update_result_t::NoUpdate;
 							   PLS_INFO(UPDATE_MODULE, "UPDATE STATUS: request appversion api no update available");
+						   } else if (getPrismApiError(array, statusCode) == PRISM_API_ERROR::SystemExccedTimeLimitError) {
+							   check_update_result = pls_check_update_result_t::HmacExceedTime;
+							   PLS_ERROR(UPDATE_MODULE, "UPDATE STATUS: request update appversion api failed, system time exceed limit");
 						   } else {
 							   PLS_ERROR(UPDATE_MODULE, "UPDATE STATUS: request update appversion api failed, status code: %d", reply.statusCode());
 						   }
@@ -943,6 +1055,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	}
 
 	ITextMotionTemplateHelper *pls_get_text_motion_template_helper_instance() override { return TextMotionTemplateDataHelper::instance(); }
+	ITextMotionTemplateHelper *pls_get_chat_template_helper_instance() override { return PLSChatTemplateDataHelper::instance(); }
 
 	QString pls_get_current_language() override { return QString::fromUtf8(App()->GetLocale()); }
 
@@ -983,6 +1096,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	int pls_get_toast_message_count() override { return PLSBasic::instance()->getMainView()->getToastMessageCount(); }
 	QString pls_get_stream_state() override { return PLSBasic::instance()->getStreamState(); }
 	QString pls_get_record_state() override { return PLSBasic::instance()->getRecordState(); }
+	int pls_get_record_duration() override { return PLSBasic::instance()->getRecordDuration(); }
 	bool pls_get_hotkey_enable() override { return App()->HotkeyEnable(); }
 
 	int pls_alert_warning(const char *title, const char *message) override { return PLSAlertView::warning(PLSBasic::Get(), QTStr(title), QTStr(message)); }
@@ -1115,7 +1229,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 			if (auto dataType = info.value(ChannelData::g_data_type, ChannelData::RTMPType).toInt(); dataType >= ChannelData::CustomType) {
 				platformName = QStringLiteral("Custom RTMP");
 			} else if (dataType == ChannelData::ChannelType) {
-				platformName = info.value(ChannelData::g_platformName, "").toString();
+				platformName = info.value(ChannelData::g_channelName, "").toString();
 			}
 			const auto sss = __func__;
 			auto shareUrl = getInfo(info, ChannelData::g_shareUrlTemp);
@@ -1133,13 +1247,15 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 		auto platformInfos = PLSCHANNELS_API->getCurrentSelectedChannels(ChannelData::ChannelType);
 		for (const auto &platformInfo : platformInfos) {
-			QString platform = getInfo(platformInfo, ChannelData::g_platformName);
+			QString platform = getInfo(platformInfo, ChannelData::g_channelName);
 			if ((platform == VLIVE || platform == NAVER_TV || platform == NAVER_SHOPPING_LIVE) && pls_get_stream_state() == "broadcastGo") {
 				return true;
 			}
 		}
 		return false;
 	}
+
+	QString pls_get_remote_control_mobile_name(const QString &platformName) override { return PLSSyncServerManager::instance()->getRemoteControlMobilePlatform(platformName); }
 
 	bool pls_is_rehearsaling() override { return PLSCHANNELS_API->isRehearsaling(); }
 
@@ -1243,6 +1359,28 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		httpRequestHead(headMap, hasGacc);
 		return headMap;
 	}
+	bool pls_install_scene_template(const SceneTemplateItem &item)
+	{
+		if (!main) {
+			return false;
+		}
+		return main->importSceneTemplate(item);
+	}
+
+	QStringList getChannelWithChatList() override { return getChatChannelNameList(); }
+	bool pls_is_ncp(QString &channlName) override { return channlName == PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName(); }
+
+	bool pls_is_ncp_first_login(QString &serviceName) override
+	{
+		auto ncpService = PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName();
+		if (!GlobalVars::isLogined && !ncpService.isEmpty()) {
+			serviceName = ncpService;
+			return true;
+		}
+		return false;
+	};
+
+	QString get_channel_cookie_path(const QString &channelLoginName) override { return PLSBasic::cookiePath(channelLoginName); }
 };
 
 pls_frontend_callbacks *InitializeAPIInterface(OBSBasic *main)

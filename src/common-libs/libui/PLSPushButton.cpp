@@ -132,7 +132,7 @@ int PLSIconButton::marginLeft() const
 	return m_marginLeft;
 }
 
-void PLSIconButton::setMarginLeft(int margin) 
+void PLSIconButton::setMarginLeft(int margin)
 {
 	m_marginLeft = margin;
 	update();
@@ -143,7 +143,7 @@ int PLSIconButton::marginRight() const
 	return m_marginRight;
 }
 
-void PLSIconButton::setMarginRight(int margin) 
+void PLSIconButton::setMarginRight(int margin)
 {
 	m_marginRight = margin;
 	update();
@@ -246,7 +246,7 @@ bool PLSSwitchButton::isChecked() const
 	return m_check;
 }
 
-void PLSSwitchButton::paintEvent(QPaintEvent *event) 
+void PLSSwitchButton::paintEvent(QPaintEvent *event)
 {
 	auto app = PLSUiApp::instance();
 	if (!app)
@@ -280,4 +280,59 @@ bool PLSSwitchButton::event(QEvent *event)
 	}
 
 	return result;
+}
+
+PLSDelayResponseButton::PLSDelayResponseButton(QWidget *parent) : QPushButton(parent)
+{
+	connect(&timer, &QTimer::timeout, this, &PLSDelayResponseButton::timerCallback);
+	connect(this, &PLSDelayResponseButton::pressed, this, &PLSDelayResponseButton::onButtonClicked);
+}
+
+PLSDelayResponseButton::~PLSDelayResponseButton()
+{
+	stopTimer();
+}
+
+void PLSDelayResponseButton::setDelayRespInterval(int intervalMs)
+{
+	this->intervalMs = intervalMs;
+}
+
+void PLSDelayResponseButton::onButtonClicked()
+{
+	QTime curTime = QTime::currentTime();
+
+	if (!timer.isActive()) {
+		startTimer();
+	} else {
+		int interval = clickBtnTime.msecsTo(curTime);
+		if (interval < intervalMs) {
+			stopTimer();
+			startTimer();
+		}
+	}
+	clickBtnTime = curTime;
+}
+
+void PLSDelayResponseButton::startTimer()
+{
+	if (timer.isActive()) {
+		return;
+	}
+	timer.setSingleShot(true);
+	timer.setInterval(intervalMs);
+	timer.start();
+}
+
+void PLSDelayResponseButton::stopTimer()
+{
+	if (!timer.isActive()) {
+		return;
+	}
+	timer.stop();
+}
+
+void PLSDelayResponseButton::timerCallback()
+{
+	emit buttonClicked();
 }

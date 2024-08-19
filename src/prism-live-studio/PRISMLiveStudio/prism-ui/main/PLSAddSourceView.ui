@@ -252,7 +252,7 @@
           <property name="topMargin">
            <number>0</number>
           </property>
-          <item>
+          <item alignment="Qt::AlignHCenter">
            <widget class="QLabel" name="label_descTitle">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -274,7 +274,7 @@
             </property>
            </widget>
           </item>
-          <item>
+          <item alignment="Qt::AlignHCenter">
            <widget class="QLabel" name="label_descContent">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -290,6 +290,16 @@
             </property>
             <property name="wordWrap">
              <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item alignment="Qt::AlignHCenter">
+           <widget class="QToolButton" name="buttonTip">
+            <property name="text">
+             <string>source.link</string>
+            </property>
+            <property name="toolButtonStyle">
+             <enum>Qt::ToolButtonTextOnly</enum>
             </property>
            </widget>
           </item>

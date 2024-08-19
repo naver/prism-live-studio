@@ -31,6 +31,8 @@
 #include "pls-gpop-data-struct.hpp"
 #include "PLSChannelsVirualAPI.h"
 #include "PLSCommonConst.h"
+#include "PLSNCB2BError.h"
+#include "../ncb2b/PLSAPINCB2B.h"
 
 using namespace std;
 using namespace common;
@@ -63,12 +65,10 @@ PLSPlatformPrism *PLSPlatformPrism::instance()
 
 PLSPlatformPrism::PLSPlatformPrism() : m_timerHeartbeat(this)
 {
-	
 }
 
 string PLSPlatformPrism::getStreamKey() const
 {
-	
 	return string();
 }
 
@@ -79,7 +79,6 @@ string PLSPlatformPrism::getStreamServer() const
 
 void PLSPlatformPrism::sendAction(const QString &body) const
 {
-	
 }
 
 pls::http::Request PLSPlatformPrism::getUploadStatusRequest(const QString &apiPath) const
@@ -89,7 +88,6 @@ pls::http::Request PLSPlatformPrism::getUploadStatusRequest(const QString &apiPa
 
 void PLSPlatformPrism::uploadStatus(const QString &apiPath, const QString &body, bool isPrintLog) const
 {
-	
 }
 
 void PLSPlatformPrism::onInactive(PLSPlatformBase *platform, bool value) const
@@ -99,7 +97,7 @@ void PLSPlatformPrism::onInactive(PLSPlatformBase *platform, bool value) const
 
 void PLSPlatformPrism::onPrepareLive(bool value)
 {
-	prepareLiveCallback(true);
+	prepareLiveCallback(value);
 }
 
 void PLSPlatformPrism::onPrepareFinish() const
@@ -114,7 +112,11 @@ void PLSPlatformPrism::onLiveStopped() const
 
 void PLSPlatformPrism::onLiveEnded()
 {
-	liveEndedCallback();
+	if (PLS_PLATFORM_API->isPlatformActived(PLSServiceType::ST_VLIVE)) {
+		requestLiveDirectEnd();
+	} else {
+		requestStopSimulcastLive(PLS_PLATFORM_API->isPrismLive());
+	}
 }
 
 std::string PLSPlatformPrism::getCharVideoSeq() const
@@ -189,64 +191,45 @@ string PLSPlatformPrism::getPublishingTitle() const
 	return "PRISM Live";
 }
 
-static void addLiveAbortSreFiled(bool bPrism, const char *abortReason)
-{
-	
-}
-
 void PLSPlatformPrism::requestStartSimulcastLive(bool bPrism)
 {
-	
 }
 
-void PLSPlatformPrism::requestStartSimulcastLiveFail(QNetworkReply::NetworkError error, const QByteArray &data, const int &code)
+void PLSPlatformPrism::requestStartSimulcastLiveSuccess(const QJsonDocument &doc, bool bPrism, const QString &url, const int &statusCode)
 {
-	
-}
-
-void PLSPlatformPrism::requestStartSimulcastLiveSuccess(const QJsonDocument &doc, bool bPrism, const QString &url, const int &code)
-{
-	
 }
 
 void PLSPlatformPrism::setPrismPlatformChannelLiveId(const QJsonObject &root) const
 {
-	
 }
 
 void PLSPlatformPrism::requestHeartbeat() const
 {
-	
 }
 
 void PLSPlatformPrism::requestFailedCallback(const QString &url, int code, QByteArray data) const
 {
-	
 }
 
 void PLSPlatformPrism::requestStopSimulcastLive(bool bPrism)
 {
-	liveEndedCallback();
 }
 
 void PLSPlatformPrism::requestLiveDirectStart()
 {
-	prepareLiveCallback(true);
 }
 
 void PLSPlatformPrism::requestLiveDirectEnd()
 {
-	liveEndedCallback();
+	m_iVideoSeq = 0;
 }
 
 void PLSPlatformPrism::requestStopSingleLive(PLSPlatformBase *platform) const
 {
-	
 }
 
-void PLSPlatformPrism::requestRefrshAccessToken(const PLSPlatformBase *platform, const std::function<void(bool)> &onNext, bool isForceRefresh) const
+void PLSPlatformPrism::requestRefrshAccessToken(const PLSPlatformBase *platform, const std::function<void(bool)> &onNext, bool isForceRefresh, int retryCount) const
 {
-	
 }
 
 void PLSPlatformPrism::showWarningAlertWithMsg(const QString &msg) const
@@ -257,37 +240,27 @@ void PLSPlatformPrism::showWarningAlertWithMsg(const QString &msg) const
 
 void PLSPlatformPrism::mqttRequestRefreshToken(PLSPlatformBase *platform, const std::function<void(bool)> &callback) const
 {
-	callback(true);
 }
 
 void PLSPlatformPrism::bandRefreshTokenFinished(bool isRefresh, const PLSPlatformBase *platform, const QString &uuid, const std::function<void(bool)> &callback) const
 {
-	
-}
-
-void PLSPlatformPrism::mqttRequestYoutubeRefreshToken(const std::function<void(bool)> &callback, PLSPlatformBase *platform, const QString &uuid) const
-{
-	
 }
 
 void PLSPlatformPrism::requestBandRefreshToken(const std::function<void(bool)> &callback, PLSPlatformBase *platform, const QString &uuid, bool isForceUpdate) const
 {
-	
 }
 
 void PLSPlatformPrism::getSendThumAPIJson(QJsonObject &parameter) const
 {
-	
 }
 
 void PLSPlatformPrism::printStartLog() const
 {
-	
 }
 
 bool PLSPlatformPrism::isAbpFlag() const
 {
-	return true;
+	return false;
 }
 
 void PLSPlatformPrism::onTokenExpired() const

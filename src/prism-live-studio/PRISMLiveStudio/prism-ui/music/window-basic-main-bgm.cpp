@@ -19,7 +19,7 @@ void PLSBasic::OnBgmClicked()
 {
 	if (!backgroundMusicView) {
 		createBackgroundMusicView();
-		QTimer::singleShot(0, this, [this]() { backgroundMusicView->show(); });
+		pls_async_call(this, [this]() { backgroundMusicView->show(); });
 		return;
 	}
 
@@ -355,7 +355,6 @@ void PLSBasic::ClearMusicResource()
 {
 	if (backgroundMusicView) {
 		backgroundMusicView->ClearUrlInfo();
-		backgroundMusicView->DisconnectSignalsWhenAppClose();
 	}
 }
 
@@ -367,16 +366,5 @@ void PLSBasic::PropertiesChanged(void *, calldata_t *calldata)
 
 	if (basic && basic->backgroundMusicView) {
 		QMetaObject::invokeMethod(basic->backgroundMusicView, "OnPropertiesChanged", Qt::QueuedConnection, Q_ARG(const QString &, name));
-	}
-}
-
-void PLSBasic::MediaRestarted(void *, calldata_t *data)
-{
-	auto basic = static_cast<PLSBasic *>(App()->GetMainWindow());
-	auto source = (obs_source_t *)calldata_ptr(data, "source");
-	QString name = obs_source_get_name(source);
-
-	if (basic && basic->backgroundMusicView) {
-		QMetaObject::invokeMethod(basic->backgroundMusicView, "OnMediaRestarted", Qt::QueuedConnection, Q_ARG(const QString &, name));
 	}
 }

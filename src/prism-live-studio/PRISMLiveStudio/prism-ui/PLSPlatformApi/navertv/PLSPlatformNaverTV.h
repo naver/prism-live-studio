@@ -102,9 +102,9 @@ public:
 	};
 	enum class ApiId { LiveOpen, Other };
 
-	using CodeCallback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QString &code)>;
-	using TokenCallback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QString &loginFailed)>;
-	using Auth2Callback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QByteArray &body)>;
+	using CodeCallback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QString &code, int ecode)>;
+	using TokenCallback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QString &loginFailed, int code)>;
+	using Auth2Callback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QByteArray &body, int code)>;
 	using UserInfoCallback = std::function<void(bool ok)>;
 	using LiveInfosCallback = std::function<void(bool ok, const QList<LiveInfo> &scheLiveInfos)>;
 	using LiveInfosCallbackEx = std::function<void(bool ok, int code, const QList<LiveInfo> &scheLiveInfos)>;
@@ -131,6 +131,7 @@ public:
 	static constexpr int ERROR_PAIDSPONSORSHIPINFO = 10010;
 	static constexpr int ERROR_NETWORK_ERROR = -10001;
 	static constexpr int ERROR_OTHERS = -10000;
+	static constexpr int ERROR_HMACTIMEERROR = 25;
 
 	// request api
 	void getChannelEmblem(const QList<QString> &urls, const QObject *receiver, const ChannelEmblemCallback &callback) const;
@@ -141,7 +142,7 @@ public:
 	void getCode(const CodeCallback &callback, const QString &url, bool redirectUrl);
 	void getToken(const TokenCallback &callback);
 	void getToken(const QString &code, const TokenCallback &callback);
-	void processGetTokenOk(bool ok, QNetworkReply::NetworkError error, const QByteArray &body, const TokenCallback &callback);
+	void processGetTokenOk(bool ok, QNetworkReply::NetworkError error, const QByteArray &body, const TokenCallback &callback, int ecode);
 	void getAuth2(const QString &url, const char *log, const Auth2Callback &callback, const QVariantMap &urlQueries = QVariantMap()) const;
 	void processGetAuth2Fail(const QNetworkReply *reply, const QByteArray &data, QNetworkReply::NetworkError error, const char *log, const Auth2Callback &callback) const;
 	void getUserInfo(const UserInfoCallback &callback);

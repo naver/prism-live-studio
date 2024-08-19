@@ -93,7 +93,7 @@
        <item>
         <widget class="QLabel" name="nickName">
          <property name="text">
-          <string>Sohyun Lee</string>
+          <string></string>
          </property>
         </widget>
        </item>

@@ -35,7 +35,7 @@ if(OS_MACOS)
 target_compile_options(libui PRIVATE -fobjc-arc)
 endif()
 
-target_link_libraries(libui Qt6::Widgets Qt6::Svg common-libs::utils-api common-libs::log common-libs::third-party::QQREncoder)
+target_link_libraries(libui Qt6::Widgets Qt6::Svg Qt6::GuiPrivate common-libs::utils-api common-libs::log common-libs::third-party::QQREncoder)
 
 set_target_properties(libui PROPERTIES FOLDER common-libs)
 set_target_properties(libui PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")

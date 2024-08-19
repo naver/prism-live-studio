@@ -27,20 +27,6 @@ class PLSBgmItemView;
 class PLSBgmItemCoverView;
 class PLSBgmLibraryView;
 
-class SendThread : public QObject {
-
-	Q_OBJECT
-public:
-	using QObject::QObject;
-	~SendThread() override = default;
-
-private:
-	void SendMusicMetaData(const PLSBgmItemData &data) const;
-
-public slots:
-	void DoWork(const PLSBgmItemData &data) const;
-};
-
 class CheckValidThread : public QObject {
 	Q_OBJECT
 public:
@@ -126,7 +112,6 @@ public:
 	void UpdateSourceList(const QString &sourceName, quint64 sceneItem, const BgmSourceVecType &sourceList);
 	void RenameSourceName(const quint64 &item, const QString &newName, const QString &prevName);
 	void ClearUrlInfo();
-	void DisconnectSignalsWhenAppClose() const;
 	bool CurrentPlayListBgmDataExisted(const QString &url) const;
 	int GetCurrentPlayListDataSize() const;
 	int GetCurrentBgmSourceSize() const;
@@ -149,8 +134,8 @@ public slots:
 
 	// media callback
 	void OnMediaStateChanged(const QString &name, obs_media_state state);
-	void OnMediaRestarted(const QString &name) const;
 	void OnLoopStateChanged(const QString &name);
+	void OnModeStateChanged(const QString &name);
 
 protected:
 	void closeEvent(QCloseEvent *event) override;
@@ -195,6 +180,8 @@ private slots:
 	void UpdateErrorUIState(const QString &name, bool gotoNextSongs);
 	void OnUpdateOpeningUIState(const QString &name);
 	void UpdateStatuPlayling(const QString &name);
+
+	int GetDelayResponseIntervalMs();
 
 private:
 	void initUI();
@@ -291,7 +278,6 @@ private:
 	QThread coverThread;
 	QThread checkThread;
 
-	SendThread *sendThreadObj{};
 	GetCoverThread *coverThreadObj{};
 	CheckValidThread *checkThreadObj{};
 

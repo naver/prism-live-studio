@@ -24,8 +24,9 @@
 
 constexpr auto MODULE_PlatformService = "PlatformService";
 constexpr auto MODULE_PLATFORM_TWITCH = "Platform/twitch";
+constexpr auto MODULE_PLATFORM_NCB2B = "Platform/ncb2b";
 
-enum class PLSServiceType { ST_CUSTOM, ST_TWITCH, ST_YOUTUBE, ST_FACEBOOK, ST_VLIVE, ST_NAVERTV, ST_BAND, ST_AFREECATV, ST_NAVER_SHOPPING_LIVE, ST_TWITTER, ST_MAX_PLATFORMS };
+enum class PLSServiceType { ST_CUSTOM, ST_TWITCH, ST_YOUTUBE, ST_FACEBOOK, ST_VLIVE, ST_NAVERTV, ST_BAND, ST_AFREECATV, ST_NAVER_SHOPPING_LIVE, ST_TWITTER, ST_CHZZK, ST_NCB2B, ST_MAX_PLATFORMS };
 enum class PLSTokenRequestStatus { PLS_GOOD, PLS_ING, PLS_BAD };
 enum class PLSMaxLiveTimerStatus { PLS_TIMER_NONE, PLS_TIMER_ING };
 
@@ -65,7 +66,9 @@ enum class PLSPlatformApiResult {
 	PAR_API_ERROR_SCHEDULE_API_FAILED,
 	PAR_API_ERROR_TYPE_NOT_SUPPORT,
 	PAR_API_ERROR_REHEARSAL,
-	PAR_API_ERROR_INVALID_DESCRIPTION
+	PAR_API_ERROR_INVALID_DESCRIPTION,
+	PAR_API_ERROR_NEED_ARGEE,
+	PAR_API_ERROR_SYSTEM_TIME
 };
 
 enum class PLSPlatformMqttStatus {
@@ -110,10 +113,11 @@ public:
 
 	//relevant data from dashboard
 	QString getChannelUUID() const;
-	QString getChannelToken() const;
+	virtual QString getChannelToken() const;
 	QString getChannelRefreshToken() const;
 	ChannelData::ChannelDataType getChannelType() const;
 	QString getChannelName() const;
+	QString getPlatFormName() const;
 	int getChannelOrder() const;
 	QString getChannelCookie() const;
 
@@ -204,6 +208,8 @@ public:
 
 	//get platform push stream address
 	const std::string &getStreamServer() const { return mySharedData().m_strStreamServer; };
+
+	QString getStreamServerFromInitData() { return getInitData().value(ChannelData::g_channelRtmpUrl).toString(); }
 
 	//set platform push stream stream key
 	PLSPlatformBase &setStreamKey(const std::string &value)

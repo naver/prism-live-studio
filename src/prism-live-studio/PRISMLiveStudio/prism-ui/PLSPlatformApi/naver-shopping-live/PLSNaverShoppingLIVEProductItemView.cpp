@@ -12,7 +12,7 @@
 
 using ItemViewCache = PLSNaverShoppingLIVEItemViewCache<PLSNaverShoppingLIVEProductItemView>;
 
-void naverShoppingLIVEProductItemView_init(QWidget *itemView, QLabel *title);
+void naverShoppingLIVEProductItemView_init(QWidget *itemView, QPushButton *title);
 void naverShoppingLIVEProductItemView_event(const QWidget *itemView, const QWidget *widget, QEvent *event, const QString &url, bool isInLiveinfo);
 void naverShoppingLIVEProductItemView_title_mouseEnter(QWidget *widget);
 void naverShoppingLIVEProductItemView_title_mouseLeave(QWidget *widget);
@@ -56,7 +56,7 @@ QString PLSNaverShoppingLIVEProductItemView::getName() const
 
 double PLSNaverShoppingLIVEProductItemView::getPrice() const
 {
-	return details.price;
+	return details.discountedSalePrice;
 }
 
 QString PLSNaverShoppingLIVEProductItemView::getStoreName() const
@@ -75,7 +75,7 @@ void PLSNaverShoppingLIVEProductItemView::setInfo(const PLSPlatformNaverShopping
 
 	ui->nameLabel->setText(details.name);
 	ui->storeLabel->setText(details.mallName);
-	if (details.productStatus == PLSNaverShoppingLIVEDataManager::PRODUCT_STATUS_OUTOFSTOCK) {
+	if (details.productStatus == PLSNaverShoppingLIVEDataManager::PRODUCT_STATUS_CLOSE) {
 		ui->statusLabel->setText(tr("NaverShoppingLive.LiveInfo.Product.Status.Outofstock"));
 		ui->discountLabel->hide();
 		ui->priceLabel->hide();
@@ -89,27 +89,40 @@ void PLSNaverShoppingLIVEProductItemView::setInfo(const PLSPlatformNaverShopping
 		ui->statusLabel->show();
 	} else if (details.specialPriceIsValid()) { // discount type 2
 		ui->discountLabel->setText(PLSNaverShoppingLIVEDataManager::convertRate(details.discountRate));
-		ui->priceLabel->setText(tr("NaverShoppingLive.ProductPrice").arg(PLSNaverShoppingLIVEDataManager::convertPrice(details.price)));
+		ui->priceLabel->setText(tr("NaverShoppingLive.ProductPrice").arg(PLSNaverShoppingLIVEDataManager::convertPrice(details.discountedSalePrice)));
 		ui->discountPriceLabel->setText(tr("NaverShoppingLive.ProductDiscountPrice").arg(PLSNaverShoppingLIVEDataManager::convertPrice(details.specialPrice)));
 		ui->statusLabel->hide();
 		ui->discountLabel->setVisible(details.discountRateIsValid());
 		ui->priceLabel->show();
 		ui->discountPriceLabel->show();
+	} else if (details.liveDiscountRateIsValid()) { // live discount
+		ui->discountLabel->setText(PLSNaverShoppingLIVEDataManager::convertRate(details.liveDiscountRate));
+		double price = 0;
+		if (details.activeLiveDiscount) {
+			price = details.discountedSalePrice;
+		} else {
+			price = details.salePrice - details.liveDiscountPrice;
+		}
+		ui->priceLabel->setText(tr("NaverShoppingLive.ProductPrice").arg(PLSNaverShoppingLIVEDataManager::convertPrice(price)));
+		ui->statusLabel->hide();
+		ui->discountPriceLabel->hide();
+		ui->discountLabel->setVisible(details.liveDiscountRate > 0);
+		ui->priceLabel->show();
 	} else if (details.discountRateIsValid()) { // discount type 1
 		ui->discountLabel->setText(PLSNaverShoppingLIVEDataManager::convertRate(details.discountRate));
-		ui->priceLabel->setText(tr("NaverShoppingLive.ProductPrice").arg(PLSNaverShoppingLIVEDataManager::convertPrice(details.price)));
+		ui->priceLabel->setText(tr("NaverShoppingLive.ProductPrice").arg(PLSNaverShoppingLIVEDataManager::convertPrice(details.discountedSalePrice)));
 		ui->statusLabel->hide();
 		ui->discountPriceLabel->hide();
 		ui->discountLabel->show();
 		ui->priceLabel->show();
 	} else {
-		ui->priceLabel->setText(tr("NaverShoppingLive.ProductPrice").arg(PLSNaverShoppingLIVEDataManager::convertPrice(details.price)));
+		ui->priceLabel->setText(tr("NaverShoppingLive.ProductPrice").arg(PLSNaverShoppingLIVEDataManager::convertPrice(details.discountedSalePrice)));
 		ui->statusLabel->hide();
 		ui->discountLabel->hide();
 		ui->discountPriceLabel->hide();
 		ui->priceLabel->show();
 	}
-
+	updateAttachableUI();
 	PLSNaverShoppingLIVEDataManager::instance()->downloadImage(
 		platform, details.imageUrl,
 		[this, _itemId = this->getItemId()]() {
@@ -119,17 +132,17 @@ void PLSNaverShoppingLIVEProductItemView::setInfo(const PLSPlatformNaverShopping
 
 			PLSLoadingView::newLoadingView(imageLoadingView, ui->iconLabel);
 		},
-		[this, specialPriceIsValid = details.specialPriceIsValid(), _itemId = this->getItemId()](bool ok, const QString &imagePath) {
+		[this, specialPriceIsValid = details.liveDiscountRateIsValid(), _itemId = this->getItemId()](bool ok, const QString &imagePath) {
 			if (_itemId != this->getItemId()) {
 				return;
 			}
 
 			PLSLoadingView::deleteLoadingView(imageLoadingView);
-
+			double opacity = details.attachable ? 1.0 : 0.3;
 			if (ok) {
-				ui->iconLabel->setImage(this->details.linkUrl, this->details.imageUrl, imagePath, specialPriceIsValid, false);
+				ui->iconLabel->setImage(this->details.linkUrl, this->details.imageUrl, imagePath, specialPriceIsValid, false, opacity);
 			} else {
-				ui->iconLabel->setImage(this->details.linkUrl, QPixmap(), QPixmap(), specialPriceIsValid, false);
+				ui->iconLabel->setImage(this->details.linkUrl, QPixmap(), QPixmap(), specialPriceIsValid, false, opacity);
 			}
 		},
 		this, nullptr, -1);
@@ -234,4 +247,16 @@ bool PLSNaverShoppingLIVEProductItemView::eventFilter(QObject *watched, QEvent *
 	}
 
 	return QFrame::eventFilter(watched, event);
+}
+
+void PLSNaverShoppingLIVEProductItemView::updateAttachableUI()
+{
+	pls_flush_style(ui->discountPriceLabel, "attachable", details.attachable);
+	pls_flush_style(ui->nameLabel, "attachable", details.attachable);
+	pls_flush_style(ui->discountLabel, "attachable", details.attachable);
+	pls_flush_style(ui->priceLabel, "attachable", details.attachable);
+	pls_flush_style(ui->statusLabel, "attachable", details.attachable);
+	pls_flush_style(ui->storeLabel, "attachable", details.attachable);
+	pls_flush_style(ui->addRemoveButton, "attachable", details.attachable);
+	pls_flush_style(this, "attachable", details.attachable);
 }

@@ -75,6 +75,7 @@ void PLSBasicStatusBarFrameDropState::paintEvent(QPaintEvent *)
 
 PLSBasicStatusBarButtonFrame::PLSBasicStatusBarButtonFrame(QWidget *parent, Qt::WindowFlags f) : QFrame(parent, f)
 {
+	setAttribute(Qt::WA_NativeWindow);
 	setProperty("ui-step.customButton", true);
 	setProperty("showHandCursor", true);
 	setMouseTracking(true);
@@ -194,17 +195,18 @@ PLSBasicStatusBar::PLSBasicStatusBar(QWidget *parent) : PLSTransparentForMouseEv
 	layout1->setSpacing(5);
 
 	QHBoxLayout *layout11 = pls_new<QHBoxLayout>();
-	layout11->setContentsMargins(0, 0, 0, 5);
+	layout11->setContentsMargins(0, 0, 0, 0);
 	layout11->setSpacing(5);
 	layout11->addWidget(encoding, 0, Qt::AlignVCenter);
 	layout11->addWidget(encodesPt, 0, Qt::AlignVCenter);
 	layout11->addWidget(fps, 0, Qt::AlignVCenter);
 
 	layout1->addLayout(layout11);
-	layout1->addWidget(encodingSettingIcon);
+	layout1->addWidget(encodingSettingIcon, 0, Qt::AlignVCenter);
+	encodingSettingIcon->setStyleSheet("margin-top: 1px");
 
 	QHBoxLayout *layout2 = pls_new<QHBoxLayout>(stats);
-	layout2->setContentsMargins(0, 0, 0, 5);
+	layout2->setContentsMargins(0, 0, 0, 0);
 	layout2->setSpacing(10);
 	layout2->addWidget(frameDropState);
 
@@ -253,21 +255,8 @@ PLSBasicStatusBar::PLSBasicStatusBar(QWidget *parent) : PLSTransparentForMouseEv
 
 	auto showSettings = []() { QMetaObject::invokeMethod(PLSBasic::Get(), "onPopupSettingView", Q_ARG(QString, "Output"), Q_ARG(QString, "")); };
 	connect(encodes, &PLSBasicStatusBarButtonFrame::clicked, this, showSettings);
+	connect(qobject_cast<PLSMainView *>(pls_get_toplevel_view(this)), &PLSMainView::onGolivePending, encodes, &QWidget::setDisabled);
 	connect(stats, &PLSBasicStatusBarButtonFrame::clicked, this, [this] { PLSBasic::instance()->toggleStatusPanel(-1); });
-	QMetaObject::invokeMethod(
-		this,
-		[=] {
-			connect(
-				PLSBasic::instance(), &PLSBasic::outputStateChanged, encodes,
-				[this]() {
-					auto enabled = !pls_is_output_actived();
-					encodes->setToolTip(enabled ? QString() : tr("Resolution.VirtualCamIsActived.SettingsDisabled.Tips"));
-					encodes->setEnabled(enabled);
-					pls_flush_style_recursive(encodes, "active", enabled);
-				},
-				Qt::QueuedConnection);
-		},
-		Qt::QueuedConnection);
 }
 
 PLSBasicStatusBar::~PLSBasicStatusBar()
@@ -382,12 +371,17 @@ void PLSBasicStatusBar::UpdateGPUUsage()
 
 void PLSBasicStatusBar::OnLiveStatus(bool isStarted)
 {
-	liveArea->SetLiveStatus(isStarted);
+	pls_async_call_mt([this, isStarted]() { liveArea->SetLiveStatus(isStarted); });
 }
 
 void PLSBasicStatusBar::OnRecordStatus(bool isStarted)
 {
-	liveArea->SetRecordStatus(isStarted);
+	pls_async_call_mt([this, isStarted]() { liveArea->SetRecordStatus(isStarted); });
+}
+
+void PLSBasicStatusBar::OnRecordPaused(bool paused)
+{
+	return liveArea->OnRecordPaused(paused);
 }
 
 uint PLSBasicStatusBar::getStartTime() const
@@ -395,90 +389,13 @@ uint PLSBasicStatusBar::getStartTime() const
 	return liveArea->GetStartTime();
 }
 
+int PLSBasicStatusBar::getRecordDuration() const
+{
+	return liveArea->GetRecordDuration();
+}
+
 void PLSBasicStatusBar::UploadStatus() const
 {
-	if (pls_get_app_exiting()) {
-		PLS_WARN(MAINMENU_MODULE, "Invalid invoking in %s", __FUNCTION__);
-		return;
-	}
-
-	std::string userID = PLSLoginUserInfo::getInstance()->getUserCodeWithEncode().toStdString();
-	std::string neloSession = GlobalVars::prismSession;
-
-	auto unixTime = QDateTime::currentMSecsSinceEpoch();
-	auto cpuUsagePrism = (int)get<0>(m_dataStatus.cpu);
-	auto cpuUsageTotal = (int)get<1>(m_dataStatus.cpu);
-	auto memoryUsing = int64_t(m_dataStatus.memory);
-	auto availableStorage = int64_t(m_dataStatus.disk);
-	auto realRenderFPS = (int)get<0>(m_dataStatus.renderFPS);
-	int dropRenderFrame = get<0>(m_dataStatus.dropedRendering);
-	int dropEncodeFrame = get<0>(m_dataStatus.dropedEncoding);
-	int dropNetworkFrame = get<0>(m_dataStatus.dropedNetwork);
-	int dbrStreamBitrate = get<0>(m_dataStatus.streaming);
-	int realStreamBitrate = get<0>(m_dataStatus.streaming);
-	int realRecordBitrate = get<0>(m_dataStatus.recording);
-	int64_t recordedMegabytes = get<1>(m_dataStatus.recording);
-
-	//-----------------------------------------------------------------
-	QJsonObject obj;
-	obj["userID"] = userID.c_str();
-	obj["neloSession"] = neloSession.c_str();
-	obj["renderFPS"] = realRenderFPS;
-	obj["streamBitrate"] = dbrStreamBitrate;
-	obj["recordBitrate"] = realRecordBitrate;
-	obj["unixTime"] = unixTime;
-	obj["cpuUsagePrism"] = cpuUsagePrism;
-	obj["cpuUsageTotal"] = cpuUsageTotal;
-	obj["memoryUsing"] = memoryUsing;
-	obj["availableStorage"] = availableStorage;
-	obj["realRenderFPS"] = realRenderFPS;
-	obj["dropRenderFrame"] = dropRenderFrame;
-	obj["dropEncodeFrame"] = dropEncodeFrame;
-	obj["dropNetworkFrame"] = dropNetworkFrame;
-	obj["dbrStreamBitrate"] = dbrStreamBitrate;
-	obj["realStreamBitrate"] = realStreamBitrate;
-	obj["realRecordBitrate"] = realRecordBitrate;
-	obj["bufferedVideoDurationMS"] = 0;
-	obj["recordedDataSizeMB"] = recordedMegabytes;
-	obj["gpuUsagePrism"] = (int)get<0>(m_dataStatus.gpu);
-	obj["gpuUsageTotal"] = (int)get<1>(m_dataStatus.gpu);
-
-#ifdef _WIN32
-	PLSPerf::PerfStats perfStats;
-	bool ret = PLSPerf::PerfCounter::Instance().GetPerfStats(perfStats);
-	if (ret) {
-		obj["procGpuUsageRender"] = perfStats.process.gpu.engines[0].usage;
-		obj["procGpuUsageDecode"] = perfStats.process.gpu.engines[1].usage;
-		obj["procGpuUsageEncode"] = perfStats.process.gpu.engines[2].usage;
-		obj["procGpuUsageCopy"] = perfStats.process.gpu.engines[3].usage;
-		obj["procGpuUsageCompute"] = perfStats.process.gpu.engines[4].usage;
-		obj["procGpuSharedMemoryMB"] = perfStats.process.gpu.sharedMemoryMB;
-		obj["procGpuDedicatedMemoryMB"] = perfStats.process.gpu.dedicatedMemoryMB;
-		obj["gpuCount"] = (int)perfStats.system.gpus.size();
-		for (int i = 0; i < perfStats.system.gpus.size(); i++) {
-			std::string gpu = "gpu";
-			gpu += std::to_string(i);
-			obj[(gpu + "Name").c_str()] = perfStats.system.gpus[i].name.c_str();
-			obj[(gpu + "UsageRender").c_str()] = perfStats.system.gpus[i].engines[0].usage;
-			obj[(gpu + "UsageDecode").c_str()] = perfStats.system.gpus[i].engines[1].usage;
-			obj[(gpu + "UsageEncode").c_str()] = perfStats.system.gpus[i].engines[2].usage;
-			obj[(gpu + "UsageCopy").c_str()] = perfStats.system.gpus[i].engines[3].usage;
-			obj[(gpu + "UsageCompute").c_str()] = perfStats.system.gpus[i].engines[4].usage;
-			obj[(gpu + "SharedMemoryMB").c_str()] = perfStats.system.gpus[i].sharedMemory.usedMB;
-			obj[(gpu + "SharedMemoryTotalMB").c_str()] = perfStats.system.gpus[i].sharedMemory.totalMB;
-			obj[(gpu + "DedicatedMemoryMB").c_str()] = perfStats.system.gpus[i].dedicatedMemory.usedMB;
-			obj[(gpu + "DedicatedMemoryTotalMB").c_str()] = perfStats.system.gpus[i].dedicatedMemory.totalMB;
-		}
-	}
-#elif defined(__APPLE__)
-
-#endif
-
-	QJsonDocument doc;
-	doc.setObject(obj);
-
-	QString text(doc.toJson());
-	PLSPlatformPrism::instance()->uploadStatus("/prism/output/quality", text, false);
 }
 
 void PLSBasicStatusBar::UpdateDroppedFrames()
@@ -595,18 +512,6 @@ void PLSBasicStatusBar::setStatsOpen(bool open)
 	pls_flush_style(statsDropIcon, "open", open);
 }
 
-void PLSBasicStatusBar::setEncodingTips(const QString &tips)
-{
-	encodes->setAttribute(Qt::WA_AlwaysShowToolTips, !tips.isEmpty());
-	encodes->setToolTip(tips);
-}
-
-void PLSBasicStatusBar::setEncodingEnabled(bool enabled)
-{
-	encodes->setEnabled(enabled);
-	pls_flush_style_recursive(encodes, "active", enabled);
-}
-
 void PLSBasicStatusBar::ReconnectSuccess()
 {
 	OBSBasic *main = OBSBasic::Get();
@@ -699,6 +604,7 @@ void PLSBasicStatusBar::StartStatusMonitor()
 		uploadTimer = new QTimer(this);
 		connect(uploadTimer, SIGNAL(timeout()), this, SLOT(UploadStatus()));
 		uploadTimer->start(UPLOAD_STATUS_INTERVAL);
+		PLS_LOG(PLS_LOG_INFO, MAIN_OUTPUT, "Status upload timer: id=%d, self=%p", uploadTimer->timerId(), uploadTimer.data());
 	}
 }
 

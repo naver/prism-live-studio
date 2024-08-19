@@ -21,6 +21,7 @@ private:
 	QHBoxLayout *chatLayout;
 
 public:
+	inline YoutubeChatDock(const QString &title) : BrowserDock(title) {}
 	void SetWidget(QCefWidget *widget_);
 	void SetApiChatId(const std::string &id);
 
@@ -43,8 +44,7 @@ class YoutubeAuth : public OAuthStreamKey {
 	std::string section;
 
 #ifdef BROWSER_AVAILABLE
-	QSharedPointer<YoutubeChatDock> chat;
-	QSharedPointer<QAction> chatMenu;
+	YoutubeChatDock *chat = nullptr;
 #endif
 
 	virtual bool RetryLogin() override;
@@ -56,6 +56,7 @@ class YoutubeAuth : public OAuthStreamKey {
 
 public:
 	YoutubeAuth(const Def &d);
+	~YoutubeAuth();
 
 	void SetChatId(const QString &chat_id, const std::string &api_chat_id);
 	void ResetChat();

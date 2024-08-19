@@ -74,7 +74,7 @@ PLSDialogView::PLSDialogView(QWidget *parent, Qt::WindowFlags f) : PLSToplevelVi
 	ui->helpBtn->installEventFilter(this);
 	setCustomChecker(ui->content);
 
-	connect(this, &PLSDialogView::windowTitleChanged, this, &PLSDialogView::SetNameLabelText);
+	connect(this, &PLSDialogView::windowTitleChanged, this, &PLSDialogView::SetNameLabelText, Qt::QueuedConnection);
 	connect(ui->content, &QWidget::windowTitleChanged, this, &PLSDialogView::setWindowTitle);
 
 	ui->content->setObjectName(QString());
@@ -140,15 +140,23 @@ QWidget *PLSDialogView::widget() const
 
 void PLSDialogView::setWidget(QWidget *widget)
 {
+	if (this->owidget != nullptr) {
+		ui->content->layout()->removeWidget(this->owidget);
+		this->owidget->setParent(nullptr);
+		pls_delete(this->owidget, nullptr);
+	}
 	this->owidget = widget;
 	widget->setParent(ui->content);
 	connect(widget, &QWidget::windowTitleChanged, this, &PLSDialogView::setWindowTitle);
 	setWindowTitle(widget->windowTitle());
 
-	QHBoxLayout *l = pls_new<QHBoxLayout>(ui->content);
-	l->setContentsMargins(0, 0, 0, 0);
-	l->setSpacing(0);
-	l->addWidget(widget);
+	auto layout = ui->content->layout();
+	if (!layout) {
+		layout = pls_new<QHBoxLayout>(ui->content);
+		layout->setContentsMargins(0, 0, 0, 0);
+		layout->setSpacing(0);
+	}
+	layout->addWidget(widget);
 }
 
 int PLSDialogView::getCaptionHeight() const
@@ -476,14 +484,8 @@ void PLSDialogView::hideEvent(QHideEvent *event)
 	PLSToplevelView<QDialog>::hideEvent(event);
 	pls_check_app_exiting();
 
-	QWidget *parent = this->parentWidget();
-	if (parent) {
+	if (QWidget *parent = pls_get_toplevel_view(this->parentWidget(), nullptr); parent) {
 		parent->activateWindow();
-		return;
-	}
-
-	if (auto mainView = pls_get_main_view(); mainView) {
-		mainView->activateWindow();
 	}
 }
 
@@ -554,6 +556,7 @@ bool PLSDialogView::event(QEvent *event)
 	switch (event->type()) {
 	case QEvent::Resize:
 		SetNameLabelText(windowTitle());
+		resizing(static_cast<QResizeEvent *>(event)->size());
 		break;
 	case QEvent::Move: {
 		int aa = 1;

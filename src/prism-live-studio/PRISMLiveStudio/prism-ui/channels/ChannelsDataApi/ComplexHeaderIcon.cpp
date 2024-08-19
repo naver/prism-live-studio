@@ -31,6 +31,7 @@ ComplexHeaderIcon::ComplexHeaderIcon(QWidget *parent) : QLabel(parent)
 	connect(this, &ComplexHeaderIcon::paintingFinished, this, QOverload<>::of(&ComplexHeaderIcon::update), Qt::QueuedConnection);
 	m_ActiveImage = pls_load_pixmap(":/channels/resource/images/ChannelsSource/badge-liveon.svg", QSize(38, 38) * 4);
 	mDelayTimer->start();
+	this->setFocusPolicy(Qt::NoFocus);
 }
 
 ComplexHeaderIcon::~ComplexHeaderIcon()
@@ -48,7 +49,7 @@ void ComplexHeaderIcon::updateSmallPix(PaintObject &painterObj)
 	painterObj.mSmallPix = PLSCHANNELS_API->updateImage(painterObj.mPlatPixPath, newSize);
 	if (!painterObj.mSmallPix.isNull() && painterObj.mSmallPix.size() != painterObj.mPlatPixSize * painterObj.dpi) {
 		painterObj.mSmallPix = painterObj.mSmallPix.scaled(painterObj.mPlatPixSize * painterObj.dpi, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-		painterObj.mSmallPix.setDevicePixelRatio(devicePixelRatio());
+		painterObj.mSmallPix.setDevicePixelRatio(painterObj.dpi);
 	}
 	sharpPix(painterObj.mSmallPix, false, painterObj.mPlatPixSharp);
 }
@@ -95,7 +96,7 @@ void ComplexHeaderIcon::updateBixPix(PaintObject &painterObj)
 	}
 	if (!painterObj.mBigPix.isNull() && painterObj.mBigPix.size() != newSize) {
 		painterObj.mBigPix = painterObj.mBigPix.scaled(newSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-		painterObj.mBigPix.setDevicePixelRatio(devicePixelRatio());
+		painterObj.mBigPix.setDevicePixelRatio(painterObj.dpi);
 	}
 	sharpPix(painterObj.mBigPix, true, painterObj.mPixSharp);
 }

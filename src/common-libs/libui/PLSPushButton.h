@@ -135,4 +135,26 @@ private:
 	int m_checkState = Qt::Unchecked;
 };
 
+class LIBUI_API PLSDelayResponseButton : public QPushButton {
+	Q_OBJECT
+public:
+	explicit PLSDelayResponseButton(QWidget *parent = nullptr);
+	~PLSDelayResponseButton();
+
+	void setDelayRespInterval(int intervalMs);
+
+private:
+	void onButtonClicked();
+	void startTimer();
+	void stopTimer();
+	void timerCallback();
+signals:
+	void buttonClicked();
+
+private:
+	int intervalMs = 200;
+	QTimer timer;
+	QTime clickBtnTime;
+};
+
 #endif //PLSPUSHBUTTON_H

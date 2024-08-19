@@ -11,10 +11,14 @@ public:
 
 signals:
 	void clicked();
+	void rightclicked();
 
 protected:
 	void mousePressEvent(QMouseEvent *event)
 	{
+		if (event->button() == Qt::RightButton) {
+			emit rightclicked();
+		}
 		emit clicked();
 		event->accept();
 	}

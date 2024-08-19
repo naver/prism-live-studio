@@ -249,8 +249,6 @@ PLSLiveEndItem #pushButton_tip[status="disable"] #labelLeft {
 
 PLSLiveEndItem #pushButton_share {
 	margin-top: /*hdpi*/2px;
-	min-width:/*hdpi*/  400px;
-    max-width:/*hdpi*/  400px;
 
     min-height:/*hdpi*/ 20px;
     max-height:/*hdpi*/ 20px;

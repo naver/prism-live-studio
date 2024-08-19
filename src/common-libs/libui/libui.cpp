@@ -37,8 +37,8 @@ struct LocalGlobalVars {
 	static QPointer<QWidget> g_main_view;
 	static QList<QPointer<QDialog>> g_dialog_views;
 	static QList<QPointer<QMenu>> g_menu_views;
-	static std::atomic<bool> g_main_window_closing;
-	static std::atomic<bool> g_main_window_destroyed;
+	static std::atomic<uint64_t> g_main_window_closing;
+	static std::atomic<uint64_t> g_main_window_destroyed;
 	static const QList<QString> g_css_prefixs;
 	static std::atomic<int> g_hotKeyLockerCount;
 	static std::function<void()> g_enableHotKeyCb;
@@ -47,14 +47,16 @@ struct LocalGlobalVars {
 QPointer<QWidget> LocalGlobalVars::g_main_view;
 QList<QPointer<QDialog>> LocalGlobalVars::g_dialog_views;
 QList<QPointer<QMenu>> LocalGlobalVars::g_menu_views;
-std::atomic<bool> LocalGlobalVars::g_main_window_closing = false;
-std::atomic<bool> LocalGlobalVars::g_main_window_destroyed = false;
+std::atomic<uint64_t> LocalGlobalVars::g_main_window_closing = 0;
+std::atomic<uint64_t> LocalGlobalVars::g_main_window_destroyed = 0;
 const QList<QString> LocalGlobalVars::g_css_prefixs{QStringLiteral(":/resource/css/%1.css"), QStringLiteral(":/css/%1.css")};
 std::atomic<int> LocalGlobalVars::g_hotKeyLockerCount = 0;
 std::function<void()> LocalGlobalVars::g_enableHotKeyCb = nullptr;
 std::function<void()> LocalGlobalVars::g_disableHotKeyCb = nullptr;
 
 class SignalSpyCallback {
+	enum class CallerType { AbstractButton, Action, CustomButton, CustomControl };
+
 	static const QByteArray s_clickedMethod;
 	static const QByteArray s_triggeredMethod;
 
@@ -95,28 +97,62 @@ public:
 			return value.toByteArray();
 		return defaultValue;
 	}
+	static QByteArray getUtf8(const QVariantHash &object, const QString &name, const QByteArray &defaultValue = QByteArray())
+	{
+		if (auto value = object[name]; value.type() == QVariant::String)
+			return value.toString().toUtf8();
+		else if (value.type() == QVariant::ByteArray)
+			return value.toByteArray();
+		return defaultValue;
+	}
 	static bool needUiStep(QMetaMethod &method, QString &action, QObject *caller, int signal_or_method_index)
 	{
 		auto mo = caller->metaObject();
 		if (mo->inherits(&QAbstractButton::staticMetaObject)) {
-			return isButton(method, action, caller, signal_or_method_index, s_clickedMethod);
+			return isButton(CallerType::AbstractButton, method, action, caller, signal_or_method_index, getUtf8(caller, "ui-step.signalName", s_clickedMethod));
 		} else if (mo->inherits(&QAction::staticMetaObject)) {
-			return isButton(method, action, caller, signal_or_method_index, s_triggeredMethod);
+			return isButton(CallerType::Action, method, action, caller, signal_or_method_index, getUtf8(caller, "ui-step.signalName", s_triggeredMethod));
 		} else if (getBool(caller, "ui-step.customButton")) {
-			return isButton(method, action, caller, signal_or_method_index, getUtf8(caller, "ui-step.signalName", s_clickedMethod));
+			return isButton(CallerType::CustomButton, method, action, caller, signal_or_method_index, getUtf8(caller, "ui-step.signalName", s_clickedMethod));
+		} else if (getBool(caller, "ui-step.customControl")) {
+			return isCustomControl(CallerType::CustomControl, method, action, caller, signal_or_method_index, getUtf8(caller, "ui-step.signalName", s_clickedMethod));
 		}
+		extUiStep(caller, signal_or_method_index);
 		return false;
 	}
-	static bool isButton(QMetaMethod &method, QString &action, QObject *caller, int signal_or_method_index, const QByteArray &name)
+	static bool isButton(CallerType callerType, QMetaMethod &method, QString &action, QObject *caller, int signal_or_method_index, const QByteArray &name)
 	{
 		if (method = QMetaObjectPrivate::signal(caller->metaObject(), signal_or_method_index); method.name() == name) {
-			action = ACTION_CLICK;
+			action = getString(caller, "ui-step.action", ACTION_CLICK);
+			if (auto actionData = getActionData(callerType, caller); !actionData.isEmpty()) {
+				action.append(" <");
+				action.append(actionData);
+				action.append(">");
+			}
 			return true;
 		}
+		extUiStep(caller, signal_or_method_index);
 		return false;
 	}
-	static QString getModuleName(QObject *caller)
+	static bool isCustomControl(CallerType callerType, QMetaMethod &method, QString &action, QObject *caller, int signal_or_method_index, const QByteArray &name)
 	{
+		if (method = QMetaObjectPrivate::signal(caller->metaObject(), signal_or_method_index); method.name() == name) {
+			action = getString(caller, "ui-step.action", QString::fromUtf8(name));
+			if (auto actionData = getActionData(callerType, caller); !actionData.isEmpty()) {
+				action.append(" <");
+				action.append(actionData);
+				action.append(">");
+			}
+			return true;
+		}
+		extUiStep(caller, signal_or_method_index);
+		return false;
+	}
+	static QString getModuleName(QObject *caller, const QString &defModuleName = QString())
+	{
+		if (!defModuleName.isEmpty())
+			return defModuleName;
+
 		for (auto object = caller; object; object = object->parent()) {
 			if (QString moduleName = getString(caller, "ui-step.moduleName"); !moduleName.isEmpty()) {
 				return moduleName;
@@ -132,15 +168,23 @@ public:
 	}
 	static QString getControls(QObject *caller)
 	{
-		QString fullObjectName = getFullObjectName(caller);
-		if (QString uiStepControls = getString(caller, "ui-step.controls"); !uiStepControls.isEmpty()) {
-			fullObjectName.append(' ');
-			fullObjectName.append(uiStepControls);
+		return getControls(caller, getString(caller, "ui-step.controlFullname"), getString(caller, "ui-step.controls"), getString(caller, "ui-step.additional"));
+	}
+	static QString getControls(QObject *caller, const QString &controlFullname, const QString &controls, const QString &additional)
+	{
+		if (!controlFullname.isEmpty()) {
+			return controlFullname;
 		}
 
-		if (QString uiStepAdditional = getString(caller, "ui-step.additional"); !uiStepAdditional.isEmpty()) {
+		QString fullObjectName = getFullObjectName(caller);
+		if (!controls.isEmpty()) {
 			fullObjectName.append(' ');
-			fullObjectName.append(uiStepAdditional);
+			fullObjectName.append(controls);
+		}
+
+		if (!additional.isEmpty()) {
+			fullObjectName.append(' ');
+			fullObjectName.append(additional);
 		}
 
 		return fullObjectName;
@@ -166,6 +210,56 @@ public:
 	static bool isToplevel(QObject *caller)
 	{ //
 		return caller->isWidgetType() && pls_is_toplevel_view(static_cast<QWidget *>(caller));
+	}
+	static QString getActionData(CallerType callerType, QObject *caller)
+	{
+		if (auto actionData = pls_call_object_getter(caller, "ui-step.getActionData").toString(); !actionData.isEmpty()) {
+			return actionData;
+		}
+
+		switch (callerType) {
+		case CallerType::AbstractButton:
+			if (auto mo = caller->metaObject(); mo->inherits(&QCheckBox::staticMetaObject))
+				return static_cast<QCheckBox *>(caller)->isChecked() ? QStringLiteral("checked") : QStringLiteral("unchecked");
+			return QString();
+		case CallerType::Action:
+			return static_cast<QAction *>(caller)->text();
+		case CallerType::CustomButton:
+			return QString();
+		default:
+			return QString();
+		}
+	}
+	static void extUiStep(QObject *caller, int signal_or_method_index)
+	{
+		auto vuss = caller->property("ui-steps");
+		if (vuss.type() != QVariant::Hash)
+			return;
+
+		auto method = QMetaObjectPrivate::signal(caller->metaObject(), signal_or_method_index);
+		auto signalName = QString::fromUtf8(method.name());
+
+		auto uss = vuss.toHash();
+		auto iter = uss.find(signalName);
+		if (iter == uss.end())
+			return;
+
+		auto us = iter.value().toHash();
+		bool customButton = us[QStringLiteral("customButton")].toBool(), customControl = us[QStringLiteral("customControl")].toBool();
+		if (!(customButton || customControl))
+			return;
+
+		auto moduleName = getModuleName(caller, us[QStringLiteral("moduleName")].toString());
+		auto controlFullname = getControls(caller, us[QStringLiteral("controlFullname")].toString(), us[QStringLiteral("controls")].toString(), us[QStringLiteral("additional")].toString());
+		auto action = us[QStringLiteral("action")].toString();
+		auto actionData = pls_call_object_getter(caller, QString("ui-steps.%1.getActionData").arg(signalName).toUtf8()).toString();
+		if (!actionData.isEmpty()) {
+			action.append(" <");
+			action.append(actionData);
+			action.append(">");
+		}
+
+		PLS_UI_STEP(moduleName.toUtf8().constData(), controlFullname.toUtf8().constData(), action.toUtf8().constData());
 	}
 
 	QSignalSpyCallbackSet m_signalSpyCallbackSet{signalBeginCallback, slotBeginCallback, signalEndCallback, slotEndCallback};
@@ -220,20 +314,20 @@ LIBUI_API void pls_set_main_view(const QPointer<QWidget> &main_view)
 
 LIBUI_API bool pls_is_main_window_closing()
 {
-	return LocalGlobalVars::g_main_window_closing;
+	return LocalGlobalVars::g_main_window_closing == 1;
 }
 LIBUI_API void pls_set_main_window_closing(bool main_window_closing)
 {
-	LocalGlobalVars::g_main_window_closing = main_window_closing;
+	LocalGlobalVars::g_main_window_closing = main_window_closing ? 1 : 0;
 }
 
 LIBUI_API bool pls_is_main_window_destroyed()
 {
-	return LocalGlobalVars::g_main_window_destroyed;
+	return LocalGlobalVars::g_main_window_destroyed == 1;
 }
 LIBUI_API void pls_set_main_window_destroyed(bool main_window_destroyed)
 {
-	LocalGlobalVars::g_main_window_destroyed = main_window_destroyed;
+	LocalGlobalVars::g_main_window_destroyed = main_window_destroyed ? 1 : 0;
 }
 
 LIBUI_API bool pls_is_toplevel_view(QWidget *widget)
@@ -247,10 +341,10 @@ LIBUI_API bool pls_is_toplevel_view(QWidget *widget)
 	}
 	return false;
 }
-LIBUI_API QWidget *pls_get_toplevel_view(QWidget *widget)
+LIBUI_API QWidget *pls_get_toplevel_view(QWidget *widget, QWidget *defval)
 {
 	if (!widget) {
-		return pls_get_main_view();
+		return defval;
 	} else if (pls_is_toplevel_view(widget)) {
 		return widget;
 	}
@@ -260,7 +354,7 @@ LIBUI_API QWidget *pls_get_toplevel_view(QWidget *widget)
 			return widget;
 		}
 	}
-	return pls_get_main_view();
+	return defval;
 }
 
 LIBUI_API void pls_push_modal_view(QDialog *dialog)
@@ -293,18 +387,95 @@ LIBUI_API void pls_pop_modal_view(QMenu *menu)
 
 LIBUI_API void pls_notify_close_modal_views()
 {
+	QList<QDialog *> dlgs;
+	for (auto w : qApp->topLevelWidgets()) {
+		if (auto dlg = dynamic_cast<QDialog *>(w); dlg && dlg->isModal() && !LocalGlobalVars::g_dialog_views.contains(dlg)) {
+			PLS_INFO("libui", "close unmanaged Qt modal window, className: %s, objectName: %s", dlg->metaObject()->className(), dlg->objectName().toUtf8().constData());
+			dlg->setParent(nullptr);
+			dlgs.append(dlg);
+		}
+	}
+	while (!dlgs.isEmpty()) {
+		auto dlg = dlgs.takeLast();
+		if (auto closeDialog = dynamic_cast<pls::ICloseDialog *>(dlg); closeDialog) {
+			closeDialog->closeNoButton();
+		} else {
+			dlg->close();
+		}
+	}
+
 	while (!LocalGlobalVars::g_dialog_views.isEmpty()) {
-		if (auto dialog_view = LocalGlobalVars::g_dialog_views.takeLast(); dialog_view) {
-			dialog_view->setParent(nullptr);
-			if (auto closeDialog = dynamic_cast<pls::ICloseDialog *>(dialog_view.data()); closeDialog) {
+		if (auto dlg = LocalGlobalVars::g_dialog_views.takeLast(); dlg) {
+			PLS_INFO("libui", "close managed Qt modal window, className: %s, objectName: %s", dlg->metaObject()->className(), dlg->objectName().toUtf8().constData());
+			dlg->setParent(nullptr);
+			if (auto closeDialog = dynamic_cast<pls::ICloseDialog *>(dlg.data()); closeDialog) {
 				closeDialog->closeNoButton();
+			} else {
+				dlg->reject();
 			}
 		}
 	}
 
 	while (!LocalGlobalVars::g_menu_views.isEmpty()) {
-		if (auto menu_view = LocalGlobalVars::g_menu_views.takeLast(); menu_view) {
-			menu_view->setParent(nullptr);
+		if (auto menu = LocalGlobalVars::g_menu_views.takeLast(); menu) {
+			PLS_INFO("libui", "close managed Qt menu, className: %s, objectName: %s", menu->metaObject()->className(), menu->objectName().toUtf8().constData());
+			menu->setParent(nullptr);
+		}
+	}
+}
+
+static bool _findParent(QObject *widget, QObject *cmpParentWidget)
+{
+	while (widget) {
+		if (widget == cmpParentWidget) {
+			return true;
+		}
+		widget = widget->parent();
+	}
+	return false;
+}
+
+LIBUI_API void pls_notify_close_modal_views_with_parent(QWidget *parent)
+{
+	QList<QDialog *> dlgs;
+	for (auto w : qApp->topLevelWidgets()) {
+		if (auto dlg = dynamic_cast<QDialog *>(w); dlg && dlg->isModal() && !LocalGlobalVars::g_dialog_views.contains(dlg)) {
+			if (_findParent(dlg->parent(), parent)) {
+				PLS_INFO("libui", "close unmanaged Qt modal window, className: %s, objectName: %s", dlg->metaObject()->className(), dlg->objectName().toUtf8().constData());
+				dlg->setParent(nullptr);
+				dlgs.append(dlg);
+			}
+		}
+	}
+	while (!dlgs.isEmpty()) {
+		auto dlg = dlgs.takeLast();
+		if (auto closeDialog = dynamic_cast<pls::ICloseDialog *>(dlg); closeDialog) {
+			closeDialog->closeNoButton();
+		} else if (dlg != nullptr) {
+			dlg->close();
+		}
+	}
+
+	while (!LocalGlobalVars::g_dialog_views.isEmpty()) {
+		if (auto dlg = LocalGlobalVars::g_dialog_views.takeLast(); dlg) {
+			if (_findParent(dlg->parent(), parent)) {
+				PLS_INFO("libui", "close managed Qt modal window, className: %s, objectName: %s", dlg->metaObject()->className(), dlg->objectName().toUtf8().constData());
+				dlg->setParent(nullptr);
+				if (auto closeDialog = dynamic_cast<pls::ICloseDialog *>(dlg.data()); closeDialog) {
+					closeDialog->closeNoButton();
+				} else {
+					dlg->reject();
+				}
+			}
+		}
+	}
+
+	while (!LocalGlobalVars::g_menu_views.isEmpty()) {
+		if (auto menu = LocalGlobalVars::g_menu_views.takeLast(); menu) {
+			if (_findParent(menu->parent(), parent)) {
+				PLS_INFO("libui", "close managed Qt menu, className: %s, objectName: %s", menu->metaObject()->className(), menu->objectName().toUtf8().constData());
+				menu->setParent(nullptr);
+			}
 		}
 	}
 }
@@ -789,37 +960,6 @@ LIBUI_API bool pls_is_visible_in_some_screen(const QRect &geometry)
 	return false;
 }
 
-LIBUI_API QString pls_get_init_exit_code_str(init_exception_code code)
-{
-	const static QMap<init_exception_code, QString> exitCodes{{init_exception_code::common, ":common"},
-								  {init_exception_code::engine_not_support, ":engine_not_support_driver"},
-								  {init_exception_code::engine_param_error, ":engine_param_error"},
-								  {init_exception_code::engine_not_support_dx_version, ":engine_not_support_dx_version"},
-								  {init_exception_code::failed_init_global_config, ":failed_init_global_config"},
-								  {init_exception_code::failed_create_profile_directory, ":failed_create_profile_directory"},
-								  {init_exception_code::failed_find_locale_file, ":failed_find_locale_file"},
-								  {init_exception_code::failed_open_locale_file, ":failed_open_locale_file"},
-								  {init_exception_code::failed_load_theme, ":failed_load_theme"},
-								  {init_exception_code::failed_load_locale, ":failed_load_locale"},
-								  {init_exception_code::failed_init_application_bunndle, ":failed_init_application_bunndle"},
-								  {init_exception_code::failed_create_required_user_directory, ":failed_create_required_user_directory"},
-								  {init_exception_code::failed_unknow_exception, ":failed_unknow_exception"},
-								  {init_exception_code::failed_fasoo_reason, ":fasoo_reason"},
-								  {init_exception_code::file_not_found, ":file_not_found"},
-								  {init_exception_code::permission_denied, ":permission_denied"},
-								  {init_exception_code::launcher_already_running, ":launcher_already_running"},
-								  {init_exception_code::prism_not_start_by_launcher, ":prism_not_start_by_launcher"},
-								  {init_exception_code::prism_already_running, ":prism_already_running"},
-								  {init_exception_code::timeout_by_startup_30s, ":timeout_by_startup_30s"},
-								  {init_exception_code::timeout_by_encoder, ":timeout_by_encoder"},
-								  {init_exception_code::timeout_by_source, ":timeout_by_source"},
-								  {init_exception_code::launcher_kill_old_prism, ":launcher_kill_old_prism"},
-								  {init_exception_code::prism_kill_old_launcher, ":prism_kill_old_launcher"},
-								  {init_exception_code::obs_engine_error, ":obs_engine_error"}};
-
-	return exitCodes.value(code, "");
-}
-
 LIBUI_API QString pls_get_process_code_str(Progress progress, bool next)
 {
 	static QMap<Progress, QString> processCodes{{Progress::launchPrism, "000: Launch prim"},
@@ -938,6 +1078,93 @@ LIBUI_API void pls_window_left_right_margin_fit(QWidget *widget)
 		widget->move(mostLeftPostion, windowGeometry.y());
 		widget->repaint();
 	}
+}
+
+//signalName=clicked, action=Click, moduleName=, controls=full path
+LIBUI_API void pls_button_uistep_custom(QObject *object, const pls_getter_t &getter)
+{
+	pls_button_uistep_custom(object, QStringLiteral("clicked"), QString(), QString(), QString(), QString(), QStringLiteral("Click"), getter);
+}
+//action=Click, moduleName=, controls=full path
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const pls_getter_t &getter)
+{
+	pls_button_uistep_custom(object, signalName, QString(), QString(), QString(), QString(), QStringLiteral("Click"), getter);
+}
+//moduleName=, controls=full path
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const QString &action, const pls_getter_t &getter)
+{
+	pls_button_uistep_custom(object, signalName, QString(), QString(), QString(), QString(), action, getter);
+}
+//controls=full path
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &action, const pls_getter_t &getter)
+{
+	pls_button_uistep_custom(object, signalName, moduleName, QString(), QString(), QString(), action, getter);
+}
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controlFullname, const QString &action, const pls_getter_t &getter)
+{
+	pls_button_uistep_custom(object, signalName, moduleName, controlFullname, QString(), QString(), action, getter);
+}
+//controls=full path+controls+additional
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controls, const QString &additional, const QString &action,
+					const pls_getter_t &getter)
+{
+	pls_button_uistep_custom(object, signalName, moduleName, QString(), controls, additional, action, getter);
+}
+//controls=controlFullname or controls=full path+controls+additional
+LIBUI_API void pls_button_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controlFullname, const QString &controls, const QString &additional,
+					const QString &action, const pls_getter_t &getter)
+{
+	auto uss = object->property("ui-steps").toHash();
+	auto us = uss[signalName].toHash();
+	us[QStringLiteral("customButton")] = true;
+	us[QStringLiteral("moduleName")] = moduleName;
+	us[QStringLiteral("controlFullname")] = controlFullname;
+	us[QStringLiteral("controls")] = controls;
+	us[QStringLiteral("additional")] = additional;
+	us[QStringLiteral("action")] = action;
+	uss[signalName] = us;
+	object->setProperty("ui-steps", uss);
+	if (getter)
+		pls_add_object_getter(object, QString("ui-steps.%1.getActionData").arg(signalName).toUtf8(), getter);
+}
+
+//moduleName=, controls=full path
+LIBUI_API void pls_control_uistep_custom(QObject *object, const QString &signalName, const QString &action, const pls_getter_t &getter)
+{
+	pls_control_uistep_custom(object, signalName, QString(), QString(), QString(), QString(), action, getter);
+}
+//controls=full path
+LIBUI_API void pls_control_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &action, const pls_getter_t &getter)
+{
+	pls_control_uistep_custom(object, signalName, moduleName, QString(), QString(), QString(), action, getter);
+}
+//controls=controlFullname
+LIBUI_API void pls_control_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controlFullname, const QString &action, const pls_getter_t &getter)
+{
+	pls_control_uistep_custom(object, signalName, moduleName, controlFullname, QString(), QString(), action, getter);
+}
+//controls=full path+controls+additional
+LIBUI_API void pls_control_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controls, const QString &additional, const QString &action,
+					 const pls_getter_t &getter)
+{
+	pls_control_uistep_custom(object, signalName, moduleName, QString(), controls, additional, action, getter);
+}
+//controls=controlFullname or controls=full path+controls+additional
+LIBUI_API void pls_control_uistep_custom(QObject *object, const QString &signalName, const QString &moduleName, const QString &controlFullname, const QString &controls, const QString &additional,
+					 const QString &action, const pls_getter_t &getter)
+{
+	auto uss = object->property("ui-steps").toHash();
+	auto us = uss[signalName].toHash();
+	us[QStringLiteral("customControl")] = true;
+	us[QStringLiteral("moduleName")] = moduleName;
+	us[QStringLiteral("controlFullname")] = controlFullname;
+	us[QStringLiteral("controls")] = controls;
+	us[QStringLiteral("additional")] = additional;
+	us[QStringLiteral("action")] = action;
+	uss[signalName] = us;
+	object->setProperty("ui-steps", uss);
+	if (getter)
+		pls_add_object_getter(object, QString("ui-steps.%1.getActionData").arg(signalName).toUtf8(), getter);
 }
 
 pls::HotKeyLocker::HotKeyLocker()

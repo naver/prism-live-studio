@@ -19,6 +19,8 @@
 #include <pls/pls-source.h>
 #include <libui.h>
 #include "pls-net-url.hpp"
+#include "frontend-api.h"
+#include "network-state.h"
 
 #ifdef USE_QT_LOOP
 #include <QEventLoop>
@@ -358,11 +360,13 @@ chat_source::chat_source()
 {
 	//PRISM/Zhangdewen/20211028/#10168/Async notify (fix deadlock)
 	asynInvoke = pls_new_nothrow<ChatSourceAsynInvoke>(this);
+	m_netConnection = QObject::connect(pls::NetworkState::instance(), &pls::NetworkState::stateChanged, std::bind(&chat_source::networkStateCallbackFunc, this, std::placeholders::_1));
 }
 
 //PRISM/Zhangdewen/20211028/#10168/Async notify (fix deadlock)
 chat_source::~chat_source()
 {
+	QObject::disconnect(m_netConnection);
 	asynInvoke->setChatSource(nullptr);
 	asynInvoke->deleteLater();
 }
@@ -449,5 +453,15 @@ void chat_source::updateExternParams(const QByteArray &cjson, int sub_code)
 	case OBS_SOURCE_CHAT_UPDATE_PARAMS_SUB_CODE_CHECK_LIVE:
 		dispatchJSEvent(toJson(cjson));
 		break;
+	}
+}
+
+void chat_source::networkStateCallbackFunc(bool accessible)
+{
+	if (!accessible || !m_browser) {
+		return;
+	}
+	if (!pls_is_streaming() && !pls_is_rehearsaling()) {
+		pls_source_invoke_method(m_browser, METHOD_REFRESH_BROWSER);
 	}
 }

@@ -11,6 +11,7 @@
 #include <QDateTime>
 #include <functional>
 #include <vector>
+#include <mutex>
 #include "PLSPlatformBase.hpp"
 
 extern const QString kDefaultCategoryID;
@@ -82,7 +83,7 @@ public:
 	QJsonObject statusData{};  //get in the video api
 	QJsonObject snippetData{}; //get in the video api
 
-	PLSYoutubeLatency latency = PLSYoutubeLatency::Low;
+	PLSYoutubeLatency latency = PLSYoutubeLatency::Normal;
 
 	QString thumbnailUrl{};
 	QPixmap pixMap;
@@ -98,7 +99,7 @@ class PLSPlatformYoutube : public PLSPlatformBase {
 
 public:
 	enum class PLSYoutubeApiType { Normal = 0, StartLive = 1, Update = 2, Rehearsal = 3 };
-	enum class IngestionType { Auto = 0, Rtmps = 1, Hls = 2 };
+	enum class IngestionType { Rtmps = 1, Hls = 2 };
 
 	PLSPlatformYoutube();
 
@@ -194,10 +195,10 @@ signals:
 	void onGetTitleDescription();
 	void selectIDChanged();
 	void privateChangedToOther();
-	void kidsChangedToOther();
 	void closeDialogByExpired();
 	void toShowLoading(bool isShowLoading);
 	void receiveLiveStop();
+	void receiveVideoId(bool isNewCreate, QString sVideoId);
 
 private:
 	int m_idxCategory = 0;
@@ -235,7 +236,7 @@ private:
 	QString m_healthStatus{};
 	int m_ignoreNoDataCount = 2;
 	int m_requestStatusCount = 0;
-	PLSPlatformYoutube::IngestionType m_ingestionType = PLSPlatformYoutube::IngestionType::Auto;
+	PLSPlatformYoutube::IngestionType m_ingestionType = PLSPlatformYoutube::IngestionType::Rtmps;
 
 	QString getShareUrl(bool isLiving, bool isEnc = false) const;
 	void onPrepareLive(bool value) override;
@@ -292,4 +293,6 @@ private:
 	QString getStreamUrlFromJson(const QJsonObject &obj);
 	QString m_startFailedStr{};
 	QString m_lastRequestAPI{};
+
+	mutable std::mutex m_channelScheduleMutex;
 };

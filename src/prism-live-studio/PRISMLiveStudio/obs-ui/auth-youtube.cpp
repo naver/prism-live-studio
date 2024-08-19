@@ -42,6 +42,8 @@ using namespace json11;
 #define YOUTUBE_CHAT_POPOUT_URL \
 	"https://www.youtube.com/live_chat?is_popout=1&dark_theme=1&v=%1"
 
+#define YOUTUBE_CHAT_DOCK_NAME "ytChat"
+
 static const char allowedChars[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 static const int allowedCount = static_cast<int>(sizeof(allowedChars) - 1);
@@ -67,8 +69,22 @@ void RegisterYoutubeAuth()
 }
 
 YoutubeAuth::YoutubeAuth(const Def &d)
-	: OAuthStreamKey(d), section(SECTION_NAME)
+	: OAuthStreamKey(d),
+	  section(SECTION_NAME)
 {
+}
+
+YoutubeAuth::~YoutubeAuth()
+{
+	if (!uiLoaded)
+		return;
+
+#ifdef BROWSER_AVAILABLE
+	OBSBasic *main = OBSBasic::Get();
+
+	main->RemoveDockWidget(YOUTUBE_CHAT_DOCK_NAME);
+	chat = nullptr;
+#endif
 }
 
 bool YoutubeAuth::RetryLogin()
@@ -139,34 +155,38 @@ void YoutubeAuth::LoadUI()
 	QSize size = main->frameSize();
 	QPoint pos = main->pos();
 
-	chat.reset(new YoutubeChatDock());
-	chat->setObjectName("ytChat");
+	chat = new YoutubeChatDock(QTStr("Auth.Chat"));
+	chat->setObjectName(YOUTUBE_CHAT_DOCK_NAME);
 	chat->resize(300, 600);
 	chat->setMinimumSize(200, 300);
-	chat->setWindowTitle(QTStr("Auth.Chat"));
 	chat->setAllowedAreas(Qt::AllDockWidgetAreas);
 
-	browser = cef->create_widget(chat.data(), YOUTUBE_CHAT_PLACEHOLDER_URL,
+	browser = cef->create_widget(chat, YOUTUBE_CHAT_PLACEHOLDER_URL,
 				     panel_cookies);
 	browser->setStartupScript(ytchat_script);
 
 	chat->SetWidget(browser);
-	main->addDockWidget(Qt::RightDockWidgetArea, chat.data());
-	chatMenu.reset(main->AddDockWidget(chat.data()));
+	main->AddDockWidget(chat, Qt::RightDockWidgetArea);
 
 	chat->setFloating(true);
 	chat->move(pos.x() + size.width() - chat->width() - 50, pos.y() + 50);
 
 	if (firstLoad) {
 		chat->setVisible(true);
-	} else {
+	}
+#endif
+
+	main->NewYouTubeAppDock();
+
+	if (!firstLoad) {
 		const char *dockStateStr = config_get_string(
 			main->Config(), service(), "DockState");
 		QByteArray dockState =
 			QByteArray::fromBase64(QByteArray(dockStateStr));
-		main->restoreState(dockState);
+
+		if (main->isVisible() || !main->isMaximized())
+			main->restoreState(dockState);
 	}
-#endif
 
 	uiLoaded = true;
 }
@@ -258,6 +278,11 @@ std::shared_ptr<Auth> YoutubeAuth::Login(QWidget *owner,
 	dlg.setText(text);
 	dlg.setTextFormat(Qt::RichText);
 	dlg.setStandardButtons(QMessageBox::StandardButton::Cancel);
+#if defined(__APPLE__) && QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+	/* We can't show clickable links with the native NSAlert, so let's
+	 * force the old non-native dialog instead. */
+	dlg.setOption(QMessageBox::Option::DontUseNativeDialog);
+#endif
 
 	connect(&dlg, &QMessageBox::buttonClicked, &dlg,
 		[&](QAbstractButton *) {
@@ -285,11 +310,23 @@ std::shared_ptr<Auth> YoutubeAuth::Login(QWidget *owner,
 		dlg.reject();
 	});
 
-	auto open_external_browser = [url]() { OpenBrowser(url); };
+	auto open_external_browser = [url]() {
+		OpenBrowser(url);
+	};
 	QScopedPointer<QThread> thread(CreateQThread(open_external_browser));
 	thread->start();
 
+#if defined(__APPLE__) && QT_VERSION >= QT_VERSION_CHECK(6, 5, 0) && \
+	QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+	const bool nativeDialogs =
+		qApp->testAttribute(Qt::AA_DontUseNativeDialogs);
+	App()->setAttribute(Qt::AA_DontUseNativeDialogs, true);
 	dlg.exec();
+	App()->setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogs);
+#else
+	dlg.exec();
+#endif
+
 	if (dlg.result() == QMessageBox::Cancel ||
 	    dlg.result() == QDialog::Rejected)
 		return nullptr;
@@ -336,10 +373,10 @@ void YoutubeChatDock::SetWidget(QCefWidget *widget_)
 	widget->setLayout(layout);
 	setWidget(widget);
 
-	QWidget::connect(lineEdit, SIGNAL(returnPressed()), this,
-			 SLOT(SendChatMessage()));
-	QWidget::connect(sendButton, SIGNAL(pressed()), this,
-			 SLOT(SendChatMessage()));
+	QWidget::connect(lineEdit, &LineEditAutoResize::returnPressed, this,
+			 &YoutubeChatDock::SendChatMessage);
+	QWidget::connect(sendButton, &QPushButton::pressed, this,
+			 &YoutubeChatDock::SendChatMessage);
 
 	cefWidget.reset(widget_);
 }

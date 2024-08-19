@@ -1,0 +1,53 @@
+
+FontSelectionWindow {
+    max-width: 513px;
+    min-width: 513px;
+    background-color: #272727;
+}
+FontSelectionWindow QPushButton {
+    padding: 0;
+    margin: 0;
+    border: 1px solid #2D2D2D;
+    padding-left: 14px;
+    padding-right: 14px;
+    min-height: 36px;
+    max-height: 36px;
+    border-radius: 18px;
+    background-color: #2D2D2D;
+    color: #BABABA;
+}
+
+        FontSelectionWindow QPushButton:hover {
+            background-color: #444444;
+            color: #BABABA;
+        }
+
+        FontSelectionWindow QPushButton:checked {
+            background-color: #444444;
+            color: #EFFC35;
+        }
+
+
+    FontSelectionWindow #moreBtnIcon {
+        min-width: /*hdpi*/ 15px;
+        max-width: /*hdpi*/ 15px;
+        min-height: /*hdpi*/ 3px;
+        max-height: /*hdpi*/ 3px;
+        background-color: transparent;
+        image: url(:/resource/images/prism-sticker/ic_sticker_more.svg);
+    }
+
+    FontSelectionWindow #moreBtn {
+        min-height: 35px;
+        max-height: 35px;
+        max-width: 39px;
+        min-width: 39px;
+        border-radius: 17px;
+        background-color: #2d2d2d;
+        padding: 0;
+        margin: 0;
+    }
+
+        FontSelectionWindow #moreBtn:hover {
+            background-color: #444444;
+        }

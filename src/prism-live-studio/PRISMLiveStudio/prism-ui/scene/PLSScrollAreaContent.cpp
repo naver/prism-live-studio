@@ -69,6 +69,13 @@ int PLSScrollAreaContent::Refresh(DisplayMethod displayMethod, bool scrollBarVis
 		if (item->GetCurrentFlag()) {
 			currentY = (rows + 1) * realHeight;
 			item->OnCurrentItemChanged(true);
+
+			auto vis = this->visibleRegion().boundingRect();
+			int maxY = vis.y() + vis.height();
+			int minY = vis.y();
+			if (currentY > minY && currentY < maxY) {
+				currentY = SCENE_ITEM_DO_NOT_NEED_AUTO_SCROLL;
+			}
 		}
 
 		sum = y + realHeight;

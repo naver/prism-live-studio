@@ -90,6 +90,15 @@ constexpr auto DEAW_PEN_ON_OVER = ":/resource/images/draw-pen/ic-drawing-on-over
 constexpr auto DEAW_PEN_ON_CLICKED = ":/resource/images/draw-pen/ic-drawing-on-click.svg";
 constexpr auto DEAW_PEN_ON_DISABLE = ":/resource/images/draw-pen/ic-drawing-on-disable.svg";
 
+constexpr auto REMOTE_CONTROL_OFF_NORMAL = ":/resource/images/remote-control/ic-remotecontrol-off-normal.svg";
+constexpr auto REMOTE_CONTROL_OFF_OVER = ":/resource/images/remote-control/ic-remotecontrol-off-over.svg";
+constexpr auto REMOTE_CONTROL_OFF_CLICKED = ":/resource/images/remote-control/ic-remotecontrol-off-click.svg";
+constexpr auto REMOTE_CONTROL_OFF_DISABLE = ":/resource/images/remote-control/ic-remotecontrol-off-disable.svg";
+constexpr auto REMOTE_CONTROL_ON_NORMAL = ":/resource/images/remote-control/ic-remotecontrol-on-normal.svg";
+constexpr auto REMOTE_CONTROL_ON_OVER = ":/resource/images/remote-control/ic-remotecontrol-on-over.svg";
+constexpr auto REMOTE_CONTROL_ON_CLICKED = ":/resource/images/remote-control/ic-remotecontrol-on-click.svg";
+constexpr auto REMOTE_CONTROL_ON_DISABLE = ":/resource/images/remote-control/ic-remotecontrol-on-disable.svg";
+
 constexpr auto PRISM_CAM_OFF_NORMAL = ":/resource/images/icon-source/ic_prismLens_off_normal.svg";
 constexpr auto PRISM_CAM_OFF_OVER = ":/resource/images/icon-source/ic_prismLens_off_over.svg";
 constexpr auto PRISM_CAM_OFF_CLICKED = ":/resource/images/icon-source/ic_prismLens_off_click.svg";
@@ -98,3 +107,20 @@ constexpr auto PRISM_CAM_ON_NORMAL = ":/resource/images/icon-source/ic_prismLens
 constexpr auto PRISM_CAM_ON_OVER = ":/resource/images/icon-source/ic_prismLens_off_over.svg";
 constexpr auto PRISM_CAM_ON_CLICKED = ":/resource/images/icon-source/ic_prismLens_off_click.svg";
 constexpr auto PRISM_CAM_ON_DISABLE = ":/resource/images/icon-source/ic_prismLens_off_disable.svg";
+
+constexpr auto NCB2B_BROWSER_SETTINGS_OFF_NORMAL = ":/resource/images/ncp/ic_browser_off_normal.svg";
+constexpr auto NCB2B_BROWSER_SETTINGS_OFF_OVER = ":/resource/images/ncp/ic_browser_off_over.svg";
+constexpr auto NCB2B_BROWSER_SETTINGS_OFF_CLICKED = ":/resource/images/ncp/ic_browser_off_click.svg";
+constexpr auto NCB2B_BROWSER_SETTINGS_OFF_DISABLE = ":/resource/images/ncp/ic_browser_off_disable.svg";
+constexpr auto NCB2B_BROWSER_SETTINGS_ON_NORMAL = ":/resource/images/ncp/ic_browser_on_normal.svg";
+constexpr auto NCB2B_BROWSER_SETTINGS_ON_OVER = ":/resource/images/ncp/ic_browser_on_over.svg";
+constexpr auto NCB2B_BROWSER_SETTINGS_ON_CLICKED = ":/resource/images/ncp/ic_browser_on_click.svg";
+constexpr auto NCB2B_BROWSER_SETTINGS_ON_DISABLE = ":/resource/images/ncp/ic_browser_on_disable.svg";
+constexpr auto PRISM_SCENETEMPLATE_OFF_NORMAL = ":/resource/images/icon-source/ic_scenetemplate_off_normal.svg";
+constexpr auto PRISM_SCENETEMPLATE_OFF_OVER = ":/resource/images/icon-source/ic_scenetemplate_off_hover.svg";
+constexpr auto PRISM_SCENETEMPLATE_OFF_CLICKED = ":/resource/images/icon-source/ic_scenetemplate_off_click.svg";
+constexpr auto PRISM_SCENETEMPLATE_OFF_DISABLE = ":/resource/images/icon-source/ic_scenetemplate_off_disable.svg";
+constexpr auto PRISM_SCENETEMPLATE_ON_NORMAL = ":/resource/images/icon-source/ic_scenetemplate_on_normal.svg";
+constexpr auto PRISM_SCENETEMPLATE_ON_OVER = ":/resource/images/icon-source/ic_scenetemplate_on_hover.svg";
+constexpr auto PRISM_SCENETEMPLATE_ON_CLICKED = ":/resource/images/icon-source/ic_scenetemplate_on_click.svg";
+constexpr auto PRISM_SCENETEMPLATE_ON_DISABLE = ":/resource/images/icon-source/ic_scenetemplate_on_disable.svg";

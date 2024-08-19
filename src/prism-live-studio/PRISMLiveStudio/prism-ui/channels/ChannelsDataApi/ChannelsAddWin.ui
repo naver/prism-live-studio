@@ -156,7 +156,7 @@
       <item>
        <widget class="QScrollArea" name="ChannelsListWid">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
@@ -165,7 +165,7 @@
          <enum>QFrame::NoFrame</enum>
         </property>
         <property name="verticalScrollBarPolicy">
-         <enum>Qt::ScrollBarAlwaysOff</enum>
+         <enum>Qt::ScrollBarAsNeeded</enum>
         </property>
         <property name="horizontalScrollBarPolicy">
          <enum>Qt::ScrollBarAlwaysOff</enum>
@@ -185,7 +185,7 @@
            <x>0</x>
            <y>0</y>
            <width>1278</width>
-           <height>85</height>
+           <height>69</height>
           </rect>
          </property>
          <property name="sizePolicy">

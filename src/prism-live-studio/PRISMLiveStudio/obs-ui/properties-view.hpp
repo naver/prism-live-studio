@@ -71,6 +71,9 @@ public:
 
 	void ControlChangedToRefresh(const char *setting);
 
+	//PRISM/renjinbo/20240719/#/prism add method
+	void setIsControlChanging(bool isControlChanging_);
+
 public slots:
 	//PRISM/renjinbo/20221229/#/add virtual
 	virtual void ControlChanged();
@@ -86,8 +89,6 @@ public slots:
 	void EditListEdit();
 	void EditListUp();
 	void EditListDown();
-	void EditListReordered(const QModelIndex &parent, int start, int end,
-			       const QModelIndex &destination, int row);
 };
 
 /* ------------------------------------------------------------------------- */
@@ -104,6 +105,28 @@ class OBSPropertiesView : public VScrollArea {
 
 	//PRISM/renjinbo/20221229/#/subclass need read super class
 protected:
+	//prism add property and method
+	QLayout *boxLayout = nullptr;
+	obs_property_type lastPropertyType = OBS_PROPERTY_INVALID;
+	PLSCommonScrollBar *scroll{};
+	bool setCustomContentWidth = false;
+	bool showFiltersBtn = false;
+	bool isControlChanging = false;
+
+	void AddSpacer(const obs_property_type &currentType,
+		       QFormLayout *layout);
+
+	void updateUIWhenAfterAddProperty(obs_property_t *property,
+					  QFormLayout *layout, QLabel *label,
+					  QWidget *widget, bool warning);
+
+	void updateTimerUiClickStatus(bool isClick);
+	void controlChangedToRefresh(obs_property_t *p, const char *setting);
+	void showFilterButton(bool hasNoProperties, const char *id);
+
+	bool isPrismLensOrMobileSource();
+
+	//obs property
 	QWidget *widget = nullptr;
 	properties_t properties;
 	OBSData settings;
@@ -118,14 +141,11 @@ protected:
 	std::string lastFocused;
 	QWidget *lastWidget = nullptr;
 	bool deferUpdate;
-	QLayout *boxLayout = nullptr;
-	obs_property_type lastPropertyType = OBS_PROPERTY_INVALID;
-	PLSCommonScrollBar *scroll{};
-	bool setCustomContentWidth = false;
-	bool showFiltersBtn = false;
-
-	QWidget *NewWidget(obs_property_t *prop, QWidget *widget,
-			   const char *signal);
+	bool enableDefer = true;
+	QPointer<QPushButton> m_ctSaveTemplateBtn;
+	template<typename Sender, typename SenderParent, typename... Args>
+	QWidget *NewWidget(obs_property_t *prop, Sender *widget,
+			   void (SenderParent::*signal)(Args...));
 
 	QWidget *AddCheckbox(QFormLayout *layout, obs_property_t *prop);
 	QWidget *AddText(obs_property_t *prop, QFormLayout *layout,
@@ -154,27 +174,17 @@ protected:
 
 	void resizeEvent(QResizeEvent *event) override;
 
-	void GetScrollPos(int &h, int &v);
-	void SetScrollPos(int h, int v);
-	void AddSpacer(const obs_property_type &currentType,
-		       QFormLayout *layout);
-
-	void updateUIWhenAfterAddProperty(obs_property_t *property,
-					  QFormLayout *layout, QLabel *label,
-					  QWidget *widget, bool warning);
-
-	void updateTimerUiClickStatus(bool isClick);
-	void controlChangedToRefresh(obs_property_t *p, const char *setting);
-	void showFilterButton(bool hasNoProperties, const char *id);
-
-	bool isPrismLensOrMobileSource();
+	void GetScrollPos(int &h, int &v, int &hend, int &vend);
+	void SetScrollPos(int h, int v, int old_hend, int old_vend);
+	// prism add slots
+public slots:
+	void OnShowScrollBar(bool isShow);
+	void OnOpenPrismLensClicked();
 
 public slots:
 	virtual void ReloadProperties();
 	virtual void RefreshProperties();
 	void SignalChanged();
-	void OnShowScrollBar(bool isShow);
-	void OnOpenPrismLensClicked();
 
 signals:
 	void PropertiesResized();
@@ -229,6 +239,7 @@ public:
 			visUpdateCb(OBSGetStrongRef(weakObj), settings);
 	}
 	inline bool DeferUpdate() const { return deferUpdate; }
+	inline void SetDeferrable(bool deferrable) { enableDefer = deferrable; }
 
 	inline OBSObject GetObject() const { return OBSGetStrongRef(weakObj); }
 

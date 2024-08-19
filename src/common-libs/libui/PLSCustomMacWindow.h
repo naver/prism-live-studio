@@ -22,9 +22,14 @@ public:
 	PLSCustomMacWindow &setCloseButtonHidden(bool hidden);
 	PLSCustomMacWindow &setMinButtonHidden(bool hidden);
 	PLSCustomMacWindow &setMaxButtonHidden(bool hidden);
-
+	void setApplicationHidden(bool hidden);
+	bool isApplicationHidden();
 	static void removeMacTitleBar(QWidget *widget);
 	static void moveToFullScreen(QWidget *widget, int screenIdx);
+	static void addCurrentWindowToParentWindow(QWidget *widget);
+	static void removeCurrentWindowFromParentWindow(QWidget *widget);
+
+	static void clipsToBounds(QWidget *widget, bool isClips = true);
 
 public:
 	bool getCloseButtonHidden() const;
@@ -39,5 +44,13 @@ private:
 	bool m_maxButtonHidden{true};
 	bool m_hasCornerRadius{false};
 };
+
+namespace pls {
+namespace mac {
+typedef void (*activeCallback)();
+void notifyPrismActiveSignal(pls::mac::activeCallback callback);
+void sendPrismActiveSignal();
+}
+}
 
 #endif // PLSCUSTOMMACWINDOW_H

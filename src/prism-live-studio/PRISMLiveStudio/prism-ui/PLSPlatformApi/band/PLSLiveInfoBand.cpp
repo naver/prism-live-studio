@@ -42,9 +42,11 @@ PLSLiveInfoBand::PLSLiveInfoBand(PLSPlatformBase *pPlatformBase, QWidget *parent
 
 	updateStepTitle(ui->okButton);
 
-	if (PLS_PLATFORM_API->isPrepareLive()) {
-		ui->horizontalLayout_2->addWidget(ui->okButton);
+#if defined(Q_OS_WIN)
+	if (!PLS_PLATFORM_API->isPrepareLive()) {
+		ui->horizontalLayout_2->addWidget(ui->cancelButton);
 	}
+#endif
 }
 
 PLSLiveInfoBand::~PLSLiveInfoBand()

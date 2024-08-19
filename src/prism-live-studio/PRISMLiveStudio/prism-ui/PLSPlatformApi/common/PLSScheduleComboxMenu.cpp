@@ -18,6 +18,7 @@
 #include <pls-common-define.hpp>
 #include <libutils-api.h>
 #include "libui.h"
+#include "liblog.h"
 
 const int s_itemHeight_30 = 30;
 const int s_itemHeight_40 = 40;
@@ -180,8 +181,11 @@ bool PLSScheduleComboxMenu::eventFilter(QObject *i_Object, QEvent *i_Event)
 		auto mouseEvent = static_cast<QMouseEvent *>(i_Event);
 		QPoint superPoint = parentWidget()->mapToGlobal(QPoint(0, 0));
 		QRect superRect(superPoint.x(), superPoint.y(), parentWidget()->width(), parentWidget()->height());
-		if (superRect.contains(mouseEvent->globalPos())) {
-			QTimer::singleShot(1, [this] { this->setHidden(true); });
+		if (superRect.contains(mouseEvent->globalPosition().toPoint())) {
+			QTimer::singleShot(1, [this] {
+				PLS_INFO("PLSScheduleComboxMenu", "eventFilter singleShot to hide menu");
+				this->setHidden(true);
+			});
 			return true;
 		} else {
 			return QWidget::eventFilter(i_Object, i_Event);

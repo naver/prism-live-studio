@@ -157,10 +157,10 @@ void ChannelFoldCapsule::updateIcons(const QVariantMap &srcData)
 		if (int type = getInfo(srcData, g_data_type, NoType); type == ChannelType) {
 			needSharp = true;
 		}
-		getComplexImageOfChannel(mInfoID, userIcon, platformIcon);
+		getComplexImageOfChannel(mInfoID, ImageType::tagIcon, userIcon, platformIcon);
 	} else {
-		QString channelName = getInfo(srcData, g_platformName);
-		userIcon = getPlatformImageFromName(channelName);
+		QString channelName = getInfo(srcData, g_channelName);
+		userIcon = getPlatformImageFromName(channelName, ImageType::tagIcon);
 	}
 
 	auto pixMap = PLSCHANNELS_API->updateImage(platformIcon, QSize(14, 14) * 4);
@@ -192,93 +192,10 @@ void ChannelFoldCapsule::delayUpdateTextAndIcons()
 		return;
 	}
 	QTimer::singleShot(100, this, [this]() {
+		PLS_INFO("ChannelFoldCapsule", "singleShot delayUpdateTextAndIcons");
 		updateTextFrames(mLastMap);
 		updateIcons(mLastMap);
 	});
-}
-
-QString &ChannelFoldCapsule::formatNumber(QString &number, bool isEng)
-{
-	number = number.simplified();
-	if (number.isEmpty()) {
-		number = "0";
-		return number;
-	}
-	auto N = number.count();
-	if (N <= 3) {
-		return number;
-	}
-	if (N <= 6) {
-		return number.insert(N - 3, ",");
-	}
-
-	QString head;
-	QString suffix;
-
-	switch (N) {
-	case 7:
-		if (isEng) {
-			head = number.chopped(5);
-			head.insert(N - 6, '.');
-			suffix = CHANNELS_TR(Mill);
-		} else {
-			head = number.chopped(4);
-			suffix = CHANNELS_TR(Wan);
-		}
-		break;
-	case 8:
-		if (isEng) {
-			head = number.chopped(5);
-			head.insert(N - 6, '.');
-			suffix = CHANNELS_TR(Mill);
-		} else {
-			head = number.chopped(4);
-			head.insert(1, ',');
-			suffix = CHANNELS_TR(Wan);
-		}
-
-		break;
-	case 9:
-		if (isEng) {
-			head = number.chopped(5);
-			head.insert(N - 6, '.');
-			suffix = CHANNELS_TR(Mill);
-		} else {
-			head = number.chopped(7);
-			head.insert(1, '.');
-			suffix = CHANNELS_TR(Yi);
-		}
-
-		break;
-	case 10:
-		if (isEng) {
-			head = number.chopped(8);
-			head.insert(N - 9, '.');
-			suffix = CHANNELS_TR(Bill);
-		} else {
-			head = number.chopped(8);
-			suffix = CHANNELS_TR(Yi);
-		}
-
-		break;
-
-	default:
-		if (isEng) {
-			head = number.chopped(8);
-			head.insert(N - 9, '.');
-			suffix = CHANNELS_TR(Bill);
-		} else {
-			head = number.chopped(8);
-			suffix = CHANNELS_TR(Yi);
-		}
-
-		break;
-	}
-	if (head.endsWith(".0")) {
-		head.remove(".0");
-	}
-	number = head + suffix;
-	return number;
 }
 
 QString ChannelFoldCapsule::getStatisticsImage(const QString &src, bool isEnabled)
@@ -305,7 +222,6 @@ QString ChannelFoldCapsule::createStatisticsCss(const QString &srcImage)
 
 bool ChannelFoldCapsule::updateStatisticInfo()
 {
-	bool isEng = IS_ENGLISH();
 	auto info = PLSCHANNELS_API->getChannelInfo(mInfoID);
 	bool isLiving = PLSCHANNELS_API->isLiving();
 	bool bReRehearsal = PLSCHANNELS_API->isRehearsaling();
@@ -313,7 +229,7 @@ bool ChannelFoldCapsule::updateStatisticInfo()
 
 	if (info.contains(g_viewers)) {
 		viewers = getInfo(info, g_viewers, QString("0"));
-		formatNumber(viewers, isEng);
+		formatNumber(viewers);
 		if (!isLiving) {
 			viewers = "0";
 		}
@@ -328,7 +244,7 @@ bool ChannelFoldCapsule::updateStatisticInfo()
 	QString likes;
 	if (info.contains(g_likes)) {
 		likes = getInfo(info, g_likes, QString("0"));
-		formatNumber(likes, isEng);
+		formatNumber(likes);
 		if (!isLiving) {
 			likes = "0";
 		}
@@ -337,15 +253,15 @@ bool ChannelFoldCapsule::updateStatisticInfo()
 		ui->LikePicLabel->setStyleSheet(likeCss);
 		ui->LikeInfo->setVisible(true);
 	} else {
-		auto platform = getInfo(info, g_platformName);
-		if (platform != TWITCH && platform != NAVER_TV && platform != AFREECATV) {
+		auto platform = getInfo(info, g_channelName);
+		if (platform == TWITCH || platform == NAVER_TV || platform == AFREECATV || platform == CHZZK) {
+			ui->LikeInfo->setVisible(false);
+		} else {
 			likes = "0";
 			ui->LikeNumberLabel->setText(likes);
 			auto likeCss = createStatisticsCss(getInfo(info, g_likesPix, g_defaultLikeIcon));
 			ui->LikePicLabel->setStyleSheet(likeCss);
 			ui->LikeInfo->setVisible(true);
-		} else {
-			ui->LikeInfo->setVisible(false);
 		}
 	}
 

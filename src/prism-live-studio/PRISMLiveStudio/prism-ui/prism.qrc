@@ -2,5 +2,10 @@
     <qresource prefix="/">
         <file>resource/images/logo/PRISMLiveStudio.ico</file>
         <file>resource/images/logo/PRISMLiveStudio.svg</file>
+        <file>resource/images/logo/PrismActive.ico</file>
+        <file>resource/images/logo/PrismActive.svg</file>
+        <file>resource/images/logo/PrismActive.png</file>
+        <file>resource/images/logo/PrismActive_Mac.png</file>
+        <file>outro/Pretendard-Regular.ttf</file>
     </qresource>
 </RCC>

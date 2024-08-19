@@ -116,14 +116,23 @@ class LIBHTTPCLIENT_API NetworkAccessManager : public QNetworkAccessManager {
 public:
 	explicit NetworkAccessManager();
 
-	bool threadClosed() const;
-	void setThreadClosed(bool threadClosed);
-
 signals:
 	void readyToClose();
+};
+class LIBHTTPCLIENT_API NetworkReply : public std::enable_shared_from_this<NetworkReply> {
+public:
+	explicit NetworkReply(NetworkAccessManagerPtr manager, QNetworkReply *reply);
+
+public:
+	bool valid() const { return m_reply.valid(); }
+	QNetworkReply *get() { return m_reply.object(); }
+	const QNetworkReply *get() const { return m_reply.object(); }
+	void init();
+	void destroy();
 
 private:
-	bool m_threadClosed = false;
+	NetworkAccessManagerPtr m_manager;
+	pls::QObjectPtr<QNetworkReply> m_reply;
 };
 class LIBHTTPCLIENT_API Worker : public QThread {
 	Q_OBJECT
@@ -486,6 +495,5 @@ template<typename IsValid, typename Fn> void pls_async_call_mt(const pls::http::
 {
 	pls_async_call_mt(reply.request().receiverex(), objects, isValid, fn);
 }
-
 
 #endif // _PRISM_COMMON_LIBHTTPCLIENT_LIBHTTPCLIENT_H

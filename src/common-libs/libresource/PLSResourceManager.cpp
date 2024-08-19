@@ -99,14 +99,7 @@ void PLSResourceManager::getLocalCategoriesJson()
 	auto localCategoryPath = PLSResCommonFuns::getAppLocationPath() + "/resources/" + pls_res_const::categoryName;
 	if (!QFileInfo(localCategoryPath).exists()) {
 		PLS_INFO(pls_resource_const::RESOURCE_DOWNLOAD, "local category json not exist, will use app data dir.");
-		QDir appDir(pls_get_dll_dir("libresource"));
-#if defined(Q_OS_WIN)
-		localCategoryPath = appDir.absoluteFilePath(QString("../../data/prism-studio/user/%1").arg(pls_res_const::categoryName));
-
-#elif defined(Q_OS_MACOS)
-		localCategoryPath = pls_get_app_resource_dir() + (QString("/data/prism-studio/user/%1").arg(pls_res_const::categoryName));
-
-#endif // defined(Q_OS_WIN)
+		localCategoryPath = m_secretDir + "/" + pls_res_const::categoryName;
 	}
 
 	auto categoriesData = PLSResCommonFuns::readFile(localCategoryPath);
@@ -136,7 +129,7 @@ void PLSResourceManager::startCheckResource()
 			isSuccess = PLSResCommonFuns::copyFile(categoryTempPath, categoryPath);
 		}
 		categoriesData = isSuccess ? PLSResCommonFuns::readFile(categoryPath)
-					   : PLSResCommonFuns::readFile(pls_get_dll_dir("libresources-download") + "/data/prism-studio/user/" + pls_res_const::categoryName);
+					   : PLSResCommonFuns::readFile(pls_get_dll_dir("libresource") + "/data/prism-studio/user/" + pls_res_const::categoryName);
 		parseResourceJson(m_newCategoriesData, categoriesData);
 		appendResourceDownloadedNum(10 + qint64(QRandomGenerator::global()->bounded(10)));
 		checkResourceUpdate();
@@ -179,27 +172,7 @@ void PLSResourceManager::startDownloadResources(const QHash<QString, QVariant> &
 
 QJsonArray PLSResourceManager::getNeedDownloadResInfo(const QString &moduleName) const
 {
-	QJsonArray needDownloadFileList;
-	QJsonArray fileArray;
-	auto filePath = m_resCacheDir + QString("/%1.json").arg(moduleName);
-	if (!pls_read_json(fileArray, filePath)) {
-		return needDownloadFileList;
-	}
-	for (auto fileInfo : fileArray) {
-		auto obj = fileInfo.toObject();
-		auto type = obj.value("type").toString();
-
-		if (type == "zip") {
-			findZipSubCaheInfo(needDownloadFileList, obj);
-
-		} else {
-			auto filePath_ = obj.value(pls_res_const::resourcePath).toString();
-			if (!isFileExist(filePath_)) {
-				needDownloadFileList.append(obj);
-			}
-		}
-	}
-	return needDownloadFileList;
+	return m_needDownloadFileList.value(moduleName);
 }
 
 QString PLSResourceManager::getModuleJsonUrl(resource_modules modules)
@@ -457,11 +430,11 @@ QJsonArray PLSResourceManager::findNeedDownloadCaheInfo(const QJsonArray &oldCah
 			}
 		} else {
 			auto filePath = obj.value(pls_res_const::resourcePath).toString();
-			auto dataInter = std::find_if(oldCahe.constBegin(), oldCahe.constEnd(), [webName, fileVersion, filePath, this](QJsonValue oldObj) {
+			auto dataInter = std::find_if(oldCahe.constBegin(), oldCahe.constEnd(), [webName, fileVersion, filePath, fileUrl, this](QJsonValue oldObj) {
 				auto oldWebname = oldObj.toObject().value(pls_res_const::resourceWebName).toString();
 				auto oldFileUrl = oldObj.toObject().value(pls_res_const::resourceUrl).toString();
 				auto oldFileVersion = oldObj.toObject().value(pls_res_const::resourceModuleVersion).toInt();
-				return (fileVersion == oldFileVersion && isFileExist(filePath) && (webName == oldWebname));
+				return (fileVersion == oldFileVersion && isFileExist(filePath) && (webName == oldWebname) && oldFileUrl == fileUrl);
 			});
 			if (dataInter == oldCahe.constEnd()) {
 				needFileListArray.append(obj);
@@ -788,9 +761,9 @@ void PLSResourceManager::onDownloadLibrary(PLSResEvents event, const QString &zi
 
 	QMetaObject::invokeMethod(
 		this,
-		[this]() {
+		[this, event]() {
+			emit libraryNeedUpdate(event == PLSResEvents::RES_DOWNLOAD_SUCCESS);
 			parseResTemplates();
-			emit libraryNeedUpdate();
 		},
 		Qt::QueuedConnection);
 	appendResourceDownloadedNum(10 + qint64(QRandomGenerator::global()->bounded(10)));
@@ -821,7 +794,7 @@ void PLSResourceManager::copyTextmotionScreenRes(const QString &zipFilePath, con
 	PLS_INFO(pls_resource_const::RESOURCE_DOWNLOAD, "textmotion screen file = %s uzip  %s", zipFileName.toUtf8().constData(), isSuccess ? "success" : "failed");
 }
 
-void PLSResourceManager::copyTextmotionWeb() const
+void PLSResourceManager::copyTextmotionWeb(bool isUpdate) const
 {
 
 	QString dstWebPath = PLSResCommonFuns::getAppLocationPath() + "/textmotion/web";
@@ -832,6 +805,13 @@ void PLSResourceManager::copyTextmotionWeb() const
 #endif
 	auto isSuccess = PLSResCommonFuns::copyDirectory(srcWebPath, dstWebPath, true);
 	PLS_INFO(pls_resource_const::RESOURCE_DOWNLOAD, "copyTextmotionWeb %s", isSuccess ? "success" : "failed");
+
+	if (isUpdate) {
+		QString dstWebPath = PLSResCommonFuns::getAppLocationPath() + "/textmotion";
+		auto textmotionPath = PLSResCommonFuns::getAppLocationPath() + "/library/Library_Policy_PC/textmotion";
+		auto isSuccess = PLSResCommonFuns::copyDirectory(textmotionPath, dstWebPath, true);
+		PLS_INFO(pls_resource_const::RESOURCE_DOWNLOAD, "copytextmotion res from library to textmotion dir  %s", isSuccess ? "success" : "failed");
+	}
 }
 
 void PLSResourceManager::updateResourceDownloadStatus(const QString &url, PLSResDownloadStatus downloadStatus)
@@ -851,4 +831,13 @@ PLSResDownloadStatus PLSResourceManager::resourceDownloadStatus(const QString &u
 		return m_resourceDownloadStatus.value(url);
 	}
 	return PLSResDownloadStatus::None;
+}
+
+QString PLSResourceManager::getCategoryPath() const
+{
+	auto categoryPath = PLSResCommonFuns::getAppLocationPath() + "/resources/" + pls_res_const::categoryName;
+	if (!QFileInfo(categoryPath).exists()) {
+		categoryPath = QDir::toNativeSeparators(m_resDir + "/category.json");
+	}
+	return categoryPath;
 }

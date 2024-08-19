@@ -192,13 +192,16 @@ static inline uint32_t labelOffset(MultiviewLayout multiviewLayout,
 		n = 6;
 		break;
 	case MultiviewLayout::SCENES_ONLY_25_SCENES:
-		n = 5;
+		n = 10;
+		break;
+	case MultiviewLayout::SCENES_ONLY_16_SCENES:
+		n = 8;
 		break;
 	case MultiviewLayout::SCENES_ONLY_9_SCENES:
-		n = 3;
+		n = 6;
 		break;
 	case MultiviewLayout::SCENES_ONLY_4_SCENES:
-		n = 2;
+		n = 4;
 		break;
 	default:
 		n = 4;
@@ -558,7 +561,8 @@ OBSSource Multiview::GetSourceByPosition(int x, int y)
 	if (!rec)
 		return nullptr;
 	int cx = rec->width();
-	int cy = rec->height();
+	//PRISM/Renjinbo/20231123/#3111/Minus the height of the title
+	int cy = pls_is_os_sys_macos() ? rec->height() : (rec->height() - 40);
 	int minX = 0;
 	int minY = 0;
 	int maxX = cx;

@@ -36,6 +36,12 @@
 #include <qsemaphore.h>
 #include <qdebug.h>
 #include <QGuiApplication>
+#include <qhostinfo.h>
+#include <qhostaddress.h>
+#include <regex>
+#include <QSharedMemory>
+#include <QBuffer>
+#include <QStack>
 
 #include "network-state.h"
 #include "libutils-api-log.h"
@@ -51,6 +57,7 @@
 #if defined(Q_OS_WIN)
 #pragma comment(lib, "Shlwapi.lib")
 #endif
+#include "pls-shared-values.h"
 
 namespace pls {
 bool network_state_start();
@@ -66,8 +73,9 @@ struct LocalGlobalVars {
 	static int g_argc;
 	static char **g_argv;
 	static QStringList g_cmdline_args;
-	static std::optional<bool> g_prism_is_dev;
-	static std::atomic<bool> g_app_exiting;
+	static std::optional<uint64_t> g_prism_is_dev;
+	static std::optional<uint64_t> g_prism_save_local_log;
+	static std::atomic<uint64_t> g_app_exiting;
 	static qulonglong g_qobject_id;
 	static uint64_t g_prism_version;
 	static thread_local uint32_t g_last_error;
@@ -75,15 +83,19 @@ struct LocalGlobalVars {
 int LocalGlobalVars::g_argc = 0;
 char **LocalGlobalVars::g_argv = nullptr;
 QStringList LocalGlobalVars::g_cmdline_args;
-std::optional<bool> LocalGlobalVars::g_prism_is_dev = std::nullopt;
-std::atomic<bool> LocalGlobalVars::g_app_exiting = false;
+std::optional<uint64_t> LocalGlobalVars::g_prism_is_dev = std::nullopt;
+std::optional<uint64_t> LocalGlobalVars::g_prism_save_local_log = std::nullopt;
+std::atomic<uint64_t> LocalGlobalVars::g_app_exiting = 0;
 qulonglong LocalGlobalVars::g_qobject_id = 1;
 uint64_t LocalGlobalVars::g_prism_version = 0;
 thread_local uint32_t LocalGlobalVars::g_last_error = 0;
 
 class object_pool_t {
+	using getters = std::map<QByteArray, pls_getter_t>;
+	using setters = std::map<QByteArray, pls_setter_t>;
+	using objects = std::map<const QObject *, std::tuple<qulonglong, getters, setters>>;
 	mutable std::shared_mutex m_objects_mutex;
-	std::map<const QObject *, qulonglong> m_objects;
+	objects m_objects;
 
 public:
 	bool contains(const QObject *object) const
@@ -94,16 +106,62 @@ public:
 	qulonglong get_qobject_id(const QObject *object) const
 	{
 		std::shared_lock locker(m_objects_mutex);
-		if (auto iter = m_objects.find(object); iter != m_objects.end()) {
-			return iter->second;
-		}
+		if (auto iter = m_objects.find(object); iter != m_objects.end())
+			return std::get<0>(iter->second);
 		return 0;
+	}
+
+	template<typename Fn> static Fn get_gs(const std::map<QByteArray, Fn> &gs, const QByteArray &name)
+	{
+		if (auto iter = gs.find(name); iter != gs.end())
+			return iter->second;
+		return nullptr;
+	}
+	pls_getter_t get_getter(const QObject *object, const QByteArray &name)
+	{
+		std::shared_lock locker(m_objects_mutex);
+		if (auto iter = m_objects.find(object); iter != m_objects.end())
+			return get_gs(std::get<1>(iter->second), name);
+		return nullptr;
+	}
+	bool add_getter(const QObject *object, const QByteArray &name, const pls_getter_t &getter)
+	{
+		std::unique_lock locker(m_objects_mutex);
+		if (auto iter = m_objects.find(object); iter != m_objects.end())
+			return std::get<1>(iter->second).insert(getters::value_type(name, getter)).second;
+		return false;
+	}
+	void remove_getter(const QObject *object, const QByteArray &name)
+	{
+		std::unique_lock locker(m_objects_mutex);
+		if (auto iter = m_objects.find(object); iter != m_objects.end())
+			std::get<1>(iter->second).erase(name);
+	}
+	pls_setter_t get_setter(const QObject *object, const QByteArray &name)
+	{
+		std::shared_lock locker(m_objects_mutex);
+		if (auto iter = m_objects.find(object); iter != m_objects.end())
+			return get_gs(std::get<2>(iter->second), name);
+		return nullptr;
+	}
+	bool add_setter(const QObject *object, const QByteArray &name, const pls_setter_t &setter)
+	{
+		std::unique_lock locker(m_objects_mutex);
+		if (auto iter = m_objects.find(object); iter != m_objects.end())
+			return std::get<2>(iter->second).insert(setters::value_type(name, setter)).second;
+		return false;
+	}
+	void remove_setter(const QObject *object, const QByteArray &name)
+	{
+		std::unique_lock locker(m_objects_mutex);
+		if (auto iter = m_objects.find(object); iter != m_objects.end())
+			std::get<2>(iter->second).erase(name);
 	}
 	void add(QObject *object)
 	{
 		std::unique_lock locker(m_objects_mutex);
 		qulonglong object_id = LocalGlobalVars::g_qobject_id++;
-		pls_abort_assert(m_objects.insert(std::map<const QObject *, qulonglong>::value_type(object, object_id)).second);
+		pls_abort_assert(m_objects.insert(objects::value_type(object, std::make_tuple(object_id, getters(), setters()))).second);
 	}
 	void remove(const QObject *object)
 	{
@@ -1116,6 +1174,8 @@ public:
 	bool is_for_receive() const { return !m_for_send; }
 
 	bool is_online() const { return m_state == state_t::Online; }
+	bool is_sender_online() const { return is_online() && shm_header()->sender_state == state_t::Online; }
+	bool is_receiver_online() const { return is_online() && shm_header()->receiver_state == state_t::Online; }
 
 	char *shm_memory() const { return (char *)m_sm.data(); }
 	shm_header_t *shm_header() const { return (shm_header_t *)shm_memory(); }
@@ -1318,6 +1378,14 @@ LIBUTILSAPI_API bool pls_shm_is_online(pls_shm_t *shm)
 {
 	return shm && shm->is_online();
 }
+LIBUTILSAPI_API bool pls_shm_is_sender_online(pls_shm_t *shm)
+{
+	return shm && shm->is_sender_online();
+}
+LIBUTILSAPI_API bool pls_shm_is_receiver_online(pls_shm_t *shm)
+{
+	return shm && shm->is_receiver_online();
+}
 
 LIBUTILSAPI_API void pls_get_current_datetime(pls_datetime_t &datetime)
 {
@@ -1410,14 +1478,12 @@ LIBUTILSAPI_API QString pls_gen_uuid()
 	return QUuid::createUuid().toString(QUuid::Id128);
 }
 #if defined(Q_OS_MACOS)
-static bool projectIsDebugged()
+static bool projectIsDebugged(int pid)
 {
-	static bool isDebugged = false;
-	static bool isGot = false;
-	if (isGot) {
-		return isDebugged;
+	static QMap<int, bool> isGotMap;
+	if (isGotMap.contains(pid)) {
+		return isGotMap[pid];
 	}
-	isGot = true;
 
 	int junk;
 	int mib[4];
@@ -1429,23 +1495,23 @@ static bool projectIsDebugged()
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_PID;
-	mib[3] = getpid();
+	mib[3] = (pid == -1) ? getpid() : pid;
 
 	size = sizeof(info);
 	junk = sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, NULL, 0);
 	assert(junk == 0);
 
-	isDebugged = ((info.kp_proc.p_flag & P_TRACED) != 0);
-	return isDebugged;
+	isGotMap[pid] = ((info.kp_proc.p_flag & P_TRACED) != 0);
+	return isGotMap[pid];
 }
 #endif
 
-LIBUTILSAPI_API bool pls_is_debugger_present()
+LIBUTILSAPI_API bool pls_is_debugger_present(int pid)
 {
 #if defined(Q_OS_WIN)
 	return IsDebuggerPresent();
 #elif defined(Q_OS_MACOS)
-	return projectIsDebugged();
+	return projectIsDebugged(pid);
 #endif
 }
 
@@ -1517,13 +1583,39 @@ LIBUTILSAPI_API bool pls_prism_is_dev()
 		if (!LocalGlobalVars::g_prism_is_dev.has_value()) {
 #if defined(Q_OS_WIN)
 			QSettings setting("NAVER Corporation", "Prism Live Studio");
-			LocalGlobalVars::g_prism_is_dev = setting.value("DevServer", false).toBool();
+			LocalGlobalVars::g_prism_is_dev = setting.value("DevServer", false).toBool() ? 1 : 0;
 #elif defined(Q_OS_MACOS)
-			LocalGlobalVars::g_prism_is_dev = pls_libutil_api_mac::pls_is_dev_environment();
+			LocalGlobalVars::g_prism_is_dev = pls_libutil_api_mac::pls_is_dev_environment() ? 1 : 0;
 #endif
 		}
 	}
-	return LocalGlobalVars::g_prism_is_dev.value();
+	return LocalGlobalVars::g_prism_is_dev.value() == 1;
+}
+
+LIBUTILSAPI_API bool pls_prism_save_local_log()
+{
+	if (!LocalGlobalVars::g_prism_save_local_log.has_value()) {
+		std::lock_guard guard(pls_global_mutex());
+		if (!LocalGlobalVars::g_prism_save_local_log.has_value()) {
+#if defined(Q_OS_WIN)
+			QSettings setting("NAVER Corporation", "Prism Live Studio");
+			LocalGlobalVars::g_prism_save_local_log = setting.value("LocalLog", false).toBool() ? 1 : 0;
+#elif defined(Q_OS_MACOS)
+			LocalGlobalVars::g_prism_save_local_log = pls_libutil_api_mac::pls_save_local_log() ? 1 : 0;
+#endif
+		}
+	}
+	return LocalGlobalVars::g_prism_save_local_log.value() == 1;
+}
+
+LIBUTILSAPI_API QVariant pls_prism_get_qsetting_value(QString key, QVariant defaultVal)
+{
+#if defined(Q_OS_WIN)
+	QSettings setting = QSettings("NAVER Corporation", "Prism Live Studio");
+#elif defined(Q_OS_MACOS)
+	QSettings setting = QSettings("prismlive", "prismlivestudio");
+#endif
+	return setting.value(key, defaultVal);
 }
 
 static QMap<int, QPair<QString, QString>> getLocaleName()
@@ -1716,11 +1808,15 @@ LIBUTILSAPI_API QList<QHostAddress> pls_get_valid_hosts()
 	return validAddresses;
 }
 
+LIBUTILSAPI_API const char *pls_bool_2_string(bool b)
+{
+	return b ? "true" : "false";
+}
+
 LIBUTILSAPI_API bool pls_show_in_graphical_shell(const QString &pathIn)
 {
 	const QFileInfo fileInfo(pathIn);
 
-#if _WIN32
 	if (!QFile(pathIn).exists()) {
 		QFileInfo fi(pathIn);
 		auto path = fi.absolutePath();
@@ -1737,6 +1833,7 @@ LIBUTILSAPI_API bool pls_show_in_graphical_shell(const QString &pathIn)
 		file.close();
 	}
 
+#if _WIN32
 	QString cmd = "explorer.exe";
 	QStringList param;
 	param += QLatin1String("/select,");
@@ -1764,6 +1861,11 @@ LIBUTILSAPI_API bool pls_unZipFile(const QString &dstDirPath, const QString &src
 	return pls_libutil_api_mac::unZip(dstDirPath, srcFilePath);
 }
 
+LIBUTILSAPI_API bool pls_zipFile(const QString &destZipPath, const QString &sourceDirName, const QString &sourceFolderPath)
+{
+	return pls_libutil_api_mac::zip(destZipPath, sourceDirName, sourceFolderPath);
+}
+
 LIBUTILSAPI_API bool pls_copy_file_with_error_code(const QString &fileName, const QString &newName, bool overwrite, int &errorCode)
 {
 	return pls_libutil_api_mac::pls_copy_file(fileName, newName, overwrite, errorCode);
@@ -1779,14 +1881,14 @@ LIBUTILSAPI_API bool pls_file_is_existed(const QString &filePath)
 	return pls_libutil_api_mac::pls_file_is_existed(filePath);
 }
 
-LIBUTILSAPI_API bool pls_install_mac_package(const QString &unzipFolderPath, const QString &destBundlePath)
+LIBUTILSAPI_API bool pls_install_mac_package(const QString &unzipFolderPath, const QString &destBundlePath, const std::string &prismSession, const std::string &prismGcc, const char *version)
 {
-	return pls_libutil_api_mac::install_mac_package(unzipFolderPath, destBundlePath);
+	return pls_libutil_api_mac::install_mac_package(unzipFolderPath, destBundlePath, prismSession, prismGcc, version);
 }
 
-LIBUTILSAPI_API bool pls_restart_mac_app(const char *restartType)
+LIBUTILSAPI_API bool pls_restart_mac_app(const QStringList &arguments)
 {
-	return pls_libutil_api_mac::pls_restart_mac_app(restartType);
+	return pls_libutil_api_mac::pls_restart_mac_app(arguments);
 }
 
 LIBUTILSAPI_API QString pls_get_existed_downloaded_mac_app(const QString &downloadedBundleDir, const QString &downloadedVersion, bool deleteBundleExceptUpdatedBundle)
@@ -1941,12 +2043,12 @@ LIBUTILSAPI_API std::string pls_unicode_to_utf8(const wchar_t *unicode)
 
 LIBUTILSAPI_API bool pls_get_app_exiting()
 {
-	return LocalGlobalVars::g_app_exiting;
+	return LocalGlobalVars::g_app_exiting == 1;
 }
 
 LIBUTILSAPI_API void pls_set_app_exiting(bool value)
 {
-	LocalGlobalVars::g_app_exiting = value;
+	LocalGlobalVars::g_app_exiting = value ? 1 : 0;
 }
 
 LIBUTILSAPI_API void pls_env_add_path(const QByteArray &path)
@@ -2027,6 +2129,35 @@ LIBUTILSAPI_API bool pls_check_qobject_id(const QObject *object, qulonglong obje
 		return object_pool()->get_qobject_id(object) == object_id;
 	}
 	return false;
+}
+
+LIBUTILSAPI_API bool pls_add_object_getter(const QObject *object, const QByteArray &name, const pls_getter_t &getter)
+{
+	return object_pool()->add_getter(object, name, getter);
+}
+LIBUTILSAPI_API void pls_remove_object_getter(const QObject *object, const QByteArray &name)
+{
+	object_pool()->remove_getter(object, name);
+}
+LIBUTILSAPI_API QVariant pls_call_object_getter(const QObject *object, const QByteArray &name)
+{
+	if (auto getter = object_pool()->get_getter(object, name); getter)
+		return getter();
+	return QVariant();
+}
+LIBUTILSAPI_API
+bool pls_add_object_setter(const QObject *object, const QByteArray &name, const pls_setter_t &setter)
+{
+	return object_pool()->add_setter(object, name, setter);
+}
+LIBUTILSAPI_API void pls_remove_object_setter(const QObject *object, const QByteArray &name)
+{
+	object_pool()->remove_setter(object, name);
+}
+LIBUTILSAPI_API void pls_call_object_setter(const QObject *object, const QByteArray &name, const QVariant &value)
+{
+	if (auto setter = object_pool()->get_setter(object, name); setter)
+		setter(value);
 }
 
 LIBUTILSAPI_API int pls_get_platform_window_height_by_windows_height(int windowsHeight)
@@ -2227,6 +2358,46 @@ LIBUTILSAPI_API bool pls_is_mouse_pressed(Qt::MouseButton button)
 #endif
 }
 
+#if defined(Q_OS_MACOS)
+LIBUTILSAPI_API void pls_set_current_lens(int index)
+{
+	pls_libutil_api_mac::pls_set_current_lens(index);
+}
+#endif
+
+LIBUTILSAPI_API bool pls_is_os_sys_macos()
+{
+#if defined(Q_OS_MACOS)
+	return true;
+#else
+	return false;
+#endif
+}
+LIBUTILSAPI_API bool pls_set_temp_sharememory(const QString &key, const QString &val)
+{
+	QSharedMemory objSharedMemory(shared_values::k_daemon_sm_key);
+	if (!objSharedMemory.isAttached()) {
+		if (!objSharedMemory.attach()) {
+			PLS_INFO("sharememory", "Failed to attach shared memory to the process!!!!, %s", objSharedMemory.errorString().toUtf8().constData());
+			return false;
+		}
+	}
+	QBuffer buffer;
+	buffer.open(QBuffer::WriteOnly);
+	QDataStream out(&buffer);
+	QString fileName = val;
+	out << fileName;
+	objSharedMemory.lock();
+	auto to = objSharedMemory.data();
+	const char *from = buffer.data().data();
+	memcpy(to, from, qMin(static_cast<qint64>(objSharedMemory.size()), buffer.size()));
+	objSharedMemory.unlock();
+	buffer.close();
+
+	objSharedMemory.detach();
+	return true;
+}
+
 LIBUTILSAPI_API uint64_t pls_get_prism_version()
 {
 	return LocalGlobalVars::g_prism_version;
@@ -2239,8 +2410,8 @@ LIBUTILSAPI_API void pls_set_prism_version(uint16_t major, uint16_t minor, uint1
 {
 	uint64_t version = major;
 	version = (version << 16) | minor;
-	version = (version << 32) | patch;
-	version = (version << 48) | build;
+	version = (version << 16) | patch;
+	version = (version << 16) | build;
 	pls_set_prism_version(version);
 }
 LIBUTILSAPI_API uint16_t pls_get_prism_version_major()
@@ -2334,4 +2505,292 @@ LIBUTILSAPI_API pls_queue_item_t *pls_thread_queue_pop(pls_thread_t *thread)
 LIBUTILSAPI_API pls_queue_item_t *pls_thread_queue_try_pop(pls_thread_t *thread)
 {
 	return thread->m_sem.try_acquire() ? pls_locked_queue_pop(&thread->m_queue) : nullptr;
+}
+LIBUTILSAPI_API bool pls_open_url(const QString &url)
+{
+#if defined(Q_OS_WIN)
+	bool isUrl = url.startsWith("http");
+
+	SHELLEXECUTEINFO sei;
+	ZeroMemory(&sei, sizeof(sei));
+	sei.cbSize = sizeof(sei);
+	sei.fMask = SEE_MASK_NOCLOSEPROCESS;
+	sei.nShow = SW_SHOWNORMAL;
+	sei.lpVerb = L"open";
+	sei.lpParameters = reinterpret_cast<const wchar_t *>(url.utf16());
+
+	std::wstring browserPath{};
+	if (!isUrl) {
+		WCHAR explorerPath[255] = {0};
+		GetWindowsDirectory(explorerPath, 255);
+		PathAppend(explorerPath, TEXT("explorer.exe"));
+		browserPath = explorerPath;
+	} else {
+		QSettings settings("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice", QSettings::NativeFormat);
+		auto proId = settings.value("Progid").toString();
+		QSettings settings_2(QString("HKEY_CLASSES_ROOT\\%1\\shell\\open\\command").arg(proId), QSettings::NativeFormat);
+		auto path = settings_2.value("Default").toString();
+		QRegularExpression reg("\"([^\"]*)\"");
+		path = reg.match(path).captured(0).remove('"');
+		browserPath = path.toStdWString();
+	}
+	sei.lpFile = browserPath.c_str();
+	bool ret = false;
+	return ShellExecuteEx(&sei);
+#elif defined(Q_OS_MACOS)
+	return pls_libutil_api_mac::pls_open_url_mac(url);
+#endif
+}
+
+LIBUTILSAPI_API bool pls_lens_needs_reboot()
+{
+#if defined(Q_OS_WIN)
+	return false;
+#elif defined(Q_OS_MACOS)
+	return pls_libutil_api_mac::pls_lens_needs_reboot();
+#endif
+}
+
+LIBUTILSAPI_API bool pls_check_local_host()
+{
+	std::string ipAddress;
+	QHostInfo info = QHostInfo::fromName(QHostInfo::localHostName());
+	foreach(QHostAddress address, info.addresses())
+	{
+		if (address.protocol() == QAbstractSocket::IPv4Protocol) {
+			ipAddress = address.toString().toStdString();
+			std::regex regExp("10.(34|25).*");
+			auto matched = std::regex_match(ipAddress, regExp);
+			if (matched) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+struct Condition {
+	enum class Op {
+		Unknown,          // unknown
+		And,              // &&
+		Or,               // ||
+		Equal,            // =
+		LessThan,         // <
+		LessThanEqual,    // <=
+		GreaterThan,      // >
+		GreaterThanEqual, // >=
+		LeftBracket,      // (
+		RightBracket      // )
+	} op;
+	bool value;
+
+	static bool isLogic(Op op) { return op == Op::And || op == Op::Or; }
+	static bool isCompare(Op op) { return op == Op::Equal || op == Op::LessThan || op == Op::LessThanEqual || op == Op::GreaterThan || op == Op::GreaterThanEqual; }
+	static bool isBracket(Op op) { return op == Op::LeftBracket || op == Op::RightBracket; }
+
+	static void skipSpace(const QByteArray &expression, int &pos, int length)
+	{
+		while (pos < length) {
+			if (expression[pos] == ' ')
+				++pos;
+			else
+				break;
+		}
+	}
+	static Op getOp(const QByteArray &expression, int &pos, int length)
+	{
+		skipSpace(expression, pos, length);
+
+		if (pos >= length)
+			return Op::Unknown;
+
+		if ((length - pos) > 1) {
+			if (expression[pos] == '&' && expression[pos + 1] == '&') {
+				pos += 2;
+				return Op::And;
+			} else if (expression[pos] == '|' && expression[pos + 1] == '|') {
+				pos += 2;
+				return Op::Or;
+			} else if (expression[pos] == '<' && expression[pos + 1] == '=') {
+				pos += 2;
+				return Op::LessThanEqual;
+			} else if (expression[pos] == '>' && expression[pos + 1] == '=') {
+				pos += 2;
+				return Op::GreaterThanEqual;
+			}
+		}
+
+		if (expression[pos] == '<') {
+			pos += 1;
+			return Op::LessThan;
+		} else if (expression[pos] == '>') {
+			pos += 1;
+			return Op::GreaterThan;
+		} else if (expression[pos] == '=') {
+			pos += 1;
+			return Op::Equal;
+		} else if (expression[pos] == '(') {
+			pos += 1;
+			return Op::LeftBracket;
+		} else if (expression[pos] == ')') {
+			pos += 1;
+			return Op::RightBracket;
+		} else {
+			return Op::Unknown;
+		}
+	}
+	static bool getVer(QVersionNumber &ver, const QByteArray &expression, int &pos, int length)
+	{
+		Condition::skipSpace(expression, pos, length);
+
+		int start = pos;
+		while (pos < length) {
+			auto ch = expression[pos];
+			if ((ch >= '0' && ch <= '9') || (ch == '.'))
+				++pos;
+			else
+				break;
+		}
+
+		if (pos <= start)
+			return false;
+
+		auto version = expression.mid(start, pos - start);
+		ver = QVersionNumber::fromString(QString::fromUtf8(version));
+		return true;
+	}
+
+	static Op topOp(const QStack<Condition> &conditions)
+	{
+		if (!conditions.isEmpty())
+			return conditions.top().op;
+		return Op::Unknown;
+	}
+	static bool calc(Op op, const QVersionNumber &ver, const QVersionNumber &version)
+	{
+		switch (op) {
+		case Op::Equal:
+			return version == ver;
+		case Op::LessThan:
+			return version < ver;
+		case Op::LessThanEqual:
+			return version <= ver;
+		case Op::GreaterThan:
+			return version > ver;
+		case Op::GreaterThanEqual:
+			return version >= ver;
+		default:
+			return false;
+		}
+	}
+	static bool calc(QStack<Condition> &conditions)
+	{
+		if (conditions.size() < 2)
+			return false;
+
+		auto v1 = conditions.top();
+		conditions.pop();
+		auto op = conditions.top();
+		conditions.pop();
+		switch (op.op) {
+		case Op::Or:
+			if (conditions.isEmpty()) {
+				return false;
+			} else if (auto &v2 = conditions.top(); isCompare(v2.op)) {
+				v2.value = v2.value || v1.value;
+				return calc(conditions);
+			} else {
+				return false;
+			}
+		case Op::LeftBracket:
+			conditions.push(v1);
+			return true;
+		default:
+			return false;
+		}
+	}
+	static bool push(QStack<Condition> &conditions, const Condition &condition)
+	{
+		switch (condition.op) {
+		case Condition::Op::And:
+		case Condition::Op::Or:
+			if (!isCompare(topOp(conditions)))
+				return false;
+			conditions.push(condition);
+			return true;
+		case Condition::Op::Equal:
+		case Condition::Op::LessThan:
+		case Condition::Op::LessThanEqual:
+		case Condition::Op::GreaterThan:
+		case Condition::Op::GreaterThanEqual:
+			if (auto topOp = Condition::topOp(conditions); topOp == Op::Unknown || topOp == Op::Or || topOp == Op::LeftBracket) {
+				conditions.push(condition);
+				return true;
+			} else if (topOp == Op::And) {
+				conditions.pop();
+				auto &top = conditions.top();
+				top.value = top.value && condition.value;
+				return true;
+			} else {
+				return false;
+			}
+		case Condition::Op::LeftBracket:
+			if (!(conditions.isEmpty() || isLogic(topOp(conditions))))
+				return false;
+			conditions.push(condition);
+			return true;
+		case Condition::Op::RightBracket: {
+			if (!isCompare(topOp(conditions)))
+				return false;
+			else if (!Condition::calc(conditions))
+				return false;
+			return true;
+		}
+		case Condition::Op::Unknown:
+		default:
+			return false;
+		}
+	}
+};
+
+std::optional<bool> pls_check_version(const QByteArray &expression, const QVersionNumber &version)
+{
+	int pos = 0;
+	int length = expression.length();
+
+	QStack<Condition> conditions;
+	while (pos < length) {
+		auto op = Condition::getOp(expression, pos, length);
+		switch (op) {
+		case Condition::Op::And:
+		case Condition::Op::Or:
+		case Condition::Op::LeftBracket:
+		case Condition::Op::RightBracket:
+			if (!Condition::push(conditions, {op, true}))
+				return std::nullopt;
+			break;
+		case Condition::Op::Equal:
+		case Condition::Op::LessThan:
+		case Condition::Op::LessThanEqual:
+		case Condition::Op::GreaterThan:
+		case Condition::Op::GreaterThanEqual:
+			if (QVersionNumber ver; !Condition::getVer(ver, expression, pos, length))
+				return std::nullopt;
+			else if (!Condition::push(conditions, {op, Condition::calc(op, ver, version)}))
+				return std::nullopt;
+			break;
+		case Condition::Op::Unknown:
+		default:
+			return std::nullopt;
+		}
+	}
+
+	if (conditions.size() > 1)
+		Condition::calc(conditions);
+
+	if (conditions.size() != 1)
+		return std::nullopt;
+	else if (auto condition = conditions.top(); Condition::isCompare(condition.op))
+		return condition.value;
+	return std::nullopt;
 }

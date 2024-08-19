@@ -5,6 +5,7 @@
         <file>resource/images/icon-cover-camera.svg</file>
         <file>resource/images/icon-cover-camera-disable.svg</file>
         <file>resource/images/icon-cover-camera-small.svg</file>
+        <file>resource/images/take_photo_delete.svg</file>
         <file>resource/images/txt-dropbox-open-click.svg</file>
         <file>resource/images/txt-dropbox-open-disable.svg</file>
         <file>resource/images/txt-dropbox-open-normal.svg</file>
@@ -205,5 +206,61 @@
         <file>resource/images/ic_fre_disable.svg</file>
         <file>resource/images/collection/ic_help_s_normal.png</file>
         <file>resource/images/collection/ic_help_s_over.png</file>
+        <file>resource/images/navershopping/badge_nshoppinglive.svg</file>
+        <file>resource/images/navershopping/img-nshopping-loading.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-rec-play.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-rec-stop.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-rec-play-disable.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-rec-stop-disable.svg</file>
+        <file>resource/images/ic_Discord_off_click.svg</file>
+        <file>resource/images/ic_Discord_off_normal.svg</file>
+        <file>resource/images/ic_Discord_off_disable.svg</file>
+        <file>resource/images/ic_Discord_off_over.svg</file>
+        <file>resource/images/scene-template/ic-badge-hot.svg</file>
+        <file>resource/images/scene-template/round.svg</file>
+        <file>resource/images/scene-template/ic_arrow_scenetemplate_click.svg</file>
+        <file>resource/images/scene-template/ic_arrow_scenetemplate_disable.svg</file>
+        <file>resource/images/scene-template/ic_arrow_scenetemplate_hover.svg</file>
+        <file>resource/images/scene-template/ic_arrow_scenetemplate_normal.svg</file>
+        <file>resource/images/scene-template/ic_scene_help_hover.svg</file>
+        <file>resource/images/scene-template/ic_scene_help_normal.svg</file>
+        <file>resource/images/navershopping/badge_introducing.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-rec-play.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-rec-stop.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-rec-play-disable.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-rec-stop-disable.svg</file>
+        <file>resource/images/ic_Discord_off_click.svg</file>
+        <file>resource/images/ic_Discord_off_normal.svg</file>
+        <file>resource/images/ic_Discord_off_disable.svg</file>
+        <file>resource/images/ic_Discord_off_over.svg</file>
+        <file>resource/images/ncp/ic_browser_off_click.svg</file>
+        <file>resource/images/ncp/ic_browser_off_disable.svg</file>
+        <file>resource/images/ncp/ic_browser_off_normal.svg</file>
+        <file>resource/images/ncp/ic_browser_off_over.svg</file>
+        <file>resource/images/ncp/ic_browser_on_click.svg</file>
+        <file>resource/images/ncp/ic_browser_on_disable.svg</file>
+        <file>resource/images/ncp/ic_browser_on_normal.svg</file>
+        <file>resource/images/ncp/ic_browser_on_over.svg</file>
+        <file>resource/images/ncp/btn_add_playlist_done_disable.svg</file>
+        <file>resource/images/ncp/btn_add_playlist_done_normal.svg</file>
+        <file>resource/images/ncp/btn_add_playlist_done_over.svg</file>
+        <file>resource/images/ncp/btn_check_white.svg</file>
+        <file>resource/images/ncp/ic_outlink_normal.svg</file>
+        <file>resource/images/ncp/ic_outlink_over.svg</file>
+        <file>resource/images/ncp/ic-refresh-normal.svg</file>
+        <file>resource/images/ncp/ic-refresh-normal-over.svg</file>
+        <file>resource/images/scene-template/ic_prism.png</file>
+        <file>resource/images/toolbar/ic-toolbar-allrepeat-disable.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-allrepeat-normal.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-allrepeat-over.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-allrepeat-select-disable.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-allrepeat-select-normal.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-allrepeat-select-over.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-shuffle-disable.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-shuffle-normal.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-shuffle-over.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-shuffle-select-disable.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-shuffle-select-normal.svg</file>
+        <file>resource/images/toolbar/ic-toolbar-shuffle-select-over.svg</file>
     </qresource>
 </RCC>

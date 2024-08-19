@@ -19,7 +19,7 @@ PLSNaverShoppingNotice::PLSNaverShoppingNotice(QWidget *parent) : PLSDialogView(
 	setHasCaption(true);
 	setMoveInContent(false);
 	setHasHLine(false);
-	setWindowTitle("");
+	setWindowTitle(tr("NaverShoppingLive.Service.Notice"));
 #else
 	setHasCaption(false);
 	setMoveInContent(true);

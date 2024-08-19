@@ -7,6 +7,9 @@
 #include <libui.h>
 #include "pls/pls-source.h"
 #include <QPushButton>
+#include "PLSDialogView.h"
+#include "window-projector.hpp"
+#include "window-basic-main.hpp"
 
 RegionCaptureToolbar::RegionCaptureToolbar(QWidget *parent, OBSSource source) : SourceToolbar(parent, source)
 {
@@ -53,7 +56,7 @@ void RegionCaptureToolbar::OnSelectRegionClicked()
 	regionCapture->StartCapture(max_size, max_size);
 }
 
-TimerSourceToolbar::TimerSourceToolbar(QWidget *parent, OBSSource source) : SourceToolbar(parent, source), m_source(source)
+TimerSourceToolbar::TimerSourceToolbar(QWidget *parent, OBSSource source) : SourceToolbar(parent, source)
 {
 	auto mainlayout = pls_new<QHBoxLayout>();
 	mainlayout->setContentsMargins(0, 0, 0, 0);
@@ -88,10 +91,14 @@ TimerSourceToolbar::~TimerSourceToolbar()
 
 void TimerSourceToolbar::updateBtnState()
 {
+	OBSSource source = GetSource();
+	if (!source) {
+		return;
+	}
 	OBSData settings = obs_data_create();
 	obs_data_set_string(settings, "method", "get_timer_type");
 	obs_data_set_string(settings, "method", "get_timer_state");
-	pls_source_get_private_data(m_source, settings);
+	pls_source_get_private_data(source, settings);
 	const char *startText = obs_data_get_string(settings, "start_text");
 	const char *cancelText = obs_data_get_string(settings, "cancel_text");
 	bool startSate = obs_data_get_bool(settings, "start_state");
@@ -112,9 +119,13 @@ void TimerSourceToolbar::updateBtnState()
 	m_stopBtn->setChecked(cancelHighlight);
 }
 
-bool TimerSourceToolbar::isSameSource(const obs_source_t *rSource) const
+bool TimerSourceToolbar::isSameSource(const obs_source_t *rSource)
 {
-	return rSource == m_source;
+	OBSSource source = GetSource();
+	if (!source) {
+		return false;
+	}
+	return rSource == source;
 }
 
 void TimerSourceToolbar::updatePropertiesButtonState(void *data, calldata_t *params)
@@ -139,19 +150,46 @@ void TimerSourceToolbar::updatePropertiesButtonState(void *data, calldata_t *par
 
 void TimerSourceToolbar::OnStartClicked()
 {
-
+	OBSSource source = GetSource();
+	if (!source) {
+		return;
+	}
 	obs_data_t *settings_ = obs_data_create();
 	obs_data_set_string(settings_, "method", "start_clicked");
-	pls_source_set_private_data(m_source, settings_);
+	pls_source_set_private_data(source, settings_);
 	obs_data_release(settings_);
 	updateBtnState();
 }
 
 void TimerSourceToolbar::OnStopClicked()
 {
+	OBSSource source = GetSource();
+	if (!source) {
+		return;
+	}
 	obs_data_t *settings_ = obs_data_create();
 	obs_data_set_string(settings_, "method", "cancel_clicked");
-	pls_source_set_private_data(m_source, settings_);
+	pls_source_set_private_data(source, settings_);
 	obs_data_release(settings_);
 	updateBtnState();
 }
+
+ChatTemplateSourceToolbar::ChatTemplateSourceToolbar(QWidget *parent, OBSSource source) : SourceToolbar(parent, source)
+{
+	auto mainlayout = pls_new<QHBoxLayout>();
+	mainlayout->setContentsMargins(0, 0, 0, 0);
+	mainlayout->setSpacing(0);
+
+	auto *btn = pls_new<QPushButton>(this);
+	btn->setObjectName("ResizeCT");
+	btn->setText(tr("ChatTemplate.ResizeCT.Button"));
+	btn->setToolTip(tr("ChatTemplate.ResizeCT.ToolTip"));
+	connect(btn, &QPushButton::clicked, OBSBasic::Get(), &OBSBasic::OnResizeCTClicked);
+	mainlayout->addWidget(btn);
+	mainlayout->addStretch();
+	setLayout(mainlayout);
+
+	pls_add_css(this, {"PLSSourceToolbar"});
+}
+
+ChatTemplateSourceToolbar::~ChatTemplateSourceToolbar() {}

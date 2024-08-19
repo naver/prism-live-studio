@@ -30,7 +30,8 @@ public:
 		QString storeName;
 	};
 
-	explicit PLSNaverShoppingLIVEProductDialogView(PLSPlatformNaverShoppingLIVE *platform, const QList<Product> &selectedProducts, bool isLiving, bool isPlanningLive, QWidget *parent = nullptr);
+	explicit PLSNaverShoppingLIVEProductDialogView(PLSPlatformNaverShoppingLIVE *platform, PLSProductType productType, const QList<Product> &selectedProducts, const QList<Product> &otherProducts,
+						       bool isLiving, bool isPlanningLive, QWidget *parent = nullptr);
 	~PLSNaverShoppingLIVEProductDialogView() override;
 
 	QString getLang() const;
@@ -51,6 +52,7 @@ private:
 	void updateSearchKeywords(const QString &searchKeyword = QString(), bool showSearchKeywords = true);
 
 	bool isSelectedProductNo(qint64 productNo) const;
+	bool isOtherProductNo(qint64 productNo);
 	bool findItemView(PLSNaverShoppingLIVEProductItemView *&itemView, const QList<PLSNaverShoppingLIVEProductItemView *> &itemViews, qint64 productNo) const;
 	void syncItemViewSelectedState(const QList<PLSNaverShoppingLIVEProductItemView *> *current, const QList<PLSNaverShoppingLIVEProductItemView *> &itemViews, qint64 productNo,
 				       bool selected) const;
@@ -129,6 +131,7 @@ private:
 	QList<PLSNaverShoppingLIVEProductItemView *> searchProductItemViews;
 	QList<PLSNaverShoppingLIVESearchKeywordItemView *> searchKeywordItemViews;
 	QList<Product> selectedProducts;
+	QList<Product> otherProducts;
 	QList<Product> originProducts;
 	QList<qint64> newRecentProductNos;
 	qint64 storeSearchIndex = 0;
@@ -137,6 +140,8 @@ private:
 	bool isLiving = false;
 	bool isPlanningLive = false;
 	bool doneFlag = false;
+	PLSProductType productType;
+	QMap<QString, pls::http::Request> cancelSearchRequestMap;
 
 	friend class PLSNaverShoppingLIVEStoreNameList;
 };

@@ -15,6 +15,7 @@ public:
 
 	void onPrepareLive(bool value) override;
 	void onAlLiveStarted(bool) override;
+	QString getShareUrlEnc() override;
 
 	QJsonObject getLiveStartParams() override;
 };

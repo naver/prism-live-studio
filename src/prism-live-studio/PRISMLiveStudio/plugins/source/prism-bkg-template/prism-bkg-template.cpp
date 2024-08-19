@@ -569,9 +569,23 @@ static void background_template_source_clear_texture(gs_texture_t *tex)
 static void background_template_source_video_render(void *data, gs_effect_t *effect)
 {
 	auto context = (background_template_source *)(data);
-	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), context->source_texture);
+	const bool srgb = gs_get_color_space() == GS_CS_SRGB;
+	const bool previous = gs_framebuffer_srgb_enabled();
+	gs_enable_framebuffer_srgb(!srgb);
+
+	gs_blend_state_push();
+	gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+
+	gs_eparam_t* const param = gs_effect_get_param_by_name(effect, "image");
+	if(srgb)
+		gs_effect_set_texture(param, context->source_texture);
+	else
+		gs_effect_set_texture_srgb(param, context->source_texture);
+
 	gs_draw_sprite(context->source_texture, 0, 0, 0);
-	pls_used(effect);
+
+	gs_blend_state_pop();
+	gs_enable_framebuffer_srgb(previous);
 }
 
 static void background_templete_source_update_size(void *data, uint32_t width, uint32_t height)
@@ -640,10 +654,8 @@ static void background_template_source_render(void *data, obs_source_t *source)
 	gs_texture_t *pre_rt = gs_get_render_target();
 	gs_projection_push();
 	gs_viewport_push();
-	gs_blend_state_push();
 	gs_matrix_push();
 	gs_matrix_identity();
-	gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
 
 	gs_set_render_target(bg_source->source_texture, nullptr);
 	gs_set_viewport(0, 0, source_width, source_height);
@@ -655,7 +667,6 @@ static void background_template_source_render(void *data, obs_source_t *source)
 	gs_matrix_pop();
 	gs_viewport_pop();
 	gs_projection_pop();
-	gs_blend_state_pop();
 
 	obs_leave_graphics();
 }
@@ -788,7 +799,7 @@ void register_background_template_source()
 	obs_source_info info = {};
 	info.id = "prism_background_template_source";
 	info.type = OBS_SOURCE_TYPE_INPUT;
-	info.output_flags = OBS_SOURCE_VIDEO;
+	info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_SRGB;
 	info.get_name = background_template_source_get_name;
 	info.create = background_template_source_create;
 	info.destroy = background_template_source_destroy;

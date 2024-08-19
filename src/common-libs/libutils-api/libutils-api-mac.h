@@ -65,6 +65,7 @@ bool pls_is_process_running(const char *process_name, int &process_id);
 bool pls_is_process_running(unsigned int pid);
 
 bool pls_is_dev_environment();
+bool pls_save_local_log();
 
 uint32_t pls_current_process_id();
 
@@ -74,6 +75,8 @@ pls_mac_ver_t pls_get_mac_systerm_ver();
 
 bool unZip(const QString &dstDirPath, const QString &srcFilePath);
 
+bool zip(const QString &destZipPath, const QString &sourceDirName, const QString &sourceFolderPath);
+
 bool pls_removeZipFile(const QString &dzipFile);
 
 bool pls_copy_file(const QString &fileName, const QString &newName, bool overwrite, int &errorCode);
@@ -82,9 +85,9 @@ QString pls_get_system_identifier();
 
 bool pls_file_is_existed(const QString &filePath);
 
-bool install_mac_package(const QString &sourceBundlePath, const QString &destBundlePath);
+bool install_mac_package(const QString &sourceBundlePath, const QString &destBundlePath, const std::string &prismSession, const std::string &prismGcc, const char *version);
 
-bool pls_restart_mac_app(const char *restartType);
+bool pls_restart_mac_app(const QStringList &arguments);
 
 QString pls_get_existed_downloaded_mac_app(const QString &downloadedBundleDir, const QString &downloadedVersion, bool deleteBundleExceptUpdatedBundle);
 
@@ -101,7 +104,7 @@ MacHandle pls_process_create(const QString &program, const QStringList &argument
 MacHandle pls_process_create(uint32_t process_id);
 
 //#2650 Use NSWorkspace to create sub process, This will not inherit all environment(camera permission and others) of the parent process. like NSTask.
-typedef void (*PLSMacProcessCallback)(void *inUserData, bool isSucceed);
+typedef void (*PLSMacProcessCallback)(void *inUserData, bool isSucceed, int pid);
 void pls_mac_create_process_with_not_inherit(const QString &program, const QStringList &arguments, void *receiver = nullptr, PLSMacProcessCallback callback = nullptr);
 bool pls_process_destroy(MacHandle handle);
 
@@ -150,4 +153,10 @@ bool pls_is_mouse_pressed_by_mac(Qt::MouseButton button);
 bool pls_is_lens_has_run();
 
 QString pls_get_app_version_by_identifier(const char *bundleID);
+
+void pls_set_current_lens(int index);
+bool pls_get_is_app_quitting_by_dock();
+bool pls_open_url_mac(const QString &url);
+
+bool pls_lens_needs_reboot();
 }

@@ -836,6 +836,40 @@ QLabel#sourceIconLabel[type="invisible.valid.unselect.prismlens"] {
 }
 /* prism lens end*/
 
+/* prism lens start*/
+QLabel#sourceIconLabel[type="visible.valid.unselect.spout2"] {
+	image: url(":/resource/images/ic_spout2_off_normal.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.valid.select.spout2"] {
+	image: url(":/resource/images/ic_spout2_on_normal.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.select.spout2"] {
+	image: url(":/resource/images/ic_spout2_on_disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.unselect.spout2"] {
+image: url(":/resource/images/ic_spout2_off_disable.svg");
+}
+/* prism lens end*/
+
+	QLabel#sourceIconLabel[type="visible.valid.unselect.chzzksponsor"] {
+		image: url(":/resource/images/ic_chzzksponsor_off_normal.svg");
+	}
+
+	QLabel#sourceIconLabel[type="visible.valid.select.chzzksponsor"] {
+		image: url(":/resource/images/ic_chzzksponsor_on_normal.svg");
+	}
+
+	QLabel#sourceIconLabel[type="invisible.valid.select.chzzksponsor"] {
+		image: url(":/resource/images/ic_chzzksponsor_on_disable.svg");
+	}
+
+	QLabel#sourceIconLabel[type="invisible.valid.unselect.chzzksponsor"] {
+		image: url(":/resource/images/ic_chzzksponsor_off_disable.svg");
+	}
+
 SourceTreeItem #sourceRenameEditor {
 	padding-left:/*hdpi*/ 5px;
 	min-height:/*hdpi*/ 24px;
@@ -870,8 +904,7 @@ SourceTreeItem #sourceNameLabel[status="invisible.select"]{
     font-weight: bold;
 }
 
-
-SourceTreeSubItemCheckBox {
+SourceTreeItem #expandSubItem {
 	background: transparent;
 	outline: none;
 	min-width: /*hdpi*/ 14px;
@@ -880,66 +913,111 @@ SourceTreeSubItemCheckBox {
 	max-height: /*hdpi*/ 14px;
 }
 
-	SourceTreeSubItemCheckBox::indicator {
-		min-width: /*hdpi*/ 11px;
-		max-width: /*hdpi*/ 11px;
-		min-height: /*hdpi*/ 13px;
-		max-height: /*hdpi*/ 13px;
-	}
+SourceTreeItem #expandSubItem::indicator {
+	min-width: /*hdpi*/ 11px;
+	max-width: /*hdpi*/ 11px;
+	min-height: /*hdpi*/ 13px;
+	max-height: /*hdpi*/ 13px;
+}
 
-SourceTreeSubItemCheckBox::indicator:checked,
-SourceTreeSubItemCheckBox::indicator:checked:hover {
+SourceTreeItem #expandSubItem::indicator:checked,
+SourceTreeItem #expandSubItem::indicator:checked:hover {
 	image:url(":/resource/images/ic-group-normal.svg");
 }
 
-SourceTreeSubItemCheckBox::indicator:unchecked,
-SourceTreeSubItemCheckBox::indicator:unchecked:hover {
+SourceTreeItem #expandSubItem::indicator:unchecked,
+SourceTreeItem #expandSubItem::indicator:unchecked:hover {
 	image:url(":/resource/images/ic-group-open-normal.svg");
 }
 
-SourceTreeItem #sourceIconViewCheckbox::indicator, SourceTreeItem #sourceLockCheckbox::indicator{
-	min-width:/*hdpi*/ 22px;
-	max-width:/*hdpi*/ 22px;
-	min-height:/*hdpi*/ 22px;
-	max-height:/*hdpi*/ 22px;
+SourceTreeItem #sourceIconViewCheckbox::indicator, SourceTreeItem #sourceLockCheckbox::indicator {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
 }
 
 
-LockedCheckBox {
-    outline: none;
-    background: transparent;
-	min-width:/*hdpi*/ 22px;
-	max-width:/*hdpi*/ 22px;
-	min-height:/*hdpi*/ 22px;
-	max-height:/*hdpi*/ 22px;
+SourceTreeItem #sourceLockCheckbox {
+	outline: none;
+	background: transparent;
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
 }
 
-LockedCheckBox::indicator:unchecked
+SourceTreeItem #sourceLockCheckbox::indicator:unchecked
 {
 	image:url(":/resource/images/ic-source-unlock-normal.svg");
 }
 
-LockedCheckBox::indicator:unchecked:hover
+SourceTreeItem #sourceLockCheckbox::indicator:unchecked:hover
 {
 	image:url(":/resource/images/ic-source-unlock-over.svg");
 }
 
-LockedCheckBox::indicator:unchecked:pressed
+SourceTreeItem #sourceLockCheckbox::indicator:unchecked:pressed
 {
 	image:url(":/resource/images/ic-source-unlock-click.svg");
 }
 
-LockedCheckBox::indicator:checked
+SourceTreeItem #sourceLockCheckbox::indicator:checked
 {
 	image:url(":/resource/images/ic-source-lock-normal.svg");
 }
 
-LockedCheckBox::indicator:checked:hover
+SourceTreeItem #sourceLockCheckbox::indicator:checked:hover
 {
 	image:url(":/resource/images/ic-source-lock-over.svg");
 }
 
-LockedCheckBox::indicator:checked:pressed
+SourceTreeItem #sourceLockCheckbox::indicator:checked:pressed
 {
 	image:url(":/resource/images/ic-source-lock-click.svg");
+}
+
+
+SourceTreeItem #sourceIconViewCheckbox {
+	outline: none;
+	background: transparent;
+	min-width:/*hdpi*/ 22px;
+	max-width:/*hdpi*/ 22px;
+	min-height:/*hdpi*/ 22px;
+	max-height:/*hdpi*/ 22px;
+}
+SourceTreeItem #sourceIconViewCheckbox::indicator
+{
+    min-width:/*hdpi*/ 22px;
+	max-width:/*hdpi*/ 22px;
+	min-height:/*hdpi*/ 22px;
+	max-height:/*hdpi*/ 22px;
+}
+SourceTreeItem #sourceIconViewCheckbox::indicator:unchecked {
+	image: url(":/resource/images/icon-source/icon-source-view-off-normal.svg");
+}
+
+SourceTreeItem #sourceIconViewCheckbox::indicator:unchecked:hover
+{
+	image:url(":/resource/images/icon-source/icon-source-view-off-over.svg");
+}
+
+SourceTreeItem #sourceIconViewCheckbox::indicator:unchecked:pressed
+{
+	image:url(":/resource/images/icon-source/icon-source-view-off-click.svg");
+}
+
+SourceTreeItem #sourceIconViewCheckbox::indicator:checked
+{
+	image:url(":/resource/images/ic-source-view-normal.svg");
+}
+
+SourceTreeItem #sourceIconViewCheckbox::indicator:checked:hover
+{
+	image:url(":/resource/images/ic-source-view-over.svg");
+}
+
+SourceTreeItem #sourceIconViewCheckbox::indicator:checked:pressed
+{
+	image:url(":/resource/images/ic-source-view-click.svg");
 }

@@ -9,6 +9,7 @@
 #include <QSettings>
 #include <QButtonGroup>
 #include <QString>
+#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -43,10 +44,19 @@ private slots:
 
     void on_pushButton_4_clicked();
 
+    void on_pushButton_6_clicked();
+
+    void on_pushButton_7_clicked();
+
+    void on_pushButton_5_clicked();
+
     private:
     void loadOldIni();
     void creatSettings(const QString &filePath);
     void genIni();
+    QString absoluteDirPath(const QString&moduleName);
+    void startImportIniToApp();
+
 private:
     Ui::MainWindow *ui;
     // feature => <keys , lang => < key => text >  >
@@ -57,6 +67,8 @@ private:
     QButtonGroup m_fileFlagGroup;
     QString m_repalaceSrcDir;
     QString m_replaceDstDir;
+    int m_genCount = -1;
+    QTimer m_timer;
 
 };
 #endif // MAINWINDOW_H

@@ -43,13 +43,15 @@ enum MissingFilesRole { EntryStateRole = Qt::UserRole, NewPathsToProcessRole };
 
 MissingFilesPathItemDelegate::MissingFilesPathItemDelegate(
 	bool isOutput, const QString &defaultPath)
-	: QStyledItemDelegate(), isOutput(isOutput), defaultPath(defaultPath)
+	: QStyledItemDelegate(),
+	  isOutput(isOutput),
+	  defaultPath(defaultPath)
 {
 }
 
 QWidget *MissingFilesPathItemDelegate::createEditor(
 	QWidget *parent, const QStyleOptionViewItem & /* option */,
-	const QModelIndex &index) const
+	const QModelIndex &) const
 {
 	QSizePolicy buttonSizePolicy(QSizePolicy::Policy::Minimum,
 				     QSizePolicy::Policy::Expanding,
@@ -101,8 +103,6 @@ QWidget *MissingFilesPathItemDelegate::createEditor(
 
 	container->setLayout(layout);
 	container->setFocusProxy(text);
-
-	UNUSED_PARAMETER(index);
 
 	return container;
 }
@@ -165,9 +165,15 @@ void MissingFilesPathItemDelegate::handleBrowse(QWidget *container)
 
 	bool isSet = false;
 	if (isOutput) {
+		pls::HotKeyLocker locker;
 		QString newPath = QFileDialog::getOpenFileName(
 			container, QTStr("MissingFiles.SelectFile"),
 			currentPath, nullptr);
+
+#ifdef __APPLE__
+		// TODO: Revisit when QTBUG-42661 is fixed
+		container->window()->raise();
+#endif
 
 		if (!newPath.isEmpty()) {
 			container->setProperty(PATH_LIST_PROP,
@@ -354,7 +360,7 @@ void MissingFilesModel::fileCheckLoop(QList<MissingFileEntry> files,
 		if (os_file_exists(testFile.toStdString().c_str())) {
 			if (!prompted) {
 				QMessageBox::StandardButton button =
-					QMessageBox::question(
+					OBSMessageBox::question(
 						nullptr,
 						QTStr("MissingFiles.AutoSearch"),
 						QTStr("MissingFiles.AutoSearchText"));
@@ -462,6 +468,10 @@ OBSMissingFiles::OBSMissingFiles(obs_missing_files_t *files, QWidget *parent)
 {
 	setupUi(ui);
 	pls_add_css(this, {"QToolButton"});
+
+	setMinimumSize(700, pls_is_os_sys_macos() ? 372 : 400);
+	initSize(848, pls_is_os_sys_macos() ? 502 : 530);
+
 	ui->tableView->setModel(filesModel);
 	ui->tableView->setItemDelegateForColumn(
 		MissingFilesColumn::OriginalPath,
@@ -480,6 +490,7 @@ OBSMissingFiles::OBSMissingFiles(obs_missing_files_t *files, QWidget *parent)
 		QHeaderView::ResizeMode::ResizeToContents);
 	ui->tableView->setEditTriggers(
 		QAbstractItemView::EditTrigger::CurrentChanged);
+	ui->tableView->setIconSize(QSize(40, 40));
 
 	ui->warningIcon->setPixmap(
 		filesModel->warningIcon.pixmap(QSize(32, 32)));
@@ -509,8 +520,8 @@ OBSMissingFiles::OBSMissingFiles(obs_missing_files_t *files, QWidget *parent)
 		&OBSMissingFiles::browseFolders);
 	connect(ui->cancelButton, &QPushButton::clicked, this,
 		&OBSMissingFiles::close);
-	connect(filesModel, SIGNAL(dataChanged(QModelIndex, QModelIndex)), this,
-		SLOT(dataChanged()));
+	connect(filesModel, &MissingFilesModel::dataChanged, this,
+		&OBSMissingFiles::dataChanged);
 
 	QModelIndex index = filesModel->createIndex(0, 1);
 	QMetaObject::invokeMethod(ui->tableView, "setCurrentIndex",
@@ -563,6 +574,7 @@ void OBSMissingFiles::saveFiles()
 
 void OBSMissingFiles::browseFolders()
 {
+	pls::HotKeyLocker locker;
 	QString dir = QFileDialog::getExistingDirectory(
 		this, QTStr("MissingFiles.SelectDir"), "",
 		QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);

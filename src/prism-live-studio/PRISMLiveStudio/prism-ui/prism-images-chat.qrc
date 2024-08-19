@@ -70,5 +70,26 @@
         <file>resource/images/chat/ic-prismchat-normal.svg</file>
         <file>resource/images/chat/ic-prismchat-over.svg</file>
         <file>resource/images/chat/chat-zero.svg</file>
+        <file>resource/images/chat/btn-tab-default-off-click.svg</file>
+        <file>resource/images/chat/btn-tab-default-off-disable.svg</file>
+        <file>resource/images/chat/btn-tab-default-off-normal.svg</file>
+        <file>resource/images/chat/btn-tab-default-off-over.svg</file>
+        <file>resource/images/chat/btn-tab-default-on-click.svg</file>
+        <file>resource/images/chat/btn-tab-default-on-normal.svg</file>
+        <file>resource/images/chat/btn-tab-default-on-over.svg</file>
+        <file>resource/images/chat/btn-tab-chzzk-off-click.svg</file>
+        <file>resource/images/chat/btn-tab-chzzk-off-disable.svg</file>
+        <file>resource/images/chat/btn-tab-chzzk-off-over.svg</file>
+        <file>resource/images/chat/btn-tab-chzzk-on-click.svg</file>
+        <file>resource/images/chat/btn-tab-chzzk-on-normal.svg</file>
+        <file>resource/images/chat/btn-tab-chzzk-on-over.svg</file>
+        <file>resource/images/chat/btn-tab-chzzk-off-normal.svg</file>
+        <file>resource/images/chat/btn-tab-all-off-click.svg</file>
+        <file>resource/images/chat/btn-tab-all-off-disable.svg</file>
+        <file>resource/images/chat/btn-tab-all-off-normal.svg</file>
+        <file>resource/images/chat/btn-tab-all-off-over.svg</file>
+        <file>resource/images/chat/btn-tab-all-on-click.svg</file>
+        <file>resource/images/chat/btn-tab-all-on-normal.svg</file>
+        <file>resource/images/chat/btn-tab-all-on-over.svg</file>
     </qresource>
 </RCC>

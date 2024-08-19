@@ -23,6 +23,7 @@
 #include <qpair.h>
 #include "../prism-ui/main/audio-meter-wrapper.h"
 #include "../prism-ui/main/pls-gpop-data.hpp"
+#include "../prism-ui/scene-templates/PLSSceneTemplateModel.h"
 
 class PLSLoginInfo;
 class QWidget;
@@ -227,6 +228,10 @@ FRONTEND_API QString pls_get_prism_usercode();
 
 FRONTEND_API QByteArray pls_get_prism_cookie();
 
+FRONTEND_API QString pls_get_b2b_auth_url();
+
+FRONTEND_API bool pls_get_b2b_acctoken(const QString &url);
+
 /**
   * get cpu, gpu, memory data
   * param:
@@ -252,6 +257,8 @@ FRONTEND_API int pls_alert_message_count();
 FRONTEND_API QList<std::tuple<QString, QString>> pls_get_user_active_channles_info();
 
 FRONTEND_API bool pls_is_rehearsal_info_display();
+
+FRONTEND_API QString pls_get_remote_control_mobile_name(const QString &platformName);
 
 enum class pls_frontend_event {
 	PLS_FRONTEND_EVENT_TRANSITION_DURATION_CHANGED, // transition duration changed
@@ -286,6 +293,15 @@ enum class pls_frontend_event {
 	PLS_FRONTEND_EVENT_REMOTE_CONTROL_CLICK_CLOSE_CONNECT,
 	PLS_FRONTEND_EVENT_REMOTE_CONTROL_CONNECTION_CHANGED,
 	PLS_FRONTEND_EVENT_REMOTE_CONTROL_RNNOISE_CHANGED,
+
+	//PRISM/Liuying/20240118/#4076/add events for streaming time ready
+	PLS_FRONTEND_EVENT_STREAMING_TIME_READY,
+
+	//PRISM/FanZirong/20240402/#4948/add events for reset spout ouptut
+	PLS_FRONTEND_EVENT_RESET_VIDEO,
+
+	//PRISM/Zhongling/20240416/#5096 add shutting down event
+	PLS_FRONTEND_EVENT_PRISM_SHUTTING_DOWN
 };
 /**
   * frontend event callback
@@ -304,44 +320,12 @@ using pls_frontend_event_cb = void (*)(pls_frontend_event event, const QVariantL
   */
 FRONTEND_API void pls_frontend_add_event_callback(pls_frontend_event_cb callback, void *context);
 /**
-  * add frontend event callback
-  * param:
-  *     [in] event    : event for notify
-  *     [in] callback : frontend event callback
-  *     [in] context  : user context
-  */
-FRONTEND_API void pls_frontend_add_event_callback(pls_frontend_event event, pls_frontend_event_cb callback, void *context);
-/**
-  * add frontend event callback
-  * param:
-  *     [in] events   : events for notify
-  *     [in] callback : frontend event callback
-  *     [in] context  : user context
-  */
-FRONTEND_API void pls_frontend_add_event_callback(QList<pls_frontend_event> events, pls_frontend_event_cb callback, void *context);
-/**
   * remove frontend event callback
   * param:
   *     [in] callback : frontend event callback
   *     [in] context  : user context
   */
 FRONTEND_API void pls_frontend_remove_event_callback(pls_frontend_event_cb callback, void *context);
-/**
-  * remove frontend event callback
-  * param:
-  *     [in] event    : event for notify
-  *     [in] callback : frontend event callback
-  *     [in] context  : user context
-  */
-FRONTEND_API void pls_frontend_remove_event_callback(pls_frontend_event event, pls_frontend_event_cb callback, void *context);
-/**
-  * remove frontend event callback
-  * param:
-  *     [in] events   : events for notify
-  *     [in] callback : frontend event callback
-  *     [in] context  : user context
-  */
-FRONTEND_API void pls_frontend_remove_event_callback(QList<pls_frontend_event> events, pls_frontend_event_cb callback, void *context);
 
 FRONTEND_API QString pls_get_theme_dir_path();
 
@@ -409,11 +393,10 @@ FRONTEND_API double pls_basic_config_get_double(const char *section, const char 
 FRONTEND_API bool pls_inside_visible_screen_area(QRect geometry);
 
 enum class pls_check_update_result_t {
-	Ok = 0x01,
-	Failed = 0x02,
-	HasUpdate = 0x10,
-	OkNoUpdate = Ok,
-	OkHasUpdate = Ok | HasUpdate,
+	Failed = 0x01,
+	HmacExceedTime = 0x02,
+	HasUpdate = 0x03,
+	NoUpdate = 0x04,
 };
 
 enum class pls_upload_file_result_t {
@@ -528,13 +511,13 @@ FRONTEND_API QString pls_get_absolute_config_path(const QString &config_path);
 
 FRONTEND_API QVariantMap pls_http_request_default_headers(bool hasGcc = true);
 
-FRONTEND_API std::string pls_get_offline_javaScript();
 FRONTEND_API QString pls_get_md5(const QString &originStr, const QString &prefix = "");
 
 enum class ControlSrcType { None, RemoteControl, OutPutTimer, StreamDeck };
 FRONTEND_API ControlSrcType pls_previous_broadcast_control_by();
 FRONTEND_API void pls_set_broadcast_control(const ControlSrcType &control = ControlSrcType::None);
 FRONTEND_API ControlSrcType pls_previous_record_control_by();
+FRONTEND_API ControlSrcType pls_get_current_live_control_type();
 
 FRONTEND_API void pls_start_broadcast(bool toStart = true, const ControlSrcType &control = ControlSrcType::None);
 FRONTEND_API void pls_start_broadcast_in_info(bool toStart = true);
@@ -558,10 +541,21 @@ FRONTEND_API bool pls_source_support_rnnoise(const char *id);
 FRONTEND_API bool pls_get_chat_info(QString &id, QString &cookie, bool &isSinglePlatform);
 FRONTEND_API int pls_get_current_selected_channel_count();
 
+FRONTEND_API void pls_add_custom_font(const QString &fontPath);
+FRONTEND_API bool pls_install_scene_template(const SceneTemplateItem &item);
+
 class QButtonGroup;
 
 struct ITextMotionTemplateHelper {
 
+	struct PLSChatDefaultFamily {
+		QString webFamilyText;
+		QString qtFamilyText;
+		QString uiFamilyText;
+		int fontSize = 0;
+		int fontWeight = 0;
+		int index = -1;
+	};
 	virtual ~ITextMotionTemplateHelper() = default;
 	virtual void initTemplateButtons() = 0;
 	virtual QMap<int, QString> getTemplateNames() = 0;
@@ -571,9 +565,17 @@ struct ITextMotionTemplateHelper {
 	virtual int getDefaultTemplateId() = 0;
 	virtual QStringList getTemplateNameList() = 0;
 	virtual void removeParent() = 0;
+	virtual QJsonObject defaultTemplateObj(const int itemId) { return QJsonObject(); }
+	virtual bool saveCustomObj(const OBSData &settings, const int itemId) { return false; }
+	virtual QJsonArray getSaveTemplate() const { return QJsonArray(); }
+	virtual QSet<QString> getChatTemplateName() const { return QSet<QString>(); }
+	virtual void updateCustomTemplateName(const QString &name, const int id) {}
+	virtual void removeCustomTemplate(const int id) {}
+	virtual QList<PLSChatDefaultFamily> getChatCustomDefaultFamily() { return {}; }
 };
 
 FRONTEND_API ITextMotionTemplateHelper *pls_get_text_motion_template_helper_instance();
+FRONTEND_API ITextMotionTemplateHelper *pls_get_chat_template_helper_instance();
 
 /**
   * get current application language
@@ -664,6 +666,7 @@ FRONTEND_API void pls_mixer_mute_all(bool mute);
 FRONTEND_API bool pls_mixer_is_all_mute();
 FRONTEND_API QString pls_get_stream_state();
 FRONTEND_API QString pls_get_record_state();
+FRONTEND_API int pls_get_record_duration();
 FRONTEND_API bool pls_get_hotkey_enable();
 
 /**
@@ -675,18 +678,20 @@ public:
 	enum FeatureId {
 		None = -1,
 		BeautyConfig = 1,
-		GiphyStickersConfig = 2,
-		BgmConfig = 3,
-		LivingMsgView = 4,
-		ChatConfig = 5,
-		WiFiConfig = 6,
-		VirtualbackgroundConfig = 7,
-		PrismStickerConfig = 8,
-		VirtualCameraConfig = 9,
-		DrawPenConfig = 10,
-		LaboratoryConfig = 11,
-		RemoteControlConfig = 12,
-		CamStudioConfig = 13,
+		GiphyStickersConfig,
+		BgmConfig,
+		LivingMsgView,
+		ChatConfig,
+		WiFiConfig,
+		VirtualbackgroundConfig,
+		PrismStickerConfig,
+		VirtualCameraConfig,
+		DrawPenConfig,
+		LaboratoryConfig,
+		RemoteControlConfig,
+		CamStudioConfig,
+		SceneTemplateConfig,
+		Ncb2bBrowserSettings
 	};
 	Q_ENUM(FeatureId)
 };
@@ -870,14 +875,13 @@ enum class AnalogType {
 	ANALOG_VIRTUAL_BG_TEMPLATE,
 	ANALOG_VIRTUAL_BG,
 	ANALOG_BEAUTY,
-	ANALOG_GIPHY_STICKER,
-	ANALOG_TOUCH_STICKER,
 	ANALOG_DRAWPEN,
 	ANALOG_ADD_SOURCE,
 	ANALOG_ADD_FILTER,
 	ANALOG_PLAY_BGM,
 	ANALOG_VIRTUAL_CAM,
-	ANALOG_CLOCK_WIDGET,
+	ANALOG_PLATFORM_OUTPUTGUIDE,
+	ANALOG_NCB2B_LOGIN
 };
 
 FRONTEND_API void pls_send_analog(AnalogType logType, const QVariantMap &info);
@@ -979,7 +983,7 @@ FRONTEND_API void pls_get_remote_control_server_info(quint16 &port);
 FRONTEND_API void pls_set_remote_control_client_info(const QString &peerName, bool connected);
 FRONTEND_API void pls_get_remote_control_client_info(QString &peerName, bool &connected);
 
-FRONTEND_API void pls_set_remote_control_log_file(const QString &logFile);
+FRONTEND_API bool pls_set_remote_control_log_file(const QString &logFile);
 FRONTEND_API void pls_get_remote_control_log_file(QString &logFile);
 
 FRONTEND_API void pls_sys_tray_notify(const QString &text, QSystemTrayIcon::MessageIcon n, bool usePrismLogo = true);
@@ -999,3 +1003,11 @@ FRONTEND_API bool pls_is_install_cam_studio(QString &program);
 FRONTEND_API void pls_show_cam_studio_uninstall(QWidget *parent, QString title, QString content, QString okTip, QString cancelTip);
 
 FRONTEND_API bool pls_is_always_on_top(const QWidget *widget);
+
+FRONTEND_API QStringList getChannelWithChatList();
+
+FRONTEND_API bool pls_is_ncp(QString &channlName);
+
+//The pop-up login box is judged to be true, and the skip login is judged to be false.
+FRONTEND_API bool pls_is_ncp_first_login(QString &serviceName);
+FRONTEND_API QString get_channel_cookie_path(const QString &channelLoginName);

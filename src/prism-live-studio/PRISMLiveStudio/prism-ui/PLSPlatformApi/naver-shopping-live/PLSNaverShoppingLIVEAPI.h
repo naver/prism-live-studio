@@ -10,6 +10,7 @@
 
 #include "pls-channel-const.h"
 #include "pls-net-url.hpp"
+#include "libhttp-client.h"
 #include <qnetworkreply.h>
 
 class PLSPlatformNaverShoppingLIVE;
@@ -76,8 +77,11 @@ enum class PLSAPINaverShoppingType {
 	PLSNaverShoppingCreateSchduleExternalStream,
 	PLSNaverShoppingCannotAddOtherShopProduct,
 	PLSNaverShoppingAttachProductsToOwnMall,
+	PLSNaverShoppingHMACError,
 	PLSNaverShoppingAll,
 };
+
+enum class PLSProductType { MainProduct, SubProduct, All };
 
 using ApiPropertyMap = QMap<PLSAPINaverShoppingType, QVariantMap>;
 
@@ -88,6 +92,10 @@ struct PLSNaverShoppingLIVEAPI {
 		bool hasDiscountRate = false;
 		bool hasSpecialPrice = false;
 		bool isMinorPurchasable = true;
+		bool hasLiveDiscountRate = false;
+		bool activeLiveDiscount = false;
+		bool introducing = false;
+		bool attachable = true;
 		QString accountNo;
 		QString channelNo;
 		QString key;
@@ -96,18 +104,28 @@ struct PLSNaverShoppingLIVEAPI {
 		QString mallName;
 		QString productStatus;
 		QString linkUrl;
-		double price = 0.0;
+		double discountedSalePrice = 0.0;
 		double discountRate = 0.0;
 		double specialPrice = 0.0;
+		double liveDiscountPrice = 0.0;
+		double liveDiscountRate = 0.0;
+		double salePrice = 0.0;
+
 		QString wholeCategoryId;
 		QString wholeCategoryName;
+		QString attachmentType;
+		PLSProductType productType = PLSProductType::MainProduct;
 
 		ProductInfo() = default;
 		explicit ProductInfo(const QJsonObject &object);
 		ProductInfo(qint64 productNo, const QJsonObject &object);
 
+		void setAttachmentType(PLSProductType productType);
+		void setProductType();
+
 		bool discountRateIsValid() const;
 		bool specialPriceIsValid() const;
+		bool liveDiscountRateIsValid() const;
 	};
 
 	struct NaverShoppingUserInfo {
@@ -165,6 +183,9 @@ struct PLSNaverShoppingLIVEAPI {
 		QString releaseLevel;
 		bool isPlanLiving = false;
 		bool allowSearch = true;
+		bool introducing = false;
+		bool sendNotification = true;
+		bool attachable = true;
 		QDate ymdDate;
 		QString yearMonthDay;
 		QString hour;
@@ -173,6 +194,7 @@ struct PLSNaverShoppingLIVEAPI {
 		QString description;
 		QString externalExposeAgreementStatus = CHANNEL_CONNECTION_NONE;
 		PrepareInfoType infoType = PrepareInfoType::NonePrepareInfoType;
+		PLSProductType productType = PLSProductType::MainProduct;
 	};
 
 	struct GetSelectiveAccountStore {
@@ -205,6 +227,9 @@ struct PLSNaverShoppingLIVEAPI {
 		QString externalExposeAgreementStatus = CHANNEL_CONNECTION_NONE;
 		bool searchable{false};
 		bool highQualityAvailable = false;
+		bool sendNotification = true;
+		bool introducing = false;
+		bool attachable = true;
 		ScheduleInfo() = default;
 		explicit ScheduleInfo(const QJsonObject &object);
 
@@ -227,33 +252,35 @@ struct PLSNaverShoppingLIVEAPI {
 	using ProductSearchByUrlCallback = std::function<void(bool ok, bool hasProduct, const ProductInfo &product)>;
 	using ProductSearchByTagCallback = std::function<void(bool ok, const QList<ProductInfo> &products, bool next, int page)>;
 	using ProductSearchByProductNoCallback = std::function<void(bool ok, const ProductInfo &product)>;
-	using ProductSearchByProductNosSplitCallback = std::function<void(bool ok, const QList<ProductInfo> &fixedProducts, const QList<ProductInfo> &unfixedProducts)>;
-	using ProductSearchByProductNosAllCallback = std::function<void(bool ok, const QList<ProductInfo> &products)>;
+	using ProductSearchByProductNosSplitCallback =
+		std::function<void(bool ok, bool hasNext, PLSProductType productType, const QList<ProductInfo> &fixedProducts, const QList<ProductInfo> &unfixedProducts, const QString &searchKey)>;
+	using ProductSearchByProductNosAllCallback = std::function<void(bool ok, PLSProductType productType, const QList<ProductInfo> &products)>;
 	using RefreshStoreInfoCallabck = std::function<void(bool ok, const QString &storeId, const QString &storeName, const QString &accessToken)>;
 	using GetSelectiveAccountStoresCallabck = std::function<void(bool ok, const QList<GetSelectiveAccountStore> &stores)>;
 	using DownloadImageCallback = std::function<void(bool ok, const QString &imagePath)>;
-	using GetUserInfoCallback = std::function<void(PLSAPINaverShoppingType apiType, const NaverShoppingUserInfo &userInfo)>;
-	using UploadImageCallback = std::function<void(PLSAPINaverShoppingType apiType, const QString &imageURL)>;
-	using CreateNowLivingCallback = std::function<void(PLSAPINaverShoppingType apiType, const NaverShoppingLivingInfo &livingInfo)>;
+	using GetUserInfoCallback = std::function<void(PLSAPINaverShoppingType apiType, const NaverShoppingUserInfo &userInfo, const QByteArray &data)>;
+	using UploadImageCallback = std::function<void(PLSAPINaverShoppingType apiType, const QString &imageURL, const QByteArray &data)>;
+	using CreateNowLivingCallback = std::function<void(PLSAPINaverShoppingType apiType, const NaverShoppingLivingInfo &livingInfo, const QByteArray &data)>;
 	using GetLivingInfoCallback = std::function<void(PLSAPINaverShoppingType apiType, const NaverShoppingLivingInfo &livingInfo)>;
 	using GetCategoryListCallback = std::function<void(PLSAPINaverShoppingType apiType, const QList<LiveCategory> &categoryList)>;
-	using GetScheduleListCallback = std::function<void(PLSAPINaverShoppingType apiType, const QList<ScheduleInfo> &scheduleList, int currentPage, int totalCount)>;
-	using UpdateScheduleCallback = std::function<void(PLSAPINaverShoppingType apiType, const ScheduleInfo &scheduleInfo)>;
+	using GetScheduleListCallback = std::function<void(PLSAPINaverShoppingType apiType, const QList<ScheduleInfo> &scheduleList, int currentPage, int totalCount, const QByteArray &data)>;
+	using UpdateScheduleCallback = std::function<void(PLSAPINaverShoppingType apiType, const ScheduleInfo &scheduleInfo, const QByteArray &data)>;
 	using RequestOkCallback = std::function<void(const QJsonDocument &)>;
-	using RequestFailedCallback = std::function<void(PLSAPINaverShoppingType apiType)>;
+	using RequestFailedCallback = std::function<void(PLSAPINaverShoppingType apiType, const QByteArray &data)>;
 
-	static void storeChannelProductSearch(PLSPlatformNaverShoppingLIVE *platform, const QString &channelNo, const QString &productName, int page, int pageSize,
-					      const StoreChannelProductSearchCallback &callback, const QObject *receiver, const ReceiverIsValid &receiverIsValid = nullptr);
+	static pls::http::Request storeChannelProductSearch(PLSPlatformNaverShoppingLIVE *platform, const QString &channelNo, const QString &productName, int page, int pageSize,
+							    const StoreChannelProductSearchCallback &callback, const QObject *receiver, const ReceiverIsValid &receiverIsValid = nullptr);
 	static void productSearchByUrl(PLSPlatformNaverShoppingLIVE *platform, const QString &url, const ProductSearchByUrlCallback &callback, const QObject *receiver,
 				       const ReceiverIsValid &receiverIsValid = nullptr);
 	static void productSearchByTag(PLSPlatformNaverShoppingLIVE *platform, const QString &tag, int page, int pageSize, const ProductSearchByTagCallback &callback, const QObject *receiver,
 				       const ReceiverIsValid &receiverIsValid = nullptr);
-	static void productSearchByProductNos(PLSPlatformNaverShoppingLIVE *platform, const QList<qint64> &fixedProductNos, const QList<qint64> &unfixedProductNos,
-					      const ProductSearchByProductNosSplitCallback &callback, const QObject *receiver, const ReceiverIsValid &receiverIsValid = nullptr);
-	static void productSearchByProductNos(PLSPlatformNaverShoppingLIVE *platform, const QList<qint64> &productNos, const ProductSearchByProductNosAllCallback &callback, const QObject *receiver,
-					      const ReceiverIsValid &receiverIsValid = nullptr);
-	static void productSearchByProductNos(PLSPlatformNaverShoppingLIVE *platform, const QStringList &strProductNos, const ProductSearchByProductNosAllCallback &callback, const QObject *receiver,
-					      const ReceiverIsValid &receiverIsValid = nullptr);
+	static pls::http::Request productSearchByProductNos(PLSPlatformNaverShoppingLIVE *platform, int currentPage, int pageSize, PLSProductType productType, const QList<qint64> &fixedProductNos,
+							    const QList<qint64> &unfixedProductNos, const QList<qint64> &introducingProductNos, const ProductSearchByProductNosSplitCallback &callback,
+							    const QObject *receiver, const ReceiverIsValid &receiverIsValid = nullptr);
+	static pls::http::Request productSearchByProductNos(PLSPlatformNaverShoppingLIVE *platform, PLSProductType productType, const QList<qint64> &productNos,
+							    const ProductSearchByProductNosAllCallback &callback, const QObject *receiver, const ReceiverIsValid &receiverIsValid = nullptr);
+	static pls::http::Request productSearchByProductNos(PLSPlatformNaverShoppingLIVE *platform, PLSProductType productType, const QStringList &strProductNos,
+							    const ProductSearchByProductNosAllCallback &callback, const QObject *receiver, const ReceiverIsValid &receiverIsValid = nullptr);
 	static QString urlForPath(const QString &path);
 	static void refreshChannelToken(const PLSPlatformNaverShoppingLIVE *platform, const GetUserInfoCallback &callback, const QObject *receiver, const ReceiverIsValid &receiverIsValid = nullptr);
 	static PLSAPINaverShoppingType getLoginFailType(const QByteArray &data);
@@ -268,8 +295,11 @@ struct PLSNaverShoppingLIVEAPI {
 					 const ReceiverIsValid &receiverIsValid = nullptr);
 	static void getLivingInfo(PLSPlatformNaverShoppingLIVE *platform, bool livePolling, const GetLivingInfoCallback &callback, const QObject *receiver,
 				  const ReceiverIsValid &receiverIsValid = nullptr);
-	static void updateNowLiving(PLSPlatformNaverShoppingLIVE *platform, const QString &id, const QJsonObject &body, const std::function<void(PLSAPINaverShoppingType apiType)> &callback,
-				    const QObject *receiver, const ReceiverIsValid &receiverIsValid = nullptr);
+	static void getLivingInfo(PLSPlatformNaverShoppingLIVE *platform, const QString &scheduleId, bool livePolling, const GetLivingInfoCallback &callback, const QObject *receiver,
+				  const ReceiverIsValid &receiverIsValid = nullptr);
+	static void updateNowLiving(PLSPlatformNaverShoppingLIVE *platform, const QString &id, const QJsonObject &body,
+				    const std::function<void(PLSAPINaverShoppingType apiType, const QByteArray &data)> &callback, const QObject *receiver,
+				    const ReceiverIsValid &receiverIsValid = nullptr);
 	static void updateScheduleInfo(PLSPlatformNaverShoppingLIVE *platform, const QString &id, const QJsonObject &body, const UpdateScheduleCallback &callback, const QObject *receiver,
 				       const ReceiverIsValid &receiverIsValid = nullptr);
 	static void stopLiving(const PLSPlatformNaverShoppingLIVE *platform, bool needVideoSave, const std::function<void(bool ok)> &callback, const QObject *receiver,
@@ -316,21 +346,24 @@ struct PLSNaverShoppingLIVEAPI {
 	static qint64 getLocalTimeStamp(const QDate &date, const QString &hourString, const QString &minuteString, int AmOrPm);
 	static bool isRhythmicityProduct(const QString &matchCategoryId, const QString &matchCategoryName);
 	static void getStoreLoginUrl(const QWidget *widget, const std::function<void(const QString &storeLoginUrl)> &ok, const std::function<void()> &fail);
+	static QStringList getOnePageProductNos(bool &hasNextPage, const QStringList &strProductNos, int currentPage, int pageSize);
+	static void getErrorCodeOrErrorMessage(const QByteArray &array, QString &errorCode, QString &errorMsg);
+	static QString generateMsgWithErrorCodeOrErrorMessage(const QString &content, const QString &errorCode, const QString &errorMsg);
 
 private:
-	static void getJson(PLSPlatformNaverShoppingLIVE *platform, const Url &url, const char *log, const RequestOkCallback &ok, const RequestFailedCallback &fail, const QObject *receiver,
-			    const ReceiverIsValid &receiverIsValid, const QVariantMap &headers, const QVariantMap &params, bool useAccessToken = true,
-			    const ApiPropertyMap &apiPropertyMap = ApiPropertyMap(), bool isIgnoreEmptyJson = false, bool workInMainThread = false);
+	static pls::http::Request getJson(PLSPlatformNaverShoppingLIVE *platform, const Url &url, const char *log, const RequestOkCallback &ok, const RequestFailedCallback &fail,
+					  const QObject *receiver, const ReceiverIsValid &receiverIsValid, const QVariantMap &headers, const QVariantMap &params, bool useAccessToken = true,
+					  const ApiPropertyMap &apiPropertyMap = ApiPropertyMap(), bool isIgnoreEmptyJson = false, bool workInMainThread = false);
 	static void postJson(PLSPlatformNaverShoppingLIVE *platform, const Url &url, const QJsonObject &json, const char *log, const std::function<void(const QJsonDocument &)> &ok,
-			     const std::function<void(PLSAPINaverShoppingType apiType)> &fail, const QObject *receiver = nullptr, const ReceiverIsValid &receiverIsValid = nullptr,
+			     const std::function<void(PLSAPINaverShoppingType apiType, const QByteArray &)> &fail, const QObject *receiver = nullptr, const ReceiverIsValid &receiverIsValid = nullptr,
 			     const QVariantMap &headers = QVariantMap(), const ApiPropertyMap &apiPropertyMap = ApiPropertyMap());
 	static void putJson(PLSPlatformNaverShoppingLIVE *platform, const Url &url, const QJsonObject &json, const char *log, const std::function<void(const QJsonDocument &)> &ok,
-			    const std::function<void(PLSAPINaverShoppingType apiType)> &fail, const QObject *receiver = nullptr, const ReceiverIsValid &receiverIsValid = nullptr,
+			    const std::function<void(PLSAPINaverShoppingType apiType, const QByteArray &)> &fail, const QObject *receiver = nullptr, const ReceiverIsValid &receiverIsValid = nullptr,
 			    const QVariantMap &headers = QVariantMap(), const ApiPropertyMap &apiPropertyMap = ApiPropertyMap());
 	static void deleteJson(PLSPlatformNaverShoppingLIVE *platform, const Url &url, const char *log, const std::function<void(const QJsonDocument &)> &ok,
-			       const std::function<void(PLSAPINaverShoppingType apiType)> &fail, const QObject *receiver = nullptr, const ReceiverIsValid &receiverIsValid = nullptr,
-			       const ApiPropertyMap &apiPropertyMap = ApiPropertyMap());
+			       const std::function<void(PLSAPINaverShoppingType apiType, const QByteArray &)> &fail, const QObject *receiver = nullptr,
+			       const ReceiverIsValid &receiverIsValid = nullptr, const ApiPropertyMap &apiPropertyMap = ApiPropertyMap());
 	static void customJson(PLSPlatformNaverShoppingLIVE *platform, const Url &url, const char *log, const std::function<void(const QJsonDocument &)> &ok,
-			       const std::function<void(PLSAPINaverShoppingType apiType)> &fail, const QObject *receiver = nullptr, const ReceiverIsValid &receiverIsValid = nullptr,
-			       const ApiPropertyMap &apiPropertyMap = ApiPropertyMap(), bool isIgnoreEmptyJson = false);
+			       const std::function<void(PLSAPINaverShoppingType apiType, const QByteArray &)> &fail, const QObject *receiver = nullptr,
+			       const ReceiverIsValid &receiverIsValid = nullptr, const ApiPropertyMap &apiPropertyMap = ApiPropertyMap(), bool isIgnoreEmptyJson = false);
 };

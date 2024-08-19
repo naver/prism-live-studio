@@ -87,5 +87,11 @@
         <file>resource/images/checkbox/slider-on-click.svg</file>
         <file>resource/images/checkbox/slider-on-disable.svg</file>
         <file>resource/images/checkbox/slider-on-over.svg</file>
+        <file>resource/images/txt-dropbox-hor-open-click.svg</file>
+        <file>resource/images/txt-dropbox-hor-open-disable.svg</file>
+        <file>resource/images/txt-dropbox-hor-open-normal.svg</file>
+        <file>resource/images/txt-dropbox-hor-open-over.svg</file>
+        <file>resource/images/ic-help-off-normal.svg</file>
+        <file>resource/images/ic-help-off-over.svg</file>
     </qresource>
 </RCC>

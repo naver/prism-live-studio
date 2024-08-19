@@ -10,6 +10,8 @@
 #include <QComboBox>
 #include <QListWidget>
 #include <QPushButton>
+#include <QRadioButton>
+#include <QButtonGroup>
 #include <QStandardItem>
 #include <QFileDialog>
 #include <QColorDialog>
@@ -49,6 +51,9 @@
 #include "pls-common-define.hpp"
 #include "liblog.h"
 #include "PLSEdit.h"
+#include "PLSLabel.h"
+#include "PLSRadioButton.h"
+#include "libutils-api.h"
 
 using namespace std;
 using namespace common;
@@ -79,6 +84,21 @@ static inline long long color_to_int(QColor color)
 	       shift(color.blue(), 16) | shift(color.alpha(), 24);
 }
 
+QWidget *plsCreateHelpQWidget(QWidget *originWidget, const QString &longDesc)
+{
+	QWidget *newWidget = new QWidget();
+	newWidget->setObjectName("formLeftWidget");
+	QHBoxLayout *boxLayout = new QHBoxLayout(newWidget);
+	boxLayout->setContentsMargins(0, 0, 0, 0);
+	boxLayout->setAlignment(Qt::AlignLeft);
+	boxLayout->setSpacing(0);
+	PLSHelpIcon *help = new PLSHelpIcon(newWidget);
+	help->setToolTip(longDesc);
+	boxLayout->addWidget(originWidget);
+	boxLayout->addWidget(help);
+	return newWidget;
+}
+
 namespace {
 
 struct frame_rate_tag {
@@ -104,258 +124,10 @@ struct common_frame_rate {
 	media_frames_per_second fps;
 };
 
-}
+} // namespace
 
 Q_DECLARE_METATYPE(frame_rate_tag);
 Q_DECLARE_METATYPE(media_frames_per_second);
-
-static bool isSamePropertyType(obs_property_type a, obs_property_type b)
-{
-	switch ((int)a) {
-	case OBS_PROPERTY_BOOL:
-		switch ((int)b) {
-		case PLS_PROPERTY_BOOL_LEFT:
-		case OBS_PROPERTY_BOOL:
-			return true;
-		default:
-			return false;
-		}
-		break;
-	case OBS_PROPERTY_INT:
-	case OBS_PROPERTY_FLOAT:
-	case OBS_PROPERTY_TEXT:
-	case OBS_PROPERTY_PATH:
-	case OBS_PROPERTY_LIST:
-	case OBS_PROPERTY_COLOR:
-	case OBS_PROPERTY_BUTTON:
-	case OBS_PROPERTY_FONT:
-	case OBS_PROPERTY_EDITABLE_LIST:
-	case OBS_PROPERTY_FRAME_RATE:
-	case PLS_PROPERTY_FONT_SIMPLE:
-	case PLS_PROPERTY_COLOR_CHECKBOX:
-	case PLS_PROPERTY_IMAGE_GROUP:
-	case PLS_PROPERTY_CUSTOM_GROUP:
-		switch ((int)b) {
-		case OBS_PROPERTY_INT:
-		case OBS_PROPERTY_FLOAT:
-		case OBS_PROPERTY_TEXT:
-		case OBS_PROPERTY_PATH:
-		case OBS_PROPERTY_LIST:
-		case OBS_PROPERTY_COLOR:
-		case OBS_PROPERTY_BUTTON:
-		case OBS_PROPERTY_FONT:
-		case OBS_PROPERTY_EDITABLE_LIST:
-		case OBS_PROPERTY_FRAME_RATE:
-		case PLS_PROPERTY_IMAGE_GROUP:
-		case PLS_PROPERTY_FONT_SIMPLE:
-		case PLS_PROPERTY_COLOR_CHECKBOX:
-		case PLS_PROPERTY_BUTTON_GROUP:
-			return true;
-		default:
-			return false;
-		}
-	case PLS_PROPERTY_CHAT_TEMPLATE_LIST:
-	case PLS_PROPERTY_CHAT_FONT_SIZE:
-	case PLS_PROPERTY_TM_TEXT_CONTENT:
-	case PLS_PROPERTY_TM_TAB:
-	case PLS_PROPERTY_TM_TEMPLATE_TAB:
-	case PLS_PROPERTY_TM_TEMPLATE_LIST:
-	case PLS_PROPERTY_TM_TEXT:
-	case PLS_PROPERTY_TM_COLOR:
-	case PLS_PROPERTY_TM_MOTION:
-	case PLS_PROPERTY_LINE:
-	case PLS_PROPERTY_VIRTUAL_BACKGROUND_CAMERA_STATE:
-	case PLS_PROPERTY_VIRTUAL_BACKGROUND_RESOURCE:
-	case PLS_PROPERTY_TIPS:
-		return false;
-	default:
-		break;
-	}
-	return true;
-}
-
-void OBSPropertiesView::AddSpacer(const obs_property_type &currentType,
-				  QFormLayout *layout)
-{
-	if (lastPropertyType != OBS_PROPERTY_INVALID) {
-		if (PLS_PROPERTY_LINE == (pls_property_type)currentType ||
-		    PLS_PROPERTY_LINE == (pls_property_type)lastPropertyType) {
-			layout->addItem(new QSpacerItem(10, 20,
-							QSizePolicy::Fixed,
-							QSizePolicy::Fixed));
-		} else if (PLS_PROPERTY_MOBILE_NAME ==
-			   (pls_property_type)currentType) {
-			layout->addItem(new QSpacerItem(10, 20,
-							QSizePolicy::Fixed,
-							QSizePolicy::Fixed));
-		} else {
-			if (isSamePropertyType(lastPropertyType, currentType)) {
-				layout->addItem(new QSpacerItem(
-					10,
-					common::PROPERTIES_VIEW_VERTICAL_SPACING_MIN,
-					QSizePolicy::Fixed,
-					QSizePolicy::Fixed));
-			} else {
-				layout->addItem(new QSpacerItem(
-					10,
-					common::PROPERTIES_VIEW_VERTICAL_SPACING_MAX,
-					QSizePolicy::Fixed,
-					QSizePolicy::Fixed));
-			}
-		}
-	}
-	lastPropertyType = currentType;
-}
-
-void OBSPropertiesView::updateUIWhenAfterAddProperty(obs_property_t *property,
-						     QFormLayout *layout,
-						     QLabel *label,
-						     QWidget *widget,
-						     bool warning)
-{
-	obs_property_type type = obs_property_get_type(property);
-	if (!widget && !label)
-		return;
-
-	if (!label && type != OBS_PROPERTY_BOOL &&
-	    type != OBS_PROPERTY_BUTTON && type != OBS_PROPERTY_GROUP)
-		label = new QLabel(QT_UTF8(obs_property_description(property)));
-
-	if (label) {
-		if (warning) //TODO: select color based on background color
-			label->setStyleSheet("QLabel { color: #C34151; }");
-
-		if (minSize) {
-			label->setMinimumWidth(minSize);
-			label->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-		}
-
-		if (!obs_property_enabled(property))
-			label->setEnabled(false);
-
-		auto prop_flags = pls_property_get_flags(property);
-		bool child = PROPERTY_FLAG_CHILD_CONTROL & prop_flags;
-		label->setObjectName(pls_conditional_select(
-			!child, OBJECT_NAME_FORMLABEL, "subLabel"));
-
-		OBSSource source =
-			pls_get_source_by_pointer_address(GetSourceObj());
-		if (source) {
-			const char *id = obs_source_get_id(source);
-			if (pls_is_equal(id, PRISM_SPECTRALIZER_SOURCE_ID) &&
-			    !child) {
-				label->setObjectName("titleLabel");
-			} else if (pls_is_equal(id, PRISM_LENS_SOURCE_ID) ||
-				   pls_is_equal(id,
-						PRISM_LENS_MOBILE_SOURCE_ID)) {
-				label->setText(QTStr(
-					obs_property_description(property)));
-				label->setProperty("lensSource", true);
-			}
-		}
-
-		if (pls_is_in((int)type, (int)PLS_PROPERTY_TM_TEXT,
-			      (int)PLS_PROPERTY_TM_COLOR,
-			      (int)PLS_PROPERTY_TM_MOTION)) {
-			label->setObjectName("tmLabel");
-		}
-		if ((int)type == (int)PLS_PROPERTY_TM_DEFAULT_TEXT) {
-			label->setStyleSheet("QLabel { color: #bababa;}");
-		}
-	}
-
-	if (!widget)
-		return;
-
-	if (!obs_property_enabled(property))
-		widget->setEnabled(false);
-
-	if (obs_property_long_description(property)) {
-		if (label) {
-#if 0
-            QString file = !App()->IsThemeDark()
-                           ? ":/res/images/help.svg"
-                           : ":/res/images/help_light.svg";
-			QString lStr = "<html>%1 <img src='%2' style=' \
-				vertical-align: bottom;  \
-				' /></html>";
-
-			label->setText(lStr.arg(label->text(), file));
-#endif
-			label->setToolTip(
-				obs_property_long_description(property));
-		} else if (type == OBS_PROPERTY_BOOL) {
-#if 0
-			QString bStr = "<html> <img src='%1' style=' \
-				vertical-align: bottom;  \
-				' /></html>";
-
-			const char *desc = obs_property_description(property);
-
-			QWidget *newWidget = new QWidget();
-
-			QHBoxLayout *boxLayout = new QHBoxLayout(newWidget);
-			boxLayout->setContentsMargins(0, 0, 0, 0);
-			boxLayout->setAlignment(Qt::AlignLeft);
-			boxLayout->setSpacing(0);
-
-            PLSCheckBox *check = qobject_cast<PLSCheckBox *>(widget);
-			check->setText(desc);
-			check->setToolTip(
-				obs_property_long_description(property));
-
-			QLabel *help = new QLabel(check);
-			help->setText(bStr.arg(file));
-			help->setToolTip(
-				obs_property_long_description(property));
-
-			boxLayout->addWidget(check);
-			boxLayout->addWidget(help);
-			widget = newWidget;
-#endif
-		}
-	}
-	AddSpacer(obs_property_get_type(property), layout);
-
-	if (obs_data_get_bool(settings, "noLabelHeader") ||
-	    PROPERTY_FLAG_NO_LABEL_SINGLE & pls_property_get_flags(property)) {
-		layout->addRow(widget);
-	} else {
-		layout->addRow(label, widget);
-	}
-
-	const char *name = obs_property_name(property);
-	if (!lastFocused.empty())
-		if (lastFocused.compare(name) == 0)
-			lastWidget = widget;
-}
-
-void OBSPropertiesView::updateTimerUiClickStatus(bool isClick)
-{
-	qDebug() << "updateTimerUiClickStatus" << isClick;
-	obs_data_set_bool(settings, "is_ui_click_cb", isClick);
-}
-
-void OBSPropertiesView::controlChangedToRefresh(obs_property_t *p_,
-						const char *setting_)
-{
-	if (visUpdateCb && !deferUpdate) {
-		void *obj = GetSourceObj();
-		if (obj)
-			visUpdateCb(obj, settings);
-	}
-
-	SignalChanged();
-
-	updateTimerUiClickStatus(true);
-	if (obs_property_modified(p_, settings)) {
-		lastFocused = setting_;
-		QMetaObject::invokeMethod(this, "RefreshProperties",
-					  Qt::QueuedConnection);
-	}
-	updateTimerUiClickStatus(false);
-	PLS_INFO("main/property", "properties control changed to refresh view");
-}
 
 void OBSPropertiesView::ReloadProperties()
 {
@@ -371,7 +143,7 @@ void OBSPropertiesView::ReloadProperties()
 	}
 
 	uint32_t flags = obs_properties_get_flags(properties.get());
-	deferUpdate = (flags & OBS_PROPERTIES_DEFER_UPDATE) != 0;
+	deferUpdate = enableDefer && (flags & OBS_PROPERTIES_DEFER_UPDATE) != 0;
 
 	RefreshProperties();
 }
@@ -382,14 +154,17 @@ void OBSPropertiesView::RefreshProperties()
 {
 	PLS_INFO("main/property",
 		 "OBSPropertiesView RefreshProperties() method start");
-	int h, v;
-	GetScrollPos(h, v);
+	int h, v, hend, vend;
+	GetScrollPos(h, v, hend, vend);
 
 	children.clear();
 	auto source = pls_get_source_by_pointer_address(GetSourceObj());
 	const auto id = obs_source_get_id(source);
 	if (pls_is_equal(id, PRISM_TEXT_TEMPLATE_ID)) {
 		pls_get_text_motion_template_helper_instance()->removeParent();
+	}
+	if (pls_is_equal(id, PRISM_CHATV2_SOURCE_ID)) {
+		pls_get_chat_template_helper_instance()->removeParent();
 	}
 	if (widget) {
 		widget->setParent(nullptr);
@@ -450,7 +225,7 @@ void OBSPropertiesView::RefreshProperties()
 
 	setWidgetResizable(true);
 	setWidget(widget);
-	SetScrollPos(h, v);
+	SetScrollPos(h, v, hend, vend);
 	QSizePolicy mainPolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	setSizePolicy(mainPolicy);
 
@@ -462,153 +237,7 @@ void OBSPropertiesView::RefreshProperties()
 	PLS_INFO("main/property",
 		 "OBSPropertiesView RefreshProperties() method end");
 }
-void OBSPropertiesView::showFilterButton(bool hasNoProperties, const char *id)
-{
-	//add preview button
-	auto previewButton = pls_new<QPushButton>(QTStr("Filters"));
-	previewButton->setObjectName(common::OBJECT_NMAE_PREVIEW_BUTTON);
-	auto spaceLabel = pls_new<QLabel>(this);
-	spaceLabel->setObjectName(common::OBJECT_NAME_SPACELABEL);
-	connect(previewButton, &QPushButton::clicked, this, [this]() {
-		obs_frontend_open_source_filters(
-			pls_get_source_by_pointer_address(GetSourceObj()));
-	});
-
-	auto formLayout = dynamic_cast<QFormLayout *>(boxLayout);
-
-	if (hasNoProperties) {
-		spaceLabel->setFixedSize({10, 22});
-		formLayout->addRow(nullptr, spaceLabel);
-		formLayout->addRow(previewButton);
-	} else {
-		if (pls_is_equal(id, common::PRISM_VIEWER_COUNT_SOURCE_ID)) {
-			spaceLabel->setFixedSize({10, 20});
-		} else if (pls_is_equal(id, common::PRISM_TEXT_TEMPLATE_ID)) {
-			spaceLabel->setFixedSize({10, 18});
-		} else if (pls_is_equal(id,
-					common::PRISM_LENS_MOBILE_SOURCE_ID) ||
-			   pls_is_equal(id, common::PRISM_LENS_SOURCE_ID)) {
-			spaceLabel->setFixedSize({10, 40});
-		}
-#if defined(Q_OS_MACOS)
-		else if (pls_is_equal(id, OBS_DSHOW_SOURCE_ID_V2) ||
-			 pls_is_equal(id, OBS_DSHOW_SOURCE_ID)) {
-			spaceLabel->setFixedSize({10, 40});
-		}
-#endif
-		else {
-			spaceLabel->setFixedSize({10, 30});
-		}
-
-		formLayout->addRow(nullptr, spaceLabel);
-
-		if (pls_is_in_str(id, common::PRISM_CHAT_SOURCE_ID,
-				  common::PRISM_TEXT_TEMPLATE_ID,
-				  common::BGM_SOURCE_ID,
-				  common::PRISM_BACKGROUND_TEMPLATE_SOURCE_ID,
-				  common::PRISM_SPECTRALIZER_SOURCE_ID,
-				  common::PRISM_TIMER_SOURCE_ID,
-				  common::PRISM_VIEWER_COUNT_SOURCE_ID) ||
-		    obs_data_get_bool(settings, "noLabelHeader")) {
-			formLayout->addRow(previewButton);
-		} else {
-			formLayout->addRow(nullptr, previewButton);
-		}
-	}
-}
-
-bool OBSPropertiesView::isPrismLensOrMobileSource()
-{
-	auto source = pls_get_source_by_pointer_address(GetSourceObj());
-	auto id = obs_source_get_id(source);
-	return pls_is_equal(id, PRISM_LENS_SOURCE_ID) ||
-	       pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID);
-}
-
-int OBSPropertiesView::getPrismLensOutputIndex()
-{
-	auto source = pls_get_source_by_pointer_address(GetSourceObj());
-	OBSDataAutoRelease settings = obs_source_get_settings(source);
-	QString videoDeviceId =
-		obs_data_get_string(settings, CSTR_VIDEO_DEVICE_ID);
-	return getPrismLensOutputIndex(videoDeviceId);
-}
-
-int OBSPropertiesView::getPrismLensOutputIndex(QString name)
-{
-	int outputCamIndex = -1;
-
-	if (name.contains(CSTR_PRISM_LEN1)) {
-		outputCamIndex = 0;
-	} else if (name.contains(CSTR_PRISM_LEN2)) {
-		outputCamIndex = 1;
-	} else if (name.contains(CSTR_PRISM_LEN3)) {
-		outputCamIndex = 2;
-	}
-	return outputCamIndex;
-}
-
-void OBSPropertiesView::showLensUninstallTips(bool isMobile)
-{
-	QString content = QTStr("main.property.lens.install");
-	if (isMobile) {
-		content = QTStr("main.property.mobile.install");
-	}
-	pls_show_cam_studio_uninstall(pls_get_toplevel_view(this),
-				      QTStr("Alert.Title"), content,
-				      QTStr("Main.cam.install.now"),
-				      QTStr("main.property.lens.later"));
-}
-
-void OBSPropertiesView::textColorChanged(const QByteArray &_id,
-					 const QColor &color,
-					 QColor::NameFormat format)
-{
-
-	std::shared_ptr<WidgetInfo> info = nullptr;
-	std::vector<std::shared_ptr<WidgetInfo>>::iterator itr =
-		children.begin();
-	while (itr != children.end()) {
-		const char *_settingID = obs_property_name((*itr)->property);
-		if (_settingID && _settingID[0] &&
-		    !strcmp(_id.constData(), _settingID)) {
-
-			info = (*itr);
-			break;
-		}
-		++itr;
-	}
-
-	if (info == nullptr) {
-		return;
-	}
-	QLabel *label = dynamic_cast<QLabel *>(info->widget);
-	if (label == nullptr) {
-		return;
-	}
-
-	label->setText(color.name(format));
-	QPalette palette = QPalette(color);
-	label->setPalette(palette);
-	label->setStyleSheet(
-		QString("background-color :%1; color: %2;")
-			.arg(palette.color(QPalette::Window).name(format))
-			.arg(palette.color(QPalette::WindowText).name(format)));
-
-	if ((int)obs_property_get_type(info->property) ==
-	    (int)PLS_PROPERTY_COLOR_CHECKBOX) {
-		obs_data_t *color_obj =
-			obs_data_get_obj(settings, _id.constData());
-		obs_data_set_int(color_obj, "color_val", color_to_int(color));
-		obs_data_release(color_obj);
-	} else {
-		obs_data_set_int(settings, _id.constData(),
-				 color_to_int(color));
-	}
-	info->ControlChangedToRefresh(_id.constData());
-}
-
-void OBSPropertiesView::SetScrollPos(int h, int v)
+void OBSPropertiesView::SetScrollPos(int h, int v, int old_hend, int old_vend)
 {
 	scroll = qobject_cast<PLSCommonScrollBar *>(horizontalScrollBar());
 	if (scroll)
@@ -619,7 +248,7 @@ void OBSPropertiesView::SetScrollPos(int h, int v)
 		scroll->setValue(v);
 }
 
-void OBSPropertiesView::GetScrollPos(int &h, int &v)
+void OBSPropertiesView::GetScrollPos(int &h, int &v, int &hend, int &vend)
 {
 	h = v = 0;
 	scroll = qobject_cast<PLSCommonScrollBar *>(horizontalScrollBar());
@@ -632,37 +261,6 @@ void OBSPropertiesView::GetScrollPos(int &h, int &v)
 
 	connect(scroll, &PLSCommonScrollBar::isShowScrollBar, this,
 		&OBSPropertiesView::OnShowScrollBar, Qt::UniqueConnection);
-}
-void OBSPropertiesView::OnShowScrollBar(bool isShow)
-{
-	if (!widget) {
-		return;
-	}
-	setContentMarginAndWidth();
-}
-
-void OBSPropertiesView::OnOpenPrismLensClicked()
-{
-	QString program;
-	OBSSource source = pls_get_source_by_pointer_address(GetSourceObj());
-	const char *id = obs_source_get_id(source);
-	bool installed = pls_is_install_cam_studio(program);
-	if (!installed) {
-		showLensUninstallTips(
-			pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID));
-		return;
-	}
-
-	QStringList arguments;
-	arguments << "--display_control=top";
-	int outputCamIndex = getPrismLensOutputIndex();
-	if (outputCamIndex != -1) {
-		arguments << QString("--output_cam=%1").arg(outputCamIndex);
-		if (pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID)) {
-			arguments << "--active_tab=mobile";
-		}
-	}
-	pls_open_cam_studio(arguments, this);
 }
 
 OBSPropertiesView::OBSPropertiesView(OBSData settings_, obs_object_t *obj,
@@ -718,76 +316,20 @@ OBSPropertiesView::OBSPropertiesView(OBSData settings_, const char *type_,
 				  Qt::QueuedConnection);
 }
 
-bool OBSPropertiesView::getIsCustomContentMargins(const char *sourceId)
-{
-	bool isVirtualBackgroundSource = false;
-	if (sourceId) {
-		if (pls_is_equal(sourceId,
-				 PRISM_BACKGROUND_TEMPLATE_SOURCE_ID)) {
-			isVirtualBackgroundSource = true;
-		}
-	} else {
-		OBSSource source =
-			pls_get_source_by_pointer_address(GetSourceObj());
-		if (source) {
-			if (const char *id = obs_source_get_id(source);
-			    pls_is_equal(id,
-					 PRISM_BACKGROUND_TEMPLATE_SOURCE_ID)) {
-				isVirtualBackgroundSource = true;
-			}
-		}
-	}
-	return !isVirtualBackgroundSource;
-}
-
-void OBSPropertiesView::setContentMarginAndWidth()
-{
-	auto isPrismMobileSource = false;
-	int marginLeft = 10;
-	int marginRight = 19;
-	OBSSource source = pls_get_source_by_pointer_address(GetSourceObj());
-	if (source) {
-		if (const char *id = obs_source_get_id(source);
-		    pls_is_equal(id, PRISM_MOBILE_SOURCE_ID)) {
-			isPrismMobileSource = true;
-		}
-	} else {
-		//The setting left and right margin is zero
-		marginLeft = 0;
-		marginRight = 0;
-	}
-
-	bool isCustomMargin = getIsCustomContentMargins();
-	if (pls_is_or(isCustomMargin, setCustomContentWidth)) {
-		int scrollWidth = pls_get_visible_width(scroll);
-
-		int widgetMarginRight = qMax(marginRight - scrollWidth, 0);
-		if (isCustomMargin) {
-			widget->setContentsMargins(
-				marginLeft, 0, widgetMarginRight,
-				pls_conditional_select(isPrismMobileSource, 15,
-						       50));
-		}
-
-		if (setCustomContentWidth) {
-			widget->setMaximumWidth(width() - widgetMarginRight);
-		}
-	}
-}
-
 void OBSPropertiesView::resizeEvent(QResizeEvent *event)
 {
 	emit PropertiesResized();
 	VScrollArea::resizeEvent(event);
 }
 
-QWidget *OBSPropertiesView::NewWidget(obs_property_t *prop, QWidget *widget,
-				      const char *signal)
+template<typename Sender, typename SenderParent, typename... Args>
+QWidget *OBSPropertiesView::NewWidget(obs_property_t *prop, Sender *widget,
+				      void (SenderParent::*signal)(Args...))
 {
 	const char *long_desc = obs_property_long_description(prop);
 
 	WidgetInfo *info = new WidgetInfo(this, prop, widget);
-	connect(widget, signal, info, SLOT(ControlChanged()));
+	pls_connect(widget, signal, info, &WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
 	widget->setToolTip(QT_UTF8(long_desc));
@@ -827,7 +369,7 @@ QWidget *OBSPropertiesView::AddCheckbox(QFormLayout *layout,
 		}
 #endif
 	}
-	return NewWidget(prop, checkbox, SIGNAL(toggled(bool)));
+	return NewWidget(prop, checkbox, &PLSCheckBox::stateChanged);
 }
 
 QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
@@ -842,7 +384,7 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 		OBSPlainTextEdit *edit = new OBSPlainTextEdit(this, monospace);
 		edit->setPlainText(QT_UTF8(val));
 		edit->setTabStopDistance(40);
-		return NewWidget(prop, edit, SIGNAL(textChanged()));
+		return NewWidget(prop, edit, &OBSPlainTextEdit::textChanged);
 
 	} else if (type == OBS_TEXT_PASSWORD) {
 		QLayout *subLayout = new QHBoxLayout();
@@ -858,9 +400,9 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 		subLayout->addWidget(show);
 
 		WidgetInfo *info = new WidgetInfo(this, prop, edit);
-		connect(show, &QAbstractButton::toggled, info,
-			&WidgetInfo::TogglePasswordText);
-		connect(show, &QAbstractButton::toggled, [=](bool hide) {
+		pls_connect(show, &QAbstractButton::toggled, info,
+			    &WidgetInfo::TogglePasswordText);
+		pls_connect(show, &QAbstractButton::toggled, [=](bool hide) {
 			show->setText(hide ? QTStr("Hide") : QTStr("Show"));
 		});
 		children.emplace_back(info);
@@ -871,8 +413,8 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 
 		edit->setToolTip(QT_UTF8(obs_property_long_description(prop)));
 
-		connect(edit, SIGNAL(textEdited(const QString &)), info,
-			SLOT(ControlChanged()));
+		pls_connect(edit, &QLineEdit::textEdited, info,
+			    &WidgetInfo::ControlChanged);
 		return nullptr;
 	} else if (type == OBS_TEXT_INFO) {
 		QString desc = QT_UTF8(obs_property_description(prop));
@@ -888,6 +430,7 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 		} else
 			label = new QLabel(desc);
 
+		QWidget *replaceWidget = dynamic_cast<QWidget *>(info_label);
 		if (long_desc != NULL && !info_label->text().isEmpty()) {
 #if 0
 			QString file = !App()->IsThemeDark()
@@ -899,6 +442,10 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 			info_label->setText(lStr.arg(info_label->text(), file));
 #endif
 			info_label->setToolTip(QT_UTF8(long_desc));
+
+			replaceWidget = plsCreateHelpQWidget(
+				info_label, QT_UTF8(long_desc));
+
 		} else if (long_desc != NULL) {
 			info_label->setText(QT_UTF8(long_desc));
 		}
@@ -910,6 +457,8 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 			info_label->setObjectName("warningLabel");
 		else if (info_type == OBS_TEXT_INFO_ERROR)
 			info_label->setObjectName("errorLabel");
+		else
+			info_label->setObjectName("infoLabel");
 
 		if (label)
 			label->setObjectName(info_label->objectName());
@@ -919,7 +468,7 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 
 		layout->addItem(new QSpacerItem(22, 22, QSizePolicy::Fixed,
 						QSizePolicy::Fixed));
-		layout->addRow(info_label);
+		layout->addRow(label, replaceWidget);
 		layout->addItem(new QSpacerItem(22, 22, QSizePolicy::Fixed,
 						QSizePolicy::Fixed));
 		return nullptr;
@@ -936,7 +485,7 @@ QWidget *OBSPropertiesView::AddText(obs_property_t *prop, QFormLayout *layout,
 		edit->setPlaceholderText(QT_UTF8(placeholder));
 	}
 
-	return NewWidget(prop, edit, SIGNAL(textEdited(const QString &)));
+	return NewWidget(prop, edit, &QLineEdit::textEdited);
 }
 
 void OBSPropertiesView::AddPath(obs_property_t *prop, QFormLayout *layout,
@@ -964,7 +513,8 @@ void OBSPropertiesView::AddPath(obs_property_t *prop, QFormLayout *layout,
 	subLayout->addWidget(button);
 
 	WidgetInfo *info = new WidgetInfo(this, prop, edit);
-	connect(button, SIGNAL(clicked()), info, SLOT(ControlChanged()));
+	pls_connect(button, &QPushButton::clicked, info,
+		    &WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
 	AddSpacer(obs_property_get_type(prop), layout);
@@ -1012,13 +562,14 @@ void OBSPropertiesView::AddInt(obs_property_t *prop, QFormLayout *layout,
 		subLayout->addWidget(slider);
 		subLayout->addSpacing(20);
 
-		connect(slider, SIGNAL(valueChanged(int)), spin,
-			SLOT(setValue(int)));
-		connect(spin, SIGNAL(valueChanged(int)), slider,
-			SLOT(setValue(int)));
+		pls_connect(slider, &QSlider::valueChanged, spin,
+			    &QSpinBox::setValue);
+		pls_connect(spin, &QSpinBox::valueChanged, slider,
+			    &QSlider::setValue);
 	}
 
-	connect(spin, SIGNAL(valueChanged(int)), info, SLOT(ControlChanged()));
+	pls_connect(spin, &QSpinBox::valueChanged, info,
+		    &WidgetInfo::ControlChanged);
 
 	subLayout->addWidget(spin);
 
@@ -1071,14 +622,14 @@ void OBSPropertiesView::AddFloat(obs_property_t *prop, QFormLayout *layout,
 		subLayout->addWidget(slider);
 		subLayout->addSpacing(20);
 
-		connect(slider, SIGNAL(doubleValChanged(double)), spin,
-			SLOT(setValue(double)));
-		connect(spin, SIGNAL(valueChanged(double)), slider,
-			SLOT(setDoubleVal(double)));
+		pls_connect(slider, &DoubleSlider::doubleValChanged, spin,
+			    &QDoubleSpinBox::setValue);
+		pls_connect(spin, &QDoubleSpinBox::valueChanged, slider,
+			    &DoubleSlider::setDoubleVal);
 	}
 
-	connect(spin, SIGNAL(valueChanged(double)), info,
-		SLOT(ControlChanged()));
+	pls_connect(spin, &QDoubleSpinBox::valueChanged, info,
+		    &WidgetInfo::ControlChanged);
 
 	subLayout->addWidget(spin);
 
@@ -1087,23 +638,30 @@ void OBSPropertiesView::AddFloat(obs_property_t *prop, QFormLayout *layout,
 	layout->addRow(*label, subLayout);
 }
 
-static void AddComboItem(QComboBox *combo, obs_property_t *prop,
-			 obs_combo_format format, size_t idx)
+static QVariant propertyListToQVariant(obs_property_t *prop, size_t idx)
 {
-	const char *name = obs_property_list_item_name(prop, idx);
-	QVariant var;
+	obs_combo_format format = obs_property_list_format(prop);
 
+	QVariant var;
 	if (format == OBS_COMBO_FORMAT_INT) {
 		long long val = obs_property_list_item_int(prop, idx);
 		var = QVariant::fromValue<long long>(val);
-
 	} else if (format == OBS_COMBO_FORMAT_FLOAT) {
 		double val = obs_property_list_item_float(prop, idx);
 		var = QVariant::fromValue<double>(val);
-
 	} else if (format == OBS_COMBO_FORMAT_STRING) {
 		var = QByteArray(obs_property_list_item_string(prop, idx));
+	} else if (format == OBS_COMBO_FORMAT_BOOL) {
+		bool val = obs_property_list_item_bool(prop, idx);
+		var = QVariant::fromValue<bool>(val);
 	}
+	return var;
+}
+
+static void AddComboItem(QComboBox *combo, obs_property_t *prop, size_t idx)
+{
+	const char *name = obs_property_list_item_name(prop, idx);
+	QVariant var = propertyListToQVariant(prop, idx);
 
 	combo->addItem(QT_UTF8(name), var);
 
@@ -1123,9 +681,23 @@ static void AddComboItem(QComboBox *combo, obs_property_t *prop,
 	item->setFlags(Qt::NoItemFlags);
 }
 
+static void AddRadioItem(PLSRadioButtonGroup *buttonGroup, QFormLayout *layout,
+			 obs_property_t *prop, QVariant value, size_t idx)
+{
+	const char *name = obs_property_list_item_name(prop, idx);
+
+	QVariant var = propertyListToQVariant(prop, idx);
+	PLSRadioButton *button = new PLSRadioButton(name);
+	button->setChecked(value == var);
+	button->setProperty("value", var);
+	buttonGroup->addButton(button);
+	layout->addRow(button);
+}
+
 template<long long get_int(obs_data_t *, const char *),
 	 double get_double(obs_data_t *, const char *),
-	 const char *get_string(obs_data_t *, const char *)>
+	 const char *get_string(obs_data_t *, const char *),
+	 bool get_bool(obs_data_t *, const char *)>
 static QVariant from_obs_data(obs_data_t *data, const char *name,
 			      obs_combo_format format)
 {
@@ -1136,6 +708,8 @@ static QVariant from_obs_data(obs_data_t *data, const char *name,
 		return QVariant::fromValue(get_double(data, name));
 	case OBS_COMBO_FORMAT_STRING:
 		return QByteArray(get_string(data, name));
+	case OBS_COMBO_FORMAT_BOOL:
+		return QVariant::fromValue(get_bool(data, name));
 	default:
 		return QVariant();
 	}
@@ -1145,38 +719,61 @@ static QVariant from_obs_data(obs_data_t *data, const char *name,
 			      obs_combo_format format)
 {
 	return from_obs_data<obs_data_get_int, obs_data_get_double,
-			     obs_data_get_string>(data, name, format);
+			     obs_data_get_string, obs_data_get_bool>(data, name,
+								     format);
 }
 
 static QVariant from_obs_data_autoselect(obs_data_t *data, const char *name,
 					 obs_combo_format format)
 {
-	return from_obs_data<obs_data_get_autoselect_int,
-			     obs_data_get_autoselect_double,
-			     obs_data_get_autoselect_string>(data, name,
-							     format);
+	return from_obs_data<
+		obs_data_get_autoselect_int, obs_data_get_autoselect_double,
+		obs_data_get_autoselect_string, obs_data_get_autoselect_bool>(
+		data, name, format);
 }
 
 QWidget *OBSPropertiesView::AddList(obs_property_t *prop, bool &warning)
 {
 	const char *name = obs_property_name(prop);
-	QComboBox *combo = new PLSComboBox();
-	combo->view()->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 	obs_combo_type type = obs_property_list_type(prop);
 	obs_combo_format format = obs_property_list_format(prop);
 	size_t count = obs_property_list_item_count(prop);
+
+	QVariant value = from_obs_data(settings, name, format);
+
+	if (type == OBS_COMBO_TYPE_RADIO) {
+		PLSRadioButtonGroup *buttonGroup = new PLSRadioButtonGroup();
+		QFormLayout *subLayout = new QFormLayout();
+		subLayout->setContentsMargins(0, 0, 0, 0);
+
+		for (size_t idx = 0; idx < count; idx++)
+			AddRadioItem(buttonGroup, subLayout, prop, value, idx);
+
+		if (count > 0) {
+			WidgetInfo *info = new WidgetInfo(
+				this, prop, buttonGroup->buttons()[0]);
+			children.emplace_back(info);
+			pls_connect(buttonGroup,
+				    &PLSRadioButtonGroup::buttonClicked, info,
+				    &WidgetInfo::ControlChanged);
+		}
+
+		QWidget *widget = new QWidget();
+		widget->setLayout(subLayout);
+		return widget;
+	}
 	int idx = -1;
 
+	QComboBox *combo = new PLSComboBox();
+	combo->view()->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
 	for (size_t i = 0; i < count; i++)
-		AddComboItem(combo, prop, format, i);
+		AddComboItem(combo, prop, i);
 
 	if (type == OBS_COMBO_TYPE_EDITABLE)
 		combo->setEditable(true);
 
 	combo->setMaxVisibleItems(40);
 	combo->setToolTip(QT_UTF8(obs_property_long_description(prop)));
-
-	QVariant value = from_obs_data(settings, name, format);
 
 	if (format == OBS_COMBO_FORMAT_STRING &&
 	    type == OBS_COMBO_TYPE_EDITABLE) {
@@ -1186,8 +783,7 @@ QWidget *OBSPropertiesView::AddList(obs_property_t *prop, bool &warning)
 	}
 
 	if (type == OBS_COMBO_TYPE_EDITABLE)
-		return NewWidget(prop, combo,
-				 SIGNAL(editTextChanged(const QString &)));
+		return NewWidget(prop, combo, &QComboBox::editTextChanged);
 
 	if (idx != -1)
 		combo->setCurrentIndex(idx);
@@ -1212,28 +808,28 @@ QWidget *OBSPropertiesView::AddList(obs_property_t *prop, bool &warning)
 		  model->flags(model->index(idx, 0)) == Qt::NoItemFlags;
 
 	WidgetInfo *info = new WidgetInfo(this, prop, combo);
-	connect(combo, SIGNAL(currentIndexChanged(int)), info,
-		SLOT(ControlChanged()));
+	pls_connect(combo, &QComboBox::currentIndexChanged, info,
+		    &WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
 	/* trigger a settings update if the index was not found */
-#ifdef Q_OS_WINDOWS
 	QString program;
-	bool checkPrismLensUnInstalled = isPrismLensOrMobileSource() &&
-					 !pls_is_install_cam_studio(program);
+	bool isLens = isPrismLensOrMobileSource();
+	bool isLensInstall = pls_is_install_cam_studio(program);
+
+#ifdef Q_OS_WINDOWS
+	bool checkPrismLensUnInstalled = isLens && !isLensInstall;
 	if (checkPrismLensUnInstalled) {
 		combo->clear();
 		combo->setEnabled(false);
 		warning = false;
 	}
-	if (idx == -1) {
+	if (count && idx == -1)
 		if (!checkPrismLensUnInstalled)
 			info->ControlChanged();
-	}
 #else
-	if (idx == -1) {
-		bool isLens = isPrismLensOrMobileSource();
-		if (isLens && count == 0 && pls_is_equal("device", name)) {
+	if (count && idx == -1) {
+		if (isLens && pls_is_equal("device", name) && !isLensInstall) {
 			return combo;
 		}
 
@@ -1252,7 +848,7 @@ static void NewButton(QLayout *layout, WidgetInfo *info, const char *themeIcon,
 	button->setFlat(true);
 	button->setProperty("toolButton", true);
 
-	QObject::connect(button, &QPushButton::clicked, info, method);
+	pls_connect(button, &QPushButton::clicked, info, method);
 
 	layout->addWidget(button);
 }
@@ -1284,11 +880,8 @@ void OBSPropertiesView::AddEditableList(obs_property_t *prop,
 	WidgetInfo *info = new WidgetInfo(this, prop, list);
 
 	list->setDragDropMode(QAbstractItemView::InternalMove);
-	connect(list->model(),
-		SIGNAL(rowsMoved(QModelIndex, int, int, QModelIndex, int)),
-		info,
-		SLOT(EditListReordered(const QModelIndex &, int, int,
-				       const QModelIndex &, int)));
+	pls_connect(list->model(), &QAbstractItemModel::rowsMoved,
+		    [info]() { info->EditableListChanged(); });
 
 	QVBoxLayout *sideLayout = new QVBoxLayout();
 	NewButton(sideLayout, info, "addIconSmall", &WidgetInfo::EditListAdd);
@@ -1326,7 +919,7 @@ QWidget *OBSPropertiesView::AddButton(obs_property_t *prop)
 	QPushButton *button = new QPushButton(displayName);
 	button->setProperty("themeID", "settingsButtons");
 	button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Maximum);
-	QWidget *widget = NewWidget(prop, button, SIGNAL(clicked()));
+	QWidget *widget = NewWidget(prop, button, &QPushButton::clicked);
 
 	bool isActivateBtn = pls_is_equal(name, "activate");
 	if (prismLensSource && isActivateBtn) {
@@ -1339,8 +932,8 @@ QWidget *OBSPropertiesView::AddButton(obs_property_t *prop)
 		hLayout->setSpacing(10);
 		QPushButton *openLensBtn = pls_new<QPushButton>(
 			QTStr("main.property.prism.lens.open"));
-		connect(openLensBtn, &QPushButton::clicked, this,
-			&OBSPropertiesView::OnOpenPrismLensClicked);
+		pls_connect(openLensBtn, &QPushButton::clicked, this,
+			    &OBSPropertiesView::OnOpenPrismLensClicked);
 		openLensBtn->setObjectName("openPrismLens");
 		hLayout->addWidget(openLensBtn);
 		hLayout->addWidget(widget);
@@ -1398,7 +991,8 @@ void OBSPropertiesView::AddColorInternal(obs_property_t *prop,
 	subLayout->addWidget(button);
 
 	WidgetInfo *info = new WidgetInfo(this, prop, colorLabel);
-	connect(button, SIGNAL(clicked()), info, SLOT(ControlChanged()));
+	pls_connect(button, &QPushButton::clicked, info,
+		    &WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
 	label = new QLabel(QT_UTF8(obs_property_description(prop)));
@@ -1487,10 +1081,16 @@ void OBSPropertiesView::AddFont(obs_property_t *prop, QFormLayout *layout,
 	subLayout->addWidget(button);
 
 	WidgetInfo *info = new WidgetInfo(this, prop, fontLabel);
-	connect(button, SIGNAL(clicked()), info, SLOT(ControlChanged()));
+	pls_connect(button, &QPushButton::clicked, info,
+		    &WidgetInfo::ControlChanged);
 	children.emplace_back(info);
 
 	label = new QLabel(QT_UTF8(obs_property_description(prop)));
+
+	if (lastPropertyType == OBS_PROPERTY_INVALID) {
+		layout->addItem(new QSpacerItem(10, 1, QSizePolicy::Fixed,
+						QSizePolicy::Fixed));
+	}
 	AddSpacer(obs_property_get_type(prop), layout);
 	layout->addRow(label, subLayout);
 }
@@ -1505,7 +1105,7 @@ template<> struct default_delete<obs_data_item_t> {
 	void operator()(obs_data_item_t *item) { obs_data_item_release(&item); }
 };
 
-}
+} // namespace std
 
 template<typename T> static double make_epsilon(T val)
 {
@@ -1582,9 +1182,13 @@ static media_frames_per_second make_fps(uint32_t num, uint32_t den)
 }
 
 static const common_frame_rate common_fps[] = {
-	{"60", {60, 1}}, {"59.94", {60000, 1001}}, {"50", {50, 1}},
-	{"48", {48, 1}}, {"30", {30, 1}},          {"29.97", {30000, 1001}},
-	{"25", {25, 1}}, {"24", {24, 1}},          {"23.976", {24000, 1001}},
+	{"240", {240, 1}},         {"144", {144, 1}},
+	{"120", {120, 1}},         {"119.88", {120000, 1001}},
+	{"60", {60, 1}},           {"59.94", {60000, 1001}},
+	{"50", {50, 1}},           {"48", {48, 1}},
+	{"30", {30, 1}},           {"29.97", {30000, 1001}},
+	{"25", {25, 1}},           {"24", {24, 1}},
+	{"23.976", {24000, 1001}},
 };
 
 static void UpdateSimpleFPSSelection(OBSFrameRatePropertyWidget *fpsProps,
@@ -1945,8 +1549,7 @@ static void UpdateFPSLabels(OBSFrameRatePropertyWidget *w)
 		w->currentFPS->setHidden(true);
 		w->timePerFrame->setHidden(true);
 		if (!option)
-			w->warningLabel->setStyleSheet(
-				"QLabel { color: red; }");
+			w->warningLabel->setObjectName("errorLabel");
 
 		return;
 	}
@@ -1956,9 +1559,9 @@ static void UpdateFPSLabels(OBSFrameRatePropertyWidget *w)
 
 	media_frames_per_second match{};
 	if (!option && !matches_ranges(match, *valid_fps, w->fps_ranges, true))
-		w->warningLabel->setStyleSheet("QLabel { color: red; }");
+		w->warningLabel->setObjectName("errorLabel");
 	else
-		w->warningLabel->setStyleSheet("");
+		w->warningLabel->setObjectName("");
 
 	auto convert_to_fps = media_frames_per_second_to_fps;
 	auto convert_to_frame_interval =
@@ -2027,7 +1630,7 @@ void OBSPropertiesView::AddFrameRate(obs_property_t *prop, bool &warning,
 
 	auto comboIndexChanged = static_cast<void (QComboBox::*)(int)>(
 		&QComboBox::currentIndexChanged);
-	connect(combo, comboIndexChanged, stack, [=](int index) {
+	pls_connect(combo, comboIndexChanged, stack, [=](int index) {
 		bool out_of_bounds = index >= stack->count();
 		auto idx = out_of_bounds ? stack->count() - 1 : index;
 		stack->setCurrentIndex(idx);
@@ -2039,14 +1642,14 @@ void OBSPropertiesView::AddFrameRate(obs_property_t *prop, bool &warning,
 		emit info->ControlChanged();
 	});
 
-	connect(widget->simpleFPS, comboIndexChanged, [=](int) {
+	pls_connect(widget->simpleFPS, comboIndexChanged, [=](int) {
 		if (widget->updating)
 			return;
 
 		emit info->ControlChanged();
 	});
 
-	connect(widget->fpsRange, comboIndexChanged, [=](int) {
+	pls_connect(widget->fpsRange, comboIndexChanged, [=](int) {
 		if (widget->updating)
 			return;
 
@@ -2055,14 +1658,14 @@ void OBSPropertiesView::AddFrameRate(obs_property_t *prop, bool &warning,
 
 	auto sbValueChanged =
 		static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged);
-	connect(widget->numEdit, sbValueChanged, [=](int) {
+	pls_connect(widget->numEdit, sbValueChanged, [=](int) {
 		if (widget->updating)
 			return;
 
 		emit info->ControlChanged();
 	});
 
-	connect(widget->denEdit, sbValueChanged, [=](int) {
+	pls_connect(widget->denEdit, sbValueChanged, [=](int) {
 		if (widget->updating)
 			return;
 
@@ -2120,7 +1723,8 @@ void OBSPropertiesView::AddGroup(obs_property_t *prop, QFormLayout *layout)
 	children.emplace_back(info);
 
 	// Signals
-	connect(groupBox, SIGNAL(toggled(bool)), info, SLOT(ControlChanged()));
+	pls_connect(groupBox, &QGroupBox::toggled, info,
+		    &WidgetInfo::ControlChanged);
 }
 
 void OBSPropertiesView::AddProperty(obs_property_t *property,
@@ -2364,6 +1968,7 @@ bool WidgetInfo::PathChanged(const char *setting)
 
 #ifdef __APPLE__
 	// TODO: Revisit when QTBUG-42661 is fixed
+	pls_check_app_exiting(false);
 	widget->window()->raise();
 #endif
 
@@ -2378,14 +1983,19 @@ bool WidgetInfo::PathChanged(const char *setting)
 
 void WidgetInfo::ListChanged(const char *setting)
 {
-	QComboBox *combo = static_cast<QComboBox *>(widget);
 	obs_combo_format format = obs_property_list_format(property);
 	obs_combo_type type = obs_property_list_type(property);
 	QVariant data;
-
-	if (type == OBS_COMBO_TYPE_EDITABLE) {
-		data = combo->currentText().toUtf8();
+	QComboBox *combo = nullptr;
+	if (type == OBS_COMBO_TYPE_RADIO) {
+		PLSRadioButtonGroup *group =
+			static_cast<PLSRadioButton *>(widget)->group();
+		PLSRadioButton *button = group->checkedButton();
+		data = button->property("value");
+	} else if (type == OBS_COMBO_TYPE_EDITABLE) {
+		data = static_cast<QComboBox *>(widget)->currentText().toUtf8();
 	} else {
+		combo = static_cast<QComboBox *>(widget);
 		int index = combo->currentIndex();
 		if (index != -1)
 			data = combo->itemData(index);
@@ -2421,11 +2031,19 @@ void WidgetInfo::ListChanged(const char *setting)
 #endif
 		if (isVideoDeviceId &&
 		    (view->isPrismLensOrMobileSource() || isDshow)) {
-			DeviceChanged(
-				combo->currentText(), isDshow,
-				pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID));
+			if (combo) {
+				DeviceChanged(
+					combo->currentText(), isDshow,
+					pls_is_equal(
+						id,
+						PRISM_LENS_MOBILE_SOURCE_ID));
+			}
 		}
 	} break;
+	case OBS_COMBO_FORMAT_BOOL:
+		obs_data_set_bool(view->settings, setting,
+				  data.value<double>());
+		break;
 	}
 }
 
@@ -2456,16 +2074,19 @@ bool WidgetInfo::ColorChangedInternal(const char *setting, bool supportAlpha)
 		options |= QColorDialog::ShowAlphaChannel;
 	}
 
-	/* The native dialog on OSX has all kinds of problems, like closing
-	 * other open QDialogs on exit, and
-	 * https://bugreports.qt-project.org/browse/QTBUG-34532
-	 */
-#ifndef _WIN32
+#ifdef __linux__
+	// TODO: Revisit hang on Ubuntu with native dialog
 	options |= QColorDialog::DontUseNativeDialog;
 #endif
 
 	color = PLSColorDialogView::getColor(color, view, QT_UTF8(desc),
 					     options);
+
+#ifdef __APPLE__
+	// TODO: Revisit when QTBUG-42661 is fixed
+	widget->window()->raise();
+#endif
+
 	if (!color.isValid())
 		return false;
 
@@ -2476,6 +2097,7 @@ bool WidgetInfo::ColorChangedInternal(const char *setting, bool supportAlpha)
 		format = QColor::HexRgb;
 	}
 
+	setIsControlChanging(false);
 	this_object->view->textColorChanged(_id, color, format);
 	return false;
 }
@@ -2505,12 +2127,16 @@ bool WidgetInfo::FontChanged(const char *setting)
 
 	if (!font_obj) {
 		QFont initial;
-		font = PLSFontDialogView::getFont(&success, initial, view,
-						  "Pick a Font", options);
+		font = PLSFontDialogView::getFont(
+			&success, initial, view,
+			QTStr("Basic.PropertiesWindow.SelectFont.WindowTitle"),
+			options);
 	} else {
 		MakeQFont(font_obj, font);
-		font = PLSFontDialogView::getFont(&success, font, view,
-						  "Pick a Font", options);
+		font = PLSFontDialogView::getFont(
+			&success, font, view,
+			QTStr("Basic.PropertiesWindow.SelectFont.WindowTitle"),
+			options);
 	}
 
 	if (!success)
@@ -2543,19 +2169,6 @@ void WidgetInfo::GroupChanged(const char *setting)
 	obs_data_set_bool(view->settings, setting,
 			  groupbox->isCheckable() ? groupbox->isChecked()
 						  : true);
-}
-
-void WidgetInfo::EditListReordered(const QModelIndex &parent, int start,
-				   int end, const QModelIndex &destination,
-				   int row)
-{
-	UNUSED_PARAMETER(parent);
-	UNUSED_PARAMETER(start);
-	UNUSED_PARAMETER(end);
-	UNUSED_PARAMETER(destination);
-	UNUSED_PARAMETER(row);
-
-	EditableListChanged();
 }
 
 void WidgetInfo::EditableListChanged()
@@ -2619,13 +2232,14 @@ void WidgetInfo::ButtonClicked()
 		view->OnOpenPrismLensClicked();
 	}
 
-	if (view->rawObj || view->weakObj) {
-		OBSObject strongObj = view->GetObject();
-		void *obj = strongObj ? strongObj.Get() : view->rawObj;
-		if (obs_property_button_clicked(property, obj)) {
-			QMetaObject::invokeMethod(view, "RefreshProperties",
-						  Qt::QueuedConnection);
-		}
+	OBSObject strongObj = view->GetObject();
+	void *obj = strongObj ? strongObj.Get() : view->rawObj;
+
+	QPointer<WidgetInfo> weakThis(this);
+	if (obs_property_button_clicked(property, obj) && weakThis) {
+    setIsControlChanging(false);
+		QMetaObject::invokeMethod(view, "RefreshProperties",
+					  Qt::QueuedConnection);
 	}
 }
 
@@ -2633,27 +2247,6 @@ void WidgetInfo::TogglePasswordText(bool show)
 {
 	reinterpret_cast<PLSLineEdit *>(widget)->setEchoMode(
 		show ? PLSLineEdit::Normal : PLSLineEdit::Password);
-}
-
-void WidgetInfo::DeviceChanged(QString text, bool isDshow, bool isMobile)
-{
-	QString program;
-	if (pls_is_install_cam_studio(program)) {
-		int index = view->getPrismLensOutputIndex(text);
-		if (index != -1) {
-			QStringList arguments;
-			arguments << "--display_control=keep";
-			arguments << QString("--output_cam=%1").arg(index);
-			pls_open_cam_studio(arguments, view);
-		}
-
-		return;
-	}
-#ifdef Q_OS_MACOS
-	if (!isDshow) {
-		view->showLensUninstallTips(isMobile);
-	}
-#endif // Q_OS_MACOS
 }
 
 void WidgetInfo::ControlChanged()
@@ -2702,6 +2295,7 @@ void WidgetInfo::ControlChanged()
 	case OBS_PROPERTY_EDITABLE_LIST:
 		break;
 	case OBS_PROPERTY_FRAME_RATE:
+		setIsControlChanging(false);
 		if (!FrameRateChanged(widget, setting, view->settings))
 			return;
 		break;
@@ -2716,7 +2310,7 @@ void WidgetInfo::ControlChanged()
 	ControlChangedToRefresh(setting);
 }
 
-class EditableItemDialog : public QDialog {
+class EditableItemDialog : public PLSDialogView {
 	PLSLineEdit *edit;
 	QString filter;
 	QString default_path;
@@ -2740,7 +2334,7 @@ public:
 	EditableItemDialog(QWidget *parent, const QString &text, bool browse,
 			   const char *filter_ = nullptr,
 			   const char *default_path_ = nullptr)
-		: QDialog(parent),
+		: PLSDialogView(parent),
 		  filter(QT_UTF8(filter_)),
 		  default_path(QT_UTF8(default_path_))
 	{
@@ -2759,8 +2353,8 @@ public:
 			topLayout->addWidget(browseButton);
 			topLayout->setAlignment(browseButton, Qt::AlignVCenter);
 
-			connect(browseButton, &QPushButton::clicked, this,
-				&EditableItemDialog::BrowseClicked);
+			pls_connect(browseButton, &QPushButton::clicked, this,
+				    &EditableItemDialog::BrowseClicked);
 		}
 
 		QDialogButtonBox::StandardButtons buttons =
@@ -2772,11 +2366,13 @@ public:
 		mainLayout->addLayout(topLayout);
 		mainLayout->addWidget(buttonBox);
 
-		setLayout(mainLayout);
+		content()->setLayout(mainLayout);
 		resize(QSize(400, 80));
 
-		connect(buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
-		connect(buttonBox, SIGNAL(rejected()), this, SLOT(reject()));
+		pls_connect(buttonBox, &QDialogButtonBox::accepted, this,
+			    &EditableItemDialog::accept);
+		pls_connect(buttonBox, &QDialogButtonBox::rejected, this,
+			    &EditableItemDialog::reject);
 	}
 
 	inline QString GetText() const { return edit->text(); }
@@ -2787,21 +2383,23 @@ void WidgetInfo::ControlChangedToRefresh(const char *setting)
 	if (!recently_updated) {
 		recently_updated = true;
 		update_timer = new QTimer;
-		connect(update_timer, &QTimer::timeout,
-			[this, &ru = recently_updated]() {
-				if (!pls_object_is_valid(view)) {
-					return;
-				}
-				void *obj = view->GetSourceObj();
-				if (obj && view->callback &&
-				    !view->deferUpdate) {
-					view->callback(obj, old_settings_cache,
-						       view->settings);
-				}
+		pls_connect(update_timer.get(), &QTimer::timeout,
+			    [this, &ru = recently_updated]() {
+				    if (!pls_object_is_valid(view)) {
+					    return;
+				    }
+				    void *obj = view->GetSourceObj();
+				    if (obj && view->callback &&
+					!view->deferUpdate) {
+					    view->callback(obj,
+							   old_settings_cache,
+							   view->settings);
+				    }
 
-				ru = false;
-			});
-		connect(update_timer, &QTimer::timeout, &QTimer::deleteLater);
+				    ru = false;
+			    });
+		pls_connect(update_timer.get(), &QTimer::timeout,
+			    &QTimer::deleteLater);
 		update_timer->setSingleShot(true);
 	}
 
@@ -2851,19 +2449,20 @@ void WidgetInfo::EditListAdd()
 	QAction *action;
 
 	action = new QAction(QTStr("Basic.PropertiesWindow.AddFiles"), this);
-	connect(action, &QAction::triggered, this,
-		&WidgetInfo::EditListAddFiles);
+	pls_connect(action, &QAction::triggered, this,
+		    &WidgetInfo::EditListAddFiles);
 	popup.addAction(action);
 
 	action = new QAction(QTStr("Basic.PropertiesWindow.AddDir"), this);
-	connect(action, &QAction::triggered, this, &WidgetInfo::EditListAddDir);
+	pls_connect(action, &QAction::triggered, this,
+		    &WidgetInfo::EditListAddDir);
 	popup.addAction(action);
 
 	if (type == OBS_EDITABLE_LIST_TYPE_FILES_AND_URLS) {
 		action = new QAction(QTStr("Basic.PropertiesWindow.AddURL"),
 				     this);
-		connect(action, &QAction::triggered, this,
-			&WidgetInfo::EditListAddText);
+		pls_connect(action, &QAction::triggered, this,
+			    &WidgetInfo::EditListAddText);
 		popup.addAction(action);
 	}
 
@@ -3047,4 +2646,540 @@ void WidgetInfo::EditListDown()
 	}
 
 	EditableListChanged();
+}
+
+#pragma mark - prism add mtehod
+static bool isSamePropertyType(obs_property_type a, obs_property_type b)
+{
+	switch ((int)a) {
+	case OBS_PROPERTY_BOOL:
+		switch ((int)b) {
+		case PLS_PROPERTY_BOOL_LEFT:
+		case OBS_PROPERTY_BOOL:
+			return true;
+		default:
+			return false;
+		}
+		break;
+	case OBS_PROPERTY_INT:
+	case OBS_PROPERTY_FLOAT:
+	case OBS_PROPERTY_TEXT:
+	case OBS_PROPERTY_PATH:
+	case OBS_PROPERTY_LIST:
+	case OBS_PROPERTY_COLOR:
+	case OBS_PROPERTY_BUTTON:
+	case OBS_PROPERTY_FONT:
+	case OBS_PROPERTY_EDITABLE_LIST:
+	case OBS_PROPERTY_FRAME_RATE:
+	case PLS_PROPERTY_FONT_SIMPLE:
+	case PLS_PROPERTY_COLOR_CHECKBOX:
+	case PLS_PROPERTY_IMAGE_GROUP:
+	case PLS_PROPERTY_CUSTOM_GROUP:
+		switch ((int)b) {
+		case OBS_PROPERTY_INT:
+		case OBS_PROPERTY_FLOAT:
+		case OBS_PROPERTY_TEXT:
+		case OBS_PROPERTY_PATH:
+		case OBS_PROPERTY_LIST:
+		case OBS_PROPERTY_COLOR:
+		case OBS_PROPERTY_BUTTON:
+		case OBS_PROPERTY_FONT:
+		case OBS_PROPERTY_EDITABLE_LIST:
+		case OBS_PROPERTY_FRAME_RATE:
+		case PLS_PROPERTY_IMAGE_GROUP:
+		case PLS_PROPERTY_FONT_SIMPLE:
+		case PLS_PROPERTY_COLOR_CHECKBOX:
+		case PLS_PROPERTY_BUTTON_GROUP:
+			return true;
+		default:
+			return false;
+		}
+	case PLS_PROPERTY_CHAT_TEMPLATE_LIST:
+	case PLS_PROPERTY_CHAT_FONT_SIZE:
+	case PLS_PROPERTY_TM_TEXT_CONTENT:
+	case PLS_PROPERTY_TM_TAB:
+	case PLS_PROPERTY_TM_TEMPLATE_TAB:
+	case PLS_PROPERTY_TM_TEMPLATE_LIST:
+	case PLS_PROPERTY_TM_TEXT:
+	case PLS_PROPERTY_TM_COLOR:
+	case PLS_PROPERTY_TM_MOTION:
+	case PLS_PROPERTY_LINE:
+	case PLS_PROPERTY_VIRTUAL_BACKGROUND_CAMERA_STATE:
+	case PLS_PROPERTY_VIRTUAL_BACKGROUND_RESOURCE:
+	case PLS_PROPERTY_TIPS:
+		return false;
+	default:
+		break;
+	}
+	return true;
+}
+
+void OBSPropertiesView::AddSpacer(const obs_property_type &currentType,
+				  QFormLayout *layout)
+{
+	if (lastPropertyType != OBS_PROPERTY_INVALID) {
+		if (PLS_PROPERTY_LINE == (pls_property_type)currentType ||
+		    PLS_PROPERTY_LINE == (pls_property_type)lastPropertyType) {
+			layout->addItem(new QSpacerItem(10, 20,
+							QSizePolicy::Fixed,
+							QSizePolicy::Fixed));
+		} else if (PLS_PROPERTY_MOBILE_NAME ==
+			   (pls_property_type)currentType) {
+			layout->addItem(new QSpacerItem(10, 20,
+							QSizePolicy::Fixed,
+							QSizePolicy::Fixed));
+		} else {
+			if (isSamePropertyType(lastPropertyType, currentType)) {
+				layout->addItem(new QSpacerItem(
+					10,
+					common::PROPERTIES_VIEW_VERTICAL_SPACING_MIN,
+					QSizePolicy::Fixed,
+					QSizePolicy::Fixed));
+			} else {
+				layout->addItem(new QSpacerItem(
+					10,
+					common::PROPERTIES_VIEW_VERTICAL_SPACING_MAX,
+					QSizePolicy::Fixed,
+					QSizePolicy::Fixed));
+			}
+		}
+	}
+	lastPropertyType = currentType;
+}
+
+void OBSPropertiesView::updateUIWhenAfterAddProperty(obs_property_t *property,
+						     QFormLayout *layout,
+						     QLabel *label,
+						     QWidget *widget,
+						     bool warning)
+{
+	obs_property_type type = obs_property_get_type(property);
+	if (!widget && !label)
+		return;
+
+	if (!label && type != OBS_PROPERTY_BOOL &&
+	    type != OBS_PROPERTY_BUTTON && type != OBS_PROPERTY_GROUP)
+		label = new QLabel(QT_UTF8(obs_property_description(property)));
+
+	if (label) {
+		if (warning) //TODO: select color based on background color
+			label->setStyleSheet("QLabel { color: #C34151; }");
+
+		if (minSize) {
+			label->setMinimumWidth(minSize);
+			label->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+		}
+
+		if (!obs_property_enabled(property))
+			label->setEnabled(false);
+
+		auto prop_flags = pls_property_get_flags(property);
+		bool child = PROPERTY_FLAG_CHILD_CONTROL & prop_flags;
+		label->setObjectName(pls_conditional_select(
+			!child, OBJECT_NAME_FORMLABEL, "subLabel"));
+
+		OBSSource source =
+			pls_get_source_by_pointer_address(GetSourceObj());
+		if (source) {
+			const char *id = obs_source_get_id(source);
+			if (pls_is_equal(id, PRISM_SPECTRALIZER_SOURCE_ID) &&
+			    !child) {
+				label->setObjectName("titleLabel");
+			} else if (pls_is_equal(id, PRISM_LENS_SOURCE_ID) ||
+				   pls_is_equal(id,
+						PRISM_LENS_MOBILE_SOURCE_ID)) {
+				label->setText(QTStr(
+					obs_property_description(property)));
+				label->setProperty("lensSource", true);
+			} else if (pls_is_equal(id, PRISM_CHATV2_SOURCE_ID)) {
+				label->setObjectName("tmLabel");
+			}
+		}
+
+		if (pls_is_in((int)type, (int)PLS_PROPERTY_TM_TEXT,
+			      (int)PLS_PROPERTY_TM_COLOR,
+			      (int)PLS_PROPERTY_TM_MOTION)) {
+			label->setObjectName("tmLabel");
+		}
+		if ((int)type == (int)PLS_PROPERTY_TM_DEFAULT_TEXT) {
+			label->setStyleSheet("QLabel { color: #bababa;}");
+		}
+	}
+
+	if (!widget)
+		return;
+
+	if (!obs_property_enabled(property))
+		widget->setEnabled(false);
+
+	QWidget *labelWidget = dynamic_cast<QWidget *>(label);
+	if (obs_property_long_description(property)) {
+		if (label) {
+#if 0
+            QString file = !App()->IsThemeDark()
+                           ? ":/res/images/help.svg"
+                           : ":/res/images/help_light.svg";
+			QString lStr = "<html>%1 <img src='%2' style=' \
+				vertical-align: bottom;  \
+				' /></html>";
+
+			label->setText(lStr.arg(label->text(), file));
+#endif
+			label->setToolTip(
+				obs_property_long_description(property));
+
+			labelWidget = plsCreateHelpQWidget(
+				label, obs_property_long_description(property));
+
+		} else if (type == OBS_PROPERTY_BOOL) {
+#if 0
+			QString bStr = "<html> <img src='%1' style=' \
+				vertical-align: bottom;  \
+				' /></html>";
+#endif
+			const char *desc = obs_property_description(property);
+			PLSCheckBox *check =
+				qobject_cast<PLSCheckBox *>(widget);
+			check->setText(desc);
+			check->setToolTip(
+				obs_property_long_description(property));
+
+			widget = plsCreateHelpQWidget(
+				check, obs_property_long_description(property));
+		}
+	}
+	AddSpacer(obs_property_get_type(property), layout);
+
+	if (obs_data_get_bool(settings, "noLabelHeader") ||
+	    PROPERTY_FLAG_NO_LABEL_SINGLE & pls_property_get_flags(property)) {
+		layout->addRow(widget);
+	} else {
+		layout->addRow(labelWidget, widget);
+	}
+
+	const char *name = obs_property_name(property);
+	if (!lastFocused.empty())
+		if (lastFocused.compare(name) == 0)
+			lastWidget = widget;
+}
+
+void OBSPropertiesView::updateTimerUiClickStatus(bool isClick)
+{
+	qDebug() << "updateTimerUiClickStatus" << isClick;
+	obs_data_set_bool(settings, "is_ui_click_cb", isClick);
+}
+
+void OBSPropertiesView::controlChangedToRefresh(obs_property_t *p_,
+						const char *setting_)
+{
+	if (visUpdateCb && !deferUpdate) {
+		pls_async_call_mt(this, [this]() {
+			void *obj = GetSourceObj();
+			if (obj)
+				visUpdateCb(obj, settings);
+		});
+	}
+
+	SignalChanged();
+
+	updateTimerUiClickStatus(true);
+	if (obs_property_modified(p_, settings)) {
+		lastFocused = setting_;
+		QMetaObject::invokeMethod(this, "RefreshProperties",
+					  Qt::QueuedConnection);
+	}
+	updateTimerUiClickStatus(false);
+	PLS_INFO("main/property", "properties control changed to refresh view");
+}
+
+void OBSPropertiesView::showFilterButton(bool hasNoProperties, const char *id)
+{
+	//add preview button
+	auto previewButton = pls_new<QPushButton>(QTStr("Filters"));
+	previewButton->setObjectName(common::OBJECT_NMAE_PREVIEW_BUTTON);
+	auto spaceLabel = pls_new<QLabel>(this);
+	spaceLabel->setObjectName(common::OBJECT_NAME_SPACELABEL);
+	pls_connect(previewButton, &QPushButton::clicked, this, [this]() {
+		obs_frontend_open_source_filters(
+			pls_get_source_by_pointer_address(GetSourceObj()));
+	});
+
+	auto formLayout = dynamic_cast<QFormLayout *>(boxLayout);
+
+	if (hasNoProperties) {
+		spaceLabel->setFixedSize({10, 22});
+		formLayout->addRow(nullptr, spaceLabel);
+		formLayout->addRow(previewButton);
+	} else {
+		if (pls_is_equal(id, common::PRISM_VIEWER_COUNT_SOURCE_ID)) {
+			spaceLabel->setFixedSize({10, 20});
+		} else if (pls_is_equal(id, common::PRISM_TEXT_TEMPLATE_ID)) {
+			spaceLabel->setFixedSize({10, 18});
+		} else if (pls_is_equal(id,
+					common::PRISM_LENS_MOBILE_SOURCE_ID) ||
+			   pls_is_equal(id, common::PRISM_LENS_SOURCE_ID)) {
+			spaceLabel->setFixedSize({10, 40});
+		}
+#if defined(Q_OS_MACOS)
+		else if (pls_is_equal(id, OBS_DSHOW_SOURCE_ID_V2) ||
+			 pls_is_equal(id, OBS_DSHOW_SOURCE_ID)) {
+			spaceLabel->setFixedSize({10, 40});
+		}
+#endif
+		else {
+			spaceLabel->setFixedSize({10, 30});
+		}
+
+		formLayout->addRow(nullptr, spaceLabel);
+
+		if (pls_is_in_str(id, common::PRISM_CHAT_SOURCE_ID,
+				  common::PRISM_TEXT_TEMPLATE_ID,
+				  common::BGM_SOURCE_ID,
+				  common::PRISM_BACKGROUND_TEMPLATE_SOURCE_ID,
+				  common::PRISM_SPECTRALIZER_SOURCE_ID,
+				  common::PRISM_TIMER_SOURCE_ID,
+				  common::PRISM_VIEWER_COUNT_SOURCE_ID,
+				  common::PRISM_CHZZK_SPONSOR_SOURCE_ID) ||
+		    obs_data_get_bool(settings, "noLabelHeader")) {
+			formLayout->addRow(previewButton);
+		} else if (pls_is_equal(id, common::PRISM_CHATV2_SOURCE_ID) &&
+			   obs_data_get_int(settings, "Tab") != 0) {
+			auto layout = pls_new<QHBoxLayout>();
+			layout->setSpacing(0);
+			layout->setContentsMargins(0, 0, 0, 0);
+			layout->setAlignment(Qt::AlignRight);
+			m_ctSaveTemplateBtn = pls_new<QPushButton>(
+				tr("ChatTemplate.Save.Tempate.Button"));
+			bool btnEnable =
+				obs_data_get_bool(settings, "ctParamChanged");
+			m_ctSaveTemplateBtn->setEnabled(btnEnable);
+			connect(m_ctSaveTemplateBtn, &QPushButton::clicked, [this]() {
+				auto isSuccess =
+					pls_get_chat_template_helper_instance()
+						->saveCustomObj(
+							settings,
+							obs_data_get_int(
+								settings,
+								"Chat.Template.List"));
+				m_ctSaveTemplateBtn->setEnabled(!isSuccess);
+			});
+			layout->addWidget(m_ctSaveTemplateBtn);
+			m_ctSaveTemplateBtn->setObjectName("CtChatSaveButton");
+			formLayout->addRow(previewButton, layout);
+		} else {
+			formLayout->addRow(nullptr, previewButton);
+		}
+	}
+}
+
+bool OBSPropertiesView::isPrismLensOrMobileSource()
+{
+	auto source = pls_get_source_by_pointer_address(GetSourceObj());
+	auto id = obs_source_get_id(source);
+	return pls_is_equal(id, PRISM_LENS_SOURCE_ID) ||
+	       pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID);
+}
+
+int OBSPropertiesView::getPrismLensOutputIndex()
+{
+	auto source = pls_get_source_by_pointer_address(GetSourceObj());
+	OBSDataAutoRelease settings = obs_source_get_settings(source);
+	QString videoDeviceId =
+		obs_data_get_string(settings, CSTR_VIDEO_DEVICE_ID);
+	return getPrismLensOutputIndex(videoDeviceId);
+}
+
+int OBSPropertiesView::getPrismLensOutputIndex(QString name)
+{
+	int outputCamIndex = -1;
+
+	if (name.contains(CSTR_PRISM_LEN1)) {
+		outputCamIndex = 0;
+	} else if (name.contains(CSTR_PRISM_LEN2)) {
+		outputCamIndex = 1;
+	} else if (name.contains(CSTR_PRISM_LEN3)) {
+		outputCamIndex = 2;
+	}
+	return outputCamIndex;
+}
+
+void OBSPropertiesView::showLensUninstallTips(bool isMobile)
+{
+	QString content = QTStr("main.property.lens.install");
+	if (isMobile) {
+		content = QTStr("main.property.mobile.install");
+	}
+	pls_show_cam_studio_uninstall(pls_get_toplevel_view(this),
+				      QTStr("Alert.Title"), content,
+				      QTStr("Main.cam.install.now"),
+				      QTStr("main.property.lens.later"));
+}
+
+void OBSPropertiesView::textColorChanged(const QByteArray &_id,
+					 const QColor &color,
+					 QColor::NameFormat format)
+{
+
+	std::shared_ptr<WidgetInfo> info = nullptr;
+	std::vector<std::shared_ptr<WidgetInfo>>::iterator itr =
+		children.begin();
+	while (itr != children.end()) {
+		const char *_settingID = obs_property_name((*itr)->property);
+		if (_settingID && _settingID[0] &&
+		    !strcmp(_id.constData(), _settingID)) {
+
+			info = (*itr);
+			break;
+		}
+		++itr;
+	}
+
+	if (info == nullptr) {
+		return;
+	}
+	QLabel *label = dynamic_cast<QLabel *>(info->widget);
+	if (label == nullptr) {
+		return;
+	}
+
+	label->setText(color.name(format));
+	QPalette palette = QPalette(color);
+	label->setPalette(palette);
+	label->setStyleSheet(
+		QString("background-color :%1; color: %2;")
+			.arg(palette.color(QPalette::Window).name(format))
+			.arg(palette.color(QPalette::WindowText).name(format)));
+
+	if ((int)obs_property_get_type(info->property) ==
+	    (int)PLS_PROPERTY_COLOR_CHECKBOX) {
+		obs_data_t *color_obj =
+			obs_data_get_obj(settings, _id.constData());
+		obs_data_set_int(color_obj, "color_val", color_to_int(color));
+		obs_data_release(color_obj);
+	} else {
+		obs_data_set_int(settings, _id.constData(),
+				 color_to_int(color));
+	}
+	info->ControlChangedToRefresh(_id.constData());
+}
+
+void OBSPropertiesView::OnShowScrollBar(bool isShow)
+{
+	if (!widget) {
+		return;
+	}
+	setContentMarginAndWidth();
+}
+
+void OBSPropertiesView::OnOpenPrismLensClicked()
+{
+	QString program;
+	OBSSource source = pls_get_source_by_pointer_address(GetSourceObj());
+	const char *id = obs_source_get_id(source);
+	bool installed = pls_is_install_cam_studio(program);
+	if (!installed) {
+		showLensUninstallTips(
+			pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID));
+		return;
+	}
+
+	QStringList arguments;
+	arguments << "--display_control=top";
+	int outputCamIndex = getPrismLensOutputIndex();
+	if (outputCamIndex != -1) {
+		arguments << QString("--output_cam=%1").arg(outputCamIndex);
+		if (pls_is_equal(id, PRISM_LENS_MOBILE_SOURCE_ID)) {
+			arguments << "--active_tab=mobile";
+		}
+	}
+	pls_open_cam_studio(arguments, this);
+#if defined(Q_OS_MACOS)
+	pls_set_current_lens(outputCamIndex);
+#endif
+}
+
+bool OBSPropertiesView::getIsCustomContentMargins(const char *sourceId)
+{
+	bool isVirtualBackgroundSource = false;
+	if (sourceId) {
+		if (pls_is_equal(sourceId,
+				 PRISM_BACKGROUND_TEMPLATE_SOURCE_ID)) {
+			isVirtualBackgroundSource = true;
+		}
+	} else {
+		OBSSource source =
+			pls_get_source_by_pointer_address(GetSourceObj());
+		if (source) {
+			if (const char *id = obs_source_get_id(source);
+			    pls_is_equal(id,
+					 PRISM_BACKGROUND_TEMPLATE_SOURCE_ID)) {
+				isVirtualBackgroundSource = true;
+			}
+		}
+	}
+	return !isVirtualBackgroundSource;
+}
+
+void OBSPropertiesView::setContentMarginAndWidth()
+{
+	auto isPrismMobileSource = false;
+	int marginLeft = 10;
+	int marginRight = 19;
+	OBSSource source = pls_get_source_by_pointer_address(GetSourceObj());
+	if (source) {
+		if (const char *id = obs_source_get_id(source);
+		    pls_is_equal(id, PRISM_MOBILE_SOURCE_ID)) {
+			isPrismMobileSource = true;
+		}
+	} else {
+		//The setting left and right margin is zero
+		marginLeft = 0;
+		marginRight = 0;
+	}
+
+	bool isCustomMargin = getIsCustomContentMargins();
+	if (pls_is_or(isCustomMargin, setCustomContentWidth)) {
+		int scrollWidth = pls_get_visible_width(scroll);
+
+		int widgetMarginRight = qMax(marginRight - scrollWidth, 0);
+		if (isCustomMargin) {
+			widget->setContentsMargins(
+				marginLeft, 0, widgetMarginRight,
+				pls_conditional_select(isPrismMobileSource, 15,
+						       50));
+		}
+
+		if (setCustomContentWidth) {
+			widget->setMaximumWidth(width() - widgetMarginRight);
+		}
+	}
+}
+
+void WidgetInfo::DeviceChanged(QString text, bool isDshow, bool isMobile)
+{
+	QString program;
+	if (pls_is_install_cam_studio(program)) {
+		int index = view->getPrismLensOutputIndex(text);
+		if (index != -1) {
+			QStringList arguments;
+			arguments << "--display_control=keep";
+			arguments << QString("--output_cam=%1").arg(index);
+			pls_open_cam_studio(arguments, view);
+#if defined(Q_OS_MACOS)
+			pls_set_current_lens(index);
+#endif
+		}
+
+		return;
+	}
+#ifdef Q_OS_MACOS
+	if (!isDshow) {
+		view->showLensUninstallTips(isMobile);
+	}
+#endif // Q_OS_MACOS
+}
+
+void WidgetInfo::setIsControlChanging(bool isControlChanging_)
+{
+	view->isControlChanging = isControlChanging_;
 }

@@ -288,7 +288,6 @@ PLSChannelsArea {
 			}
 
 	PLSChannelsArea #ErrorText {
-		max-width: /*hdpi*/ 400px;
 		color: #666666;
 		padding: /*hdpi*/ 0px;
 		margin-top: /*hdpi*/ 5px;

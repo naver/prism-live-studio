@@ -30,9 +30,16 @@ public:
 	};
 
 public:
+	void setAppState(bool actived);
+
+signals:
+	void appStateChanged(bool actived);
+
+public:
 	QPixmap m_checkBoxIcons[IconMax];
 	QPixmap m_radioButtonIcons[IconMax];
 	QPixmap m_switchButtonIcons[IconMax];
+	bool m_appActived = false;
 };
 
 #endif // !PLSUIAPP_H

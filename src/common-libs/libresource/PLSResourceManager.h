@@ -56,14 +56,17 @@ public:
 	QJsonArray getNeedDownloadResInfo(const QString &moduleName) const;
 	QString getModuleJsonUrl(resource_modules modules);
 	void copyTextmotionScreenRes(const QString &zipFilePath, const QString &zipFileName) const;
-	void copyTextmotionWeb() const;
+	void copyTextmotionWeb(bool isUpdate) const;
 	void updateResourceDownloadStatus(const QString &url, PLSResDownloadStatus downloadStatus);
 	PLSResDownloadStatus resourceDownloadStatus(const QString &url);
+	QString getCategoryPath()const ;
+
 public slots:
 	void appendResourceNum(qint64 resourceNum);
 	void appendResourceDownloadedNum(qint64 downloadedNum);
 	void downloadedZipHandle(const QString &zipFilePath, const QString &zipName, const QJsonArray &fileListInfo, const QString &dstDir = QString()) const;
 	void getBannerJson();
+
 private slots:
 	void getLibraryJsons(const QString &path, const QString &itemId);
 	void parseResTemplates();
@@ -104,7 +107,7 @@ signals:
 	void startDownloadResourceSignal();
 	void resCheckFinished();
 	void bannerJsonDownloaded();
-	void libraryNeedUpdate();
+	void libraryNeedUpdate(bool isSuccess);
 
 private:
 	static QVariantHash m_paramData;

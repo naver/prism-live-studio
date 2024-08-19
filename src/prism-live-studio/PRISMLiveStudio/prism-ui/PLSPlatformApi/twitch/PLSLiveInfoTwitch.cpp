@@ -1,4 +1,4 @@
-#include "PLSLiveInfoTwitch.h"
+﻿#include "PLSLiveInfoTwitch.h"
 
 #include <QObject>
 #include <QNetworkReply>
@@ -29,9 +29,6 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 	updateStepTitle(ui->pushButtonOk);
 	PLS_PLATFORM_TWITCH->setAlertParent(this);
 
-	if (PLS_PLATFORM_API->isPrepareLive()) {
-		ui->horizontalLayout->addWidget(ui->pushButtonOk);
-	}
 	ui->pushButtonOk->setFocusPolicy(Qt::NoFocus);
 	ui->pushButtonCancel->setFocusPolicy(Qt::NoFocus);
 	getJs();
@@ -104,6 +101,23 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 		return true;
 	};
 	setCloseEventCallback(closeEvent);
+
+	if (!PLS_PLATFORM_TWITCH->isActive()) {
+		ui->labelTooltip->setToolTip(QTStr("Twitch.Service.Off.Tooltip"));
+		ui->twitchService->setText(QTStr("Twitch.Default.Service.Output"));
+
+	} else {
+		ui->labelTooltip->setToolTip(QTStr("Twitch.Service.On.Tooltip"));
+		bool isWHIP = PLSPlatformApi::instance()->isTwitchWHIP();
+		auto serviceStr = isWHIP ? QTStr("Twitch.Hhip.Service.Output") : QTStr("Twitch.Rtmps.Service.Output");
+		ui->twitchService->setText(serviceStr);
+	}
+
+#if defined(Q_OS_WIN)
+	if (!PLS_PLATFORM_API->isPrepareLive()) {
+		ui->horizontalLayout_4->addWidget(ui->pushButtonCancel);
+	}
+#endif
 }
 
 PLSLiveInfoTwitch::~PLSLiveInfoTwitch()

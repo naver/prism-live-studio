@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QListView>
+#include <QPushButton>
 #include <QAbstractListModel>
 #include "PLSDialogView.h"
 #include "PLSSceneCollectionItem.h"
@@ -16,6 +17,39 @@ class PLSSceneCollectionView;
 }
 
 class PLSSceneCollectionListView;
+
+class PLSClickButton : public QWidget {
+	Q_OBJECT
+public:
+	explicit PLSClickButton(QWidget *parent);
+
+	void setDisplayText(const QString &text);
+	void setShowOverlay(bool show);
+
+protected:
+	void enterEvent(QEnterEvent *event) override;
+	void leaveEvent(QEvent *event) override;
+
+signals:
+	void newBtnClicked();
+	void importFromLocalBtnClicked();
+	void importFromOtherBtnClicked();
+
+private:
+	QPushButton *iconButton{nullptr};
+	QLabel *textLabel{nullptr};
+	QPushButton *baseContent{nullptr};
+	QPushButton *overlay{nullptr};
+	bool showOverlay = false;
+};
+
+class PLSSceneTemplateButton : public QPushButton {
+	Q_OBJECT
+public:
+	explicit PLSSceneTemplateButton(QWidget *parent);
+
+private:
+};
 
 class PLSSceneCollectionModel : public QAbstractListModel {
 	Q_OBJECT
@@ -130,15 +164,13 @@ protected:
 private slots:
 	void OnSearchTriggerd(const QString &text) const;
 	void OnSceneCollectionItemRowChanged(int srcIndex, int destIndex) const;
-	void OnImportButtonClicked();
 	void OnImportFromLocalButtonClicked();
 	void OnImportFromOtherButtonClicked() const;
+	void OnShowSceneTemplateView() const;
 	void OnCloseButtonClicked();
 	void OnScrollBarShow(bool show);
 	void HandleEnterEvent(const QObject *obj, const QEvent *) const;
-	void HandleLeaveEvent(const QObject *obj, const QEvent *) const;
-	void HandlePressEvent(const QObject *obj, QEvent *) const;
-	void HandleReleaseEvent(const QObject *obj, QEvent *);
+
 signals:
 	void currentSceneCollectionChanged(QString name, QString path);
 	void newButtonClicked();

@@ -1,0 +1,209 @@
+PLSLiveInfoChzzk #titleWidget {
+	min-height:/*hdpi*/ 75px;
+	max-height:/*hdpi*/75px;
+    background-color: transparent;
+}
+
+PLSLiveInfoChzzk #titleWidget #titleLabel {
+    margin:0px;
+	font-size:/*hdpi*/ 20px;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: transparent;
+ 
+}
+
+PLSLiveInfoChzzk #scrollArea  {
+        border:/*hdpi*/none;
+        background-color: transparent;
+        padding-right:/*hdpi*/ 8px;
+}
+
+
+PLSLiveInfoChzzk #scrollAreaWidgetContents {
+        border:/*hdpi*/none;
+        background-color: transparent;
+}
+
+
+PLSLiveInfoChzzk #thumWidget {
+    margin:/*hdpi*/ 0px/*hdpi*/ 0px/*hdpi*/ 0px/*hdpi*/ 0px;
+    min-height: /*hdpi*/155px;
+    max-height: /*hdpi*/155px;
+}
+
+PLSLiveInfoChzzk #thumWidget #thumbnailButton {
+    margin: 0;
+    min-width:/*hdpi*/ 214px;
+    max-width:/*hdpi*/ 214px;
+    min-height:/*hdpi*/ 120px;
+    max-height:/*hdpi*/ 120px;
+}
+
+PLSLiveInfoChzzk #thumWidget #thumDetailLabel {
+    font-size:/*hdpi*/ 12px;
+    font-weight: normal;
+    color: #666666;
+}
+
+PLSLiveInfoChzzk #midwidget #liveTitleLabel,
+PLSLiveInfoChzzk #midwidget #leftTitle_chat,
+PLSLiveInfoChzzk #midwidget #label_clip {
+	min-width:/*hdpi*/ 123px;
+	max-width:/*hdpi*/ 123px;
+	font-size:/*hdpi*/ 14px;
+	min-height: 40px;
+    font-weight: bold;
+    color: #bababa;
+
+}
+
+PLSLiveInfoChzzk #formLeftWidget {
+	min-width:/*hdpi*/ 123px;
+	max-width:/*hdpi*/ 123px;
+	background-color:transparent;
+	min-height: 40px;
+}
+
+PLSLiveInfoChzzk #formLeftWidget #formLeftWidget_title{
+	font-size:/*hdpi*/ 14px;
+    font-weight: bold;
+    color: #bababa;
+    background-color: transparent;
+}
+
+PLSLiveInfoChzzk #formLeftWidget #formLeftWidget_icon{
+	margin-left: 0px;
+}
+
+PLSLiveInfoChzzk #bottomWidget {
+	min-height:/*hdpi*/ 79px;
+	max-height:/*hdpi*/ 79px;
+}
+
+PLSLiveInfoChzzk  #bottomWidget #lineView {
+	min-height:/*hdpi*/ 1px;
+	max-height:/*hdpi*/ 1px;
+    background-color: #151515;
+	margin-bottom:/*hdpi*/ 0px;
+}
+
+PLSLiveInfoChzzk #textEditDescribe {
+	min-height:/*hdpi*/ 76px;
+	max-height:/*hdpi*/ 76px;
+}
+
+PLSLiveInfoChzzk #textEditDescribe,
+PLSLiveInfoChzzk #lineEditTitle {
+	font-size:/*hdpi*/ 14px;
+	border-radius:/*hdpi*/ 3px;
+}
+
+PLSLiveInfoChzzk #lineEditTitle {
+    margin: 0px;
+    padding: 0px 0px 0px 8px;
+}
+
+PLSLiveInfoChzzk #sPushButton QLabel {
+      background-color: transparent;
+}
+
+PLSLiveInfoChzzk QTextEdit {
+	border:/*hdpi*/ none;
+    background-color: #1e1e1e;
+}
+
+
+PLSLiveInfoChzzk #ageRadioWidget > PLSRadioButton {
+	font-size:/*hdpi*/ 14px;
+	spacing: /*hdpi*/ 10px;
+    font-weight: normal;
+    background-color: transparent;
+}
+
+PLSLiveInfoChzzk #latencyLeftWidget QToolTip {
+		max-width:  /*hdpi*/ 510px;
+		margin: /*hdpi*/ 2px;
+		padding:/*hdpi*/5px;
+}
+
+PLSLiveInfoChzzk #hlsTipLabel {
+	font-size:/*hdpi*/ 14px;
+    color: #bababa;
+    background-color: transparent;
+}
+PLSLiveInfoChzzk #ageRadioWidget > PLSHelpIcon {
+	margin-left: 0px;
+	margin-right: 0px;
+}
+
+PLSLiveInfoChzzk #ageRadioWidget #radioButton_chat_follow,
+PLSLiveInfoChzzk #ageRadioWidget #radioButton_chat_manager {
+	padding-left: 15px;
+}
+
+
+PLSLiveInfoChzzk #scrollArea #midwidget #pushButton_age {
+	color: #258EDD;
+	text-decoration: underline;
+	background-color: transparent;
+	text-align: left;
+	margin: 0px;
+	padding: 0px;
+	min-width: 10px;
+	max-height: 1000px;
+}
+
+PLSLiveInfoChzzk #guideBackView {
+	background-color: transparent;
+	min-height: /*hdpi*/ 17px;
+	max-height: /*hdpi*/ 17px;
+}
+
+PLSLiveInfoChzzk #guideBackView #lineView {
+	min-width: /*hdpi*/ 1px;
+	max-width: /*hdpi*/ 1px;
+	min-height: /*hdpi*/ 12px;
+	max-height: /*hdpi*/ 12px;
+	background-color: rgba(216, 216, 216, 0.31);
+	margin-top:/*hdpi*/ 2px;
+}
+
+PLSLiveInfoChzzk #manageButton {
+	background: transparent;
+}
+
+PLSLiveInfoChzzk #manageButton > #guideButtonIcon {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-menu-next-normal.svg);
+	min-height: /*hdpi*/ 13px;
+	max-height: /*hdpi*/ 13px;
+	min-width: /*hdpi*/ 9px;
+	max-width: /*hdpi*/ 9px;
+	background-color:transparent;
+	margin-top:/*hdpi*/2px;
+}
+
+PLSLiveInfoChzzk #manageButton[hovered="true"] > #guideButtonIcon {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-menu-next-over.svg);
+}
+
+PLSLiveInfoChzzk #manageButton[pressed="true"][hovered="true"] > #guideButtonIcon {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-menu-next-click.svg);
+}
+
+PLSLiveInfoChzzk #manageButton > #guideButtonText {
+	color: #bababa;
+	font-size: /*hdpi*/ 13px;
+	font-weight: bold;
+	background-color:transparent;
+	min-height: /*hdpi*/ 17px;
+	max-height: /*hdpi*/ 17px;
+}
+
+PLSLiveInfoChzzk #manageButton[hovered="true"] > #guideButtonText {
+	color:white;
+}
+
+PLSLiveInfoChzzk #manageButton[pressed="true"][hovered="true"] > #guideButtonText {
+	color:#444444;
+}

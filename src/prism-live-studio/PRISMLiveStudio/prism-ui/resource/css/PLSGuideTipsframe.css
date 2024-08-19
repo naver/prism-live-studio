@@ -1,6 +1,5 @@
 
 #PLSGuideTipsFrame {
-	/*border: 1px solid red;*/
 	min-height: /*hdpi*/ 44px;
 	border: none;
 }
@@ -14,7 +13,7 @@
 		max-height: /*hdpi*/ 16px;
 		max-width: /*hdpi*/ 16px;
 		border: none;
-		/*border: 1px solid red;*/
+		/*border: 1px solid green;*/
 	}
 
 	#PLSGuideTipsFrame #contentFrame {
@@ -22,20 +21,20 @@
 		background-color: rgba(255, 255, 255,0.96);
 		border-radius: /*hdpi*/ 3px;
 		color: black;
-		padding: /*hdpi*/ 9px /*hdpi*/ 11px /*hdpi*/ 9px /*hdpi*/ 12px;
-		border: none;
+		padding-right: 11px;
+		padding-top: 9px;
 		/*border: 1px solid red;*/
 	}
 
 	#PLSGuideTipsFrame #Icon {
 		background-color: transparent;
 		color: transparent;
-		margin: /*hdpi*/ 6px /*hdpi*/ 6px /*hdpi*/ 6px /*hdpi*/ 0px;
+		margin: /*hdpi*/ 6px /*hdpi*/ 6px /*hdpi*/ 6px /*hdpi*/ 12px;
 		image: url(":/resource/images/GuideTips/ic-badge-new.svg");
 		max-height: /*hdpi*/ 12px;
 		min-height: /*hdpi*/ 12px;
 		max-width: /*hdpi*/ 30px;
-		min-width: /*hdpi*/ 30px;
+		min-width: /*hdpi*/ 30px;	
 		border: none;
 		/*border: 1px solid red;*/
 	}
@@ -47,5 +46,6 @@
 		font-weight: normal;
 		font-style: normal;
 		border: none;
-		/*border: 1px solid red;*/
+		margin: 0;
+		padding: 0;
 	}

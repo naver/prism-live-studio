@@ -255,7 +255,7 @@ typedef enum
  * @return A dictionary with report fields. See KSCrashReportFields.h for available fields.
  */
 - (NSDictionary*) reportWithID:(NSNumber*) reportID;
-
+- (NSString *)reportPathWithID:(NSNumber *)reportID;
 /** Delete all unsent reports.
  */
 - (void) deleteAllReports;

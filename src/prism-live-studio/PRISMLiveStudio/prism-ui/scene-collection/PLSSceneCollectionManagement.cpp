@@ -6,6 +6,9 @@
 #include <QWidgetAction>
 #include <QTimer>
 #include <QMouseEvent>
+#include "liblog.h"
+#include "log/module_names.h"
+
 using namespace common;
 
 PLSSceneCollectionManagement::PLSSceneCollectionManagement(QWidget *parent) : QFrame(parent)
@@ -89,6 +92,7 @@ bool PLSSceneCollectionManagement::eventFilter(QObject *obj, QEvent *event)
 			auto mouseEvent = dynamic_cast<QMouseEvent *>(event);
 			if (mouseEvent->button() == Qt::LeftButton) {
 				pls_flush_style(ui->buttonFrame, STATUS, STATUS_CLICKED);
+				PLS_UI_STEP(MAIN_SCENE_COLLECTION, "scene set manager", ACTION_LBUTTON_CLICK);
 				emit ShowSceneCollectionView();
 			}
 		} else if (event->type() == QEvent::Enter) {

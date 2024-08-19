@@ -9,11 +9,12 @@
 
 //#include "pls-global-vars.h"
 #include "PLSBasic.h"
+#include "PLSBrowserPanel.h"
 
 constexpr auto PLS_BROWSER_VIEW_MODULE = "PLSBrowserView";
 using namespace common;
 
-extern QCef *cef;
+extern PLSQCef *plsCef;
 
 PLSBrowserView::PLSBrowserView(bool readCookies, const QUrl &url, QWidget *parent) : PLSBrowserView(readCookies, nullptr, url, nullptr, parent) {}
 
@@ -46,7 +47,7 @@ PLSBrowserView::PLSBrowserView(bool readCookies, QJsonObject *res, const QUrl &u
 	}
 	browser_panel_cookies = PLSBasic::getBrowserPannelCookieMgr(pannelCookieName);
 
-	cefWidget = cef->create_widget(this, uri, pls_get_offline_javaScript() + script, browser_panel_cookies, headers, true, Qt::white, {}, true);
+	cefWidget = plsCef->create_widget(this, uri, script, browser_panel_cookies, headers, true, Qt::white, {}, true);
 	if (!cefWidget) {
 		emit doneSignal(QDialog::Rejected);
 		return;
@@ -180,18 +181,20 @@ void PLSBrowserView::urlChanged(const QString &url)
 	});
 
 	PLS_INFO(PLS_BROWSER_VIEW_MODULE, "begin read browser cookies");
-	browser_panel_cookies->ReadAllCookies([eventLoop](const std::list<QCefCookieManager::Cookie> &cookies) {
-		for (const auto &cookie : cookies) {
-			eventLoop->cookies.insert(QString::fromStdString(cookie.name), QString::fromStdString(cookie.value));
-		}
+	auto cookieManager = dynamic_cast<PLSQCefCookieManager *>(browser_panel_cookies);
+	if (cookieManager) {
+		cookieManager->ReadAllCookies([eventLoop](const std::list<PLSQCefCookieManager::Cookie> &cookies) {
+			for (const auto &cookie : cookies) {
+				eventLoop->cookies.insert(QString::fromStdString(cookie.name), QString::fromStdString(cookie.value));
+			}
 
-		if (eventLoop->quitFlag == InitValue) {
-			PLS_INFO(PLS_BROWSER_VIEW_MODULE, "complete read browser cookies");
-			eventLoop->quit(QuitByVisitAllCookies, true);
-		}
-	});
-
-	eventLoop->exec();
+			if (eventLoop->quitFlag == InitValue) {
+				PLS_INFO(PLS_BROWSER_VIEW_MODULE, "complete read browser cookies");
+				eventLoop->quit(QuitByVisitAllCookies, true);
+			}
+		});
+		eventLoop->exec();
+	}
 	pls_modal_check_app_exiting();
 
 	if (eventLoop->quitFlag != QuitByVisitAllCookies) {

@@ -1,9 +1,5 @@
 #include "PLSBasicStatusPanel.hpp"
-#ifdef __APPLE__
-#include "ui_PLSBasicStatusPanel_mac.h"
-#else
 #include "ui_PLSBasicStatusPanel.h"
-#endif
 #include "PLSBasicStatusBar.hpp"
 
 #include <QStyle>
@@ -42,12 +38,27 @@ static QString MakeMissedFramesText(uint32_t total_lagged, uint32_t total_render
 	return QString("%1 / %2 (%3%)").arg(QString::number(total_lagged), QString::number(total_rendered), QString::number(num, 'f', 1));
 }
 
-PLSBasicStatusPanel::PLSBasicStatusPanel(QWidget *parent) : QFrame(parent)
+PLSBasicStatusPanel::PLSBasicStatusPanel(QWidget *parent)
+	: QDialog(parent, Qt::FramelessWindowHint)
 {
 	ui = pls_new<Ui::PLSBasicStatusPanel>();
 	ui->setupUi(this);
 	pls_set_css(this, {"PLSBasicStatusPanel"});
 	setAttribute(Qt::WA_NativeWindow);
+
+#ifndef _WIN32
+	ui->gridLayout_5->removeWidget(ui->gpuUsageLabel);
+	ui->gridLayout_5->removeWidget(ui->gpuUsage);
+	ui->gridLayout_5->removeWidget(ui->memoryUsageLabel);
+	ui->gridLayout_5->removeWidget(ui->memoryUsage);
+
+	ui->gridLayout_5->addWidget(ui->memoryUsageLabel, 2, 0);
+	ui->gridLayout_5->addWidget(ui->memoryUsage, 2, 1);
+	ui->gridLayout_5->addWidget(ui->gpuUsageLabel, 3, 0);
+	ui->gridLayout_5->addWidget(ui->gpuUsage, 3, 1);
+	ui->gpuUsageLabel->setText(QString());
+	ui->gpuUsage->setText(QString());
+#endif
 
 	OutputLabels outputStream = {};
 	outputStream.droppedFramesState = ui->networkFramedropState;
@@ -82,10 +93,9 @@ void PLSBasicStatusPanel::InitializeValues()
 	first_lagged = obs_get_lagged_frames();
 }
 
-void PLSBasicStatusPanel::setTextAndAlignment(PLSLabel *widget, const QString &text)
+void PLSBasicStatusPanel::setTextAndAlignment(QLabel *widget, const QString &text)
 {
-	widget->SetText(text);
-	widget->setAlignment(Qt::AlignVCenter | (widget->toolTip().isEmpty() ? Qt::AlignRight : Qt::AlignLeft));
+	widget->setText(text);
 }
 
 void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
@@ -130,6 +140,9 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 
 	dataStatus.renderFPS = make_tuple(curFPS, plsFPS);
 
+	dataStatus.streamOutputFPS = OBSBasic::Get()->GetStreamingOutputFPS();
+	dataStatus.recordOutputFPS = OBSBasic::Get()->GetRecordingOutputFPS();
+
 	if (isVisible()) {
 		setTextAndAlignment(ui->realtimeFramerate, QString("%1 / %2 fps").arg(QString::number(curFPS, 'f', 2), QString::number(plsFPS, 'f', 2)));
 
@@ -171,14 +184,14 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 			setTextAndAlignment(ui->renderingFramedrop, MakeMissedFramesText(total_lagged, total_rendered, num));
 		}
 
-		if (num > 5.0) {
+		if (num > 5.0 && total_rendered >= plsFPS * 5) {
 			if (State::Error != lastRenderingState) {
 				pls_flush_style(ui->renderingFramedropState, "state", "error");
 				PopupNotice(StreamingNoticeType::NoticeDropRenderingFrameError, false, total_lagged, num);
 
 				lastRenderingState = State::Error;
 			}
-		} else if (num > 1.0) {
+		} else if (num > 1.0 && total_rendered >= plsFPS * 5) {
 			if (State::Warning != lastRenderingState) {
 				pls_flush_style(ui->renderingFramedropState, "state", "warning");
 				PopupNotice(StreamingNoticeType::NoticeDropRenderingFrameWarning, false, total_lagged, num);
@@ -206,6 +219,9 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 		const auto active = obs_output_active(strOutput) || obs_output_active(recOutput);
 
 		const video_t *video = obs_get_video();
+		if (!video)
+			return;
+
 		uint32_t total_encoded = video_output_get_total_frames(video);
 		uint32_t total_skipped = video_output_get_skipped_frames(video);
 
@@ -227,19 +243,20 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 			if (active != lastActive) {
 				pls_flush_style(ui->encodingFramedropLabel, "active", active);
 				pls_flush_style(ui->encodingFramedrop, "active", active);
+				pls_flush_style(ui->encodingFramedropState, "active", active);
 
 				lastActive = active;
 			}
 		}
 
-		if (num > 5.0) {
+		if (num > 5.0 && total_encoded >= plsFPS * 5) {
 			if (State::Error != lastEncodingState) {
 				pls_flush_style(ui->encodingFramedropState, "state", "error");
 				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameError, false, total_skipped, num);
 
 				lastEncodingState = State::Error;
 			}
-		} else if (num > 1.0) {
+		} else if (num > 1.0 && total_encoded >= plsFPS * 5) {
 			if (State::Warning != lastEncodingState) {
 				pls_flush_style(ui->encodingFramedropState, "state", "warning");
 				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameWarning, false, total_skipped, num);
@@ -377,8 +394,20 @@ void PLSBasicStatusPanel::OutputLabels::Update(const obs_output_t *output, bool 
 	}
 
 	if (megabytesSentLabel->isVisible()) {
-		setTextAndAlignment(megabytesSent, QString("%1 MB").arg(QString::number(num, 'f', 1)));
-		setTextAndAlignment(bitrate,QString("%1 kb/s").arg(QString::number(kbps, 'f', 0)));
+		const char *unit = "MiB";
+		if (num > 1024) {
+			num /= 1024;
+			unit = "GiB";
+		}
+		setTextAndAlignment(megabytesSent, QString("%1 %2").arg(num, 0, 'f', 1).arg(unit));
+
+		num = kbps;
+		unit = "kb/s";
+		if (num >= 10'000) {
+			num /= 1000;
+			unit = "Mb/s";
+		}
+		setTextAndAlignment(bitrate, QString("%1 %2").arg(num, 0, 'f', 0).arg(unit));
 	}
 
 	if (!rec) {
@@ -439,4 +468,12 @@ void PLSBasicStatusPanel::OutputLabels::Reset(const obs_output_t *output)
 
 	first_total = obs_output_get_total_frames(output);
 	first_dropped = obs_output_get_frames_dropped(output);
+}
+
+void PLSBasicStatusPanel::showEvent(QShowEvent *event)
+{
+#if defined(Q_OS_MACOS)
+    PLSCustomMacWindow::addCurrentWindowToParentWindow(this);
+#endif
+    QDialog::showEvent(event);
 }

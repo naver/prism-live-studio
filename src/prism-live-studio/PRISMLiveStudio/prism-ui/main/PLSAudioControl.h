@@ -35,6 +35,8 @@ public:
 	void DeactivateAudioSource(OBSSource source);
 	void ActivateAudioSource(OBSSource source) const;
 
+	void UpdateMaster();
+
 private slots:
 	void VolumeMuted(const QString &sourceName, bool muted);
 

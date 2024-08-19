@@ -20,7 +20,7 @@ PLSNaverShoppingUseTerm::PLSNaverShoppingUseTerm(QWidget *parent) : PLSDialogVie
 	setHasCaption(true);
 	setMoveInContent(false);
 	setHasHLine(false);
-	setWindowTitle("");
+	setWindowTitle(QTStr("login.agreement.title"));
 #else
 	setHasCaption(false);
 	setMoveInContent(true);
@@ -95,7 +95,7 @@ void PLSNaverShoppingUseTerm::doUpdateOkButtonState()
 
 QString PLSNaverShoppingUseTerm::getPolicyJavaScript() const
 {
-	QString filePath(":/Configs/resource/DefaultResources/pls_navershopping_policy.js");
+	QString filePath("");
 	QFile file(filePath);
 	file.open(QIODevice::ReadOnly | QIODevice::Text);
 	QByteArray byteArray = file.readAll();

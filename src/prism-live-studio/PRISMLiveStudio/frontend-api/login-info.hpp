@@ -6,7 +6,7 @@
 #include <QJsonObject>
 #include <QWidget>
 
-enum class PLSPlatformType { Twitch, YouTube, Facebook, Google, Twitter, Naver, Line, NaverTv, Vlive, Band, AfreecaTV, WhaleSpace, NaverShoppingLive, Email };
+enum class PLSPlatformType { Twitch, YouTube, Facebook, Google, Twitter, Naver, Line, NaverTv, Vlive, Band, AfreecaTV, WhaleSpace, NaverShoppingLive, Email, NAVER_Cloud_B2B, Chzzk };
 
 class FRONTEND_API PLSLoginInfo {
 protected:

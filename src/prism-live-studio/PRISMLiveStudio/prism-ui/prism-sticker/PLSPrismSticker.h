@@ -97,8 +97,7 @@ protected:
 
 public slots:
 	void HandleDownloadResult(const TaskResponData &result, const StickerData &data, StickerPointer label);
-	void DownloadJsonFileTimeOut();
-	void OnDownloadJsonFailed();
+	void OnDownloadJsonFailed(bool timeout);
 	void OnAppExit();
 
 private slots:

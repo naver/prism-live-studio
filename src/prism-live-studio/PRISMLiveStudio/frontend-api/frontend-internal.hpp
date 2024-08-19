@@ -50,13 +50,11 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 	virtual QString pls_get_prism_usercode() = 0;
 
 	virtual QByteArray pls_get_prism_cookie() = 0;
+	virtual QString pls_get_b2b_auth_url() = 0;
+	virtual bool pls_get_b2b_acctoken(const QString &url) = 0;
 
 	virtual void pls_frontend_add_event_callback(pls_frontend_event_cb callback, void *context) = 0;
-	virtual void pls_frontend_add_event_callback(pls_frontend_event event, pls_frontend_event_cb callback, void *context) = 0;
-	virtual void pls_frontend_add_event_callback(QList<pls_frontend_event> events, pls_frontend_event_cb callback, void *context) = 0;
 	virtual void pls_frontend_remove_event_callback(pls_frontend_event_cb callback, void *context) = 0;
-	virtual void pls_frontend_remove_event_callback(pls_frontend_event event, pls_frontend_event_cb callback, void *context) = 0;
-	virtual void pls_frontend_remove_event_callback(QList<pls_frontend_event> events, pls_frontend_event_cb callback, void *context) = 0;
 	void on_event(enum obs_frontend_event event) override = 0;
 	virtual void on_event(pls_frontend_event event, const QVariantList &params = QVariantList()) = 0;
 
@@ -99,7 +97,7 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 	virtual void pls_start_record(bool toStart = true) = 0;
 
 	virtual ITextMotionTemplateHelper *pls_get_text_motion_template_helper_instance() = 0;
-
+	virtual ITextMotionTemplateHelper *pls_get_chat_template_helper_instance() = 0;
 	virtual QString pls_get_current_language() = 0;
 
 	virtual int pls_get_actived_chat_channel_count() = 0;
@@ -125,6 +123,7 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 	virtual int pls_get_toast_message_count() = 0;
 	virtual QString pls_get_stream_state() = 0;
 	virtual QString pls_get_record_state() = 0;
+	virtual int pls_get_record_duration() = 0;
 	virtual bool pls_get_hotkey_enable() = 0;
 
 	virtual int pls_alert_warning(const char *title, const char *message) = 0;
@@ -150,6 +149,8 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 	virtual int pls_alert_message_count() = 0;
 	virtual QList<std::tuple<QString, QString>> pls_get_user_active_channles_info() = 0;
 	virtual bool pls_is_rehearsal_info_display() = 0;
+	virtual QString pls_get_remote_control_mobile_name(const QString &platformName) = 0;
+
 	virtual bool pls_is_rehearsaling() = 0;
 
 	virtual void pls_sys_tray_notify(const QString &text, QSystemTrayIcon::MessageIcon n, bool usePrismLogo = true) = 0;
@@ -174,6 +175,12 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 	virtual bool pls_is_install_cam_studio(QString &program) const = 0;
 	virtual const char *pls_source_get_display_name(const char *id) = 0;
 	virtual QVariantMap pls_http_request_head(bool hasGacc) = 0;
+
+	virtual QStringList getChannelWithChatList() = 0;
+	virtual bool pls_is_ncp(QString &channlName) = 0;
+	virtual bool pls_is_ncp_first_login(QString &serviceName) = 0;
+	virtual bool pls_install_scene_template(const SceneTemplateItem &item) = 0;
+	virtual QString get_channel_cookie_path(const QString &channelLoginName) = 0;
 };
 
 FRONTEND_API void pls_frontend_set_callbacks_internal(pls_frontend_callbacks *callbacks);

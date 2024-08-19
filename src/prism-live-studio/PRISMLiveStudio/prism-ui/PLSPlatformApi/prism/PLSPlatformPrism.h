@@ -14,6 +14,11 @@
 #include "../PLSPlatformBase.hpp"
 #include "libhttp-client.h"
 
+enum class PrismErrorPlatformType {
+	NonePlatform,
+	NCPPlatform,
+};
+
 class PLSPlatformPrism : public QObject {
 	Q_OBJECT
 public:
@@ -39,7 +44,6 @@ public:
 
 	void bandRefreshTokenFinished(bool isRefresh, const PLSPlatformBase *platform, const QString &uuid, const std::function<void(bool)> &callback) const;
 
-	void mqttRequestYoutubeRefreshToken(const std::function<void(bool)> &callback, PLSPlatformBase *platform, const QString &uuid) const;
 	void requestBandRefreshToken(const std::function<void(bool)> &callback, PLSPlatformBase *platform, const QString &uuid, bool isForceUpdate = false) const;
 
 	static std::string formatDateTime(time_t now = 0);
@@ -48,7 +52,7 @@ public:
 
 	void onTokenExpired() const;
 	//prism refresh one accesstoken
-	void requestRefrshAccessToken(const PLSPlatformBase *platform, const std::function<void(bool)> &onNext, bool isForceRefresh = true) const;
+	void requestRefrshAccessToken(const PLSPlatformBase *platform, const std::function<void(bool)> &onNext, bool isForceRefresh = true, int retryCount = 1) const;
 
 private:
 	//The address and StreamKey pushed to the Prism server
@@ -66,7 +70,6 @@ private:
 	std::string getPublishingTitle() const;
 
 	void requestStartSimulcastLive(bool);
-	void requestStartSimulcastLiveFail(QNetworkReply::NetworkError error, const QByteArray &data, const int &code);
 	void requestStartSimulcastLiveSuccess(const QJsonDocument &doc, bool bPrism, const QString &url, const int &code);
 	void setPrismPlatformChannelLiveId(const QJsonObject &root) const;
 	void requestStopSimulcastLive(bool);

@@ -100,8 +100,6 @@ public:
 
 	void resetTextToDefaultWhenEmpty();
 
-	void sendAnalogWhenClickSavedBtn();
-
 	bool isChangeControlByHand = false;
 	bool isPropertiesOpened = false;
 	AudioConvertThread *audioThread{};

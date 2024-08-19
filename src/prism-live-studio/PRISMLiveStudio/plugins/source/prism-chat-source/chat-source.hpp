@@ -55,6 +55,7 @@ struct chat_source {
 	obs_source_t *m_source = nullptr;
 	obs_source_t *m_browser = nullptr;
 	gs_texture_t *m_source_texture = nullptr;
+	QMetaObject::Connection m_netConnection;
 
 	chat_source();
 	//PRISM/Zhangdewen/20211028/#10168/Async notify (fix deadlock)
@@ -72,4 +73,6 @@ struct chat_source {
 	void updateExternParamsAsync(const calldata_t *extern_params);
 	void sendNotify(int type, int sub_code);
 	void updateExternParams(const QByteArray &cjson, int sub_code);
+
+	void networkStateCallbackFunc(bool accessible);
 };

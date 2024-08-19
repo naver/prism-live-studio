@@ -2,7 +2,7 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "group:../../src/obs-studio/build/obs-studio.xcodeproj">
+      location = "group:../../src/obs-studio/build_macos/obs-studio.xcodeproj">
    </FileRef>
    <FileRef
       location = "group:../../src/prism-live-studio/build/prism-live-studio.xcodeproj">

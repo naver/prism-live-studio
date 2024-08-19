@@ -261,63 +261,10 @@
            </widget>
           </item>
           <item row="5" column="0">
-           <widget class="QWidget" name="latencyLeftWidget" native="true">
-            <layout class="QHBoxLayout" name="horizontalLayout_5">
-             <property name="spacing">
-              <number>0</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="latencyTitle">
-               <property name="text">
-                <string>LiveInfo.latency.Title</string>
-               </property>
-               <property name="wordWrap">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item alignment="Qt::AlignLeft|Qt::AlignBottom">
-              <widget class="QLabel" name="latencyIcon">
-               <property name="toolTip">
-                <string/>
-               </property>
-               <property name="frameShape">
-                <enum>QFrame::NoFrame</enum>
-               </property>
-               <property name="text">
-                <string/>
-               </property>
-               <property name="showHandCursor" stdset="0">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <spacer name="horizontalSpacer_4">
-               <property name="orientation">
-                <enum>Qt::Horizontal</enum>
-               </property>
-               <property name="sizeHint" stdset="0">
-                <size>
-                 <width>0</width>
-                 <height>20</height>
-                </size>
-               </property>
-              </spacer>
-             </item>
-            </layout>
+           <widget class="QLabel" name="latencyTitle">
+            <property name="text">
+             <string>LiveInfo.latency.Title</string>
+            </property>
            </widget>
           </item>
           <item row="5" column="1">
@@ -602,6 +549,11 @@
    <class>PLSTextEdit</class>
    <extends>QTextEdit</extends>
    <header>PLSEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSHelpIcon</class>
+   <extends>QLabel</extends>
+   <header>PLSLabel.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

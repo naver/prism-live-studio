@@ -369,8 +369,6 @@ void bar_visualizer::render_bars()
 	}
 
 	render_begin(render_texture);
-	gs_blend_state_push();
-	gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
 
 	if (mode == visual_mode::VM_BASIC_BARS || mode == visual_mode::VM_FILLET_BARS) {
 
@@ -394,7 +392,6 @@ void bar_visualizer::render_bars()
 			render_mix_sampling(PLSVisualizerResource::Instance()->getGradientTexture(m_cfg->vm_params[mode].gradient_mode), source_texture);
 		}
 	}
-	gs_blend_state_pop();
 	render_end();
 }
 

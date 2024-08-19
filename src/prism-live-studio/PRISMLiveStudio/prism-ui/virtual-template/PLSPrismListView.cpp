@@ -8,6 +8,7 @@
 #include "PLSAlertView.h"
 #include "liblog.h"
 #include "log/module_names.h"
+#include "PLSBasic.h"
 
 PLSPrismListView::PLSPrismListView(QWidget *parent) : QFrame(parent)
 {
@@ -184,8 +185,17 @@ void PLSPrismListView::retryDownloadList()
 	retryClicked = true;
 	showLoading();
 
-	PLSMotionNetwork::instance()->downloadFreeListRequest();
-	PLSMotionNetwork::instance()->downloadPrismListRequest();
+	auto callback = []() {
+		PLSMotionNetwork::instance()->downloadFreeListRequest();
+		PLSMotionNetwork::instance()->downloadPrismListRequest();
+	};
+
+	if (!PLSMotionFileManager::instance()->isVirtualTemplateJsonExisted()) {
+		PLSMotionFileManager::instance()->downloadVirtualJson(callback, callback);
+		return;
+	}
+
+	callback();
 }
 
 void PLSPrismListView::itemListStarted()
@@ -201,7 +211,7 @@ void PLSPrismListView::itemListFinished()
 	hideLoading();
 
 	if (zero && retryClicked) {
-		PLSAlertView::warning(this, tr("Alert.Title"), tr("login.check.note.network"));
+		PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), tr("Alert.Title"), tr("login.check.note.network"));
 	}
 	retryClicked = false;
 }

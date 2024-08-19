@@ -19,6 +19,7 @@ QString getYoutubePriacyStatus(const QVariantMap &src);
 bool isInvalidGrant(const QVariantMap &src);
 
 bool RTMPAddToPrism(const QString &uuid);
+bool AddOrgDataToNewApi(const QString &uuid, bool bAddFlag);
 bool RTMPUpdateToPrism(const QString &uuid);
 bool RTMPDeleteToPrism(const QString &uuid);
 
@@ -26,7 +27,7 @@ QNetworkCookie createPrismCookie();
 
 void updateAllRtmps();
 void endRefresh();
-void updateRTMPCallback(const QByteArray &retData);
+void updateRTMPCallback(const QByteArray &retData, bool bNewAPIData);
 
 bool isTokenValid(const QString &mSrcUUID);
 bool isTokenValid(const QVariantMap &mSrc);

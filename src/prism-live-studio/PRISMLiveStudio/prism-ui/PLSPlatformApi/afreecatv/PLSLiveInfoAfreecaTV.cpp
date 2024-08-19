@@ -30,13 +30,15 @@ PLSLiveInfoAfreecaTV::PLSLiveInfoAfreecaTV(PLSPlatformBase *pPlatformBase, QWidg
 
 	updateStepTitle(ui->okButton);
 
-	if (!PLS_PLATFORM_API->isPrepareLive()) {
-		ui->bottomButtonWidget->layout()->addWidget(ui->cancelButton);
-	}
 	ui->lineEditCategory->setEnabled(false);
 
 	doUpdateOkState();
 	connect(PLS_PLATFORM_AFREECATV, &PLSPlatformAfreecaTV::closeDialogByExpired, this, &PLSLiveInfoAfreecaTV::reject, Qt::DirectConnection);
+#if defined(Q_OS_WIN)
+	if (!PLS_PLATFORM_API->isPrepareLive()) {
+		ui->bottomButtonWidget->layout()->addWidget(ui->cancelButton);
+	}
+#endif
 }
 
 PLSLiveInfoAfreecaTV::~PLSLiveInfoAfreecaTV()
@@ -106,7 +108,7 @@ void PLSLiveInfoAfreecaTV::titleEdited()
 	doUpdateOkState();
 
 	if (isLargeToMax) {
-		const auto channelName = PLS_PLATFORM_AFREECATV->getInitData().value(ChannelData::g_platformName).toString();
+		const auto channelName = PLS_PLATFORM_AFREECATV->getInitData().value(ChannelData::g_channelName).toString();
 		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("LiveInfo.Title.Length.Check.arg").arg(TitleLengthLimit).arg(channelName));
 	}
 }

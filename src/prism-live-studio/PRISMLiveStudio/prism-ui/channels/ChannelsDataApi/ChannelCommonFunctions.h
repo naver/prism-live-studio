@@ -25,7 +25,9 @@
 #include "PLSChannelsVirualAPI.h"
 #include "frontend-api.h"
 #include "libhttp-client.h"
+#include "network-state.h"
 #include "pls-channel-const.h"
+#include "pls-common-define.hpp"
 #include "pls-shared-functions.h"
 
 #define ADD_CHANNELS_H(str) "Channels." #str
@@ -45,7 +47,10 @@
 #define TR_NAVER_SHOPPING_LIVE CHANNELS_TR(naver_shopping_live)
 #define TR_SELECT CHANNELS_TR(select)
 #define TR_CUSTOM_RTMP CHANNELS_TR(custom_rtmp)
+#define TR_CHZZK CHANNELS_TR(chzzk)
 #define TR_RTMPT_DEFAULT_TYPE CHANNELS_TR(rtmp_default_type_channels)
+
+const QString PRISM_API_SYSTEM_ERROR = "025";
 
 /***********************debug******************************/
 #ifdef QT_DEBUG
@@ -136,12 +141,12 @@ template<typename SRCType> inline QObject *convertToObejct(SRCType *srcPt)
 
 bool isVersionLessthan(const QString &leftVer, const QString &rightVer);
 
-ChannelsMap getMatchKeysInfos(const QVariantMap &keysMap);
-
-QVariantMap createDefaultChannelInfoMap(const QString &channelName, int defaultType = ChannelData::ChannelType);
+QVariantMap createDefaultChannelInfoMap(const QString &channelName, int defaultType = ChannelData::ChannelType, const QString &cmdStr = QString());
 QString createUUID();
-QString getPlatformImageFromName(const QString &channelName, const QString &prefix = "", const QString &surfix = ".*profile");
-void getComplexImageOfChannel(const QString &uuid, QString &userIcon, QString &platformIcon, const QString &prefix = "stremsetting-", const QString &surfix = "");
+QString getDynamicChannelIcon(QString &imagePath);
+QString getPlatformImageFromName(const QString &channelName, int imageType, const QString &prefix = "", const QString &surfix = ".*profile");
+void getComplexImageOfChannel(const QString &uuid, int imageType, QString &userIcon, QString &platformIcon, const QString &prefix = "stremsetting-", const QString &surfix = "");
+QString getChatIcon(const QString &channelName, int imageType, const QString &resChatIconPath);
 QString getYoutubeShareUrl(const QString &broadCastID);
 
 /*get local machine info */
@@ -289,28 +294,34 @@ template<typename ReplyType> void ChannelsNetWorkPretestWithAlerts(ReplyType rep
 	auto errorValue = reply->error();
 	auto statusCode = getReplyStatusCode(reply);
 	auto contentCode = getReplyContentCode(data);
+	auto isSystemTimeError = (getPrismApiError(data, statusCode) == PRISM_API_ERROR::SystemExccedTimeLimitError);
 	switch (statusCode) {
-	case 401:
+	case common::HTTP_STATUS_CODE_401:
 		if (contentCode == 3000) {
 			PLSCHANNELS_API->prismTokenExpired();
 			return;
 		}
 		//other fallthrough
 
-	case 500:
+	case common::HTTP_STATUS_CODE_500:
 		if (contentCode == -1) {
 			addErrorForType(ChannelData::NetWorkErrorType::UnknownError);
 			break;
 		}
 		//other fallthrough
-	case 404:
+	case common::HTTP_STATUS_CODE_404:
 		if (contentCode == 9000) {
 			addErrorForType(ChannelData::NetWorkErrorType::RTMPNotExist);
 			break;
 		}
 		//other fallthrough
+	case common::HTTP_STATUS_CODE_403:
+		if (isSystemTimeError) {
+			addErrorForType(ChannelData::NetWorkErrorType::SystemTimeError);
+			break;
+		}
 	default: //other case
-		if (errorValue <= QNetworkReply::UnknownNetworkError) {
+		if (errorValue <= QNetworkReply::UnknownNetworkError || !pls::NetworkState::instance()->isAvailable()) {
 			addErrorForType(ChannelData::NetWorkErrorType::NetWorkNoStable);
 			break;
 		}
@@ -326,7 +337,12 @@ QString getChannelCacheFilePath();
 QString getChannelCacheDir();
 QString getTmpCacheDir();
 QString getChannelSettingsFilePath();
-const QStringList &getDefaultPlatforms();
+const QStringList getDefaultPlatforms();
+QString channleNameConvertFixPlatformName(const QString &channleName); //pandaTV -> NCB2B
+QString NCB2BConvertChannelName(const QString &name);                  // NCB2B -> pandaTV
+QString getNCB2BServiceName(const QString &name);
+QString channelNameConvertMultiLang(const QString &name);
+QStringList getChatChannelNameList();
 QString guessPlatformFromRTMP(const QString &rtmpUrl);
 
 bool isPlatformOrderLessThan(const QString &left, const QString &right);
@@ -434,4 +450,6 @@ QString toPlatformCodeID(const QString &srcName, bool toKeepSRC = false);
 
 QVariantMap queryStringToMap(const QString &srcStr);
 
+QList<QPair<QString, QString>> initTwitchServer();
+QList<QPair<QString, QString>> getObsTwitchServer();
 #endif //CHANELCOMMONFUNCTION_H

@@ -22,15 +22,11 @@
 
 using namespace common;
 
-#ifdef ENABLE_WAYLAND
-#include <obs-nix-platform.h>
-
 class SurfaceEventFilter : public QObject {
 	OBSQTDisplay *display;
-	int mTimerId;
 
 public:
-	SurfaceEventFilter(OBSQTDisplay *src) : display(src), mTimerId(0) {}
+	SurfaceEventFilter(OBSQTDisplay *src) : QObject(src), display(src) {}
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *event) override
@@ -44,22 +40,12 @@ protected:
 				static_cast<QPlatformSurfaceEvent *>(event);
 
 			switch (surfaceEvent->surfaceEventType()) {
-			case QPlatformSurfaceEvent::SurfaceCreated:
-				if (display->windowHandle()->isExposed())
-					createOBSDisplay();
-				else
-					mTimerId = startTimer(67); // Arbitrary
-				break;
 			case QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed:
 				display->DestroyDisplay();
 				break;
 			default:
 				break;
 			}
-
-			break;
-		case QEvent::Expose:
-			createOBSDisplay();
 			break;
 		default:
 			break;
@@ -67,24 +53,7 @@ protected:
 
 		return result;
 	}
-
-	void timerEvent(QTimerEvent *) override
-	{
-		createOBSDisplay(display->isVisible());
-	}
-
-private:
-	void createOBSDisplay(bool force = false)
-	{
-		display->CreateDisplay(force);
-		if (mTimerId > 0) {
-			killTimer(mTimerId);
-			mTimerId = 0;
-		}
-	}
 };
-
-#endif
 
 static inline long long color_to_int(const QColor &color)
 {
@@ -139,28 +108,29 @@ OBSQTDisplay::OBSQTDisplay(QWidget *parent, Qt::WindowFlags flags)
 				QSize size = GetPixelSize(this);
 				obs_display_resize(display, size.width(),
 						   size.height());
+				emit DisplayResized();
 			});
 
 		QSize size = GetPixelSize(this);
 		obs_display_resize(display, size.width(), size.height());
+		emit DisplayResized();
+
 	};
 
 	connect(windowHandle(), &QWindow::visibleChanged, windowVisible);
 	connect(windowHandle(), &QWindow::screenChanged, screenChanged);
 
-#ifdef ENABLE_WAYLAND
-	if (obs_get_nix_platform() == OBS_NIX_PLATFORM_WAYLAND)
-		windowHandle()->installEventFilter(
-			new SurfaceEventFilter(this));
-#endif
+    windowHandle()->installEventFilter(new SurfaceEventFilter(this));
+
 
 	displayText = pls_new<QLabel>(this);
 	displayText->setAttribute(Qt::WA_NativeWindow);
 	displayText->setSizePolicy(QSizePolicy::Expanding,
 				   QSizePolicy::Expanding);
 	displayText->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-	displayText->setObjectName(INVALID_SOURCE_ERROR_TEXT_BUTTON);
+	displayText->setObjectName("displayText");
 	displayText->setWordWrap(true);
+	displayText->setIndent(-1);
 	displayText->hide();
 
 	auto layout = pls_new<QVBoxLayout>(this);
@@ -194,6 +164,8 @@ void OBSQTDisplay::CreateDisplay(bool force)
 	if (display)
 		return;
 
+	if (destroying)
+		return;
 	if (!windowHandle()->isExposed() && !force)
 		return;
 
@@ -227,11 +199,7 @@ void OBSQTDisplay::moveEvent(QMoveEvent *event)
 	OnMove();
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 bool OBSQTDisplay::nativeEvent(const QByteArray &, void *message, qintptr *)
-#else
-bool OBSQTDisplay::nativeEvent(const QByteArray &, void *message, long *)
-#endif
 {
 #ifdef _WIN32
 	const MSG &msg = *static_cast<MSG *>(message);
@@ -286,4 +254,9 @@ void OBSQTDisplay::showGuideText(const QString &guideText)
 {
 	displayText->setText(guideText);
 	displayText->show();
+}
+
+void OBSQTDisplay::hideGuideText()
+{
+	displayText->hide();
 }

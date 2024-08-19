@@ -35,39 +35,38 @@ GoLivePannel #GoLiveShift:disabled {
 }
 
 
-GoLivePannel #Record {
-	margin:/*hdpi*/0;
-	padding:/*hdpi*/0px;
-	border:/*hdpi*/ none;
-	border-image: none;
-	background-color: #444444;
-	min-width:/*hdpi*/ 56px;
-	max-width:/*hdpi*/ 56px;
-	min-height:/*hdpi*/ 32px;
-	max-height:/*hdpi*/ 32px;
-	border-radius:/*hdpi*/ 3px;
-	
-	font-size:/*hdpi*/ 14px;
-	font-weight: bold;
-	font-style: normal;
-	text-align: center;
-	color: #ee2d45;
-}
+	GoLivePannel #Record {
+		margin: /*hdpi*/ 0;
+		padding: /*hdpi*/ 0px;
+		border: /*hdpi*/ none;
+		border-image: none;
+		background-color: #c34151;
+		min-width: /*hdpi*/ 122px;
+		max-width: /*hdpi*/ 122px;
+		min-height: /*hdpi*/ 32px;
+		max-height: /*hdpi*/ 32px;
+		border-radius: /*hdpi*/ 3px;
+		font-size: /*hdpi*/ 14px;
+		font-weight: 700;
+		font-style: normal;
+		text-align: center;
+		color: #ffffff;
+	}
 
-GoLivePannel #Record:hover {
-	background-color: #555555;
-}
+		GoLivePannel #Record:hover {
+			background-color: #df5466;
+		}
 
-GoLivePannel #Record:pressed {
-	background-color: #2d2d2d;
-}
+		GoLivePannel #Record:pressed {
+			background-color: #a43442;
+		}
 
-GoLivePannel #Record:disabled {
-	background-color: #444444;
-	color: #666666;
-}
+		GoLivePannel #Record:disabled {
+			background-color: #641d25;
+			/*color: #666666;*/
+		}
 
-GoLivePannel #Record:checked {
+/*GoLivePannel #Record:checked {
 	background-color: #c34151;
 	color: #ffffff;
 }
@@ -83,7 +82,7 @@ GoLivePannel #Record:checked:pressed {
 GoLivePannel #Record:checked:disabled {
 	background-color: #641d25;
 	color: #915f65;
-}
+}*/
 
 GoLivePannel #GoLiveShift PLSAddingFrame {
 	padding: /*hdpi*/ 0px;
@@ -101,3 +100,43 @@ GoLivePannel #GoLiveShift PLSAddingFrame #PixLabel {
 	qproperty-maximumSize: /*hdpi*/ 24px /*hdpi*/ 24px;
 	qproperty-minimumSize: /*hdpi*/ 24px /*hdpi*/ 24px;
 }
+
+	GoLivePannel #RecPauseBtn {
+		margin: /*hdpi*/ 0;
+		padding: /*hdpi*/ 2px;
+		border: /*hdpi*/ none;
+		border-image: none;
+		background-color: #c34151;
+		min-width: /*hdpi*/ 28px;
+		max-width: /*hdpi*/ 28px;
+		min-height: /*hdpi*/ 28px;
+		max-height: /*hdpi*/ 28px;
+		border-radius: /*hdpi*/ 3px;
+		font-size: /*hdpi*/ 14px;
+		font-weight: bold;
+		font-style: normal;
+		text-align: center;
+		color: #ffffff;
+		image: url(":/resource/images/toolbar/ic-toolbar-rec-stop.svg");
+	}
+
+		GoLivePannel #RecPauseBtn:checked {
+			image: url(":/resource/images/toolbar/ic-toolbar-rec-play.svg");
+		}
+
+		GoLivePannel #RecPauseBtn:checked:disabled {
+			image: url(":/resource/images/toolbar/ic-toolbar-rec-play-disable.svg");
+		}
+
+		GoLivePannel #RecPauseBtn:hover {
+			background-color: #df5466;
+		}
+
+		GoLivePannel #RecPauseBtn:pressed {
+			background-color: #a43442;
+		}
+
+		GoLivePannel #RecPauseBtn:disabled {
+			background-color: #641d25;
+			image: url(":/resource/images/toolbar/ic-toolbar-rec-stop-disable.svg");
+		}

@@ -1,137 +1,106 @@
 #include <Windows.h>
-#include <userenv.h>
-#include <string>
-#include <assert.h>
+#include <Shlwapi.h>
+#include <exdisp.h>
+#include <Shobjidl.h>
+#include <SHLGUID.h>
+#include <comip.h>
+#include <comutil.h>
 
 // Warning : when name of PRISM is changed, please remember to modify here
 #define PRISM_APP_NAME_W L"PRISMLiveStudio.exe"
+//#define PRISM_APP_NAME_W L"PRISMLens.exe"
 
 #pragma comment(linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"")
+#pragma comment(lib, "Shlwapi.lib")
+#pragma comment(lib, "comsuppw.lib")
 
-BOOL RunAppWithoutAdmin();
-void RunAppAsCurrent();
+int ShellExecAsUser(LPCTSTR operation, const TCHAR *const pcFileName, const TCHAR *const pcParameters, const TCHAR *const pcDir);
 
 int main()
 {
-	if (!RunAppWithoutAdmin()) {
-		RunAppAsCurrent();
-		assert(false && "failed to run app without admin");
-	}
-
+	CoInitialize(NULL);
+	const DWORD MAX_PATH_LEN = 1024;
+	WCHAR appdir[MAX_PATH_LEN] = {0};
+	GetModuleFileNameW(NULL, appdir, MAX_PATH_LEN);
+	PathRemoveFileSpecW(appdir);
+	ShellExecAsUser(L"open", PRISM_APP_NAME_W, nullptr, appdir);
+	CoUninitialize();
 	return 0;
 }
 
-// include '\' at the end
-const std::wstring &GetFileDirectory(HINSTANCE hInstance = NULL)
+#define RELEASE_OBJ(X)          \
+	do {                    \
+		(X)->Release(); \
+		(X) = NULL;     \
+	} while (0)
+
+#define VALID_HANDLE(H) (((H) != NULL) && ((H) != INVALID_HANDLE_VALUE))
+
+static void MyShellDispatch_AllowSetForegroundWindow(const HWND &hwnd)
 {
-	static std::wstring s_wstrDirectory = std::wstring();
-
-	if (!s_wstrDirectory.empty())
-		return s_wstrDirectory;
-
-	WCHAR szFilePath[MAX_PATH] = {};
-	GetModuleFileNameW(hInstance, szFilePath, MAX_PATH);
-
-	WCHAR wchFlag = '\\';
-	int nLen = (int)wcslen(szFilePath);
-	for (int i = nLen - 1; i >= 0; --i) {
-		if (szFilePath[i] == wchFlag) {
-			szFilePath[i + 1] = 0;
-			break;
+	DWORD dwProcessId = 0;
+	if (GetWindowThreadProcessId(hwnd, &dwProcessId)) {
+		if (dwProcessId != 0) {
+			AllowSetForegroundWindow(dwProcessId);
 		}
 	}
-
-	s_wstrDirectory = szFilePath;
-	return s_wstrDirectory;
 }
 
-void RunAppAsCurrent()
+int ShellExecAsUser(LPCTSTR operation, const TCHAR *const pcFileName, const TCHAR *const pcParameters, const TCHAR *const pcDir)
 {
-	SHELLEXECUTEINFOW sei = {sizeof(SHELLEXECUTEINFOW)};
-	sei.fMask = SEE_MASK_DEFAULT;
-	sei.lpVerb = L"runas";
-	sei.lpFile = PRISM_APP_NAME_W;
-	sei.lpDirectory = GetFileDirectory().c_str();
-	ShellExecuteExW(&sei);
-}
-
-BOOL RunAppWithoutAdmin()
-{
-	std::wstring appPath = GetFileDirectory() + std::wstring(PRISM_APP_NAME_W);
-
-	DWORD dwError = ERROR_SUCCESS;
-	HANDLE hToken = NULL;
-	HANDLE hNewToken = NULL;
-	PSID pIntegritySid = NULL;
-	LPVOID pEnvironment = NULL;
-	PROCESS_INFORMATION pi = {0};
-
-	do {
-		// Open the primary access token of the process.
-		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT | TOKEN_ASSIGN_PRIMARY, &hToken)) {
-			assert(false && "OpenProcessToken failed");
-			dwError = GetLastError();
-			break;
+	bool ok = false;
+	IShellWindows *psw = NULL;
+	HRESULT hr = CoCreateInstance(CLSID_ShellWindows, NULL, CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&psw));
+	if (SUCCEEDED(hr)) {
+		HWND desktopHwnd = 0;
+		IDispatch *pdisp = NULL;
+		_variant_t vEmpty;
+		if (S_OK == psw->FindWindowSW(vEmpty.GetAddress(), vEmpty.GetAddress(), SWC_DESKTOP, (long *)&desktopHwnd, SWFO_NEEDDISPATCH, &pdisp)) {
+			if (VALID_HANDLE(desktopHwnd)) {
+				IShellBrowser *psb;
+				hr = IUnknown_QueryService(pdisp, SID_STopLevelBrowser, IID_PPV_ARGS(&psb));
+				if (SUCCEEDED(hr)) {
+					IShellView *psv = NULL;
+					hr = psb->QueryActiveShellView(&psv);
+					if (SUCCEEDED(hr)) {
+						IDispatch *pdispBackground = NULL;
+						HRESULT hr = psv->GetItemObject(SVGIO_BACKGROUND, IID_PPV_ARGS(&pdispBackground));
+						if (SUCCEEDED(hr)) {
+							MyShellDispatch_AllowSetForegroundWindow(desktopHwnd);
+							IShellFolderViewDual *psfvd = NULL;
+							HRESULT hr = pdispBackground->QueryInterface(IID_PPV_ARGS(&psfvd));
+							if (SUCCEEDED(hr)) {
+								IDispatch *pdisp = NULL;
+								hr = psfvd->get_Application(&pdisp);
+								if (SUCCEEDED(hr)) {
+									IShellDispatch2 *pShellDispatch;
+									hr = pdisp->QueryInterface(IID_PPV_ARGS(&pShellDispatch));
+									if (SUCCEEDED(hr)) {
+										_variant_t dir(pcDir);
+										_variant_t verb(operation);
+										_bstr_t file(pcFileName);
+										_variant_t para(pcParameters);
+										_variant_t show(SW_SHOWNORMAL);
+										hr = pShellDispatch->ShellExecute(file, para, dir, verb, show);
+										if (SUCCEEDED(hr)) {
+											ok = true;
+										}
+										RELEASE_OBJ(pShellDispatch);
+									}
+									RELEASE_OBJ(pdisp);
+								}
+								RELEASE_OBJ(psfvd);
+							}
+							RELEASE_OBJ(pdispBackground);
+						}
+						RELEASE_OBJ(psv);
+					}
+					RELEASE_OBJ(psb);
+				}
+			}
+			RELEASE_OBJ(pdisp);
 		}
-
-		// Duplicate the primary token of the current process.
-		if (!DuplicateTokenEx(hToken, 0, NULL, SecurityImpersonation, TokenPrimary, &hNewToken)) {
-			assert(false && "DuplicateTokenEx failed");
-			dwError = GetLastError();
-			break;
-		}
-
-		// Create the low integrity SID.
-		SID_IDENTIFIER_AUTHORITY MLAuthority = SECURITY_MANDATORY_LABEL_AUTHORITY;
-		if (!AllocateAndInitializeSid(&MLAuthority, 1, SECURITY_MANDATORY_MEDIUM_RID, 0, 0, 0, 0, 0, 0, 0, &pIntegritySid)) {
-			assert(false && "AllocateAndInitializeSid failed");
-			dwError = GetLastError();
-			break;
-		}
-
-		TOKEN_MANDATORY_LABEL tml = {0};
-		tml.Label.Attributes = SE_GROUP_INTEGRITY;
-		tml.Label.Sid = pIntegritySid;
-
-		// Set the integrity level in the access token to low.
-		if (!SetTokenInformation(hNewToken, TokenIntegrityLevel, &tml, (sizeof(tml) + GetLengthSid(pIntegritySid)))) {
-			assert(false && "SetTokenInformation failed");
-			dwError = GetLastError();
-			break;
-		}
-
-		if (!CreateEnvironmentBlock(&pEnvironment, hNewToken, FALSE)) {
-			assert(false && "CreateEnvironmentBlock failed");
-			dwError = GetLastError();
-			break;
-		}
-
-		// Create the new process at the Low integrity level.
-		STARTUPINFO si = {sizeof(si)};
-		if (!CreateProcessAsUser(hNewToken, (LPWSTR)appPath.c_str(), (LPWSTR)appPath.c_str(), NULL, NULL, FALSE, CREATE_UNICODE_ENVIRONMENT, pEnvironment, NULL, &si, &pi)) {
-			assert(false && "CreateProcessAsUser failed");
-			dwError = GetLastError();
-			break;
-		}
-	} while (0);
-
-	if (hToken)
-		CloseHandle(hToken);
-
-	if (hNewToken)
-		CloseHandle(hNewToken);
-
-	if (pIntegritySid)
-		FreeSid(pIntegritySid);
-
-	if (pEnvironment)
-		DestroyEnvironmentBlock(pEnvironment);
-
-	if (pi.hProcess)
-		CloseHandle(pi.hProcess);
-
-	if (pi.hThread)
-		CloseHandle(pi.hThread);
-
-	return (ERROR_SUCCESS == dwError);
+		RELEASE_OBJ(psw);
+	}
+	return ok;
 }

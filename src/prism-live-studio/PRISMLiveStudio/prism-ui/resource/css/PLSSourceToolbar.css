@@ -16,16 +16,27 @@ TimerSourceToolbar #toolBarBtn {
     max-width: 60px;
     min-height: 30px;
     max-height: 30px;
-    font-size:  12px;
+    font-size: 12px;
     font-weight: normal;
     color: white;
 }
 
-TimerSourceToolbar #toolBarBtn:checked {
-    color: #effc35;
-}
+    TimerSourceToolbar #toolBarBtn:checked {
+        color: #effc35;
+    }
 
-TimerSourceToolbar #toolBarBtn:disabled {
-    background-color: #444444;
-    color: #666666;
+    TimerSourceToolbar #toolBarBtn:disabled {
+        background-color: #444444;
+        color: #666666;
+    }
+
+ChatTemplateSourceToolbar #ResizeCT {
+    margin: 0;
+    padding: 0 15px 0 15px;
+    /*min-width: 113px;
+    max-width: 113px;*/
+    min-height: 30px;
+    max-height: 30px;
+    font-size: /*hdpi*/ 12px;
+    font-weight: normal;
 }

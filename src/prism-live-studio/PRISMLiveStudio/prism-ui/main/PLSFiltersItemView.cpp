@@ -8,7 +8,8 @@
 #include "action.h"
 #include "log/module_names.h"
 #include "ChannelCommonFunctions.h"
-
+#include <QFontMetrics>
+#include <QLineEdit>
 #include <QStyle>
 #include <QMenu>
 
@@ -21,18 +22,20 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 	  enabledSignal(obs_source_get_signal_handler(source), "enable", OBSSourceEnabled, this),
 	  renamedSignal(obs_source_get_signal_handler(source), "rename", OBSSourceRenamed, this)
 {
+	uint32_t flags = obs_source_get_output_flags(source_);
+	async = (flags & OBS_SOURCE_ASYNC) != 0;
+
 	ui = pls_new<Ui::PLSFiltersItemView>();
-	pls_add_css(this, {"VisibilityCheckBox"});
 	ui->setupUi(this);
 	ui->visibleButton->hide();
 	ui->advButton->hide();
-	ui->nameLineEdit->hide();
-	ui->nameLineEdit->installEventFilter(this);
+	ui->visibleButton->setProperty("visibilityCheckBox", true);
 	setProperty("showHandCursor", true);
 	setContentsMargins(0, 0, 0, 0);
-	pls_add_css(this, {"OBSBasicFilters"});
+	pls_add_css(this, {"OBSBasicFilters", "VisibilityCheckBox"});
 
 	name = obs_source_get_name(source);
+	UpdateNameStyle();
 	ui->nameLabel->setText(GetNameElideString());
 	ui->nameLabel->setToolTip(name);
 	ui->nameLabel->installEventFilter(this);
@@ -40,7 +43,6 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 	ui->advButton->installEventFilter(this);
 	bool enabled = obs_source_enabled(source);
 	ui->visibleButton->setChecked(enabled);
-	UpdateNameStyle();
 
 #if defined(Q_OS_WIN)
 	ui->horizontalLayout->setSpacing(6);
@@ -49,7 +51,7 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 #endif
 
 	connect(ui->visibleButton, &QPushButton::clicked, this, &PLSFiltersItemView::OnVisibilityButtonClicked);
-	connect(ui->advButton, &QPushButton::clicked, this, &PLSFiltersItemView::OnAdvButtonClicked);
+	connect(ui->advButton, &QPushButton::clicked, this, [=]() { emit OnCreateCustomContextMenu(QCursor::pos(), async); });
 }
 
 PLSFiltersItemView::~PLSFiltersItemView()
@@ -80,6 +82,7 @@ void PLSFiltersItemView::SetCurrentItemState(bool state)
 	if (this->current != state) {
 		this->current = state;
 		UpdateNameStyle();
+		ui->nameLabel->setText(GetNameElideString());
 	}
 }
 
@@ -108,12 +111,9 @@ void PLSFiltersItemView::mouseReleaseEvent(QMouseEvent *event)
 
 void PLSFiltersItemView::enterEvent(QEnterEvent *event)
 {
-	if (isFinishEditing) {
-		ui->visibleButton->show();
-		ui->advButton->show();
-		OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_HOVER);
-	}
-
+	ui->visibleButton->show();
+	ui->advButton->show();
+	OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_HOVER);
 	QWidget::enterEvent(event);
 }
 
@@ -129,17 +129,6 @@ void PLSFiltersItemView::leaveEvent(QEvent *event)
 
 bool PLSFiltersItemView::eventFilter(QObject *object, QEvent *event)
 {
-	if (ui->nameLineEdit == object && LineEditCanceled(event)) {
-		isFinishEditing = true;
-		OnFinishingEditName(true);
-		return true;
-	}
-	if (ui->nameLineEdit == object && LineEditChanged(event) && !isFinishEditing) {
-		isFinishEditing = true;
-		OnFinishingEditName(false);
-		return true;
-	}
-
 	if (object == ui->nameLabel && event->type() == QEvent::Resize) {
 		QMetaObject::invokeMethod(
 			this, [this]() { ui->nameLabel->setText(GetNameElideString()); }, Qt::QueuedConnection);
@@ -154,7 +143,6 @@ bool PLSFiltersItemView::eventFilter(QObject *object, QEvent *event)
 
 void PLSFiltersItemView::contextMenuEvent(QContextMenuEvent *event)
 {
-	CreatePopupMenu();
 	QWidget::contextMenuEvent(event);
 }
 
@@ -188,43 +176,11 @@ void PLSFiltersItemView::OnMouseStatusChanged(const QString &status)
 	SetProperty(this, PROPERTY_NAME_MOUSE_STATUS, status);
 }
 
-void PLSFiltersItemView::OnFinishingEditName(bool cancel)
-{
-	ui->nameLineEdit->hide();
-	ui->nameLabel->show();
-	ui->nameLabel->setText(GetNameElideString());
-	if (this->rect().contains(mapFromGlobal(QCursor::pos()))) {
-		ui->visibleButton->show();
-		ui->advButton->show();
-	}
-	if (!cancel) {
-		emit FinishingEditName(ui->nameLineEdit, this);
-	}
-
-	editActive = false;
-}
-
 void PLSFiltersItemView::OnVisibilityButtonClicked(bool visible) const
 {
 	QString log = QString("[%1 : %2] visibility button: %3").arg(obs_source_get_id(source)).arg(name).arg(visible ? "checked" : "unchecked");
 	PLS_UI_STEP(MAINFILTER_MODULE, QT_TO_UTF8(log), ACTION_CLICK);
 	obs_source_set_enabled(source, visible);
-}
-
-void PLSFiltersItemView::CreatePopupMenu()
-{
-	QString log = name + " advance button";
-	PLS_UI_STEP(MAINFILTER_MODULE, QT_TO_UTF8(log), ACTION_CLICK);
-
-	QMenu popup(this);
-	popup.setObjectName(OBJECT_NAME_FILTER_ITEM_MENU);
-
-	auto renameAction = pls_new<QAction>(QTStr("Rename"), &popup);
-	connect(renameAction, &QAction::triggered, this, &PLSFiltersItemView::OnFilterRenameTriggered);
-
-	popup.addAction(renameAction);
-
-	popup.exec(QCursor::pos());
 }
 
 void PLSFiltersItemView::UpdateNameStyle()
@@ -242,35 +198,6 @@ void PLSFiltersItemView::SetProperty(QWidget *widget, const char *property, cons
 		widget->setProperty(property, value);
 		pls_flush_style(widget);
 	}
-}
-
-void PLSFiltersItemView::OnAdvButtonClicked()
-{
-	CreatePopupMenu();
-}
-
-void PLSFiltersItemView::OnRenameActionTriggered()
-{
-	if (editActive) {
-		return;
-	}
-	isFinishEditing = false;
-
-	QString log = name + " rename button";
-	PLS_UI_STEP(MAINFILTER_MODULE, QT_TO_UTF8(log), ACTION_CLICK);
-
-	ui->nameLineEdit->setContentsMargins(0, 0, 0, 0);
-	ui->nameLineEdit->setAlignment(Qt::AlignLeft);
-	ui->nameLineEdit->setText(name);
-	ui->nameLineEdit->setFocus();
-	ui->nameLineEdit->selectAll();
-	ui->nameLineEdit->show();
-	ui->nameLabel->hide();
-	ui->visibleButton->hide();
-	ui->advButton->hide();
-	OnMouseStatusChanged(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
-
-	editActive = true;
 }
 
 void PLSFiltersItemView::OnRemoveActionTriggered()
@@ -332,7 +259,25 @@ void PLSFiltersItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem
 	else
 		role = QPalette::WindowText;
 
+	widget->SetCurrentItemState(selected);
 	widget->SetColor(palette.color(group, role), active, selected);
+}
+
+QWidget *PLSFiltersItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+	auto editor = new QLineEdit(parent);
+	editor->setAlignment(Qt::AlignVCenter);
+
+	int width = 210;
+	QListWidget *listWidget = qobject_cast<QListWidget *>(parent->parent());
+	if (listWidget)
+		width = listWidget->width();
+
+	QString itemText = index.data(Qt::DisplayRole).toString();
+	editor->setText(itemText);
+	editor->selectAll();
+	editor->setFixedWidth(width);
+	return editor;
 }
 
 bool PLSFiltersItemDelegate::eventFilter(QObject *object, QEvent *event)
@@ -349,4 +294,12 @@ bool PLSFiltersItemDelegate::eventFilter(QObject *object, QEvent *event)
 	}
 
 	return QStyledItemDelegate::eventFilter(object, event);
+}
+
+void PLSFiltersItemDelegate::initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const
+{
+	auto font = option->font;
+	font.setBold(true);
+	option->font = font;
+	QStyledItemDelegate::initStyleOption(option, index);
 }

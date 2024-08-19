@@ -1,6 +1,8 @@
 #include "PLSPreviewTitle.h"
 #include "window-basic-main.hpp"
 #include "PLSChannelDataAPI.h"
+#include "PLSBasic.h"
+#include "liblog.h"
 
 #include <QHBoxLayout>
 
@@ -50,6 +52,7 @@ PLSTimerDisplay::PLSTimerDisplay(TimerType type, bool showTime_, QWidget *parent
 
 void PLSTimerDisplay::SetTimerType(TimerType type)
 {
+	timerType = type;
 	switch (type) {
 	case PLSTimerDisplay::TimerType::TimerRecord:
 		title->setText("REC");
@@ -86,6 +89,9 @@ void PLSTimerDisplay::OnStatus(bool isStarted)
 	startTime = (uint)QDateTime::currentDateTime().toSecsSinceEpoch();
 
 	if (isStarted) {
+		if (timerType == PLSTimerDisplay::TimerType::TimerLive || timerType == PLSTimerDisplay::TimerType::TimerRehearsal) {
+			PLSBasic::instance()->getApi()->on_event(pls_frontend_event::PLS_FRONTEND_EVENT_STREAMING_TIME_READY);
+		}
 		timerID = this->startTimer(TIMER_REFRESH_INTERVAL);
 		OnTimerActivate(true);
 	} else {
@@ -93,6 +99,8 @@ void PLSTimerDisplay::OnStatus(bool isStarted)
 			killTimer(timerID);
 			timerID = INTERNAL_ERROR;
 		}
+		totalRecordSeconds = 0;
+		paused = false;
 	}
 }
 
@@ -124,8 +132,9 @@ void PLSTimerDisplay::timerEvent(QTimerEvent *e)
 		return;
 	}
 	if (e->timerId() == timerID) {
-		uint secs = (uint)QDateTime::currentDateTime().toSecsSinceEpoch() - startTime;
-		time->setText(FormatTimeString(secs));
+		totalRecordSeconds += (float)TIMER_REFRESH_INTERVAL / 1000;
+		QString text = FormatTimeString((int)totalRecordSeconds);
+		time->setText(text);
 	}
 }
 
@@ -165,6 +174,23 @@ void PLSTimerDisplay::OnTimerActivate(bool activate)
 	}
 	time->setProperty(PREVIEW_TIMER_ACTIVATE, activate ? STATUS_TRUE : STATUS_FALSE);
 	pls_flush_style(time);
+}
+
+void PLSTimerDisplay::Pause(bool pause)
+{
+	if (pause) {
+		if (INTERNAL_ERROR != timerID) {
+			killTimer(timerID);
+			timerID = INTERNAL_ERROR;
+			QString text = FormatTimeString((int)totalRecordSeconds);
+			text.append(" (Paused)");
+			time->setText(text);
+			paused = true;
+		}
+	} else {
+		timerID = this->startTimer(TIMER_REFRESH_INTERVAL);
+		paused = false;
+	}
 }
 
 PLSPreviewProgramTitle::PLSPreviewProgramTitle(bool studioPortraitLayout_, QWidget *parent_) : QFrame(parent_), studioPortraitLayout(studioPortraitLayout_)
@@ -240,14 +266,18 @@ QFrame *PLSPreviewProgramTitle::GetTotalArea()
 
 void PLSPreviewProgramTitle::OnLiveStatus(bool isStarted)
 {
-	horLiveArea->SetLiveStatus(isStarted);
-	porLiveArea->SetLiveStatus(isStarted);
+	pls_async_call_mt([this, isStarted]() {
+		horLiveArea->SetLiveStatus(isStarted);
+		porLiveArea->SetLiveStatus(isStarted);
+	});
 }
 
 void PLSPreviewProgramTitle::OnRecordStatus(bool isStarted)
 {
-	horLiveArea->SetRecordStatus(isStarted);
-	porLiveArea->SetRecordStatus(isStarted);
+	pls_async_call_mt([this, isStarted]() {
+		horLiveArea->SetRecordStatus(isStarted);
+		porLiveArea->SetRecordStatus(isStarted);
+	});
 }
 
 void PLSPreviewProgramTitle::OnStudioModeStatus(bool isStudioMode)
@@ -279,7 +309,10 @@ void PLSPreviewProgramTitle::CustomResize()
 	int maxWidth = (parent->width() - horApplyBtn->width()) / 2;
 
 	if (studioPortraitLayout) {
-		QTimer::singleShot(100, this, [this]() { porApplyBtn->move((porLiveArea->width() - porApplyBtn->width()) / 2, 3); });
+		QTimer::singleShot(100, this, [this]() {
+			PLS_INFO("PLSPreviewProgramTitle", "single shot timer triggered for move preview UI.");
+			porApplyBtn->move((porLiveArea->width() - porApplyBtn->width()) / 2, 3);
+		});
 		porEditArea->setFixedWidth(parent->width());
 		porEditArea->SetDisplayText(parent->width());
 		porLiveArea->SetDisplayText(maxWidth);
@@ -293,7 +326,7 @@ void PLSPreviewProgramTitle::CustomResize()
 
 void PLSPreviewProgramTitle::CustomResizeAsync()
 {
-	QTimer::singleShot(0, this, [this]() { CustomResize(); });
+	pls_async_call(this, [this]() { CustomResize(); });
 }
 
 void PLSPreviewProgramTitle::ShowSceneNameLabel(bool show)
@@ -456,7 +489,7 @@ PLSPreviewLiveLabel::PLSPreviewLiveLabel(bool center, bool showTime, QWidget *pa
 	sceneNameLabel->setObjectName("liveSceneLabel");
 
 	QHBoxLayout *liveLayout = pls_new<QHBoxLayout>(this);
-	liveLayout->setSpacing(7);
+	liveLayout->setSpacing(10);
 	liveLayout->setContentsMargins(0, 0, 0, 0);
 	if (center) {
 		liveLayout->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
@@ -552,6 +585,16 @@ void PLSPreviewLiveLabel::SetStudioModeStatus(bool isStudioMode)
 uint PLSPreviewLiveLabel::GetStartTime() const
 {
 	return liveUI->getStartTime();
+}
+
+int PLSPreviewLiveLabel::GetRecordDuration() const
+{
+	return recordUI->getDuration();
+}
+
+void PLSPreviewLiveLabel::OnRecordPaused(bool paused)
+{
+	return recordUI->Pause(paused);
 }
 
 void PLSPreviewLiveLabel::resizeEvent(QResizeEvent *event)

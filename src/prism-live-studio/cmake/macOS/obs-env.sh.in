@@ -6,7 +6,7 @@ export BIN_DIR=${PROJECT_DIR}/bin
 export SRC_DIR=${PROJECT_DIR}/src
 
 export OBS_SRC_DIR=${PROJECT_DIR}/src/obs-studio
-export OBS_BUILD_DIR=${OBS_SRC_DIR}/build
+export OBS_BUILD_DIR=${OBS_SRC_DIR}/build_macos
 export PRISM_SRC_DIR=${PROJECT_DIR}/src/prism-live-studio
 export PRISM_BUILD_DIR=${PRISM_SRC_DIR}/build
 
@@ -20,6 +20,7 @@ export COMPILER=@OBS_ENV_COMPILER@
 export ARCH=@OBS_ENV_ARCH@
 export SUFFIX=@OBS_ENV_SUFFIX@
 export VERSION=@OBS_ENV_VERSION@
+export PLS_VERSION=@PRISM_VERSION@
 
 export BUILD_TYPE=@OBS_ENV_BUILD_TYPE@
 export PRISM_VERSION_H_DIR=@OBS_ENV_PRISM_VERSION_H_DIR@
@@ -27,8 +28,4 @@ export OBS_SWIG_DIR=@OBS_ENV_SWIG_DIR@
 export PRISM_OSX_DEPLOYMENT_TARGET=@OBS_ENV_OSX_DEPLOYMENT_TARGET@
 
 export OUTPUT_DIR=${BIN_DIR}/prism/macos/${BUILD_TYPE}
-if [[ ${BUILD_TYPE}=="Debug" ]]; then
-	export CMAKE_BUILD_TYPE=Debug
-else
-	export CMAKE_BUILD_TYPE=RelWithDebInfo
-fi
+export CMAKE_BUILD_TYPE=${BUILD_TYPE}

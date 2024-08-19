@@ -22,6 +22,8 @@ public:
 	void StrokeBlendTexturesCallback();
 	void StrokeRenderCallback();
 
+	void UpdateCanvasByVisible(bool visible);
+
 private:
 	void DrawRender();
 	bool RenderDrawingToTarget(gs_texture_t *target);

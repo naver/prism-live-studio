@@ -213,13 +213,5 @@ bool PLSBlockDump::isHandleSigned(Event *event, int milliSecond) {
 }
 
 std::string PLSBlockDump::saveDumpFile() {
-    std::string callstack = pls::get_threads();
-    NSString *stacktrace = [NSString stringWithUTF8String:callstack.c_str()];
-    NSData *data = [stacktrace dataUsingEncoding:NSUTF8StringEncoding];
-    
-    NSTimeInterval timestamp = [[NSDate date] timeIntervalSince1970];
-    NSString *logPath = [[NSString stringWithUTF8String:dumpDirectory.c_str()] stringByAppendingPathComponent:[NSString stringWithFormat:@"BLOCK_%f.log", timestamp]];
-    [[NSFileManager defaultManager] createFileAtPath:logPath contents:data attributes:nil];
-    
-    return logPath.UTF8String;
+	return pls::generate_dump_file("UI block happen", "Block dump generated.");
 }
