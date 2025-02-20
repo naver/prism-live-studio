@@ -8,6 +8,7 @@
 #include <obs.hpp>
 #include "PLSLabel.h"
 #include "PLSTransparentForMouseEvents.h"
+#include <pls/pls-statistics.h>
 
 #include <atomic>
 
@@ -17,6 +18,7 @@ class PLSColorCircle;
 class PLSBasicStatusBar;
 class GoLivePannel;
 class PLSPreviewLiveLabel;
+class QWebSocket;
 
 struct PLSBasicStatusData {
 	std::tuple<double, double> cpu; //PRISM/System
@@ -29,15 +31,23 @@ struct PLSBasicStatusData {
 	std::tuple<double, double> renderFPS; //Current/Setting
 	double streamOutputFPS; //output
 	double recordOutputFPS;
+	double streamOutputFPS_v{0.0}; //vertical output
 
 	//Droped frames, Total frames, Droped percent
 	std::tuple<uint32_t, uint32_t, double> dropedRendering;
 	std::tuple<uint32_t, uint32_t, double> dropedEncoding;
+	std::tuple<uint32_t, uint32_t, double> dropedEncoding_v{0, 0, 0.0};
 	std::tuple<uint32_t, uint32_t, double> dropedNetwork;
+	std::tuple<uint32_t, uint32_t, double> dropedNetwork_v{0, 0, 0.0};
 
 	//bitrate, bytes
 	std::tuple<double, uint64_t> streaming;
+	std::tuple<double, uint64_t> streaming_v{0.0, 0};
 	std::tuple<double, uint64_t> recording;
+
+	//output latency info
+	pls_statistics_dump latencyInfo{0};
+	pls_statistics_dump latencyInfo_v{0};
 };
 
 class PLSBasicStatusBarFrameDropState : public QFrame {
@@ -112,6 +122,8 @@ private:
 
 	float lastCongestion = 0.0f;
 
+	mutable int trigger_count = 0;
+
 	QPointer<QTimer> refreshTimer;
 	QPointer<QTimer> uploadTimer;
 
@@ -125,6 +137,12 @@ private:
 
 	static void OBSOutputReconnect(void *data, calldata_t *params);
 	static void OBSOutputReconnectSuccess(void *data, calldata_t *params);
+	
+	// MARK: -- Analog
+#ifdef __APPLE__
+	static void RequestExtensionClientInfo(std::function<void(int pid, const std::string &signingId, const std::string &clientId, const std::string &time)> closure);
+	QWebSocket *extensionClientSocket = nullptr;
+#endif
 
 public slots:
 	void UpdateCPUUsage();

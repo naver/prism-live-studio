@@ -152,7 +152,7 @@ bool prism_region_settings::region_empty() const
 
 #define WINRT_IMPORT(func)                                           \
 	do {                                                         \
-		exports->func = (PFN_##func)os_dlsym(module, #func); \
+		exports->func = (PFN_##func)os_dlsym(szModule, #func); \
 		if (!exports->func) {                                \
 			success = false;                             \
 			blog(LOG_ERROR,                              \
@@ -162,7 +162,7 @@ bool prism_region_settings::region_empty() const
 		}                                                    \
 	} while (false)
 
-static bool load_winrt_imports(struct winrt_exports *exports, void *module, const char *module_name)
+static bool load_winrt_imports(struct winrt_exports *exports, void *szModule, const char *module_name)
 {
 	bool success = true;
 
@@ -183,10 +183,10 @@ static bool load_winrt_imports(struct winrt_exports *exports, void *module, cons
 
 prism_region_source::prism_region_source(obs_data_t *settings, obs_source_t *source_) : source(source_)
 {
-	static const char *const module = "libobs-winrt";
-	winrt_module = os_dlopen(module);
+	static const char *const szModule = "libobs-winrt";
+	winrt_module = os_dlopen(szModule);
 	if (nullptr != winrt_module) {
-		load_winrt_imports(&exports, winrt_module, module);
+		load_winrt_imports(&exports, winrt_module, szModule);
 	}
 	else
 	{
@@ -194,7 +194,7 @@ prism_region_source::prism_region_source(obs_data_t *settings, obs_source_t *sou
 		if (bLog)
 		{
 			bLog = false;
-			warn("load %s failed", module);
+			warn("load %s failed", szModule);
 		}
 	}
 

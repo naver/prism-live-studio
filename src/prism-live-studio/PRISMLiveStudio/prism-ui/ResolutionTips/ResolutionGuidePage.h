@@ -8,6 +8,7 @@
 #include "PLSPressRestoreButton.hpp"
 #include "ui_ResolutionGuidePage.h"
 #include <memory>
+#include "libresource.h"
 
 namespace Ui {
 class ResolutionGuidePage;
@@ -45,8 +46,8 @@ public:
 	static Resolution parserStringOfResolution(const QString &resolution);
 	static bool isAcceptToChangeResolution(const QString &platform, const QString &resolution);
 
-	static bool setResolution(int width, int height, int fps, bool toChangeCanvas = true);
-	static bool setResolution(const Resolution &resolution, bool toChangeCanvas = true);
+	static bool setResolution(int width, int height, int fps, bool toChangeCanvas = true, bool bVerticalOutput = false);
+	static bool setResolution(const Resolution &resolution, bool toChangeCanvas = true, bool bVerticalOutput = false);
 	static bool setVideoBitrateAndKeyFrameInterval(int bitrate, int keyframeInterval);
 
 	static void showAlertOnSetResolutionFailed();
@@ -64,8 +65,8 @@ public:
 	static void showResolutionGuideCloseAfterChange(QWidget *parent);
 
 	static void checkResolution(QWidget *parent, const QString &uuid);
-	static void checkResolutionForPlatform(QWidget *parent, const QString &platform, int channelType = 0);
-	static bool isCurrentResolutionFitableFor(const QString &platform, int channelType = 0);
+	static void checkResolutionForPlatform(QWidget *parent, const QString &platform, int channelType = 0, bool bVerticalOutput = false);
+	static bool isCurrentResolutionFitableFor(const QString &platform, int channelType = 0, bool bVerticalOutput = false);
 	static void showIntroduceTip(QWidget *parent, const QString &platformName);
 	enum B2BApiError { EmptyList = 0, ReturnFail, NetworkError, ServiceDisable };
 	enum OutputState { NoState = 0x0, OuputIsOff = 0x1, StreamIsOn = 0x2, RecordIsOn = 0x4, ReplayBufferIsOn = 0x8, VirtualCamIsOn = 0x10, OutPutError = 0x20, OtherPluginOutputIsOn = 0x40 };
@@ -166,8 +167,7 @@ private:
 	QSpacerItem *mSpaceItem = nullptr;
 	bool mB2BLogin = false;
 	QList<B2BResolutionPara> mB2BResolutionParaList;
-	QList<QPair<QString, QString>> m_serviceResToPath;
-
+	std::list<pls::rsm::UrlAndHowSave> m_urlAndHowSaves;
 	bool m_updateRequestExisted{false};
 	bool m_downLoadRequestExisted{false};
 };

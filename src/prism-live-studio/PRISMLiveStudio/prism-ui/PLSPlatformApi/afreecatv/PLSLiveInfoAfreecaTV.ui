@@ -48,11 +48,7 @@
        <number>0</number>
       </property>
       <item>
-       <widget class="QLabel" name="titleLabel">
-        <property name="text">
-         <string>afreecaTV</string>
-        </property>
-       </widget>
+       <widget class="PLSLiveInfoDualWidget" name="dualWidget" native="true"/>
       </item>
       <item>
        <spacer name="horizontalSpacer">
@@ -232,6 +228,12 @@
    <class>PLSLineEdit</class>
    <extends>QLineEdit</extends>
    <header>PLSEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSLiveInfoDualWidget</class>
+   <extends>QWidget</extends>
+   <header>PLSLiveInfoBase.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

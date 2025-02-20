@@ -162,19 +162,17 @@ PLSMotionImageListView *PLSMyMotionListView::getListView()
 
 void PLSMyMotionListView::addResourceFinished(const QObject *sourceUi, const MotionData &md, bool isLast)
 {
-	PLSMotionFileManager::instance()->insertMotionData(md, MY_FILE_LIST);
+	auto data = PLSMotionFileManager::instance()->insertMotionData(md, MY_FILE_LIST);
 
 	ui->emptyWidget->hide();
 	ui->listFrame->show();
 
-	m_list.prepend(md);
+	m_list.prepend(data);
 	ui->listFrame->updateItems(m_list);
 
 	if (!isLast) {
 		return;
 	}
-
-	PLSMotionFileManager::instance()->saveMotionList();
 
 	if (sourceUi != this) {
 		return;
@@ -183,7 +181,7 @@ void PLSMyMotionListView::addResourceFinished(const QObject *sourceUi, const Mot
 	//choose the first item list
 	if (itemSelectedEnabled) {
 		if (PLSMotionImageListView *listView = getListView(); listView) {
-			listView->clickItemWithSendSignal(md);
+			listView->clickItemWithSendSignal(data);
 		}
 	}
 }

@@ -9,11 +9,11 @@
 #include "PLSBasicStatusBar.hpp"
 #include "PLSBasicStatusPanel.hpp"
 #include "PLSRegionCapture.h"
-#include "PLSLoginDataHandler.h"
 #include "audio-mixer/PLSAudioMixer.h"
 #include "ncb2b/PLSNCB2bBrowserSettings.h"
 #include <set>
 #include "PLSSceneTemplateContainer.h"
+#include "obs.h"
 
 class HookNativeEvent;
 class PLSBackgroundMusicView;
@@ -24,7 +24,7 @@ constexpr int NEED_RESTARTAPP = 1025;
 extern const std::vector<QString> presetColorListWithOpacity;
 
 using BgmSourceVecType = std::vector<std::pair<QString, quint64>>;
-
+using setAlertParent = std::function<void(QWidget *)>;
 enum class PlatformType {
 	Empty = 0,
 
@@ -43,6 +43,31 @@ enum class PlatformType {
 enum class RestartAppType { Direct = 0, Logout, ChangeLang, Update };
 
 enum class ShowType { ST_Show, ST_Hide, ST_Switch };
+
+class GameCaptureResult {
+public:
+	std::string exeVersion = "unknown";
+	std::string gameTitle = "unknown";
+	std::string gameExe = "unknown";
+
+	std::string sourceName = "unknown";
+	std::string sourceId = "unknown";
+
+	struct Result {
+		std::string str = "undefined";
+		bool captured = false;
+	};
+
+	GameCaptureResult(const std::string &exe, const std::string &version, const std::string &title, const std::string &source_name, const std::string &source_id);
+	bool foundResult(Result result);
+	bool isCaptured();
+	void insertResult(Result result);
+	std::string getLastFailedResult();
+
+private:
+	std::recursive_mutex m_lockCaptureResult;
+	std::vector<Result> captureResultList;
+};
 
 class CheckCamProcessWorker : public QObject {
 	Q_OBJECT
@@ -120,9 +145,9 @@ public:
 	void replaceMenuActionWithWidgetAction(QMenuBar *menuBar, QAction *originAction, QWidgetAction *replaceAction);
 	void replaceMenuActionWithWidgetAction(QMenu *menu, QAction *originAction, QWidgetAction *replaceAction);
 	void CheckAppUpdate();
-	void CheckAppUpdateFinished();
+	void CheckAppUpdateFinished(const PLSErrorHandler::RetData &retData);
 	int compareVersion(const QString &v1, const QString &v2) const;
-	AppUpdateResult getUpdateResult() const;
+	int getUpdateResult() const;
 	bool ShowUpdateView(QWidget *parent);
 	void restartPrismApp(bool isUpdated = false);
 	void initSideBarWindowVisible();
@@ -152,6 +177,10 @@ public:
 	void OnSourceCreated(const char *id);
 	bool ShouldShowMixerTip() const;
 	void ShowAudioMixerTips();
+	void ShowOutputStreamErrorAlert(int code, QString last_error, QWidget *parent);
+	void ShowOutputRecordErrorAlert(int code, QString last_error, QWidget *parent);
+	void ShowReplayBufferErrorAlert(int code, QString last_error, QWidget *parent);
+	QString getOutputStreamErrorAlert(int code, const QString &last_error);
 
 	bool GetSourceIcon(QIcon &icon, int type) const override;
 	QIcon GetViewerCountIcon() const;
@@ -185,7 +214,6 @@ public:
 	void SetAppAudioIcon(const QIcon &icon);
 	void SetDecklinkInputIcon(const QIcon &icon);
 
-	static void InitBrowserPanelSafeBlock();
 	static QCefCookieManager *getBrowserPannelCookieMgr(const QString &channelName);
 	static void delPannelCookies(const QString &pannelName);
 	static void setManualPannelCookies(const QString &pannelName);
@@ -222,8 +250,20 @@ public:
 	bool CheckAndModifyAAC();
 	void showSettingVideo();
 	bool isAppUpadting() const;
+	void setAlertParentWithBanner(setAlertParent cb);
 
 	PLSMixerOrderHelper mixerOrder;
+
+	const QString &getServiceName() const;
+
+	bool IsOutputActivated(obs_output *output);
+	void ActivateOutput(obs_output *output);
+	void DeactivateOutput(obs_output *output);
+
+	void updateSourceIcon();
+	bool getSourceLoaded();
+
+	void ForceUpdateGroupsSize();
 
 public slots:
 	void OnSideBarButtonClicked(int buttonId);
@@ -273,6 +313,7 @@ public slots:
 	void OnStickerDownloadCallback(const TaskResponData &responData);
 	void InitGiphyStickerViewVisible();
 	void InitPrismStickerViewVisible();
+	void InitDualOutputEnabled();
 	void OnMixerOrderChanged();
 
 	void OnSetBgmViewVisible(bool state);
@@ -325,6 +366,16 @@ public slots:
 
 	void ReorderAudioMixer();
 
+	void setServiceName(QString strServiceName);
+
+	void onDualOutputClicked();
+	bool checkStudioMode();
+	bool setDualOutputEnabled(bool bEnabled, bool bShowSetting);
+	void showDualOutputTitle(bool bVisible);
+	void showVerticalDisplay(bool bVisible);
+	void showHorizontalDisplay(bool bVisible);
+	void changeOutputCount(int);
+
 public:
 	static void MediaStateChanged(void *data, calldata_t *calldata);
 	static void MediaLoad(void *data, calldata_t *calldata);
@@ -332,6 +383,8 @@ public:
 
 	static void OnSourceNotify(void *data, calldata_t *calldata);
 	static void OnSourceMessage(void *data, calldata_t *calldata);
+
+	static void RenderVerticalProgram(void *data, uint32_t cx, uint32_t cy);
 
 protected:
 	void showEvent(QShowEvent *event) override;
@@ -345,7 +398,7 @@ private:
 
 	// scene collection
 	void OnExportSceneCollectionClicked();
-	void StartSaveSceneCollectionTimer();
+	void StartUpdateSceneCollectionTimeTimer();
 
 	void OnSceneDockTopLevelChanged();
 	void OnSourceDockTopLevelChanged();
@@ -371,7 +424,7 @@ private:
 	void CreatePreviewTitle();
 
 private slots:
-	void OnSaveSceneCollectionTimerTriggered();
+	void OnUpdateSceneCollectionTimeTimerTriggered();
 	void CreateGiphyStickerView();
 	void CreatePrismStickerView();
 
@@ -393,6 +446,8 @@ signals:
 	void backgroundTemplateSourceError(int msg, int code);
 	void outputStateChanged();
 	void goLiveCheckTooltip();
+	void sigOpenDualOutput(bool bOpen);
+	void sigOutputActiveChanged(bool);
 
 private:
 #if defined(Q_OS_WIN)
@@ -415,7 +470,7 @@ private:
 	QString m_updateFileUrl;
 	QString m_updateInfoUrl;
 	bool m_updateForceUpdate;
-	AppUpdateResult m_checkUpdateResult = AppUpdateResult::AppFailed;
+	int m_checkUpdateResult = 0;
 	bool m_requestUpdate = false;
 	bool m_isLogout = false;
 	bool m_isUpdateLanguage = false;
@@ -445,7 +500,10 @@ private:
 	bool m_isStartCategoryRequest = false;
 	bool gpopDataInited = false;
 	bool isAudioMonitorToastDisplay = false;
-	std::set<std::string> m_hook_failed_game_list;
+
+	std::recursive_mutex m_lockGameCaptureResultMap;
+	std::map<std::string, std::shared_ptr<GameCaptureResult>> m_gameCaptureResultMap;
+
 	std::map<uint64_t, QString> stickerSourceMap;
 	CheckCamProcessWorker *checkCamProcessWorker = nullptr;
 	QThread checkCamThread;
@@ -456,4 +514,13 @@ private:
 	QAction *actionThumbnail = nullptr;
 	QAction *actionText = nullptr;
 	PLSSceneTemplateContainer *m_sceneTemplate{nullptr};
+
+	QString m_strServiceName;
+	std::recursive_mutex m_outputActivateMutex;
+	std::set<void *> m_outputActivating;
+
+	bool m_bOutputActive = false;
+	int m_iOutputCount = 0;
+
+	QPointer<PLSDualOutputTitle> dualOutputTitle;
 };

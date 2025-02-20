@@ -17,9 +17,9 @@
 #include "LogPredefine.h"
 #include "PLSChannelDataHandlerFunctions.h"
 #include "PLSPlatformApi.h"
-#include "json-data-handler.hpp"
 
 #include "PLSAPIYoutube.h"
+#include "PLSErrorHandler.h"
 #include "pls-common-define.hpp"
 
 using namespace ChannelData;
@@ -31,7 +31,8 @@ void loadMapper(const QString &platformName, ChannelsMap &src)
 	}
 
 	QString fileName = QString(":/configs/configs/%1.json").arg(platformName.toLower());
-	auto tmpMaper = loadMapFromJsonFile(fileName);
+	QVariantMap tmpMaper;
+	pls_read_json(tmpMaper, fileName);
 	if (tmpMaper.isEmpty()) {
 		return;
 	}
@@ -109,29 +110,27 @@ void ChannelDataBaseHandler::resetData(const ResetReson &reson)
 	return;
 }
 
-void addLoginChannel(const QJsonObject &retJson)
+void addLoginChannel(const QVariantMap &retMap)
 {
-	auto newInfo = retJson.toVariantMap();
-	PLSCHANNELS_API->addChannelInfo(newInfo);
+	PLSCHANNELS_API->addChannelInfo(retMap);
 }
 
 void ChannelDataBaseHandler::loginWithWebPage(const QString &cmdStr)
 {
 	this->resetData();
 	myLastInfo() = createDefaultChannelInfoMap(getPlatformName(), ChannelData::ChannelType, cmdStr);
-
-	QJsonObject retObj = QJsonObject::fromVariantMap(myLastInfo());
-
-	PRE_LOG_MSG_STEP(QString(" show %1 login page ").arg(g_channelName), g_addChannelStep, INFO)
-	auto handleCallback = [retObj, this](bool ok, const QJsonObject &result) mutable {
+	auto retMap = myLastInfo();
+	PRE_LOG_MSG_STEP(QString(" show %1 login page ").arg(cmdStr), g_addChannelStep, INFO)
+	auto handleCallback = [retMap, cmdStr, this](bool ok, const QVariantHash &result) mutable {
 		if (ok) {
 			for (const auto &key : result.keys())
-				retObj[key] = result[key];
-			addLoginChannel(retObj);
+				retMap[key] = result[key];
+			addLoginChannel(retMap);
 			PLSBasic::instance()->updateMainViewAlwayTop();
 		} else if (result.value(ChannelData::g_expires_in).toBool()) {
-			PLS_INFO("Channels", "%s login failed ,prism token expired", g_channelName.toUtf8().constData());
-			reloginPrismExpired();
+			PLS_INFO("Channels", "%s login failed ,prism token expired", cmdStr.toUtf8().constData());
+			auto retData = result.value(ChannelData::g_errorRetdata).value<PLSErrorHandler::RetData>();
+			reloginPrismExpired(retData);
 		}
 		emit this->loginFinished();
 	};
@@ -179,14 +178,14 @@ void ChannelDataBaseHandler::downloadImage()
 		return;
 	}
 	auto uuid = getInfo(myLastInfo(), ChannelData::g_channelUUID);
-	auto finisheDownload = [uuid](const pls::http::Reply &reply) {
-		auto imagePath = reply.downloadFilePath();
-		PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_userIconCachePath, imagePath);
-		PLSCHANNELS_API->channelModified(uuid);
+	auto finisheDownload = [uuid](const pls::rsm::DownloadResult &result) {
+		if (result.hasFilePath()) {
+			PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_userIconCachePath, result.filePath());
+			PLSCHANNELS_API->channelModified(uuid);
+		}
 	};
 	PLS_INFO(getPlatformName().toUtf8().constData(), "start download image %s", pls_masking_person_info(pixUrl).toUtf8().constData());
-	downloadUserImage(pixUrl, getTmpCacheDir(), getPlatformName(), finisheDownload);
-
+	downloadUserImage(pixUrl, getPlatformName(), finisheDownload);
 	return;
 }
 
@@ -245,23 +244,20 @@ bool TwitchDataHandler::tryToUpdate(const QVariantMap &srcInfo, const UpdateCall
 					   getChannelsInfo();
 				   })
 				   .failResult([this](const pls::http::Reply &reply) {
-					   auto statusCode = reply.statusCode();
-					   switch (statusCode) {
-					   case 401:
+					   PLSErrorHandler::ExtraData extraData;
+					   extraData.errPhase = PLSErrPhaseLogin;
+					   extraData.urlEn = CHANNEL_TWITCH_URL;
+					   auto retData = PLSErrorHandler::getAlertString({reply.statusCode(), reply.error(), reply.data()}, TWITCH, "", extraData);
+					   if (retData.prismCode == PLSErrorHandler::ErrCode::COMMON_CHANNEL_LOGIN_TOKEN_EXPIRED_ERROR) {
 						   myLastInfo()[g_channelStatus] = Expired;
-						   break;
-					   case Error:
+
+					   } else {
 						   myLastInfo().insert(g_channelStatus, Error);
-						   myLastInfo().insert(g_errorType, NetWorkErrorType::NetWorkNoStable);
-						   break;
-					   default:
-						   myLastInfo().insert(g_channelStatus, Error);
-						   myLastInfo().insert(g_errorType, NetWorkErrorType::UnknownError);
-						   break;
 					   }
+					   myLastInfo()[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+					   myLastInfo()[g_errorString] = retData.alertMsg;
 					   myLastInfo().insert(ChannelData::g_channelSreLoginFailed, "twitch get user info failed");
-					   QString errorStr = "channel error status code " + QString::number(statusCode);
-					   PRE_LOG_MSG(errorStr.toStdString().c_str(), ERROR)
+
 					   myCallback()(QList<QVariantMap>{myLastInfo()});
 				   }));
 
@@ -305,14 +301,13 @@ bool TwitchDataHandler::downloadHeaderImage(const QString &pixUrl)
 {
 
 	auto uuid = getInfo(myLastInfo(), g_channelUUID);
-	auto finisheDownload = [uuid](const pls::http::Reply &reply) {
-		auto imagePath = reply.downloadFilePath();
-		PLSCHANNELS_API->setValueOfChannel(uuid, g_userIconCachePath, imagePath);
-		PLSCHANNELS_API->channelModified(uuid);
+	auto finisheDownload = [uuid](const pls::rsm::DownloadResult &result) {
+		if (result.hasFilePath()) {
+			PLSCHANNELS_API->setValueOfChannel(uuid, ChannelData::g_userIconCachePath, result.filePath());
+			PLSCHANNELS_API->channelModified(uuid);
+		}
 	};
-
-	downloadUserImage(pixUrl, getTmpCacheDir(), getPlatformName(), finisheDownload);
-
+	downloadUserImage(pixUrl, getPlatformName(), finisheDownload);
 	return true;
 }
 
@@ -358,22 +353,8 @@ bool YoutubeHandler::refreshToken()
 
 	auto handleSuccess = [this](const pls::http::Reply &reply) {
 		auto data = reply.data();
-		if (data.contains("error_description") && data.contains("Token has been expired or revoked")) {
-			myLastInfo()[g_channelSreLoginFailed] = QString("refreshToken Failed, code:Token has been expired or revoked");
-			handleError(401);
-			runTasks();
-			return;
-		}
-
 		auto jsonDoc = QJsonDocument::fromJson(data);
 		auto jsonMap = jsonDoc.toVariant().toMap();
-
-		if (isInvalidGrant(jsonMap)) {
-			myLastInfo()[g_channelSreLoginFailed] = QString("refreshToken Failed, code:invalid_grant");
-			handleError(401);
-			runTasks();
-			return;
-		}
 
 		addToMap(myLastInfo(), jsonMap);
 		myLastInfo()[g_channelStatus] = Valid;
@@ -389,13 +370,8 @@ bool YoutubeHandler::refreshToken()
 			errReason = PLS_PLATFORM_YOUTUBE->getFailedErr();
 		}
 		myLastInfo()[g_channelSreLoginFailed] = errReason;
-		if (auto jsonMap = jsonDoc.toVariant().toMap(); isInvalidGrant(jsonMap)) {
-			handleError(401);
-			runTasks();
-			return;
-		}
+		handleError(reply.statusCode(), reply.data(), reply.error(), "refreshChannelToken");
 
-		handleError(reply.statusCode());
 		runTasks();
 	};
 	request.okResult(handleSuccess);
@@ -455,7 +431,7 @@ bool YoutubeHandler::getRealToken()
 			errReason = PLS_PLATFORM_YOUTUBE->getFailedErr();
 		}
 		myLastInfo()[g_channelSreLoginFailed] = errReason;
-		handleError(reply.statusCode());
+		handleError(reply.statusCode(), reply.data(), reply.error(), "getRealToken");
 		runTasks();
 	};
 
@@ -492,20 +468,16 @@ bool YoutubeHandler::getBasicInfo()
 		auto jsonMap = jsonDoc.toVariant().toMap();
 		auto guard = qScopeGuard([this] { runTasks(); });
 
-		if (isInvalidGrant(jsonMap)) {
-			myLastInfo()[g_channelSreLoginFailed] = QString("refreshChannelList Failed, code:invalid_grant");
-			handleError(401);
-			return;
-		}
-
 		if (!isItemsExists(jsonMap)) {
 			myLastInfo()[g_channelSreLoginFailed] = QString("refreshChannelList Failed, code:items is not exist");
-			handleError(403);
+			myLastInfo().insert(g_channelStatus, int(UnInitialized));
+			mTaskMap.clear();
 			return;
 		}
 
 		if (isChannelItemEmpty(jsonMap)) {
-			handleError(ChannelIsEmpty);
+			myLastInfo().insert(g_channelStatus, int(UnInitialized));
+			mTaskMap.clear();
 			return;
 		}
 		finishUpdateBasicInfo(jsonMap);
@@ -518,16 +490,10 @@ bool YoutubeHandler::getBasicInfo()
 		if (PLS_PLATFORM_YOUTUBE) {
 			errReason = PLS_PLATFORM_YOUTUBE->getFailedErr();
 		}
+
 		myLastInfo()[g_channelSreLoginFailed] = errReason;
+		handleError(reply.statusCode(), reply.data(), reply.error(), "refreshChannelList");
 
-		auto jsonDoc = QJsonDocument::fromJson(reply.data());
-
-		if (auto jsonMap = jsonDoc.toVariant().toMap(); isInvalidGrant(jsonMap)) {
-			handleError(401);
-			runTasks();
-			return;
-		}
-		handleError(reply.statusCode());
 		runTasks();
 	};
 	request.okResult(handleSuccess);
@@ -561,38 +527,21 @@ bool YoutubeHandler::getheaderImage()
 	return true;
 }
 
-void YoutubeHandler::handleError(int statusCode)
+void YoutubeHandler::handleError(int code, QByteArray data, QNetworkReply::NetworkError error, const QString &logFrom)
 {
-	switch (statusCode) {
-	case 400:
-		myLastInfo().insert(g_channelStatus, LoginError);
-
-		break;
-	case 401:
-		myLastInfo()[g_channelStatus] = Expired;
-		break;
-	case 403:
-		myLastInfo().insert(g_channelStatus, int(UnInitialized));
-		break;
-
-	case int(NetWorkErrorType::ChannelIsEmpty):
-		myLastInfo().insert(g_channelStatus, int(WaitingActive));
-		break;
-	case Error:
-		myLastInfo().insert(g_channelStatus, Error);
-		myLastInfo().insert(g_errorType, int(NetWorkErrorType::NetWorkNoStable));
-		break;
-	default:
-		myLastInfo().insert(g_channelStatus, Error);
-		myLastInfo().insert(g_errorType, int(NetWorkErrorType::UnknownError));
-
-		break;
+	PLSErrorHandler::ExtraData extraData;
+	extraData.urlEn = logFrom;
+	extraData.errPhase = PLSErrPhaseLogin;
+	auto retData = PLSErrorHandler::getAlertString({code, error, data}, YOUTUBE, "", extraData);
+	ChannelStatus chStatus = ChannelData::ChannelStatus::Error;
+	if (retData.errorType == PLSErrorHandler::ErrorType::TokenExpired) {
+		chStatus = ChannelData::ChannelStatus::Expired;
 	}
-	QString errorStr = "channel error status code " + QString::number(statusCode);
-	PRE_LOG_MSG(errorStr.toStdString().c_str(), ERROR)
+	myLastInfo()[ChannelData::g_channelStatus] = chStatus;
+	myLastInfo()[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+	myLastInfo()[ChannelData::g_errorString] = retData.alertMsg;
 	mTaskMap.clear();
 }
-
 void YoutubeHandler::resetWhenRefresh()
 {
 	myLastInfo()[g_catogry] = "Public";

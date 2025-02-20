@@ -325,11 +325,6 @@ bool need_update_queue_first_url(struct prism_bgm_source *source, latest_url &ge
 
 void push_back_queue_url(struct prism_bgm_source *source, const latest_url &url)
 {
-	if (!url.url.empty()) {
-		PLS_PLUGIN_INFO("bgm: push select music. url is %s .", pls_get_path_file_name(url.url.c_str()));
-	} else {
-		PLS_PLUGIN_INFO("bgm: push a empty url to music list queue for stop play music.");
-	}
 	std::lock_guard<std::mutex> locker(source->mtx);
 	source->queue_urls.push_back(url);
 }
@@ -390,7 +385,6 @@ static void media_state_changed(obs_media_state state, void *data, calldata_t *c
 				pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, state);
 				return;
 			}
-			PLS_PLUGIN_INFO("bgm: try to switch to next music when receive media stopped or ended state.");
 			prism_bgm_switch_to_next_song(source);
 			return;
 		} else {
@@ -427,12 +421,7 @@ static void media_load(void *data, calldata_t *calldata)
 
 static void bgm_erase_queue_first_url(struct prism_bgm_source *source)
 {
-	auto url = erase_queue_first_url(source);
-	if (!url.url.empty()) {
-		PLS_PLUGIN_INFO("bgm: pop select music. url is %s .", pls_get_path_file_name(url.url.c_str()));
-	} else {
-		PLS_PLUGIN_INFO("bgm: pop a empty url to music list queue to stop play music.");
-	}
+	erase_queue_first_url(source);
 }
 
 static void media_skip(void *data, calldata_t *calldata)
@@ -627,7 +616,6 @@ static void without_loop(prism_bgm_source *source)
 		source->remove_id.clear();
 		source->played_urls.clear();
 		if (state == OBS_MEDIA_STATE_PLAYING || state == OBS_MEDIA_STATE_PAUSED || state == OBS_MEDIA_STATE_OPENING) {
-			PLS_PLUGIN_INFO("bgm: remove last select music. url is %s .", source->select_music.c_str());
 			push_back_queue_url(source, latest_url());
 			clear_current_url_info(source);
 		}
@@ -679,7 +667,6 @@ static void prism_bgm_switch_to_next_song(void *data)
 			source->remove_id.clear();
 			source->played_urls.clear();
 			clear_current_url_info(source);
-			PLS_PLUGIN_INFO("bgm: remove last select music. url is %s .", source->select_music.c_str());
 
 			push_back_queue_url(source, latest_url());
 			obs_data_release(private_settings);
@@ -827,7 +814,6 @@ static void bgm_source_start(struct prism_bgm_source *s)
 		return;
 	}
 
-	PLS_PLUGIN_DEBUG("bgm: push select music. url is %s .", pls_get_path_file_name(s->select_music.c_str()));
 	set_current_url(s, s->select_music, s->select_id);
 	s->real_stop = false;
 	s->restart = true;
@@ -1550,11 +1536,8 @@ static void prism_bgm_tick(void *data, float)
 		obs_source_update(source->source, settings);
 
 		if (url.url.empty()) {
-			PLS_PLUGIN_INFO("bgm: push a empty url to media source to stop play music.");
 			pls_source_send_notify(source->source, OBS_SOURCE_MUSIC_STATE_CHANGED, OBS_MEDIA_STATE_STOPPED);
 			erase_queue_first_url(source);
-		} else {
-			PLS_PLUGIN_INFO("bgm: play select music. url is %s .", pls_get_path_file_name(url.url.c_str()));
 		}
 	}
 
@@ -1679,10 +1662,6 @@ static void prism_bgm_stop(void *data)
 	auto s = static_cast<prism_bgm_source *>(data);
 	s->real_stop = true;
 	obs_source_media_stop(s->media_source);
-
-	if (!s->select_music.empty()) {
-		PLS_PLUGIN_INFO("bgm: stop music. url is %s .", pls_get_path_file_name(s->select_music.c_str()));
-	}
 }
 
 static void bgm_bgm_restart(void *data)
@@ -2123,7 +2102,6 @@ static void bgm_remove(struct prism_bgm_source *source, obs_data_t *private_data
 	if (remove_url == source->select_music && url_id == source->select_id) {
 		source->remove_url = remove_url;
 		source->remove_id = url_id;
-		PLS_PLUGIN_INFO("bgm: try to switch to next music when remove current music.");
 		prism_bgm_switch_to_next_song(source);
 	}
 
@@ -2199,7 +2177,6 @@ static void bgm_disable(struct prism_bgm_source *source, obs_data_t *private_dat
 
 	bool gotoNext = obs_data_get_bool(private_data, "goto_next_songs");
 	if (gotoNext) {
-		PLS_PLUGIN_INFO("bgm: try to switch to next music when current music is disabled.");
 		prism_bgm_switch_to_next_song(source);
 	}
 }

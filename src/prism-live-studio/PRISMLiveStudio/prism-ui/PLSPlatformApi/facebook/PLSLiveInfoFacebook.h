@@ -24,9 +24,8 @@ class PLSLiveInfoFacebook : public PLSLiveInfoBase {
 public:
 	explicit PLSLiveInfoFacebook(PLSPlatformBase *pPlatformBase, QWidget *parent = nullptr);
 	~PLSLiveInfoFacebook() override;
-	void handleRequestFunctionType(PLSAPIFacebookType type);
-	void showCommonErrorMessage();
-	void handleFacebookIncalidAccessToken();
+	void handleRequestFunctionType(PLSErrorHandler::RetData retData);
+	void handleFacebookIncalidAccessToken(PLSErrorHandler::RetData retData);
 
 private slots:
 	void on_cancelButton_clicked();

@@ -21,7 +21,7 @@ PLSMixerContent::PLSMixerContent(Qt::Orientation _orientation, QWidget *parent) 
 	this->setAutoFillBackground(true);
 	if (Qt::Orientation::Horizontal == orientation) {
 		main_layout = new QVBoxLayout(this);
-		main_layout->setSpacing(2);
+		main_layout->setSpacing(0);
 		main_layout->setObjectName("hVolControlLayout");
 		main_layout->setContentsMargins(3, 1, 5, 1);
 	} else {
@@ -30,17 +30,23 @@ PLSMixerContent::PLSMixerContent(Qt::Orientation _orientation, QWidget *parent) 
 		main_layout->setObjectName("vVolControlLayout");
 		main_layout->setContentsMargins(16, 0, 20, 20);
 	}
-
+	
 	assert(main_layout);
 }
 
 void PLSMixerContent::AddWidget(QWidget *widget)
 {
+	widget->setCursor(Qt::PointingHandCursor);
 	main_layout->addWidget(widget);
 }
 
 void PLSMixerContent::paintEvent(QPaintEvent *event)
 {
+	if (Qt::Orientation::Horizontal == orientation) {
+		QWidget::paintEvent(event);
+		return;
+	}
+
 	QPainter painter(this);
 	if (isDrag) {
 		painter.setPen(QPen(QColor(SCENE_SCROLLCONTENT_LINE_COLOR), 1));
@@ -125,9 +131,7 @@ void PLSMixerContent::mouseMoveEvent(QMouseEvent *event)
 			VolControl *child = qobject_cast<VolControl *>(childAt(startDragPoint));
 			if (!child)
 				return;
-
-			QPixmap pixmap = child->grab();
-
+			
 			QByteArray itemData;
 			QDataStream dataStream(&itemData, QIODevice::WriteOnly);
 			dataStream << main_layout->indexOf(child);
@@ -137,9 +141,14 @@ void PLSMixerContent::mouseMoveEvent(QMouseEvent *event)
 
 			auto drag = pls_new<QDrag>(this);
 			drag->setMimeData(mimeData);
-			drag->setPixmap(pixmap);
 			drag->setHotSpot(startDragPoint - child->pos());
-
+#if defined(__APPLE__)
+			/* PRISM_PC-1050: In order to remove the dotted rectangle when dragging on MacOs,
+             we use the trick of setting a small and transparent pixmap for the drag. */
+			QPixmap pix(1, 1);
+			pix.fill(Qt::transparent);
+			drag->setPixmap(pix);
+#endif
 			drag->exec(Qt::MoveAction, Qt::MoveAction);
 		}
 	}
@@ -179,12 +188,13 @@ void PLSMixerContent::dropEvent(QDropEvent *event)
 		int startIndex;
 		dataStream >> startIndex;
 
-		if (destIndex != -1 && destIndex != startIndex) {
+		if (destIndex != -1 && destIndex != startIndex && nullptr != main_layout->itemAt(startIndex)) {
 			main_layout->insertWidget(destIndex, main_layout->itemAt(startIndex)->widget());
 			emit mixerReorderd();
 		}
 
 		isDrag = false;
+		ClearItemBorder();
 
 		delayedAutoScroll.stop();
 		event->setDropAction(Qt::MoveAction);
@@ -198,6 +208,7 @@ void PLSMixerContent::dropEvent(QDropEvent *event)
 void PLSMixerContent::dragLeaveEvent(QDragLeaveEvent *event)
 {
 	isDrag = false;
+	ClearItemBorder();
 	delayedAutoScroll.stop();
 	update();
 
@@ -210,6 +221,23 @@ void PLSMixerContent::SetLinePos(const int &startX, const int &startY, const int
 	lineStart.setY(startY);
 	lineEnd.setX(endX);
 	lineEnd.setY(endY);
+}
+
+void PLSMixerContent::DisplayItemBorder(VolControl *current, const char *borderType)
+{
+	if (!current || !borderType)
+			return;
+
+	ClearItemBorder();
+	current->displayBorder(true, borderType);
+	lastDisplayedVol = current;
+}
+
+void PLSMixerContent::ClearItemBorder() 
+{
+	if (lastDisplayedVol) {
+			lastDisplayedVol->displayBorder(false);
+	}
 }
 
 void PLSMixerContent::OnDragMoveEvent(QDragMoveEvent *event)
@@ -230,7 +258,7 @@ void PLSMixerContent::OnDragMoveEvent(QDragMoveEvent *event)
 	if (Qt::Horizontal == orientation) {
 		QPoint topleft = currentRect.topLeft();
 		if (event->position().toPoint().y() - topleft.y() > currentRect.height() / 2) {
-			SetLinePos(currentRect.bottomLeft().x(), currentRect.bottomLeft().y() + 1, currentRect.bottomRight().x(), currentRect.bottomRight().y() + 1); //bottom
+			DisplayItemBorder(child, "bottom");
 			if (startIndex > currentIndex) {
 				destIndex = std::min(currentIndex + 1, main_layout->count() - 1);
 			}
@@ -239,7 +267,7 @@ void PLSMixerContent::OnDragMoveEvent(QDragMoveEvent *event)
 			if (startIndex < currentIndex) {
 				destIndex = std::max(currentIndex - 1, 0);
 			}
-			SetLinePos(currentRect.topLeft().x(), currentRect.topLeft().y() - 1, currentRect.bottomLeft().x() + currentRect.width(), currentRect.topLeft().y() - 1); //top
+			DisplayItemBorder(child, "top");
 			// PLS_INFO("PLSMixerContent", "=========== startIndex: %d, currentIndex: %d top, destIndex: %d", startIndex, currentIndex, destIndex);
 		}
 

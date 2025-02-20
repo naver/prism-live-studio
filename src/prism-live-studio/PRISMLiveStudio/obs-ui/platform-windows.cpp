@@ -256,34 +256,39 @@ bool DisableAudioDucking(bool disable)
 	ComPtr<IAudioSessionControl> sessionControl;
 	ComPtr<IAudioSessionControl2> sessionControl2;
 
-	HRESULT result = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
-					  CLSCTX_INPROC_SERVER,
-					  __uuidof(IMMDeviceEnumerator),
-					  (void **)&devEmum);
-	if (FAILED(result))
-		return false;
+	try {
+		HRESULT result = CoCreateInstance(__uuidof(MMDeviceEnumerator),
+						  nullptr, CLSCTX_INPROC_SERVER,
+						  __uuidof(IMMDeviceEnumerator),
+						  (void **)&devEmum);
+		if (FAILED(result))
+			return false;
 
-	result = devEmum->GetDefaultAudioEndpoint(eRender, eConsole, &device);
-	if (FAILED(result))
-		return false;
+		result = devEmum->GetDefaultAudioEndpoint(eRender, eConsole,
+							  &device);
+		if (FAILED(result))
+			return false;
 
-	result = device->Activate(__uuidof(IAudioSessionManager2),
-				  CLSCTX_INPROC_SERVER, nullptr,
-				  (void **)&sessionManager2);
-	if (FAILED(result))
-		return false;
+		result = device->Activate(__uuidof(IAudioSessionManager2),
+					  CLSCTX_INPROC_SERVER, nullptr,
+					  (void **)&sessionManager2);
+		if (FAILED(result))
+			return false;
 
-	result = sessionManager2->GetAudioSessionControl(nullptr, 0,
-							 &sessionControl);
-	if (FAILED(result))
-		return false;
+		result = sessionManager2->GetAudioSessionControl(
+			nullptr, 0, &sessionControl);
+		if (FAILED(result))
+			return false;
 
-	result = sessionControl->QueryInterface(&sessionControl2);
-	if (FAILED(result))
-		return false;
+		result = sessionControl->QueryInterface(&sessionControl2);
+		if (FAILED(result))
+			return false;
 
-	result = sessionControl2->SetDuckingPreference(disable);
-	return SUCCEEDED(result);
+		result = sessionControl2->SetDuckingPreference(disable);
+		return SUCCEEDED(result);
+	} catch (...) {
+		return false;
+	}
 }
 
 struct RunOnceMutexData {
@@ -510,4 +515,15 @@ void TaskbarOverlaySetStatus(TaskbarOverlayStatus status)
 	taskbarIcon->SetOverlayIcon(hwnd, hicon, nullptr);
 	DestroyIcon(hicon);
 	taskbarIcon->Release();
+}
+
+bool HighContrastEnabled()
+{
+	HIGHCONTRAST hc = {};
+	hc.cbSize = sizeof(HIGHCONTRAST);
+
+	if (SystemParametersInfo(SPI_GETHIGHCONTRAST, hc.cbSize, &hc, 0))
+		return hc.dwFlags & HCF_HIGHCONTRASTON;
+
+	return false;
 }

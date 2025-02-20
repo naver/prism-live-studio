@@ -3,7 +3,6 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QVariant>
-#include "json-data-handler.hpp"
 #include "obs-app.hpp"
 #include "pls-common-define.hpp"
 #include "liblog.h"

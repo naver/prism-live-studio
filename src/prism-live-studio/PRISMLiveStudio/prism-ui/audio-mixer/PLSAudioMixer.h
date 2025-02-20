@@ -34,6 +34,7 @@ public:
 	void UpdateOrder(const std::string &scene_uuid, MixerList &&newOrder);
 
 	void Reorder(const std::string &scene_uuid, std::vector<VolControl *> &volumes);
+	void RemoveFromSourceSet(const std::string &source_uuid);
 
 private:
 	static void SourceDestroy(void *data, calldata_t *params);

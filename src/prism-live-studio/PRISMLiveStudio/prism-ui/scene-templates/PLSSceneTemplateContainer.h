@@ -3,6 +3,7 @@
 
 #include "PLSSideBarDialogView.h"
 #include "loading-event.hpp"
+#include <QPixmap>
 
 namespace Ui {
 class PLSSceneTemplateContainer;
@@ -16,8 +17,9 @@ public:
 	~PLSSceneTemplateContainer();
 	void showMainSceneTemplatePage();
 	void showDetailSceneTemplatePage(const SceneTemplateItem &mode);
-	void showLoading(QWidget *parent);
-	void hideLoading();
+
+	QPixmap &getAIBadge();
+	QPixmap &getAILongBadge();
 
 protected:
 	void hideEvent(QHideEvent *event) override;
@@ -28,6 +30,8 @@ private:
 	QPointer<QObject> m_pWidgetLoadingBGParent = nullptr;
 	QPointer<QWidget> m_pWidgetLoadingBG = nullptr;
 	PLSLoadingEvent m_loadingEvent;
+
+	QPixmap m_pixmapAIBadge, m_pixmapAILongBadge;
 };
 
 #endif // PLSSCENETEMPLATECONTAINER_H

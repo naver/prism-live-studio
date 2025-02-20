@@ -23,6 +23,7 @@ PLSSceneCollectionManagement::PLSSceneCollectionManagement(QWidget *parent) : QF
 	pls_add_css(this, {"PLSSceneCollectionManagement"});
 	this->installEventFilter(this);
 	connect(ui->goBtn, &QPushButton::clicked, this, [this]() { emit ShowSceneCollectionView(); });
+	connect(ui->listview, &PLSSceneCollectionListView::TriggerEventEvent, this, &PLSSceneCollectionManagement::OnTriggerEnterEvent);
 }
 
 PLSSceneCollectionManagement::~PLSSceneCollectionManagement()
@@ -83,6 +84,22 @@ void PLSSceneCollectionManagement::Resize(int count)
 	pls_flush_style(ui->listview);
 
 	this->resize(198, count * 40 + 3);
+}
+
+void PLSSceneCollectionManagement::OnTriggerEnterEvent(const QString &name, const QString &path)
+{
+	auto finder = [name, path](const PLSSceneCollectionData &data) { return data.fileName == name && data.filePath == path; };
+	QVector<PLSSceneCollectionData> datas = ui->listview->GetDatas();
+	auto row = -1;
+	auto iter = std::find_if(datas.begin(), datas.end(), finder);
+	if (iter != datas.end()) {
+		row = (int)(iter - datas.begin());
+	}
+
+	for (int i = 0; i < ui->listview->Count(); i++) {
+		ui->listview->SetData(i, row == i, SceneCollectionCustomRole::EnterRole);
+	}
+	ui->listview->UpdateWidgets();
 }
 
 bool PLSSceneCollectionManagement::eventFilter(QObject *obj, QEvent *event)

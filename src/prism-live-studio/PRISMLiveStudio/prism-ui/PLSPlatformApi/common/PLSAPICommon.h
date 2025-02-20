@@ -23,7 +23,7 @@ public:
 	using dataCallback = std::function<void(QByteArray data)>;
 	using errorCallback = std::function<void(int code, QByteArray data, QNetworkReply::NetworkError error)>;
 	using imageCallback = std::function<void(bool ok, const QString &imagePath)>;
-	using uploadImageCallback = std::function<void(PLSPlatformApiResult result, const QString &imageUrl)>;
+	using uploadImageCallback = std::function<void(bool isOK, const QString &imageUrl)>;
 	using privacyVec = std::vector<std::pair<QString /*english*/, QString /*localized*/>>;
 
 	static QPair<bool, QString> downloadImageSync(const QObject *receive, const QString &url);
@@ -36,7 +36,7 @@ public:
 
 	static QString getMd5ImagePath(const QString &url);
 
-	static QString getPairdString(const PLSAPICommon::privacyVec &pairs, const QString cmpStr, bool isCmpFirst, bool isCaseInsensitive = true);
+	static QString getPairedString(const PLSAPICommon::privacyVec &pairs, const QString cmpStr, bool isCmpFirst, bool isCaseInsensitive = true);
 	static void downloadChannelImageAsync(const QString &platormName);
 
 	template<typename T> static void sortScheduleListsByCustom(std::vector<T> &datas)

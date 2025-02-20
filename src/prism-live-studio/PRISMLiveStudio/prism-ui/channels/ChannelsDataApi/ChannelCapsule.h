@@ -19,13 +19,15 @@ public:
 	/*init ui and state */
 	void setChannelID(const QString &uuid);
 	/*update ui */
-	void updateUi();
+	void updateUi(bool bPostedEvents = false);
 
 	/*get if is active by user */
 	bool isOnLine() const;
 	void setOnLine(bool isActive = true);
 
 	bool isSelectedDisplay() const;
+
+	void setDualOutput(bool bOpen);
 
 	const QString &getChannelID() const { return mInfoID; }
 
@@ -68,6 +70,10 @@ private:
 
 	void initializeConfigPannel();
 	QString translatePublicString(const QString &platform, const QString &src);
+
+	void setHorizontalOutputUI();
+	void setVerticalOutputUI();
+	void closeDualOutputUI();
 
 private slots:
 	void showConfigPannel();

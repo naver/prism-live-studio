@@ -59,7 +59,7 @@ public:
 	explicit PLSTemplateButton(QWidget *parent, UseForTextMotion useFor);
 	~PLSTemplateButton() override;
 
-	void attachGifResource(const QString &resourcePath, const QString &resourceBackupPath, const QString &resourceUrl, int value = -1);
+	void attachGifResource(const QString &resourcePath, int value = -1);
 
 	void setGroupName(const QString &groupName);
 	QString getGroupName() const;
@@ -76,10 +76,6 @@ public:
 	QPushButton *button() override { return this; }
 	int value() const override { return m_value; }
 
-	QString resourcePath() const { return m_resourcePath; }
-	QString resourceBackupPath() const { return m_resourceBackupPath; }
-	QString resourceUrl() const { return m_resourceUrl; }
-
 private:
 	void init();
 
@@ -93,9 +89,6 @@ private:
 	QMovie m_movie;
 	bool m_fullGif = false;
 	int m_value;
-	QString m_resourcePath;
-	QString m_resourceBackupPath;
-	QString m_resourceUrl;
 	QString m_groupName;
 	QLabel *m_borderLabel;
 

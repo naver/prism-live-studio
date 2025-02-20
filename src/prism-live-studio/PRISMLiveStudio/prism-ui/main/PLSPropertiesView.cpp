@@ -838,7 +838,11 @@ void PLSPropertiesView ::AddTmTemplateTab(obs_property_t *prop, QFormLayout *lay
 	hLayout->setSpacing(0);
 	hLayout->setContentsMargins(0, 0, 0, 0);
 	hLayout->setSpacing(10);
-	hLayout->setContentsMargins(16, 0, 10, 0);
+	if (pls_is_equal(getSourceId(), common::PRISM_CHATV2_SOURCE_ID)) {
+		hLayout->setContentsMargins(0, 0, 10, 0);
+	} else {
+		hLayout->setContentsMargins(16, 0, 10, 0);
+	}
 	tabFrame->setLayout(hLayout);
 
 	auto buttonGroup = pls_new<QButtonGroup>();
@@ -874,10 +878,18 @@ void PLSPropertiesView ::AddTmTemplateTab(obs_property_t *prop, QFormLayout *lay
 		hLayout->addWidget(button, Qt::AlignLeft);
 	}
 	auto tabTipsLabel = pls_new<QLabel>(tabTips);
+	tabTipsLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 	tabTipsLabel->setObjectName("PLSChatTemplateTabTips");
+	if (IS_ENGLISH() || IS_KR()) {
+		tabTipsLabel->setWordWrap(false);
+	} else {
+		tabTipsLabel->setWordWrap(true);
+	}
+#ifdef Q_OS_MACOS
 	tabTipsLabel->setWordWrap(true);
+#endif
 	hLayout->addWidget(tabTipsLabel);
-	hLayout->setAlignment(tabTipsLabel, Qt::AlignRight);
+	hLayout->setAlignment(tabTipsLabel, Qt::AlignRight | Qt::AlignCenter);
 	tabTipsLabel->setVisible(pls_is_equal(getSourceId(), common::PRISM_CHATV2_SOURCE_ID));
 
 	auto gLayout = pls_new<QGridLayout>();
@@ -1622,8 +1634,8 @@ void PLSPropertiesView::AddVirtualBackgroundResource(obs_property_t *prop, QBoxL
 
 			auto *wi = pls_new<PLSWidgetInfo>(this, prop, widget_);
 			connect(widget_, SIGNAL(checkState(bool)), wi, SLOT(VirtualBackgroundResourceMotionDisabledChanged(bool)));
-			connect(widget_, SIGNAL(currentResourceChanged(QString, int, QString, QString, QString, bool, QString, QString, int)), wi,
-				SLOT(VirtualBackgroundResourceSelected(QString, int, QString, QString, QString, bool, QString, QString, int)));
+			connect(widget_, SIGNAL(currentResourceChanged(QString, int, QString, QString, QString, bool, QString, QString)), wi,
+				SLOT(VirtualBackgroundResourceSelected(QString, int, QString, QString, QString, bool, QString, QString)));
 			connect(widget_, SIGNAL(deleteCurrentResource(QString)), wi, SLOT(VirtualBackgroundResourceDeleted(QString)));
 			connect(widget_, SIGNAL(removeAllMyResource(QStringList)), wi, SLOT(VirtualBackgroundMyResourceDeleteAll(QStringList)));
 			children.emplace_back(wi);
@@ -2144,7 +2156,6 @@ void PLSPropertiesView::ReloadProperties()
 		if (obj) {
 			//PRISM/xiewei/20230802/uiblock/enumerate video devices in work thread.
 			auto source = pls_get_source_by_pointer_address(obj);
-
 			if ((source && 0 == strcmp(obs_source_get_id(source), OBS_DSHOW_SOURCE_ID)) || isPrismLensOrMobileSource()) {
 
 				disconnect(PLSGetPropertiesThread::Instance(), nullptr, this, nullptr);
@@ -2260,7 +2271,6 @@ PLSPropertiesView::PLSPropertiesView(const QWidget *parent, OBSData settings, ob
 	  colorFilterOriginalPressed(colorFilterOriginalPressed_),
 	  m_tmHelper(pls_get_text_motion_template_helper_instance()),
 	  m_ctHelper(pls_get_chat_template_helper_instance())
-
 {
 	pls_unused(parent);
 	setInitData(showFiltersBtn_, refreshProperties_, reloadPropertyOnInit_);
@@ -2281,7 +2291,6 @@ PLSPropertiesView::PLSPropertiesView(const QWidget *parent, OBSData settings, vo
 	  colorFilterOriginalPressed(colorFilterOriginalPressed_),
 	  m_tmHelper(pls_get_text_motion_template_helper_instance()),
 	  m_ctHelper(pls_get_chat_template_helper_instance())
-
 {
 	pls_unused(parent);
 	setInitData(showFiltersBtn_, refreshProperties_, reloadPropertyOnInit_);
@@ -2294,16 +2303,24 @@ PLSPropertiesView::PLSPropertiesView(OBSData settings, const char *type, Propert
 }
 
 PLSPropertiesView::PLSPropertiesView(OBSBasicSettings *basicSettings, OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize_, int maxSize_, bool showFiltersBtn_,
-				     bool showColorFilterPath_, bool colorFilterOriginalPressed_, bool refreshProperties_, bool reloadPropertyOnInit_)
-	: OBSPropertiesView(settings, type, reloadCallback, minSize_),
+				     bool showColorFilterPath_, bool colorFilterOriginalPressed_, bool refreshProperties_, bool reloadPropertyOnInit_, bool bChzzkKeyframeTip, bool bFromSetting)
+	: OBSPropertiesView(settings, type, reloadCallback, minSize_, bFromSetting),
 	  maxSize(maxSize_),
 	  showColorFilterPath(showColorFilterPath_),
 	  colorFilterOriginalPressed(colorFilterOriginalPressed_),
 	  m_tmHelper(pls_get_text_motion_template_helper_instance()),
 	  m_basicSettings(basicSettings),
-	  m_ctHelper(pls_get_chat_template_helper_instance())
+	  m_ctHelper(pls_get_chat_template_helper_instance()),
+	  m_bChzzkKeyframeTip(bChzzkKeyframeTip)
 {
 	setInitData(showFiltersBtn_, refreshProperties_, reloadPropertyOnInit_);
+}
+
+PLSPropertiesView::~PLSPropertiesView()
+{
+	if (pls_is_equal(getSourceId(), PRISM_CHATV2_SOURCE_ID)) {
+		m_ctHelper->clearChatTemplateButton();
+	}
 }
 
 void PLSPropertiesView::setInitData(bool showFiltersBtn_, bool refreshProperties_, bool reloadPropertyOnInit_)
@@ -2594,6 +2611,7 @@ void PLSPropertiesView::createTMColorCheckBox(PLSCheckBox *&controlCheckBox, obs
 	bkLabelLalyout->setSpacing(6);
 	bkLabelLalyout->setContentsMargins(0, 0, 0, 0);
 	auto bkLabel = pls_new<QLabel>(labelName);
+	bkLabel->setWordWrap(true);
 	bkLabel->setObjectName("bk_outlineLabel");
 	auto bkColorCheck = pls_new<TMCheckBox>();
 	controlCheckBox = bkColorCheck;
@@ -2668,19 +2686,19 @@ void PLSPropertiesView::createColorButton(obs_property_t *prop, QGridLayout *&gL
 		stepVal = 1;
 		alaphValue = static_cast<int>(obs_data_get_int(val, "outline-color-line"));
 	}
-	bool hasOutLineValue = obs_data_has_user_value(val, "chatFontOutlineSize");
+	bool hasOutLineValue = obs_data_has_default_value(val, "chatFontOutlineSize") || obs_data_has_user_value(val, "chatFontOutlineSize");
 
 	if (hasOutLineValue) {
 		minVal = 0;
-		maxVal = 20;
+		maxVal = 4;
 		stepVal = 1;
 		alaphValue = static_cast<int>(obs_data_get_int(val, "chatFontOutlineSize"));
 	}
-	bool hasSingValue = obs_data_has_user_value(val, "chatSingleBkAlpha");
+	bool hasSingValue = obs_data_has_user_value(val, "chatSingleBkAlpha") || obs_data_has_default_value(val, "chatSingleBkAlpha");
 	if (hasSingValue && index == 0) {
 		alaphValue = static_cast<int>(obs_data_get_int(val, "chatSingleBkAlpha"));
 	}
-	bool hasTotalValue = obs_data_has_user_value(val, "chatTotalBkAlpha");
+	bool hasTotalValue = obs_data_has_user_value(val, "chatTotalBkAlpha") || obs_data_has_default_value(val, "chatTotalBkAlpha");
 	if (hasTotalValue && index == 1) {
 		alaphValue = static_cast<int>(obs_data_get_int(val, "chatTotalBkAlpha"));
 	}
@@ -2695,7 +2713,7 @@ void PLSPropertiesView::createColorButton(obs_property_t *prop, QGridLayout *&gL
 	setLayoutEnable(layout, enabled);
 	setLayoutEnable(sliderHLayout, enabled);
 	opationLabel->setEnabled(enabled);
-	if (pls_is_equal(getSourceId(), PRISM_CHATV2_SOURCE_ID)) {
+	if (pls_is_equal(getSourceId(), PRISM_CHATV2_SOURCE_ID) && pls_is_equal(name, "Chat.Font") && obs_data_get_int(settings, "Chat.Template.List") % 10 == 3) {
 		setLayoutEnable(sliderHLayout, colorControl);
 		opationLabel->setEnabled(colorControl);
 	}
@@ -2948,8 +2966,15 @@ void PLSPropertiesView::updateFontSytle(const QString &family, PLSComboBox *font
 		QSignalBlocker block(fontStyleBox);
 		fontStyleBox->clear();
 		if (!family.isEmpty()) {
+			auto familyData = family.toUtf8();
+			if (pls_is_equal(familyData.constData(), "NanumGothic") || pls_is_equal(familyData.constData(), "NanumMyeongjo")) {
+				fontStyleBox->addItems({"ExtraBold"});
+			} else if (pls_is_equal(familyData.constData(), "S-Core Dream")) {
+				fontStyleBox->addItems({"5 Medium"});
 
-			fontStyleBox->addItems(QFontDatabase::styles(family));
+			} else {
+				fontStyleBox->addItems(QFontDatabase::styles(family));
+			}
 		}
 	}
 }
@@ -2963,6 +2988,19 @@ void PLSPropertiesView::setLayoutEnable(const QLayout *layout, bool isEnable)
 		auto w = layout->itemAt(index)->widget();
 		if (w) {
 			w->setEnabled(isEnable);
+			if (w->objectName() == "colorLabel") {
+				auto text = static_cast<QLabel *>(w)->text();
+				if (!isEnable && text == "#000000")
+					text = "#363636";
+				auto style = isEnable ? QPalette::Window : QPalette::Dark;
+				auto palette = QPalette(QColor(text));
+				auto border = isEnable ? "#363636" : "#2d2d2d";
+				w->setPalette(palette);
+				w->setStyleSheet(QString("QLabel{border:solid 1px %1;font-weight: normal;background-color :%2; color: %3;}")
+							 .arg(border)
+							 .arg(palette.color(style).name(QColor::HexRgb))
+							 .arg(palette.color(QPalette::WindowText).name(QColor::HexRgb)));
+			}
 		} else {
 			setLayoutEnable(layout->itemAt(index)->layout(), isEnable);
 		}
@@ -3278,7 +3316,7 @@ static QString processResourcePath(bool prismResource, const QString &resourcePa
 }
 
 void PLSWidgetInfo::VirtualBackgroundResourceSelected(const QString &itemId, int type, const QString &resourcePath, const QString &staticImgPath, const QString &thumbnailPath, bool prismResource,
-						      const QString &foregroundPath, const QString &foregroundStaticImgPath, int dataType)
+						      const QString &foregroundPath, const QString &foregroundStaticImgPath)
 {
 	Q_UNUSED(foregroundPath)
 	Q_UNUSED(foregroundStaticImgPath)
@@ -3291,7 +3329,6 @@ void PLSWidgetInfo::VirtualBackgroundResourceSelected(const QString &itemId, int
 	obs_data_set_string(view->settings, "file_path", processResourcePath(prismResource, resourcePath).toUtf8().constData());
 	obs_data_set_string(view->settings, "image_file_path", processResourcePath(prismResource, staticImgPath).toUtf8().constData());
 	obs_data_set_string(view->settings, "thumbnail_file_path", processResourcePath(prismResource, thumbnailPath).toUtf8().constData());
-	obs_data_set_int(view->settings, "category_id", dataType);
 
 	ControlChanged();
 }
@@ -3925,4 +3962,17 @@ QWidget *PLSPropertiesView::AddTextContent(obs_property_t *prop)
 	pLineEdit->setEnabled(false);
 
 	return pLineEdit;
+}
+
+void PLSPropertiesView::AddInt(obs_property_t *prop, QFormLayout *layout, QLabel **label)
+{
+	OBSPropertiesView::AddInt(prop, layout, label);
+
+	if (m_bChzzkKeyframeTip && pls_is_equal("keyint_sec", obs_property_name(prop)) && pls_is_chzzk_checked()) {
+		auto labelTips = new QLabel(tr("settings.chzzk.keyframe.force.1s"));
+		labelTips->setWordWrap(true);
+		labelTips->setStyleSheet("font-weight: normal; color: #bababa");
+		AddSpacer(obs_property_get_type(prop), layout);
+		layout->addRow(new QLabel(QString()), labelTips);
+	}
 }

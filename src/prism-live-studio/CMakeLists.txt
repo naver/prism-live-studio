@@ -90,7 +90,10 @@ add_custom_command(TARGET obs-copy
 		"-DARCH=$ENV{ARCH}"
 		-P "$ENV{PRISM_SRC_DIR}/cmake/copy_obs_bins.cmake"
 	VERBATIM)
-add_dependencies(obs-copy obs-build)
+
+	if(NOT DEFINED ENV{DEFINE_IGNORE_OBS_BUILD})
+        add_dependencies(obs-copy obs-build)
+    endif()
 endif()
 
 add_subdirectory(common)

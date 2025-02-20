@@ -26,7 +26,7 @@ using namespace ChannelData;
 PLSRtmpChannelView::PLSRtmpChannelView(const QVariantMap &oldData, QWidget *parent) : PLSDialogView(parent), ui(new Ui::RtmpChannelView), mOldData(oldData)
 {
 
-	pls_add_css(this, {"PLSRTMPChannelView"});
+	pls_add_css(this, {"PLSRTMPChannelView", "PLSLiveInfoBase"});
 	initUi();
 	loadFromData(oldData);
 	auto flushEdit = [this](bool firstShow) {
@@ -42,7 +42,7 @@ PLSRtmpChannelView::PLSRtmpChannelView(const QVariantMap &oldData, QWidget *pare
 	};
 	flushEdit(true);
 	UpdateTwitchServerList();
-	setTwitchUI(ui->PlatformCombbox->currentText());
+	setTwitchUI(ui->PlatformCombbox->currentData().toString());
 	updateSaveBtnAvailable();
 }
 
@@ -104,10 +104,10 @@ QVariantMap PLSRtmpChannelView::SaveResult() const
 	tmpData[g_streamKey] = ui->StreamKeyEdit->text();
 	QString platfromName;
 
-	if (ui->PlatformCombbox->currentIndex() == 0 || ui->PlatformCombbox->currentText() == CHANNELS_TR(UserInputRTMP)) {
+	if (ui->PlatformCombbox->currentIndex() == 0 || ui->PlatformCombbox->currentData().toString() == CHANNELS_TR(UserInputRTMP)) {
 		platfromName = CUSTOM_RTMP;
 	} else {
-		platfromName = ui->PlatformCombbox->currentText();
+		platfromName = ui->PlatformCombbox->currentData().toString();
 	}
 
 	tmpData[g_channelName] = platfromName;
@@ -117,7 +117,7 @@ QVariantMap PLSRtmpChannelView::SaveResult() const
 	QString password = ui->UserPasswordEdit->text();
 	tmpData[g_password] = password;
 
-	if (ui->PlatformCombbox->currentText() == TWITCH) {
+	if (ui->PlatformCombbox->currentData().toString() == TWITCH) {
 		QString text = QTStr("setting.output.server.auto");
 		if (ui->ServerComboBox->currentText() == text) {
 			tmpData[g_isTwitchRtmpServerAuto] = true;
@@ -132,7 +132,7 @@ QVariantMap PLSRtmpChannelView::SaveResult() const
 void PLSRtmpChannelView::updatePlatform(const QVariantMap &oldData)
 {
 	QString platform = getInfo(oldData, g_channelName);
-	int index = ui->PlatformCombbox->findText(platform, Qt::MatchContains);
+	int index = ui->PlatformCombbox->findData(platform, Qt::DisplayRole, Qt::MatchContains);
 	ui->PlatformCombbox->setDisabled(true);
 	if (index != -1) {
 		QSignalBlocker blocker(ui->PlatformCombbox);
@@ -142,17 +142,17 @@ void PLSRtmpChannelView::updatePlatform(const QVariantMap &oldData)
 	auto type = getInfo(oldData, g_data_type, RTMPType);
 	if (type == RTMPType && platform == CUSTOM_RTMP) {
 		QSignalBlocker blocker(ui->PlatformCombbox);
-		int index = ui->PlatformCombbox->findText(CHANNELS_TR(UserInputRTMP));
+		int index = ui->PlatformCombbox->findData(CHANNELS_TR(UserInputRTMP));
 		ui->PlatformCombbox->setCurrentIndex(index);
 		m_type = RTMP;
 	} else if (type == SRTType) {
 		QSignalBlocker blocker(ui->PlatformCombbox);
-		int index = ui->PlatformCombbox->findText(CHANNELS_TR(UserInputSRT));
+		int index = ui->PlatformCombbox->findData(CHANNELS_TR(UserInputSRT));
 		ui->PlatformCombbox->setCurrentIndex(index);
 		m_type = SRT;
 	} else if (type == RISTType) {
 		QSignalBlocker blocker(ui->PlatformCombbox);
-		int index = ui->PlatformCombbox->findText(CHANNELS_TR(UserInputRIST));
+		int index = ui->PlatformCombbox->findData(CHANNELS_TR(UserInputRIST));
 		ui->PlatformCombbox->setCurrentIndex(index);
 		m_type = RIST;
 	}
@@ -160,6 +160,8 @@ void PLSRtmpChannelView::updatePlatform(const QVariantMap &oldData)
 
 void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
 {
+	auto uuid = getInfo(oldData, g_channelUUID);
+	ui->CategoryLabel->setText(tr("Channels.RTMadd.Catogry"))->setUUID(uuid);
 	isEdit = getInfo(oldData, g_isUpdated, false);
 	this->setWindowTitle(isEdit ? CHANNELS_TR(RTMPEdit) : CHANNELS_TR(RTMPadd.titlebar));
 	if (!isEdit) {
@@ -183,7 +185,7 @@ void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
 	ui->RTMPUrlEdit->setEnabled(false);
 	QString rtmpUrl = getInfo(oldData, g_channelRtmpUrl);
 	ui->RTMPUrlEdit->setText(rtmpUrl);
-	if (ui->PlatformCombbox->currentText() == TWITCH) {
+	if (ui->PlatformCombbox->currentData().toString() == TWITCH) {
 		bool bServerAuto = getInfo(oldData, g_isTwitchRtmpServerAuto, false);
 		if (bServerAuto) {
 			ui->RTMPUrlEdit->setText(ui->ServerComboBox->currentData().toString());
@@ -197,8 +199,7 @@ void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
 	ui->UserIDEdit->setText(userID);
 	QString password = getInfo(oldData, g_password);
 	ui->UserPasswordEdit->setText(password);
-
-	ResolutionGuidePage::checkResolution(this, getInfo(oldData, g_channelUUID));
+	pls_async_call_mt([this, oldData]() { ResolutionGuidePage::checkResolution(this, getInfo(oldData, g_channelUUID)); });
 }
 
 void PLSRtmpChannelView::showResolutionGuide()
@@ -208,22 +209,10 @@ void PLSRtmpChannelView::showResolutionGuide()
 
 void PLSRtmpChannelView::setPlatformCombboxIndex(const QString &channleName)
 {
-	int index = ui->PlatformCombbox->findText(channleName);
+	int index = ui->PlatformCombbox->findData(channleName);
 	ui->PlatformCombbox->setCurrentIndex(index);
 }
 
-void PLSRtmpChannelView::changeEvent(QEvent *e)
-{
-	QDialog::changeEvent(e);
-	switch (e->type()) {
-	case QEvent::LanguageChange:
-		languageChange();
-		ui->retranslateUi(this);
-		break;
-	default:
-		break;
-	}
-}
 bool PLSRtmpChannelView::eventFilter(QObject *watched, QEvent *event)
 {
 	auto parent = dynamic_cast<QWidget *>(watched)->parentWidget();
@@ -285,6 +274,9 @@ void PLSRtmpChannelView::on_RTMPUrlEdit_textChanged(const QString &rtmpUrl)
 
 	auto platformStr = guessPlatformFromRTMP(rtmpUrl.trimmed());
 	if (platformStr != BAND && platformStr != NOW && platformStr != CUSTOM_RTMP && platformStr != CHZZK && platformStr != NAVER_SHOPPING_LIVE) {
+		if (platformStr == AFREECATV) {
+			platformStr = TR_AFREECATV;
+		}
 		QSignalBlocker bloker(ui->PlatformCombbox);
 		ui->PlatformCombbox->setCurrentText(platformStr);
 		m_type = OTHER;
@@ -294,17 +286,17 @@ void PLSRtmpChannelView::on_RTMPUrlEdit_textChanged(const QString &rtmpUrl)
 		QSignalBlocker bloker(ui->PlatformCombbox);
 		int index = 0;
 		if (isUrlRight("^srt?://\\w+", rtmpUrl.trimmed())) {
-			index = ui->PlatformCombbox->findText(CHANNELS_TR(UserInputSRT));
+			index = ui->PlatformCombbox->findData(CHANNELS_TR(UserInputSRT));
 			m_type = SRT;
 			platformStr = CUSTOM_SRT;
 			IsHideSomeFrame(true);
 		} else if (isUrlRight("^rist?://\\w+", rtmpUrl.trimmed())) {
-			index = ui->PlatformCombbox->findText(CHANNELS_TR(UserInputRIST));
+			index = ui->PlatformCombbox->findData(CHANNELS_TR(UserInputRIST));
 			m_type = RIST;
 			platformStr = CUSTOM_RIST;
 			IsHideSomeFrame(true);
 		} else {
-			index = ui->PlatformCombbox->findText(CHANNELS_TR(UserInputRTMP));
+			index = ui->PlatformCombbox->findData(CHANNELS_TR(UserInputRTMP));
 			m_type = RTMP;
 			IsHideSomeFrame(false);
 		}
@@ -323,8 +315,9 @@ void PLSRtmpChannelView::on_RTMPUrlEdit_textChanged(const QString &rtmpUrl)
 	updateSaveBtnAvailable();
 }
 
-void PLSRtmpChannelView::on_PlatformCombbox_currentTextChanged(const QString &platForm)
+void PLSRtmpChannelView::on_PlatformCombbox_currentTextChanged(const QString &showText)
 {
+	QString platForm = ui->PlatformCombbox->currentData().toString();
 	PRE_LOG_UI_MSG(QString("PlatformCombbox clicked to:" + platForm).toUtf8().constData(), PLSRtmpChannelView)
 	ResolutionGuidePage::checkResolutionForPlatform(this, platForm, channel_data::ChannelDataType::RTMPType);
 	if (platForm == CHANNELS_TR(UserInputRTMP) || platForm == CHANNELS_TR(UserInputSRT) || ui->PlatformCombbox->currentIndex() == 0 || platForm == CHANNELS_TR(UserInputRIST)) {
@@ -370,7 +363,7 @@ void PLSRtmpChannelView::on_PlatformCombbox_currentTextChanged(const QString &pl
 	ui->RTMPUrlEdit->setEnabled(false);
 	if (ui->NameEdit->text().isEmpty() || !ui->NameEdit->isModified()) {
 		QSignalBlocker block(ui->NameEdit);
-		ui->NameEdit->setText(platForm);
+		ui->NameEdit->setText(showText);
 		ui->NameEdit->setModified(false);
 	}
 
@@ -396,7 +389,7 @@ void PLSRtmpChannelView::on_PlatformCombbox_currentTextChanged(const QString &pl
 
 void PLSRtmpChannelView::on_ServerComboBox_currentTextChanged(const QString &text)
 {
-	auto platform = ui->PlatformCombbox->currentText();
+	auto platform = ui->PlatformCombbox->currentData().toString();
 	if (platform != TWITCH) {
 		PLS_INFO("PLSRtmpChannelView", "current platform is %s", platform.toUtf8().constData());
 		return;
@@ -445,7 +438,11 @@ void PLSRtmpChannelView::initCommbox()
 {
 	QStringList rtmpNames;
 	rtmpNames += TR_SELECT;
-	ui->PlatformCombbox->addItems(rtmpNames << mPlatforms << CHANNELS_TR(UserInputRTMP) << CHANNELS_TR(UserInputSRT) << CHANNELS_TR(UserInputRIST));
+	rtmpNames << mPlatforms << CHANNELS_TR(UserInputRTMP) << CHANNELS_TR(UserInputSRT) << CHANNELS_TR(UserInputRIST);
+	for (QString &name : rtmpNames) {
+		ui->PlatformCombbox->addItem(name == AFREECATV ? SOOP : name, name);
+	}
+
 	auto view = dynamic_cast<QListView *>(ui->PlatformCombbox->view());
 	view->setRowHidden(0, true);
 	ui->PlatformCombbox->setMaxVisibleItems(6);

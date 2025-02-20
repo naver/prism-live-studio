@@ -12,7 +12,9 @@
 #include <QTimer>
 #include "../PLSPlatformBase.hpp"
 #include <QStringList>
-using streamKeyCallback = std::function<void()>;
+#include "PLSErrorHandler.h"
+
+using streamKeyCallback = std::function<void(bool isSuccess)>;
 class PLSPlatformTwitch : public PLSPlatformBase {
 	Q_OBJECT
 
@@ -32,8 +34,6 @@ public:
 	void setServerIndex(int idxServer);
 
 	void onPrepareLive(bool value) override;
-
-	void requestCategory(const QString &query);
 
 	bool isSendChatToMqtt() const override { return true; }
 
@@ -56,11 +56,9 @@ signals:
 
 private:
 	QVariantMap setHttpHead() const;
-	void requestUpdateChannel(const std::string &title, const std::string &category, const std::string &categoryId);
 	void requestVideos();
 
-	static PLSPlatformApiResult getApiResult(int code, QNetworkReply::NetworkError error);
-	void showApiRefreshError(PLSPlatformApiResult value);
+	void showApiRefreshError(const PLSErrorHandler::RetData &retData);
 	void showApiUpdateError(PLSPlatformApiResult value, const QString &msg = QString());
 
 	void onAlLiveStarted(bool) override;

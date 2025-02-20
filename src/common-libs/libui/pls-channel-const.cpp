@@ -29,10 +29,9 @@ LIBUI_API const QString g_channelComplexState = "complex_state";
 LIBUI_API const QString g_authType = "authu_type";
 LIBUI_API const QString g_authStatusCode = "auth_status_code";
 LIBUI_API const QString g_appClientID = "app_client_id";
-LIBUI_API const QString g_errorTitle = "error_title";
+LIBUI_API const QString g_errorRetdata = "error_ret_data";
 LIBUI_API const QString g_errorString = "error_string";
-LIBUI_API const QString g_errorType = "error_type";
-LIBUI_API const QString g_errorIsErrMsg = "error_is_err_msg";
+LIBUI_API const QString g_channelDualOutput = "channel_dualOutput";
 
 LIBUI_API const QString g_channelRtmpUrl = "rtmp_url";
 LIBUI_API const QString g_isTwitchRtmpServerAuto = "isTwitchRtmp_ServerAuto";
@@ -133,7 +132,7 @@ LIBUI_API const QString g_naverTvLikeIcon = ":/channels/resource/images/Channels
 LIBUI_API const QString g_defaultRTMPAddButtonIcon = ":/channels/resource/images/DefaultChannels/btn-mych-custom-rtmp-normal.svg";
 
 LIBUI_API const QStringList g_platformsToClearData{YOUTUBE, BAND, VLIVE, NAVER_TV, FACEBOOK, NAVER_SHOPPING_LIVE, NCB2B};
-LIBUI_API const QStringList g_exclusivePlatform{NAVER_SHOPPING_LIVE, NCB2B};
+LIBUI_API const QStringList g_exclusivePlatform{NAVER_SHOPPING_LIVE, NCB2B, CUSTOM_SRT, CUSTOM_RIST};
 LIBUI_API const QStringList g_rehearsalingConfigEnabledList{NAVER_SHOPPING_LIVE, YOUTUBE};
 LIBUI_API const QStringList gDefaultPlatform{TWITCH, YOUTUBE, FACEBOOK, NAVER_SHOPPING_LIVE, CHZZK, NAVER_TV, BAND, AFREECATV, CUSTOM_RTMP};
 LIBUI_API const QStringList g_allPlatforms = gDefaultPlatform + QStringList{WHALE_SPACE, NOW};
@@ -143,8 +142,6 @@ LIBUI_API const QString g_facebookUrl = "facebook_url";
 LIBUI_API const QString g_twitterUrl = "twitter_url";
 
 LIBUI_API const QString g_channelCacheFile = "channel_cache.dat";
-LIBUI_API const QString g_channelSettingsFile = "channels_settings.dat";
-
 LIBUI_API const QString g_channelSreLoginFailed = "channel_sre_loginFailed";
 
 LIBUI_API const QString g_loadingPixPath = ":/resource/images/loading/loading-%1.svg";

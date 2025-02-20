@@ -45,8 +45,6 @@ public:
 	void initSideBarWindowVisible() const;
 	static void setAnalogBaseInfo(QJsonObject &obj, bool isUploadHardwareInfo = false);
 	static void uploadAnalogInfo(const QString &apiPath, const QVariantMap &paramInfos, bool isUploadHardwareInfo = false);
-	static void uploadChatWidgetAnalogInfo(int styleId, const char *fontFamily, const QString &nickTxtColor, const QString &subcribeTxtColor, const QString &msgTxtColor);
-	static void uploadTextMotionAnalogInfo(int templateId, const QString &fontColor, const QString &fontFamily, int motion, int motionSpeed);
 	static int runProgram(PLSApp &program, int argc, char *argv[], ScopeProfiler &prof);
 	static void generatePrismSessionAndSubSession(int argc, char *argv[]);
 

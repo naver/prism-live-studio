@@ -12,7 +12,7 @@
 #include <QThread>
 #include <QObject>
 
-enum class MusicStatus { Noraml, Started, Paused, Resume, Stoped };
+enum class MusicStatus { Normal, Started, Paused, Resume, Stoped };
 enum class TemplateType { One = 0, Two, Three, Four, Five, Six };
 enum class TimerType { Current = 0, Live, Countdown, Stopwatch };
 
@@ -45,7 +45,7 @@ struct timer_data {
 
 	obs_hotkey_id start_hotkey;
 	obs_hotkey_id cancel_hotkey;
-	MusicStatus mStaus = MusicStatus::Noraml;
+	MusicStatus mStaus = MusicStatus::Normal;
 };
 
 class AudioConvertThread : public QThread {
@@ -66,7 +66,7 @@ public:
 
 	void timer_source_destroy();
 	void timer_source_update();
-	void dispatahNoramlJsToWeb();
+	void dispatahNormalJsToWeb();
 	void dispatahControlJsToWeb();
 	QByteArray toJsonStr();
 	void getColorData(QString &type, QString &forColor, QString &bgColor, bool &hasBackground);

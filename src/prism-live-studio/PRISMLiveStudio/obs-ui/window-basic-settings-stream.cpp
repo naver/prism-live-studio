@@ -1,5 +1,6 @@
 #include <QMessageBox>
 #include <QUrl>
+#include <QUuid>
 
 #include "window-basic-settings.hpp"
 #include "obs-frontend-api.h"
@@ -21,6 +22,14 @@
 #endif
 #include "PLSSyncServerManager.hpp"
 #include "ChannelCommonFunctions.h"
+#include "PLSPlatformApi.h"
+static const QUuid &CustomServerUUID()
+{
+	static const QUuid uuid = QUuid::fromString(
+		QT_UTF8("{241da255-70f2-4bbb-bef7-509695bf8e65}"));
+	return uuid;
+}
+
 struct QCef;
 struct QCefCookieManager;
 
@@ -38,7 +47,7 @@ enum class Section : int {
 	StreamKey,
 };
 
-inline bool OBSBasicSettings::IsCustomService() const
+bool OBSBasicSettings::IsCustomService() const
 {
 	return ui->service->currentData().toInt() == (int)ListOpt::Custom;
 }
@@ -89,12 +98,23 @@ void OBSBasicSettings::InitStreamPage()
 		&OBSBasicSettings::DisplayEnforceWarning);
 	connect(ui->ignoreRecommended, &PLSCheckBox::toggled, this,
 		&OBSBasicSettings::UpdateResFPSLimits);
+
+	connect(ui->enableMultitrackVideo, &PLSCheckBox::toggled, this,
+		&OBSBasicSettings::UpdateMultitrackVideo);
+	connect(ui->multitrackVideoMaximumAggregateBitrateAuto,
+		&PLSCheckBox::toggled, this,
+		&OBSBasicSettings::UpdateMultitrackVideo);
+	connect(ui->multitrackVideoMaximumVideoTracksAuto,
+		&PLSCheckBox::toggled, this,
+		&OBSBasicSettings::UpdateMultitrackVideo);
+	connect(ui->multitrackVideoConfigOverrideEnable, &PLSCheckBox::toggled,
+		this, &OBSBasicSettings::UpdateMultitrackVideo);
 }
 
 void OBSBasicSettings::LoadStream1Settings()
 {
-	bool ignoreRecommended =
-		config_get_bool(main->Config(), "Stream1", "IgnoreRecommended");
+	//PRISM/WuLongyue/20241104/PRISM_PC-1436
+	bool ignoreRecommended = true;
 
 	obs_service_t *service_obj = main->GetService();
 	const char *type = obs_service_get_type(service_obj);
@@ -108,7 +128,26 @@ void OBSBasicSettings::LoadStream1Settings()
 
 	const char *service = obs_data_get_string(settings, "service");
 	const char *server = obs_data_get_string(settings, "server");
+
+	QByteArray strServer;
+	auto activiedPlatforms = PLS_PLATFORM_ACTIVIED;
+	if (1 == activiedPlatforms.size()) {
+		if (auto pPlatform = activiedPlatforms.front();
+		    pPlatform->getChannelType() >=
+			    ChannelData::ChannelDataType::CustomType &&
+		    pPlatform->getChannelName() == TWITCH) {
+
+			strServer = PLSCHANNELS_API->getValueOfChannel<QString>(
+				pPlatform->getChannelUUID(),
+				ChannelData::g_channelRtmpUrl).toUtf8();
+
+			server = strServer;
+		}
+	}
+
 	const char *key = obs_data_get_string(settings, "key");
+	bool use_custom_server =
+		obs_data_get_bool(settings, "using_custom_server");
 	protocol = QT_UTF8(obs_service_get_protocol(service_obj));
 	const char *bearer_token =
 		obs_data_get_string(settings, "bearer_token");
@@ -142,6 +181,9 @@ void OBSBasicSettings::LoadStream1Settings()
 				idx = 0;
 			}
 		}
+		if (idx >= ui->service->count()) {
+			idx = 0;
+		}
 		ui->service->setCurrentIndex(idx);
 		lastServiceIdx = idx;
 
@@ -152,15 +194,74 @@ void OBSBasicSettings::LoadStream1Settings()
 		ui->twitchAddonDropdown->setCurrentIndex(idx);
 	}
 
+	ui->enableMultitrackVideo->setChecked(config_get_bool(
+		main->Config(), "Stream1", "EnableMultitrackVideo"));
+
+	ui->multitrackVideoMaximumAggregateBitrateAuto->setChecked(
+		config_get_bool(main->Config(), "Stream1",
+				"MultitrackVideoMaximumAggregateBitrateAuto"));
+	if (config_has_user_value(main->Config(), "Stream1",
+				  "MultitrackVideoMaximumAggregateBitrate")) {
+		ui->multitrackVideoMaximumAggregateBitrate->setValue(
+			config_get_int(
+				main->Config(), "Stream1",
+				"MultitrackVideoMaximumAggregateBitrate"));
+	} else {
+		ui->multitrackVideoMaximumAggregateBitrate->setValue(0);
+	}
+
+	ui->multitrackVideoMaximumVideoTracksAuto->setChecked(
+		config_get_bool(main->Config(), "Stream1",
+				"MultitrackVideoMaximumVideoTracksAuto"));
+	if (config_has_user_value(main->Config(), "Stream1",
+				  "MultitrackVideoMaximumVideoTracks"))
+		ui->multitrackVideoMaximumVideoTracks->setValue(
+			config_get_int(main->Config(), "Stream1",
+				       "MultitrackVideoMaximumVideoTracks"));
+	else
+		ui->multitrackVideoMaximumVideoTracks->setValue(0);
+
+	ui->multitrackVideoStreamDumpEnable->setChecked(config_get_bool(
+		main->Config(), "Stream1", "MultitrackVideoStreamDumpEnabled"));
+
+	ui->multitrackVideoConfigOverrideEnable->setChecked(
+		config_get_bool(main->Config(), "Stream1",
+				"MultitrackVideoConfigOverrideEnabled"));
+	if (config_has_user_value(main->Config(), "Stream1",
+				  "MultitrackVideoConfigOverride"))
+		ui->multitrackVideoConfigOverride->setPlainText(
+			DeserializeConfigText(
+				config_get_string(
+					main->Config(), "Stream1",
+					"MultitrackVideoConfigOverride"))
+				.c_str());
+	else
+		ui->multitrackVideoConfigOverride->setPlainText(QString());
+
 	UpdateServerList();
 
 	if (is_rtmp_common) {
-		int idx = ui->server->findData(server);
-		if (idx == -1 && ui->server->count() > 0) {
-			idx = 0;
+		int idx = -1;
+		if (use_custom_server) {
+			idx = ui->server->findData(CustomServerUUID());
+		} else {
+			idx = ui->server->findData(QString::fromUtf8(server));
+		}
+
+		if (idx == -1) {
+			if (server && *server &&
+			    PLSBasic::instance()->getServiceName() == service) {
+				ui->server->insertItem(0, server, server);
+			}
+			if (ui->server->count() > 0) {
+				idx = 0;
+			}
 		}
 		ui->server->setCurrentIndex(idx);
 	}
+
+	if (use_custom_server)
+		ui->serviceCustomServer->setText(server);
 
 	if (is_whip)
 		ui->key->setText(bearer_token);
@@ -173,6 +274,7 @@ void OBSBasicSettings::LoadStream1Settings()
 	UpdateMoreInfoLink();
 	UpdateVodTrackSetting();
 	UpdateServiceRecommendations();
+	UpdateMultitrackVideo();
 
 	bool streamActive = obs_frontend_streaming_active();
 	ui->streamPage->setEnabled(!streamActive);
@@ -196,15 +298,16 @@ bool OBSBasicSettings::AllowsMultiTrack(const char *protocol)
 
 void OBSBasicSettings::SwapMultiTrack(const char *protocol)
 {
-	if (protocol) {
-		if (AllowsMultiTrack(protocol)) {
-			ui->advStreamTrackWidget->setCurrentWidget(
-				ui->streamMultiTracks);
-		} else {
-			ui->advStreamTrackWidget->setCurrentWidget(
-				ui->streamSingleTracks);
-		}
+	//Judging by dashbord's rtmp
+	//if (protocol) {
+	if (PLS_PLATFORM_API->AllowsMultiTrack()) {
+		ui->advStreamTrackWidget->setCurrentWidget(
+			ui->streamMultiTracks);
+	} else {
+		ui->advStreamTrackWidget->setCurrentWidget(
+			ui->streamSingleTracks);
 	}
+	//}
 }
 
 void OBSBasicSettings::SaveStream1Settings()
@@ -225,12 +328,23 @@ void OBSBasicSettings::SaveStream1Settings()
 	OBSDataAutoRelease settings = obs_data_create();
 
 	if (!customServer && !whip) {
-		obs_data_set_string(settings, "service",
-				    QT_TO_UTF8(ui->service->currentText()));
-		obs_data_set_string(settings, "protocol", QT_TO_UTF8(protocol));
 		obs_data_set_string(
-			settings, "server",
-			QT_TO_UTF8(ui->server->currentData().toString()));
+			settings, "service",
+			QT_TO_UTF8(PLSBasic::instance()->getServiceName()));
+		obs_data_set_string(settings, "protocol", QT_TO_UTF8(protocol));
+		if (ui->server->currentData() == CustomServerUUID()) {
+			obs_data_set_bool(settings, "using_custom_server",
+					  true);
+
+			obs_data_set_string(
+				settings, "server",
+				QT_TO_UTF8(ui->serviceCustomServer->text()));
+		} else {
+			obs_data_set_string(
+				settings, "server",
+				QT_TO_UTF8(
+					ui->server->currentData().toString()));
+		}
 	} else {
 		obs_data_set_string(
 			settings, "server",
@@ -291,7 +405,65 @@ void OBSBasicSettings::SaveStream1Settings()
 	}
 
 	SaveCheckBox(ui->ignoreRecommended, "Stream1", "IgnoreRecommended");
+
+	auto oldMultitrackVideoSetting = config_get_bool(
+		main->Config(), "Stream1", "EnableMultitrackVideo");
+
+	if (!IsCustomService()) {
+		OBSDataAutoRelease settings = obs_data_create();
+		obs_data_set_string(
+			settings, "service",
+			QT_TO_UTF8(PLSBasic::instance()->getServiceName()));
+		OBSServiceAutoRelease temp_service = obs_service_create_private(
+			"rtmp_common", "auto config query service", settings);
+		settings = obs_service_get_settings(temp_service);
+		auto available = obs_data_has_user_value(
+			settings, "multitrack_video_configuration_url");
+
+		if (available) {
+			SaveCheckBox(ui->enableMultitrackVideo, "Stream1",
+				     "EnableMultitrackVideo");
+		} else {
+			config_remove_value(main->Config(), "Stream1",
+					    "EnableMultitrackVideo");
+		}
+	} else {
+		SaveCheckBox(ui->enableMultitrackVideo, "Stream1",
+			     "EnableMultitrackVideo");
+	}
+	SaveCheckBox(ui->multitrackVideoMaximumAggregateBitrateAuto, "Stream1",
+		     "MultitrackVideoMaximumAggregateBitrateAuto");
+	SaveSpinBox(ui->multitrackVideoMaximumAggregateBitrate, "Stream1",
+		    "MultitrackVideoMaximumAggregateBitrate");
+	SaveCheckBox(ui->multitrackVideoMaximumVideoTracksAuto, "Stream1",
+		     "MultitrackVideoMaximumVideoTracksAuto");
+	SaveSpinBox(ui->multitrackVideoMaximumVideoTracks, "Stream1",
+		    "MultitrackVideoMaximumVideoTracks");
+	SaveCheckBox(ui->multitrackVideoStreamDumpEnable, "Stream1",
+		     "MultitrackVideoStreamDumpEnabled");
+	SaveCheckBox(ui->multitrackVideoConfigOverrideEnable, "Stream1",
+		     "MultitrackVideoConfigOverrideEnabled");
+	SaveText(ui->multitrackVideoConfigOverride, "Stream1",
+		 "MultitrackVideoConfigOverride");
+
+	if (oldMultitrackVideoSetting != ui->enableMultitrackVideo->isChecked())
+		main->ResetOutputs();
+
 	SwapMultiTrack(QT_TO_UTF8(protocol));
+
+	auto activiedPlatforms = PLS_PLATFORM_ACTIVIED;
+	if (1 == activiedPlatforms.size()) {
+		if (auto pPlatform = activiedPlatforms.front();
+		    pPlatform->getChannelType() >=
+			    ChannelData::ChannelDataType::CustomType &&
+		    pPlatform->getChannelName() == TWITCH &&
+		    !ui->server->currentData().toString().isEmpty()) {
+			PLSCHANNELS_API->setValueOfChannel(
+				pPlatform->getChannelUUID(),
+				ChannelData::g_channelRtmpUrl,
+				ui->server->currentData().toString());
+		}
+	}
 }
 
 void OBSBasicSettings::UpdateMoreInfoLink()
@@ -442,6 +614,8 @@ void OBSBasicSettings::LoadServices(bool showAll)
 
 	obs_properties_destroy(props);
 
+	PLSBasic::instance()->setServiceName(ui->service->currentText());
+
 	ui->service->blockSignals(false);
 }
 
@@ -520,6 +694,8 @@ void OBSBasicSettings::on_service_currentIndexChanged(int idx)
 		return;
 	}
 
+	PLSBasic::instance()->setServiceName(ui->service->currentText());
+
 	ServiceChanged();
 
 	UpdateMoreInfoLink();
@@ -531,6 +707,7 @@ void OBSBasicSettings::on_service_currentIndexChanged(int idx)
 
 	protocol = FindProtocol();
 	UpdateAdvNetworkGroup();
+	UpdateMultitrackVideo();
 
 	if (ServiceSupportsCodecCheck() && UpdateResFPSLimits()) {
 		lastServiceIdx = idx;
@@ -552,6 +729,7 @@ void OBSBasicSettings::on_customServer_textChanged(const QString &)
 
 	protocol = FindProtocol();
 	UpdateAdvNetworkGroup();
+	UpdateMultitrackVideo();
 
 	if (ServiceSupportsCodecCheck())
 		lastCustomServer = ui->customServer->text();
@@ -572,6 +750,10 @@ void OBSBasicSettings::ServiceChanged(bool resetFields)
 
 	if (resetFields || lastService != service.c_str()) {
 		reset_service_ui_fields(ui.get(), service, loading);
+
+		ui->enableMultitrackVideo->setChecked(config_get_bool(
+			main->Config(), "Stream1", "EnableMultitrackVideo"));
+		UpdateMultitrackVideo();
 	}
 
 	ui->useAuth->setVisible(custom);
@@ -581,7 +763,7 @@ void OBSBasicSettings::ServiceChanged(bool resetFields)
 	ui->authPwWidget->setVisible(custom);
 
 	if (custom || whip) {
-		//ui->streamkeyPageLayout->insertRow(1, ui->serverLabel,
+		//ui->destinationLayout->insertRow(1, ui->serverLabel,
 		//				   ui->serverStackedWidget);
 		auto whipServer =
 			PLSSyncServerManager::instance()->getTwitchWhipServer();
@@ -643,8 +825,9 @@ QString OBSBasicSettings::FindProtocol()
 
 		OBSDataAutoRelease settings = obs_data_create();
 
-		obs_data_set_string(settings, "service",
-				    QT_TO_UTF8(ui->service->currentText()));
+		obs_data_set_string(
+			settings, "service",
+			QT_TO_UTF8(PLSBasic::instance()->getServiceName()));
 		obs_property_modified(services, settings);
 
 		obs_properties_destroy(props);
@@ -698,6 +881,12 @@ void OBSBasicSettings::UpdateServerList()
 			ui->server->addItem(name, server);
 		}
 	}
+	if (serviceName == "Twitch" || serviceName == "Amazon IVS") {
+		ui->server->addItem(
+			QTStr("Basic.Settings.Stream.SpecifyCustomServer"),
+			CustomServerUUID());
+	}
+
 	QString text = QTStr("setting.output.server.auto");
 	if (serviceName != "YouTube - HLS" && text != ui->server->itemText(0)) {
 		ui->server->insertItem(0, text, "auto");
@@ -705,6 +894,7 @@ void OBSBasicSettings::UpdateServerList()
 	if (IsWHIP()) {
 		ui->server->setCurrentIndex(0);
 	}
+
 	obs_properties_destroy(props);
 }
 
@@ -919,6 +1109,19 @@ void OBSBasicSettings::on_useAuth_toggled()
 	ui->authUsername->setVisible(use_auth);
 	ui->authPwLabel->setVisible(use_auth);
 	ui->authPwWidget->setVisible(use_auth);
+}
+
+bool OBSBasicSettings::IsCustomServer()
+{
+	return ui->server->currentData() == QVariant{CustomServerUUID()};
+}
+
+void OBSBasicSettings::on_server_currentIndexChanged(int /*index*/)
+{
+	auto server_is_custom = IsCustomServer();
+
+	ui->serviceCustomServerLabel->setVisible(server_is_custom);
+	ui->serviceCustomServer->setVisible(server_is_custom);
 }
 
 void OBSBasicSettings::UpdateVodTrackSetting()
@@ -1587,7 +1790,7 @@ bool OBSBasicSettings::ServiceSupportsCodecCheck()
 		return true;
 	}
 
-	QString service = ui->service->currentText();
+	QString service = PLSBasic::instance()->getServiceName();
 	QString cur_video_name;
 	QString fb_video_name;
 	QString cur_audio_name;
@@ -1688,10 +1891,22 @@ void OBSBasicSettings::ResetEncoders(bool streamOnly)
 	size_t idx = 0;
 
 	if (!vcodecs || IsCustomService()) {
-		const char *output;
+		const char *output = nullptr;
 
 		obs_enum_output_types_with_protocol(QT_TO_UTF8(protocol),
 						    &output, return_first_id);
+
+		if (nullptr == output) {
+			PLS_ERROR(MAIN_OUTPUT, "output is null, protocol is %s", qUtf8Printable(protocol));
+
+			obs_enum_output_types(0, &output);
+			if (nullptr == output) {
+				PLS_ERROR(MAIN_OUTPUT, "output 0 is still null");
+			
+				output = "rtmp_output";
+			}
+		}
+
 		output_vcodecs = strlist_split(
 			obs_get_output_supported_video_codecs(output), ';',
 			false);

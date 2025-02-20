@@ -6,8 +6,6 @@ ChannelConfigPannel {
 	max-width: /*hdpi*/ 200px;
 	margin-top: /*hdpi*/ 1px;
 	padding: /*hdpi*/ 0px;
-	padding-left: /*hdpi*/ 20px;
-	padding-right: /*hdpi*/ 20px;
 	border: /*hdpi*/ none;
 	border-radius: /*hdpi*/ 3px;
 	background-color: rgb(68, 68, 68);
@@ -178,29 +176,76 @@ ChannelConfigPannel {
 		qproperty-maximumSize: /*hdpi*/ 210px /*hdpi*/ 136px;
 	}
 
-		ChannelConfigPannel QMenu::item {
-			padding: /*hdpi*/ 0px;
-			padding-left: /*hdpi*/ 20px;
-			margin: /*hdpi*/ 0px;
-			background-color: transparent;
-			border: /*hdpi*/ none;
-			min-height: /*hdpi*/ 40px;
-			max-height: /*hdpi*/ 40px;
-			max-width: /*hdpi*/ 187px;
-			min-width: /*hdpi*/ 187px;
-			font-size: /*hdpi*/ 14px;
-			font-weight: normal;
-			font-style: normal;
-			color: #ffffff;
-		}
+	ChannelConfigPannel QMenu::item {
+		padding: /*hdpi*/ 0px;
+		padding-left: /*hdpi*/ 20px;
+		margin: /*hdpi*/ 0px;
+		background-color: transparent;
+		border: /*hdpi*/ none;
+		min-height: /*hdpi*/ 40px;
+		max-height: /*hdpi*/ 40px;
+		max-width: /*hdpi*/ 187px;
+		min-width: /*hdpi*/ 187px;
+		font-size: /*hdpi*/ 14px;
+		font-weight: normal;
+		font-style: normal;
+		color: #ffffff;
+	}
 
-			ChannelConfigPannel QMenu::item:disabled {
-				color: #666666;
-				background-color: transparent;
-			}
+	ChannelConfigPannel QMenu::item:disabled {
+		color: #666666;
+		background-color: transparent;
+	}
 
-			ChannelConfigPannel QMenu::item:selected:!disabled {
-				background-color: #444444;
-				color: #ffffff;
-			}
-		
+	ChannelConfigPannel QMenu::item:selected:!disabled {
+		background-color: #444444;
+		color: #ffffff;
+	}
+
+	ChannelConfigPannel #dualOutputBtn {
+		margin: /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px;
+		min-height: /*hdpi*/ 28px;
+		max-height: /*hdpi*/ 28px;
+		max-width: /*hdpi*/ 41px;
+		min-width: /*hdpi*/ 41px;
+
+	}
+	ChannelConfigPannel #arrowIconLabel {
+		max-width: /*hdpi*/ 7px;
+		min-width: /*hdpi*/ 7px;
+		min-height: /*hdpi*/ 7px;
+		max-height: /*hdpi*/ 7px;
+		padding-left:3px;
+		padding-right:3px;
+		padding-top:10px;
+		padding-bottom:11px;
+		border: none;
+		image: url(":/channels/resource/images/ChannelsSource/btn_cd_layeropen_normal.svg");
+	}
+	ChannelConfigPannel #dualOutputIconLabel {
+		max-width: /*hdpi*/ 28px;
+		min-width: /*hdpi*/ 28px;
+		min-height: /*hdpi*/ 28px;
+		max-height: /*hdpi*/ 28px;
+		border:none;
+		background-color:transparent;
+	}
+	ChannelConfigPannel #dualOutputIconLabel[orientation="H"] {
+		image: url(":/channels/resource/images/ChannelsSource/btn_dualoutput_horizontal_on.svg");
+	}
+	ChannelConfigPannel #dualOutputIconLabel[orientation="V"] {
+		image: url(":/channels/resource/images/ChannelsSource/btn_dualoutput_vertical_on.svg");
+	}
+	ChannelConfigPannel #dualOutputIconLabel[orientation="None"] {
+		image: url(":/channels/resource/images/ChannelsSource/btn_dualoutput_none_on.svg");
+	}
+
+	ChannelConfigPannel #seprator {
+		border:none;
+		max-width: /*hdpi*/ 1px;
+		min-width: /*hdpi*/ 1px;
+		min-height: /*hdpi*/ 20px;
+		max-height: /*hdpi*/ 20px;
+		background-color:#5e5e5e;
+	}

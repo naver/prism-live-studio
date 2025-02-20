@@ -5,7 +5,6 @@
 #include <QInputEvent>
 #include <QEvent>
 #include <QtCore/QObject>
-#include <QAccessibleWidget>
 #include <QStyleOptionSlider>
 
 class SliderIgnoreScroll : public QSlider {
@@ -31,38 +30,6 @@ signals:
 
 private:
 	bool mousePress = false;
-};
-
-class VolumeSlider : public SliderIgnoreScroll {
-	Q_OBJECT
-
-public:
-	obs_fader_t *fad;
-
-	VolumeSlider(obs_fader_t *fader, QWidget *parent = nullptr);
-	VolumeSlider(obs_fader_t *fader, Qt::Orientation orientation,
-		     QWidget *parent = nullptr);
-};
-
-class VolumeAccessibleInterface : public QAccessibleWidget {
-
-public:
-	VolumeAccessibleInterface(QWidget *w);
-
-	QVariant currentValue() const;
-	void setCurrentValue(const QVariant &value);
-
-	QVariant maximumValue() const;
-	QVariant minimumValue() const;
-
-	QVariant minimumStepSize() const;
-
-private:
-	VolumeSlider *slider() const;
-
-protected:
-	virtual QAccessible::Role role() const override;
-	virtual QString text(QAccessible::Text t) const override;
 };
 
 class SliderIgnoreClick : public SliderIgnoreScroll {

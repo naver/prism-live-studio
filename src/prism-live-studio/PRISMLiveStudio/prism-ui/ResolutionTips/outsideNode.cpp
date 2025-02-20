@@ -13,6 +13,7 @@
 #include "login-user-info.hpp"
 #include "PLSSceneDataMgr.h"
 #include "pls-common-define.hpp"
+#include "pls/pls-dual-output.h"
 
 #include <QStandardItemModel>
 
@@ -73,10 +74,8 @@ void OBSBasicSettings::adjustUi()
 	}
 
 	ui->listWidget->setIconSize(QSize(0, 0));
-	ui->listWidget->setRowHidden(1, true);
+	ui->listWidget->setRowHidden(STREAM, true);
 	ui->listWidget->setProperty("notShowHandCursor", true);
-
-	ui->formLayout_32->removeRow(ui->theme);
 
 	ui->openStatsOnStartup->hide();
 	ui->formLayout_32->takeRow(ui->verticalLayout_32);
@@ -100,7 +99,7 @@ void OBSBasicSettings::adjustUi()
 	ui->formLayout_2->takeRow(ui->warnBeforeRecordStop);
 	ui->groupBox_19->hide();
 
-	ui->formLayout_3->setContentsMargins(0, 0, 25, 0); //video
+	ui->verticalLayout->setContentsMargins(0, 0, 25, 0); //video
 	ui->hotkeyFormLayout->setContentsMargins(0, 0, 0, 50);
 
 	auto scrolls = this->findChildren<QScrollArea *>();
@@ -334,7 +333,6 @@ void OBSBasicSettings::updateOutPutRelatedUI()
 {
 	//output related
 	bool isOutputActived = pls_is_output_actived();
-	ui->accountView->setEnabled(!isOutputActived);
 	ui->language->setEnabled(!isOutputActived);
 	ui->waterMarkGroupBox->setEnabled(!isOutputActived);
 
@@ -397,6 +395,10 @@ void OBSBasicSettings::onOutputTipsVisibilityChanged(bool visible)
 
 bool OBSBasicSettings::prepareStreamServiceData(QStringList &names) const
 {
+	if (pls_is_dual_output_on()) {
+		return false;
+	}
+
 	if (PLS_PLATFORM_API->isLiving()) {
 		obs_service_t *service_obj = main->GetService();
 		OBSDataAutoRelease serviceSettings = obs_service_get_settings(service_obj);
@@ -410,7 +412,11 @@ bool OBSBasicSettings::prepareStreamServiceData(QStringList &names) const
 	auto activiedPlatforms = PLS_PLATFORM_ACTIVIED;
 	if (activiedPlatforms.size() == 1) {
 
-		if (activiedPlatforms.front()->getChannelType() >= ChannelData::ChannelDataType::CustomType) {
+		if (auto pPlatform = activiedPlatforms.front(); pPlatform->getChannelType() >= ChannelData::ChannelDataType::CustomType) {
+			if (pPlatform->getChannelName() == TWITCH) {
+				names << "Twitch - RTMPS";
+				return true;
+			}
 			return false;
 		}
 		auto channelName = activiedPlatforms.front()->getChannelName();

@@ -9,8 +9,8 @@ PLSBasicStatusPanel {
 	color: #eeeeee;
 }
 
-#realtimeFramerateState, #renderingFramedropState, #encodingFramedropState,
-#networkFramedropState, #streamBitrateState {
+#realtimeFramerateState, #renderingFramedropState, #encodingFramedropState, #encodingFramedropStateV,
+#networkFramedropState, #streamBitrateState, #networkFramedropStateV, #streamBitrateStateV {
 	min-width: 8px;
 	max-width: 8px;
 	min-height: 8px;
@@ -20,54 +20,92 @@ PLSBasicStatusPanel {
 }
 
 #cpuUsageLabel, #gpuUsageLabel, #memoryUsageLabel,
-#realtimeFramerateLabel, #renderingFramedropLabel, #encodingFramedropLabel,
+#realtimeFramerateLabel, #renderingFramedropLabel, #encodingFramedropLabel, #encodingFramedropLabelV,
 #networkFramedropLabel, #streamBitrateLabel, #StreamMegabytesLabel,
+#networkFramedropLabelV, #streamBitrateLabelV, #StreamMegabytesLabelV,
 #diskAvailableLabel, #recordingBitrateLabel, #recordedMegabytesLabel {
 	font-size: 14px;
 	color: #eeeeee;
 }
 
-#encodingFramedropLabel[active="false"],
+#encodingFramedropLabel[active="false"], #encodingFramedropLabelV[active="false"],
 #networkFramedropLabel[active="false"], #streamBitrateLabel[active="false"], #StreamMegabytesLabel[active="false"],
+#networkFramedropLabelV[active="false"], #streamBitrateLabelV[active="false"], #StreamMegabytesLabelV[active="false"],
 #recordingBitrateLabel[active="false"], #recordedMegabytesLabel[active="false"] {
 	color: #666666;
 }
 
 #cpuUsage, #gpuUsage, #memoryUsage,
-#realtimeFramerate, #renderingFramedrop, #encodingFramedrop,
+#realtimeFramerate, #renderingFramedrop, #encodingFramedrop, #encodingFramedropV,
 #networkFramedrop, #streamBitrate, #streamMegabytes,
+#networkFramedropV, #streamBitrateV, #streamMegabytesV,
 #diskAvailable, #recordingBitrate, #recordedMegabytes {
 	font-size: 14px;
 	color: #bababa;
 }
 
-#encodingFramedrop[active="false"],
+#encodingFramedrop[active="false"], #encodingFramedropV[active="false"],
 #networkFramedrop[active="false"], #streamBitrate[active="false"], #streamMegabytes[active="false"],
+#networkFramedropV[active="false"], #streamBitrateV[active="false"], #streamMegabytesV[active="false"],
 #recordingBitrate[active="false"], #recordedMegabytes[active="false"] {
 	color: #666666;
 }
 
-#realtimeFramerateState[active="false"], #renderingFramedropState[active="false"], #encodingFramedropState[active="false"],
-#networkFramedropState[active="false"], #streamBitrateState[active="false"] {
+#realtimeFramerateState[active="false"], #renderingFramedropState[active="false"], #encodingFramedropState[active="false"], #encodingFramedropStateV[active="false"],
+#networkFramedropState[active="false"], #streamBitrateState[active="false"], #networkFramedropStateV[active="false"], #streamBitrateStateV[active="false"] {
 	background-color: #147916;
 }
 
-#realtimeFramerateState[state="error"], #renderingFramedropState[state="error"], #encodingFramedropState[state="error"],
-#networkFramedropState[state="error"], #streamBitrateState[state="error"] {
+#realtimeFramerateState[state="error"], #renderingFramedropState[state="error"], #encodingFramedropState[state="error"], #encodingFramedropStateV[state="error"],
+#networkFramedropState[state="error"], #streamBitrateState[state="error"], #networkFramedropStateV[state="error"], #streamBitrateStateV[state="error"] {
 	background-color: #c34151;
 }
 
-#realtimeFramerateState[state="error"][active="false"], #renderingFramedropState[state="error"][active="false"], #encodingFramedropState[state="error"][active="false"],
-#networkFramedropState[state="error"][active="false"], #streamBitrateState[state="error"][active="false"] {
+#realtimeFramerateState[state="error"][active="false"], #renderingFramedropState[state="error"][active="false"],
+#encodingFramedropState[state="error"][active="false"], #encodingFramedropStateV[state="error"][active="false"],
+#networkFramedropState[state="error"][active="false"], #streamBitrateState[state="error"][active="false"],
+#networkFramedropStateV[state="error"][active="false"], #streamBitrateStateV[state="error"][active="false"] {
 	background-color: #75343C;
 }
 
-#realtimeFramerateState[state="warning"], #renderingFramedropState[state="warning"], #encodingFramedropState[state="warning"],
-#networkFramedropState[state="warning"], #streamBitrateState[state="warning"] {
+#realtimeFramerateState[state="warning"], #renderingFramedropState[state="warning"],
+#encodingFramedropState[state="warning"], #encodingFramedropStateV[state="warning"],
+#networkFramedropState[state="warning"], #streamBitrateState[state="warning"],
+#networkFramedropStateV[state="warning"], #streamBitrateStateV[state="warning"] {
 	background-color: #effc35;
 }
 
-#realtimeFramerateState[state="warning"][active="false"], #renderingFramedropState[state="warning"][active="false"], #encodingFramedropState[state="warning"][active="false"],
-#networkFramedropState[state="warning"][active="false"], #streamBitrateState[state="warning"][active="false"] {
+#realtimeFramerateState[state="warning"][active="false"], #renderingFramedropState[state="warning"][active="false"],
+#encodingFramedropState[state="warning"][active="false"], #encodingFramedropStateV[state="warning"][active="false"],
+#networkFramedropState[state="warning"][active="false"], #streamBitrateState[state="warning"][active="false"],
+#networkFramedropStateV[state="warning"][active="false"], #streamBitrateStateV[state="warning"][active="false"] {
 	background-color: #8B912E;
+}
+
+#encodingFramedropImage, #networkStateImage {
+	background: transparent;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    padding: 0;
+	image: url("://resource/images/dual-output/ic_preview_h.svg");
+}
+
+#encodingFramedropImage[active="false"], #networkStateImage[active="false"] {
+	image: url("://resource/images/dual-output/ic_preview_h_disabled.svg");
+}
+
+#encodingFramedropImageV, #networkStateImageV {
+	background: transparent;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    padding: 0;
+	image: url("://resource/images/dual-output/ic_preview_v.svg");
+}
+
+#encodingFramedropImageV[active="false"], #networkStateImageV[active="false"] {
+	image: url("://resource/images/dual-output/ic_preview_v_disabled.svg");
 }

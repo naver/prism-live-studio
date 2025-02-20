@@ -22,7 +22,7 @@ bool PLSFacebookDataHandler::tryToUpdate(const QVariantMap &srcInfo, const Updat
 	facebook->setInitData(srcInfo);
 	QMetaObject::invokeMethod(facebook, [facebook, srcInfo, finishedCall]() {
 		facebook->setSrcInfo(srcInfo);
-		auto userInfoFinished = [finishedCall, facebook](PLSAPIFacebookType) {
+		auto userInfoFinished = [finishedCall, facebook](const PLSErrorHandler::RetData &) {
 			QVariantMap info = facebook->getSrcInfo();
 			finishedCall(QList<QVariantMap>{info});
 			return true;

@@ -69,7 +69,7 @@ private:
 	void setupListUI();
 
 signals:
-	void startSearchText(const QWidget *reciever, const QString &keyword);
+	void startSearchText(const QWidget *receiver, const QString &keyword);
 	void itemSelect(const PLSSearchData &data);
 
 public slots:

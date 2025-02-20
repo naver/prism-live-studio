@@ -6,12 +6,12 @@
 #include "pls-net-url.hpp"
 #include "pls-common-define.hpp"
 #include "ChannelCommonFunctions.h"
-#include "PLSResCommonFuns.h"
 #include "PLSPlatformNaverShoppingLIVE.h"
 #include "PLSPlatformApi.h"
-#include "PLSResourceManager.h"
 #include "PLSServerStreamHandler.hpp"
 #include "login-user-info.hpp"
+#include "utils-api.h"
+#include "PLSLoginDataHandler.h"
 
 #define PUBLISH_VERSION QStringLiteral("version")
 #define POLICY_PUBLISH_JSON_NAME QStringLiteral("Policy_Publish.json")
@@ -26,6 +26,62 @@
 
 using namespace common;
 
+struct CategoryLibrary : public pls::rsm::ICategory {
+	PLS_RSM_CATEGORY(CategoryLibrary)
+
+	QString categoryId(pls::rsm::IResourceManager *mgr) const override { return PLS_RSM_CID_LIBRARY; }
+
+	QString getLibraryItemId() const { return pls_prism_is_dev() ? QStringLiteral("LIBRARY_1452") : QStringLiteral("LIBRARY_1225"); }
+
+	bool itemNeedDownload(pls::rsm::IResourceManager *mgr, pls::rsm::Item item) const override
+	{
+		if (item.itemId() == getLibraryItemId())
+			return true;
+		return false;
+	}
+	void getItemDownloadUrlAndHowSaves(pls::rsm::IResourceManager *mgr, std::list<pls::rsm::UrlAndHowSave> &urlAndHowSaves, pls::rsm::Item item) const override
+	{
+		PLS_INFO(moduleName(), "getItemDownloadUrlAndHowSaves library %s", item.itemId().toUtf8().constData());
+		urlAndHowSaves.push_back(pls::rsm::UrlAndHowSave() //
+						 .names({QStringLiteral("resourceUrl")})
+						 .fileName(pls::rsm::FileName::FromUrl)
+						 .needDecompress(true)
+						 .decompress([](const auto &, const auto &filePath) { return pls::rsm::unzip(filePath, QString(), false); }));
+	}
+	void itemDownloaded(pls::rsm::IResourceManager *mgr, pls::rsm::Item item, bool ok, const std::list<pls::rsm::DownloadResult> &results) const override
+	{
+		PLS_INFO(moduleName(), "itemDownloaded library %s %s", item.itemId().toUtf8().constData(), ok ? "ok" : "failed");
+
+		pls_async_call_mt([this, item, ok]() {
+			PLS_SYNC_SERVER_MANAGE->libraryNeedUpdate(ok);
+			if (ok) {
+
+				PLSErrorHandler::instance()->loadJson();
+
+				auto dstWebPath = pls::rsm::getAppDataPath("textTemplatePC/web");
+				auto textmotionPath = item.filePath("Library_Policy_PC/textmotion/web");
+				pls_async_invoke([this, dstWebPath, textmotionPath]() {
+					auto isSuccess = pls_copy_dir(textmotionPath, dstWebPath);
+					PLS_INFO(moduleName(), "copytextmotion res from library to textmotion dir  %s", isSuccess ? "success" : "failed");
+				});
+			}
+		});
+	}
+	bool checkItem(pls::rsm::IResourceManager *mgr, pls::rsm::Item item) const override { return false; }
+	pls::rsm::UniqueId getItemUniqueId(pls::rsm::IResourceManager *mgr, pls::rsm::Item item) const override
+	{
+		if (item.itemId() == getLibraryItemId())
+			return PLS_RSM_UID_LIBRARY_POLICY_PC;
+		return {};
+	}
+	QString getItemHomeDir(pls::rsm::IResourceManager *mgr, pls::rsm::Item item) const override
+	{
+		if (item.itemId() == getLibraryItemId())
+			return pls::rsm::getAppDataPath(QStringLiteral("library"));
+		return {};
+	}
+};
+
 PLSSyncServerManager *PLSSyncServerManager::instance()
 {
 	static PLSSyncServerManager syncServerManager;
@@ -34,7 +90,7 @@ PLSSyncServerManager *PLSSyncServerManager::instance()
 
 PLSSyncServerManager::PLSSyncServerManager(QObject *parent) : QObject(parent)
 {
-	connect(PLSRESOURCEMGR_INSTANCE, &PLSResourceManager::libraryNeedUpdate, this, &PLSSyncServerManager::onReceiveLibraryNeedUpdate);
+	connect(this, &PLSSyncServerManager::libraryNeedUpdate, this, &PLSSyncServerManager::onReceiveLibraryNeedUpdate);
 	int appBundleVersion = 0;
 	getSyncServerAppBundleJsonObject(POLICY_PUBLISH_JSON_NAME, m_policyPublishDefaultValueObject, appBundleVersion);
 	QString log = QString("sync server status: read Policy_Publish.json default value , version is %1").arg(appBundleVersion);
@@ -70,7 +126,6 @@ void PLSSyncServerManager::updatePolicyPublishByteArray()
 	initNaverShoppingInfo(policyPlatformObject);
 	initTwitchWhipServer(policyPlatformObject);
 	initSupportedPlatforms(policyPublishObject);
-	initSupportedCodecs(policyPublishObject);
 
 	QJsonObject waterMarkObject;
 	getSyncServerJsonObject(WATER_MARK_JSON_NAME, waterMarkObject);
@@ -107,7 +162,7 @@ void PLSSyncServerManager::updateChatTagIcon()
 		PLS_INFO_KR("SyncServer", "copy tag icon path: srcPath = %s, dstPath = %s", absoluteSrcPath.toUtf8().constData(), absoluteDstSrcPath.toUtf8().constData());
 		if (QFile::exists(absoluteSrcPath)) {
 
-			bool isSuccess = PLSResCommonFuns::copyFile(absoluteSrcPath, absoluteDstSrcPath);
+			bool isSuccess = pls_copy_file(absoluteSrcPath, absoluteDstSrcPath);
 			PLS_INFO("SyncServer", "chat tag icon copy is %s", isSuccess ? "success" : "failed");
 		} else {
 			PLS_INFO("SyncServer", "chat tag icon not exist");
@@ -122,26 +177,15 @@ bool PLSSyncServerManager::getSyncServerAppBundleJsonObject(const QString &jsonN
 	QString log = QString("sync server status: start reading app qrc %1 file").arg(qrcLogPath);
 	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
 
-	QByteArray appBundleByteArray;
 	auto qrcPath = findFileInResources(ChannelData::defaultSourcePath, jsonName);
-	PLSJsonDataHandler::getJsonArrayFromFile(appBundleByteArray, qrcPath);
-	if (appBundleByteArray.size() == 0) {
-		log = QString("sync server status: %1 is not existed.").arg(qrcLogPath);
-		PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+	QString errMeg;
+	if (!pls_read_json(appBundleJsonObject, qrcPath, &errMeg)) {
+		PLS_INFO("SyncServer", "read %s json failed, %s", qrcLogPath.toUtf8().constData(), errMeg.toUtf8().constData());
 		return false;
 	}
 
-	QJsonParseError appBundleError;
-	QJsonDocument appBundleDoc = QJsonDocument::fromJson(appBundleByteArray, &appBundleError);
-	if (appBundleError.error != QJsonParseError::NoError) {
-		log = QString("sync server status: %1 is not in the correct json format").arg(qrcLogPath);
-		PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-		return false;
-	}
-
-	appBundleJsonObject = appBundleDoc.object();
 	appBundleVersion = appBundleJsonObject[PUBLISH_VERSION].toInt();
-	log = QString("sync server status: %1 version is %2 , %3 file size is %4 byte").arg(qrcLogPath).arg(appBundleVersion).arg(jsonName).arg(appBundleByteArray.size());
+	log = QString("sync server status: %1 version is %2 , %3 file").arg(qrcLogPath).arg(appBundleVersion).arg(jsonName);
 	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
 	return true;
 }
@@ -152,26 +196,13 @@ bool PLSSyncServerManager::getSyncServerUserFolderJsonObject(const QString &json
 
 	QString log = QString("sync server status: start reading user AppData Folder %1 file").arg(userFolderJsonPath);
 	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-
-	QByteArray userFolderByteArray;
-	PLSJsonDataHandler::getJsonArrayFromFile(userFolderByteArray, pls_get_user_path(userFolderJsonPath));
-	if (userFolderByteArray.size() == 0) {
-		log = QString("sync server status: %1 is not existed.").arg(userFolderJsonPath);
-		PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+	QString errMessage;
+	if (!pls_read_json(userFolderJsonObject, pls_get_user_path(userFolderJsonPath), &errMessage)) {
+		PLS_INFO("SyncServer", "read %s json failed, %s", userFolderJsonPath.toUtf8().constData(), errMessage.toUtf8().constData());
 		return false;
 	}
-
-	QJsonParseError error;
-	QJsonDocument doc = QJsonDocument::fromJson(userFolderByteArray, &error);
-	if (error.error != QJsonParseError::NoError) {
-		log = QString("sync server status: %1 is not in the correct json format").arg(userFolderJsonPath);
-		PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-		return false;
-	}
-
-	userFolderJsonObject = doc.object();
 	userFolderVersion = userFolderJsonObject[PUBLISH_VERSION].toInt();
-	log = QString("sync server status: %1 version is %2 , %3 file size is %4 byte").arg(userFolderJsonPath).arg(userFolderVersion).arg(jsonName).arg(userFolderByteArray.size());
+	log = QString("sync server status: %1 version is %2 , %3 file ").arg(userFolderJsonPath).arg(userFolderVersion).arg(jsonName);
 	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
 	return true;
 }
@@ -379,31 +410,7 @@ void PLSSyncServerManager::initNaverShoppingInfo(const QJsonObject &policyPlatfo
 
 void PLSSyncServerManager::initOpenSourceInfo()
 {
-	PLS_INFO("SyncServer", "sync server status: start init open source info");
-	QString OPEN_SOURCE_DIR = QString("%1%2").arg(CONFIGS_LIBRARY_POLICY_PATH).arg(CONFIGS_LIBRARY_POLICY_LISCENSE_PATH);
-
-#if defined(Q_OS_WIN)
-	QString openSourceDir = pls_get_user_path(OPEN_SOURCE_DIR) + "/win";
-#elif defined(Q_OS_MACOS)
-	QString openSourceDir = pls_get_user_path(OPEN_SOURCE_DIR) + "/mac";
-#endif
-
-	QString maxFileVersion;
-	QDir dir(openSourceDir);
-	QFileInfoList fileInfoList = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
-	for (const QFileInfo &fileInfo : fileInfoList) {
-		PLS_INFO("SyncServer", "sync server status: open source file name is %s", fileInfo.fileName().toUtf8().constData());
-		if (fileInfo.isFile() && fileInfo.suffix() == OPEN_SOURCE_FILE_SUFFIX && fileInfo.fileName().startsWith(OPEN_SOURCE_FILE_PREFIX)) {
-			QString removeSuffix = QString(".%1").arg(OPEN_SOURCE_FILE_SUFFIX);
-			QString fileVersion = fileInfo.fileName().remove(OPEN_SOURCE_FILE_PREFIX).remove(removeSuffix);
-			if (compareVersion(PLS_VERSION, fileVersion) >= 0 && compareVersion(fileVersion, maxFileVersion) >= 0) {
-				maxFileVersion = fileVersion;
-				m_openSourceLicense = fileInfo.filePath();
-			}
-			PLS_INFO("SyncServer", "sync server status: open source file version is %s , max file version is %s", fileVersion.toUtf8().constData(), maxFileVersion.toUtf8().constData());
-		}
-	}
-	PLS_INFO("SyncServer", "sync server status: init open source info success , open source is %s", m_openSourceLicense.toUtf8().constData());
+	return;
 }
 
 void PLSSyncServerManager::initTwitchWhipServer(const QJsonObject &policyPlatformJsonObject)
@@ -418,29 +425,6 @@ void PLSSyncServerManager::initTwitchWhipServer(const QJsonObject &policyPlatfor
 	m_twitchWhipServer = platformObject.value(name2str(whipServer)).toString();
 	QString log = QString("sync server status: init Twitch WhipServer, m_twitchWhipServer is %1").arg(m_twitchWhipServer);
 	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-}
-
-void PLSSyncServerManager::initSupportedCodecs(const QJsonObject &policyPublishJsonObject)
-{
-	PLS_INFO("SyncServer", "sync server status: start init supported codecs");
-	QJsonValue value = policyPublishJsonObject.value("supportedVCodecs");
-	if (!value.isObject()) {
-		PLS_ERROR("SyncServer", "sync server status: init supported codecs info failed ,because the supported codecs value is not json object");
-		return;
-	}
-
-	QJsonObject codecObject = value.toObject();
-	for (auto iter = codecObject.begin(); iter != codecObject.end(); ++iter) {
-		if (channelSupportVideoEncoderMap.contains(iter.key()) && iter.value().isArray()) {
-			QList<QString> codecs;
-			for (const auto &item : iter.value().toArray()) {
-				codecs.append(item.toString());
-			}
-			channelSupportVideoEncoderMap[iter.key()] = codecs;
-
-			PLS_INFO("SyncServer", "sync server status: supported codecs %s: %s", qUtf8Printable(iter.key()), qUtf8Printable(codecs.join(",")));
-		}
-	}
 }
 
 void PLSSyncServerManager::initSupportedPlatforms(const QJsonObject &policyPublishJsonObject)
@@ -606,15 +590,13 @@ const QVariantList &PLSSyncServerManager::getResolutionsList()
 		return m_resolutionsInfos;
 	}
 	auto list1 = getNewResolutionGuide();
-	QByteArray data;
 	QVariantList list2;
 	QString path = pls_get_user_path(CONFIGS_RESOLUTIONGUIDE_PATH);
-	if (bool isOk = PLSJsonDataHandler::getJsonArrayFromFile(data, path); isOk) {
-		PLSJsonDataHandler::jsonTo(data, list2);
-	}
+	pls_read_json(list2, path);
 
 	if (list2.isEmpty()) {
-		PLSGpopData::useDefaultValues(name2str(ResolutionGuide), list2);
+		auto qrcPath = findFileInResources(ChannelData::defaultSourcePath, name2str(ResolutionGuide));
+		pls_read_json(list2, qrcPath);
 	}
 
 	list2.append(list1);
@@ -647,15 +629,21 @@ const QMap<QString, QVariantList> &PLSSyncServerManager::getStickerReaction()
 	if (!m_reaction.isEmpty()) {
 		return m_reaction;
 	}
-	QByteArray data;
+	QJsonObject obj;
 	QString path = pls_get_user_path(CONFIGS_LIBRARY_POLICY_PATH + STICKER_JSON_NAME);
-	if (bool isOk = PLSJsonDataHandler::getJsonArrayFromFile(data, path); isOk) {
+	if (auto isOk = pls_read_json(obj, path); isOk) {
 		QVariantMap reaction;
-		PLSJsonDataHandler::getValuesFromByteArray(data, name2str(reaction), reaction);
-		for (auto key : reaction.keys()) {
-			QVariantList list;
-			PLSJsonDataHandler::getValuesFromByteArray(data, key, list);
-			m_reaction.insert(key, list);
+		auto value = pls_find_attr(obj, name2str(reaction));
+		if (value.has_value() && value.value().isObject()) {
+			reaction = value.value().toObject().toVariantMap();
+			for (auto key : reaction.keys()) {
+				QVariantList list;
+				value = pls_find_attr(obj, key);
+				if (value.has_value() && value.value().isArray()) {
+					list = value.value().toArray().toVariantList();
+					m_reaction.insert(key, list);
+				}
+			}
 		}
 	}
 

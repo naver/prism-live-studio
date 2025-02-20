@@ -6,10 +6,10 @@
 #include "PLSNaverShoppingLIVEImageProcessFinished.h"
 
 #include "frontend-api.h"
-#include "json-data-handler.hpp"
 #include "log/log.h"
 #include "utils-api.h"
 #include "pls-shared-functions.h"
+#include "libresource.h"
 
 #include <QApplication>
 #include <QDir>
@@ -190,20 +190,14 @@ void PLSNaverShoppingLIVEDataManager::loadSearchKeywords()
 {
 	QString searchKeywordsFile = getFilePath(SEARCH_KEYWORDS_FILE_NAME);
 
-	QByteArray bytes;
-	PLSJsonDataHandler::getJsonArrayFromFile(bytes, searchKeywordsFile);
-	if (bytes.isEmpty()) {
+	QJsonArray array;
+	QString parseError;
+	if (!pls_read_json(array, searchKeywordsFile, &parseError)) {
+		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live load seach keywords failed. reason: %s", parseError.toUtf8().constData());
 		return;
 	}
 
-	QJsonParseError parseError;
-	QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
-	if (parseError.error != QJsonParseError::NoError) {
-		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live load seach keywords failed. reason: %s", parseError.errorString().toUtf8().constData());
-		return;
-	}
-
-	for (auto it : doc.array()) {
+	for (auto it : array) {
 		searchKeywords.append(it.toString());
 		if (searchKeywords.count() >= MAX_SEARCH_KEYWORDS_COUNT) {
 			break;
@@ -219,9 +213,7 @@ void PLSNaverShoppingLIVEDataManager::saveSearchKeywords() const
 	}
 
 	QString searchKeywordsFile = getFilePath(SEARCH_KEYWORDS_FILE_NAME);
-
-	QJsonDocument doc(array);
-	if (!PLSJsonDataHandler::saveJsonFile(doc.toJson(), searchKeywordsFile)) {
+	if (!pls_write_json(searchKeywordsFile, array)) {
 		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live save seach keywords failed.");
 	}
 }
@@ -287,20 +279,14 @@ void PLSNaverShoppingLIVEDataManager::loadDownloadImageCache()
 {
 	QString downloadImageCacheFile = getFilePath(DOWNLOAD_IMAGE_CACHE_FILE_NAME);
 
-	QByteArray bytes;
-	PLSJsonDataHandler::getJsonArrayFromFile(bytes, downloadImageCacheFile);
-	if (bytes.isEmpty()) {
+	QJsonArray array;
+	QString parseError;
+	if (!pls_read_json(array, downloadImageCacheFile, &parseError)) {
+		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live load download image cache failed. reason: %s", parseError.toUtf8().constData());
 		return;
 	}
 
-	QJsonParseError parseError;
-	QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
-	if (parseError.error != QJsonParseError::NoError) {
-		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live load download image cache failed. reason: %s", parseError.errorString().toUtf8().constData());
-		return;
-	}
-
-	for (auto it : doc.array()) {
+	for (auto it : array) {
 		QJsonObject obj = it.toObject();
 		downloadImageCache.insert(JSON_getString(obj, url), JSON_getString(obj, path));
 	}
@@ -316,7 +302,7 @@ void PLSNaverShoppingLIVEDataManager::saveDownloadImageCache()
 	QString downloadImageCacheFile = getFilePath(DOWNLOAD_IMAGE_CACHE_FILE_NAME);
 
 	QJsonDocument doc(array);
-	if (!PLSJsonDataHandler::saveJsonFile(doc.toJson(), downloadImageCacheFile)) {
+	if (!pls_write_data(downloadImageCacheFile, doc.toJson())) {
 		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live save download image cache failed.");
 	}
 }
@@ -410,20 +396,14 @@ void PLSNaverShoppingLIVEDataManager::loadRecentProductNos()
 {
 	QString recentProductsFile = getFilePath(RECENT_PRODUCTS_FILE_NAME);
 
-	QByteArray bytes;
-	PLSJsonDataHandler::getJsonArrayFromFile(bytes, recentProductsFile);
-	if (bytes.isEmpty()) {
+	QJsonArray array;
+	QString parseError;
+	if (!pls_read_json(array, recentProductsFile, &parseError)) {
+		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live load recent products failed. reason: %s", parseError.toUtf8().constData());
 		return;
 	}
 
-	QJsonParseError parseError;
-	QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
-	if (parseError.error != QJsonParseError::NoError) {
-		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live load recent products failed. reason: %s", parseError.errorString().toUtf8().constData());
-		return;
-	}
-
-	for (auto it : doc.array()) {
+	for (auto it : array) {
 		recentProductNos.append(JSON_toInt64(it));
 		if (recentProductNos.count() >= MAX_RECENT_COUNT) {
 			break;
@@ -439,9 +419,7 @@ void PLSNaverShoppingLIVEDataManager::saveRecentProductNos() const
 	}
 
 	QString recentProductsFile = getFilePath(RECENT_PRODUCTS_FILE_NAME);
-
-	QJsonDocument doc(array);
-	if (!PLSJsonDataHandler::saveJsonFile(doc.toJson(), recentProductsFile)) {
+	if (!pls_write_json(recentProductsFile, array)) {
 		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live save recent products failed.");
 	}
 }
@@ -492,20 +470,13 @@ void PLSNaverShoppingLIVEDataManager::loadOtherInfos()
 {
 	QString otherInfosFile = getFilePath(OTHER_INFOS_FILE_NAME);
 
-	QByteArray bytes;
-	PLSJsonDataHandler::getJsonArrayFromFile(bytes, otherInfosFile);
-	if (bytes.isEmpty()) {
+	QJsonObject obj;
+	QString parseError;
+	if (!pls_read_json(obj, otherInfosFile, &parseError)) {
+		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live load other info failed. reason: %s", parseError.toUtf8().constData());
 		return;
 	}
 
-	QJsonParseError parseError;
-	QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
-	if (parseError.error != QJsonParseError::NoError) {
-		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live load other info failed. reason: %s", parseError.errorString().toUtf8().constData());
-		return;
-	}
-
-	QJsonObject obj = doc.object();
 	latestUseTab = JSON_getIntEx(obj, latestUseTab, -1);
 	latestStoreId = JSON_getString(obj, latestStoreId);
 }
@@ -517,7 +488,7 @@ void PLSNaverShoppingLIVEDataManager::saveOtherInfos() const
 	QString otherInfosFile = getFilePath(OTHER_INFOS_FILE_NAME);
 
 	QJsonDocument doc(obj);
-	if (!PLSJsonDataHandler::saveJsonFile(doc.toJson(), otherInfosFile)) {
+	if (!pls_write_json(otherInfosFile, doc)) {
 		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live save other infos failed.");
 	}
 }
@@ -885,20 +856,13 @@ void PLSNaverShoppingLIVEDataManager::loadSmartStoreInfo()
 {
 	QString smartStoreFile = getFilePath(SMART_STORE_INFO_FILE_NAME);
 
-	QByteArray bytes;
-	PLSJsonDataHandler::getJsonArrayFromFile(bytes, smartStoreFile);
-	if (bytes.isEmpty()) {
+	QJsonObject obj;
+	QString parseError;
+	if (!pls_read_json(obj, smartStoreFile, &parseError)) {
+		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live load smart store info failed. reason: %s", parseError.toUtf8().constData());
 		return;
 	}
 
-	QJsonParseError parseError;
-	QJsonDocument doc = QJsonDocument::fromJson(bytes, &parseError);
-	if (parseError.error != QJsonParseError::NoError) {
-		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live load smart store info failed. reason: %s", parseError.errorString().toUtf8().constData());
-		return;
-	}
-
-	QJsonObject obj = doc.object();
 	smartStoreInfo.storeId = JSON_getString(obj, storeId);
 	smartStoreInfo.storeName = JSON_getString(obj, storeName);
 	smartStoreInfo.accessToken = JSON_getString(obj, accessToken);
@@ -909,9 +873,7 @@ void PLSNaverShoppingLIVEDataManager::saveSmartStoreInfo() const
 	QJsonObject obj{JSON_mkObject(storeId, smartStoreInfo.storeId), JSON_mkObject(storeName, smartStoreInfo.storeName), JSON_mkObject(accessToken, smartStoreInfo.accessToken)};
 
 	QString recentProductsFile = getFilePath(SMART_STORE_INFO_FILE_NAME);
-
-	QJsonDocument doc(obj);
-	if (!PLSJsonDataHandler::saveJsonFile(doc.toJson(), recentProductsFile)) {
+	if (!pls_write_json(recentProductsFile, obj)) {
 		PLS_ERROR(NAVERSHOPPINGLIVE_DATAMANAGER, "naver shopping live save smart store info failed.");
 	}
 }

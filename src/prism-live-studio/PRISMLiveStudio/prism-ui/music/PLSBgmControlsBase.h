@@ -9,7 +9,6 @@ const int SLIDER_MAX = 1024;
 
 class QRadioButton;
 class QPushButton;
-class PLSMediaSlider;
 class QLabel;
 class PLSBgmControlsBase : public QWidget {
 	Q_OBJECT

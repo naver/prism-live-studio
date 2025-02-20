@@ -48,6 +48,8 @@
 #include "PLSLaunchWizardView.h"
 #include "PLSSyncServerManager.hpp"
 #include "PLSLiveInfoChzzk.h"
+#include <pls/pls-dual-output.h>
+#include "PLSLoginDataHandler.h"
 
 using namespace std;
 using namespace common;
@@ -63,6 +65,8 @@ Q_DECLARE_METATYPE(OBSSource);
 
 constexpr auto VERSION_COMPARE_COUNT = 3;
 #define PARAM_REPLY_EMAIL_ADDRESS QStringLiteral("replyEmailAddress")
+#define PARAM_QUESTION_TYPE QStringLiteral("questionType")
+#define PARAM_SERVICE_TYPE QStringLiteral("serviceType")
 #define PARAM_REPLY_QUESTION QStringLiteral("question")
 #define PARAM_REPLY_ATTACHED_FILES QStringLiteral("attachedFiles")
 #define PARAM_PLATFORM_TYPE QStringLiteral("platformType")
@@ -72,10 +76,10 @@ constexpr auto VERSION_COMPARE_COUNT = 3;
 
 extern PLSLaboratory *g_laboratoryDialog;
 extern PLSRemoteChatView *g_remoteChatDialog;
-extern bool isHasUpdate(const QString &currentVer, const QString &remoteVer);
-extern QString getUpdateFromRegister();
 extern QString getOsVersion();
 extern void httpRequestHead(QVariantMap &headMap, bool hasGacc);
+extern OBSOutputSet obsOutputSet;
+extern OBSOutputSet obsOutputSet_v;
 
 template<typename T> static T GetOBSRef(QListWidgetItem *item)
 {
@@ -187,7 +191,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		if (pls_is_app_exiting()) {
 			return nullptr;
 		}
-		if (main->IsPreviewProgramMode()) {
+		if (main->IsPreviewProgramMode() && main->programScene) {
 			return obs_weak_source_get_source(main->programScene);
 		} else {
 			OBSSource source = main->GetCurrentSceneSource();
@@ -310,9 +314,23 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 	void obs_frontend_delete_profile(const char *profile) override { QMetaObject::invokeMethod(main, "DeleteProfile", Q_ARG(const QString &, profile)); }
 
-	void obs_frontend_streaming_start(void) override { QMetaObject::invokeMethod(main, "StartStreaming"); }
+	void obs_frontend_streaming_start(void) override
+	{
+		if (!pls_get_hotkey_enable())
+			return;
+		// PRISM_PC-1009 All the streamings MUST start by PRISM APIs
+		// since there are many other logics before streamings.
+		pls_start_broadcast(true);
+	}
 
-	void obs_frontend_streaming_stop(void) override { QMetaObject::invokeMethod(main, "StopStreaming"); }
+	void obs_frontend_streaming_stop(void) override
+	{
+		if (!pls_get_hotkey_enable())
+			return;
+		// PRISM_PC-1009 All the streamings MUST start by PRISM APIs
+		// since there are many other logics before streamings.
+		pls_start_broadcast(false);
+	}
 
 	bool obs_frontend_streaming_active(void) override { return os_atomic_load_bool(&streaming_active); }
 
@@ -339,6 +357,21 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		} else {
 			return false;
 		}
+	}
+
+	bool obs_frontend_recording_add_chapter(const char *name) override
+	{
+		if (!os_atomic_load_bool(&recording_active) || os_atomic_load_bool(&recording_paused))
+			return false;
+
+		proc_handler_t *ph = obs_output_get_proc_handler(main->outputHandler->fileOutput);
+
+		calldata cd;
+		calldata_init(&cd);
+		calldata_set_string(&cd, "chapter_name", name);
+		bool result = proc_handler_call(ph, "add_chapter", &cd);
+		calldata_free(&cd);
+		return result;
 	}
 
 	void obs_frontend_replay_buffer_start(void) override { QMetaObject::invokeMethod(main, "StartReplayBuffer"); }
@@ -395,15 +428,15 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 			return false;
 		}
 
-		OBSDock *dock = new OBSDock(main);
+		OBSDockOri *dock = new OBSDockOri(main);
 		dock->setWidget((QWidget *)widget);
 		dock->setWindowTitle(QT_UTF8(title));
 		dock->setObjectName(QT_UTF8(id));
 
 		main->AddDockWidget(dock, Qt::RightDockWidgetArea);
 
-		dock->setFloating(true);
 		dock->setVisible(false);
+		dock->setFloating(true);
 
 		return true;
 	}
@@ -446,20 +479,40 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 	obs_output_t *obs_frontend_get_streaming_output(void) override
 	{
-		OBSOutput output = main->outputHandler->streamOutput.Get();
-		return obs_output_get_ref(output);
+		std::lock_guard locker(obsOutputSet.mutex);
+		auto multitrackVideo = main->outputHandler->multitrackVideo.get();
+		auto mtvOutput = multitrackVideo ? obs_output_get_ref(multitrackVideo->StreamingOutput()) : nullptr;
+		if (mtvOutput)
+			return mtvOutput;
+
+		if (obsOutputSet.streamOutput) {
+			OBSOutput output = obsOutputSet.streamOutput;
+			return obs_output_get_ref(output);
+		}
+
+		return NULL;
 	}
 
 	obs_output_t *obs_frontend_get_recording_output(void) override
 	{
-		OBSOutput out = main->outputHandler->fileOutput.Get();
-		return obs_output_get_ref(out);
+		std::lock_guard locker(obsOutputSet.mutex);
+		if (obsOutputSet.fileOutput) {
+			OBSOutput output = obsOutputSet.fileOutput;
+			return obs_output_get_ref(output);
+		}
+
+		return NULL;
 	}
 
 	obs_output_t *obs_frontend_get_replay_buffer_output(void) override
 	{
-		OBSOutput out = main->outputHandler->replayBuffer.Get();
-		return obs_output_get_ref(out);
+		std::lock_guard locker(obsOutputSet.mutex);
+		if (obsOutputSet.replayBuffer) {
+			OBSOutput output = obsOutputSet.replayBuffer;
+			return obs_output_get_ref(output);
+		}
+
+		return NULL;
 	}
 
 	config_t *obs_frontend_get_profile_config(void) override { return main->basicConfig; }
@@ -566,14 +619,27 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		}
 	}
 
-	void obs_frontend_take_screenshot(void) override { QMetaObject::invokeMethod(main, "Screenshot"); }
+	void obs_frontend_take_screenshot(void) override
+	{
+		pls_check_app_exiting();
+		QMetaObject::invokeMethod(main, "Screenshot");
+	}
 
-	void obs_frontend_take_source_screenshot(obs_source_t *source) override { QMetaObject::invokeMethod(main, "Screenshot", Q_ARG(OBSSource, OBSSource(source))); }
+	void obs_frontend_take_source_screenshot(obs_source_t *source) override
+	{
+		pls_check_app_exiting();
+		QMetaObject::invokeMethod(main, "Screenshot", Q_ARG(OBSSource, OBSSource(source)));
+	}
 
 	obs_output_t *obs_frontend_get_virtualcam_output(void) override
 	{
-		OBSOutput output = main->outputHandler->virtualCam.Get();
-		return obs_output_get_ref(output);
+		std::lock_guard locker(obsOutputSet.mutex);
+		if (obsOutputSet.virtualCam) {
+			OBSOutput output = obsOutputSet.virtualCam;
+			return obs_output_get_ref(output);
+		}
+
+		return NULL;
 	}
 
 	void obs_frontend_start_virtualcam(void) override { QMetaObject::invokeMethod(main, "StartVirtualCam"); }
@@ -686,7 +752,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		return result;
 	}
 
-	bool pls_browser_view(QJsonObject &result, const QUrl &url, const pls_result_checking_callback_t &callback, QWidget *parent, bool readCookies) override
+	bool pls_browser_view(QVariantHash &result, const QUrl &url, const pls_result_checking_callback_t &callback, QWidget *parent, bool readCookies) override
 	{
 		if ((!cef) || (!cef->init_browser())) { // 2021.12.10 #10003 stack overflow
 			return false;
@@ -698,7 +764,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		return bv.exec() == QDialog::Accepted;
 	}
 
-	bool pls_browser_view(QJsonObject &result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelName, const std::string &script,
+	bool pls_browser_view(QVariantHash &result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelName, const std::string &script,
 			      const pls_result_checking_callback_t &callback, QWidget *parent, bool readCookies) override
 	{
 		if ((!cef) || (!cef->init_browser())) { // 2021.12.10 #10003 stack overflow
@@ -863,87 +929,19 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	void checkUpdateAppHandle(const QByteArray &data, const QString &verstr, bool &isForceUpdate, QString &version, QString &fileUrl, QString &updateInfoUrl,
 				  pls_check_update_result_t &check_update_result)
 	{
-		QJsonParseError result;
-		QJsonDocument doc = QJsonDocument::fromJson(data, &result);
-		if (result.error != QJsonParseError::NoError) {
-			PLS_ERROR(UPDATE_MODULE, "UPDATE STATUS: request update appversion api failed, json parse failed, reason: [%s][%s]", result.errorString().toUtf8().constData(),
-				  data.constData());
-			return;
-		}
-
-		QJsonObject appUpdateObject = doc.object();
-		version = appUpdateObject.value(QLatin1String("version")).toString();
-		updateInfoUrl = getUpdateInfoUrl(appUpdateObject.value("updateInfoUrlList").toObject());
-		fileUrl = appUpdateObject.value(QLatin1String("fileUrl")).toString();
-		auto versionFromFileName = PLSLoginDataHandler::instance()->getVersionFromFileUrl(fileUrl);
-
-		if (version.isEmpty() || !isHasUpdate(version, versionFromFileName)) {
-			check_update_result = pls_check_update_result_t::NoUpdate;
-			PLS_INFO(UPDATE_MODULE, "UPDATE STATUS: request update appversion api version: %s, software version: %s", version.toUtf8().constData(), verstr.toUtf8().constData());
-			return;
-		}
-
-		check_update_result = pls_check_update_result_t::HasUpdate;
-		isForceUpdate = appUpdateObject.value(QLatin1String("updateType")).toString() == QLatin1String("FORCE");
-
-		PLS_INFO(UPDATE_MODULE, "UPDATE STATUS: update available, isForceUpdate: %s, version: %s, fileUrl: %s, updateInfoUrl: %s", isForceUpdate ? "true" : "false",
-			 version.toUtf8().constData(), fileUrl.toUtf8().constData(), updateInfoUrl.toUtf8().constData());
+		return;
 	}
 
-	pls_check_update_result_t pls_check_app_update(bool &isForceUpdate, QString &version, QString &fileUrl, QString &updateInfoUrl) override
+	pls_check_update_result_t pls_check_app_update(bool &isForceUpdate, QString &version, QString &fileUrl, QString &updateInfoUrl, PLSErrorHandler::RetData &retData) override
 	{
 
 		PLS_INFO(UPDATE_MODULE, "UPDATE STATUS: check update appversion api request start");
 
 		pls_check_update_result_t check_update_result = pls_check_update_result_t::Failed;
-		std::array<int, VERSION_COMPARE_COUNT + 1> ver = {PRISM_VERSION_MAJOR, PRISM_VERSION_MINOR, PRISM_VERSION_PATCH, PRISM_VERSION_BUILD};
-		QString verstr = QString("%1.%2.%3").arg(ver[0]).arg(ver[1]).arg(ver[2]);
-
-		auto updateInfoFormRegister = getUpdateFromRegister();
-		if (!updateInfoFormRegister.isEmpty()) {
-			PLS_INFO("PLSLoginDataHandler", "update info from register");
-			checkUpdateAppHandle(updateInfoFormRegister.toUtf8(), verstr, isForceUpdate, version, fileUrl, updateInfoUrl, check_update_result);
-			return check_update_result;
-		}
-
-		QUrl url(LASTEST_UPDATE_URL.arg(PRISM_SSL));
-
-		QUrlQuery query;
-		query.addQueryItem(PARAM_PLATFORM_TYPE, PLATFORM_TYPE);
-		query.addQueryItem(PARAM_APP_TYPE_KEY, PARAM_APP_TYPE_VALUE);
-		url.setQuery(query);
-
-		QEventLoop eventLoop;
-		pls::http::request(pls::http::Request()
-					   .method(pls::http::Method::Get)
-					   .withLog()
-					   .jsonContentType()
-					   .workInMainThread()
-					   .hmacUrl(url, PLS_PC_HMAC_KEY.toUtf8())
-					   .receiver(&eventLoop)
-					   .okResult([&eventLoop, &isForceUpdate, &version, &fileUrl, &updateInfoUrl, &check_update_result, verstr, this](const pls::http::Reply &replyTmp) {
-						   checkUpdateAppHandle(replyTmp.data(), verstr, isForceUpdate, version, fileUrl, updateInfoUrl, check_update_result);
-						   eventLoop.quit();
-					   })
-					   .failResult([&eventLoop, &check_update_result](const pls::http::Reply &reply) {
-						   QByteArray array = reply.data();
-						   auto statusCode = reply.statusCode();
-						   if (HTTP_STATUS_CODE_404 == statusCode) {
-							   check_update_result = pls_check_update_result_t::NoUpdate;
-							   PLS_INFO(UPDATE_MODULE, "UPDATE STATUS: request appversion api no update available");
-						   } else if (getPrismApiError(array, statusCode) == PRISM_API_ERROR::SystemExccedTimeLimitError) {
-							   check_update_result = pls_check_update_result_t::HmacExceedTime;
-							   PLS_ERROR(UPDATE_MODULE, "UPDATE STATUS: request update appversion api failed, system time exceed limit");
-						   } else {
-							   PLS_ERROR(UPDATE_MODULE, "UPDATE STATUS: request update appversion api failed, status code: %d", reply.statusCode());
-						   }
-						   eventLoop.quit();
-					   }));
-		eventLoop.exec();
 		return check_update_result;
 	}
 
-	pls_upload_file_result_t pls_upload_contactus_files(const QString &email, const QString &question, const QList<QFileInfo> files) override
+	pls_upload_file_result_t pls_upload_contactus_files(PLS_CONTACTUS_QUESTION_TYPE iType, const QString &email, const QString &question, const QList<QFileInfo> files) override
 	{
 
 		pls_upload_file_result_t upload_result = pls_upload_file_result_t::Ok;
@@ -957,6 +955,54 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		request.form(PARAM_REPLY_ATTACHED_FILES, fileList, true);
 		//init the email form data
 		request.form(PARAM_REPLY_EMAIL_ADDRESS, email);
+
+		switch (iType) {
+		case PLS_CONTACTUS_QUESTION_TYPE::Error:
+			request.form(PARAM_QUESTION_TYPE, "ER");
+			break;
+		case PLS_CONTACTUS_QUESTION_TYPE::Advice:
+			request.form(PARAM_QUESTION_TYPE, "FS");
+			break;
+		case PLS_CONTACTUS_QUESTION_TYPE::Consult:
+			request.form(PARAM_QUESTION_TYPE, "UI");
+			break;
+		default:
+			request.form(PARAM_QUESTION_TYPE, "ET");
+			break;
+		}
+
+		bool isB2B = false;
+		bool isIHS = false;
+		auto platforms = PLS_PLATFORM_API->getAllPlatforms();
+		for (auto platform : platforms) {
+			if (isB2B) {
+				break;
+			}
+
+			switch (platform->getServiceType()) {
+			case PLSServiceType::ST_NCB2B:
+				isB2B = true;
+				break;
+
+			case PLSServiceType::ST_CHZZK:
+			case PLSServiceType::ST_NAVER_SHOPPING_LIVE:
+			case PLSServiceType::ST_BAND:
+			case PLSServiceType::ST_NAVERTV:
+				isIHS = true;
+				break;
+
+			default:
+				break;
+			}
+		}
+
+		if (isB2B) {
+			request.form(PARAM_SERVICE_TYPE, "B2B");
+		} else if (isIHS) {
+			request.form(PARAM_SERVICE_TYPE, "IHS");
+		} else {
+			request.form(PARAM_SERVICE_TYPE, "ETC");
+		}
 
 		//init the question forom data
 		request.form(PARAM_REPLY_QUESTION, question);
@@ -973,8 +1019,9 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 					  })
 					   .failResult([&eventLoop, &upload_result](const pls::http::Reply &reply) {
 						   QByteArray root = reply.data();
-						   QVariant codeVariant;
-						   PLSJsonDataHandler::getValueFromByteArray(root, "code", codeVariant);
+						   QJsonObject obj;
+						   pls_parse_json(obj, root);
+						   QVariant codeVariant = pls_find_attr<QVariant>(obj, "code");
 						   int code = codeVariant.toInt();
 						   upload_result = pls_upload_file_result_t::NetworkError;
 						   if (code == 1001) {
@@ -1060,7 +1107,11 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	QString pls_get_current_language() override { return QString::fromUtf8(App()->GetLocale()); }
 
 	int pls_get_actived_chat_channel_count() override { return getActivedChatChannelCount(); }
-	int pls_get_prism_live_seq() override { return PLS_PLATFORM_PRSIM->getVideoSeq(); }
+	void pls_get_prism_live_seq(int &seqHorizontal, int &seqVertical) override
+	{
+		seqHorizontal = PLS_PLATFORM_PRSIM->getVideoSeq(DualOutputType::Horizontal);
+		seqVertical = PLS_PLATFORM_PRSIM->getVideoSeq(DualOutputType::Vertical);
+	}
 	bool pls_is_create_souce_in_loading() override
 	{
 		if (main) {
@@ -1105,9 +1156,14 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 	uint pls_get_live_start_time() override { return PLSBasic::instance()->getStartTimeStamp(); }
 
-	void pls_navershopping_get_store_login_url(QWidget *widget, const std::function<void(const QString &storeLoginUrl)> &ok, const std::function<void()> &fail) override
+	void pls_navershopping_get_store_login_url(QWidget *widget, const std::function<void(const QString &storeLoginUrl)> &ok, const std::function<void(const QByteArray &)> &fail) override
 	{
 		PLSNaverShoppingLIVEAPI::getStoreLoginUrl(widget, ok, fail);
+	}
+
+	void pls_navershopping_get_error_code_message(const QByteArray &data, QString &errorCode, QString &errorMessage) override
+	{
+		PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMessage);
 	}
 
 	void pls_send_analog(AnalogType logType, const QVariantMap &info) override { PLS_PLATFORM_API->sendAnalog(logType, info); }
@@ -1259,7 +1315,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 	bool pls_is_rehearsaling() override { return PLSCHANNELS_API->isRehearsaling(); }
 
-	bool pls_get_chat_info(QString &id, QString &cookie, bool &isSinglePlatform) override
+	bool pls_get_chat_info(QString &id, int &seqHorizontal, int &seqVertical, QString &cookie, bool &isSinglePlatform) override
 	{
 		int count = pls_get_actived_chat_channel_count();
 		if (count <= 0)
@@ -1267,8 +1323,8 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		auto cookieValue = QString::fromUtf8(pls_get_prism_cookie_value());
 		if (cookieValue.isEmpty())
 			return false;
-		int seq = pls_get_prism_live_seq();
-		id = QString::number(seq);
+		pls_get_prism_live_seq(seqHorizontal, seqVertical);
+		id = QString::number(seqHorizontal);
 		cookie = cookieValue;
 		isSinglePlatform = count == 1;
 		return true;
@@ -1364,10 +1420,19 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		if (!main) {
 			return false;
 		}
-		return main->importSceneTemplate(item);
+		return main->importSceneTemplate(make_tuple(item.itemId(), item.title(), item.resourcePath(), item.versionLimit(), item.width(), item.height()));
 	}
 
-	QStringList getChannelWithChatList() override { return getChatChannelNameList(); }
+	bool pls_get_output_stream_dealy_active() override
+	{
+		if (main->outputHandler) {
+			return main->outputHandler->delayActive;
+		}
+		return false;
+	}
+
+	QStringList getChannelWithChatList(bool bAddNCPPrefix) override { return getChatChannelNameList(bAddNCPPrefix); }
+
 	bool pls_is_ncp(QString &channlName) override { return channlName == PLSLoginUserInfo::getInstance()->getNCPPlatformServiceName(); }
 
 	bool pls_is_ncp_first_login(QString &serviceName) override
@@ -1381,6 +1446,32 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	};
 
 	QString get_channel_cookie_path(const QString &channelLoginName) override { return PLSBasic::cookiePath(channelLoginName); }
+
+	bool pls_is_chzzk_checked(bool forHorizontal)
+	{
+		auto bDualOutputOn = pls_is_dual_output_on();
+
+		if (!bDualOutputOn && !forHorizontal) {
+			return false;
+		}
+
+		auto platforms = PLS_PLATFORM_ACTIVIED;
+		return any_of(platforms.begin(), platforms.end(), [=](PLSPlatformBase *platform) {
+			return (PLSServiceType::ST_CHZZK == platform->getServiceType() || platform->getChannelName() == CHZZK) && (!bDualOutputOn || platform->isHorizontalOutput() == forHorizontal);
+		});
+	}
+
+	obs_output_t *pls_frontend_get_streaming_output_v(void)
+	{
+		if (pls_is_dual_output_on()) {
+			std::lock_guard locker(obsOutputSet_v.mutex);
+			if (obsOutputSet_v.streamOutput) {
+				OBSOutput output = obsOutputSet_v.streamOutput;
+				return obs_output_get_ref(output);
+			}
+		}
+		return NULL;
+	}
 };
 
 pls_frontend_callbacks *InitializeAPIInterface(OBSBasic *main)

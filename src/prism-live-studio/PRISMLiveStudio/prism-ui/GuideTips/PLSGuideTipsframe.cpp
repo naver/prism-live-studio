@@ -8,7 +8,6 @@
 #include <QDockWidget>
 #include "frontend-api.h"
 #include <qdir.h>
-#include "json-data-handler.hpp"
 #include "PLSGuidetipsConst.h"
 #include "libui.h"
 #include "ui-config.h"
@@ -692,7 +691,7 @@ void GuideRegisterManager::load()
 	}
 	auto tipsFile = RegisterJsonPath;
 	QJsonObject obj;
-	PLSJsonDataHandler::getJsonObjFromFile(obj, tipsFile);
+	pls_read_json(obj, tipsFile);
 	if (obj.isEmpty()) {
 		return;
 	}

@@ -1,7 +1,9 @@
 #include "PLSMotionImageListView.h"
 #include "ui_PLSMotionImageListView.h"
 #include "PLSMotionFileManager.h"
-#include "PLSMotionNetwork.h"
+#include "PLSMotionDefine.h"
+#include "CategoryVirtualTemplate.h"
+#include "PLSPrismListView.h"
 #include <QButtonGroup>
 #include <QTimer>
 #include <QDebug>
@@ -26,27 +28,25 @@ PLSMotionImageListView::PLSMotionImageListView(QWidget *parent, PLSMotionViewTyp
 	}
 
 	setProperty("showHandCursor", true);
-	pls_add_css(this, {"PLSMotionImageListView", "PLSLoadingBtn", "PLSMotionErrorLayer"});
 	setCursor(Qt::ArrowCursor);
 	ui->setupUi(this);
 	ui->checkBoxMotionOff->setEnabled(false);
-	ui->prismView->setForProperties(type == PLSMotionViewType::PLSMotionPropertyView);
-	ui->freeView->setForProperties(type == PLSMotionViewType::PLSMotionPropertyView);
 	m_viewType = type;
 
 	connect(PLSMotionFileManager::instance(), &PLSMotionFileManager::checkedRemoved, this, &PLSMotionImageListView::onCheckedRemoved, Qt::QueuedConnection);
+	connect(CategoryVirtualTemplate::instance(), &CategoryVirtualTemplate::allDownloadFinished, this, &PLSMotionImageListView::onAllDownloadFinished, Qt::QueuedConnection);
+	connect(CategoryVirtualTemplate::instance(), &CategoryVirtualTemplate::resourceDownloadFinished, this, &PLSMotionImageListView::onRetryDownloadCallback, Qt::QueuedConnection);
 
 	initCheckBox();
-	initButton();
+	initCategory(type);
 	initScrollArea();
 	initCategoryIndex();
+	pls_add_css(this, {"PLSMotionImageListView", "PLSLoadingBtn", "PLSMotionErrorLayer"});
 	connect(PLSMotionFileManager::instance(), &PLSMotionFileManager::checkedRemoved, this, &PLSMotionImageListView::onCheckedRemoved, Qt::QueuedConnection);
 	connect(PLSMotionFileManager::instance(), &PLSMotionFileManager::deleteMyResources, this, &PLSMotionImageListView::deleteAllResources, Qt::DirectConnection);
 
 	if (type == PLSMotionViewType::PLSMotionDetailView) {
 		ui->recentView->getImageListView()->showBottomMargin();
-		ui->prismView->getImageListView()->showBottomMargin();
-		ui->freeView->getImageListView()->showBottomMargin();
 		ui->myView->getImageListView()->showBottomMargin();
 	} else {
 		connect(
@@ -64,51 +64,17 @@ PLSMotionImageListView::PLSMotionImageListView(QWidget *parent, PLSMotionViewTyp
 
 	QWidget *widget = pls_get_toplevel_view(this);
 	widget->installEventFilter(this);
-	//
-	//dpiHelper.notifyDpiChanged(this, [this](double, double, bool isFirstShow) {
-	//	if (isFirstShow) {
-	//		QWidget *widget = pls_get_toplevel_view(this);
-	//		widget->installEventFilter(this);
-	//	}
-	//});
 }
 
 PLSMotionImageListView::~PLSMotionImageListView()
 {
 	pls_object_remove(this);
-
-	QString key = VIRTUAL_CATEGORY_POSITION;
-	QString categoryIndex = PLSMotionFileManager::instance()->categoryIndex(VIRTUAL_CATEGORY_INDEX);
-	if (m_viewType == PLSMotionViewType::PLSMotionPropertyView) {
-		key = PROPERTY_CATEGORY_POSITION;
-		categoryIndex = PLSMotionFileManager::instance()->categoryIndex(PROPERTY_CATEGORY_INDEX);
-	}
 	pls_delete(ui);
 }
 
 PLSMotionViewType PLSMotionImageListView::viewType() const
 {
 	return m_viewType;
-}
-
-QString getCategoryString(int dataType)
-{
-	auto type = static_cast<DataType>(dataType);
-	switch (type) {
-	case DataType::UNKOWN:
-		return "unknown";
-	case DataType::PROP_RECENT:
-	case DataType::VIRTUAL_RECENT:
-		return "recent";
-	case DataType::PRISM:
-		return "prism";
-	case DataType::FREE:
-		return "free";
-	case DataType::MYLIST:
-		return "my";
-	default:
-		return "unknown";
-	}
 }
 
 static QString processResourcePath(bool prismResource, const QString &resourcePath)
@@ -132,16 +98,15 @@ static void updateCurrentClickedForTemplateSource(const MotionData &motionData)
 	obs_data_set_string(data, "method", "get_current_clicked_id");
 	pls_source_get_private_data(source, data);
 
-	const char *id = obs_data_get_string(data, "itemId");
+	const char *id = obs_data_get_string(data, MOTION_ITEM_ID_KEY.toStdString().c_str());
 	if (0 == motionData.itemId.compare(id)) {
-		bool prismResource = PLSMotionNetwork::instance()->isPrismOrFree(motionData);
+		bool prismResource = !motionData.canDelete;
 		obs_data_set_bool(data, "prism_resource", prismResource);
 		obs_data_set_string(data, "item_id", motionData.itemId.toUtf8().constData());
 		obs_data_set_int(data, "item_type", static_cast<int>(motionData.type));
 		obs_data_set_string(data, "file_path", processResourcePath(prismResource, motionData.resourcePath).toUtf8().constData());
 		obs_data_set_string(data, "image_file_path", processResourcePath(prismResource, motionData.staticImgPath).toUtf8().constData());
 		obs_data_set_string(data, "thumbnail_file_path", processResourcePath(prismResource, motionData.thumbnailPath).toUtf8().constData());
-		obs_data_set_int(data, "category_id", static_cast<int>(motionData.dataType));
 		obs_source_update(source, data);
 		obs_source_update_properties(source);
 	}
@@ -161,7 +126,7 @@ static void setCurrentClickedForTemplateSource(QString id)
 	}
 	obs_data_t *data = obs_data_create();
 	obs_data_set_string(data, "method", "set_current_clicked_id");
-	obs_data_set_string(data, "itemId", id.toUtf8().constData());
+	obs_data_set_string(data, MOTION_ITEM_ID_KEY.toStdString().c_str(), id.toUtf8().constData());
 	pls_source_set_private_data(source, data);
 	obs_data_release(data);
 }
@@ -181,7 +146,7 @@ QWidget *getTopLevelWidget()
 
 void PLSMotionImageListView::clickItemWithSendSignal(const MotionData &motionData, bool force)
 {
-	if (!force && PLSMotionNetwork::instance()->isPathEqual(m_currentMotionData, motionData)) {
+	if (!force && CategoryVirtualTemplateInstance->isPathEqual(m_currentMotionData, motionData)) {
 		return;
 	}
 
@@ -201,22 +166,14 @@ void PLSMotionImageListView::clickItemWithSendSignal(const MotionData &motionDat
 		categoryKey = PROPERTY_CATEGORY_INDEX;
 	}
 	setSelectedItem(motionData.itemId);
-	if (motionData.dataType == DataType::MYLIST) {
-		PLSMotionFileManager::instance()->saveCategoryIndex(m_buttonId, categoryKey);
-	} else if (motionData.dataType == DataType::PRISM) {
-		PLSMotionFileManager::instance()->saveCategoryIndex(m_buttonId, categoryKey);
-	} else if (motionData.dataType == DataType::FREE) {
-		PLSMotionFileManager::instance()->saveCategoryIndex(m_buttonId, categoryKey);
-	}
 
 	PLSMotionFileManager::instance()->insertMotionData(motionData, key);
 
-	setCheckBoxEnabled(motionData.type == MotionType::MOTION && PLSMotionNetwork::instance()->isPrismOrFree(motionData));
+	setCheckBoxEnabled(motionData.type == MotionType::MOTION && !motionData.canDelete);
 
 	if (isValidMotionData) {
-		emit currentResourceChanged(motionData.itemId, static_cast<int>(motionData.type), motionData.resourcePath, motionData.staticImgPath, motionData.thumbnailPath,
-					    PLSMotionNetwork::instance()->isPrismOrFree(motionData), motionData.foregroundPath, motionData.foregroundStaticImgPath,
-					    static_cast<int>(motionData.dataType));
+		emit currentResourceChanged(motionData.itemId, static_cast<int>(motionData.type), motionData.resourcePath, motionData.staticImgPath, motionData.thumbnailPath, !motionData.canDelete,
+					    motionData.foregroundPath, motionData.foregroundStaticImgPath);
 	}
 }
 
@@ -228,7 +185,8 @@ void PLSMotionImageListView::clickItemWithSendSignal(int groupIndex, int itemInd
 
 	//stackWidget choose correspond index
 	m_buttonId = groupIndex;
-	m_buttonGroup->button(groupIndex)->setChecked(true);
+	auto button = m_buttonGroup->button(groupIndex);
+	button->setChecked(true);
 	ui->stackedWidget->setCurrentIndex(groupIndex);
 
 	if (itemIndex < 0) {
@@ -243,13 +201,11 @@ void PLSMotionImageListView::clickItemWithSendSignal(int groupIndex, int itemInd
 	}
 
 	if (m_buttonId == 0) {
-		list = PLSMotionFileManager::instance()->getRecentMotionList(key);
-	} else if (m_buttonId == 1) {
-		list = PLSMotionNetwork::instance()->getPrismCacheList();
-	} else if (m_buttonId == 2) {
-		list = PLSMotionNetwork::instance()->getFreeCacheList();
-	} else if (m_buttonId == 3) {
-		list = PLSMotionFileManager::instance()->getMyMotionList();
+		list = CategoryVirtualTemplateInstance->getRecentList();
+	} else if (m_buttonId == ui->stackedWidget->count() - 1) {
+		list = CategoryVirtualTemplateInstance->getMyList();
+	} else {
+		list = CategoryVirtualTemplateInstance->getGroupList(button->property("groupId").toString());
 	}
 
 	if (itemIndex >= list.size())
@@ -266,11 +222,18 @@ void PLSMotionImageListView::setSelectedItem(const QString &itemId)
 		return;
 	}
 
-	bool prismResult = ui->prismView->setSelectedItem(itemId);
-	bool freeResult = ui->freeView->setSelectedItem(itemId);
+	bool result = false;
+	for (auto key : categoryViews.keys()) {
+		auto view = static_cast<PLSPrismListView *>(categoryViews.value(key));
+		if (!view) {
+			continue;
+		}
+		result = result || view->setSelectedItem(itemId);
+	}
+
 	bool myResult = ui->myView->setSelectedItem(itemId);
 	bool recentResult = ui->recentView->setSelectedItem(itemId);
-	if (!prismResult && !freeResult && !myResult && !recentResult) {
+	if (!myResult && !recentResult) {
 		emit setSelectedItemFailed(itemId);
 	}
 }
@@ -278,21 +241,15 @@ void PLSMotionImageListView::setSelectedItem(const QString &itemId)
 void PLSMotionImageListView::deleteItemWithSendSignal(const MotionData &motionData, bool isVbUsed, bool isSourceUsed, bool isRecent)
 {
 	QString itemId = motionData.itemId;
-	DataType dataType = motionData.dataType;
-
 	QString key;
-	if (dataType == DataType::PROP_RECENT) {
+	if (motionData.groupId == MY_STR) {
+		key = MY_FILE_LIST;
+	} else if (motionData.groupId == RECENT_STR) {
 		key = PROPERTY_RECENT_LIST;
 		ui->recentView->deleteItem(itemId);
-	} else if (dataType == DataType::VIRTUAL_RECENT) {
-		key = VIRTUAL_BACKGROUND_RECENT_LIST;
-		ui->recentView->deleteItem(itemId);
-	} else if (dataType == DataType::MYLIST) {
-		key = MY_FILE_LIST;
-		ui->myView->deleteItem(itemId);
 	}
 
-	PLSMotionFileManager::instance()->deleteMotionData(this, itemId, key, isVbUsed, isSourceUsed);
+	PLSMotionFileManager::instance()->deleteMotionData(this, motionData, key, isVbUsed, isSourceUsed);
 
 	if (!isRecent && (((m_viewType == PLSMotionViewType::PLSMotionDetailView) && isVbUsed) || ((m_viewType == PLSMotionViewType::PLSMotionPropertyView) && isSourceUsed))) {
 		clearSelectedItem();
@@ -306,8 +263,15 @@ void PLSMotionImageListView::deleteItemWithSendSignal(const MotionData &motionDa
 void PLSMotionImageListView::setItemSelectedEnabled(bool enabled)
 {
 	m_itemSelectedEnabled = enabled;
-	ui->prismView->setItemSelectedEnabled(enabled);
-	ui->freeView->setItemSelectedEnabled(enabled);
+
+	for (auto key : categoryViews.keys()) {
+		auto view = static_cast<PLSPrismListView *>(categoryViews.value(key));
+		if (!view) {
+			continue;
+		}
+		view->setItemSelectedEnabled(enabled);
+	}
+
 	ui->recentView->setItemSelectedEnabled(enabled);
 	ui->myView->setItemSelectedEnabled(enabled);
 	if (!enabled) {
@@ -318,8 +282,14 @@ void PLSMotionImageListView::setItemSelectedEnabled(bool enabled)
 void PLSMotionImageListView::clearSelectedItem()
 {
 	m_currentMotionData = MotionData();
-	ui->prismView->clearSelectedItem();
-	ui->freeView->clearSelectedItem();
+	for (auto key : categoryViews.keys()) {
+		auto view = static_cast<PLSPrismListView *>(categoryViews.value(key));
+		if (!view) {
+			continue;
+		}
+		view->clearSelectedItem();
+	}
+
 	ui->recentView->clearSelectedItem();
 	ui->myView->clearSelectedItem();
 }
@@ -336,8 +306,14 @@ void PLSMotionImageListView::setCheckBoxEnabled(bool enabled)
 
 void PLSMotionImageListView::setFilterButtonVisible(bool visible)
 {
-	ui->prismView->setFilterButtonVisible(visible);
-	ui->freeView->setFilterButtonVisible(visible);
+	for (auto key : categoryViews.keys()) {
+		auto view = static_cast<PLSPrismListView *>(categoryViews.value(key));
+		if (!view) {
+			continue;
+		}
+		view->setFilterButtonVisible(visible);
+	}
+
 	ui->recentView->setFilterButtonVisible(visible);
 	ui->myView->setFilterButtonVisible(visible);
 }
@@ -363,20 +339,30 @@ void PLSMotionImageListView::switchToSelectItem(const QString &itemId)
 		return;
 	}
 
-	bool prismResult = ui->prismView->setSelectedItem(itemId);
-	bool freeResult = ui->freeView->setSelectedItem(itemId);
+	bool result = false;
+	int buttonId = 1; // prism button
+	for (auto key : categoryViews.keys()) {
+		auto view = static_cast<PLSPrismListView *>(categoryViews.value(key));
+		if (!view) {
+			continue;
+		}
+		if (view->setSelectedItem(itemId)) {
+			buttonId = key;
+			result = true;
+		}
+	}
+
 	bool myResult = ui->myView->setSelectedItem(itemId);
 	bool recentResult = ui->recentView->setSelectedItem(itemId);
 
-	int buttonId = 1; // prism button
-	if (!prismResult && !freeResult && !myResult && !recentResult) {
+	if (!result && !myResult && !recentResult) {
 		emit setSelectedItemFailed(itemId);
-	} else if (prismResult) {
-		buttonId = 1; // prism button
-	} else if (freeResult) {
-		buttonId = 2; // free button
-	} else if (myResult) {
-		buttonId = 3; // my button
+	} else if (!result) {
+		if (myResult) {
+			buttonId = ui->stackedWidget->count() - 1; // my button
+		} else if (recentResult) {
+			buttonId = 0; // recent button
+		}
 	}
 
 	if (m_buttonId != buttonId) {
@@ -397,7 +383,7 @@ bool PLSMotionImageListView::isRecentTab(const PLSImageListView *view) const
 void PLSMotionImageListView::deleteAllResources()
 {
 	ui->myView->deleteAll();
-	QList<MotionData> myList = PLSMotionFileManager::instance()->getMyMotionList();
+	QList<MotionData> myList = CategoryVirtualTemplateInstance->getMyList();
 	QStringList idList;
 	for (const MotionData &data : myList) {
 		ui->recentView->deleteItem(data.itemId);
@@ -433,43 +419,71 @@ void PLSMotionImageListView::initCheckBox()
 	connect(ui->checkBoxMotionOff, &PLSCheckBox::clicked, this, &PLSMotionImageListView::checkState);
 }
 
-void PLSMotionImageListView::initButton()
+void PLSMotionImageListView::initCategory(PLSMotionViewType type)
 {
 	m_buttonGroup->addButton(ui->btn_recent, 0);
-	m_buttonGroup->addButton(ui->btn_prism, 1);
-	m_buttonGroup->addButton(ui->btn_free, 2);
-	m_buttonGroup->addButton(ui->btn_my, 3);
+
+	auto groups = CategoryVirtualTemplateInstance->getGroups();
+	auto index = 1;
+	for (auto group : groups) {
+		if (!group || group.isCustom()) {
+			continue;
+		}
+		auto groupId = group.groupId();
+		QPushButton *btn = pls_new<QPushButton>(this);
+		btn->setCheckable(true);
+		if (groupId == PRISM_STR) { // for css
+			btn->setObjectName("btn_prism");
+		} else if (groupId == FREE_STR) {
+			btn->setObjectName("btn_free");
+		} else {
+			btn->setText(groupId);
+			btn->setObjectName("motionCategoryBtn");
+		}
+		btn->setProperty("groupId", group.groupId());
+		pls_flush_style(btn);
+		m_buttonGroup->addButton(btn, index);
+		ui->horizontalLayout_scrollarea->insertWidget(index, btn);
+
+		auto view = pls_new<PLSPrismListView>(groupId, this);
+		view->setForProperties(type == PLSMotionViewType::PLSMotionPropertyView);
+		if (type == PLSMotionViewType::PLSMotionDetailView) {
+			view->getImageListView()->showBottomMargin();
+		}
+		ui->stackedWidget->insertWidget(index, view);
+		categoryViews.insert(index, view);
+		index++;
+	}
+
+	m_buttonGroup->addButton(ui->btn_my, index);
 	connect(m_buttonGroup, QOverload<int>::of(&QButtonGroup::idClicked), this, &PLSMotionImageListView::buttonGroupSlot);
 	m_buttonId = 0;
 }
 
 void PLSMotionImageListView::initScrollArea()
 {
-	ui->gridLayout->setAlignment(Qt::AlignTop);
+	ui->horizontalLayout_scrollarea->setAlignment(Qt::AlignTop);
 	ui->topScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	if (m_viewType == PLSMotionViewType::PLSMotionDetailView) {
-		ui->gridLayout->setHorizontalSpacing(2);
+		ui->horizontalLayout_scrollarea->setSpacing(2);
 		ui->checkBoxMotionOff->setHidden(true);
 		setFilterButtonVisible(false);
 	} else if (m_viewType == PLSMotionViewType::PLSMotionPropertyView) {
-		ui->gridLayout->setHorizontalSpacing(15);
+		ui->horizontalLayout_scrollarea->setSpacing(15);
 		setFilterButtonVisible(true);
 	}
 }
 
 void PLSMotionImageListView::initCategoryIndex()
 {
-	ui->prismView->initListView();
-	ui->freeView->initListView(true);
-
 	//load category list
 	QString key = VIRTUAL_BACKGROUND_RECENT_LIST;
 	if (m_viewType == PLSMotionViewType::PLSMotionPropertyView) {
 		key = PROPERTY_RECENT_LIST;
 	}
-	QList<MotionData> recentList = PLSMotionFileManager::instance()->getRecentMotionList(key);
+	QList<MotionData> recentList = CategoryVirtualTemplateInstance->getRecentList();
 	ui->recentView->updateMotionList(recentList);
-	QList<MotionData> myList = PLSMotionFileManager::instance()->getMyMotionList();
+	QList<MotionData> myList = CategoryVirtualTemplateInstance->getMyList();
 	ui->myView->updateMotionList(myList);
 
 	m_buttonId = 1; // default prism tab
@@ -479,16 +493,21 @@ void PLSMotionImageListView::initCategoryIndex()
 
 PLSImageListView *PLSMotionImageListView::getImageListView(int index)
 {
-	if (index == 1) {
-		return ui->prismView->getImageListView();
-	} else if (index == 2) {
-		return ui->freeView->getImageListView();
-	} else if (index == 3) {
-		return ui->myView->getImageListView();
-	} else if (index == 0) {
+	auto size = categoryViews.size();
+	if (index == 0) {
 		return ui->recentView->getImageListView();
+	} else if (index == size - 1) {
+		return ui->myView->getImageListView();
+	} else {
+		auto iter = categoryViews.find(index);
+		if (iter == categoryViews.end()) {
+			return nullptr;
+		}
+		if (auto view = static_cast<PLSPrismListView *>(iter.value()); view) {
+			return view->getImageListView();
+		}
+		return nullptr;
 	}
-	return nullptr;
 }
 
 void PLSMotionImageListView::adjustErrTipSize(QSize superSize)
@@ -515,38 +534,13 @@ void PLSMotionImageListView::onCheckedRemoved(const MotionData &md, bool isVbUse
 	}
 }
 
-void PLSMotionImageListView::onRetryDownloadClicked(const std::function<void(const MotionData &md)> &ok, const std::function<void(const MotionData &md)> &fail)
+void PLSMotionImageListView::onRetryDownloadClicked()
 {
-	downloadNotCachedCount = PLSMotionNetwork::instance()->GetResourceNotCachedCount();
-	QList<MotionData> prismMotionList = PLSMotionNetwork::instance()->getPrismCacheList();
-	for (MotionData &motion : prismMotionList) {
-		bool existed = imageItemViewExisted(motion.itemId);
-		PLSMotionFileManager::instance()->redownloadResource(motion, existed, ok, fail);
-	}
-	QList<MotionData> freeMotionList = PLSMotionNetwork::instance()->getFreeCacheList();
-	for (MotionData &motion : freeMotionList) {
-		bool existed = imageItemViewExisted(motion.itemId);
-		PLSMotionFileManager::instance()->redownloadResource(motion, existed, ok, fail);
-	}
-}
-
-void PLSMotionImageListView::onRetryDownloadFinished()
-{
-	// download not finished
-	if (reDownloadFailedCount + reDownloadSuccessCount != downloadNotCachedCount) {
+	if (pls::rsm::State::Downloading == CategoryVirtualTemplateInstance->getState()) {
 		return;
 	}
-
-	// download not failed
-	if (0 == reDownloadFailedCount) {
-		PLS_INFO(MAIN_VIRTUAL_BACKGROUND, "redownload all virtual background resources success.");
-	} else {
-		PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.title"), QTStr("virtual.resource.part.download.failed"));
-	}
-
-	reDownloadFailedCount = 0;
-	reDownloadSuccessCount = 0;
-	downloadNotCachedCount = 0;
+	retryClicked = true;
+	CategoryVirtualTemplateInstance->download();
 }
 
 void PLSMotionImageListView::clearImage() const
@@ -574,29 +568,7 @@ bool PLSMotionImageListView::RetryDownload()
 
 	if (ret == PLSAlertView::Button::Ok) {
 		clearImage();
-		onRetryDownloadClicked(
-			[pthis = QPointer<PLSMotionImageListView>(this)](const MotionData &md) {
-				updateCurrentClickedForTemplateSource(md);
-
-				if (!pthis || !pls_object_is_valid(pthis)) {
-					return;
-				}
-
-				if (pthis->m_currentMotionData.itemId == md.itemId) {
-					pthis->clickItemWithSendSignal(md, true);
-				}
-				pthis->reDownloadSuccessCount++;
-				pthis->onRetryDownloadFinished();
-			},
-			[pthis = QPointer<PLSMotionImageListView>(this)](const MotionData &md) {
-				if (!pthis || !pls_object_is_valid(pthis)) {
-					return;
-				}
-
-				pls_unused(md);
-				pthis->reDownloadFailedCount++;
-				pthis->onRetryDownloadFinished();
-			});
+		onRetryDownloadClicked();
 	}
 
 	return true;
@@ -611,6 +583,14 @@ bool PLSMotionImageListView::imageItemViewExisted(QString itemId)
 		return false;
 	}
 	return false;
+}
+
+void PLSMotionImageListView::onRetryDownloadCallback(const MotionData &md, bool update)
+{
+	if (!retryClicked) {
+		return;
+	}
+	updateCurrentClickedForTemplateSource(md);
 }
 
 void PLSMotionImageListView::buttonGroupSlot(int buttonId)
@@ -635,13 +615,24 @@ void PLSMotionImageListView::buttonGroupSlot(int buttonId)
 		key = PROPERTY_RECENT_LIST;
 	}
 	if (m_buttonId == 0) {
-		QList<MotionData> list = PLSMotionFileManager::instance()->getRecentMotionList(key);
+		QList<MotionData> list = CategoryVirtualTemplateInstance->getRecentList();
 		ui->recentView->updateMotionList(list);
-	} else if (m_buttonId == 3) {
-		QList<MotionData> list = PLSMotionFileManager::instance()->getMyMotionList();
+	} else if (m_buttonId == ui->stackedWidget->count() - 1) {
+		QList<MotionData> list = CategoryVirtualTemplateInstance->getMyList();
 		ui->myView->updateMotionList(list);
 	}
-	m_buttonGroup->button(m_buttonId)->setChecked(true);
+	auto button = m_buttonGroup->button(m_buttonId);
+	button->setChecked(true);
 	ui->stackedWidget->setCurrentIndex(m_buttonId);
 	emit clickCategoryIndex(m_buttonId);
+}
+
+void PLSMotionImageListView::onAllDownloadFinished(bool ok)
+{
+	PLS_INFO(MAIN_VIRTUAL_BACKGROUND, "download all virtual background resources : %s.", ok ? "success" : "failed");
+
+	if (!ok && retryClicked) {
+		PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), QTStr("Alert.title"), QTStr("virtual.resource.part.download.failed"));
+	}
+	retryClicked = false;
 }

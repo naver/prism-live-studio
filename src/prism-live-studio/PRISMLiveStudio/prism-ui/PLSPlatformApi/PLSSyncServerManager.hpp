@@ -35,7 +35,6 @@ private:
 	void initOpenSourceInfo();
 	void initTwitchWhipServer(const QJsonObject &policyPlatformJsonObject);
 	void initSupportedPlatforms(const QJsonObject &policyPublishJsonObject);
-	void initSupportedCodecs(const QJsonObject &policyPublishJsonObject);
 	void initWaterMark(const QJsonObject &waterMarkDefaultValueObject);
 	void initOutroPolicy(const QJsonObject &outroDefaultValueObject);
 
@@ -72,6 +71,10 @@ public:
 	const QString &getWaterMarkResLocalPath(const QString &platformName);
 	const QVariantMap &getOutroResLocalPathAndText(const QString &platformName);
 	int compareVersion(const QString &v1, const QString &v2) const;
+
+signals:
+	void libraryNeedUpdate(bool isSuccess);
+
 private slots:
 	void onReceiveLibraryNeedUpdate(bool isSucceed);
 

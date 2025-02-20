@@ -18,7 +18,6 @@ void PLSD2DGeometry::BezierCurve(ID2D1PathGeometry *pathGeometry, const PointFs 
 			pt.x = p.x;
 			pt.y = p.y;
 			pSink->AddLine(pt);
-
 		}
 
 		pSink->EndFigure(D2D1_FIGURE_END_OPEN);

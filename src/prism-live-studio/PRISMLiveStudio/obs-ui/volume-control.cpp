@@ -3,16 +3,15 @@
 #include "qt-wrappers.hpp"
 #include "obs-app.hpp"
 #include "mute-checkbox.hpp"
-#include "slider-ignorewheel.hpp"
-#include "slider-absoluteset-style.hpp"
-#include "pls-common-define.hpp"
-#include "PLSBasic.h"
+#include "absolute-slider.hpp"
+#include "source-label.hpp"
 #include <QFontDatabase>
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QLabel>
 #include <QPainter>
-#include <QStyleFactory>
+#include "pls-common-define.hpp"
+#include "PLSBasic.h"
 
 using namespace std;
 using namespace common;
@@ -293,51 +292,9 @@ void VolControl::LogVolumeChanged()
 	}
 }
 
-QString VolControl::GetName() const
-{
-	return currentDisplayName;
-}
-
-void VolControl::SetName(const QString &newName)
-{
-	currentDisplayName = newName;
-	QFontMetrics fontWidth(nameLabel->font());
-	int space = vertical ? 10 * 2 : 148;
-	if (fontWidth.horizontalAdvance(currentDisplayName) > width() - space) {
-		nameLabel->setText(fontWidth.elidedText(newName, Qt::ElideRight,
-							width() - space));
-		nameLabel->setToolTip(currentDisplayName);
-	} else {
-		nameLabel->setText(newName);
-		nameLabel->setToolTip("");
-	}
-}
-
 void VolControl::EmitConfigClicked()
 {
 	emit ConfigClicked();
-}
-
-void VolControl::MonitorStateChangeFromAdv(Qt::CheckState state)
-{
-	QSignalBlocker blocker(monitor);
-	switch (state) {
-	case Qt::Checked:
-		monitor->setChecked(true);
-		monitor->setToolTip(QTStr("audio.mixer.monitor.off"));
-
-		break;
-	case Qt::Unchecked:
-		monitor->setChecked(false);
-		monitor->setToolTip(QTStr("audio.mixer.monitor.on"));
-		break;
-	case Qt::PartiallyChecked:
-		monitor->setChecked(true);
-		monitor->setToolTip(QTStr("audio.mixer.monitor.off"));
-		break;
-	default:
-		break;
-	}
 }
 
 void VolControl::SetMeterDecayRate(qreal q)
@@ -361,19 +318,24 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 {
 	nameLabel = new QLabel();
 	volLabel = new QLabel();
-	nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-	volLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	mute = new MuteCheckBox();
+
+	volLabel->setObjectName("volLabel");
+	volLabel->setAlignment(Qt::AlignCenter);
+	
 	monitor = new PLSSwitchButton();
 	nameLabel->setObjectName("nameLabel");
-	volLabel->setObjectName("volLabel");
-
+	nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	volLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	installEventFilter(this);
-
 	setAttribute(Qt::WA_StyledBackground);
 	pls_set_css(this, {"PLSAudioMixer"});
 
 	pls_frontend_add_event_callback(VolControl::MonitorChange, this);
+
+#ifdef __APPLE__
+	mute->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+#endif
 
 	QString sourceName = obs_source_get_name(source);
 	setObjectName(sourceName);
@@ -381,10 +343,9 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 	if (showConfig) {
 		config = new QPushButton(this);
 		config->setProperty("themeID", "menuIconSmall");
-		config->setSizePolicy(QSizePolicy::Maximum,
-				      QSizePolicy::Maximum);
-		config->setMaximumSize(22, 22);
 		config->setAutoDefault(false);
+
+		config->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
 		config->setAccessibleName(
 			QTStr("VolControl.Properties").arg(sourceName));
@@ -462,7 +423,7 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 		setMinimumHeight(246);
 		setFixedWidth(120);
 	} else {
-		mainLayout->setContentsMargins(12, 3, 0, 12);
+		mainLayout->setContentsMargins(12, 4, 0, 13);
 		mainLayout->setSpacing(0);
 
 		QHBoxLayout *textLayout = new QHBoxLayout;
@@ -532,14 +493,13 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 	obs_fader_add_callback(obs_fader, OBSVolumeChanged, this);
 	obs_volmeter_add_callback(obs_volmeter, OBSVolumeLevel, this);
 
-	signal_handler_connect(obs_source_get_signal_handler(source), "mute",
-			       OBSVolumeMuted, this);
-	signal_handler_connect(obs_source_get_signal_handler(source),
-			       "audio_mixers", OBSMixersOrMonitoringChanged,
-			       this);
-	signal_handler_connect(obs_source_get_signal_handler(source),
-			       "audio_monitoring", OBSMixersOrMonitoringChanged,
-			       this);
+	sigs.emplace_back(obs_source_get_signal_handler(source), "mute",
+			  OBSVolumeMuted, this);
+	sigs.emplace_back(obs_source_get_signal_handler(source), "audio_mixers",
+			  OBSMixersOrMonitoringChanged, this);
+	sigs.emplace_back(obs_source_get_signal_handler(source),
+			  "audio_monitoring", OBSMixersOrMonitoringChanged,
+			  this);
 
 	QWidget::connect(slider, &VolumeSlider::valueChanged, this,
 			 &VolControl::SliderChanged);
@@ -554,18 +514,6 @@ VolControl::VolControl(OBSSource source_, bool showConfig, bool vertical)
 
 	obs_fader_attach_source(obs_fader, source);
 	obs_volmeter_attach_source(obs_volmeter, source);
-
-	QString styleName = slider->style()->objectName();
-	QStyle *style;
-	style = QStyleFactory::create(styleName);
-	if (!style) {
-		style = new SliderAbsoluteSetStyle();
-	} else {
-		style = new SliderAbsoluteSetStyle(style);
-	}
-
-	style->setParent(slider);
-	slider->setStyle(style);
 
 	/* Call volume changed once to init the slider position and label */
 	VolumeChanged();
@@ -588,16 +536,9 @@ VolControl::~VolControl()
 	timerDelay.stop();
 	obs_fader_remove_callback(obs_fader, OBSVolumeChanged, this);
 	obs_volmeter_remove_callback(obs_volmeter, OBSVolumeLevel, this);
-
-	signal_handler_disconnect(obs_source_get_signal_handler(source), "mute",
-				  OBSVolumeMuted, this);
-	signal_handler_disconnect(obs_source_get_signal_handler(source),
-				  "audio_mixers", OBSMixersOrMonitoringChanged,
-				  this);
-	signal_handler_disconnect(obs_source_get_signal_handler(source),
-				  "audio_monitoring",
-				  OBSMixersOrMonitoringChanged, this);
 	pls_frontend_remove_event_callback(VolControl::MonitorChange, this);
+
+	sigs.clear();
 
 	if (contextMenu)
 		contextMenu->close();
@@ -858,40 +799,6 @@ void VolControl::refreshColors()
 	volMeter->setForegroundErrorColor(volMeter->getForegroundErrorColor());
 }
 
-void VolControl::setClickState(bool clicked) 
-{
-	setProperty("pressed", clicked);
-	pls_flush_style(nameLabel);
-	pls_flush_style(volLabel);
-}
-
-void VolControl::updateMouseState(bool hover)
-{
-	setProperty("hover", hover);
-	pls_flush_style(this);
-	pls_flush_style(volMeter);
-}
-
-bool VolControl::eventFilter(QObject *watched, QEvent *e)
-{
-	if (e->type() == QEvent::Resize) {
-		if (watched == this) {
-			pls_async_call(this, [this]() {
-				pls_check_app_exiting();
-				SetName(currentDisplayName);
-			});
-			return true;
-		}
-	} else if (e->type() == QEvent::MouseMove) {
-		updateMouseState(true);
-	} else if (e->type() == QEvent::Leave) {
-		updateMouseState(false);
-	} else if (e->type() == QEvent::Enter) {
-		updateMouseState(true);
-	}
-	return QWidget::eventFilter(watched, e);
-}
-
 qreal VolumeMeter::getMinimumLevel() const
 {
 	return minimumLevel;
@@ -1054,8 +961,8 @@ VolumeMeter::VolumeMeter(QWidget *parent, obs_volmeter_t *obs_volmeter,
 
 	clipColor.setRgb(0xff, 0xff, 0xff);      // Bright white
 	magnitudeColor.setRgb(0x00, 0x00, 0x00); // Black
-	majorTickColor.setRgb(0xff, 0xff, 0xff); // Black
-	minorTickColor.setRgb(0xcc, 0xcc, 0xcc); // Black
+	majorTickColor.setRgb(0x00, 0x00, 0x00); // Black
+	minorTickColor.setRgb(0x32, 0x32, 0x32); // Dark gray
 	minimumLevel = -60.0;                    // -60 dB
 	warningLevel = -20.0;                    // -20 dB
 	errorLevel = -9.0;                       //  -9 dB
@@ -1325,14 +1232,6 @@ void VolumeMeter::paintHTicks(QPainter &painter, int x, int y, int width)
 
 		painter.drawLine(position, y, position, y + 2);
 	}
-
-	// Draw minor tick lines.
-	painter.setPen(minorTickColor);
-	for (int i = 0; i >= minimumLevel; i--) {
-		int position = int(x + width - (i * scale) - 1);
-		if (i % 5 != 0)
-			painter.drawLine(position, y, position, y + 1);
-	}
 }
 
 void VolumeMeter::paintVTicks(QPainter &painter, int x, int y, int height)
@@ -1359,14 +1258,6 @@ void VolumeMeter::paintVTicks(QPainter &painter, int x, int y, int height)
 		}
 
 		painter.drawLine(x, position, x + 2, position);
-	}
-
-	// Draw minor tick lines.
-	painter.setPen(minorTickColor);
-	for (int i = 0; i >= minimumLevel; i--) {
-		int position = y + int(i * scale) + METER_PADDING;
-		if (i % 5 != 0)
-			painter.drawLine(x, position, x + 1, position);
 	}
 }
 
@@ -1752,5 +1643,225 @@ void VolumeMeterTimer::timerEvent(QTimerEvent *)
 			// Tell paintEvent to paint only the bars
 			meter->update(meter->getBarRect());
 		}
+	}
+}
+
+VolumeSlider::VolumeSlider(obs_fader_t *fader, QWidget *parent)
+	: AbsoluteSlider(parent)
+{
+	fad = fader;
+}
+
+VolumeSlider::VolumeSlider(obs_fader_t *fader, Qt::Orientation orientation,
+			   QWidget *parent)
+	: AbsoluteSlider(orientation, parent)
+{
+	fad = fader;
+}
+
+bool VolumeSlider::getDisplayTicks() const
+{
+	return displayTicks;
+}
+
+void VolumeSlider::setDisplayTicks(bool display)
+{
+	displayTicks = display;
+}
+
+void VolumeSlider::paintEvent(QPaintEvent *event)
+{
+	if (!getDisplayTicks()) {
+		QSlider::paintEvent(event);
+		return;
+	}
+
+	QPainter painter(this);
+	QColor tickColor(91, 98, 115, 255);
+
+	obs_fader_conversion_t fader_db_to_def = obs_fader_db_to_def(fad);
+
+	QStyleOptionSlider opt;
+	initStyleOption(&opt);
+
+	QRect groove = style()->subControlRect(QStyle::CC_Slider, &opt,
+					       QStyle::SC_SliderGroove, this);
+	QRect handle = style()->subControlRect(QStyle::CC_Slider, &opt,
+					       QStyle::SC_SliderHandle, this);
+
+	if (orientation() == Qt::Horizontal) {
+		const int sliderWidth = groove.width() - handle.width();
+
+		float tickLength = groove.height() * 1.5;
+		tickLength = std::max((int)tickLength + groove.height(),
+				      8 + groove.height());
+
+		float yPos = groove.center().y() - (tickLength / 2) + 1;
+
+		for (int db = -10; db >= -90; db -= 10) {
+			float tickValue = fader_db_to_def(db);
+
+			float xPos = groove.left() + (tickValue * sliderWidth) +
+				     (handle.width() / 2);
+			painter.fillRect(xPos, yPos, 1, tickLength, tickColor);
+		}
+	}
+
+	if (orientation() == Qt::Vertical) {
+		const int sliderHeight = groove.height() - handle.height();
+
+		float tickLength = groove.width() * 1.5;
+		tickLength = std::max((int)tickLength + groove.width(),
+				      8 + groove.width());
+
+		float xPos = groove.center().x() - (tickLength / 2) + 1;
+
+		for (int db = -10; db >= -96; db -= 10) {
+			float tickValue = fader_db_to_def(db);
+
+			float yPos = groove.height() + groove.top() -
+				     (tickValue * sliderHeight) -
+				     (handle.height() / 2);
+			painter.fillRect(xPos, yPos, tickLength, 1, tickColor);
+		}
+	}
+
+	QSlider::paintEvent(event);
+}
+
+VolumeAccessibleInterface::VolumeAccessibleInterface(QWidget *w)
+	: QAccessibleWidget(w)
+{
+}
+
+VolumeSlider *VolumeAccessibleInterface::slider() const
+{
+	return qobject_cast<VolumeSlider *>(object());
+}
+
+QString VolumeAccessibleInterface::text(QAccessible::Text t) const
+{
+	if (slider()->isVisible()) {
+		switch (t) {
+		case QAccessible::Text::Value:
+			return currentValue().toString();
+		default:
+			break;
+		}
+	}
+	return QAccessibleWidget::text(t);
+}
+
+QVariant VolumeAccessibleInterface::currentValue() const
+{
+	QString text;
+	float db = obs_fader_get_db(slider()->fad);
+
+	if (db < -96.0f)
+		text = "-inf dB";
+	else
+		text = QString::number(db, 'f', 1).append(" dB");
+
+	return text;
+}
+
+void VolumeAccessibleInterface::setCurrentValue(const QVariant &value)
+{
+	slider()->setValue(value.toInt());
+}
+
+QVariant VolumeAccessibleInterface::maximumValue() const
+{
+	return slider()->maximum();
+}
+
+QVariant VolumeAccessibleInterface::minimumValue() const
+{
+	return slider()->minimum();
+}
+
+QVariant VolumeAccessibleInterface::minimumStepSize() const
+{
+	return slider()->singleStep();
+}
+
+QAccessible::Role VolumeAccessibleInterface::role() const
+{
+	return QAccessible::Role::Slider;
+}
+
+void VolControl::MonitorStateChangeFromAdv(Qt::CheckState state)
+{
+	QSignalBlocker blocker(monitor);
+	switch (state) {
+	case Qt::Checked:
+		monitor->setChecked(true);
+		monitor->setToolTip(QTStr("audio.mixer.monitor.off"));
+
+		break;
+	case Qt::Unchecked:
+		monitor->setChecked(false);
+		monitor->setToolTip(QTStr("audio.mixer.monitor.on"));
+		break;
+	case Qt::PartiallyChecked:
+		monitor->setChecked(true);
+		monitor->setToolTip(QTStr("audio.mixer.monitor.off"));
+		break;
+	default:
+		break;
+	}
+}
+
+void VolControl::setClickState(bool clicked) 
+{
+	setProperty("pressed", clicked);
+	pls_flush_style(nameLabel);
+	pls_flush_style(volLabel);
+}
+
+void VolControl::updateMouseState(bool hover)
+{
+	setProperty("hover", hover);
+	pls_flush_style(this);
+	pls_flush_style(volMeter);
+}
+
+bool VolControl::eventFilter(QObject *watched, QEvent *e)
+{
+	if (e->type() == QEvent::Resize) {
+		if (watched == this) {
+			pls_async_call(this, [this]() {
+				pls_check_app_exiting();
+				SetName(currentDisplayName);
+			});
+			return true;
+		}
+	} else if (e->type() == QEvent::MouseMove) {
+		updateMouseState(true);
+	} else if (e->type() == QEvent::Leave) {
+		updateMouseState(false);
+	} else if (e->type() == QEvent::Enter) {
+		updateMouseState(true);
+	}
+	return QWidget::eventFilter(watched, e);
+}
+
+QString VolControl::GetName() const
+{
+	return currentDisplayName;
+}
+
+void VolControl::SetName(const QString &newName)
+{
+	currentDisplayName = newName;
+	QFontMetrics fontWidth(nameLabel->font());
+	int space = vertical ? 10 * 2 : 148;
+	if (fontWidth.horizontalAdvance(currentDisplayName) > width() - space) {
+		nameLabel->setText(fontWidth.elidedText(newName, Qt::ElideRight,
+							width() - space));
+		nameLabel->setToolTip(currentDisplayName);
+	} else {
+		nameLabel->setText(newName);
+		nameLabel->setToolTip("");
 	}
 }
