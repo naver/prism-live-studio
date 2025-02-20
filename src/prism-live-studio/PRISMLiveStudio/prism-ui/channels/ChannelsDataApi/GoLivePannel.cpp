@@ -37,7 +37,13 @@ GoLivePannel::GoLivePannel(QWidget *parent) : QFrame(parent), ui(new Ui::GoLiveP
 	});
 
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStartBroadcast, ui->GoLiveShift, [this]() { toggleBroadcast(true); });
-	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStopBroadcast, ui->GoLiveShift, [this]() { toggleBroadcast(false); });
+	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStopBroadcast, ui->GoLiveShift, [this](DualOutputType type) {
+		if (type == DualOutputType::All) {
+			toggleBroadcast(false);
+		} else {
+			PLSBasic::instance()->StopStreaming(type);
+		}
+	});
 
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStartRecord, ui->Record, [this]() { toggleRecord(true); });
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStopRecord, ui->Record, [this]() { toggleRecord(false); });
@@ -146,6 +152,8 @@ void GoLivePannel::toggleRecord(bool isStart)
 
 void GoLivePannel::updateRecordButton(int state)
 {
+	QString msg = QString(" try to update RECButton ,now state is %1 ").arg(RecordStatesMap[state]);
+	PRE_LOG_MSG_STEP(QString(msg), g_recordStep, INFO);
 	switch (state) {
 	case RecordStarted:
 		if (!ui->Record->isChecked()) {
@@ -201,6 +209,10 @@ bool GoLivePannel::confirmToContinue() const
 	//only check naver shopping
 	auto selected = PLSCHANNELS_API->getCurrentSelectedPlatformChannels(NAVER_SHOPPING_LIVE, NoType);
 	if (selected.isEmpty()) {
+		return true;
+	}
+
+	if (PLS_PLATFORM_API->getLiveEndType() == EndLiveType::MQTT_END_LIVE) {
 		return true;
 	}
 	auto islastMuted = pls_mixer_is_all_mute();
@@ -267,6 +279,21 @@ void GoLivePannel::toggleBroadcast(bool toStart)
 	HolderReleaser holder(&GoLivePannel::setEnteredGolive, this);
 
 	int state = PLSCHANNELS_API->currentBroadcastState();
+
+	if (state == StreamStopping) {
+		auto ret = PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(NeedForceStop),
+						  {{PLSAlertView::Button::Yes, QObject::tr("OK")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
+		ui->GoLiveShift->setDisabled(false);
+
+		if (ret == PLSAlertView::Button::Yes && PLSCHANNELS_API->currentBroadcastState() == StreamStopping) {
+			PLSBasic::instance()->ForceStopStreaming();
+			QSignalBlocker blocker(ui->GoLiveShift);
+			auto bCheck = ui->GoLiveShift->isChecked();
+			ui->GoLiveShift->setChecked(!bCheck);
+		}
+		return;
+	}
+
 	// to end
 	if (!toStart && !confirmToContinue()) {
 		//issue3760 navershopping click the finsh button to end end,wait 10s,BroadcastState maybe modify when mqtt force end
@@ -335,8 +362,11 @@ void GoLivePannel::updateGoliveButton(int state)
 	case StreamStarting:
 	case StopBroadcastGo:
 	case CanBroadcastStop:
-	case StreamStopping:
 		ui->GoLiveShift->setDisabled(true);
+		emit PLSMainView::instance()->onGolivePending(true);
+		break;
+	case StreamStopping:
+		ui->GoLiveShift->setDisabled(false);
 		emit PLSMainView::instance()->onGolivePending(true);
 		break;
 	default:

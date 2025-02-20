@@ -14,6 +14,7 @@ struct PLSSceneCollectionData {
 	bool delButtonDisable = false;
 	bool current = false;
 	bool textMode = false;
+	bool enter = false;
 };
 Q_DECLARE_METATYPE(PLSSceneCollectionData)
 
@@ -61,6 +62,7 @@ private:
 	void SetMouseStatus(const char *status);
 	void SetButtonVisible(bool visible);
 	void SetCurrentStyles(bool current);
+	void SetEnterStyles(bool enter);
 	int GetButtonWidth();
 	void SetLeftRightMargin();
 	void DrawDropLine(QPainter *painter);
@@ -71,6 +73,7 @@ signals:
 	void renameClicked(const QString &name, const QString &path);
 	void duplicateClicked(const QString &name, const QString &path);
 	void deleteClicked(const QString &name, const QString &path);
+	void triggerEnterEvent(const QString &name, const QString &path);
 
 private:
 	Ui::PLSSceneCollectionItem *ui;
@@ -86,6 +89,7 @@ private:
 	int rightMargin{0};
 	int nameRealWidth{0};
 	bool advMenuShow{false};
+	bool enter = false;
 };
 
 #endif // PLSSCENECOLLECTIONITEM_H

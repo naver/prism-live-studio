@@ -2,6 +2,7 @@
 #define PLSSCENETEMPLATEBORDERLABEL_H
 
 #include <QLabel>
+#include <QPixmap>
 
 namespace Ui {
 class PLSSceneTemplateBorderLabel;
@@ -16,6 +17,8 @@ public:
     ~PLSSceneTemplateBorderLabel();
     void setHasBorder(bool hasBorder);
     void setSceneNameLabel(const QString& sceneName);
+
+    void showAIBadge(const QPixmap &pixmap, bool bLongAIBadge);
 
 private:
     Ui::PLSSceneTemplateBorderLabel *ui;

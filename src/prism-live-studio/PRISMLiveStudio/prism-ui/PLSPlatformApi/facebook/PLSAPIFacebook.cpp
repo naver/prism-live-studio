@@ -11,7 +11,6 @@
 #include "PLSAPICommon.h"
 #include "pls-common-define.hpp"
 #include "frontend-api.h"
-#include "json-data-handler.hpp"
 #include "pls-gpop-data-struct.hpp"
 #include "liblog.h"
 
@@ -55,12 +54,12 @@ void PLSAPIFacebook::getLongLiveUserAccessToken(const GetLongAccessTokenCallback
 		QString log = QString("get long time access token is %1").arg(accessToken.length() > 0 ? "success" : "false");
 		printRequestSuccessLog(requestType, log);
 		if (accessToken.length() > 0) {
-			onFinished(PLSAPIFacebookType::PLSFacebookSuccess, accessToken);
+			onFinished(makeRetData(PLSErrorHandler::SUCCESS), accessToken);
 			return;
 		}
-		onFinished(PLSAPIFacebookType::PLSFacebookFailed, QString());
+		onFinished(PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE, FACEBOOK, QString()), QString());
 	};
-	auto failCallBack = [onFinished](PLSAPIFacebookType type) { onFinished(type, QString()); };
+	auto failCallBack = [onFinished](const PLSErrorHandler::RetData &retData) { onFinished(retData, QString()); };
 	printRequestStartLog(requestType, url);
 	startRequestApi(requestType, request, successCallBack, failCallBack);
 }
@@ -78,10 +77,9 @@ void PLSAPIFacebook::getUserInfo(const GetUserInfoCallback &onFinished)
 
 	auto successCallBack = [onFinished, this, requestType](QJsonObject root) {
 		QString username = root.value(name2str(name)).toString();
-		QVariant url_;
-		PLSJsonDataHandler::getValue(root, name2str(url), url_);
+		auto url_ = pls_get_attr<QString>(root, name2str(url));
 		QString imagePath;
-		downloadSyncImage(url_.toString(), imagePath);
+		downloadSyncImage(url_, imagePath);
 		pls_check_app_exiting();
 		if (imagePath.length() > 0) {
 			QString originPath = PLS_PLATFORM_FACEBOOK->getSrcInfo().value(ChannelData::g_userIconCachePath).toString();
@@ -92,9 +90,9 @@ void PLSAPIFacebook::getUserInfo(const GetUserInfoCallback &onFinished)
 		QString userId = root.value(name2str(id)).toString();
 		QString log = QString("download the user avatar is succeed %1").arg(BOOL2STR(!imagePath.isEmpty()));
 		printRequestSuccessLog(requestType, log);
-		onFinished(PLSAPIFacebookType::PLSFacebookSuccess, username, imagePath, userId);
+		onFinished(makeRetData(PLSErrorHandler::SUCCESS), username, imagePath, userId);
 	};
-	auto failCallBack = [onFinished](PLSAPIFacebookType type) { onFinished(type, QString(), QString(), QString()); };
+	auto failCallBack = [onFinished](const PLSErrorHandler::RetData &retData) { onFinished(retData, QString(), QString(), QString()); };
 	printRequestStartLog(requestType, url);
 	startRequestApi(requestType, request, successCallBack, failCallBack);
 }
@@ -110,13 +108,13 @@ void PLSAPIFacebook::checkPermission(PLSAPI requestType, QStringList permissionL
 
 	printRequestStartLog(requestType, url);
 	auto successCallBack = [onFinished, permissionList, parent, requestType, this](QJsonObject root) {
-		PLSAPIFacebookType apiType = checkPermissionSuccess(root, permissionList, requestType, parent);
-		onFinished(apiType);
+		auto retData = checkPermissionSuccess(root, permissionList, requestType, parent);
+		onFinished(retData);
 	};
 	startRequestApi(requestType, request, successCallBack, onFinished);
 }
 
-PLSAPIFacebookType PLSAPIFacebook::checkPermissionSuccess(const QJsonObject &root, const QStringList &permissionList, PLSAPIFacebook::PLSAPI requestType, QWidget *parent) const
+PLSErrorHandler::RetData PLSAPIFacebook::checkPermissionSuccess(const QJsonObject &root, const QStringList &permissionList, PLSAPIFacebook::PLSAPI requestType, QWidget *parent) const
 {
 	QList<QString> grantedPermissionList;
 	QList<QString> allPermissionList;
@@ -134,26 +132,26 @@ PLSAPIFacebookType PLSAPIFacebook::checkPermissionSuccess(const QJsonObject &roo
 	    intersection.size() == permissionList.size()) {
 		PLS_INFO(facebookMoudule, "PLSAPIFacebook %s Include requested permissions, authorized permissions: [%s], requested permissions: [%s], all permissions: [%s]", getApiName(requestType),
 			 grantedPermissionList.join(",").toStdString().c_str(), permissionList.join(",").toStdString().c_str(), allPermissionList.join(",").toStdString().c_str());
-		return PLSAPIFacebookType::PLSFacebookGranted;
+		return makeRetData(PLSErrorHandler::SUCCESS);
 	}
 	if (bool granted = goFacebookRequestPermission(permissionList, parent); granted) {
 		PLS_INFO(facebookMoudule, "PLSAPIFacebook %s Go to the Facebook window to re-authorize successfully, authorized permissions: [%s], requested permissions: [%s], all permissions: [%s]",
 			 getApiName(requestType), grantedPermissionList.join(",").toStdString().c_str(), permissionList.join(",").toStdString().c_str(),
 			 allPermissionList.join(",").toStdString().c_str());
-		return PLSAPIFacebookType::PLSFacebookGranted;
+		return makeRetData(PLSErrorHandler::SUCCESS);
 	}
 	PLS_INFO(facebookMoudule, "PLSAPIFacebook %s Go to Facebook window to re-authorize failed", getApiName(requestType));
-	return PLSAPIFacebookType::PLSFacebookDeclined;
+	return PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::CHANNEL_FACEBOOK_DECLINED, FACEBOOK, QString());
 }
 
 void PLSAPIFacebook::getMyGroupListRequestAndCheckPermission(const GetMyGroupListCallback &onFinished, QWidget *parent)
 {
-	auto finished = [onFinished, this](PLSAPIFacebookType type) {
-		if (type == PLSAPIFacebookType::PLSFacebookGranted) {
+	auto finished = [onFinished, this](const PLSErrorHandler::RetData &retData) {
+		if (retData.prismCode == PLSErrorHandler::SUCCESS) {
 			getMyGroupListRequest(onFinished);
 			return;
 		}
-		onFinished(type, QList<FacebookGroupInfo>());
+		onFinished(retData, QList<FacebookGroupInfo>());
 	};
 	QStringList permissionList;
 	permissionList << group_living_permission;
@@ -182,20 +180,20 @@ void PLSAPIFacebook::getMyGroupListRequest(const GetMyGroupListCallback &onFinis
 		}
 		QString log = QString("get my group count is %1").arg(list.size());
 		printRequestSuccessLog(requestType, log);
-		onFinished(PLSAPIFacebookType::PLSFacebookSuccess, list);
+		onFinished(makeRetData(PLSErrorHandler::SUCCESS), list);
 	};
-	auto failCallBack = [onFinished](PLSAPIFacebookType type) { onFinished(type, QList<FacebookGroupInfo>()); };
+	auto failCallBack = [onFinished](const PLSErrorHandler::RetData &retData) { onFinished(retData, QList<FacebookGroupInfo>()); };
 	startRequestApi(requestType, request, successCallBack, failCallBack);
 }
 
 void PLSAPIFacebook::getMyPageListRequestAndCheckPermission(const GetMyPageListCallback &onFinished, QWidget *parent)
 {
-	auto finished = [onFinished, this](PLSAPIFacebookType type) {
-		if (type == PLSAPIFacebookType::PLSFacebookGranted) {
+	auto finished = [onFinished, this](const PLSErrorHandler::RetData &retData) {
+		if (retData.prismCode == PLSErrorHandler::SUCCESS) {
 			getMyPageListRequest(onFinished);
 			return;
 		}
-		onFinished(type, QList<FacebookPageInfo>());
+		onFinished(retData, QList<FacebookPageInfo>());
 	};
 	QStringList permissionList;
 	permissionList << page_show_list_permission;
@@ -224,9 +222,9 @@ void PLSAPIFacebook::getMyPageListRequest(const GetMyPageListCallback &onFinishe
 		}
 		QString log = QString("get my page count is %1").arg(list.size());
 		printRequestSuccessLog(requestType, log);
-		onFinished(PLSAPIFacebookType::PLSFacebookSuccess, list);
+		onFinished(makeRetData(PLSErrorHandler::SUCCESS), list);
 	};
-	auto failCallBack = [onFinished](PLSAPIFacebookType type) { onFinished(type, QList<FacebookPageInfo>()); };
+	auto failCallBack = [onFinished](const PLSErrorHandler::RetData &retData) { onFinished(retData, QList<FacebookPageInfo>()); };
 	startRequestApi(requestType, request, successCallBack, failCallBack);
 }
 
@@ -253,9 +251,9 @@ void PLSAPIFacebook::searchGameTagListByKeyword(const GetMyGameListCallback &onF
 		}
 		QString log = QString("get search game count is %1").arg(list.size());
 		printRequestSuccessLog(requestType, log);
-		onFinished(PLSAPIFacebookType::PLSFacebookSuccess, list);
+		onFinished(makeRetData(PLSErrorHandler::SUCCESS), list);
 	};
-	auto failCallBack = [onFinished](PLSAPIFacebookType type) { onFinished(type, QList<FacebookGameInfo>()); };
+	auto failCallBack = [onFinished](const PLSErrorHandler::RetData &retData) { onFinished(retData, QList<FacebookGameInfo>()); };
 	startRequestApi(requestType, request, successCallBack, failCallBack);
 }
 
@@ -284,9 +282,9 @@ void PLSAPIFacebook::startLiving(PLSAPI requestType, const QString &itemId, cons
 		getFacebookShareLink(root, shareLink);
 		QString log = QString("liveId: %1, videoId: %2").arg(liveId).arg(videoId);
 		printRequestSuccessLog(requestType, log);
-		onFinished(PLSAPIFacebookType::PLSFacebookSuccess, streamURL, liveId, videoId, shareLink);
+		onFinished(makeRetData(PLSErrorHandler::SUCCESS), streamURL, liveId, videoId, shareLink);
 	};
-	auto failedFunction = [onFinished](PLSAPIFacebookType type) { onFinished(type, "", "", "", ""); };
+	auto failedFunction = [onFinished](const PLSErrorHandler::RetData &retData) { onFinished(retData, "", "", "", ""); };
 	QString log = QString("first name is %1, second name is %2, title is %3, description is %4, privacy is %5, gameName is %6")
 			      .arg(prepareInfo.firstObjectName)
 			      .arg(prepareInfo.secondObjectName)
@@ -335,15 +333,14 @@ void PLSAPIFacebook::getFacebookItemUserInfo(const QString &itemId, const ItemIn
 	printRequestStartLog(requestType, url);
 	auto successFunction = [onFinished, this, requestType](QJsonObject root) {
 		QString name = root.value(name2str(name)).toString();
-		QVariant url_;
-		PLSJsonDataHandler::getValue(root, name2str(url), url_);
+		auto url_ = pls_get_attr<QString>(root, name2str(url));
 		QString imagePath;
-		downloadSyncImage(url_.toString(), imagePath);
+		downloadSyncImage(url_, imagePath);
 		QString log = QString("title: %1, download image is succeed: %2").arg(name).arg(!imagePath.isEmpty());
 		printRequestSuccessLog(requestType, log);
-		onFinished(PLSAPIFacebookType::PLSFacebookSuccess, name, imagePath);
+		onFinished(makeRetData(PLSErrorHandler::SUCCESS), name, imagePath);
 	};
-	auto failedFunction = [onFinished](PLSAPIFacebookType type) { onFinished(type, "", ""); };
+	auto failedFunction = [onFinished](const PLSErrorHandler::RetData &retData) { onFinished(retData, "", ""); };
 	startRequestApi(requestType, request, successFunction, failedFunction);
 }
 
@@ -364,9 +361,9 @@ void PLSAPIFacebook::getLiveVideoTitleDesRequest(const QString &liveVideoId, con
 		QString des = root.value(name2str(description)).toString();
 		QString log = QString("title is %1, description is %2").arg(title.length() > 0 ? title : "empty").arg(des);
 		printRequestSuccessLog(requestType, log);
-		onFinished(PLSAPIFacebookType::PLSFacebookSuccess, title, des);
+		onFinished(makeRetData(PLSErrorHandler::SUCCESS), title, des);
 	};
-	auto failedFunction = [onFinished](PLSAPIFacebookType type) { onFinished(type, "", ""); };
+	auto failedFunction = [onFinished](const PLSErrorHandler::RetData &retData) { onFinished(retData, "", ""); };
 	startRequestApi(requestType, request, successFunction, failedFunction);
 }
 
@@ -395,9 +392,9 @@ void PLSAPIFacebook::getTimelinePrivacyRequest(const QString &videoId, const Tim
 			QString log = QString(" privacy:%1").arg(privacyValue);
 			printRequestSuccessLog(requestType, log);
 		}
-		onFinished(PLSAPIFacebookType::PLSFacebookSuccess, privacyId);
+		onFinished(makeRetData(PLSErrorHandler::SUCCESS), privacyId);
 	};
-	auto failedFunction = [onFinished](PLSAPIFacebookType type) { onFinished(type, ""); };
+	auto failedFunction = [onFinished](const PLSErrorHandler::RetData &retData) { onFinished(retData, ""); };
 	startRequestApi(requestType, request, successFunction, failedFunction);
 }
 
@@ -428,7 +425,7 @@ void PLSAPIFacebook::updateFacebookLiving(const QString &liveVideoId, const QStr
 	printRequestStartLog(requestType, url, log);
 	auto successFunction = [onFinished, this, requestType](QJsonObject) {
 		printRequestSuccessLog(requestType);
-		onFinished(PLSAPIFacebookType::PLSFacebookSuccess);
+		onFinished(makeRetData(PLSErrorHandler::SUCCESS));
 	};
 	startRequestApi(requestType, request, successFunction, onFinished);
 }
@@ -449,11 +446,11 @@ void PLSAPIFacebook::stopFacebookLiving(const QString &liveVideoId, const MyRequ
 	request.withLog();
 	request.okResult([requestType, onFinished, this](const pls::http::Reply &) {
 		       printRequestSuccessLog(requestType);
-		       onFinished(PLSAPIFacebookType::PLSFacebookSuccess);
+		       onFinished(makeRetData(PLSErrorHandler::SUCCESS));
 	       })
 		.failResult([onFinished, this, requestType](const pls::http::Reply &reply) {
-			PLSAPIFacebookType errorType = handleApiErrorCode(requestType, reply.statusCode(), reply.data(), reply.error());
-			onFinished(errorType);
+			auto retData = handleApiErrorCode(requestType, reply.statusCode(), reply.data(), reply.error());
+			onFinished(retData);
 		})
 		.timeout(PRISM_NET_REQUEST_TIMEOUT);
 	pls::http::request(request);
@@ -488,7 +485,7 @@ QUrl PLSAPIFacebook::getPermissionRequestUrl(const QString &permission) const
 
 bool PLSAPIFacebook::goFacebookRequestPermission(const QStringList &permissionList, QWidget *parent) const
 {
-	auto check = [this, permissionList](const QJsonObject &, const QString &url, const QMap<QString, QString> &) {
+	auto check = [this, permissionList](const QVariantHash &, const QString &url, const QMap<QString, QString> &) {
 		if (!url.startsWith(CHANNEL_FACEBOOK_REDIRECTURL)) {
 			return PLSResultCheckingResult::Continue;
 		}
@@ -498,7 +495,7 @@ bool PLSAPIFacebook::goFacebookRequestPermission(const QStringList &permissionLi
 		return PLSResultCheckingResult::Close;
 	};
 
-	QJsonObject result;
+	QVariantHash result;
 	QUrl url = getPermissionRequestUrl(permissionList.join(","));
 	bool bResult = pls_browser_view(result, url, {}, FACEBOOK, check, parent);
 	return bResult;
@@ -515,14 +512,15 @@ void PLSAPIFacebook::startRequestApi(PLSAPI requestType, const pls::http::Reques
 	} else {
 		request.receiver(App()->getMainView());
 	}
-	request.okResult([requestType, successFunction, failedFunction, this](const pls::http::Reply &reply) {
+	request.id(QStringLiteral("Facebook"))
+		.okResult([requestType, successFunction, failedFunction, this](const pls::http::Reply &reply) {
 		       if (pls_get_app_exiting()) {
 			       return;
 		       }
 		       auto doc = QJsonDocument::fromJson(reply.data());
 		       if (!doc.isObject()) {
 			       PLS_ERROR(facebookMoudule, "PLSAPIFacebook %s is not object", getApiName(requestType));
-			       failedFunction(PLSAPIFacebookType::PLSFacebookNotObject);
+			       failedFunction(PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE, FACEBOOK, QString()));
 			       return;
 		       }
 		       m_reply.take(requestType);
@@ -537,8 +535,8 @@ void PLSAPIFacebook::startRequestApi(PLSAPI requestType, const pls::http::Reques
 				return;
 			}
 			m_reply.take(requestType);
-			PLSAPIFacebookType errorType = handleApiErrorCode(requestType, reply.statusCode(), reply.data(), reply.error());
-			failedFunction(errorType);
+			auto retData = handleApiErrorCode(requestType, reply.statusCode(), reply.data(), reply.error());
+			failedFunction(retData);
 		})
 		.timeout(PRISM_NET_REQUEST_TIMEOUT)
 		.withLog()
@@ -569,61 +567,27 @@ bool PLSAPIFacebook::containsRequestPermissionList(const QString &url, const QSt
 	return containsPermission;
 }
 
-PLSAPIFacebookType PLSAPIFacebook::handleApiErrorCode(PLSAPI requestType, int statusCode, QByteArray data, QNetworkReply::NetworkError error) const
+PLSErrorHandler::RetData PLSAPIFacebook::handleApiErrorCode(PLSAPI requestType, int statusCode, QByteArray data, QNetworkReply::NetworkError error) const
 {
-	auto doc = QJsonDocument::fromJson(data);
-	QJsonObject root = doc.object();
+	PLSErrorHandler::ExtraData extraData;
 
-	QVariant codeVariant;
-	PLSJsonDataHandler::getValue(root, name2str(code), codeVariant);
-	int code = codeVariant.toInt();
-
-	QVariant messageVariant;
-	PLSJsonDataHandler::getValue(root, name2str(message), messageVariant);
-	QString message = messageVariant.toString();
-
-	QVariant typeVariant;
-	PLSJsonDataHandler::getValue(root, name2str(type), typeVariant);
-	QString type = typeVariant.toString();
-
-	QVariant errorSubcodeVariant;
-	PLSJsonDataHandler::getValue(root, name2str(error_subcode), errorSubcodeVariant);
-	int error_subcode = errorSubcodeVariant.toInt();
-
-	if (message.length() > 0) {
-		PLS_ERROR(facebookMoudule, "PLSAPIFacebook %s request failed code = %d , error_subcode = %d , type = %s, message = %s", getApiName(requestType), code, error_subcode,
-			  type.toUtf8().constData(), message.toUtf8().constData());
-	} else {
-		if (error == QNetworkReply::OperationCanceledError) {
-			PLS_ERROR(facebookMoudule, "PLSAPIFacebook %s request failed because cancel network request", getApiName(requestType));
-		} else {
-			PLS_ERROR(facebookMoudule, "PLSAPIFacebook %s request failed because network error: %d, code=%d, error_subcode=%d", getApiName(requestType), error, code, error_subcode);
-		}
+	QString strRequestType;
+	switch (requestType)
+	{
+	case PLSAPIStartTimelineLiving:
+	case PLSAPIStartGroupLiving:
+	case PLSAPIStartPageLiving:
+		strRequestType = "StartLiving";
+		break;
+	case PLSAPIUpdateFacebookLiving:
+		strRequestType = "UpdatLiving";
+		break;
+	default:
+		break;
 	}
-	//group manager permission and install app permission
-	if (code == 200) {
-		switch (error_subcode) {
-		case 1363120:
-			return PLSAPIFacebookType::PLSFacebookDeclined_60Days;
-		case 1363144:
-			return PLSAPIFacebookType::PLSFacebookDeclined_100Followers;
-		default:
-			return PLSAPIFacebookType::PLSFacebookDeclined;
-		}
-	} else if (code == 190) {
-		//page living access token invalid or page delete(This Page access token belongs to a Page that has been deleted.)
-		if (requestType == PLSAPI::PLSAPIStartPageLiving) {
-			return PLSAPIFacebookType::PLSFacebookObjectDontExist;
-		}
-		return PLSAPIFacebookType::PLSFacebookInvalidAccessToken;
-	} else if (code == 100) {
-		//group delete(Unsupported post request. Object with ID 'xxxx' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https://developers.facebook.com/docs/graph-api)
-		return PLSAPIFacebookType::PLSFacebookObjectDontExist;
-	}
-	if (statusCode == 0 && error > QNetworkReply::NoError && error <= QNetworkReply::UnknownNetworkError) {
-		return PLSAPIFacebookType::PLSFacebookNetworkError;
-	}
-	return PLSAPIFacebookType::PLSFacebookFailed;
+	extraData.pathValueMap = {{"requestType", strRequestType}};
+
+	return PLSErrorHandler::getAlertString({statusCode, error, data}, FACEBOOK, customErrorUpdateLiveinfoFailed(), extraData);
 }
 
 const char *PLSAPIFacebook::getApiName(PLSAPI requestType) const
@@ -652,11 +616,17 @@ void PLSAPIFacebook::printRequestSuccessLog(PLSAPI requestType, const QString &l
 
 FacebookGroupInfo::FacebookGroupInfo(const QJsonObject &object) : groupId(JSON_getString(object, id)), groupName(JSON_getString(object, name))
 {
-	QVariant url;
-	PLSJsonDataHandler::getValue(object, name2str(url), url);
-	groupCover = url.toString();
+	groupCover = pls_get_attr<QString>(object, name2str(url));
 }
 
 FacebookPageInfo::FacebookPageInfo(const QJsonObject &object) : pageId(JSON_getString(object, id)), pageName(JSON_getString(object, name)), pageAccessToken(JSON_getString(object, access_token)) {}
 
 FacebookGameInfo::FacebookGameInfo(const QJsonObject &object) : gameId(JSON_getString(object, id)), gameName(JSON_getString(object, name)) {}
+
+PLSErrorHandler::RetData PLSAPIFacebook::makeRetData(PLSErrorHandler::ErrCode prismCode)
+{
+	PLSErrorHandler::RetData data;
+	data.prismCode = prismCode;
+
+	return data;
+}

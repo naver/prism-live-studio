@@ -25,7 +25,7 @@
   <property name="windowTitle">
    <string>Settings</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout">
    <property name="spacing">
     <number>0</number>
    </property>
@@ -80,7 +80,7 @@
         <number>1</number>
        </property>
        <property name="currentRow">
-        <number>0</number>
+        <number>-1</number>
        </property>
        <item>
         <property name="text">
@@ -164,7 +164,7 @@
       </widget>
      </item>
      <item>
-      <layout class="QVBoxLayout" name="verticalLayout_31" stretch="1,0">
+      <layout class="QVBoxLayout" stretch="1,0">
        <property name="spacing">
         <number>0</number>
        </property>
@@ -212,8 +212,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>766</width>
-                <height>1399</height>
+                <width>769</width>
+                <height>1501</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_19">
@@ -251,52 +251,6 @@
                    <number>0</number>
                   </property>
                   <item>
-                   <widget class="QGroupBox" name="groupBox_8">
-                    <property name="title">
-                     <string>setting.account.text.title</string>
-                    </property>
-                    <layout class="QFormLayout" name="formLayout_15">
-                     <property name="horizontalSpacing">
-                      <number>0</number>
-                     </property>
-                     <property name="verticalSpacing">
-                      <number>0</number>
-                     </property>
-                     <property name="leftMargin">
-                      <number>0</number>
-                     </property>
-                     <property name="topMargin">
-                      <number>0</number>
-                     </property>
-                     <property name="rightMargin">
-                      <number>0</number>
-                     </property>
-                     <property name="bottomMargin">
-                      <number>0</number>
-                     </property>
-                     <item row="0" column="0" colspan="2">
-                      <widget class="PLSSettingGeneralView" name="accountView" native="true">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="minimumSize">
-                        <size>
-                         <width>0</width>
-                         <height>0</height>
-                        </size>
-                       </property>
-                       <property name="styleSheet">
-                        <string notr="true"/>
-                       </property>
-                      </widget>
-                     </item>
-                    </layout>
-                   </widget>
-                  </item>
-                  <item>
                    <widget class="QGroupBox" name="groupBox_15">
                     <property name="title">
                      <string>Basic.Settings.General</string>
@@ -314,7 +268,7 @@
                      <property name="topMargin">
                       <number>2</number>
                      </property>
-                     <item row="1" column="0">
+                     <item row="0" column="0">
                       <widget class="QLabel" name="label">
                        <property name="text">
                         <string>Basic.Settings.General.Language</string>
@@ -327,26 +281,26 @@
                        </property>
                       </widget>
                      </item>
-                     <item row="1" column="1">
+                     <item row="0" column="1">
                       <widget class="PLSComboBox" name="language"/>
                      </item>
-                     <item row="2" column="0">
-                      <widget class="QLabel" name="label_42">
-                       <property name="text">
-                        <string>Basic.Settings.General.Theme</string>
+                     <item row="1" column="0">
+                      <spacer name="horizontalSpacer_3">
+                       <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
                        </property>
-                       <property name="buddy">
-                        <cstring>theme</cstring>
+                       <property name="sizeType">
+                        <enum>QSizePolicy::Fixed</enum>
                        </property>
-                       <property name="useFor" stdset="0">
-                        <string notr="true">FormLabelRole</string>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>133</width>
+                         <height>5</height>
+                        </size>
                        </property>
-                      </widget>
+                      </spacer>
                      </item>
-                     <item row="2" column="1">
-                      <widget class="PLSComboBox" name="theme"/>
-                     </item>
-                     <item row="4" column="1">
+                     <item row="1" column="1">
                       <layout class="QVBoxLayout" name="verticalLayout_32">
                        <property name="spacing">
                         <number>0</number>
@@ -366,23 +320,7 @@
                        </item>
                       </layout>
                      </item>
-                     <item row="5" column="0">
-                      <spacer name="horizontalSpacer_3">
-                       <property name="orientation">
-                        <enum>Qt::Horizontal</enum>
-                       </property>
-                       <property name="sizeType">
-                        <enum>QSizePolicy::Fixed</enum>
-                       </property>
-                       <property name="sizeHint" stdset="0">
-                        <size>
-                         <width>133</width>
-                         <height>5</height>
-                        </size>
-                       </property>
-                      </spacer>
-                     </item>
-                     <item row="5" column="1">
+                     <item row="2" column="1">
                       <layout class="QVBoxLayout" name="verticalLayout_43">
                        <property name="spacing">
                         <number>0</number>
@@ -454,7 +392,7 @@
                       </spacer>
                      </item>
                      <item row="1" column="1">
-                      <layout class="QVBoxLayout" name="verticalLayout_33">
+                      <layout class="QVBoxLayout">
                        <property name="spacing">
                         <number>0</number>
                        </property>
@@ -487,7 +425,7 @@
                     <property name="title">
                      <string>setting.static.text.watermark</string>
                     </property>
-                    <layout class="QFormLayout" name="formLayout_27">
+                    <layout class="QFormLayout">
                      <property name="horizontalSpacing">
                       <number>6</number>
                      </property>
@@ -543,6 +481,9 @@
                     <layout class="QFormLayout" name="formLayout_2">
                      <property name="fieldGrowthPolicy">
                       <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                     </property>
+                     <property name="labelAlignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                      </property>
                      <property name="topMargin">
                       <number>2</number>
@@ -626,12 +567,6 @@
                     <property name="enabled">
                      <bool>true</bool>
                     </property>
-                    <property name="sizePolicy">
-                     <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                     </sizepolicy>
-                    </property>
                     <property name="title">
                      <string>Basic.Settings.General.Snapping</string>
                     </property>
@@ -659,7 +594,7 @@
                       </widget>
                      </item>
                      <item row="1" column="1">
-                      <layout class="QVBoxLayout" name="verticalLayout_34">
+                      <layout class="QVBoxLayout">
                        <property name="spacing">
                         <number>0</number>
                        </property>
@@ -774,6 +709,9 @@
                      <property name="fieldGrowthPolicy">
                       <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
                      </property>
+                     <property name="labelAlignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="topMargin">
                       <number>2</number>
                      </property>
@@ -832,6 +770,9 @@
                     <layout class="QFormLayout" name="formLayout_29">
                      <property name="fieldGrowthPolicy">
                       <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                     </property>
+                     <property name="labelAlignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                      </property>
                      <property name="topMargin">
                       <number>2</number>
@@ -1209,6 +1150,9 @@
                        <property name="orientation">
                         <enum>Qt::Horizontal</enum>
                        </property>
+                       <property name="sizeType">
+                        <enum>QSizePolicy::Expanding</enum>
+                       </property>
                        <property name="sizeHint" stdset="0">
                         <size>
                          <width>133</width>
@@ -1229,6 +1173,19 @@
                      </item>
                     </layout>
                    </widget>
+                  </item>
+                  <item>
+                   <spacer name="verticalSpacer_11">
+                    <property name="orientation">
+                     <enum>Qt::Vertical</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>20</width>
+                      <height>40</height>
+                     </size>
+                    </property>
+                   </spacer>
                   </item>
                  </layout>
                 </widget>
@@ -1255,12 +1212,6 @@
            </property>
            <item>
             <widget class="QFrame" name="widget_5">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
              <layout class="QFormLayout" name="topStreamLayout">
               <property name="fieldGrowthPolicy">
                <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
@@ -1277,7 +1228,7 @@
               <property name="bottomMargin">
                <number>0</number>
               </property>
-              <item row="2" column="1">
+              <item row="0" column="1">
                <widget class="QFrame" name="serviceWidget">
                 <layout class="QHBoxLayout" name="serviceWidgetLayout" stretch="0,0">
                  <property name="leftMargin">
@@ -1315,7 +1266,7 @@
                 </layout>
                </widget>
               </item>
-              <item row="2" column="0">
+              <item row="0" column="0">
                <widget class="QLabel" name="serviceLabel_org">
                 <property name="minimumSize">
                  <size>
@@ -1339,452 +1290,578 @@
            </item>
            <item>
             <widget class="QStackedWidget" name="streamStackWidget">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
              <property name="currentIndex">
               <number>1</number>
              </property>
              <widget class="QWidget" name="loginPage">
-              <layout class="QFormLayout" name="loginPageLayout">
-               <item row="0" column="0">
-                <spacer name="horizontalSpacer_20">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
+              <layout class="QVBoxLayout">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QGroupBox" name="groupBox1">
+                 <property name="title">
+                  <string>Basic.Settings.Stream.Destination</string>
                  </property>
-                 <property name="sizeType">
-                  <enum>QSizePolicy::Fixed</enum>
+                 <layout class="QFormLayout" name="loginPageLayout">
+                  <property name="fieldGrowthPolicy">
+                   <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                  </property>
+                  <property name="topMargin">
+                   <number>2</number>
+                  </property>
+                  <item row="0" column="0">
+                   <spacer name="horizontalSpacer_20">
+                    <property name="orientation">
+                     <enum>Qt::Horizontal</enum>
+                    </property>
+                    <property name="sizeType">
+                     <enum>QSizePolicy::Fixed</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>170</width>
+                      <height>19</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                  <item row="0" column="1">
+                   <layout class="QHBoxLayout" name="horizontalLayout_16">
+                    <item>
+                     <widget class="QPushButton" name="connectAccount">
+                      <property name="text">
+                       <string>Basic.AutoConfig.StreamPage.ConnectAccount</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="horizontalSpacer_21">
+                      <property name="orientation">
+                       <enum>Qt::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>40</width>
+                        <height>10</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                   </layout>
+                  </item>
+                  <item row="1" column="0">
+                   <spacer name="horizontalSpacer_22">
+                    <property name="orientation">
+                     <enum>Qt::Horizontal</enum>
+                    </property>
+                    <property name="sizeType">
+                     <enum>QSizePolicy::Fixed</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>170</width>
+                      <height>19</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                  <item row="1" column="1">
+                   <layout class="QHBoxLayout" name="horizontalLayout_17">
+                    <item>
+                     <widget class="QPushButton" name="useStreamKey">
+                      <property name="text">
+                       <string>Basic.AutoConfig.StreamPage.UseStreamKey</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="horizontalSpacer_23">
+                      <property name="orientation">
+                       <enum>Qt::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>40</width>
+                        <height>20</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                   </layout>
+                  </item>
+                 </layout>
+                </widget>
+               </item>
+               <item>
+                <spacer name="verticalSpacer_10">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
                  </property>
                  <property name="sizeHint" stdset="0">
                   <size>
-                   <width>170</width>
-                   <height>19</height>
+                   <width>20</width>
+                   <height>0</height>
                   </size>
                  </property>
                 </spacer>
-               </item>
-               <item row="0" column="1">
-                <layout class="QHBoxLayout" name="horizontalLayout_16">
-                 <item>
-                  <widget class="QPushButton" name="connectAccount">
-                   <property name="text">
-                    <string>Basic.AutoConfig.StreamPage.ConnectAccount</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_21">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>40</width>
-                     <height>10</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                </layout>
-               </item>
-               <item row="1" column="0">
-                <spacer name="horizontalSpacer_22">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeType">
-                  <enum>QSizePolicy::Fixed</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>170</width>
-                   <height>19</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item row="1" column="1">
-                <layout class="QHBoxLayout" name="horizontalLayout_17">
-                 <item>
-                  <widget class="QPushButton" name="useStreamKey">
-                   <property name="text">
-                    <string>Basic.AutoConfig.StreamPage.UseStreamKey</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_23">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>40</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                </layout>
                </item>
               </layout>
              </widget>
-             <widget class="QWidget" name="streamKeyPage">
-              <layout class="QFormLayout" name="streamkeyPageLayout">
-               <property name="fieldGrowthPolicy">
-                <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+             <widget class="QScrollArea" name="streamKeyScrollArea">
+              <property name="frameShape">
+               <enum>QFrame::NoFrame</enum>
+              </property>
+              <property name="frameShadow">
+               <enum>QFrame::Plain</enum>
+              </property>
+              <property name="lineWidth">
+               <number>0</number>
+              </property>
+              <property name="widgetResizable">
+               <bool>true</bool>
+              </property>
+              <widget class="QWidget" name="streamKeyPage">
+               <property name="geometry">
+                <rect>
+                 <x>0</x>
+                 <y>0</y>
+                 <width>1058</width>
+                 <height>430</height>
+                </rect>
                </property>
-               <property name="labelAlignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-               </property>
-               <item row="0" column="0">
-                <widget class="QLabel" name="serverLabel_org">
-                 <property name="text">
-                  <string>Basic.AutoConfig.StreamPage.Server</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="1">
-                <widget class="QStackedWidget" name="serverStackedWidget">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="currentIndex">
-                  <number>0</number>
-                 </property>
-                 <widget class="QWidget" name="servicePage">
-                  <layout class="QHBoxLayout" name="horizontalLayout_21">
-                   <property name="leftMargin">
-                    <number>0</number>
+               <layout class="QVBoxLayout" name="streamkeyPageLayout">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QGroupBox" name="destinationGroupBox">
+                  <property name="title">
+                   <string>Basic.Settings.Stream.Destination</string>
+                  </property>
+                  <layout class="QFormLayout" name="destinationLayout">
+                   <property name="fieldGrowthPolicy">
+                    <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
                    </property>
-                   <property name="topMargin">
-                    <number>0</number>
+                   <property name="labelAlignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                    </property>
-                   <property name="rightMargin">
-                    <number>0</number>
-                   </property>
-                   <property name="bottomMargin">
-                    <number>0</number>
-                   </property>
-                   <item>
-                    <widget class="PLSComboBox" name="server_org"/>
+                   <item row="0" column="0">
+                    <widget class="QLabel" name="serverLabel_org">
+                     <property name="text">
+                      <string>Basic.AutoConfig.StreamPage.Server</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="0" column="1">
+                    <widget class="QStackedWidget" name="serverStackedWidget">
+                     <property name="sizePolicy">
+                      <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                       <horstretch>0</horstretch>
+                       <verstretch>0</verstretch>
+                      </sizepolicy>
+                     </property>
+                     <property name="currentIndex">
+                      <number>0</number>
+                     </property>
+                     <widget class="QWidget" name="servicePage">
+                      <layout class="QHBoxLayout" name="horizontalLayout_21">
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>0</number>
+                       </property>
+                       <item>
+                        <widget class="PLSComboBox" name="server_org"/>
+                       </item>
+                      </layout>
+                     </widget>
+                     <widget class="QWidget" name="customPage">
+                      <layout class="QHBoxLayout" name="horizontalLayout_22">
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="rightMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>0</number>
+                       </property>
+                       <item>
+                        <widget class="QLineEdit" name="customServer_org"/>
+                       </item>
+                      </layout>
+                     </widget>
+                    </widget>
+                   </item>
+                   <item row="1" column="0">
+                    <widget class="QLabel" name="serviceCustomServerLabel">
+                     <property name="text">
+                      <string>Basic.Settings.Stream.ServiceCustomServer</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>serviceCustomServer</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="1" column="1">
+                    <widget class="QLineEdit" name="serviceCustomServer"/>
+                   </item>
+                   <item row="2" column="0">
+                    <widget class="QLabel" name="streamKeyLabel">
+                     <property name="text">
+                      <string>Basic.AutoConfig.StreamPage.StreamKey</string>
+                     </property>
+                     <property name="openExternalLinks">
+                      <bool>true</bool>
+                     </property>
+                     <property name="buddy">
+                      <cstring>key</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="2" column="1">
+                    <widget class="QFrame" name="streamKeyWidget">
+                     <layout class="QHBoxLayout" name="horizontalLayout_11">
+                      <property name="leftMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="topMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="bottomMargin">
+                       <number>0</number>
+                      </property>
+                      <item>
+                       <widget class="QLineEdit" name="key">
+                        <property name="inputMask">
+                         <string notr="true"/>
+                        </property>
+                        <property name="text">
+                         <string notr="true"/>
+                        </property>
+                        <property name="echoMode">
+                         <enum>QLineEdit::Password</enum>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="show">
+                        <property name="text">
+                         <string>Show</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="UrlPushButton" name="getStreamKeyButton">
+                        <property name="toolTip">
+                         <string/>
+                        </property>
+                        <property name="toolTipDuration">
+                         <number>-4</number>
+                        </property>
+                        <property name="text">
+                         <string>Basic.AutoConfig.StreamPage.GetStreamKey</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </widget>
+                   </item>
+                   <item row="3" column="0">
+                    <widget class="QLabel" name="connectedAccountLabel">
+                     <property name="text">
+                      <string>Basic.AutoConfig.StreamPage.ConnectedAccount</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="3" column="1">
+                    <layout class="QHBoxLayout" name="horizontalLayout_15">
+                     <item>
+                      <widget class="QPushButton" name="connectAccount2">
+                       <property name="cursor">
+                        <cursorShape>PointingHandCursor</cursorShape>
+                       </property>
+                       <property name="text">
+                        <string>Basic.AutoConfig.StreamPage.ConnectAccount</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QLabel" name="connectedAccountText">
+                       <property name="styleSheet">
+                        <string notr="true">font-weight: bold</string>
+                       </property>
+                       <property name="text">
+                        <string>Auth.LoadingChannel.Title</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="disconnectAccount">
+                       <property name="text">
+                        <string>Basic.AutoConfig.StreamPage.DisconnectAccount</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <spacer>
+                       <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>40</width>
+                         <height>20</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
+                    </layout>
+                   </item>
+                   <item row="4" column="0">
+                    <spacer name="horizontalSpacer_18">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>170</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                   <item row="5" column="1">
+                    <layout class="QHBoxLayout" name="horizontalLayout_28">
+                     <item>
+                      <widget class="QPushButton" name="useStreamKeyAdv">
+                       <property name="text">
+                        <string>Basic.AutoConfig.StreamPage.UseStreamKeyAdvanced</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <spacer name="horizontalSpacer_28">
+                       <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>40</width>
+                         <height>0</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
+                    </layout>
+                   </item>
+                   <item row="6" column="1">
+                    <widget class="PLSCheckBox" name="useAuth">
+                     <property name="text">
+                      <string>Basic.Settings.Stream.Custom.UseAuthentication</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="7" column="0">
+                    <widget class="QLabel" name="authUsernameLabel">
+                     <property name="text">
+                      <string>Basic.Settings.Stream.Custom.Username</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>authUsername</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="7" column="1">
+                    <widget class="QLineEdit" name="authUsername"/>
+                   </item>
+                   <item row="8" column="0">
+                    <widget class="QLabel" name="authPwLabel">
+                     <property name="text">
+                      <string>Basic.Settings.Stream.Custom.Password</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>authPw</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="8" column="1">
+                    <widget class="QFrame" name="authPwWidget">
+                     <layout class="QHBoxLayout" name="horizontalLayout_25">
+                      <property name="leftMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="topMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="bottomMargin">
+                       <number>0</number>
+                      </property>
+                      <item>
+                       <widget class="QLineEdit" name="authPw">
+                        <property name="echoMode">
+                         <enum>QLineEdit::Password</enum>
+                        </property>
+                       </widget>
+                      </item>
+                      <item>
+                       <widget class="QPushButton" name="authPwShow">
+                        <property name="text">
+                         <string>Show</string>
+                        </property>
+                       </widget>
+                      </item>
+                     </layout>
+                    </widget>
                    </item>
                   </layout>
                  </widget>
-                 <widget class="QWidget" name="customPage">
-                  <layout class="QHBoxLayout" name="horizontalLayout_22">
+                </item>
+                <item>
+                 <widget class="QGroupBox" name="serviceAdvancedOptionsGroupBox">
+                  <property name="title">
+                   <string>Basic.Settings.Stream.AdvancedOptions</string>
+                  </property>
+                  <layout class="QFormLayout" name="serviceAdvancedOptionsLayout">
+                   <property name="fieldGrowthPolicy">
+                    <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                   </property>
+                   <property name="labelAlignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                   </property>
                    <property name="leftMargin">
-                    <number>0</number>
+                    <number>9</number>
                    </property>
                    <property name="topMargin">
-                    <number>0</number>
+                    <number>2</number>
                    </property>
                    <property name="rightMargin">
-                    <number>0</number>
+                    <number>9</number>
                    </property>
                    <property name="bottomMargin">
-                    <number>0</number>
+                    <number>9</number>
                    </property>
-                   <item>
-                    <widget class="QLineEdit" name="customServer_org"/>
+                   <item row="0" column="0">
+                    <widget class="QLabel" name="twitchAddonLabel">
+                     <property name="text">
+                      <string>Basic.Settings.Stream.TTVAddon</string>
+                     </property>
+                     <property name="buddy">
+                      <cstring>twitchAddonDropdown</cstring>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="0" column="1">
+                    <widget class="PLSComboBox" name="twitchAddonDropdown"/>
+                   </item>
+                   <item row="1" column="0">
+                    <spacer name="horizontalSpacer_18_1">
+                     <property name="orientation">
+                      <enum>Qt::Horizontal</enum>
+                     </property>
+                     <property name="sizeHint" stdset="0">
+                      <size>
+                       <width>170</width>
+                       <height>0</height>
+                      </size>
+                     </property>
+                    </spacer>
+                   </item>
+                   <item row="1" column="1">
+                    <widget class="PLSCheckBox" name="bandwidthTestEnable">
+                     <property name="text">
+                      <string>Basic.Settings.Stream.BandwidthTestMode</string>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="2" column="1">
+                    <widget class="PLSCheckBox" name="ignoreRecommended">
+                     <property name="text">
+                      <string>Basic.Settings.Stream.IgnoreRecommended</string>
+                     </property>
+                     <property name="checked">
+                      <bool>true</bool>
+                     </property>
+                    </widget>
+                   </item>
+                   <item row="3" column="1">
+                    <widget class="QLabel" name="enforceSettingsLabel">
+                     <property name="text">
+                      <string notr="true"/>
+                     </property>
+                     <property name="textFormat">
+                      <enum>Qt::RichText</enum>
+                     </property>
+                     <property name="openExternalLinks">
+                      <bool>true</bool>
+                     </property>
+                    </widget>
                    </item>
                   </layout>
                  </widget>
-                </widget>
-               </item>
-               <item row="1" column="0">
-                <widget class="QLabel" name="streamKeyLabel">
-                 <property name="text">
-                  <string>Basic.AutoConfig.StreamPage.StreamKey</string>
-                 </property>
-                 <property name="openExternalLinks">
-                  <bool>true</bool>
-                 </property>
-                 <property name="buddy">
-                  <cstring>key</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="QFrame" name="streamKeyWidget">
-                 <layout class="QHBoxLayout" name="horizontalLayout_11">
-                  <property name="leftMargin">
-                   <number>0</number>
+                </item>
+                <item>
+                 <spacer name="verticalSpacer_12">
+                  <property name="orientation">
+                   <enum>Qt::Vertical</enum>
                   </property>
-                  <property name="topMargin">
-                   <number>0</number>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>20</width>
+                    <height>0</height>
+                   </size>
                   </property>
-                  <property name="rightMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>0</number>
-                  </property>
-                  <item>
-                   <widget class="QLineEdit" name="key">
-                    <property name="inputMask">
-                     <string notr="true"/>
-                    </property>
-                    <property name="text">
-                     <string notr="true"/>
-                    </property>
-                    <property name="echoMode">
-                     <enum>QLineEdit::Password</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="show">
-                    <property name="text">
-                     <string>Show</string>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="UrlPushButton" name="getStreamKeyButton">
-                    <property name="toolTip">
-                     <string/>
-                    </property>
-                    <property name="toolTipDuration">
-                     <number>-4</number>
-                    </property>
-                    <property name="text">
-                     <string>Basic.AutoConfig.StreamPage.GetStreamKey</string>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-               <item row="3" column="0">
-                <spacer name="horizontalSpacer_18">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                 <property name="sizeHint" stdset="0">
-                  <size>
-                   <width>170</width>
-                   <height>8</height>
-                  </size>
-                 </property>
-                </spacer>
-               </item>
-               <item row="4" column="1">
-                <layout class="QHBoxLayout" name="horizontalLayout_23">
-                 <property name="spacing">
-                  <number>8</number>
-                 </property>
-                 <property name="leftMargin">
-                  <number>7</number>
-                 </property>
-                 <property name="rightMargin">
-                  <number>7</number>
-                 </property>
-                 <item>
-                  <widget class="QLabel" name="connectedAccountText">
-                   <property name="styleSheet">
-                    <string notr="true">font-weight: bold</string>
-                   </property>
-                   <property name="text">
-                    <string>Auth.LoadingChannel.Title</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <widget class="QPushButton" name="disconnectAccount">
-                   <property name="text">
-                    <string>Basic.AutoConfig.StreamPage.DisconnectAccount</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_24">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>40</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                </layout>
-               </item>
-               <item row="6" column="1">
-                <widget class="PLSCheckBox" name="bandwidthTestEnable">
-                 <property name="text">
-                  <string>Basic.Settings.Stream.BandwidthTestMode</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="7" column="1">
-                <widget class="PLSCheckBox" name="useAuth">
-                 <property name="text">
-                  <string>Basic.Settings.Stream.Custom.UseAuthentication</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="9" column="0">
-                <widget class="QLabel" name="authUsernameLabel">
-                 <property name="text">
-                  <string>Basic.Settings.Stream.Custom.Username</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>authUsername</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item row="9" column="1">
-                <widget class="QLineEdit" name="authUsername"/>
-               </item>
-               <item row="10" column="0">
-                <widget class="QLabel" name="authPwLabel">
-                 <property name="text">
-                  <string>Basic.Settings.Stream.Custom.Password</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>authPw</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item row="10" column="1">
-                <widget class="QFrame" name="authPwWidget">
-                 <layout class="QHBoxLayout" name="horizontalLayout_25">
-                  <property name="leftMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="topMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>0</number>
-                  </property>
-                  <item>
-                   <widget class="QLineEdit" name="authPw">
-                    <property name="echoMode">
-                     <enum>QLineEdit::Password</enum>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="authPwShow">
-                    <property name="text">
-                     <string>Show</string>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-               <item row="8" column="1">
-                <widget class="PLSComboBox" name="twitchAddonDropdown"/>
-               </item>
-               <item row="8" column="0">
-                <widget class="QLabel" name="twitchAddonLabel">
-                 <property name="text">
-                  <string>Basic.Settings.Stream.TTVAddon</string>
-                 </property>
-                 <property name="buddy">
-                  <cstring>twitchAddonDropdown</cstring>
-                 </property>
-                </widget>
-               </item>
-               <item row="11" column="1">
-                <widget class="PLSCheckBox" name="ignoreRecommended">
-                 <property name="text">
-                  <string>Basic.Settings.Stream.IgnoreRecommended</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="12" column="1">
-                <widget class="QLabel" name="enforceSettingsLabel">
-                 <property name="text">
-                  <string notr="true"/>
-                 </property>
-                 <property name="textFormat">
-                  <enum>Qt::RichText</enum>
-                 </property>
-                 <property name="openExternalLinks">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-               <item row="5" column="1">
-                <layout class="QHBoxLayout" name="horizontalLayout_28">
-                 <item>
-                  <widget class="QPushButton" name="useStreamKeyAdv">
-                   <property name="text">
-                    <string>Basic.AutoConfig.StreamPage.UseStreamKeyAdvanced</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_28">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>40</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                </layout>
-               </item>
-               <item row="4" column="0">
-                <widget class="QLabel" name="connectedAccountLabel">
-                 <property name="text">
-                  <string>Basic.AutoConfig.StreamPage.ConnectedAccount</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="1">
-                <layout class="QHBoxLayout" name="horizontalLayout_15">
-                 <item>
-                  <widget class="QPushButton" name="connectAccount2">
-                   <property name="cursor">
-                    <cursorShape>PointingHandCursor</cursorShape>
-                   </property>
-                   <property name="text">
-                    <string>Basic.AutoConfig.StreamPage.ConnectAccount</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item>
-                  <spacer name="horizontalSpacer_19">
-                   <property name="orientation">
-                    <enum>Qt::Horizontal</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>40</width>
-                     <height>20</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                </layout>
-               </item>
-              </layout>
+                 </spacer>
+                </item>
+               </layout>
+              </widget>
              </widget>
             </widget>
            </item>
           </layout>
          </widget>
          <widget class="QWidget" name="outputPage">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <layout class="QVBoxLayout" name="verticalLayout_2">
            <property name="spacing">
             <number>0</number>
@@ -1820,13 +1897,38 @@
                <number>0</number>
               </property>
               <item>
-               <widget class="QFrame" name="widget">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
+               <widget class="QFrame" name="multitrackVideoNoticeBox">
+                <property name="noticeFrame" stdset="0">
+                 <bool>true</bool>
                 </property>
+                <layout class="QVBoxLayout" name="multitrackVideoNoticeBoxLayout">
+                 <property name="leftMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="topMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="rightMargin">
+                  <number>0</number>
+                 </property>
+                 <property name="bottomMargin">
+                  <number>0</number>
+                 </property>
+                 <item>
+                  <widget class="QLabel" name="multitrackVideoNotice">
+                   <property name="text">
+                    <string>Basic.Settings.MultitrackVideoDisabledSettings</string>
+                   </property>
+                   <property name="alignment">
+                    <set>Qt::AlignCenter</set>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item>
+               <widget class="QFrame" name="widget">
                 <layout class="QFormLayout" name="formLayout_5">
                  <property name="fieldGrowthPolicy">
                   <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
@@ -1861,6 +1963,16 @@
                  </item>
                  <item row="0" column="1">
                   <widget class="PLSComboBox" name="service"/>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QLabel" name="serverLabel">
+                   <property name="text">
+                    <string>Basic.AutoConfig.StreamPage.Server</string>
+                   </property>
+                   <property name="useFor" stdset="0">
+                    <string notr="true">FormLabelRole</string>
+                   </property>
+                  </widget>
                  </item>
                  <item row="1" column="1">
                   <widget class="QStackedWidget" name="stackedWidget_3">
@@ -1931,16 +2043,6 @@
                    </widget>
                   </widget>
                  </item>
-                 <item row="1" column="0">
-                  <widget class="QLabel" name="serverLabel">
-                   <property name="text">
-                    <string>Basic.AutoConfig.StreamPage.Server</string>
-                   </property>
-                   <property name="useFor" stdset="0">
-                    <string notr="true">FormLabelRole</string>
-                   </property>
-                  </widget>
-                 </item>
                  <item row="2" column="0">
                   <widget class="QLabel" name="outputModeLabel">
                    <property name="minimumSize">
@@ -1989,6 +2091,13 @@
                    </item>
                   </widget>
                  </item>
+                 <item row="3" column="0">
+                  <widget class="QLabel" name="label_24">
+                   <property name="text">
+                    <string/>
+                   </property>
+                  </widget>
+                 </item>
                  <item row="3" column="1">
                   <widget class="QLabel" name="severiceExplainLabel">
                    <property name="text">
@@ -1996,13 +2105,6 @@
                    </property>
                    <property name="wordWrap">
                     <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="3" column="0">
-                  <widget class="QLabel" name="label_24">
-                   <property name="text">
-                    <string/>
                    </property>
                   </widget>
                  </item>
@@ -2047,8 +2149,8 @@
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>766</width>
-                       <height>565</height>
+                       <width>943</width>
+                       <height>1023</height>
                       </rect>
                      </property>
                      <property name="sizePolicy">
@@ -2075,12 +2177,6 @@
                       </property>
                       <item>
                        <widget class="QGroupBox" name="simpleStreamingGroupBox">
-                        <property name="sizePolicy">
-                         <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-                          <horstretch>0</horstretch>
-                          <verstretch>0</verstretch>
-                         </sizepolicy>
-                        </property>
                         <property name="title">
                          <string>Basic.Settings.Output.Adv.Streaming</string>
                         </property>
@@ -2103,6 +2199,47 @@
                          <property name="bottomMargin">
                           <number>9</number>
                          </property>
+                         <item row="0" column="0">
+                          <layout class="QVBoxLayout" name="verticalLayout_55">
+                           <property name="spacing">
+                            <number>0</number>
+                           </property>
+                           <property name="leftMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="rightMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="bottomMargin">
+                            <number>0</number>
+                           </property>
+                           <item>
+                            <widget class="QLabel" name="simpleOutputVBitrateLabel">
+                             <property name="minimumSize">
+                              <size>
+                               <width>170</width>
+                               <height>0</height>
+                              </size>
+                             </property>
+                             <property name="text">
+                              <string>Basic.Settings.Output.VideoBitrate</string>
+                             </property>
+                             <property name="alignment">
+                              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                             </property>
+                             <property name="wordWrap">
+                              <bool>true</bool>
+                             </property>
+                             <property name="buddy">
+                              <cstring>simpleOutputVBitrate</cstring>
+                             </property>
+                             <property name="useFor" stdset="0">
+                              <string notr="true">FormLabelRole</string>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </item>
                          <item row="0" column="1">
                           <layout class="QVBoxLayout" name="verticalLayout_47">
                            <property name="spacing">
@@ -2130,7 +2267,7 @@
                           </layout>
                          </item>
                          <item row="2" column="0">
-                          <widget class="QLabel" name="label_20">
+                          <widget class="QLabel" name="simpleOutputABitrateLabel">
                            <property name="text">
                             <string>Basic.Settings.Output.AudioBitrate</string>
                            </property>
@@ -2240,30 +2377,17 @@
                           <widget class="PLSComboBox" name="simpleOutPreset"/>
                          </item>
                          <item row="5" column="1">
-                          <layout class="QVBoxLayout" name="verticalLayout_48">
-                           <property name="spacing">
-                            <number>0</number>
+                          <widget class="PLSCheckBox" name="simpleOutAdvanced">
+                           <property name="text">
+                            <string>Basic.Settings.Output.Advanced</string>
                            </property>
-                           <property name="topMargin">
-                            <number>0</number>
+                           <property name="checked">
+                            <bool>true</bool>
                            </property>
-                           <property name="bottomMargin">
-                            <number>0</number>
-                           </property>
-                           <item>
-                            <widget class="PLSCheckBox" name="simpleOutAdvanced">
-                             <property name="text">
-                              <string>Basic.Settings.Output.Advanced</string>
-                             </property>
-                             <property name="checked">
-                              <bool>true</bool>
-                             </property>
-                            </widget>
-                           </item>
-                          </layout>
+                          </widget>
                          </item>
-                         <item row="7" column="0">
-                          <widget class="QLabel" name="label_23">
+                         <item row="6" column="0">
+                          <widget class="QLabel" name="simpleOutCustomLabel">
                            <property name="text">
                             <string>Basic.Settings.Output.CustomEncoderSettings</string>
                            </property>
@@ -2275,51 +2399,10 @@
                            </property>
                           </widget>
                          </item>
-                         <item row="7" column="1">
+                         <item row="6" column="1">
                           <widget class="PLSLineEdit" name="simpleOutCustom"/>
                          </item>
-                         <item row="0" column="0">
-                          <layout class="QVBoxLayout" name="verticalLayout_55">
-                           <property name="spacing">
-                            <number>0</number>
-                           </property>
-                           <property name="leftMargin">
-                            <number>0</number>
-                           </property>
-                           <property name="rightMargin">
-                            <number>0</number>
-                           </property>
-                           <property name="bottomMargin">
-                            <number>0</number>
-                           </property>
-                           <item>
-                            <widget class="QLabel" name="label_19">
-                             <property name="minimumSize">
-                              <size>
-                               <width>170</width>
-                               <height>0</height>
-                              </size>
-                             </property>
-                             <property name="text">
-                              <string>Basic.Settings.Output.VideoBitrate</string>
-                             </property>
-                             <property name="alignment">
-                              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                             </property>
-                             <property name="wordWrap">
-                              <bool>true</bool>
-                             </property>
-                             <property name="buddy">
-                              <cstring>simpleOutputVBitrate</cstring>
-                             </property>
-                             <property name="useFor" stdset="0">
-                              <string notr="true">FormLabelRole</string>
-                             </property>
-                            </widget>
-                           </item>
-                          </layout>
-                         </item>
-                         <item row="8" column="0">
+                         <item row="7" column="0">
                           <layout class="QVBoxLayout" name="verticalLayout_65">
                            <property name="spacing">
                             <number>0</number>
@@ -2345,7 +2428,7 @@
                            </item>
                           </layout>
                          </item>
-                         <item row="8" column="1">
+                         <item row="7" column="1">
                           <layout class="QVBoxLayout" name="verticalLayout_83">
                            <property name="spacing">
                             <number>0</number>
@@ -2366,15 +2449,179 @@
                        </widget>
                       </item>
                       <item>
+                       <widget class="QGroupBox" name="multitrackVideoGroupBox">
+                        <property name="title">
+                         <string>Basic.Settings.Stream.MultitrackVideoLabel</string>
+                        </property>
+                        <layout class="QFormLayout" name="formLayout">
+                         <property name="topMargin">
+                          <number>2</number>
+                         </property>
+                         <item row="0" column="0">
+                          <widget class="QLabel" name="label_19"/>
+                         </item>
+                         <item row="0" column="1">
+                          <widget class="QLabel" name="multitrackVideoInfo">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="text">
+                            <string>MultitrackVideo.Info</string>
+                           </property>
+                           <property name="textFormat">
+                            <enum>Qt::RichText</enum>
+                           </property>
+                           <property name="wordWrap">
+                            <bool>true</bool>
+                           </property>
+                           <property name="openExternalLinks">
+                            <bool>true</bool>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="1" column="1">
+                          <widget class="PLSCheckBox" name="enableMultitrackVideo">
+                           <property name="text">
+                            <string>Basic.Settings.Stream.EnableMultitrackVideo</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="2" column="0">
+                          <widget class="QLabel" name="multitrackVideoMaximumAggregateBitrateLabel">
+                           <property name="text">
+                            <string>Basic.Settings.Stream.MultitrackVideoMaximumAggregateBitrate</string>
+                           </property>
+                           <property name="useFor" stdset="0">
+                            <string>FormLabelRole</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="2" column="1">
+                          <layout class="QHBoxLayout" stretch="0,0">
+                           <item>
+                            <widget class="PLSCheckBox" name="multitrackVideoMaximumAggregateBitrateAuto">
+                             <property name="text">
+                              <string>Basic.Settings.Stream.MultitrackVideoMaximumAggregateBitrateAuto</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item>
+                            <widget class="QSpinBox" name="multitrackVideoMaximumAggregateBitrate">
+                             <property name="sizePolicy">
+                              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                               <horstretch>0</horstretch>
+                               <verstretch>0</verstretch>
+                              </sizepolicy>
+                             </property>
+                             <property name="suffix">
+                              <string notr="true"> Kbps</string>
+                             </property>
+                             <property name="minimum">
+                              <number>0</number>
+                             </property>
+                             <property name="maximum">
+                              <number>1000000</number>
+                             </property>
+                             <property name="singleStep">
+                              <number>50</number>
+                             </property>
+                             <property name="value">
+                              <number>0</number>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </item>
+                         <item row="3" column="0">
+                          <widget class="QLabel" name="multitrackVideoMaximumVideoTracksLabel">
+                           <property name="text">
+                            <string>Basic.Settings.Stream.MultitrackVideoMaximumVideoTracks</string>
+                           </property>
+                           <property name="useFor" stdset="0">
+                            <string>FormLabelRole</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="3" column="1">
+                          <layout class="QHBoxLayout" stretch="0,0">
+                           <item>
+                            <widget class="PLSCheckBox" name="multitrackVideoMaximumVideoTracksAuto">
+                             <property name="sizePolicy">
+                              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                               <horstretch>0</horstretch>
+                               <verstretch>0</verstretch>
+                              </sizepolicy>
+                             </property>
+                             <property name="text">
+                              <string>Basic.Settings.Stream.MultitrackVideoMaximumVideoTracksAuto</string>
+                             </property>
+                            </widget>
+                           </item>
+                           <item>
+                            <widget class="QSpinBox" name="multitrackVideoMaximumVideoTracks">
+                             <property name="sizePolicy">
+                              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                               <horstretch>0</horstretch>
+                               <verstretch>0</verstretch>
+                              </sizepolicy>
+                             </property>
+                             <property name="minimum">
+                              <number>0</number>
+                             </property>
+                             <property name="maximum">
+                              <number>100</number>
+                             </property>
+                             <property name="value">
+                              <number>0</number>
+                             </property>
+                            </widget>
+                           </item>
+                          </layout>
+                         </item>
+                         <item row="4" column="1">
+                          <widget class="PLSCheckBox" name="multitrackVideoStreamDumpEnable">
+                           <property name="text">
+                            <string>Basic.Settings.Stream.MultitrackVideoStreamDumpEnable</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="5" column="1">
+                          <widget class="PLSCheckBox" name="multitrackVideoConfigOverrideEnable">
+                           <property name="text">
+                            <string>Basic.Settings.Stream.MultitrackVideoConfigOverrideEnable</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="6" column="0">
+                          <widget class="QLabel" name="multitrackVideoConfigOverrideLabel">
+                           <property name="text">
+                            <string>Basic.Settings.Stream.MultitrackVideoConfigOverride</string>
+                           </property>
+                           <property name="useFor" stdset="0">
+                            <string>FormLabelRole</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="6" column="1">
+                          <widget class="QPlainTextEdit" name="multitrackVideoConfigOverride">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </widget>
+                      </item>
+                      <item>
                        <widget class="QGroupBox" name="simpleRecordingGroupBox">
                         <property name="enabled">
                          <bool>true</bool>
-                        </property>
-                        <property name="sizePolicy">
-                         <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-                          <horstretch>0</horstretch>
-                          <verstretch>0</verstretch>
-                         </sizepolicy>
                         </property>
                         <property name="title">
                          <string>Basic.Settings.Output.Adv.Recording</string>
@@ -2704,7 +2951,7 @@
                               </property>
                               <layout class="QHBoxLayout" name="horizontalLayoutSimpleFLVTracks">
                                <property name="spacing">
-                                <number>15</number>
+                                <number>10</number>
                                </property>
                                <property name="leftMargin">
                                 <number>0</number>
@@ -2886,9 +3133,6 @@
                          <property name="fieldGrowthPolicy">
                           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
                          </property>
-                         <property name="labelAlignment">
-                          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                         </property>
                          <property name="leftMargin">
                           <number>9</number>
                          </property>
@@ -2957,6 +3201,9 @@
                           <widget class="QLabel" name="simpleRBEstimate">
                            <property name="text">
                             <string notr="true"/>
+                           </property>
+                           <property name="wordWrap">
+                            <bool>true</bool>
                            </property>
                           </widget>
                          </item>
@@ -3080,8 +3327,8 @@
                           <rect>
                            <x>0</x>
                            <y>0</y>
-                           <width>432</width>
-                           <height>145</height>
+                           <width>468</width>
+                           <height>173</height>
                           </rect>
                          </property>
                          <layout class="QVBoxLayout" name="verticalLayout_14">
@@ -3130,8 +3377,8 @@
                              <property name="bottomMargin">
                               <number>0</number>
                              </property>
-                             <item row="1" column="0">
-                              <widget class="QLabel" name="label_28">
+                             <item row="0" column="0">
+                              <widget class="QLabel" name="advStreamTrackWidgetLabel">
                                <property name="minimumSize">
                                 <size>
                                  <width>170</width>
@@ -3149,7 +3396,7 @@
                                </property>
                               </widget>
                              </item>
-                             <item row="1" column="1">
+                             <item row="0" column="1">
                               <widget class="QStackedWidget" name="advStreamTrackWidget">
                                <property name="sizePolicy">
                                 <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -3168,6 +3415,9 @@
                                  </sizepolicy>
                                 </property>
                                 <layout class="QHBoxLayout" name="horizontalLayout_39">
+                                 <property name="spacing">
+                                  <number>10</number>
+                                 </property>
                                  <property name="leftMargin">
                                   <number>0</number>
                                  </property>
@@ -3235,6 +3485,9 @@
                                  </sizepolicy>
                                 </property>
                                 <layout class="QHBoxLayout" name="horizontalLayout_38">
+                                 <property name="spacing">
+                                  <number>10</number>
+                                 </property>
                                  <property name="leftMargin">
                                   <number>0</number>
                                  </property>
@@ -3293,7 +3546,7 @@
                                </widget>
                               </widget>
                              </item>
-                             <item row="2" column="0">
+                             <item row="1" column="0">
                               <widget class="QLabel" name="advOutAEncLabel">
                                <property name="text">
                                 <string>Basic.Settings.Output.Encoder.Audio</string>
@@ -3303,7 +3556,7 @@
                                </property>
                               </widget>
                              </item>
-                             <item row="2" column="1">
+                             <item row="1" column="1">
                               <layout class="QVBoxLayout" name="verticalLayout_41">
                                <property name="spacing">
                                 <number>0</number>
@@ -3319,7 +3572,7 @@
                                </item>
                               </layout>
                              </item>
-                             <item row="3" column="0">
+                             <item row="2" column="0">
                               <widget class="QLabel" name="advOutEncLabel">
                                <property name="text">
                                 <string>Basic.Settings.Output.Encoder.Video</string>
@@ -3329,10 +3582,10 @@
                                </property>
                               </widget>
                              </item>
-                             <item row="3" column="1">
+                             <item row="2" column="1">
                               <widget class="PLSComboBox" name="advOutEncoder"/>
                              </item>
-                             <item row="4" column="0">
+                             <item row="3" column="0">
                               <widget class="QLabel" name="advOutUseRescale">
                                <property name="text">
                                 <string>Basic.Settings.Output.Adv.Rescale</string>
@@ -3345,7 +3598,7 @@
                                </property>
                               </widget>
                              </item>
-                             <item row="4" column="1">
+                             <item row="3" column="1">
                               <layout class="QHBoxLayout" name="horizontalLayout_7">
                                <property name="spacing">
                                 <number>10</number>
@@ -3370,12 +3623,6 @@
                           </item>
                           <item>
                            <widget class="QGroupBox" name="advOutEncoderProps">
-                            <property name="sizePolicy">
-                             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                              <horstretch>0</horstretch>
-                              <verstretch>0</verstretch>
-                             </sizepolicy>
-                            </property>
                             <property name="title">
                              <string>Basic.Settings.Output.Adv.Encoder</string>
                             </property>
@@ -3553,8 +3800,8 @@
                               <rect>
                                <x>0</x>
                                <y>0</y>
-                               <width>549</width>
-                               <height>348</height>
+                               <width>557</width>
+                               <height>401</height>
                               </rect>
                              </property>
                              <property name="sizePolicy">
@@ -3581,12 +3828,6 @@
                               </property>
                               <item>
                                <widget class="QGroupBox" name="advOutRecTopContainer">
-                                <property name="sizePolicy">
-                                 <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                                  <horstretch>0</horstretch>
-                                  <verstretch>0</verstretch>
-                                 </sizepolicy>
-                                </property>
                                 <property name="title">
                                  <string>Basic.Settings.Output.Adv.Recording.Settings</string>
                                 </property>
@@ -4048,7 +4289,7 @@
                                   </layout>
                                  </item>
                                  <item row="9" column="0">
-                                  <layout class="QHBoxLayout" name="horizontalLayout_31">
+                                  <layout class="QHBoxLayout">
                                    <property name="spacing">
                                     <number>10</number>
                                    </property>
@@ -4316,8 +4557,8 @@
                               <rect>
                                <x>0</x>
                                <y>0</y>
-                               <width>668</width>
-                               <height>491</height>
+                               <width>674</width>
+                               <height>540</height>
                               </rect>
                              </property>
                              <layout class="QVBoxLayout" name="verticalLayout_27">
@@ -4618,7 +4859,7 @@
                                   </widget>
                                  </item>
                                  <item row="9" column="0">
-                                  <layout class="QHBoxLayout" name="horizontalLayout_32">
+                                  <layout class="QHBoxLayout">
                                    <property name="spacing">
                                     <number>10</number>
                                    </property>
@@ -4905,6 +5146,24 @@
                         </widget>
                        </widget>
                       </item>
+                      <item>
+                       <widget class="QFrame" name="advOutRecInfo">
+                        <layout class="QVBoxLayout" name="advOutRecInfoLayout">
+                         <property name="leftMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="topMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="rightMargin">
+                          <number>9</number>
+                         </property>
+                         <property name="bottomMargin">
+                          <number>0</number>
+                         </property>
+                        </layout>
+                       </widget>
+                      </item>
                      </layout>
                     </widget>
                     <widget class="QWidget" name="advOutputAudioTracksTab">
@@ -4970,8 +5229,8 @@
                              <rect>
                               <x>0</x>
                               <y>0</y>
-                              <width>244</width>
-                              <height>462</height>
+                              <width>253</width>
+                              <height>540</height>
                              </rect>
                             </property>
                             <layout class="QVBoxLayout" name="verticalLayout_28">
@@ -4991,7 +5250,7 @@
                               <number>0</number>
                              </property>
                              <item>
-                              <widget class="QGroupBox" name="groupBox">
+                              <widget class="QGroupBox" name="groupBox2">
                                <property name="sizePolicy">
                                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
                                  <horstretch>0</horstretch>
@@ -5089,7 +5348,7 @@
                                  </widget>
                                 </item>
                                 <item row="0" column="0">
-                                 <widget class="QLabel" name="label_25">
+                                 <widget class="QLabel" name="advOutTrack1BitrateLabel">
                                   <property name="minimumSize">
                                    <size>
                                     <width>170</width>
@@ -5193,7 +5452,7 @@
                                  <number>9</number>
                                 </property>
                                 <item row="0" column="0">
-                                 <widget class="QLabel" name="label_49">
+                                 <widget class="QLabel" name="advOutTrack2BitrateLabel">
                                   <property name="minimumSize">
                                    <size>
                                     <width>170</width>
@@ -5365,7 +5624,7 @@
                                  <number>9</number>
                                 </property>
                                 <item row="0" column="0">
-                                 <widget class="QLabel" name="label_51">
+                                 <widget class="QLabel" name="advOutTrack3BitrateLabel">
                                   <property name="minimumSize">
                                    <size>
                                     <width>170</width>
@@ -5537,7 +5796,7 @@
                                  <number>9</number>
                                 </property>
                                 <item row="0" column="0">
-                                 <widget class="QLabel" name="label_53">
+                                 <widget class="QLabel" name="advOutTrack4BitrateLabel">
                                   <property name="minimumSize">
                                    <size>
                                     <width>170</width>
@@ -5709,7 +5968,7 @@
                                  <number>9</number>
                                 </property>
                                 <item row="0" column="0">
-                                 <widget class="QLabel" name="label_59">
+                                 <widget class="QLabel" name="advOutTrack5BitrateLabel">
                                   <property name="minimumSize">
                                    <size>
                                     <width>170</width>
@@ -5881,7 +6140,7 @@
                                  <number>9</number>
                                 </property>
                                 <item row="0" column="0">
-                                 <widget class="QLabel" name="label_61">
+                                 <widget class="QLabel" name="advOutTrack6BitrateLabel">
                                   <property name="minimumSize">
                                    <size>
                                     <width>170</width>
@@ -6227,7 +6486,7 @@
           </layout>
          </widget>
          <widget class="QWidget" name="audioPage">
-          <layout class="QVBoxLayout" name="formLayout">
+          <layout class="QVBoxLayout" name="formLayout3">
            <property name="spacing">
             <number>0</number>
            </property>
@@ -6259,8 +6518,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>634</width>
-                <height>467</height>
+                <width>640</width>
+                <height>539</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_50">
@@ -6794,13 +7053,7 @@
           </layout>
          </widget>
          <widget class="QWidget" name="videoPage">
-          <layout class="QFormLayout" name="formLayout_3">
-           <property name="fieldGrowthPolicy">
-            <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
-           </property>
-           <property name="labelAlignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-           </property>
+          <layout class="QVBoxLayout" name="verticalLayout">
            <property name="leftMargin">
             <number>0</number>
            </property>
@@ -6813,306 +7066,635 @@
            <property name="bottomMargin">
             <number>0</number>
            </property>
-           <item row="0" column="0">
-            <widget class="QLabel" name="label_8">
-             <property name="minimumSize">
-              <size>
-               <width>170</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="text">
-              <string>Basic.Settings.Video.BaseResolution</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-             </property>
-             <property name="buddy">
-              <cstring>baseResolution</cstring>
-             </property>
-             <property name="useFor" stdset="0">
-              <string notr="true">FormLabelRole</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <layout class="QHBoxLayout" name="horizontalLayout_29">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="PLSEditableComboBox" name="baseResolution">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="editable">
-                <bool>true</bool>
-               </property>
-               <property name="currentText">
-                <string notr="true"/>
-               </property>
-               <property name="duplicatesEnabled">
-                <bool>false</bool>
-               </property>
-               <property name="frame">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLabel" name="baseAspect">
-               <property name="text">
-                <string>AspectRatio</string>
-               </property>
-               <property name="useFor" stdset="0">
-                <string notr="true">WhiteLable</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </item>
-           <item row="3" column="0">
-            <widget class="QLabel" name="outputResLabel">
-             <property name="text">
-              <string>Basic.Settings.Video.ScaledResolution</string>
-             </property>
-             <property name="buddy">
-              <cstring>outputResolution</cstring>
-             </property>
-             <property name="useFor" stdset="0">
-              <string notr="true">FormLabelRole</string>
-             </property>
-            </widget>
-           </item>
-           <item row="5" column="0">
-            <widget class="QLabel" name="label_11">
-             <property name="text">
-              <string>Basic.Settings.Video.DownscaleFilter</string>
-             </property>
-             <property name="buddy">
-              <cstring>downscaleFilter</cstring>
-             </property>
-             <property name="useFor" stdset="0">
-              <string notr="true">FormLabelRole</string>
-             </property>
-            </widget>
-           </item>
-           <item row="5" column="1">
-            <widget class="PLSComboBox" name="downscaleFilter">
-             <property name="enabled">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item row="6" column="0">
-            <widget class="PLSComboBox" name="fpsType">
+           <item>
+            <widget class="QGroupBox" name="videoGeneral">
              <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
-             <property name="currentText">
-              <string>Basic.Settings.Video.FPSCommon</string>
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>100</height>
+              </size>
              </property>
-             <property name="sizeAdjustPolicy">
-              <enum>QComboBox::AdjustToContents</enum>
+             <property name="title">
+              <string>Basic.Settings.Video</string>
              </property>
-             <item>
-              <property name="text">
-               <string>Basic.Settings.Video.FPSCommon</string>
+             <layout class="QVBoxLayout" name="verticalLayout_31">
+              <property name="spacing">
+               <number>6</number>
               </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Basic.Settings.Video.FPSInteger</string>
+              <property name="topMargin">
+               <number>2</number>
               </property>
-             </item>
-             <item>
-              <property name="text">
-               <string>Basic.Settings.Video.FPSFraction</string>
-              </property>
-             </item>
+              <item>
+               <layout class="QHBoxLayout" name="horizontalLayout_42">
+                <property name="spacing">
+                 <number>5</number>
+                </property>
+                <item>
+                 <spacer name="horizontalSpacer_8">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <widget class="PLSCheckBox" name="checkBoxDualOutput">
+                  <property name="text">
+                   <string>DualOutput.Settings.Video.Switch</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QLabel" name="labelDualOutputTooltip">
+                  <property name="toolTip">
+                   <string>DualOutput.Settings.Video.Switch.Tooltip</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <widget class="QStackedWidget" name="stackedWidgetVideoDuaOutput">
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>100</height>
+                 </size>
+                </property>
+                <property name="currentIndex">
+                 <number>0</number>
+                </property>
+                <widget class="QWidget" name="page_14">
+                 <layout class="QVBoxLayout" name="horizontalLayoutVideoNormal">
+                  <property name="spacing">
+                   <number>0</number>
+                  </property>
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <item>
+                   <widget class="QWidget" name="widget_VideoNormal" native="true">
+                    <layout class="QFormLayout" name="formLayout_3">
+                     <property name="labelAlignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <item row="0" column="0">
+                      <widget class="QLabel" name="label_8">
+                       <property name="minimumSize">
+                        <size>
+                         <width>170</width>
+                         <height>0</height>
+                        </size>
+                       </property>
+                       <property name="text">
+                        <string>Basic.Settings.Video.BaseResolution</string>
+                       </property>
+                       <property name="alignment">
+                        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                       </property>
+                       <property name="buddy">
+                        <cstring>baseResolution</cstring>
+                       </property>
+                       <property name="useFor" stdset="0">
+                        <string notr="true">FormLabelRole</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="0" column="1">
+                      <layout class="QHBoxLayout" name="horizontalLayout_29">
+                       <property name="spacing">
+                        <number>6</number>
+                       </property>
+                       <item>
+                        <widget class="PLSEditableComboBox" name="baseResolution">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
+                         <property name="editable">
+                          <bool>true</bool>
+                         </property>
+                         <property name="currentText">
+                          <string notr="true"/>
+                         </property>
+                         <property name="duplicatesEnabled">
+                          <bool>false</bool>
+                         </property>
+                         <property name="frame">
+                          <bool>true</bool>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QLabel" name="baseAspect">
+                         <property name="text">
+                          <string>AspectRatio</string>
+                         </property>
+                         <property name="useFor" stdset="0">
+                          <string notr="true">WhiteLable</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </item>
+                     <item row="1" column="0">
+                      <widget class="QLabel" name="outputResLabel">
+                       <property name="text">
+                        <string>Basic.Settings.Video.ScaledResolution</string>
+                       </property>
+                       <property name="buddy">
+                        <cstring>outputResolution</cstring>
+                       </property>
+                       <property name="useFor" stdset="0">
+                        <string notr="true">FormLabelRole</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="1" column="1">
+                      <layout class="QHBoxLayout" name="outputResLayout">
+                       <property name="spacing">
+                        <number>6</number>
+                       </property>
+                       <item>
+                        <widget class="PLSEditableComboBox" name="outputResolution">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
+                         <property name="editable">
+                          <bool>true</bool>
+                         </property>
+                         <property name="currentText">
+                          <string notr="true"/>
+                         </property>
+                        </widget>
+                       </item>
+                       <item>
+                        <widget class="QLabel" name="scaledAspect">
+                         <property name="text">
+                          <string>AspectRatio</string>
+                         </property>
+                        </widget>
+                       </item>
+                      </layout>
+                     </item>
+                     <item row="2" column="0">
+                      <widget class="QLabel" name="label_11">
+                       <property name="text">
+                        <string>Basic.Settings.Video.DownscaleFilter</string>
+                       </property>
+                       <property name="buddy">
+                        <cstring>downscaleFilter</cstring>
+                       </property>
+                       <property name="useFor" stdset="0">
+                        <string notr="true">FormLabelRole</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="2" column="1">
+                      <widget class="PLSComboBox" name="downscaleFilter"/>
+                     </item>
+                     <item row="3" column="0">
+                      <widget class="PLSComboBox" name="fpsType">
+                       <property name="currentText">
+                        <string>Basic.Settings.Video.FPSCommon</string>
+                       </property>
+                       <item>
+                        <property name="text">
+                         <string>Basic.Settings.Video.FPSCommon</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>Basic.Settings.Video.FPSInteger</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>Basic.Settings.Video.FPSFraction</string>
+                        </property>
+                       </item>
+                      </widget>
+                     </item>
+                     <item row="3" column="1">
+                      <widget class="QStackedWidget" name="fpsTypes">
+                       <property name="currentIndex">
+                        <number>0</number>
+                       </property>
+                       <widget class="QWidget" name="page">
+                        <layout class="QHBoxLayout" name="horizontalLayout_2">
+                         <property name="leftMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="topMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="rightMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="bottomMargin">
+                          <number>0</number>
+                         </property>
+                         <item alignment="Qt::AlignTop">
+                          <widget class="PLSComboBox" name="fpsCommon">
+                           <property name="currentText">
+                            <string notr="true">10</string>
+                           </property>
+                           <property name="currentIndex">
+                            <number>0</number>
+                           </property>
+                           <item>
+                            <property name="text">
+                             <string notr="true">10</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string notr="true">20</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string>24 NTSC</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string>25 PAL</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string notr="true">29.97</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string notr="true">30</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string notr="true">48</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string>50 PAL</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string notr="true">59.94</string>
+                            </property>
+                           </item>
+                           <item>
+                            <property name="text">
+                             <string notr="true">60</string>
+                            </property>
+                           </item>
+                          </widget>
+                         </item>
+                        </layout>
+                       </widget>
+                       <widget class="QWidget" name="page_3">
+                        <layout class="QHBoxLayout" name="horizontalLayout_3">
+                         <property name="spacing">
+                          <number>0</number>
+                         </property>
+                         <property name="leftMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="topMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="rightMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="bottomMargin">
+                          <number>0</number>
+                         </property>
+                         <item alignment="Qt::AlignTop">
+                          <widget class="PLSSpinBox" name="fpsInteger">
+                           <property name="minimum">
+                            <number>1</number>
+                           </property>
+                           <property name="maximum">
+                            <number>120</number>
+                           </property>
+                           <property name="value">
+                            <number>30</number>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </widget>
+                       <widget class="QWidget" name="page_2">
+                        <layout class="QFormLayout" name="formLayout_4">
+                         <property name="fieldGrowthPolicy">
+                          <enum>QFormLayout::ExpandingFieldsGrow</enum>
+                         </property>
+                         <property name="labelAlignment">
+                          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                         </property>
+                         <property name="leftMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="topMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="rightMargin">
+                          <number>0</number>
+                         </property>
+                         <property name="bottomMargin">
+                          <number>0</number>
+                         </property>
+                         <item row="0" column="0">
+                          <widget class="QLabel" name="label_12">
+                           <property name="text">
+                            <string>Basic.Settings.Video.Numerator</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="0" column="1">
+                          <widget class="PLSSpinBox" name="fpsNumerator">
+                           <property name="minimum">
+                            <number>1</number>
+                           </property>
+                           <property name="maximum">
+                            <number>1000000</number>
+                           </property>
+                           <property name="value">
+                            <number>30</number>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="1" column="0">
+                          <widget class="QLabel" name="label_13">
+                           <property name="text">
+                            <string>Basic.Settings.Video.Denominator</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item row="1" column="1">
+                          <widget class="PLSSpinBox" name="fpsDenominator">
+                           <property name="minimum">
+                            <number>1</number>
+                           </property>
+                           <property name="maximum">
+                            <number>1000000</number>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </widget>
+                      </widget>
+                     </item>
+                    </layout>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+                <widget class="QWidget" name="page_15">
+                 <layout class="QVBoxLayout" name="horizontalLayout_12">
+                  <property name="spacing">
+                   <number>0</number>
+                  </property>
+                  <property name="leftMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="topMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="rightMargin">
+                   <number>0</number>
+                  </property>
+                  <property name="bottomMargin">
+                   <number>0</number>
+                  </property>
+                  <item>
+                   <widget class="QTabWidget" name="tabWidgetDualOutputVideo">
+                    <property name="currentIndex">
+                     <number>0</number>
+                    </property>
+                    <widget class="QWidget" name="tabVideoHorizontal">
+                     <attribute name="title">
+                      <string>DualOutput.Settings.Video.Horizontal</string>
+                     </attribute>
+                     <layout class="QVBoxLayout" name="verticalLayoutVideoHorizontal">
+                      <property name="spacing">
+                       <number>0</number>
+                      </property>
+                      <property name="leftMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="topMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="rightMargin">
+                       <number>0</number>
+                      </property>
+                      <property name="bottomMargin">
+                       <number>0</number>
+                      </property>
+                     </layout>
+                    </widget>
+                    <widget class="QWidget" name="tabVideoVertical">
+                     <attribute name="title">
+                      <string>DualOutput.Settings.Video.Vertical</string>
+                     </attribute>
+                     <layout class="QFormLayout" name="formLayout_15">
+                      <property name="labelAlignment">
+                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                      <property name="topMargin">
+                       <number>2</number>
+                      </property>
+                      <item row="0" column="0">
+                       <widget class="QLabel" name="label_20">
+                        <property name="minimumSize">
+                         <size>
+                          <width>170</width>
+                          <height>0</height>
+                         </size>
+                        </property>
+                        <property name="text">
+                         <string>Basic.Settings.Video.BaseResolution</string>
+                        </property>
+                        <property name="alignment">
+                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                        </property>
+                        <property name="buddy">
+                         <cstring>baseResolution</cstring>
+                        </property>
+                        <property name="useFor" stdset="0">
+                         <string notr="true">FormLabelRole</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item row="0" column="1">
+                       <layout class="QHBoxLayout" name="horizontalLayout_31">
+                        <property name="spacing">
+                         <number>6</number>
+                        </property>
+                        <item>
+                         <widget class="PLSEditableComboBox" name="baseResolution_2">
+                          <property name="sizePolicy">
+                           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                           </sizepolicy>
+                          </property>
+                          <property name="editable">
+                           <bool>true</bool>
+                          </property>
+                          <property name="currentText">
+                           <string notr="true">1080x1920</string>
+                          </property>
+                          <property name="frame">
+                           <bool>true</bool>
+                          </property>
+                          <item>
+                           <property name="text">
+                            <string notr="true">1080x1920</string>
+                           </property>
+                          </item>
+                          <item>
+                           <property name="text">
+                            <string notr="true">720x1280</string>
+                           </property>
+                          </item>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="baseAspect_2">
+                          <property name="text">
+                           <string>AspectRatio</string>
+                          </property>
+                          <property name="useFor" stdset="0">
+                           <string notr="true">WhiteLable</string>
+                          </property>
+                         </widget>
+                        </item>
+                       </layout>
+                      </item>
+                      <item row="1" column="0">
+                       <widget class="QLabel" name="outputResLabel_2">
+                        <property name="text">
+                         <string>Basic.Settings.Video.ScaledResolution</string>
+                        </property>
+                        <property name="buddy">
+                         <cstring>outputResolution</cstring>
+                        </property>
+                        <property name="useFor" stdset="0">
+                         <string notr="true">FormLabelRole</string>
+                        </property>
+                       </widget>
+                      </item>
+                      <item row="1" column="1">
+                       <layout class="QHBoxLayout" name="outputResLayout_2">
+                        <property name="spacing">
+                         <number>6</number>
+                        </property>
+                        <item>
+                         <widget class="PLSEditableComboBox" name="outputResolution_2">
+                          <property name="sizePolicy">
+                           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                           </sizepolicy>
+                          </property>
+                          <property name="editable">
+                           <bool>true</bool>
+                          </property>
+                          <property name="currentText">
+                           <string notr="true">1080x1920</string>
+                          </property>
+                          <item>
+                           <property name="text">
+                            <string>1080x1920</string>
+                           </property>
+                          </item>
+                          <item>
+                           <property name="text">
+                            <string>720x1280</string>
+                           </property>
+                          </item>
+                         </widget>
+                        </item>
+                        <item>
+                         <widget class="QLabel" name="scaledAspect_2">
+                          <property name="text">
+                           <string>AspectRatio</string>
+                          </property>
+                         </widget>
+                        </item>
+                       </layout>
+                      </item>
+                     </layout>
+                    </widget>
+                   </widget>
+                  </item>
+                 </layout>
+                </widget>
+               </widget>
+              </item>
+             </layout>
             </widget>
            </item>
-           <item row="6" column="1">
-            <widget class="QStackedWidget" name="fpsTypes">
-             <property name="currentIndex">
-              <number>1</number>
+           <item>
+            <spacer name="verticalSpacer_9">
+             <property name="orientation">
+              <enum>Qt::Vertical</enum>
              </property>
-             <widget class="QWidget" name="page">
-              <layout class="QHBoxLayout" name="horizontalLayout_2">
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>0</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item alignment="Qt::AlignTop">
-                <widget class="PLSComboBox" name="fpsCommon">
-                 <property name="currentText">
-                  <string notr="true">10</string>
-                 </property>
-                 <property name="currentIndex">
-                  <number>0</number>
-                 </property>
-                 <item>
-                  <property name="text">
-                   <string notr="true">10</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string notr="true">20</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>24 NTSC</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>25 PAL</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string notr="true">29.97</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string notr="true">30</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string notr="true">48</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>50 PAL</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string notr="true">59.94</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string notr="true">60</string>
-                  </property>
-                 </item>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-             <widget class="QWidget" name="page_3">
-              <layout class="QHBoxLayout" name="horizontalLayout_3">
-               <property name="spacing">
-                <number>0</number>
-               </property>
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>0</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item alignment="Qt::AlignTop">
-                <widget class="PLSSpinBox" name="fpsInteger">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>120</number>
-                 </property>
-                 <property name="value">
-                  <number>30</number>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-             <widget class="QWidget" name="page_2">
-              <layout class="QFormLayout" name="formLayout_4">
-               <property name="fieldGrowthPolicy">
-                <enum>QFormLayout::ExpandingFieldsGrow</enum>
-               </property>
-               <property name="labelAlignment">
-                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-               </property>
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="topMargin">
-                <number>0</number>
-               </property>
-               <property name="rightMargin">
-                <number>0</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-               <item row="0" column="1">
-                <widget class="PLSSpinBox" name="fpsNumerator">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>1000000</number>
-                 </property>
-                 <property name="value">
-                  <number>30</number>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="PLSSpinBox" name="fpsDenominator">
-                 <property name="minimum">
-                  <number>1</number>
-                 </property>
-                 <property name="maximum">
-                  <number>1000000</number>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="0">
-                <widget class="QLabel" name="label_12">
-                 <property name="text">
-                  <string>Basic.Settings.Video.Numerator</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="0">
-                <widget class="QLabel" name="label_13">
-                 <property name="text">
-                  <string>Basic.Settings.Video.Denominator</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </widget>
+             <property name="sizeType">
+              <enum>QSizePolicy::Expanding</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>0</height>
+              </size>
+             </property>
+            </spacer>
            </item>
-           <item row="7" column="1">
+           <item>
             <widget class="QLabel" name="videoMsg">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
@@ -7130,39 +7712,6 @@
               <string>error</string>
              </property>
             </widget>
-           </item>
-           <item row="3" column="1">
-            <layout class="QHBoxLayout" name="outputResLayout">
-             <property name="spacing">
-              <number>10</number>
-             </property>
-             <item>
-              <widget class="PLSEditableComboBox" name="outputResolution">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="editable">
-                <bool>true</bool>
-               </property>
-               <property name="currentText">
-                <string notr="true"/>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLabel" name="scaledAspect">
-               <property name="text">
-                <string>AspectRatio</string>
-               </property>
-               <property name="useFor" stdset="0">
-                <string notr="true">WhiteLable</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
            </item>
           </layout>
          </widget>
@@ -7318,13 +7867,7 @@
                </property>
                <item>
                 <widget class="QWidget" name="hotkeyScrollContents" native="true">
-                 <layout class="QFormLayout" name="hotkeyFormLayout">
-                  <property name="horizontalSpacing">
-                   <number>0</number>
-                  </property>
-                  <property name="verticalSpacing">
-                   <number>0</number>
-                  </property>
+                 <layout class="QVBoxLayout">
                   <property name="leftMargin">
                    <number>0</number>
                   </property>
@@ -7337,14 +7880,35 @@
                   <property name="bottomMargin">
                    <number>0</number>
                   </property>
-                  <item row="0" column="0" colspan="2">
-                   <widget class="QLabel" name="pleaseWaitLabel">
-                    <property name="text">
-                     <string>Basic.Settings.Hotkeys.PleaseWait</string>
-                    </property>
-                    <property name="alignment">
-                     <set>Qt::AlignCenter</set>
-                    </property>
+                  <item>
+                   <widget class="QFrame" name="hotkeyScrollFrame">
+                    <layout class="QFormLayout" name="hotkeyFormLayout">
+                     <property name="fieldGrowthPolicy">
+                      <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                     </property>
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <item row="0" column="0" colspan="2">
+                      <widget class="QLabel" name="pleaseWaitLabel">
+                       <property name="text">
+                        <string>Basic.Settings.Hotkeys.PleaseWait</string>
+                       </property>
+                       <property name="alignment">
+                        <set>Qt::AlignCenter</set>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
                    </widget>
                   </item>
                  </layout>
@@ -7389,8 +7953,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>720</width>
-                <height>279</height>
+                <width>728</width>
+                <height>291</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_42">
@@ -7432,12 +7996,6 @@
                    <property name="enabled">
                     <bool>true</bool>
                    </property>
-                   <property name="sizePolicy">
-                    <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-                     <horstretch>0</horstretch>
-                     <verstretch>0</verstretch>
-                    </sizepolicy>
-                   </property>
                    <property name="title">
                     <string/>
                    </property>
@@ -7448,6 +8006,9 @@
                     <bool>false</bool>
                    </property>
                    <layout class="QFormLayout" name="formLayout_8">
+                    <property name="fieldGrowthPolicy">
+                     <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                    </property>
                     <property name="labelAlignment">
                      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
                     </property>
@@ -8422,8 +8983,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>762</width>
-                <height>874</height>
+                <width>778</width>
+                <height>1000</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_23">
@@ -9327,6 +9888,12 @@
                      <string>Basic.Main.Sources</string>
                     </property>
                     <layout class="QFormLayout" name="formLayout_34">
+                     <property name="fieldGrowthPolicy">
+                      <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                     </property>
+                     <property name="labelAlignment">
+                      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                     </property>
                      <property name="topMargin">
                       <number>2</number>
                      </property>
@@ -9353,6 +9920,9 @@
                      <string>Basic.Settings.Hotkeys</string>
                     </property>
                     <layout class="QFormLayout" name="formLayout_33">
+                     <property name="fieldGrowthPolicy">
+                      <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+                     </property>
                      <property name="labelAlignment">
                       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                      </property>
@@ -9372,8 +9942,37 @@
                      <item row="0" column="1">
                       <widget class="PLSComboBox" name="hotkeyFocusType"/>
                      </item>
+                     <item row="1" column="0">
+                      <spacer>
+                       <property name="orientation">
+                        <enum>Qt::Horizontal</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>170</width>
+                         <height>0</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
                     </layout>
                    </widget>
+                  </item>
+                  <item>
+                   <spacer name="verticalSpacer_13">
+                    <property name="orientation">
+                     <enum>Qt::Vertical</enum>
+                    </property>
+                    <property name="sizeType">
+                     <enum>QSizePolicy::Expanding</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>20</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                   </spacer>
                   </item>
                  </layout>
                 </widget>
@@ -9383,73 +9982,75 @@
             </widget>
            </item>
            <item>
-            <layout class="QVBoxLayout" name="verticalLayout_17">
-             <property name="spacing">
-              <number>0</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
-             <item>
-              <widget class="QLabel" name="advancedMsg">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="maximumSize">
-                <size>
-                 <width>0</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="text">
-                <string notr="true"/>
-               </property>
-               <property name="wordWrap">
-                <bool>true</bool>
-               </property>
-               <property name="themeID" stdset="0">
-                <string>error</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLabel" name="advancedMsg2">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="maximumSize">
-                <size>
-                 <width>0</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="text">
-                <string notr="true"/>
-               </property>
-               <property name="wordWrap">
-                <bool>true</bool>
-               </property>
-               <property name="themeID" stdset="0">
-                <string>error</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
+            <widget class="QFrame" name="advancedInfoFrame">
+             <layout class="QVBoxLayout" name="verticalLayout_17">
+              <property name="spacing">
+               <number>0</number>
+              </property>
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="advancedMsg">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>0</width>
+                  <height>0</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string notr="true"/>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="themeID" stdset="0">
+                 <string>error</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="advancedMsg2">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>0</width>
+                  <height>0</height>
+                 </size>
+                </property>
+                <property name="text">
+                 <string notr="true"/>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="themeID" stdset="0">
+                 <string>error</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
            </item>
           </layout>
          </widget>
@@ -9507,7 +10108,7 @@
               <x>0</x>
               <y>0</y>
               <width>741</width>
-              <height>69</height>
+              <height>68</height>
              </rect>
             </property>
             <property name="sizePolicy">
@@ -9597,7 +10198,7 @@
        </widget>
       </item>
       <item>
-       <spacer name="horizontalSpacer_14">
+       <spacer>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
@@ -9623,6 +10224,16 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>PLSLineEdit</class>
+   <extends>QLineEdit</extends>
+   <header location="global">PLSEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSRadioButton</class>
+   <extends>QRadioButton</extends>
+   <header>PLSRadioButton.h</header>
+  </customwidget>
+  <customwidget>
    <class>PLSComboBox</class>
    <extends>QComboBox</extends>
    <header location="global">PLSComboBox.h</header>
@@ -9636,12 +10247,6 @@
    <class>PLSDialogButtonBox</class>
    <extends>QDialogButtonBox</extends>
    <header>PLSDialogButtonBox.h</header>
-  </customwidget>
-  <customwidget>
-   <class>PLSSettingGeneralView</class>
-   <extends>QWidget</extends>
-   <header>pls-setting-general-view.hpp</header>
-   <container>1</container>
   </customwidget>
   <customwidget>
    <class>OBSHotkeyEdit</class>
@@ -9664,19 +10269,9 @@
    <header>PLSCheckBox.h</header>
   </customwidget>
   <customwidget>
-   <class>PLSRadioButton</class>
-   <extends>QRadioButton</extends>
-   <header>PLSRadioButton.h</header>
-  </customwidget>
-  <customwidget>
-   <class>PLSLineEdit</class>
-   <extends>QLineEdit</extends>
-   <header>PLSEdit.h</header>
-  </customwidget>
-  <customwidget>
    <class>PLSEditableComboBox</class>
    <extends>QComboBox</extends>
-   <header>PLSCombobox.h</header>
+   <header>PLSComboBox.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>
@@ -9709,6 +10304,8 @@
   <tabstop>prevProgLabelToggle</tabstop>
   <tabstop>multiviewMouseSwitch</tabstop>
   <tabstop>multiviewDrawNames</tabstop>
+  <tabstop>multiviewDrawAreas</tabstop>
+  <tabstop>multiviewLayout</tabstop>
   <tabstop>service_org</tabstop>
   <tabstop>moreInfoButton</tabstop>
   <tabstop>connectAccount</tabstop>
@@ -9771,8 +10368,6 @@
   <tabstop>monitoringDevice</tabstop>
   <tabstop>baseResolution</tabstop>
   <tabstop>outputResolution</tabstop>
-  <tabstop>downscaleFilter</tabstop>
-  <tabstop>fpsType</tabstop>
   <tabstop>fpsCommon</tabstop>
   <tabstop>fpsInteger</tabstop>
   <tabstop>fpsNumerator</tabstop>
@@ -9874,7 +10469,7 @@
   <connection>
    <sender>simpleOutAdvanced</sender>
    <signal>toggled(bool)</signal>
-   <receiver>label_23</receiver>
+   <receiver>simpleOutCustomLabel</receiver>
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -9996,22 +10591,6 @@
     <hint type="destinationlabel">
      <x>933</x>
      <y>366</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>fpsType</sender>
-   <signal>currentIndexChanged(int)</signal>
-   <receiver>fpsTypes</receiver>
-   <slot>setCurrentIndex(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>310</x>
-     <y>29</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>241</x>
-     <y>30</y>
     </hint>
    </hints>
   </connection>
@@ -10188,6 +10767,22 @@
     <hint type="destinationlabel">
      <x>933</x>
      <y>389</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>fpsType</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>fpsTypes</receiver>
+   <slot>setCurrentIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>310</x>
+     <y>29</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>241</x>
+     <y>30</y>
     </hint>
    </hints>
   </connection>

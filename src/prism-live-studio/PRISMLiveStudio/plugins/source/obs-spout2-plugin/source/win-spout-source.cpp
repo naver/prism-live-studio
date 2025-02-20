@@ -14,6 +14,11 @@
 
 #include "SpoutLibrary.h"
 #pragma comment(lib, "SpoutLibrary.lib")
+//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
+#define debugex(kr, fields, fields_count, message, ...) blogex(kr, LOG_DEBUG, fields, fields_count, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
+#define infoex(kr, fields, fields_count, message, ...) blogex(kr, LOG_INFO, fields, fields_count, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
+#define warnex(kr, fields, fields_count, message, ...) blogex(kr, LOG_WARNING, fields, fields_count, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
+//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
 
 #define debug(message, ...)                                                    \
 	blog(LOG_DEBUG, "[%s] " message, obs_source_get_name(context->source), \
@@ -90,7 +95,9 @@ static void win_spout_source_init(void *data, bool forced = false)
 
 	if (context->spout_receiver_ptr == NULL) {
 		if (context->spout_status != -1) {
-			warn("Spout pointer didn't exist");
+			//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
+			const char *fields[][2] = {{PTS_LOG_TYPE, PTS_TYPE_EVENT}};
+			warnex(false, fields , 1, "Spout pointer didn't exist");
 			context->spout_status = -1;
 		}
 		return;
@@ -100,7 +107,9 @@ static void win_spout_source_init(void *data, bool forced = false)
 
 	if (totalSenders == 0) {
 		if (context->spout_status != -2) {
-			info("No active Spout cameras");
+			//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
+			const char *fields[][2] = {{PTS_LOG_TYPE, PTS_TYPE_EVENT}};
+			infoex(false, fields, 1, "No active Spout cameras");
 			context->spout_status = -2;
 		}
 		return;
@@ -111,14 +120,18 @@ static void win_spout_source_init(void *data, bool forced = false)
 			if (!context->spout_receiver_ptr->SetActiveSender(
 				    context->senderName)) {
 				if (context->spout_status != -4) {
-					info("WoW , i can't set active sender as %s", context->senderName);
+					//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
+					const char *fields[][2] = {{PTS_LOG_TYPE, PTS_TYPE_EVENT}};
+					infoex(false, fields, 1, "WoW , i can't set active sender as %s", context->senderName);
 					context->spout_status = -4;
 				}
 				return;
 			}
 		} else {
 			if (context->spout_status != -3) {
-				info("Strange , there is a sender without name ?");
+				//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
+				const char *fields[][2] = {{PTS_LOG_TYPE, PTS_TYPE_EVENT}};
+				infoex(false, fields, 1, "Strange , there is a sender without name ?");
 				context->spout_status = -3;
 			}
 			return;
@@ -137,7 +150,9 @@ static void win_spout_source_init(void *data, bool forced = false)
 		}
 		if (!exists) {
 			if (context->spout_status != -5) {
-				info("Sorry, Sender Name %s not found", context->senderName);
+				//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
+				const char *fields[][2] = {{PTS_LOG_TYPE, PTS_TYPE_EVENT}};
+				infoex(false, fields, 1, "Sorry, Sender Name %s not found", context->senderName);
 				context->spout_status = -5;
 			}
 			return;
@@ -148,7 +163,9 @@ static void win_spout_source_init(void *data, bool forced = false)
 
 	info("Getting info for sender %s", context->senderName);
 	if (!win_spout_source_store_sender_info(context)) {
-		warn("Named %s sender not found", context->senderName);
+		//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
+		const char *fields[][2] = {{PTS_LOG_TYPE, PTS_TYPE_EVENT}};
+		warnex(false, fields, 1,"Named %s sender not found", context->senderName);
 	} else {
 		info("Sender %s is of dimensions %d x %d",
 		     context->senderName,

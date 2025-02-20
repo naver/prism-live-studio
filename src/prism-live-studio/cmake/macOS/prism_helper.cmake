@@ -333,6 +333,21 @@ function(install_and_codesign)
   get_property(EXTRA_DYLIB_PATH GLOBAL PROPERTY EXTRA_DYLIB_PATH)
   message("EXTRA_DYLIB_PATH: ${EXTRA_DYLIB_PATH}")
 
+  install(
+    CODE "
+    set(_BUNDLENAME \"$<TARGET_FILE_BASE_NAME:${target}>.app\")
+    set(_BUNDLER_COMMAND \"$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS/dylibbundler\")
+    set(_CODESIGN_IDENTITY \"${PRISM_BUNDLE_CODESIGN_IDENTITY}\")
+    set(_OBS_BUNDLE_PATH \"$ENV{OBS_BUILD_DIR}/install/OBS.app\")
+    set(_CODESIGN_ENTITLEMENTS \"$ENV{PRISM_SRC_DIR}/cmake/bundle/macOS\")
+    set(_VERBOSE_FLAG \"$ENV{VERBOSE}\")
+    set(_QUIET_FLAG \"$ENV{QUIET}\")
+    set(_EXTRA_DEPS \"${EXTRA_DYLIB_PATH}\")
+    set(_PRISM_QT_DIR \"$ENV{PRISM_QT_DIR}\")
+    set(_LUT_PATH \"$ENV{PRISM_SRC_DIR}/PRISMLiveStudio/prism-ui/resource/LUTs\")"
+    COMPONENT prism_bundles)
+  
+  install(SCRIPT "$ENV{PRISM_SRC_DIR}/cmake/macOS/bundleutils.cmake" COMPONENT prism_bundles)
 endfunction()
 
 # Helper function to set up OBS app target

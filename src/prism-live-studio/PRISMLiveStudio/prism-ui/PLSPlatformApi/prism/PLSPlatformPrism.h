@@ -13,11 +13,14 @@
 #include <qobject.h>
 #include "../PLSPlatformBase.hpp"
 #include "libhttp-client.h"
+#include "PLSDualOutputConst.h"
 
 enum class PrismErrorPlatformType {
 	NonePlatform,
 	NCPPlatform,
 };
+
+using ApiErrorList = std::list<std::pair<std::list<PLSPlatformBase*>, PLSErrorHandler::RetData>>;
 
 class PLSPlatformPrism : public QObject {
 	Q_OBJECT
@@ -27,18 +30,17 @@ public:
 
 	void sendAction(const QString &body) const;
 	pls::http::Request getUploadStatusRequest(const QString &apiPath) const;
-	void uploadStatus(const QString &apiPath, const QString &body, bool isPrintLog = true) const;
+	void uploadStatus(const QString &apiPath, const QByteArray &body, bool isPrintLog = true) const;
 
-	void onInactive(PLSPlatformBase *, bool) const;
+	void onInactive(PLSPlatformBase *, bool);
 
 	void onPrepareLive(bool value);
 	void onPrepareFinish() const;
 	void onLiveStopped() const;
 	void onLiveEnded();
 
-	int getVideoSeq() const { return m_iVideoSeq; }
+	int getVideoSeq(DualOutputType outputType) const {return m_iVideoSeq[outputType]; }
 	std::string getCharVideoSeq() const;
-	void setVideoSeq(int seq) { m_iVideoSeq = seq; }
 
 	void mqttRequestRefreshToken(PLSPlatformBase *, const std::function<void(bool)> &) const;
 
@@ -48,49 +50,51 @@ public:
 
 	static std::string formatDateTime(time_t now = 0);
 
-	void getSendThumAPIJson(QJsonObject &jsonData) const;
-
-	void onTokenExpired() const;
+	void onTokenExpired(const PLSErrorHandler::RetData &retData) const;
 	//prism refresh one accesstoken
-	void requestRefrshAccessToken(const PLSPlatformBase *platform, const std::function<void(bool)> &onNext, bool isForceRefresh = true, int retryCount = 1) const;
+	void requestRefreshAccessToken(const PLSPlatformBase *platform, const std::function<void(bool)> &onNext, bool isForceRefresh = true, int retryCount = 1) const;
+
+	ApiErrorList &getApiErrorList() { return m_listApiError; }
+
+	static QString getTableName() { return QStringLiteral("PRISM"); }
+	static QString customErrorFailedToStartLive() { return QStringLiteral("FailedToStartLive"); }
+	static QString customErrorTimeoutTryAgain() { return QStringLiteral("TimeoutTryAgain"); }
+	static QString customErrorServerErrorTryAgain() { return QStringLiteral("ServerErrorTryAgain"); }
+	static QString customErrorTempErrorTryAgain() { return QStringLiteral("TempErrorTryAgain"); }
 
 private:
 	//The address and StreamKey pushed to the Prism server
-	std::string getStreamKey() const;
-	std::string getStreamServer() const;
+	std::string getStreamKey(DualOutputType outputType) const;
+	std::string getStreamServer(DualOutputType outputType) const;
 
 	void deactivateCallback(const PLSPlatformBase *, bool) const;
 
-	void prepareLiveCallback(bool value) const;
+	void prepareLiveCallback(bool value);
 	void prepareFinishCallback() const;
 	void liveStoppedCallback() const;
 	void liveEndedCallback() const;
 	QString urlForPath(const QString &path) const;
 
-	std::string getPublishingTitle() const;
+	QString getPublishingTitle(std::list<PLSPlatformBase *>) const;
 
-	void requestStartSimulcastLive(bool);
-	void requestStartSimulcastLiveSuccess(const QJsonDocument &doc, bool bPrism, const QString &url, const int &code);
-	void setPrismPlatformChannelLiveId(const QJsonObject &root) const;
-	void requestStopSimulcastLive(bool);
-	void requestHeartbeat() const;
+	pls::http::Request requestStartSimulcastLive(bool, std::list<PLSPlatformBase*>, DualOutputType);
+	void requestStartSimulcastLiveSuccess(const QJsonDocument &doc, bool bPrism, const QString &url, const int &code, DualOutputType, std::list<PLSPlatformBase *>);
+	void setPrismPlatformChannelLiveId(const QJsonObject &root, DualOutputType) const;
+	pls::http::Request requestStopSimulcastLive(bool, int iVideoSeq);
+	pls::http::Request requestHeartbeat(int) const;
 	void requestFailedCallback(const QString &url, int code, QByteArray data) const;
 
-	void requestLiveDirectStart();
-	void requestLiveDirectEnd();
-
 	void requestStopSingleLive(PLSPlatformBase *platform) const;
-
-	void showWarningAlertWithMsg(const QString &msg) const;
 
 	void printStartLog() const;
 	bool isAbpFlag() const;
 
-	int m_iVideoSeq{0};
-	std::string m_strPublishUrl;
+	std::array<int, DualOutputType::All> m_iVideoSeq{};
+	std::array<std::string, DualOutputType::All> m_strPublishUrl{};
 
-	int m_iHistorySeq{0};
 	QTimer m_timerHeartbeat;
+
+	ApiErrorList m_listApiError;
 };
 
 #define PLS_PLATFORM_PRSIM PLSPlatformPrism::instance()

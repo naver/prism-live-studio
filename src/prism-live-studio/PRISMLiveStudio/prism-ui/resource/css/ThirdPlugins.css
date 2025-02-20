@@ -255,86 +255,87 @@ SourceDock QScrollArea #qt_scrollarea_viewport > QWidget {
     min-width: 255px;
 }
 
-QDockWidget::title {
+QDockWidget::title, 
+OBSDockOri::title {
     background-color: #272727;
 }
 
-CanvasSourcesDock #contextContainer SourceTree,
+CanvasSourcesDock SourceTree,
 CanvasScenesDock #contextContainer QListWidget {
     background-color: #272727;
 }
 
-    CanvasSourcesDock #contextContainer SourceTree::item:pressed {
+    CanvasSourcesDock SourceTree::item:pressed {
         background-color: #2d2d2d;
     }
 
-    CanvasSourcesDock #contextContainer SourceTree::item:hover {
+    CanvasSourcesDock SourceTree::item:hover {
         background-color: #444444;
     }
 
-    CanvasSourcesDock #contextContainer SourceTree QLabel {
+    CanvasSourcesDock SourceTree QLabel {
         min-height: /*hdpi*/ 30px;
         max-height: /*hdpi*/ 30px;
         background: none;
     }
 
-    CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:unchecked,
+    CanvasSourcesDock SourceTree VisibilityCheckBox::indicator:unchecked,
     SourceDock #contextContainer VisibilityCheckBox::indicator:unchecked {
         image: url(":/resource/images/icon-source-view-off-normal.svg");
     }
 
-        CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:unchecked:hover,
+        CanvasSourcesDock SourceTree VisibilityCheckBox::indicator:unchecked:hover,
         SourceDock #contextContainer VisibilityCheckBox::indicator:unchecked:hover {
             image: url(":/resource/images/icon-source-view-off-over.svg");
         }
 
-        CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:unchecked:pressed,
+        CanvasSourcesDock SourceTree VisibilityCheckBox::indicator:unchecked:pressed,
         SourceDock #contextContainer VisibilityCheckBox::indicator:unchecked:pressed {
             image: url(":/resource/images/icon-source-view-off-click.svg");
         }
 
-    CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:checked,
+    CanvasSourcesDock SourceTree VisibilityCheckBox::indicator:checked,
     SourceDock #contextContainer VisibilityCheckBox::indicator:checked {
         image: url(":/resource/images/ic-source-view-normal.svg");
     }
 
-        CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:checked:hover,
+        CanvasSourcesDock SourceTree VisibilityCheckBox::indicator:checked:hover,
         SourceDock #contextContainer VisibilityCheckBox::indicator:checked:hover {
             image: url(":/resource/images/ic-source-view-over.svg");
         }
 
-        CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator:checked:pressed,
+        CanvasSourcesDock SourceTree VisibilityCheckBox::indicator:checked:pressed,
         SourceDock #contextContainer VisibilityCheckBox::indicator::checked:pressed {
             image: url(":/resource/images/ic-source-view-click.svg");
         }
 
-    CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:unchecked,
+    CanvasSourcesDock SourceTree LockedCheckBox::indicator:unchecked,
     SourceDock LockedCheckBox::indicator:unchecked {
         image: url(":/resource/images/ic-source-unlock-normal.svg");
     }
 
-        CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:unchecked:hover {
+        CanvasSourcesDock SourceTree LockedCheckBox::indicator:unchecked:hover {
             image: url(":/resource/images/ic-source-unlock-over.svg");
         }
 
-        CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:unchecked:pressed {
+        CanvasSourcesDock SourceTree LockedCheckBox::indicator:unchecked:pressed {
             image: url(":/resource/images/ic-source-unlock-click.svg");
         }
 
-    CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:checked {
+    CanvasSourcesDock SourceTree LockedCheckBox::indicator:checked {
         image: url(":/resource/images/ic-source-lock-normal.svg");
     }
 
-        CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:checked:hover {
+        CanvasSourcesDock SourceTree LockedCheckBox::indicator:checked:hover {
             image: url(":/resource/images/ic-source-lock-over.svg");
         }
 
-        CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator:checked:pressed {
+        CanvasSourcesDock SourceTree LockedCheckBox::indicator:checked:pressed {
             image: url(":/resource/images/ic-source-lock-click.svg");
         }
 
-    CanvasSourcesDock #contextContainer SourceTree LockedCheckBox::indicator,
-    CanvasSourcesDock #contextContainer SourceTree VisibilityCheckBox::indicator {
+    CanvasSourcesDock SourceTree LockedCheckBox::indicator,
+    CanvasSourcesDock SourceTree VisibilityCheckBox::indicator {
         min-width: /*hdpi*/ 22px;
         max-width: /*hdpi*/ 22px;
         min-height: /*hdpi*/ 22px;
@@ -591,4 +592,16 @@ SourceDock #contextContainer #sourcePropertiesButton {
 
 #SettingsDialog #pluginSettingsGroupBox #enableDebugLoggingToolTipLabel {
     margin-left: 10px;
+}
+
+#ConnectInfo > #formLayoutWidget > QLineEdit{
+    min-height: 25px;
+    max-height: 25px;
+    max-width: 150px;
+}
+#ConnectInfo > #formLayoutWidget > QPushButton {
+    min-height: 25px;
+    max-height: 25px;
+    min-width:60px;
+    max-width: 150px;
 }

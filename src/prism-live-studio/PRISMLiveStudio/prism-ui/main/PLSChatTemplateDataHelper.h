@@ -37,6 +37,7 @@ public:
 	void updateCustomTemplateName(const QString &name, const int id) override;
 	void removeCustomTemplate(const int id) override;
 	QList<ITextMotionTemplateHelper::PLSChatDefaultFamily> getChatCustomDefaultFamily() override;
+	void clearChatTemplateButton() override;
 
 	static ITextMotionTemplateHelper *instance()
 	{

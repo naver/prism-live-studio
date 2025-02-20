@@ -70,7 +70,7 @@ struct DownloadTaskData {
 	QString url;
 	QString outputPath;
 	QString outputFileName;
-	qint64 version;
+	qint64 version = 0;
 	StickerDownloadType type = StickerDownloadType::THUMBNAIL;
 	QSize SourceSize;
 	PointerValue randomId{0LL};

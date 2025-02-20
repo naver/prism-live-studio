@@ -1,8 +1,8 @@
 #include "PLSSceneCollectionView.h"
 #include "ui_PLSSceneCollectionView.h"
 #include "obs-app.hpp"
+#include "libresource.h"
 #include "window-basic-main.hpp"
-#include "json-data-handler.hpp"
 #include "PLSBasic.h"
 #include <QListWidgetItem>
 #include <QAbstractItemView>
@@ -61,6 +61,7 @@ PLSSceneCollectionView::PLSSceneCollectionView(QWidget *parent) : PLSDialogView(
 	ui->importButton->setDisplayText(QTStr("Scene.Collection.View.Import"));
 	ui->importButton->setShowOverlay(true);
 	ui->winHelpLabel->installEventFilter(this);
+	ui->winHelpLabel->setHandleTooltip(false);
 	ui->tipLabel->setText(QTStr("Scene.Collection.View.Management").append(" Tip"));
 	connect(ui->newButton, &PLSClickButton::newBtnClicked, this, [this]() { emit newButtonClicked(); });
 	connect(ui->importButton, &PLSClickButton::importFromLocalBtnClicked, this, &PLSSceneCollectionView::OnImportFromLocalButtonClicked);
@@ -77,6 +78,7 @@ PLSSceneCollectionView::PLSSceneCollectionView(QWidget *parent) : PLSDialogView(
 	connect(ui->searchLineEdit, &PLSSearchLineEdit::textChanged, this, &PLSSceneCollectionView::OnSearchTriggerd, Qt::QueuedConnection);
 	connect(ui->listView, &PLSSceneCollectionListView::RowChanged, this, &PLSSceneCollectionView::OnSceneCollectionItemRowChanged);
 	connect(ui->listView, &PLSSceneCollectionListView::ScrollBarShow, this, &PLSSceneCollectionView::OnScrollBarShow);
+	connect(ui->listView, &PLSSceneCollectionListView::TriggerEventEvent, this, &PLSSceneCollectionView::OnTriggerEnterEvent);
 	connect(
 		this, &PLSSceneCollectionView::newButtonClicked, this,
 		[this]() {
@@ -221,6 +223,12 @@ void PLSSceneCollectionView::OnImportFromLocalButtonClicked()
 {
 	if (auto basic = OBSBasic::Get(); basic)
 		basic->on_actionImportSceneCollection_triggered_with_parent(this);
+
+#ifdef __APPLE__
+	// TODO: Revisit when QTBUG-42661 is fixed
+	pls_check_app_exiting();
+	this->window()->raise();
+#endif
 }
 
 void PLSSceneCollectionView::OnImportFromOtherButtonClicked() const
@@ -263,6 +271,15 @@ void PLSSceneCollectionView::HandleEnterEvent(const QObject *obj, const QEvent *
 	}
 }
 
+void PLSSceneCollectionView::OnTriggerEnterEvent(const QString &name, const QString &path)
+{
+	auto row = GetCollectionItemRow(name, path);
+	for (int i = 0; i < ui->listView->Count(); i++) {
+		ui->listView->SetData(i, row == i, SceneCollectionCustomRole::EnterRole);
+	}
+	ui->listView->UpdateWidgets();
+}
+
 void PLSSceneCollectionListView::OnApplyBtnClicked(const QString &name, const QString &path, bool textMode) const
 {
 	if (auto basic = OBSBasic::Get(); basic) {
@@ -300,6 +317,11 @@ void PLSSceneCollectionListView::OnDeleteBtnClicked(const QString &name, const Q
 	}
 }
 
+void PLSSceneCollectionListView::OnEnverEvent(const QString &name, const QString &path)
+{
+	emit TriggerEventEvent(name, path);
+}
+
 DropLine getDropLineType(const QPoint &pos, const PLSSceneCollectionItem *item)
 {
 	if (!item)
@@ -335,6 +357,7 @@ PLSSceneCollectionItem *PLSSceneCollectionListView::CreateItem(const PLSSceneCol
 	connect(itemView, &PLSSceneCollectionItem::renameClicked, this, &PLSSceneCollectionListView::OnRenameBtnClicked);
 	connect(itemView, &PLSSceneCollectionItem::duplicateClicked, this, &PLSSceneCollectionListView::OnDuplicateBtnClicked, Qt::QueuedConnection);
 	connect(itemView, &PLSSceneCollectionItem::deleteClicked, this, &PLSSceneCollectionListView::OnDeleteBtnClicked);
+	connect(itemView, &PLSSceneCollectionItem::triggerEnterEvent, this, &PLSSceneCollectionListView::OnEnverEvent);
 	return itemView;
 }
 
@@ -515,13 +538,12 @@ void PLSSceneCollectionView::InitSceneCollectionConfig(QVector<PLSSceneCollectio
 	if (!QFile::exists(collectionConfigFile))
 		return;
 
-	QByteArray array;
-	if (!PLSJsonDataHandler::getJsonArrayFromFile(array, collectionConfigFile)) {
+	QJsonObject objectJson;
+	if (!pls_read_json(objectJson, collectionConfigFile)) {
 		return;
 	}
 
 	QVector<PLSSceneCollectionData> cacheDatas;
-	QJsonObject objectJson = QJsonDocument::fromJson(array).object();
 	const QJsonArray &jsonArray = objectJson.value("order").toArray();
 	for (auto json : jsonArray) {
 		QJsonObject object = json.toObject();
@@ -579,7 +601,7 @@ void PLSSceneCollectionView::WriteSceneCollectionConfig() const
 	}
 	QJsonObject rootObject;
 	rootObject["order"] = array;
-	PLSJsonDataHandler::saveJsonFile(QJsonDocument(rootObject).toJson(), pls_get_user_path("PRISMLiveStudio/basic/scenes/").append(SCENE_COLLECTION_CONFIG));
+	pls_write_json(pls_get_user_path("PRISMLiveStudio/basic/scenes/").append(SCENE_COLLECTION_CONFIG), rootObject);
 }
 
 void PLSSceneCollectionView::UpdateListViewDelBtnStatus(PLSSceneCollectionListView *view, const QVector<PLSSceneCollectionData> &datas) const
@@ -780,6 +802,8 @@ QVariant PLSSceneCollectionModel::data(const QModelIndex &index, int role) const
 		return QVariant::fromValue(itemDatas[row].current);
 	} else if (SceneCollectionCustomRole::UserLocalPathRole == (SceneCollectionCustomRole)role) {
 		return QVariant::fromValue(itemDatas[row].userLocalPath);
+	} else if (SceneCollectionCustomRole::EnterRole == (SceneCollectionCustomRole)role) {
+		return QVariant::fromValue(itemDatas[row].enter);
 	}
 
 	return QVariant();
@@ -800,6 +824,8 @@ bool PLSSceneCollectionModel::setData(const QModelIndex &index, const QVariant &
 		itemDatas[row].current = value.value<bool>();
 	} else if (SceneCollectionCustomRole::UserLocalPathRole == (SceneCollectionCustomRole)role) {
 		itemDatas[row].userLocalPath = value.value<QString>();
+	} else if (SceneCollectionCustomRole::EnterRole == (SceneCollectionCustomRole)role) {
+		itemDatas[row].enter = value.value<bool>();
 	}
 	return true;
 }
@@ -877,8 +903,7 @@ void PLSSceneCollectionListView::UpdateWidget(int row, const PLSSceneCollectionD
 	if (!update) {
 		auto item = CreateItem(data);
 		setIndexWidget(index, item);
-	} else {
-		auto existedItem = static_cast<PLSSceneCollectionItem *>(indexWidget(index));
+	} else if (auto existedItem = static_cast<PLSSceneCollectionItem *>(indexWidget(index)); existedItem) {
 		existedItem->Update(model->GetData(row));
 	}
 }
@@ -934,6 +959,7 @@ PLSClickButton::PLSClickButton(QWidget *parent) : QWidget(parent)
 	hLayout->setSpacing(0);
 
 	baseContent = pls_new<QPushButton>();
+	baseContent->setFocusPolicy(Qt::NoFocus);
 	baseContent->setObjectName("baseContent");
 	connect(baseContent, &QPushButton::clicked, this, [this]() { emit newBtnClicked(); });
 	QVBoxLayout *vLayout = pls_new<QVBoxLayout>(baseContent);

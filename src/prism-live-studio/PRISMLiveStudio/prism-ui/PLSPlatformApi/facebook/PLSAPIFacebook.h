@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include "libhttp-client.h"
+#include "PLSErrorHandler.h"
 
 enum class PLSAPIFacebookType {
 	PLSFacebookSuccess,
@@ -72,18 +73,18 @@ struct FacebookPrivacyInfo {
 	QString privacyName;
 };
 
-using MyRequestTypeFunction = std::function<void(PLSAPIFacebookType type)>;
-using GetLongAccessTokenCallback = std::function<void(PLSAPIFacebookType type, const QString &accessToken)>;
-using GetUserInfoCallback = std::function<void(PLSAPIFacebookType type, const QString &username, const QString &imagePath, const QString &userId)>;
-using GetMyGroupListCallback = std::function<void(PLSAPIFacebookType type, const QList<FacebookGroupInfo> &list)>;
-using GetMyPageListCallback = std::function<void(PLSAPIFacebookType type, const QList<FacebookPageInfo> &list)>;
-using GetMyGameListCallback = std::function<void(PLSAPIFacebookType type, const QList<FacebookGameInfo> &list)>;
-using GetLiveVideoTitleDesCallback = std::function<void(PLSAPIFacebookType type, const QString &title, const QString &description)>;
-using GetLiveVideoStatisticCallback = std::function<void(PLSAPIFacebookType type, const QString &status, const QString &live_views, const QString &comments, const QString &reactions)>;
-using StartLivingCallback = std::function<void(PLSAPIFacebookType type, const QString &streamURL, const QString &liveId, const QString &videoId, const QString &shareLink)>;
+using MyRequestTypeFunction = std::function<void(const PLSErrorHandler::RetData &retData)>;
+using GetLongAccessTokenCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QString &accessToken)>;
+using GetUserInfoCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QString &username, const QString &imagePath, const QString &userId)>;
+using GetMyGroupListCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QList<FacebookGroupInfo> &list)>;
+using GetMyPageListCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QList<FacebookPageInfo> &list)>;
+using GetMyGameListCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QList<FacebookGameInfo> &list)>;
+using GetLiveVideoTitleDesCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QString &title, const QString &description)>;
+using GetLiveVideoStatisticCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QString &status, const QString &live_views, const QString &comments, const QString &reactions)>;
+using StartLivingCallback = std::function<void(const PLSErrorHandler::RetData &retData, const QString &streamURL, const QString &liveId, const QString &videoId, const QString &shareLink)>;
 using MyRequestSuccessFunction = std::function<void(QJsonObject root)>;
-using ItemInfoRequestFunction = std::function<void(PLSAPIFacebookType type, QString username, QString profilePath)>;
-using TimelinePrivacyFunction = std::function<void(PLSAPIFacebookType type, QString privacyId)>;
+using ItemInfoRequestFunction = std::function<void(const PLSErrorHandler::RetData &retData, QString username, QString profilePath)>;
+using TimelinePrivacyFunction = std::function<void(const PLSErrorHandler::RetData &retData, QString privacyId)>;
 
 #define PLSFaceBookRquest PLSAPIFacebook::instance()
 
@@ -134,7 +135,7 @@ public:
 	void getLongLiveUserAccessToken(const GetLongAccessTokenCallback &onFinished);
 	void getUserInfo(const GetUserInfoCallback &onFinished);
 	void checkPermission(PLSAPI requestType, QStringList permission, const MyRequestTypeFunction &onFinished, QWidget *parent);
-	PLSAPIFacebookType checkPermissionSuccess(const QJsonObject &root, const QStringList &permissionList, PLSAPIFacebook::PLSAPI requestType, QWidget *parent) const;
+	PLSErrorHandler::RetData checkPermissionSuccess(const QJsonObject &root, const QStringList &permissionList, PLSAPIFacebook::PLSAPI requestType, QWidget *parent) const;
 	void getMyGroupListRequestAndCheckPermission(const GetMyGroupListCallback &onFinished, QWidget *parent);
 	void getMyGroupListRequest(const GetMyGroupListCallback &onFinished);
 	void getMyPageListRequestAndCheckPermission(const GetMyPageListCallback &onFinished, QWidget *parent);
@@ -149,13 +150,16 @@ public:
 	void stopFacebookLiving(const QString &liveVideoId, const MyRequestTypeFunction &onFinished) const;
 	void downloadSyncImage(const QString &url, QString &imagePath) const;
 
+	static PLSErrorHandler::RetData makeRetData(PLSErrorHandler::ErrCode prismCode);
+	QString customErrorUpdateLiveinfoFailed() const { return QStringLiteral("UpdateLiveInfoFailedNoService"); }
+
 private:
 	bool containsRequestPermissionList(const QString &url, const QStringList &requestPermissionList) const;
 	static QString getFaceboolURL(const QString &endpoint);
 	QUrl getPermissionRequestUrl(const QString &permission) const;
 	bool goFacebookRequestPermission(const QStringList &permissionList, QWidget *parent) const;
 	void startRequestApi(PLSAPI requestType, const pls::http::Request &request, const MyRequestSuccessFunction &successFunction, const MyRequestTypeFunction &failedFunction);
-	PLSAPIFacebookType handleApiErrorCode(PLSAPI requestType, int statusCode, QByteArray data, QNetworkReply::NetworkError error) const;
+	PLSErrorHandler::RetData handleApiErrorCode(PLSAPI requestType, int statusCode, QByteArray data, QNetworkReply::NetworkError error) const;
 	const char *getApiName(PLSAPI requestType) const;
 	void printRequestStartLog(PLSAPI requestType, const QString &uri, const QString &log = QString()) const;
 	void printRequestSuccessLog(PLSAPI requestType, const QString &log = QString()) const;

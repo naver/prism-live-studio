@@ -11,6 +11,7 @@
 #include "PLSSearchCombobox.h"
 #include <vector>
 #include <QJsonObject>
+#include "PLSErrorHandler.h"
 
 constexpr auto MODULE_PLATFORM_CHZZK = "Platform/Chzzk";
 
@@ -42,7 +43,7 @@ struct PLSChzzkLiveinfoData {
 	PLSSearchData categoryData;
 	bool isAgeLimit = false;
 	bool isNeedMoney = false;
-	QString chatPermisson{};
+	QString chatPermission{};
 	bool clipActive = false;
 
 	QJsonObject extraObj;
@@ -53,14 +54,14 @@ class PLSPlatformChzzk : public PLSPlatformBase {
 public:
 	static const std::vector<QString> &getChatPermissionList();
 	static int getIndexOfChatPermission(const QString &permission);
-	static QString getchatPermissionByIndex(int index);
+	static QString getChatPermissionByIndex(int index);
 
 	PLSPlatformChzzk();
 	~PLSPlatformChzzk() override = default;
 
 	PLSServiceType getServiceType() const override;
 	void onPrepareLive(bool value) override;
-	void liveInfoisShowing();
+	void liveInfoIsShowing();
 	void reInitLiveInfo();
 
 	void requestChannelInfo(const QVariantMap &srcInfo, const UpdateCallback &finishedCall);
@@ -69,7 +70,7 @@ public:
 	QString subChannelID() const;
 
 	PLSChzzkLiveinfoData getSelectData() { return m_selectData; }
-
+	PLSChzzkLiveinfoData &getSelectDataRef() { return m_selectData; }
 	/*common*/
 	bool onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject) override;
 
@@ -86,10 +87,6 @@ public:
 
 	const QString &getFailedErr() const { return m_startFailedStr; }
 	void setFailedErr(const QString &failedStr) { m_startFailedStr = failedStr; }
-	void setlastRequestAPI(const QString &apiName) { m_lastRequestAPI = apiName; }
-	void setupApiFailedWithCode(PLSPlatformApiResult result, const QByteArray &errData);
-	bool isShownAlert() const { return m_isShownAlert; }
-	void setIsShownAlert(bool isShownAlert) { m_isShownAlert = isShownAlert; }
 
 	/*request*/
 	void requestCreateLive(const QObject *receiver, const PLSChzzkLiveinfoData &liveData, const std::function<void(bool)> &onNext);
@@ -99,6 +96,13 @@ public:
 	void requestLiveInfo(const QObject *receiver, const std::function<void(bool)> &onNext);
 	void requestUpdateInfo(const QObject *receiver, const PLSChzzkLiveinfoData &liveData, bool isChannel, const std::function<void(bool)> &onNext);
 
+	//error handle
+	PLSErrorHandler::ExtraData getErrorExtraData(const QString &urlEn, const QString &urlKr = {});
+	void showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom);
+	void showAlertByCustName(const QString &customErrName, const QString &logFrom);
+	void showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom);
+	void showAlertPostAction(const PLSErrorHandler::RetData &retData);
+
 signals:
 	void closeDialogByExpired();
 	void toShowLoading(bool isShowLoading);
@@ -106,20 +110,16 @@ signals:
 	void changeClipToNotAllow();
 
 public slots:
-	void requestSearchCategory(const QWidget *reciever, const QString &query);
+	void requestSearchCategory(const QWidget *receiver, const QString &query);
 
 private:
 	void onAllPrepareLive(bool isOk) override;
 
 	QString m_startFailedStr{};
-	QString m_lastRequestAPI{};
-	bool m_isShownAlert = false;
 	PLSChzzkLiveinfoData m_selectData;
 	PLSChzzkLiveinfoData m_tmpData;
 
 	void setSelectData(const PLSChzzkLiveinfoData &data);
-
-	PLSPlatformApiResult getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data, PLSAPICommon::PLSApiType apiType = PLSAPICommon::PLSApiType::Normal) const;
 	void onLiveEnded() override;
 	void onAlLiveStarted(bool) override;
 };

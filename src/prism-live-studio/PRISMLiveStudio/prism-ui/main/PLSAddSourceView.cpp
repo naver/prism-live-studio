@@ -65,13 +65,13 @@ PLSAddSourceItem::PLSAddSourceItem(const QString &id, const QString &displayName
 	m_newLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	connect(this, &QPushButton::toggled, this, &PLSAddSourceItem::statusChanged);
-	connect(this, &QPushButton::toggled, this, [this, isNew]() { calculateLabelWidth(isNew); });
+	connect(this, &QPushButton::toggled, this, [this, isNew](bool isChecked) { calculateLabelWidth(isNew, isChecked); });
 	QPixmap pix = OBSBasic::Get()->GetSourcePixmap(id, false);
 	ui->label_icon->setPixmap(pix);
 	ui->label_icon->setAttribute(Qt::WA_TransparentForMouseEvents);
 	ui->label_text->setAttribute(Qt::WA_TransparentForMouseEvents);
 	QMetaObject::invokeMethod(
-		this, [isNew, this]() { calculateLabelWidth(isNew); }, Qt::QueuedConnection);
+		this, [isNew, this]() { calculateLabelWidth(isNew, false); }, Qt::QueuedConnection);
 }
 
 PLSAddSourceItem::~PLSAddSourceItem()
@@ -104,7 +104,7 @@ QScrollArea *PLSAddSourceItem::getScrollArea()
 	return m_scrollArea;
 }
 
-void PLSAddSourceItem::calculateLabelWidth(bool isNew)
+void PLSAddSourceItem::calculateLabelWidth(bool isNew, bool isChecked)
 {
 	ui->horizontalLayout_2->setContentsMargins(0, 0, isNew ? m_newLabel->width() + ITEMTEXTLAYOUTRIGHTMARGIN : ITEMTEXTLAYOUTRIGHTMARGIN, 0);
 
@@ -113,6 +113,9 @@ void PLSAddSourceItem::calculateLabelWidth(bool isNew)
 	if (isNew) {
 		availableWidth -= NEWICONWIDTH;
 	}
+
+	availableWidth -= isChecked ? 5 : 0;
+
 	if (fontWidth.horizontalAdvance(ui->label_text->text()) > availableWidth) {
 		ui->label_text->setWordWrap(true);
 		this->setFixedHeight(ITEMMAXHEIGHT);
@@ -156,6 +159,11 @@ PLSAddSourceView::PLSAddSourceView(QWidget *parent) : PLSDialogView(parent)
 	connect(&m_buttonGroup, QOverload<QAbstractButton *>::of(&QButtonGroup::buttonClicked), this, &PLSAddSourceView::sourceItemChanged);
 	connect(ui->buttonOK, &QPushButton::clicked, this, &PLSAddSourceView::okHandler);
 	connect(ui->buttonCancel, &QPushButton::clicked, [this]() { PLSAddSourceView::done(Rejected); });
+	connect(ui->scrollArea->verticalScrollBar(), &QScrollBar::valueChanged, [this](int value) {
+		if (value >= ui->scrollArea->verticalScrollBar()->maximum()) {
+			ui->frame_baseSource->repaint();
+		}
+	});
 	ui->buttonOK->setEnabled(m_buttonGroup.checkedButton() != nullptr);
 	initSourceItems();
 	ui->scrollArea->verticalScrollBar()->isVisible() ? ui->verticalLayout_baseSource->setContentsMargins(11, 0, 4, 0) : ui->verticalLayout_baseSource->setContentsMargins(11, 0, 13, 0);
@@ -310,25 +318,33 @@ void PLSAddSourceView::setSourceDesc(QAbstractButton *button)
 		ui->label_descPic->setVisible(true);
 		QSize size = {100, 100};
 		QString suffix = "svg";
-		QPixmap pix;
 		ui->label_descPic->setFixedSize(size);
 		margin.setBottom(170);
 		if (0 == key.compare("bgm", Qt::CaseInsensitive)) {
 			margin.setBottom(184);
 			size = {250, 71};
 			suffix = "png";
-			pix.load(QString(DESCICONPATH).arg(key).arg(suffix));
-			pix = pix.scaled(size * 3, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 			ui->label_descPic->setFixedSize(size);
 		} else if (0 == key.compare("default", Qt::CaseInsensitive)) {
 			suffix = "png";
-			pix.load(QString(DESCICONPATH).arg(key).arg(suffix));
-			pix = pix.scaled(size * 3, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-		} else {
-			loadPixmap(pix, QString(DESCICONPATH).arg(key).arg(suffix), size * 4);
 		}
+		QString imagePath = QString(DESCICONPATH).arg(key).arg(suffix);
+		pls_async_invoke([pthis = pls::QObjectPtr<PLSAddSourceView>(this), imagePath, size, suffix]() {
+			if (!pthis.valid())
+				return;
 
-		ui->label_descPic->setPixmap(pix);
+			QPixmap image;
+			if (suffix == "svg") {
+				loadPixmap(image, imagePath, size * 4);
+			} else {
+				image.load(imagePath);
+				image = image.scaled(size * 3, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			}
+
+			pls_async_call(pthis, [pthis, image]() { //
+				pthis->ui->label_descPic->setPixmap(image);
+			});
+		});
 	} else if (descType == 1) {
 		QString suffix = "png";
 		QString format = "APNG";

@@ -2,6 +2,7 @@
 #define CHANNELDATAHANDLER_H
 
 #include <qjsonobject.h>
+#include <QNetworkReply>
 #include <QObject>
 #include <QSharedPointer>
 #include <QString>
@@ -113,7 +114,7 @@ protected:
 	void finishUpdateBasicInfo(const QVariantMap &jsonMap);
 	bool getheaderImage();
 
-	void handleError(int statusCode);
+	void handleError(int code, QByteArray data, QNetworkReply::NetworkError error, const QString &logFrom);
 	void resetWhenRefresh() override;
 
 private:

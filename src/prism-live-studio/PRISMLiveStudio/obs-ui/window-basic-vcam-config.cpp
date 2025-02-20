@@ -122,6 +122,24 @@ void OBSBasicVCamConfig::OutputTypeChanged()
 	ui->warningLabel->setVisible(requireRestart);
 }
 
+static const char *getVCamOutputTypeStr(VCamOutputType type)
+{
+	switch (type) {
+	case VCamOutputType::Invalid:
+		return "Invalid";
+	case VCamOutputType::SceneOutput:
+		return "SceneOutput";
+	case VCamOutputType::SourceOutput:
+		return "SourceOutput";
+	case VCamOutputType::ProgramView:
+		return "ProgramView";
+	case VCamOutputType::PreviewOutput:
+		return "PreviewOutput";
+	default:
+		return "Invalid";
+	}
+}
+
 void OBSBasicVCamConfig::UpdateConfig()
 {
 	VCamOutputType type =
@@ -143,10 +161,9 @@ void OBSBasicVCamConfig::UpdateConfig()
 	}
 
 	PLS_LOGEX(PLS_LOG_INFO, MAIN_OUTPUT,
-		  {{"virtualCamOutputType",
-		    qPrintable(ui->outputType->currentText())}},
+		  {{"virtualCamOutputType", getVCamOutputTypeStr(type)}},
 		  "[Output] virtualCamOutputType : %s.",
-		  qPrintable(ui->outputType->currentText()));
+		  getVCamOutputTypeStr(type));
 
 	config.type = type;
 

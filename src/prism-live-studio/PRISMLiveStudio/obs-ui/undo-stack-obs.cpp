@@ -54,7 +54,6 @@ void undo_stack::add_action(const QString &name, const undo_redo_cb &undo,
 	}
 
 	undo_redo_t n = {name, undo_data, redo_data, undo, redo};
-	hasOperation = true;
 
 	last_is_repeatable = repeatable;
 	undo_items.push_front(n);
@@ -73,7 +72,6 @@ void undo_stack::undo()
 		return;
 
 	last_is_repeatable = false;
-	hasOperation = true;
 
 	undo_redo_t temp = undo_items.front();
 	temp.undo(temp.undo_data);
@@ -98,7 +96,6 @@ void undo_stack::redo()
 		return;
 
 	last_is_repeatable = false;
-	hasOperation = true;
 
 	undo_redo_t temp = redo_items.front();
 	temp.redo(temp.redo_data);
@@ -165,14 +162,4 @@ void undo_stack::pop_disabled()
 void undo_stack::clear_redo()
 {
 	redo_items.clear();
-}
-
-void undo_stack::resetOperationFlag()
-{
-	hasOperation = false;
-}
-
-bool undo_stack::getOperationFlag()
-{
-	return hasOperation;
 }

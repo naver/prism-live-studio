@@ -21,10 +21,11 @@ class OBSProjector : public OBSQTDisplay {
 
 private:
 	OBSWeakSourceAutoRelease weakSource;
-	OBSSignal destroyedSignal;
+	std::vector<OBSSignal> sigs;
 
 	static void OBSRenderMultiview(void *data, uint32_t cx, uint32_t cy);
 	static void OBSRender(void *data, uint32_t cx, uint32_t cy);
+	static void OBSSourceRenamed(void *data, calldata_t *params);
 	static void OBSSourceDestroyed(void *data, calldata_t *params);
 	void mousePressEvent(QMouseEvent *event) override;
 	void mouseDoubleClickEvent(QMouseEvent *event) override;
@@ -58,6 +59,7 @@ private slots:
 	void OpenWindowedProjector();
 	void AlwaysOnTopToggled(bool alwaysOnTop);
 	void ScreenRemoved(QScreen *screen_);
+	void RenameProjector(QString oldName, QString newName);
 
 public:
 	OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
@@ -68,7 +70,6 @@ public:
 	ProjectorType GetProjectorType();
 	int GetMonitor();
 	static void UpdateMultiviewProjectors();
-	void RenameProjector(QString oldName, QString newName);
 	void SetHideCursor();
 
 	bool IsAlwaysOnTop() const;
@@ -77,4 +78,5 @@ public:
 
 	static void setParentDialogTitleBarButtons(PLSDialogView *parentDialg,
 						   bool isFullScreen);
+	bool isVerticalPreview = false;
 };

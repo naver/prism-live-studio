@@ -24,67 +24,27 @@ const int TITLE_MAX_LENGTH = 250;
 using namespace std;
 using namespace common;
 
-void PLSLiveInfoFacebook::handleRequestFunctionType(PLSAPIFacebookType type)
+void PLSLiveInfoFacebook::handleRequestFunctionType(PLSErrorHandler::RetData retData)
 {
-	switch (type) {
-	case PLSAPIFacebookType::PLSFacebookInvalidAccessToken:
-		handleFacebookIncalidAccessToken();
-		break;
-	case PLSAPIFacebookType::PLSRequestPermissionReject:
-		pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("facebook.liveinfo.request.permission.refused"));
-		break;
-	case PLSAPIFacebookType::PLSLivingPermissionReject:
-		pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("facebook.liveinfo.living.permission.refused"));
-		break;
-	case PLSAPIFacebookType::PLSUpdateLiveInfoFailed:
-		pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.update.failed"));
-		break;
-	case PLSAPIFacebookType::PLSUpdateLivingPermissionReject:
-		pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("facebook.living.no.living.permissions"));
-		break;
-	case PLSAPIFacebookType::PLSFacebookDeclined_60Days:
-		if (pls::Button::Help == pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("facebook.living.permissions.60Days"), "1363120",
-								 {{pls::Button::Ok, QTStr("OK")}, {pls::Button::Help, QTStr("facebook.living.permissions.help")}})) {
-			QMap<QString, QString> mapUrls = {{"ko", "https://prismliveofficial.medium.com/4602-ko-e06aad4585c4"},
-							  {"id", "https://prismliveofficial.medium.com/4602-id-eeed99eb1458"},
-							  {"vi", "https://prismliveofficial.medium.com/4602-vn-798674f30051"},
-							  {"pt", "https://prismliveofficial.medium.com/4602-pt-d3f5a20e4d13"},
-							  {"es", "https://prismliveofficial.medium.com/4602-es-f994c81f59ee"}};
-			auto url = mapUrls.value(pls_get_current_language_short_str(), "https://prismliveofficial.medium.com/4602-en-749cbf9e9a1e");
-			QDesktopServices::openUrl(QUrl(url));
-		}
-		break;
-	case PLSAPIFacebookType::PLSFacebookDeclined_100Followers:
-		if (pls::Button::Help == pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("facebook.living.permissions.100Followers"), "1363144",
-								 {{pls::Button::Ok, QTStr("OK")}, {pls::Button::Help, QTStr("facebook.living.permissions.help")}})) {
-			QMap<QString, QString> mapUrls = {{"ko", "https://prismliveofficial.medium.com/4602-ko-e06aad4585c4"},
-							  {"id", "https://prismliveofficial.medium.com/4602-id-eeed99eb1458"},
-							  {"vi", "https://prismliveofficial.medium.com/4602-vn-798674f30051"},
-							  {"pt", "https://prismliveofficial.medium.com/4602-pt-d3f5a20e4d13"},
-							  {"es", "https://prismliveofficial.medium.com/4602-es-f994c81f59ee"}};
-			auto url = mapUrls.value(pls_get_current_language_short_str(), "https://prismliveofficial.medium.com/4602-en-749cbf9e9a1e");
-			QDesktopServices::openUrl(QUrl(url));
-		}
-		break;
-	default:
-		break;
+	if (PLSErrorHandler::CHANNEL_FACEBOOK_INVALIDACCESSTOKEN == retData.prismCode) {
+		handleFacebookIncalidAccessToken(retData);
+	} else {
+		PLSErrorHandler::directShowAlert(retData, nullptr);
 	}
 }
 
-void PLSLiveInfoFacebook::showCommonErrorMessage()
-{
-	pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.update.failed"));
-}
-
-void PLSLiveInfoFacebook::handleFacebookIncalidAccessToken()
+void PLSLiveInfoFacebook::handleFacebookIncalidAccessToken(PLSErrorHandler::RetData retData)
 {
 	if (m_showTokenAlert) {
 		return;
 	}
 	m_showTokenAlert = true;
-	showLoading(content());
-	PLSAlertView::Button button = pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("facebook.liveinfo.login.token.expired"));
-	hideLoading();
+	PLSAlertView::Button button = PLSAlertView::Button::NoButton;
+	if (!retData.alertMsg.isEmpty()) {
+		showLoading(content());
+		button = PLSErrorHandler::directShowAlert(retData, nullptr);
+		hideLoading();
+	}
 	reject();
 	if (button == PLSAlertView::Button::Ok) {
 		PLSCHANNELS_API->channelExpired(platform->getChannelUUID(), false);
@@ -106,6 +66,8 @@ PLSLiveInfoFacebook::PLSLiveInfoFacebook(PLSPlatformBase *pPlatformBase, QWidget
 	setFocus();
 
 	platform->insertParentPointer(this);
+
+	ui->dualWidget->setText(tr("Facebook"))->setUUID(platform->getChannelUUID());
 
 	//set first class menu and second class menu
 	initComboBoxList();
@@ -295,10 +257,10 @@ void PLSLiveInfoFacebook::on_okButton_clicked()
 	PLSAPIFacebook::PLSAPI apiType;
 	if (isPrepareLive || isLivingProcess) {
 
-		auto checkLivePermissionFinished = [this, isPrepareLive, isLivingProcess](PLSAPIFacebookType type) {
+		auto checkLivePermissionFinished = [this, isPrepareLive, isLivingProcess](const PLSErrorHandler::RetData &retData) {
 			hideLoading();
 
-			if (type == PLSAPIFacebookType::PLSFacebookGranted) {
+			if (retData.prismCode == PLSErrorHandler::SUCCESS) {
 				if (isPrepareLive) {
 					startLivingRequest();
 				} else if (isLivingProcess) {
@@ -307,33 +269,28 @@ void PLSLiveInfoFacebook::on_okButton_clicked()
 				return;
 			}
 
-			if (type == PLSAPIFacebookType::PLSFacebookInvalidAccessToken) {
-				if (isPrepareLive) {
+			if (isPrepareLive) {
+				switch (retData.prismCode) {
+				case PLSErrorHandler::CHANNEL_FACEBOOK_INVALIDACCESSTOKEN:
 					PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule,
 						  {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "facebook check living permission api invalid access token"}},
 						  "facebook start live failed");
-				}
-				handleRequestFunctionType(type);
-				return;
-			}
-
-			if (type == PLSAPIFacebookType::PLSFacebookDeclined) {
-				if (isPrepareLive) {
+					break;
+				case PLSErrorHandler::CHANNEL_FACEBOOK_DECLINED:
 					PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule,
 						  {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "user decline the facebook living permission"}},
 						  "facebook start live failed");
+
+					break;
+				default:
+					PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule,
+						  {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "facebook check living permission failed"}},
+						  "facebook start live failed");
+					break;
 				}
-				type = PLSAPIFacebookType::PLSRequestPermissionReject;
-				handleRequestFunctionType(type);
-				return;
 			}
 
-			if (isPrepareLive) {
-				PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "facebook check living permission failed"}},
-					  "facebook start live failed");
-			}
-
-			showCommonErrorMessage();
+			handleRequestFunctionType(retData);
 		};
 
 		showLoading(content());
@@ -356,26 +313,15 @@ void PLSLiveInfoFacebook::on_okButton_clicked()
 
 	} else if (IsPageObjectFlags || IsGroupObjectFlags) {
 
-		auto pageGetInfoPermissionFinished = [this](PLSAPIFacebookType type) {
+		auto pageGetInfoPermissionFinished = [this](const PLSErrorHandler::RetData &retData) {
 			hideLoading();
 
-			if (type == PLSAPIFacebookType::PLSFacebookGranted) {
+			if (retData.prismCode == PLSErrorHandler::SUCCESS) {
 				getTimelineOrGroupOrPageInfoRequest();
 				return;
 			}
 
-			if (type == PLSAPIFacebookType::PLSFacebookInvalidAccessToken) {
-				handleRequestFunctionType(type);
-				return;
-			}
-
-			if (type == PLSAPIFacebookType::PLSFacebookDeclined) {
-				type = PLSAPIFacebookType::PLSRequestPermissionReject;
-				handleRequestFunctionType(type);
-				return;
-			}
-
-			showCommonErrorMessage();
+			handleRequestFunctionType(retData);
 		};
 
 		showLoading(content());
@@ -405,13 +351,9 @@ void PLSLiveInfoFacebook::onClickGroupComboBox()
 {
 	PLS_UI_STEP(liveInfoMoudule, "Facebook group comboBox", ACTION_CLICK);
 
-	auto onFinish = [this](PLSAPIFacebookType type) {
-		if (type == PLSAPIFacebookType::PLSFacebookNetworkError) {
-			showNetworkErrorAlert(PLSLiveInfoFacebookErrorType::PLSLiveInfoFacebookGroupError);
-			return;
-		}
-		if (type != PLSAPIFacebookType::PLSFacebookSuccess) {
-			handleRequestFunctionType(type);
+	auto onFinish = [this](const PLSErrorHandler::RetData &retData) {
+		if (retData.prismCode != PLSErrorHandler::SUCCESS) {
+			handleRequestFunctionType(retData);
 			return;
 		}
 		getMyGroupListRequestSuccess();
@@ -441,13 +383,9 @@ void PLSLiveInfoFacebook::getMyGroupListRequestSuccess()
 void PLSLiveInfoFacebook::onClickPageComboBox()
 {
 	PLS_UI_STEP(liveInfoMoudule, "Facebook page comboBox", ACTION_CLICK);
-	auto onFinish = [this](PLSAPIFacebookType type) {
-		if (type == PLSAPIFacebookType::PLSFacebookNetworkError) {
-			showNetworkErrorAlert(PLSLiveInfoFacebookErrorType::PLSLiveInfoFacebookPageError);
-			return;
-		}
-		if (type != PLSAPIFacebookType::PLSFacebookSuccess) {
-			handleRequestFunctionType(type);
+	auto onFinish = [this](const PLSErrorHandler::RetData &retData) {
+		if (retData.prismCode != PLSErrorHandler::SUCCESS) {
+			handleRequestFunctionType(retData);
 			return;
 		}
 		getMyPageListRequestSuccess();
@@ -496,13 +434,9 @@ void PLSLiveInfoFacebook::searchGameKeyword(const QString keyword)
 	setupGameListCornerRadius();
 	m_gameListWidget->setVisible(true);
 	m_gameListWidget->clear();
-	auto onFinish = [this](PLSAPIFacebookType type) {
-		if (type == PLSAPIFacebookType::PLSFacebookNetworkError) {
-			showNetworkErrorAlert(PLSLiveInfoFacebookErrorType::PLSLiveInfoFacebookSearchGameError);
-			return;
-		}
-		if (type != PLSAPIFacebookType::PLSFacebookSuccess) {
-			handleRequestFunctionType(type);
+	auto onFinish = [this](const PLSErrorHandler::RetData &retData) {
+		if (retData.prismCode != PLSErrorHandler::SUCCESS) {
+			handleRequestFunctionType(retData);
 			return;
 		}
 		gameTagListRequestSuccess();
@@ -594,22 +528,17 @@ void PLSLiveInfoFacebook::getTimelineOrGroupOrPageInfoRequest()
 	showLoading(this);
 
 	// Obtain timeline, page, group avatar and name before live broadcast
-	auto itemInfoFinished = [this](PLSAPIFacebookType type) {
+	auto itemInfoFinished = [this](const PLSErrorHandler::RetData &retData) {
 		// Remove the network loading box
 		hideLoading();
 
 		// If the user information is successfully obtained, LiveInfo will be hidden.
-		if (type == PLSAPIFacebookType::PLSFacebookSuccess) {
+		if (retData.prismCode == PLSErrorHandler::SUCCESS) {
 			accept();
 			return;
 		}
 
-		if (type == PLSAPIFacebookType::PLSFacebookInvalidAccessToken) {
-			handleRequestFunctionType(type);
-			return;
-		}
-
-		showCommonErrorMessage();
+		handleRequestFunctionType(retData);
 	};
 
 	// Get avatar and name request
@@ -622,57 +551,25 @@ void PLSLiveInfoFacebook::startLivingRequest()
 
 	showLoading(content());
 
-	auto startLivingFinished = [this](PLSAPIFacebookType type) {
+	auto startLivingFinished = [this](const PLSErrorHandler::RetData &retData) {
 		hideLoading();
 
-		if (type == PLSAPIFacebookType::PLSFacebookSuccess) {
+		if (retData.prismCode == PLSErrorHandler::SUCCESS) {
 			accept();
 			return;
 		}
 
-		if (type == PLSAPIFacebookType::PLSFacebookInvalidAccessToken) {
-			PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule,
-				  {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "facebook check permission api invalid access token"}},
-				  "facebook start live failed");
-			handleRequestFunctionType(type);
-			return;
-		}
-
-		if (type == PLSAPIFacebookType::PLSFacebookDeclined) {
-			PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "user decline the living permission"}},
-				  "facebook start live failed");
-			type = PLSAPIFacebookType::PLSLivingPermissionReject;
-			handleRequestFunctionType(type);
-			return;
-		}
-
-		if (type == PLSAPIFacebookType::PLSFacebookDeclined_60Days) {
-			PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "profile needs to be at least 60 days"}},
-				  "facebook start live failed");
-			handleRequestFunctionType(type);
-			return;
-		}
-
-		if (type == PLSAPIFacebookType::PLSFacebookDeclined_100Followers) {
-			PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "need at least 100 followers"}},
-				  "facebook start live failed");
-			handleRequestFunctionType(type);
-			return;
-		}
-
-		if (type == PLSAPIFacebookType::PLSFacebookObjectDontExist) {
-			PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "facebook object is not exist"}},
-				  "facebook start live failed");
+		if (retData.prismCode == PLSErrorHandler::CHANNEL_FACEBOOK_OBJECTNOTEXIST) {
 			m_expiredObjectList.append(ui->shareSecondObject->getComboBoxId());
-			type = PLSAPIFacebookType::PLSLivingPermissionReject;
-			handleRequestFunctionType(type);
-			return;
 		}
 
-		PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "facebook call create live api failed"}},
+		PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule,
+			  {{"platformName", "facebook"},
+			   {"startLiveStatus", "Failed"},
+			   {"startLiveFailed", qUtf8Printable(QString("facebook call create live api failed, prismCode=%1").arg(retData.prismCode))}},
 			  "facebook start live failed");
 
-		showCommonErrorMessage();
+		handleRequestFunctionType(retData);
 	};
 
 	platform->startLiving(startLivingFinished);
@@ -682,26 +579,15 @@ void PLSLiveInfoFacebook::updateLivingRequest()
 {
 	showLoading(content());
 
-	auto updateLivingFinished = [this](PLSAPIFacebookType type) {
+	auto updateLivingFinished = [this](const PLSErrorHandler::RetData &retData) {
 		hideLoading();
 
-		if (type == PLSAPIFacebookType::PLSFacebookSuccess) {
+		if (retData.prismCode == PLSErrorHandler::SUCCESS) {
 			accept();
 			return;
 		}
 
-		if (type == PLSAPIFacebookType::PLSFacebookInvalidAccessToken) {
-			handleRequestFunctionType(type);
-			return;
-		}
-
-		if (type == PLSAPIFacebookType::PLSFacebookDeclined || type == PLSAPIFacebookType::PLSFacebookObjectDontExist) {
-			type = PLSAPIFacebookType::PLSUpdateLivingPermissionReject;
-			handleRequestFunctionType(type);
-			return;
-		}
-
-		showCommonErrorMessage();
+		handleRequestFunctionType(retData);
 	};
 	platform->updateLiving(updateLivingFinished);
 }
@@ -801,10 +687,10 @@ void PLSLiveInfoFacebook::showNetworkErrorAlert(PLSLiveInfoFacebookErrorType err
 void PLSLiveInfoFacebook::getLivingTitleDescRequest()
 {
 	showLoading(content());
-	auto onFinished = [this](PLSAPIFacebookType type) {
+	auto onFinished = [this](const PLSErrorHandler::RetData &retData) {
 		hideLoading();
-		if (type != PLSAPIFacebookType::PLSFacebookSuccess) {
-			handleRequestFunctionType(type);
+		if (retData.prismCode != PLSErrorHandler::SUCCESS) {
+			handleRequestFunctionType(retData);
 			return;
 		}
 		getLivingTimelinePrivacy();
@@ -820,10 +706,10 @@ void PLSLiveInfoFacebook::getLivingTimelinePrivacy()
 		return;
 	}
 	showLoading(content());
-	auto onFinished = [this](PLSAPIFacebookType type, QString) {
+	auto onFinished = [this](const PLSErrorHandler::RetData &retData, QString) {
 		hideLoading();
-		if (type != PLSAPIFacebookType::PLSFacebookSuccess) {
-			handleRequestFunctionType(type);
+		if (retData.prismCode != PLSErrorHandler::SUCCESS) {
+			handleRequestFunctionType(retData);
 			return;
 		}
 		ui->shareSecondObject->setComboBoxTitleData(platform->getPrepareInfo().secondObjectName, platform->getPrepareInfo().secondObjectId);

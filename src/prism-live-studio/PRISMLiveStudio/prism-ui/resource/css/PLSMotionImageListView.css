@@ -19,7 +19,7 @@ PLSMotionImageListView #topScrollArea {
 
 PLSMotionImageListView #stackedWidget {
 	border-width: 0px;
-	background-color: green;
+	background-color: transparent;
 }
 
 PLSMotionImageListView #btn_recent,
@@ -35,6 +35,30 @@ PLSMotionImageListView #btn_my {
 	padding:0;
 	border: none;
 	image:url(":/resource/images/virtual/vbg-tab-recent-off-normal.svg");
+}
+
+PLSMotionImageListView #motionCategoryBtn{
+	background-color:transparent;
+	min-height:/*hdpi*/ 35px;
+	max-height:/*hdpi*/ 35px;
+	min-width:/*hdpi*/81px;
+	max-width:/*hdpi*/81px;
+	margin:0;
+	padding:0;
+	font-weight: bold;
+	border: none;
+	color: #ffffff;
+	border-radius: 15px;
+}
+
+PLSMotionImageListView #motionCategoryBtn:pressed,
+PLSMotionImageListView #motionCategoryBtn:hover{
+	background-color: #444444;
+}
+
+PLSMotionImageListView #motionCategoryBtn:checked {
+	background-color: #444444;
+	color: #effc35;
 }
 
 PLSMotionImageListView #btn_recent {

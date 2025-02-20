@@ -43,7 +43,11 @@ if [ -z ${ARCH} ]; then
   export ARCH="arm64"
 fi 
 
-export VERSION="$(sed '1!d' ${PRISM_VERSION_FILE_DIR})"
+if [ -z ${VERSION} ]; then  
+  export VERSION="$(sed '1!d' ${PRISM_VERSION_FILE_DIR})"
+else
+	echo ${VERSION}  > ${PRISM_VERSION_FILE_DIR}
+fi 
 
 # increase build version by one
 update_mac_version() {
@@ -115,7 +119,8 @@ configure-prism() {
 		 -DPRISM_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}" \
 		 -DPRISM_BUNDLE_CODESIGN_TEAM="${PRISM_CODESIGN_TEAM:--}" \
 		 -DPRISM_VERSION_SHORT="${short_version}" \
-		 -DPRISM_VERSION_BUILD="${build_version}"
+		 -DPRISM_VERSION_BUILD="${build_version}"\
+         -DENABLE_TEST="${ENABLE_TEST:-OFF}"
 
 # --log-level=DEBUG \
 	cmake -Wno-dev \
@@ -130,7 +135,8 @@ configure-prism() {
 		 -DPRISM_BUNDLE_CODESIGN_IDENTITY="${CODESIGN_IDENT:--}" \
 		 -DPRISM_BUNDLE_CODESIGN_TEAM="${PRISM_CODESIGN_TEAM:--}" \
 		 -DPRISM_VERSION_SHORT="${short_version}" \
-		 -DPRISM_VERSION_BUILD="${build_version}"
+		 -DPRISM_VERSION_BUILD="${build_version}" \
+         -DENABLE_TEST="${ENABLE_TEST:-OFF}"
 	step "PRISM All configuring done"
 }
 

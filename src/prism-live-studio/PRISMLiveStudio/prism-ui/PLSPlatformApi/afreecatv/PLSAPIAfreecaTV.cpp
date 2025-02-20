@@ -21,6 +21,7 @@ void PLSAPIAfreecaTV::configDefaultRequest(const pls::http::Request &_request, c
 {
 	addCommonData(_request, forceKo);
 	_request.timeout(PRISM_NET_REQUEST_TIMEOUT)
+		.id(AFREECATV)
 		.receiver(receiver)
 		.okResult([onSucceed, receiver](const pls::http::Reply &reply) {
 			if (onSucceed && !pls_get_app_exiting()) {
@@ -40,7 +41,7 @@ void PLSAPIAfreecaTV::configDefaultRequest(const pls::http::Request &_request, c
 
 void PLSAPIAfreecaTV::requestUsersInfoAndChannel(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed)
 {
-	PLS_INFO(MODULE_PlatformService, "requestUsersInfoAndChannel start");
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestUsersInfoAndChannel start");
 
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 	PLSAPIAfreecaTV::configDefaultRequest(_request, receiver, onSucceed, onFailed);
@@ -52,7 +53,7 @@ void PLSAPIAfreecaTV::requestUsersInfoAndChannel(const QObject *receiver, const 
 
 void PLSAPIAfreecaTV::requestUsersNickName(const QString &userID, const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed)
 {
-	PLS_INFO(MODULE_PlatformService, "requestUsersNickName start");
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestUsersNickName start");
 	QString url = g_plsAfreecaTVUserNick.arg(userID);
 
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
@@ -65,7 +66,7 @@ void PLSAPIAfreecaTV::requestUsersNickName(const QString &userID, const QObject 
 
 void PLSAPIAfreecaTV::requestDashboradData(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed)
 {
-	PLS_INFO(MODULE_PlatformService, "requestDashboradData start");
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestDashboradData start");
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 	PLSAPIAfreecaTV::configDefaultRequest(_request, receiver, onSucceed, onFailed, true);
 
@@ -76,7 +77,7 @@ void PLSAPIAfreecaTV::requestDashboradData(const QObject *receiver, const PLSAPI
 
 void PLSAPIAfreecaTV::requestCategoryList(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed)
 {
-	PLS_INFO(MODULE_PlatformService, "requestCategoryList start");
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestCategoryList start");
 	QString url = g_plsAfreecaTVCategories.arg(IS_ENGLISH() ? "en_US" : "ko_KR");
 
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
@@ -102,7 +103,7 @@ frmByeBye	878984998
 encode_type	normal
 frmStreamKey	abby0816-2146523166
 */
-	PLS_INFO(MODULE_PlatformService, "updateLiveInfo start");
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "updateLiveInfo start");
 	const auto &data = PLS_PLATFORM_AFREECATV->getSelectData();
 
 	QHash<QString, QString> object;
@@ -359,7 +360,7 @@ QString PLSAPIAfreecaTV::getSelectCategoryString(const QString &selectID)
 void PLSAPIAfreecaTV::requestCheckIsOnline(const QString &userID, const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed)
 {
 
-	PLS_INFO(MODULE_PlatformService, "requestCheckIsOnline start");
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestCheckIsOnline start");
 
 	QString url = QString(g_plsAfreecaTVShareUrl_living).arg(userID);
 

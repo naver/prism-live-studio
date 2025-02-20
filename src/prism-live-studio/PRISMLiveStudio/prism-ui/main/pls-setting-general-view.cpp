@@ -10,6 +10,8 @@
 #include "libui.h"
 #include "window-basic-settings.hpp"
 #include "PLSAlertView.h"
+#include "ChannelCommonFunctions.h"
+#include "PLSLoginDataHandler.h"
 
 using namespace common;
 PLSSettingGeneralView::PLSSettingGeneralView(QWidget *parent) : QWidget(parent)
@@ -44,20 +46,39 @@ void PLSSettingGeneralView::initUi()
 		ui->horizontalLayout_2->addStretch(1);
 
 		if ("whale" == PLSLoginUserInfo::getInstance()->getAuthType().toLower()) {
-			ui->userIconLabel->setPlatformPixmap(QString(":/resource/images/sns-profile/img-%1-profile.png").arg(PLSLoginUserInfo::getInstance()->getAuthType().toLower()),
+			ui->userIconLabel->setPlatformPixmap(QString(":/resource/images/sns-profile/img-%1-profile.png").arg(PLSLoginUserInfo::getInstance()->getLoginPlatformName().toLower()),
 							     QSize(34 * 4, 34 * 4));
 		} else {
-			ui->userIconLabel->setPlatformPixmap(QString(":/resource/images/sns-profile/img-%1-profile.svg").arg(PLSLoginUserInfo::getInstance()->getAuthType().toLower()),
-							     QSize(34 * 4, 34 * 4));
+			auto iconPath = getPlatformImageFromName(PLSLOGINUSERINFO->getNCPPlatformServiceName(), 0);
+			if (QFile::exists(iconPath) && !PLSLOGINUSERINFO->getNCPPlatformServiceName().isEmpty()) {
+				QPixmap pixmap(iconPath);
+				ui->userIconLabel->setPlatformPixmap(pixmap);
+			} else {
+				ui->userIconLabel->setPlatformPixmap(QString(":/resource/images/sns-profile/img-%1-profile.svg").arg(PLSLoginUserInfo::getInstance()->getLoginPlatformName().toLower()),
+								     QSize(34 * 4, 34 * 4));
+			}
 		}
 	}
 	ui->userIconLabel->setPixmap(filePath, QSize(110, 110));
+	ui->nickName->setText(PLSLoginUserInfo::getInstance()->getNickname());
 }
 void PLSSettingGeneralView::setEnable(bool enable)
 {
 	ui->pushButton_change_pwd->setEnabled(enable);
 	ui->pushButton_del_account->setEnabled(enable);
 	ui->pushButton_logout->setEnabled(enable);
+}
+
+void PLSSettingGeneralView::setNickNameWidth(int width)
+{
+	const int otherWidth = 180;
+	QFontMetrics fontWidth(ui->nickName->font());
+	auto nickName = PLSLoginUserInfo::getInstance()->getNickname();
+	if (fontWidth.horizontalAdvance(nickName) > width - otherWidth) {
+		ui->nickName->setText(fontWidth.elidedText(nickName, Qt::ElideRight, width - otherWidth));
+	} else {
+		ui->nickName->setText(nickName);
+	}
 }
 
 void PLSSettingGeneralView::on_pushButton_logout_clicked()
@@ -85,7 +106,9 @@ void PLSSettingGeneralView::on_pushButton_del_account_clicked()
 	qDebug() << __FUNCTION__;
 }
 
-void PLSSettingGeneralView::on_pushButton_change_pwd_clicked() {}
+void PLSSettingGeneralView::on_pushButton_change_pwd_clicked()
+{
+}
 
 template<typename WidgetType> void checkWidgetTxt(WidgetType *wid, int padding = 10)
 {
@@ -102,42 +125,4 @@ template<typename WidgetType> void checkWidgetTxt(WidgetType *wid, int padding =
 	} else {
 		wid->setText(srcTxt);
 	}
-}
-
-void PLSSettingGeneralView::checkPasswdTxt()
-{
-	//if (!ui->pushButton_change_pwd->isVisible()) {
-	//	return;
-	//}
-	//auto dpi = 1
-	//auto leftW = int(ui->horizontalLayout_2->geometry().width() - ui->pushButton_del_account->width() - ui->pushButton_change_pwd->width() - ui->pushButton_logout->width() -
-	//		 (2 * 6 /*margin*/ + 2 * 6 /*padding*/) * dpi);
-	//if (leftW > 0) {
-	//	checkWidgetTxt(ui->pushButton_change_pwd, 0);
-	//	return;
-	//}
-	//checkWidgetTxt(ui->pushButton_change_pwd, int(dpi * 6 * 2));
-}
-
-bool PLSSettingGeneralView::eventFilter(QObject *object, QEvent *event)
-{
-	if (object == ui->nickName && event->type() == QEvent::Resize) {
-		QMetaObject::invokeMethod(
-			this,
-			[this]() {
-				QFontMetrics fontWidth(ui->nickName->font());
-				if (fontWidth.horizontalAdvance(PLSLoginUserInfo::getInstance()->getNickname()) > ui->nickName->width()) {
-					ui->nickName->setText(fontWidth.elidedText(PLSLoginUserInfo::getInstance()->getNickname(), Qt::ElideRight, ui->nickName->width()));
-				} else {
-					ui->nickName->setText(PLSLoginUserInfo::getInstance()->getNickname());
-				}
-			},
-			Qt::QueuedConnection);
-		return true;
-	}
-	/*if (event->type() == QEvent::Resize) {
-		checkPasswdTxt();
-	}*/
-
-	return QWidget::eventFilter(object, event);
 }

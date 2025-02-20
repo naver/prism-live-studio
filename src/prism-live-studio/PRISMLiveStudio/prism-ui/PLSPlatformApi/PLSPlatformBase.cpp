@@ -6,6 +6,7 @@
 #include "prism/PLSPlatformPrism.h"
 #include "PLSServerStreamHandler.hpp"
 #include "PLSAlertView.h"
+#include "pls/pls-dual-output.h"
 
 using namespace std;
 
@@ -107,25 +108,26 @@ void PLSPlatformBase::prepareLiveCallback(bool value)
 		return;
 	}
 
-	//save current channel rtmp url and rtmp stream key
+	list<PLSPlatformBase *> platforms = pls_is_dual_output_on() && isVerticalOutput() ? PLS_PLATFORM_API->getVerticalPlatforms() : PLS_PLATFORM_API->getHorizontalPlatforms();
+
 	if (getServiceType() == PLSServiceType::ST_CUSTOM) {
 		QString rtmpId = mySharedData().m_mapInitData[ChannelData::g_rtmpUserID].toString();
 		QString rtmpPassword = mySharedData().m_mapInitData[ChannelData::g_password].toString();
-		PLS_PLATFORM_API->saveStreamSettings(getNameForSettingId(), getStreamServer(), getStreamKey(), rtmpId, rtmpPassword);
+		PLS_PLATFORM_API->saveStreamSettings(getNameForSettingId(), getStreamServer(), getStreamKey(), isVerticalOutput(), rtmpId, rtmpPassword);
 	} else {
-		PLS_PLATFORM_API->saveStreamSettings(getNameForSettingId(), getStreamServer(), getStreamKey());
+		PLS_PLATFORM_API->saveStreamSettings(getNameForSettingId(), getStreamServer(), getStreamKey(), isVerticalOutput());
 	}
-	
 
-	//Find the current platform pointer in all platforms of live broadcast
-	auto platforms = PLS_PLATFORM_API->getActivePlatforms();
 	auto iter = find(platforms.begin(), platforms.end(), this);
 
-	//call the onPrepareLive method of the next platform
 	if (iter != platforms.end() && ++iter != platforms.end()) {
 		(*iter)->onPrepareLive(value);
 	} else {
-		PLS_PLATFORM_PRSIM->onPrepareLive(value);
+		if (pls_is_dual_output_on() && isHorizontalOutput()) {
+			PLS_PLATFORM_API->getVerticalPlatforms().front()->onPrepareLive(true);
+		} else {
+			PLS_PLATFORM_API->prepareLiveCallback(value);
+		}
 	}
 }
 
@@ -263,6 +265,8 @@ QJsonObject PLSPlatformBase::getWebChatParams()
 
 	platform.insert("name", QString::fromStdString(getNameForLiveStart()));
 	platform.insert("accessToken", getChannelToken());
+	platform.insert("videoSeq",
+			pls_is_dual_output_on() && isVerticalOutput() ? PLS_PLATFORM_PRSIM->getVideoSeq(DualOutputType::Vertical) : PLS_PLATFORM_PRSIM->getVideoSeq(DualOutputType::Horizontal));
 
 	return platform;
 }

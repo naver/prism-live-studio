@@ -115,21 +115,12 @@ PLSTemplateButton::~PLSTemplateButton()
 	pls_delete(ui);
 }
 
-void PLSTemplateButton::attachGifResource(const QString &resourcePath, const QString &resourceBackupPath, const QString &resourceUrl, int value)
+void PLSTemplateButton::attachGifResource(const QString &resourcePath, int value)
 {
 	m_value = value;
-	m_resourcePath = resourcePath;
-	m_resourceBackupPath = resourceBackupPath;
-	m_resourceUrl = resourceUrl;
-
 	ui->templateGifLabel->setMovie(&m_movie);
 	m_movie.setCacheMode(QMovie::CacheAll);
-	QFileInfo fileInfo(resourcePath);
-	if (!fileInfo.exists()) {
-		m_movie.setFileName(resourceBackupPath);
-	} else {
-		m_movie.setFileName(resourcePath);
-	}
+	m_movie.setFileName(resourcePath);
 	if (resourcePath.toLower().endsWith(".gif")) {
 		m_movie.setFormat("GIF");
 	} else if (resourcePath.toLower().endsWith(".png")) {

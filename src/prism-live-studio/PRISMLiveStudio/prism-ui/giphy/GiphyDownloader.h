@@ -13,6 +13,7 @@
 #include <QQueue>
 #include "GiphyDefine.h"
 #include "libhttp-client.h"
+#include <libresource.h>
 
 class GiphyDownloader : public QObject {
 	Q_OBJECT
@@ -22,20 +23,17 @@ public:
 	void Get(const DownloadTaskData &taskData);
 	void Start();
 	bool IsRunning() const;
-	static bool IsDownloadFileExsit(const DownloadTaskData &task, QString &fileName);
 
 private slots:
 	void excuteTask(const DownloadTaskData &taskData);
-	void sslErrors(QList<QSslError>) const;
-	void downloadFinished(const pls::http::Reply &reply);
-	void downloadTimeout(const pls::http::Reply &reply);
+	void downloadFinished(const pls::rsm::DownloadResult &result);
+	void downloadTimeout(const pls::rsm::DownloadResult &result);
 
 signals:
 	void downloadResult(const TaskResponData &result);
 	void downloadProgress(const TaskResponData &result, qint64 bytesReceived, qint64 bytesTotal);
 
 private:
-	bool saveToDisk(QString &filename, const pls::http::Reply &reply) const;
 	static QString saveFileName(const QUrl &url, const QString &id, const QString &tail);
 	void ClearTask();
 

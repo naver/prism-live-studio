@@ -16,12 +16,12 @@ class PLSPrismListView : public QFrame {
 	Q_OBJECT
 
 public:
-	explicit PLSPrismListView(QWidget *parent = nullptr);
+	explicit PLSPrismListView(const QString& groupId, QWidget *parent = nullptr);
 	~PLSPrismListView() override;
 	bool setSelectedItem(const QString &itemId);
 	void setItemSelectedEnabled(bool enabled);
 	void clearSelectedItem();
-	void initListView(bool freeView = false);
+	void initListView();
 	void setFilterButtonVisible(bool visible);
 	void initLoadingView();
 	PLSImageListView *getImageListView();
@@ -42,12 +42,12 @@ private:
 	QRect getLoadingBGRect();
 
 	Ui::PLSPrismListView *ui;
-	bool m_freeView;
 	bool m_forProperties = false;
 	PLSLoadingEvent m_loadingEvent;
 	QWidget *m_pWidgetLoadingBG{nullptr};
 	QList<MotionData> m_list;
-	bool retryClicked = false;
+	QString retryClickedId;
+	QString groupId;
 };
 
 #endif // PLSPRISMLISTVIEW_H

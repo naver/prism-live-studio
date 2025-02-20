@@ -128,7 +128,6 @@ private slots:
 	void OnMediaLoad(const QString &url, bool load);
 	void OnNetWorkStateChanged(bool isConnected);
 	void OnDownloadJsonFailed();
-	void DownloadMusicJson();
 
 private:
 	PLSBgmLibraryItem *CreateLibraryBgmItemView(const PLSBgmItemData &data, QWidget *parent = nullptr);
@@ -142,10 +141,9 @@ private:
 	void ShowToastView(const QString &text);
 	void ResizeToastView();
 	void ShowList(const QString &group);
-	void CreateMusicList(const QString &group, const BgmLibraryData &listData);
+	void CreateMusicList(const QString &group /*, const BgmLibraryData &listData*/);
 	void UpdateMusiclist(const QString &group);
 	void InitButtonState(const QString &group);
-	void InitCategoryData() const;
 	void UpdateSelectedString();
 	bool CheckMusicResource() const;
 

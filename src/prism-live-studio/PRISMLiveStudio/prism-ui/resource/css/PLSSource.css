@@ -43,7 +43,6 @@ SourceTree #noSourceTipsLabel {
 	background-color: transparent;
 }
 
-
 SourceTreeItem,SourceTreeItem[status="normal"] {
 	background-color: #272727;
 }
@@ -683,6 +682,25 @@ QLabel#sourceIconLabel[type="invisible.valid.unselect.camera"] {
 }
 /*PRISM video capture end*/
 
+/*PRISM capture card start*/
+QLabel#sourceIconLabel[type="visible.valid.unselect.capturecard"] {
+	image: url(":/resource/images/icon-source/icon-source-camera.svg");
+}
+
+QLabel#sourceIconLabel[type="visible.valid.select.capturecard"] {
+	image: url(":/resource/images/icon-source/icon-source-camera-select.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.select.capturecard"] {
+	image: url(":/resource/images/icon-source/icon-source-camera-select-disable.svg");
+}
+
+QLabel#sourceIconLabel[type="invisible.valid.unselect.capturecard"] {
+	image: url(":/resource/images/icon-source/icon-source-camera-disabled.svg");
+}
+
+/*PRISM capture card end*/
+
 /*OBS video capture start*/
 QLabel#sourceIconLabel[type="visible.valid.unselect.obscamera"] {
     image: url(":/resource/images/obs-video-capture/icon-source-camera-normal.svg");
@@ -876,11 +894,10 @@ SourceTreeItem #sourceRenameEditor {
 	max-height:/*hdpi*/ 24px;
 }
 SourceTreeItem #sourceNameLabel {
-	min-width: /*hdpi*/ 40px;
+	min-width: /*hdpi*/ 0px;
 	min-height: /*hdpi*/ 38px;
 	font-size: /*hdpi*/ 14px;
 	color: #ffffff;
-	padding-left: /*hdpi*/ 5px;
 	font-weight: normal;
 }
 
@@ -1020,4 +1037,109 @@ SourceTreeItem #sourceIconViewCheckbox::indicator:checked:hover
 SourceTreeItem #sourceIconViewCheckbox::indicator:checked:pressed
 {
 	image:url(":/resource/images/ic-source-view-click.svg");
+}
+
+SourceTreeItem #sourceIconDeleteBtn {
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	background: transparent;
+	padding: 0;
+	margin: 0;
+	image: url(":/resource/images/dualOutput/sources/ic_source_delete_normal.svg");
+}
+
+SourceTreeItem #sourceIconDeleteBtn:hover {
+	image: url(":/resource/images/dualOutput/sources/ic_source_delete_over.svg");
+}
+
+SourceTreeItem #sourceIconDeleteBtn:pressed {
+    image: url(":/resource/images/dualOutput/sources/ic_source_delete_click.svg");
+}
+
+SourceTreeItem #sourceIconDeleteBtn:disabled {
+    image: url(":/resource/images/dualOutput/sources/ic_source_delete_disable.svg");
+}
+
+SourceTreeItem #horVisBtnViewCheckbox {
+	outline: none;
+	background: transparent;
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+}
+SourceTreeItem #horVisBtnViewCheckbox::indicator {
+    min-width:/*hdpi*/ 22px;
+	max-width:/*hdpi*/ 22px;
+	min-height:/*hdpi*/ 22px;
+	max-height:/*hdpi*/ 22px;
+}
+SourceTreeItem #horVisBtnViewCheckbox::indicator:unchecked {
+	image: url(":/resource/images/dualOutput/sources/ic_source_horizontal_off_normal.svg");
+}
+
+SourceTreeItem #horVisBtnViewCheckbox::indicator:unchecked:hover {
+	image:url(":/resource/images/dualOutput/sources/ic_source_horizontal_off_over.svg");
+}
+
+SourceTreeItem #horVisBtnViewCheckbox::indicator:unchecked:pressed {
+	image:url(":/resource/images/dualOutput/sources/ic_source_horizontal_off_click.svg");
+}
+
+SourceTreeItem #horVisBtnViewCheckbox::indicator:checked {
+	image:url(":/resource/images/dualOutput/sources/ic_source_horizontal_on_normal.svg");
+}
+
+SourceTreeItem #horVisBtnViewCheckbox::indicator:checked:hover {
+	image:url(":/resource/images/dualOutput/sources/ic_source_horizontal_on_over.svg");
+}
+
+SourceTreeItem #horVisBtnViewCheckbox::indicator:checked:pressed {
+	image:url(":/resource/images/dualOutput/sources/ic_source_horizontal_on_click.svg");
+}
+
+SourceTreeItem #verVisBtnViewCheckbox {
+	outline: none;
+	background: transparent;
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+}
+SourceTreeItem #verVisBtnViewCheckbox::indicator
+{
+    min-width:/*hdpi*/ 22px;
+	max-width:/*hdpi*/ 22px;
+	min-height:/*hdpi*/ 22px;
+	max-height:/*hdpi*/ 22px;
+}
+SourceTreeItem #verVisBtnViewCheckbox::indicator:unchecked {
+	image: url(":/resource/images/dualOutput/sources/ic_source_vertical_off_normal.svg");
+}
+
+SourceTreeItem #verVisBtnViewCheckbox::indicator:unchecked:hover
+{
+	image:url(":/resource/images/dualOutput/sources/ic_source_vertical_off_over.svg");
+}
+
+SourceTreeItem #verVisBtnViewCheckbox::indicator:unchecked:pressed
+{
+	image:url(":/resource/images/dualOutput/sources/ic_source_vertical_off_click.svg");
+}
+
+SourceTreeItem #verVisBtnViewCheckbox::indicator:checked
+{
+	image:url(":/resource/images/dualOutput/sources/ic_source_vertical_on_normal.svg");
+}
+
+SourceTreeItem #verVisBtnViewCheckbox::indicator:checked:hover
+{
+	image:url(":/resource/images/dualOutput/sources/ic_source_vertical_on_over.svg");
+}
+
+SourceTreeItem #verVisBtnViewCheckbox::indicator:checked:pressed
+{
+	image:url(":/resource/images/dualOutput/sources/ic_source_vertical_on_click.svg");
 }

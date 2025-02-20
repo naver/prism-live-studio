@@ -11,15 +11,13 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QCoreApplication>
-#include "json-data-handler.hpp"
 #include "frontend-internal.hpp"
 #include <pls/media-info.h>
 #include "liblog.h"
 #include "PLSMotionItemView.h"
-#include "PLSMotionNetwork.h"
+#include "CategoryVirtualTemplate.h"
 #include "pls-common-define.hpp"
 #include "PLSVirtualBgManager.h"
-#include "PLSResourceManager.h"
 #include "log/module_names.h"
 #include "libhttp-client.h"
 #include "libutils-api.h"
@@ -28,22 +26,7 @@
 #include <map>
 using namespace common;
 constexpr const char *MOTION_FILE_MANAGER = "MotionFileManager";
-constexpr const char *VIRTUAL_SYNC_JSON_FILE = "PRISMLiveStudio/virtual/virtual_bg.json";
-constexpr const char *VIRTUAL_USER_PATH = "PRISMLiveStudio/virtual/";
-constexpr const char *VIRTUAL_USER_CACHE_JSON_FILE = "PRISMLiveStudio/virtual/cache.json";
-constexpr const char *CATEGORY_INDEX_FILE = "PRISMLiveStudio/virtual/categoryIndex.ini";
-
-#define MOTION_ID_KEY QStringLiteral("motionID")
-#define MOTION_TYPE_KEY QStringLiteral("motionType")
-#define MOTION_TITLE_KEY QStringLiteral("motionTitle")
-#define MOTION_CAN_DELETE_KEY QStringLiteral("canDelete")
-#define RESOURCE_PATH_KEY QStringLiteral("resourcePath")
-#define THUMNAIL_PATH_KEY QStringLiteral("thumnailPath")
-#define STATIC_IMAGE_PATH_KEY QStringLiteral("staticImgPath")
-#define FOREBACKGROUND_PATH_KEY QStringLiteral("foregroundPath")
-#define FOREBACKGROUND_STATIC_IMAGE_PATH_KEY QStringLiteral("foregroundStaticImgPath")
-
-const int MAX_RECENT_COUNT = 30;
+constexpr const char *VIRTUAL_USER_PATH = "PRISMLiveStudio/resources/virtual_bg/";
 
 void sourceClearBackgroundTemplate(const QStringList &itemIds)
 {
@@ -113,7 +96,7 @@ template<typename IsLast> int PLSAddMyResourcesProcessor::process(MotionData &md
 		return MaxResolutionError;
 	}
 
-	auto firstFrame = (mi_frame_t*)mi_get_obj(&mi, "first_frame_obj");
+	auto firstFrame = (mi_frame_t *)mi_get_obj(&mi, "first_frame_obj");
 	if (!firstFrame) {
 		mi_free(&mi);
 		return GetMotionFirstFrameFailedError;
@@ -121,8 +104,8 @@ template<typename IsLast> int PLSAddMyResourcesProcessor::process(MotionData &md
 
 	QString itemId = QUuid::createUuid().toString(QUuid::Id128);
 	QString thumbnailPath;
-	if (!saveImages(thumbnailPath, QImage((const uchar*)firstFrame->data, static_cast<int>(width), static_cast<int>(height), QImage::Format_RGBX8888),
-		QSize(static_cast<int>(width), static_cast<int>(height)), itemId, file)) {
+	if (!saveImages(thumbnailPath, QImage((const uchar *)firstFrame->data, static_cast<int>(width), static_cast<int>(height), QImage::Format_RGBX8888),
+			QSize(static_cast<int>(width), static_cast<int>(height)), itemId, file)) {
 		mi_free(&mi);
 		return SaveImageFailedError;
 	}
@@ -131,8 +114,8 @@ template<typename IsLast> int PLSAddMyResourcesProcessor::process(MotionData &md
 
 	md.canDelete = true;
 	md.title = fileInfo.fileName();
-	md.dataType = DataType::MYLIST;
 	md.itemId = itemId;
+	md.groupId = MY_STR;
 	md.type = type;
 	md.resourcePath = file;
 	md.thumbnailPath = md.staticImgPath = thumbnailPath;
@@ -151,6 +134,7 @@ bool PLSAddMyResourcesProcessor::saveImages(QString &thumbnailPath, const QImage
 	QImage thumbnail = (imageWHA < thumbnailWHA) ? image.scaledToWidth(THUMBNAIL_WIDTH) : image.scaledToWidth(THUMBNAIL_HEIGHT);
 	thumbnailPath = pls_get_user_path(VIRTUAL_USER_PATH + itemId + "_thunmb.png");
 	if (!thumbnail.save(thumbnailPath)) {
+		PLS_INFO(MOTION_FILE_MANAGER, "image isNull : %d, width = %d, height = %d", image.isNull(), imageSize.width(), imageSize.height());
 		PLS_ERROR(MOTION_FILE_MANAGER, "save thumbnail image failed. src = %s, dst = %s", filePath.toUtf8().constData(), thumbnailPath.toUtf8().constData());
 		return false;
 	}
@@ -225,7 +209,7 @@ PLSMotionFileManager *PLSMotionFileManager::instance()
 
 PLSMotionFileManager::PLSMotionFileManager(QObject *parent) : QObject(parent)
 {
-	PLSMotionItemView::addBatchCache((getPrismList().count() + getFreeList().count()) * 2);
+	PLSMotionItemView::addBatchCache((CategoryVirtualTemplateInstance->getPrismList().count() + CategoryVirtualTemplateInstance->getFreeList().count()) * 2);
 	PLSMotionItemView::addBatchCache((MAX_RECENT_COUNT + 20) * 2);
 
 	addMyResourcesThread = pls_new<PLSAddMyResourcesThread>();
@@ -241,144 +225,14 @@ PLSMotionFileManager::PLSMotionFileManager(QObject *parent) : QObject(parent)
 
 	chooseFileDir = QStandardPaths::standardLocations(QStandardPaths::DesktopLocation).first();
 
-	//check jsonObject is valid
-	QJsonObject jsonObject;
-	if (!getLocalMotionObject(jsonObject))
-		return;
-
-	//get virtual recent list data
-	QJsonArray virtualArray = jsonObject.value(VIRTUAL_BACKGROUND_RECENT_LIST).toArray();
-	getMotionListByJsonArray(virtualArray, m_virtualRecentList, DataType::VIRTUAL_RECENT);
-
-//get virtual list category index
-#if 0
-	m_virtualCategoryIndex = jsonObject.value(VIRTUAL_CATEGORY_INDEX).toString();
-#endif
-
-	//get property list data
-	QJsonArray propertyArray = jsonObject.value(PROPERTY_RECENT_LIST).toArray();
-	getMotionListByJsonArray(propertyArray, m_propertyRecentList, DataType::PROP_RECENT);
-
-//get property list category index
-#if 0
-	m_propertyCategoryIndex = jsonObject.value(PROPERTY_CATEGORY_INDEX).toString();
-#endif
-
-	//get my list data
-	QJsonArray myListArray = jsonObject.value(MY_FILE_LIST).toArray();
-	getMotionListByJsonArray(myListArray, m_myList, DataType::MYLIST);
-
-	PLSMotionItemView::addBatchCache(m_myList.size() * 2);
-
+	PLSMotionItemView::addBatchCache(CategoryVirtualTemplateInstance->getMyList().size() * 2);
+	loadMotionFlagSvg();
 	//init download thread
 	QObject::connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
-		saveMotionList();
-
 		pls_delete(addMyResourcesThread, nullptr);
 		pls_delete(resourcesThumbnailThread, nullptr);
 		pls_delete(deleteAllMyResourcesThread, nullptr);
 	});
-}
-
-bool PLSMotionFileManager::createMotionJsonFile() const
-{
-	//create userPath folder
-	QString userPath = getUserPath(VIRTUAL_USER_PATH);
-	QDir dir(userPath);
-	if (!dir.exists())
-		dir.mkpath(userPath);
-
-	//create json file
-	QString userFileName = getUserPath(VIRTUAL_USER_CACHE_JSON_FILE);
-	QFile file(userFileName);
-	if (!file.open(QIODevice::ReadWrite)) {
-		return false;
-	}
-	QByteArray json = file.readAll();
-	if (json.isEmpty()) {
-		QJsonObject obj;
-		QJsonArray propertyRecentList;
-		QJsonArray myFileList;
-		QJsonArray virtualRecentList;
-		obj.insert(PROPERTY_RECENT_LIST, propertyRecentList);
-		obj.insert(VIRTUAL_BACKGROUND_RECENT_LIST, virtualRecentList);
-		obj.insert(MY_FILE_LIST, myFileList);
-		QJsonDocument document;
-		document.setObject(obj);
-		file.write(document.toJson(QJsonDocument::Indented));
-	}
-	file.close();
-	return true;
-}
-
-bool PLSMotionFileManager::getLocalMotionObject(QJsonObject &object) const
-{
-	//create file if file not exist
-	if (!createMotionJsonFile())
-		return false;
-
-	//get json file data
-	QString userFileName = getUserPath(VIRTUAL_USER_CACHE_JSON_FILE);
-	QFile file(userFileName);
-	if (!file.open(QIODevice::ReadWrite | QIODevice::Text)) {
-		return false;
-	}
-
-	//read json file form local file
-	QJsonParseError parseError;
-	QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
-	if (parseError.error != QJsonParseError::NoError) {
-		file.close();
-		return false;
-	}
-
-	//get json object
-	object = document.object();
-	file.close();
-	return true;
-}
-
-QVariantList PLSMotionFileManager::getPrismList() const
-{
-	return getListForKey("PRISM");
-}
-
-QVariantList PLSMotionFileManager::getFreeList() const
-{
-	return getListForKey("FREE");
-}
-
-bool PLSMotionFileManager::isVirtualTemplateJsonExisted()
-{
-	QString path = getUserPath(VIRTUAL_SYNC_JSON_FILE);
-	return QFile::exists(path);
-}
-
-void PLSMotionFileManager::downloadVirtualJson(const std::function<void(void)> &ok, const std::function<void(void)> &fail) const
-{
-	auto url = PLSResourceManager::instance()->getModuleJsonUrl(PLSResourceManager::resource_modules::Virtual);
-	if (url.isEmpty()) {
-		PLS_WARN(MAIN_VIRTUAL_BACKGROUND, "Virtual template json url is empty.");
-		pls_invoke_safe(fail);
-		return;
-	}
-
-	QString saveJsonPath = getUserPath(VIRTUAL_SYNC_JSON_FILE);
-	pls::http::request(pls::http::Request()
-				   .method(pls::http::Method::Get) //
-				   .hmacUrl(url, "")               //
-				   .forDownload(true)              //
-				   .saveFilePath(saveJsonPath)     //
-				   .withLog()                      //
-				   .receiver(this)                 //
-				   .okResult([this, ok](const pls::http::Reply &) {
-					   PLS_INFO(MAIN_VIRTUAL_BACKGROUND, "Virtual template json download success.");
-					   pls_invoke_safe(ok);
-				   })
-				   .failResult([this, fail](const pls::http::Reply &) {
-					   PLS_WARN(MAIN_VIRTUAL_BACKGROUND, "Virtual template json download failed.");
-					   pls_invoke_safe(fail);
-				   }));
 }
 
 bool PLSMotionFileManager::isDownloadFileExist(const QString &filePath) const
@@ -412,15 +266,15 @@ bool PLSMotionFileManager::isValidMotionData(const MotionData &data, bool onlyCh
 		return false;
 	} else if (onlyCheckValues) {
 		return true;
-	} else if (PLSMotionNetwork::instance()->isPrismOrFree(data)) {
+	} else if (!data.canDelete) {
 		return true;
-	} else if (isMy(data.itemId)) {
+	} else if (data.groupId == MY_STR || data.groupId == RECENT_STR) {
 		return true;
 	}
 	return false;
 }
 
-bool PLSMotionFileManager::insertMotionData(const MotionData &data, const QString &key)
+MotionData PLSMotionFileManager::insertMotionData(const MotionData &data, const QString &key)
 {
 	//local motion data can delete
 	MotionData saveData = data;
@@ -428,48 +282,50 @@ bool PLSMotionFileManager::insertMotionData(const MotionData &data, const QStrin
 
 	//If property recent list view count greater 30
 	if (key == PROPERTY_RECENT_LIST) {
-		removeRepeatedMotionData(data, m_propertyRecentList);
-		saveData.dataType = DataType::PROP_RECENT;
-		m_propertyRecentList.insert(0, saveData);
-		if (m_propertyRecentList.count() > MAX_RECENT_COUNT) {
-			m_propertyRecentList.removeLast();
-		}
-	} else if (key == VIRTUAL_BACKGROUND_RECENT_LIST) {
-		removeRepeatedMotionData(data, m_virtualRecentList);
-		saveData.dataType = DataType::VIRTUAL_RECENT;
-		m_virtualRecentList.insert(0, saveData);
-		if (m_virtualRecentList.count() > MAX_RECENT_COUNT) {
-			m_virtualRecentList.removeLast();
-		}
+		CategoryVirtualTemplateInstance->useItem(RECENT_STR, data.item);
+		saveData.canDelete = true;
+		saveData.groupId = RECENT_STR;
 	} else if (key == MY_FILE_LIST) {
-		removeRepeatedMotionData(data, m_myList);
-		saveData.dataType = DataType::MYLIST;
-		m_myList.insert(0, saveData);
+		QVariantHash customAttr;
+		customAttr.insert(MOTION_GROUP_ID_KEY, data.groupId);
+		customAttr.insert(MOTION_CAN_DELETE_KEY, data.canDelete);
+		customAttr.insert(FOREBACKGROUND_PATH_KEY, data.foregroundPath);
+		customAttr.insert(FOREBACKGROUND_STATIC_IMAGE_PATH_KEY, data.foregroundStaticImgPath);
+		customAttr.insert(MOTION_ITEM_ID_KEY, data.itemId);
+		customAttr.insert(MOTION_TITLE_KEY, data.title);
+		customAttr.insert(MOTION_TYPE_KEY, static_cast<int>(data.type));
+		customAttr.insert(RESOURCE_PATH_KEY, data.resourcePath);
+		customAttr.insert(STATIC_IMAGE_PATH_KEY, data.staticImgPath);
+		customAttr.insert(THUMBNAIL_PATH_KEY, data.thumbnailPath);
+		customAttr.insert(RESOURCE_STATE_KEY, static_cast<int>(data.resourceState));
+		customAttr.insert(THUMBNAIL_STATE_KEY, static_cast<int>(data.thumbnailState));
+		customAttr.insert(STATIC_IMAGE_STATE_KEY, static_cast<int>(data.staticImgState));
+		customAttr.insert(FOREGROUND_STATE_KEY, static_cast<int>(data.foregroundState));
+		customAttr.insert(FOREGROUND_STATIC_IMAGE_STATE_KEY, static_cast<int>(data.foregroundStaticImgState));
+
+		QVariantHash attr;
+		auto customItem = CategoryVirtualTemplateInstance->addCustomItem(MY_STR, data.itemId, attr, customAttr);
+		MotionData data(customItem.second);
+		data.groupId = MY_STR;
+		saveData = data;
 	}
-	return true;
+	return saveData;
 }
 
-void PLSMotionFileManager::removeRepeatedMotionData(const MotionData &data, QList<MotionData> &list) const
+bool PLSMotionFileManager::deleteMotionData(QObject *sourceUi, const MotionData &data, const QString &key, bool isVbUsed, bool isSourceUsed)
 {
-	for (int i = 0, size = list.size(); i < size; i++) {
-		MotionData motionData = list[i];
-		if (motionData.itemId == data.itemId) {
-			list.removeAt(i);
-			break;
-		}
-	}
-}
-
-bool PLSMotionFileManager::deleteMotionData(QObject *sourceUi, const QString &itemId, const QString &key, bool isVbUsed, bool isSourceUsed)
-{
+	QString itemId = data.itemId;
 	if (key == PROPERTY_RECENT_LIST) {
-		deleteMotionListItem(itemId, m_propertyRecentList, false);
+		CategoryVirtualTemplateInstance->removeUsedItem(RECENT_STR, data.item);
 	} else if (key == VIRTUAL_BACKGROUND_RECENT_LIST) {
-		deleteMotionListItem(itemId, m_virtualRecentList, false);
 	} else if (key == MY_FILE_LIST) {
-		deleteMotionListItem(itemId, m_propertyRecentList, false);
-		deleteMotionListItem(itemId, m_virtualRecentList, false);
-		deleteMotionListItem(itemId, m_myList, true);
+		CategoryVirtualTemplateInstance->removeUsedItem(RECENT_STR, data.item);
+		CategoryVirtualTemplateInstance->removeCustomItem(MY_STR, data.itemId);
+		QDir dir(pls_get_user_path(VIRTUAL_USER_PATH));
+		if (isFileInDir(dir, data.thumbnailPath)) {
+			PLS_DEBUG(MOTION_FILE_MANAGER, "remove thumbnail file: %s", data.thumbnailPath.toUtf8().constData());
+			QFile::remove(data.thumbnailPath);
+		}
 		removeThumbnailPixmap(itemId);
 		emit deleteResourceFinished(sourceUi, itemId, isVbUsed, isSourceUsed);
 		sourceClearBackgroundTemplate({itemId});
@@ -478,42 +334,7 @@ bool PLSMotionFileManager::deleteMotionData(QObject *sourceUi, const QString &it
 		return false;
 	}
 
-	saveMotionList();
 	return true;
-}
-
-bool PLSMotionFileManager::copyFileToPrismPath(const QFileInfo &fileInfo, QString &fileUuid, QString &destPath) const
-{
-	QFile readFile(fileInfo.filePath());
-	if (!readFile.open(QFile::ReadOnly)) {
-		return false;
-	}
-
-	//get uuid string
-	QUuid u = QUuid::createUuid();
-	fileUuid = u.toString();
-	destPath = getUserPath(VIRTUAL_USER_PATH + fileUuid + "." + fileInfo.suffix());
-	QFile writeFile(destPath);
-	if (!writeFile.open(QFile::WriteOnly)) {
-		return false;
-	}
-	writeFile.write(readFile.readAll());
-	return true;
-}
-
-QString PLSMotionFileManager::getPrismResourcePathByUUid(const QString &uuid, const QString &suffix) const
-{
-	return getUserPath(VIRTUAL_USER_PATH + uuid + "." + suffix);
-}
-
-QString PLSMotionFileManager::getPrismThumbnailPathByUUid(const QString &uuid, const QString &suffix) const
-{
-	return getUserPath(VIRTUAL_USER_PATH + uuid + "_thunmb" + "." + suffix);
-}
-
-QString PLSMotionFileManager::getPrismStaticImgPathByUUid(const QString &uuid, const QString &suffix) const
-{
-	return getUserPath(VIRTUAL_USER_PATH + uuid + "_static" + "." + suffix);
 }
 
 bool PLSMotionFileManager::isVideoTypeFile(const QString &suffix, bool &isGif) const
@@ -571,51 +392,6 @@ QString PLSMotionFileManager::getFilePathByURL(const MotionData &data, const QSt
 	return getUserPath(VIRTUAL_USER_PATH) + data.itemId + "/" + getFileNameByURL(url);
 }
 
-QVariantList PLSMotionFileManager::getListForKey(const QString &key) const
-{
-	QString path = getUserPath(VIRTUAL_SYNC_JSON_FILE);
-	if (!QFile::exists(path)) {
-		downloadVirtualJson();
-	}
-
-	//get local watermark file data
-	QByteArray array;
-	PLSJsonDataHandler::getJsonArrayFromFile(array, path);
-
-	//get the sync server schemas data
-	QVariantList list;
-	PLSJsonDataHandler::getValuesFromByteArray(array, name2str(group), list);
-
-	//get prism item list
-	QVariantList prismList;
-	for (auto item : list) {
-		QJsonObject jsonObject = item.toJsonObject();
-		QString groupId = jsonObject.value(name2str(groupId)).toString();
-		if (groupId == key) {
-			PLSJsonDataHandler::getValues(jsonObject, name2str(items), prismList);
-		}
-	}
-	return prismList;
-}
-
-void PLSMotionFileManager::getMotionListByJsonArray(const QJsonArray &array, QList<MotionData> &list, DataType dataType) const
-{
-	for (const QJsonValue &it : array) {
-		//Check QObject is Valid
-		QJsonObject json = it.toObject();
-		struct MotionData motionData;
-		motionData.itemId = json.value(MOTION_ID_KEY).toString();
-		motionData.title = json.value(MOTION_TITLE_KEY).toString();
-		motionData.type = (MotionType)json.value(MOTION_TYPE_KEY).toInt();
-		motionData.canDelete = json.value(MOTION_CAN_DELETE_KEY).toBool();
-		motionData.resourcePath = json.value(RESOURCE_PATH_KEY).toString();
-		motionData.thumbnailPath = json.value(THUMNAIL_PATH_KEY).toString();
-		motionData.staticImgPath = json.value(STATIC_IMAGE_PATH_KEY).toString();
-		motionData.dataType = dataType;
-		list.append(motionData);
-	}
-}
-
 void PLSMotionFileManager::deleteMotionListItem(const QString &itemId, QList<MotionData> &list, bool deleteFile) const
 {
 	for (int i = 0, size = list.size(); i < size; i++) {
@@ -646,67 +422,6 @@ void PLSMotionFileManager::deleteLocalFile(const QString &path) const
 	QFile::remove(path);
 }
 
-QList<MotionData> &PLSMotionFileManager::getRecentMotionList(const QString &recentKey)
-{
-	if (recentKey == PROPERTY_RECENT_LIST) {
-		return m_propertyRecentList;
-	}
-	return m_virtualRecentList;
-}
-
-QList<MotionData> &PLSMotionFileManager::getMyMotionList()
-{
-	return m_myList;
-}
-
-void PLSMotionFileManager::saveMotionList() const
-{
-	QJsonObject jsonObject;
-	saveMotionListToLocalPath(MY_FILE_LIST, jsonObject, m_myList);
-	saveMotionListToLocalPath(PROPERTY_RECENT_LIST, jsonObject, m_propertyRecentList);
-	saveMotionListToLocalPath(VIRTUAL_BACKGROUND_RECENT_LIST, jsonObject, m_virtualRecentList);
-#if 0
-	if (m_propertyCategoryIndex != nullptr) {
-		jsonObject.insert(PROPERTY_CATEGORY_INDEX, m_propertyCategoryIndex);
-	}
-	if (m_virtualCategoryIndex != nullptr) {
-		jsonObject.insert(VIRTUAL_CATEGORY_INDEX, m_virtualCategoryIndex);
-	}
-#endif
-
-	//convert json object to json string
-	QJsonDocument writeDocument;
-	writeDocument.setObject(jsonObject);
-	QByteArray json = writeDocument.toJson(QJsonDocument::Indented);
-
-	//get json file data
-	QString userFileName = getUserPath(VIRTUAL_USER_CACHE_JSON_FILE);
-	QFile file(userFileName);
-	file.open(QFile::WriteOnly | QFile::Truncate);
-	file.write(json);
-	file.close();
-}
-
-void PLSMotionFileManager::saveCategoryIndex(int index, const QString &key)
-{
-	QString string = QString("%1").arg(index);
-	if (key == PROPERTY_CATEGORY_INDEX) {
-		m_propertyCategoryIndex = string;
-	} else if (key == VIRTUAL_CATEGORY_INDEX) {
-		m_virtualCategoryIndex = string;
-	}
-}
-
-QString PLSMotionFileManager::categoryIndex(const QString &key) const
-{
-	if (key == PROPERTY_CATEGORY_INDEX) {
-		return m_propertyCategoryIndex;
-	} else if (key == VIRTUAL_CATEGORY_INDEX) {
-		return m_virtualCategoryIndex;
-	}
-	return QString();
-}
-
 void PLSMotionFileManager::addMyResources(QObject *sourceUi, const QStringList &files)
 {
 	if (files.isEmpty()) {
@@ -723,16 +438,13 @@ void PLSMotionFileManager::deleteAllMyResources(QObject *sourceUi)
 {
 	emit deleteMyResources();
 	QStringList idList;
-	for (const MotionData &data : m_myList) {
-		removeAt(m_propertyRecentList, data.itemId);
-		removeAt(m_virtualRecentList, data.itemId);
+	for (const MotionData &data : CategoryVirtualTemplateInstance->getMyList()) {
 		deleteAllMyResourcesThread->push(sourceUi, data);
 		idList.append(data.itemId);
 	}
 	PLSVirtualBgManager::sourceIsDeleted(nullptr, idList);
 	sourceClearBackgroundTemplate(idList);
-	m_myList.clear();
-	saveMotionList();
+	CategoryVirtualTemplateInstance->removeCustomItems(MY_STR);
 }
 
 bool PLSMotionFileManager::copyList(QList<MotionData> &copied, const QList<MotionData> &dst, const QList<MotionData> &src, QList<MotionData> *removed) const
@@ -805,11 +517,6 @@ void PLSMotionFileManager::notifyCheckedRemoved(const QList<MotionData> &removed
 	sourceClearBackgroundTemplate(itemIds);
 }
 
-void PLSMotionFileManager::redownloadResource(MotionData &md, bool update, const std::function<void(const MotionData &md)> &ok, const std::function<void(const MotionData &md)> &fail) const
-{
-	PLSMotionNetwork::instance()->reDownloadResourceFile(md, update, ok, fail);
-}
-
 QSvgRenderer *PLSMotionFileManager::getMotionFlagSvg()
 {
 	return &motionFlagSvg;
@@ -870,7 +577,7 @@ static QPixmap roundedPixmap(const QPixmap &pixmap, int radius, bool properties)
 
 static QPixmap selectedRoundedPixmap(const QSize &size, const QPixmap &crop, const QMargins &margin, int radius)
 {
-	QPixmap image(size * 4);
+	QPixmap image(size);
 	image.fill(Qt::transparent);
 
 	QPainter painter(&image);
@@ -879,9 +586,9 @@ static QPixmap selectedRoundedPixmap(const QSize &size, const QPixmap &crop, con
 	QRect rect = image.rect();
 	painter.setPen(Qt::NoPen);
 	painter.setBrush(Qt::yellow);
-	painter.drawRoundedRect(rect, radius * 4, radius * 4);
+	painter.drawRoundedRect(rect, radius, radius);
 
-	rect -= margin * 4;
+	rect -= margin;
 	painter.drawPixmap(rect, crop);
 
 	return image;
@@ -995,14 +702,14 @@ void PLSMotionFileManager::getThumbnailPixmapAsync(PLSResourcesThumbnailProcessF
 		return;
 	}
 
-	int radius = 3;
+	int radius = 3 * dpi;
 	if (size.isEmpty() || (radius <= 0)) {
 		itemView->processThumbnailFinished(thread(), md.itemId, QPixmap(), QPixmap());
 		return;
 	}
 
-	QMargins margin = QMargins(2, 2, 2, 2);
-	updateThumbnailPixmapSize(size, margin, radius, properties);
+	QMargins margin = QMargins(2, 2, 2, 2) * dpi;
+	updateThumbnailPixmapSize(size * dpi, margin, radius, properties);
 
 	QPixmap normalPixmap;
 	QPixmap selectedPixmap;
@@ -1087,22 +794,6 @@ void PLSMotionFileManager::setThumbnailPixmap(const QString &itemId, const QPixm
 	thumbnailPixmapCache[itemId] = std::tuple<QPixmap, QPixmap, QPixmap, QPixmap, QPixmap>(thumbnailPixmap, QPixmap(), QPixmap(), QPixmap(), QPixmap());
 }
 
-bool PLSMotionFileManager::isMy(const QString &itemId) const
-{
-	return std::any_of(m_myList.begin(), m_myList.end(), [&itemId](const MotionData &md) { return md.itemId == itemId; });
-}
-
-bool PLSMotionFileManager::findMy(MotionData &md, const QString &itemId) const
-{
-	for (const MotionData &_md : m_myList) {
-		if (_md.itemId == itemId) {
-			md = _md;
-			return true;
-		}
-	}
-	return false;
-}
-
 bool PLSMotionFileManager::removeAt(QList<MotionData> &mds, const QString &itemId) const
 {
 	for (int i = 0, count = mds.count(); i < count; ++i) {
@@ -1134,37 +825,13 @@ QString PLSMotionFileManager::getChooseFileDir() const
 
 void PLSMotionFileManager::logoutClear()
 {
-	QFile::remove(getUserPath(VIRTUAL_USER_CACHE_JSON_FILE));
-
 	QDir dir(pls_get_user_path(VIRTUAL_USER_PATH));
-	for (const MotionData &md : m_myList) {
+	for (const MotionData &md : CategoryVirtualTemplateInstance->getMyList()) {
 		if (isFileInDir(dir, md.thumbnailPath)) {
 			PLS_DEBUG(MOTION_FILE_MANAGER, "remove thumbnail file: %s", md.thumbnailPath.toUtf8().constData());
 			QFile::remove(md.thumbnailPath);
 		}
 	}
-
-	m_virtualRecentList.clear();
-	m_propertyRecentList.clear();
-	m_myList.clear();
-}
-
-void PLSMotionFileManager::saveMotionListToLocalPath(const QString &listTypeKey, QJsonObject &jsonObject, const QList<MotionData> &list) const
-{
-	//build new JsonObject
-	QJsonArray jsonArray;
-	for (const MotionData &data : list) {
-		QJsonObject dataObject;
-		dataObject.insert(MOTION_ID_KEY, data.itemId);
-		dataObject.insert(MOTION_TITLE_KEY, data.title);
-		dataObject.insert(MOTION_TYPE_KEY, (int)data.type);
-		dataObject.insert(MOTION_CAN_DELETE_KEY, true);
-		dataObject.insert(RESOURCE_PATH_KEY, data.resourcePath);
-		dataObject.insert(THUMNAIL_PATH_KEY, data.thumbnailPath);
-		dataObject.insert(STATIC_IMAGE_PATH_KEY, data.staticImgPath);
-		dataObject.insert(FOREBACKGROUND_PATH_KEY, data.foregroundPath);
-		dataObject.insert(FOREBACKGROUND_STATIC_IMAGE_PATH_KEY, data.foregroundStaticImgPath);
-		jsonArray.append(dataObject);
-	}
-	jsonObject.insert(listTypeKey, jsonArray);
+	CategoryVirtualTemplateInstance->removeAllCustomGroups();
+	CategoryVirtualTemplateInstance->removeAllUsedItems();
 }

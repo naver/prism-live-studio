@@ -266,7 +266,7 @@ void PLSSceneTransitionsView::SetTransition(OBSSource transition)
 	ui->transitionDurationLabel->setVisible(!fixed);
 	ui->transitionDuration->setVisible(!fixed);
 
-	bool configurable = obs_source_configurable(transition);
+	bool configurable = transition ? obs_source_configurable(transition) : false;
 	ui->transitionRemove->setEnabled(configurable);
 	ui->transitionProps->setEnabled(configurable);
 

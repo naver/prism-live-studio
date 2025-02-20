@@ -123,6 +123,6 @@
         <file>resource/css/PLSSceneTemplateContainer.css</file>
         <file>resource/css/PLSSearchCombobox.css</file>
         <file>resource/css/VisibilityCheckBox.css</file>
+        <file>resource/css/PLSDualOutputTitle.css</file>
     </qresource>
-
 </RCC>

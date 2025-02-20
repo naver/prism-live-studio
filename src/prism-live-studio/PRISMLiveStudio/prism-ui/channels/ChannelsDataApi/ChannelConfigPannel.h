@@ -1,7 +1,12 @@
 #ifndef CHANNELCONFIGPANNEL_H
 #define CHANNELCONFIGPANNEL_H
+#include <qmenu.h>
+#include <QActionGroup>
 #include <QFrame>
+#include <QMetaEnum>
+
 #include "libbrowser.h"
+
 class QPropertyAnimation;
 namespace Ui {
 class ChannelConfigPannel;
@@ -11,6 +16,13 @@ class ChannelConfigPannel : public QFrame {
 	Q_OBJECT
 
 public:
+	enum OUTPUTDIRECTION {
+		horizontal = 0,
+		vertical = 1,
+		none = 2,
+	};
+	Q_ENUM(OUTPUTDIRECTION)
+
 	explicit ChannelConfigPannel(QWidget *parent = nullptr);
 	~ChannelConfigPannel() override;
 	void setChannelID(const QString &channelID);
@@ -18,6 +30,9 @@ public:
 
 	void updateUI();
 	bool GetMeunShow() { return m_bMenuShow; }
+
+	void setDualOutput(bool bOpen);
+	void updateUISpacing(bool isDualOutput);
 
 protected:
 	void changeEvent(QEvent *e) override;
@@ -34,6 +49,8 @@ private slots:
 
 	void askDeleteChannel();
 
+	void onShowDualoutputMenu();
+
 private:
 	void shiftState(const QVariantMap &info);
 
@@ -45,12 +62,24 @@ private:
 
 	void checkExclusiveChannel(bool &retflag);
 
+	void setHorizontalOutputUI();
+	void setVerticalOutputUI();
+	void setNoSetDirectionUI();
+	void closeDualOutputUI();
+	void onClickVerticalOutput();
+	void onClickHorizontalOutput();
+	void onClickNoSetOutput();
+	void resetActionsState();
+
 	//private:
 	Ui::ChannelConfigPannel *ui;
 	QString mChannelID;
 	bool mIsAsking = false;
 	bool m_isChannelSwithed{false};
 	bool m_bMenuShow = false;
+	bool m_bDualoutputMenuShow = false;
+	OUTPUTDIRECTION m_currentState{none};
+	QMenu m_dualMenu;
 };
 
 #endif // CHANNELCONFIGPANNEL_H

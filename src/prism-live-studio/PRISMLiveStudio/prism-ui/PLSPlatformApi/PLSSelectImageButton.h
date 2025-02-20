@@ -32,7 +32,7 @@ public:
 	void mouseEnter();
 	void mouseLeave();
 
-	void setIsIgoreMinSize(bool isIgoreMinSize) { m_isIgoreMinSize = isIgoreMinSize; };
+	void setIsIgnoreMinSize(bool isIgoreMinSize) { m_isIgoreMinSize = isIgoreMinSize; };
 	void setTipLabelString(const QString &tipLabel);
 
 	void setShowDeleteBtn(bool isShowDeleteBtn) { m_isShowDeleteBtn = isShowDeleteBtn; };

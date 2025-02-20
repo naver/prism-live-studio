@@ -737,6 +737,14 @@ PLSSettingGeneralView {
 }
 
 #OBSBasicSettings #severiceExplainLabel, #OBSBasicSettings #sceneDisplayTipsLabel,
-#OBSBasicSettings #advNetworkDisabled {
+#OBSBasicSettings #advNetworkDisabled, #OBSBasicSettings #multitrackVideoInfo {
     color: #bababa;
+}
+
+#OBSBasicSettings #labelDualOutputTooltip {
+    min-width: 18px;
+    max-width: 18px;
+    min-height: 18px;
+    max-height: 18px;
+    image: url("://resource/images/dual-output/ic_setting_tip.png");
 }

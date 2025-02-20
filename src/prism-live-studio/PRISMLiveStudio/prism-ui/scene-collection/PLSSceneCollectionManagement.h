@@ -27,6 +27,7 @@ public:
 	void RemoveSceneCollection(const QString &name, const QString &path) const;
 	void RenameSceneCollection(const QString &srcName, const QString &srcPath, const QString &destName, const QString &destPath) const;
 	void Resize(int count);
+	void OnTriggerEnterEvent(const QString &name, const QString &path);
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *event) override;

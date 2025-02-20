@@ -129,11 +129,13 @@ QVariant getData(OBSData obj, const QString &key, SourceAnalogData::DataType dat
 		return QVariant();
 	}
 }
-QVariant getData(OBSData obj, const QStringList &keys, SourceAnalogData::DataType dataType, int index = 0)
+QVariant getData(OBSData obj, const QStringList &keys, SourceAnalogData::DataType dataType, bool isAssert = true, int index = 0)
 {
-	auto errorLog = [](const QStringList &keys) -> QVariant {
-		PLS_ERROR(SOURCEANALOG, "cannot find value,please check key, key = %s", keys.join('/').toUtf8().constData());
-		assert(false);
+	auto errorLog = [isAssert](const QStringList &keys) -> QVariant {
+		if (isAssert) {
+			PLS_ERROR(SOURCEANALOG, "cannot find value,please check key, key = %s", keys.join('/').toUtf8().constData());
+			assert(false);
+		}
 		return QVariant();
 	};
 	if (keys.isEmpty()) {
@@ -141,7 +143,7 @@ QVariant getData(OBSData obj, const QStringList &keys, SourceAnalogData::DataTyp
 	}
 	if (index + 1 < keys.size()) {
 		if (OBSDataAutoRelease currentValue = obs_data_get_obj(obj, keys[index].toUtf8().constData()); currentValue) {
-			return getData(currentValue.Get(), keys, dataType, ++index);
+			return getData(currentValue.Get(), keys, dataType, isAssert, ++index);
 		} else {
 			return errorLog(keys);
 		}
@@ -159,8 +161,8 @@ QPair<bool, QJsonObject> specialDataMatch(const char *sourceId, OBSData oldJsonD
 	case PLS_ICON_TYPE_CHAT_TEMPLATE: {
 		auto isNewCheckMotion = getData(newJsonData, {"Chat.Motion", "isCheckChatMotion"}, SourceAnalogData::DataType::Bool).toBool();
 		if (isNewCheckMotion) {
-			auto oldmotionStyle = getData(oldJsonData, {"Chat.Motion", "chatMotionStyle"}, SourceAnalogData::DataType::Int).toInt();
-			auto isOldCheckMotion = getData(oldJsonData, {"Chat.Motion", "isCheckChatMotion"}, SourceAnalogData::DataType::Bool).toBool();
+			auto oldmotionStyle = getData(oldJsonData, {"Chat.Motion", "chatMotionStyle"}, SourceAnalogData::DataType::Int, false).toInt();
+			auto isOldCheckMotion = getData(oldJsonData, {"Chat.Motion", "isCheckChatMotion"}, SourceAnalogData::DataType::Bool, false).toBool();
 			auto newmotionStyle = getData(newJsonData, {"Chat.Motion", "chatMotionStyle"}, SourceAnalogData::DataType::Int).toInt();
 			if (oldmotionStyle != newmotionStyle || !isOldCheckMotion) {
 				return {true, {{"motionStyle", getMotionStyleString(newmotionStyle)}}};
@@ -194,7 +196,7 @@ void sendPrismSourceAnalog(const char *sourceId, OBSData oldSettings, OBSData ne
 		sendAnalogJson.insert(analogData.analogKey.isEmpty() ? settingkeys.last() : analogData.analogKey,
 				      analogData.convertDataFunc ? QJsonValue::fromVariant(analogData.convertDataFunc(newValue)) : QJsonValue::fromVariant(newValue));
 
-		if (!isEqual(getData(oldSettings, settingkeys, analogData.dataType), newValue, analogData.dataType)) {
+		if (!isEqual(getData(oldSettings, settingkeys, analogData.dataType, false), newValue, analogData.dataType)) {
 			isSendAnalog = true;
 		}
 	}

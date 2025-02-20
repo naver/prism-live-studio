@@ -25,6 +25,8 @@
 #include "PLSBasic.h"
 #include "PLSRadioButton.h"
 #include "PLSPlatformApi.h"
+#include "PLSSceneitemMapManager.h"
+#include "pls/pls-dual-output.h"
 
 using namespace common;
 
@@ -58,7 +60,8 @@ struct AddSourceData {
 	}
 
 	void setAlignment(uint32_t value) { itemInfo.alignment = value; }
-	void setBounds(obs_bounds_type type = OBS_BOUNDS_NONE, uint32_t value = OBS_ALIGN_CENTER)
+	void setBounds(obs_bounds_type type = OBS_BOUNDS_NONE,
+		       uint32_t value = OBS_ALIGN_CENTER)
 	{
 		itemInfo.bounds_type = type;
 		itemInfo.bounds_alignment = value;
@@ -184,7 +187,7 @@ void OBSBasicSourceSelect::OBSSourceAdded(void *data, calldata_t *calldata)
 		static_cast<OBSBasicSourceSelect *>(data);
 	obs_source_t *source = (obs_source_t *)calldata_ptr(calldata, "source");
 
-	QMetaObject::invokeMethod(window, "SourceAdded",
+	QMetaObject::invokeMethod(window, "SourceAdded", Qt::QueuedConnection,
 				  Q_ARG(OBSSource, source));
 }
 
@@ -300,7 +303,6 @@ static void AddExisting(OBSSource source, bool visible, bool duplicate,
 	const char *id = obs_source_get_id(source);
 	if (pls_is_equal(id, PRISM_CHATV2_SOURCE_ID)) {
 		data.centerShow();
-		data.setBounds(OBS_BOUNDS_STRETCH, OBS_ALIGN_CENTER);
 	} else if (pls_is_equal(id, PRISM_SPECTRALIZER_SOURCE_ID)) {
 		data.centerShow(SPECTRALIZER_MIN_WIDTH);
 	} else if (pls_is_equal(id, PRISM_MOBILE_SOURCE_ID) ||
@@ -362,7 +364,6 @@ bool AddNew(QWidget *parent, const char *id, const char *name,
 
 			if (pls_is_equal(id, PRISM_CHATV2_SOURCE_ID)) {
 				data.centerShow();
-				data.setBounds(OBS_BOUNDS_STRETCH, OBS_ALIGN_CENTER);
 			} else if (pls_is_equal(id,
 						PRISM_SPECTRALIZER_SOURCE_ID)) {
 				data.centerShow(SPECTRALIZER_MIN_WIDTH);
@@ -439,7 +440,10 @@ void OBSBasicSourceSelect::on_buttonBox_accepted()
 				return true;
 			};
 			obs_scene_enum_items(scene, cb, &item);
-
+			if(auto verItem = PLSSceneitemMapMgrInstance
+					    ->getVerticalSceneitem(item);verItem) {
+				PLSSceneitemMapMgrInstance->removeItem(item);
+			}
 			obs_sceneitem_remove(item);
 			obs_scene_release(scene);
 		};
@@ -452,6 +456,7 @@ void OBSBasicSourceSelect::on_buttonBox_accepted()
 			obs_source_release(scene_source);
 			AddExisting(QT_TO_UTF8(source_name), visible, false,
 				    nullptr, nullptr, nullptr, nullptr);
+			PLSSceneitemMapMgrInstance->switchToDualOutputMode();
 		};
 
 		undo_s.add_action(QTStr("Undo.Add").arg(source_name), undo,
@@ -507,6 +512,7 @@ void OBSBasicSourceSelect::on_buttonBox_accepted()
 					main->GetCurrentScene(), source);
 			obs_sceneitem_set_id(item, (int64_t)obs_data_get_int(
 							   dat, "item_id"));
+			PLSSceneitemMapMgrInstance->switchToDualOutputMode();
 		};
 		undo_s.add_action(QTStr("Undo.Add").arg(ui->sourceName->text()),
 				  undo, redo,
@@ -665,4 +671,6 @@ void OBSBasicSourceSelect::SourcePaste(SourceCopyInfo &info, bool dup)
 
 	AddExisting(source, info.visible, dup, &info.transform, &info.crop,
 		    &info.blend_method, &info.blend_mode);
+
+	PLSSceneitemMapMgrInstance->switchToDualOutputMode();
 }

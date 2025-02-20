@@ -63,7 +63,7 @@ void PLSScheduleComboxMenu::setupDatas(const vector<PLSScheComboxItemData> &data
 	for (auto &itemData : datas) {
 		bool isItemIgnore = false;
 		QString showStr = PLSScheduleComboxMenu::getDetailTime(itemData, isItemIgnore);
-		if (isItemIgnore || itemData.type == PLSScheComboxItemType::Ty_Placehoder) {
+		if (isItemIgnore || itemData.type == PLSScheComboxItemType::Ty_Placeholder) {
 			continue;
 		}
 		if (itemData.needShowTimeLeftTimer) {
@@ -79,7 +79,7 @@ void PLSScheduleComboxMenu::setupDatas(const vector<PLSScheComboxItemData> &data
 
 	if (realShowCount == 0) {
 		for (auto &itemData : datas) {
-			if (itemData.type != PLSScheComboxItemType::Ty_Placehoder) {
+			if (itemData.type != PLSScheComboxItemType::Ty_Placeholder) {
 				continue;
 			}
 			int itemHeight = itemData.itemHeight;

@@ -17,21 +17,23 @@
 #include <QThread>
 #include <qreadwritelock.h>
 #include <qsemaphore.h>
+#include "PLSDualOutputConst.h"
 
 class PLSMosquitto : public QObject, private mosqpp::mosquittopp {
 	Q_OBJECT
 public:
-	PLSMosquitto();
+	PLSMosquitto(DualOutputType outputType);
 	~PLSMosquitto() override = default;
 
 	void start(int iVideoSeq);
 	void stop();
 signals:
-	void onMessage(QString, QString);
+	void onMessage(const QString &, const QString &, DualOutputType outputType);
 
 private:
 	void subscribleAll();
 
+	//IMPORTANT: These events are called from mqtt thread, NOT main thread.
 	void on_connect(int status) override;
 	void on_disconnect(int) override;
 	void on_message(const struct mosquitto_message *) override;
@@ -40,4 +42,6 @@ private:
 	QString m_mqttUrl;
 	QThread *m_thread{nullptr};
 	QSemaphore m_connected;
+
+	DualOutputType m_outputType = DualOutputType::All;
 };

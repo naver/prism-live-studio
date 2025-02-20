@@ -5,7 +5,7 @@
 #include "PLSChannelDataAPI.h"
 #include "PLSChannelsVirualAPI.h"
 #include "PLSLoginDataHandler.h"
-#include "PLSResourceManager.h"
+#include "PLSSyncServerManager.hpp"
 #include "libui.h"
 #include "pls-channel-const.h"
 #include "pls-shared-functions.h"
@@ -111,7 +111,7 @@ void DefaultPlatformsAddList::initUi()
 		if (fixPlatformName == NCB2B) {
 			connect(PLSLOGINDATAHANDLER, &PLSLoginDataHandler::updateNCB2BIcon, updateIcon);
 		} else if (fixPlatformName == CUSTOM_RTMP) {
-			connect(PLSRESOURCEMGR_INSTANCE, &PLSResourceManager::libraryNeedUpdate, updateIcon);
+			connect(PLS_SYNC_SERVER_MANAGE, &PLSSyncServerManager::libraryNeedUpdate, updateIcon);
 		}
 
 		btn->installEventFilter(this);

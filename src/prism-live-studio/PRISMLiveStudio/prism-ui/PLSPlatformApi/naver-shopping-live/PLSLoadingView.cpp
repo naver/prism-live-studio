@@ -6,10 +6,14 @@
 #include <QTimerEvent>
 
 using namespace common;
-PLSLoadingView::PLSLoadingView(QWidget *parent) : QFrame(parent)
+PLSLoadingView::PLSLoadingView(QWidget *parent, QString pathImage) : QFrame(parent)
 {
+	if (pathImage.isEmpty()) {
+		pathImage = QString(":resource/images/loading/loading-%1.svg");
+	}
+
 	for (int i = 0; i < 8; ++i) {
-		m_svgRenderers[i].load(QString(":resource/images/loading/loading-%1.svg").arg(i + 1));
+		m_svgRenderers[i].load(pathImage.arg(i + 1));
 	}
 
 	m_dpi = 1;
@@ -33,9 +37,10 @@ PLSLoadingView *PLSLoadingView::newLoadingView(PLSLoadingView *&loadingView, QWi
 	return newLoadingView(loadingView, parent, -1, getViewRect);
 }
 
-PLSLoadingView *PLSLoadingView::newLoadingView(QWidget *parent, int absoluteTop, const PfnGetViewRect &getViewRect)
+PLSLoadingView *PLSLoadingView::newLoadingView(QWidget *parent, int absoluteTop, const PfnGetViewRect &getViewRect, const QString &pathImage, std::optional<QColor> colorBackground)
 {
-	PLSLoadingView *loadingView = pls_new<PLSLoadingView>(parent);
+	PLSLoadingView *loadingView = pls_new<PLSLoadingView>(parent, pathImage);
+	loadingView->m_colorBackground = colorBackground;
 	loadingView->m_absoluteTop = absoluteTop;
 	loadingView->m_getViewRect = getViewRect;
 	loadingView->raise();
@@ -142,7 +147,11 @@ void PLSLoadingView::paintEvent(QPaintEvent *)
 	painter.setRenderHint(QPainter::RenderHint::SmoothPixmapTransform);
 
 	QRect rect = this->rect();
-	painter.fillRect(rect, Qt::transparent);
+	if (!m_colorBackground.has_value()) {
+		painter.fillRect(rect, Qt::transparent);
+	} else {
+		painter.fillRect(rect, m_colorBackground.value());
+	}
 
 	QRectF svgRect(0, 0, 24 * m_dpi, 24 * m_dpi);
 	svgRect.moveCenter(rect.center());

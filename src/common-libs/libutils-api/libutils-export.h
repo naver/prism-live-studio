@@ -4,17 +4,10 @@
 
 #include "qglobal.h"
 
-#ifdef Q_OS_WIN
-
 #ifdef LIBUTILSAPI_LIB
-#define LIBUTILSAPI_API __declspec(dllexport)
+#define LIBUTILSAPI_API Q_DECL_EXPORT
 #else
-#define LIBUTILSAPI_API __declspec(dllimport)
-#endif
-
-#else
-#define LIBUTILSAPI_API __attribute__((visibility("default")))
-
+#define LIBUTILSAPI_API Q_DECL_IMPORT
 #endif
 
 #endif // !LIBUTILS_EXPORT_H

@@ -6,14 +6,12 @@
 #include <QUrl>
 #include <qscrollbar.h>
 #include "PLSBasic.h"
-#include "PLSResourceManager.h"
 #include "PLSIPCHandler.h"
 #include "pls-shared-functions.h"
 #include "pls-channel-const.h"
 #include "pls-shared-values.h"
 #include <algorithm>
 #include <random>
-#include "PLSResCommonFuns.h"
 #include "pls-common-define.hpp"
 #include "frontend-api.h"
 #include "PLSChannelDataAPI.h"
@@ -26,6 +24,7 @@
 #include <qscroller.h>
 #include "window-basic-main.hpp"
 #include "pls-common-define.hpp"
+#include "PLSCommonConst.h"
 
 constexpr auto urlProperty = "url";
 constexpr auto discordUrl = "https://discord.gg/vxzDZ9V6f9";
@@ -78,7 +77,7 @@ PLSLaunchWizardView::PLSLaunchWizardView(QWidget *parent) : PLSWindow(parent)
 
 	updatebannerView();
 
-	connect(PLSResourceManager::instance(), &PLSResourceManager::bannerJsonDownloaded, this, &PLSLaunchWizardView::loadBannerSources, Qt::QueuedConnection);
+	connect(this, &PLSLaunchWizardView::bannerJsonDownloaded, this, &PLSLaunchWizardView::loadBannerSources, Qt::QueuedConnection);
 	connect(this, &PLSLaunchWizardView::bannerImageLoadFinished, this, &PLSLaunchWizardView::finishedDownloadBanner, Qt::QueuedConnection);
 	startUpdateBanner();
 	ui->bannerFrame->setMouseTracking(true);
@@ -153,10 +152,29 @@ void PLSLaunchWizardView::startUpdateBanner()
 	}
 
 	isLoadingBanner = true;
-	PLSResourceManager::instance()->getBannerJson();
+	getBannerJson();
 	mBannerTimer->start();
 }
 
+void PLSLaunchWizardView::getBannerJson()
+{
+	pls::rsm::UrlAndHowSave downJsonUrl;
+	downJsonUrl.url(pls_http_api_func::getPrismSynGateWay() + QStringLiteral("/pc-banner"));
+	downJsonUrl.fileName(pls::rsm::FileName::FromUrl);
+	downJsonUrl.noCache(true);
+	downJsonUrl.hmacKey(pls_http_api_func::getPrismHamcKey());
+	auto cb = [this](const pls::rsm::DownloadResult &result) {
+		if (result.isOk()) {
+			PLS_INFO(ModuleName, " request new banner json OK");
+		} else {
+			PLS_ERROR(ModuleName, " request new banner json falied");
+		}
+		if (result.hasFilePath())
+			m_josnPath = result.filePath();
+		emit bannerJsonDownloaded();
+	};
+	pls::rsm::getDownloader()->download(downJsonUrl, this, cb);
+}
 void PLSLaunchWizardView::updatebannerView()
 {
 	QStringList images = mBannerUrls.values();
@@ -247,12 +265,11 @@ void PLSLaunchWizardView::loadBannerSources()
 		return;
 	});
 
-	auto path = PLSResCommonFuns::getUserSubPath(common::PLS_BANNANR_JSON);
-	if (!QFile::exists(path)) {
+	if (!QFile::exists(m_josnPath)) {
 		PLS_INFO(ModuleName, "bannar json not exists!");
 		return;
 	}
-	auto data = PLSResCommonFuns::readFile(path);
+	auto data = pls_read_data(m_josnPath);
 	if (data.isEmpty()) {
 		return;
 	}
@@ -270,7 +287,8 @@ void PLSLaunchWizardView::loadBannerSources()
 		}
 	}
 
-	auto cachePath = PLSResCommonFuns::getUserSubPath(common::PLS_BANNANR_PATH);
+	auto cachePath = pls_get_app_data_dir_pn(common::PLS_BANNANR_PATH);
+	std::list<pls::rsm::UrlAndHowSave> urlAndHowSaves;
 	int index = 0;
 	for (const auto &obj : array) {
 		auto jobj = obj.toObject();
@@ -283,29 +301,29 @@ void PLSLaunchWizardView::loadBannerSources()
 		auto strIndex = QString::number(index) + "_";
 		auto filePath = cachePath + "/" + strIndex + urlO.fileName();
 		mBannerUrls.insert(url, filePath);
+		auto downUrl = pls::rsm::UrlAndHowSave() //
+				       .keyPrefix(url)
+				       .url(url)
+				       .filePath(filePath);
+		urlAndHowSaves.push_back(downUrl);
 		mLinks.insert(filePath, jobj.value("bannerClickLinkUrl").toString());
 	}
-	QPointer context(this);
-	auto callback = [this, context](const QMap<QString, bool> &resDownloadStatus, PLSResEvents) {
-		if (context == nullptr) {
-			return;
-		}
-		emit bannerImageLoadFinished(resDownloadStatus);
-	};
+	auto cb = [this](const std::list<pls::rsm::DownloadResult> &results) { emit bannerImageLoadFinished(results); };
+
 	if (mBannerUrls.isEmpty()) {
 		return;
 	}
-	auto tmp = mBannerUrls; //copy
-	PLSResCommonFuns::downloadResources(tmp, callback);
+	pls::rsm::getDownloader()->download(urlAndHowSaves, this, cb);
 }
 
-void PLSLaunchWizardView::finishedDownloadBanner(const QMap<QString, bool> &resDownloadStatus)
+void PLSLaunchWizardView::finishedDownloadBanner(const std::list<pls::rsm::DownloadResult> &results)
 {
 
 	int errorCount = 0;
-	for (auto it = resDownloadStatus.begin(); it != resDownloadStatus.end(); ++it) {
-		if (!*it) {
-			this->mBannerUrls.remove(it.key());
+	for (auto it = results.begin(); it != results.end(); ++it) {
+		if (!it->isOk()) {
+			PLS_ERROR(ModuleName, "downlaod banner failed,url is %s", it->m_urlAndHowSave.url().toString().toUtf8().constData());
+			this->mBannerUrls.remove(it->filePath());
 			++errorCount;
 			continue;
 		}
@@ -352,7 +370,7 @@ void PLSLaunchWizardView::createAlertInfoView()
 
 QFileInfoList getDumpInfoList()
 {
-	QDir dir(PLSResCommonFuns::getUserSubPath("crashDump"));
+	QDir dir(pls_get_app_data_dir_pn("crashDump"));
 	dir.setNameFilters({"dumpInfo*"});
 	dir.setSorting(QDir::Time);
 	return dir.entryInfoList(QDir::QDir::NoDotAndDotDot | QDir::Files);
@@ -378,14 +396,14 @@ void PLSLaunchWizardView::onDumpCreated()
 	QJsonObject json;
 
 	if (QString lastInfoFile = getLatestDumpInfoFile(); !lastInfoFile.isEmpty()) {
-		auto data = PLSResCommonFuns::readFile(lastInfoFile);
+		auto data = pls_read_data(lastInfoFile);
 		if (!data.isEmpty()) {
 			auto doc = QJsonDocument::fromJson(data);
 			json = doc.object();
 		}
 	}
 
-	handleErrorMessgage(json);
+	handleErrorMessgage(json.toVariantMap());
 }
 void PLSLaunchWizardView::wheelChangeBannerView(bool bPre)
 {
@@ -532,11 +550,8 @@ bool PLSLaunchWizardView::isInWidgets(const QWidget *wid) const
 
 const QString currentDayHtml = R"(<p style="color:#EFFC35;">%1</p>)";
 const QString otherDayHtml = R"(<p style="color:#BABABA;">%1</p>)";
-extern QVariantMap createErrorMap(int errorType);
-extern void addErrorForType(int errorType);
-extern void showNetworkErrorAlert();
 
-void PLSLaunchWizardView::checkShowErrorAlert()
+void PLSLaunchWizardView::checkShowErrorAlert(const QVariantMap &body)
 {
 	//ux error for refreshing not by click   show on prism
 	if (!isRefresh) {
@@ -546,27 +561,22 @@ void PLSLaunchWizardView::checkShowErrorAlert()
 		return;
 	}
 	//error for clicking refresh button on lancher
-	auto errorMap = createErrorMap(ChannelData::NetWorkErrorType::NetWorkNoStable);
-	if (getInfo<bool>(errorMap, ChannelData::g_errorIsErrMsg, false)) {
-		pls_alert_error_message(this, getInfo(errorMap, ChannelData::g_errorTitle), getInfo(errorMap, ChannelData::g_errorString));
-	} else {
-		PLSAlertView::warning(this, getInfo(errorMap, ChannelData::g_errorTitle), getInfo(errorMap, ChannelData::g_errorString));
-	}
+	auto retData = body.value(ChannelData::g_errorRetdata).value<PLSErrorHandler::RetData>();
+	PLSErrorHandler::directShowAlert(retData, this);
 	isRefresh = false;
 }
 
-void PLSLaunchWizardView::handleChannelMessage(const QJsonObject &body)
+void PLSLaunchWizardView::handleChannelMessage(const QVariantMap &body)
 {
-	m_scheduleInfo = body;
 	QString title;
 	QString TimeStr;
 	QString platformName;
 
 	if (body.contains(ChannelData::g_errorString)) {
 		title = ScheduleError;
-		checkShowErrorAlert();
-	} else if (body.contains(ChannelData::g_channelName)) {
-		auto time = body.value(ChannelData::g_timeStamp).toVariant().toLongLong();
+		checkShowErrorAlert(body);
+	} else if (body.contains(ChannelData::g_timeStamp)) {
+		auto time = body.value(ChannelData::g_timeStamp).toLongLong();
 		auto timeObj = QDateTime::fromSecsSinceEpoch(time);
 		QString html;
 		if (timeObj.daysTo(QDateTime::currentDateTime()) == 0) {
@@ -597,7 +607,7 @@ void PLSLaunchWizardView::updateInfoView(const QString &title, const QString &ti
 void PLSLaunchWizardView::onPrismMessageCome(const QVariantHash &params)
 {
 	int type = params.value("type").toInt();
-	auto msgBody = params.value("msg").toJsonObject();
+	auto msgBody = params.value("msg").toMap();
 	switch (MessageType(type)) {
 	case MessageType::ChannelsModuleMsg:
 		handleChannelMessage(msgBody);
@@ -613,7 +623,7 @@ void PLSLaunchWizardView::onPrismMessageCome(const QVariantHash &params)
 	}
 }
 
-void PLSLaunchWizardView::handlePrismState(const QJsonObject &body) const
+void PLSLaunchWizardView::handlePrismState(const QVariantMap &body) const
 {
 	auto state = body.value(ChannelData::g_prismState).toInt();
 	m_liveInfoView->loading(state == int(ChannelData::PrismState::Bussy));
@@ -625,12 +635,12 @@ const int disapearTime = 5 * 1000;
 const int disapearTime = 60 * 1000;
 #endif // DEBUG
 
-void PLSLaunchWizardView::handleErrorMessgage(const QJsonObject &body)
+void PLSLaunchWizardView::handleErrorMessgage(const QVariantMap &body)
 {
 	auto location = body.value(shared_values::errorTitle).toString();
 	auto content = body.value(shared_values::errorContent).toString();
 
-	auto timeI = body.value(shared_values::errorTime).toVariant().toLongLong();
+	auto timeI = body.value(shared_values::errorTime).toLongLong();
 	auto time = QDateTime::fromMSecsSinceEpoch(timeI);
 
 	m_alertInfoView->setInfoText(location + "\n" + content);

@@ -36,7 +36,7 @@ PLSSceneListView::PLSSceneListView(QWidget *parent) : QFrame(parent)
 	setAttribute(Qt::WA_NativeWindow);
 #ifdef Q_OS_MACOS
 	ui->scrollArea->VerticalScrollBar()->setAttribute(Qt::WA_NativeWindow);
-	PLSCustomMacWindow::clipsToBounds(ui->scrollArea);
+	pls_scroll_area_clips_to_bounds(this);
 #endif // Q_OS_MACOS
 
 	this->setWindowFlags(windowFlags() ^ Qt::FramelessWindowHint);

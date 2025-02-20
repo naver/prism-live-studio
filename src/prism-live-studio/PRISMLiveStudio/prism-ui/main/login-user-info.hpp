@@ -15,8 +15,9 @@
 #include <QSettings>
 #include <QString>
 #include <qnetworkcookie.h>
-#include "json-data-handler.hpp"
 #include "login-common-struct.hpp"
+#include <qjsonobject.h>
+#include <qbytearray.h>
 
 // prism login type
 enum class LoginInfoType { PrismLoginInfo, ChannelInfo, TokenInfo, PrismLogoutInfo, PrismSignoutInfo, PrismGCCInfo, PrismUserThumbnail, PrismNoticeInfo };

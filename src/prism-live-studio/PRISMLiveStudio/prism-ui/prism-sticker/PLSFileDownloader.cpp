@@ -12,7 +12,13 @@ using namespace downloader;
 
 PLSFileDownloader::PLSFileDownloader(QObject *parent) : QObject(parent)
 {
-	pls_network_state_monitor([this](bool accessible) { OnNetworkAccessChanged(accessible); });
+	pls_network_state_monitor([this_guard = QPointer<PLSFileDownloader>(this)](bool accessible) {
+		if (pls_is_app_exiting())
+			return;
+		if (!this_guard)
+			return;
+		this_guard->OnNetworkAccessChanged(accessible);
+	});
 }
 
 PLSFileDownloader::~PLSFileDownloader()
@@ -237,7 +243,7 @@ void PLSFileDownloader::downloadFinished(const pls::http::Reply &reply, const Do
 		}
 		emit downloadResult(responData);
 	} else {
-		if (GiphyWebHandler::isHttpRedirect(reply.reply())) {
+		if (GiphyWebHandler::isHttpRedirect(reply.statusCode())) {
 			PLS_ERROR(MAIN_FILE_DOWNLOADER, "Request was redirected.url=%s", url.toEncoded().constData());
 			responData.errorString = QString("Request was redirected.");
 			responData.resultType = ResultStatus::ERROR_OCCUR;
