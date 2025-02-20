@@ -66,6 +66,10 @@ void spout_obs_reset(pls_frontend_event event,
 		obs_data_t* settings = obs_data_create();
 		win_spout_out = obs_output_create("spout_output", "PRISM Spout Output", settings, NULL);
 		obs_data_release(settings);
+	} else if (pls_frontend_event::PLS_FRONTEND_EVENT_PRISM_SHUTTING_DOWN == event ) {
+		//PRISM/FanZirong/20240802/PRISM_PC-755/save setting in shutdown
+		if (spout_output_settings)
+			spout_output_settings->save_settings();
 	}
 }
 

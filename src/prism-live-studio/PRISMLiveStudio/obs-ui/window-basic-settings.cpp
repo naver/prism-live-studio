@@ -40,6 +40,7 @@
 #include "hotkey-edit.hpp"
 #include "source-label.hpp"
 #include "obs-app.hpp"
+#include "pls/pls-dual-output.h"
 #include "platform.hpp"
 #include "properties-view.hpp"
 #include "qt-wrappers.hpp"
@@ -61,6 +62,10 @@
 #include "PLSCompleter.hpp"
 #include <utils-api.h>
 #include "PLSPlatformApi.h"
+
+static bool ValidResolutions(OBSBasicSettings *settings,
+			     PLSEditableComboBox *baseResolution,
+			     PLSEditableComboBox *outputResolution);
 
 using namespace std;
 
@@ -352,6 +357,7 @@ void RestrictResetBitrates(initializer_list<QComboBox *> boxes, int maxbitrate);
 #define GROUP_CHANGED   &QGroupBox::toggled
 #define SCROLL_CHANGED  &PLSSpinBox::valueChanged
 #define DSCROLL_CHANGED &PLSDoubleSpinBox::valueChanged
+#define TEXT_CHANGED    &QPlainTextEdit::textChanged
 
 #define GENERAL_CHANGED &OBSBasicSettings::GeneralChanged
 #define STREAM1_CHANGED &OBSBasicSettings::Stream1Changed
@@ -433,6 +439,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->service,              COMBO_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->server,               COMBO_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->customServer,         EDIT_CHANGED,   STREAM1_CHANGED);
+	HookWidget(ui->serviceCustomServer,  EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->key,                  EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->bandwidthTestEnable,  CHECK_CHANGED,  STREAM1_CHANGED);
 	HookWidget(ui->twitchAddonDropdown,  COMBO_CHANGED,  STREAM1_CHANGED);
@@ -440,6 +447,14 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->authUsername,         EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->authPw,               EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->ignoreRecommended,    CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->enableMultitrackVideo,      CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoMaximumAggregateBitrateAuto, CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoMaximumAggregateBitrate,     SCROLL_CHANGED, STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoMaximumVideoTracksAuto, CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoMaximumVideoTracks,     SCROLL_CHANGED, STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoStreamDumpEnable,            CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoConfigOverrideEnable,        CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->multitrackVideoConfigOverride,              TEXT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->outputMode,           COMBO_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->simpleOutputPath,     EDIT_CHANGED,   OUTPUTS_CHANGED);
 	HookWidget(ui->simpleNoSpace,        CHECK_CHANGED,  OUTPUTS_CHANGED);
@@ -560,6 +575,10 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->fpsInteger,           SCROLL_CHANGED, VIDEO_CHANGED);
 	HookWidget(ui->fpsNumerator,         SCROLL_CHANGED, VIDEO_CHANGED);
 	HookWidget(ui->fpsDenominator,       SCROLL_CHANGED, VIDEO_CHANGED);
+
+	HookWidget(ui->baseResolution_2,       CBEDIT_CHANGED, VIDEO_CHANGED);
+	HookWidget(ui->outputResolution_2,     CBEDIT_CHANGED, VIDEO_CHANGED);
+
 	HookWidget(ui->colorCheckBox,        CHECK_CHANGED,  A11Y_CHANGED);
 	HookWidget(ui->colorPreset,          COMBO_CHANGED,  A11Y_CHANGED);
 	HookWidget(ui->renderer,             COMBO_CHANGED,  ADV_RESTART);
@@ -718,6 +737,20 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 		[this](int index) {
 			UpdateStreamDelayEstimate();
 			AdvOutStreamEncoderCheckWarnings();
+
+			if (1 == index) {
+				auto position = ui->verticalLayout_14->indexOf(
+					ui->advOutTopContainer);
+				ui->verticalLayout_14->insertWidget(
+					position + 1,
+					ui->multitrackVideoGroupBox);
+			} else {
+				auto position = ui->verticalLayout_52->indexOf(
+					ui->simpleStreamingGroupBox);
+				ui->verticalLayout_52->insertWidget(
+					position + 1,
+					ui->multitrackVideoGroupBox);
+			}
 		});
 	connect(ui->simpleOutputVBitrate, &QSpinBox::valueChanged, this,
 		&OBSBasicSettings::UpdateStreamDelayEstimate);
@@ -921,6 +954,8 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 
 	obs_properties_destroy(ppts);
 
+	ui->multitrackVideoNoticeBox->setVisible(false);
+
 	InitStreamPage();
 	LoadSettings(false);
 
@@ -1049,6 +1084,99 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 
 	adjustUi();
 	initOutPutChangedTipUi();
+
+#ifdef Q_OS_MACOS
+	for (QScrollArea *_area : this->findChildren<QScrollArea *>()) {
+		pls_scroll_area_clips_to_bounds(_area);
+	}
+#endif
+
+	ui->checkBoxDualOutput->setChecked(pls_is_dual_output_on());
+	connect(ui->checkBoxDualOutput, &PLSCheckBox::toggled, this,
+		[this](bool bChecked) {
+			if (!PLSBasic::instance()->setDualOutputEnabled(
+				    bChecked, false)) {
+				QSignalBlocker signalBlocker(
+					ui->checkBoxDualOutput);
+
+				ui->checkBoxDualOutput->setChecked(false);
+
+				return;
+			}
+
+			LoadServices(false);
+			on_service_currentIndexChanged(ui->service->currentIndex());
+
+			if (bChecked) {
+				lastServiceIdx = -1;
+				showDualoutputSetting();
+			} else {
+				showNormalSetting();
+			}
+		});
+	if (pls_is_dual_output_on()) {
+		showDualoutputSetting();
+	} else {
+		showNormalSetting();	
+	}
+
+	connect(ui->baseResolution_2, &PLSEditableComboBox::editTextChanged, this,
+		[this](const QString &text) {
+			if (!loading && ValidResolutions(this, ui->baseResolution_2,
+					     ui->outputResolution_2)) {
+				QString baseResolution = text;
+				uint32_t cx, cy;
+
+				ConvertResText(QT_TO_UTF8(baseResolution), cx,
+					       cy);
+
+				std::tuple<int, int> aspect =
+					aspect_ratio(cx, cy);
+
+				ui->baseAspect_2->setText(
+					QTStr("AspectRatio")
+						.arg(QString::number(std::get<0>(
+							     aspect)),
+						     QString::number(std::get<1>(
+							     aspect))));
+
+				LoadDownscaleFilters(false);
+			}
+		});
+
+	connect(ui->outputResolution_2, &PLSEditableComboBox::editTextChanged,
+		this,
+		[this](const QString &text) {
+			if (!loading) {
+				RecalcResPixels(ui->scaledAspect_2,
+						QT_TO_UTF8(text));
+				LoadDownscaleFilters(false);
+			}
+		});
+
+	connect(ui->tabWidgetDualOutputVideo, &QTabWidget::currentChanged, this,
+		[this](int index) {
+			switch (index) {
+			case 0:
+				ui->formLayout_3->addRow(ui->label_11,
+							 ui->downscaleFilter);
+				ui->formLayout_3->addRow(ui->fpsType,
+							 ui->fpsTypes);
+				LoadDownscaleFilters(true);
+				break;
+
+			case 1:
+				ui->formLayout_15->addRow(ui->label_11,
+							  ui->downscaleFilter);
+				ui->formLayout_15->addRow(ui->fpsType,
+							  ui->fpsTypes);
+				LoadDownscaleFilters(false);
+				break;
+
+			default:
+				break;
+			}
+	});
 }
 
 OBSBasicSettings::~OBSBasicSettings()
@@ -1061,7 +1189,7 @@ OBSBasicSettings::~OBSBasicSettings()
 	EnableThreadedMessageBoxes(false);
 }
 
-void OBSBasicSettings::switchTo(const QString &tab, const QString &group) const
+void OBSBasicSettings::switchToDualOutputMode(const QString &tab, const QString &group) const
 {
 	if (tab == QStringLiteral("General")) {
 		ui->listWidget->setCurrentRow(0);
@@ -1122,6 +1250,27 @@ void OBSBasicSettings::SaveSpinBox(QSpinBox *widget, const char *section,
 {
 	if (WidgetChanged(widget))
 		config_set_int(main->Config(), section, value, widget->value());
+}
+
+void OBSBasicSettings::SaveText(QPlainTextEdit *widget, const char *section,
+				const char *value)
+{
+	if (!WidgetChanged(widget))
+		return;
+
+	auto utf8 = widget->toPlainText().toUtf8();
+
+	OBSDataAutoRelease safe_text = obs_data_create();
+	obs_data_set_string(safe_text, "text", utf8.constData());
+
+	config_set_string(main->Config(), section, value,
+			  obs_data_get_json(safe_text));
+}
+
+std::string DeserializeConfigText(const char *value)
+{
+	OBSDataAutoRelease data = obs_data_create_from_json(value);
+	return obs_data_get_string(data, "text");
 }
 
 void OBSBasicSettings::SaveGroupBox(QGroupBox *widget, const char *section,
@@ -1214,6 +1363,7 @@ void OBSBasicSettings::LoadFormats()
 	ui->simpleOutRecFormat->addItem(FORMAT_STR("MKV"), "mkv");
 	ui->simpleOutRecFormat->addItem(FORMAT_STR("MP4"), "mp4");
 	ui->simpleOutRecFormat->addItem(FORMAT_STR("MOV"), "mov");
+	ui->simpleOutRecFormat->addItem(FORMAT_STR("hMP4"), "hybrid_mp4");
 	ui->simpleOutRecFormat->addItem(FORMAT_STR("fMP4"), "fragmented_mp4");
 	ui->simpleOutRecFormat->addItem(FORMAT_STR("fMOV"), "fragmented_mov");
 	ui->simpleOutRecFormat->addItem(FORMAT_STR("TS"), "mpegts");
@@ -1222,6 +1372,7 @@ void OBSBasicSettings::LoadFormats()
 	ui->advOutRecFormat->addItem(FORMAT_STR("MKV"), "mkv");
 	ui->advOutRecFormat->addItem(FORMAT_STR("MP4"), "mp4");
 	ui->advOutRecFormat->addItem(FORMAT_STR("MOV"), "mov");
+	ui->advOutRecFormat->addItem(FORMAT_STR("hMP4"), "hybrid_mp4");
 	ui->advOutRecFormat->addItem(FORMAT_STR("fMP4"), "fragmented_mp4");
 	ui->advOutRecFormat->addItem(FORMAT_STR("fMOV"), "fragmented_mov");
 	ui->advOutRecFormat->addItem(FORMAT_STR("TS"), "mpegts");
@@ -1282,10 +1433,10 @@ void OBSBasicSettings::ReloadCodecs(const FFmpegFormat &format)
 
 	for (auto &codec : supportedCodecs) {
 		switch (codec.type) {
-		case AUDIO:
+		case FFmpegCodecType::AUDIO:
 			AddCodec(ui->advOutFFAEncoder, codec);
 			break;
-		case VIDEO:
+		case FFmpegCodecType::VIDEO:
 			AddCodec(ui->advOutFFVEncoder, codec);
 			break;
 		default:
@@ -1426,7 +1577,6 @@ void OBSBasicSettings::LoadGeneralSettings()
 			config_get_bool(GetGlobalConfig(), "BasicWindow",
 					"HideOBSWindowsFromCapture");
 		ui->hideOBSFromCapture->setChecked(hideWindowFromCapture);
-
 		connect(ui->hideOBSFromCapture, &PLSCheckBox::stateChanged,
 			this, &OBSBasicSettings::HideOBSWindowWarning);
 	}
@@ -1610,10 +1760,10 @@ void OBSBasicSettings::LoadGeneralSettings()
 
 void OBSBasicSettings::LoadRendererList()
 {
+#ifdef _WIN32
 	const char *renderer =
 		config_get_string(GetGlobalConfig(), "Video", "Renderer");
-#if defined(Q_OS_WIN)
-	ui->renderer->clear();
+
 	ui->renderer->addItem(QT_UTF8("Direct3D 11"));
 	if (GlobalVars::opt_allow_opengl || strcmp(renderer, "OpenGL") == 0)
 		ui->renderer->addItem(QT_UTF8("OpenGL"));
@@ -1761,7 +1911,7 @@ void OBSBasicSettings::ResetDownscales(uint32_t cx, uint32_t cy,
 	}
 }
 
-void OBSBasicSettings::LoadDownscaleFilters()
+void OBSBasicSettings::LoadDownscaleFilters(bool bHorizontal)
 {
 	QString downscaleFilter = ui->downscaleFilter->currentData().toString();
 	if (downscaleFilter.isEmpty())
@@ -1769,8 +1919,10 @@ void OBSBasicSettings::LoadDownscaleFilters()
 			config_get_string(main->Config(), "Video", "ScaleType");
 
 	ui->downscaleFilter->clear();
-	if (ui->baseResolution->currentText() ==
-	    ui->outputResolution->currentText()) {
+	if (bHorizontal ? ui->baseResolution->currentText() ==
+				  ui->outputResolution->currentText()
+			: ui->baseResolution_2->currentText() ==
+				  ui->outputResolution_2->currentText()) {
 		ui->downscaleFilter->setEnabled(false);
 		ui->downscaleFilter->addItem(
 			QTStr("Basic.Settings.Video.DownscaleFilter.Unavailable"),
@@ -1854,6 +2006,34 @@ void OBSBasicSettings::LoadResolutionLists()
 			     QString::number(std::get<1>(aspect))));
 }
 
+void OBSBasicSettings::LoadVerticalResolutionLists()
+{
+	uint32_t cx = config_get_uint(main->Config(), "Video", "BaseCXV");
+	uint32_t cy = config_get_uint(main->Config(), "Video", "BaseCYV");
+	uint32_t out_cx = config_get_uint(main->Config(), "Video", "OutputCXV");
+	uint32_t out_cy = config_get_uint(main->Config(), "Video", "OutputCYV");
+
+	string outputResString = ResString(out_cx, out_cy);
+
+	ui->baseResolution_2->lineEdit()->setText(ResString(cx, cy).c_str());
+
+	RecalcResPixels(ui->scaledAspect_2, outputResString.c_str());
+
+	if (ui->outputResolution_2->isEditable()) {
+		ui->outputResolution_2->lineEdit()->setText(
+			outputResString.c_str());
+	} else {
+		ui->outputResolution_2->setCurrentText(outputResString.c_str());
+	}
+
+	std::tuple<int, int> aspect = aspect_ratio(cx, cy);
+
+	ui->baseAspect_2->setText(
+		QTStr("AspectRatio")
+			.arg(QString::number(std::get<0>(aspect)),
+			     QString::number(std::get<1>(aspect))));
+}
+
 static inline void LoadFPSCommon(OBSBasic *main, Ui::OBSBasicSettings *ui)
 {
 	const char *val =
@@ -1906,8 +2086,9 @@ void OBSBasicSettings::LoadVideoSettings()
 	}
 
 	LoadResolutionLists();
+	LoadVerticalResolutionLists();
 	LoadFPSData();
-	LoadDownscaleFilters();
+	LoadDownscaleFilters(true);
 
 	loading = false;
 }
@@ -2166,7 +2347,8 @@ void OBSBasicSettings::LoadAdvOutputStreamingSettings()
 
 OBSPropertiesView *
 OBSBasicSettings::CreateEncoderPropertyView(const char *encoder,
-					    const char *path, bool changed)
+					    const char *path, bool changed,
+					    bool bChzzkKeyframeTip)
 {
 	OBSDataAutoRelease settings = obs_encoder_defaults(encoder);
 	OBSPropertiesView *view;
@@ -2186,10 +2368,12 @@ OBSBasicSettings::CreateEncoderPropertyView(const char *encoder,
 	//PRISM/renjinbo/20230104/#/change to PLSPropertiesView
 	view = new PLSPropertiesView(
 		this, settings.Get(), encoder,
-		(PropertiesReloadCallback)obs_get_encoder_properties, 170);
+		(PropertiesReloadCallback)obs_get_encoder_properties, 170, -1,
+		false, true, false, true, true, bChzzkKeyframeTip, true);
 	view->setFrameShape(QFrame::NoFrame);
 	view->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
 	view->setProperty("changed", QVariant(changed));
+	view->setScrolling(false);
 	QObject::connect(view, &OBSPropertiesView::Changed, this,
 			 &OBSBasicSettings::OutputsChanged);
 
@@ -2202,8 +2386,8 @@ void OBSBasicSettings::LoadAdvOutputStreamingEncoderProperties()
 		config_get_string(main->Config(), "AdvOut", "Encoder");
 
 	delete streamEncoderProps;
-	streamEncoderProps =
-		CreateEncoderPropertyView(type, "streamEncoder.json");
+	streamEncoderProps = CreateEncoderPropertyView(
+		type, "streamEncoder.json", false, true);
 	streamEncoderProps->setSizePolicy(QSizePolicy::Preferred,
 					  QSizePolicy::Minimum);
 	ui->advOutEncoderLayout->addWidget(streamEncoderProps);
@@ -3102,7 +3286,7 @@ static QLabel *makeLabel(T &t, Func &&getName)
 template<typename Func>
 static QLabel *makeLabel(const OBSSource &source, Func &&)
 {
-	OBSSourceLabel *label = new OBSSourceLabel(source);
+	auto *label = new QLabel(obs_source_get_name(source));
 	label->setStyleSheet("font-weight: bold;");
 	QString name = QT_UTF8(obs_source_get_name(source));
 	TruncateLabel(label, name);
@@ -3403,6 +3587,7 @@ void OBSBasicSettings::LoadHotkeySettings(obs_hotkey_id ignoreKey)
 	});
 	hotkeysLoaded = true;
 	hotkeysLayout->update();
+
 	ui->hotkeyFormLayout->addRow(hotkeyChildWidget);
 	pls_async_call(hotkeyChildWidget, [this, hotkeyChildWidget]() {
 		ui->hotkeyScrollArea->setVerticalScrollBarPolicy(
@@ -3697,6 +3882,26 @@ void OBSBasicSettings::SaveVideoSettings()
 	SaveSpinBox(ui->fpsNumerator, "Video", "FPSNum");
 	SaveSpinBox(ui->fpsDenominator, "Video", "FPSDen");
 	SaveComboData(ui->downscaleFilter, "Video", "ScaleType");
+
+	SaveVerticalVideoSettings();
+}
+
+void OBSBasicSettings::SaveVerticalVideoSettings() {
+	QString baseResolution = ui->baseResolution_2->currentText();
+	QString outputResolution = ui->outputResolution_2->currentText();
+	uint32_t cx = 0, cy = 0;
+
+	if (WidgetChanged(ui->baseResolution_2) &&
+	    ConvertResText(QT_TO_UTF8(baseResolution), cx, cy)) {
+		config_set_uint(main->Config(), "Video", "BaseCXV", cx);
+		config_set_uint(main->Config(), "Video", "BaseCYV", cy);
+	}
+
+	if (WidgetChanged(ui->outputResolution_2) &&
+	    ConvertResText(QT_TO_UTF8(outputResolution), cx, cy)) {
+		config_set_uint(main->Config(), "Video", "OutputCXV", cx);
+		config_set_uint(main->Config(), "Video", "OutputCYV", cy);
+	}
 }
 
 void OBSBasicSettings::SaveAdvancedSettings()
@@ -3827,7 +4032,7 @@ static inline const char *SplitFileTypeFromIdx(int idx)
 		return "Time";
 }
 
-static void removeJsonData(const char *path)
+void removeJsonData(const char *path)
 {
 	std::array<char, 512> full_path;
 	int ret = GetProfilePath(full_path.data(), sizeof(full_path), path);
@@ -4222,7 +4427,8 @@ void OBSBasicSettings::SaveHotkeySettings()
 	if (!main->outputHandler || !main->outputHandler->replayBuffer)
 		return;
 
-	const char *id = obs_obj_get_id(main->outputHandler->replayBuffer);
+	const char *id =
+		obs_obj_get_id(main->outputHandler->replayBuffer);
 	if (strcmp(id, "replay_buffer") == 0) {
 		OBSDataAutoRelease hotkeys = obs_hotkeys_save_output(
 			main->outputHandler->replayBuffer);
@@ -4259,7 +4465,6 @@ void OBSBasicSettings::SaveSettings()
 		SaveA11ySettings();
 	if (advancedChanged)
 		SaveAdvancedSettings();
-
 	if (videoChanged || advancedChanged)
 		main->ResetVideo();
 
@@ -4437,12 +4642,15 @@ void OBSBasicSettings::resizeEvent(QResizeEvent *e)
 
 void OBSBasicSettings::on_listWidget_itemSelectionChanged()
 {
+	ui->listWidget->repaint();
+	pls_async_call(this, [this] { ui->listWidget->repaint(); });
+
 	int row = ui->listWidget->currentRow();
 	if (loading || row == pageIndex) {
 		return;
 	}
 
-	if (!hotkeysLoaded && row == 5) {
+	if (!hotkeysLoaded && row == Pages::HOTKEYS) {
 		setCursor(Qt::BusyCursor);
 		/* Look, I know this /feels/ wrong, but the specific issue we're dealing with
 		 * here means that the UI locks up immediately even when using "invokeMethod".
@@ -4575,7 +4783,8 @@ void OBSBasicSettings::on_advOutEncoder_currentIndexChanged()
 		delete streamEncoderProps;
 		streamEncoderProps = CreateEncoderPropertyView(
 			QT_TO_UTF8(encoder),
-			loadSettings ? "streamEncoder.json" : nullptr, true);
+			loadSettings ? "streamEncoder.json" : nullptr, true,
+			true);
 		streamEncoderProps->setSizePolicy(QSizePolicy::Preferred,
 						  QSizePolicy::Minimum);
 		ui->advOutEncoderLayout->addWidget(streamEncoderProps);
@@ -4685,7 +4894,8 @@ void OBSBasicSettings::on_advOutFFAEncoder_currentIndexChanged(int idx)
 	if (!itemDataVariant.isNull()) {
 		auto desc = itemDataVariant.value<FFmpegCodec>();
 		SetAdvOutputFFmpegEnablement(
-			AUDIO, desc.id != 0 || desc.name != nullptr, true);
+			FFmpegCodecType::AUDIO,
+			desc.id != 0 || desc.name != nullptr, true);
 	}
 }
 
@@ -4695,7 +4905,8 @@ void OBSBasicSettings::on_advOutFFVEncoder_currentIndexChanged(int idx)
 	if (!itemDataVariant.isNull()) {
 		auto desc = itemDataVariant.value<FFmpegCodec>();
 		SetAdvOutputFFmpegEnablement(
-			VIDEO, desc.id != 0 || desc.name != nullptr, true);
+			FFmpegCodecType::VIDEO,
+			desc.id != 0 || desc.name != nullptr, true);
 	}
 }
 
@@ -4717,34 +4928,35 @@ void OBSBasicSettings::on_colorSpace_currentIndexChanged(int)
 #define INVALID_RES_STR "Basic.Settings.Video.InvalidResolution"
 
 static bool ValidResolutions(OBSBasicSettings *settings,
-			     Ui::OBSBasicSettings *ui)
+			     PLSEditableComboBox *baseResolution,
+			     PLSEditableComboBox *outputResolution)
 {
-	QString baseRes = ui->baseResolution->lineEdit()->text();
+	QString baseRes = baseResolution->lineEdit()->text();
 	uint32_t cx, cy;
 
 	if (!ConvertResText(QT_TO_UTF8(baseRes), cx, cy)) {
 		settings->updateAlertMessage(
 			OBSBasicSettings::AlertMessageType::Error,
-			ui->baseResolution, QTStr(INVALID_RES_STR));
+			baseResolution, QTStr(INVALID_RES_STR));
 		return false;
 	} else {
 		settings->clearAlertMessage(
 			OBSBasicSettings::AlertMessageType::Error,
-			ui->baseResolution);
+			baseResolution);
 	}
 
-	bool lockedOutRes = !ui->outputResolution->isEditable();
+	bool lockedOutRes = !outputResolution->isEditable();
 	if (!lockedOutRes) {
-		QString outRes = ui->outputResolution->lineEdit()->text();
+		QString outRes = outputResolution->lineEdit()->text();
 		if (!ConvertResText(QT_TO_UTF8(outRes), cx, cy)) {
 			settings->updateAlertMessage(
 				OBSBasicSettings::AlertMessageType::Error,
-				ui->outputResolution, QTStr(INVALID_RES_STR));
+				outputResolution, QTStr(INVALID_RES_STR));
 			return false;
 		} else {
 			settings->clearAlertMessage(
 				OBSBasicSettings::AlertMessageType::Error,
-				ui->outputResolution);
+				outputResolution);
 		}
 	}
 	return true;
@@ -4762,6 +4974,22 @@ void OBSBasicSettings::RecalcOutputResPixels(const char *resText)
 		std::tuple<int, int> aspect = aspect_ratio(outputCX, outputCY);
 
 		ui->scaledAspect->setText(
+			QTStr("AspectRatio")
+				.arg(QString::number(std::get<0>(aspect)),
+				     QString::number(std::get<1>(aspect))));
+	}
+}
+
+void OBSBasicSettings::RecalcResPixels(QLabel *label,
+						      const char *resText)
+{
+	uint32_t newCX;
+	uint32_t newCY;
+
+	if (ConvertResText(resText, newCX, newCY) && newCX && newCY) {
+		std::tuple<int, int> aspect = aspect_ratio(newCX, newCY);
+
+		label->setText(
 			QTStr("AspectRatio")
 				.arg(QString::number(std::get<0>(aspect)),
 				     QString::number(std::get<1>(aspect))));
@@ -4809,13 +5037,13 @@ void OBSBasicSettings::on_outputResolution_editTextChanged(const QString &text)
 {
 	if (!loading) {
 		RecalcOutputResPixels(QT_TO_UTF8(text));
-		LoadDownscaleFilters();
+		LoadDownscaleFilters(true);
 	}
 }
 
 void OBSBasicSettings::on_baseResolution_editTextChanged(const QString &text)
 {
-	if (!loading && ValidResolutions(this, ui.get())) {
+	if (!loading && ValidResolutions(this, ui->baseResolution, ui->outputResolution)) {
 		QString baseResolution = text;
 		uint32_t cx, cy;
 
@@ -4860,6 +5088,8 @@ void OBSBasicSettings::OutputsChanged()
 			sender()->setProperty("changed", QVariant(true));
 		}
 		EnableApplyButton(true);
+
+		UpdateMultitrackVideo();
 	}
 }
 
@@ -5019,7 +5249,8 @@ void OBSBasicSettings::AdvancedChangedRestart()
 
 void OBSBasicSettings::VideoChangedResolution()
 {
-	if (!loading && ValidResolutions(this, ui.get())) {
+	if (!loading &&
+	    ValidResolutions(this, ui->baseResolution, ui->outputResolution)) {
 		videoChanged = true;
 		sender()->setProperty("changed", QVariant(true));
 		EnableApplyButton(true);
@@ -5070,6 +5301,9 @@ void OBSBasicSettings::SearchHotkeys(const QString &text,
 
 	QFormLayout *hotkeysLayout =
 		qobject_cast<QFormLayout *>(hotkeys->layout());
+
+	if (!hotkeysLayout)
+		return;
 	hotkeysLayout->setEnabled(false);
 
 	QString needle = text.toLower();
@@ -5642,6 +5876,7 @@ void OBSBasicSettings::SimpleRecordingQualityChanged()
 	ui->simpleOutRecFormat->setVisible(!losslessQuality);
 	ui->simpleOutRecFormatLabel->setVisible(!losslessQuality);
 
+	UpdateMultitrackVideo();
 	SimpleRecordingEncoderChanged();
 	SimpleReplayBufferChanged();
 }
@@ -6153,7 +6388,7 @@ void OBSBasicSettings::SimpleRecordingEncoderChanged()
 		}
 		updateAlertMessage(AlertMessageType::Warning,
 				   ui->simpleOutRecEncoder,
-				   QTStr("setting.simple.pause.rec.warn"));
+				   SIMPLE_OUTPUT_WARNING("CannotPause"));
 	}
 
 	if (qual != "Lossless" && (format == "mp4" || format == "mov")) {
@@ -6501,6 +6736,21 @@ void OBSBasicSettings::ResetSettings()
 	config_remove_value(config, "AdvOut", "AudioEncoder");
 	config_remove_value(config, "AdvOut", "RecAudioEncoder");
 
+	config_remove_value(config, "Stream1", "EnableMultitrackVideo");
+	config_remove_value(config, "Stream1",
+			    "MultitrackVideoMaximumAggregateBitrateAuto");
+	config_remove_value(config, "Stream1",
+			    "MultitrackVideoMaximumAggregateBitrate");
+	config_remove_value(config, "Stream1",
+			    "MultitrackVideoMaximumVideoTracksAuto");
+	config_remove_value(config, "Stream1",
+			    "MultitrackVideoMaximumVideoTracks");
+	config_remove_value(config, "Stream1",
+			    "MultitrackVideoStreamDumpEnabled");
+	config_remove_value(config, "Stream1",
+			    "MultitrackVideoConfigOverrideEnabled");
+	config_remove_value(config, "Stream1", "MultitrackVideoConfigOverride");
+
 	removeJsonData("streamEncoder.json");
 	removeJsonData("recordEncoder.json");
 
@@ -6518,6 +6768,14 @@ void OBSBasicSettings::ResetSettings()
 	config_remove_value(config, "Video", "FPSNum");
 	config_remove_value(config, "Video", "FPSDen");
 	config_remove_value(config, "Video", "ScaleType");
+	ui->downscaleFilter->setItemData(ui->downscaleFilter->currentIndex(),
+					 QT_UTF8("bicubic"));
+
+	config_remove_value(config, "Video", "BaseCXV");
+	config_remove_value(config, "Video", "BaseCYV");
+
+	config_remove_value(config, "Video", "OutputCXV");
+	config_remove_value(config, "Video", "OutputCYV");
 
 	// reset audio settings
 	config_remove_value(config, "Audio", "SampleRate");
@@ -6674,11 +6932,17 @@ void OBSBasicSettings::on_resetButton_clicked()
 	}
 	main->ResetOutputs();
 	main->UpdatePreviewSafeAreas();
+	AdvOutRecCheckCodecs();
 }
 
 QIcon OBSBasicSettings::GetGeneralIcon() const
 {
 	return generalIcon;
+}
+
+QIcon OBSBasicSettings::GetAppearanceIcon() const
+{
+	return appearanceIcon;
 }
 
 QIcon OBSBasicSettings::GetStreamIcon() const
@@ -6718,42 +6982,42 @@ QIcon OBSBasicSettings::GetAdvancedIcon() const
 
 void OBSBasicSettings::SetGeneralIcon(const QIcon &icon)
 {
-	ui->listWidget->item(0)->setIcon(icon);
+	ui->listWidget->item(Pages::GENERAL)->setIcon(icon);
 }
 
 void OBSBasicSettings::SetStreamIcon(const QIcon &icon)
 {
-	ui->listWidget->item(1)->setIcon(icon);
+	ui->listWidget->item(Pages::STREAM)->setIcon(icon);
 }
 
 void OBSBasicSettings::SetOutputIcon(const QIcon &icon)
 {
-	ui->listWidget->item(2)->setIcon(icon);
+	ui->listWidget->item(Pages::OUTPUT)->setIcon(icon);
 }
 
 void OBSBasicSettings::SetAudioIcon(const QIcon &icon)
 {
-	ui->listWidget->item(3)->setIcon(icon);
+	ui->listWidget->item(Pages::AUDIO)->setIcon(icon);
 }
 
 void OBSBasicSettings::SetVideoIcon(const QIcon &icon)
 {
-	ui->listWidget->item(4)->setIcon(icon);
+	ui->listWidget->item(Pages::VIDEO)->setIcon(icon);
 }
 
 void OBSBasicSettings::SetHotkeysIcon(const QIcon &icon)
 {
-	ui->listWidget->item(5)->setIcon(icon);
+	ui->listWidget->item(Pages::HOTKEYS)->setIcon(icon);
 }
 
 void OBSBasicSettings::SetAccessibilityIcon(const QIcon &icon)
 {
-	ui->listWidget->item(6)->setIcon(icon);
+	ui->listWidget->item(Pages::ACCESSIBILITY)->setIcon(icon);
 }
 
 void OBSBasicSettings::SetAdvancedIcon(const QIcon &icon)
 {
-	ui->listWidget->item(7)->setIcon(icon);
+	ui->listWidget->item(Pages::ADVANCED)->setIcon(icon);
 }
 
 int OBSBasicSettings::CurrentFLVTrack()
@@ -6853,6 +7117,277 @@ void OBSBasicSettings::UpdateAdvNetworkGroup()
 	ui->enableNewSocketLoop->setVisible(enabled);
 	ui->enableLowLatencyMode->setVisible(enabled);
 #endif
+}
+
+extern bool MultitrackVideoDeveloperModeEnabled();
+
+void OBSBasicSettings::UpdateMultitrackVideo()
+{
+	// Technically, it should currently be safe to toggle multitrackVideo
+	// while not streaming (recording should be irrelevant), but practically
+	// output settings aren't currently being tracked with that degree of
+	// flexibility, so just disable everything while outputs are active.
+	auto toggle_available = !main->Active();
+
+	// FIXME: protocol is not updated properly for WHIP; what do?
+	auto available = protocol.startsWith("RTMP");
+
+	if (!available) {
+		auto activiedPlatforms = PLS_PLATFORM_ACTIVIED;
+		if (1 == activiedPlatforms.size()) {
+			if (auto pPlatform = activiedPlatforms.front();
+			    pPlatform->getChannelType() >=
+				    ChannelData::ChannelDataType::CustomType &&
+			    pPlatform->getChannelName() == TWITCH) {
+
+				available = true;
+			}
+		}
+	}
+
+	if (available && pls_is_dual_output_on()) {
+		available = false;
+	}
+
+	if (available && !IsCustomService()) {
+		OBSDataAutoRelease settings = obs_data_create();
+		obs_data_set_string(
+			settings, "service",
+			qUtf8Printable(PLSBasic::instance()->getServiceName()));
+		OBSServiceAutoRelease temp_service = obs_service_create_private(
+			"rtmp_common", "auto config query service", settings);
+		settings = obs_service_get_settings(temp_service);
+		available = obs_data_has_user_value(
+			settings, "multitrack_video_configuration_url");
+		if (!available && ui->enableMultitrackVideo->isChecked())
+			ui->enableMultitrackVideo->setChecked(false);
+	}
+
+#ifndef _WIN32
+	available = available && MultitrackVideoDeveloperModeEnabled();
+#endif
+
+	if (IsCustomService())
+		available = available && MultitrackVideoDeveloperModeEnabled();
+
+	ui->multitrackVideoGroupBox->setVisible(available);
+
+	ui->enableMultitrackVideo->setEnabled(toggle_available);
+
+	ui->multitrackVideoMaximumAggregateBitrateLabel->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoMaximumAggregateBitrateAuto->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoMaximumAggregateBitrate->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked() &&
+		!ui->multitrackVideoMaximumAggregateBitrateAuto->isChecked());
+
+	ui->multitrackVideoMaximumVideoTracksLabel->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoMaximumVideoTracksAuto->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoMaximumVideoTracks->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked() &&
+		!ui->multitrackVideoMaximumVideoTracksAuto->isChecked());
+
+	ui->multitrackVideoStreamDumpEnable->setVisible(
+		available && MultitrackVideoDeveloperModeEnabled());
+	ui->multitrackVideoConfigOverrideEnable->setVisible(
+		available && MultitrackVideoDeveloperModeEnabled());
+	ui->multitrackVideoConfigOverrideLabel->setVisible(
+		available && MultitrackVideoDeveloperModeEnabled());
+	ui->multitrackVideoConfigOverride->setVisible(
+		available && MultitrackVideoDeveloperModeEnabled());
+
+	ui->multitrackVideoStreamDumpEnable->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoConfigOverrideEnable->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked());
+	ui->multitrackVideoConfigOverrideLabel->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked() &&
+		ui->multitrackVideoConfigOverrideEnable->isChecked());
+	ui->multitrackVideoConfigOverride->setEnabled(
+		toggle_available && ui->enableMultitrackVideo->isChecked() &&
+		ui->multitrackVideoConfigOverrideEnable->isChecked());
+
+	auto update_simple_output_settings = [&](bool mtv_enabled) {
+		auto recording_uses_stream_encoder =
+			ui->simpleOutRecQuality->currentData().toString() ==
+			"Stream";
+		mtv_enabled = mtv_enabled && !recording_uses_stream_encoder;
+
+		ui->simpleOutputVBitrateLabel->setDisabled(mtv_enabled);
+		ui->simpleOutputVBitrate->setDisabled(mtv_enabled);
+
+		ui->simpleOutputABitrateLabel->setDisabled(mtv_enabled);
+		ui->simpleOutputABitrate->setDisabled(mtv_enabled);
+
+		bool bVideoActive = obs_video_active();
+
+		ui->simpleOutStrEncoderLabel->setDisabled(bVideoActive ||
+							  mtv_enabled);
+		ui->simpleOutStrEncoder->setDisabled(bVideoActive ||
+						     mtv_enabled);
+
+		ui->simpleOutPresetLabel->setDisabled(mtv_enabled);
+		ui->simpleOutPreset->setDisabled(mtv_enabled);
+
+		ui->simpleOutCustomLabel->setDisabled(mtv_enabled);
+		ui->simpleOutCustom->setDisabled(mtv_enabled);
+
+		ui->simpleOutStrAEncoderLabel->setDisabled(bVideoActive ||
+							   mtv_enabled);
+		ui->simpleOutStrAEncoder->setDisabled(bVideoActive ||
+						      mtv_enabled);
+	};
+
+	auto update_advanced_output_settings = [&](bool mtv_enabled) {
+		auto recording_uses_stream_video_encoder =
+			ui->advOutRecEncoder->currentText() ==
+			TEXT_USE_STREAM_ENC;
+		auto recording_uses_stream_audio_encoder =
+			ui->advOutRecAEncoder->currentData() == "none";
+		auto disable_video = mtv_enabled &&
+				     !recording_uses_stream_video_encoder;
+		auto disable_audio = mtv_enabled &&
+				     !recording_uses_stream_audio_encoder;
+
+		ui->advOutAEncLabel->setDisabled(disable_audio);
+		ui->advOutAEncoder->setDisabled(disable_audio);
+
+		ui->advOutEncLabel->setDisabled(disable_video);
+		ui->advOutEncoder->setDisabled(disable_video);
+
+		ui->advOutUseRescale->setDisabled(disable_video);
+		ui->advOutRescale->setDisabled(disable_video);
+		ui->advOutRescaleFilter->setDisabled(disable_video);
+
+		if (streamEncoderProps)
+			streamEncoderProps->SetDisabled(disable_video);
+	};
+
+	auto update_advanced_output_audio_tracks = [&](bool mtv_enabled) {
+		auto vod_track_enabled = vodTrackCheckbox &&
+					 vodTrackCheckbox->isChecked();
+
+		auto vod_track_idx_enabled = [&](size_t idx) {
+			return vod_track_enabled && vodTrack[idx - 1] &&
+			       vodTrack[idx - 1]->isChecked();
+		};
+
+		auto track1_warning_visible = mtv_enabled &&
+					      (ui->advOutTrack1->isChecked() ||
+					       vod_track_idx_enabled(1));
+		auto track1_disabled = track1_warning_visible &&
+				       !ui->advOutRecTrack1->isChecked();
+		ui->advOutTrack1BitrateLabel->setDisabled(track1_disabled);
+		ui->advOutTrack1Bitrate->setDisabled(track1_disabled);
+
+		auto track2_warning_visible = mtv_enabled &&
+					      (ui->advOutTrack2->isChecked() ||
+					       vod_track_idx_enabled(2));
+		auto track2_disabled = track2_warning_visible &&
+				       !ui->advOutRecTrack2->isChecked();
+		ui->advOutTrack2BitrateLabel->setDisabled(track2_disabled);
+		ui->advOutTrack2Bitrate->setDisabled(track2_disabled);
+
+		auto track3_warning_visible = mtv_enabled &&
+					      (ui->advOutTrack3->isChecked() ||
+					       vod_track_idx_enabled(3));
+		auto track3_disabled = track3_warning_visible &&
+				       !ui->advOutRecTrack3->isChecked();
+		ui->advOutTrack3BitrateLabel->setDisabled(track3_disabled);
+		ui->advOutTrack3Bitrate->setDisabled(track3_disabled);
+
+		auto track4_warning_visible = mtv_enabled &&
+					      (ui->advOutTrack4->isChecked() ||
+					       vod_track_idx_enabled(4));
+		auto track4_disabled = track4_warning_visible &&
+				       !ui->advOutRecTrack4->isChecked();
+		ui->advOutTrack4BitrateLabel->setDisabled(track4_disabled);
+		ui->advOutTrack4Bitrate->setDisabled(track4_disabled);
+
+		auto track5_warning_visible = mtv_enabled &&
+					      (ui->advOutTrack5->isChecked() ||
+					       vod_track_idx_enabled(5));
+		auto track5_disabled = track5_warning_visible &&
+				       !ui->advOutRecTrack5->isChecked();
+		ui->advOutTrack5BitrateLabel->setDisabled(track5_disabled);
+		ui->advOutTrack5Bitrate->setDisabled(track5_disabled);
+
+		auto track6_warning_visible = mtv_enabled &&
+					      (ui->advOutTrack6->isChecked() ||
+					       vod_track_idx_enabled(6));
+		auto track6_disabled = track6_warning_visible &&
+				       !ui->advOutRecTrack6->isChecked();
+		ui->advOutTrack6BitrateLabel->setDisabled(track6_disabled);
+		ui->advOutTrack6Bitrate->setDisabled(track6_disabled);
+	};
+
+	if (available) {
+		OBSDataAutoRelease settings;
+		{
+			auto service_name =
+				PLSBasic::instance()->getServiceName();
+			auto custom_server = ui->customServer->text().trimmed();
+
+			obs_properties_t *props =
+				obs_get_service_properties("rtmp_common");
+			obs_property_t *service =
+				obs_properties_get(props, "service");
+
+			settings = obs_data_create();
+
+			obs_data_set_string(settings, "service",
+					    QT_TO_UTF8(service_name));
+			obs_property_modified(service, settings);
+
+			obs_properties_destroy(props);
+		}
+
+		auto multitrack_video_name =
+			QTStr("Basic.Settings.Stream.MultitrackVideoLabel");
+		if (obs_data_has_user_value(settings, "multitrack_video_name"))
+			multitrack_video_name = obs_data_get_string(
+				settings, "multitrack_video_name");
+
+		ui->enableMultitrackVideo->setText(
+			QTStr("Basic.Settings.Stream.EnableMultitrackVideo")
+				.arg(multitrack_video_name));
+
+		if (obs_data_has_user_value(settings,
+					    "multitrack_video_disclaimer")) {
+			ui->multitrackVideoInfo->setVisible(true);
+			ui->multitrackVideoInfo->setText(obs_data_get_string(
+				settings, "multitrack_video_disclaimer"));
+		} else {
+			ui->multitrackVideoInfo->setText(
+				QTStr("MultitrackVideo.Info")
+					.arg(multitrack_video_name,
+					     PLSBasic::instance()
+						     ->getServiceName()));
+		}
+
+		auto disabled_text =
+			QTStr("Basic.Settings.MultitrackVideoDisabledSettings")
+				.arg(ui->service->currentText())
+				.arg(multitrack_video_name);
+
+		ui->multitrackVideoNotice->setText(disabled_text);
+
+		auto mtv_enabled = ui->enableMultitrackVideo->isChecked();
+		ui->multitrackVideoNoticeBox->setVisible(false);
+
+		update_simple_output_settings(mtv_enabled);
+		update_advanced_output_settings(mtv_enabled);
+		update_advanced_output_audio_tracks(mtv_enabled);
+	} else {
+		ui->multitrackVideoNoticeBox->setVisible(false);
+
+		update_simple_output_settings(false);
+		update_advanced_output_settings(false);
+		update_advanced_output_audio_tracks(false);
+	}
 }
 
 void OBSBasicSettings::SimpleStreamAudioEncoderChanged()
@@ -7182,4 +7717,23 @@ void OBSBasicSettings::calculateErrorMsgSize()
 			}
 		}
 	});
+}
+
+void OBSBasicSettings::showNormalSetting()
+{
+	if (-1 == ui->formLayout_3->indexOf(ui->label_11)) {
+		ui->formLayout_3->addRow(ui->label_11, ui->downscaleFilter);
+		ui->formLayout_3->addRow(ui->fpsType, ui->fpsTypes);
+		LoadDownscaleFilters(true);
+	}
+
+	ui->horizontalLayoutVideoNormal->addWidget(ui->widget_VideoNormal);
+	ui->stackedWidgetVideoDuaOutput->setCurrentIndex(0);
+}
+
+void OBSBasicSettings::showDualoutputSetting()
+{
+	ui->verticalLayoutVideoHorizontal->addWidget(ui->widget_VideoNormal);
+	ui->tabWidgetDualOutputVideo->setCurrentIndex(0);
+	ui->stackedWidgetVideoDuaOutput->setCurrentIndex(1);
 }

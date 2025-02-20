@@ -9,31 +9,32 @@ namespace Ui {
 class PLSSceneTemplateImageView;
 }
 
-class PLSSceneTemplateImageView : public QWidget
-{
-    Q_OBJECT
+class PLSSceneTemplateImageView : public QWidget {
+	Q_OBJECT
 
 public:
-    explicit PLSSceneTemplateImageView(QWidget *parent = nullptr);
-    ~PLSSceneTemplateImageView();
+	explicit PLSSceneTemplateImageView(QWidget *parent = nullptr);
+	~PLSSceneTemplateImageView();
 
 public:
-    void updateImagePath(const QString &path);
+	void updateImagePath(const QString &path);
 	void setHasBorder(bool hasBorder);
-    const QString &imagePath() const;
+	const QString &imagePath() const;
 	void setSceneName(const QString &sceneName);
+	
+	void showAIBadge(const QPixmap &pixmap, bool bLongAIBadge);
 
 protected:
-    bool eventFilter(QObject *watched, QEvent *event) override;
+	bool eventFilter(QObject *watched, QEvent *event) override;
 
 signals:
-    void clicked(PLSSceneTemplateImageView *imageView);
+	void clicked(PLSSceneTemplateImageView *imageView);
 
 private:
-    void loadImagePixel();
+	void loadImagePixel();
 
- private:
-    Ui::PLSSceneTemplateImageView *ui;
+private:
+	Ui::PLSSceneTemplateImageView *ui;
 	QString m_path;
 	QPixmap imagePix;
 };

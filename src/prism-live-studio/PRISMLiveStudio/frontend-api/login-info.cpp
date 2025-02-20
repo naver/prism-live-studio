@@ -12,14 +12,14 @@ PLSLoginInfo::ImplementType PLSLoginInfo::loginWithAccountImplementType() const
 	return ImplementType::Synchronous;
 }
 
-bool PLSLoginInfo::loginWithAccount(QJsonObject &, UseFor, QWidget *) const
+bool PLSLoginInfo::loginWithAccount(QVariantHash &result, UseFor, QWidget *) const
 {
 	return false;
 }
 
-void PLSLoginInfo::loginWithAccountAsync(const std::function<void(bool ok, const QJsonObject &result)> &callback, UseFor, QWidget *) const
+void PLSLoginInfo::loginWithAccountAsync(const std::function<void(bool ok, const QVariantHash &result)> &callback, UseFor, QWidget *) const
 {
-	callback(false, QJsonObject());
+	callback(false, {});
 }
 
 QString PLSLoginInfo::rtmpUrl() const

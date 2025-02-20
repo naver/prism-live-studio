@@ -124,7 +124,7 @@ static QString getSenseTimeId()
 {
 	return "";
 }
-	static QString getTermOfUserUrl()
+static QString getTermOfUserUrl()
 {
 	return "";
 }

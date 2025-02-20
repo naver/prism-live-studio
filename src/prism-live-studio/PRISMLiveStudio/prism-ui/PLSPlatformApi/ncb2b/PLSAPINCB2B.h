@@ -9,7 +9,7 @@ namespace PLSAPINCB2B {
 
 void configDefaultRequest(const pls::http::Request &_request, const QObject *receiver, PLSPlatformNCB2B *platform, const PLSAPICommon::dataCallback &onSucceed,
 			  const PLSAPICommon::errorCallback &onFailed, const QByteArray &logName = {}, bool isNeedCookie = true);
-void addCommenCookieAndUserKey(const pls::http::Request &_request);
+void addCommonCookieAndUserKey(const pls::http::Request &_request);
 
 void requestChannelList(const QObject *receiver, PLSPlatformNCB2B *platform, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
 			PLSAPICommon::RefreshType refreshType);

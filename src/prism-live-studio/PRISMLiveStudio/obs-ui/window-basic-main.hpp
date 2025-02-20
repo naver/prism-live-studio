@@ -26,6 +26,7 @@
 #include <obs.hpp>
 #include <vector>
 #include <memory>
+#include <future>
 #include <QFileDialog>
 #include "window-main.hpp"
 #include "window-basic-interaction.hpp"
@@ -34,6 +35,7 @@
 #include "window-basic-transform.hpp"
 #include "window-basic-adv-audio.hpp"
 #include "window-basic-filters.hpp"
+#include "window-basic-preview.hpp"
 #include "window-missing-files.hpp"
 #include "window-projector.hpp"
 #include "window-basic-about.hpp"
@@ -57,6 +59,9 @@
 #include "PLSBasicProperties.hpp"
 #include "PLSOutro.hpp"
 #include "audio-mixer/PLSAudioMixer.h"
+#include "PLSOutputHandler.hpp"
+#include "PLSDualOutputTitle.h"
+#include "PLSDualOutputConst.h"
 
 class QMessageBox;
 class QListWidgetItem;
@@ -95,6 +100,8 @@ class PLSPlatformBase;
 #define SIMPLE_ENCODER_APPLE_HEVC "apple_hevc"
 
 #define PREVIEW_EDGE_SIZE 10
+
+constexpr auto IS_VERTICAL_PREVIEW = "isVerticalPreview";
 
 enum class LoadSceneCollectionWay {
 	RunPrismImmediately = 0,
@@ -164,6 +171,17 @@ private:
 	std::shared_ptr<OBSSignal> renamedSignal;
 };
 
+struct OBSOutputSet {
+	obs_output_t *fileOutput = nullptr;
+	obs_output_t *streamOutput = nullptr;
+	obs_output_t *replayBuffer = nullptr;
+	obs_output_t *virtualCam = nullptr;
+	std::recursive_mutex mutex;
+
+	void CheckResetOutput(obs_output_t **src, obs_output_t *dst);
+	void ResetOutput(obs_output_t *output);
+};
+
 class ColorSelect : public QWidget {
 
 public:
@@ -222,7 +240,6 @@ class OBSBasic : public OBSMainWindow {
 	friend class ExtraBrowsersModel;
 	friend class ExtraBrowsersDelegate;
 	friend class DeviceCaptureToolbar;
-	friend class DeviceToolbarPropertiesThread;
 	friend class OBSBasicSourceSelect;
 	friend class OBSYoutubeActions;
 	friend class OBSPermissions;
@@ -268,13 +285,14 @@ private:
 	QList<QPointer<QDockWidget>> oldExtraDocks;
 	QStringList oldExtraDockNames;
 
-	OBSDataAutoRelease safeModeModuleData;
+	OBSDataAutoRelease collectionModuleData;
 	std::vector<OBSDataAutoRelease> safeModeTransitions;
 
 	bool loaded = false;
 	long disableSaving = 1;
 	bool projectChanged = false;
 	bool previewEnabled = true;
+	bool verticalPreviewEnabled = true;
 	ContextBarSize contextBarSize = ContextBarSize_Normal;
 
 	std::deque<SourceCopyInfo> clipboard;
@@ -284,6 +302,7 @@ private:
 	obs_sceneitem_crop copiedCropInfo;
 	bool hasCopiedTransform = false;
 	OBSWeakSourceAutoRelease copySourceTransition;
+	int copySourceTransitionDuration;
 
 	bool loadingScene = false;
 	QAction *actionSeperateScene;
@@ -337,7 +356,11 @@ private:
 	os_cpu_usage_info_t *cpuUsageInfo = nullptr;
 
 	OBSService service;
-	std::unique_ptr<BasicOutputHandler> outputHandler;
+	OBSService serviceVertical;
+	PLSOutputHandler outputHandler;
+	std::pair<std::shared_future<void>, std::shared_future<void>>
+		setupStreamingGuard;
+	std::pair<std::optional<bool>, std::optional<bool>> setupStreamingResult;
 	bool streamingStopping = false;
 	bool recordingStopping = false;
 	bool replayBufferStopping = false;
@@ -349,16 +372,25 @@ private:
 	gs_vertbuffer_t *boxBottom = nullptr;
 	gs_vertbuffer_t *circle = nullptr;
 
-	gs_vertbuffer_t *actionSafeMargin = nullptr;
-	gs_vertbuffer_t *graphicsSafeMargin = nullptr;
-	gs_vertbuffer_t *fourByThreeSafeMargin = nullptr;
-	gs_vertbuffer_t *leftLine = nullptr;
-	gs_vertbuffer_t *topLine = nullptr;
-	gs_vertbuffer_t *rightLine = nullptr;
+	gs_vertbuffer_t *actionSafeMargin[PLSOutputHandler::StreamingTypeMax]{
+		nullptr, nullptr};
+	gs_vertbuffer_t *graphicsSafeMargin[PLSOutputHandler::StreamingTypeMax]{
+		nullptr, nullptr};
+	gs_vertbuffer_t
+		*fourByThreeSafeMargin[PLSOutputHandler::StreamingTypeMax]{
+			nullptr, nullptr};
+	gs_vertbuffer_t *leftLine[PLSOutputHandler::StreamingTypeMax]{nullptr,
+								      nullptr};
+	gs_vertbuffer_t *topLine[PLSOutputHandler::StreamingTypeMax]{nullptr,
+								     nullptr};
+	gs_vertbuffer_t *rightLine[PLSOutputHandler::StreamingTypeMax]{nullptr,
+								       nullptr};
 
-	int previewX = 0, previewY = 0;
-	int previewCX = 0, previewCY = 0;
-	float previewScale = 0.0f;
+	int previewX[PLSOutputHandler::StreamingTypeMax]{0, 0},
+		previewY[PLSOutputHandler::StreamingTypeMax]{0, 0};
+	int previewCX[PLSOutputHandler::StreamingTypeMax]{0, 0},
+		previewCY[PLSOutputHandler::StreamingTypeMax]{0, 0};
+	float previewScale[PLSOutputHandler::StreamingTypeMax]{0.0f, 0.0f};
 
 	ConfigFile basicConfig;
 
@@ -369,14 +401,8 @@ private:
 	QPointer<QWidget> remux;
 	QPointer<QWidget> extraBrowsers;
 	QPointer<QWidget> importer;
-
-	QPointer<QMenu> startStreamMenu;
-
 	QPointer<QPushButton> transitionButton;
-	QPointer<ControlsSplitButton> replayBufferButton;
 	QScopedPointer<QPushButton> pause;
-
-	QPointer<ControlsSplitButton> vcamButton;
 	bool vcamEnabled = false;
 	VCamConfig vcamConfig;
 
@@ -421,7 +447,7 @@ private:
 	PLSSceneCollectionManagement *sceneCollectionManageView{nullptr};
 	PLSMenuPushButton *sceneCollectionManageTitle{nullptr};
 
-	QTimer saveSceneCollectionTimer;
+	QTimer updateSceneCollectionTimeTimer;
 	bool showLoadSceneCollectionError = false;
 	QString showLoadSceneCollectionErrorStr;
 
@@ -472,12 +498,13 @@ private:
 	void TimedCheckForUpdates();
 	void CheckForUpdates(bool manualUpdate);
 
-	void GetFPSCommon(uint32_t &num, uint32_t &den) const;
+	void GetFPSCommon(uint32_t &num, uint32_t &den,
+			  const char *szKey = "FPSCommon") const;
 	void GetFPSInteger(uint32_t &num, uint32_t &den) const;
 	void GetFPSFraction(uint32_t &num, uint32_t &den) const;
 	void GetFPSNanoseconds(uint32_t &num, uint32_t &den) const;
 
-	void UpdatePreviewScalingMenu();
+	void UpdatePreviewScalingMenu(bool isVerticalPreveiw);
 
 	void LoadSceneListOrder(obs_data_array_t *array, const char *file);
 	obs_data_array_t *SaveSceneListOrder();
@@ -496,11 +523,11 @@ private:
 	void ClearSceneData();
 	void ClearProjectors();
 
-	void Nudge(int dist, MoveDir dir);
+	void Nudge(int dist, MoveDir dir, OBSBasicPreview *preview);
 
 	PLSDialogView *OpenProjector(obs_source_t *source, int monitor,
-				     ProjectorType type);
-
+				     ProjectorType type,
+				     bool isVerticalPreview = false);
 	void GetAudioSourceFilters();
 	void GetAudioSourceProperties();
 	void VolControlContextMenu();
@@ -531,9 +558,17 @@ private:
 				      bool fromExport = false);
 
 	bool importLocalSceneTemplate(const QString &overlayFile);
-	bool importSceneTemplate(const SceneTemplateItem &model,
+	//id, title, path, versionLimit, width, height
+	bool importSceneTemplate(const std::tuple<QString, QString, QString,
+						  QString, int, int> &model,
 				 bool checkResolution = true);
+	bool checkSceneTemplateResolution(
+		const std::tuple<QString, QString, QString, QString, int, int>
+			&model);
+	bool checkSceneTemplateVersion(QString versionLimit);
+	void showSceneTemplateVersionLowerAlert(QString versionLimit);
 	bool exportSceneTemplate(const QString &overlayFile);
+	void checkSceneTemplateSourceUpdate(obs_data_t *data);
 
 	void ExportSceneCollection(const QString &name, const QString &fileName,
 				   QWidget *parent, bool import_scene = false,
@@ -582,7 +617,8 @@ private:
 	obs_hotkey_pair_id streamingHotkeys, recordingHotkeys, pauseHotkeys,
 		replayBufHotkeys, vcamHotkeys, togglePreviewHotkeys,
 		contextBarHotkeys;
-	obs_hotkey_id forceStreamingStopHotkey, splitFileHotkey;
+	obs_hotkey_id forceStreamingStopHotkey, splitFileHotkey,
+		addChapterHotkey;
 
 	void InitDefaultTransitions();
 	void InitTransition(obs_source_t *transition);
@@ -594,6 +630,7 @@ private:
 	obs_source_t *cutTransition;
 
 	void CreateProgramDisplay();
+	void CreateVerticalDisplay();
 #if 0
 	void CreateProgramOptions();
 	void AddQuickTransitionId(int id);
@@ -610,17 +647,21 @@ private:
 	void EnableTransitionWidgets(bool enable);
 
 	void PasteShowHideTransition(obs_sceneitem_t *item, bool show,
-				     obs_source_t *tr);
+				     obs_source_t *tr, int duration);
 	QMenu *CreatePerSceneTransitionMenu();
 	QMenu *CreateVisibilityTransitionMenu(bool visible);
 
 	void SetPreviewProgramMode(bool enabled);
 	void ResizeProgram(uint32_t cx, uint32_t cy);
+	void ResizeVerticalDisplay(uint32_t cx, uint32_t cy);
 	void SetCurrentScene(obs_scene_t *scene, bool force = false);
 	static void RenderProgram(void *data, uint32_t cx, uint32_t cy);
+	static void RenderVerticalDisplay(void *data, uint32_t cx,
+					   uint32_t cy);
 
 	//QPointer<QWidget> programOptions;
 	QPointer<OBSQTDisplay> program;
+	QPointer<OBSBasicPreview> verticalDisplay;
 	OBSWeakSource lastScene;
 	OBSWeakSource swapScene;
 	OBSWeakSource programScene;
@@ -645,6 +686,7 @@ private:
 	float programScale = 0.0f;
 
 	int disableOutputsRef = 0;
+	bool fromSceneTemplate = false;
 
 	inline void OnActivate(bool force = false);
 	inline void OnDeactivate();
@@ -657,8 +699,6 @@ private:
 	void dragLeaveEvent(QDragLeaveEvent *event) override;
 	void dragMoveEvent(QDragMoveEvent *event) override;
 	void dropEvent(QDropEvent *event) override;
-
-	void ReplayBufferClicked();
 
 	bool sysTrayMinimizeToTray();
 
@@ -796,6 +836,9 @@ private:
 
 	void UpdatePreviewOverflowSettings();
 
+	bool streamingStarting = false;
+	bool recordingStarted = false;
+
 	bool restartingVCam = false;
 
 	QMap<int, int> states;
@@ -812,14 +855,16 @@ public slots:
 	void markState(int state, int result = 0);
 	void StartStreaming();
 	void StopStreaming(bool userStop = true);
+	void StopStreaming(DualOutputType outputType);
 	void ForceStopStreaming();
 
-	void StreamDelayStarting(int sec);
-	void StreamDelayStopping(int sec);
+	void StreamDelayStarting(int sec, int vsec);
+	void StreamDelayStopping(int sec, int vsec);
 
 	void StreamingStart();
 	void StreamStopping();
-	void StreamingStop(int errorcode, QString last_error);
+	void StreamingStop(int errorcode, QString last_error, int verrorcode,
+			   QString vlast_error);
 
 	void StartRecording();
 	void StopRecording();
@@ -944,6 +989,9 @@ private slots:
 
 	void on_actionCopyFilters_triggered();
 	void on_actionPasteFilters_triggered();
+	void AudioMixerCopyFilters();
+	void AudioMixerPasteFilters();
+	void SourcePasteFilters(OBSSource source, OBSSource dstSource);
 
 	void OnMultiviewShowTriggered(bool checked);
 	void OnMultiviewHideTriggered(bool checked);
@@ -953,9 +1001,6 @@ private slots:
 	SourceTreeItem *GetItemWidgetFromSceneItem(obs_sceneitem_t *sceneItem);
 
 	void on_actionShowAbout_triggered();
-
-	void AudioMixerCopyFilters();
-	void AudioMixerPasteFilters();
 
 	void EnablePreview();
 	void DisablePreview();
@@ -993,7 +1038,6 @@ private slots:
 	void TBarReleased();
 #endif
 	void LockVolumeControl(bool lock);
-	void ThemeChanged();
 
 	void UpdateVirtualCamConfig(const VCamConfig &config);
 	void RestartVirtualCam(const VCamConfig &config);
@@ -1027,8 +1071,10 @@ private:
 
 	void AutoRemux(QString input, bool no_show = false);
 
+	void UpdateIsRecordingPausable();
 	void UpdatePause(bool activate = true);
-	void UpdateReplayBuffer(bool activate = true);
+
+	bool IsFFmpegOutputToURL() const;
 
 	bool OutputPathValid();
 	void OutputPathInvalidMessage();
@@ -1048,6 +1094,9 @@ public:
 	void GetConfigFPS(uint32_t &num, uint32_t &den) const;
 	obs_frontend_callbacks *getApi() { return api; }
 	void SysTrayNotify(const QString &text, QSystemTrayIcon::MessageIcon n);
+
+	void resetAllGroupTransforms();
+	void resetGroupTransforms(OBSSceneItem item);
 
 	inline OBSSource GetCurrentSceneSource()
 	{
@@ -1077,9 +1126,10 @@ public:
 
 	void ResetUI();
 	int ResetVideo();
+	void ResetVerticalVideo();
+	void RemoveVerticalVideo();
 	bool ResetAudio();
 
-	void AddVCamButton();
 	void ResetOutputs();
 
 	void RefreshVolumeColors();
@@ -1092,10 +1142,10 @@ public:
 
 	inline void GetDisplayRect(int &x, int &y, int &cx, int &cy)
 	{
-		x = previewX;
-		y = previewY;
-		cx = previewCX;
-		cy = previewCY;
+		x = previewX[PLSOutputHandler::Horizontal];
+		y = previewY[PLSOutputHandler::Horizontal];
+		cx = previewCX[PLSOutputHandler::Horizontal];
+		cy = previewCY[PLSOutputHandler::Horizontal];
 	}
 
 	inline bool SavingDisabled() const { return disableSaving; }
@@ -1128,8 +1178,10 @@ public:
 	QMenu *AddBackgroundColorMenu(QMenu *menu, QWidgetAction *widgetAction,
 				      ColorSelectNew *select,
 				      obs_sceneitem_t *item);
-	void CreateSourcePopupMenu(int idx, bool preview, QWidget *parent);
-
+	void CreateSourcePopupMenu(int idx, bool preview, QWidget *parent,
+				   bool verticalPreview = false);
+	void setDynamicPropertyForMenuAndAction(QMenu *topMenu,
+						bool isVerticalPreview);
 	void UpdateTitleBar();
 
 	QPointer<QAction> addSysTrayAction(const QString &txt,
@@ -1160,6 +1212,7 @@ public:
 	void AddCustomDockWidget(QDockWidget *dock);
 
 	static OBSBasic *Get();
+	bool queryRemoveSourceItem(OBSSceneItem item);
 
 	const char *GetCurrentOutputPath();
 
@@ -1228,11 +1281,14 @@ public:
 	void RunPrismByPscPath();
 
 	//20230118/zengqin/for drawpen cursor
-	inline float GetPreviewScale() const { return previewScale; };
+	inline float GetPreviewScale() const
+	{
+		return previewScale[PLSOutputHandler::Horizontal];
+	};
 	//202300203/zengqin/spectralizer
 	void updateSpectralizerAudioSources(OBSSource source, unsigned flags);
 	//20240514/xiewei/add output analog
-	double GetStreamingOutputFPS();
+	double GetStreamingOutputFPS(bool vertical = false);
 	double GetRecordingOutputFPS();
 
 	int getState(int state);
@@ -1259,6 +1315,17 @@ public:
 				       bool ncb2b = false);
 #endif
 	void mainViewChangeEvent(QEvent *event);
+
+	QPointer<OBSBasicPreview> getVerticalDisplay()
+	{
+		return verticalDisplay;
+	}
+
+	void resetSourcesDockPressedEvent();
+	bool getVerticalPreviewEnabled();
+
+	void setVerticalService(obs_service_t *newService);
+	obs_service_t *getVerticalService();
 
 protected:
 	virtual bool nativeEvent(const QByteArray &eventType, void *message,
@@ -1332,17 +1399,13 @@ private slots:
 
 	void on_actionQuitApp_triggered();
 
-	void on_streamButton_clicked();
 	bool startStreamingCheck();
 	bool stopStreamingCheck();
 	bool startRecordCheck();
 	bool stopRecordCheck();
 
-	void on_recordButton_clicked();
-	void VCamButtonClicked();
-	void VCamConfigButtonClicked();
-	void on_settingsButton_clicked();
-	void Screenshot(OBSSource source_ = nullptr);
+	void Screenshot(OBSSource source_ = nullptr,
+			bool isVerticalPreview = false);
 	void ScreenshotSelectedSource();
 	void ScreenshotProgram();
 	void ScreenshotScene();
@@ -1354,6 +1417,7 @@ private slots:
 
 	void on_preview_customContextMenuRequested();
 	void ProgramViewContextMenuRequested();
+	void VerticalDisplayContextMenuRequested();
 	void on_previewDisabledWidget_customContextMenuRequested();
 
 	void on_actionNewSceneCollection_triggered();
@@ -1388,8 +1452,6 @@ private slots:
 	void ShowTransitionProperties();
 	void HideTransitionProperties();
 
-	void on_modeSwitch_clicked();
-
 	// Source Context Buttons
 	void on_sourcePropertiesButton_clicked();
 	void on_sourceFiltersButton_clicked();
@@ -1403,8 +1465,6 @@ private slots:
 	void on_lockDocks_toggled(bool lock);
 	void on_multiviewProjectorWindowed_triggered();
 	void on_sideDocks_toggled(bool side);
-
-	void PauseToggled();
 
 	void logUploadFinished(const QString &text, const QString &error);
 	void crashUploadFinished(const QString &text, const QString &error);
@@ -1428,9 +1488,10 @@ private slots:
 
 	void EnablePreviewDisplay(bool enable);
 	void TogglePreview();
+	void ToggleVerticalPreview(bool enable);
 
 	void OpenStudioProgramProjector();
-	void OpenPreviewProjector();
+	void OpenPreviewProjector(bool isVerticalPreview = false);
 	void OpenSourceProjector();
 	void OpenMultiviewProjector();
 	void OpenSceneProjector();
@@ -1448,13 +1509,38 @@ private slots:
 	void RepairOldExtraDockName();
 	void RepairCustomExtraDockName();
 
+	/* Stream action (start/stop) slot */
+	void StreamActionTriggered();
+
+	/* Record action (start/stop) slot */
+	void RecordActionTriggered();
+
+	/* Record pause (pause/unpause) slot */
+	void RecordPauseToggled();
+
+	/* Replay Buffer action (start/stop) slot */
+	void ReplayBufferActionTriggered();
+
+	/* Virtual Cam action (start/stop) slots */
+	void VirtualCamActionTriggered();
+
+	void OpenVirtualCamConfig();
+
+	/* Studio Mode toggle slot */
+	void TogglePreviewProgramMode();
+
 	void OnSelectItemChanged(OBSSceneItem item, bool selected);
 	void OnVisibleItemChanged(OBSSceneItem item, bool visible);
 	void OnSourceItemsRemove(QVector<OBSSceneItem> items);
 
 	//PRISM/renjinbo/20230111/#/add prism plugins path to load
 	void addPrismPlugins();
-	void addOBSThirdPlguins();
+	void addOBSThirdPlugins();
+
+	bool getIsVerticalPreviewFromAction();
+	void addNudgeFunc(OBSBasicPreview *preview);
+
+
 public slots:
 	void on_actionResetTransform_triggered();
 
@@ -1501,9 +1587,42 @@ signals:
 	void mainClosing();
 	void mainCloseFinished();
 	void updateChatV2PropertBrowserSize(const QSize &size);
+	/* Streaming signals */
+	void StreamingPreparing();
+	void StreamingStarting(bool broadcastAutoStart);
+	void StreamingStarted(bool withDelay = false);
+	void StreamingStopping();
+	void StreamingStopped(bool withDelay = false);
+
+	/* Broadcast Flow signals */
+	void BroadcastFlowEnabled(bool enabled);
+	void BroadcastStreamReady(bool ready);
+	void BroadcastStreamActive();
+	void BroadcastStreamStarted(bool autoStop);
+
+	/* Recording signals */
+	void RecordingStarted(bool pausable = false);
+	void RecordingStopping();
+	void RecordingStopped();
+
+	/* Replay Buffer signals */
+	void ReplayBufEnabled(bool enabled);
+	void ReplayBufStarted();
+	void ReplayBufStopping();
+	void ReplayBufStopped();
+
+	/* Virtual Camera signals */
+	void VirtualCamEnabled();
+	void VirtualCamStarted();
+	void VirtualCamStopped();
+
+	/* Studio Mode signal */
+	void PreviewProgramModeChanged(bool enabled);
 
 private:
 	std::unique_ptr<Ui::OBSBasic> ui;
+	QPointer<OBSDock> controlsDock;
+
 	std::unique_ptr<PLSWatermark> _watermark;
 	bool updatedLiveStart = false;
 	bool m_profileMenuState = true;
@@ -1511,6 +1630,9 @@ private:
 	PLSDialogView *m_chatTemplateDialogView = nullptr;
 	OBSProjector *m_chatTemplateProjector = nullptr;
 	bool m_bIgnoreResize = false;
+	bool m_startChangeSceneCollection = false;
+
+	video_t *secondayVideo = nullptr;
 
 private:
 	void configureWatermark();

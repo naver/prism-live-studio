@@ -19,7 +19,7 @@ void ResolutionGuideItem::initialize(const QVariantMap &data)
 	auto mainIconPath = getPlatformImageFromName(platform, channel_data::ImageType::tagIcon);
 	auto mainIconName = getInfo(data, "icon", QString());
 	if (!mainIconName.isEmpty()) {
-		QString tmpPath = QString("PRISMLiveStudio/library/library_Policy_PC/%1").arg(mainIconName);
+		QString tmpPath = QString("PRISMLiveStudio/resources/library/library_Policy_PC/%1").arg(mainIconName);
 		tmpPath = pls_get_user_path(tmpPath);
 		if (QFile::exists(tmpPath)) {
 			PLS_INFO("GuidePage", "use sync server path ! path is %s", tmpPath.toUtf8().constData());

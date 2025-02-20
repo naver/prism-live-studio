@@ -12,6 +12,7 @@
 
 #include <libutils-api.h>
 #include <liblog.h>
+#include "PLSRadioButton.h"
 
 #ifdef Q_OS_WINDOWS
 #include <Windows.h>
@@ -198,6 +199,11 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, con
 		width = qMax(width, configMinWidth);
 	}
 	ui->buttonBox->setStyleSheet(InitCss.arg(width));
+
+	//#PRISM_PC-1375 windows need add a item after linked label, so can show mouse
+	QWidget *placeholderMouse = new QWidget(this);
+	placeholderMouse->hide();
+	ui->contentLayout->addWidget(placeholderMouse);
 }
 
 PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton,
@@ -725,6 +731,26 @@ PLSAlertView::Result PLSAlertView::questionWithCountdownView(QWidget *parent, co
 							     Button defaultButton, const quint64 &timeout, int buttonBoxWidth)
 {
 	return openWithCountDownView(parent, Icon::Question, title, message, checkbox, buttons, defaultButton, timeout);
+}
+
+PLSAlertView::Button PLSAlertView::dualOutputApplyResolutionWarn(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, const QString &hRadioMsg,
+								 const QString &vRadioMsg, bool &selectVRadio, Button defaultButton)
+{
+	PLSAlertView alertView(parent, Icon::Warning, title, message, QString(), buttons, defaultButton);
+	alertView.ui->horizontalLayout_2->setContentsMargins(25, 28, 25, 30);
+	auto layout = pls_new<QVBoxLayout>();
+	layout->setSpacing(10);
+	layout->setContentsMargins(0, 20, 0, 0);
+	auto hRadio = pls_new<PLSRadioButton>(hRadioMsg, &alertView);
+	auto vRadio = pls_new<PLSRadioButton>(vRadioMsg, &alertView);
+	layout->addWidget(hRadio, 0, Qt::AlignLeft);
+	layout->addWidget(vRadio, 0, Qt::AlignLeft);
+	hRadio->setChecked(true);
+	alertView.ui->contentLayout->addLayout(layout);
+	alertView.ui->contentLayout->setAlignment(layout, Qt::AlignHCenter | Qt::AlignVCenter);
+	auto ret = static_cast<Button>(alertView.exec());
+	selectVRadio = vRadio->isChecked();
+	return ret;
 }
 
 #include "PLSAlertView.moc"

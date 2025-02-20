@@ -37,6 +37,8 @@ void bringWindowToTop(const QWidget *window);
 
 bool SetDisplayAffinitySupported(void);
 
+bool HighContrastEnabled();
+
 enum TaskbarOverlayStatus {
 	TaskbarOverlayStatusInactive,
 	TaskbarOverlayStatusActive,

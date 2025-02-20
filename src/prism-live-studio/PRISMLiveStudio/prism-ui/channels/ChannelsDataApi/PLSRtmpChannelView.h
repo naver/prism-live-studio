@@ -27,7 +27,6 @@ public:
 	enum CustomChannelType { RTMP = 0, SRT = 1, RIST = 2, OTHER = 3 };
 
 protected:
-	void changeEvent(QEvent *e) override;
 	bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
@@ -43,7 +42,7 @@ private slots:
 
 	void on_RTMPUrlEdit_textChanged(const QString &);
 
-	void on_PlatformCombbox_currentTextChanged(const QString &text);
+	void on_PlatformCombbox_currentTextChanged(const QString &showText);
 
 	void on_ServerComboBox_currentTextChanged(const QString &text);
 

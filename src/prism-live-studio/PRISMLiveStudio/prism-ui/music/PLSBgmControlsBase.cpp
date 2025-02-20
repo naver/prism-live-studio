@@ -1,7 +1,6 @@
 #include "PLSBgmControlsBase.h"
 #include "libutils-api.h"
 #include "libui.h"
-#include "PLSMediaSlider.h"
 #include "pls/pls-obs-api.h"
 #include "pls/pls-source.h"
 #include "pls-common-define.hpp"

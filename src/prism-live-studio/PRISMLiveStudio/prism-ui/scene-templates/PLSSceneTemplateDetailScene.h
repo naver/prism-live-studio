@@ -42,6 +42,8 @@ private:
 
     PLSSceneTemplateImageView *m_preClickImageView{nullptr};
     PLSMediaRender *m_preClickVideoView{nullptr};
+
+    qint64 m_dtLastInstall = 0;
 };
 
 #endif // PLSSCENETEMPLATEDETAILSCENE_H

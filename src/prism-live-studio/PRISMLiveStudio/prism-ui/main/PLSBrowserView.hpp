@@ -38,10 +38,10 @@ private:
 public:
 	explicit PLSBrowserView(bool readCookies, const QUrl &url, QWidget *parent = nullptr);
 	explicit PLSBrowserView(bool readCookies, const QUrl &url, const std_map<std::string, std::string> &headers, QWidget *parent = nullptr);
-	explicit PLSBrowserView(bool readCookies, QJsonObject *result, const QUrl &url, const PLSResultCheckingCallback &callback = nullptr, QWidget *parent = nullptr);
-	explicit PLSBrowserView(bool readCookies, QJsonObject *result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelCookieName = QString(),
+	explicit PLSBrowserView(bool readCookies, QVariantHash *result, const QUrl &url, const PLSResultCheckingCallback &callback = nullptr, QWidget *parent = nullptr);
+	explicit PLSBrowserView(bool readCookies, QVariantHash *result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelCookieName = QString(),
 				const PLSResultCheckingCallback &callback = nullptr, QWidget *parent = nullptr);
-	explicit PLSBrowserView(bool readCookies, QJsonObject *result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelCookieName = QString(),
+	explicit PLSBrowserView(bool readCookies, QVariantHash *result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelCookieName = QString(),
 				const std::string &script = std::string(), const PLSResultCheckingCallback &callback = nullptr, QWidget *parent = nullptr);
 	~PLSBrowserView() override;
 
@@ -63,7 +63,7 @@ private slots:
 
 private:
 	Ui::PLSBrowserView *ui = nullptr;
-	QJsonObject *result = nullptr;
+	QVariantHash *result = nullptr;
 	std::string uri;
 	PLSResultCheckingCallback resultCheckingCallback = nullptr;
 	QCefWidget *cefWidget = nullptr;

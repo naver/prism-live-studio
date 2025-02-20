@@ -16,3 +16,17 @@ public:
 	virtual void closeEvent(QCloseEvent *event);
 	virtual void showEvent(QShowEvent *event);
 };
+
+class OBSDockOri : public QDockWidget {
+	Q_OBJECT
+
+public:
+	inline OBSDockOri(QWidget *parent = nullptr) : QDockWidget(parent) {}
+	inline OBSDockOri(const QString &title, QWidget *parent = nullptr)
+		: QDockWidget(title, parent)
+	{
+	}
+
+	virtual void closeEvent(QCloseEvent *event);
+	virtual void showEvent(QShowEvent *event);
+};

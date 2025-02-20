@@ -2,9 +2,7 @@
 
 #include <QScrollArea>
 #include "PLSCommonScrollBar.h"
-#ifdef __APPLE__
-#include "PLSCustomMacWindow.h"
-#endif
+#include "libui.h"
 
 class QResizeEvent;
 
@@ -16,9 +14,7 @@ public:
 	{
 		this->setVerticalScrollBar(new PLSCommonScrollBar());
 		setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-#ifdef __APPLE__
-		PLSCustomMacWindow::clipsToBounds(this);
-#endif
+		pls_scroll_area_clips_to_bounds(this);
 	}
 
 protected:

@@ -8,6 +8,7 @@
 #include <VersionHelpers.h>
 #include <ShlObj.h>
 #include <Shlwapi.h>
+#include <sstream>
 
 #pragma comment(lib, "shlwapi.lib")
 #endif
@@ -16,6 +17,7 @@
     #include "mac/PLSUtilInterface.h"
 #endif
 
+static std::vector<std::string> g_third_party_plugins;
 namespace pls {
 
 #if _WIN32
@@ -140,8 +142,33 @@ static std::string get_windows_version()
 	std::string generate_dump_file(std::string info, std::string message) {
 		return mac_generate_dump_file(info, message);
 	}
+
 #endif
 	
+	bool is_third_party_plugin(std::string& module_path) {
+#if __APPLE__
+		return mac_is_third_party_plugin(module_path);
+#else
+		std::filesystem::path pathObj(std::filesystem::u8path(module_path));
+		std::string dllName = pathObj.stem().u8string();
+		return std::find(g_third_party_plugins.begin(), g_third_party_plugins.end(),
+			 std::string(dllName)) != g_third_party_plugins.end();
+#endif
+	}
+	
+	std::string get_plugin_version(std::string& path) {
+#if __APPLE__
+		return mac_get_plugin_version(path);
+#else
+		struct pls_win_ver_t version_info;
+		pls_get_win_dll_ver(version_info, QString::fromStdString(path));
+		std::stringstream version;
+		version << version_info.major << "." << version_info.minor << "." << version_info.build << "." << version_info.revis;
+		return version.str();
+#endif
+	}
 }
 
-
+LIBDUMPANALUZER_API void record_third_party_plugin(const char *dllName) {
+	g_third_party_plugins.push_back(dllName);
+}

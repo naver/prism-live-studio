@@ -16,6 +16,8 @@ public:
 	~PLSMixerContent() = default;
 
 	void AddWidget(QWidget *widget);
+	void DisplayItemBorder(VolControl *current, const char *borderType);
+	void ClearItemBorder();
 
 protected:
 	Qt::Orientation orientation;
@@ -49,6 +51,7 @@ private:
 	QPointer<QScrollArea> scrollarea;
 	QPoint startDragPoint;
 	QPointer<VolControl> lastClickedVol;
+	QPointer<VolControl> lastDisplayedVol;
 };
 
 class HMixerContent : public PLSMixerContent {

@@ -17,10 +17,10 @@ PLSLiveInfoAfreecaTV::PLSLiveInfoAfreecaTV(PLSPlatformBase *pPlatformBase, QWidg
 	pls_add_css(this, {"PLSLiveinfoAfreecaTV"});
 	setupUi(ui);
 	ui->horizontalLayout->addWidget(createResolutionButtonsFrame());
-
 	setHasCloseButton(false);
 	//setHasBorder(true);
 	this->setWindowTitle(tr("LiveInfo.liveinformation"));
+	ui->dualWidget->setText(tr("afreecaTV"))->setUUID(PLS_PLATFORM_AFREECATV->getChannelUUID());
 
 	content()->setFocusPolicy(Qt::StrongFocus);
 

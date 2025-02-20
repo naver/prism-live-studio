@@ -16,6 +16,86 @@
 ******************************************************************************/
 
 #include "source-label.hpp"
+#include "pls/pls-dual-output.h"
+#include <QPainter>
+#include <QStylePainter>
+#include <QStyleOptionFocusRect>
+
+void SourceLabel::resizeEvent(QResizeEvent *event)
+{
+	update();
+	QLabel::resizeEvent(event);
+}
+
+void SourceLabel::paintEvent(QPaintEvent *event)
+{
+	QPainter dc(this);
+	int padding = pls_is_dual_output_on() ? 0 : 5;
+	dc.setFont(font());
+
+	QStyleOption opt;
+	opt.initFrom(this);
+	auto textColor = opt.palette.color(QPalette::Text);
+
+	QTextOption option(Qt::AlignLeft | Qt::AlignVCenter);
+	option.setWrapMode(QTextOption::NoWrap);
+
+	dc.setPen(textColor);
+	dc.drawText(QRect(padding, 0, width() - padding, height()),
+		    SnapSourceName(), option);
+	QLabel::paintEvent(event);
+}
+
+QString SourceLabel::SnapSourceName()
+{
+	if (currentText.isEmpty())
+		return currentText;
+
+	QFontMetrics fontWidth(font());
+	if (fontWidth.horizontalAdvance(currentText) > width() - 5)
+		return fontWidth.elidedText(currentText, Qt::ElideRight,
+					    width() - 5);
+	else
+		return currentText;
+}
+
+SourceLabel::SourceLabel(const QString &text, QWidget *parent,
+			 Qt::WindowFlags f)
+	: QLabel(text, parent, f)
+{
+	this->setText(text);
+}
+
+void SourceLabel::setText(const QString &text)
+{
+	currentText = text;
+	update();
+}
+
+void SourceLabel::setText(const char *text)
+{
+	currentText = text ? text : "";
+	update();
+}
+
+QString SourceLabel::GetText() const
+{
+	return currentText;
+}
+
+void SourceLabel::appendDeviceName(const char *name,
+				   const char *appendDeviceName)
+{
+	this->setText(QString::fromStdString(name) + appendDeviceName);
+	this->setToolTip(QString::fromStdString(name) + appendDeviceName);
+}
+
+void OBSSourceLabel::clearSignals()
+{
+	destroyedSignal.Disconnect();
+	removedSignal.Disconnect();
+	renamedSignal.Disconnect();
+}
 
 void OBSSourceLabel::SourceRenamed(void *data, calldata_t *params)
 {

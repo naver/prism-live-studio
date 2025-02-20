@@ -46,7 +46,7 @@
 #include <prism-version.h>
 #include <util/platform.h>
 #include <util/config-file.h>
-
+#include <random>
 #include <liblog.h>
 #include <PLSAlertView.h>
 #include <libutils-api.h>
@@ -56,6 +56,7 @@
 #endif
 
 #include "PLSToplevelView.h"
+#include "frontend-api.h"
 
 using namespace common;
 constexpr auto VERSION_COMPARE_COUNT = 3;
@@ -142,12 +143,6 @@ extern "C" FRONTEND_API void pls_get_prism_cookie_value_c(QString *prism_cookie_
 extern "C" FRONTEND_API int pls_get_actived_chat_channel_count_c()
 {
 	return pls_get_actived_chat_channel_count();
-}
-
-// zhangdewen for obs-browser chat source use
-extern "C" FRONTEND_API int pls_get_prism_live_seq_c()
-{
-	return pls_get_prism_live_seq();
 }
 
 // zhangdewen for obs-browser chat source use
@@ -274,14 +269,14 @@ FRONTEND_API QJsonObject pls_ssmap_to_json(const QMap<QString, QString> &ssmap)
 	return QJsonObject();
 }
 
-FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const pls_result_checking_callback_t &callback, QWidget *parent, bool readCookies)
+FRONTEND_API bool pls_browser_view(QVariantHash &result, const QUrl &url, const pls_result_checking_callback_t &callback, QWidget *parent, bool readCookies)
 {
 	if (callbacks_valid()) {
 		return LocalGlobalVars::fc->pls_browser_view(result, url, callback, parent, readCookies);
 	}
 	return false;
 }
-FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelName, const pls_result_checking_callback_t &callback,
+FRONTEND_API bool pls_browser_view(QVariantHash &result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelName, const pls_result_checking_callback_t &callback,
 				   QWidget *parent, bool readCookies)
 {
 	if (callbacks_valid()) {
@@ -290,7 +285,7 @@ FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const s
 	return false;
 }
 
-FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelName, const std::string &script,
+FRONTEND_API bool pls_browser_view(QVariantHash &result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelName, const std::string &script,
 				   const pls_result_checking_callback_t &callback, QWidget *parent, bool readCookies)
 {
 	if (callbacks_valid()) {
@@ -364,7 +359,7 @@ FRONTEND_API void pls_prism_change_over_login_view()
 	}
 }
 
-FRONTEND_API void pls_login_async(const std::function<void(bool ok, const QJsonObject &result)> &callback, const QString &platformName, QWidget *parent, PLSLoginInfo::UseFor useFor)
+FRONTEND_API void pls_login_async(const std::function<void(bool ok, const QVariantHash &result)> &callback, const QString &platformName, QWidget *parent, PLSLoginInfo::UseFor useFor)
 {
 	if (!pls_get_network_state()) {
 		PLSAlertView::warning(parent, pls_translate_qstr("Alert.Title"), pls_translate_qstr("login.check.note.network"));
@@ -382,7 +377,7 @@ FRONTEND_API void pls_login_async(const std::function<void(bool ok, const QJsonO
 			continue;
 
 		if (channelInfo->loginWithAccountImplementType() == PLSLoginInfo::ImplementType::Synchronous) {
-			QJsonObject result;
+			QVariantHash result;
 			bool ok = channelInfo->loginWithAccount(result, useFor, parent);
 			callback(ok, result);
 		} else {
@@ -391,7 +386,7 @@ FRONTEND_API void pls_login_async(const std::function<void(bool ok, const QJsonO
 	}
 }
 
-FRONTEND_API void pls_channel_login_async(const std::function<void(bool ok, const QJsonObject &result)> &callback, const QString &accountName, QWidget *parent)
+FRONTEND_API void pls_channel_login_async(const std::function<void(bool ok, const QVariantHash &result)> &callback, const QString &accountName, QWidget *parent)
 {
 	pls_login_async(callback, accountName, parent, PLSLoginInfo::UseFor::Channel);
 }
@@ -706,18 +701,18 @@ FRONTEND_API bool pls_inside_visible_screen_area(QRect geometry)
 	return false;
 }
 
-FRONTEND_API pls_check_update_result_t pls_check_app_update(bool &is_force, QString &version, QString &file_url, QString &update_info_url)
+FRONTEND_API pls_check_update_result_t pls_check_app_update(bool &is_force, QString &version, QString &file_url, QString &update_info_url, PLSErrorHandler::RetData &retData)
 {
 	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_check_app_update(is_force, version, file_url, update_info_url);
+		return LocalGlobalVars::fc->pls_check_app_update(is_force, version, file_url, update_info_url, retData);
 	}
 	return pls_check_update_result_t::Failed;
 }
 
-FRONTEND_API pls_upload_file_result_t pls_upload_contactus_files(const QString &email, const QString &question, const QList<QFileInfo> files)
+FRONTEND_API pls_upload_file_result_t pls_upload_contactus_files(PLS_CONTACTUS_QUESTION_TYPE iType, const QString &email, const QString &question, const QList<QFileInfo> files)
 {
 	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_upload_contactus_files(email, question, files);
+		return LocalGlobalVars::fc->pls_upload_contactus_files(iType, email, question, files);
 	}
 	return pls_upload_file_result_t::Ok;
 }
@@ -1237,10 +1232,10 @@ FRONTEND_API bool pls_source_support_rnnoise(const char *id)
 	return false;
 }
 
-FRONTEND_API bool pls_get_chat_info(QString &id, QString &cookie, bool &isSinglePlatform)
+FRONTEND_API bool pls_get_chat_info(QString &id, int &seqHorizontal, int &seqVertical, QString &cookie, bool &isSinglePlatform)
 {
 	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_chat_info(id, cookie, isSinglePlatform);
+		return LocalGlobalVars::fc->pls_get_chat_info(id, seqHorizontal, seqVertical, cookie, isSinglePlatform);
 	}
 	return false;
 }
@@ -1271,8 +1266,22 @@ FRONTEND_API void pls_add_custom_font(const QString &fontPath)
 
 FRONTEND_API bool pls_install_scene_template(const SceneTemplateItem &item)
 {
+	static bool bInstalling = false;
+	if (!bInstalling) {
+		bInstalling = true;
+		auto _cleanup = qScopeGuard([] { bInstalling = false; });
+
+		if (callbacks_valid()) {
+			return LocalGlobalVars::fc->pls_install_scene_template(item);
+		}
+	}
+	return false;
+}
+
+FRONTEND_API bool pls_get_output_stream_dealy_active()
+{
 	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_install_scene_template(item);
+		return LocalGlobalVars::fc->pls_get_output_stream_dealy_active();
 	}
 	return false;
 }
@@ -1346,10 +1355,7 @@ FRONTEND_API ITextMotionTemplateHelper *pls_get_chat_template_helper_instance()
 }
 FRONTEND_API QString pls_get_current_language()
 {
-	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_current_language();
-	}
-	return QString();
+	return pls_prism_get_locale();
 }
 
 FRONTEND_API QLocale::Language pls_get_current_language_enum()
@@ -1403,12 +1409,11 @@ FRONTEND_API int pls_get_actived_chat_channel_count()
 	return 0;
 }
 
-FRONTEND_API int pls_get_prism_live_seq()
+FRONTEND_API void pls_get_prism_live_seq(int &seqHorizontal, int &seqVertical)
 {
 	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_get_prism_live_seq();
+		LocalGlobalVars::fc->pls_get_prism_live_seq(seqHorizontal, seqVertical);
 	}
-	return 0;
 }
 
 FRONTEND_API QByteArray pls_get_prism_cookie_value()
@@ -1944,55 +1949,25 @@ FRONTEND_API bool pls_get_laboratory_status(const QString &laboratoryId)
 	return false;
 }
 
-FRONTEND_API void pls_navershopping_get_store_login_url(QWidget *widget, const std::function<void(const QString &storeLoginUrl)> &ok, const std::function<void()> &fail)
+FRONTEND_API void pls_navershopping_get_store_login_url(QWidget *widget, const std::function<void(const QString &storeLoginUrl)> &ok, const std::function<void(const QByteArray &data)> &fail)
 {
 	if (callbacks_valid()) {
 		LocalGlobalVars::fc->pls_navershopping_get_store_login_url(widget, ok, fail);
 	} else {
-		fail();
+		fail(QByteArray());
+	}
+}
+
+FRONTEND_API void pls_navershopping_get_error_code_message(const QByteArray &data, QString &errorCode, QString &errorMessage)
+{
+	if (callbacks_valid()) {
+		LocalGlobalVars::fc->pls_navershopping_get_error_code_message(data, errorCode, errorMessage);
 	}
 }
 
 FRONTEND_API void pls_enum_sources(const std::function<bool(obs_source_t *)> &callback)
 {
 	obs_enum_sources([](void *context, obs_source_t *source) { return (*(std::function<bool(obs_source_t *)> *)context)(source); }, (void *)&callback);
-}
-
-FRONTEND_API bool pls_copy_file(const QString &fileName, const QString &newName, bool overwrite, bool sendSre)
-{
-	if (fileName.isEmpty() || newName.isEmpty())
-		return false;
-#ifdef Q_OS_WIN
-	auto ret = CopyFile(fileName.toStdWString().c_str(), newName.toStdWString().c_str(), !overwrite);
-	if (!ret) {
-		auto errorCode = GetLastError();
-		auto name = pls_get_path_file_name(fileName);
-		if (sendSre) {
-			auto errorCodeStr = std::to_string(errorCode);
-			PLS_LOGEX(PLS_LOG_ERROR, MAIN_FRONTEND_API, {{"CopyErrorCode", errorCodeStr.c_str()}, {"FileName", qUtf8Printable(name)}}, "Failed to copy file '%s'. ErrorCode: %lu",
-				  name.data(), errorCode);
-		} else {
-			PLS_WARN(MAIN_FRONTEND_API, "Failed to copy file '%s'. ErrorCode: %lu", qUtf8Printable(name), errorCode);
-		}
-		return false;
-	}
-	return true;
-#else
-	int errorCode = 0;
-	bool ret = pls_copy_file_with_error_code(fileName, newName, overwrite, errorCode);
-	if (!ret) {
-		auto name = pls_get_path_file_name(fileName);
-		if (sendSre) {
-			auto errorCodeStr = std::to_string(errorCode);
-			PLS_LOGEX(PLS_LOG_ERROR, MAIN_FRONTEND_API, {{"CopyErrorCode", errorCodeStr.c_str()}, {"FileName", qUtf8Printable(name)}}, "Failed to copy file '%s'. ErrorCode: %lu",
-				  name.data(), errorCode);
-		} else {
-			PLS_WARN(MAIN_FRONTEND_API, "Failed to copy file '%s'. ErrorCode: %lu", qUtf8Printable(name), errorCode);
-		}
-		return false;
-	}
-	return true;
-#endif
 }
 
 FRONTEND_API void pls_on_frontend_event(pls_frontend_event event, const QVariantList &params)
@@ -2421,10 +2396,10 @@ FRONTEND_API QString get_channel_cookie_path(const QString &channelLoginName)
 	return QString();
 }
 
-FRONTEND_API QStringList getChannelWithChatList()
+FRONTEND_API QStringList getChannelWithChatList(bool bAddNCPPrefix)
 {
 	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->getChannelWithChatList();
+		return LocalGlobalVars::fc->getChannelWithChatList(bAddNCPPrefix);
 	}
 	return {};
 }
@@ -2443,4 +2418,25 @@ FRONTEND_API bool pls_is_ncp_first_login(QString &serviceName)
 		return LocalGlobalVars::fc->pls_is_ncp_first_login(serviceName);
 	}
 	return false;
+}
+FRONTEND_API bool pls_get_random_bool()
+{
+	static auto gen = std::bind(std::uniform_int_distribution<>(0, 1), std::default_random_engine());
+	return gen();
+}
+
+FRONTEND_API bool pls_is_chzzk_checked(bool forHorizontal)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_is_chzzk_checked(forHorizontal);
+	}
+	return false;
+}
+
+FRONTEND_API obs_output_t *pls_frontend_get_streaming_output_v(void)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_frontend_get_streaming_output_v();
+	}
+	return nullptr;
 }

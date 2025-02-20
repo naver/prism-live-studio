@@ -50,8 +50,8 @@ public:
 	const PLSAfreecaTVLiveinfoData &getSelectData() const;
 	void requestChannelInfo(const QVariantMap &srcInfo, const UpdateCallback &finishedCall) const;
 	void dealRequestChannelInfoSucceed(const QVariantMap &srcInfo, const QByteArray &data, const UpdateCallback &finishedCall) const;
-	void requestDashborad(const std::function<void(bool)> &onNext, const QObject *reciever);
-	void dealRequestDashborad(const QByteArray &data, const std::function<void(bool)> &onNext, const QObject *reciever);
+	void requestDashborad(const std::function<void(bool)> &onNext, const QObject *receiver);
+	void dealRequestDashborad(const QByteArray &data, const std::function<void(bool)> &onNext, const QObject *receiver);
 	void requestUserNickName(const QVariantMap &srcInfo, const UpdateCallback &finishedCall) const;
 	void dealUserNickNameSucceed(const QVariantMap &srcInfo, const QByteArray &data, QList<QVariantMap> &dstInfos) const;
 	void saveSettings(const std::function<void(bool)> &onNext, const QString &title);
@@ -84,15 +84,10 @@ private:
 
 	QString getShareUrl(const QString &id, bool isLiveUrl = false, bool isEnc = false) const;
 	void onPrepareLive(bool value) override;
-	PLSPlatformApiResult getApiResult(int code, QNetworkReply::NetworkError error) const;
-	void showApiRefreshError(PLSPlatformApiResult value);
-	void showTokenExpiredAlert(QWidget *alertParent);
-	void showApiUpdateError(PLSPlatformApiResult value);
+	void showApiUpdateError(const QString &customErrName, int code = 0, QByteArray data = {}, QNetworkReply::NetworkError error = QNetworkReply::NoError);
 
-	void requestCategories(const std::function<void(bool)> &onNext, const QObject *reciever);
-	void updateLiveinfo(const std::function<void(bool)> &onNext, const QObject *reciever, const QString &title);
-
-	void checkCanBroadcast(const std::function<void(bool)> &onNext, const QObject *reciever);
+	void requestCategories(const std::function<void(bool)> &onNext, const QObject *receiver);
+	void updateLiveinfo(const std::function<void(bool)> &onNext, const QObject *receiver, const QString &title);
 
 	void dealUpdateLiveinfoSucceed(const QByteArray &data, const std::function<void(bool)> &onNext);
 
@@ -100,5 +95,4 @@ private:
 	void onAlLiveStarted(bool) override;
 
 	void setSelectData(const PLSAfreecaTVLiveinfoData &data);
-	void setupApiFailedWithCode(PLSPlatformApiResult result);
 };

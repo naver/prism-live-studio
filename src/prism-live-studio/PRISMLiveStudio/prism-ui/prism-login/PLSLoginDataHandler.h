@@ -5,6 +5,8 @@
 #include "PLSCommonConst.h"
 #include "PLSCommonFunc.h"
 #include "cancel.hpp"
+#include "PLSErrorHandler.h"
+#include "libresource.h"
 
 #define PLSLOGINDATAHANDLER PLSLoginDataHandler::instance()
 
@@ -44,6 +46,7 @@ public:
 	void prismSession(const QString &session) { m_prismSession = session; }
 
 	AppUpdateResult getUpdateResult() const;
+	PLSErrorHandler::RetData getAppUdateApiRetData() const;
 	QString getInstallFileUrl() const;
 	bool isForcePrismAppUpdate() const;
 	QString getUpdateVersion() const;
@@ -86,7 +89,8 @@ public:
 	QString getNCB2BLogoUrl();
 	void reDownloadWaterMark();
 	bool isNeedShowB2BServiceAlert();
-	void getNCB2BServiceResFromRemote(const std::function<void(const QJsonObject &data)> &successCallback, const std::function<void(const QJsonObject &data)> &failCallback, QObject *receiver);
+	void getNCB2BServiceResFromRemote(const std::function<void(const QJsonObject &data)> &successCallback,
+					  const std::function<void(const QJsonObject &data, const PLSErrorHandler::RetData &retData)> &failCallback, QObject *receiver);
 	QImage scaleAndCrop(const QImage &original, const QSize &originTargetSize);
 signals:
 	void updateNCB2BIcon();
@@ -112,6 +116,7 @@ private:
 	void handleB2BServiceBigLogo();
 	void handleB2BServiceBigLogowithColor();
 
+	PLSErrorHandler::RetData m_retData;
 	bool m_isForceUpdate = false;
 	AppUpdateResult m_updateResult = AppUpdateResult::AppFailed;
 	QString m_newPrismVersion;
@@ -133,8 +138,10 @@ private:
 
 	QJsonObject m_serviceResLocalObj;
 	QJsonObject m_twitchServiceListObj;
-	QList<QPair<QString, QString>> m_serviceResToPath;
+	std::list<pls::rsm::UrlAndHowSave> m_urlAndHowSaves;
 
 	bool m_isNeedShowB2BDisableAlert = false;
 };
 #endif // PLSLAUNCHERDATAHANDLER_H
+
+template<typename Callback> inline void PLSLoginDataHandler::google_regeist_handler(const QVariant &reply, const QString &token, const Callback &callback) {}

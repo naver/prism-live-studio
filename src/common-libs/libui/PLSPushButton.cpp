@@ -213,7 +213,12 @@ void PLSIconButton::paintEvent(QPaintEvent *event)
 {
 	QPainter painter(this);
 
-	if (const auto &icon = m_icons[m_state].second; !icon.isNull()) {
+	auto stateTemp = m_state;
+	if (!isEnabled()) {
+		stateTemp = property("showMode").toBool() ? PLSUiApp::CheckedDisabled : PLSUiApp::UncheckedDisabled;
+	}
+
+	if (const auto &icon = m_icons[stateTemp].second; !icon.isNull()) {
 		QPixmap pix = icon.scaled(QSize(m_iconWidth, m_iconHeight) * devicePixelRatio(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 
 		QRect rc = rect();

@@ -12,6 +12,7 @@
 #include "frontend-api.h"
 #include "libui.h"
 #include "pls-channel-const.h"
+#include "pls/pls-dual-output.h"
 #include "ui_ChannelCapsule.h"
 
 using namespace ChannelData;
@@ -32,6 +33,7 @@ ChannelCapsule::ChannelCapsule(QWidget *parent) : QFrame(parent), ui(new Ui::Cha
 
 	delayUpdateText();
 	ui->UserIcon->setFocusPolicy(Qt::NoFocus);
+	closeDualOutputUI();
 }
 
 void ChannelCapsule::normalState(const QVariantMap &info)
@@ -230,12 +232,12 @@ QString ChannelCapsule::translatePublicString(const QString &platform, const QSt
 		}
 	}
 	if (platform.contains(NCB2B)) {
-		transSrc = PLSAPICommon::getPairdString(PLSPlatformNCB2B::getPrivayList(), src, true);
+		transSrc = PLSAPICommon::getPairedString(PLSPlatformNCB2B::getPrivacyList(), src, true);
 	}
 	return !transSrc.isEmpty() ? transSrc : src;
 }
 
-void ChannelCapsule::updateUi()
+void ChannelCapsule::updateUi(bool bPostedEvents)
 {
 	const auto srcData = PLSCHANNELS_API->getChannelInfo(mInfoID);
 	if (srcData.isEmpty()) {
@@ -244,12 +246,18 @@ void ChannelCapsule::updateUi()
 		return;
 	}
 
+	auto bOpen = pls_is_dual_output_on();
+	setDualOutput(bOpen);
+
 	mLastMap = srcData;
 	updateIcons(mLastMap);
 	shiftState(mLastMap);
 	updateTextFrames(mLastMap);
 	delayUpdateText();
+	mConfigPannel->setDualOutput(bOpen);
 	mConfigPannel->updateUI();
+	if (bPostedEvents)
+		QApplication::sendPostedEvents();
 }
 void ChannelCapsule::updateIcons(const QVariantMap &srcData)
 {
@@ -276,7 +284,8 @@ void ChannelCapsule::updateErrorLabel(const QVariantMap &info)
 
 void ChannelCapsule::updateTextFrames(const QVariantMap &srcData)
 {
-	auto TextFrameSize = ui->TextFrame->width() - (ui->StateActive->isVisible() ? ui->StateActive->width() : 0);
+	int OutputDirection = ui->OutputDirection->isVisible() ? ui->StateActive->width() : 0;
+	auto TextFrameSize = ui->TextFrame->width() - (ui->StateActive->isVisible() ? ui->StateActive->width() : 0) - OutputDirection;
 	ui->UserName->resize(TextFrameSize, ui->UserName->height());
 	ui->CatogeryName->resize(ui->TextFrame->width(), ui->CatogeryName->height());
 
@@ -309,6 +318,7 @@ void ChannelCapsule::updateTextFrames(const QVariantMap &srcData)
 	//catogry = QString("platfo... ") + QString::fromStdWString(std::wstring{0x25CF})+QString(" chann...")
 	//catogry = QString("platfo... ") + QString::fromStdWString(std::wstring{0x00b7}) + QString(" chann...")
 	ui->CatogeryName->setText(line2);
+	ui->TextFrame->repaint();
 }
 
 void ChannelCapsule::delayUpdateText()
@@ -507,4 +517,48 @@ void ChannelCapsule::setOnLine(bool isActive)
 bool ChannelCapsule::isSelectedDisplay() const
 {
 	return PLSCHANNELS_API->isChannelSelectedDisplay(mInfoID);
+}
+
+void ChannelCapsule::setDualOutput(bool bOpen)
+{
+	mConfigPannel->setDualOutput(bOpen);
+	mConfigPannel->updateUISpacing(bOpen);
+	if (bOpen) {
+		auto dualOutput = PLSCHANNELS_API->getValueOfChannel(mInfoID, g_channelDualOutput, NoSet);
+		switch (dualOutput) {
+		case channel_data::NoSet:
+			closeDualOutputUI();
+			break;
+		case channel_data::HorizontalOutput:
+			setHorizontalOutputUI();
+			break;
+		case channel_data::VerticalOutput:
+			setVerticalOutputUI();
+			break;
+		default:
+			break;
+		}
+	} else {
+		closeDualOutputUI();
+	}
+}
+
+void ChannelCapsule::setHorizontalOutputUI()
+{
+	ui->OutputDirection->setVisible(true);
+	ui->OutputDirection->setProperty("VerticalOutput", false);
+	refreshStyle(ui->OutputDirection);
+}
+
+void ChannelCapsule::setVerticalOutputUI()
+{
+	ui->OutputDirection->setVisible(true);
+	ui->OutputDirection->setProperty("VerticalOutput", true);
+	refreshStyle(ui->OutputDirection);
+}
+
+void ChannelCapsule::closeDualOutputUI()
+{
+	ui->OutputDirection->setVisible(false);
+	ui->OutputDirection->setText("");
 }

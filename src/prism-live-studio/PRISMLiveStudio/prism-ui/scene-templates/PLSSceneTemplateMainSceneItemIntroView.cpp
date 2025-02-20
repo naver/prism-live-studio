@@ -23,25 +23,19 @@ PLSSceneTemplateMainSceneItemIntroView::~PLSSceneTemplateMainSceneItemIntroView(
 void PLSSceneTemplateMainSceneItemIntroView::updateUI(const SceneTemplateItem &model)
 {
     m_item = model;
-    QString text = ui->nameLabel->fontMetrics().elidedText(m_item.title, Qt::ElideRight, NAME_MAX_WIDTH);
+	QString text = ui->nameLabel->fontMetrics().elidedText(m_item.title(), Qt::ElideRight, NAME_MAX_WIDTH);
     ui->nameLabel->setText(text);
-    QString resolution = QString("%1 x %2").arg(model.width).arg(model.height);
+	QString resolution = QString("%1 x %2").arg(model.width()).arg(model.height());
     ui->resolutionLabel->setText(resolution);
-    QString sceneCount = QTStr("SceneTemplate.Scene.Count").arg(model.scenesNumber);
+    QString sceneCount = QTStr("SceneTemplate.Scene.Count").arg(model.scenesNumber());
     ui->sceneCountLabel->setText(sceneCount);
-    if (model.groupId == SceneTemplateDefine::SCNENE_TEMPLATE_NEW) {
-	    ui->iconLabel->setProperty("type", SceneTemplateDefine::SCNENE_TEMPLATE_NEW);
-    } else if (model.groupId == SceneTemplateDefine::SCNENE_TEMPLATE_HOT) {
-	    ui->iconLabel->setProperty("type", SceneTemplateDefine::SCNENE_TEMPLATE_HOT);
-    }
-    pls_flush_style(ui->iconLabel);
 }
 
 bool PLSSceneTemplateMainSceneItemIntroView::eventFilter(QObject *watched, QEvent *event)
 {
     if (watched == ui->nameLabel && event->type() == QEvent::Resize) {
-	    if (!m_item.title.isEmpty()) {
-		    QString text = ui->nameLabel->fontMetrics().elidedText(m_item.title, Qt::ElideRight, NAME_MAX_WIDTH);
+		if (!m_item.title().isEmpty()) {
+		    QString text = ui->nameLabel->fontMetrics().elidedText(m_item.title(), Qt::ElideRight, NAME_MAX_WIDTH);
 		    ui->nameLabel->setText(text);   
         }
     }

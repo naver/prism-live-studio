@@ -136,6 +136,9 @@ public:
 	QList<SideWindowInfo> getSideWindowInfo() const;
 	bool setSidebarWindowVisible(int windowId, bool visible);
 	bool setSidebarButtonVisible(int windowId, bool visible);
+	bool setSidebarButtonEnabled(int windowId, bool enabled);
+	void setStudioModeEnabled(bool enabled);
+	void setStudioModeDimmed(bool bValue);
 
 	Q_INVOKABLE void toastMessage(pls_toast_info_type type, const QString &message, int autoClose);
 	Q_INVOKABLE void toastMessage(pls_toast_info_type type, const QString &message, const QString &url, const QString &replaceStr, int autoClose);
@@ -154,7 +157,6 @@ public:
 	void setResolutionBtnCheck(bool bCheck);
 
 	bool isSettingEnabled() const;
-
 public slots:
 	void onSideBarButtonClicked(int buttonId);
 	void updateTipsEnableChanged();
@@ -174,6 +176,8 @@ public slots:
 	void on_user_clicked();
 	void showResolutionTips(const QString &platform);
 	void showVirtualCameraTips(const QString &tips = QString());
+	void showStudioModeTips(const QString &tips = QString());
+	void setStudioModeChecked(bool);
 	void closeMobileDialog() const;
 	void on_discordBtn_clicked();
 

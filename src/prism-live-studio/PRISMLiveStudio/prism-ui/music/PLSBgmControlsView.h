@@ -9,7 +9,7 @@
 
 class QRadioButton;
 class QPushButton;
-class MediaSlider;
+class AbsoluteSlider;
 class QLabel;
 class PLSDelayResponseButton;
 class PLSBgmControlsView : public PLSBgmControlsBase {
@@ -46,7 +46,7 @@ private:
 	PLSDelayResponseButton *preBtn = nullptr;
 	QPushButton *playBtn = nullptr;
 	PLSDelayResponseButton *nextBtn = nullptr;
-	MediaSlider *slider = nullptr;
+	AbsoluteSlider *slider = nullptr;
 	QLabel *currentTimeLabel = nullptr;
 	QLabel *durationLabel = nullptr;
 	PLSBackgroundMusicView::PlayMode mode = PLSBackgroundMusicView::PlayMode::RandomMode;

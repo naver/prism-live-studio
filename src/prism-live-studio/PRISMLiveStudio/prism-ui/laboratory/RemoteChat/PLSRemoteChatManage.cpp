@@ -341,19 +341,14 @@ void PLSRemoteChatManage::readCommonTermJson(QJsonObject &data) const
 		return;
 	}
 
-	QByteArray byteArray;
-	PLSJsonDataHandler::getJsonArrayFromFile(byteArray, filePath);
-	if (byteArray.size() == 0) {
-		printLog("get the data under the file path is empty");
+	if (!pls_read_json(data, filePath)) {
+		printLog("read the commonTerms.json file failed");
 	}
-
-	PLSJsonDataHandler::jsonTo(byteArray, data);
 }
 
 void PLSRemoteChatManage::saveCommonTermJson(const QJsonObject &data) const
 {
-	QJsonDocument doc(data);
-	if (!PLSJsonDataHandler::saveJsonFile(doc.toJson(), getDownloadRemoteChatCommonTermJsonPath())) {
+	if (!pls_write_json(getDownloadRemoteChatCommonTermJsonPath(), data)) {
 		printLog("commonTerms.json save download lab cache failed.");
 		return;
 	}

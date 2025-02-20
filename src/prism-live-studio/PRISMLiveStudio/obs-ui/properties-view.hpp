@@ -19,6 +19,10 @@ typedef void (*PropertiesUpdateCallback)(void *obj, obs_data_t *old_settings,
 					 obs_data_t *new_settings);
 typedef void (*PropertiesVisualUpdateCb)(void *obj, obs_data_t *settings);
 
+QWidget *plsCreateHelpQWidget(QWidget *originWidget, const QString &longDesc,
+			      const char *name = nullptr,
+			      const QVariant &value = QVariant());
+
 /* ------------------------------------------------------------------------- */
 //PRISM/renjinbo/20230906/#2471/color dialog clicked after properties refreshed
 class WidgetInfo : public QObject,
@@ -142,6 +146,9 @@ protected:
 	QWidget *lastWidget = nullptr;
 	bool deferUpdate;
 	bool enableDefer = true;
+	bool disableScrolling = false;
+	bool m_bFromSetting = false;
+
 	QPointer<QPushButton> m_ctSaveTemplateBtn;
 	template<typename Sender, typename SenderParent, typename... Args>
 	QWidget *NewWidget(obs_property_t *prop, Sender *widget,
@@ -151,7 +158,7 @@ protected:
 	QWidget *AddText(obs_property_t *prop, QFormLayout *layout,
 			 QLabel *&label);
 	void AddPath(obs_property_t *prop, QFormLayout *layout, QLabel **label);
-	void AddInt(obs_property_t *prop, QFormLayout *layout, QLabel **label);
+	virtual void AddInt(obs_property_t *prop, QFormLayout *layout, QLabel **label);
 	void AddFloat(obs_property_t *prop, QFormLayout *layout,
 		      QLabel **label);
 	virtual QWidget *AddList(obs_property_t *prop, bool &warning);
@@ -205,7 +212,7 @@ public:
 			  int minSize = 0);
 	OBSPropertiesView(OBSData settings, const char *type,
 			  PropertiesReloadCallback reloadCallback,
-			  int minSize = 0);
+			  int minSize = 0, bool bFromSetting = false);
 
 #define obj_constructor(type)                                              \
 	inline OBSPropertiesView(OBSData settings, obs_##type##_t *type,   \
@@ -242,6 +249,14 @@ public:
 	inline void SetDeferrable(bool deferrable) { enableDefer = deferrable; }
 
 	inline OBSObject GetObject() const { return OBSGetStrongRef(weakObj); }
+
+	void setScrolling(bool enabled)
+	{
+		disableScrolling = !enabled;
+		RefreshProperties();
+	}
+
+	void SetDisabled(bool disabled);
 
 	bool getIsCustomContentMargins(const char *sourceId = nullptr);
 	void setContentMarginAndWidth();

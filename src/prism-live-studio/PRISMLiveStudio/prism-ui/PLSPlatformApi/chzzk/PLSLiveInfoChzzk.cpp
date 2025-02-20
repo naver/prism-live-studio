@@ -30,7 +30,6 @@ static QString getHtmlListTooltip(const QList<QString> &args)
 		if (!data.isEmpty())
 			content.append(liTemplate.arg(data));
 	}
-
 	QString tooltipText = R"(
 <body style=" font-family: .AppleSystemUIFont, Segoe UI, Malgun Gothic, Dotum, Gulim, sans-serif, -apple-system, BlinkMacSystemFont !important; font-size:11px; font-weight:400; font-style:normal;">
 	<ul style='margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 0;'>
@@ -79,6 +78,8 @@ PLSLiveInfoChzzk::PLSLiveInfoChzzk(PLSPlatformBase *pPlatformBase, QWidget *pare
 	connect(ui->cancelButton, &QPushButton::clicked, this, &PLSLiveInfoChzzk::cancelButtonClicked);
 	updateStepTitle(ui->okButton);
 
+	ui->dualWidget->setText(tr("chzzk.liveinfo.title"))->setUUID(m_platform->getChannelUUID());
+
 	ui->thumbnailButton->setTipLabelString("(1280x720)");
 	ui->thumbnailButton->setShowDeleteBtn(true);
 #if defined(Q_OS_WIN)
@@ -86,7 +87,7 @@ PLSLiveInfoChzzk::PLSLiveInfoChzzk(PLSPlatformBase *pPlatformBase, QWidget *pare
 		ui->bottomButtonWidget->layout()->addWidget(ui->cancelButton);
 	}
 #endif
-	m_platform->liveInfoisShowing();
+	m_platform->liveInfoIsShowing();
 
 	setupFirstUI();
 	setupGuideButton();
@@ -158,7 +159,7 @@ void PLSLiveInfoChzzk::refreshUI()
 	ui->age_checkbox->setCheckState(data.isAgeLimit == true ? Qt::Checked : Qt::Unchecked);
 	ui->money_checkbox->setCheckState(data.isNeedMoney == true ? Qt::Checked : Qt::Unchecked);
 
-	m_chatGroups->button(PLSPlatformChzzk::getIndexOfChatPermission(data.chatPermisson))->setChecked(true);
+	m_chatGroups->button(PLSPlatformChzzk::getIndexOfChatPermission(data.chatPermission))->setChecked(true);
 
 	ui->radioButton_clip_allow->setChecked(data.clipActive);
 	ui->radioButton_clip_not_allow->setChecked(!data.clipActive);
@@ -280,11 +281,10 @@ void PLSLiveInfoChzzk::okButtonClicked()
 	uiData.isAgeLimit = ui->age_checkbox->checkState() == Qt::Checked;
 	uiData.isNeedMoney = ui->money_checkbox->checkState() == Qt::Checked;
 
-	uiData.chatPermisson = PLSPlatformChzzk::getchatPermissionByIndex(m_chatGroups->checkedId());
+	uiData.chatPermission = PLSPlatformChzzk::getChatPermissionByIndex(m_chatGroups->checkedId());
 	uiData.categoryData = ui->lineEditCategory->getSelectData();
 	uiData.clipActive = ui->radioButton_clip_allow->isChecked();
 	m_platform->setFailedErr("");
-	m_platform->setlastRequestAPI("");
 	m_platform->saveSettings(_onNext, uiData, ui->thumbnailButton->getImagePath(), this, m_isClickedDeleteBtn);
 }
 
@@ -298,12 +298,7 @@ void PLSLiveInfoChzzk::showEvent(QShowEvent *event)
 {
 	Q_UNUSED(event)
 	showLoading(content());
-	m_platform->setIsShownAlert(false);
 	auto _onNextVideo = [this](bool value) {
-		if (!value && !m_platform->isShownAlert()) {
-			m_platform->setIsShownAlert(false);
-			m_platform->setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED, {});
-		}
 		refreshUI();
 		hideLoading();
 

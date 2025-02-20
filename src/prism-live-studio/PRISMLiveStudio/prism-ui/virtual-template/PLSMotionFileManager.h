@@ -237,28 +237,14 @@ public:
 	static PLSMotionFileManager *instance();
 	~PLSMotionFileManager() override = default;
 	explicit PLSMotionFileManager(QObject *parent = nullptr);
-	QVariantList getPrismList() const;
-	QVariantList getFreeList() const;
-	bool isVirtualTemplateJsonExisted();
-	void downloadVirtualJson(const std::function<void(void)> &ok = nullptr, const std::function<void(void)> &fail = nullptr) const;
 	QString getFilePathByURL(const MotionData &data, const QString &url) const;
 	MotionType motionTypeByString(const QString &type) const;
 	bool isDownloadFileExist(const QString &filePath) const;
 	bool isValidMotionData(const MotionData &data, bool onlyCheckValues = false) const;
-	bool insertMotionData(const MotionData &data, const QString &key);
-	void removeRepeatedMotionData(const MotionData &data, QList<MotionData> &list) const;
-	bool deleteMotionData(QObject *sourceUi, const QString &itemId, const QString &key, bool isVbUsed, bool isSourceUsed);
-	bool copyFileToPrismPath(const QFileInfo &fileInfo, QString &fileUuid, QString &destPath) const;
-	QString getPrismResourcePathByUUid(const QString &uuid, const QString &suffix) const;
-	QString getPrismThumbnailPathByUUid(const QString &uuid, const QString &suffix) const;
-	QString getPrismStaticImgPathByUUid(const QString &uuid, const QString &suffix) const;
+	MotionData insertMotionData(const MotionData &data, const QString &key);
+	bool deleteMotionData(QObject *sourceUi, const MotionData &data, const QString &key, bool isVbUsed, bool isSourceUsed);
 	bool isVideoTypeFile(const QString &suffix, bool &isGif) const;
 	bool isStaticImageTypeFile(const QString &suffix) const;
-	QList<MotionData> &getRecentMotionList(const QString &recentKey);
-	QList<MotionData> &getMyMotionList();
-	void saveMotionList() const;
-	void saveCategoryIndex(int index, const QString &key);
-	QString categoryIndex(const QString &key) const;
 
 	// async add my resources
 	void addMyResources(QObject *sourceUi, const QStringList &files);
@@ -267,8 +253,6 @@ public:
 	bool copyListForPrism(QList<MotionData> &copied, const QList<MotionData> &dst, const QList<MotionData> &src);
 	bool isRemovedChanged(QList<MotionData> &needNotified, QList<MotionData> &removed, QList<MotionData> &dst) const;
 	void notifyCheckedRemoved(const QList<MotionData> &removed);
-	void redownloadResource(MotionData &md, bool update = false, const std::function<void(const MotionData &md)> &ok = nullptr,
-				const std::function<void(const MotionData &md)> &fail = nullptr) const;
 
 	QSvgRenderer *getMotionFlagSvg();
 	void loadMotionFlagSvg();
@@ -285,8 +269,6 @@ public:
 	void getThumbnailPixmapSize(QSize &size, QMargins &margin, int &radius, bool properties);
 	void setThumbnailPixmap(const QString &itemId, const QPixmap &thumbnailPixmap);
 
-	bool isMy(const QString &itemId) const;
-	bool findMy(MotionData &md, const QString &itemId) const;
 	bool removeAt(QList<MotionData> &mds, const QString &itemId) const;
 	bool findAndRemoveAt(MotionData &md, QList<MotionData> &mds, const QString &itemId) const;
 
@@ -302,20 +284,11 @@ signals:
 	void deleteMyResources();
 
 private:
-	bool createMotionJsonFile() const;
-	bool getLocalMotionObject(QJsonObject &object) const;
 	QString getUserPath(const QString &subPath) const;
 	QString getFileNameByURL(const QString &url) const;
-	QVariantList getListForKey(const QString &key) const;
-	void getMotionListByJsonArray(const QJsonArray &array, QList<MotionData> &list, DataType dataType) const;
 	void deleteMotionListItem(const QString &itemId, QList<MotionData> &list, bool deleteFile = true) const;
 	void deleteLocalFile(const QString &path) const;
-	void saveMotionListToLocalPath(const QString &listTypeKey, QJsonObject &jsonObject, const QList<MotionData> &list) const;
-	QVariantList reloadGetList(const QString &key);
 
-	QList<MotionData> m_virtualRecentList;
-	QList<MotionData> m_propertyRecentList;
-	QList<MotionData> m_myList;
 	QString m_virtualCategoryIndex = nullptr;
 	QString m_propertyCategoryIndex = nullptr;
 	PLSAddMyResourcesThread *addMyResourcesThread = nullptr;

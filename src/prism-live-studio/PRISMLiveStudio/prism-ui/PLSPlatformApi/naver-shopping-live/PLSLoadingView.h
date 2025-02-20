@@ -14,14 +14,15 @@ class PLSLoadingView : public QFrame {
 	Q_OBJECT
 
 public:
-	explicit PLSLoadingView(QWidget *parent = nullptr);
+	explicit PLSLoadingView(QWidget *parent = nullptr, QString pathImage = QString());
 	~PLSLoadingView() override;
 
 	using PfnGetViewRect = std::function<bool(QRect &geometry, PLSLoadingView *loadingView)>;
 
 	static PLSLoadingView *newLoadingView(QWidget *parent, const PfnGetViewRect &getViewRect = nullptr);
 	static PLSLoadingView *newLoadingView(PLSLoadingView *&loadingView, QWidget *parent, const PfnGetViewRect &getViewRect = nullptr);
-	static PLSLoadingView *newLoadingView(QWidget *parent, int absoluteTop, const PfnGetViewRect &getViewRect = nullptr);
+	static PLSLoadingView *newLoadingView(QWidget *parent, int absoluteTop, const PfnGetViewRect &getViewRect = nullptr, const QString &pathImage = QString(),
+					      std::optional<QColor> colorBackground = std::nullopt);
 	static PLSLoadingView *newLoadingView(PLSLoadingView *&loadingView, QWidget *parent, int absoluteTop, const PfnGetViewRect &getViewRect = nullptr);
 	static PLSLoadingView *newLoadingView(PLSLoadingView *&loadingView, bool condition, QWidget *parent, int absoluteTop, const PfnGetViewRect &getViewRect = nullptr);
 	static void deleteLoadingView(PLSLoadingView *&loadingView);
@@ -49,6 +50,7 @@ private:
 	int m_curPixmap = 0;
 	int m_absoluteTop = -1;
 	double m_dpi = 1.0;
+	std::optional<QColor> m_colorBackground;
 };
 
 #endif // PLSLOADINGVIEW_H

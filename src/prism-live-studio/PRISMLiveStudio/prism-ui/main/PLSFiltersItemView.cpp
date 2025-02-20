@@ -50,6 +50,9 @@ PLSFiltersItemView::PLSFiltersItemView(obs_source_t *source_, QWidget *parent)
 	ui->horizontalLayout->setSpacing(-1);
 #endif
 
+	setCursor(Qt::ArrowCursor);
+	setProperty("notShowHandCursor", true);
+
 	connect(ui->visibleButton, &QPushButton::clicked, this, &PLSFiltersItemView::OnVisibilityButtonClicked);
 	connect(ui->advButton, &QPushButton::clicked, this, [=]() { emit OnCreateCustomContextMenu(QCursor::pos(), async); });
 }

@@ -1,0 +1,87 @@
+PLSDualOutputTitle {
+}
+
+#buttonHPreview, #buttonVPreview {
+    background: #444444;
+    min-width: 28px;
+    max-width: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    padding: 0;
+}
+
+#buttonHPreview:hover, #buttonVPreview:hover {
+    background: #555555;
+}
+#buttonHPreview:pressed, #buttonVPreview:pressed {
+    background: #2D2D2D;
+}
+#buttonHPreview:disabled, #buttonVPreview:disabled {
+    background: #444444;
+}
+
+#buttonHPreview {
+    image: url("://resource/images/dual-output/ic_preview_h_unchecked.svg");
+}
+#buttonHPreview:checked {
+    image: url("://resource/images/dual-output/ic_preview_h.svg");
+}
+
+#buttonVPreview {
+    image: url("://resource/images/dual-output/ic_preview_v_unchecked.svg");
+}
+#buttonVPreview:checked {
+    image: url("://resource/images/dual-output/ic_preview_v.svg");
+}
+
+#buttonSetting {
+    font-size: 12px;
+    font-weight: bold;
+    color: #BABABA;
+}
+
+#buttonSetting:hover {
+    color: #FFFFFF;
+}
+
+#buttonSetting:pressed {
+    color: #1E1E1E;
+}
+
+#buttonSetting:disabled {
+    color: #3D3D3D;
+}
+
+#buttonSetting::indicator {
+    background: transparent;
+    image: url(":/resource/images/dual-output/ic_dock_setting_normal.png");
+    width: 22px;
+    height: 22px;
+}
+
+#buttonSetting::indicator:hover {
+    image: url(":/resource/images/dual-output/ic_dock_setting_hover.png");
+}
+
+#buttonSetting::indicator:pressed {
+    image: url(":/resource/images/dual-output/ic_dock_setting_click.png");
+}
+
+#buttonSetting::indicator:disabled {
+    image: url(":/resource/images/dual-output/ic_dock_setting_disable.png");
+}
+
+#iconHPlatform, #iconVPlatform {
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+}
+
+#iconHPlatform {
+    image: url("://resource/images/dual-output/ic_preview_h.svg");
+}
+
+#iconVPlatform {
+    image: url("://resource/images/dual-output/ic_preview_v.svg");
+}

@@ -6,8 +6,6 @@
 #include "liblog.h"
 #include "PLSLoginDataHandler.h"
 #include "item-widget-helpers.hpp"
-#include "PLSNCB2BError.h"
-
 #include "ui_PLSNCB2BBrowserSettings.h"
 
 static const char *ncb2bBrowserSettingsModuleName = "PLSNCB2bBrowserSettings";
@@ -295,10 +293,9 @@ void PLSNCB2bBrowserSettings::onRefreshButtonClicked()
 		requestExisted = false;
 	};
 
-	auto failCallback = [this](const QJsonObject &data) {
+	auto failCallback = [this](const QJsonObject &, const PLSErrorHandler::RetData &retData) {
 		PLS_INFO(ncb2bBrowserSettingsModuleName, "There was some errors was retrieved from the api.");
-		auto code = data["code"].toInt();
-		if (code == PLSNCB2BError::ErrorCode::Service_Disable) {
+		if (retData.prismCode == PLSErrorHandler::CHANNEL_NCP_B2B_1101_SERVICE_DISABLED) {
 			ui->noNetworkLabel->setText(QTStr("Ncb2b.Service.Disable.Status"));
 		} else {
 			ui->noNetworkLabel->setText(QTStr("Ncpb2b.Browser.Settings.No.Network.Desc"));

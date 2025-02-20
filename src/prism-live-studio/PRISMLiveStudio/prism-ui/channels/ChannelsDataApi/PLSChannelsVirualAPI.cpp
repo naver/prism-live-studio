@@ -28,6 +28,7 @@
 #include "pls-channel-const.h"
 #include "pls-common-define.hpp"
 #include "pls-shared-values.h"
+#include "pls/pls-dual-output.h"
 #include "window-basic-main.hpp"
 
 using namespace ChannelData;
@@ -277,8 +278,8 @@ void handleValidState(const QVariantMap &info, const QString &uuid, bool &isCont
 	if (auto displayname = getInfo(info, g_nickName); displayname.isEmpty()) {
 		auto platform = getInfo(info, g_channelName);
 		PRE_LOG_MSG(QString("empty nick name:" + platform).toStdString().c_str(), ERROR)
-		addErrorForType(NetWorkErrorType::UnknownError);
-
+		auto retData = PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_UNKNOWN_ERROR, platform, "");
+		addErrorFromRetData(retData);
 		return;
 	}
 
@@ -291,9 +292,7 @@ void handleLoginErrorState(const QVariantMap &info, const QString &uuid)
 {
 
 	QVariantMap errormap;
-	errormap.insert(g_errorTitle, QObject::tr("Alert.Title"));
-	errormap.insert(g_errorString, CHANNELS_TR(Check.Login.Error));
-	PLSCHANNELS_API->addError(errormap);
+	addErrorFromInfo(info);
 	bool isUpdated = getInfo(info, g_isUpdated, false);
 	PLSCHANNELS_API->sigTryRemoveChannel(uuid, isUpdated, false);
 	if (!isUpdated) {
@@ -415,70 +414,31 @@ bool updateRTMPTypeFromNet(const QString &uuid)
 	}
 }
 
-QVariantMap createErrorMap(int errorType)
-{
-
-	QVariantMap errormap;
-	errormap.insert(g_errorType, errorType);
-	switch (errorType) {
-
-	case NetWorkErrorType::NetWorkNoStable:
-		errormap.insert(g_errorTitle, QObject::tr("Alert.Title"));
-		errormap.insert(g_errorString, QTStr("login.check.note.network")); //error
-		errormap.insert(g_errorIsErrMsg, false);
-		break;
-	case NetWorkErrorType::RTMPNotExist:
-		errormap.insert(g_errorTitle, QObject::tr("Alert.Title"));
-		errormap.insert(g_errorString, QObject::tr("Channels.rtmp.notexist"));
-		errormap.insert(g_errorIsErrMsg, true);
-		break;
-	case NetWorkErrorType::NeedRefresh: //for some api ,reply code can be any case ,refresh to confirm
-		errormap.insert(g_errorTitle, QObject::tr("Alert.Title"));
-		errormap.insert(g_errorString, QObject::tr("Channels.Refresh.Confirm"));
-		errormap.insert(g_errorIsErrMsg, true);
-		break;
-	case NetWorkErrorType::SystemTimeError:
-		errormap.insert(g_errorTitle, QObject::tr("Alert.Title"));
-		errormap.insert(g_errorString, QObject::tr("Prism.Login.Systemtime.Error"));
-		errormap.insert(g_errorIsErrMsg, true);
-		break;
-	default:
-		errormap.insert(g_errorTitle, QObject::tr("Alert.Title"));
-		errormap.insert(g_errorString, QObject::tr("server.unknown.error")); //error
-		errormap.insert(g_errorIsErrMsg, true);
-		break;
-	}
-
-	return errormap;
-}
-
-void addErrorForType(int errorType)
-{
-	auto errorMap = createErrorMap(errorType);
-	PLSCHANNELS_API->addError(errorMap);
-}
-
 void addErrorFromInfo(const QVariantMap &info)
 {
-	int errorType = getInfo(info, g_errorType, NetWorkErrorType::NetWorkNoStable);
-	auto name = getInfo(info, g_channelName);
-	if (errorType == NetWorkErrorType::SpecializedError || name == NAVER_SHOPPING_LIVE || errorType == NetWorkErrorType::NCB2BError) {
-		QVariantMap errormap;
-		errormap.insert(g_errorType, errorType);
-		errormap.insert(g_errorTitle, getInfo(info, g_errorTitle, QObject::tr("Alert.Title")));
-		errormap.insert(g_errorString, getInfo(info, g_errorString, QObject::tr("server.unknown.error"))); //error
-		errormap.insert(g_errorIsErrMsg, true);
-		PLSCHANNELS_API->addError(errormap);
-		return;
-	}
-	addErrorForType(errorType);
+	auto data = getInfo(info, g_errorRetdata, QVariant());
+	QVariantMap errormap;
+	errormap.insert(g_errorRetdata, data);
+	errormap.insert(g_errorString, getInfo(info, g_errorString, QObject::tr("server.unknown.error"))); //error
+	PLSCHANNELS_API->addError(errormap);
+	return;
 }
 
-QVariantMap createScheduleGetError(const QString &platform, ChannelData::NetWorkErrorType errorType)
+void addErrorFromRetData(const PLSErrorHandler::RetData &data)
 {
-	auto content = createErrorMap(errorType);
-	content.insert(ChannelData::g_channelName, platform);
-	return content;
+	QVariantMap errormap;
+	errormap.insert(g_errorRetdata, QVariant::fromValue(data));
+	errormap.insert(g_errorString, data.alertMsg);
+	PLSCHANNELS_API->addError(errormap);
+}
+
+QVariantMap createScheduleGetError(const QString &platform, const PLSErrorHandler::RetData &data)
+{
+	QVariantMap errormap;
+	errormap.insert(g_errorRetdata, QVariant::fromValue(data));
+	errormap.insert(g_errorString, data.alertMsg);
+	errormap.insert(g_channelName, platform);
+	return errormap;
 }
 
 void refreshChannel(const QString &uuid)
@@ -547,17 +507,18 @@ void resetExpiredChannel(const QString &uuid, bool toAsk)
 	PLSCHANNELS_API->tryRemoveChannel(uuid, true, false);
 
 	auto name = getInfo(info, g_channelName);
-	QString errorString = getInfo(info, g_errorString);
-	reloginChannel(name, toAsk, errorString);
+	auto retData = getInfo<PLSErrorHandler::RetData>(info, g_errorRetdata);
+	reloginChannel(name, toAsk, retData);
 }
 
-void reloginChannel(const QString &platformName, bool toAsk, const QString &errorString)
+void reloginChannel(const QString &platformName, bool toAsk, const PLSErrorHandler::RetData &data)
 {
 	QString displayPlatform = channleNameConvertFixPlatformName(platformName);
 	if (displayPlatform == NCB2B) {
 		if (toAsk) {
-			pls_async_call_mt([]() {
-				pls_alert_error_message(getMainWindow(), QObject::tr("Alert.Title"), QObject::tr("Ncb2b.Token.Expired").arg(NCB2BConvertChannelName(NCB2B)));
+			pls_async_call_mt([data]() {
+				auto tempData = data;
+				PLSErrorHandler::directShowAlert(tempData, getMainWindow());
 				pls_prism_change_over_login_view();
 			});
 		} else {
@@ -571,16 +532,9 @@ void reloginChannel(const QString &platformName, bool toAsk, const QString &erro
 		return;
 	}
 	if (toAsk) {
-
-		QString displayPlatform = translatePlatformName(platformName);
-		QString content = CHANNELS_TR(expiredQuestion).arg(displayPlatform);
-		if (displayPlatform == TR_NAVER_SHOPPING_LIVE && !errorString.isEmpty()) {
-			content = errorString;
-		}
-		PLSAlertView::Button ret = PLSAlertView::Button::Yes;
-
-		pls_sync_call_mt([content, &ret]() { ret = pls_alert_error_message(getMainWindow(), CHANNELS_TR(Confirm), content, {{PLSAlertView::Button::Yes, QObject::tr("OK")}}); });
-		if (ret != PLSAlertView::Button::Yes) {
+		auto tempData = data;
+		PLSErrorHandler::directShowAlert(tempData, getMainWindow());
+		if (tempData.clickedBtn != PLSAlertView::Button::Ok && tempData.clickedBtn != PLSAlertView::Button::Yes) {
 			return;
 		}
 	}
@@ -590,22 +544,10 @@ void reloginChannel(const QString &platformName, bool toAsk, const QString &erro
 	});
 }
 
-int getReplyContentCode(const QByteArray &data)
+void reloginPrismExpired(const PLSErrorHandler::RetData &data)
 {
-	auto doc = QJsonDocument::fromJson(data);
-	int code = 0;
-	if (!doc.isNull()) {
-		auto obj = doc.object();
-		if (!obj.isEmpty()) {
-			code = obj.value("code").toInt();
-		}
-	}
-	return code;
-}
-
-void reloginPrismExpired()
-{
-	PLSAlertView::information(getMainWindow(), QObject::tr("Alert.Title"), QObject::tr("main.message.prism.login.session.expired"));
+	auto tempData = data;
+	PLSErrorHandler::directShowAlert(tempData, getMainWindow());
 	//PLSBasic::Get()->setSessionExpired(true);
 	pls_prism_change_over_login_view();
 }
@@ -664,19 +606,8 @@ void handleEmptyChannel(const QString &uuid)
 		return;
 	}
 	info[g_isUserAsked] = true;
-
-	if (auto platformName = getInfo(info, g_channelName); platformName == YOUTUBE) {
-
-		if (auto ret = PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(GotoYoutubetoSet),
-						      {{PLSAlertView::Button::Yes, CHANNELS_TR(GotoYoutubeOk)}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}}, PLSAlertView::Button::Cancel);
-		    ret != PLSAlertView::Button::Yes) {
-			return;
-		}
-		QDesktopServices::openUrl(QUrl(g_yoububeLivePage));
-		return;
-	}
-	pls_alert_error_message(getMainWindow(), QObject::tr("Alert.Title"), CHANNELS_TR(EmptyChannelMessage));
-
+	auto platformName = getInfo(info, g_channelName);
+	auto retData = PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::COMMON_CHANNEL_EMPTYCHANNEL, platformName, "", {}, getMainWindow());
 	return;
 }
 
@@ -846,13 +777,14 @@ bool checkVersion()
 bool checkChannelsState()
 {
 	bool isTocontinue = true;
-	QMetaObject::invokeMethod(getMainWindow(), checkVersion, getInvokeType(), &isTocontinue);
+	auto mainWindow = getMainWindow();
+	QMetaObject::invokeMethod(mainWindow, checkVersion, getInvokeType(), &isTocontinue);
 	if (!isTocontinue) {
 		return false;
 	}
 	if (PLSCHANNELS_API->currentSelectedCount() == 0) {
-		auto showWarning = []() { PLSAlertView::warning(getMainWindow(), QObject::tr("Alert.Title"), CHANNELS_TR(ErrorEmptyChannelMessage)); };
-		QMetaObject::invokeMethod(getMainWindow(), showWarning, getInvokeType());
+		auto showWarning = [mainWindow]() { PLSAlertView::warning(mainWindow, QObject::tr("Alert.Title"), CHANNELS_TR(ErrorEmptyChannelMessage)); };
+		QMetaObject::invokeMethod(mainWindow, showWarning, getInvokeType());
 		return false;
 	}
 	return true;
@@ -902,7 +834,8 @@ bool startStreamingCheck()
 bool toGoLive()
 {
 	bool isok = QMetaObject::invokeMethod(PLSBasic::instance(), "StartStreaming", getInvokeType());
-	if (!isok || !PLSBasic::instance()->getState(OBS_FRONTEND_EVENT_STREAMING_STARTING)) {
+	auto bMultitrackVideo = config_get_bool(PLSBasic::instance()->Config(), "Stream1", "EnableMultitrackVideo");
+	if (!isok || (!bMultitrackVideo && !PLSBasic::instance()->getState(OBS_FRONTEND_EVENT_STREAMING_STARTING))) {
 		PRE_LOG("error :StartStreaming", ERROR)
 		isok = false;
 	}
@@ -1069,11 +1002,6 @@ void showShareView(const QString &channelUUID)
 	dialog->initInfo(info);
 }
 
-int showSummaryView()
-{
-	return 0;
-}
-
 LoadingFrame *createBusyFrame(QWidget *parent)
 {
 	QPointer<LoadingFrame> loadView = new LoadingFrame(parent);
@@ -1098,108 +1026,26 @@ void showNetworkErrorAlert()
 	if (PLSCHANNELS_API->hasError() && PLSCHANNELS_API->isEmptyToAcquire()) {
 		auto errorMap = PLSCHANNELS_API->takeFirstError();
 		SemaphoreHolder holder(PLSCHANNELS_API->getSourceSemaphore());
-		auto type = getInfo(errorMap, g_errorType, NetWorkErrorType::NetWorkNoStable);
-		if (type == NetWorkErrorType::NetWorkNoStable) {
-			showAlertOnlyOnce(NetWorkErrorType::NetWorkNoStable);
-		} else {
-			auto title = getInfo(errorMap, g_errorTitle);
-			auto text = getInfo(errorMap, g_errorString);
-			if (getInfo<bool>(errorMap, g_errorIsErrMsg, false)) {
-				showAlertOnlyOnce(type, title, text, true);
-			} else {
-				showAlertOnlyOnce(type, title, text, false);
-			}
-		}
+		auto retData = getInfo<PLSErrorHandler::RetData>(errorMap, g_errorRetdata);
+		showAlertOnlyOnce(retData);
 		PLSCHANNELS_API->clearAllErrors();
 	}
 	PLSCHANNELS_API->holdOnChannelArea(false);
 }
 
-void showErrorAlert(int errorType)
-{
-	QMetaObject::invokeMethod(
-		pls_get_main_view(),
-		[errorType]() {
-			addErrorForType(errorType);
-			showNetworkErrorAlert();
-		},
-		Qt::QueuedConnection);
-}
-
 QMap<int, bool> mapShowAlert;
 
-void showAlertOnlyOnce(int errorType, const QString &replace_title, const QString &replace_text, bool isErrorMessage)
+void showAlertOnlyOnce(const PLSErrorHandler::RetData &data)
 {
-	if (mapShowAlert.value(errorType)) {
+
+	if (mapShowAlert.value(data.prismCode)) {
 		return;
 	}
-	mapShowAlert.insert(errorType, true);
-
-	auto title = QTStr("Alert.Title");
-	QString text;
-	switch (errorType) {
-	case NetWorkErrorType::SystemTimeError: {
-		text = QTStr("Prism.Login.Systemtime.Error");
-		break;
-	}
-	case NetWorkErrorType::NetWorkNoStable: {
-		text = QTStr("login.check.note.network");
-		break;
-	}
-	default: {
-		text = QTStr("server.unknown.error");
-		break;
-	}
-	}
-
-	if (!replace_title.isEmpty()) {
-		title = replace_title;
-	}
-
-	if (!replace_text.isEmpty()) {
-		text = replace_text;
-	}
-
-	PLSLaunchWizardView *banner = dynamic_cast<PLSLaunchWizardView *>(pls_get_banner_widget());
-	bool isDontShow = config_get_bool(App()->GlobalConfig(), common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW);
-	if (banner && !banner->getIsShowFlag() && !isDontShow) {
-		auto *watcher = pls_new<PLSShowWatcher>(banner);
-		QObject::connect(
-			watcher, &PLSShowWatcher::signalShow, banner,
-			[watcher, banner, title, text, isErrorMessage, errorType]() {
-				PLS_INFO("channel", "launch signalShow");
-				watcher->deleteLater();
-				if (isErrorMessage) {
-					pls_alert_error_message(banner, title, text);
-				} else {
-					PLSAlertView::warning(banner, title, text);
-				}
-				mapShowAlert.remove(errorType);
-				banner->activateWindow();
-				banner->raise();
-			},
-			Qt::ConnectionType(Qt::QueuedConnection | Qt::SingleShotConnection));
-	} else {
-		auto mainWindow = getMainWindow();
-		pls_async_call_mt(mainWindow, [mainWindow, isErrorMessage, title, text, errorType]() {
-			if (isErrorMessage) {
-				pls_alert_error_message(mainWindow, title, text);
-			} else {
-				PLSAlertView::warning(mainWindow, title, text);
-			}
-			mapShowAlert.remove(errorType);
-		});
-	}
-}
-
-PRISM_API_ERROR getPrismApiError(const QByteArray &data, const int &statusCode)
-{
-	auto root = QJsonDocument::fromJson(data).object();
-	QString errorCode = root["errorCode"].toString();
-	if (errorCode == PRISM_API_SYSTEM_ERROR && common::HTTP_STATUS_CODE_403 == statusCode) {
-		return PRISM_API_ERROR::SystemExccedTimeLimitError;
-	}
-	return PRISM_API_ERROR::NoError;
+	mapShowAlert.insert(data.prismCode, true);
+	PLSBasic::instance()->setAlertParentWithBanner([data = data](QWidget *parent) mutable {
+		PLSErrorHandler::directShowAlert(data, parent);
+		mapShowAlert.remove(data.prismCode);
+	});
 }
 
 template<typename ArgsType> void showChannelsSettingImpl(const ArgsType &platform)
@@ -1227,7 +1073,7 @@ void sendInfoToWidzard(const QVariantMap &info, int type)
 		[type, info]() {
 			QVariantHash hashData;
 			hashData.insert("type", type);
-			hashData.insert("msg", QJsonObject::fromVariantMap(info));
+			hashData.insert("msg", info);
 			PLSLaunchWizardView::instance()->onPrismMessageCome(hashData);
 		},
 		Qt::QueuedConnection);

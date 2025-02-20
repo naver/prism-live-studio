@@ -14,8 +14,8 @@
 #include <qtimer.h>
 #include <qmetatype.h>
 #include <qpushbutton.h>
-#include "PLSMotionNetwork.h"
 #include "PLSMotionFileManager.h"
+#include "CategoryVirtualTemplate.h"
 #include "pls/pls-source.h"
 #include "PLSAction.h"
 #include "qt-display.hpp"
@@ -136,7 +136,7 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 		[avType, permissionStatus, this]() {
 			PLSPermissionHelper::showPermissionAlertIfNeeded(avType, permissionStatus, this, [this]() {
 				acceptClicked = true;
-				reject();
+				QMetaObject::invokeMethod(this, &PLSBasicProperties::reject, Qt::QueuedConnection);
 			});
 		},
 		Qt::QueuedConnection);
@@ -175,6 +175,10 @@ void PLSBasicProperties::ShowLoading()
 	m_pWidgetLoadingBG = pls_new<QWidget>(content());
 	m_pWidgetLoadingBG->setObjectName("loadingBG");
 	m_pWidgetLoadingBG->setGeometry(content()->geometry());
+#if defined(Q_OS_MACOS)
+	m_pWidgetLoadingBG->setAttribute(Qt::WA_DontCreateNativeAncestors);
+	m_pWidgetLoadingBG->setAttribute(Qt::WA_NativeWindow);
+#endif
 	m_pWidgetLoadingBG->show();
 
 	m_pLoadingEvent = pls_new<PLSLoadingEvent>();
@@ -212,10 +216,10 @@ void PLSBasicProperties::AsyncLoadTextmotionProperties()
 {
 	connect(
 		TextMotionRemoteDataHandler::instance(), &TextMotionRemoteDataHandler::loadedTextmotionRes, this,
-		[this](bool isSuccess) {
+		[this](bool isSuccess, bool isUpdate) {
 			HideLoading();
 			auto propertiesView = dynamic_cast<PLSPropertiesView *>(view);
-			if (propertiesView && isSuccess) {
+			if (propertiesView && isSuccess && isUpdate) {
 				QTimer::singleShot(0, this, [propertiesView, this]() {
 					if (propertiesView) {
 						pls_get_text_motion_template_helper_instance()->initTemplateButtons();
@@ -228,10 +232,11 @@ void PLSBasicProperties::AsyncLoadTextmotionProperties()
 		},
 		Qt::QueuedConnection);
 
-	//load textmotion resource,if not exist,download res
-	if (!TextMotionRemoteDataHandler::instance()->initTMData()) {
-		ShowLoading();
-	}
+	TextMotionRemoteDataHandler::instance()->initTMData([this](bool isOk) {
+		if (!isOk) {
+			ShowLoading();
+		}
+	});
 }
 
 void PLSBasicProperties::ShowMobileNotice()
@@ -303,7 +308,7 @@ void PLSBasicProperties::ShowPrismLensNaverRunNotice(bool isMobileSource)
 #if defined(Q_OS_MACOS)
 		pls_set_current_lens(outputCam);
 #endif
-		accept();
+		QMetaObject::invokeMethod(this, &PLSBasicProperties::accept, Qt::QueuedConnection);
 	}
 }
 
@@ -320,16 +325,8 @@ void PLSBasicProperties::UpdatePropertiesOkButtonEnable(void *data, calldata_t *
 
 static bool isValidBackgroundResource(const QString &itemId)
 {
-	const PLSMotionNetwork *network = PLSMotionNetwork::instance();
-	const PLSMotionFileManager *fileManager = PLSMotionFileManager::instance();
-
-	MotionData md;
-	if (network->findPrismOrFree(md, itemId)) {
-		return fileManager->isValidMotionData(md, true);
-	} else if (fileManager->findMy(md, itemId)) {
-		return fileManager->isValidMotionData(md, true);
-	}
-	return false;
+	MotionData md = CategoryVirtualTemplateInstance->getMotionDataById(itemId);
+	return PLSMotionFileManager::instance()->isValidMotionData(md, true);
 }
 
 void PLSBasicProperties::onReloadOldSettings() const

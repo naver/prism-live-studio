@@ -1,0 +1,12 @@
+if(POLICY CMP0007)
+  cmake_policy(SET CMP0007 NEW)
+endif()
+if(POLICY CMP0009)
+  cmake_policy(SET CMP0009 NEW)
+endif()
+if(POLICY CMP0011)
+  cmake_policy(SET CMP0011 NEW)
+endif()
+
+message(STATUS "bundleutils: PRISM: copy obs app bundle to prism app bundle")
+
