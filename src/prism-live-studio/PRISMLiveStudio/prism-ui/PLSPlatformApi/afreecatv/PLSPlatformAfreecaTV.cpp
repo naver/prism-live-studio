@@ -25,6 +25,7 @@
 
 #include "pls-net-url.hpp"
 #include "window-basic-main.hpp"
+#include "PLSErrorHandler.h"
 
 using namespace std;
 
@@ -57,7 +58,7 @@ void PLSPlatformAfreecaTV::setSelectData(const PLSAfreecaTVLiveinfoData &data)
 
 void PLSPlatformAfreecaTV::saveSettings(const function<void(bool)> &onNext, const QString &title)
 {
-	PLS_INFO(MODULE_PlatformService, __FUNCTION__);
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, __FUNCTION__);
 
 	auto _onNext = [this, title, onNext](bool isSucceed) {
 		if (!isSucceed) {
@@ -125,9 +126,9 @@ void PLSPlatformAfreecaTV::onPrepareLive(bool value)
 		return;
 	}
 
-	PLS_INFO(MODULE_PlatformService, "onPrepareLive show liveinfo");
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "onPrepareLive show liveinfo");
 	value = pls_exec_live_Info_afreecatv(getChannelUUID(), getInitData()) == QDialog::Accepted;
-	PLS_INFO(MODULE_PlatformService, "onPrepareLive liveinfo closed with:%d", value);
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "onPrepareLive liveinfo closed with:%d", value);
 
 	setStreamKey(m_selectData.frmStreamKey.toStdString());
 	setStreamServer(m_selectData.frmServerUrl.toStdString());
@@ -138,16 +139,21 @@ void PLSPlatformAfreecaTV::onPrepareLive(bool value)
 void PLSPlatformAfreecaTV::requestChannelInfo(const QVariantMap &srcInfo, const UpdateCallback &finishedCall) const
 {
 	auto _onSucceed = [this, srcInfo, finishedCall](QByteArray data) {
-		PLS_INFO(MODULE_PlatformService, "requestChannelInfo succeed");
+		PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestChannelInfo succeed");
 		dealRequestChannelInfoSucceed(srcInfo, data, finishedCall);
 	};
 
-	auto _onFail = [this, srcInfo, finishedCall](int code, QByteArray, QNetworkReply::NetworkError error) {
-		PLS_ERROR(MODULE_PlatformService, "requestChannelInfo failed");
-		PLSPlatformApiResult result = getApiResult(code, error);
+	auto _onFail = [this, srcInfo, finishedCall](int code, QByteArray data, QNetworkReply::NetworkError error) {
+		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestChannelInfo failed");
+		PLSErrorHandler::ExtraData exData;
+		exData.urlEn = g_plsAfreecaTVChannelInfo;
+		exData.errPhase = PLSErrPhaseLogin;
+		auto retData = PLSErrorHandler::getAlertString({code, error, data}, AFREECATV, "", exData);
 		QVariantMap info = srcInfo;
 		info[ChannelData::g_channelSreLoginFailed] = QString("Get Channel List Failed, code:%1").arg(code);
-		info[ChannelData::g_channelStatus] = result == PLSPlatformApiResult::PAR_TOKEN_EXPIRED ? ChannelData::ChannelStatus::Expired : ChannelData::ChannelStatus::Error;
+		info[ChannelData::g_channelStatus] = retData.prismCode == PLSErrorHandler::CHANNEL_AFREECATV_LOGIN_EXPIRED ? ChannelData::ChannelStatus::Expired : ChannelData::ChannelStatus::Error;
+		info[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+		info[ChannelData::g_errorString] = retData.alertMsg;
 		finishedCall(QList<QVariantMap>{info});
 	};
 
@@ -159,7 +165,7 @@ void PLSPlatformAfreecaTV::dealRequestChannelInfoSucceed(const QVariantMap &srcI
 	QVariantMap info = srcInfo;
 	auto doc = QJsonDocument::fromJson(data);
 	if (!doc.isObject()) {
-		PLS_ERROR(MODULE_PlatformService, "dealRequestChannelInfoSucceed failed, doc is not object");
+		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "dealRequestChannelInfoSucceed failed, doc is not object");
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::EmptyChannel;
 		finishedCall(QList<QVariantMap>{info});
 		return;
@@ -167,7 +173,7 @@ void PLSPlatformAfreecaTV::dealRequestChannelInfoSucceed(const QVariantMap &srcI
 	auto root = doc.object();
 	QString userID = root["user_id"].toString();
 	if (userID.isEmpty()) {
-		PLS_ERROR(MODULE_PlatformService, "dealRequestChannelInfoSucceed failed, userID.isEmpty");
+		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "dealRequestChannelInfoSucceed failed, userID.isEmpty");
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::EmptyChannel;
 		info[ChannelData::g_channelSreLoginFailed] = QString("Get Channel List Failed, code:userID empty");
 		finishedCall(QList<QVariantMap>{info});
@@ -210,11 +216,16 @@ void PLSPlatformAfreecaTV::requestUserNickName(const QVariantMap &srcInfo, const
 		finishedCall(infos);
 	};
 
-	auto _onFail = [this, srcInfo, finishedCall](int code, QByteArray, QNetworkReply::NetworkError error) {
-		PLS_ERROR(MODULE_PlatformService, "requestUserNickName failed");
-		PLSPlatformApiResult result = getApiResult(code, error);
+	auto _onFail = [this, srcInfo, finishedCall](int code, QByteArray data, QNetworkReply::NetworkError error) {
+		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestUserNickName failed");
+		PLSErrorHandler::ExtraData exData;
+		exData.urlEn = g_plsAfreecaTVUserNick.arg("userNick");
+		exData.errPhase = PLSErrPhaseLogin;
+		auto retData = PLSErrorHandler::getAlertString({code, error, data}, AFREECATV, "", exData);
 		QVariantMap info = srcInfo;
-		info[ChannelData::g_channelStatus] = result == PLSPlatformApiResult::PAR_TOKEN_EXPIRED ? ChannelData::ChannelStatus::Expired : ChannelData::ChannelStatus::Error;
+		info[ChannelData::g_channelStatus] = retData.prismCode == PLSErrorHandler::CHANNEL_AFREECATV_LOGIN_EXPIRED ? ChannelData::ChannelStatus::Expired : ChannelData::ChannelStatus::Error;
+		info[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+		info[ChannelData::g_errorString] = retData.alertMsg;
 		finishedCall(QList<QVariantMap>{info});
 	};
 
@@ -223,18 +234,18 @@ void PLSPlatformAfreecaTV::requestUserNickName(const QVariantMap &srcInfo, const
 
 void PLSPlatformAfreecaTV::dealUserNickNameSucceed(const QVariantMap &srcInfo, const QByteArray &data, QList<QVariantMap> &dstInfos) const
 {
-	PLS_INFO(MODULE_PlatformService, "dealUserNickNameSucceed succeed");
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "dealUserNickNameSucceed succeed");
 	QVariantMap info = srcInfo;
 	auto doc = QJsonDocument::fromJson(data);
 	if (!doc.isObject()) {
-		PLS_ERROR(MODULE_PlatformService, "dealUserNickNameSucceed failed, doc is not object");
+		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "dealUserNickNameSucceed failed, doc is not object");
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::EmptyChannel;
 		dstInfos.append(info);
 		return;
 	}
-	QString userNickName = doc.object()["data"].toObject()["user_nick"].toString();
+	QString userNickName = doc.object()["station"].toObject()["user_nick"].toString();
 	if (userNickName.isEmpty()) {
-		PLS_ERROR(MODULE_PlatformService, "dealUserNickNameSucceed failed, userNickName isEmpty");
+		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "dealUserNickNameSucceed failed, userNickName isEmpty");
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::EmptyChannel;
 		dstInfos.append(info);
 		return;
@@ -245,31 +256,38 @@ void PLSPlatformAfreecaTV::dealUserNickNameSucceed(const QVariantMap &srcInfo, c
 	dstInfos.append(info);
 }
 
-void PLSPlatformAfreecaTV::requestDashborad(const function<void(bool)> &onNext, const QObject *reciever)
+void PLSPlatformAfreecaTV::requestDashborad(const function<void(bool)> &onNext, const QObject *receiver)
 {
-	auto _onSucceed = [this, onNext, reciever](QByteArray data) {
-		PLS_INFO(MODULE_PlatformService, "requestDashborad succeed");
+	auto _onSucceed = [this, onNext, receiver](QByteArray data) {
+		PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestDashborad succeed");
 
-		dealRequestDashborad(data, onNext, reciever);
+		dealRequestDashborad(data, onNext, receiver);
 	};
 
-	auto _onFail = [this, onNext](int code, QByteArray, QNetworkReply::NetworkError error) {
-		PLS_ERROR(MODULE_PlatformService, "requestDashborad failed");
-
-		setupApiFailedWithCode(getApiResult(code, error));
+	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
+		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestDashborad failed");
+		PLSErrorHandler::ExtraData exData;
+		exData.urlEn = g_plsAfreecaTVDashboard;
+		auto retData = PLSErrorHandler::showAlert({code, error, data}, AFREECATV, PLSErrCustomKey_LoadLiveInfoFailed);
+		if (retData.prismCode == PLSErrorHandler::CHANNEL_AFREECATV_API_EXPIRED && retData.clickedBtn == QDialogButtonBox::Ok) {
+			emit closeDialogByExpired();
+			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+		}
 		if (nullptr != onNext) {
 			onNext(false);
 		}
 	};
 
-	PLSAPIAfreecaTV::requestDashboradData(reciever, _onSucceed, _onFail);
+	PLSAPIAfreecaTV::requestDashboradData(receiver, _onSucceed, _onFail);
 }
 
-void PLSPlatformAfreecaTV::dealRequestDashborad(const QByteArray &data, const std::function<void(bool)> &onNext, const QObject *reciever)
+void PLSPlatformAfreecaTV::dealRequestDashborad(const QByteArray &data, const std::function<void(bool)> &onNext, const QObject *receiver)
 {
 	PLSAfreecaTVLiveinfoData livinfoData;
+	PLSErrorHandler::ExtraData exData;
+	exData.urlEn = g_plsAfreecaTVDashboard;
 	if (data.isEmpty()) {
-		setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
+		PLSErrorHandler::showAlertByCustomErrName(PLSErrCustomKey_LoadLiveInfoFailed, AFREECATV, exData);
 		if (nullptr != onNext) {
 			onNext(false);
 		}
@@ -280,9 +298,13 @@ void PLSPlatformAfreecaTV::dealRequestDashborad(const QByteArray &data, const st
 
 	if (livinfoData.frmTitle.isEmpty()) {
 		if (data.startsWith("<script>location.href='https://login.afreecatv.com/afreeca/login.php")) {
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_TOKEN_EXPIRED);
+			auto retData = PLSErrorHandler::showAlertByCustomErrName(PLSErrCustomKey_LoadLiveInfoExpired, AFREECATV, exData);
+			if (retData.prismCode == PLSErrorHandler::CHANNEL_AFREECATV_API_EXPIRED && retData.clickedBtn == QDialogButtonBox::Ok) {
+				emit closeDialogByExpired();
+				PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+			}
 		} else {
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
+			PLSErrorHandler::showAlertByCustomErrName(PLSErrCustomKey_LoadLiveInfoFailed, AFREECATV, exData);
 		}
 
 		if (nullptr != onNext) {
@@ -291,16 +313,18 @@ void PLSPlatformAfreecaTV::dealRequestDashborad(const QByteArray &data, const st
 		return;
 	}
 	m_selectData = livinfoData;
-	requestCategories(onNext, reciever);
+	requestCategories(onNext, receiver);
 }
 
-void PLSPlatformAfreecaTV::requestCategories(const function<void(bool)> &onNext, const QObject *reciever)
+void PLSPlatformAfreecaTV::requestCategories(const function<void(bool)> &onNext, const QObject *receiver)
 {
-	auto _onSucceed = [this, onNext](QByteArray data) {
-		PLS_INFO(MODULE_PlatformService, "requestCategories succeed");
+	PLSErrorHandler::ExtraData exData;
+	exData.urlEn = g_plsAfreecaTVCategories.arg("Categories");
+	auto _onSucceed = [this, onNext, exData](QByteArray data) {
+		PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestCategories succeed");
 
 		if (data.isEmpty()) {
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED);
+			PLSErrorHandler::showAlertByCustomErrName(PLSErrCustomKey_LoadLiveInfoFailed, AFREECATV, exData);
 			if (nullptr != onNext) {
 				onNext(false);
 			}
@@ -314,17 +338,20 @@ void PLSPlatformAfreecaTV::requestCategories(const function<void(bool)> &onNext,
 		}
 	};
 
-	auto _onFail = [this, onNext](int code, QByteArray, QNetworkReply::NetworkError error) {
-		PLS_ERROR(MODULE_PlatformService, "requestCategories failed");
-
-		setupApiFailedWithCode(getApiResult(code, error));
+	auto _onFail = [this, onNext, exData](int code, QByteArray data, QNetworkReply::NetworkError error) {
+		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "requestCategories failed");
+		auto retData = PLSErrorHandler::showAlert({code, error, data}, AFREECATV, PLSErrCustomKey_LoadLiveInfoFailed, exData);
+		if (retData.prismCode == PLSErrorHandler::CHANNEL_AFREECATV_API_EXPIRED && retData.clickedBtn == QDialogButtonBox::Ok) {
+			emit closeDialogByExpired();
+			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+		}
 		if (nullptr != onNext) {
 			onNext(false);
 		}
 	};
 
 	if (getCategories().empty()) {
-		PLSAPIAfreecaTV::requestCategoryList(reciever, _onSucceed, _onFail);
+		PLSAPIAfreecaTV::requestCategoryList(receiver, _onSucceed, _onFail);
 	} else {
 		m_selectData.frmCategoryStr = PLSAPIAfreecaTV::getSelectCategoryString(m_selectData.frmCategoryID);
 		if (nullptr != onNext) {
@@ -333,67 +360,29 @@ void PLSPlatformAfreecaTV::requestCategories(const function<void(bool)> &onNext,
 	}
 }
 
-void PLSPlatformAfreecaTV::updateLiveinfo(const function<void(bool)> &onNext, const QObject *reciever, const QString &title)
+void PLSPlatformAfreecaTV::updateLiveinfo(const function<void(bool)> &onNext, const QObject *receiver, const QString &title)
 {
 	auto _onSucceed = [this, onNext](QByteArray data) {
-		PLS_INFO(MODULE_PlatformService, "updateLiveinfo succeed");
+		PLS_INFO(MODULE_PLATFORM_AFREECATV, "updateLiveinfo succeed");
 
 		dealUpdateLiveinfoSucceed(data, onNext);
 	};
 
-	auto _onFail = [this, onNext](int code, QByteArray, QNetworkReply::NetworkError error) {
-		PLS_ERROR(MODULE_PlatformService, "updateLiveinfo failed");
-
-		showApiUpdateError(getApiResult(code, error));
+	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
+		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "updateLiveinfo failed");
+		showApiUpdateError("", code, data, error);
 		if (nullptr != onNext) {
 			onNext(false);
 		}
 	};
 
-	PLSAPIAfreecaTV::updateLiveInfo(reciever, title, _onSucceed, _onFail);
-}
-
-void PLSPlatformAfreecaTV::checkCanBroadcast(const std::function<void(bool)> &onNext, const QObject *reciever)
-{
-
-	auto _onSucceed = [onNext, this](QByteArray data) {
-		PLS_INFO(MODULE_PlatformService, "checkCanBroadcast succeed");
-
-		bool isSingleChannel = PLSCHANNELS_API->currentSelectedCount() == 1;
-		int oId = 0;
-		auto isOnline = PLSAPIAfreecaTV::getIsRemoteOnline(data, oId);
-		PLS_INFO(MODULE_PlatformService, "the afreecatv is remote online:%i oid:%d", isOnline, oId);
-
-		if (!isSingleChannel && isOnline) {
-			setAllowPushStream(false);
-		}
-
-		if (isOnline) {
-			pls_alert_error_message(nullptr, QTStr("Alert.Title"), QTStr("LiveInfo.failed.by.other.pc.isOnline").arg(AFREECATV));
-		}
-
-		if (nullptr != onNext) {
-			onNext(isSingleChannel ? !isOnline : true);
-		}
-	};
-
-	auto _onFail = [this, onNext](int code, QByteArray, QNetworkReply::NetworkError error) {
-		PLS_ERROR(MODULE_PlatformService, "checkCanBroadcast failed");
-
-		showApiUpdateError(getApiResult(code, error));
-		if (nullptr != onNext) {
-			onNext(false);
-		}
-	};
-	auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-	auto user_id = info.value(ChannelData::g_subChannelId).toString();
-	PLSAPIAfreecaTV::requestCheckIsOnline(user_id, reciever, _onSucceed, _onFail);
+	PLSAPIAfreecaTV::updateLiveInfo(receiver, title, _onSucceed, _onFail);
 }
 
 void PLSPlatformAfreecaTV::dealUpdateLiveinfoSucceed(const QByteArray &data, const std::function<void(bool)> &onNext)
 {
 	if (data.isEmpty() || !QJsonDocument::fromJson(data).isObject()) {
-		showApiUpdateError(PLSPlatformApiResult::PAR_API_FAILED);
+		showApiUpdateError(PLSErrCustomKey_UpdateLiveInfoFailedNoService);
 		if (nullptr != onNext) {
 			onNext(false);
 		}
@@ -403,9 +392,9 @@ void PLSPlatformAfreecaTV::dealUpdateLiveinfoSucceed(const QByteArray &data, con
 	auto channel = doc["channel"].toObject();
 	if (channel["result"].toInt() == -1) {
 		if (channel["remsg"].toString() == "You must log in.(406)") {
-			showApiUpdateError(PLSPlatformApiResult::PAR_TOKEN_EXPIRED);
+			showApiUpdateError(PLSErrCustomKey_LoadLiveInfoExpired);
 		} else {
-			showApiUpdateError(PLSPlatformApiResult::PAR_API_FAILED);
+			showApiUpdateError(PLSErrCustomKey_UpdateLiveInfoFailedNoService);
 		}
 		if (nullptr != onNext) {
 			onNext(false);
@@ -418,90 +407,29 @@ void PLSPlatformAfreecaTV::dealUpdateLiveinfoSucceed(const QByteArray &data, con
 	}
 }
 
-PLSPlatformApiResult PLSPlatformAfreecaTV::getApiResult(int code, QNetworkReply::NetworkError error) const
+void PLSPlatformAfreecaTV::showApiUpdateError(const QString &customErrName, int code, QByteArray data, QNetworkReply::NetworkError error)
 {
-	auto result = PLSPlatformApiResult::PAR_SUCCEED;
-
-	if (QNetworkReply::NoError == error) {
-		return result;
+	QString failedReason = "unknown";
+	PLSErrorHandler::RetData retData;
+	PLSErrorHandler::ExtraData exData;
+	exData.urlEn = g_plsAfreecaTVUpdate;
+	if (customErrName.isEmpty())
+		retData = PLSErrorHandler::showAlert({code, error, data}, AFREECATV, PLSErrCustomKey_UpdateLiveInfoFailedNoService, exData);
+	else {
+		retData = PLSErrorHandler::showAlertByCustomErrName(customErrName, AFREECATV, exData);
 	}
-
-	if (QNetworkReply::UnknownNetworkError >= error) {
-		result = PLSPlatformApiResult::PAR_NETWORK_ERROR;
-	} else {
-		switch (code) {
-		case 401:
-		case 515:
-			result = PLSPlatformApiResult::PAR_TOKEN_EXPIRED;
-			break;
-		case 403:
-			result = PLSPlatformApiResult::PAR_API_FAILED;
-			break;
-		default:
-			result = PLSPlatformApiResult::PAR_API_FAILED;
-			break;
-		}
-	}
-	return result;
-}
-
-void PLSPlatformAfreecaTV::setupApiFailedWithCode(PLSPlatformApiResult result)
-{
-	showApiRefreshError(result);
-}
-
-void PLSPlatformAfreecaTV::showApiRefreshError(PLSPlatformApiResult value)
-{
-	auto alertParent = getAlertParent();
-
-	switch (value) {
-	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("login.check.note.network"));
-		break;
-	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-		showTokenExpiredAlert(alertParent);
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.start.other").arg(AFREECATV));
-	default:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
-		break;
-	}
-}
-
-void PLSPlatformAfreecaTV::showTokenExpiredAlert(QWidget *alertParent)
-{
-	auto info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
-	auto channelName = info.value(ChannelData::g_channelName).toString();
-	PLSAlertView::Button button = pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Expired").arg(channelName));
-	if (button == PLSAlertView::Button::Ok) {
+	if (retData.prismCode == PLSErrorHandler::CHANNEL_AFREECATV_API_EXPIRED && retData.clickedBtn == QDialogButtonBox::Ok) {
+		failedReason = "token expired";
 		emit closeDialogByExpired();
 		PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
 	}
-}
-
-void PLSPlatformAfreecaTV::showApiUpdateError(PLSPlatformApiResult value)
-{
-	QString failedReason = "unknown";
-
-	auto alertParent = getAlertParent();
-
-	switch (value) {
-	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-		failedReason = "token expired";
-		showTokenExpiredAlert(alertParent);
-		break;
-	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
+	if (retData.prismCode == PLSErrorHandler::COMMON_NETWORK_ERROR) {
 		failedReason = "network";
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.update.failed"));
-		break;
-	default:
-		failedReason = "unknown";
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.update.failed"));
-		break;
 	}
-
-	QString failedErr = QString("updateAPI-%2-code:%3").arg(failedReason).arg((int)value);
+	if (retData.prismCode == PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE) {
+		failedReason = "unknown";
+	}
+	QString failedErr = QString("updateAPI-%2-code:%3").arg(failedReason).arg((int)retData.prismCode);
 	setFailedErr(failedErr);
 }
 
@@ -554,7 +482,7 @@ QJsonObject PLSPlatformAfreecaTV::getWebChatParams()
 bool PLSPlatformAfreecaTV::getIsChatDisabled() const
 {
 	QString logStr = QString("%1 m_IsChatDisabled:%2 b_containFrmAccess:%3").arg(__FUNCTION__).arg(BOOL2STR(m_IsChatDisabled)).arg(BOOL2STR(m_selectData.b_containFrmAccess));
-	PLS_INFO(MODULE_PlatformService, logStr.toStdString().c_str());
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, logStr.toStdString().c_str());
 	return m_IsChatDisabled || m_selectData.b_containFrmAccess;
 }
 

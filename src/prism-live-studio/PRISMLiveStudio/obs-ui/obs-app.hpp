@@ -20,6 +20,7 @@
 #include <QApplication>
 #include <QTranslator>
 #include <QPointer>
+#include <QFileSystemWatcher>
 #ifndef _WIN32
 #include <QSocketNotifier>
 #else
@@ -38,7 +39,7 @@
 #include <vector>
 #include <deque>
 
-#include <PLSUiApp.h>
+#include <PLSUIApp.h>
 
 #include "window-main.hpp"
 #include "PLSMainView.hpp"
@@ -80,12 +81,6 @@ public:
 
 typedef std::function<void()> VoidFunc;
 
-struct OBSThemeMeta {
-	bool dark;
-	std::string parent;
-	std::string author;
-};
-
 struct UpdateBranch {
 	QString name;
 	QString display_name;
@@ -95,15 +90,14 @@ struct UpdateBranch {
 };
 class OBSLogViewer;
 struct OBSStudioAPI;
+class PLSLoginMainView;
 
 class OBSApp : public PLSUiApp {
 	Q_OBJECT
 
 private:
 	std::string locale;
-	std::string theme;
 
-	bool themeDarkMode = true;
 	ConfigFile globalConfig;
 	TextLookup textLookup;
 	QPointer<PLSMainView> mainView;
@@ -131,16 +125,10 @@ private:
 	bool InitGlobalConfig();
 	bool InitGlobalConfigDefaults();
 	bool InitLocale();
-	bool InitTheme();
 	bool HotkeyEnable() const;
 	inline void ResetHotkeyState(bool inFocus);
 
 	QPalette defaultPalette;
-
-	void ParseExtraThemeData(const char *path);
-	static OBSThemeMeta *ParseThemeMeta(const char *path);
-	void AddExtraThemeColor(QPalette &pal, int group, const char *name,
-				uint32_t color);
 
 protected:
 	bool notify(QObject *receiver, QEvent *e) override;
@@ -174,11 +162,10 @@ public:
 
 	inline const char *GetLocale() const { return locale.c_str(); }
 
-	inline const char *GetTheme() const { return theme.c_str(); }
-	std::string GetTheme(std::string name, std::string path);
-	std::string SetParentTheme(std::string name);
-	bool SetTheme(std::string name, std::string path = "");
-	inline bool IsThemeDark() const { return themeDarkMode; };
+	bool IsThemeDark() const
+	{
+		return false;
+	}
 
 	void SetBranchData(const std::string &data);
 	std::vector<UpdateBranch> GetBranches();
@@ -252,7 +239,6 @@ public slots:
 	void ProcessSigInt();
 
 signals:
-	void StyleChanged();
 	void HotKeyEnabled(bool);
 };
 
@@ -302,7 +288,6 @@ struct GlobalVars {
 	static std::string prismSubSession;
 	static std::string videoAdapter;
 	static std::string crashFileMutexUuid;
-	static std::string prism_cpuName;
 
 	static bool portable_mode;
 	static bool steam;
@@ -316,7 +301,6 @@ struct GlobalVars {
 	static std::string remuxFilename;
 	static std::string logUserID;
 	static std::string maskingLogUserID;
-	static std::string cur_dx_version;
 	static bool opt_start_streaming;
 	static bool opt_start_recording;
 	static bool opt_start_replaybuffer;
@@ -334,6 +318,11 @@ struct GlobalVars {
 
 	static bool isStartByDaemon;
 	static bool g_bUseAPIServer;
+
+#ifdef ENABLE_TEST
+	static bool unitTest;
+	static int unitTestExitCode;
+#endif
 };
 
 #ifdef _WIN32

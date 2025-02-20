@@ -6,6 +6,10 @@
 #include <QPainter>
 #include <QPainterPath>
 
+#include "libui.h"
+#include "log/log.h"
+#include "PLSSceneTemplateContainer.h"
+
 PLSMediaRender::PLSMediaRender(QWidget *parent) : QOpenGLWidget{parent}
 {
 	m_videoSink.reset(new QVideoSink(this));
@@ -44,6 +48,8 @@ void PLSMediaRender::initializeGL()
 	m_glTextureY.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
 	m_glTextureU.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
 	m_glTextureV.reset(new QOpenGLTexture(QOpenGLTexture::Target2D));
+
+	glClearColor(0, 0, 0, 1);
 }
 
 void PLSMediaRender::resizeGL(int w, int h)
@@ -57,6 +63,8 @@ void PLSMediaRender::setMediaPlayer(QMediaPlayer *mediaPlayer)
 		m_mediaPlayer->setVideoOutput(nullptr);
 		m_mediaPlayer->stop();
 	}
+
+	m_frameVideo = {};
 
 	m_mediaPlayer = mediaPlayer;
 	m_mediaPlayer->setVideoOutput(m_videoSink.data());
@@ -79,14 +87,14 @@ void PLSMediaRender::onVideoFrame(const QVideoFrame &frame)
 	m_frameVideo = frame;
 }
 
-void PLSMediaRender::uploadFrame()
+bool PLSMediaRender::uploadFrame()
 {
 	m_frameMutex.lock();
 	auto frame = m_frameVideo;
 	m_frameMutex.unlock();
 
-	if (!frame.isValid()) {
-		return;
+	if (!frame.isValid() || frame.width() < 2 || frame.height() < 2) {
+		return false;
 	}
 
 	m_framePixelFormat = frame.pixelFormat();
@@ -106,12 +114,14 @@ void PLSMediaRender::uploadFrame()
 			m_glTextureU->allocateStorage();
 		}
 
-		frame.map(QVideoFrame::ReadOnly);
-		m_glTextureY->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.bits(0));
-		m_glTextureY->generateMipMaps();
-		m_glTextureU->setData(QOpenGLTexture::RG, QOpenGLTexture::UInt8, frame.bits(1));
-		m_glTextureU->generateMipMaps();
-		frame.unmap();
+		if (m_glTextureY->isStorageAllocated() && m_glTextureU->isStorageAllocated()) {
+			frame.map(QVideoFrame::ReadOnly);
+			m_glTextureY->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.bits(0));
+			m_glTextureY->generateMipMaps();
+			m_glTextureU->setData(QOpenGLTexture::RG, QOpenGLTexture::UInt8, frame.bits(1));
+			m_glTextureU->generateMipMaps();
+			frame.unmap();
+		}
 	} else if (QVideoFrameFormat::Format_YUV420P == frame.pixelFormat()) {
 		if (m_glTextureY->width() != frame.width() || m_glTextureY->height() != frame.height()) {
 			m_glTextureY->destroy();
@@ -131,14 +141,16 @@ void PLSMediaRender::uploadFrame()
 			m_glTextureV->allocateStorage();
 		}
 
-		frame.map(QVideoFrame::ReadOnly);
-		m_glTextureY->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.bits(0));
-		m_glTextureY->generateMipMaps();
-		m_glTextureU->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.bits(1));
-		m_glTextureU->generateMipMaps();
-		m_glTextureV->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.bits(2));
-		m_glTextureV->generateMipMaps();
-		frame.unmap();
+		if (m_glTextureY->isStorageAllocated() && m_glTextureU->isStorageAllocated() && m_glTextureV->isStorageAllocated()) {
+			frame.map(QVideoFrame::ReadOnly);
+			m_glTextureY->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.bits(0));
+			m_glTextureY->generateMipMaps();
+			m_glTextureU->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.bits(1));
+			m_glTextureU->generateMipMaps();
+			m_glTextureV->setData(QOpenGLTexture::Red, QOpenGLTexture::UInt8, frame.bits(2));
+			m_glTextureV->generateMipMaps();
+			frame.unmap();
+		}
 	} else if (QVideoFrameFormat::Format_BGRA8888 == frame.pixelFormat()) {
 		if (m_glTextureY->width() != frame.width() || m_glTextureY->height() != frame.height()) {
 			m_glTextureY->destroy();
@@ -149,15 +161,32 @@ void PLSMediaRender::uploadFrame()
 			m_glTextureY->allocateStorage();
 		}
 
-		frame.map(QVideoFrame::ReadOnly);
-		m_glTextureY->setData(QOpenGLTexture::BGRA, QOpenGLTexture::UInt8, frame.bits(0));
-		m_glTextureY->generateMipMaps();
-		frame.unmap();
+		if (m_glTextureY->isStorageAllocated()) {
+			frame.map(QVideoFrame::ReadOnly);
+			m_glTextureY->setData(QOpenGLTexture::BGRA, QOpenGLTexture::UInt8, frame.bits(0));
+			m_glTextureY->generateMipMaps();
+			frame.unmap();
+		}
+	} else {
+		return false;
 	}
+
+	return true;
 }
 
 void PLSMediaRender::renderFrame()
 {
+	if (!isValid()) {
+		if (!m_bOpenGLFailed) {
+			PLS_WARN(SCENE_TEMPLATE, "%p-%s: OpenGL functions is not initialized", this, __FUNCTION__);
+			m_bOpenGLFailed = true;
+		}
+		return;
+	} else if (m_bOpenGLFailed) {
+		PLS_WARN(SCENE_TEMPLATE, "%p-%s: OpenGL functions is initialized", this, __FUNCTION__);
+		m_bOpenGLFailed = false;
+	}
+
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	if (!m_bufferVertex->isCreated()) {
@@ -167,7 +196,9 @@ void PLSMediaRender::renderFrame()
 
 	glEnable(GL_TEXTURE_2D);
 
-	uploadFrame();
+	if (!uploadFrame()) {
+		return;
+	}
 
 	if (QVideoFrameFormat::Format_NV12 == m_framePixelFormat) {
 		if (m_programPixelFormat != m_framePixelFormat && m_shaderProgram) {
@@ -187,7 +218,7 @@ void PLSMediaRender::renderFrame()
 		m_shaderProgram->bind();
 
 		QMatrix4x4 mat4;
-		if (static_cast<float>(width()) / height() > static_cast<float>(m_glTextureY->width()) / m_glTextureY->height()) {
+		if (static_cast<float>(width()) / height() < static_cast<float>(m_glTextureY->width()) / m_glTextureY->height()) {
 			auto dstHeight = static_cast<float>(width()) * m_glTextureY->height() / m_glTextureY->width() / height();
 			mat4.scale(1, dstHeight);
 		} else {
@@ -229,7 +260,7 @@ void PLSMediaRender::renderFrame()
 		m_shaderProgram->bind();
 
 		QMatrix4x4 mat4;
-		if (static_cast<float>(width()) / height() > static_cast<float>(m_glTextureY->width()) / m_glTextureY->height()) {
+		if (static_cast<float>(width()) / height() < static_cast<float>(m_glTextureY->width()) / m_glTextureY->height()) {
 			auto dstHeight = static_cast<float>(width()) * m_glTextureY->height() / m_glTextureY->width() / height();
 			mat4.scale(1, dstHeight);
 		} else {
@@ -275,7 +306,7 @@ void PLSMediaRender::renderFrame()
 		m_shaderProgram->bind();
 
 		QMatrix4x4 mat4;
-		if (static_cast<float>(width()) / height() > static_cast<float>(m_glTextureY->width()) / m_glTextureY->height()) {
+		if (static_cast<float>(width()) / height() < static_cast<float>(m_glTextureY->width()) / m_glTextureY->height()) {
 			auto dstHeight = static_cast<float>(width()) * m_glTextureY->height() / m_glTextureY->width() / height();
 			mat4.scale(1, dstHeight);
 		} else {
@@ -304,6 +335,7 @@ void PLSMediaRender::paintEvent(QPaintEvent *event)
 {
 	QPainter painter(this);
 	painter.setRenderHint(QPainter::Antialiasing);
+	painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
 	painter.beginNativePainting();
 	renderFrame();
@@ -333,11 +365,27 @@ void PLSMediaRender::paintEvent(QPaintEvent *event)
 		painter.setFont(fontSceneName);
 		painter.drawText(rectText, Qt::AlignCenter, m_strName);
 	}
+
+	if (nullptr != m_pPixmapAIBadge) {
+		auto x = m_bLongAIBadge ? 20 : 6;
+		auto y = m_bLongAIBadge ? 23 : 6;
+		painter.drawPixmap(x, y, m_pPixmapAIBadge->width() / 4, m_pPixmapAIBadge->height() / 4, *m_pPixmapAIBadge);
+	}
 }
 
 void PLSMediaRender::mouseReleaseEvent(QMouseEvent *event)
 {
 	if (event->button() == Qt::LeftButton) {
 		emit clicked();
+	}
+}
+
+void PLSMediaRender::showAIBadge(const QPixmap &pixmap, bool bLongAIBadge)
+{
+	m_bLongAIBadge = bLongAIBadge;
+	if (pixmap.isNull()) {
+		m_pPixmapAIBadge = nullptr;
+	} else {
+		m_pPixmapAIBadge = &pixmap;
 	}
 }

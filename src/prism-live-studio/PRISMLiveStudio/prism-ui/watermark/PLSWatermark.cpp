@@ -11,6 +11,7 @@
 #include "nlohmann/json.hpp"
 #include <sstream>
 #include <math.h>
+#include "pls/pls-dual-output.h"
 
 #define PLS_WATERMARK_ID "pls_watermark"
 #define PLS_WATERMARK_CHANNEL 32
@@ -116,61 +117,13 @@ PLSWatermark::PLSWatermark(std::shared_ptr<PLSWatermarkConfig> config) {
 void PLSWatermark::initWithConfig(std::shared_ptr<PLSWatermarkConfig> config) {
 	_config = config;
 	
-	obs_scene_t *scene = obs_scene_create_private(PLS_WATERMARK_ID);
+	OBSScene scene = obs_scene_create_private(PLS_WATERMARK_ID);
 	if (scene) {
 		_scene = scene;
 		
-//		obs_set_output_source(_config->channel, obs_scene_get_source(scene));
-		
-		if (config->filePath.empty() == false) {
-			obs_data_t *image_settings = obs_data_create();
-			obs_data_set_string(image_settings, "file", config->filePath.u8string().data());
-			obs_source_t *image_source = obs_source_create_private("image_source", "", image_settings);
-			obs_data_release(image_settings);
-			
-			if (image_source) {
-				_source = image_source;
-				
-				obs_sceneitem_t *item = obs_scene_add(scene, image_source);
-				
-//				if (config->transition.type != PLS_WATERMARK_TRANSITION_NONE) {
-//					std::string transitionId = transitionIdByType(config->transition.type);
-//					if (transitionId.empty() == false) {
-//						obs_source_t *fade = obs_source_create_private(transitionId.c_str(), "", NULL);
-//						
-//						uint32_t duration_ms = config->transition.durationMs;
-//						if (duration_ms <= 0) {
-//							duration_ms = 2000;
-//						}
-//						
-//						obs_sceneitem_set_transition(item, true, fade);
-//						obs_sceneitem_set_transition_duration(item, true, duration_ms);
-//						
-//						obs_sceneitem_set_transition(item, false, fade);
-//						obs_sceneitem_set_transition_duration(item, false, duration_ms);
-//					}
-//				}
-				
-				_item = item;
-				
-				updatePosition();
-				
-//				obs_sceneitem_set_visible(item, false);
-				
-				if (_config->showingDurationMs == 0) {
-					_config->showingDurationMs = 10000;
-				}
-			} else {
-				if (_config->logFunction) {
-					std::stringstream message;
-					message << "[watermark] Failed to create image source: " << _config->filePath;
-					_config->logFunction(message.str());
-				}
-			}
-		} else {
-			if (_config->logFunction) {
-				_config->logFunction("[watermark] Invalid config file path: empty.");
-			}
+		horizontalSource = createSource(false);
+		if (pls_is_dual_output_on()) {
+			verticalSource = createSource(true);
 		}
 	} else {
 		if (_config->logFunction) {
@@ -182,18 +135,85 @@ void PLSWatermark::initWithConfig(std::shared_ptr<PLSWatermarkConfig> config) {
 }
 
 std::shared_ptr<PLSWatermarkConfig> PLSWatermark::getConfig() {
+	std::lock_guard<std::mutex> lock(_mutex);
 	return _config;
 }
 
-void PLSWatermark::updatePosition() {
-	if (!_item) {
-		return;
+std::shared_ptr<PLSWatermarkSource> PLSWatermark::createSource(bool isVertical) {
+	if (_config->filePath.empty() == false) {
+		obs_data_t *image_settings = obs_data_create();
+		obs_data_set_string(image_settings, "file", _config->filePath.u8string().data());
+		OBSSource image_source = obs_source_create_private("image_source", "", image_settings);
+		obs_data_release(image_settings);
+		
+		auto source = std::make_shared<PLSWatermarkSource>();
+		
+		if (image_source) {
+			source->source = image_source;
+			
+			OBSSceneItem item;
+			if (isVertical) {
+				item = pls_vertical_scene_add(_scene, image_source, nullptr, nullptr);
+			} else {
+				item = obs_scene_add(_scene, image_source);
+			}
+			
+				//				if (config->transition.type != PLS_WATERMARK_TRANSITION_NONE) {
+				//					std::string transitionId = transitionIdByType(config->transition.type);
+				//					if (transitionId.empty() == false) {
+				//						obs_source_t *fade = obs_source_create_private(transitionId.c_str(), "", NULL);
+				//
+				//						uint32_t duration_ms = config->transition.durationMs;
+				//						if (duration_ms <= 0) {
+				//							duration_ms = 2000;
+				//						}
+				//
+				//						obs_sceneitem_set_transition(item, true, fade);
+				//						obs_sceneitem_set_transition_duration(item, true, duration_ms);
+				//
+				//						obs_sceneitem_set_transition(item, false, fade);
+				//						obs_sceneitem_set_transition_duration(item, false, duration_ms);
+				//					}
+				//				}
+			
+			source->item = item;
+			
+			updatePosition(source);
+			
+				//				obs_sceneitem_set_visible(item, false);
+			
+			if (_config->showingDurationMs == 0) {
+				_config->showingDurationMs = 10000;
+			}
+			
+			return source;
+		} else {
+			if (_config->logFunction) {
+				std::stringstream message;
+				message << "[watermark] Failed to create image source: " << _config->filePath;
+				_config->logFunction(message.str());
+			}
+		}
 	}
 	
-	obs_sceneitem_set_bounds_type(_item, OBS_BOUNDS_STRETCH);
+	return nullptr;
+}
+
+void PLSWatermark::updatePosition() {
+	std::lock_guard<std::mutex> lock(_mutex);
+	updatePosition(horizontalSource);
+	updatePosition(verticalSource);
+}
+
+void PLSWatermark::updatePosition(std::shared_ptr<PLSWatermarkSource> source) {
+	if (!source || !source->item || !source->source) {
+		return;
+	}
+
+	obs_sceneitem_set_bounds_type(source->item, OBS_BOUNDS_STRETCH);
 		
-	float image_width = obs_source_get_width(_source);
-	float image_height = obs_source_get_height(_source);
+	float image_width = obs_source_get_width(source->source);
+	float image_height = obs_source_get_height(source->source);
 	
 	struct vec2 size;
 	
@@ -217,11 +237,19 @@ void PLSWatermark::updatePosition() {
 		}
 	}
 	
-	obs_sceneitem_set_bounds(_item, &size);
-
-	float scene_width = obs_source_get_width(obs_scene_get_source(_scene));
-	float scene_height = obs_source_get_height(obs_scene_get_source(_scene));
+	obs_sceneitem_set_bounds(source->item, &size);
 	
+	float scene_width = 0;
+	float scene_height = 0;
+	
+	if (source == verticalSource) {
+		scene_width = pls_source_get_vertical_width(obs_scene_get_source(_scene));
+		scene_height = pls_source_get_vertical_height(obs_scene_get_source(_scene));
+	} else {
+		scene_width = obs_source_get_width(obs_scene_get_source(_scene));
+		scene_height = obs_source_get_height(obs_scene_get_source(_scene));
+	}
+
 	float paddingOffsetX = _config->paddingOffsetX;
 	float paddingOffsetY = _config->paddingOffsetY;
 	
@@ -237,7 +265,7 @@ void PLSWatermark::updatePosition() {
 		paddingOffsetX,
 		paddingOffsetY
 	};
-	obs_sceneitem_set_pos(_item, &pos);
+	obs_sceneitem_set_pos(source->item, &pos);
 }
 
 void PLSWatermark::runningThread() {
@@ -302,17 +330,15 @@ PLSWatermark::~PLSWatermark() {
 	stop();
 	
 	obs_set_output_source(_config->channel, NULL);
-	
-	if (_item) {
-		obs_sceneitem_remove(_item);
+
+	if (horizontalSource && horizontalSource->source) {
+		obs_source_remove(horizontalSource->source);
 	}
-	
-	if (_source) {
-		obs_source_release(_source);
+	if (verticalSource && verticalSource->source) {
+		obs_source_remove(verticalSource->source);
 	}
-	
+		
 	if (_scene) {
 		obs_source_remove(obs_scene_get_source(_scene));
-		obs_scene_release(_scene);
 	}
 }

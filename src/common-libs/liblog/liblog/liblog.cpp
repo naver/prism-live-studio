@@ -725,6 +725,45 @@ LIBLOG_API void pls_log_cleanup()
 	log_cleanup();
 }
 
+LIBLOG_API std::vector<std::pair<QByteArray, QByteArray>> pls_to_fields(const std::vector<std::pair<QString, QString>> &fields)
+{
+	std::vector<std::pair<QByteArray, QByteArray>> result;
+	for (const auto &field : fields)
+		result.push_back({field.first.toUtf8(), field.second.toUtf8()});
+	return result;
+}
+LIBLOG_API std::vector<std::pair<const char *, const char *>> pls_to_fields(const std::vector<std::pair<QByteArray, QByteArray>> &fields)
+{
+	std::vector<std::pair<const char *, const char *>> result;
+	return pls_to_fields(result, fields);
+}
+LIBLOG_API std::vector<std::pair<const char *, const char *>> pls_to_fields(const std::vector<std::pair<std::string, std::string>> &fields)
+{
+	std::vector<std::pair<const char *, const char *>> result;
+	return pls_to_fields(result, fields);
+}
+LIBLOG_API const std::vector<std::pair<const char *, const char *>> &pls_to_fields(const std::vector<std::pair<const char *, const char *>> &fields)
+{
+	return fields;
+}
+LIBLOG_API std::vector<std::pair<const char *, const char *>> &pls_to_fields(std::vector<std::pair<const char *, const char *>> &result, const std::vector<std::pair<QByteArray, QByteArray>> &fields)
+{
+	for (const auto &field : fields)
+		result.push_back({field.first.constData(), field.second.constData()});
+	return result;
+}
+LIBLOG_API std::vector<std::pair<const char *, const char *>> &pls_to_fields(std::vector<std::pair<const char *, const char *>> &result, const std::vector<std::pair<std::string, std::string>> &fields)
+{
+	for (const auto &field : fields)
+		result.push_back({field.first.data(), field.second.data()});
+	return result;
+}
+LIBLOG_API std::vector<std::pair<const char *, const char *>> pls_join_fields(std::vector<std::pair<const char *, const char *>> &&fields, const std::vector<std::pair<QByteArray, QByteArray>> &extra)
+{
+	std::vector<std::pair<const char *, const char *>> result = std::move(fields);
+	return pls_to_fields(result, extra);
+}
+
 LIBLOG_API void pls_set_log_handler(pls_log_handler_t handler, void *param)
 {
 	LocalGlobalVars::log_handler = handler;

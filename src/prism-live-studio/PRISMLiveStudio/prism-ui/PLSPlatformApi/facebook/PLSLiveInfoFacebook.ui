@@ -70,11 +70,7 @@
       </spacer>
      </item>
      <item>
-      <widget class="QLabel" name="labelCaption">
-       <property name="text">
-        <string>Facebook</string>
-       </property>
-      </widget>
+      <widget class="PLSLiveInfoDualWidget" name="dualWidget" native="true"/>
      </item>
      <item>
       <spacer name="horizontalSpacer_2">
@@ -953,6 +949,12 @@
    <class>PLSTextEdit</class>
    <extends>QTextEdit</extends>
    <header>PLSEdit.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSLiveInfoDualWidget</class>
+   <extends>QWidget</extends>
+   <header>PLSLiveInfoBase.h</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>PLSLoadingCombox</class>

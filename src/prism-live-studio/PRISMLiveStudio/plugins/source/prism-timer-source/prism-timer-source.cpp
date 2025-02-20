@@ -380,15 +380,15 @@ timer_source::~timer_source()
 
 void timer_source::timer_source_update()
 {
-	dispatahNoramlJsToWeb();
+	dispatahNormalJsToWeb();
 
 	auto timerType = static_cast<TimerType>(obs_data_get_int(config.settings, s_timerType));
-	if (config.mStaus != MusicStatus::Noraml && timerType == TimerType::Current) {
-		updateControlButtons(MusicStatus::Noraml, nullptr, false, false);
+	if (config.mStaus != MusicStatus::Normal && timerType == TimerType::Current) {
+		updateControlButtons(MusicStatus::Normal, nullptr, false, false);
 		dispatahControlJsToWeb();
 	}
 
-	if (config.mStaus == MusicStatus::Noraml && timerType == TimerType::Live && isLivingInstance()) {
+	if (config.mStaus == MusicStatus::Normal && timerType == TimerType::Live && isLivingInstance()) {
 		dispatahControlJsToWeb();
 	}
 
@@ -406,10 +406,10 @@ void timer_source::didClickDefaultsButton()
 	obs_data_set_int(config.settings, s_template_list, static_cast<int>(TemplateType::One));
 	obs_data_set_int(config.settings, s_tap, 0);
 	obs_data_set_int(config.settings, s_timerType, 0);
-	updateControlButtons(MusicStatus::Noraml, nullptr, false, false);
+	updateControlButtons(MusicStatus::Normal, nullptr, false, false);
 	dispatahControlJsToWeb();
 	timer_set_some_part_default(config.settings);
-	dispatahNoramlJsToWeb();
+	dispatahNormalJsToWeb();
 	set_hotkey_visible(this);
 }
 
@@ -457,10 +457,10 @@ void timer_source::resetTextToDefaultWhenEmpty()
 	default:
 		break;
 	}
-	dispatahNoramlJsToWeb();
+	dispatahNormalJsToWeb();
 }
 
-void timer_source::dispatahNoramlJsToWeb()
+void timer_source::dispatahNormalJsToWeb()
 {
 	if (!this->config.web) {
 		return;
@@ -545,7 +545,7 @@ MusicStatus timer_source::getStatus(const QString &name, bool &isGot) const
 	if (name == "start") {
 		return MusicStatus::Started;
 	}
-	if (name == "finish" && MusicStatus::Noraml != config.mStaus) {
+	if (name == "finish" && MusicStatus::Normal != config.mStaus) {
 		return MusicStatus::Stoped;
 	}
 	if (name == "pause") {
@@ -558,7 +558,7 @@ MusicStatus timer_source::getStatus(const QString &name, bool &isGot) const
 		return MusicStatus::Started;
 	}
 	if (name == "cancel" || name == "countTimeChangeWhenWorking") {
-		return MusicStatus::Noraml;
+		return MusicStatus::Normal;
 	}
 	isGot = false;
 	return MusicStatus();
@@ -568,7 +568,7 @@ QString timer_source::getControlEvent() const
 {
 	QString eventName;
 	switch (config.mStaus) {
-	case MusicStatus::Noraml:
+	case MusicStatus::Normal:
 		eventName = "cancel";
 		break;
 	case MusicStatus::Started:
@@ -651,7 +651,7 @@ void timer_source::getControlButtonTextAndEnable(int idx, QString &text, bool &e
 			enable = false;
 		}
 		switch (config.mStaus) {
-		case MusicStatus::Noraml:
+		case MusicStatus::Normal:
 			text = obs_module_text("timer.btn.start");
 			break;
 		case MusicStatus::Started:
@@ -680,7 +680,7 @@ void timer_source::getControlButtonTextAndEnable(int idx, QString &text, bool &e
 		return;
 	}
 	switch (config.mStaus) {
-	case MusicStatus::Noraml:
+	case MusicStatus::Normal:
 		enable = false;
 		break;
 	case MusicStatus::Started:
@@ -1237,7 +1237,7 @@ static bool top_type_radius_changed(void *data, obs_properties_t *props, obs_pro
 	auto source = static_cast<timer_source *>(data);
 	source->isChangeControlByHand = true;
 	source->onlyStopMusicIfNeeded();
-	source->updateControlButtons(MusicStatus::Noraml, props, true, false);
+	source->updateControlButtons(MusicStatus::Normal, props, true, false);
 	source->updateOKButtonEnable();
 	set_hotkey_visible(source);
 	return ui_page_check_visible(data, props, nullptr, settings);
@@ -1249,10 +1249,10 @@ static bool startButtonClicked(obs_properties_t *props, obs_property_t *p, void 
 	pls_unused(p);
 	auto source = static_cast<timer_source *>(data);
 	source->isChangeControlByHand = true;
-	MusicStatus _status = MusicStatus::Noraml;
+	MusicStatus _status = MusicStatus::Normal;
 
 	switch (source->config.mStaus) {
-	case MusicStatus::Noraml:
+	case MusicStatus::Normal:
 		_status = MusicStatus::Started;
 		break;
 	case MusicStatus::Started:
@@ -1265,7 +1265,7 @@ static bool startButtonClicked(obs_properties_t *props, obs_property_t *p, void 
 		_status = MusicStatus::Started;
 		break;
 	case MusicStatus::Stoped:
-		_status = MusicStatus::Noraml;
+		_status = MusicStatus::Normal;
 		break;
 	default:
 		break;
@@ -1281,7 +1281,7 @@ static bool stopButtonClicked(obs_properties_t *props, obs_property_t *p, void *
 	pls_unused(p);
 	auto source = static_cast<timer_source *>(data);
 	source->isChangeControlByHand = true;
-	source->updateControlButtons(MusicStatus::Noraml, props);
+	source->updateControlButtons(MusicStatus::Normal, props);
 	source->dispatahControlJsToWeb();
 
 	return true;
@@ -1367,8 +1367,8 @@ static bool timeIntGrounpCallback(void *data, obs_properties_t *props, obs_prope
 	auto timerCount = source->getCountTime(static_cast<TemplateType>(obs_data_get_int(settings, s_template_list)));
 	obs_data_set_int(settings, s_timer_all_seconds, timerCount);
 
-	if (source->config.mStaus != MusicStatus::Noraml) {
-		source->updateControlButtons(MusicStatus::Noraml, props, false, false);
+	if (source->config.mStaus != MusicStatus::Normal) {
+		source->updateControlButtons(MusicStatus::Normal, props, false, false);
 		source->dispatahControlJsToWeb();
 		return true;
 	} else {
@@ -1376,7 +1376,7 @@ static bool timeIntGrounpCallback(void *data, obs_properties_t *props, obs_prope
 		auto _count = source->getCountTime();
 		if ((_count == 0 && startEnable) || (_count > 0 && !startEnable)) {
 			QMetaObject::invokeMethod(
-				source, [source]() { source->updateControlButtons(MusicStatus::Noraml, nullptr, true); }, Qt::QueuedConnection);
+				source, [source]() { source->updateControlButtons(MusicStatus::Normal, nullptr, true); }, Qt::QueuedConnection);
 		}
 		return false;
 	}
@@ -1792,8 +1792,8 @@ void timer_source::propertiesEditEnd(bool isSaveClick)
 	obs_data_set_bool(config.settings, s_cb_enabled, false);
 	resetTextToDefaultWhenEmpty();
 	if (isChangeControlByHand && !isSaveClick) {
-		if (MusicStatus::Noraml != config.mStaus) {
-			updateControlButtons(MusicStatus::Noraml, nullptr, false, false);
+		if (MusicStatus::Normal != config.mStaus) {
+			updateControlButtons(MusicStatus::Normal, nullptr, false, false);
 			dispatahControlJsToWeb();
 		}
 	}
@@ -1910,7 +1910,7 @@ void timer_source::updateWebAudioShow(bool isShow)
 
 bool timer_source::getStartButtonHightlight() const
 {
-	return config.mStaus != MusicStatus::Noraml;
+	return config.mStaus != MusicStatus::Normal;
 }
 
 bool timer_source::getListenButtonEnable()

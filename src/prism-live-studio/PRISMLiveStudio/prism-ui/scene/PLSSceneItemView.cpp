@@ -293,11 +293,10 @@ void PLSSceneDisplay::resizeEvent(QResizeEvent *)
 	dpi = devicePixelRatioF();
 	int width = SCENE_DISPLAY_DEFAULT_WIDTH * dpi;
 	int height = SCENE_DISPLAY_DEFAULT_HEIGHT * dpi;
-
 	obs_display_resize(GetDisplay(), width, height);
 
-	qreal margin = 4 * dpi;
-	qreal btn_width = 16 * dpi;
+	qreal margin = 4;
+	qreal btn_width = 16;
 	qreal btn_height = btn_width;
 
 	rect_delete_btn.setX((qreal)this->width() - btn_width - margin);
@@ -717,8 +716,8 @@ void PLSSceneDisplay::DrawThumbnail()
 	gs_matrix_pop();
 }
 
-
-bool PLSSceneDisplay::CheckTextureChanged(uint32_t cx, uint32_t cy) {
+bool PLSSceneDisplay::CheckTextureChanged(uint32_t cx, uint32_t cy)
+{
 	gs_color_format fmt = GS_BGRA;
 	if (item_texture) {
 		uint32_t item_width = gs_texture_get_width(item_texture);
@@ -1511,16 +1510,20 @@ void PLSSceneDisplay::RenderScene(void *data, uint32_t cx, uint32_t cy)
 		goto CAPTURE_SCENE_IMG;
 	}
 
-	startRegion(x, y, newCX, newCY, 0.0f, float(targetCX), 0.0f, float(targetCY));
-	window->DrawSceneBackground();
-	endRegion();
-
 	if (source) {
 		if (window->TestSceneDisplayMethod(DisplayMethod::ThumbnailView)) {
 			window->RenderSceneTexture(newCX, newCY, targetCX, targetCY);
 			window->SetRefreshThumbnail(false);
-		}
-		else {
+
+			startRegion(x, y, newCX, newCY, 0.0f, float(targetCX), 0.0f, float(targetCY));
+			window->DrawSceneBackground();
+			window->DrawThumbnail();
+			endRegion();
+		} else {
+			startRegion(x, y, newCX, newCY, 0.0f, float(targetCX), 0.0f, float(targetCY));
+			window->DrawSceneBackground();
+			endRegion();
+
 			startRegion(x, y, newCX, newCY, 0.0f, float(targetCX), 0.0f, float(targetCY));
 			obs_source_video_render(source);
 			endRegion();

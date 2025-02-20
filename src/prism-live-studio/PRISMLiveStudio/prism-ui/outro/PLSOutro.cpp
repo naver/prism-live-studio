@@ -9,9 +9,28 @@
 #include "pls/pls-obs-api.h"
 #include "liblog.h"
 #include "log/module_names.h"
+#include "libresource.h"
+#include "pls/pls-dual-output.h"
 
 #define DEFAULT_DURATION_MS 3000
 #define USE_QT_DRAW_TEXT 1
+
+using obs_scene_add_func = obs_sceneitem_t *(*)(obs_scene_t *scene, obs_source_t *source);
+
+static obs_sceneitem_t *vertical_scene_add(obs_scene_t *scene, obs_source_t *source)
+{
+	return pls_vertical_scene_add(scene, source, nullptr, nullptr);
+}
+
+static inline std::string make_source_name(const char *name, bool is_vertical)
+{
+	if (!name)
+		return std::string();
+
+	return is_vertical ? std::string(name).append("_v") : std::string(name);
+}
+
+#define MAKE_SOURCE_NAME(name) make_source_name(name, items.is_vertical).c_str()
 
 static vec2 GetItemSize(obs_sceneitem_t *item)
 {
@@ -42,12 +61,29 @@ static inline QColor color_from_int(long long val)
 // All the functions should only be called from UI thread.
 class PLSOutroPandatv : public PLSOutro {
 public:
+	struct SourceSet {
+		obs_source_t *m_pImageSource = nullptr;
+		obs_source_t *m_pImageText = nullptr;
+		obs_source_t *m_pColorSource = nullptr;
+
+		obs_sceneitem_t *m_pImageItem = nullptr;
+		obs_sceneitem_t *m_pTextItem = nullptr;
+		obs_sceneitem_t *m_pColorItem = nullptr;
+		bool is_vertical = false;
+
+		bool itemsValid() { return (m_pImageItem && m_pTextItem && m_pColorItem); }
+	};
+
+	struct SourceSetH : public SourceSet {
+		SourceSetH() { is_vertical = false; }
+	};
+
+	struct SourceSetV : public SourceSet {
+		SourceSetV() { is_vertical = true; }
+	};
+
 	using PLSOutro::PLSOutro;
 	virtual ~PLSOutroPandatv() { Clear(); }
-
-#if !USE_QT_DRAW_TEXT
-	OBSWeakSource m_textWeakSource;
-#endif
 
 	// Inherited via PLSOutro
 	virtual void Start() override
@@ -61,55 +97,46 @@ public:
 			return;
 		}
 
-		// create a color source
-		m_pColorSource = obs_source_create_private("color_source", "Outro background color", BuildBgColorSettings(m_settings));
-		if (m_pColorSource) {
-			m_pColorItem = obs_scene_add(m_pScene, m_pColorSource);
-			obs_sceneitem_set_visible(m_pColorItem, false);
-		} else {
-			PLS_WARN(PLS_MODULE_NAME_OUTRO, "[%p] Failed to create color source.", (void *)this);
-		}
+		auto create_sources = [=](SourceSet &items, obs_scene_add_func add_scene_func) {
+			// create a color source
+			items.m_pColorSource = obs_source_create_private("color_source", MAKE_SOURCE_NAME("Outro background color"), BuildBgColorSettings(m_settings));
+			if (items.m_pColorSource) {
+				items.m_pColorItem = add_scene_func(m_pScene, items.m_pColorSource);
+				obs_sceneitem_set_visible(items.m_pColorItem, false);
+			} else {
+				PLS_WARN(PLS_MODULE_NAME_OUTRO, "[%p] Failed to create color source.", (void *)this);
+			}
 
-		// create a image source
-		m_pImageSource = obs_source_create_private("image_source", "Outro image", BuildImageSettings(m_settings));
-		if (m_pImageSource) {
-			m_pImageItem = obs_scene_add(m_pScene, m_pImageSource);
-			obs_sceneitem_set_visible(m_pImageItem, false);
-		} else {
-			PLS_WARN(PLS_MODULE_NAME_OUTRO, "[%p] Failed to create image source.", (void *)this);
-		}
+			// create a image source
+			items.m_pImageSource = obs_source_create_private("image_source", MAKE_SOURCE_NAME("Outro image"), BuildImageSettings(m_settings));
+			if (items.m_pImageSource) {
+				items.m_pImageItem = add_scene_func(m_pScene, items.m_pImageSource);
+				obs_sceneitem_set_visible(items.m_pImageItem, false);
+			} else {
+				PLS_WARN(PLS_MODULE_NAME_OUTRO, "[%p] Failed to create image source.", (void *)this);
+			}
 
-#if !USE_QT_DRAW_TEXT
-		// create a text source
-#ifdef _WIN32
-		const char *text_source_id = "text_gdiplus";
-#else
-		const char *text_source_id = "text_ft2_source";
-#endif
-		m_pTextSource = obs_source_create_private(text_source_id, "Outro text", BuildTextSettings(m_settings));
-		if (m_pTextSource) {
-			m_pTextItem = obs_scene_add(m_pScene, m_pTextSource);
-			obs_sceneitem_set_visible(m_pTextItem, false);
-			m_textWeakSource = OBSGetWeakRef(m_pTextSource);
-		} else {
-			PLS_WARN(PLS_MODULE_NAME_OUTRO, "[%p] Failed to create text source.", (void *)this);
-		}
+			items.m_pImageText = obs_source_create_private("image_source", MAKE_SOURCE_NAME("Outro text"), BuildTextSettings(m_settings, items.is_vertical));
+			if (items.m_pImageText) {
+				items.m_pTextItem = add_scene_func(m_pScene, items.m_pImageText);
+				obs_sceneitem_set_visible(items.m_pTextItem, false);
+			} else {
+				PLS_WARN(PLS_MODULE_NAME_OUTRO, "[%p] Failed to create text source.", (void *)this);
+			}
+		};
 
-		obs_add_main_rendered_callback(renderdCallback, this);
-#else
-		m_pImageText = obs_source_create_private("image_source", "Outro text", BuildTextSettings(m_settings));
-		if (m_pImageText) {
-			m_pTextItem = obs_scene_add(m_pScene, m_pImageText);
-			obs_sceneitem_set_visible(m_pTextItem, false);
-		} else {
-			PLS_WARN(PLS_MODULE_NAME_OUTRO, "[%p] Failed to create text source.", (void *)this);
+		create_sources(m_hItems, obs_scene_add);
+		if (pls_is_dual_output_on()) {
+			create_sources(m_vItems, vertical_scene_add);
+			m_verticalEnabled = true;
 		}
-#endif
 
 		// bind channel source
 		obs_set_output_source(static_cast<uint32_t>(CustomChannel::CHANNEL_OUTRO), obs_scene_get_source(m_pScene));
 
-		InitGeometry(m_settings);
+		InitGeometry(m_settings, m_hItems);
+		if (m_verticalEnabled)
+			InitGeometry(m_settings, m_vItems);
 
 		if (m_settings.contains("timeoutMs")) {
 			m_durationMs = m_settings.value("timeoutMs").toInt(DEFAULT_DURATION_MS);
@@ -147,27 +174,6 @@ public:
 	virtual void Update(const QJsonObject &settings) override {}
 	virtual bool IsRunning() override { return m_bRunning; }
 
-	void AsyncUpdateGeometry()
-	{
-		pls_async_call_mt([this]() {
-			InitGeometry(m_settings, true);
-			obs_remove_main_rendered_callback(renderdCallback, this);
-		});
-	}
-
-	static void renderdCallback(void *param)
-	{
-#if !USE_QT_DRAW_TEXT
-		auto context = (PLSOutroPandatv *)param;
-		if (context) {
-			if (OBSSource source = OBSGetStrongRef(context->m_textWeakSource); source) {
-				if (obs_source_get_width(source) > 0 && obs_source_get_height(source) > 0)
-					context->AsyncUpdateGeometry();
-			}
-		}
-#endif
-	}
-
 private:
 	OBSDataAutoRelease BuildImageSettings(const QJsonObject &settings)
 	{
@@ -204,11 +210,10 @@ private:
 		return data;
 	}
 
-	OBSDataAutoRelease BuildTextSettings(const QJsonObject &settings)
+	OBSDataAutoRelease BuildTextSettings(const QJsonObject &settings, bool use_for_vertical = false)
 	{
 		OBSDataAutoRelease data = obs_data_create();
-#if USE_QT_DRAW_TEXT
-		auto imagePath = GenerateTextImage(settings);
+		auto imagePath = GenerateTextImage(settings, use_for_vertical);
 		if (imagePath.isEmpty()) {
 			PLS_WARN(PLS_MODULE_NAME_OUTRO, "[%p] Failed to generate text image by Qt.", (void *)this);
 			return data;
@@ -221,64 +226,20 @@ private:
 		obs_data_set_string(data, "file", imagePath.toUtf8().constData());
 		obs_data_set_bool(data, "unload", false);
 		obs_data_set_bool(data, "linear_alpha", false);
-#else
-		if (!settings.contains("text") || settings.value("text").toString().isEmpty()) {
-			assert(false);
-			PLS_WARN(PLS_MODULE_NAME_OUTRO, "[%p] Failed to apply outro text: outro text is empty.", (void *)this);
-			return data;
-		}
-
-		obs_data_set_string(data, "text", settings.value("text").toString().toUtf8().constData());
-
-		OBSDataAutoRelease font = obs_data_create();
-
-		if (settings.contains("face")) {
-			auto face = settings.value("face").toString().toUtf8().constData();
-			obs_data_set_string(font, "face", face);
-		} else {
-#if defined(_WIN32)
-			obs_data_set_string(font, "face", "Malgun Gothic");
-#elif defined(__APPLE__)
-			obs_data_set_string(font, "face", "Pretendard Regular");
-#else
-			obs_data_set_string(font, "face", "Monospace");
-#endif
-		}
-
-		if (settings.contains("flags")) {
-			obs_data_set_int(font, "flags", settings.value("flags").toInt());
-		} else {
-			obs_data_set_int(font, "flags", 0);
-		}
-
-		if (settings.contains("size")) {
-			obs_data_set_int(font, "size", settings.value("size").toInt());
-		} else {
-			obs_data_set_int(font, "size", 30);
-		}
-
-		obs_data_set_obj(data, "font", font);
-		obs_data_set_bool(data, "outline", false);
-		obs_data_set_string(data, "align", "center");
-		obs_data_set_string(data, "valign", "top");
-#if __APPLE__
-		obs_data_set_int(data, "color1", 0xF3F3F3FF);
-		obs_data_set_int(data, "color2", 0xF3F3F3FF);
-#else
-		obs_data_set_int(data, "color", 0xF3F3F3);
-#endif
-#endif
 
 		return data;
 	}
 
-	OBSDataAutoRelease BuildBgColorSettings(const QJsonObject &settings)
+	OBSDataAutoRelease BuildBgColorSettings(const QJsonObject &settings, bool vertical = false)
 	{
 		OBSDataAutoRelease data = obs_data_create();
 		obs_data_set_int(data, "color", 0xFF000000);
 
 		obs_video_info ovi;
-		obs_get_video_info(&ovi);
+		if (!vertical)
+			obs_get_video_info(&ovi);
+		else
+			pls_get_vertical_video_info(&ovi);
 
 		obs_data_set_int(data, "width", ovi.base_width);
 		obs_data_set_int(data, "height", ovi.base_height);
@@ -286,9 +247,9 @@ private:
 		return data;
 	}
 
-	void InitGeometry(const QJsonObject &settings, bool asyncCall = false)
+	void InitGeometry(const QJsonObject &settings, SourceSet &item)
 	{
-		if (!m_pImageItem || !m_pTextItem || !m_pColorItem)
+		if (!item.itemsValid())
 			return;
 
 		vec2 pos;
@@ -296,7 +257,10 @@ private:
 
 		obs_video_info ovi;
 		vec3 screenCenter;
-		obs_get_video_info(&ovi);
+		if (!item.is_vertical)
+			obs_get_video_info(&ovi);
+		else
+			pls_get_vertical_video_info(&ovi);
 		vec3_set(&screenCenter, float(ovi.base_width), float(ovi.base_height), 0.0f);
 		vec3_mulf(&screenCenter, &screenCenter, 0.5f);
 
@@ -309,8 +273,8 @@ private:
 			scale.x = 1.0;
 			scale.y = 1.0;
 
-			obs_sceneitem_set_pos(m_pColorItem, &pos);
-			obs_sceneitem_set_scale(m_pColorItem, &scale);
+			obs_sceneitem_set_pos(item.m_pColorItem, &pos);
+			obs_sceneitem_set_scale(item.m_pColorItem, &scale);
 		}
 
 		// image
@@ -322,11 +286,11 @@ private:
 			scale.y = radio;
 
 			vec2 baseSize;
-			baseSize.x = (float)obs_source_get_width(m_pImageSource);
-			baseSize.y = (float)obs_source_get_height(m_pImageSource);
+			baseSize.x = (float)obs_source_get_width(item.m_pImageSource);
+			baseSize.y = (float)obs_source_get_height(item.m_pImageSource);
 
-			obs_sceneitem_set_bounds_type(m_pImageItem, OBS_BOUNDS_STRETCH);
-			obs_sceneitem_set_bounds_alignment(m_pImageItem, OBS_ALIGN_CENTER);
+			obs_sceneitem_set_bounds_type(item.m_pImageItem, OBS_BOUNDS_STRETCH);
+			obs_sceneitem_set_bounds_alignment(item.m_pImageItem, OBS_ALIGN_CENTER);
 
 			struct vec2 boundSize;
 			do {
@@ -358,18 +322,14 @@ private:
 				}
 			} while (false);
 
-#if USE_QT_DRAW_TEXT
-			float contentHeight = boundSize.y + (float)obs_source_get_height(m_pImageText) + spacing;
-#else
-			float contentHeight = boundSize.y + (float)obs_source_get_height(m_pTextSource) + spacing;
-#endif
+			float contentHeight = boundSize.y + (float)obs_source_get_height(item.m_pImageText) + spacing;
 			float cy_offset = screenCenter.y - contentHeight / 2.0;
 
 			pos.x = screenCenter.x - boundSize.x * radio / 2.0f;
 			pos.y = cy_offset;
 
-			obs_sceneitem_set_pos(m_pImageItem, &pos);
-			obs_sceneitem_set_bounds(m_pImageItem, &boundSize);
+			obs_sceneitem_set_pos(item.m_pImageItem, &pos);
+			obs_sceneitem_set_bounds(item.m_pImageItem, &boundSize);
 		}
 
 		//text
@@ -381,43 +341,26 @@ private:
 			scale.y = radio;
 
 			vec2 baseSize;
-#if USE_QT_DRAW_TEXT
-			baseSize.x = (float)obs_source_get_width(m_pImageText);
-			baseSize.y = (float)obs_source_get_height(m_pImageText);
-#else
-			baseSize.x = (float)obs_source_get_width(m_pTextSource);
-			baseSize.y = (float)obs_source_get_height(m_pTextSource);
-#endif
+			baseSize.x = (float)obs_source_get_width(item.m_pImageText);
+			baseSize.y = (float)obs_source_get_height(item.m_pImageText);
 
-			vec2 imageItemSize = GetItemSize(m_pImageItem);
+			vec2 imageItemSize = GetItemSize(item.m_pImageItem);
 
 			pos.x = screenCenter.x - baseSize.x * radio / 2.0f;
 			pos.y = pos.y + imageItemSize.y + spacing;
 
-			obs_sceneitem_set_pos(m_pTextItem, &pos);
-			obs_sceneitem_set_scale(m_pTextItem, &scale);
+			obs_sceneitem_set_pos(item.m_pTextItem, &pos);
+			obs_sceneitem_set_scale(item.m_pTextItem, &scale);
 		}
 
-#if !USE_QT_DRAW_TEXT
-		if (asyncCall) {
-			obs_sceneitem_set_visible(m_pImageItem, true);
-			obs_sceneitem_set_visible(m_pTextItem, true);
-			obs_sceneitem_set_visible(m_pColorItem, true);
-		}
-#else
-		obs_sceneitem_set_visible(m_pImageItem, true);
-		obs_sceneitem_set_visible(m_pTextItem, true);
-		obs_sceneitem_set_visible(m_pColorItem, true);
-#endif
+		obs_sceneitem_set_visible(item.m_pImageItem, true);
+		obs_sceneitem_set_visible(item.m_pTextItem, true);
+		obs_sceneitem_set_visible(item.m_pColorItem, true);
 	}
 
 	void Clear()
 	{
 		pls_set_all_mute(false);
-
-#if !USE_QT_DRAW_TEXT
-		obs_remove_main_rendered_callback(renderdCallback, this);
-#endif
 
 		if (m_pTimer) {
 			m_pTimer->stop();
@@ -429,40 +372,39 @@ private:
 		if (m_pScene)
 			obs_source_remove(obs_scene_get_source(m_pScene));
 
-		//color
-		if (m_pColorItem) {
-			obs_sceneitem_remove(m_pColorItem);
-			m_pColorItem = nullptr;
-		}
+		auto clear_sources = [=](SourceSet &item) {
+			//color
+			if (item.m_pColorItem) {
+				obs_sceneitem_remove(item.m_pColorItem);
+				item.m_pColorItem = nullptr;
+			}
 
-		// image
-		if (m_pImageItem) {
-			obs_sceneitem_remove(m_pImageItem);
-			m_pImageItem = nullptr;
-		}
+			// image
+			if (item.m_pImageItem) {
+				obs_sceneitem_remove(item.m_pImageItem);
+				item.m_pImageItem = nullptr;
+			}
 
-		if (m_pImageSource) {
-			obs_source_release(m_pImageSource);
-			m_pImageSource = nullptr;
-		}
+			if (item.m_pImageSource) {
+				obs_source_release(item.m_pImageSource);
+				item.m_pImageSource = nullptr;
+			}
 
-		// text
-		if (m_pTextItem) {
-			obs_sceneitem_remove(m_pTextItem);
-			m_pTextItem = nullptr;
-		}
+			// text
+			if (item.m_pTextItem) {
+				obs_sceneitem_remove(item.m_pTextItem);
+				item.m_pTextItem = nullptr;
+			}
 
-#if USE_QT_DRAW_TEXT
-		if (m_pImageText) {
-			obs_source_release(m_pImageText);
-			m_pImageText = nullptr;
-		}
-#else
-		if (m_pTextSource) {
-			obs_source_release(m_pTextSource);
-			m_pTextSource = nullptr;
-		}
-#endif
+			if (item.m_pImageText) {
+				obs_source_release(item.m_pImageText);
+				item.m_pImageText = nullptr;
+			}
+		};
+
+		clear_sources(m_hItems);
+		if (m_verticalEnabled)
+			clear_sources(m_vItems);
 
 		if (m_pScene) {
 			obs_scene_release(m_pScene);
@@ -472,7 +414,7 @@ private:
 		m_bRunning = false;
 	}
 
-	QString GenerateTextImage(const QJsonObject &settings)
+	QString GenerateTextImage(const QJsonObject &settings, bool use_for_vertical = false)
 	{
 		if (settings.isEmpty())
 			return QString();
@@ -513,7 +455,10 @@ private:
 
 		obs_video_info ovi;
 		vec3 screenCenter;
-		obs_get_video_info(&ovi);
+		if (!use_for_vertical)
+			obs_get_video_info(&ovi);
+		else
+			pls_get_vertical_video_info(&ovi);
 
 		QFontMetrics fontMetrics(font);
 		auto screenWidth = static_cast<int>(ovi.base_width);
@@ -530,23 +475,16 @@ private:
 		
 		painter.drawText(pixmap.rect(), flags, text);
 
-		auto savedFileName = pls_get_app_data_dir(QStringLiteral("PRISMLiveStudio/library/Library_Policy_PC/")) + QStringLiteral("outro_text.png");
+		auto savedFileName = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/")) + (!use_for_vertical ? QStringLiteral("outro_text.png") : QStringLiteral("outro_text_v.png"));
 		bool resut = pixmap.save(savedFileName);
 		return resut ? savedFileName : QString();
 	}
 
 	obs_scene_t *m_pScene = nullptr;
-	obs_source_t *m_pImageSource = nullptr;
-#if !USE_QT_DRAW_TEXT
-	obs_source_t *m_pTextSource = nullptr;
-#else
-	obs_source_t *m_pImageText = nullptr;
-#endif
-	obs_source_t *m_pColorSource = nullptr;
-	obs_sceneitem_t *m_pImageItem = nullptr;
-	obs_sceneitem_t *m_pTextItem = nullptr;
-	obs_sceneitem_t *m_pColorItem = nullptr;
+	SourceSetH m_hItems;
+	SourceSetV m_vItems;
 	bool m_bRunning = false;
+	bool m_verticalEnabled = false;
 	QPointer<QTimer> m_pTimer;
 };
 

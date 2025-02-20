@@ -22,39 +22,48 @@ struct LocalGlobalVar {
 	static std::vector<std::vector<SourceTypeInfo>> presetSourceList;
 };
 std::vector<std::vector<SourceTypeInfo>> LocalGlobalVar::presetSourceList = {
-	{SourceTypeInfo(OBS_DSHOW_SOURCE_ID, false, false),
+	{
+#ifdef Q_OS_MACOS
+	 SourceTypeInfo(OBS_MACOS_VIDEO_CAPTURE_SOURCE_ID),
+#else
+	 SourceTypeInfo(OBS_DSHOW_SOURCE_ID, false, false),
+#endif
 	 SourceTypeInfo(AUDIO_INPUT_SOURCE_ID, false, false),
 	 SourceTypeInfo(AUDIO_OUTPUT_SOURCE_ID),
-#ifdef Q_OS_MACOS
-	 SourceTypeInfo(AUDIO_OUTPUT_SOURCE_ID_V2),
-#endif // Q_OS_MACOS
-	 SourceTypeInfo(PRISM_APP_AUDIO_SOURCE_ID),
-	 SourceTypeInfo(OBS_APP_AUDIO_CAPTURE_ID),
-	 SourceTypeInfo(PRISM_NDI_SOURCE_ID, false, false),
-	 SourceTypeInfo(GAME_SOURCE_ID),
-	 SourceTypeInfo(PRISM_REGION_SOURCE_ID),
-	 SourceTypeInfo(PRISM_MONITOR_SOURCE_ID),
-	 SourceTypeInfo(OBS_MACOS_SCREEN_CAPTURE_SOURCE_ID),
-	 SourceTypeInfo(WINDOW_SOURCE_ID),
-	 SourceTypeInfo(OBS_INPUT_SPOUT_CAPTURE_ID, false, false),
-	 SourceTypeInfo(BROWSER_SOURCE_ID),
-	 SourceTypeInfo(MEDIA_SOURCE_ID),
-	 SourceTypeInfo(IMAGE_SOURCE_ID),
-	 SourceTypeInfo(SLIDESHOW_SOURCE_ID),
-	 SourceTypeInfo(COLOR_SOURCE_ID),
-	 SourceTypeInfo(GDIP_TEXT_SOURCE_ID),
-	 SourceTypeInfo(PRISM_INPUT_OVERLAY_SOURCE_ID),
-	 SourceTypeInfo(PRISM_INPUT_HISTORY_SOURCE_ID),
-	 SourceTypeInfo(DECKLINK_INPUT_SOURCE_ID),
-	 SourceTypeInfo(SCENE_SOURCE_ID, true)},
 
+#ifdef Q_OS_MACOS
+	SourceTypeInfo(AUDIO_OUTPUT_SOURCE_ID_V2),
+#endif // Q_OS_MACOS
+	SourceTypeInfo(PRISM_APP_AUDIO_SOURCE_ID),
+	SourceTypeInfo(OBS_APP_AUDIO_CAPTURE_ID),
+	SourceTypeInfo(PRISM_NDI_SOURCE_ID, false, false),
+	SourceTypeInfo(GAME_SOURCE_ID),
+	SourceTypeInfo(PRISM_REGION_SOURCE_ID),
+	SourceTypeInfo(PRISM_MONITOR_SOURCE_ID),
+	SourceTypeInfo(OBS_MACOS_SCREEN_CAPTURE_SOURCE_ID),
+	SourceTypeInfo(WINDOW_SOURCE_ID),
+	SourceTypeInfo(OBS_INPUT_SPOUT_CAPTURE_ID, false, false),
+	SourceTypeInfo(BROWSER_SOURCE_ID),
+	SourceTypeInfo(MEDIA_SOURCE_ID),
+	SourceTypeInfo(IMAGE_SOURCE_ID),
+	SourceTypeInfo(SLIDESHOW_SOURCE_ID),
+	SourceTypeInfo(COLOR_SOURCE_ID),
+	SourceTypeInfo(GDIP_TEXT_SOURCE_ID),
+	SourceTypeInfo(PRISM_INPUT_OVERLAY_SOURCE_ID),
+	SourceTypeInfo(PRISM_INPUT_HISTORY_SOURCE_ID),
+	SourceTypeInfo(DECKLINK_INPUT_SOURCE_ID),
+	SourceTypeInfo(SCENE_SOURCE_ID, true),
+#ifdef Q_OS_MACOS
+	SourceTypeInfo(OBS_MACOS_CAPTURE_CARD_SOURCE_ID, true, false)
+#endif 
+},
 	{
 		SourceTypeInfo(PRISM_LENS_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_LENS_MOBILE_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_MOBILE_SOURCE_ID),
 		SourceTypeInfo(PRISM_TEXT_TEMPLATE_ID, false, false, 1),
-		SourceTypeInfo(PRISM_CHATV2_SOURCE_ID, false, true, 1),
-		SourceTypeInfo(PRISM_CHZZK_SPONSOR_SOURCE_ID, false, true, 1),
+		SourceTypeInfo(PRISM_CHATV2_SOURCE_ID, false, false, 1),
+		SourceTypeInfo(PRISM_CHZZK_SPONSOR_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_VIEWER_COUNT_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_STICKER_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_GIPHY_STICKER_SOURCE_ID, false, false, 1),
@@ -64,8 +73,6 @@ std::vector<std::vector<SourceTypeInfo>> LocalGlobalVar::presetSourceList = {
 		SourceTypeInfo(PRISM_SPECTRALIZER_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_BACKGROUND_TEMPLATE_SOURCE_ID, false, false, 1),
 		SourceTypeInfo(PRISM_TIMER_SOURCE_ID, false, false, 1),
-
-	 
 	},
 };
 }

@@ -8,6 +8,7 @@
 class QButtonGroup;
 class PLSMotionErrorLayer;
 class PLSImageListView;
+class PLSPrismListView;
 
 enum class PLSMotionViewType { PLSMotionDetailView, PLSMotionPropertyView };
 
@@ -40,7 +41,7 @@ signals:
 	void clickCategoryIndex(int index);
 	void checkState(bool checked);
 	void currentResourceChanged(const QString &itemId, int type, const QString &resourcePath, const QString &staticImgPath, const QString &thumbnailPath, bool prismResource,
-				    const QString &foregroundPath, const QString &foregroundStaticImgPath, int dataType);
+				    const QString &foregroundPath, const QString &foregroundStaticImgPath);
 	void setSelectedItemFailed(const QString &itemId);
 	void deleteCurrentResource(const QString &itemId);
 	void filterButtonClicked();
@@ -51,14 +52,14 @@ protected:
 
 private:
 	void initCheckBox();
-	void initButton();
+	void initCategory(PLSMotionViewType type);
 	void initScrollArea();
 	void initCategoryIndex();
 	PLSImageListView *getImageListView(int index);
 	void onCheckedRemoved(const MotionData &md, bool isVbUsed, bool isSourceUsed);
 	bool imageItemViewExisted(QString itemId);
-	void onRetryDownloadClicked(const std::function<void(const MotionData &md)> &ok, const std::function<void(const MotionData &md)> &fail);
-	void onRetryDownloadFinished();
+	void onRetryDownloadCallback(const MotionData &md, bool update);
+	void onRetryDownloadClicked();
 	void clearImage() const;
 	bool RetryDownload();
 
@@ -66,6 +67,7 @@ public slots:
 	void clickItemWithSendSignal(int groupIndex, int itemIndex);
 	void deleteAllResources();
 	void buttonGroupSlot(int buttonId);
+	void onAllDownloadFinished(bool ok);
 
 private:
 	Ui::PLSMotionImageListView *ui;
@@ -74,10 +76,9 @@ private:
 	PLSMotionViewType m_viewType;
 	PLSMotionErrorLayer *m_errorToast{nullptr};
 	bool m_itemSelectedEnabled = true;
+	bool retryClicked = false;
 	MotionData m_currentMotionData;
-	int reDownloadFailedCount = 0;
-	int reDownloadSuccessCount = 0;
-	int downloadNotCachedCount = 0;
+	QMap<int, PLSPrismListView *> categoryViews;
 };
 
 #endif // PLSMOTIONIMAGELISTVIEW_H

@@ -39,6 +39,8 @@ private:
 	QPointer<QWidget> m_pWidgetLoadingBG = nullptr;
 	PLSLoadingEvent m_loadingEvent;
 	QWidget *m_pWidgetRetryContainer = nullptr;
+
+	bool m_bRefreshing = false;
 };
 
 #endif // PLSSCENETEMPLATEMAINSCENE_H

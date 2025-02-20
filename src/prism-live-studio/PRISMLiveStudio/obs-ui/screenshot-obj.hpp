@@ -46,6 +46,7 @@ public:
 
 	int stage = 0;
 	bool showtips = true;
+	bool isVerticalPreview = false;
 
 public slots:
 	void Save();

@@ -25,7 +25,7 @@ enum class PLSScheComboxItemType {
 	Ty_NormalLive,
 	Ty_Loading,
 	Ty_Header,
-	Ty_Placehoder,
+	Ty_Placeholder,
 	Ty_Schedule,
 };
 

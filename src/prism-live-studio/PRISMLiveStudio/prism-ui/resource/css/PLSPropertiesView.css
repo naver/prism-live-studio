@@ -28,7 +28,7 @@ PLSPropertiesView {
     }
 
     PLSPropertiesView #innerGroupWidget {
-        background-color: #1c1c1c;
+        background-color: #272727;
     }
 
         PLSPropertiesView #innerGroupWidget #formLabel,
@@ -774,8 +774,8 @@ PLSPropertiesView #TMTabButton {
     margin: 0;
 }
 PLSPropertiesView[sourceId="prism_chatv2_source"] #TMTabButton {
-    qproperty-maximumSize: /*hdpi*/ 1000px /*hdpi*/ 48px;
-    qproperty-minimumSize: /*hdpi*/ 175px /*hdpi*/ 48px;
+    qproperty-maximumSize: /*hdpi*/ 1000px /*hdpi*/ 38px;
+    qproperty-minimumSize: /*hdpi*/ 190px /*hdpi*/ 38px;
     padding: 0;
     margin: 0;
 }
@@ -899,6 +899,15 @@ PLSPropertiesView #subLabel {
     min-width: /*hdpi*/ 135px;
     background-color:transparent;
 }
+
+PLSPropertiesView[sourceId="prism_chatv2_source"] #subLabel {
+    font-size: /*hdpi*/ 14px;
+    font-weight: normal;
+    color: #bababa;
+    min-width: /*hdpi*/ 135px;
+    max-width: /*hdpi*/ 135px;
+    background-color: transparent;
+} 
 PLSPropertiesView #ct_empty_tip_label {
     font-size: /*hdpi*/ 14px;
     font-weight: normal;
@@ -942,6 +951,10 @@ PLSPropertiesView #sliderLabel, PLSPropertiesView #bk_outlineLabel {
 
 PLSPropertiesView #colorFrame, PLSPropertiesView #outLineFrame {
     min-width: /*hdpi*/ 128px;
+}
+PLSPropertiesView[sourceId="prism_chatv2_source"] #ctColorFrame {
+    min-width: /*hdpi*/ 135px;
+    max-width: /*hdpi*/ 135px;
 }
 PLSPropertiesView #ctColorFrame {
     min-width: /*hdpi*/ 135px;
@@ -2070,6 +2083,5 @@ PLSPropertiesView #PLSChatTemplateTabTips {
     background-color: transparent;
     font-size: 12px;
     font-weight: normal;
-    min-width: 345px;
-    max-width: 420px;
+    min-width: 300px;
 }

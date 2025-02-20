@@ -50,6 +50,7 @@ private:
 	pls::browser::BrowserWidget *m_browserWidget;
 	QString m_jsCode;
 	QTimer m_updateTimer;
-	bool m_isUpdateOk = false;
+	bool m_isUpdateFinished = false;
 	bool m_inputError = false;
+	bool m_updateSuccess = false;
 };

@@ -1,6 +1,7 @@
 #include "PLSFloatScrollBarScrollArea.h"
 #include "libutils-api.h"
 #include <QTimer>
+#include <libui.h>
 
 PLSFloatScrollBarScrollArea::PLSFloatScrollBarScrollArea(QWidget *parent) : QScrollArea(parent)
 {
@@ -8,6 +9,7 @@ PLSFloatScrollBarScrollArea::PLSFloatScrollBarScrollArea(QWidget *parent) : QScr
 	delegateScrollBar = pls_new<QScrollBar>(Qt::Vertical, this);
 	delegateScrollBar->setObjectName("flatScrollBar");
 	delegateScrollBar->installEventFilter(this);
+	pls_scroll_area_clips_to_bounds(this);
 
 	connect(this->verticalScrollBar(), &QScrollBar::valueChanged, this, &PLSFloatScrollBarScrollArea::OnVerticalScrollBarValueChanged, Qt::QueuedConnection);
 

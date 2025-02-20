@@ -80,8 +80,8 @@ public:
 	  * return:
 	  *     true for success, false for failed
 	  */
-	virtual bool loginWithAccount(QJsonObject &result, UseFor useFor, QWidget *parent = nullptr) const;
-	virtual void loginWithAccountAsync(const std::function<void(bool ok, const QJsonObject &)> &callback, UseFor useFor, QWidget *parent = nullptr) const;
+	virtual bool loginWithAccount(QVariantHash &result, UseFor useFor, QWidget *parent = nullptr) const;
+	virtual void loginWithAccountAsync(const std::function<void(bool ok, const QVariantHash &)> &callback, UseFor useFor, QWidget *parent = nullptr) const;
 
 	/**
 	  * get rtmp server url address

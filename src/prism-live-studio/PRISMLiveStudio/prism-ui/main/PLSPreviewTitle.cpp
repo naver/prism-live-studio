@@ -563,10 +563,11 @@ void PLSPreviewLiveLabel::SetRecordStatus(bool isStarted)
 	liveUI->OnEvents(PLSTimerDisplay::EventType::RecordStatusChanged, isStarted);
 	recordUI->OnEvents(PLSTimerDisplay::EventType::RecordStatusChanged, isStarted);
 
+	bool isLiving = pls_get_output_stream_dealy_active() || PLSCHANNELS_API->isLiving();
 	if (isStarted) {
 		recordUI->show();
-		spaceIcon->setVisible(PLSCHANNELS_API->isLiving());
-		if (!PLSCHANNELS_API->isLiving()) {
+		spaceIcon->setVisible(isLiving);
+		if (!isLiving) {
 			liveUI->hide();
 		}
 	} else {

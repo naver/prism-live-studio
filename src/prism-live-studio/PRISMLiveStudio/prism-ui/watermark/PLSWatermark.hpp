@@ -18,6 +18,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <functional>
+#include <obs.hpp>
 
 enum PLSWatermarkTransitionType {
 	PLS_WATERMARK_TRANSITION_NONE,
@@ -53,6 +54,11 @@ private:
 	uint32_t translateAlignment(std::string alignment);
 };
 
+struct PLSWatermarkSource {
+	OBSSource source = nullptr;
+	OBSSceneItem item = nullptr;
+};
+
 class PLSWatermark {
 public:
 	PLSWatermark(std::shared_ptr<PLSWatermarkConfig> config);
@@ -62,12 +68,15 @@ public:
 	
 	void start();
 	void stop();
+	
 	void updatePosition();
 	
 private:
-	obs_scene_t *_scene = nullptr;
-	obs_source_t *_source = nullptr;
-	obs_sceneitem_t *_item = nullptr;
+	mutable std::mutex _mutex;
+
+	OBSScene _scene = nullptr;
+	std::shared_ptr<PLSWatermarkSource> horizontalSource;
+	std::shared_ptr<PLSWatermarkSource> verticalSource;
 	std::thread _runningThread;
 	std::atomic<bool> _running = false;
 	std::condition_variable _runningCv;
@@ -75,9 +84,14 @@ private:
 	std::shared_ptr<PLSWatermarkConfig> _config;
 	
 	void initWithConfig(std::shared_ptr<PLSWatermarkConfig> config);
+	
+	std::shared_ptr<PLSWatermarkSource> createSource(bool isVertical);
+	
 	void runningThread();
 	
 	std::string transitionIdByType(PLSWatermarkTransitionType type);
+	
+	void updatePosition(std::shared_ptr<PLSWatermarkSource> source);
 };
 
 #endif /* PLSWatermark_hpp */

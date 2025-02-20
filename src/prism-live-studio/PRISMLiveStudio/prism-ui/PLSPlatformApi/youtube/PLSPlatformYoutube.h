@@ -13,6 +13,7 @@
 #include <vector>
 #include <mutex>
 #include "PLSPlatformBase.hpp"
+#include "PLSErrorHandler.h"
 
 extern const QString kDefaultCategoryID;
 extern const QString s_latencyLow;
@@ -26,8 +27,6 @@ struct PLSYoutubeCategory {
 	QString _id;
 	QString title;
 };
-
-enum class PLSYoutubeLatency { Low = 0, Normal = 1, UltraLow = 2 };
 
 struct PLSYoutubeStart {
 	bool enableAutoStart = true;
@@ -43,7 +42,14 @@ struct PLSYoutubeStart {
 };
 
 struct PLSYoutubeLiveinfoData {
+	Q_GADGET
 public:
+	enum class Latency { Low = 0, Normal = 1, UltraLow = 2 };
+	Q_ENUM(Latency)
+
+	enum class IngestionType { Rtmps = 1, Hls = 2 };
+	Q_ENUM(IngestionType)
+
 	PLSYoutubeLiveinfoData() = default;
 	explicit PLSYoutubeLiveinfoData(const QJsonObject &data);
 	PLSYoutubeLiveinfoData(PLSYoutubeLiveinfoData const &) = default;
@@ -83,7 +89,7 @@ public:
 	QJsonObject statusData{};  //get in the video api
 	QJsonObject snippetData{}; //get in the video api
 
-	PLSYoutubeLatency latency = PLSYoutubeLatency::Normal;
+	Latency latency = Latency::Normal;
 
 	QString thumbnailUrl{};
 	QPixmap pixMap;
@@ -99,7 +105,6 @@ class PLSPlatformYoutube : public PLSPlatformBase {
 
 public:
 	enum class PLSYoutubeApiType { Normal = 0, StartLive = 1, Update = 2, Rehearsal = 3 };
-	enum class IngestionType { Rtmps = 1, Hls = 2 };
 
 	PLSPlatformYoutube();
 
@@ -107,7 +112,7 @@ public:
 
 	static void showAutoStartFalseAlertIfNeeded();
 
-	void liveInfoisShowing();
+	void liveInfoIsShowing();
 	void reInitLiveInfo();
 	void resetLiveInfoAfterRehearsal();
 	QString getSelectID() const;
@@ -116,12 +121,12 @@ public:
 	std::vector<QString> getPrivacyEnglishDatas() const;
 	const std::vector<PLSYoutubeCategory> &getCategoryDatas() const;
 	const std::vector<PLSYoutubeLiveinfoData> &getScheduleDatas() const;
-	const PLSYoutubeLiveinfoData &getNomalLiveData() const;
+	const PLSYoutubeLiveinfoData &getNormalLiveData() const;
 
 	const PLSYoutubeLiveinfoData &getTempSelectData();
 	PLSYoutubeLiveinfoData &getTempSelectDataRef();
 	const PLSYoutubeLiveinfoData &getSelectData() const;
-	PLSPlatformYoutube::IngestionType getSettingIngestionType() const;
+	PLSYoutubeLiveinfoData::IngestionType getSettingIngestionType() const;
 
 	void updateScheduleListAndSort();
 
@@ -154,12 +159,10 @@ public:
 	}
 	QString getTempSelectID() const { return m_bTempSelectID; }
 
-	PLSYoutubeLiveinfoData &getTempNormalData() { return m_tempNoramlData; };
+	PLSYoutubeLiveinfoData &getTempNormalData() { return m_tempNormalData; };
 	PLSYoutubeLiveinfoData &getTrySaveDataData() { return m_trySaveData; };
 
 	bool isSendChatToMqtt() const override { return true; }
-	bool isShownAlert() const { return m_isShownAlert; }
-	void setIsShownAlert(bool isShownAlert) { m_isShownAlert = isShownAlert; }
 
 	QJsonObject getLiveStartParams() override;
 	QJsonObject getWebChatParams() override;
@@ -169,7 +172,6 @@ public:
 
 	bool isPrivateStatus() const;
 	bool isKidsLiving() const;
-	void setupApiFailedWithCode(PLSPlatformApiResult result);
 	void downloadThumImage(const std::function<void()> &onNext, const QString &url, const QObject *reciver, bool notShowThisPix = false);
 
 	void dealDownloadImageCallBack(bool ok, const QString &imagePath, bool notShowThisPix);
@@ -182,7 +184,13 @@ public:
 
 	const QString &getFailedErr() const { return m_startFailedStr; }
 	void setFailedErr(const QString &failedStr) { m_startFailedStr = failedStr; }
-	void setlastRequestAPI(const QString &apiName) { m_lastRequestAPI = apiName; }
+
+	bool showAlertPreAction();
+	PLSErrorHandler::ExtraData getErrorExtraData(const QString &urlEn, const QString &urlKr = {});
+	void showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom);
+	void showAlertByCustName(const QString &customErrName, const QString &logFrom);
+	void showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom);
+	void showAlertPostAction(const PLSErrorHandler::RetData &retData);
 
 public slots:
 	void refreshTokenSucceed() const;
@@ -210,9 +218,9 @@ private:
 	std::vector<PLSYoutubeLiveinfoData> m_vecGuideSchedules;
 
 	//normal live data
-	PLSYoutubeLiveinfoData m_noramlData;
+	PLSYoutubeLiveinfoData m_normalData;
 
-	PLSYoutubeLiveinfoData m_tempNoramlData;
+	PLSYoutubeLiveinfoData m_tempNormalData;
 	//finish selected data when click ok
 	PLSYoutubeLiveinfoData m_selectData;
 
@@ -224,7 +232,6 @@ private:
 	QTimer *m_statusTimer;
 
 	qint64 m_iContext = 0;
-	bool m_isShownAlert = false;
 
 	QMap<QString, PLSYoutubeThum> m_thumMaps;
 
@@ -236,7 +243,7 @@ private:
 	QString m_healthStatus{};
 	int m_ignoreNoDataCount = 2;
 	int m_requestStatusCount = 0;
-	PLSPlatformYoutube::IngestionType m_ingestionType = PLSPlatformYoutube::IngestionType::Rtmps;
+	PLSYoutubeLiveinfoData::IngestionType m_ingestionType = PLSYoutubeLiveinfoData::IngestionType::Rtmps;
 
 	QString getShareUrl(bool isLiving, bool isEnc = false) const;
 	void onPrepareLive(bool value) override;
@@ -255,11 +262,6 @@ private:
 	void dealLiveBroadcastsUpdateSucceed(const QByteArray &data, const std::function<void(bool)> &onNext);
 
 	void forceToRefreshToken(const std::function<void(bool)> &onNext);
-	PLSPlatformApiResult getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data, PLSYoutubeApiType apiType = PLSYoutubeApiType::Normal) const;
-
-	PLSPlatformApiResult dealFailedCase400(const QString &errorReason) const;
-	PLSPlatformApiResult dealFailedCase403(const QString &errorReason) const;
-	PLSPlatformApiResult dealFailedCase404(const QString &errorReason) const;
 
 	void setSelectData(PLSYoutubeLiveinfoData data);
 	void requestStopLive(const std::function<void()> &onNext);
@@ -292,7 +294,6 @@ private:
 
 	QString getStreamUrlFromJson(const QJsonObject &obj);
 	QString m_startFailedStr{};
-	QString m_lastRequestAPI{};
 
 	mutable std::mutex m_channelScheduleMutex;
 };

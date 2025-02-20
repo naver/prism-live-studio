@@ -77,7 +77,6 @@
   </layout>
   <zorder>Record</zorder>
   <zorder>GoLiveShift</zorder>
-  <zorder>horizontalSpacer</zorder>
  </widget>
  <resources/>
  <connections/>

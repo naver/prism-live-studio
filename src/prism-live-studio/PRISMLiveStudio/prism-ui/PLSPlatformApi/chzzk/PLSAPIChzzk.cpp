@@ -21,12 +21,11 @@ static QString _getNCPHost()
 {
 	return PRISM_API_BASE.arg(PRISM_SSL);
 }
-
 void configDefaultRequest(const pls::http::Request &_request, const QObject *receiver, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed,
 			  const PLSAPICommon::errorCallback &onFailed, const QByteArray &logName, bool isSetContentType)
 {
 
-	addCommenCookieAndUserKey(_request);
+	addCommonCookieAndUserKey(_request);
 	if (isSetContentType) {
 		_request.contentType(common::HTTP_CONTENT_TYPE_VALUE);
 	}
@@ -49,9 +48,8 @@ void configDefaultRequest(const pls::http::Request &_request, const QObject *rec
 		});
 }
 
-void addCommenCookieAndUserKey(const pls::http::Request &_request)
+void addCommonCookieAndUserKey(const pls::http::Request &_request)
 {
-
 	auto infos = PLSCHANNELS_API->getChanelInfosByPlatformName(CHZZK, ChannelData::ChannelType);
 	if (infos.empty()) {
 		PLS_ERROR(MODULE_PLATFORM_CHZZK, "chzzk get cookie failed, the channels info is empty");
@@ -70,7 +68,6 @@ void requestChannelList(const QObject *receiver, PLSPlatformChzzk *platform, con
 	auto _getNetworkReply = [receiver, onSucceed, onFailed, platform] {
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 		configDefaultRequest(_request, receiver, platform, onSucceed, onFailed, "requestChannelList");
-
 		auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
 		QString url = QString("%1/partner/naver/service/chzzk/channel/list").arg(_getNCPHost());
 		_request.method(pls::http::Method::Get) //
@@ -117,7 +114,7 @@ void requestUpdateChannelOrLiveInfo(const QObject *receiver, const PLSChzzkLivei
 		QJsonObject extra;
 		extra["adult"] = data.isAgeLimit;
 		extra["paidPromotion"] = data.isNeedMoney;
-		extra["chatAvailableGroup"] = data.chatPermisson;
+		extra["chatAvailableGroup"] = data.chatPermission;
 		extra["clipActive"] = data.clipActive;
 		object["extraFields"] = extra;
 
@@ -165,7 +162,7 @@ void requestCreateLive(const QObject *receiver, const PLSChzzkLiveinfoData &data
 		QJsonObject extra;
 		extra["adult"] = data.isAgeLimit;
 		extra["paidPromotion"] = data.isNeedMoney;
-		extra["chatAvailableGroup"] = data.chatPermisson;
+		extra["chatAvailableGroup"] = data.chatPermission;
 		extra["clipActive"] = data.clipActive;
 		object["extraFields"] = extra;
 
@@ -244,12 +241,6 @@ void showFailedLog(const QString &logName, const pls::http::Reply &reply, PLSPla
 		} else {
 			PLS_ERROR(MODULE_PLATFORM_CHZZK, "%s failed. with not object data.", logName.toUtf8().constData());
 		}
-	}
-
-	QString failedErr = QString("%1-statusCode:%2-subCode:%3-reason:%4-exception:%5").arg(logName).arg(_code).arg(subCode).arg(errMsg).arg(errException);
-	if (platform) {
-		platform->setFailedErr(failedErr);
-		platform->setlastRequestAPI(logName);
 	}
 }
 

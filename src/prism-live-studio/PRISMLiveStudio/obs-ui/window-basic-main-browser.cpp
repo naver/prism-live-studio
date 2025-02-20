@@ -218,23 +218,6 @@ void DeleteCookies()
 #endif
 }
 
-void PLSBasic::InitBrowserPanelSafeBlock()
-{
-#ifdef BROWSER_AVAILABLE
-	if (!cef)
-		return;
-	if (cef->init_browser()) {
-		InitPanelCookieManager();
-		return;
-	}
-
-	ExecThreadedWithoutBlocking([] { cef->wait_for_browser_init(); },
-				    QTStr("BrowserPanelInit.Title"),
-				    QTStr("BrowserPanelInit.Text"));
-	InitPanelCookieManager();
-#endif
-}
-
 QCefCookieManager *
 PLSBasic::getBrowserPannelCookieMgr(const QString &channelName)
 {

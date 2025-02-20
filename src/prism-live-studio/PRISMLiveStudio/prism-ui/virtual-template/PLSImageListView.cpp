@@ -3,7 +3,7 @@
 #include "flowlayout.h"
 #include "PLSMotionItemView.h"
 #include "PLSMotionFileManager.h"
-#include "PLSMotionNetwork.h"
+#include "CategoryVirtualTemplate.h"
 #include "PLSMotionImageListView.h"
 #include "PLSAlertView.h"
 #include "obs-app.hpp"
@@ -169,7 +169,7 @@ void PLSImageListView::itemViewSelectedStateChanged(const PLSMotionItemView *ite
 {
 	if (PLSMotionImageListView *listView = getListView(); listView) {
 		const auto &motionData = item->motionData();
-		listView->setCheckBoxEnabled(motionData.type == MotionType::MOTION && PLSMotionNetwork::instance()->isPrismOrFree(motionData));
+		listView->setCheckBoxEnabled(motionData.type == MotionType::MOTION && (!motionData.canDelete));
 	}
 }
 
@@ -232,6 +232,7 @@ void PLSImageListView::updateItems(const QList<MotionData> &mds)
 			PLSMotionItemView::dealloc(view);
 		}
 	}
+	m_FlowLayout->invalidate();
 }
 
 void PLSImageListView::updateItem(const MotionData &md)

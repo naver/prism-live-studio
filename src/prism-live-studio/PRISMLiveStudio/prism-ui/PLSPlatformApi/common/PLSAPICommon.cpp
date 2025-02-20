@@ -161,7 +161,7 @@ QString PLSAPICommon::getMd5ImagePath(const QString &url)
 	return path;
 }
 
-QString PLSAPICommon::getPairdString(const PLSAPICommon::privacyVec &pairs, const QString cmpStr, bool isCmpFirst, bool isCaseInsensitive)
+QString PLSAPICommon::getPairedString(const PLSAPICommon::privacyVec &pairs, const QString cmpStr, bool isCmpFirst, bool isCaseInsensitive)
 {
 	auto cmpFunc = [cmpStr, isCmpFirst, isCaseInsensitive](const auto &item) {
 		const auto &thisItem = isCmpFirst ? item.first : item.second;
@@ -197,7 +197,7 @@ void PLSAPICommon::downloadChannelImageAsync(const QString &platormName)
 			}
 		};
 
-		PLSAPICommon::downloadImageAsync(pls_get_main_view(), url, _callBack, false, PLSAPICommon::getMd5ImagePath(url));
+		PLSAPICommon::downloadImageAsync(pls_get_main_view(), url, _callBack, false);
 	}
 }
 

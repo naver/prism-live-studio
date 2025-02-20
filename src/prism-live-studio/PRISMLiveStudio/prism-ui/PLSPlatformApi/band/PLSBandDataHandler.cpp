@@ -4,7 +4,6 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-#include "json-data-handler.hpp"
 #include "pls-net-url.hpp"
 #include "pls-common-define.hpp"
 #include "../PLSPlatformApi.h"
@@ -26,10 +25,17 @@ bool PLSBandDataHandler::tryToUpdate(const QVariantMap &srcInfo, const UpdateCal
 		 channelUUID.toStdString().c_str());
 	if (auto band = dynamic_cast<PLSPlatformBand *>(PLS_PLATFORM_API->getPlatformById(channelUUID, srcInfo)); !band) {
 		PLS_ERROR(MODULE_PLATFORM_BAND, "%s %s Band refresh failed, platform not exists", PrepareInfoPrefix, __FUNCTION__);
+
+		PLSErrorHandler::ExtraData otherData;
+		otherData.errPhase = PLSErrPhaseLogin;
+		auto retData = PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_CHANNEL_LOGIN_FAIL, BAND, "", otherData);
 		QVariantMap info = srcInfo;
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
+		info[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+		info[ChannelData::g_errorString] = retData.alertMsg;
 		finishedCall(m_bandInfos);
 		return false;
+
 	} else {
 		band->clearBandInfos();
 		band->setInitData(srcInfo);

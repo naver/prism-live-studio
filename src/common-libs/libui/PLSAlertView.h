@@ -257,6 +257,8 @@ public:
 	static Result questionWithCountdownView(QWidget *parent, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons,
 						Button defaultButton = Button::NoButton, const quint64 &timeout = 10 * 1000, int buttonBoxWidth = 170);
 
+	static Button dualOutputApplyResolutionWarn(QWidget *parent, const QString &title, const QString &message, const QMap<Button, QString> &buttons, const QString &hRadioMsg,
+						    const QString &vRadioMsg, bool &selectVRadio, Button defaultButton = Button::NoButton);
 	bool isChecked() const;
 
 	Qt::TextFormat getTextFormat() const;

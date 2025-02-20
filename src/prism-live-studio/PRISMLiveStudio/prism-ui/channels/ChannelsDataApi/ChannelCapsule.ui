@@ -186,6 +186,13 @@
              </widget>
             </item>
             <item>
+             <widget class="QLabel" name="OutputDirection">
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QLabel" name="StateActive">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">

@@ -1,4 +1,4 @@
 [submodule "src/obs-studio"]
 	path = src/obs-studio
 	url = https://github.com/naver/obs-studio.git
-	branch = master
+	branch = develop

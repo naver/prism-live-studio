@@ -267,28 +267,52 @@ VolControl[vertical="true"] VolumeMeter {
 	background: #222222;
 }
 
-VolControl[vertical="false"][hover="true"] VolumeMeter {
+VolControl[hover="true"] VolumeMeter {
 	background: #494949;
 }
 
-VolControl[vertical="false"][hover="false"] VolumeMeter {
-	background: #272727;
-}
-
-VolControl[vertical="false"][hover="true"] {
+VolControl[hover="true"] {
 	background: #494949;
 }
 
-VolControl[vertical="false"][hover="false"] {
-	background: #272727;
-}
-
-VolControl[vertical="false"][pressed="true"] #nameLabel,
-VolControl[vertical="false"][pressed="true"] #volLabel {
+VolControl[pressed="true"] #nameLabel,
+VolControl[pressed="true"] #volLabel {
 	color: #effc35;
 }
 
-VolControl[vertical="false"][pressed="false"] #nameLabel,
-VolControl[vertical="false"][pressed="false"] #volLabel {
+VolControl[pressed="false"] #nameLabel,
+VolControl[pressed="false"] #volLabel {
 	color: rgba(255, 255, 255, 0.9);
+}
+
+VolControl[borderType="top"] {
+	border-bottom: none;
+	border-left: none;
+	border-right: none;
+	border-top: 1px solid #effc35;
+}
+
+VolControl[borderType="bottom"] {
+	border-top: none;
+	border-left: none;
+	border-right: none;
+	border-bottom: 1px solid #effc35;
+}
+
+VolControl[borderType="left"] {
+	border-top: none;
+	border-right: none;
+	border-bottom: none;
+	border-left: 1px solid #effc35;
+}
+
+VolControl[borderType="right"] {
+	border-top: none;
+	border-left: none;
+	border-bottom: none;
+	border-right: 1px solid #effc35;
+}
+
+VolControl[borderType="none"] {
+	border: 0px;
 }

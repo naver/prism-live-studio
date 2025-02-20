@@ -124,3 +124,12 @@ constexpr auto PRISM_SCENETEMPLATE_ON_NORMAL = ":/resource/images/icon-source/ic
 constexpr auto PRISM_SCENETEMPLATE_ON_OVER = ":/resource/images/icon-source/ic_scenetemplate_on_hover.svg";
 constexpr auto PRISM_SCENETEMPLATE_ON_CLICKED = ":/resource/images/icon-source/ic_scenetemplate_on_click.svg";
 constexpr auto PRISM_SCENETEMPLATE_ON_DISABLE = ":/resource/images/icon-source/ic_scenetemplate_on_disable.svg";
+
+constexpr auto PRISM_DUALOUTPUT_OFF_NORMAL = ":/resource/images/dual-output/ic_dualoutput_off_normal.svg";
+constexpr auto PRISM_DUALOUTPUT_OFF_OVER = ":/resource/images/dual-output/ic_dualoutput_off_over.svg";
+constexpr auto PRISM_DUALOUTPUT_OFF_CLICKED = ":/resource/images/dual-output/ic_dualoutput_off_click.svg";
+constexpr auto PRISM_DUALOUTPUT_OFF_DISABLE = ":/resource/images/dual-output/ic_dualoutput_off_disable.svg";
+constexpr auto PRISM_DUALOUTPUT_ON_NORMAL = ":/resource/images/dual-output/ic_dualoutput_on_normal.svg";
+constexpr auto PRISM_DUALOUTPUT_ON_OVER = ":/resource/images/dual-output/ic_dualoutput_on_over.svg";
+constexpr auto PRISM_DUALOUTPUT_ON_CLICKED = ":/resource/images/dual-output/ic_dualoutput_on_click.svg";
+constexpr auto PRISM_DUALOUTPUT_ON_DISABLE = ":/resource/images/dual-output/ic_dualoutput_on_disable.svg";

@@ -240,6 +240,11 @@ OBSBasicProperties::OBSBasicProperties(QWidget *parent, OBSSource source_)
 #endif
 
 	m_dpi = devicePixelRatioF();
+
+	//#PRISM_PC-1571 ren.jinbo windows need add a item after linked label, so can show mouse
+	QWidget *placeholderMouse = new QWidget(this);
+	placeholderMouse->hide();
+	ui->propertiesLayout->addWidget(placeholderMouse);
 }
 
 OBSBasicProperties::~OBSBasicProperties()
@@ -471,7 +476,6 @@ void OBSBasicProperties::on_buttonBox_clicked(QAbstractButton *button)
 			obs_data_release(data);
 		}
 		if (pls_is_equal(PRISM_CHATV2_SOURCE_ID, id)) {
-			obs_data_set_bool(settings, "ctParamChanged", false);
 			pls_get_chat_template_helper_instance()
 				->initTemplateButtons();
 		}
@@ -501,16 +505,35 @@ void OBSBasicProperties::DrawPreview(void *data, uint32_t cx, uint32_t cy)
 	int x, y;
 	int newCX, newCY;
 	float scale;
+	float top = 0.0f;
+	float bottom = float(sourceCY);
 
 	if (pls_is_equal(sourceId, PRISM_CHAT_SOURCE_ID)) {
 		GetChatScaleAndCenterPos(window->m_dpi, sourceCX, sourceCY, cx,
 					 cy, x, y, scale);
+		newCX = int(scale * float(sourceCX));
+		newCY = int(scale * float(sourceCY));
+	} else if (pls_is_equal(sourceId, PRISM_CHATV2_SOURCE_ID)) {
+		float width =
+			330.f +
+			30.f; // chatv2 template1/2/3/4 defaut size + margin
+		auto settings = pls_get_source_setting(window->source);
+		auto index = obs_data_get_int(settings, "Chat.Template.List");
+		if (index % 10 == 4)
+			width = 690.f +
+				30.f; // chatv2 template5 defaut size + margin
+
+		float WIDTH = float(width * window->m_dpi);
+		newCX = int(WIDTH);
+		newCY = int(float(WIDTH * float(sourceCY)) / float(sourceCX));
+		x = cx / 2 - newCX / 2;
+		y = cy -
+		    (newCY - 20.f * window->m_dpi); // chatv2 y size - y margin
 	} else {
 		GetScaleAndCenterPos(sourceCX, sourceCY, cx, cy, x, y, scale);
+		newCX = int(scale * float(sourceCX));
+		newCY = int(scale * float(sourceCY));
 	}
-
-	newCX = int(scale * float(sourceCX));
-	newCY = int(scale * float(sourceCY));
 
 	gs_viewport_push();
 	gs_projection_push();
@@ -572,18 +595,9 @@ void OBSBasicProperties::Cleanup()
 
 void OBSBasicProperties::closeEvent(QCloseEvent *event)
 {
-	if (!acceptClicked && (CheckSettings() != 0)) {
-		if (!ConfirmQuit() && !pls_get_app_exiting()) {
-			event->ignore();
-			return;
-		}
-	}
-
 	PLSDialogView::closeEvent(event);
-	if (!event->isAccepted())
-		return;
-
-	Cleanup();
+	if (event->isAccepted())
+		Cleanup();
 }
 
 bool OBSBasicProperties::nativeEvent(const QByteArray &eventType, void *message,
@@ -687,7 +701,7 @@ static inline void GetChatScaleAndCenterPos(double dpi, int baseCX, int baseCY,
 					    int windowCX, int windowCY, int &x,
 					    int &y, float &scale)
 {
-	float WIDTH = 365.0f * float(dpi);
+	float WIDTH = float(365.f * dpi);
 
 	auto newCX = int(WIDTH);
 	auto newCY = int(float(WIDTH * float(baseCY)) / float(baseCX));

@@ -48,6 +48,8 @@ LIBUI_API void pls_flush_style(QWidget *widget, const char *propertyName, const 
 LIBUI_API void pls_flush_style_if_visible(QWidget *widget, const char *propertyName, const QVariant &propertyValue);
 LIBUI_API void pls_flush_style_recursive(QWidget *widget, const char *propertyName, const QVariant &propertyValue, int recursiveDeep = -1);
 
+LIBUI_API void pls_scroll_area_clips_to_bounds(QWidget *widget, bool isClips = true);
+
 class QColor;
 LIBUI_API QColor pls_qint64_to_qcolor(qint64 icolor);
 LIBUI_API qint64 pls_qcolor_to_qint64(const QColor &qcolor);

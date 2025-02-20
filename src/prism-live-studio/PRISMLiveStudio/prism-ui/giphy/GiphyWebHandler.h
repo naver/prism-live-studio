@@ -18,7 +18,7 @@ public:
 	explicit GiphyWebHandler(QObject *parent = nullptr);
 	~GiphyWebHandler() = default;
 
-	static bool isHttpRedirect(const QNetworkReply *reply);
+	static bool isHttpRedirect(int statusCode);
 	void Get(const RequestTaskData &task);
 	void DiscardTask();
 

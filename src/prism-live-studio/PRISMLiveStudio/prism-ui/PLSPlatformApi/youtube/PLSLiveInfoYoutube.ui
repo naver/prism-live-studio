@@ -48,11 +48,7 @@
        <number>6</number>
       </property>
       <item>
-       <widget class="QLabel" name="titleLabel">
-        <property name="text">
-         <string>YouTube</string>
-        </property>
-       </widget>
+       <widget class="PLSLiveInfoDualWidget" name="dualWidget" native="true"/>
       </item>
       <item>
        <spacer name="horizontalSpacer_5">
@@ -551,9 +547,10 @@
    <header>PLSEdit.h</header>
   </customwidget>
   <customwidget>
-   <class>PLSHelpIcon</class>
-   <extends>QLabel</extends>
-   <header>PLSLabel.h</header>
+   <class>PLSLiveInfoDualWidget</class>
+   <extends>QWidget</extends>
+   <header>PLSLiveInfoBase.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

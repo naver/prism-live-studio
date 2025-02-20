@@ -10,6 +10,11 @@
 #include "PLSPlatformBase.hpp"
 #include "PLSDialogView.h"
 #include "loading-event.hpp"
+#include <QLabel>
+
+namespace channel_data {
+enum ChannelDualOutput;
+}
 
 class PLSPlatformBase;
 
@@ -44,4 +49,25 @@ private:
 
 	QString channelUUid;
 	bool m_isRunLoading{false};
+};
+
+class PLSLiveInfoDualWidget : public QWidget {
+	Q_OBJECT
+
+public:
+	PLSLiveInfoDualWidget(QWidget *parent = 0);
+
+	PLSLiveInfoDualWidget *setText(const QString &text);
+	PLSLiveInfoDualWidget *setUUID(const QString &channelUuid);
+
+private slots:
+	void onPlatformDualChanged(const QString &uuid, ChannelData::ChannelDualOutput outputType);
+
+private:
+	PLSLiveInfoDualWidget *setUIIconStyle(ChannelData::ChannelDualOutput outputType);
+
+private:
+	QLabel *m_titleLabel{nullptr};
+	QLabel *m_imgLabel{nullptr};
+	QString m_channelUuid{};
 };

@@ -9,7 +9,7 @@
 #include "PLSSceneCollectionItem.h"
 #include "PLSCommonScrollBar.h"
 
-enum class SceneCollectionCustomRole { DataRole = Qt::UserRole, VisibleRole, CurrentRole, DelButtonDisableRole, UserLocalPathRole };
+enum class SceneCollectionCustomRole { DataRole = Qt::UserRole, VisibleRole, CurrentRole, DelButtonDisableRole, UserLocalPathRole, EnterRole };
 Q_DECLARE_METATYPE(SceneCollectionCustomRole)
 
 namespace Ui {
@@ -122,6 +122,7 @@ private slots:
 	void OnRenameBtnClicked(const QString &name, const QString &path) const;
 	void OnDuplicateBtnClicked(const QString &name, const QString &path) const;
 	void OnDeleteBtnClicked(const QString &name, const QString &path) const;
+	void OnEnverEvent(const QString &name, const QString &path);
 
 private:
 	void SetPaintLinePos(int startPosX, int startPosY, int endPosX, int endPosY);
@@ -129,6 +130,7 @@ private:
 signals:
 	void RowChanged(int srcIndex, int destIndex);
 	void ScrollBarShow(bool show);
+	void TriggerEventEvent(const QString &name, const QString &path);
 
 private:
 	QPoint startDragPoint{};
@@ -170,6 +172,7 @@ private slots:
 	void OnCloseButtonClicked();
 	void OnScrollBarShow(bool show);
 	void HandleEnterEvent(const QObject *obj, const QEvent *) const;
+	void OnTriggerEnterEvent(const QString &name, const QString &path);
 
 signals:
 	void currentSceneCollectionChanged(QString name, QString path);

@@ -23,25 +23,25 @@ PLSBrowserView::PLSBrowserView(bool readCookies, const QUrl &url, const std_map<
 {
 }
 
-PLSBrowserView::PLSBrowserView(bool readCookies, QJsonObject *res, const QUrl &url, const PLSResultCheckingCallback &callback, QWidget *parent)
+PLSBrowserView::PLSBrowserView(bool readCookies, QVariantHash *res, const QUrl &url, const PLSResultCheckingCallback &callback, QWidget *parent)
 	: PLSBrowserView(readCookies, res, url, std_map<std::string, std::string>(), QString(), callback, parent)
 {
 }
 
-PLSBrowserView::PLSBrowserView(bool readCookies, QJsonObject *res, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelCookieName,
+PLSBrowserView::PLSBrowserView(bool readCookies, QVariantHash *res, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelCookieName,
 			       const PLSResultCheckingCallback &callback, QWidget *parent)
 	: PLSBrowserView(readCookies, res, url, headers, pannelCookieName, std::string(), callback, parent)
 {
 }
 
-PLSBrowserView::PLSBrowserView(bool readCookies, QJsonObject *res, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelCookieName, const std::string &script,
+PLSBrowserView::PLSBrowserView(bool readCookies, QVariantHash *res, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelCookieName, const std::string &script,
 			       const PLSResultCheckingCallback &callback, QWidget *parent)
 	: QDialog(parent), result(res), uri(url.toString().toStdString()), resultCheckingCallback(callback), m_readCookies(readCookies)
 {
 	ui = pls_new<Ui::PLSBrowserView>();
 	ui->setupUi(this);
 	setWindowFlags(Qt::Dialog | Qt::CustomizeWindowHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint);
-	if (!cef) {
+	if (!plsCef) {
 		emit doneSignal(QDialog::Rejected);
 		return;
 	}
@@ -63,7 +63,11 @@ PLSBrowserView::PLSBrowserView(bool readCookies, QJsonObject *res, const QUrl &u
 	layout->addWidget(cefWidget);
 	setWindowIcon(QIcon(""));
 	setWindowTitle(ONE_SPACE);
-	setStyleSheet("background-color:white;");
+
+	auto palette = this->palette();
+	palette.setColor(QPalette::ColorRole::Window, Qt::white);
+	this->setPalette(palette);
+	setAutoFillBackground(true);
 
 	resize({800, 600});
 	QObject::connect(this, &PLSBrowserView::doneSignal, this, &PLSBrowserView::done, Qt::QueuedConnection);

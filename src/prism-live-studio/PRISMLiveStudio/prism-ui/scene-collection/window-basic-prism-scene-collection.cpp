@@ -11,13 +11,14 @@
 #include "PLSImporter.h"
 #include "PLSPrismShareMemory.h"
 #include "pls/pls-obs-api.h"
-#include "PLSResCommonFuns.h"
 #include "PLSNodeManager.h"
 #include "ResolutionGuidePage.h"
 #include "PLSChannelDataAPI.h"
 #include "PLSPlatformApi.h"
 
 #include <QCryptographicHash>
+
+using namespace std;
 
 static const std::vector<QString> appSupportSuffix = {".json", ".psc", ".bpres", ".xml", ".xconfig"};
 static constexpr const char *PRISM_APP_DEFAULT_SUFFIX = ".psc";
@@ -239,6 +240,10 @@ void OBSBasic::on_actionImportFromOtherSceneCollection_triggered()
 
 void OBSBasic::on_actionChangeSceneCollection_triggered(const QString &name, const QString &path, bool textMode)
 {
+	if (m_startChangeSceneCollection) {
+		return;
+	}
+	m_startChangeSceneCollection = true;
 	PLS_INFO(MAIN_SCENE_COLLECTION, "Start to switch scene collection : %s", name.toStdString().c_str());
 	sceneCollectionManageTitle->SetText(name);
 	sceneCollectionManageView->SetCurrentText(name, path);
@@ -256,6 +261,7 @@ void OBSBasic::on_actionChangeSceneCollection_triggered(const QString &name, con
 	if (ui && ui->scenesFrame) {
 		EnableTransitionWidgets(true);
 	}
+	m_startChangeSceneCollection = false;
 }
 
 QVector<QString> OBSBasic::GetSceneCollections() const
@@ -437,6 +443,7 @@ void OBSBasic::LoadSceneCollection(QString name, QString filePath)
 	const char *oldFile = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
 
 	if (QString file = ExtractFileName(filePath.toStdString()).c_str(); name.compare(QT_UTF8(oldName)) == 0 && file.compare(QT_UTF8(oldFile)) == 0 && GetCurrentScene()) {
+		PLS_INFO(MAIN_SCENE_COLLECTION, "The scene set to be switched is the same and does not need to be switched.");
 		return;
 	}
 
@@ -746,89 +753,149 @@ bool OBSBasic::importLocalSceneTemplate(const QString &overlayFile)
 	QString dataPath = PLSNodeManagerPtr->getConfigDataPath();
 	dataPath.append(templateName).append(QDir::separator());
 
-	if (!PLSResCommonFuns::unZip(dataPath, overlayFile, templateName, false)) {
-		pls_alert_warning("importSceneTemplate", QString("unzip %1.overlay file error").arg(templateName).toStdString().c_str());
+	QString error;
+	if (!pls::rsm::unzip(overlayFile, dataPath, false, &error)) {
+		pls_alert_warning("importSceneTemplate", QString("unzip %1.overlay file error : %2").arg(templateName).arg(error).toStdString().c_str());
 		return false;
 	}
 
 	QString configPath;
-	PLSResCommonFuns::findSpecialFile(dataPath, QStringLiteral("config.json"), configPath);
+	auto path = pls_find_subdir_contains_spec_file(dataPath, QStringLiteral("config.json"));
+	if (path) {
+		configPath = path.value();
+	}
 
-	SceneTemplateItem model;
-	model.title = templateName;
-	model.resourcePath = configPath;
-	return importSceneTemplate(model, false);
+	return importSceneTemplate(std::make_tuple(QString(), templateName, configPath, QString(), 0, 0), false);
 }
 
-bool OBSBasic::importSceneTemplate(const SceneTemplateItem &model, bool checkResolution)
+bool OBSBasic::importSceneTemplate(const std::tuple<QString, QString, QString, QString, int, int> &model, bool checkResolution)
 {
-	if (model.title.isEmpty() || model.resourcePath.isEmpty()) {
+	if (get<1>(model).isEmpty() || get<2>(model).isEmpty()) {
 		PLSAlertView::information(this, QTStr("Alert.Title"), QTStr("SceneTemplate.Install.Common.Error"));
+		return false;
+	}
+
+	QString versionLimit = get<3>(model);
+	auto trimmedStr = [&versionLimit](const char *str) {
+		auto index = versionLimit.indexOf(str);
+		if (index >= 0) {
+			versionLimit = versionLimit.mid(index + strlen(str)).trimmed();
+		}
+	};
+
+	auto checkTrimmedStr = [trimmedStr, &versionLimit]() {
+		if (versionLimit.startsWith(">=")) {
+			trimmedStr(">=");
+		} else if (versionLimit.startsWith(">")) {
+			trimmedStr(">");
+		}
+	};
+
+	if (!checkSceneTemplateVersion(versionLimit)) {
+		checkTrimmedStr();
+		showSceneTemplateVersionLowerAlert(versionLimit);
 		return false;
 	}
 
 	// check resolution when import scene template
-	if (checkResolution) {
-		uint64_t cx = config_get_uint(Config(), "Video", "BaseCX");
-		uint64_t cy = config_get_uint(Config(), "Video", "BaseCY");
-		uint64_t fps = config_get_uint(Config(), "Video", "FPSInt");
+	if (checkResolution && !checkSceneTemplateResolution(model)) {
+		return false;
+	}
 
-		float baseScale = (float)((float)cx / (float)cy);
-		float TemplateScale = (float)((float)model.width / (float)model.height);
-		bool isEqual = qAbs(baseScale - TemplateScale) < EPSILON;
-		if (!isEqual) {
-			QString text;
-			bool isHorizontal = model.width > model.height;
-			if (isHorizontal) {
-				text = QTStr("SceneTemplate.Horizontal.Template");
-			} else {
-				text = QTStr("SceneTemplate.Vertical.Template");
-			}
-
-			PLSAlertView::Button button = PLSAlertView::information(this, QTStr("Alert.title"), text,
-										{{PLSAlertView::Button::Yes, QTStr("SceneTemplate.Change.resolution")},
-										 {PLSAlertView::Button::Cancel, QTStr("SceneTemplate.Keep.resolution")}},
-										PLSAlertView::Button::Yes);
-			if (button == PLSAlertView::Button::Yes) {
-				QString text;
-				if (obs_video_active()) {
-					if (PLSCHANNELS_API->isLivingOrRecording() && VirtualCamActive()) {
-						text = QTStr("Resolution.InputIsActived");
-					} else if (VirtualCamActive()) {
-						text = QTStr("Resolution.VirtualCamIsActived");
-					} else {
-						text = QTStr("Resolution.InputIsActived");
-					}
-					OBSMessageBox::information(this, QTStr("Alert.Title"), text);
-					return false;
-				}
-
-				ResolutionGuidePage::setResolution(model.width, model.height, fps);
-			}
+	QString collectionPath;
+	auto res = PLSNodeManagerPtr->loadConfig(get<1>(model), get<2>(model), collectionPath);
+	if (res == NodeErrorType::Ok) {
+		collectionPath = ImportSceneCollection(this, collectionPath, LoadSceneCollectionWay::ImportSceneTemplates);
+		if (collectionPath.isEmpty()) {
+			PLSAlertView::information(this, QTStr("Alert.Title"), QTStr("SceneTemplate.Install.Common.Error"));
+			return false;
 		}
+		if (checkResolution) {
+			PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE, {{"sceneTemplateId", get<0>(model).toStdString().c_str()}}, "install %s scene template success.",
+				  get<1>(model).toStdString().c_str());
+			PLS_PLATFORM_API->sendSceneTemplateAnalog({{"templateId", get<0>(model)}});
+		}
+
+		// create audio mixer when import scene templates
+		CreateFirstRunSources();
+		return true;
 	}
 
-	QString collectionPath = PLSNodeManagerPtr->loadConfig(model.title, model.resourcePath);
-	if (collectionPath.isEmpty()) {
+	if (res == NodeErrorType::UnregisterNode || res == NodeErrorType::SourceNotRegistered) {
+		checkTrimmedStr();
+		showSceneTemplateVersionLowerAlert(versionLimit);
+	} else {
 		PLSAlertView::information(this, QTStr("Alert.Title"), QTStr("SceneTemplate.Install.Common.Error"));
-		return false;
+	}
+	return false;
+}
+
+bool OBSBasic::checkSceneTemplateResolution(const std::tuple<QString, QString, QString, QString, int, int> &model)
+{
+	uint64_t cx = config_get_uint(Config(), "Video", "BaseCX");
+	uint64_t cy = config_get_uint(Config(), "Video", "BaseCY");
+	uint64_t fps = config_get_uint(Config(), "Video", "FPSInt");
+
+	float baseScale = (float)((float)cx / (float)cy);
+	float TemplateScale = (float)((float)get<4>(model) / (float)get<5>(model));
+	bool isEqual = qAbs(baseScale - TemplateScale) < EPSILON;
+	if (isEqual) {
+		return true;
+	}
+	QString text;
+	bool isHorizontal = get<4>(model) > get<5>(model);
+	if (isHorizontal) {
+		text = QTStr("SceneTemplate.Horizontal.Template");
+	} else {
+		text = QTStr("SceneTemplate.Vertical.Template");
 	}
 
-	collectionPath = OBSBasic::Get()->ImportSceneCollection(this, collectionPath, LoadSceneCollectionWay::ImportSceneTemplates);
-	if (collectionPath.isEmpty()) {
-		PLSAlertView::information(this, QTStr("Alert.Title"), QTStr("SceneTemplate.Install.Common.Error"));
-		return false;
+	PLSAlertView::Button button = PLSAlertView::information(
+		this, QTStr("Alert.title"), text, {{PLSAlertView::Button::Yes, QTStr("SceneTemplate.Change.resolution")}, {PLSAlertView::Button::Cancel, QTStr("SceneTemplate.Keep.resolution")}},
+		PLSAlertView::Button::Yes);
+	if (button == PLSAlertView::Button::Yes) {
+		QString text;
+		if (obs_video_active()) {
+			if (PLSCHANNELS_API->isLivingOrRecording() && VirtualCamActive()) {
+				text = QTStr("Resolution.InputIsActived");
+			} else if (VirtualCamActive()) {
+				text = QTStr("Resolution.VirtualCamIsActived");
+			} else {
+				text = QTStr("Resolution.InputIsActived");
+			}
+			OBSMessageBox::information(this, QTStr("Alert.Title"), text);
+			return false;
+		}
+
+		ResolutionGuidePage::setResolution(get<4>(model), get<5>(model), fps);
 	}
-	if (checkResolution) {
-		PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE, {{"sceneTemplateId", model.itemId.toStdString().c_str()}}, "install %s scene template success.", model.title.toStdString().c_str());
-
-		PLS_PLATFORM_API->sendSceneTemplateAnalog({{"templateId", model.itemId}});
-	}
-
-	// create audio mixer when import scene templates
-	CreateFirstRunSources();
-
 	return true;
+}
+
+bool OBSBasic::checkSceneTemplateVersion(QString versionLimit)
+{
+	if (versionLimit.isEmpty()) {
+		return true;
+	}
+	auto plsVersion = QVersionNumber(pls_get_prism_version_major(), pls_get_prism_version_minor(), pls_get_prism_version_patch());
+	auto bMatch = pls_check_version(versionLimit.toUtf8(), plsVersion);
+	if (!bMatch.has_value()) {
+		PLS_WARN(SCENE_TEMPLATE, "scene template item version: %s is a wrong format", qUtf8Printable(versionLimit));
+		return false;
+	} else {
+		return bMatch.value();
+	}
+}
+
+void OBSBasic::showSceneTemplateVersionLowerAlert(QString versionLimit)
+{
+	PLSAlertView::Button button = PLSAlertView::question(this, QTStr("Alert.Title"), QTStr("SceneTemplate.Install.Source.Not.Found.Error").arg(versionLimit),
+							     {{PLSAlertView::Button::Ok, QObject::tr("Update.Bottom.Force.Button.Text")}, {PLSAlertView::Button::Cancel, QObject::tr("Cancel")}},
+							     PLSAlertView::Button::Cancel);
+	if (PLSAlertView::Button::Ok == button) {
+		// app need update
+		PLSBasic::instance()->startDownloading();
+	}
 }
 
 static bool enumSceneItem(obs_scene_t *, obs_sceneitem_t *item, void *param)
@@ -895,6 +962,56 @@ bool OBSBasic::exportSceneTemplate(const QString &overlayFile)
 		PLSNodeManagerPtr->doZip(templateName);
 	}
 	return true;
+}
+
+static bool findUpdateSceneItem(obs_scene_t *, obs_sceneitem_t *item, void *param)
+{
+	auto source = obs_sceneitem_get_source(item);
+	if (!source) {
+		return true;
+	}
+	bool &dst = *reinterpret_cast<bool *>(param);
+	if (PLSNodeManagerPtr->checkSourceHasUpgrade(obs_source_get_id(source))) {
+		dst = true;
+		return false;
+	}
+
+	if (obs_sceneitem_is_group(item)) {
+		obs_sceneitem_group_enum_items(item, findUpdateSceneItem, param);
+	}
+
+	return true;
+};
+
+static bool findUpdatedSource()
+{
+	bool sourceHasUpdated = false;
+
+	auto cb = [](void *param, obs_source_t *src) {
+		obs_scene_t *sceneSource = obs_scene_from_source(src);
+		if (sceneSource) {
+			obs_scene_enum_items(sceneSource, findUpdateSceneItem, param);
+		}
+		return true;
+	};
+	obs_enum_scenes(cb, &sourceHasUpdated);
+	return sourceHasUpdated;
+}
+
+void OBSBasic::checkSceneTemplateSourceUpdate(obs_data_t *data)
+{
+	if (!data) {
+		return;
+	}
+	if (!obs_data_has_user_value(data, FROM_SCENE_TEMPLATE)) {
+		fromSceneTemplate = true;
+	} else {
+		fromSceneTemplate = obs_data_get_bool(data, FROM_SCENE_TEMPLATE);
+	}
+	if (fromSceneTemplate && findUpdatedSource()) {
+		PLSBasic::instance()->setAlertParentWithBanner(
+			[this](QWidget *parent) { pls_async_call(this, [parent]() { PLSAlertView::warning(parent, tr("Alert.Title"), QTStr("SceneTemplate.Install.Source.Has.Update.Tip")); }); });
+	}
 }
 
 void OBSBasic::ExportSceneCollection(const QString &name, const QString &fileName, QWidget *parent, bool import_scene, ExprotCallback callback)

@@ -55,7 +55,7 @@ PLSRtmpChannelView {
 		/*border: 1px solid red;*/
 	}
 
-	PLSRtmpChannelView #CategoryLabel {
+	PLSRtmpChannelView #CategoryLabel #dualTitleLabel {
 		max-width: /*hdpi*/ 200px;
 		max-height: /*hdpi*/ 27px;
 		font-size: /*hdpi*/ 20px;

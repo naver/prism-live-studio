@@ -3,14 +3,10 @@
 
 #include <qglobal.h>
 
-#ifdef Q_OS_WIN
 #ifdef LIBUI_LIB
-#define LIBUI_API __declspec(dllexport)
+#define LIBUI_API Q_DECL_EXPORT
 #else
-#define LIBUI_API __declspec(dllimport)
-#endif
-#else
-#define LIBUI_API __attribute__((visibility("default")))
+#define LIBUI_API Q_DECL_IMPORT
 #endif
 
 #endif // !LIBUI_GLOBALS_H

@@ -1,7 +1,9 @@
 #include "PLSSceneTemplateMainSceneItem.h"
+#include "PLSSceneTemplateContainer.h"
 #include "ui_PLSSceneTemplateMainSceneItem.h"
 #include "PLSSceneTemplateMediaManage.h"
 #include "log/log.h"
+#include "libui.h"
 #include <chrono>
 
 using namespace std;
@@ -36,12 +38,29 @@ void PLSSceneTemplateMainSceneItem::updateUI(const SceneTemplateItem &model)
 {
 	auto dtStart = chrono::steady_clock::now();
 
+	if (m_hoverEnter) {
+		PLS_SCENE_TEMPLATE_MEDIA_MANAGE->stopPlayVideo(ui->mainSceneTopVideoView);
+	}
+
 	m_item = model;
 	ui->mainSceneIntroView->updateUI(model);
-	ui->mainSceneTopImageView->updateImagePath(m_item.resource.MainSceneImagePath);
-	ui->mainSceneLeftImageView->updateImagePath(m_item.resource.MainSceneThumbnail_1);
-	ui->mainSceneRightImageView->updateImagePath(m_item.resource.MainSceneThumbnail_2);
+	ui->mainSceneTopImageView->updateImagePath(m_item.resource.mainSceneImagePath());
+	ui->mainSceneLeftImageView->updateImagePath(m_item.resource.mainSceneThumbnail_1());
+	ui->mainSceneRightImageView->updateImagePath(m_item.resource.mainSceneThumbnail_2());
 	ui->mainSceneInstallView->updateUI(model);
+
+	auto pDialog = qobject_cast<PLSSceneTemplateContainer *>(pls_get_toplevel_view(this));
+	if (nullptr != pDialog && model.isAI()) {
+		ui->mainSceneTopImageView->showAIBadge(pDialog->getAIBadge(), false);
+		ui->mainSceneTopVideoView->showAIBadge(pDialog->getAIBadge(), false);
+	} else {
+		ui->mainSceneTopImageView->showAIBadge(QPixmap(), false);
+		ui->mainSceneTopVideoView->showAIBadge(QPixmap(), false);
+	}
+
+	if (m_hoverEnter) {
+		PLS_SCENE_TEMPLATE_MEDIA_MANAGE->startPlayVideo(m_item.resource.mainSceneVideoPath(), ui->mainSceneTopVideoView);
+	}
 
 	auto dtEnd = chrono::steady_clock::now();
 	PLS_INFO(SCENE_TEMPLATE, "%s: duration=%lld", __FUNCTION__, chrono::duration_cast<chrono::milliseconds>(dtEnd - dtStart).count());
@@ -80,18 +99,18 @@ void PLSSceneTemplateMainSceneItem::checkMouseLeaveEvent()
 
 void PLSSceneTemplateMainSceneItem::performMouseEnterEvent()
 {
-	if (m_item.resource.MainSceneVideoPath.length() > 0) {
+	if (!m_item.resource.mainSceneVideoPath().isEmpty()) {
 		ui->mainSceneInstallView->setVisible(true);
 		ui->mainSceneIntroView->setVisible(false);
 		ui->mainSceneTopImageView->setVisible(false);
 		ui->mainSceneTopVideoView->setVisible(true);
-		PLS_SCENE_TEMPLATE_MEDIA_MANAGE->startPlayVideo(m_item.resource.MainSceneVideoPath, ui->mainSceneTopVideoView);
+		PLS_SCENE_TEMPLATE_MEDIA_MANAGE->startPlayVideo(m_item.resource.mainSceneVideoPath(), ui->mainSceneTopVideoView);
 	}
 }
 
 void PLSSceneTemplateMainSceneItem::performMouseLeaveEvent()
 {
-	if (m_item.resource.MainSceneVideoPath.length() > 0) {
+	if (!m_item.resource.mainSceneVideoPath().isEmpty()) {
 		ui->mainSceneIntroView->setVisible(true);
 		ui->mainSceneInstallView->setVisible(false);
 		ui->mainSceneTopImageView->setVisible(true);

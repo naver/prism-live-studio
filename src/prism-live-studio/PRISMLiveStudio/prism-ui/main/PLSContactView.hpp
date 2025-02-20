@@ -6,6 +6,7 @@
 #include <qtextedit.h>
 #include <QPointer>
 #include "loading-event.hpp"
+#include "PLSRadioButton.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -68,6 +69,7 @@ private:
 	QString m_message;
 	QString m_originMessage;
 	QScrollBar *m_verticalScrollBar{nullptr};
+	PLSRadioButtonGroup *m_pInquireType = nullptr;
 };
 
 #endif // PLSCONTACTVIEW_H

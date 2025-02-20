@@ -270,21 +270,21 @@ PLSChannelsArea {
 			min-height: /*hdpi*/ 22px;
 			max-width: /*hdpi*/ 22px;
 			max-height: /*hdpi*/ 22px;
-			image: url(":/channels/resource/images/ChannelsSource/ChannelsSource/icon-addsource-default.svg");
+			image: url(":/channels/resource/images/ChannelsSource/icon-addsource-default.svg");
 			background-color: transparent;
 			border: none;
 		}
 
 			PLSChannelsArea #GotoAddWinButton::indicator:hover {
-				image: url(":/channels/resource/images/ChannelsSource/ChannelsSource/icon-addsource-over.svg");
+				image: url(":/channels/resource/images/ChannelsSource/icon-addsource-over.svg");
 			}
 
 			PLSChannelsArea #GotoAddWinButton::indicator:pressed {
-				image: url(":/channels/resource/images/ChannelsSource/ChannelsSource/icon-addsource-default.svg");
+				image: url(":/channels/resource/images/ChannelsSource/icon-addsource-default.svg");
 			}
 
 			PLSChannelsArea #GotoAddWinButton::indicator:disabled {
-				image: url(":/channels/resource/images/ChannelsSource/ChannelsSource/icon-addsource-default.svg");
+				image: url(":/channels/resource/images/ChannelsSource/icon-addsource-default.svg");
 			}
 
 	PLSChannelsArea #ErrorText {

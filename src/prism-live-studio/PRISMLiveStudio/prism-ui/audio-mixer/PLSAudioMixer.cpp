@@ -1,5 +1,11 @@
 #include "PLSAudioMixer.h"
 #include "pls/pls-properties.h"
+#include "liblog.h"
+
+static const char *module_name()
+{
+	return "PLSMixerOrderHelper";
+}
 
 PLSMixerOrderHelper::PLSMixerOrderHelper()
 {
@@ -18,6 +24,8 @@ void PLSMixerOrderHelper::Load(obs_data_t *data)
 	if (!data)
 		return;
 
+	source_uuids.clear();
+	m_orderList.clear();
 	if (obs_data_has_user_value(data, "mixer_order")) {
 		OBSDataArrayAutoRelease array = obs_data_get_array(data, "mixer_order");
 		size_t count = obs_data_array_count(array);
@@ -35,7 +43,15 @@ void PLSMixerOrderHelper::Load(obs_data_t *data)
 static void generateObj(obs_data_t *obj, const std::pair<std::string, MixerList> &item)
 {
 	OBSDataArrayAutoRelease order = obs_data_array_create();
+	std::set<std::string> scene_source_uuids;
 	for (size_t i = 0, count = item.second.size(); i < count; i++) {
+		if (scene_source_uuids.find(item.second[i].uuid) != scene_source_uuids.end()) {
+			assert(false);
+			PLS_INFO(module_name(), "Trying to push a repeated source: '%s', uuid: '%s' into list.", //
+				 item.second[i].name.c_str(), item.second[i].uuid.c_str());
+			continue;
+		}
+		scene_source_uuids.insert(item.second[i].uuid);
 		OBSDataAutoRelease orderObj = obs_data_create();
 		obs_data_set_string(orderObj, "source_name", item.second[i].name.c_str());
 		obs_data_set_string(orderObj, "source_uuid", item.second[i].uuid.c_str());
@@ -163,11 +179,15 @@ void PLSMixerOrderHelper::Remove(const std::string &scene_uuid, const std::strin
 					break;
 				}
 			}
-			if (found && !isGlobalAudio)
+			if (found && !isGlobalAudio) {
+				RemoveFromSourceSet(source_uuid);
 				return;
+			}
 			/* continue to remove global audio from other scenes inside of m_orderList*/
 		}
 	}
+
+	RemoveFromSourceSet(source_uuid);
 }
 
 void PLSMixerOrderHelper::UpdateName(const std::string &scene_uuid, const std::string &source_uuid, const std::string &newName, bool isGlobalAudio)
@@ -285,6 +305,14 @@ void PLSMixerOrderHelper::Reorder(const std::string &scene_uuid, std::vector<Vol
 	}
 }
 
+void PLSMixerOrderHelper::RemoveFromSourceSet(const std::string &source_uuid) 
+{
+	auto iter = source_uuids.find(source_uuid);
+	if (iter != source_uuids.end()) {
+		source_uuids.erase(iter);
+	}
+}
+
 void PLSMixerOrderHelper::SourceDestroy(void *data, calldata_t *params)
 {
 	obs_source_t *source = (obs_source_t *)calldata_ptr(params, "source");
@@ -360,13 +388,20 @@ void PLSMixerOrderHelper::LoadSourceOrder(const char *key, obs_data_array_t *arr
 	if (count > 0) {
 		m_orderList.insert(std::make_pair<std::string, MixerList>(key, {}));
 		auto &list = m_orderList[key];
+		std::set<std::string> scene_source_uuids;
 		for (size_t i = 0; i < count; i++) {
 			OBSDataAutoRelease obj = obs_data_array_item(array, i);
 			const char *uuid = obs_data_get_string(obj, "source_uuid");
 			const char *name = obs_data_get_string(obj, "source_name");
 			if (uuid && *uuid && name && *name) {
 				source_uuids.insert(uuid);
-				list.push_back({name, uuid});
+				if (scene_source_uuids.find(uuid) == scene_source_uuids.end()) {
+					scene_source_uuids.insert(uuid);
+					list.push_back({name, uuid});
+				} else {
+					assert(false && "Trying to push a repeated source into list.");
+					PLS_INFO(module_name(), "Trying to push a repeated source: '%s', uuid: '%s' into list.", name, uuid);
+				}
 			}
 		}
 	}

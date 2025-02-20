@@ -1,6 +1,5 @@
 #include "PLSChatTemplateDataHelper.h"
 #include "pls-common-define.hpp"
-#include "json-data-handler.hpp"
 #include "frontend-api.h"
 #include "liblog.h"
 #include "log/log.h"
@@ -14,7 +13,9 @@
 #include <QRandomGenerator>
 #include "PLSNameDialog.hpp"
 #include "qt-wrappers.hpp"
+#include "PLSBasic.h"
 
+#define CUSTOMTHEME_MIN_ID 1100
 using namespace common;
 
 static QStringList colorList{"#755074", "#336E67", "#363E4B", "#475A5E", "#725B5A", "#474566", "#986E96", "#4B9A90", "#5C6A7E",
@@ -38,7 +39,7 @@ void PLSChatTemplateDataHelper::initPLSChatTemplateData()
 			chatTemplate.id = templateData.toObject().value("itemId").toInt();
 			chatTemplate.name = templateData.toObject().value("title").toObject().value(lang).toString();
 			QString iconName = QString("%1_%2.png").arg(lang).arg(chatTemplate.id);
-			chatTemplate.resourcePath = pls_get_app_data_dir(QStringLiteral("PRISMLiveStudio/library/Library_Policy_PC/")) + QString("images/chat_source/%1").arg(iconName);
+			chatTemplate.resourcePath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/")) + QString("images/chat_source/%1").arg(iconName);
 			chatTemplate.resourceBackupPath = ":/resource/images/chat-template-source/" + iconName;
 			datas.append(chatTemplate);
 			m_chatTemplateObjs.insert(chatTemplate.id, templateData.toObject());
@@ -46,7 +47,7 @@ void PLSChatTemplateDataHelper::initPLSChatTemplateData()
 		}
 		m_templateInfos.insert(groupId, datas);
 	};
-	QString chatSourceJsonPath = pls_get_app_data_dir(QStringLiteral("PRISMLiveStudio/library/Library_Policy_PC/chatv2source/")) + QStringLiteral("chatv2source.json");
+	QString chatSourceJsonPath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/chatv2source/")) + QStringLiteral("chatv2source.json");
 	QString chatSourceLocalJsonPath = ":/Configs/resource/DefaultResources/chatv2source.json";
 	QJsonObject chatSourceObj, chatSourceLocalObj;
 	pls_read_json(chatSourceObj, chatSourceJsonPath);
@@ -87,11 +88,13 @@ void PLSChatTemplateDataHelper::initChatDefaultFamilyData(const QJsonArray &font
 		defaultFamily.qtFamilyText = familyObj.value("qt_family").toString();
 		defaultFamily.webFamilyText = familyObj.value("web_family").toString();
 		defaultFamily.fontWeight = familyObj.value("weight").toInt();
-		defaultFamily.fontSize = familyObj.value("font_size").toInt();
+		defaultFamily.fontSize = familyObj.value(langShort).toObject().value("font_size").toInt();
 		auto uiJsonObj = fontObj.value("ui_name").toObject().value(langShort).toObject();
 		defaultFamily.uiFamilyText = uiJsonObj.value("name").toString();
 		auto index = uiJsonObj.value("index").toInt();
 		defaultFamily.index = index;
+		defaultFamily.buttonWidth = uiJsonObj.value("width").toInt();
+		defaultFamily.buttonResourceStr = uiJsonObj.value("resource_name").toString();
 		insertDefaultFamily(index, defaultFamily);
 	}
 }
@@ -134,14 +137,6 @@ void PLSChatTemplateDataHelper::initTemplateButtons()
 	if (m_templateButtons.isEmpty()) {
 		initTemplateGroup();
 	}
-	for (auto group = m_templateButtons.begin(); group != m_templateButtons.end(); ++group) {
-		auto groupTmp = checkGroup(group.key());
-		while (groupTmp->buttons().size()) {
-			auto btn = groupTmp->buttons().value(0);
-			groupTmp->removeButton(btn);
-			pls_delete(btn, nullptr);
-		}
-	}
 
 	for (auto templateKey : m_templateInfos.keys()) {
 		auto group = checkGroup(templateKey);
@@ -150,7 +145,8 @@ void PLSChatTemplateDataHelper::initTemplateButtons()
 		for (int index = 0; index != templateDatas.count(); ++index) {
 			auto data = templateDatas.value(index);
 			auto name = data.name;
-			auto *button = pls_new<ChatTemplate>(group, data.id, name, data.resourceBackupPath, name.contains("My Theme"), data.backgroundColor);
+			if (findTemplateGroupStr(data.id).isEmpty())
+				auto *button = pls_new<ChatTemplate>(group, data.id, name, data.resourceBackupPath, data.id >= CUSTOMTHEME_MIN_ID, data.backgroundColor);
 		}
 	}
 }
@@ -171,9 +167,12 @@ QButtonGroup *PLSChatTemplateDataHelper::getTemplateButtons(const QString &templ
 void PLSChatTemplateDataHelper::resetButtonStyle()
 {
 	for (auto templateKey : m_templateButtons.keys()) {
-		for (auto _button : m_templateButtons.value(templateKey)->buttons()) {
+		auto buttonGroup = m_templateButtons.value(templateKey);
+		buttonGroup->setExclusive(false);
+		for (auto _button : buttonGroup->buttons()) {
 			_button->setChecked(false);
 		}
+		buttonGroup->setExclusive(true);
 	}
 }
 
@@ -227,7 +226,7 @@ void PLSChatTemplateDataHelper::readCutsomPLSChatTemplateData()
 		chatTemplate.name = templateData.toObject().value("title").toString();
 		chatTemplate.backgroundColor = templateData.toObject().value("backgroundColor").toString();
 		QString iconName = QString("ic_chat_mytheme_%1.svg").arg(chatTemplate.id % 10 + 1);
-		chatTemplate.resourcePath = pls_get_app_data_dir(QStringLiteral("PRISMLiveStudio/library/Library_Policy_PC/")) + QString("images/chat_source/%1").arg(iconName);
+		chatTemplate.resourcePath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/")) + QString("images/chat_source/%1").arg(iconName);
 		chatTemplate.resourceBackupPath = ":/resource/images/chat-template-source/" + iconName;
 		datas.append(chatTemplate);
 		m_chatTemplateObjs.insert(chatTemplate.id, templateData.toObject());
@@ -287,13 +286,18 @@ bool PLSChatTemplateDataHelper::saveCustomObj(const OBSData &settings, const int
 	}
 	auto defaultCustomTitle = getDefaultTitle();
 	bool accepted = false;
-
+	auto raiseWidget = []() {
+#ifdef Q_OS_MACOS
+		if (auto propertiesView = QPointer<QWidget>(PLSBasic::instance()->GetPropertiesWindow()); propertiesView)
+			pls_bring_mac_window_to_front(propertiesView->winId());
+#endif // Q_OS_MACOS
+	};
 	for (;;) {
+		raiseWidget();
 		accepted = PLSNameDialog::AskForName(nullptr, QObject::tr("ChatTemplate.Rename.Title"), QObject::tr("ChatTemplate.Rename.Content"), m_currentTemplateTitle,
 						     QT_UTF8(defaultCustomTitle.toUtf8().constData()));
 		if (!accepted)
 			break;
-
 		if (m_currentTemplateTitle.empty()) {
 			OBSMessageBox::warning(nullptr, QObject::tr("Alert.Title"), QObject::tr("NoNameEntered.Text"));
 			continue;
@@ -306,7 +310,7 @@ bool PLSChatTemplateDataHelper::saveCustomObj(const OBSData &settings, const int
 		}
 		break;
 	}
-
+	raiseWidget();
 	if (!accepted) {
 		return false;
 	}
@@ -321,8 +325,9 @@ bool PLSChatTemplateDataHelper::saveCustomObj(const OBSData &settings, const int
 	OBSDataAutoRelease ctDisplayObj = obs_data_get_obj(settings, "Chat.Display");
 	OBSDataAutoRelease ctOptionsObj = obs_data_get_obj(settings, "Chat.Options");
 	OBSDataAutoRelease ctMotionObj = obs_data_get_obj(settings, "Chat.Motion");
-
-	jsonObj["itemId"] = itemId + (m_needSaveChatTemplates.size() + 1) * 100;
+	auto maxKey = m_chatTemplateObjs.lastKey();
+	auto customTemplateCount = maxKey / 100;
+	jsonObj["itemId"] = itemId + (++customTemplateCount) * 100;
 	jsonObj["title"] = m_currentTemplateTitle.c_str();
 
 	int randomNumber = QRandomGenerator::global()->bounded(0, colorList.size());
@@ -341,11 +346,11 @@ bool PLSChatTemplateDataHelper::saveCustomObj(const OBSData &settings, const int
 	insertJsonValue(jsonObj, {"properties", "chat_options_properties", "chat_sort", "chat_align", "is_left"}, obs_data_get_bool(ctOptionsObj, "isCheckLeftChatAlign"));
 	insertJsonValue(jsonObj, {"properties", "chat_options_properties", "chat_sort", "chat_align", "is_enable"}, obs_data_get_bool(ctOptionsObj, "isEnableChatAlign"));
 	insertJsonValue(jsonObj, {"properties", "chat_options_properties", "chat_disapper_effect", "is_on"}, obs_data_get_bool(ctOptionsObj, "isCheckChatDisapperEffect"));
-	insertJsonValue(jsonObj, {"properties", "chat_options_properties", "chat_box_size", "width"}, obs_data_get_int(ctOptionsObj, "chatWidth"));
-	insertJsonValue(jsonObj, {"properties", "chat_options_properties", "chat_box_size", "height"}, obs_data_get_int(ctOptionsObj, "chatHeight"));
+	insertJsonValue(jsonObj, {"properties", "chat_options_properties", "chat_box_size", "width"}, obs_data_get_int(settings, "chatWidth"));
+	insertJsonValue(jsonObj, {"properties", "chat_options_properties", "chat_box_size", "height"}, obs_data_get_int(settings, "chatHeight"));
 
 	insertJsonValue(jsonObj, {"properties", "chat_motion_properties", "motion_style"}, getMotionStyleString(obs_data_get_int(ctMotionObj, "chatMotionStyle")));
-	insertJsonValue(jsonObj, {"properties", "chat_motion_properties", "is_check"}, obs_data_get_int(ctMotionObj, "isCheckChatMotion"));
+	insertJsonValue(jsonObj, {"properties", "chat_motion_properties", "is_check"}, obs_data_get_bool(ctMotionObj, "isCheckChatMotion"));
 	insertJsonValue(jsonObj, {"properties", "chat_font_properties", "common_font", "selected_font", "family", lang}, obs_data_get_string(ctFontObj, "chatFontFamily"));
 	insertJsonValue(jsonObj, {"properties", "chat_font_properties", "common_font", "selected_font", "style", lang}, obs_data_get_string(ctFontObj, "chatFontStyle"));
 	insertJsonValue(jsonObj, {"properties", "chat_font_properties", "font_size", "size_pt"}, obs_data_get_int(ctFontObj, "chatFontSize"));
@@ -423,9 +428,30 @@ void PLSChatTemplateDataHelper::removeCustomTemplate(const int id)
 			break;
 		}
 	}
+	auto buttonGroup = m_templateButtons.value("my");
+	auto button = buttonGroup->button(id);
+	if (button) {
+		buttonGroup->removeButton(button);
+		button->setParent(nullptr);
+		delete button;
+	}
 }
 
 QList<ITextMotionTemplateHelper::PLSChatDefaultFamily> PLSChatTemplateDataHelper::getChatCustomDefaultFamily()
 {
 	return m_chatDefaultfamilies;
+}
+
+void PLSChatTemplateDataHelper::clearChatTemplateButton()
+{
+	for (auto templateKey : m_templateButtons.keys()) {
+		auto buttonGroup = m_templateButtons.value(templateKey);
+		auto buttons = buttonGroup->buttons();
+		for (auto _button : buttons) {
+			_button->setParent(nullptr);
+			delete _button;
+		}
+		delete buttonGroup;
+	}
+	m_templateButtons.clear();
 }

@@ -4,7 +4,6 @@
 #include <QThreadPool>
 #include <QStandardPaths>
 #include "log/log.h"
-#include "json-data-handler.hpp"
 #include "frontend-api.h"
 #include "PLSLabDownloadFile.h"
 #include "log/log.h"
@@ -16,6 +15,8 @@
 #include "prism-version.h"
 #include "pls/pls-obs-api.h"
 #include "ChannelCommonFunctions.h"
+#include "libresource.h"
+#include "libutils-api.h"
 
 constexpr auto LABORATORY_DIR = "PRISMLiveStudio/laboratory/";
 constexpr auto LAB_JSON_NAME = "Laboratory.json";
@@ -59,36 +60,16 @@ void PLSLaboratoryManage::requestLabJsonData()
 		return;
 	}
 	m_labRequesting = true;
-	QString url = PLS_LAB.arg(PRISM_SSL);
-	pls::http::request(pls::http::Request() //
-				   .method(pls::http::Method::Get)
-				   .hmacUrl(url, PLS_PC_HMAC_KEY.toUtf8())
-				   .workInNewThread()
-				   .cookie(pls_get_prism_cookie())
-				   .cookie(PLSLoginUserInfo::getInstance()->getSessionCookie())
-				   .receiver(this)
-				   .result([this, url](const pls::http::Reply &reply) {
-					   m_labRequesting = false;
-					   if (!reply.isOk()) {
-						   printLog("download the Laboratory.json failed");
-						   return;
-					   }
-					   QJsonParseError jsonError;
-					   auto data = reply.data();
-					   QJsonDocument respjson = QJsonDocument::fromJson(data, &jsonError);
-					   bool isValidJson = jsonError.error == QJsonParseError::NoError;
-					   if (!isValidJson) {
-						   printLog("the Downloaded Laboratory.json parse error");
-						   return;
-					   }
-					   QFileInfo fi(getFilePath(LAB_JSON_NAME));
-					   QString filePath = fi.absoluteFilePath();
-					   if (!PLSJsonDataHandler::saveJsonFile(respjson.toJson(), filePath)) {
-						   printLog("save the Laboratory.json file failed.");
-						   return;
-					   }
-					   printLog("save the Laboratory.json file success.");
-				   }));
+
+	pls::rsm::getDownloader()->download(pls::rsm::UrlAndHowSave() //
+						    .url(PLS_LAB.arg(PRISM_SSL))
+						    .hmacKey(PLS_PC_HMAC_KEY.toUtf8())
+						    .filePath(getFilePath(LAB_JSON_NAME)),
+					    this, [this](const pls::rsm::DownloadResult &result) {
+						    m_labRequesting = false;
+
+						    PLS_INFO(MODULE_ABORATORY, "save the Laboratory.json file %s to %s", result.hasFilePath() ? "ok" : "fail", qUtf8Printable(result.filePath()));
+					    });
 }
 
 void PLSLaboratoryManage::checkLabDllUpdate()
@@ -125,16 +106,16 @@ void PLSLaboratoryManage::checkLabZipUpdate()
 		//Download the introduction page for each plugin
 		QString title = getStringInfo(key, laboratory_data::g_laboratoryTitle);
 		printLog(QString("start download detail page html, lab id is %1 , lab name is %2 ").arg(key).arg(title));
-		pls::http::request(pls::http::Request()
-					   .method(pls::http::Method::Get)
-					   .url(getStringInfo(key, laboratory_data::g_laboratoryDetailPage))
-					   .forDownload(true)
-					   .saveFilePath(getLabDetailPageFilePathByLabId(key))
-					   .workInNewThread()
-					   .timeout(PRISM_NET_REQUEST_TIMEOUT)
-					   .result([](const pls::http::Reply &) {
-						   //download result not case
-					   }));
+
+		auto filePath = getLabDetailPageFilePathByLabId(key);
+		pls::rsm::getDownloader()->download(pls::rsm::UrlAndHowSave() //
+							    .url(getStringInfo(key, laboratory_data::g_laboratoryDetailPage))
+							    .saveDir(QFileInfo(filePath).path())
+							    .fileName(QFileInfo(filePath).fileName()),
+						    this, [this](const pls::rsm::DownloadResult &result) {
+							    PLS_INFO(MODULE_ABORATORY, "save the DetailPage file %s to %s", result.hasFilePath() ? "ok" : "fail", qUtf8Printable(result.filePath()));
+						    });
+
 		if (!checkLabNeedInstall(key)) {
 			printLog(QString("No installation required for current labs, lab id is %1 , lab name is %2 ").arg(key).arg(title));
 			continue;
@@ -338,15 +319,15 @@ bool PLSLaboratoryManage::checkLabJsonValid(const QString &destPath) const
 		printKRLog(QString("Open the laboratory.json file in the App installation, the App installation laboratory.json file path is ") + appJsonPath);
 
 		QByteArray appBundleByteArray;
-		PLSJsonDataHandler::getJsonArrayFromFile(appBundleByteArray, appJsonPath);
+		pls_read_data(appBundleByteArray, appJsonPath);
 		if (appBundleByteArray.size() == 0) {
 			printLog("the laboratory.json file in the installation package file size is zero");
 			return false;
 		}
-	
+
 		//copy app cache file to dest path
 		printLog("Copy the laboratory.json file of the App installation package to the user directory");
-		bool result = PLSJsonDataHandler::saveJsonFile(appBundleByteArray, destPath);
+		bool result = pls_write_data(destPath, appBundleByteArray);
 		if (!result) {
 			printLog(QString("Failed to copy the laboratory.json file of the App installation package to the user directory"));
 			return false;
@@ -380,34 +361,27 @@ void PLSLaboratoryManage::downloadLabZipFile(const PLSCancel &cancel, const QObj
 
 	//Start executing the download lab ZIP installation package request
 	QString url = getSettingStringInfo(labId, laboratory_data::g_settingsDownloadUrl);
-	pls::http::Request request;
-	request.method(pls::http::Method::Get)
-		.url(url)
-		.forDownload(true)
-		.saveFilePath(getLabZipFilePath(labId))
-		.workInMainThread()
-		.receiver(receiver)
-		.timeout(getSettingIntInfo(labId, laboratory_data::g_settingsTimeout))
-		.result([this, labId, labTitle, callback, receiver](const pls::http::Reply &reply) {
-			m_cancelRequestMap.take(labId);
-			int code = reply.statusCode();
-			auto error = reply.error();
-			auto data = reply.data();
-			if (!reply.isOk()) {
-				printLog(
-					QString("download laboratory object failed, lab id is %1, lab title is %2, stautsCode is %3, QNetworkError is %4").arg(labId).arg(labTitle).arg(code).arg(error));
-				downloadLabZipFileFail(labId, callback, DownloadZipErrorType::DownloadZipNetworkError);
-				return;
-			}
-			downloadLabZipFileSuccess(receiver, labId, callback);
-		});
-	pls::http::request(request);
-	m_cancelRequestMap.insert(labId, request);
-	QObject::connect(&cancel, &PLSCancel::cancelSignal, this, [this, labId]() {
-		printLog(QString("The user clicks the close button on the installation page to cancel the request to download the laboratory object {id:%1}").arg(labId));
-		pls::http::Request cancelRequst = m_cancelRequestMap.take(labId);
-		cancelRequst.abort();
-	});
+
+	auto filePath = getLabZipFilePath(labId);
+	pls::rsm::getDownloader()->download(pls::rsm::UrlAndHowSave() //
+						    .url(url)
+						    .saveDir(QFileInfo(filePath).path())
+						    .fileName(QFileInfo(filePath).fileName()),
+					    this, [=](const pls::rsm::DownloadResult &result) {
+						    pls_async_call(this, [=] {
+							    m_cancelRequestMap.remove(labId);
+							    int code = result.statusCode();
+							    if (!result.hasFilePath()) {
+								    PLS_INFO(MODULE_ABORATORY, "download laboratory object failed, lab id is %s, lab title is %s, stautsCode is %d",
+									     qUtf8Printable(labId), qUtf8Printable(labTitle), code);
+
+								    downloadLabZipFileFail(labId, callback, DownloadZipErrorType::DownloadZipNetworkError);
+
+								    return;
+							    }
+							    downloadLabZipFileSuccess(receiver, labId, callback);
+						    });
+					    });
 }
 
 bool PLSLaboratoryManage::isPrismLowVersion(const QString &labId) const
@@ -964,7 +938,7 @@ void PLSLaboratoryManage::loadDownloadLabCache()
 
 	QByteArray bytes;
 	QString downloadImageCacheFile = getFilePath(DOWNLOAD_LAB_JSON_NAME);
-	PLSJsonDataHandler::getJsonArrayFromFile(bytes, downloadImageCacheFile);
+	pls_read_data(bytes, downloadImageCacheFile);
 	if (bytes.isEmpty()) {
 		printLog("end initializing download data,the data obtained from the downloadLab.json file is empty");
 		return;
@@ -1006,8 +980,7 @@ void PLSLaboratoryManage::saveDownloadLabCache() const
 		array.append(QJsonObject(QJsonDocument::fromJson(QJsonDocument::fromVariant(QVariant(map)).toJson()).object()));
 	}
 	QString downloadImageCacheFile = getFilePath(DOWNLOAD_LAB_JSON_NAME);
-	QJsonDocument doc(array);
-	if (!PLSJsonDataHandler::saveJsonFile(doc.toJson(), downloadImageCacheFile)) {
+	if (!pls_write_json(downloadImageCacheFile, array)) {
 		printLog("save the downloadLab.json file failed.");
 		return;
 	}
@@ -1231,20 +1204,15 @@ void PLSLaboratoryManage::initLaboratoryData()
 		filePath = findFileInResources(ChannelData::defaultSourcePath, "Laboratory.json");
 	}
 
-	QByteArray byteArray;
-	PLSJsonDataHandler::getJsonArrayFromFile(byteArray, filePath);
-	if (byteArray.size() == 0) {
+	QVariantList variantList;
+	if (!pls_read_json(variantList, filePath)) {
 		printLog("get the data under the laboratory.json file path is empty");
 	}
-
-	QVariantList variantList;
-	PLSJsonDataHandler::jsonTo(byteArray, variantList);
 
 	for (auto variant : variantList) {
 		QVariantMap variantMap = variant.toMap();
 		QString titleValue = variantMap.value(laboratory_data::g_laboratoryTitle).toMap().value(pls_get_current_language_short_str()).toString();
-		if (titleValue.isEmpty())
-		{
+		if (titleValue.isEmpty()) {
 			titleValue = variantMap.value(laboratory_data::g_laboratoryTitle).toMap().value("en").toString();
 		}
 		variantMap.insert(laboratory_data::g_laboratoryTitle, titleValue);

@@ -85,6 +85,8 @@ PLSLiveInfoNaverShoppingLIVE::PLSLiveInfoNaverShoppingLIVE(PLSPlatformBase *pPla
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStartBroadcastInInfoView, this, &PLSLiveInfoNaverShoppingLIVE::on_okButton_clicked);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStartRehearsal, this, &PLSLiveInfoNaverShoppingLIVE::on_rehearsalButton_clicked);
 	connect(PLSCHANNELS_API, &PLSChannelDataAPI::toStopRehearsal, this, &PLSLiveInfoNaverShoppingLIVE::on_cancelButton_clicked);
+
+	ui->dualWidget->setText(tr("navershopping.liveinfo.title"))->setUUID(platform->getChannelUUID());
 }
 
 PLSLiveInfoNaverShoppingLIVE::~PLSLiveInfoNaverShoppingLIVE()
@@ -333,11 +335,10 @@ void PLSLiveInfoNaverShoppingLIVE::prepareLiving(const std::function<void(bool)>
 
 		//Request failure apiType equal to PLSNaverShoppingFailed means that all special errors have been handled, and this error identification needs to be handled by yourself
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-			apiType = PLSAPINaverShoppingType::PLSNaverShoppingUploadImageFailed;
-			QString errorCode = "";
-			QString errorMsg = "";
-			PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
-			platform->handleCommonApiType(apiType, errorCode, errorMsg);
+			PLSErrorHandler::ExtraData extraData;
+			extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_GET_SEESION_KEY;
+			PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_UPLOAD_IMAGE_FAILED, NAVER_SHOPPING_LIVE,
+										  PLSErrCustomKey_UploadImageFailed, extraData);
 		}
 
 		//Failed to upload pictures before GoLive and Rehearsal live, add SRE
@@ -416,11 +417,10 @@ void PLSLiveInfoNaverShoppingLIVE::startLiving(const std::function<void(bool)> &
 				return;
 			}
 			if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-				apiType = PLSAPINaverShoppingType::PLSNaverShoppingUpdateFailed;
-				QString errorCode = "";
-				QString errorMsg = "";
-				PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
-				platform->handleCommonApiType(apiType, errorCode, errorMsg);
+				PLSErrorHandler::ExtraData extraData;
+				extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_LIVING;
+				PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_LIVE_INFO_FAILED, NAVER_SHOPPING_LIVE,
+											  PLSErrCustomKey_UpdateLiveInfoFailedNoService, extraData);
 			}
 		};
 		showLoading(content());
@@ -490,7 +490,6 @@ void PLSLiveInfoNaverShoppingLIVE::getPrepareInfoFromScheduleInfo(PLSNaverShoppi
 	prepareInfo.allowSearch = scheduleInfo.searchable;
 	prepareInfo.sendNotification = scheduleInfo.sendNotification;
 	prepareInfo.introducing = scheduleInfo.introducing;
-	prepareInfo.attachable = scheduleInfo.attachable;
 	QString apString;
 	PLSNaverShoppingLIVEAPI::getNaverShoppingDateFormat(scheduleInfo.timeStamp, prepareInfo.ymdDate, prepareInfo.yearMonthDay, prepareInfo.hour, prepareInfo.minute, apString);
 	prepareInfo.ap = apIndexForString(apString);
@@ -663,11 +662,10 @@ void PLSLiveInfoNaverShoppingLIVE::updateScheduleLiveInfoRequest(const std::func
 			return;
 		}
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-			apiType = PLSAPINaverShoppingType::PLSNaverShoppingUpdateScheduleInfoFailed;
-			QString errorCode = "";
-			QString errorMsg = "";
-			PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
-			platform->handleCommonApiType(apiType, errorCode, errorMsg);
+			PLSErrorHandler::ExtraData extraData;
+			extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_LIVING;
+			PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_UPDATE_SCHEDULE_INFO_FAILED, NAVER_SHOPPING_LIVE,
+										  PLSErrCustomKey_LoadLiveInfoFailed, extraData);
 		}
 		callback(false);
 	};
@@ -681,12 +679,20 @@ void PLSLiveInfoNaverShoppingLIVE::createLivingRequest(const std::function<void(
 	auto requestCallback = [this, callback](PLSAPINaverShoppingType apiType, const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &, const QByteArray &data) {
 		if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 			hideLoading();
+			PLSErrorHandler::ExtraData extraData;
+			if (m_TempPrepareInfo.isNowLiving) {
+				extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_CREATE_NOW_LIVING;
+			} else {
+				extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_CREATE_SCHEDULE_LIVING;
+			}
 			if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-				apiType = PLSAPINaverShoppingType::PLSNaverShoppingCreateLivingFailed;
-				QString errorCode = "";
-				QString errorMsg = "";
-				PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
-				platform->handleCommonApiType(apiType, errorCode, errorMsg);
+				if (ui->productWidget->hasUnattachableProduct()) {
+					PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_ADD_UNATTACHABLE_PRODUCT_FAILED,
+												  NAVER_SHOPPING_LIVE, "FailedToStartLive", extraData);
+				} else {
+					PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_CREATE_SCHEDULE_LIVING_FAILED, NAVER_SHOPPING_LIVE,
+												  "FailedToStartLive", extraData);
+				}
 			}
 			PLS_LOGEX(PLS_LOG_ERROR, liveInfoMoudule,
 				  {{"platformName", "navershopping"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "navershopping create live api request failed"}},
@@ -726,11 +732,10 @@ void PLSLiveInfoNaverShoppingLIVE::scheduleListLoadingFinished(PLSAPINaverShoppi
 {
 	if (apiType != PLSAPINaverShoppingType::PLSNaverShoppingSuccess) {
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-			apiType = PLSAPINaverShoppingType::PLSNaverShoppingScheduleListFailed;
-			QString errorCode = "";
-			QString errorMsg = "";
-			PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
-			platform->handleCommonApiType(apiType, errorCode, errorMsg);
+			PLSErrorHandler::ExtraData extraData;
+			extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_SCHEDULE_LIST;
+			PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_REFRESH_LIVEINFO_FAILED, NAVER_SHOPPING_LIVE,
+										  PLSErrCustomKey_LoadLiveInfoFailed, extraData);
 		}
 		return;
 	}
@@ -769,21 +774,21 @@ void PLSLiveInfoNaverShoppingLIVE::scheduleListLoadingFinished(PLSAPINaverShoppi
 		}
 	}
 	if (!m_TempPrepareInfo.isNowLiving) {
-		auto nomarlData = PLSScheComboxItemData();
-		nomarlData._id = "";
-		nomarlData.title = tr("New");
-		nomarlData.time = tr("New");
-		nomarlData.type = PLSScheComboxItemType::Ty_NormalLive;
-		m_vecItemDatas.insert(m_vecItemDatas.begin(), nomarlData);
+		auto normalData = PLSScheComboxItemData();
+		normalData._id = "";
+		normalData.title = tr("New");
+		normalData.time = tr("New");
+		normalData.type = PLSScheComboxItemType::Ty_NormalLive;
+		m_vecItemDatas.insert(m_vecItemDatas.begin(), normalData);
 	}
 
 	if (m_vecItemDatas.empty()) {
-		auto nomarlData = PLSScheComboxItemData();
-		nomarlData._id = "";
-		nomarlData.title = tr("New");
-		nomarlData.time = tr("LiveInfo.Youtube.no.scheduled");
-		nomarlData.type = PLSScheComboxItemType::Ty_Placehoder;
-		m_vecItemDatas.insert(m_vecItemDatas.begin(), nomarlData);
+		auto normalData = PLSScheComboxItemData();
+		normalData._id = "";
+		normalData.title = tr("New");
+		normalData.time = tr("LiveInfo.Youtube.no.scheduled");
+		normalData.type = PLSScheComboxItemType::Ty_Placeholder;
+		m_vecItemDatas.insert(m_vecItemDatas.begin(), normalData);
 	}
 	ui->scheCombox->showScheduleMenu(m_vecItemDatas);
 }
@@ -939,11 +944,9 @@ void PLSLiveInfoNaverShoppingLIVE::getCategoryListRequest()
 		}
 		doUpdateOkState();
 		if (apiType == PLSAPINaverShoppingType::PLSNaverShoppingFailed) {
-			apiType = PLSAPINaverShoppingType::PLSNaverShoppingCategoryListFailed;
-			QString errorCode = "";
-			QString errorMsg = "";
-			PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
-			platform->handleCommonApiType(apiType, errorCode, errorMsg);
+			PLSErrorHandler::ExtraData extraData;
+			extraData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_CATEGORY_LIST;
+			PLSNaverShoppingLIVEAPI::showAlertByPrismCodeWithErrorMsg(data, PLSErrorHandler::CHANNEL_NAVER_SHOPPING_LIVE_GET_CATEGORY_LIST_FAILED, NAVER_SHOPPING_LIVE, "", extraData);
 		}
 	};
 
@@ -1073,7 +1076,7 @@ bool PLSLiveInfoNaverShoppingLIVE::isOkButtonEnabled()
 
 	//If no item list is selected
 	if (ui->productWidget->getProduct(PLSProductType::MainProduct).isEmpty()) {
-		if (m_TempPrepareInfo.isPlanLiving) {
+		if (m_TempPrepareInfo.isPlanLiving && !isModified(m_scheduleTempPrepareInfo)) {
 			return true;
 		}
 		return false;
@@ -1160,7 +1163,7 @@ void PLSLiveInfoNaverShoppingLIVE::summaryEdited()
 	if (QString newText = ui->summaryLineEdit->text(); isTitleTooLong(newText, SummaryLengthLimit)) {
 		QSignalBlocker signalBlocker(ui->summaryLineEdit);
 		ui->summaryLineEdit->setText(newText);
-		pls_alert_error_message(this, tr("Alert.Title"), tr("navershopping.liveinfo.max.summary.length"));
+		PLSAlertView::warning(this, tr("Alert.Title"), tr("navershopping.liveinfo.max.summary.length"));
 	}
 	doUpdateOkState();
 }
@@ -1181,11 +1184,6 @@ void PLSLiveInfoNaverShoppingLIVE::on_okButton_clicked()
 	} else {
 		PLS_LIVE_UI_STEP(liveInfoMoudule, "NaverShopping liveinfo ok button", ACTION_CLICK);
 		m_prepareLivingType = PrepareRequestType::LiveBeforeOkButtonPrepareRequest;
-	}
-
-	if (ui->productWidget->hasUnattachableProduct()) {
-		pls_alert_error_message(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Overseas.Food"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
-		return;
 	}
 
 	prepareLiving([this](bool result) {
@@ -1352,13 +1350,3 @@ QList<QWidget *> PLSLiveInfoNaverShoppingLIVE::moveContentExcludeWidgetList()
 	return excludeChildList;
 }
 #endif
-
-void PLSLiveInfoNaverShoppingLIVE::showEvent(QShowEvent *event)
-{
-	if (ui->productWidget->hasUnattachableProduct()) {
-		pls_async_call(this, [this]() {
-			pls_alert_error_message(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Overseas.Food"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
-		});
-	}
-	PLSLiveInfoBase::showEvent(event);
-}

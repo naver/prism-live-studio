@@ -237,6 +237,7 @@ void ChannelsSettingsWidget::onSelectionChanged(const QString &uuid, bool isSele
 		varMap.insert(ChannelData::g_displayState, isSelected);
 		if (!isSelected) {
 			varMap.insert(ChannelData::g_channelUserStatus, ChannelData::Disabled);
+			varMap.insert(ChannelData::g_channelDualOutput, ChannelData::NoSet);
 		}
 	}
 }

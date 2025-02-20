@@ -151,6 +151,10 @@ LIBDUMPANALUZER_API void pls_set_prism_sub_session(const std::string &session)
 	pls::set_prism_sub_session(session);
 }
 
+LIBDUMPANALUZER_API void pls_set_prism_pid(const std::string &pid) {
+	pls::set_prism_pid(pid);
+}
+
 
 LIBDUMPANALUZER_API bool pls_wait_send_dump(ProcessInfo info)
 {

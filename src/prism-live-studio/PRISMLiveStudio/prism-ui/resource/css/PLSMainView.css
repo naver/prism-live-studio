@@ -360,6 +360,13 @@ PLSMainView #rightArea {
 						image: url(":/resource/images/ic-studiomode-on-click.svg");
 					}
 
+			PLSMainView #rightArea #studioMode:checked[dimmed="true"] {
+				image: url(":/resource/images/ic-studiomode-off-disable.svg");
+			}
+			PLSMainView #rightArea #studioMode:!checked[dimmed="true"] {
+				image: url(":/resource/images/ic-studiomode-off-disable.svg");
+			}
+
 		PLSMainView #rightArea PLSToastButton #alertNumLabel[maxNum="false"] {
 			min-width: /*hdpi*/ 18px;
 			max-width: /*hdpi*/ 18px;
@@ -1472,6 +1479,25 @@ PLSMainView PLSIconButton[useFor="sceneTemplate"] {
 	qproperty-iconOnHover: ":/resource/images/icon-source/ic_scenetemplate_on_hover.svg";
 	qproperty-iconOnPressed: ":/resource/images/icon-source/ic_scenetemplate_on_click.svg";
 	qproperty-iconOnDisabled: ":/resource/images/icon-source/ic_scenetemplate_on_disable.svg";
+}
+
+PLSMainView PLSIconButton[useFor="dualOutput"] {
+	min-width: 24px;
+	min-height: 24px;
+	max-width: 24px;
+	max-height: 24px;
+	padding: 0;
+	margin: 0;
+	qproperty-iconWidth: 22;
+	qproperty-iconHeight: 22;
+	qproperty-iconOffNormal: ":/resource/images/dual-output/ic_dualoutput_off_normal.svg";
+	qproperty-iconOffHover: ":/resource/images/dual-output/ic_dualoutput_off_over.svg";
+	qproperty-iconOffPressed: ":/resource/images/dual-output/ic_dualoutput_off_click.svg";
+	qproperty-iconOffDisabled: ":/resource/images/dual-output/ic_dualoutput_off_disable.svg";
+	qproperty-iconOnNormal: ":/resource/images/dual-output/ic_dualoutput_on_normal.svg";
+	qproperty-iconOnHover: ":/resource/images/dual-output/ic_dualoutput_on_over.svg";
+	qproperty-iconOnPressed: ":/resource/images/dual-output/ic_dualoutput_on_click.svg";
+	qproperty-iconOnDisabled: ":/resource/images/dual-output/ic_dualoutput_on_disable.svg";
 }
 
 PLSMainView PLSIconButton[useFor="ncb2bBrowserSettings"] {

@@ -236,7 +236,7 @@ void PLSApngLabel::paintEvent(QPaintEvent *)
 	style->drawItemPixmap(&painter, cr, align, pix);
 }
 
-PLSHelpIcon::PLSHelpIcon(QWidget *parent) : QLabel(parent)
+PLSHelpIcon::PLSHelpIcon(QWidget *parent, bool handleTooltip_) : QLabel(parent), handleTooltip(handleTooltip_)
 {
 	setFrameShape(QFrame::NoFrame);
 	setProperty("showHandCursor", QVariant(true));
@@ -245,9 +245,17 @@ PLSHelpIcon::PLSHelpIcon(QWidget *parent) : QLabel(parent)
 #endif
 }
 
+void PLSHelpIcon::setHandleTooltip(bool handleTooltip)
+{
+	this->handleTooltip = handleTooltip;
+}
+
 bool PLSHelpIcon::eventFilter(QObject *watched, QEvent *event)
 {
 #if defined(Q_OS_MACOS)
+	if (!handleTooltip) {
+		return QLabel::eventFilter(watched, event);
+	}
 	if (watched == this && event->type() == QEvent::ToolTip) {
 		QPoint pos = this->rect().center();
 		QPoint global = this->mapToGlobal(pos);

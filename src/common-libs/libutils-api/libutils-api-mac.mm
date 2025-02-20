@@ -25,8 +25,10 @@
 #import <AppKit/AppKit.h>
 #include "libutils-api.h"
 #include "PLSMacFunction.h"
+//#include "NMacManager.h"
 #include "libutils-api-log.h"
 #include "CrossProcessNotification.h"
+#include <assert.h>
 
 #define PROCESS_NAME_SIZE 256
 #define NSApplicationRelaunchDaemon @"PRISMRelaunch"
@@ -318,29 +320,60 @@ QStringList pls_cmdlines()
 
 bool unZip(const QString &dstDirPath, const QString &srcFilePath)
 {
-	NSString *zipPath = [NSString stringWithCString:srcFilePath.toStdString().c_str() encoding:NSUTF8StringEncoding];
-	NSString *targetFolder = [NSString stringWithCString:dstDirPath.toStdString().c_str() encoding:NSUTF8StringEncoding];
-	NSTask *unzipTask = [[NSTask alloc] init];
-	[unzipTask setLaunchPath:@"/usr/bin/unzip"];
-	[unzipTask setArguments:@[@"-o", zipPath, @"-d", targetFolder]];
-	[unzipTask launch];
-	[unzipTask waitUntilExit];
-	return [unzipTask terminationStatus] == 0;
+	NSString *zipPath = srcFilePath.toNSString();
+	NSString *targetFolder = dstDirPath.toNSString();
+	if (![[NSFileManager defaultManager] fileExistsAtPath:zipPath]) {
+		PLS_INFO("Process", "mac unzip failed, with not invalid zipPath: %s", "see kr to look detail path");
+		PLS_INFO_KR("Process", "mac unzip failed, with not invalid zipPath: %s", zipPath.UTF8String);
+		assert(false && "must contain srcFilePath");
+		return false;
+	}
+
+	if (![[NSFileManager defaultManager] fileExistsAtPath:targetFolder]) {
+		PLS_INFO("Process", "mac unzip failed, with Target folder does not exist: %s", "see kr to look detail path");
+		PLS_INFO_KR("Process", "mac unzip failed, with Target folder does not exist: %s", targetFolder.UTF8String);
+		assert(false && "must contain dstDirPath");
+		return false;
+	}
+	@try {
+		NSTask *unzipTask = [[NSTask alloc] init];
+		[unzipTask setLaunchPath:@"/usr/bin/unzip"];
+		[unzipTask setArguments:@[@"-o", zipPath, @"-d", targetFolder]];
+
+		[unzipTask launch];
+		[unzipTask waitUntilExit];
+
+		return [unzipTask terminationStatus] == 0;
+	} @catch (NSException *exception) {
+		PLS_INFO("Process", "mac unzip failed, with catched exception. name:%s desc: %s", exception.name.UTF8String, exception.description.UTF8String);
+		return false;
+	}
 }
 
 bool zip(const QString &destZipPath, const QString &sourceDirName, const QString &sourceFolderPath)
 {
+	NSString *zipPath = destZipPath.toNSString();
+	NSString *copyFolderName = sourceDirName.toNSString();
+	NSString *directoryPath = sourceFolderPath.toNSString();
 
-	NSString *zipPath = [NSString stringWithCString:destZipPath.toStdString().c_str() encoding:NSUTF8StringEncoding];
-	NSString *copyFolderName = [NSString stringWithCString:sourceDirName.toStdString().c_str() encoding:NSUTF8StringEncoding];
-    NSString *directoryPath = [NSString stringWithCString:sourceFolderPath.toStdString().c_str() encoding:NSUTF8StringEncoding];
-	NSTask *zipTask = [[NSTask alloc] init];
-	[zipTask setLaunchPath:@"/usr/bin/zip"];
-    [zipTask setCurrentDirectoryPath:directoryPath];
-	[zipTask setArguments:@[@"-r", zipPath, copyFolderName]];
-	[zipTask launch];
-	[zipTask waitUntilExit];
-	return [zipTask terminationStatus] == 0;
+	if (![[NSFileManager defaultManager] fileExistsAtPath:directoryPath]) {
+		PLS_INFO("Process", "mac zip failed, with Source folder does not exist: %s", "see kr to look detail path");
+		PLS_INFO_KR("Process", "mac zip failed, with Source folder does not exist: %s", directoryPath.UTF8String);
+		assert(false && "must contain sourceFolderPath");
+		return false;
+	}
+	@try {
+		NSTask *zipTask = [[NSTask alloc] init];
+		[zipTask setLaunchPath:@"/usr/bin/zip"];
+		[zipTask setCurrentDirectoryPath:directoryPath];
+		[zipTask setArguments:@[@"-r", zipPath, copyFolderName]];
+		[zipTask launch];
+		[zipTask waitUntilExit];
+		return [zipTask terminationStatus] == 0;
+	} @catch (NSException *exception) {
+		PLS_INFO("Process", "mac zip failed, with catched exception. name:%s desc: %s", exception.name.UTF8String, exception.description.UTF8String);
+		return false;
+	}
 }
 
 pls_mac_ver_t pls_get_mac_systerm_ver()
@@ -385,7 +418,7 @@ bool pls_copy_file(const QString &fileName, const QString &newName, bool overwri
 		errorCode = (int)error.code;
 		return result;
 	}
-	
+
 	return true;
 }
 
@@ -452,13 +485,13 @@ bool pls_restart_mac_app(const QStringList &arguments)
 	NSString *daemonPath = [[[[NSBundle mainBundle] executablePath] stringByDeletingLastPathComponent] stringByAppendingFormat:@"/%@", NSApplicationRelaunchDaemon];
 	NSString *executablePath = [[NSBundle mainBundle] executablePath];
 	NSString *pid = [NSString stringWithFormat:@"%d", [[NSProcessInfo processInfo] processIdentifier]];
-    NSMutableArray *cmdlineArgument = [[NSMutableArray alloc] init];
-    [cmdlineArgument addObject:executablePath];
-    [cmdlineArgument addObject:pid];
-    for(int i = 0; i< arguments.count(); i++) {
-        [cmdlineArgument addObject: getNSStringFromQString(arguments.at(i))];
-    }
-    NSString *startType; //gettNSStringFromChar(restartType);
+	NSMutableArray *cmdlineArgument = [[NSMutableArray alloc] init];
+	[cmdlineArgument addObject:executablePath];
+	[cmdlineArgument addObject:pid];
+	for (int i = 0; i < arguments.count(); i++) {
+		[cmdlineArgument addObject:getNSStringFromQString(arguments.at(i))];
+	}
+	NSString *startType; //gettNSStringFromChar(restartType);
 	NSTask *task = [[NSTask alloc] init];
 	[task setLaunchPath:daemonPath];
 	[task setArguments:cmdlineArgument.copy];
@@ -544,7 +577,7 @@ bool pls_remove_all_downloaded_mac_app_small_equal_version(const QString &downlo
 		}
 		[fileManager removeItemAtPath:filePath error:nil];
 	}
-	
+
 	return true;
 }
 
@@ -802,8 +835,7 @@ bool pls_process_exit_code(MacHandle handle, uint32_t *exit_code)
 
 QUrl build_mac_hmac_url(const QUrl &url, const QByteArray &hmacKey)
 {
-	QByteArray originalUrl = url.toEncoded(QUrl::FullyEncoded);
-	return QUrl::fromEncoded(originalUrl);
+	return url;
 }
 
 bool pls_check_mac_app_is_existed(const wchar_t *executableName)

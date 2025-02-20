@@ -24,6 +24,7 @@
 #include "../prism-ui/main/audio-meter-wrapper.h"
 #include "../prism-ui/main/pls-gpop-data.hpp"
 #include "../prism-ui/scene-templates/PLSSceneTemplateModel.h"
+#include "PLSErrorHandler.h"
 
 class PLSLoginInfo;
 class QWidget;
@@ -42,7 +43,7 @@ enum class PLSResultCheckingResult { Ok, Continue, Close };
   * return:
   *     true for success
   */
-using pls_result_checking_callback_t = std::function<PLSResultCheckingResult(QJsonObject &result, const QString &url, const QMap<QString, QString> &cookies)>;
+using pls_result_checking_callback_t = std::function<PLSResultCheckingResult(QVariantHash &result, const QString &url, const QMap<QString, QString> &cookies)>;
 
 using pls_translate_callback_t = const char *(*)(const char *lookup);
 FRONTEND_API void pls_set_translate_cb(pls_translate_callback_t translate_cb);
@@ -104,7 +105,7 @@ FRONTEND_API QJsonObject pls_ssmap_to_json(const QMap<QString, QString> &ssmap);
   * return:
   *     json object
   */
-FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const pls_result_checking_callback_t &callback, QWidget *parent = nullptr, bool readCookies = true);
+FRONTEND_API bool pls_browser_view(QVariantHash &result, const QUrl &url, const pls_result_checking_callback_t &callback, QWidget *parent = nullptr, bool readCookies = true);
 /**
   * popup browser view
   * param:
@@ -116,7 +117,7 @@ FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const p
   * return:
   *     json object
   */
-FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelName, const pls_result_checking_callback_t &callback,
+FRONTEND_API bool pls_browser_view(QVariantHash &result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelName, const pls_result_checking_callback_t &callback,
 				   QWidget *parent = nullptr, bool readCookies = true);
 /**
   * popup browser view
@@ -130,7 +131,7 @@ FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const s
   * return:
   *     json object
   */
-FRONTEND_API bool pls_browser_view(QJsonObject &result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelName, const std::string &script,
+FRONTEND_API bool pls_browser_view(QVariantHash &result, const QUrl &url, const std_map<std::string, std::string> &headers, const QString &pannelName, const std::string &script,
 				   const pls_result_checking_callback_t &callback, QWidget *parent = nullptr, bool readCookies = true);
 
 /**
@@ -178,7 +179,7 @@ FRONTEND_API QString pls_get_code_from_url(const QString &url_str);
 /*
 * channel login
 */
-FRONTEND_API void pls_channel_login_async(const std::function<void(bool ok, const QJsonObject &result)> &callback, const QString &accountName, QWidget *parent);
+FRONTEND_API void pls_channel_login_async(const std::function<void(bool ok, const QVariantHash &result)> &callback, const QString &accountName, QWidget *parent);
 
 //FRONTEND_API Common pls_get_gpop_common();
 /*
@@ -301,7 +302,11 @@ enum class pls_frontend_event {
 	PLS_FRONTEND_EVENT_RESET_VIDEO,
 
 	//PRISM/Zhongling/20240416/#5096 add shutting down event
-	PLS_FRONTEND_EVENT_PRISM_SHUTTING_DOWN
+	PLS_FRONTEND_EVENT_PRISM_SHUTTING_DOWN,
+
+	//PRISM/WuLongyue/20241111/for dual output
+	PLS_FRONTEND_EVENT_DUAL_OUTPUT_ON,
+	PLS_FRONTEND_EVENT_DUAL_OUTPUT_OFF
 };
 /**
   * frontend event callback
@@ -417,7 +422,7 @@ enum class pls_upload_file_result_t {
   * return:
   *     check result
   */
-FRONTEND_API pls_check_update_result_t pls_check_app_update(bool &is_force, QString &version, QString &file_url, QString &update_info_url);
+FRONTEND_API pls_check_update_result_t pls_check_app_update(bool &is_force, QString &version, QString &file_url, QString &update_info_url, PLSErrorHandler::RetData &retData);
 
 /**
   * check update
@@ -427,7 +432,8 @@ FRONTEND_API pls_check_update_result_t pls_check_app_update(bool &is_force, QStr
   *     check result
   */
 
-FRONTEND_API pls_upload_file_result_t pls_upload_contactus_files(const QString &email, const QString &question, const QList<QFileInfo> files);
+enum class PLS_CONTACTUS_QUESTION_TYPE { Error, Advice, Consult, Other };
+FRONTEND_API pls_upload_file_result_t pls_upload_contactus_files(PLS_CONTACTUS_QUESTION_TYPE iType, const QString &email, const QString &question, const QList<QFileInfo> files);
 
 /**
   * show update info
@@ -538,11 +544,12 @@ FRONTEND_API void pls_get_all_source(std::vector<OBSSource> &vecSources);
 FRONTEND_API void pls_get_all_source(std::vector<OBSSource> &sources, const char *source_id, const char *name, const std::function<bool(const char *value)> &value);
 
 FRONTEND_API bool pls_source_support_rnnoise(const char *id);
-FRONTEND_API bool pls_get_chat_info(QString &id, QString &cookie, bool &isSinglePlatform);
+FRONTEND_API bool pls_get_chat_info(QString &id, int &seqHorizontal, int &seqVertical, QString &cookie, bool &isSinglePlatform);
 FRONTEND_API int pls_get_current_selected_channel_count();
 
 FRONTEND_API void pls_add_custom_font(const QString &fontPath);
 FRONTEND_API bool pls_install_scene_template(const SceneTemplateItem &item);
+FRONTEND_API bool pls_get_output_stream_dealy_active();
 
 class QButtonGroup;
 
@@ -555,6 +562,8 @@ struct ITextMotionTemplateHelper {
 		int fontSize = 0;
 		int fontWeight = 0;
 		int index = -1;
+		int buttonWidth = 0;
+		QString buttonResourceStr;
 	};
 	virtual ~ITextMotionTemplateHelper() = default;
 	virtual void initTemplateButtons() = 0;
@@ -572,6 +581,7 @@ struct ITextMotionTemplateHelper {
 	virtual void updateCustomTemplateName(const QString &name, const int id) {}
 	virtual void removeCustomTemplate(const int id) {}
 	virtual QList<PLSChatDefaultFamily> getChatCustomDefaultFamily() { return {}; }
+	virtual void clearChatTemplateButton() {}
 };
 
 FRONTEND_API ITextMotionTemplateHelper *pls_get_text_motion_template_helper_instance();
@@ -618,7 +628,7 @@ FRONTEND_API int pls_get_actived_chat_channel_count();
 /**
   * get prism liveSeq
   */
-FRONTEND_API int pls_get_prism_live_seq();
+FRONTEND_API void pls_get_prism_live_seq(int &seqHorizontal, int &seqVertical);
 
 /**
   * get prism login cookie value
@@ -691,7 +701,8 @@ public:
 		RemoteControlConfig,
 		CamStudioConfig,
 		SceneTemplateConfig,
-		Ncb2bBrowserSettings
+		Ncb2bBrowserSettings,
+		DualOutputConfig
 	};
 	Q_ENUM(FeatureId)
 };
@@ -859,7 +870,9 @@ FRONTEND_API void pls_laboratory_detail_page_js_event(const QString &page, const
 */
 FRONTEND_API bool pls_get_laboratory_status(const QString &laboratoryId);
 
-FRONTEND_API void pls_navershopping_get_store_login_url(QWidget *widget, const std::function<void(const QString &storeLoginUrl)> &ok, const std::function<void()> &fail);
+FRONTEND_API void pls_navershopping_get_store_login_url(QWidget *widget, const std::function<void(const QString &storeLoginUrl)> &ok, const std::function<void(const QByteArray &data)> &fail);
+
+FRONTEND_API void pls_navershopping_get_error_code_message(const QByteArray &data, QString &errorCode, QString &errorMessage);
 
 FRONTEND_API void pls_enum_sources(const std::function<bool(obs_source_t *)> &callback);
 
@@ -867,7 +880,6 @@ FRONTEND_API void pls_enum_sources(const std::function<bool(obs_source_t *)> &ca
  * overwrite: true to overwrite if newName file is exist. true by defaualt.
  * sendSre: true to send SRE log if copy failed. false by default.
  */
-FRONTEND_API bool pls_copy_file(const QString &fileName, const QString &newName, bool overwrite = true, bool sendSre = false);
 
 FRONTEND_API void pls_on_frontend_event(pls_frontend_event event, const QVariantList &params = QVariantList());
 
@@ -881,7 +893,8 @@ enum class AnalogType {
 	ANALOG_PLAY_BGM,
 	ANALOG_VIRTUAL_CAM,
 	ANALOG_PLATFORM_OUTPUTGUIDE,
-	ANALOG_NCB2B_LOGIN
+	ANALOG_NCB2B_LOGIN,
+	ANALOG_ERROR_CODE
 };
 
 FRONTEND_API void pls_send_analog(AnalogType logType, const QVariantMap &info);
@@ -1004,10 +1017,16 @@ FRONTEND_API void pls_show_cam_studio_uninstall(QWidget *parent, QString title, 
 
 FRONTEND_API bool pls_is_always_on_top(const QWidget *widget);
 
-FRONTEND_API QStringList getChannelWithChatList();
+FRONTEND_API QStringList getChannelWithChatList(bool bAddNCPPrefix);
 
 FRONTEND_API bool pls_is_ncp(QString &channlName);
 
 //The pop-up login box is judged to be true, and the skip login is judged to be false.
 FRONTEND_API bool pls_is_ncp_first_login(QString &serviceName);
 FRONTEND_API QString get_channel_cookie_path(const QString &channelLoginName);
+
+FRONTEND_API bool pls_get_random_bool();
+
+FRONTEND_API bool pls_is_chzzk_checked(bool forHorizontal = true);
+
+FRONTEND_API obs_output_t *pls_frontend_get_streaming_output_v(void);

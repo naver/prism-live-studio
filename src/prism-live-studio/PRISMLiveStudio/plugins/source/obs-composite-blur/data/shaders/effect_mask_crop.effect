@@ -1,0 +1,102 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform texture2d filtered_image;
+
+uniform float2 scale;
+uniform float2 offset;
+uniform float2 box_aspect_ratio;
+uniform float corner_radius;
+uniform float feathering;
+uniform bool inv = false;
+
+sampler_state textureSampler{
+    Filter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+    MinLOD = 0;
+    MaxLOD = 0;
+};
+
+struct VertData {
+    float4 pos : POSITION;
+    float2 uv : TEXCOORD0;
+};
+
+VertData mainTransform(VertData v_in)
+{
+    v_in.pos = mul(float4(v_in.pos.xyz, 1.0), ViewProj);
+    return v_in;
+}
+
+float4 mainImage(VertData v_in) : TARGET
+{
+    float2 transform_coord = (v_in.uv - offset) * scale;
+    if(transform_coord.x < 0.0f || transform_coord.y < 0.0f || transform_coord.x > 1.0f || transform_coord.y > 1.0f) {
+        // Outside
+        return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+    }
+    // 1. Scale to 1:1 ratio, shorten long side
+    float2 inner_coord = transform_coord * box_aspect_ratio;
+    float min_dist;
+    if(inner_coord.x < corner_radius && inner_coord.y < corner_radius) {
+        // top left
+        float d = distance(inner_coord, float2(corner_radius, corner_radius));
+        if (d > corner_radius) {
+            return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+        }
+        min_dist = corner_radius - d;
+    } else if(inner_coord.x < corner_radius && inner_coord.y > (box_aspect_ratio.y - corner_radius)) {
+        // bot left
+        float d = distance(inner_coord, float2(corner_radius, box_aspect_ratio.y - corner_radius));
+        if (d > corner_radius) {
+           return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+        }
+        min_dist = corner_radius - d;
+    } else if(inner_coord.x > (box_aspect_ratio.x - corner_radius) && inner_coord.y < corner_radius) {
+        // top right
+        float d = distance(inner_coord, float2(box_aspect_ratio.x - corner_radius, corner_radius));
+        if (d > corner_radius) {
+            return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+        }
+        min_dist = corner_radius - d;
+    } else if(inner_coord.x > (box_aspect_ratio.x - corner_radius) && inner_coord.y > (box_aspect_ratio.y - corner_radius)) {
+        // bot right
+        float d = distance(inner_coord, float2(box_aspect_ratio.x - corner_radius, box_aspect_ratio.y - corner_radius));
+        if (d > corner_radius) {
+            return inv ? filtered_image.Sample(textureSampler, v_in.uv) : image.Sample(textureSampler, v_in.uv);
+        }
+        min_dist = corner_radius - d;
+    }else{
+        min_dist = inner_coord.x;
+        if (inner_coord.y < min_dist)
+            min_dist = inner_coord.y;
+        if (box_aspect_ratio.y - inner_coord.y < min_dist)
+            min_dist = box_aspect_ratio.y - inner_coord.y;
+        if (box_aspect_ratio.x - inner_coord.x < min_dist)
+            min_dist = box_aspect_ratio.x - inner_coord.x;
+    }
+    float feathering_effect = 0.0f;
+    float distance_factor = min_dist / (((box_aspect_ratio.x > box_aspect_ratio.y) ? box_aspect_ratio.y : box_aspect_ratio.x) / 2.0);
+    if (distance_factor < feathering) {
+        feathering_effect = 1.0 - (distance_factor / feathering);
+    }
+    if(inv){
+        feathering_effect = 1.0 - feathering_effect;
+    }
+    if (feathering_effect <= 0.0){
+        return filtered_image.Sample(textureSampler, v_in.uv);
+    } else if (feathering_effect >= 1.0){
+        return image.Sample(textureSampler, v_in.uv);
+    } else {
+        return ((image.Sample(textureSampler, v_in.uv) * feathering_effect) + (filtered_image.Sample(textureSampler, v_in.uv) * (1.0-feathering_effect)));
+    }
+}
+
+technique Draw
+{
+    pass
+    {
+        vertex_shader = mainTransform(v_in);
+        pixel_shader = mainImage(v_in);
+    }
+}

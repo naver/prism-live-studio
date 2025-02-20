@@ -104,6 +104,8 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
 		},
 		Qt::QueuedConnection);
 
+	pls_connect(PLSBasic::instance(), &PLSBasic::sigOpenDualOutput, this, &PLSChannelsArea::updateAllChannelsByDualOutput);
+
 	this->setDisabled(true);
 }
 
@@ -587,6 +589,14 @@ void PLSChannelsArea::hideLoading()
 	mbusyFrame->stop();
 }
 
+void PLSChannelsArea::updateAllChannelsByDualOutput(bool bOpen)
+{
+	if (bOpen)
+		PLSCHANNELS_API->setChannelDefaultOutputDirection();
+	auto check = [bOpen](ChannelCapsulePtr wid) { wid->updateUi(true); };
+	std::for_each(mChannelsWidget.begin(), mChannelsWidget.end(), check);
+}
+
 void PLSChannelsArea::removeChannel(const QString &channelUUID)
 {
 	auto ite = mChannelsWidget.find(channelUUID);
@@ -893,7 +903,14 @@ void PLSChannelsArea::createFoldButton()
 	ui->TailLayout->insertWidget(1, m_FoldDownButton);
 	connect(m_FoldDownButton, &QPushButton::clicked, this, &PLSChannelsArea::onFoldDownButtonClick);
 	connect(
-		m_FoldDownButton, &QPushButton::clicked, PLSMainView::instance(), []() { PLSMainView::instance()->setChannelsAreaHeight(60); }, Qt::QueuedConnection);
+		m_FoldDownButton, &QPushButton::clicked, PLSMainView::instance(),
+		[this]() {
+			PLSMainView::instance()->setChannelsAreaHeight(60);
+
+			repaint();
+			pls_async_call(this, [this] { repaint(); });
+		},
+		Qt::QueuedConnection);
 	m_FoldDownButton->setEnabled(false);
 	m_FoldDownButton->setVisible(false);
 }

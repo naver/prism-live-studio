@@ -12,6 +12,7 @@
 #ifdef Q_OS_WIN
 #include <Windows.h>
 #else
+#include <dns_sd.h>
 #endif
 
 #include <QPainterPath>
@@ -35,13 +36,24 @@
 #include "login-user-info.hpp"
 #ifdef _WIN32
 #include "PLSPerformance/win32/PLSPerfCounter.hpp"
+#include "pls/pls-vcam-host-name.hpp"
 #elif defined(__APPLE__)
 
 #endif
+#include <pls/pls-dual-output.h>
 
 using namespace std;
 
 const auto UPLOAD_STATUS_INTERVAL = 3000;
+static int nsec_to_ms(uint64_t nsec)
+{
+	return (int)(nsec / 1000000LL);
+}
+
+static std::string nsec_to_ms_s(uint64_t nsec)
+{
+	return std::to_string(nsec / 1000000LL);
+}
 
 PLSBasicStatusBarFrameDropState::PLSBasicStatusBarFrameDropState(QWidget *parent) : QFrame(parent) {}
 
@@ -396,6 +408,7 @@ int PLSBasicStatusBar::getRecordDuration() const
 
 void PLSBasicStatusBar::UploadStatus() const
 {
+
 }
 
 void PLSBasicStatusBar::UpdateDroppedFrames()

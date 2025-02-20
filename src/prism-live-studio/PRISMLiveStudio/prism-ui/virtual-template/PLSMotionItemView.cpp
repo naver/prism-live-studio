@@ -2,7 +2,6 @@
 #include "ui_PLSMotionItemView.h"
 
 #include "PLSMotionFileManager.h"
-#include "PLSMotionNetwork.h"
 #include "utils-api.h"
 #include "libui.h"
 
@@ -118,16 +117,7 @@ bool PLSMotionItemView::eventFilter(QObject *watched, QEvent *event)
 
 double PLSMotionItemView::getDpi() const
 {
-	if (!m_isInUsing) {
-		return 0.0;
-	}
-
-	//for (QWidget *p = parentWidget(); p; p = p->parentWidget()) {
-	//	if (const PLSWidgetDpiAdapter *adapter = dynamic_cast<PLSWidgetDpiAdapter *>(p); adapter) {
-	//		return adapter->getDpi();
-	//	}
-	//}
-	return 0.0;
+	return 4;
 }
 
 void PLSMotionItemView::mousePressEvent(QMouseEvent *event)

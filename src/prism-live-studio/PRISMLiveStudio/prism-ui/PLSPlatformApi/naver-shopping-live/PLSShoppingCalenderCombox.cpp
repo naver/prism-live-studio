@@ -8,7 +8,6 @@ PLSShoppingCalenderCombox::PLSShoppingCalenderCombox(QWidget *parent) : QPushBut
 	setAutoDefault(false);
 	m_menu = pls_new<PLSShoppingComboxMenu>(this);
 	connect(m_menu, &PLSShoppingComboxMenu::isShow, [this](bool isShow) { showComboListView(isShow); });
-	connect(m_menu, &PLSShoppingComboxMenu::show, [this]() { showComboListView(true); });
 	connect(m_menu->calender(), &QCalendarWidget::clicked, this, [this](const QDate &date) {
 		m_menu->setHidden(true);
 		emit clickDate(date);

@@ -99,8 +99,8 @@ constexpr auto LANGUAGE_KOREAN_TRANSLATE_PATH = "ko-kr/strings.xml";
 constexpr auto LANGUAGE_SETTING_ENGLISH = "en-US,en;q=0.9";
 constexpr auto LANGUAGE_SETTING_KOREAN = "ko-KR,ko;q=0.9";
 
-constexpr auto ENCODING_SETTINGS_GUIDE_EN_US_URL = "";
-constexpr auto ENCODING_SETTINGS_GUIDE_KO_KR_URL = "";
+constexpr auto ENCODING_SETTINGS_GUIDE_EN_US_URL = "http://prismlive.com/en_us/faq/faq.html?app=pcapp";
+constexpr auto ENCODING_SETTINGS_GUIDE_KO_KR_URL = "http://prismlive.com/ko_kr/faq/faq.html?app=pcapp";
 
 /*****************resources******************/
 constexpr auto RESOURCES_PATH = "resources/";
@@ -156,7 +156,7 @@ constexpr auto CONFIGS_USER_THUMBNAIL_PATH = "PRISMLiveStudio/user/prismThumbnai
 constexpr auto CONFIGS_USER_TEXTMOTION_PATH = "PRISMLiveStudio/textmotion/%1";
 constexpr auto CONFIGS_CATEGORYS_PATH = "PRISMLiveStudio/user/categorys.json";
 constexpr auto CONFIGS_CATEGORYS_LIBRARY_PATH = "PRISMLiveStudio/user/library.json";
-constexpr auto CONFIGS_RESOLUTIONGUIDE_PATH = "PRISMLiveStudio/library/Library_Policy_PC/ResolutionGuide.json";
+constexpr auto CONFIGS_RESOLUTIONGUIDE_PATH = "PRISMLiveStudio/resources/library/Library_Policy_PC/ResolutionGuide.json";
 constexpr auto CONFIGS_GPOP_PATH = "PRISMLiveStudio/user/gpop.json";
 constexpr auto CONFIGS_BEATURY_USER_PATH = "PRISMLiveStudio/beauty/";
 constexpr auto CONFIGS_BEATURY_JSON_FILE = "beauty.json";
@@ -166,10 +166,10 @@ constexpr auto CONFIGS_BEATURY_DEFAULT_IMAGE_PATH = "PRISMLiveStudio/beauty/imag
 constexpr auto BEAUTY_CONFIG = "BeautyConfig";
 constexpr auto GIPHY_STICKERS_CONFIG = "GiphyStickersConfig";
 constexpr auto GIPHY_STICKERS_USER_PATH = "PRISMLiveStudio/sticker/";
-constexpr auto GIPHY_STICKERS_CACHE_PATH = "PRISMLiveStudio/sticker/cache/";
+constexpr auto GIPHY_STICKERS_CACHE_PATH = "PRISMLiveStudio/sticker/cache";
 constexpr auto GIPHY_STICKERS_JSON_FILE = "PRISMLiveStudio/sticker/sticker.json";
 constexpr auto CONFIGS_VIRTUAL_CAMERA_PATH = "PRISMLiveStudio/user/prism-virtualcam.txt";
-constexpr auto CONFIGS_LIBRARY_POLICY_PATH = "PRISMLiveStudio/library/Library_Policy_PC/";
+constexpr auto CONFIGS_LIBRARY_POLICY_PATH = "PRISMLiveStudio/resources/library/Library_Policy_PC/";
 constexpr auto CONFIGS_LIBRARY_POLICY_LISCENSE_PATH = "license";
 
 constexpr auto PRISM_STICKER_USER_PATH = "PRISMLiveStudio/prism_sticker/";
@@ -707,6 +707,8 @@ constexpr auto GDIP_TEXT_SOURCE_ID = "text_ft2_source";
 constexpr auto GDIP_TEXT_SOURCE_ID_V2 = "text_ft2_source_v2";
 constexpr auto GAME_SOURCE_ID = "syphon-input";
 constexpr auto OBS_MACOS_AUDIO_CAPTURE_SOURCE_ID = "sck_audio_capture";
+constexpr auto OBS_MACOS_VIDEO_CAPTURE_SOURCE_ID = "macos-avcapture";
+constexpr auto OBS_MACOS_CAPTURE_CARD_SOURCE_ID = "macos-avcapture-fast";
 #endif
 
 constexpr auto WAVEFORM_SOURCE_ID = "phandasm_waveform_source";
@@ -968,7 +970,7 @@ constexpr auto LIVEINFO_STAR_HTML_TEMPLATE = "<html><head/><body><p style='white
 
 //wizard
 constexpr auto PLS_BANNANR_PATH = "Cache/Banner";
-constexpr auto PLS_BANNANR_JSON = "library/library_policy_pc/banner_resources.json";
+constexpr auto PLS_BANNANR_JSON = "resources/library/library_policy_pc/banner_resources.json";
 constexpr auto PLS_BANNANR_JSON_TEST = "data/prism-launcher/testResources/banner_resources.json";
 
 //update

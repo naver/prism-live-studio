@@ -8,7 +8,6 @@
 #include <qapplication.h>
 #include <qwidget.h>
 #include "PLSDialogView.h"
-#include "PLSResCommonFuns.h"
 #include "liblog.h"
 #include "pls-common-define.hpp"
 #include "prism-version.h"
@@ -65,7 +64,7 @@ bool PLSLoginFunc::isExistPath(const QString &dirName)
 
 QString PLSLoginFunc::getUserPath(const QString &dirName, const QString &fileName)
 {
-	QString path = QString("%1/%2").arg(PLSResCommonFuns::getAppLocationPath()).arg(dirName);
+	QString path = pls_get_prism_subpath(dirName, true);
 	if (!makePath(path).isEmpty() && !fileName.isEmpty()) {
 		path += "/" + fileName;
 	}

@@ -3,7 +3,6 @@
 #include <QUrl>
 
 #include "PLSChannelDataHandlerFunctions.h"
-#include "json-data-handler.hpp"
 #include "pls-common-define.hpp"
 #include "../PLSLiveInfoDialogs.h"
 #include "../channels/ChannelsDataApi/PLSChannelDataAPI.h"
@@ -15,7 +14,8 @@
 #include "prism/PLSPlatformPrism.h"
 #include "libhttp-client.h"
 #include <QUrlQuery>
-#include "PLSResCommonFuns.h"
+#include "libresource.h"
+#include "libutils-api.h"
 
 using namespace common;
 using namespace std;
@@ -56,6 +56,7 @@ void PLSPlatformBand::getBandRefreshTokenInfo(const refreshTokenCallback &callba
 					   .receiver(this)        //
 					   .workInMainThread()    //
 					   .url(QUrl(authUrlStr)) //
+					   .id(BAND)
 					   .timeout(PRISM_NET_REQUEST_TIMEOUT)
 					   .okResult([this, callbackfunc](const pls::http::Reply &reply) {
 						   auto data = reply.data();
@@ -95,6 +96,7 @@ void PLSPlatformBand::getBandTokenInfo(const QVariantMap &srcInfo, const UpdateC
 				   .receiver(this)        //
 				   .workInMainThread()    //
 				   .url(QUrl(authUrlStr)) //
+				   .id(BAND)
 				   .timeout(PRISM_NET_REQUEST_TIMEOUT)
 				   .okResult([this, finishedCall](const pls::http::Reply &reply) {
 					   auto data = reply.data();
@@ -105,8 +107,15 @@ void PLSPlatformBand::getBandTokenInfo(const QVariantMap &srcInfo, const UpdateC
 					   auto statusCode = reply.statusCode();
 					   auto error = reply.error();
 					   PLS_ERROR(MODULE_PLATFORM_BAND, "getBandTokenInfo .error: %d -%d", statusCode, error);
-					   showChannelInfoError(getApiResult(statusCode, error));
 					   m_bandLoginInfo[ChannelData::g_channelSreLoginFailed] = "band get token failed";
+
+					   PLSErrorHandler::ExtraData otherData;
+					   otherData.errPhase = PLSErrPhaseLogin;
+					   auto retData = PLSErrorHandler::getAlertString({statusCode, error, reply.data()}, BAND, "", otherData);
+					   m_bandLoginInfo[ChannelData::g_channelStatus] = retData.errorType == PLSErrorHandler::ErrorType::TokenExpired ? ChannelData::ChannelStatus::Expired
+																			 : ChannelData::ChannelStatus::Error;
+					   m_bandLoginInfo[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+					   m_bandLoginInfo[ChannelData::g_errorString] = retData.alertMsg;
 
 					   m_bandInfos.append(m_bandLoginInfo);
 					   finishedCall(m_bandInfos);
@@ -118,9 +127,13 @@ void PLSPlatformBand::getBandCategoryInfo(const QVariantMap &srcInfo, const Upda
 	m_bandLoginInfo = srcInfo;
 
 	auto failedResult = [this, finishedCall](const pls::http::Reply &reply) {
-		showChannelInfoError(getApiResult(reply.statusCode(), reply.error()));
 		m_bandLoginInfo[ChannelData::g_channelSreLoginFailed] = "band get categoryInfo failed";
-
+		PLSErrorHandler::ExtraData otherData;
+		otherData.errPhase = PLSErrPhaseLogin;
+		auto retData = PLSErrorHandler::getAlertString({reply.statusCode(), reply.error(), reply.data()}, BAND, "", otherData);
+		m_bandLoginInfo[ChannelData::g_channelStatus] = retData.errorType == PLSErrorHandler::ErrorType::TokenExpired ? ChannelData::ChannelStatus::Expired : ChannelData::ChannelStatus::Error;
+		m_bandLoginInfo[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+		m_bandLoginInfo[ChannelData::g_errorString] = retData.alertMsg;
 		m_bandInfos.append(m_bandLoginInfo);
 		finishedCall(m_bandInfos);
 	};
@@ -137,6 +150,7 @@ void PLSPlatformBand::getBandCategoryInfo(const QVariantMap &srcInfo, const Upda
 					   .receiver(this)
 					   .workInMainThread()
 					   .url(CHANNEL_BAND_CATEGORY)
+					   .id(BAND)
 					   .urlParams(queryParams)
 					   .timeout(PRISM_NET_REQUEST_TIMEOUT)
 					   .okResult([this, finishedCall](const pls::http::Reply &reply) { responseBandCategoryHandler(finishedCall, reply.data(), reply.statusCode()); })
@@ -147,24 +161,24 @@ void PLSPlatformBand::getBandCategoryInfo(const QVariantMap &srcInfo, const Upda
 	getBandRefreshTokenInfo(callbackFun);
 }
 
-void PLSPlatformBand::getChannelEmblemAsync() const
+void PLSPlatformBand::getChannelEmblemAsync()
 {
 	auto bandInfos = PLSCHANNELS_API->getChanelInfosByPlatformName(BAND, ChannelData::ChannelType);
 	for (const auto &band : bandInfos) {
 		auto url = band.value(ChannelData::g_userIconThumbnailUrl).toString();
 		QString bandUUID = band.value(ChannelData::g_channelUUID).toString();
-		auto path = getTmpCacheDir() + "/" + BAND + url.split('/').last();
-		PLSResCommonFuns::downloadResource(
-			url,
-			[bandUUID, path](PLSResEvents event, const QString &) {
-				if (event == PLSResEvents::RES_DOWNLOAD_SUCCESS) {
-					PLSCHANNELS_API->setValueOfChannel(bandUUID, ChannelData::g_userIconCachePath, path);
-					PLSCHANNELS_API->channelModified(bandUUID);
-				} else {
-					PLS_INFO(MODULE_PLATFORM_BAND, "download user icon failed");
-				}
-			},
-			path, false, false, false);
+		auto urlAndHowSave = pls::rsm::UrlAndHowSave()                      //
+					     .url(url)                              //
+					     .fileName(pls::rsm::FileName::FromUrl) //
+					     .keyPrefix(url);                       //
+		pls::rsm::getDownloader()->download(urlAndHowSave, [bandUUID](const pls::rsm::DownloadResult &result) {
+			if (result.hasFilePath()) {
+				PLSCHANNELS_API->setValueOfChannel(bandUUID, ChannelData::g_userIconCachePath, result.filePath());
+				PLSCHANNELS_API->channelModified(bandUUID);
+			} else {
+				PLS_INFO(MODULE_PLATFORM_BAND, "download user icon failed");
+			}
+		});
 	}
 }
 
@@ -253,64 +267,19 @@ PLSPlatformApiResult PLSPlatformBand::getApiResult(int code, QNetworkReply::Netw
 	return result;
 }
 
-void PLSPlatformBand::showApiRefreshError(PLSPlatformApiResult value) const
-{
-	switch (value) {
-	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		PLSAlertView::warning(nullptr, QTStr("Alert.Title"), QTStr("login.check.note.network"));
-		break;
-	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-	case PLSPlatformApiResult::PAR_API_ERROR_FORBIDDEN:
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_NO_PERMISSION:
-		break;
-	default:
-		pls_alert_error_message(nullptr, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Band.Failed"));
-		break;
-	}
-}
-void PLSPlatformBand::showChannelInfoError(PLSPlatformApiResult value)
-{
-	switch (value) {
-	case PLSPlatformApiResult::PAR_SUCCEED:
-		break;
-	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		//network error
-		m_bandLoginInfo[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
-		break;
-
-	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-	case PLSPlatformApiResult::PAR_API_ERROR_FORBIDDEN:
-		m_bandLoginInfo[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Expired;
-
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_Live_Invalid:
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_Scheduled_Time:
-		break;
-	case PLSPlatformApiResult::PAR_SERVER_ERROR:
-		m_bandLoginInfo[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;
-		m_bandLoginInfo[ChannelData::g_isUpdated] = false;
-		break;
-	default:
-		break;
-	}
-}
 void PLSPlatformBand::responseRefreshTokenHandler(const refreshTokenCallback &callbackfunc, const QByteArray &data, int code)
 {
-	QVariant token;
-	QVariant refreshToken;
-	QVariant expire_in;
-	PLSJsonDataHandler::getValueFromByteArray(data, COOKIE_ACCESS_TOKEN, token);
-	PLSJsonDataHandler::getValueFromByteArray(data, COOKIE_REFRESH_TOKEN, refreshToken);
-	PLSJsonDataHandler::getValueFromByteArray(data, COOKIE_EXPIRES_IN, expire_in);
+	auto obj = pls_to_json_object(data);
+	auto token = pls_find_attr<QString>(obj, COOKIE_ACCESS_TOKEN);
+	auto refreshToken = pls_find_attr<QString>(obj, COOKIE_REFRESH_TOKEN);
+	auto expire_in = pls_find_attr<int>(obj, COOKIE_EXPIRES_IN);
 
-	if (token.isValid() && code == HTTP_STATUS_CODE_200) {
+	if (!token.isEmpty() && code == HTTP_STATUS_CODE_200) {
 		auto bandInfos = PLSCHANNELS_API->getChanelInfosByPlatformName(BAND, ChannelData::ChannelType);
 
 		m_bandLoginInfo.insert(ChannelData::g_channelToken, token);
 		m_bandLoginInfo.insert(ChannelData::g_refreshToken, refreshToken);
-		m_bandLoginInfo.insert(ChannelData::g_expires_in, EXPIRE_OFFSET(expire_in.toLongLong()));
+		m_bandLoginInfo.insert(ChannelData::g_expires_in, EXPIRE_OFFSET(expire_in));
 		m_bandLoginInfo.insert(ChannelData::g_createTime, QDateTime::currentDateTime());
 		for (const auto &band : bandInfos) {
 			QString bandUUID = band.value(ChannelData::g_channelUUID).toString();
@@ -318,7 +287,7 @@ void PLSPlatformBand::responseRefreshTokenHandler(const refreshTokenCallback &ca
 			PLSCHANNELS_API->setValueOfChannel(bandUUID, ChannelData::g_channelToken, token);
 			PLSCHANNELS_API->setValueOfChannel(bandUUID, ChannelData::g_refreshToken, refreshToken);
 			PLSCHANNELS_API->setValueOfChannel(bandUUID, ChannelData::g_createTime, QDateTime::currentDateTime());
-			PLSCHANNELS_API->setValueOfChannel(bandUUID, ChannelData::g_expires_in, EXPIRE_OFFSET(expire_in.toLongLong()));
+			PLSCHANNELS_API->setValueOfChannel(bandUUID, ChannelData::g_expires_in, EXPIRE_OFFSET(expire_in));
 
 			PLSCHANNELS_API->channelModified(bandUUID);
 			PLS_PLATFORM_API->onUpdateChannel(bandUUID);
@@ -331,17 +300,16 @@ void PLSPlatformBand::responseRefreshTokenHandler(const refreshTokenCallback &ca
 }
 void PLSPlatformBand::responseTokenHandler(const UpdateCallback &finishedCall, const QByteArray &data, int code)
 {
-	QVariant token;
-	QVariant refreshToken;
-	QVariant expire_in;
-	PLSJsonDataHandler::getValueFromByteArray(data, COOKIE_ACCESS_TOKEN, token);
-	PLSJsonDataHandler::getValueFromByteArray(data, COOKIE_REFRESH_TOKEN, refreshToken);
-	PLSJsonDataHandler::getValueFromByteArray(data, COOKIE_EXPIRES_IN, expire_in);
 
-	if (token.isValid() && code == HTTP_STATUS_CODE_200) {
+	auto obj = pls_to_json_object(data);
+	auto token = pls_find_attr<QString>(obj, COOKIE_ACCESS_TOKEN);
+	auto refreshToken = pls_find_attr<QString>(obj, COOKIE_REFRESH_TOKEN);
+	auto expire_in = pls_find_attr<int>(obj, COOKIE_EXPIRES_IN);
+
+	if (!token.isEmpty() && code == HTTP_STATUS_CODE_200) {
 		m_bandLoginInfo.insert(ChannelData::g_channelToken, token);
 		m_bandLoginInfo.insert(ChannelData::g_refreshToken, refreshToken);
-		m_bandLoginInfo.insert(ChannelData::g_expires_in, EXPIRE_OFFSET(expire_in.toLongLong()));
+		m_bandLoginInfo.insert(ChannelData::g_expires_in, EXPIRE_OFFSET(expire_in));
 		m_bandLoginInfo.insert(ChannelData::g_createTime, QDateTime::currentDateTime());
 		m_bandLoginInfo[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Valid;
 		getBandCategoryInfo(m_bandLoginInfo, finishedCall);
@@ -355,8 +323,8 @@ void PLSPlatformBand::responseTokenHandler(const UpdateCallback &finishedCall, c
 template<typename finshedCallFun> void PLSPlatformBand::responseBandCategoryHandler(const finshedCallFun &finishedCall, const QByteArray &data, int code)
 {
 	pls_unused(code);
-	QVariantList bands;
-	PLSJsonDataHandler::getValuesFromByteArray(data, "bands", bands);
+	auto obj = pls_to_json_object(data);
+	auto bands = pls_find_attr<QVariantList>(obj, "bands");
 	if (!bands.isEmpty()) {
 		for (const auto &band : bands) {
 			QVariantMap tmpband;
@@ -379,65 +347,49 @@ template<typename finshedCallFun> void PLSPlatformBand::responseBandCategoryHand
 		m_bandInfos.append(m_bandLoginInfo);
 	}
 	finishedCall(m_bandInfos);
-	pls_async_call_mt(this, [this]() { getChannelEmblemAsync(); });
+
+	pls_async_call_mt([]() { PLSPlatformBand::getChannelEmblemAsync(); });
 }
-template<typename responseCallbackFunc> void PLSPlatformBand::responseStreamLiveKeyHandler(const responseCallbackFunc &callback, const QByteArray &data, int code)
+template<typename responseCallbackFunc> void PLSPlatformBand::responseStreamLiveKeyHandler(const responseCallbackFunc &callback, const pls::http::Reply &reply)
 {
-	PLSPlatformApiResult result = PLSPlatformApiResult::PAR_API_FAILED;
-	QVariant resultCode;
-	QVariant publishUrl;
-	QVariant streamKey;
-	QVariant publishUrlNotKey;
-	QVariant liveId;
-	QVariant description;
-	QVariant maxLiveTime;
-	if (HTTP_STATUS_CODE_200 == code) {
+	auto data = reply.data();
+	PLSErrorHandler::RetData retData{};
 
-		PLSJsonDataHandler::getValueFromByteArray(data, "result_code", resultCode);
+	auto resultObj = pls_to_json_object(data);
+	auto streamKey = pls_find_attr<QString>(resultObj, "stream_key");
+	auto publishUrlNotKey = pls_find_attr<QString>(resultObj, "publish_url_without_stream_key");
+	auto liveId = pls_find_attr<QString>(resultObj, "live_id");
+	auto description = pls_find_attr<QString>(resultObj, "description");
+	auto maxLiveTime = pls_find_attr<int>(resultObj, "max_running_time_mins");
+	auto resultCode = pls_find_attr<int>(resultObj, "result_code");
+	setStreamKey(streamKey.toUtf8().constData());
+	setStreamServer(publishUrlNotKey.toUtf8().constData());
+	setMaxLiveTime(maxLiveTime);
+	setLiveId(liveId);
+	// handler multi and single stream
 
-		PLSJsonDataHandler::getValueFromByteArray(data, "publish_url", publishUrl);
-		PLSJsonDataHandler::getValueFromByteArray(data, "stream_key", streamKey);
-		PLSJsonDataHandler::getValueFromByteArray(data, "publish_url_without_stream_key", publishUrlNotKey);
-		PLSJsonDataHandler::getValueFromByteArray(data, "live_id", liveId);
-		PLSJsonDataHandler::getValueFromByteArray(data, "description", description);
-		PLSJsonDataHandler::getValueFromByteArray(data, "max_running_time_mins", maxLiveTime);
+	if (resultCode == 1) {
+		PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_BAND,
+			  {
+				  {"platformName", "band"},
+				  {"startLiveStatus", "Success"},
+			  },
+			  "band start live success");
+		PLS_INFO(MODULE_PLATFORM_BAND, "responseStreamLiveKeyHandler band perpare ok");
+		m_isRequestStart = true;
+		retData.prismCode = PLSErrorHandler::SUCCESS;
+	} else {
+		PLSErrorHandler::ExtraData extraData;
+		extraData.errPhase = PLSErrPhaseChannel;
+		extraData.urlEn = reply.request().originalUrl().path();
 
-		setStreamKey(streamKey.toString().toUtf8().data());
-		setStreamServer(publishUrlNotKey.toString().toUtf8().data());
-		setMaxLiveTime(maxLiveTime.toInt());
-		setLiveId(liveId.toString());
-		// handler multi and single stream
-		if (resultCode == 1) {
-			PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_BAND,
-				  {
-					  {"platformName", "band"},
-					  {"startLiveStatus", "Success"},
-				  },
-				  "band start live success");
-			PLS_INFO(MODULE_PLATFORM_BAND, "responseStreamLiveKeyHandler band perpare ok");
-			m_isRequestStart = true;
-			result = PLSPlatformApiResult::PAR_SUCCEED;
-		} else if (resultCode == 60903) {
-			PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_BAND, {{"platformName", "band"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "streamKey api error, band aleardy boardcast"}},
-				  "band start live failed");
-
-			PLS_WARN(MODULE_PLATFORM_BAND, "responseStreamLiveKeyHandler band aleardy boardcast");
-			PLSAlertView::warning(nullptr, QTStr("Alert.Title"), QTStr("Live.Check.Band.Have.Broardcast"));
-			result = PLSPlatformApiResult::PAR_API_FAILED;
-		} else if (resultCode == 60106) {
-			PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_BAND, {{"platformName", "band"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "streamKey api error, band have no perssion"}},
-				  "band start live failed");
-			pls_alert_error_message(nullptr, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Band.Have.No.Perssion"));
-			result = PLSPlatformApiResult::PAR_API_FAILED;
-		} else {
-			PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_BAND, {{"platformName", "band"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "streamKey api error, band unkonow error"}},
-				  "band start live failed");
-			pls_alert_error_message(nullptr, QTStr("Alert.Title"), QTStr("Live.Check.Band.Other.Error"));
-			result = PLSPlatformApiResult::PAR_API_FAILED;
+		retData = PLSErrorHandler::getAlertString({reply.statusCode(), reply.error(), data}, BAND, "FailedToStartLive", extraData);
+		if (!(retData.errorType == PLSErrorHandler::ErrorType::TokenExpired || retData.prismCode == PLSErrorHandler::CHANNEL_BAND_FORBIDDEN_ERROR)) {
+			PLSErrorHandler::directShowAlert(retData, nullptr);
 		}
 	}
 
-	callback(static_cast<int>(result));
+	callback(retData);
 }
 void PLSPlatformBand::requestLiveStreamKey(const streamLiveKeyCallback &callback)
 {
@@ -445,11 +397,17 @@ void PLSPlatformBand::requestLiveStreamKey(const streamLiveKeyCallback &callback
 		auto code = reply.statusCode();
 		PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_BAND, {{"platformName", "band"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "streamKey api error"}}, "band start live failed");
 		PLS_ERROR(MODULE_PLATFORM_BAND, "requestLiveStreamKey .error: %d-%d", code, reply.error());
-		QVariant resultCode;
-		PLSJsonDataHandler::getValueFromByteArray(reply.data(), "result_code", resultCode);
-		PLSPlatformApiResult result = getApiResult(code, reply.error());
-		callback(static_cast<int>(result));
-		showApiRefreshError(result);
+
+		PLSErrorHandler::ExtraData extraData;
+		extraData.errPhase = PLSErrPhaseChannel;
+		extraData.urlEn = reply.request().originalUrl().path();
+
+		auto retData = PLSErrorHandler::getAlertString({code, reply.error(), reply.data()}, BAND, "FailedToStartLive", extraData);
+		callback(retData);
+
+		if (!(retData.errorType == PLSErrorHandler::ErrorType::TokenExpired || retData.prismCode == PLSErrorHandler::CHANNEL_BAND_FORBIDDEN_ERROR)) {
+			PLSErrorHandler::directShowAlert(retData, nullptr);
+		}
 	};
 	auto callbackFun = [this, callback, failResult](bool) {
 		auto infos = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
@@ -462,13 +420,10 @@ void PLSPlatformBand::requestLiveStreamKey(const streamLiveKeyCallback &callback
 					   .receiver({this, getAlertParent()}) //
 					   .workInMainThread()                 //
 					   .url(CHANNEL_BAND_LIVE_CREATE)      //
+					   .id(BAND)
 					   .timeout(PRISM_NET_REQUEST_TIMEOUT)
 					   .urlParams(queryParams)
-					   .okResult([this, callback](const pls::http::Reply &reply) {
-						   auto data = reply.data();
-						   auto statusCode = reply.statusCode();
-						   responseStreamLiveKeyHandler(callback, data, statusCode);
-					   })
+					   .okResult([this, callback](const pls::http::Reply &reply) { responseStreamLiveKeyHandler(callback, reply); })
 					   .failResult(failResult));
 	};
 
@@ -507,6 +462,7 @@ void PLSPlatformBand::requesetLiveEnd(const requesetLiveEndCallback &callback)
 					   .receiver(this)      //
 					   .workInMainThread()  //
 					   .url(url)            //
+					   .id(BAND)
 					   .timeout(PRISM_NET_REQUEST_TIMEOUT)
 					   .okResult(okResult)
 					   .allowAbort(false)

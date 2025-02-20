@@ -35,7 +35,7 @@ LIBUI_API extern const char SHARE_URL_KEY[];
 
 LIBUI_API extern const QString g_channelStatus;     // empty valid invalid expired
 LIBUI_API extern const QString g_channelUserStatus; //enable busy disbale
-
+LIBUI_API extern const QString g_channelDualOutput;
 LIBUI_API extern const QString g_channelRtmpUrl;
 LIBUI_API extern const QString g_streamKey;
 LIBUI_API extern const QString g_isTwitchRtmpServerAuto;
@@ -124,10 +124,8 @@ LIBUI_API extern const QString g_prismState;
 enum class PrismState { Bussy, Free };
 
 //just for error alerts
-LIBUI_API extern const QString g_errorTitle;
+LIBUI_API extern const QString g_errorRetdata;
 LIBUI_API extern const QString g_errorString;
-LIBUI_API extern const QString g_errorType;
-LIBUI_API extern const QString g_errorIsErrMsg;
 
 //default icon qrc path
 LIBUI_API extern const QString g_defaultHeaderIcon;
@@ -219,20 +217,7 @@ enum ChannelUserStatus { NotExist = -1, Disabled = 0, Enabled = 1, BusyState = 2
 enum ChannelDataType { NoType = 0, ChannelType = 1, DownloadType = 2, CustomType = 3, RTMPType = 3, SRTType, RISTType };
 //Q_DECLARE_METATYPE(ChannelDataType)
 
-enum NetWorkErrorType {
-	NoError = 0,
-	PlatformExpired = 1,
-	NetWorkNoStable = 2,
-	PlatformUinitialized = 3,
-	ChannelIsEmpty = 40400,
-	UnknownError = 5,
-	SpecializedError = 6,
-	RTMPNotExist = 7,
-	NeedRefresh = 8,
-	SystemTimeError = 9,
-	NCB2BError = 10,
-};
-//Q_DECLARE_METATYPE(NetWorkErrorType)
+enum ChannelDualOutput { NoSet = 0, HorizontalOutput, VerticalOutput };
 
 /*channel run state */
 /* before living state :*/
@@ -311,14 +296,16 @@ constexpr auto CUSTOM_RIST = "Custom RIST";
 constexpr auto CHZZK = "CHZZK";
 constexpr auto NCB2B = "NAVER Cloud B2B";
 constexpr auto ALL_CHAT = "ALL CHAT PAGE";
+constexpr auto MQTT_SHEET = "mqtt";
+constexpr auto SOOP = "SOOP";
 //Class template specialization of 'QMetaTypeId' must occur at global scope
 Q_DECLARE_METATYPE(channel_data::ChannelStatus)
 Q_DECLARE_METATYPE(channel_data::ChannelUserStatus)
 Q_DECLARE_METATYPE(channel_data::ChannelDataType)
-Q_DECLARE_METATYPE(channel_data::NetWorkErrorType)
 Q_DECLARE_METATYPE(channel_data::LiveState)
 Q_DECLARE_METATYPE(channel_data::RecordState)
 Q_DECLARE_METATYPE(channel_transactions_keys::CMDTypeValue)
+Q_DECLARE_METATYPE(channel_data::ChannelDualOutput)
 
 //service
 constexpr auto YOUTUBE_HLS = "YouTube - HLS";

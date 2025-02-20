@@ -23,7 +23,6 @@
 #include "PLSBasic.h"
 #include "login-user-info.hpp"
 #include "prism-version.h"
-#include "PLSResourceManager.h"
 #ifdef _WIN32
 #include <Windows.h>
 #include "PLSDumpAnalyzer.h"
@@ -33,6 +32,7 @@
 #include "PLSLaunchWizardView.h"
 #include "PLSGuideTipsframe.h"
 #include "platform.hpp"
+#include "PLSMotionDefine.h"
 
 #include <QProxyStyle>
 #include <QScreen>
@@ -52,26 +52,33 @@
 #include "PLSPlatformPrism.h"
 #include "log/log.h"
 #include <libutils-api.h>
-#include "PLSLoginDataHandler.h"
 #include "PLSPrismShareMemory.h"
 #include "PLSSyncServerManager.hpp"
 #include "pls/pls-obs-api.h"
+#include <libresource.h>
+#include "PLSSceneTemplateResourceMgr.h"
+#include "PLSTestTools.hpp"
+#include "PLSLoginDataHandler.h"
+
+#ifdef ENABLE_TEST
+#include "TestCase.h"
+#endif
 
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "dbghelp.lib")
 #define UseFreeMusic
 
-#define RUNAPP_API_PATH QStringLiteral("/prismpc/runapp")
+#define RUNAPP_API_PATH QStringLiteral("")
 #define FAILREASON QStringLiteral("failReason")
 #define SUCCESSFAIL QStringLiteral("successFail")
 
 constexpr const char *SIDE_BAR_WINDOW_INITIALLIZED = "sideBarWindowInitialized";
 constexpr const char *IS_CHAT_IS_HIDDEN_FIRST_SETTED = "isChatIsHiddenFirstSetted";
 
-constexpr const char *PLS_PROJECT_NAME = "P8e4826_PRISMLiveStudio-ZT";
-constexpr const char *PLS_PROJECT_NAME_KR = "P8e4826_PRISMLiveStudio-KR";
+constexpr const char *PLS_PROJECT_NAME = "";
+constexpr const char *PLS_PROJECT_NAME_KR = "";
 constexpr auto DEFAULT_LANG = "en-US";
-constexpr auto PRISM_TM_TEMPLATE_WEB_PATH = "PRISMLiveStudio/textmotion/web/index.html";
+constexpr auto PRISM_TM_TEMPLATE_WEB_PATH = "";
 
 using namespace std;
 using namespace common;
@@ -461,6 +468,7 @@ public:
 	}
 };
 #endif
+
 PLSApp::PLSApp(int &argc, char **argv, profiler_name_store_t *store) : OBSApp(argc, argv, store)
 {
 	// force modify current work directory
@@ -518,10 +526,6 @@ void PLSApp::AppInit()
 	PLS_PLATFORM_API;
 	PLS_PLATFORM_PRSIM; // zhangdewen singleton init
 
-	QVariantHash hash;
-	hash.insert("gcc", GlobalVars::gcc.c_str());
-	PLSResourceManager::setParams(hash);
-
 	// set scene template desgin mode flag for libobs
 	bool supportExportTemplates = pls_prism_get_qsetting_value("SupportExportTemplates", false).toBool();
 	pls_set_design_mode(supportExportTemplates);
@@ -538,7 +542,7 @@ void PLSApp::AppInit()
 #if defined(Q_OS_WIN)
 	QString chatV2FontPath = pls_get_app_dir() + QString("/../../data/prism-plugins/prism-chatv2-source/fonts");
 #elif defined(Q_OS_MACOS)
-	QString chatV2FontPath = pls_get_app_resource_dir() + "/data/prism-plugins/prism-chatv2-source/fonts";
+	QString chatV2FontPath = pls_get_dll_dir("prism-chatv2-source") + "/fonts";
 #endif
 	pls_add_custom_font(chatV2FontPath);
 }
@@ -546,9 +550,6 @@ void PLSApp::AppInit()
 bool PLSApp::PLSInit()
 {
 	PLSLoginDataHandler::instance()->initCustomChannelObj();
-	connect(PLSRESOURCEMGR_INSTANCE, &PLSResourceManager::libraryNeedUpdate, &PLSResourceManager::copyTextmotionWeb);
-	PLSRESOURCEMGR_INSTANCE->startCheckResource();
-
 	if (!OBSApp::OBSInit()) {
 		return false;
 	}
@@ -649,29 +650,13 @@ void PLSApp::setAnalogBaseInfo(QJsonObject &obj, bool isUploadHardwareInfo)
 	obj.insert("envOsVer", getOsVersion());
 
 	if (isUploadHardwareInfo) {
-		obj.insert("envCpu", GlobalVars::prism_cpuName.c_str());
+		obj.insert("envCpu", pls_get_cpu_name().c_str());
 		obj.insert("envGpu", GlobalVars::videoAdapter.c_str());
 		obj.insert("envMem", QString("%1MB").arg(os_get_sys_total_size() / 1024 / 1024));
-		obj.insert("envDxVer", QString(GlobalVars::cur_dx_version.c_str()));
 	}
 }
 
-void PLSApp::uploadAnalogInfo(const QString &apiPath, const QVariantMap &paramInfos, bool isUploadHardwareInfo)
-{
-	QJsonDocument doc;
-	QJsonObject obj;
-	setAnalogBaseInfo(obj, isUploadHardwareInfo);
-	for (auto paramIter = paramInfos.constBegin(); paramIter != paramInfos.constEnd(); ++paramIter) {
-		auto value = paramIter.value();
-		if (value.typeId() == QMetaType::QStringList) {
-			obj.insert(paramIter.key(), value.toStringList().join(';'));
-		} else {
-			obj.insert(paramIter.key(), QJsonValue::fromVariant(paramIter.value()));
-		}
-	}
-	doc.setObject(obj);
-	PLSPlatformPrism::instance()->uploadStatus(apiPath, doc.toJson());
-}
+void PLSApp::uploadAnalogInfo(const QString &apiPath, const QVariantMap &paramInfos, bool isUploadHardwareInfo) {}
 
 void PLSApp::backupGolbalConfig() const
 {
@@ -777,7 +762,6 @@ bool PLSApp::eventFilter(QObject *obj, QEvent *event)
 
 int PLSApp::runProgram(PLSApp &program, int argc, char *argv[], ScopeProfiler &prof)
 {
-	PLSLoginDataHandler::instance()->getAppInitDataFromRemote(nullptr);
 
 	try {
 		auto restartType = pls_cmdline_get_uint32_arg(pls_cmdline_args(), shared_values::k_launcher_command_type);
@@ -871,9 +855,25 @@ int PLSApp::runProgram(PLSApp &program, int argc, char *argv[], ScopeProfiler &p
 #endif
 		program.setAppRunning(true);
 
+
 		GuideRegisterManager::instance()->beginShow();
 
 		doLogBlacklistSoftware("PrismStarted");
+
+		pls_async_call_mt([&program, argc, argv]() {
+			pls_add_tools_menu_seperator();
+			pls_init_test_tools();
+
+#ifdef ENABLE_TEST
+			tests::genFileName();
+			if (GlobalVars::unitTest) {
+				GlobalVars::unitTestExitCode = tests::run(argc, argv);
+				program.getMainView()->close();
+			} else {
+				tests::show(argc, argv);
+			}
+#endif
+		});
 
 		return PLSApp::exec();
 

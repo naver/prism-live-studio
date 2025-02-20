@@ -24,7 +24,7 @@ public:
 	QString itemDisplayName() const;
 	void setScrollArea(QScrollArea *scrollArea);
 	QScrollArea *getScrollArea();
-	void calculateLabelWidth(bool isNew);
+	void calculateLabelWidth(bool isNew, bool isChecked);
 
 private slots:
 	void statusChanged(bool isChecked);

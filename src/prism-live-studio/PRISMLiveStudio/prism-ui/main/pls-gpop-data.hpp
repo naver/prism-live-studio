@@ -5,7 +5,6 @@
 #include <QObject>
 
 #include "pls-gpop-data-struct.hpp"
-#include "json-data-handler.hpp"
 
 class PLSGpopData : public QObject {
 	Q_OBJECT
@@ -13,14 +12,6 @@ class PLSGpopData : public QObject {
 public:
 	static PLSGpopData *instance();
 	void getGpopData(const QByteArray &gpopData);
-
-	//use these functions ,you should set your json file in 'DefaultSources.qrc' under path ':/Configs/DefaultResources'
-	static QByteArray getDefaultValuesOf(const QString &key);
-	template<typename DestType> static void useDefaultValues(const QString &key, DestType &dest)
-	{
-		auto data = getDefaultValuesOf(key);
-		PLSJsonDataHandler::jsonTo(data, dest);
-	}
 
 	//public:
 	Common getCommon();

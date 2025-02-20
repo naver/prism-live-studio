@@ -2,6 +2,7 @@
 #include "window-basic-transform.hpp"
 #include "window-basic-main.hpp"
 #include "libui.h"
+#include "pls/pls-dual-output.h"
 
 Q_DECLARE_METATYPE(OBSScene);
 Q_DECLARE_METATYPE(OBSSceneItem);
@@ -36,14 +37,12 @@ static OBSSceneItem FindASelectedItem(obs_scene_t *scene)
 #define DSCROLL_CHANGED &QDoubleSpinBox::valueChanged
 
 OBSBasicTransform::OBSBasicTransform(OBSSceneItem item, OBSBasic *parent)
-	: PLSDialogView(parent), 
-	ui(new Ui::OBSBasicTransform), 
-	main(parent)
+	: PLSDialogView(parent), ui(new Ui::OBSBasicTransform), main(parent)
 {
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 	setupUi(ui);
 	pls_add_css(this, {"OBSBasicTransform"});
-		HookWidget(ui->positionX, DSCROLL_CHANGED,
+	HookWidget(ui->positionX, DSCROLL_CHANGED,
 		   &OBSBasicTransform::OnControlChanged);
 	HookWidget(ui->positionY, DSCROLL_CHANGED,
 		   &OBSBasicTransform::OnControlChanged);
@@ -71,15 +70,20 @@ OBSBasicTransform::OBSBasicTransform(OBSSceneItem item, OBSBasic *parent)
 		   &OBSBasicTransform::OnCropChanged);
 	HookWidget(ui->cropBottom, ISCROLL_CHANGED,
 		   &OBSBasicTransform::OnCropChanged);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+	HookWidget(ui->cropToBounds, &QCheckBox::checkStateChanged,
+		   &OBSBasicTransform::OnControlChanged);
+#else
 	HookWidget(ui->cropToBounds, &QCheckBox::stateChanged,
 		   &OBSBasicTransform::OnControlChanged);
+#endif
 
 	ui->buttonBox->button(QDialogButtonBox::Close)->setDefault(true);
 
 	connect(ui->buttonBox->button(QDialogButtonBox::Reset),
 		&QPushButton::clicked, main,
 		&OBSBasic::on_actionResetTransform_triggered);
-		
+
 	connect(ui->buttonBox, &QDialogButtonBox::rejected, this,
 		&PLSDialogView::reject);
 
@@ -92,8 +96,8 @@ OBSBasicTransform::OBSBasicTransform(OBSSceneItem item, OBSBasic *parent)
 	std::string name = obs_source_get_name(obs_sceneitem_get_source(item));
 	setWindowTitle(QTStr("Basic.TransformWindow.Title").arg(name.c_str()));
 
-	OBSDataAutoRelease wrapper =
-		obs_scene_save_transform_states(main->GetCurrentScene(), false);
+	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(
+		main->GetCurrentScene(), false);
 	undo_data = std::string(obs_data_get_json(wrapper));
 
 	channelChangedSignal.Connect(obs_get_signal_handler(), "channel_change",
@@ -102,8 +106,8 @@ OBSBasicTransform::OBSBasicTransform(OBSSceneItem item, OBSBasic *parent)
 
 OBSBasicTransform::~OBSBasicTransform()
 {
-	OBSDataAutoRelease wrapper =
-		obs_scene_save_transform_states(main->GetCurrentScene(), false);
+	OBSDataAutoRelease wrapper = pls_scene_save_transform_states_all(
+		main->GetCurrentScene(), false);
 
 	auto undo_redo = [](const std::string &data) {
 		OBSDataAutoRelease dat =

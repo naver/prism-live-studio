@@ -66,8 +66,8 @@ void PLSEndTipView::onTimeOut()
 		PLS_INFO(END_MODULE, "PLSEndTipView url is empty");
 	}
 
-	PLSBasic::InitBrowserPanelSafeBlock();
-	if (cef) {
+	OBSBasic::InitBrowserPanelSafeBlock();
+	if (plsCef) {
 		m_cefWidget = plsCef->create_widget(nullptr, url.toUtf8().constData(), "", panel_cookies, {}, false, QColor(30, 30, 30));
 		ui->widget_content->layout()->addWidget(m_cefWidget);
 	}

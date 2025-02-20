@@ -44,12 +44,12 @@ pls::ITemplateListPropertyModel::IButtonGroup *PLSTemplateListPropertyModel::gro
 	gridLayout->setContentsMargins(0, 0, 0, 0);
 	gridLayout->setSpacing(12);
 	gridLayout->setAlignment(Qt::AlignLeft);
-	for (int i = 0, count = m_templates.size(); i < count; ++i) {
+	for (qsizetype i = 0, count = m_templates.size(); i < count; ++i) {
 		const auto &tpl = m_templates[i];
 		PLSTemplateButton *button = pls_new<PLSTemplateButton>(group);
 		button->setFullGif(true);
-		button->attachGifResource(tpl.rcPath, tpl.rcBackupPath, tpl.rcUrl, tpl.value);
-		gridLayout->addWidget(button, i / 4, i % 4);
+		button->attachGifResource(tpl.rcPath, tpl.value);
+		gridLayout->addWidget(button, (int)i / 4, i % 4);
 	}
 	return group;
 }

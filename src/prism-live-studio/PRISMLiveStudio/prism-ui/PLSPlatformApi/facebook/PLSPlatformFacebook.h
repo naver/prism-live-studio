@@ -55,7 +55,7 @@ public:
 	void startLiving(const MyRequestTypeFunction &onFinished);
 	void updateLiving(const MyRequestTypeFunction &onFinished);
 	void requestItemInfoRequest(const MyRequestTypeFunction &onFinished);
-	void getFacebookItemUserInfoFinished(PLSAPIFacebookType type, const QString &nickname, const QString &profilePath, const QString &shareObjectName);
+	void getFacebookItemUserInfoFinished(const PLSErrorHandler::RetData &retData, const QString &nickname, const QString &profilePath, const QString &shareObjectName);
 	void updateChannelInfo(const QString &key, const QVariant &value, bool refresh) const;
 	void updateChannelInfos(const QVariantMap &channelInfos, bool refresh) const;
 	void setPrepareInfo(const PLSAPIFacebook::FacebookPrepareLiveInfo &prepareInfo);

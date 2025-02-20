@@ -26,6 +26,8 @@ private slots:
 private:
     Ui::PLSSceneTemplateMainSceneInstallView *ui;
 	SceneTemplateItem m_item;
+
+	qint64 m_dtLastInstall = 0;
 };
 
 #endif // PLSSCENETEMPLATEMAINSCENEINSTALLVIEW_H

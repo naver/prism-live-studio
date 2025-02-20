@@ -4,21 +4,11 @@ PLSLiveInfoYoutube #titleWidget {
     background-color: transparent;
 }
 
-PLSLiveInfoYoutube #titleWidget #titleLabel {
-    margin:0px;
-	font-size:/*hdpi*/ 20px;
-    font-weight: bold;
-    color: #ffffff;
-    background-color: transparent;
- 
-}
-
 PLSLiveInfoYoutube #scrollArea  {
         border:/*hdpi*/none;
         background-color: transparent;
         padding-right:/*hdpi*/ 8px;
 }
-
 
 PLSLiveInfoYoutube #scrollAreaWidgetContents {
         border:/*hdpi*/none;

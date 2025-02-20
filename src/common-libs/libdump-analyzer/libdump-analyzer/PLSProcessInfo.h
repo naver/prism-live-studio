@@ -70,7 +70,7 @@ LIBDUMPANALUZER_API struct ProcessInfo {
 	ProcessFunc process_func = nullptr;
 
 	ProcessInfo(){};
-	ProcessInfo(std::string process_name_, std::string pid_, std::string user_id_, std::string version, std::string session, std::string _log_from, std::string _os_type,
+	ProcessInfo(std::string process_name_, std::string pid_, std::string user_id_, std::string version, std::string session, std::string subsession, std::string _log_from, std::string _os_type,
 		    std::string project_name_, std::string cpu_name_, std::string video_adapter_name_, FoundDumpFunc found_dumo_func_ = nullptr, LogFunc log_func_ = nullptr, ProcessFunc process_func_ = nullptr,
 		    bool pc_shutdown = false)
 		: process_name(process_name_),
@@ -78,6 +78,7 @@ LIBDUMPANALUZER_API struct ProcessInfo {
 		  user_id(user_id_),
 		  prism_version(version),
 		  prism_session(session),
+		  prism_sub_session(subsession),
 		  logFrom(_log_from),
 		  os_type(_os_type),
 		  project_name(project_name_),

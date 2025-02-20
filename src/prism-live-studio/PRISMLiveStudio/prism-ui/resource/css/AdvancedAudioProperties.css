@@ -13,10 +13,10 @@ OBSBasicAdvAudio > #activeLabel {
 }
 
 OBSBasicAdvAudio #monoContainer > #forceMono {
-    min-width: 15px;
-    max-width: 15px;
-    min-height: 15px;
-    max-height: 15px;
+    min-width: 17px;
+    max-width: 17px;
+    min-height: 17px;
+    max-height: 17px;
 }
 
 OBSBasicAdvAudio #monoContainer #forceMono > #plsCheckBox_text {

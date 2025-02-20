@@ -48,7 +48,7 @@ void PLSAPIYoutube::requestTestLive(const QObject *receiver, const PLSAPICommon:
 void PLSAPIYoutube::configDefaultRequest(const pls::http::Request &_request, const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
 					 const QByteArray &logName, bool isSetContentType)
 {
-	PLSAPIYoutube::addCommenCookieAndUserKey(_request);
+	PLSAPIYoutube::addCommonCookieAndUserKey(_request);
 	if (isSetContentType) {
 		_request.contentType(HTTP_CONTENT_TYPE_VALUE);
 	}
@@ -168,7 +168,7 @@ void PLSAPIYoutube::requestLiveStreamsInsert(const QObject *receiver, const PLSA
 {
 
 	auto object = QJsonObject();
-	bool isHls = PLSPlatformYoutube::IngestionType::Hls == PLS_PLATFORM_YOUTUBE->getSettingIngestionType();
+	bool isHls = PLSYoutubeLiveinfoData::IngestionType::Hls == PLS_PLATFORM_YOUTUBE->getSettingIngestionType();
 	const char *ingestionType = isHls ? "hls" : "rtmp";
 
 	const auto &itemData = PLS_PLATFORM_YOUTUBE->getTrySaveDataData();
@@ -519,14 +519,13 @@ void PLSAPIYoutube::refreshYoutubeTokenBeforeRequest(PLSAPICommon::RefreshType r
 	pls::http::request(_request);
 }
 
-void PLSAPIYoutube::dealUploadImageSucceed(enum PLSPlatformApiResult &apiResult, const QByteArray &data, QString &imgUrl)
+bool PLSAPIYoutube::dealUploadImageSucceed(const QByteArray &data, QString &imgUrl)
 {
 	QJsonParseError jsonError;
 	QJsonDocument respJson = QJsonDocument::fromJson(data, &jsonError);
 	if (jsonError.error != QJsonParseError::NoError) {
 		PLS_INFO(MODULE_PlatformService, "dealUploadImageSucceed failed, reason: %s", jsonError.errorString().toUtf8().constData());
-		apiResult = PLSPlatformApiResult::PAR_API_ERROR_Upload_Image;
-		return;
+		return false;
 	}
 
 	QJsonObject object = respJson.object();
@@ -539,34 +538,24 @@ void PLSAPIYoutube::dealUploadImageSucceed(enum PLSPlatformApiResult &apiResult,
 
 	if (!imgUrl.isEmpty()) {
 		PLS_INFO(MODULE_PlatformService, "dealUploadImageSucceed success");
-		apiResult = PLSPlatformApiResult::PAR_SUCCEED;
+		return true;
 	} else {
 		PLS_INFO(MODULE_PlatformService, "dealUploadImageSucceed failed");
-		apiResult = PLSPlatformApiResult::PAR_API_ERROR_Upload_Image;
+		return false;
 	}
 }
 
-void PLSAPIYoutube::uploadImage(const QObject *receiver, const QString &imageFilePath, const PLSAPICommon::uploadImageCallback &callback)
+void PLSAPIYoutube::uploadImage(const QObject *receiver, const QString &imageFilePath, const PLSAPICommon::uploadImageCallback &callback, const PLSAPICommon::errorCallback &onFailed)
 {
 	PLS_INFO(MODULE_PlatformService, "uploadImage start");
 
 	auto okCallback = [callback](QByteArray data) {
 		enum PLSPlatformApiResult _result;
 		QString imgUrl;
-		dealUploadImageSucceed(_result, data, imgUrl);
-		callback(_result, imgUrl);
+		callback(dealUploadImageSucceed(data, imgUrl), imgUrl);
 	};
-	auto failCallback = [callback](int, QByteArray, QNetworkReply::NetworkError error) {
-		PLS_ERROR(MODULE_PlatformService, "uploadImage failed failCallback");
-		PLSPlatformApiResult result = PLSPlatformApiResult::PAR_API_ERROR_Upload_Image;
-		if (QNetworkReply::UnknownNetworkError >= error) {
-			result = PLSPlatformApiResult::PAR_NETWORK_ERROR;
-		}
-		callback(result, QString());
-	};
-
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-	PLSAPIYoutube::configDefaultRequest(_request, receiver, okCallback, failCallback, "uploadImage", false);
+	PLSAPIYoutube::configDefaultRequest(_request, receiver, okCallback, onFailed, "uploadImage", false);
 
 	_request.urlParam("videoId", PLS_PLATFORM_YOUTUBE->getTrySaveDataData()._id)
 		.timeout(PRISM_NET_DOWNLOAD_TIMEOUT)
@@ -576,30 +565,30 @@ void PLSAPIYoutube::uploadImage(const QObject *receiver, const QString &imageFil
 	pls::http::request(_request);
 }
 
-void PLSAPIYoutube::getLatency(const QJsonObject &object, PLSYoutubeLatency &latency)
+void PLSAPIYoutube::getLatency(const QJsonObject &object, PLSYoutubeLiveinfoData::Latency &latency)
 {
 	auto latencyPreference = object["latencyPreference"].toString();
 	if (latencyPreference == s_latencyNormal) {
-		latency = PLSYoutubeLatency::Normal;
+		latency = PLSYoutubeLiveinfoData::Latency::Normal;
 	} else if (latencyPreference == s_latencyLow) {
-		latency = PLSYoutubeLatency::Low;
+		latency = PLSYoutubeLiveinfoData::Latency::Low;
 	} else if (latencyPreference == s_latencyUltraLow) {
-		latency = PLSYoutubeLatency::UltraLow;
+		latency = PLSYoutubeLiveinfoData::Latency::UltraLow;
 	} else {
-		latency = PLSYoutubeLatency::Low;
+		latency = PLSYoutubeLiveinfoData::Latency::Low;
 	}
 }
 
-void PLSAPIYoutube::setLatency(QJsonObject &object, PLSYoutubeLatency latency)
+void PLSAPIYoutube::setLatency(QJsonObject &object, PLSYoutubeLiveinfoData::Latency latency)
 {
 	switch (latency) {
-	case PLSYoutubeLatency::Normal:
+	case PLSYoutubeLiveinfoData::Latency::Normal:
 		object["latencyPreference"] = s_latencyNormal;
 		break;
-	case PLSYoutubeLatency::Low:
+	case PLSYoutubeLiveinfoData::Latency::Low:
 		object["latencyPreference"] = s_latencyLow;
 		break;
-	case PLSYoutubeLatency::UltraLow:
+	case PLSYoutubeLiveinfoData::Latency::UltraLow:
 		object["latencyPreference"] = s_latencyUltraLow;
 		break;
 	default:
@@ -611,7 +600,7 @@ void PLSAPIYoutube::setLatency(QJsonObject &object, PLSYoutubeLatency latency)
 	}
 }
 
-void PLSAPIYoutube::addCommenCookieAndUserKey(const pls::http::Request &_request)
+void PLSAPIYoutube::addCommonCookieAndUserKey(const pls::http::Request &_request)
 {
 	auto &info = PLSCHANNELS_API->getChanelInfoRefByPlatformName(YOUTUBE, ChannelData::ChannelType);
 	if (info.isEmpty()) {
@@ -651,11 +640,5 @@ void PLSAPIYoutube::showFailedLog(const QString &logName, const pls::http::Reply
 			;
 			PLS_ERROR(MODULE_PlatformService, "%s failed. with not object data. data:%s", logName.toUtf8().constData(), errorMsg.constData());
 		}
-	}
-
-	QString failedErr = QString("%1-statusCode:%2-youtubeCode:%3-reason:%4").arg(logName).arg(_code).arg(youtubeCode).arg(errorReason);
-	if (PLS_PLATFORM_YOUTUBE) {
-		PLS_PLATFORM_YOUTUBE->setFailedErr(failedErr);
-		PLS_PLATFORM_YOUTUBE->setlastRequestAPI(logName);
 	}
 }

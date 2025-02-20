@@ -5,7 +5,7 @@
 #include <QPointer>
 #include <QDoubleSpinBox>
 #include <QStackedWidget>
-#include "balance-slider.hpp"
+#include "absolute-slider.hpp"
 
 class QGridLayout;
 class QLabel;
@@ -36,7 +36,7 @@ private:
 	QPointer<QSpinBox> percent;
 	QPointer<QDoubleSpinBox> volume;
 	QPointer<PLSCheckBox> forceMono;
-	QPointer<BalanceSlider> balance;
+	QPointer<AbsoluteSlider> balance;
 	QPointer<QLabel> labelL;
 	QPointer<QLabel> labelR;
 	QPointer<QSpinBox> syncOffset;
@@ -55,6 +55,8 @@ private:
 	OBSSignal mixersSignal;
 	OBSSignal activateSignal;
 	OBSSignal deactivateSignal;
+	OBSSignal audioActivateSignal;
+	OBSSignal audioDeactivateSignal;
 	OBSSignal balChangedSignal;
 	OBSSignal renameSignal;
 

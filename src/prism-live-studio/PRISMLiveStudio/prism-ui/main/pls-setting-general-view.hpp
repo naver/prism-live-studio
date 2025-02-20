@@ -15,15 +15,12 @@ public:
 	~PLSSettingGeneralView() override;
 	void initUi();
 	void setEnable(bool enable);
-
-protected:
-	bool eventFilter(QObject *object, QEvent *event) override;
+	void setNickNameWidth(int width);
 
 private slots:
 	void on_pushButton_logout_clicked();
 	void on_pushButton_del_account_clicked();
 	void on_pushButton_change_pwd_clicked();
-	void checkPasswdTxt();
 
 private:
 	Ui::PLSSettingGeneralView *ui;

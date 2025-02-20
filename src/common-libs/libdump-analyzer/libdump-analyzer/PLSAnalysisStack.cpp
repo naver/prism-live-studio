@@ -25,6 +25,9 @@
 #include <memory>
 #include <QDir>
 
+#define PTS_LOG_TYPE "PTSLogType" // field name for log type
+#define PTS_TYPE_EVENT "event"    // field value for exception or app stats
+
 namespace pls {
 
 const static QString RESOURCE_PATH = "\\data\\prism-studio";
@@ -35,8 +38,10 @@ const static QString USER_AUDIO_CAPTURE_PATH = "PRISMLiveStudio\\laboratory\\win
 const static QString PRISM_CRASH_CONFIG_PATH = "PRISMLiveStudio\\crashDump\\crash.json";
 #if _WIN32
 const static QString PROCESS_CRASH_FILE = "PRISMLiveStudio\\crashDump\\process.json";
+const static QString THIRD_PARTY_CRASH_FILE = "PRISMLiveStudio\\crashDump\\third_party_crash.json";
 #else
 const static QString PROCESS_CRASH_FILE = "PRISMLiveStudio/crashDump/process.json";
+const static QString THIRD_PARTY_CRASH_FILE = "PRISMLiveStudio/crashDump/third_party_crash.json";
 #endif
 const static QString MODULES_FILE = "\\PRISMLiveStudio\\crashDump\\modules.json";
 const static QString GPOP_FILE = "\\user\\gpop.json";
@@ -408,10 +413,10 @@ static bool send_data(const std::string &post_bodfy)
 static QJsonObject get_blacklist()
 {
 #if _WIN32
-	QString syncName = "PRISMLiveStudio\\library\\library_Policy_PC\\BlackList.json";
+	QString syncName = "PRISMLiveStudio\\resources\\library\\library_Policy_PC\\BlackList.json";
 	QString localName = "..\\..\\data\\prism-studio\\user\\BlackList.json";
 #else
-	QString syncName = "PRISMLiveStudio/library/library_Policy_PC/BlackList.json";
+	QString syncName = "PRISMLiveStudio/resources/library/library_Policy_PC/BlackList.json";
 	QString localName = "data/prism-studio/user/BlackList.json";
 #endif
 
@@ -566,6 +571,114 @@ static bool check_blacklist(QString value, QJsonObject blacklist, ProcessInfo co
 
 	return false;
 }
+	
+std::optional<ThirdPartyPlugin> check_third_party_crash(std::string& plugin_path) {
+	static auto file = get_app_data_dir(THIRD_PARTY_CRASH_FILE);
+	static auto data = pls_read_data(file);
+	QJsonArray plugin_list = QJsonDocument::fromJson(data).array();
+	
+	auto path = std::filesystem::u8path(plugin_path);
+	std::string plugin_version = get_plugin_version(plugin_path);
+
+	auto plugin_name = path.stem().string();
+	
+	struct ThirdPartyPlugin plugin;
+	
+	for (qsizetype i = 0; i < plugin_list.size(); i++) {
+		auto pluginObject = plugin_list.at(i).toObject();
+		if (pluginObject["name"].toString() == QString::fromStdString(plugin_name)
+			&& pluginObject["version"].toString().toStdString() == plugin_version) {
+			
+			plugin.name = plugin_name;
+			plugin.confirmed = pluginObject["confirmed"].toBool();
+			plugin.version = plugin_version;
+			
+			pluginObject["confirmed"] = true;
+			
+			plugin_list.replace(i, QJsonValue(pluginObject));
+			
+			QJsonDocument doc;
+			doc.setArray(plugin_list);
+			pls_write_data(file, doc.toJson());
+			
+			return plugin;
+		}
+	}
+	
+	return std::nullopt;
+}
+
+#ifndef ENABLE_TEST
+static
+#endif
+bool check_third_party_crash(ProcessInfo &info, std::string &stack_hash, std::string &plugin_name, std::string &plugin_path) {
+	if (plugin_name.empty() || plugin_path.empty()) {
+		return false;
+	}
+	
+	auto file = get_app_data_dir(PROCESS_CRASH_FILE);
+	auto data = pls_read_data(file);
+	if (data.isEmpty()) {
+		if (StaticValue::do_log)
+			StaticValue::do_log(log_ctx("Read process file failed.(Maybe this is the first crash)."));
+	}
+	
+	QJsonObject obj = QJsonDocument::fromJson(data).object();
+	QJsonArray processes = obj["Processes"].toArray();
+	
+	if (processes.size() < 3) {
+		return false;
+	}
+
+	int same_hash_count = 0;
+	int checked_count = 0;
+	auto it = processes.end();
+
+	// Check last 3 items from the end
+	while (checked_count < 3 && it != processes.begin()) {
+		--it;
+		QJsonObject curProcess = it->toObject();
+		std::string location = curProcess["location"].toString().toStdString();
+		if (location.find(plugin_name) != std::string::npos) {
+			same_hash_count++;
+		}
+		checked_count++;
+	}
+
+	if (same_hash_count != 3) {
+		return false;
+	}
+
+	bool record_found = false;
+	auto third_crash_file = get_app_data_dir(THIRD_PARTY_CRASH_FILE);
+	auto third_crash_data = pls_read_data(file);
+	QJsonArray plugin_list = QJsonDocument::fromJson(third_crash_data).array();
+	
+	std::string plugin_version = get_plugin_version(plugin_path);
+		
+	for (auto it = plugin_list.begin(); it != plugin_list.end(); it++) {
+		QJsonObject plugin = it->toObject();
+		if (plugin["name"].toString().toStdString() == plugin_name &&
+			plugin["version"].toString().toStdString() == plugin_version) {
+			record_found = true;
+			break;
+		}
+	}
+	
+	if (!record_found) {
+		QJsonObject plugin;
+		plugin["name"] = QString::fromStdString(plugin_name);
+		plugin["version"] = QString::fromStdString(plugin_version);
+		plugin["confirmed"] = false;
+		plugin_list.push_back(plugin);
+		
+		QJsonDocument doc;
+		doc.setArray(plugin_list);
+		pls_write_data(third_crash_file, doc.toJson());
+	}
+	
+	return record_found;
+}
 
 static bool check_device_thread(QJsonObject device, QString &target)
 {
@@ -697,6 +810,24 @@ static void check_mainprocess_info(ProcessInfo const &info, const std::string &c
 	return;
 }
 
+static int check_repeat_crash_count(QJsonObject &obj, const std::string &stack_hash, std::string version)
+{
+	QJsonArray processes = obj["Processes"].toArray();
+
+	int crash_count = 0;
+	for (auto it = processes.begin(); it != processes.end(); it++) {
+		QJsonObject curProcess = it->toObject();
+		std::string prevStackHash = curProcess.value("stackHash").toString().toStdString();
+		std::string crash_version = curProcess.value("version").toString().toStdString();
+		if (0 == prevStackHash.compare(stack_hash) && 0 == crash_version.compare(version)) {
+			crash_count++;
+		}
+	}
+
+	return crash_count;
+}
+
+#define CRASH_COUNT_LIMIT 5
 static bool check_repeat_crash(ProcessInfo const &info, const std::string &location, const QByteArray& stack_md5)
 {
 	bool repeat = false;
@@ -729,10 +860,13 @@ static bool check_repeat_crash(ProcessInfo const &info, const std::string &locat
 	if (StaticValue::do_log)
 		StaticValue::do_log(log_ctx(log));
 
+	std::string version = info.prism_version;
+
 	QJsonObject curProc;
 	curProc.insert("prismSession", info.prism_session.c_str());
 	curProc.insert("location", location.c_str());
 	curProc.insert("stackHash", stack_md5.constData());
+	curProc.insert("version", version.c_str());
 	if (!info.src.empty())
 		curProc.insert("sourcePtr", info.src.c_str());
 	processes.push_back(curProc);
@@ -748,6 +882,11 @@ static bool check_repeat_crash(ProcessInfo const &info, const std::string &locat
 	log.append("Writed process json file data : ").append(doc_data.constData());
 	if (StaticValue::do_log)
 		StaticValue::do_log(log_ctx(log));
+
+	int crash_count = check_repeat_crash_count(obj, stack_md5.constData(), version);
+	if (crash_count > CRASH_COUNT_LIMIT) {
+		repeat = true;
+	}
 
 	return repeat;
 }
@@ -930,6 +1069,7 @@ static bool send_dump(ProcessInfo const &info, std::string &crash_value, std::st
 		nelo_info.insert("DumpLocation", location.c_str());
 	if (!stack_offset_hash.empty())
 		nelo_info.insert("DumpStackTraceHashkey", stack_offset_hash.c_str());
+	nelo_info.insert(PTS_LOG_TYPE, PTS_TYPE_EVENT);
 
 	QJsonDocument doc;
 	doc.setObject(nelo_info);
@@ -985,6 +1125,9 @@ static bool parse_stacktrace_and_check_repeat(ProcessInfo &info, std::string &cr
 				url = localUrl.toString().toStdString();
 		}
 	}
+	
+	std::string third_module_name;
+	std::string third_module_path;
 #if _WIN32
 	std::vector<ULONG64> stack_frams = GetStackTrace(info.dump_file.c_str());
 	std::vector<ModuleInfo> modules = GetModuleInfo(info.dump_file.c_str());
@@ -998,14 +1141,21 @@ static bool parse_stacktrace_and_check_repeat(ProcessInfo &info, std::string &cr
 		ModuleInfo module_info{};
 
 		bool success = find_module(modules, modulesJson, stack_frams[i], offset, module_info);
+		sprintf_s(offset_s.data(), offset_s.size(), "0x%llx", offset);
 		if (module_info.bInternal) {
-			sprintf_s(offset_s.data(), offset_s.size(), "0x%llx", offset);
 			stack_hash.append(offset_s.data());
 		}
 
 		std::string module_name = success ? pls_unicode_to_utf8(module_info.ModuleName.data()) : "unkown";
 		std::filesystem::path pathObj(std::filesystem::u8path(module_name));
+
 		module_name = pathObj.filename().u8string();
+
+		std::string pluginpath = pathObj.u8string();
+		if (success && pls::is_third_party_plugin(pluginpath)) {
+			third_module_name = module_name;
+			third_module_path = pathObj.u8string();
+		}
 
 		std::string prefix = "\n " + std::to_string(i) + " ";
 		std::string frame = module_name + " + " + offset_s.data();
@@ -1057,6 +1207,16 @@ static bool parse_stacktrace_and_check_repeat(ProcessInfo &info, std::string &cr
                 break;
             }
         }
+		
+		for (auto module_object: module_names) {
+			auto module_name = module_object.at("object_name");
+			auto module_path = module_object.at("object_path");
+			if (pls::is_third_party_plugin(module_path)) {
+				third_module_name = module_name;
+				third_module_path = module_path;
+				break;
+			}
+		}
     }
     
 #endif
@@ -1095,6 +1255,9 @@ static bool parse_stacktrace_and_check_repeat(ProcessInfo &info, std::string &cr
 #if __APPLE__
 	repeat = check_repeat_crash(info, location, stack_md5);
 #endif
+	
+	std::string stack_hash_string(stack_md5);
+	check_third_party_crash(info, stack_hash_string, third_module_name, third_module_path);
 
 	return repeat;
 }
@@ -1134,7 +1297,7 @@ bool analysis_stack_and_send_dump(ProcessInfo info, bool analysis_stack)
             return false;
         }
     }
-#ifdef PRISM_BUILD_TYPE_DEBUG
+#ifdef _DEBUG
     remove_dump_file(info);
     return true;
 #else
@@ -1150,7 +1313,7 @@ void catch_unhandled_exceptions(const std::string &process_name, const std::stri
 #if _WIN32
 	auto ret = SetUnhandledExceptionFilter(unhandled_exception_filter);
 #elif __APPLE__
-    mac_install_crash_reporter(process_name);
+	mac_install_crash_reporter(StaticValue::info);
 #endif
 }
 
@@ -1183,5 +1346,8 @@ void set_prism_sub_session(const std::string &session)
 {
 	StaticValue::info.prism_sub_session = session;
 }
-
+	
+	void set_prism_pid(const std::string &pid) {
+		StaticValue::info.pid = pid;
+	}
 }

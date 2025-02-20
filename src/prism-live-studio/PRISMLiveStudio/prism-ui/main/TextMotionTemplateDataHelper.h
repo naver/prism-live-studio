@@ -14,7 +14,6 @@ using TextMotionTemplateData = struct TextMotionTemplateData {
 	QString id;
 	QString name;
 	QString resourcePath;
-	QString resourceBackupPath;
 	QString resourceUrl;
 };
 
@@ -23,24 +22,20 @@ class TextMotionRemoteDataHandler : public QObject {
 public:
 	static TextMotionRemoteDataHandler *instance();
 	void getTMRemoteDataRequest(const QString &url);
-	const inline QMap<QString, QVector<TextMotionTemplateData>> &getTMRemoteData() const { return m_templateInfos; }
 	const inline QMap<int, QString> &getTemplateNames() const { return m_templateTabs; }
-	bool initTMData();
+	bool initTMData(const std::function<void(bool)>& callback);
+	void parseTMData();
 
 signals:
-	void loadedTextmotionRes(bool isSuccess);
+	void loadedTextmotionRes(bool isSuccess, bool isUpdate);
 
 private:
-	explicit TextMotionRemoteDataHandler() = default;
+	explicit TextMotionRemoteDataHandler();
 	~TextMotionRemoteDataHandler() override = default;
-	void downloadTextmotionRes(const QJsonArray &fileList);
-	void parseTMData();
 
 	QString m_url;
 	QByteArray m_templateJson;
 	QMap<int, QString> m_templateTabs;
-	QMap<QString, QVector<TextMotionTemplateData>> m_templateInfos; //key=type,value=TMDatas
-	QMap<QString, QString> m_readyDownloadUrl;
 	QStringList m_textTemplateNameList;
 };
 

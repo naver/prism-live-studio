@@ -68,15 +68,8 @@
           </property>
          </spacer>
         </item>
-        <item>
-         <widget class="QLabel" name="nvtTitleLabel">
-          <property name="text">
-           <string>navershopping.liveinfo.title</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-          </property>
-         </widget>
+        <item alignment="Qt::AlignLeft|Qt::AlignVCenter">
+         <widget class="PLSLiveInfoDualWidget" name="dualWidget" native="true"/>
         </item>
        </layout>
       </item>
@@ -116,7 +109,7 @@
         <x>0</x>
         <y>0</y>
         <width>1218</width>
-        <height>672</height>
+        <height>680</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0,0,0,0,0,0,0,1">
@@ -1052,6 +1045,12 @@
    <class>PLSScheduleCombox</class>
    <extends>QPushButton</extends>
    <header>PLSScheduleCombox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSLiveInfoDualWidget</class>
+   <extends>QWidget</extends>
+   <header>PLSLiveInfoBase.h</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>PLSSelectImageButton</class>

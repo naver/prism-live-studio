@@ -39,6 +39,8 @@ using namespace common;
 #include "PLSBasic.h"
 #include "PLSSpinBox.h"
 #include "pls/pls-source.h"
+#include "pls/pls-dual-output.h"
+#include "PLSSceneitemMapManager.h"
 
 using namespace std;
 
@@ -48,6 +50,8 @@ Q_DECLARE_METATYPE(QuickTransition);
 
 //PRISM/Zhongling/20231122/#3023/trace programScale is minus start
 #include <pls/pls-base.h>
+
+void nodifyTextmotionBoxsize(uint32_t cx, uint32_t cy, bool bVertical);
 
 static bool CheckProgramSize(float previewScale, int width, int height,
 			     float devicePixelRatioF)
@@ -517,7 +521,8 @@ void OBSBasic::SetTransition(OBSSource transition)
 	ui->transitionDurationLabel->setVisible(!fixed);
 	ui->transitionDuration->setVisible(!fixed);
 
-	bool configurable = obs_source_configurable(transition);
+	bool configurable = transition ? obs_source_configurable(transition)
+				       : false;
 	ui->transitionRemove->setEnabled(configurable);
 	ui->transitionProps->setEnabled(configurable);
 
@@ -862,6 +867,55 @@ void OBSBasic::CreateProgramDisplay()
 	program->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 
+void OBSBasic::CreateVerticalDisplay()
+{
+	if (verticalDisplay) {
+		return;
+	}
+	verticalDisplay = new OBSBasicPreview(ui->previewContainer);
+	verticalDisplay->hide();
+	verticalDisplay->setObjectName("verticalDisplay");
+	verticalDisplay->setVerticalDisplay(true);
+	addNudgeFunc(verticalDisplay);
+
+	verticalDisplay->setContextMenuPolicy(Qt::CustomContextMenu);
+	connect(verticalDisplay.data(), &QWidget::customContextMenuRequested,
+		this, &OBSBasic::VerticalDisplayContextMenuRequested);
+
+	auto displayResize = [this]() {
+		struct obs_video_info ovi;
+
+		if (pls_get_vertical_video_info(&ovi))
+			ResizeVerticalDisplay(ovi.base_width, ovi.base_height);
+	};
+
+	connect(verticalDisplay.data(), &OBSQTDisplay::DisplayResized,
+		displayResize);
+
+	auto addDisplay = [this](OBSQTDisplay *window) {
+		obs_display_add_draw_callback(window->GetDisplay(),
+					      OBSBasic::RenderVerticalDisplay,
+					      this);
+
+		struct obs_video_info ovi;
+		if (pls_get_vertical_video_info(&ovi))
+			ResizeVerticalDisplay(ovi.base_width, ovi.base_height);
+	};
+
+	connect(verticalDisplay.data(), &OBSQTDisplay::DisplayCreated,
+		addDisplay);
+
+#ifdef Q_OS_MACOS
+	if (verticalDisplay && verticalDisplay->window() &&
+	    verticalDisplay->window()->windowHandle())
+		connect(verticalDisplay->window()->windowHandle(),
+			&QWindow::screenChanged, displayResize);
+#endif
+
+	verticalDisplay->setSizePolicy(QSizePolicy::Expanding,
+					QSizePolicy::Expanding);
+}
+
 void OBSBasic::EnableTransitionWidgets(bool enable)
 {
 	ui->scenesFrame->EnableTransitionWidgets(enable);
@@ -1084,7 +1138,7 @@ int OBSBasic::GetTbarPosition()
 }
 #endif
 
-void OBSBasic::on_modeSwitch_clicked()
+void OBSBasic::TogglePreviewProgramMode()
 {
 	SetPreviewProgramMode(!IsPreviewProgramMode());
 }
@@ -1204,7 +1258,7 @@ void OBSBasic::HideTransitionProperties()
 }
 
 void OBSBasic::PasteShowHideTransition(obs_sceneitem_t *item, bool show,
-				       obs_source_t *tr)
+				       obs_source_t *tr, int duration)
 {
 	int64_t sceneItemId = obs_sceneitem_get_id(item);
 	std::string sceneUUID = obs_source_get_uuid(
@@ -1230,6 +1284,7 @@ void OBSBasic::PasteShowHideTransition(obs_sceneitem_t *item, bool show,
 	OBSSourceAutoRelease dup =
 		obs_source_duplicate(tr, obs_source_get_name(tr), true);
 	obs_sceneitem_set_transition(item, show, dup);
+	obs_sceneitem_set_transition_duration(item, show, duration);
 
 	OBSDataAutoRelease transitionData =
 		obs_sceneitem_transition_save(item, show);
@@ -1271,35 +1326,13 @@ QMenu *OBSBasic::CreateVisibilityTransitionMenu(bool visible)
 	duration->setSingleStep(50);
 	duration->setValue(curDuration);
 
-	auto setTransition = [this](QAction *action, bool visible) {
-		OBSBasic *main =
-			reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
-
-		QString id = action->property("transition_id").toString();
-		OBSSceneItem sceneItem = main->GetCurrentSceneItem();
-		int64_t sceneItemId = obs_sceneitem_get_id(sceneItem);
-		std::string sceneUUID =
-			obs_source_get_uuid(obs_scene_get_source(
-				obs_sceneitem_get_scene(sceneItem)));
-
-		auto undo_redo = [sceneUUID, sceneItemId,
-				  visible](const std::string &data) {
-			OBSSourceAutoRelease source =
-				obs_get_source_by_uuid(sceneUUID.c_str());
-			obs_scene_t *scene = obs_scene_from_source(source);
-			obs_sceneitem_t *i = obs_scene_find_sceneitem_by_id(
-				scene, sceneItemId);
-			if (i) {
-				OBSDataAutoRelease dat =
-					obs_data_create_from_json(data.c_str());
-				obs_sceneitem_transition_load(i, dat, visible);
-			}
-		};
-		OBSDataAutoRelease oldTransitionData =
-			obs_sceneitem_transition_save(sceneItem, visible);
+	auto setSceneitemTransition = [this](OBSSceneItem sceneItem,
+					     bool visible, QString id) {
 		if (id.isNull() || id.isEmpty()) {
 			obs_sceneitem_set_transition(sceneItem, visible,
 						     nullptr);
+			obs_sceneitem_set_transition_duration(sceneItem,
+							      visible, 0);
 		} else {
 			OBSSource tr = obs_sceneitem_get_transition(sceneItem,
 								    visible);
@@ -1331,8 +1364,57 @@ QMenu *OBSBasic::CreateVisibilityTransitionMenu(bool visible)
 			if (obs_source_configurable(tr))
 				CreatePropertiesWindow(tr);
 		}
+	};
+
+	auto setTransition = [this, setSceneitemTransition](QAction *action,
+							    bool visible) {
+		OBSBasic *main =
+			reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
+
+		QString id = action->property("transition_id").toString();
+		OBSSceneItem sceneItem = main->GetCurrentSceneItem();
+		int64_t sceneItemId = obs_sceneitem_get_id(sceneItem);
+		auto uuid = obs_source_get_uuid(obs_scene_get_source(
+			obs_sceneitem_get_scene(sceneItem)));
+		if (!uuid) {
+			return;
+		}
+		std::string sceneUUID = uuid;
+		auto undo_redo = [sceneUUID, sceneItemId,
+				  visible](const std::string &data) {
+			OBSSourceAutoRelease source =
+				obs_get_source_by_uuid(sceneUUID.c_str());
+			obs_scene_t *scene = obs_scene_from_source(source);
+			obs_sceneitem_t *i = obs_scene_find_sceneitem_by_id(
+				scene, sceneItemId);
+			if (i) {
+				OBSDataAutoRelease dat =
+					obs_data_create_from_json(data.c_str());
+				obs_sceneitem_transition_load(i, dat, visible);
+			}
+		};
+		OBSDataAutoRelease oldTransitionData =
+			obs_sceneitem_transition_save(sceneItem, visible);
+		setSceneitemTransition(sceneItem, visible, id);
 		OBSDataAutoRelease newTransitionData =
 			obs_sceneitem_transition_save(sceneItem, visible);
+
+		if (pls_is_dual_output_on()) {
+			auto verItem = PLSSceneitemMapMgrInstance
+					       ->getVerticalSelectedSceneitem(
+						       sceneItem);
+			if (verItem) {
+				//TODO
+				OBSDataAutoRelease oldTransitionData =
+					obs_sceneitem_transition_save(verItem,
+								      visible);
+				setSceneitemTransition(verItem, visible, id);
+				OBSDataAutoRelease newTransitionData =
+					obs_sceneitem_transition_save(verItem,
+								      visible);
+			}
+		}
+
 		std::string undo_data(obs_data_get_json(oldTransitionData));
 		std::string redo_data(obs_data_get_json(newTransitionData));
 		if (undo_data.compare(redo_data) != 0)
@@ -1390,7 +1472,10 @@ QMenu *OBSBasic::CreateVisibilityTransitionMenu(bool visible)
 			reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
 		OBSSceneItem item = main->GetCurrentSceneItem();
 		obs_source_t *tr = obs_sceneitem_get_transition(item, visible);
+		int trDur =
+			obs_sceneitem_get_transition_duration(item, visible);
 		main->copySourceTransition = obs_source_get_weak_source(tr);
+		main->copySourceTransitionDuration = trDur;
 	};
 	menu->addSeparator();
 	action = menu->addAction(QT_UTF8(Str("Copy")));
@@ -1402,6 +1487,7 @@ QMenu *OBSBasic::CreateVisibilityTransitionMenu(bool visible)
 		OBSBasic *main =
 			reinterpret_cast<OBSBasic *>(App()->GetMainWindow());
 		OBSSource tr = OBSGetStrongRef(main->copySourceTransition);
+		int trDuration = main->copySourceTransitionDuration;
 		if (!tr)
 			return;
 
@@ -1411,7 +1497,7 @@ QMenu *OBSBasic::CreateVisibilityTransitionMenu(bool visible)
 			if (!item)
 				continue;
 
-			PasteShowHideTransition(item, show, tr);
+			PasteShowHideTransition(item, show, tr, trDuration);
 		}
 	};
 
@@ -1734,11 +1820,21 @@ void OBSBasic::SetPreviewProgramMode(bool enabled)
 	if (IsPreviewProgramMode() == enabled)
 		return;
 
+	if (enabled && pls_is_dual_output_on()) {
+		mainView->setStudioModeChecked(false);
+		mainView->showStudioModeTips(
+			tr("DualOutput.StudioModeDisabled"));
+		return;
+	} else {
+		mainView->showStudioModeTips();
+	}
+
 	// before studio is off
 	if (enabled)
 		InterruptPrevTransiton();
 
 	UpdateSudioModeState(enabled);
+	emit PreviewProgramModeChanged(enabled);
 	//ui->modeSwitch->setChecked(enabled);
 	//os_atomic_set_bool(&previewProgramMode, enabled);
 
@@ -1921,6 +2017,69 @@ void OBSBasic::ResizeProgram(uint32_t cx, uint32_t cy)
 	programX += float(PREVIEW_EDGE_SIZE);
 	programY += float(PREVIEW_EDGE_SIZE);
 }
+
+void OBSBasic::ResizeVerticalDisplay(uint32_t cx, uint32_t cy)
+{
+	if (!verticalDisplay)
+		return;
+
+	QSize targetSize;
+	bool isFixedScaling;
+	obs_video_info ovi;
+
+	/* resize preview panel to fix to the top section of the window */
+	targetSize = GetPixelSize(verticalDisplay);
+
+	// avoid programScale is negative
+	auto targetWidth = targetSize.width();
+	auto targetHeight = targetSize.height();
+	if (targetWidth < PREVIEW_EDGE_SIZE * 2) {
+		PLS_WARN(
+			MAIN_PREVIEW_MODULE,
+			"the preview target width:%d was too small, modify to the new value.",
+			targetWidth);
+		targetWidth = PREVIEW_EDGE_SIZE * 2 + 1;
+	}
+	if (targetHeight < PREVIEW_EDGE_SIZE * 2) {
+		PLS_WARN(
+			MAIN_PREVIEW_MODULE,
+			"the preview target height:%d was too small, modify to the new value.",
+			targetHeight);
+		targetHeight = PREVIEW_EDGE_SIZE * 2 + 1;
+	}
+
+	isFixedScaling = verticalDisplay->IsFixedScaling();
+	pls_get_vertical_video_info(&ovi);
+
+	if (isFixedScaling) {
+		verticalDisplay->ClampScrollingOffsets();
+		previewScale[PLSOutputHandler::Vertical] =
+			verticalDisplay->GetScalingAmount();
+		GetCenterPosFromFixedScale(int(cx), int(cy),
+					   targetWidth - PREVIEW_EDGE_SIZE * 2,
+					   targetHeight - PREVIEW_EDGE_SIZE * 2,
+					   previewX[PLSOutputHandler::Vertical],
+					   previewY[PLSOutputHandler::Vertical],
+			previewScale[PLSOutputHandler::Vertical]);
+		previewX[PLSOutputHandler::Vertical] +=
+			verticalDisplay->GetScrollX();
+		previewY[PLSOutputHandler::Vertical] +=
+			verticalDisplay->GetScrollY();
+
+	} else {
+		GetScaleAndCenterPos(int(cx), int(cy),
+				     targetWidth - PREVIEW_EDGE_SIZE * 2,
+				     targetHeight - PREVIEW_EDGE_SIZE * 2,
+				     previewX[PLSOutputHandler::Vertical],
+				     previewY[PLSOutputHandler::Vertical],
+				     previewScale[PLSOutputHandler::Vertical]);
+	}
+
+	previewX[PLSOutputHandler::Vertical] += float(PREVIEW_EDGE_SIZE);
+	previewY[PLSOutputHandler::Vertical] += float(PREVIEW_EDGE_SIZE);
+	nodifyTextmotionBoxsize(cx, cy, true);
+}
+
 #if 0
 obs_data_array_t *OBSBasic::SaveTransitions()
 {

@@ -23,9 +23,8 @@ void GiphyWebHandler::GiphyFetch(const RequestTaskData &task)
 	Append(task);
 }
 
-bool GiphyWebHandler::isHttpRedirect(const QNetworkReply *reply)
+bool GiphyWebHandler::isHttpRedirect(int statusCode)
 {
-	int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
 	return statusCode == 301 || statusCode == 302 || statusCode == 303 || statusCode == 305 || statusCode == 307 || statusCode == 308;
 }
 
@@ -184,7 +183,7 @@ void GiphyWebHandler::StartNextRequest()
 
 void GiphyWebHandler::RequestFinished(const pls::http::Reply &reply)
 {
-	QUrl url = reply.reply()->url();
+	QUrl url = reply.url();
 	taskMutex.lock();
 	RequestTaskData task = currentRequestTask.second;
 	taskMutex.unlock();
@@ -192,11 +191,11 @@ void GiphyWebHandler::RequestFinished(const pls::http::Reply &reply)
 	if (reply.hasErrors()) {
 		PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "http response failed! url = %s, error info = %s\n", url.toEncoded().constData(), qPrintable(reply.errors()));
 		RequestErrorInfo errorInfo;
-		errorInfo.errorText = reply.reply()->errorString();
+		errorInfo.errorText = reply.errors();
 		errorInfo.networkError = reply.error();
 		emit FetchError(task, errorInfo);
 	} else {
-		if (isHttpRedirect(reply.reply())) {
+		if (isHttpRedirect(reply.statusCode())) {
 			PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Request was redirected.\n");
 			RequestErrorInfo errorInfo;
 			errorInfo.errorText = QString("Request was redirected.");

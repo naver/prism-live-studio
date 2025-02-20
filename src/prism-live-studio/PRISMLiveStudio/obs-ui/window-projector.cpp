@@ -9,6 +9,7 @@
 #include "qt-wrappers.hpp"
 #include "platform.hpp"
 #include "multiview.hpp"
+#include "pls/pls-dual-output.h"
 
 QList<OBSProjector *> OBSProjector::multiviewProjectors = {};
 
@@ -23,8 +24,10 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
 {
 	OBSSource source = GetSource();
 	if (source) {
-		destroyedSignal.Connect(obs_source_get_signal_handler(source),
-					"destroy", OBSSourceDestroyed, this);
+		sigs.emplace_back(obs_source_get_signal_handler(source),
+				  "rename", OBSSourceRenamed, this);
+		sigs.emplace_back(obs_source_get_signal_handler(source),
+				  "destroy", OBSSourceDestroyed, this);
 	}
 
 	isAlwaysOnTop = config_get_bool(GetGlobalConfig(), "BasicWindow",
@@ -83,7 +86,7 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
 
 	connect(this, &OBSQTDisplay::DisplayCreated, addDrawCallback);
 	connect(App(), &QGuiApplication::screenRemoved, this,
-		&OBSProjector::ScreenRemoved);
+		&OBSProjector::ScreenRemoved, Qt::QueuedConnection);
 
 	if (type == ProjectorType::Multiview) {
 		multiview = new Multiview();
@@ -106,6 +109,7 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
 
 OBSProjector::~OBSProjector()
 {
+	sigs.clear();
 	bool isMultiview = type == ProjectorType::Multiview;
 	obs_display_remove_draw_callback(
 		GetDisplay(), isMultiview ? OBSRenderMultiview : OBSRender,
@@ -205,7 +209,11 @@ void OBSProjector::OBSRender(void *data, uint32_t cx, uint32_t cy)
 		}
 	} else {
 		struct obs_video_info ovi;
-		obs_get_video_info(&ovi);
+		if (window->isVerticalPreview) {
+			pls_get_vertical_video_info(&ovi);
+		} else {
+			obs_get_video_info(&ovi);
+		}
 		targetCX = ovi.base_width;
 		targetCY = ovi.base_height;
 	}
@@ -241,13 +249,28 @@ void OBSProjector::OBSRender(void *data, uint32_t cx, uint32_t cy)
 			calldata_t cd = {0};
 			proc_handler_call(ph, "chat_browser_render", &cd);
 			calldata_free(&cd);
-		}else
-			obs_source_video_render(source);
+		} else {
+			window->isVerticalPreview
+				? obs_source_video_render(source)
+				: pls_source_video_render_vertical(source);
+		}
+	} else {
+		window->isVerticalPreview ? pls_render_vertical_main_texture()
+					  : obs_render_main_texture();
 	}
-	else
-		obs_render_main_texture();
 
 	endRegion();
+}
+
+void OBSProjector::OBSSourceRenamed(void *data, calldata_t *params)
+{
+	OBSProjector *window = reinterpret_cast<OBSProjector *>(data);
+	QString oldName = calldata_string(params, "prev_name");
+	QString newName = calldata_string(params, "new_name");
+
+	QMetaObject::invokeMethod(window, "RenameProjector",
+				  Q_ARG(QString, oldName),
+				  Q_ARG(QString, newName));
 }
 
 void OBSProjector::OBSSourceDestroyed(void *data, calldata_t *)
@@ -719,7 +742,11 @@ void OBSProjector::ResizeToContent()
 		targetCY = std::max(obs_source_get_height(source), 1u);
 	} else {
 		struct obs_video_info ovi;
-		obs_get_video_info(&ovi);
+		if (isVerticalPreview) {
+			pls_get_vertical_video_info(&ovi);
+		} else {
+			obs_get_video_info(&ovi);
+		}
 		targetCX = ovi.base_width;
 		targetCY = ovi.base_height;
 	}

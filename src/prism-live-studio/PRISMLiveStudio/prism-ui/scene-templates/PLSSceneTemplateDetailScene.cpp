@@ -1,4 +1,5 @@
 #include "PLSSceneTemplateDetailScene.h"
+#include "PLSSceneTemplateContainer.h"
 #include "ui_PLSSceneTemplateDetailScene.h"
 #include "obs-app.hpp"
 #include "libui.h"
@@ -28,7 +29,7 @@ PLSSceneTemplateDetailScene::~PLSSceneTemplateDetailScene()
 bool PLSSceneTemplateDetailScene::eventFilter(QObject *watched, QEvent *event)
 {
 	if (watched == ui->detailSceneNameLabel && event->type() == QEvent::Resize) {
-		QString text = ui->detailSceneNameLabel->fontMetrics().elidedText(m_item.title, Qt::ElideRight, ui->detailSceneNameLabel->maximumWidth());
+		QString text = ui->detailSceneNameLabel->fontMetrics().elidedText(m_item.title(), Qt::ElideRight, ui->detailSceneNameLabel->maximumWidth());
 		ui->detailSceneNameLabel->setText(text);
 	}
 	return QWidget::eventFilter(watched, event);
@@ -77,25 +78,21 @@ void PLSSceneTemplateDetailScene::updateUI(const SceneTemplateItem &model)
 	m_item = model;
 	m_sceneNames = PLSNodeManager::instance()->getScenesNames(m_item);
 
-	ui->detailSceneNameLabel->setText(model.title);
-	QString resolution = QString("%1 x %2").arg(model.width).arg(model.height);
+	ui->detailSceneNameLabel->setText(model.title());
+	QString resolution = QString("%1 x %2").arg(model.width()).arg(model.height());
 	ui->detailResolutionLabel->setText(QTStr("SceneTemplate.Detail.Scene.Resolution").arg(resolution));
-	ui->detailSceneTipButton->setVisible(model.width < model.height);
+	ui->detailSceneTipButton->setVisible(model.width() < model.height());
 	if (ui->detailSceneTipButton->isHidden()) {
 		ui->horizontalSpacer_4->changeSize(0, 0);
 	} else {
 		ui->horizontalSpacer_4->changeSize(4, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
 	}
-	QString sceneCount = QTStr("SceneTemplate.Scene.Count").arg(model.scenesNumber);
+	QString sceneCount = QTStr("SceneTemplate.Scene.Count").arg(model.scenesNumber());
 	ui->detailSceneCountLabel->setText(sceneCount);
-	if (model.groupId == SceneTemplateDefine::SCNENE_TEMPLATE_NEW) {
-		ui->detailSceneIconLabel->setProperty("type", SceneTemplateDefine::SCNENE_TEMPLATE_NEW);
-	} else if (model.groupId == SceneTemplateDefine::SCNENE_TEMPLATE_HOT) {
-		ui->detailSceneIconLabel->setProperty("type", SceneTemplateDefine::SCNENE_TEMPLATE_HOT);
-	}
 
-	for (int i = 0; i < model.resource.DetailSceneThumbnailPathList.count(); i++) {
-		const QString &path = model.resource.DetailSceneThumbnailPathList[i];
+	auto thumbnailList = model.resource.detailSceneThumbnailPathList();
+	for (int i = 0; i < thumbnailList.count(); i++) {
+		const QString &path = thumbnailList[i];
 		if (PLS_SCENE_TEMPLATE_MEDIA_MANAGE->isVideoType(path)) {
 			auto *videoView = PLS_SCENE_TEMPLATE_MEDIA_MANAGE->getVideoViewByPath(path);
 			PLS_SCENE_TEMPLATE_MEDIA_MANAGE->startPlayVideo(path, videoView);
@@ -112,12 +109,21 @@ void PLSSceneTemplateDetailScene::updateUI(const SceneTemplateItem &model)
 		}
 	}
 	ui->verticalResourceLayout->addStretch();
-	if (model.resource.DetailSceneThumbnailPathList.count() > 0) {
-		const QString &path = model.resource.DetailSceneThumbnailPathList[0];
+	if (thumbnailList.count() > 0) {
+		const QString &path = thumbnailList[0];
 		setSelectedViewBorder(path, 0);
 		ui->scrollArea->ensureVisible(0, 0);
 	}
 	pls_flush_style_recursive(this);
+
+	auto pDialog = qobject_cast<PLSSceneTemplateContainer *>(pls_get_toplevel_view(this));
+	if (nullptr != pDialog && model.isAI()) {
+		ui->mainSceneImageView->showAIBadge(pDialog->getAILongBadge(), true);
+		ui->mainSceneVideoView->showAIBadge(pDialog->getAILongBadge(), true);
+	} else {
+		ui->mainSceneImageView->showAIBadge(QPixmap(), true);
+		ui->mainSceneVideoView->showAIBadge(QPixmap(), true);
+	}
 }
 
 void PLSSceneTemplateDetailScene::setSelectedViewBorder(const QString &path, int iIndex)
@@ -153,7 +159,13 @@ void PLSSceneTemplateDetailScene::setSelectedViewBorder(const QString &path, int
 
 void PLSSceneTemplateDetailScene::on_installButton_clicked()
 {
+	if (QDateTime::currentMSecsSinceEpoch() - m_dtLastInstall < 1000) {
+		return;
+	}
+
 	ui->installButton->startInstall();
 	bool res = pls_install_scene_template(m_item);
 	ui->installButton->endInstall();
+
+	m_dtLastInstall = QDateTime::currentMSecsSinceEpoch();
 }

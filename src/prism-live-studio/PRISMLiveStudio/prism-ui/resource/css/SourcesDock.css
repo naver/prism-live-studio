@@ -3,6 +3,8 @@ PLSDock#sourcesDock {
 	qproperty-contentMarginRight: /*hdpi*/ 1;
 	qproperty-contentMarginBottom: /*hdpi*/ 1;
 	background-color: #272727;
+	min-width: /*hdpi*/ 212px;
+	min-height: /*hdpi*/ 132px;
 }
 
 PLSDock#sourcesDock QScrollBar::handle:vertical {

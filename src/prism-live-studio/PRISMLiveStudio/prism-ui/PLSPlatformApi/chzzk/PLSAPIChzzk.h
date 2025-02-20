@@ -9,7 +9,7 @@ namespace PLSAPIChzzk {
 
 void configDefaultRequest(const pls::http::Request &_request, const QObject *receiver, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed,
 			  const PLSAPICommon::errorCallback &onFailed, const QByteArray &logName = {}, bool isSetContentType = true);
-void addCommenCookieAndUserKey(const pls::http::Request &_request);
+void addCommonCookieAndUserKey(const pls::http::Request &_request);
 
 void requestChannelList(const QObject *receiver, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
 			PLSAPICommon::RefreshType refreshType);

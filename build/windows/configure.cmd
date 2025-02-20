@@ -18,7 +18,7 @@ if "%1"=="RelWithDebInfo" (
 )
 
 set ENABLE_TEST=OFF
-if "%PACK_TYPE_ARG%"=="daily" (
+if "%PACK_TYPE_ARG%"=="test" (
 	set ENABLE_TEST=ON
 ) else (
 	for %%i in (%*) do (
@@ -26,7 +26,11 @@ if "%PACK_TYPE_ARG%"=="daily" (
 	)
 )
 
+if "%ENABLE_TEST%"=="ON" echo unit test enabled.
+
 call common_values.cmd
+
+if ERRORLEVEL 1 exit /b 1
 rem cd %_PROJECT_DIR%
 rem git submodule update --init --recursive
 

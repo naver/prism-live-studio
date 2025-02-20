@@ -21,7 +21,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "RC Files" FILES ${fronte
 
 add_library(frontend-api SHARED ${frontend-api-SRC_FILES} ${frontend-api-HDR_FILES} ${frontend-api-UI_FILES} ${frontend-api-QRC_FILES} ${css_files})
 add_library(prism::frontend-api ALIAS frontend-api)
-target_link_libraries(frontend-api Qt6::Widgets OBS::libobs OBS::frontend-api common-libs::utils-api common-libs::http-client common-libs::log common-libs::ui)
+target_link_libraries(frontend-api Qt6::Widgets OBS::libobs OBS::frontend-api common-libs::utils-api common-libs::http-client common-libs::log common-libs::ui common-libs::resource)
 if(OS_WINDOWS)
 target_include_directories(frontend-api PUBLIC ${CMAKE_SOURCE_DIR}/obs-studio/deps/w32-pthreads ${CMAKE_SOURCE_DIR}/obs-studio/deps/libcaption)
 elseif(OS_MACOS)

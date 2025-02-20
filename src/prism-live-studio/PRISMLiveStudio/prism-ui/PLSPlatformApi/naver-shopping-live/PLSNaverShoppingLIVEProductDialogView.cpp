@@ -400,7 +400,7 @@ static void processScrollContentMarginRight(PLSNaverShoppingLIVEProductDialogVie
 	}
 }
 
-void pls_login_async(const std::function<void(bool ok, const QJsonObject &result)> &callback, const QString &platformName, QWidget *parent, PLSLoginInfo::UseFor useFor);
+void pls_login_async(const std::function<void(bool ok, const QVariantHash &result)> &callback, const QString &platformName, QWidget *parent, PLSLoginInfo::UseFor useFor);
 
 PLSNaverShoppingLIVEProductDialogView::PLSNaverShoppingLIVEProductDialogView(PLSPlatformNaverShoppingLIVE *platform_, PLSProductType productType_, const QList<Product> &selectedProducts_,
 									     const QList<Product> &otherProducts_, bool isLiving_, bool isPlanningLive_, QWidget *parent)
@@ -1145,6 +1145,11 @@ void PLSNaverShoppingLIVEProductDialogView::onProductItemAddRemoveButtonClicked(
 		syncItemViewSelectedState(itemViews, productNo, false);
 	} else if (selectedProducts.count() < MAX_SELECTED_PRODUCT_COUNT) {
 		auto details = itemView->getDetails();
+		if (!details.attachable) {
+			PLSAlertView::warning(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Unattachable"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
+			return;
+		}
+
 		if (!details.isMinorPurchasable) {
 			pls_alert_error_message(this, tr("Alert.Title"), tr("navershopping.liveinfo.age.restrict.product"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
 			return;
@@ -1152,11 +1157,6 @@ void PLSNaverShoppingLIVEProductDialogView::onProductItemAddRemoveButtonClicked(
 
 		if (isOtherProductNo(productNo)) {
 			PLSAlertView::warning(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Existed"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
-			return;
-		}
-
-		if (!details.attachable) {
-			PLSAlertView::warning(this, tr("Alert.Title"), tr("NaverShoppingLive.LiveInfo.Live.Products.Unattachable"), PLSAlertView::Button::Ok, PLSAlertView::Button::Ok);
 			return;
 		}
 
@@ -1501,7 +1501,7 @@ void PLSNaverShoppingLIVEProductDialogView::on_storeChangeStoreButton_clicked()
 	emit smartStoreChanged();
 
 	pls_login_async(
-		[this, manager](bool ok, const QJsonObject &result) {
+		[this, manager](bool ok, const QVariantHash &result) {
 			if (ok) {
 				manager->setSmartStoreAccessToken(platform, result[ChannelData::g_channelToken].toString());
 			} else {
@@ -1519,7 +1519,7 @@ void PLSNaverShoppingLIVEProductDialogView::on_noSmartStoreButton_clicked()
 		PLS_UI_STEP(MODULE_NAVER_SHOPPING_LIVE_PRODUCT_MANAGER, "No Store Retry Button", ACTION_CLICK);
 
 		pls_login_async(
-			[this](bool ok, const QJsonObject &result) {
+			[this](bool ok, const QVariantHash &result) {
 				if (ok) {
 					PLSNaverShoppingLIVEDataManager::instance()->setSmartStoreAccessToken(platform, result[ChannelData::g_channelToken].toString());
 				}

@@ -84,7 +84,7 @@ private:
 	void PLSSetupVisibilityItem(QListWidget* list, QListWidgetItem* item,
 		obs_source_t* source);
 
-	bool isAsync;
+	bool isAsync = false;
 
 	int noPreviewMargin;
 

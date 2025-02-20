@@ -53,6 +53,8 @@ private slots:
 	void onFoldUpButtonClick();
 	void onFoldDownButtonClick();
 
+	void updateAllChannelsByDualOutput(bool bOpen);
+
 protected:
 	void changeEvent(QEvent *e) override;
 
@@ -91,7 +93,7 @@ private:
 	void updateAllChannelsUi();
 	void delayUpdateAllChannelsUi();
 	void hideLoading();
-
+	
 	void initScollButtons();
 	void checkScrollButtonsState(ScrollDirection direction = ScrollDirection::ForwardScroll);
 	bool isScrollButtonsNeeded() const;

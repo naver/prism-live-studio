@@ -84,12 +84,12 @@ PLSMainView::PLSMainView(QWidget *parent) : PLSToplevelView<QFrame>(parent)
 	runNewDetect();
 #endif
 
-	pls_set_css(this, {"PLSMainView", "HelpMenu"});
 	pls_set_main_view(this);
 	setWindowIcon(QIcon(":/resource/images/logo/PRISMLiveStudio.ico"));
 
 	ui = pls_new<Ui::PLSMainView>();
 	ui->setupUi(this);
+	pls_set_css(this, {"PLSMainView", "HelpMenu"});
 
 	ui->logo_update->setAttribute(Qt::WA_NativeWindow);
 #if defined(Q_OS_WIN)
@@ -429,7 +429,6 @@ void PLSMainView::on_help_clicked()
 	if (isChecked) {
 		QListWidgetItem *checkListWidgetItem = m_helpListWidget->item(CheckForUpdate);
 		PLSNewIconActionWidget *checkMenuItem = dynamic_cast<PLSNewIconActionWidget *>(m_helpListWidget->itemWidget(checkListWidgetItem));
-		checkMenuItem->setBadgeVisible(PLSBasic::instance()->getUpdateResult() == AppUpdateResult::AppHasUpdate);
 		bool disabled = pls_is_output_actived();
 		if (disabled) {
 			checkListWidgetItem->setFlags(checkListWidgetItem->flags() & ~Qt::ItemIsEnabled);
@@ -503,6 +502,22 @@ void PLSMainView::showVirtualCameraTips(const QString &tips)
 	} else {
 		btn->setToolTip(QTStr("Basic.Main.StartVirtualCam"));
 	}
+}
+
+void PLSMainView::showStudioModeTips(const QString& tips)
+{
+	static QPointer<ResolutionTipFrame> last = nullptr;
+	if (last) {
+		last->on_CloseBtn_clicked();
+	}
+
+	if (!tips.isEmpty()) {
+		last = createSidebarTipFrame(tips, ui->studioMode, true, "StudioModeTipsLabel");
+	}
+}
+
+void PLSMainView::setStudioModeChecked(bool bValue) {
+	ui->studioMode->setChecked(bValue);
 }
 
 void PLSMainView::closeMobileDialog() const
@@ -761,32 +776,7 @@ bool PLSMainView::eventFilter(QObject *watcher, QEvent *event)
 
 void PLSMainView::updateAppView()
 {
-	PLS_UI_STEP(MAINMENU_MODULE, "Left Corner Logo Check Update", ACTION_CLICK);
-	auto basic = PLSBasic::instance();
-	if (basic) {
-		if (m_requestUpdate) {
-			return;
-		}
-		m_requestUpdate = true;
-		basic->CheckAppUpdate();
-		PLS_INFO(MAINMENU_MODULE, "Left Corner Logo Finished Check Update");
-		pls_modal_check_app_exiting();
-		if (basic->getUpdateResult() == AppUpdateResult::AppHasUpdate) {
-			PLS_INFO(MAINMENU_MODULE, "Left Corner Logo ShowUpdateView");
-			if (basic->ShowUpdateView(basic->getMainView())) {
-				PLS_INFO(MAINMENU_MODULE, "Left Corner Logo StartDownloading");
-				QMetaObject::invokeMethod(basic, &PLSBasic::startDownloading, Qt::QueuedConnection);
-			}
-		} else if (basic->getUpdateResult() == AppUpdateResult::AppNoUpdate) {
-			PLS_INFO(MAINMENU_MODULE, "Left Corner Logo Show About View");
-			PLSAboutView aboutView;
-			if (aboutView.exec() == PLSAboutView::Accepted) {
-				basic->on_checkUpdate_triggered();
-			}
-			PLS_INFO(MAINMENU_MODULE, "Left Corner Logo Finished Show About View");
-		}
-		m_requestUpdate = false;
-	}
+
 }
 
 void PLSMainView::on_settings_clicked()
@@ -878,6 +868,10 @@ void PLSMainView::registerSideBarButton(ConfigId id, const IconData &data, bool 
 		btn = pls_new<PLSIconButton>(this);
 		btn->setProperty("useFor", "sceneTemplate");
 		layout->addWidget(btn, 0, Qt::AlignHCenter | Qt::AlignTop);
+	} else if (ConfigId::DualOutputConfig == id) {
+		btn = pls_new<PLSIconButton>(this);
+		btn->setProperty("useFor", "dualOutput");
+		layout->addWidget(btn, 0, Qt::AlignHCenter | Qt::AlignTop);
 	} else {
 		btn = pls_new<QPushButton>(this);
 		layout->addWidget(btn, 0, Qt::AlignHCenter | Qt::AlignTop);
@@ -906,6 +900,10 @@ void PLSMainView::registerSideBarButton(ConfigId id, const IconData &data, bool 
 }
 void PLSMainView::initSideBarButtons()
 {
+	registerSideBarButton(ConfigId::DualOutputConfig,
+			      IconData{PRISM_DUALOUTPUT_OFF_NORMAL, PRISM_DUALOUTPUT_OFF_OVER, PRISM_DUALOUTPUT_OFF_CLICKED, PRISM_DUALOUTPUT_OFF_DISABLE, PRISM_DUALOUTPUT_ON_NORMAL,
+				       PRISM_DUALOUTPUT_ON_OVER, PRISM_DUALOUTPUT_ON_CLICKED, PRISM_DUALOUTPUT_ON_DISABLE, QTStr("DualOutput.Title"), 22, 22, 22, 22});
+
 	registerSideBarButton(ConfigId::ChatConfig, IconData{CHAT_OFF_NORMAL, CHAT_OFF_OVER, CHAT_OFF_CLICKED, CHAT_OFF_DISABLE, CHAT_ON_NORMAL, CHAT_ON_OVER, CHAT_ON_CLICKED, CHAT_ON_DISABLE,
 							     QTStr("main.rightbar.chat.tooltip"), 22, 22, 22, 22});
 
@@ -1115,6 +1113,30 @@ bool PLSMainView::setSidebarButtonVisible(int windowId, bool visible)
 	}
 	return false;
 }
+
+bool PLSMainView::setSidebarButtonEnabled(int windowId, bool enabled)
+{
+	if (sideBarBtnGroup) {
+		auto button = sideBarBtnGroup->button(windowId);
+		if (button) {
+			button->setEnabled(enabled);
+			return true;
+		}
+	}
+	return false;
+}
+
+void PLSMainView::setStudioModeEnabled(bool enabled)
+{
+	ui->studioMode->setEnabled(enabled);
+}
+
+void PLSMainView::setStudioModeDimmed(bool bValue)
+{
+	ui->studioMode->setProperty("dimmed", bValue);
+	pls_flush_style(ui->studioMode);
+}
+
 void PLSMainView::toastMessage(pls_toast_info_type type, const QString &message, int)
 {
 	QString mesIngoreChar = message;

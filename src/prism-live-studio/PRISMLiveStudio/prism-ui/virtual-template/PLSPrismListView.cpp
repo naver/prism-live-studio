@@ -1,6 +1,6 @@
 #include "PLSPrismListView.h"
 #include "ui_PLSPrismListView.h"
-#include "PLSMotionNetwork.h"
+#include "CategoryVirtualTemplate.h"
 #include "PLSMotionItemView.h"
 #include "PLSMotionFileManager.h"
 #include <QTimer>
@@ -10,7 +10,7 @@
 #include "log/module_names.h"
 #include "PLSBasic.h"
 
-PLSPrismListView::PLSPrismListView(QWidget *parent) : QFrame(parent)
+PLSPrismListView::PLSPrismListView(const QString &groupId_, QWidget *parent) : QFrame(parent), groupId(groupId_)
 {
 	ui = pls_new<Ui::PLSPrismListView>();
 	ui->setupUi(this);
@@ -19,6 +19,7 @@ PLSPrismListView::PLSPrismListView(QWidget *parent) : QFrame(parent)
 	setRemoveRetainSizeWhenHidden(ui->emptyWidget);
 	connect(ui->previewBtn, &QPushButton::clicked, ui->listFrame, &PLSImageListView::filterButtonClicked);
 	ui->emptyWidget->setHidden(true);
+	initListView();
 }
 
 PLSPrismListView::~PLSPrismListView()
@@ -41,31 +42,19 @@ void PLSPrismListView::clearSelectedItem()
 	ui->listFrame->clearSelectedItem();
 }
 
-void PLSPrismListView::initListView(bool freeView)
+void PLSPrismListView::initListView()
 {
-	m_freeView = freeView;
-
 	//retry button logic
 	connect(ui->retryButton, &QPushButton::clicked, this, &PLSPrismListView::retryDownloadList);
 
 	//when the single resource download finished, refresh the flow layout, because ux required
-	if (m_freeView) {
-		connect(PLSMotionNetwork::instance(), &PLSMotionNetwork::freeResourceDownloadFinished, this, [this](const MotionData &md, bool update) {
-			if (!update) {
-				initItemListView();
-			} else {
-				updateItem(md);
-			}
-		});
-	} else {
-		connect(PLSMotionNetwork::instance(), &PLSMotionNetwork::prismResourceDownloadFinished, this, [this](const MotionData &md, bool update) {
-			if (!update) {
-				initItemListView();
-			} else {
-				updateItem(md);
-			}
-		});
-	}
+	connect(CategoryVirtualTemplateInstance, &CategoryVirtualTemplate::resourceDownloadFinished, this, [this](const MotionData &md, bool update) {
+		if (!update) {
+			initItemListView();
+		} else {
+			updateItem(md);
+		}
+	});
 
 	//init the list view
 	initItemListView();
@@ -88,24 +77,12 @@ void PLSPrismListView::setFilterButtonVisible(bool visible)
 
 void PLSPrismListView::initLoadingView()
 {
-	const PLSMotionNetwork *mn = PLSMotionNetwork::instance();
 	//when the prism list download finished, if request count is zero, show NodataUI, if not show list view
-	if (m_freeView) {
-		connect(mn, &PLSMotionNetwork::freeListStartedSignal, this, &PLSPrismListView::itemListStarted);
-		connect(mn, &PLSMotionNetwork::freeListFinishedSignal, this, &PLSPrismListView::itemListFinished);
-		if (mn->freeRequestFinished()) {
-			itemListFinished();
-		} else if (ui->listFrame->getShowViewListCount() == 0) {
-			showLoading();
-		}
-	} else {
-		connect(mn, &PLSMotionNetwork::prismListStartedSignal, this, &PLSPrismListView::itemListStarted);
-		connect(mn, &PLSMotionNetwork::prismListFinishedSignal, this, &PLSPrismListView::itemListFinished);
-		if (mn->prismRequestFinished()) {
-			itemListFinished();
-		} else if (ui->listFrame->getShowViewListCount() == 0) {
-			showLoading();
-		}
+	connect(CategoryVirtualTemplateInstance, &CategoryVirtualTemplate::groupListFinishedSignal, this, &PLSPrismListView::itemListFinished);
+	if (CategoryVirtualTemplateInstance->groupDownloadRequestFinished(groupId)) {
+		itemListFinished();
+	} else if (ui->listFrame->getShowViewListCount() == 0) {
+		showLoading();
 	}
 }
 
@@ -137,12 +114,7 @@ void PLSPrismListView::setRemoveRetainSizeWhenHidden(QWidget *widget) const
 void PLSPrismListView::initItemListView()
 {
 	//enumeration the list
-	QList<MotionData> list;
-	if (m_freeView) {
-		list = PLSMotionNetwork::instance()->getFreeCacheList();
-	} else {
-		list = PLSMotionNetwork::instance()->getPrismCacheList();
-	}
+	QList<MotionData> list = CategoryVirtualTemplateInstance->getGroupList(groupId);
 
 	QList<MotionData> copied;
 	if (!PLSMotionFileManager::instance()->copyListForPrism(copied, m_list, list)) {
@@ -182,20 +154,10 @@ void PLSPrismListView::retryDownloadList()
 {
 	ui->emptyWidget->setHidden(true);
 	ui->listFrame->setHidden(false);
-	retryClicked = true;
+	retryClickedId = groupId;
 	showLoading();
 
-	auto callback = []() {
-		PLSMotionNetwork::instance()->downloadFreeListRequest();
-		PLSMotionNetwork::instance()->downloadPrismListRequest();
-	};
-
-	if (!PLSMotionFileManager::instance()->isVirtualTemplateJsonExisted()) {
-		PLSMotionFileManager::instance()->downloadVirtualJson(callback, callback);
-		return;
-	}
-
-	callback();
+	CategoryVirtualTemplateInstance->download();
 }
 
 void PLSPrismListView::itemListStarted()
@@ -210,10 +172,10 @@ void PLSPrismListView::itemListFinished()
 	ui->listFrame->setHidden(zero);
 	hideLoading();
 
-	if (zero && retryClicked) {
+	if (zero && retryClickedId == groupId) {
+		retryClickedId.clear();
 		PLSAlertView::warning(PLSBasic::instance()->GetPropertiesWindow(), tr("Alert.Title"), tr("login.check.note.network"));
 	}
-	retryClicked = false;
 }
 
 void PLSPrismListView::showLoading()
@@ -259,10 +221,6 @@ void PLSPrismListView::hideLoading()
 QRect PLSPrismListView::getLoadingBGRect()
 {
 	QRect rect = ui->retryWidget->rect();
-	if (m_forProperties) {
-		rect -= QMargins(0, 0, 10, 0);
-	} else {
-		rect -= QMargins(0, 0, 15, 15);
-	}
+	rect -= QMargins(0, 0, 10, 0);
 	return rect;
 }

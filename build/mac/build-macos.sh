@@ -84,7 +84,7 @@ setup_default_config() {
            if [ "${IGNORE_SYNC}" ]; then
             info "ignore download sync by command line"
         else
-            /usr/bin/python3 "${SCRIPT_PATH}/../common/downSyncJson.py" "${PRISM_SRC_DIR}/PRISMLiveStudio" ${PRISM_DEV_PYTHON_DOWNLOAD}
+            /usr/bin/python3 "${SCRIPT_PATH}/../common/downSyncJson.py" --path="${PRISM_SRC_DIR}/PRISMLiveStudio" -v=${VERSION} ${PRISM_DEV_PYTHON_DOWNLOAD}
         fi
         
 
@@ -115,6 +115,9 @@ prism-build-main() {
             --ignore-gpop ) IGNORE_GPOP=TRUE; shift ;;
             -t | --temp ) CITEMP=TRUE; shift ;;
             --dev-download) PRISM_DEV_PYTHON_DOWNLOAD="--dev"; shift ;;
+            --test ) export ENABLE_TEST=ON; shift ;;
+             -v | --version ) export VERSION="${2}"; shift 2 ;;
+            --qt-dir ) export QTDIR="${2}"; shift 2 ;;
             -- ) shift; break ;;
             * ) break ;;
         esac

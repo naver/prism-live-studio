@@ -11,8 +11,7 @@
 
 #include "PLSScheduleCombox.h"
 #include "PLSScheduleComboxMenu.h"
-
-enum class PLSYoutubeLatency;
+#include "PLSPlatformYoutube.h"
 
 namespace Ui {
 class PLSLiveInfoYoutube;
@@ -83,7 +82,7 @@ private slots:
 
 	void refreshThumbnailButton();
 	void onImageSelected(const QString &imageFilePath) const;
-	PLSYoutubeLatency getUILatency() const;
+	PLSYoutubeLiveinfoData::Latency getUILatency() const;
 };
 
 #endif // PLSLIVEINFOYOUTUBE_H

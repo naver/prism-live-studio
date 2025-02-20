@@ -76,7 +76,7 @@ void B2BResolutionGuideItem::setThumbnail()
 	auto mainIconPath = getPlatformImageFromName(m_data.serviceName, channel_data::ImageType::tagIcon);
 	if (!QFile::exists(m_data.streamingPresetThumbnail)) {
 		if (!mainIconPath.isEmpty()) {
-			QString tmpPath = QString("PRISMLiveStudio/library/library_Policy_PC/%1").arg(mainIconPath);
+			QString tmpPath = QString("PRISMLiveStudio/resources/library/library_Policy_PC/%1").arg(mainIconPath);
 			tmpPath = pls_get_user_path(tmpPath);
 			if (QFile::exists(tmpPath)) {
 				PLS_INFO("GuidePage", "use sync server path ! path is %s", tmpPath.toUtf8().constData());

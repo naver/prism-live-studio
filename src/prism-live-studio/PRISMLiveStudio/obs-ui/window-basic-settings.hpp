@@ -31,6 +31,7 @@
 #include <PLSDialogView.h>
 #include "ResolutionGuidePage.h"
 #include "ffmpeg-utils.hpp"
+#include "frontend-api.h"
 
 class OBSBasic;
 class QAbstractButton;
@@ -38,6 +39,7 @@ class QRadioButton;
 class QComboBox;
 class QCheckBox;
 class QLabel;
+class QButtonGroup;
 class OBSPropertiesView;
 class OBSHotkeyWidget;
 class PLSPropertiesView;
@@ -82,6 +84,9 @@ public slots:
 		blockSignals(blocked);
 	}
 };
+
+std::string DeserializeConfigText(const char *value);
+
 class OBSBasicSettings : public PLSDialogView {
 	Q_OBJECT
 	Q_PROPERTY(QIcon generalIcon READ GetGeneralIcon WRITE SetGeneralIcon
@@ -100,6 +105,18 @@ class OBSBasicSettings : public PLSDialogView {
 			   SetAccessibilityIcon DESIGNABLE true)
 	Q_PROPERTY(QIcon advancedIcon READ GetAdvancedIcon WRITE SetAdvancedIcon
 			   DESIGNABLE true)
+
+	enum Pages {
+		GENERAL,
+		STREAM,
+		OUTPUT,
+		AUDIO,
+		VIDEO,
+		HOTKEYS,
+		ACCESSIBILITY,
+		ADVANCED,
+		NUM_PAGES
+	};
 
 private:
 	OBSBasic *main;
@@ -196,6 +213,8 @@ private:
 		      const char *value);
 	void SaveSpinBox(QSpinBox *widget, const char *section,
 			 const char *value);
+	void SaveText(QPlainTextEdit *widget, const char *section,
+		      const char *value);
 	void SaveFormat(QComboBox *combo);
 	void SaveEncoder(QComboBox *combo, const char *section,
 			 const char *value);
@@ -261,6 +280,7 @@ private:
 	void
 	LoadHotkeySettings(obs_hotkey_id ignoreKey = OBS_INVALID_HOTKEY_ID);
 	void LoadA11ySettings(bool presetChange = false);
+	void LoadAppearanceSettings(bool reload = false);
 	void LoadAdvancedSettings();
 	void LoadSettings(bool changedOnly);
 	void LoadSceneDisplayMethodSettings();
@@ -269,17 +289,19 @@ private:
 
 	bool IgnoreInvisibleHotkeys(obs_source_t *source, const char *name);
 
-	OBSPropertiesView *CreateEncoderPropertyView(const char *encoder,
-						     const char *path,
-						     bool changed = false);
+	OBSPropertiesView *
+	CreateEncoderPropertyView(const char *encoder, const char *path,
+				  bool changed = false,
+				  bool bChzzkKeyframeTip = false);
 
 	/* general */
 	void LoadLanguageList();
+	void LoadThemeList(bool firstLoad);
 	void LoadBranchesList();
 
 	/* stream */
 	void InitStreamPage();
-	inline bool IsCustomService() const;
+	bool IsCustomService() const;
 	inline bool IsWHIP() const;
 	void LoadServices(bool showAll);
 	void OnOAuthStreamKeyConnected();
@@ -297,9 +319,12 @@ private:
 	void UpdateVodTrackSetting();
 	void UpdateServiceRecommendations();
 	void UpdateMoreInfoLink();
-	//void UpdateAdvNetworkGroup();
+	void UpdateAdvNetworkGroup();
+
+	bool IsCustomServer();
 
 private slots:
+	void UpdateMultitrackVideo();
 	void RecreateOutputResolutionWidget();
 	bool UpdateResFPSLimits();
 	void DisplayEnforceWarning(bool checked);
@@ -309,6 +334,7 @@ private slots:
 	void on_disconnectAccount_clicked();
 	void on_useStreamKey_clicked();
 	void on_useAuth_toggled();
+	void on_server_currentIndexChanged(int index);
 
 	void on_pushButton_clicked();
 	void on_hotkeyFilterReset_clicked();
@@ -341,8 +367,9 @@ private:
 	void LoadRendererList();
 	void ResetDownscales(uint32_t cx, uint32_t cy,
 			     bool ignoreAllSignals = false);
-	void LoadDownscaleFilters();
+	void LoadDownscaleFilters(bool bHorizontal);
 	void LoadResolutionLists();
+	void LoadVerticalResolutionLists();
 	void LoadFPSData();
 
 	/* a11y */
@@ -366,8 +393,10 @@ private:
 	void SaveOutputSettings();
 	void SaveAudioSettings();
 	void SaveVideoSettings();
+	void SaveVerticalVideoSettings();
 	void SaveHotkeySettings();
 	void SaveA11ySettings();
+	void SaveAppearanceSettings();
 	void SaveAdvancedSettings();
 	void SaveSettings();
 	void SaveSceneDisplayMethodSettings() const;
@@ -391,6 +420,7 @@ private:
 	void FillAudioMonitoringDevices();
 
 	void RecalcOutputResPixels(const char *resText);
+	void RecalcResPixels(QLabel *label, const char *resText);
 
 	bool AskIfCanCloseSettings();
 
@@ -398,6 +428,7 @@ private:
 	bool prepareStreamServiceData(QStringList &names) const;
 
 	QIcon generalIcon;
+	QIcon appearanceIcon;
 	QIcon streamIcon;
 	QIcon outputIcon;
 	QIcon audioIcon;
@@ -407,6 +438,7 @@ private:
 	QIcon advancedIcon;
 
 	QIcon GetGeneralIcon() const;
+	QIcon GetAppearanceIcon() const;
 	QIcon GetStreamIcon() const;
 	QIcon GetOutputIcon() const;
 	QIcon GetAudioIcon() const;
@@ -432,6 +464,7 @@ private:
 	ResolutionGuidePage::CannotTipObject mCannotTip;
 
 private slots:
+
 	void on_listWidget_itemSelectionChanged();
 	void on_buttonBox_clicked(QAbstractButton *button);
 
@@ -492,8 +525,6 @@ private slots:
 
 	void UpdateStreamDelayEstimate();
 
-	void UpdateAdvNetworkGroup();
-
 	void UpdateAutomaticReplayBufferCheckboxes();
 
 	void AdvOutSplitFileChanged();
@@ -535,6 +566,9 @@ private slots:
 	void SimpleStreamEncoderCheckWarnings();
 	void calculateErrorMsgSize();
 
+	void showNormalSetting();
+	void showDualoutputSetting();
+
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
 	void reject() override;
@@ -544,7 +578,7 @@ protected:
 public:
 	OBSBasicSettings(QWidget *parent);
 	~OBSBasicSettings();
-	void switchTo(const QString &tab, const QString &group) const;
+	void switchToDualOutputMode(const QString &tab, const QString &group) const;
 	void cancel();
 
 	enum class AlertMessageType { Error, Warning };

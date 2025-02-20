@@ -28,7 +28,13 @@ void PLSSceneTemplateMainSceneInstallView::on_detailButton_clicked()
 
 void PLSSceneTemplateMainSceneInstallView::on_installButton_clicked() 
 {
+	if (QDateTime::currentMSecsSinceEpoch() - m_dtLastInstall < 1000) {
+		return;
+	}
+
     ui->installButton->startInstall();
     bool res = pls_install_scene_template(m_item);
     ui->installButton->endInstall();
+
+	m_dtLastInstall = QDateTime::currentMSecsSinceEpoch();
 }

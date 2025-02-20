@@ -241,3 +241,29 @@ PLSLiveInfoBase #CheckInvalidTipCloseBtn {
 	PLSLiveInfoBase #CheckInvalidTipCloseBtn:disabled {
 		image: url(":/resource/images/ResolutionGuide/close-btn-disable.svg");
 	}
+
+PLSLiveInfoDualWidget #dualImageLabel {
+	margin: 0px;
+	padding: 0px;
+	min-height: 30px;
+	max-height: 30px;
+	max-width: 30px;
+	min-width: 30px;
+	background-color: transparent;
+	color: transparent;
+}
+
+PLSLiveInfoDualWidget[dualModel="h"] #dualImageLabel {
+	image: url(":/resource/images/dual-output/ic_dualoutput_liveinfo_horizontal.svg");
+}
+
+PLSLiveInfoDualWidget[dualModel="v"] #dualImageLabel {
+	image: url(":/resource/images/dual-output/ic_dualoutput_liveinfo_vertical.svg");
+}
+
+
+PLSLiveInfoDualWidget #dualTitleLabel {
+	font-size: 20px;
+	font-weight: bold;
+	color: #ffffff;
+}

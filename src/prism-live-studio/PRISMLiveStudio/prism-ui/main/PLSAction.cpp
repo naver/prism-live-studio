@@ -188,7 +188,7 @@ QString GetActionSourceID(const char *id)
 	if (strcmp(id, "group") == 0)
 		return ACT_SRC_GROUP;
 
-	switch (obs_source_get_icon_type(id)) {
+	switch (static_cast<int>(obs_source_get_icon_type(id))) {
 	case OBS_ICON_TYPE_CAMERA:
 		return ACT_SRC_CAMERA;
 	case OBS_ICON_TYPE_AUDIO_INPUT:
@@ -828,7 +828,14 @@ void CheckScreenCapture(const char *pluginID, OBSData previous, OBSData current,
 
 void CheckCamera(OBSSource source, const char *pluginID, OBSData previous, OBSData current, unsigned operationFlags)
 {
+#if _WIN32
 	CHECK_SOURCE_ID(common::OBS_DSHOW_SOURCE_ID);
+#else
+	// It contains the SRE of legacy video capture source, the new video capture source and the capture card source.
+	if (pluginID && strcmp(pluginID, common::OBS_DSHOW_SOURCE_ID) != 0 && strcmp(pluginID, common::OBS_MACOS_VIDEO_CAPTURE_SOURCE_ID) != 0 && strcmp(pluginID, common::OBS_MACOS_CAPTURE_CARD_SOURCE_ID) != 0) {
+		return;
+	}
+#endif
 
 	QString oldID = obs_data_get_string(previous, CAMERA_DEVICE_ID);
 	QString newID = obs_data_get_string(current, CAMERA_DEVICE_ID);
@@ -913,6 +920,7 @@ void CheckPropertyAction(OBSSource source, OBSData previous, OBSData current, un
 	int iconType = obs_source_get_icon_type(obs_source_get_id(source));
 	switch (iconType) {
 	case OBS_ICON_TYPE_CAMERA:
+	case PLS_ICON_TYPE_CAPTURE_CARD:
 		CheckCamera(source, id, previous, current, operationFlags);
 		CheckDeckLink(id, previous, current, operationFlags);
 		break;

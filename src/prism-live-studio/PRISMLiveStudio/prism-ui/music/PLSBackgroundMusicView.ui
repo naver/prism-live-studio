@@ -258,7 +258,7 @@
          </widget>
         </item>
         <item>
-         <widget class="MediaSlider" name="playingSlider">
+         <widget class="AbsoluteSlider" name="playingSlider">
           <property name="maximum">
            <number>1024</number>
           </property>
@@ -711,6 +711,11 @@
  </widget>
  <customwidgets>
   <customwidget>
+   <class>AbsoluteSlider</class>
+   <extends>QSlider</extends>
+   <header>absolute-slider.hpp</header>
+  </customwidget>
+  <customwidget>
    <class>PLSLabel</class>
    <extends>QLabel</extends>
    <header>PLSLabel.h</header>
@@ -736,11 +741,6 @@
    <class>DragLabel</class>
    <extends>QLabel</extends>
    <header>PLSBackgroundMusicView.h</header>
-  </customwidget>
-  <customwidget>
-   <class>MediaSlider</class>
-   <extends>QSlider</extends>
-   <header>media-slider.hpp</header>
   </customwidget>
   <customwidget>
    <class>PLSDelayResponseButton</class>

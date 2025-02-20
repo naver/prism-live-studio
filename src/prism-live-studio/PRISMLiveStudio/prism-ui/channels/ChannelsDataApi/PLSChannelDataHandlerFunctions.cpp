@@ -33,19 +33,6 @@ using namespace ChannelData;
 using namespace common;
 extern void httpRequestHead(QVariantMap &headMap, bool hasGacc);
 
-QVariantMap loadMapFromJsonFile(const QString &fileName)
-{
-	QVariantMap tmpMaper;
-
-	if (QFile file(fileName); file.open(QIODevice::ReadOnly)) {
-		auto data = file.readAll();
-		auto jsonDoc = QJsonDocument::fromJson(data);
-		tmpMaper = jsonDoc.toVariant().toMap();
-	}
-
-	return tmpMaper;
-}
-
 void registerAllPlatforms()
 {
 	PLSCHANNELS_API->registerPlatformHandler(new PLSAfreecaTVDataHandler);
@@ -113,15 +100,6 @@ QString getYoutubePriacyStatus(const QVariantMap &src)
 	return mapS["privacyStatus"].toString();
 }
 
-bool isInvalidGrant(const QVariantMap &src)
-{
-	if (src.contains("error")) {
-		return src.value("error").toString().contains("invalid_grant", Qt::CaseInsensitive);
-	}
-
-	return false;
-}
-
 bool isTokenValid(const QString &mSrcUUID)
 {
 	const auto channelInfo = PLSCHANNELS_API->getChannelInfo(mSrcUUID);
@@ -140,18 +118,6 @@ bool isTokenValid(const QVariantMap &channelInfo)
 	return false;
 }
 
-bool isReplyContainExpired(const QByteArray &body, const QStringList &keys)
-{
-	int matchCount = 0;
-	for (const QString &key : keys) {
-		if (body.contains(key.toUtf8())) {
-			++matchCount;
-		}
-	}
-
-	return keys.count();
-}
-
 QJsonObject createJsonArrayFromInfo(const QString &uuid)
 {
 
@@ -163,6 +129,7 @@ QJsonObject createJsonArrayFromInfo(const QString &uuid)
 		obj.remove(g_isUpdated);
 		obj.remove(g_displayState);
 		obj.remove(g_displayOrder);
+		obj.remove(g_channelDualOutput);
 		obj.insert("resolution", "720");
 		obj.insert("bitrate", "2000");
 		obj.insert("framerate", "30");
@@ -225,6 +192,8 @@ QNetworkCookie createPrismCookie()
 	return cookie;
 }
 
+void updateAllRtmpsV1() {}
+
 void updateAllRtmps()
 {
 	PRE_LOG(update all RTMPs begin, INFO)
@@ -268,7 +237,8 @@ struct RtmpRun : public QRunnable {
 
 		if (!bNewAPIData) {
 			PLS_INFO("RTMPUpdate", "Old API Data processing");
-			auto mapper = loadMapFromJsonFile(":/configs/configs/RTMPJsonMapper.json");
+			QVariantMap mapper;
+			pls_read_json(mapper, ":/configs/configs/RTMPJsonMapper.json");
 			//match
 			auto checkMatched = [&mapper, &allChannels, this, &matched](const QVariant &obj) { return this->searchMatched(mapper, allChannels, matched, obj); };
 			std::for_each(jsArray.rbegin(), jsArray.rend(), checkMatched);

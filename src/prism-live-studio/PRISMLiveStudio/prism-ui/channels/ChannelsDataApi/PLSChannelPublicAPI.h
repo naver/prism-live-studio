@@ -45,8 +45,6 @@ public:
 	virtual void clearAll() = 0;
 };
 
-Q_DECLARE_INTERFACE(PLSChannelPublicAPI, "PLSChannelPublicAPI.interface")
-
 Q_GLOBAL_STATIC(QVariantMap, plugins);
 
 template<typename PluginType = PLSChannelPublicAPI> auto getChannelAPI(const QString &name = "prism-channel-controller") -> PluginType *

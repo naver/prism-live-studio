@@ -44,14 +44,7 @@
       <number>0</number>
      </property>
      <item>
-      <widget class="QLabel" name="labelCaption">
-       <property name="text">
-        <string>LiveInfo.Twitch.Caption</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-       </property>
-      </widget>
+      <widget class="PLSLiveInfoDualWidget" name="dualWidget" native="true"/>
      </item>
      <item>
       <spacer name="horizontalSpacer">
@@ -221,6 +214,14 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PLSLiveInfoDualWidget</class>
+   <extends>QWidget</extends>
+   <header>PLSLiveInfoBase.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

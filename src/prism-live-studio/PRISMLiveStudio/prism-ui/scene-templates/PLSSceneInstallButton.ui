@@ -43,10 +43,7 @@
     </spacer>
    </item>
    <item>
-    <widget class="QPushButton" name="loadingBtn_SceneTemplate">
-     <property name="text">
-      <string/>
-     </property>
+    <widget class="QWidget" name="loadingBtn_SceneTemplate">
     </widget>
    </item>
    <item>

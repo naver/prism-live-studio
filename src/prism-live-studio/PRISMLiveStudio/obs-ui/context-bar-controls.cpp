@@ -285,6 +285,9 @@ void ApplicationAudioCaptureToolbar::Init()
 	ui->activateButton = nullptr;
 
 	obs_module_t *mod = obs_get_module("win-wasapi");
+	if (!mod) {
+		return;
+	}
 	const char *device_str = obs_module_get_locale_text(mod, "Window");
 	ui->deviceLabel->setText(device_str);
 
@@ -474,6 +477,9 @@ ImageSourceToolbar::ImageSourceToolbar(QWidget *parent, OBSSource source)
 	ui->setupUi(this);
 
 	obs_module_t *mod = obs_get_module("image-source");
+	if (!mod) {
+		return;
+	}
 	ui->pathLabel->setText(obs_module_get_locale_text(mod, "File"));
 
 	OBSDataAutoRelease settings = obs_source_get_settings(source);
@@ -497,7 +503,11 @@ void ImageSourceToolbar::on_browse_clicked()
 	const char *filter = obs_property_path_filter(p);
 	const char *default_path = obs_property_path_default_path(p);
 
-	QString path = OpenFile(this, desc, default_path, filter);
+	QString startDir = ui->path->text();
+	if (startDir.isEmpty())
+		startDir = default_path;
+
+	QString path = OpenFile(this, desc, startDir, filter);
 	if (path.isEmpty()) {
 		return;
 	}

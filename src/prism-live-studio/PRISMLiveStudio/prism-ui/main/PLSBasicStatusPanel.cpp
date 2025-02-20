@@ -10,6 +10,7 @@
 #include "PLSBasic.h"
 #include "obs-app.hpp"
 #include "log/module_names.h"
+#include "pls/pls-dual-output.h"
 
 using namespace std;
 
@@ -61,6 +62,7 @@ PLSBasicStatusPanel::PLSBasicStatusPanel(QWidget *parent)
 #endif
 
 	OutputLabels outputStream = {};
+	outputStream.networkStateImage = ui->networkStateImage;
 	outputStream.droppedFramesState = ui->networkFramedropState;
 	outputStream.droppedFramesLabel = ui->networkFramedropLabel;
 	outputStream.droppedFrames = ui->networkFramedrop;
@@ -69,6 +71,16 @@ PLSBasicStatusPanel::PLSBasicStatusPanel(QWidget *parent)
 	outputStream.bitrateState = ui->streamBitrateState;
 	outputStream.bitrateLabel = ui->streamBitrateLabel;
 	outputStream.bitrate = ui->streamBitrate;
+
+	outputStream.networkStateImageV = ui->networkStateImageV;
+	outputStream.droppedFramesStateV = ui->networkFramedropStateV;
+	outputStream.droppedFramesLabelV = ui->networkFramedropLabelV;
+	outputStream.droppedFramesV = ui->networkFramedropV;
+	outputStream.megabytesSentLabelV = ui->StreamMegabytesLabelV;
+	outputStream.megabytesSentV = ui->streamMegabytesV;
+	outputStream.bitrateStateV = ui->streamBitrateStateV;
+	outputStream.bitrateLabelV = ui->streamBitrateLabelV;
+	outputStream.bitrateV = ui->streamBitrateV;
 	outputLabels.append(outputStream);
 
 	OutputLabels outputRecord = {};
@@ -77,12 +89,17 @@ PLSBasicStatusPanel::PLSBasicStatusPanel(QWidget *parent)
 	outputRecord.bitrateLabel = ui->recordingBitrateLabel;
 	outputRecord.bitrate = ui->recordingBitrate;
 	outputLabels.append(outputRecord);
+
+	onDualOutputChanged(pls_is_dual_output_on());
+	connect(PLSBasic::instance(), &PLSBasic::sigOpenDualOutput, this, &PLSBasicStatusPanel::onDualOutputChanged);
 }
 
 static uint32_t first_encoded = 0xFFFFFFFF;
 static uint32_t first_skipped = 0xFFFFFFFF;
 static uint32_t first_rendered = 0xFFFFFFFF;
 static uint32_t first_lagged = 0xFFFFFFFF;
+static uint32_t first_encoded_v = 0xFFFFFFFF;
+static uint32_t first_skipped_v = 0xFFFFFFFF;
 
 void PLSBasicStatusPanel::InitializeValues()
 {
@@ -91,6 +108,12 @@ void PLSBasicStatusPanel::InitializeValues()
 	first_skipped = video_output_get_skipped_frames(video);
 	first_rendered = obs_get_total_frames();
 	first_lagged = obs_get_lagged_frames();
+
+	const video_t *video_v = pls_get_vertical_video_t();
+	if (video_v) {
+		first_encoded_v = video_output_get_total_frames(video_v);
+		first_skipped_v = video_output_get_skipped_frames(video_v);
+	}
 }
 
 void PLSBasicStatusPanel::setTextAndAlignment(QLabel *widget, const QString &text)
@@ -142,6 +165,7 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 
 	dataStatus.streamOutputFPS = OBSBasic::Get()->GetStreamingOutputFPS();
 	dataStatus.recordOutputFPS = OBSBasic::Get()->GetRecordingOutputFPS();
+	dataStatus.streamOutputFPS_v = pls_is_dual_output_on() ? OBSBasic::Get()->GetStreamingOutputFPS(true) : 0.0;
 
 	if (isVisible()) {
 		setTextAndAlignment(ui->realtimeFramerate, QString("%1 / %2 fps").arg(QString::number(curFPS, 'f', 2), QString::number(plsFPS, 'f', 2)));
@@ -241,6 +265,7 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 			setTextAndAlignment(ui->encodingFramedrop, QString("%1 / %2 (%3%)").arg(QString::number(total_skipped), QString::number(total_encoded), QString::number(num, 'f', 1)));
 
 			if (active != lastActive) {
+				pls_flush_style(ui->encodingFramedropImage, "active", active);
 				pls_flush_style(ui->encodingFramedropLabel, "active", active);
 				pls_flush_style(ui->encodingFramedrop, "active", active);
 				pls_flush_style(ui->encodingFramedropState, "active", active);
@@ -275,7 +300,121 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 
 		outputLabels[0].Update(strOutput, false, dataStatus);
 		outputLabels[1].Update(recOutput, true, dataStatus);
+		// get the rtmp latency statistics
+		if (active && strOutput)
+			pls_statistics_get_dump(strOutput, &dataStatus.latencyInfo);
+		else
+			dataStatus.latencyInfo = {0};
 	}
+
+	do {
+		if (!pls_is_dual_output_on()) {
+			break;
+		}
+
+		OBSOutputAutoRelease strOutput_v = pls_frontend_get_streaming_output_v();
+		if (!strOutput_v)
+			break;
+
+		const video_t *video_v = pls_get_vertical_video_t();
+		if (!video_v)
+			break;
+
+		const auto active = obs_output_active(strOutput_v);
+
+		uint32_t total_encoded = video_output_get_total_frames(video_v);
+		uint32_t total_skipped = video_output_get_skipped_frames(video_v);
+
+		if (total_encoded < first_encoded_v || total_skipped < first_skipped_v) {
+			first_encoded_v = total_encoded;
+			first_skipped_v = total_skipped;
+		}
+		total_encoded -= first_encoded_v;
+		total_skipped -= first_skipped_v;
+
+		num = total_encoded ? (double)total_skipped / (double)total_encoded : 0;
+		num *= 100;
+
+		if (isVisible()) {
+			setTextAndAlignment(ui->encodingFramedropV, QString("%1 / %2 (%3%)").arg(QString::number(total_skipped), QString::number(total_encoded), QString::number(num, 'f', 1)));
+
+			if (active != lastActiveV) {
+				pls_flush_style(ui->encodingFramedropImageV, "active", active);
+				pls_flush_style(ui->encodingFramedropLabelV, "active", active);
+				pls_flush_style(ui->encodingFramedropV, "active", active);
+				pls_flush_style(ui->encodingFramedropStateV, "active", active);
+
+				lastActiveV = active;
+			}
+		}
+
+		if (num > 5.0 && total_encoded >= plsFPS * 5) {
+			if (State::Error != lastEncodingStateV) {
+				pls_flush_style(ui->encodingFramedropStateV, "state", "error");
+				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameError, false, total_skipped, num);
+
+				lastEncodingStateV = State::Error;
+			}
+		} else if (num > 1.0 && total_encoded >= plsFPS * 5) {
+			if (State::Warning != lastEncodingStateV) {
+				pls_flush_style(ui->encodingFramedropStateV, "state", "warning");
+				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameWarning, false, total_skipped, num);
+
+				lastEncodingStateV = State::Warning;
+			}
+		} else {
+			if (State::Normal != lastEncodingStateV) {
+				pls_flush_style(ui->encodingFramedropStateV, "state", "");
+				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameWarning, true);
+				PopupNotice(StreamingNoticeType::NoticeDropEncodingFrameError, true);
+
+				lastEncodingStateV = State::Normal;
+			}
+		}
+	} while (false);
+
+	// for dual output
+	do{
+		if (!pls_is_dual_output_on()) {
+			dataStatus.dropedEncoding_v = {0, 0, 0.0};
+			dataStatus.dropedNetwork_v = {0, 0, 0.0};
+			dataStatus.streaming_v = {0.0, 0};
+			dataStatus.latencyInfo_v = {0};
+			first_encoded_v = 0;
+			first_skipped_v = 0;
+			outputLabels[0].Reset_v(nullptr);
+			break;
+		}
+
+		OBSOutputAutoRelease strOutput_v = pls_frontend_get_streaming_output_v();
+		if (!strOutput_v)
+			break;
+
+		const video_t *video_v = pls_get_vertical_video_t();
+		if (!video_v)
+			break;
+
+		uint32_t total_encoded = video_output_get_total_frames(video_v);
+		uint32_t total_skipped = video_output_get_skipped_frames(video_v);
+
+		if (total_encoded < first_encoded_v || total_skipped < first_skipped_v) {
+			first_encoded_v = total_encoded;
+			first_skipped_v = total_skipped;
+		}
+		total_encoded -= first_encoded_v;
+		total_skipped -= first_skipped_v;
+
+		num = total_encoded ? (double)total_skipped / (double)total_encoded : 0;
+		num *= 100;
+
+		dataStatus.dropedEncoding_v = make_tuple(total_skipped, total_encoded, num);
+
+		outputLabels[0].Update_v(strOutput_v, dataStatus);
+		// get the rtmp latency statistics
+		const auto active = obs_output_active(strOutput_v);
+		if (active)
+			pls_statistics_get_dump(strOutput_v, &dataStatus.latencyInfo_v);
+	} while (false);
 
 	auto numSkiped = get<1>(dataStatus.dropedNetwork);
 	auto numPercent = get<2>(dataStatus.dropedNetwork);
@@ -427,6 +566,7 @@ void PLSBasicStatusPanel::OutputLabels::Update(const obs_output_t *output, bool 
 		dataStatus.dropedNetwork = make_tuple(dropped, total, num);
 
 		if (active != lastActive) {
+			pls_flush_style(networkStateImage, "active", active);
 			pls_flush_style(droppedFramesState, "active", active);
 			pls_flush_style(droppedFramesLabel, "active", active);
 			pls_flush_style(droppedFrames, "active", active);
@@ -470,10 +610,152 @@ void PLSBasicStatusPanel::OutputLabels::Reset(const obs_output_t *output)
 	first_dropped = obs_output_get_frames_dropped(output);
 }
 
+void PLSBasicStatusPanel::OutputLabels::Update_v(const obs_output_t *output_v, PLSBasicStatusData &dataStatus) 
+{
+	auto active = output_v ? obs_output_active(output_v) : false;
+	auto totalBytes = active ? obs_output_get_total_bytes(output_v) : 0;
+	auto curTime = os_gettime_ns();
+	auto bytesSent = totalBytes;
+
+	if (bytesSent < lastBytesSent_v)
+		bytesSent = 0;
+	if (bytesSent == 0)
+		lastBytesSent_v = 0;
+
+	auto bitsBetween = (bytesSent - lastBytesSent_v) * 8;
+	auto timePassed = (double)(curTime - lastBytesSentTime_v) / 1000000000.0;
+	kbps_v = (double)bitsBetween / timePassed / 1000.0;
+
+	if (timePassed < 0.01)
+		kbps_v = 0.0;
+
+	auto num = (double)totalBytes / (1024 * 1024);
+
+	dataStatus.streaming_v = make_tuple(kbps_v, num);
+
+	if (active != lastActiveV) {
+		pls_flush_style(megabytesSentLabelV, "active", active);
+		pls_flush_style(megabytesSentV, "active", active);
+		if (bitrateStateV) {
+			pls_flush_style(bitrateStateV, "active", active);
+		}
+		pls_flush_style(bitrateLabelV, "active", active);
+		pls_flush_style(bitrateV, "active", active);
+	}
+
+	if (megabytesSentLabelV->isVisible()) {
+		const char *unit = "MiB";
+		if (num > 1024) {
+			num /= 1024;
+			unit = "GiB";
+		}
+		setTextAndAlignment(megabytesSentV, QString("%1 %2").arg(num, 0, 'f', 1).arg(unit));
+
+		num = kbps_v;
+		unit = "kb/s";
+		if (num >= 10'000) {
+			num /= 1000;
+			unit = "Mb/s";
+		}
+		setTextAndAlignment(bitrateV, QString("%1 %2").arg(num, 0, 'f', 0).arg(unit));
+	}
+
+	int total = active ? obs_output_get_total_frames(output_v) : 0;
+	int dropped = active ? obs_output_get_frames_dropped(output_v) : 0;
+
+	if (total < first_total_v || dropped < first_dropped_v) {
+		first_total_v = 0;
+		first_dropped_v = 0;
+	}
+
+	total -= first_total_v;
+	dropped -= first_dropped_v;
+
+	num = total ? (double)dropped / (double)total * 100 : 0;
+
+	dataStatus.dropedNetwork_v = make_tuple(dropped, total, num);
+
+	if (active != lastActiveV) {
+		pls_flush_style(networkStateImageV, "active", active);
+		pls_flush_style(droppedFramesStateV, "active", active);
+		pls_flush_style(droppedFramesLabelV, "active", active);
+		pls_flush_style(droppedFramesV, "active", active);
+	}
+
+	if (droppedFramesV->isVisible()) {
+		auto str = QString("%1 / %2 (%3%)").arg(QString::number(dropped), QString::number(total), QString::number(num, 'f', 1));
+		setTextAndAlignment(droppedFramesV, str);
+
+		if (num > 5.0) {
+			if (State::Error != lastState) {
+				pls_flush_style(droppedFramesStateV, "state", "error");
+				lastState = State::Error;
+			}
+		} else if (num > 1.0) {
+			if (State::Warning != lastState) {
+				pls_flush_style(droppedFramesStateV, "state", "warning");
+				lastState = State::Warning;
+			}
+		} else {
+			if (State::Normal != lastState) {
+				pls_flush_style(droppedFramesStateV, "state", "");
+				lastState = State::Normal;
+			}
+		}
+	}
+
+	lastActiveV = active;
+
+	lastBytesSent_v = bytesSent;
+	lastBytesSentTime_v = curTime;
+}
+
+void PLSBasicStatusPanel::OutputLabels::Reset_v(const obs_output_t *output_v)
+{
+	first_total_v = output_v ? obs_output_get_total_frames(output_v) : 0;
+	first_dropped_v = output_v ? obs_output_get_frames_dropped(output_v) : 0;
+}
+
 void PLSBasicStatusPanel::showEvent(QShowEvent *event)
 {
 #if defined(Q_OS_MACOS)
     PLSCustomMacWindow::addCurrentWindowToParentWindow(this);
 #endif
     QDialog::showEvent(event);
+}
+
+void PLSBasicStatusPanel::onDualOutputChanged(bool bDualOutput) {
+	setFixedHeight(bDualOutput ? 240 : 180);
+
+	ui->encodingFramedropImage->setVisible(bDualOutput);
+	ui->encodingFramedropStateV->setVisible(bDualOutput);
+	ui->encodingFramedropImageV->setVisible(bDualOutput);
+	ui->encodingFramedropLabelV->setVisible(bDualOutput);
+	ui->encodingFramedropV->setVisible(bDualOutput);
+
+	ui->networkStateImage->setVisible(bDualOutput);
+	ui->networkStateImageV->setVisible(bDualOutput);
+
+	ui->networkFramedropStateV->setVisible(bDualOutput);
+	ui->networkFramedropLabelV->setVisible(bDualOutput);
+	ui->networkFramedropV->setVisible(bDualOutput);
+
+	ui->streamBitrateStateV->setVisible(bDualOutput);
+	ui->streamBitrateLabelV->setVisible(bDualOutput);
+	ui->streamBitrateV->setVisible(bDualOutput);
+
+	ui->StreamMegabytesLabelV->setVisible(bDualOutput);
+	ui->streamMegabytesV->setVisible(bDualOutput);
+
+	if (bDualOutput) {
+		ui->verticalSpacer_3->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+		ui->verticalSpacer_4->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+		ui->verticalSpacer_5->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+	} else {
+		ui->verticalSpacer_3->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Minimum);
+		ui->verticalSpacer_4->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Minimum);
+		ui->verticalSpacer_5->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Minimum);
+	}
+
+	PLSBasic::instance()->moveStatusPanel();
 }

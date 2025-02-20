@@ -41,7 +41,7 @@ public slots:
 
 	void VirtualBackgroundResourceMotionDisabledChanged(bool motionDisabled);
 	void VirtualBackgroundResourceSelected(const QString &itemId, int type, const QString &resourcePath, const QString &staticImgPath, const QString &thumbnailPath, bool prismResource,
-					       const QString &foregroundPath, const QString &foregroundStaticImgPath, int dataType);
+					       const QString &foregroundPath, const QString &foregroundStaticImgPath);
 	void VirtualBackgroundResourceDeleted(const QString &itemId);
 	void VirtualBackgroundMyResourceDeleteAll(const QStringList &itemIds);
 
@@ -86,7 +86,6 @@ private:
 	void CTOptionsChanged(const char *setting);
 	void CTMotionChanged(const char *setting);
 	void ChzzkSponsorTypeChanged(const char *setting);
-
 };
 
 class PLSPropertiesView : public OBSPropertiesView {
@@ -111,7 +110,8 @@ public:
 	PLSPropertiesView(OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize = 0, int maxSize = -1, bool showFiltersBtn = false, bool showColorFilterPath = true,
 			  bool colorFilterOriginalPressed = false, bool refreshProperties = true, bool reloadPropertyOnInit = true);
 	PLSPropertiesView(OBSBasicSettings *basicSettings, OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize = 0, int maxSize = -1, bool showFiltersBtn = false,
-			  bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true, bool reloadPropertyOnInit = true);
+			  bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true, bool reloadPropertyOnInit = true, bool bChzzkKeyframeTip = false, bool bFromSetting = false);
+	~PLSPropertiesView() override;
 
 #define obj_constructor(type)                                                                                                                                                               \
 	inline PLSPropertiesView(OBSData settings, obs_##type##_t *type, PropertiesReloadCallback reloadCallback, PropertiesUpdateCallback callback, PropertiesVisualUpdateCb cb = nullptr, \
@@ -190,6 +190,8 @@ private:
 	OBSBasicSettings *m_basicSettings = nullptr;
 	QList<QPointer<PLSCheckBox>> m_platfromCheckBoxs;
 
+	bool m_bChzzkKeyframeTip = false;
+
 	void setInitData(bool showFiltersBtn_, bool refreshProperties_, bool reloadPropertyOnInit_);
 	void AddMobileGuider(obs_property_t *prop, QFormLayout *layout);
 	void AddHLine(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
@@ -238,6 +240,8 @@ private:
 	void AddCtOptions(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 	void AddCtMotion(obs_property_t *prop, QFormLayout *layout, QLabel *&label);
 
+	void AddInt(obs_property_t *prop, QFormLayout *layout, QLabel **label) override;
+
 	/*tm ui*/
 	void creatColorList(obs_property_t *prop, QGridLayout *&hLayout, int index, const long long colorValue, const QString &colorList);
 	void createTMSlider(obs_property_t *prop, int propertyValue, int minVal, int maxVal, int stepVal, int val, QHBoxLayout *&hLayout, bool isSuffix, bool isEnable = true,
@@ -263,10 +267,9 @@ private:
 	QHBoxLayout *createColorButtonNoSlider(obs_property_t *prop, long long colorValue, int colorAlpha, int index);
 	void ShowLoading();
 	void HideLoading();
-  void AddChzzkSponsor(obs_property_t *prop, QFormLayout *layout);
+	void AddChzzkSponsor(obs_property_t *prop, QFormLayout *layout);
 	static QStringList getFilteredFontFamilies();
 
-		private slots:
+private slots:
 	void removeCustomChatTemplate(int removeTemplateId);
-
 };

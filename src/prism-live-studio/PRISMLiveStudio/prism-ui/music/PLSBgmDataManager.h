@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "obs.hpp"
+#include "libresource.h"
 
 enum class DurationType { FifteenSeconds, ThirtySeconds, SixtySeconds, FullSeconds, Unknown };
 
@@ -33,18 +34,19 @@ class PLSBgmItemData;
 
 using PushButtonMapType = std::map<QString, QPointer<QPushButton>>; //key: group
 using BgmItemMapType = std::map<QString, QPointer<PLSBgmItemView>>; //key: title
-//using BgmItemPairType = std::vector<std::pair<QString, QPointer<PLSBgmItemView>>>;       //key: title + duration type
-//using BgmItemSourcePairType = std::vector<std::pair<quint64, BgmItemPairType>>;          //key: sceneitem ptr
+
 using BgmItemCoverType = std::vector<std::pair<quint64, QPointer<PLSBgmItemCoverView>>>; //key: sceneitem ptr
 using BgmItemVectorType = std::vector<QPointer<PLSBgmItemView>>;
 using BgmItemCacheType = QVector<PLSBgmItemData>;
 
 // music library data struct
 using BgmLibraryData = std::map<QString, PLSBgmItemData>;
-using BgmItemGroupVectorType = std::vector<std::pair<QString, BgmLibraryData>>; //key: group
 
 class PLSBgmItemData {
+	pls::rsm::Item _item;
+
 public:
+	PLSBgmItemData(const QString& group, const pls::rsm::Item& item);
 	PLSBgmItemData() = default;
 	~PLSBgmItemData() = default;
 
@@ -84,7 +86,6 @@ Q_DECLARE_METATYPE(PLSBgmItemData)
 class PLSBgmDataViewManager {
 public:
 	static PLSBgmDataViewManager *Instance();
-	bool LoadDataFormLocalFile(QByteArray &array) const;
 	bool IsSupportFormat(const QString &url) const;
 	bool IsSupportFormat(const QList<QUrl> urls) const;
 	QString ConvertIntToTimeString(const int &seconds) const;
@@ -94,14 +95,6 @@ public:
 	void AddGroupButton(const QString group, QPushButton *button);
 	void DeleteGroupButton();
 	PushButtonMapType GetGroupButtonList() const;
-
-	// group list
-	void AddGroupList(const QString &group, const BgmLibraryData &bgm);
-	void InsertFrontGroupList(const QString &group, const BgmLibraryData &bgm);
-
-	const BgmItemGroupVectorType &GetGroupList() const;
-	BgmLibraryData GetGroupList(const QString &group) const;
-	QString GetFirstGroupName() const;
 
 	// cache play list
 	void AddCachePlayList(const PLSBgmItemData &data);
@@ -116,7 +109,6 @@ private:
 	~PLSBgmDataViewManager() = default;
 
 	PushButtonMapType groupButtonList{};
-	BgmItemGroupVectorType groupMusicList{};
 	BgmItemCacheType cachePlayList{}; //cache playlist when user clicked add button
 };
 

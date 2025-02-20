@@ -3,7 +3,6 @@
 #include <QUrl>
 
 #include "PLSChannelDataHandlerFunctions.h"
-#include "json-data-handler.hpp"
 #include "pls-common-define.hpp"
 #include "../PLSLiveInfoDialogs.h"
 #include "../channels/ChannelsDataApi/PLSChannelDataAPI.h"
@@ -15,7 +14,6 @@
 #include "prism/PLSPlatformPrism.h"
 #include "libhttp-client.h"
 #include <QUrlQuery>
-#include "PLSResCommonFuns.h"
 #include "PLSAPIChzzk.h"
 #include <type_traits>
 #include "PLSSearchCombobox.h"
@@ -23,11 +21,11 @@
 
 using namespace common;
 using namespace std;
-static std::vector<QString> s_permissonList = {"ALL", "FOLLOWER", "MANAGER"};
+static std::vector<QString> s_permissionList = {"ALL", "FOLLOWER", "MANAGER"};
 
 int PLSPlatformChzzk::getIndexOfChatPermission(const QString &permission)
 {
-	const auto &vec = s_permissonList;
+	const auto &vec = s_permissionList;
 	auto it = std::find_if(vec.begin(), vec.end(), [&permission](const QString &s) { return s.compare(permission, Qt::CaseInsensitive) == 0; });
 
 	if (it != vec.end()) {
@@ -36,12 +34,12 @@ int PLSPlatformChzzk::getIndexOfChatPermission(const QString &permission)
 		return 0;
 	}
 }
-QString PLSPlatformChzzk::getchatPermissionByIndex(int index)
+QString PLSPlatformChzzk::getChatPermissionByIndex(int index)
 {
-	if (s_permissonList.size() <= index) {
-		return s_permissonList.front();
+	if (s_permissionList.size() <= index) {
+		return s_permissionList.front();
 	}
-	return s_permissonList[index];
+	return s_permissionList[index];
 }
 
 PLSPlatformChzzk::PLSPlatformChzzk()
@@ -100,7 +98,7 @@ void PLSPlatformChzzk::onPrepareLive(bool value)
 	prepareLiveCallback(value);
 }
 
-void PLSPlatformChzzk::liveInfoisShowing()
+void PLSPlatformChzzk::liveInfoIsShowing()
 {
 	if (getSelectData().title.isEmpty()) {
 		m_selectData = PLSChzzkLiveinfoData(getChannelUUID());
@@ -123,22 +121,21 @@ void PLSPlatformChzzk::requestChannelInfo(const QVariantMap &srcInfo, const Upda
 
 	auto _onFail = [this, srcInfo, finishedCall](int code, QByteArray data, QNetworkReply::NetworkError error) {
 		PLS_ERROR(MODULE_PlatformService, "requestChannelInfo failed");
-		PLSPlatformApiResult result = getApiResult(code, error, data, PLSAPICommon::PLSApiType::Normal);
-		QVariantMap info = srcInfo;
-		info[ChannelData::g_channelSreLoginFailed] = QString("Get Channel List Failed, result:%1").arg((int)result);
-		info[ChannelData::g_channelStatus] = result == PLSPlatformApiResult::PAR_TOKEN_EXPIRED ? ChannelData::ChannelStatus::Expired : ChannelData::ChannelStatus::Error;
 
-		if (result == PLSPlatformApiResult::PAR_NETWORK_ERROR) {
-			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::NetWorkNoStable;
-		} else if (result == PLSPlatformApiResult::PAR_TOKEN_EXPIRED) {
-			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::PlatformExpired;
-		} else if (result == PLSPlatformApiResult::PAR_API_ERROR_SYSTEM_TIME) {
-			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::SystemTimeError;
-		} else {
-			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::UnknownError;
+		auto extraData = getErrorExtraData("requestChannelInfo");
+		extraData.errPhase = PLSErrPhaseLogin;
+		auto retData = PLSErrorHandler::getAlertString({code, error, data}, getChannelName(), "", extraData);
+
+		auto chStatus = ChannelData::ChannelStatus::Error;
+		if (retData.errorType == PLSErrorHandler::ErrorType::TokenExpired) {
+			chStatus = ChannelData::ChannelStatus::Expired;
 		}
-		PLS_ERROR(MODULE_PLATFORM_NCB2B, "requestChannelInfo failed with chzzk callback: g_channelStatus:%i, g_errorType:%i", info[ChannelData::g_channelStatus].toInt(),
-			  info[ChannelData::g_errorType].toInt());
+		QVariantMap info = srcInfo;
+		info[ChannelData::g_channelSreLoginFailed] = QString("Get Channel List Failed, result:%1").arg((int)retData.prismCode);
+		info[ChannelData::g_channelStatus] = chStatus;
+		info[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+		info[ChannelData::g_errorString] = retData.alertMsg;
+
 		finishedCall(QList<QVariantMap>{info});
 	};
 
@@ -204,7 +201,7 @@ void PLSPlatformChzzk::dealRequestChannelInfoSucceed(const QVariantMap &srcInfo,
 		return;
 	}
 	finishedCall(infos);
-	pls_async_call_mt(this, [this]() { PLSAPICommon::downloadChannelImageAsync(CHZZK); });
+	pls_async_call_mt([]() { PLSAPICommon::downloadChannelImageAsync(CHZZK); });
 }
 
 void PLSPlatformChzzk::saveSettings(const function<void(bool)> &onNext, const PLSChzzkLiveinfoData &uiData, const QString &imagePath, const QObject *receiver, bool isClickedDeleteBtn)
@@ -256,7 +253,7 @@ void PLSPlatformChzzk::requestCreateLive(const QObject *receiver, const PLSChzzk
 	auto _onSucceed = [this, onNext](QByteArray data) {
 		bool isOk = dealCurrentLiveSucceed(data, "requestCreateLive", true);
 		if (!isOk) {
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other, {});
+			showAlertByCustName(PLSErrCustomKey_StartLiveFailed_Single, "requestCreateLive");
 		}
 		if (onNext) {
 			onNext(isOk);
@@ -264,7 +261,7 @@ void PLSPlatformChzzk::requestCreateLive(const QObject *receiver, const PLSChzzk
 	};
 
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		setupApiFailedWithCode(getApiResult(code, error, data, PLSAPICommon::PLSApiType::StartLive), data);
+		showAlert({code, error, data}, PLSErrCustomKey_StartLiveFailed_Single, "requestCreateLive");
 
 		if (nullptr != onNext) {
 			onNext(false);
@@ -309,7 +306,7 @@ void PLSPlatformChzzk::requestUploadImage(const QObject *receiver, const PLSChzz
 		QString errMsg;
 		if (!PLSAPICommon::getErrorCallBack(data, thumbnailUrl, errMsg, "thumbnailUrl")) {
 			PLS_ERROR(MODULE_PLATFORM_CHZZK, "chzzk requestUploadImage failed, %s", "", errMsg.toUtf8().constData());
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_ERROR_Upload_Image, data);
+			showAlertByCustName(PLSErrCustomKey_UploadImageFailed, "requestUploadImage");
 			if (nullptr != onNext) {
 				onNext(false);
 			}
@@ -327,7 +324,7 @@ void PLSPlatformChzzk::requestUploadImage(const QObject *receiver, const PLSChzz
 	};
 
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		setupApiFailedWithCode(getApiResult(code, error, data, PLSAPICommon::PLSApiType::UploadImage), data);
+		showAlert({code, error, data}, PLSErrCustomKey_UploadImageFailed, "requestUploadImage");
 
 		if (nullptr != onNext) {
 			onNext(false);
@@ -348,7 +345,7 @@ void PLSPlatformChzzk::requestDeleteImage(const QObject *receiver, const PLSChzz
 	};
 
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		setupApiFailedWithCode(getApiResult(code, error, data, PLSAPICommon::PLSApiType::Update), data);
+		showAlert({code, error, data}, PLSErrCustomKey_UpdateLiveInfoFailed, "requestDeleteImage");
 
 		if (nullptr != onNext) {
 			onNext(false);
@@ -363,7 +360,7 @@ void PLSPlatformChzzk::requestLiveInfo(const QObject *receiver, const std::funct
 	auto _onSucceed = [this, onNext](QByteArray data) {
 		bool isOk = dealCurrentLiveSucceed(data, "requestLiveInfo", false);
 		if (!isOk) {
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED, {});
+			showAlertByCustName(PLSErrCustomKey_LoadLiveInfoFailed, "requestLiveInfo");
 		}
 		if (onNext) {
 			onNext(isOk);
@@ -371,7 +368,7 @@ void PLSPlatformChzzk::requestLiveInfo(const QObject *receiver, const std::funct
 	};
 
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		setupApiFailedWithCode(getApiResult(code, error, data, PLSAPICommon::PLSApiType::Normal), data);
+		showAlert({code, error, data}, PLSErrCustomKey_LoadLiveInfoFailed, "requestLiveInfo");
 
 		if (nullptr != onNext) {
 			onNext(false);
@@ -386,120 +383,16 @@ void PLSPlatformChzzk::requestUpdateInfo(const QObject *receiver, const PLSChzzk
 	auto _onSucceed = [this, onNext](QByteArray data) {
 		bool isOk = dealCurrentLiveSucceed(data, "requestUpdateInfo", true);
 		if (!isOk) {
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_ERROR_UPDATE, {});
+			showAlertByCustName(PLSErrCustomKey_UpdateLiveInfoFailed, "requestUpdateInfo");
 		}
-		if (onNext) {
-			onNext(isOk);
-		}
+		pls_invoke_safe(onNext, isOk);
 	};
 
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		setupApiFailedWithCode(getApiResult(code, error, data, PLSAPICommon::PLSApiType::Update), data);
-		if (nullptr != onNext) {
-			onNext(false);
-		}
+		showAlert({code, error, data}, PLSErrCustomKey_UpdateLiveInfoFailed, "requestUpdateInfo");
+		pls_invoke_safe(onNext, false);
 	};
 	PLSAPIChzzk::requestUpdateChannelOrLiveInfo(receiver, liveData, this, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
-}
-
-PLSPlatformApiResult PLSPlatformChzzk::getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data, PLSAPICommon::PLSApiType apiType) const
-{
-	auto result = PLSPlatformApiResult::PAR_SUCCEED;
-
-	if (QNetworkReply::NoError == error) {
-		return result;
-	}
-	result = PLSPlatformApiResult::PAR_API_FAILED;
-	if (QNetworkReply::UnknownNetworkError >= error) {
-		result = PLSPlatformApiResult::PAR_NETWORK_ERROR;
-	} else {
-		if (code == 401) {
-			result = PLSPlatformApiResult::PAR_TOKEN_EXPIRED;
-		}
-	}
-
-	int subCode = 0;
-	QString errMsg;
-	QString errException;
-	if (PLSAPIChzzk::getErrCode(data, subCode, errMsg, errException)) {
-		if (subCode == 1011 || subCode == 1012) {
-			result = PLSPlatformApiResult::PAR_TOKEN_EXPIRED;
-		} else if (subCode == 1106) {
-			result = PLSPlatformApiResult::PAR_API_ERROR_NEED_ARGEE;
-		} else if (subCode == 25) {
-			result = PLSPlatformApiResult::PAR_API_ERROR_SYSTEM_TIME;
-		}
-	}
-
-	if (result == PLSPlatformApiResult::PAR_API_FAILED) {
-		switch (apiType) {
-		case PLSAPICommon::PLSApiType::Normal:
-			break;
-		case PLSAPICommon::PLSApiType::StartLive:
-			result = PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other;
-			break;
-		case PLSAPICommon::PLSApiType::Update:
-			result = PLSPlatformApiResult::PAR_API_ERROR_UPDATE;
-			break;
-		case PLSAPICommon::PLSApiType::UploadImage:
-			result = PLSPlatformApiResult::PAR_API_ERROR_Upload_Image;
-			break;
-		default:
-			break;
-		}
-	}
-
-	return result;
-}
-
-void PLSPlatformChzzk::setupApiFailedWithCode(PLSPlatformApiResult result, const QByteArray &errData)
-{
-	setIsShownAlert(true);
-	auto alertParent = getAlertParent();
-	PLSAlertView::Button button;
-
-	if (m_startFailedStr.isEmpty() && !m_lastRequestAPI.isEmpty()) {
-		m_startFailedStr = QString("%1-common-code:%2").arg(m_lastRequestAPI).arg((int)result);
-	}
-
-	switch (result) {
-	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("login.check.note.network"));
-		break;
-	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED:
-		emit toShowLoading(true);
-		button = pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Chzzk.Expired").arg(getChannelName()));
-		emit closeDialogByExpired();
-		if (button == PLSAlertView::Button::Ok) {
-			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
-		}
-		emit toShowLoading(false);
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_UPDATE:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Error.Failed").arg(getChannelName()));
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Create.Failed.SingleChannel").arg(getChannelName()));
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_Upload_Image:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("LiveInfo.live.error.set_photo_error"));
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_NEED_ARGEE:
-		button = PLSAlertView::warning(getAlertParent(), QTStr("Alert.Title"), tr("chzzk.clip.need.agree"),
-					       QMap<PLSAlertView::Button, QString>({{PLSAlertView::Button::Cancel, tr("Cancel")}, {PLSAlertView::Button::Open, tr("chzzk.clip.alert.goto")}}));
-		emit changeClipToNotAllow();
-		if (button == PLSAlertView::Button::Open) {
-			auto url = QString("%1/%2/live").arg(g_plsChzzkStudioHost).arg(subChannelID());
-			QDesktopServices::openUrl(QUrl(url));
-		}
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_SYSTEM_TIME:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Prism.Login.Systemtime.Error"));
-		break;
-	default:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
-		break;
-	}
 }
 
 QString PLSPlatformChzzk::subChannelID() const
@@ -507,7 +400,7 @@ QString PLSPlatformChzzk::subChannelID() const
 	const auto &info = PLSCHANNELS_API->getChannelInfo(getChannelUUID());
 	return info.value(ChannelData::g_subChannelId, "").toString();
 }
-void PLSPlatformChzzk::requestSearchCategory(const QWidget *reciever, const QString &query)
+void PLSPlatformChzzk::requestSearchCategory(const QWidget *receiver, const QString &query)
 {
 	auto _onSucceed = [this, query](QByteArray data) {
 		QJsonArray categories;
@@ -524,11 +417,11 @@ void PLSPlatformChzzk::requestSearchCategory(const QWidget *reciever, const QStr
 	};
 
 	auto _onFail = [this, query](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		bool isNetErr = getApiResult(code, error, data, PLSAPICommon::PLSApiType::Normal) == PLSPlatformApiResult::PAR_NETWORK_ERROR;
-		QString emptyShowMsg = isNetErr ? tr("category.list.network.error") : QString();
+		auto retData = PLSErrorHandler::getAlertString({code, error, data}, getChannelName(), PLSErrCustomKey_UpdateLiveInfoFailed, getErrorExtraData("requestSearchCategory"));
+		QString emptyShowMsg = retData.prismCode == PLSErrorHandler::COMMON_NETWORK_ERROR ? retData.alertMsg : QString();
 		emit onGetCategory({}, query, emptyShowMsg);
 	};
-	PLSAPIChzzk::requestSearchCategory(reciever, query, this, _onSucceed, _onFail, PLSAPICommon::RefreshType::NotRefresh);
+	PLSAPIChzzk::requestSearchCategory(receiver, query, this, _onSucceed, _onFail, PLSAPICommon::RefreshType::NotRefresh);
 }
 
 QString PLSPlatformChzzk::getShareUrl(bool isEnc) const
@@ -627,6 +520,39 @@ QString PLSPlatformChzzk::getChannelToken() const
 	return PLSLoginUserInfo::getInstance()->getPrismCookie();
 }
 
+PLSErrorHandler::ExtraData PLSPlatformChzzk::getErrorExtraData(const QString &urlEn, const QString &urlKr)
+{
+	PLSErrorHandler::ExtraData extraData;
+	extraData.urlEn = urlEn;
+	extraData.pathValueMap = {{"chzzkLiveId", m_selectData._id}};
+	return extraData;
+}
+void PLSPlatformChzzk::showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom)
+{
+	PLSErrorHandler::RetData retData = PLSErrorHandler::showAlert(netData, getChannelName(), customErrName, getErrorExtraData(logFrom));
+	showAlertPostAction(retData);
+}
+void PLSPlatformChzzk::showAlertByCustName(const QString &customErrName, const QString &logFrom)
+{
+	PLSErrorHandler::RetData retData = PLSErrorHandler::showAlertByCustomErrName(customErrName, getChannelName(), getErrorExtraData(logFrom));
+	showAlertPostAction(retData);
+}
+void PLSPlatformChzzk::showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom)
+{
+	PLSErrorHandler::RetData retData = PLSErrorHandler::showAlertByPrismCode(prismCode, getChannelName(), customErrName, getErrorExtraData(logFrom));
+	showAlertPostAction(retData);
+}
+void PLSPlatformChzzk::showAlertPostAction(const PLSErrorHandler::RetData &retData)
+{
+	setFailedErr(retData.extraData.urlEn + " " + retData.failedLogString);
+	if (retData.prismCode == PLSErrorHandler::COMMON_TOKEN_EXPIRED_ERROR) {
+		emit closeDialogByExpired();
+		if (retData.clickedBtn == PLSAlertView::Button::Ok) {
+			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+		}
+	}
+}
+
 PLSChzzkLiveinfoData::PLSChzzkLiveinfoData()
 {
 	auto infos = PLSCHANNELS_API->getChanelInfosByPlatformName(CHZZK, ChannelData::ChannelType);
@@ -670,7 +596,7 @@ void PLSChzzkLiveinfoData::setupData(const QJsonObject &data, bool isChannel)
 	auto extra = data["extraFields"].toObject();
 	isAgeLimit = extra["adult"].toBool();
 	isNeedMoney = extra["paidPromotion"].toBool();
-	chatPermisson = extra["chatAvailableGroup"].toString();
+	chatPermission = extra["chatAvailableGroup"].toString();
 	clipActive = extra["clipActive"].toBool();
 	extraObj = extra;
 }
@@ -689,7 +615,7 @@ bool PLSChzzkLiveinfoData::isNeedUpdate(const PLSChzzkLiveinfoData &r) const
 	if (isNeedMoney != r.isNeedMoney) {
 		return true;
 	}
-	if (chatPermisson != r.chatPermisson) {
+	if (chatPermission != r.chatPermission) {
 		return true;
 	}
 	if (clipActive != r.clipActive) {

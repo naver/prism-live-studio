@@ -9,6 +9,7 @@
 #include "PLSPlatformApi/prism/PLSPlatformPrism.h"
 #include "ChannelCommonFunctions.h"
 #include "pls-gpop-data.hpp"
+#include "pls/pls-dual-output.h"
 
 using namespace common;
 
@@ -34,8 +35,6 @@ char *ServerStreamGlobalVars::image_data = nullptr;
 #define THUMBNAIL_FILE_NAME QStringLiteral("thumbnail.png")
 #define HEADER_MINE_APPLICATION QStringLiteral("application/octet-stream")
 
-static bool thumbnailRequestCallback(void *param, uint32_t width, uint32_t height, bool request_succeed);
-
 PLSServerStreamHandler *PLSServerStreamHandler::instance()
 {
 	static PLSServerStreamHandler syncServerManager;
@@ -52,18 +51,11 @@ PLSServerStreamHandler::~PLSServerStreamHandler()
 PLSServerStreamHandler::PLSServerStreamHandler(QObject *parent) : QObject(parent)
 {
 	main = qobject_cast<PLSBasic *>(App()->GetMainWindow());
-	connect(PLS_PLATFORM_API, &PLSPlatformApi::liveStarted, this, [](bool isOk) {
-		if (isOk) {
-			//obs_thumbnail_request(THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, thumbnailRequestCallback, nullptr);
-		}
-	});
-	//startRetrieveThumbnail
-	connect(this, &PLSServerStreamHandler::retriveImagefinished, this, &PLSServerStreamHandler::startThumnailRequest, Qt::QueuedConnection);
 }
 
-QString PLSServerStreamHandler::getOutputResolution() const
+QString PLSServerStreamHandler::getOutputResolution(bool bVertical) const
 {
-	return QString("%1x%2").arg(config_get_uint(main->Config(), "Video", "OutputCX")).arg(config_get_uint(main->Config(), "Video", "OutputCY"));
+	return QString("%1x%2").arg(config_get_uint(main->Config(), "Video", bVertical ? "OutputCXV" : "OutputCX")).arg(config_get_uint(main->Config(), "Video", bVertical ? "OutputCYV" : "OutputCY"));
 }
 
 QString PLSServerStreamHandler::getOutputFps() const
@@ -125,8 +117,10 @@ bool PLSServerStreamHandler::isSupportedResolutionFPS(QString &outTipString) con
 		}
 		if (channelName == NAVER_SHOPPING_LIVE) {
 			channelName = tr("navershopping.liveinfo.title");
+		} else if (channelName == AFREECATV) {
+			channelName = TR_AFREECATV;
 		}
-		checkChannelResolutionFpsValid(channelName, platformFPSMap, platformKey, result, platformList);
+		checkChannelResolutionFpsValid(channelName, platformFPSMap, platformKey, result, platformList, pls_is_dual_output_on() && pPlatform->isVerticalOutput());
 	}
 	if (platformList.isEmpty()) {
 		return result;
@@ -145,10 +139,11 @@ QString PLSServerStreamHandler::getResolutionAndFpsInvalidTip(const QString &cha
 	return QTStr("Platform.resolution.fps.failed").arg(channeName);
 }
 
-void PLSServerStreamHandler::checkChannelResolutionFpsValid(const QString &channelName, const QVariantMap &platformFPSMap, const QString &platformKey, bool &result, QList<QString> &platformList) const
+void PLSServerStreamHandler::checkChannelResolutionFpsValid(const QString &channelName, const QVariantMap &platformFPSMap, const QString &platformKey, bool &result, QList<QString> &platformList,
+							    bool bVertical) const
 {
 	//if the limited platform list contains the current platform name
-	QString outResolution = getOutputResolution();
+	QString outResolution = getOutputResolution(bVertical);
 	QString outFps = getOutputFps();
 	QMap resolutionFps = platformFPSMap.value(platformKey).toMap();
 	if (resolutionFps.keys().contains(outResolution)) {
@@ -180,10 +175,6 @@ void PLSServerStreamHandler::checkChannelResolutionFpsValid(const QString &chann
 	}
 }
 
-void PLSServerStreamHandler::requestLiveDirectEnd() const
-{
-}
-
 bool PLSServerStreamHandler::isValidWatermark(const QString &platFormName) const
 {
 	QString watermarkPath = PLSSyncServerManager::instance()->getWaterMarkResLocalPath(platFormName);
@@ -211,59 +202,5 @@ bool PLSServerStreamHandler::isValidOutro(const QString &platFormName) const
 		PLS_ERROR(MODULE_PlatformService, "outro text is empty");
 		return false;
 	}
-	return true;
-}
-
-void PLSServerStreamHandler::startThumnailRequest() const
-{
-	uploadThumbnailToRemote();
-}
-
-void PLSServerStreamHandler::uploadThumbnailToRemote() const
-{
-}
-
-bool PLSServerStreamHandler::isLandscape() const
-{
-	uint64_t out_cx = config_get_uint(PLSBasic::Get()->Config(), "Video", "OutputCX");
-	if (uint64_t out_cy = config_get_uint(PLSBasic::Get()->Config(), "Video", "OutputCY"); out_cx > out_cy) {
-		return true;
-	}
-	return false;
-}
-
-static bool thumbnailRequestCallback(void *param, uint32_t, uint32_t, bool request_succeed)
-{
-	pls_unused(param);
-	if (!request_succeed) {
-		return false;
-	}
-	uint32_t width = 0;
-	uint32_t height = 0;
-	char *data = nullptr;
-	/*if (!obs_thumbnail_retrieve((void **)&data, &width, &height)) {
-		return false;
-	}*/
-	uint64_t size = width * height * 4;
-	char *_image_data_temp;
-	if (!ServerStreamGlobalVars::image_data || width != ServerStreamGlobalVars::_width || height != ServerStreamGlobalVars::_height) {
-		_image_data_temp = pls_realloc<char>(ServerStreamGlobalVars::image_data, size);
-		if (_image_data_temp) {
-			ServerStreamGlobalVars::image_data = _image_data_temp;
-		}
-	}
-
-	if (ServerStreamGlobalVars::image_data) {
-		memset(ServerStreamGlobalVars::image_data, 0, size);
-		memcpy(ServerStreamGlobalVars::image_data, data, size);
-		ServerStreamGlobalVars::_width = width;
-		ServerStreamGlobalVars::_height = height;
-	}
-
-	//request thumbnail request
-	PLSServerStreamHandler::instance()->retriveImagefinished();
-
-	//release the file
-	//obs_thumbnail_free();
 	return true;
 }

@@ -11,6 +11,7 @@
         <file>resource/images/add-source-view/ic-addsource-bgm.svg</file>
         <file>resource/images/add-source-view/ic-addsource-browser.svg</file>
         <file>resource/images/add-source-view/ic-addsource-camera.svg</file>
+        <file>resource/images/add-source-view/ic-addsource-capturecard.svg</file>
         <file>resource/images/add-source-view/ic-addsource-color.svg</file>
         <file>resource/images/add-source-view/ic-addsource-decklinkinput.svg</file>
         <file>resource/images/add-source-view/ic-addsource-default.png</file>
@@ -43,6 +44,8 @@
         <file>resource/images/add-source-view/icon-source-browser-select.svg</file>
         <file>resource/images/add-source-view/icon-source-camera-normal.svg</file>
         <file>resource/images/add-source-view/icon-source-camera-select.svg</file>
+        <file>resource/images/add-source-view/icon-source-capturecard-normal.svg</file>
+        <file>resource/images/add-source-view/icon-source-capturecard-select.svg</file>
         <file>resource/images/add-source-view/icon-source-chat-normal.svg</file>
         <file>resource/images/add-source-view/icon-source-chat-select.svg</file>
         <file>resource/images/add-source-view/icon-source-color-normal.svg</file>

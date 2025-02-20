@@ -90,7 +90,6 @@ protected:
 #if defined(Q_OS_MACOS)
 	QList<QWidget *> moveContentExcludeWidgetList() override;
 #endif
-	void showEvent(QShowEvent *event) override;
 
 private slots:
 	void on_cancelButton_clicked();

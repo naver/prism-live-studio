@@ -43,7 +43,7 @@
        <height>195</height>
       </size>
      </property>
-     <widget class="QLabel" name="nvtTitleLabel">
+     <widget class="PLSLiveInfoDualWidget" name="dualWidget" native="true">
       <property name="geometry">
        <rect>
         <x>25</x>
@@ -51,12 +51,6 @@
         <width>181</width>
         <height>81</height>
        </rect>
-      </property>
-      <property name="text">
-       <string>NAVER TV</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
       </property>
      </widget>
      <widget class="PLSSelectImageButton" name="thumbnailButton">
@@ -292,6 +286,12 @@
    <class>PLSScheduleCombox</class>
    <extends>QPushButton</extends>
    <header>PLSScheduleCombox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSLiveInfoDualWidget</class>
+   <extends>QWidget</extends>
+   <header>PLSLiveInfoBase.h</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>PLSSelectImageButton</class>

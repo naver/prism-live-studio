@@ -91,10 +91,14 @@ class LIBUI_API PLSHelpIcon : public QLabel {
 	Q_OBJECT
 
 public:
-	PLSHelpIcon(QWidget *parent = nullptr);
+	PLSHelpIcon(QWidget *parent = nullptr, bool handleTooltip = true);
+	void setHandleTooltip(bool handleTooltip);
 
 protected:
 	bool eventFilter(QObject *watched, QEvent *event) override;
+
+private:
+	bool handleTooltip;
 };
 
 #endif // _PRISM_COMMON_LIBHDPI_LABEL_H

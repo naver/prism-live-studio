@@ -10,7 +10,7 @@
 #include "log/module_names.h"
 #include "obs-app.hpp"
 #include "pls-common-define.hpp"
-#include "PLSResourceManager.h"
+#include "libresource.h"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -27,6 +27,48 @@ constexpr auto SELECTED = "selected";
 static const int TOAST_KEEP_MILLISECONDS = 5000;
 static const int TOAST_LEFT_TOP_MARGIN = 10;
 static const int TOAST_DEL_BUTTON_MARGIN = 5;
+
+struct CategoryMusic : public pls::rsm::ICategory {
+	PLS_RSM_CATEGORY(CategoryMusic)
+	QString categoryId(pls::rsm::IResourceManager *mgr) const override { return PLS_RSM_CID_MUSIC; }
+	void jsonLoaded(pls::rsm::IResourceManager *mgr, pls::rsm::Category category) override
+	{
+		PLS_INFO(moduleName(), "jsonLoaded music");
+		auto groups = category.groups();
+		for (auto group : groups) {
+			for (auto item : group.items()) {
+				if (item.attr(QStringLiteral("recommendFlag")).toBool()) {
+					addCustomItem(QStringLiteral("HOT"), item, nullptr);
+				}
+			}
+		}
+	}
+
+	void getCustomGroupExtras(qsizetype &pos, bool &archive, pls::rsm::IResourceManager *mgr, pls::rsm::Group group) const override
+	{
+		pos = 0;
+		archive = false;
+	}
+	virtual bool groupNeedDownload(pls::rsm::IResourceManager *mgr, pls::rsm::Group group) const { return false; }
+
+	virtual bool itemNeedDownload(pls::rsm::IResourceManager *mgr, pls::rsm::Item item) const { return false; }
+	virtual bool itemNeedLoad(pls::rsm::IResourceManager *mgr, pls::rsm::Item item) const
+	{
+		auto object = item.attr("properties").toJsonObject();
+		if (object.isEmpty()) {
+			return false;
+		}
+
+		QString url60s = item.attr({"properties", "duration60SecondsMusicInfo", "url"}).toString();
+		QString url15s = item.attr({"properties", "duration15SecondsMusicInfo", "url"}).toString();
+		QString url30s = item.attr({"properties", "duration30SecondsMusicInfo", "url"}).toString();
+		QString urlfull = item.attr({"properties", "durationFullMusicInfo", "url"}).toString();
+		if (url60s.isEmpty() && url15s.isEmpty() && url30s.isEmpty() && urlfull.isEmpty()) {
+			return false;
+		}
+		return true;
+	}
+};
 
 PLSBgmLibraryView::PLSBgmLibraryView(QWidget *parent) : PLSDialogView(parent)
 {
@@ -82,24 +124,28 @@ void PLSBgmLibraryView::initGroup()
 {
 	ui->nextFrame->setVisible(false);
 	ui->preFrame->setVisible(false);
-	const BgmItemGroupVectorType &groupList = PLSBgmDataViewManager::Instance()->GetGroupList();
-	if (!CheckMusicResource()) {
-		DownloadMusicJson();
+
+	auto groups = CategoryMusic::instance()->getGroups();
+	if (groups.empty()) {
+		CategoryMusic::instance()->download();
+		PLS_WARN(MAIN_BGM_MODULE, "Get music groups failed, downloading again.");
 		return;
 	}
-	if (groupList.empty()) {
-		InitCategoryData();
-	}
+
+	QString firstGroupName;
 	int index = 0;
-	for (auto &group : groupList) {
+	for (auto &group : groups) {
 		if (index > 0)
 			ui->groupHLayout->addStretch();
-		CreateGroup(group.first);
+		auto name = group.groupId();
+		if (0 == index) {
+			firstGroupName = name;
+		}
+		CreateGroup(name);
 		++index;
 	}
 
-	auto groupName = PLSBgmDataViewManager::Instance()->GetFirstGroupName();
-	OnGroupButtonClicked(groupName);
+	OnGroupButtonClicked(firstGroupName);
 }
 
 void PLSBgmLibraryView::InitButtonState(const QString &group)
@@ -136,84 +182,6 @@ void PLSBgmLibraryView::InitButtonState(const QString &group)
 
 	QVector<PLSBgmItemData> playlist = bmv->GetPlayListDatas();
 	judgeListItem(playlist);
-}
-
-void PLSBgmLibraryView::InitCategoryData() const
-{
-	QByteArray array;
-	if (!PLSBgmDataViewManager::Instance()->LoadDataFormLocalFile(array)) {
-		return;
-	}
-
-	BgmLibraryData hotMusicList{};
-	QJsonObject object = QJsonDocument::fromJson(array).object();
-	QJsonArray groups = object["group"].toArray();
-	for (auto arrIter = groups.constBegin(); arrIter != groups.constEnd(); ++arrIter) {
-		QJsonObject groupObj = (*arrIter).toObject();
-		QJsonArray items = groupObj["items"].toArray();
-		if (items.empty()) {
-			continue;
-		}
-
-		QString groupId = groupObj["groupId"].toString();
-
-		BgmLibraryData musicList{};
-		for (auto itemIter = items.constBegin(); itemIter != items.constEnd(); ++itemIter) {
-			PLSBgmItemData data;
-			QJsonObject itemObj = (*itemIter).toObject();
-			data.title = itemObj["title"].toString();
-			data.producer = itemObj["producer"].toString();
-			bool recommendFlag = itemObj["recommendFlag"].toBool();
-			data.id = (int)DurationType::FullSeconds;
-
-			QJsonObject propertyObj = itemObj["properties"].toObject();
-			if (propertyObj.empty()) {
-				continue;
-			}
-
-			//60s
-			QJsonObject duration60Obj = propertyObj["duration60SecondsMusicInfo"].toObject();
-			QString url60s = duration60Obj["url"].toString();
-			data.SetUrl(duration60Obj["url"].toString(), (int)DurationType::SixtySeconds);
-			data.SetDuration((int)DurationType::SixtySeconds, duration60Obj["duration"].toInt());
-
-			//15s
-			QJsonObject duration15Obj = propertyObj["duration15SecondsMusicInfo"].toObject();
-			QString url15s = duration15Obj["url"].toString();
-			data.SetUrl(duration15Obj["url"].toString(), (int)DurationType::FifteenSeconds);
-			data.SetDuration((int)DurationType::FifteenSeconds, duration15Obj["duration"].toInt());
-
-			//30s
-			QJsonObject duration30Obj = propertyObj["duration30SecondsMusicInfo"].toObject();
-			QString url30s = duration30Obj["url"].toString();
-			data.SetUrl(duration30Obj["url"].toString(), (int)DurationType::ThirtySeconds);
-			data.SetDuration((int)DurationType::ThirtySeconds, duration30Obj["duration"].toInt());
-
-			//full
-			QJsonObject fullObj = propertyObj["durationFullMusicInfo"].toObject();
-			QString urlFull = fullObj["url"].toString();
-			data.SetUrl(fullObj["url"].toString(), (int)DurationType::FullSeconds);
-			data.SetDuration((int)DurationType::FullSeconds, fullObj["duration"].toInt());
-
-			// check url existed
-			if (url15s.isEmpty() && url30s.isEmpty() && url60s.isEmpty() && urlFull.isEmpty()) {
-				continue;
-			}
-
-			if (recommendFlag) {
-				hotMusicList.insert(hotMusicList.begin(), BgmLibraryData::value_type(data.title, data));
-			}
-
-			musicList.insert(musicList.begin(), BgmLibraryData::value_type(data.title, data));
-		}
-		PLSBgmDataViewManager::Instance()->AddGroupList(groupId, musicList);
-	}
-
-	// add library hot tab
-	bool haveHot = !hotMusicList.empty();
-	if (haveHot) {
-		PLSBgmDataViewManager::Instance()->InsertFrontGroupList(LIBRARY_HOT_TAB, hotMusicList);
-	}
 }
 
 void PLSBgmLibraryView::UpdateSelectedString()
@@ -436,8 +404,7 @@ void PLSBgmLibraryView::OnGroupButtonClicked(const QString &group)
 
 	auto iterFind = groupWidget.find(group);
 	if (iterFind == groupWidget.end()) {
-		auto musicList = PLSBgmDataViewManager::Instance()->GetGroupList(group);
-		CreateMusicList(group, musicList);
+		CreateMusicList(group);
 		InitButtonState(group);
 	} else {
 		UpdateMusiclist(group);
@@ -515,29 +482,8 @@ void PLSBgmLibraryView::OnDownloadJsonFailed()
 	auto ret = pls_show_download_failed_alert(PLSBasic::Get());
 	if (ret == PLSAlertView::Button::Ok) {
 		PLS_INFO(MAIN_BEAUTY_MODULE, "Music: User select retry download.");
-		DownloadMusicJson();
+		CategoryMusic::instance()->download();
 	}
-}
-
-void PLSBgmLibraryView::DownloadMusicJson()
-{
-	auto url = PLSResourceManager::instance()->getModuleJsonUrl(PLSResourceManager::resource_modules::Music);
-	if (url.isEmpty()) {
-		assert(false);
-		PLS_WARN(MAIN_BGM_MODULE, "Music: Json url is empty.");
-		return;
-	}
-
-	QString musicJsonPath = pls_get_user_path(QString(CONFIGS_MUSIC_USER_PATH).append(MUSIC_JSON_FILE));
-	pls::http::request(pls::http::Request()
-				   .method(pls::http::Method::Get) //
-				   .hmacUrl(url, "")               //
-				   .forDownload(true)              //
-				   .saveFilePath(musicJsonPath)    //
-				   .withLog()                      //
-				   .receiver(this)                 //
-				   .okResult([this](const pls::http::Reply &) { pls_async_call_mt(this, [this]() { initGroup(); }); })
-				   .failResult([this](const pls::http::Reply &) { pls_async_call_mt(this, [this]() { OnDownloadJsonFailed(); }); }));
 }
 
 PLSBgmLibraryItem *PLSBgmLibraryView::CreateLibraryBgmItemView(const PLSBgmItemData &data, QWidget *parent)
@@ -675,7 +621,7 @@ void PLSBgmLibraryView::ShowList(const QString &group)
 	iter->second->show();
 }
 
-void PLSBgmLibraryView::CreateMusicList(const QString &group, const BgmLibraryData &listData)
+void PLSBgmLibraryView::CreateMusicList(const QString &group)
 {
 	auto scrollArea = pls_new<PLSFloatScrollBarScrollArea>(this);
 	scrollArea->SetScrollBarRightMargin(1);
@@ -692,24 +638,35 @@ void PLSBgmLibraryView::CreateMusicList(const QString &group, const BgmLibraryDa
 	layoutContent->setEnabled(false);
 	ui->verticalLayout_list->addWidget(scrollArea);
 
-	auto iter = listData.cbegin();
+	auto groups = CategoryMusic::instance()->getGroup(group);
+	if (!groups) {
+		PLS_WARN(MAIN_BGM_MODULE, "Get music group %s failed.", group.toStdString().c_str());
+		return;
+	}
+
 	std::map<QString, PLSBgmLibraryItem *> listItem;
-	while (iter != listData.cend()) {
+	auto musicList = groups.items();
+	for (auto item : musicList) {
 		PLSBgmLibraryItem *musicItem = nullptr;
+		auto title = item.attr("title").toString();
 		if (group != QString(LIBRARY_HOT_TAB)) {
 			auto musicList = musicListItem.at(LIBRARY_HOT_TAB);
-			auto findIter = musicList.find(iter->second.title);
+			auto findIter = musicList.find(title);
 			if (findIter != musicList.end()) {
 				musicItem = findIter->second;
 			}
 		}
-		if (nullptr == musicItem)
-			musicItem = CreateLibraryBgmItemView(iter->second, this);
+		if (nullptr == musicItem) {
+			// item->data
+			PLSBgmItemData data(group, item);
+			musicItem = CreateLibraryBgmItemView(data, this);
+		}
+
 		layoutContent->addWidget(musicItem);
 		musicItem->SetGroup(group);
-		listItem.insert({iter->second.title, musicItem});
-		++iter;
+		listItem.insert({title, musicItem});
 	}
+
 	layoutContent->setEnabled(true);
 
 	musicListItem.insert({group, listItem});

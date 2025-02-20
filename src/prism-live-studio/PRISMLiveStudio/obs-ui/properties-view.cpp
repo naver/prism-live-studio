@@ -84,7 +84,8 @@ static inline long long color_to_int(QColor color)
 	       shift(color.blue(), 16) | shift(color.alpha(), 24);
 }
 
-QWidget *plsCreateHelpQWidget(QWidget *originWidget, const QString &longDesc)
+QWidget *plsCreateHelpQWidget(QWidget *originWidget, const QString &longDesc,
+			      const char *name, const QVariant &value)
 {
 	QWidget *newWidget = new QWidget();
 	newWidget->setObjectName("formLeftWidget");
@@ -94,6 +95,9 @@ QWidget *plsCreateHelpQWidget(QWidget *originWidget, const QString &longDesc)
 	boxLayout->setSpacing(0);
 	PLSHelpIcon *help = new PLSHelpIcon(newWidget);
 	help->setToolTip(longDesc);
+	if (name) {
+		help->setProperty(name, value);
+	}
 	boxLayout->addWidget(originWidget);
 	boxLayout->addWidget(help);
 	return newWidget;
@@ -229,6 +233,10 @@ void OBSPropertiesView::RefreshProperties()
 	QSizePolicy mainPolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	setSizePolicy(mainPolicy);
 
+	if (disableScrolling)
+		setMinimumHeight(qMax(widget->minimumSizeHint().height(),
+				      widget->sizeHint().height()));
+
 	lastFocused.clear();
 	if (lastWidget) {
 		lastWidget->setFocus(Qt::OtherFocusReason);
@@ -301,15 +309,23 @@ OBSPropertiesView::OBSPropertiesView(OBSData settings_, void *obj,
 				  Qt::QueuedConnection);
 }
 
+void OBSPropertiesView::SetDisabled(bool disabled)
+{
+	for (auto child : findChildren<QWidget *>()) {
+		child->setDisabled(disabled);
+	}
+}
+
 OBSPropertiesView::OBSPropertiesView(OBSData settings_, const char *type_,
 				     PropertiesReloadCallback reloadCallback_,
-				     int minSize_)
+				     int minSize_, bool bFromSetting)
 	: VScrollArea(nullptr),
 	  properties(nullptr, obs_properties_destroy),
 	  settings(settings_),
 	  type(type_),
 	  reloadCallback(reloadCallback_),
-	  minSize(minSize_)
+	  minSize(minSize_),
+	  m_bFromSetting(bFromSetting)
 {
 	setFrameShape(QFrame::NoFrame);
 	QMetaObject::invokeMethod(this, "ReloadProperties",
@@ -1064,6 +1080,7 @@ void OBSPropertiesView::AddFont(obs_property_t *prop, QFormLayout *layout,
 	font = fontLabel->font();
 	MakeQFont(font_obj, font, true);
 
+	button->setObjectName("fontButton");
 	button->setProperty("themeID", "settingsButtons");
 	button->setText(QTStr("Basic.PropertiesWindow.SelectFont"));
 	button->setToolTip(QT_UTF8(obs_property_long_description(prop)));
@@ -1339,9 +1356,12 @@ static QWidget *CreateRationalFPS(OBSFrameRatePropertyWidget *fpsProps,
 
 	auto str = QTStr("Basic.PropertiesView.FPS.ValidFPSRanges");
 	auto rlabel = new QLabel{str};
+	rlabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
 	auto combo = fpsProps->fpsRange = new PLSComboBox();
 	combo->setObjectName("fpsRange");
+	combo->setStyleSheet("width: 100%;");
+
 	auto convert_fps = media_frames_per_second_to_fps;
 	//auto convert_fi  = media_frames_per_second_to_frame_interval;
 
@@ -1362,19 +1382,28 @@ static QWidget *CreateRationalFPS(OBSFrameRatePropertyWidget *fpsProps,
 
 	layout->addRow(rlabel, combo);
 
+	auto numLabel = new QLabel(QTStr("Basic.Settings.Video.Numerator"));
+	numLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+	auto denLabel = new QLabel(QTStr("Basic.Settings.Video.Denominator"));
+	denLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
 	auto num_edit = fpsProps->numEdit = new SpinBoxIgnoreScroll{};
 	auto den_edit = fpsProps->denEdit = new SpinBoxIgnoreScroll{};
 
 	num_edit->setRange(0, INT_MAX);
 	den_edit->setRange(0, INT_MAX);
 
+	num_edit->setStyleSheet("width: 100%;");
+	den_edit->setStyleSheet("width: 100%;");
+
 	if (current_fps) {
 		num_edit->setValue(current_fps->numerator);
 		den_edit->setValue(current_fps->denominator);
 	}
 
-	layout->addRow(QTStr("Basic.Settings.Video.Numerator"), num_edit);
-	layout->addRow(QTStr("Basic.Settings.Video.Denominator"), den_edit);
+	layout->addRow(numLabel, num_edit);
+	layout->addRow(denLabel, den_edit);
 
 	widget->setLayout(layout);
 
@@ -1954,17 +1983,21 @@ bool WidgetInfo::PathChanged(const char *setting)
 	obs_path_type type = obs_property_path_type(property);
 	const char *filter = obs_property_path_filter(property);
 	const char *default_path = obs_property_path_default_path(property);
+
+	PLSLineEdit *edit = static_cast<PLSLineEdit *>(widget);
+
+	QString startDir = edit->text();
+	if (startDir.isEmpty())
+		startDir = default_path;
+
 	QString path;
 
 	if (type == OBS_PATH_DIRECTORY)
-		path = SelectDirectory(view, QT_UTF8(desc),
-				       QT_UTF8(default_path));
+		path = SelectDirectory(view, QT_UTF8(desc), startDir);
 	else if (type == OBS_PATH_FILE)
-		path = OpenFile(view, QT_UTF8(desc), QT_UTF8(default_path),
-				QT_UTF8(filter));
+		path = OpenFile(view, QT_UTF8(desc), startDir, QT_UTF8(filter));
 	else if (type == OBS_PATH_FILE_SAVE)
-		path = SaveFile(view, QT_UTF8(desc), QT_UTF8(default_path),
-				QT_UTF8(filter));
+		path = SaveFile(view, QT_UTF8(desc), startDir, QT_UTF8(filter));
 
 #ifdef __APPLE__
 	// TODO: Revisit when QTBUG-42661 is fixed
@@ -1975,7 +2008,6 @@ bool WidgetInfo::PathChanged(const char *setting)
 	if (path.isEmpty())
 		return false;
 
-	PLSLineEdit *edit = static_cast<PLSLineEdit *>(widget);
 	edit->setText(path);
 	obs_data_set_string(view->settings, setting, QT_TO_UTF8(path));
 	return true;
@@ -2226,18 +2258,21 @@ void WidgetInfo::ButtonClicked()
 			pls_set_bgm_visible(true);
 		}
 	}
-
+	QPointer<WidgetInfo> weakThis(this);
 	const char *name = obs_property_name(property);
 	if (pls_is_equal(name, "openPrismLens")) {
 		view->OnOpenPrismLensClicked();
 	}
 
+	if (!weakThis) {
+		return;
+	}
+
 	OBSObject strongObj = view->GetObject();
 	void *obj = strongObj ? strongObj.Get() : view->rawObj;
 
-	QPointer<WidgetInfo> weakThis(this);
 	if (obs_property_button_clicked(property, obj) && weakThis) {
-    setIsControlChanging(false);
+		setIsControlChanging(false);
 		QMetaObject::invokeMethod(view, "RefreshProperties",
 					  Qt::QueuedConnection);
 	}
@@ -2843,7 +2878,9 @@ void OBSPropertiesView::updateUIWhenAfterAddProperty(obs_property_t *property,
 			check->setText(desc);
 			check->setToolTip(
 				obs_property_long_description(property));
-
+#ifdef __APPLE__
+			check->setAttribute(Qt::WA_LayoutUsesWidgetRect);
+#endif
 			widget = plsCreateHelpQWidget(
 				check, obs_property_long_description(property));
 		}
@@ -2873,11 +2910,22 @@ void OBSPropertiesView::controlChangedToRefresh(obs_property_t *p_,
 						const char *setting_)
 {
 	if (visUpdateCb && !deferUpdate) {
-		pls_async_call_mt(this, [this]() {
+		auto updateCallBack = [this]() {
 			void *obj = GetSourceObj();
 			if (obj)
 				visUpdateCb(obj, settings);
-		});
+		};
+
+		auto source = pls_get_source_by_pointer_address(GetSourceObj());
+		auto id = obs_source_get_id(source);
+		if (pls_is_os_sys_macos() &&
+		    pls_is_equal(id, AUDIO_INPUT_SOURCE_ID)) {
+			updateCallBack();
+		} else {
+			pls_async_call_mt(this, [this, updateCallBack]() {
+				updateCallBack();
+			});
+		}
 	}
 
 	SignalChanged();
@@ -2942,8 +2990,7 @@ void OBSPropertiesView::showFilterButton(bool hasNoProperties, const char *id)
 				  common::PRISM_CHZZK_SPONSOR_SOURCE_ID) ||
 		    obs_data_get_bool(settings, "noLabelHeader")) {
 			formLayout->addRow(previewButton);
-		} else if (pls_is_equal(id, common::PRISM_CHATV2_SOURCE_ID) &&
-			   obs_data_get_int(settings, "Tab") != 0) {
+		} else if (pls_is_equal(id, common::PRISM_CHATV2_SOURCE_ID)) {
 			auto layout = pls_new<QHBoxLayout>();
 			layout->setSpacing(0);
 			layout->setContentsMargins(0, 0, 0, 0);
@@ -2962,10 +3009,14 @@ void OBSPropertiesView::showFilterButton(bool hasNoProperties, const char *id)
 								settings,
 								"Chat.Template.List"));
 				m_ctSaveTemplateBtn->setEnabled(!isSuccess);
+				obs_data_set_bool(settings, "ctParamChanged",
+						  false);
 			});
 			layout->addWidget(m_ctSaveTemplateBtn);
 			m_ctSaveTemplateBtn->setObjectName("CtChatSaveButton");
 			formLayout->addRow(previewButton, layout);
+			m_ctSaveTemplateBtn->setVisible(
+				obs_data_get_int(settings, "Tab") != 0);
 		} else {
 			formLayout->addRow(nullptr, previewButton);
 		}
@@ -3146,7 +3197,8 @@ void OBSPropertiesView::setContentMarginAndWidth()
 			widget->setContentsMargins(
 				marginLeft, 0, widgetMarginRight,
 				pls_conditional_select(isPrismMobileSource, 15,
-						       50));
+						       m_bFromSetting ? 0
+								      : 50));
 		}
 
 		if (setCustomContentWidth) {

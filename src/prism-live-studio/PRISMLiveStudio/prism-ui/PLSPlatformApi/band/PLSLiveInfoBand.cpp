@@ -33,6 +33,8 @@ PLSLiveInfoBand::PLSLiveInfoBand(PLSPlatformBase *pPlatformBase, QWidget *parent
 	m_uuid = platform->getChannelUUID();
 	content()->setFocusPolicy(Qt::StrongFocus);
 
+	ui->dualWidget->setText(tr("BAND"))->setUUID(m_uuid);
+
 	if (auto description = QString::fromUtf8(platform->getTitle().c_str()); !description.isEmpty()) {
 		ui->plainTextEdit->setPlainText(description);
 	}
@@ -70,14 +72,16 @@ void PLSLiveInfoBand::okButtonClicked()
 	m_description = ui->plainTextEdit->toPlainText();
 	platform->setTitle(m_description.toUtf8().data());
 
-	auto checkStreamKey = [this](int value) {
+	auto checkStreamKey = [this](const PLSErrorHandler::RetData &retData) {
 		hideLoading();
-		if (value == 0) {
+		if (retData.prismCode == PLSErrorHandler::SUCCESS) {
 			done(Accepted);
-		} else if (value == static_cast<int>(PLSPlatformApiResult::PAR_TOKEN_EXPIRED)) {
+		} else if (retData.errorType == PLSErrorHandler::ErrorType::TokenExpired || retData.prismCode == PLSErrorHandler::CHANNEL_BAND_FORBIDDEN_ERROR) {
 			PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_BAND, {{"channel start error", "band"}}, "band token expired.");
+			auto retDataTmp = retData;
+			PLSErrorHandler::directShowAlert(retDataTmp, nullptr);
 
-			PLSAlertView::Button btn = pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Band.Expired"));
+			PLSAlertView::Button btn = retDataTmp.clickedBtn;
 			done(Rejected);
 			if (btn != PLSAlertView::Button::NoButton) {
 				PLSCHANNELS_API->channelExpired(platform->getChannelUUID(), false);

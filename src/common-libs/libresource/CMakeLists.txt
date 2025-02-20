@@ -2,9 +2,9 @@ project(libresource)
 
 find_package(Qt6Core REQUIRED)
 
-add_definitions(-DPLSRESOURCEHANDLE_LIBRARY -D_CRT_SECURE_NO_WARNINGS)
+add_definitions(-DPLSRESOURCEHANDLE_LIBRARY -DLIRESOURCE_LIB -D_CRT_SECURE_NO_WARNINGS)
 include_directories(${Qt6Core_PRIVATE_INCLUDE_DIRS})
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 set(CMAKE_AUTOMOC TRUE)
@@ -34,4 +34,3 @@ set_target_properties(libresource PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CM
 
 common_libs_module(libresource "common libs resource module")
 copy_common_libs_binary(libresource)
-copy_common_libs_data(libresource data/res_template data/prism-studio/res_template)

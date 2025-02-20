@@ -5,9 +5,11 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <libresource.h>
 
 constexpr auto PORTRAIT = "PORTRAIT";
 constexpr auto LANDSCAPE = "LANDSCAPE";
+constexpr auto RECENT_USED_GROUP_ID = "recentUsedGroup";
 
 enum class Orientation { portrait = 0, landscape };
 struct StickerParam {
@@ -19,11 +21,22 @@ struct StickerParam {
 
 struct StickerData {
 	QString id;
-	qint64 version;
+	qint64 version = 0;
 	QString title;
 	QString thumbnailUrl;
 	QString resourceUrl;
 	QString category;
+
+	StickerData() {};
+
+	StickerData(const pls::rsm::Item &item) {
+		id = item.itemId();
+		version = item.attr("version").toLongLong();
+		title = item.attr("title").toString();
+		thumbnailUrl = item.attr("thumbnailUrl").toString();
+		resourceUrl = item.attr("resourceUrl").toString();
+		category = item.groups().empty() ? "" : item.groups().front().attr("groupId").toString();
+	}
 };
 
 Q_DECLARE_METATYPE(StickerData)
@@ -67,7 +80,6 @@ public:
 	explicit PLSStickerDataHandler(QObject *parent = nullptr);
 	~PLSStickerDataHandler() override = default;
 
-	bool HandleDownloadedFile(const QString &stickerFile) const;
 	static bool CheckStickerSource();
 
 	static bool MediaRemux(const QString &filePath, const QString &outputFileName, uint fps);
@@ -75,7 +87,7 @@ public:
 	static bool UnCompress(const QString &srcFile, const QString &dstPath, QString &error);
 	static bool ParseStickerParamJson(const QString &fileName, QJsonObject &obj);
 
-	static StickerParamWrapper *CreateStickerParamWrapper(const QString &categoryId);
+	static std::shared_ptr<StickerParamWrapper> CreateStickerParamWrapper(const QString &categoryId);
 	static QString GetStickerConfigJsonFileName(const StickerData &data);
 	static QString GetStickerResourcePath(const StickerData &data);
 	static QString GetStickerResourceFile(const StickerData &data);
@@ -87,6 +99,7 @@ public:
 	static void SetClearDataFlag(bool clearData);
 	static bool GetClearDataFlag();
 	static QString getTargetImagePath(QString resourcePath, QString category, QString id, bool landscape);
+	static StickerHandleResult RemuxItemResource(const pls::rsm::Item &item);
 
 private:
 	static bool clearData;

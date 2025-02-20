@@ -41,7 +41,7 @@ LIBDUMPANALUZER_API void pls_set_prism_session(const std::string &prism_session)
 LIBDUMPANALUZER_API void pls_set_prism_video_adapter(const std::string &video_adapter);
 LIBDUMPANALUZER_API void pls_set_setup_session(const std::string &session);
 LIBDUMPANALUZER_API void pls_set_prism_sub_session(const std::string &session);
-
+LIBDUMPANALUZER_API void pls_set_prism_pid(const std::string &pid);
 
 /*
 Note: In PRISMLohher.exe use

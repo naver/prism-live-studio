@@ -5,6 +5,8 @@
 #include <QPointer>
 #include <QScopedPointer>
 
+#include <QPixmap>
+
 #include <QOpenGLWidget>
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
@@ -27,6 +29,7 @@ public:
 
 	void setHasBorder(bool bBorder);
 	void setSceneName(const QString &name);
+	void showAIBadge(const QPixmap &pixmap, bool bLongAIBadge);
 
 signals:
 	void clicked();
@@ -38,7 +41,7 @@ protected:
 	void initializeGL() override;
 	void resizeGL(int w, int h) override;
 
-	void uploadFrame();
+	bool uploadFrame();
 	void renderFrame();
 
 	void mouseReleaseEvent(QMouseEvent *event) override;
@@ -59,4 +62,9 @@ private:
 
 	bool m_bBorder = false;
 	QString m_strName;
+
+	bool m_bOpenGLFailed = false;
+
+	const QPixmap *m_pPixmapAIBadge = nullptr;
+	bool m_bLongAIBadge = false;
 };

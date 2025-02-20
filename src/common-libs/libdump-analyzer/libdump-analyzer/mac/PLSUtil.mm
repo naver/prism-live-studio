@@ -150,3 +150,37 @@ NSString * mac_get_md5(NSString *input) {
 	
 	return [hexString copy];
 }
+
+bool mac_is_third_party_plugin(std::string& module_path) {
+    auto data_path = mac_get_app_data_dir("obs-studio");
+	NSString *dataPathStr = [[NSString stringWithUTF8String:data_path.c_str()] stringByAppendingPathComponent:@"plugins"];
+    NSString *modulePathStr = [NSString stringWithUTF8String:module_path.c_str()];
+    
+    return [modulePathStr hasPrefix:dataPathStr];
+}
+
+std::string mac_get_plugin_version(std::string& path) {
+	NSString *executablePath = [NSString stringWithUTF8String:path.c_str()];
+	NSArray *pathComponents = executablePath.pathComponents;
+	if (pathComponents.count < 3) {
+		return "";
+	}
+	
+	NSString *bundlePath = [NSString pathWithComponents:[pathComponents subarrayWithRange:NSMakeRange(0, executablePath.pathComponents.count - 3)]];
+	if (!bundlePath) {
+		return "";
+	}
+
+	NSBundle *bundle = [NSBundle bundleWithURL:[NSURL fileURLWithPath:bundlePath]];
+	if (!bundle) {
+		return "";
+	}
+	NSString *versionString = bundle.infoDictionary[@"CFBundleVersion"];
+	if (!versionString) {
+		return "";
+	}
+	
+	std::string version(versionString.UTF8String);
+	
+	return version;
+}

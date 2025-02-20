@@ -5,6 +5,7 @@
 #include "../PLSPlatformBase.hpp"
 #include "PLSChannelDataHandler.h"
 #include "PLSAPICommon.h"
+#include "PLSErrorHandler.h"
 
 struct PLSNCB2BLiveinfoData {
 	PLSNCB2BLiveinfoData() = default;
@@ -38,14 +39,14 @@ class PLSPlatformNCB2B : public PLSPlatformBase {
 	Q_OBJECT
 
 public:
-	static const PLSAPICommon::privacyVec &getPrivayList();
+	static const PLSAPICommon::privacyVec &getPrivacyList();
 
 	PLSPlatformNCB2B();
 	~PLSPlatformNCB2B() = default;
 	PLSServiceType getServiceType() const override;
-	void liveInfoisShowing();
+	void liveInfoIsShowing();
 	void reInitLiveInfo();
-	void requestChannelInfo(const QVariantMap &srcInfo, const UpdateCallback &finishedCall) const;
+	void requestChannelInfo(const QVariantMap &srcInfo, const UpdateCallback &finishedCall);
 	void dealRequestChannelInfoSucceed(const QVariantMap &srcInfo, const QByteArray &data, const UpdateCallback &finishedCall) const;
 
 	void saveSettings(const std::function<void(bool)> &onNext, const PLSNCB2BLiveinfoData &uiData, const QObject *receiver);
@@ -63,7 +64,6 @@ public:
 
 	const QString &getFailedErr() const { return m_startFailedStr; }
 	void setFailedErr(const QString &failedStr) { m_startFailedStr = failedStr; }
-	void setlastRequestAPI(const QString &apiName) { m_lastRequestAPI = apiName; }
 
 	void requestScheduleList(const std::function<void(bool)> &onNext, const QObject *widget);
 	void dealScheduleListSucceed(const QByteArray &data, const std::function<void(bool)> &onNext, const QObject *widget);
@@ -73,7 +73,7 @@ public:
 	void requestCurrentSelectData(const std::function<void(bool)> &onNext, const QWidget *widget);
 
 	const std::vector<PLSNCB2BLiveinfoData> &getScheduleDatas() const;
-	const PLSNCB2BLiveinfoData &getNomalLiveData() const;
+	const PLSNCB2BLiveinfoData &getNormalLiveData() const;
 	const PLSNCB2BLiveinfoData &getTempSelectData();
 	PLSNCB2BLiveinfoData &getTempSelectDataRef();
 	const PLSNCB2BLiveinfoData &getSelectData() const;
@@ -83,15 +83,18 @@ public:
 		return *this;
 	}
 	QString getTempSelectID() const { return m_bTempSelectID; }
-	PLSNCB2BLiveinfoData &getTempNormalData() { return m_tempNoramlData; };
+	PLSNCB2BLiveinfoData &getTempNormalData() { return m_tempNormalData; };
 
-	bool isShownAlert() const { return m_isShownAlert; }
-	void setIsShownAlert(bool isShownAlert) { m_isShownAlert = isShownAlert; }
-
-	void setupApiFailedWithCode(PLSPlatformApiResult result, const QByteArray &errData);
 	void updateScheduleListAndSort();
 
 	QString subChannelID() const;
+
+	//error handle
+	PLSErrorHandler::ExtraData getErrorExtraData(const QString &urlEn, const QString &urlKr = {});
+	void showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom);
+	void showAlertByCustName(const QString &customErrName, const QString &logFrom);
+	void showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom);
+	void showAlertPostAction(const PLSErrorHandler::RetData &retData);
 
 public slots:
 	void updateScheduleList() override;
@@ -106,16 +109,14 @@ signals:
 
 private:
 	QString m_startFailedStr{};
-	QString m_lastRequestAPI{};
 	qint64 m_iContext{0};
-	bool m_isShownAlert = false;
 
 	std::vector<PLSNCB2BLiveinfoData> m_vecSchedules;
 	std::vector<PLSNCB2BLiveinfoData> m_vecGuideSchedules;
 
 	//normal live data
-	PLSNCB2BLiveinfoData m_noramlData;
-	PLSNCB2BLiveinfoData m_tempNoramlData;
+	PLSNCB2BLiveinfoData m_normalData;
+	PLSNCB2BLiveinfoData m_tempNormalData;
 	//finish selected data when click ok
 	PLSNCB2BLiveinfoData m_selectData;
 	//temp data
@@ -124,12 +125,11 @@ private:
 
 	QString getShareUrl(bool isEnc) const;
 	void onPrepareLive(bool value) override;
-	PLSPlatformApiResult getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data, PLSAPICommon::PLSApiType apiType = PLSAPICommon::PLSApiType::Normal) const;
 	void showApiRefreshError(PLSPlatformApiResult value);
 	void showTokenExpiredAlert(QWidget *alertParent);
 	void showApiUpdateError(PLSPlatformApiResult value);
 
-	void updateLiveinfo(const QObject *reciever, const PLSNCB2BLiveinfoData &uiData, const std::function<void(bool)> &onNext);
+	void updateLiveinfo(const QObject *receiver, const PLSNCB2BLiveinfoData &uiData, const std::function<void(bool)> &onNext);
 
 	void onLiveEnded() override;
 	void onAlLiveStarted(bool) override;

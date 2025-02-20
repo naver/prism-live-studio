@@ -319,6 +319,12 @@ struct viewer_count_source {
 			query.addQueryItem(QStringLiteral("viewerCount"),
 					   encodePercent(QString::fromUtf8(QJsonDocument(m_viewer_count.value(QStringLiteral("data")).toObject()).toJson(QJsonDocument::Compact))));
 			m_viewer_count = QJsonObject();
+
+			QJsonObject backupData;
+			backupData["type"] = "setting";
+			backupData["data"] = data;
+			m_last_event_name = "viewerCountEvent";
+			m_last_event_data = QJsonDocument(backupData).toJson(QJsonDocument::Compact);
 		}
 
 		if (!m_live_start.isEmpty()) {

@@ -72,7 +72,6 @@ void PLSDialogButtonBox::clear()
 {
 	while (m_btns.size()) {
 		QAbstractButton *button = m_btns.takeAt(0).m_btn;
-		QObject::disconnect(button, SIGNAL(destroyed()), this, SLOT(_q_handleButtonDestroyed()));
 		delete button;
 	}
 	for (int i = 0; i < ButtonRole::NRoles; ++i) {

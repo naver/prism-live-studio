@@ -6,11 +6,13 @@
 
 #include "obs-app.hpp"
 
+enum class NodeErrorType { Ok, FileNotExisted, FileContentError, UnregisterNode, SourceHasUpdate, SourceNotRegistered, NodeNotMatch, SaveFileError, Unknown };
+
 class PLSOverlayNode : public QObject {
 	Q_OBJECT
 public:
 	// parse nodeType from config.json
-	virtual bool load(const QJsonObject &content) = 0;
+	virtual NodeErrorType load(const QJsonObject &content) = 0;
 
 	// save to prism scene collection format
 	virtual void save(QJsonObject &output) = 0;
@@ -23,8 +25,12 @@ class PLSBaseNode : public PLSOverlayNode {
 	Q_OBJECT
 public:
 	explicit PLSBaseNode(const QString &sourceId = "");
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
+	bool checkSourceRegistered();
+	bool checkHasUpdate();
+	void setForceUpdateSource(bool update);
 	void save(QJsonObject &output);
+	void clear();
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
 
 	QString getSourceId();
@@ -32,6 +38,7 @@ public:
 protected:
 	QJsonObject outputObject;
 	QString sourceId;
+	bool forceUpdateSource = false;
 };
 
 class PLSRootNode : public PLSBaseNode {
@@ -39,13 +46,14 @@ class PLSRootNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &rootObject);
+	NodeErrorType load(const QJsonObject &rootObject);
 	void save(QJsonObject &output);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
+	void clear();
 
 private:
-	bool loadScenes(const QJsonObject &scenesObject);
-	bool loadTransitions(const QJsonObject &transitionsObject);
+	NodeErrorType loadScenes(const QJsonObject &scenesObject);
+	NodeErrorType loadTransitions(const QJsonObject &transitionsObject);
 
 private:
 	QString schemaVersion;
@@ -60,9 +68,10 @@ class PLSScenesNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &scenesObject);
+	NodeErrorType load(const QJsonObject &scenesObject);
 	void save(QJsonObject &output);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
+	void clear();
 
 	struct SceneInfo {
 		QString name;
@@ -80,7 +89,7 @@ class PLSSceneSourceNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &scenesObject);
+	NodeErrorType load(const QJsonObject &scenesObject);
 };
 
 class PLSSlotsNode : public PLSBaseNode {
@@ -88,9 +97,10 @@ class PLSSlotsNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &slotsObject);
+	NodeErrorType load(const QJsonObject &slotsObject);
 	void save(QJsonObject &output);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
+	void clear();
 
 private:
 	QString schemaVersion;
@@ -103,8 +113,9 @@ class PLSGroupNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &slotsObject);
+	NodeErrorType load(const QJsonObject &slotsObject);
 	void save(QJsonObject &output);
+	void clear();
 
 private:
 	QJsonObject outputObjects;
@@ -115,7 +126,7 @@ class PLSBrowserNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &slotsObject);
+	NodeErrorType load(const QJsonObject &slotsObject);
 };
 
 class PLSTextNode : public PLSBaseNode {
@@ -132,9 +143,10 @@ class PLSSceneItemNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &slotsObject);
+	NodeErrorType load(const QJsonObject &slotsObject);
 	void save(QJsonObject &output);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
+	void clear();
 
 private:
 	struct CropInfo {
@@ -175,6 +187,7 @@ private:
 	ContentInfo content;
 
 	QJsonObject outputSettings;
+	QJsonObject privateSettings;
 };
 
 class PLSGameCaptureNode : public PLSBaseNode {
@@ -182,7 +195,7 @@ class PLSGameCaptureNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
 	void save(QJsonObject &output);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
 
@@ -197,13 +210,12 @@ class PLSMediaNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
 	void save(QJsonObject &output);
 	virtual bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
 
 private:
 	QString localFile;
-	QJsonObject outputObject;
 };
 
 class PLSImageNode : public PLSBaseNode {
@@ -211,13 +223,12 @@ class PLSImageNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
 	void save(QJsonObject &output);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
 
 private:
 	QString fileName;
-	QJsonObject outputObject;
 };
 
 class PLSCameraNode : public PLSBaseNode {
@@ -225,7 +236,7 @@ class PLSCameraNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
 };
 
 class PLSTransitionNode : public PLSBaseNode {
@@ -233,7 +244,7 @@ class PLSTransitionNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
 	void save(QJsonObject &output);
 	virtual bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
 
@@ -246,7 +257,7 @@ class PLSMusicPlaylistNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
 };
 
@@ -255,7 +266,7 @@ class PLSPrismStickerNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
 };
 
@@ -264,7 +275,7 @@ class PLSPrismGiphyNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
 };
 
@@ -273,7 +284,7 @@ class PLSImageSlideShowNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
 };
 
@@ -282,6 +293,6 @@ class PLSVlcVideoNode : public PLSBaseNode {
 	using PLSBaseNode::PLSBaseNode;
 
 public:
-	bool load(const QJsonObject &content);
+	NodeErrorType load(const QJsonObject &content);
 	bool doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param = nullptr);
 };

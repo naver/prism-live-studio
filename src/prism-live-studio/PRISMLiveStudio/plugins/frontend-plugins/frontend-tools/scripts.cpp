@@ -106,7 +106,7 @@ ScriptLogWindow::ScriptLogWindow() : PLSDialogView(nullptr)
 	layout->addWidget(edit);
 	layout->addLayout(buttonLayout);
 
-	setLayout(layout);
+	content()->setLayout(layout);
 	scriptLogWidget = edit;
 
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
@@ -182,9 +182,9 @@ ScriptsTool::ScriptsTool(QWidget *parent) : PLSDialogView(parent), ui(new Ui_Scr
 {
 	this->setupUi(ui);
 	pls_add_css(this, {"ScriptsTool"});
-	initSize(720, 700);
+	initSize(970, 700);
 	setResizeEnabled(false);
-	setFixedSize(720, 700);
+	setFixedSize(970, 700);
 	RefreshLists();
 
 #if PYTHON_UI
@@ -336,9 +336,12 @@ void ScriptsTool::on_addScripts_clicked()
 	}
 
 	QStringList files = OpenFiles(this, QT_UTF8(obs_module_text("AddScripts")), QT_UTF8(lastBrowsedDir.c_str()), filter);
-	if (!files.count())
+	if (!files.count()) {
+#if defined(Q_OS_MACOS)
+		pls_bring_mac_window_to_front(this->winId());
+#endif
 		return;
-
+	}
 	for (const QString &file : files) {
 		lastBrowsedDir = QFileInfo(file).absolutePath().toUtf8().constData();
 

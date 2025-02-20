@@ -86,6 +86,11 @@ OBSBasicFilters::OBSBasicFilters(QWidget *parent, OBSSource source_)
 	ui->effectFilters->setItemDelegate(
 		new PLSFiltersItemDelegate(ui->effectFilters));
 
+	ui->asyncFilters->setHorizontalScrollBarPolicy(
+		Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
+	ui->effectFilters->setHorizontalScrollBarPolicy(
+		Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
+
 	/*ui->asyncFilters->setStyle(
 		new PLSFiltersProxyStyle());
 	ui->effectFilters->setStyle(
@@ -371,6 +376,11 @@ void OBSBasicFilters::UpdatePropertiesView(int row, bool async)
 	UpdateSplitter();
 	ui->propertiesLayout->addWidget(view);
 	view->show();
+
+	//#PRISM_PC-1351 ren.jinbo windows need add a item after linked label, so can show mouse
+	QWidget *placeholderMouse = new QWidget(this);
+	placeholderMouse->hide();
+	ui->propertiesLayout->addWidget(placeholderMouse);
 }
 
 void OBSBasicFilters::UpdateProperties(void *data, calldata_t *)
@@ -904,8 +914,11 @@ void OBSBasicFilters::on_removeAsyncFilter_clicked()
 {
 	OBSSource filter = GetFilter(ui->asyncFilters->currentRow(), true);
 	if (filter) {
-		if (QueryRemove(this, filter))
+		if (QueryRemove(this, filter)) {
 			delete_filter(filter);
+			if (ui->asyncFilters->count() == 0)
+				ui->effectFilters->setFocus();
+		}
 	}
 }
 
@@ -926,6 +939,8 @@ void OBSBasicFilters::on_moveAsyncFilterDown_clicked()
 
 void OBSBasicFilters::on_asyncFilters_GotFocus()
 {
+	if (ui->asyncFilters->count() == 0)
+		return;
 	UpdatePropertiesView(ui->asyncFilters->currentRow(), true);
 	isAsync = true;
 }
@@ -949,6 +964,8 @@ void OBSBasicFilters::on_removeEffectFilter_clicked()
 	if (filter) {
 		if (QueryRemove(this, filter)) {
 			delete_filter(filter);
+			if (ui->effectFilters->count() == 0)
+				ui->asyncFilters->setFocus();
 		}
 	}
 }
@@ -970,6 +987,8 @@ void OBSBasicFilters::on_moveEffectFilterDown_clicked()
 
 void OBSBasicFilters::on_effectFilters_GotFocus()
 {
+	if (ui->effectFilters->count() == 0)
+		return;
 	UpdatePropertiesView(ui->effectFilters->currentRow(), false);
 	isAsync = false;
 }

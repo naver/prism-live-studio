@@ -134,10 +134,10 @@ void ChatTemplate::createFrame(bool isEdit)
 	auto btn2 = pls_new<QPushButton>();
 	btn2->setObjectName("chatTemplateEditBtn");
 	connect(btn1, &QPushButton::clicked, [this]() {
-		if (PLSAlertView::Button::Ok == PLSAlertView::information(nullptr, tr("Alert.Title"), QString(tr("Ct.Remove.Custom.Template")).arg(m_editName.c_str()),
+		if (PLSAlertView::Button::Ok == PLSAlertView::information(this, tr("Alert.Title"), QString(tr("Ct.Remove.Custom.Template")).arg(m_editName.c_str()),
 									  PLSAlertView::Button::Ok | PLSAlertView::Button::Cancel, PLSAlertView::Button::Ok)) {
-			pls_get_chat_template_helper_instance()->removeCustomTemplate(property("ID").toInt());
 			emit resetSourceProperties(property("ID").toInt());
+			pls_get_chat_template_helper_instance()->removeCustomTemplate(property("ID").toInt());
 		}
 	});
 
@@ -575,12 +575,8 @@ FontSelectionWindow::FontSelectionWindow(const QList<ITextMotionTemplateHelper::
 	}
 	for (int i = 0; i < count; i++) {
 		auto family = families[i];
-		auto btn = pls_new<QPushButton>();
-		btn->setText(family.uiFamilyText);
-		btn->setStyleSheet(QString("QPushButton{font-family:%1;font-weight:%2;font-size:%3px;}").arg(family.qtFamilyText).arg(family.fontWeight).arg(family.fontSize));
-		btn->setProperty("webFamily", family.webFamilyText);
+		auto btn = pls_new<FontButton>(family.buttonResourceStr, family.buttonWidth);
 		btn->setProperty("qtFamily", family.qtFamilyText);
-		btn->setProperty("fontWeight", family.fontWeight);
 		btn->setCheckable(true);
 		btn->setChecked(selectFamily == family.qtFamilyText);
 		if (i < 5) {
@@ -617,3 +613,48 @@ FontSelectionWindow::FontSelectionWindow(const QList<ITextMotionTemplateHelper::
 }
 
 FontSelectionWindow::~FontSelectionWindow() {}
+
+FontButton::FontButton(const QString &resourceName, int width, int height)
+	: m_picLabel(pls_new<QLabel>()),
+	  m_normalResPath(QString(":/resource/images/chatv2-source/btn_PRISMChat_%1_normal.svg").arg(resourceName)),
+	  m_hoveredResPath(QString(":/resource/images/chatv2-source/btn_PRISMChat_%1_over.svg").arg(resourceName)),
+	  m_selectedResPath(QString(":/resource/images/chatv2-source/btn_PRISMChat_%1_select.svg").arg(resourceName))
+{
+	auto mainLayout = pls_new<QHBoxLayout>(this);
+	mainLayout->setContentsMargins(0, 0, 0, 0);
+	mainLayout->setSpacing(0);
+	m_picLabel->setObjectName("fontBgmLabel");
+	mainLayout->addWidget(m_picLabel);
+	m_picLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	setLayout(mainLayout);
+	updateFontButtonBgm(m_normalResPath);
+	setStyleSheet(QString("width:%1px;height:%2px;margin:0;padding:0;border:none;").arg(width).arg(height));
+}
+bool FontButton::event(QEvent *event)
+
+{
+	switch (event->type()) {
+	case QEvent::Enter:
+		isChecked() ? updateFontButtonBgm(m_selectedResPath) : updateFontButtonBgm(m_hoveredResPath);
+		break;
+	case QEvent::Leave:
+		isChecked() ? updateFontButtonBgm(m_selectedResPath) : updateFontButtonBgm(m_normalResPath);
+		break;
+	case QEvent::MouseButtonPress:
+		updateFontButtonBgm(m_selectedResPath);
+		break;
+	default:
+		break;
+	}
+	return QPushButton::event(event);
+}
+
+void FontButton::checkStateSet()
+{
+	isChecked() ? updateFontButtonBgm(m_selectedResPath) : updateFontButtonBgm(m_normalResPath);
+}
+
+void FontButton::updateFontButtonBgm(const QString &bgmRes)
+{
+	m_picLabel->setStyleSheet(QString("QLabel#fontBgmLabel{image:url(%1);}").arg(bgmRes));
+}

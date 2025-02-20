@@ -146,3 +146,21 @@ ChannelCapsule {
 		ChannelCapsule #StateActive[Checked="false"] {
 			image: url(":/channels/resource/images/ChannelsSource/badge-channel-off.svg");
 		}
+
+	ChannelCapsule #OutputDirection {
+		margin: /*hdpi*/ 0px;
+		margin-left: /*hdpi*/ 5px;
+		padding: /*hdpi*/ 0px;
+		min-height: /*hdpi*/ 15px;
+		max-height: /*hdpi*/ 15px;
+		min-width: /*hdpi*/ 15px;
+		max-width: /*hdpi*/ 15px;
+		background-color: transparent;
+	}
+
+	ChannelCapsule #OutputDirection[VerticalOutput="true"] {
+		image: url(":/channels/resource/images/ChannelsSource/ic_badge_vertical.svg");
+	}
+		ChannelCapsule #OutputDirection[VerticalOutput="false"] {
+			image: url(":/channels/resource/images/ChannelsSource/ic_badge_horizontal.svg");
+		}

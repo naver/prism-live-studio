@@ -100,17 +100,16 @@ protected:
 private:
 	QPointer<QLabel> m_pLabelToast;
 	QPointer<QFrame> m_pTestFrame = nullptr;
-	QPushButton *m_pButtonToastClose = nullptr;
 	QCefCookieManager *chat_panel_cookies = nullptr;
 
-	QLabel *m_rtmpPlaceTextLabel;
+	QPointer<QLabel> m_rtmpPlaceTextLabel;
 
 	//PRISM/Zhangdewen/20200921/#/add chat source button
 	QWidget *m_chatSourceButtonOnePlatform = nullptr;
 	QWidget *m_chatSourceButtonNoPlatform = nullptr;
 	QPointer<QWidget> m_chatSourceBtn = nullptr;
 
-	QPushButton *m_fontChangeBtn = nullptr;
+	QPointer<QPushButton> m_fontChangeBtn = nullptr;
 
 	std::vector<ChatDatas> m_vecChatDatas;
 	bool m_isForceRefresh = true;

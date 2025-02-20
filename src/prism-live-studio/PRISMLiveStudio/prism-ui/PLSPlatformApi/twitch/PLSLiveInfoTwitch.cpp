@@ -1,4 +1,4 @@
-﻿#include "PLSLiveInfoTwitch.h"
+#include "PLSLiveInfoTwitch.h"
 
 #include <QObject>
 #include <QNetworkReply>
@@ -14,6 +14,7 @@
 #include "PLSChannelDataAPI.h"
 #include "ChannelCommonFunctions.h"
 #include "libui.h"
+#include "libresource.h"
 
 using namespace common;
 PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *parent) : PLSLiveInfoBase(pPlatformBase, parent)
@@ -29,6 +30,8 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 	updateStepTitle(ui->pushButtonOk);
 	PLS_PLATFORM_TWITCH->setAlertParent(this);
 
+	ui->dualWidget->setText(tr("LiveInfo.Twitch.Caption"))->setUUID(PLS_PLATFORM_TWITCH->getChannelUUID());
+
 	ui->pushButtonOk->setFocusPolicy(Qt::NoFocus);
 	ui->pushButtonCancel->setFocusPolicy(Qt::NoFocus);
 	getJs();
@@ -37,12 +40,11 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 	m_updateTimer.start();
 	connect(&m_updateTimer, &QTimer::timeout, [this]() {
 		PLS_INFO(MODULE_PLATFORM_TWITCH, "twitch update timeout.");
-		m_browserWidget->refreshBrowser();
-		if (!m_isUpdateOk) {
+		if (!m_isUpdateFinished) {
 			PLS_INFO(MODULE_PLATFORM_TWITCH, "show twitch update timeout alert.");
 			pls_async_call_mt(this, [this]() {
 				hideLoading();
-				pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
+				PLSErrorHandler::showAlertByCustomErrName(PLSErrCustomKey_LoadLiveInfoFailed, TWITCH, {});
 			});
 		}
 	});
@@ -63,22 +65,35 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 		auto status = _t2.value("data").toString();
 		if (0 == status.compare("clickStart", Qt::CaseInsensitive)) {
 			PLS_INFO(MODULE_PLATFORM_TWITCH, "clickStart--start update live info");
-			m_isUpdateOk = false;
+			m_isUpdateFinished = false;
+			m_updateSuccess = false;
 			showLoading(content());
 			if (!m_updateTimer.isActive()) {
 				m_updateTimer.start();
 			}
 		} else if (0 == status.compare("clickEnd", Qt::CaseInsensitive)) {
 			PLS_INFO(MODULE_PLATFORM_TWITCH, "clickEnd--end update live info");
-
-			hideLoading();
 			m_updateTimer.stop();
-			m_isUpdateOk = true;
-		} else if (0 == status.compare("saveSuccess", Qt::CaseInsensitive)) {
+			m_isUpdateFinished = true;
+		} else if (!m_updateSuccess && 0 == status.compare("saveSuccess", Qt::CaseInsensitive)) {
+			m_updateSuccess = true;
 			PLS_INFO(MODULE_PLATFORM_TWITCH, "saveSuccess--update live info success");
 			if (!PLS_PLATFORM_API->isPrepareLive()) {
 				accept();
 				PLS_PLATFORM_TWITCH->getChannelInfo();
+			} else {
+				PLS_INFO(MODULE_PLATFORM_TWITCH, "start prepare live.");
+				PLS_PLATFORM_TWITCH->requestStreamKey(true, [this](bool isSuccess) {
+					if (pls_object_is_valid(this)) {
+						if (isSuccess) {
+							accept();
+							PLS_PLATFORM_TWITCH->getChannelInfo();
+						} else {
+							PLS_ERROR(MODULE_PLATFORM_TWITCH, "twitch stream key api failed");
+							hideLoading();
+						}
+					}
+				});
 			}
 
 		} else if (0 == status.compare("isErrorInput", Qt::CaseInsensitive) && m_inputError) {
@@ -86,18 +101,19 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 			hideLoading();
 			m_updateTimer.stop();
 			m_inputError = false;
-			pls_alert_error_message(this, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
-			m_isUpdateOk = true;
+			m_isUpdateFinished = true;
 		} else if (0 == status.compare("pageShow", Qt::CaseInsensitive)) {
 			PLS_INFO(MODULE_PLATFORM_TWITCH, "show twitch live info");
 			m_updateTimer.stop();
-			m_isUpdateOk = true;
+			m_isUpdateFinished = true;
 			pls_async_call_mt(this, [this]() { hideLoading(); });
 		}
 	});
 	showLoading(content());
 	auto closeEvent = [this](QCloseEvent *) -> bool {
-		m_browserWidget->closeBrowser();
+		if (m_browserWidget) {
+			m_browserWidget->closeBrowser();
+		}
 		return true;
 	};
 	setCloseEventCallback(closeEvent);
@@ -129,22 +145,14 @@ void PLSLiveInfoTwitch::doOk()
 {
 	PLS_INFO(MODULE_PLATFORM_TWITCH, "doOk twitch ok button click");
 	if (m_browserWidget) {
-		if (PLS_PLATFORM_API->isPrepareLive()) {
-			PLS_INFO(MODULE_PLATFORM_TWITCH, "start prepare live.");
-			PLS_PLATFORM_TWITCH->requestStreamKey(true, [this]() {
-				if (pls_object_is_valid(this)) {
-					this->accept();
-					PLS_PLATFORM_TWITCH->getChannelInfo();
-				}
-			});
-		}
 		PLS_INFO(MODULE_PLATFORM_TWITCH, " start doOk twitch ok button click");
 		m_inputError = true;
-		m_browserWidget->send("clickSave", {});
+		m_isUpdateFinished = false;
+		m_updateSuccess = false;
 		showLoading(content());
-		m_isUpdateOk = false;
 		m_updateTimer.stop();
 		m_updateTimer.start();
+		m_browserWidget->send("clickSave", {});
 	} else {
 		PLS_INFO(MODULE_PLATFORM_TWITCH, "browserWidget is null");
 		reject();
@@ -160,7 +168,7 @@ void PLSLiveInfoTwitch::showEvent(QShowEvent *event)
 }
 void PLSLiveInfoTwitch::getJs()
 {
-	QFile file(pls_get_app_data_dir("PRISMLiveStudio") + "/library/Library_Policy_PC/twitch.js");
+	QFile file(PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/twitch.js")));
 	if (!file.exists()) {
 		PLS_INFO(MODULE_PLATFORM_TWITCH, "use local js file");
 		QString filePath = (":/Configs/resource/DefaultResources/twitch.js");

@@ -18,6 +18,7 @@
 #include <QTimer>
 #include <QSvgRenderer>
 #include "PLSPushButton.h"
+#include "PrismStickerResourceMgr.h"
 
 #ifdef Q_OS_WIN
 #include <Windows.h>
@@ -42,7 +43,6 @@ public:
 	explicit PLSPrismSticker(QWidget *parent = nullptr);
 	~PLSPrismSticker() final;
 
-	bool SaveStickerJsonData() const;
 	bool WriteDownloadCache() const;
 	void SetExitFlag(bool exit_)
 	{
@@ -54,24 +54,19 @@ private:
 	void InitScrollView();
 	void InitCategory();
 	void SwitchToCategory(const QString &categoryId);
-	void UserApplySticker(const StickerData &data, StickerPointer label);
+	void ApplySticker(const pls::rsm::Item &item, StickerPointer label);
 	void AdjustCategoryTab();
 	void UpdateDpi(double dpi) const;
 	void ShowToast(const QString &tips);
 	void HideToast();
 	void UpdateToastPos();
 	void DownloadResource(const StickerData &data, StickerPointer loadingLabel);
-
-	bool LoadLocalJsonFile(const QString &fileName);
-	bool CreateRecentJsonFile() const;
-	bool InitRecentSticker();
-	bool UpdateRecentList(const StickerData &data);
+	bool UpdateRecentList(const pls::rsm::Item &item);
 
 	void ShowNoNetworkPage(const QString &tips, RetryType type);
 	void HideNoNetworkPage();
 
 	void UpdateNodataPageGeometry();
-	StickerHandleResult RemuxFile(const StickerData &data, StickerPointer label, QString path, QString configFile);
 	void ShowLoading(QWidget *parent);
 
 	void DownloadCategoryJson();
@@ -79,14 +74,12 @@ private:
 	void DoDownloadJsonFile();
 
 	QLayout *GetFlowlayout(const QString &categoryId);
-	static void OnFrontendEvent(obs_frontend_event event, void *param);
-
-	QString getTargetImagePath(QString resourcePath, QString category, QString id, bool landscape) const;
-
 	void SelectTab(const QString &categoryId) const;
 	void CleanPage(const QString &categoryId);
-	bool LoadStickers(QLayout *layout, ScrollAreaWithNoDataTip *targetSa, QWidget *parent, const std::vector<StickerData> &stickerList, const StickerDataIndex &index, bool /*async*/);
+	bool LoadStickers(QLayout *layout, ScrollAreaWithNoDataTip *targetSa, QWidget *parent, const std::list<pls::rsm::Item> &stickerList);
 	bool LoadViewPage(const QString &categoryId, const QWidget *page, QLayout *layout);
+	std::list<pls::rsm::Item> GetRecentUsedItem();
+	bool CategoryTabsVisible();
 
 protected:
 	void showEvent(QShowEvent *event) override;
@@ -96,7 +89,7 @@ protected:
 	bool eventFilter(QObject *watcher, QEvent *event) override;
 
 public slots:
-	void HandleDownloadResult(const TaskResponData &result, const StickerData &data, StickerPointer label);
+	void OnDownloadItemResult(const pls::rsm::Item &item, bool ok, bool timeout);
 	void OnDownloadJsonFailed(bool timeout);
 	void OnAppExit();
 
@@ -105,7 +98,6 @@ private slots:
 	void OnCategoryBtnClicked(QAbstractButton *button);
 	void OnBtnMoreClicked();
 	void OnHandleStickerDataFinished();
-	void HandleDownloadInitJson(const TaskResponData &result);
 	void OnNetworkAccessibleChanged(bool accessible);
 
 	void OnRetryOnTimeOut();
@@ -126,9 +118,7 @@ private:
 	PLSToastMsgFrame *toastTip = nullptr;
 	QStackedWidget *stackedWidget = nullptr;
 	QPointer<PLSThumbnailLabel> lastClicked = nullptr;
-	std::vector<std::pair<QString, StickerDataIndex>> stickers;
-	std::vector<StickerData> allStickerData;
-	std::vector<StickerData> recentStickerData;
+	QMap<QString, QPointer<PLSThumbnailLabel>> requestDownloadLabels;
 	std::map<QString, QWidget *> categoryViews;
 	QString categoryTabId = "";
 	bool showMoreBtn = true;

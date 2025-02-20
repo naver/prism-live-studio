@@ -1,7 +1,6 @@
 #include "TextMotionTemplateDataHelper.h"
 #include "TextMotionTemplateDataHelper.h"
 #include "pls-common-define.hpp"
-#include "json-data-handler.hpp"
 #include "frontend-api.h"
 #include "TextMotionTemplateButton.h"
 #include "liblog.h"
@@ -9,27 +8,94 @@
 #include <qbuttongroup.h>
 #include <qdir.h>
 #include "utils-api.h"
-#include "PLSResourceManager.h"
-#include "PLSResCommonFuns.h"
 #include "PLSAlertView.h"
 #include "PLSApp.h"
+#include "network-state.h"
+#include "PLSBasic.h"
+#include "qversionnumber.h"
 
 using namespace common;
 #define PRISM_TM_TEMPLATE_PATH QStringLiteral("PRISMLiveStudio/textmotion/textmotion.json")
-
 constexpr auto PRISM_TEXT_TEMPLATE = "text-template";
+constexpr auto PRISM_TEXT_TEMPLATE_DEFAULT_ID = 1600;
+static void copyTextTemplateResFromPackage()
+{
+	QString dstWebPath = pls::rsm::getAppDataPath("textTemplatePC/web");
+#if defined(Q_OS_WIN)
+	QString srcWebPath = pls_get_dll_dir("libresource") + "/../../data/prism-plugins/prism-text-template-source/web";
+#elif defined(Q_OS_MACOS)
+	QString srcWebPath = pls_get_dll_dir("prism-text-template-source") + "/web";
+#endif
+	auto isSuccess = pls_copy_dir(srcWebPath, dstWebPath);
+	PLS_INFO("libresource", "copyTextmotionWeb %s", isSuccess ? "success" : "failed");
+}
+struct CategoryTextTemplate : public pls::rsm::ICategory {
+	PLS_RSM_CATEGORY(CategoryTextTemplate)
+	QString categoryId(pls::rsm::IResourceManager *mgr) const override { return PLS_RSM_CID_TEXT_TEMPLATE; }
+	void jsonDownloaded(pls::rsm::IResourceManager *mgr, const pls::rsm::DownloadResult &result) override { copyTextTemplateResFromPackage(); }
+	void jsonLoaded(pls::rsm::IResourceManager *mgr, pls::rsm::Category category) override { TextMotionRemoteDataHandler::instance()->parseTMData(); }
+	bool checkItem(pls::rsm::IResourceManager *mgr, pls::rsm::Item item) const override
+	{
+		if (auto group = item.groups().front(); group.groupId() == QStringLiteral("SCREEN SAVER")) {
+			return QDir(pls::rsm::getAppDataPath(QString("textTemplatePC/web/static/screen_img"))).exists();
+		}
+		return true;
+	}
+	void getItemDownloadUrlAndHowSaves(pls::rsm::IResourceManager *mgr, std::list<pls::rsm::UrlAndHowSave> &urlAndHowSaves, pls::rsm::Item item) const override
+	{
+		PLS_INFO(moduleName(), "getItemDownloadUrlAndHowSaves textTemplatePC %s", item.itemId().toUtf8().constData());
+
+		auto lang = pls_prism_get_locale() != "ko-KR" ? "en" : "ko";
+		urlAndHowSaves.push_back(pls::rsm::UrlAndHowSave() //
+						 .names({QStringLiteral("properties"), QStringLiteral("mediaProperties"), QStringLiteral("thumbnail"), lang, QStringLiteral("url")})
+						 .fileName(pls::rsm::FileName::FromUrl));
+
+		urlAndHowSaves.push_back(pls::rsm::UrlAndHowSave() //
+						 .names({QStringLiteral("properties"), QStringLiteral("mediaProperties"), QStringLiteral("preview"), lang, QStringLiteral("url")})
+						 .fileName(pls::rsm::FileName::FromUrl)
+						 .needDecompress(true)
+						 .decompress([](const pls::rsm::UrlAndHowSave &urlAndHowSave, const auto &filePath) {
+							 QFileInfo fileInfo(filePath);
+							 if (fileInfo.suffix() == "zip") {
+								 return pls::rsm::unzip(filePath, pls::rsm::getAppDataPath("textTemplatePC/web/static/screen_img"), false);
+							 }
+							 return true;
+						 }));
+	}
+	void allDownload(pls::rsm::IResourceManager *mgr, bool ok) override
+	{
+		PLS_INFO(moduleName(), "allDownload textTemplatePC");
+		pls_async_call_mt([this, ok]() {
+			pls_check_app_exiting();
+			if (PLSBasic::instance() && PLSBasic::instance()->Get()->GetPropertiesWindow()) {
+				if (ok) {
+					PLS_INFO(moduleName(), "textmoiton update success");
+					TextMotionRemoteDataHandler::instance()->loadedTextmotionRes(ok, true);
+				} else {
+
+					auto ret = pls_show_download_failed_alert(nullptr);
+					if (ret == PLSAlertView::Button::Ok) {
+						PLS_INFO(moduleName(), "textmotion: User select retry download.");
+						pls_async_call_mt([this]() { download(); });
+					} else {
+						PLS_INFO(moduleName(), "textmotion: User select quit download.");
+						TextMotionRemoteDataHandler::instance()->loadedTextmotionRes(true, false);
+					}
+				}
+			}
+		});
+	}
+};
 
 TextMotionTemplateDataHelper::TextMotionTemplateDataHelper(QObject *parent) : QObject(parent) {}
 
 void TextMotionTemplateDataHelper::initTemplateGroup()
 {
 	m_templateButtons.clear();
-
-	const QMap<QString, QVector<TextMotionTemplateData>> &templateInfos = TextMotionRemoteDataHandler::instance()->getTMRemoteData();
-	for (auto templateStr : templateInfos.keys()) {
+	for (auto group : CategoryTextTemplate::instance()->getGroups()) {
 		auto buttonGroup = pls_new<QButtonGroup>();
 		buttonGroup->setExclusive(false);
-		m_templateButtons.insert(templateStr, buttonGroup);
+		m_templateButtons.insert(group.groupId().toLower(), buttonGroup);
 	}
 }
 
@@ -44,7 +110,7 @@ void TextMotionTemplateDataHelper::initTemplateButtons()
 		}
 		return group;
 	};
-	const QMap<QString, QVector<TextMotionTemplateData>> &templateInfos = TextMotionRemoteDataHandler::instance()->getTMRemoteData();
+
 	if (m_templateButtons.isEmpty()) {
 		initTemplateGroup();
 	}
@@ -55,22 +121,32 @@ void TextMotionTemplateDataHelper::initTemplateButtons()
 		}
 	}
 
-	for (auto templateKey : templateInfos.keys()) {
-		auto group = checkGroup(templateKey);
+	for (auto group : CategoryTextTemplate::instance()->getGroups()) {
+		auto buttonGroup = checkGroup(group.groupId().toLower());
 
-		const QVector<TextMotionTemplateData> templateDatas = templateInfos.value(templateKey);
-		for (int index = 0; index != templateDatas.count(); ++index) {
-			TextMotionTemplateData data = templateDatas.value(index);
+		auto items = group.items();
+		for (auto item : items) {
+			if (auto versionLimit = item.attr({"properties", "versionLimit"}).toString(); !versionLimit.isEmpty()) {
+				if (auto matched =
+					    pls_check_version(versionLimit.toUtf8(), QVersionNumber(pls_get_prism_version_major(), pls_get_prism_version_minor(), pls_get_prism_version_patch()));
+				    !matched) {
+					PLS_WARN(PRISM_TEXT_TEMPLATE, "item: %s, version: %s is a wrong format", qUtf8Printable(item.itemId()), qUtf8Printable(versionLimit));
+					continue;
+				} else if (!matched.value()) {
+					PLS_INFO(PRISM_TEXT_TEMPLATE, "item: %s, version: %s cannot be supported", qUtf8Printable(item.itemId()), qUtf8Printable(versionLimit));
+					continue;
+				}
+			}
+
 			TextMotionTemplateButton *button = pls_new<TextMotionTemplateButton>();
-			QString id = data.id;
+			auto id = item.itemId();
 			button->setTemplateText(id);
 			int idInt = id.split('_').last().toInt();
 			button->setProperty("ID", idInt);
 			connect(button, &TextMotionTemplateButton::clicked, this, &TextMotionTemplateDataHelper::updateButtonsStyle);
-			button->setTemplateData(data);
-			button->setGroupName(templateKey);
-			button->attachGifResource(data.resourcePath, data.resourceBackupPath, data.resourceUrl);
-			group->addButton(button, idInt);
+			button->setGroupName(group.groupId().toLower());
+			button->attachGifResource(item.file(0));
+			buttonGroup->addButton(button, idInt);
 		}
 	}
 }
@@ -118,102 +194,43 @@ TextMotionRemoteDataHandler *TextMotionRemoteDataHandler::instance()
 	static TextMotionRemoteDataHandler remoteDataHandler;
 	return &remoteDataHandler;
 }
-
+TextMotionRemoteDataHandler::TextMotionRemoteDataHandler()
+{
+	parseTMData();
+}
 void TextMotionRemoteDataHandler::getTMRemoteDataRequest(const QString &url)
 {
 	PLS_INFO(PRISM_TEXT_TEMPLATE, "start requeset text template data.");
 	m_url = url;
 }
-void TextMotionRemoteDataHandler::downloadTextmotionRes(const QJsonArray &fileList)
-{
-	PLSResCommonFuns::downloadResources(
-		fileList,
-		[this, fileList](const QMap<QString, bool> &, bool isSuccess, const QJsonArray &) {
-			if (isSuccess) {
-				PLS_INFO(PRISM_TEXT_TEMPLATE, "textmoiton update success");
-				parseTMData();
-				emit loadedTextmotionRes(isSuccess);
-			} else {
-				pls_async_call_mt(this, [fileList, this]() {
-					pls_check_app_exiting();
-					auto ret = pls_show_download_failed_alert(nullptr);
-					if (ret == PLSAlertView::Button::Ok) {
-						PLS_INFO("textmoton", "textmotion: User select retry download.");
-						pls_async_call_mt(this, [fileList, this]() { downloadTextmotionRes(fileList); });
-					} else {
-						PLS_INFO("textmoton", "textmotion: User select quit download.");
-						emit loadedTextmotionRes(true);
-					}
-				});
-			}
-		},
-		false);
-}
 
-bool TextMotionRemoteDataHandler::initTMData()
+bool TextMotionRemoteDataHandler::initTMData(const std::function<void(bool)> &callback)
 {
-	m_templateInfos.clear();
-	m_templateTabs.clear();
-	m_readyDownloadUrl.clear();
-	QJsonObject data;
-	bool isSuccess = pls_read_json(data, pls_get_user_path(PRISM_TM_TEMPLATE_PATH));
-	if (!isSuccess) {
-		bool isRemove = QFile::remove(pls_get_user_path(PRISM_TM_TEMPLATE_PATH));
-		PLS_INFO(PRISM_TEXT_TEMPLATE, "textmotion file parse error,delete file is %s", isRemove ? "success" : "failed");
-	}
-	auto needDownloadFileList = PLSResourceManager::instance()->getNeedDownloadResInfo("textmotion");
-	if (needDownloadFileList.isEmpty()) {
-		PLS_INFO(PRISM_TEXT_TEMPLATE, "textmoiton res no update");
-		parseTMData();
-		emit loadedTextmotionRes(true);
-		return true;
-	} else {
-		downloadTextmotionRes(needDownloadFileList);
-		return false;
-	}
+	pls_async_invoke([callback]() {
+		QString dstWebPath = pls::rsm::getAppDataPath("textTemplatePC/web");
+		QDir dir(dstWebPath);
+		if (!dir.exists()) {
+			copyTextTemplateResFromPackage();
+			auto textmotionPath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/textmotion/web"));
+			auto isSuccess = pls_copy_dir(textmotionPath, dstWebPath);
+			PLS_INFO(PRISM_TEXT_TEMPLATE, "copytextmotion res from library to textmotion dir  %s", isSuccess ? "success" : "failed");
+		}
+		pls::rsm::getResourceManager()->checkCategory(PLS_RSM_CID_TEXT_TEMPLATE, [callback](pls::rsm::Category category, bool ok) {
+			pls_async_call_mt([ok, callback]() {
+				if (!ok)
+					CategoryTextTemplate::instance()->download();
+				callback(ok);
+			});
+		});
+	});
+	return true;
 }
 
 void TextMotionRemoteDataHandler::parseTMData()
 {
-	QDir appDir(QApplication::applicationDirPath());
-#if defined(Q_OS_WIN)
-	QString backupGifPath = appDir.absoluteFilePath("../../data/prism-studio/text_motion/");
-#elif defined(Q_OS_MACOS)
-	QString backupGifPath = pls_get_app_resource_dir() + ("/data/prism-studio/text_motion/");
-#endif
-	QString originLang = pls_get_current_language_short_str().toLower();
-	PLSJsonDataHandler::getJsonArrayFromFile(m_templateJson, pls_get_user_path(PRISM_TM_TEMPLATE_PATH));
-	QVariantList list;
-	PLSJsonDataHandler::getValuesFromByteArray(m_templateJson, "group", list);
 	int index = 0;
-	for (auto map : list) {
-		QString name = map.toMap().value(name2str(groupId)).toString().toLower();
-		QJsonArray templateList = map.toMap().value(name2str(items)).toJsonArray();
-		QVector<TextMotionTemplateData> templateDatas;
-		QVector<QJsonObject> tempateJsons;
-		for (auto jsonValue : templateList) {
-			QVariantMap templateMap = jsonValue.toObject().toVariantMap();
-			TextMotionTemplateData tmData;
-			tmData.id = templateMap.value(name2str(itemId)).toString();
-			tmData.name = templateMap.value(name2str(title)).toString();
-			//get lang
-			const auto &adjustAttributes = templateMap.value(name2str(properties)).toMap().value("mediaProperties").toMap().value("thumbnail").toMap();
-			auto lang = originLang;
-			if (adjustAttributes.find(lang) == adjustAttributes.end()) {
-				lang = "en";
-			}
-			tmData.resourcePath = QString(pls_get_user_path(CONFIGS_USER_TEXTMOTION_PATH)).arg(QString("%1%2.gif").arg(lang).arg(tmData.name));
-			tmData.resourceBackupPath = backupGifPath + QString("%1%2.gif").arg(lang).arg(tmData.name);
-			QString gifUrl = adjustAttributes.value(lang).toMap().value(name2str(thumbnailUrl)).toString();
-			tmData.resourceUrl = gifUrl;
-			if (QFileInfo fileInfo(tmData.resourcePath); !fileInfo.exists()) {
-				m_readyDownloadUrl.insert(gifUrl, tmData.resourcePath);
-			}
-			templateDatas.append(tmData);
-			tempateJsons.append(jsonValue.toObject());
-			//get gif url
-		}
-		m_templateInfos.insert(name, templateDatas);
+	for (auto group : CategoryTextTemplate::instance()->getGroups()) {
+		QString name = group.groupId().toLower();
 		m_templateTabs.insert(index, name);
 		++index;
 	}
@@ -238,12 +255,8 @@ QString TextMotionTemplateDataHelper::findTemplateGroupStr(const int &templateId
 
 int TextMotionTemplateDataHelper::getDefaultTemplateId()
 {
-	if (!getTemplateNames().isEmpty()) {
-		auto name = TextMotionRemoteDataHandler::instance()->getTemplateNames()[0];
-		auto id = TextMotionRemoteDataHandler::instance()->getTMRemoteData().value(name)[0].id.section('_', 1, 1).toInt();
-		return id;
-	}
-	return 0;
+	auto groups = CategoryTextTemplate::instance()->getGroups();
+	return groups.empty() ? PRISM_TEXT_TEMPLATE_DEFAULT_ID : groups.front().items().front().itemId().section('_', 1, 1).toInt();
 }
 
 void TextMotionTemplateDataHelper::removeParent()

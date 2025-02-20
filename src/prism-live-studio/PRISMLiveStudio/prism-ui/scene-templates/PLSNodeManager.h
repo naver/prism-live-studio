@@ -6,6 +6,7 @@
 #include "PLSSceneTemplateModel.h"
 
 const static QString OVERLAY_FILE = ".overlay";
+static const char *FROM_SCENE_TEMPLATE = "fromSceneTemplate";
 
 class PLSNodeManager;
 class CopyFileWorker : public QObject {
@@ -20,6 +21,12 @@ public slots:
 signals:
 	void copyFinished();
 	void zipFinished(bool);
+};
+
+struct SourceUpgradeDefaultInfo {
+	int width = 0;
+	int height = 0;
+	QString id;
 };
 
 class PLSNodeManager : public QObject {
@@ -85,9 +92,9 @@ public:
 	// read from config.json
 	QList<QString> getScenesNames(const SceneTemplateItem &data);
 
-	QString loadConfig(const QString &templateName, const QString &path);
+	NodeErrorType loadConfig(const QString &templateName, const QString &path, QString &outputPath);
 
-	bool loadNodeInfo(const QString &nodeType, const QJsonObject &content, QJsonObject &output);
+	NodeErrorType loadNodeInfo(const QString &nodeType, const QJsonObject &content, QJsonObject &output);
 	bool exportLoadInfo(obs_data_t *settings, obs_data_t *priSettings, NodeType nodeType, QJsonObject &output, void *param = nullptr);
 
 	void clear();
@@ -125,6 +132,10 @@ public:
 
 	void addFont(const QString &fontPath);
 
+	bool checkSourceHasUpgrade(const QString &id);
+	SourceUpgradeDefaultInfo getSourceUpgradeDefaultInfo(const QString &id);
+	QString getSourceUpgradeId(const QString &id);
+
 private:
 	void registerNodeParser();
 	void registerPrismSource();
@@ -133,6 +144,8 @@ private:
 	void createCopyFileThread();
 	void addNode(NodeType type, PLSBaseNode *baseNode);
 	void deleteNode();
+
+	void initSourceUpgradeInfo();
 signals:
 	void zipFinished(bool);
 
@@ -150,6 +163,9 @@ private:
 	CopyFileWorker *copyFileWorker = nullptr;
 	QThread *copyFileThread = nullptr;
 	bool isCopyFinished = true;
+
+	QMap<QString, QString> sourceUpdateMap;
+	QMap<QString, SourceUpgradeDefaultInfo> sourceUpgradeDefaultInfo;
 };
 #define PLSNodeManagerPtr PLSNodeManager::instance()
 using SNodeType = PLSNodeManager::NodeType;

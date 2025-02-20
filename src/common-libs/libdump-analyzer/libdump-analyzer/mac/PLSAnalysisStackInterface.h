@@ -4,7 +4,7 @@
 #include <set>
 #include "PLSProcessInfo.h"
 
-void mac_install_crash_reporter(const std::string &process_name);
+void mac_install_crash_reporter(ProcessInfo const &info);
 
 void mac_get_latest_dump_data(ProcessInfo const &info, std::string &dump_data, std::string &location, std::string &stack_hash, std::set<std::map<std::string, std::string>> &module_names);
 

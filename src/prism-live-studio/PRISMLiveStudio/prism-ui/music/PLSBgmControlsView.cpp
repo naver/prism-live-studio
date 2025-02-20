@@ -1,7 +1,7 @@
 #include "PLSBgmControlsView.h"
 #include "libutils-api.h"
 #include "libui.h"
-#include "media-slider.hpp"
+#include "absolute-slider.hpp"
 #include "pls/pls-obs-api.h"
 #include "pls/pls-source.h"
 #include "pls-common-define.hpp"
@@ -70,13 +70,13 @@ PLSBgmControlsView::PLSBgmControlsView(QWidget *parent) : PLSBgmControlsBase(par
 	labelLayout->addWidget(durationLabel);
 	timerLabel->setLayout(labelLayout);
 
-	slider = pls_new<MediaSlider>(this);
+	slider = pls_new<AbsoluteSlider>(this);
 	slider->setOrientation(Qt::Horizontal);
 	slider->setObjectName("playingSlider");
 	slider->setMaximum(SLIDER_MAX);
-	connect(slider, &MediaSlider::sliderPressed, this, &PLSBgmControlsView::OnMediaSliderClicked);
-	connect(slider, &MediaSlider::sliderReleased, this, &PLSBgmControlsView::OnMediaSliderReleased);
-	connect(slider, &MediaSlider::sliderMoved, this, &PLSBgmControlsView::OnMediaSliderMoved);
+	connect(slider, &AbsoluteSlider::sliderPressed, this, &PLSBgmControlsView::OnMediaSliderClicked);
+	connect(slider, &AbsoluteSlider::sliderReleased, this, &PLSBgmControlsView::OnMediaSliderReleased);
+	connect(slider, &AbsoluteSlider::sliderMoved, this, &PLSBgmControlsView::OnMediaSliderMoved);
 
 	hLayout->addWidget(preBtn);
 	hLayout->addWidget(playBtn);

@@ -1,30 +1,14 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<svg width="22px" height="22px" viewBox="0 0 22 22" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-    <title>35315677-E27D-45FB-BF55-9A8CD1DDDD12</title>
-    <defs>
-        <polygon id="path-1" points="0 0.16430625 14.2201812 0.16430625 14.2201812 14.375 0 14.375"></polygon>
-        <polygon id="path-3" points="0.1929125 0.0002875 5.75 0.0002875 5.75 5.5476 0.1929125 5.5476"></polygon>
-    </defs>
-    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
-        <g id="0525_Release-_Image-Resource" transform="translate(-585.000000, -407.000000)">
-            <g id="ic_edit_l_normal" transform="translate(585.000000, 407.000000)">
-                <g id="Page-1" transform="translate(2.875000, 1.875000)">
-                    <g id="Group-3" transform="translate(0.000000, 2.875000)">
-                        <mask id="mask-2" fill="white">
-                            <use xlink:href="#path-1"></use>
-                        </mask>
-                        <g id="Clip-2"></g>
-                        <path d="M0.36555625,9.96661875 C0.25055625,10.0816188 0.18155625,10.2354313 0.17293125,10.3978688 L0.00043125,13.6811188 C-0.00819375,13.8679938 0.06080625,14.0491187 0.19305625,14.1813688 C0.31668125,14.3064313 0.48486875,14.3754313 0.66024375,14.3754313 C0.67174375,14.3754313 0.68324375,14.3739938 0.69474375,14.3739938 L3.97655625,14.2014938 C4.13899375,14.1928688 4.29280625,14.1238688 4.40780625,14.0088688 L14.2201812,4.19793125 C12.8114312,2.79061875 11.1539937,1.13893125 10.1678687,0.16430625 L0.36555625,9.96661875 Z" id="Fill-1" fill="#BABABA" mask="url(#mask-2)"></path>
-                    </g>
-                    <g id="Group-6" transform="translate(11.500000, 0.000000)">
-                        <mask id="mask-4" fill="white">
-                            <use xlink:href="#path-3"></use>
-                        </mask>
-                        <g id="Clip-5"></g>
-                        <path d="M5.1724125,1.8216 L3.928975,0.5781625 C3.5566625,0.20585 3.060725,0.0002875 2.5302875,0.0002875 C2.0012875,0.0002875 1.5039125,0.20585 1.1316,0.5781625 L0.1929125,1.5154125 C0.90735,2.2197875 2.1277875,3.4330375 4.2437875,5.5476 L5.1724125,4.6204125 C5.9429125,3.848475 5.9429125,2.5935375 5.1724125,1.8216" id="Fill-4" fill="#BABABA" mask="url(#mask-4)"></path>
-                    </g>
-                </g>
-            </g>
-        </g>
-    </g>
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+<mask id="mask0_45_18622" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="3" y="6" width="13" height="13">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M3.5 6.14282H15.8654V18.4999H3.5V6.14282Z" fill="transparent"/>
+</mask>
+<g mask="url(#mask0_45_18622)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M3.81813 14.6666C3.71813 14.7666 3.65813 14.9003 3.65063 15.0416L3.50063 17.8966C3.49313 18.0591 3.55313 18.2166 3.66813 18.3316C3.77563 18.4403 3.92188 18.5003 4.07438 18.5003C4.08438 18.5003 4.09438 18.4991 4.10438 18.4991L6.95813 18.3491C7.09938 18.3416 7.23313 18.2816 7.33313 18.1816L15.8656 9.65032C14.6406 8.42657 13.1994 6.99032 12.3419 6.14282L3.81813 14.6666Z" fill="#BABABA"/>
+</g>
+<mask id="mask1_45_18622" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="13" y="3" width="6" height="6">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M13.668 3.5H18.5002V8.32375H13.668V3.5Z" fill="transparent"/>
+</mask>
+<g mask="url(#mask1_45_18622)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M17.998 5.08375L16.9167 4.0025C16.593 3.67875 16.1617 3.5 15.7005 3.5C15.2405 3.5 14.808 3.67875 14.4842 4.0025L13.668 4.8175C14.2892 5.43 15.3505 6.485 17.1905 8.32375L17.998 7.5175C18.668 6.84625 18.668 5.755 17.998 5.08375Z" fill="#BABABA"/>
+</g>
 </svg>

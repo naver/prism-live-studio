@@ -185,8 +185,9 @@ QJsonArray createTaskJson()
             if(line.endsWith(".exe", Qt::CaseInsensitive))
             {
                 std::cout<<" exe: "<<line.toStdString()<<std::endl;
-                if (!(line.endsWith(QStringLiteral("PRISMLens.exe"), Qt::CaseInsensitive)
-                      || line.endsWith(QStringLiteral("PrismLensInstall.exe"), Qt::CaseInsensitive)))
+                if (line.endsWith(QStringLiteral("PRISMLens.exe"), Qt::CaseInsensitive)
+                     || line.endsWith(QStringLiteral("PrismLensInstall.exe"), Qt::CaseInsensitive)
+                     || line.endsWith(QStringLiteral("PRISMLiveStudio.exe"), Qt::CaseInsensitive))
                     exeList.append(line);
                 dllList.append(line);
             }

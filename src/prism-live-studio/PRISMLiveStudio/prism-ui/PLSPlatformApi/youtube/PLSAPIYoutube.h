@@ -16,7 +16,7 @@ public:
 	static void configDefaultRequest(const pls::http::Request &_request, const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
 					 const QByteArray &logName = {}, bool isSetContentType = true);
 
-	static void addCommenCookieAndUserKey(const pls::http::Request &_request);
+	static void addCommonCookieAndUserKey(const pls::http::Request &_request);
 	//get the live is stooped by remote.
 	static void requestLiveBroadcastStatus(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
 					       PLSAPICommon::RefreshType refreshType);
@@ -53,11 +53,11 @@ public:
 	static void refreshYoutubeTokenBeforeRequest(PLSAPICommon::RefreshType refreshType, const std::function<void()> &originNetworkReplay, const QObject *originReceiver,
 						     const PLSAPICommon::dataCallback &originOnSucceed = nullptr, const PLSAPICommon::errorCallback &originOnFailed = nullptr);
 
-	static void dealUploadImageSucceed(enum PLSPlatformApiResult &result, const QByteArray &data, QString &imgUrl);
-	static void uploadImage(const QObject *receiver, const QString &imageFilePath, const PLSAPICommon::uploadImageCallback &callback);
+	static bool dealUploadImageSucceed(const QByteArray &data, QString &imgUrl);
+	static void uploadImage(const QObject *receiver, const QString &imageFilePath, const PLSAPICommon::uploadImageCallback &callback, const PLSAPICommon::errorCallback &onFailed);
 
-	static void setLatency(QJsonObject &object, PLSYoutubeLatency latency);
-	static void getLatency(const QJsonObject &object, PLSYoutubeLatency &latency);
+	static void setLatency(QJsonObject &object, PLSYoutubeLiveinfoData::Latency latency);
+	static void getLatency(const QJsonObject &object, PLSYoutubeLiveinfoData::Latency &latency);
 
 	static void showFailedLog(const QString &logName, const pls::http::Reply &reply);
 };

@@ -43,13 +43,11 @@
 
 #endif
 
-
-
-
 namespace pls {
 namespace http {
 
 class NetworkAccessManager;
+class NetworkReply;
 class Worker;
 class SharedWorker;
 class ExclusiveWorker;
@@ -67,9 +65,12 @@ struct RepliesImpl;
 using RequestImplPtr = std::shared_ptr<RequestImpl>;
 using RequestsImplPtr = std::shared_ptr<RequestsImpl>;
 using ReplyImplPtr = std::shared_ptr<ReplyImpl>;
+using ReplyImplWeakPtr = std::weak_ptr<ReplyImpl>;
 using RepliesImplPtr = std::shared_ptr<RepliesImpl>;
 using NetworkAccessManagerPtr = std::shared_ptr<NetworkAccessManager>;
 using NetworkAccessManagerWeakPtr = std::weak_ptr<NetworkAccessManager>;
+using NetworkReplyPtr = std::shared_ptr<NetworkReply>;
+using NetworkReplyWeakPtr = std::weak_ptr<NetworkReply>;
 
 using IsValid = std::function<bool(const QObject *object)>;
 using Result = std::function<void(Reply reply)>;
@@ -96,6 +97,14 @@ enum class Method {
 	Delete, // delete request
 	Custom
 };
+enum class Status { //
+	InProgress,
+	Ok,
+	Failed,
+	Timeout,
+	Aborted,
+	RenameFailed
+};
 enum Exclude {
 	NoExclude = 0,                // no exclude
 	NoDefaultRequestHeaders = 0x1 // no default headers
@@ -119,20 +128,53 @@ public:
 signals:
 	void readyToClose();
 };
-class LIBHTTPCLIENT_API NetworkReply : public std::enable_shared_from_this<NetworkReply> {
+class LIBHTTPCLIENT_API NetworkReply : public QObject, public std::enable_shared_from_this<NetworkReply> {
+	Q_OBJECT
+
 public:
 	explicit NetworkReply(NetworkAccessManagerPtr manager, QNetworkReply *reply);
 
 public:
-	bool valid() const { return m_reply.valid(); }
 	QNetworkReply *get() { return m_reply.object(); }
 	const QNetworkReply *get() const { return m_reply.object(); }
-	void init();
-	void destroy();
 
-private:
+	virtual void init();
+	virtual void destroy();
+
+	virtual bool valid() const;
+
+	virtual std::optional<QUrl> url() const;
+	virtual int statusCode() const;
+
+	virtual Status status() const;
+	void setStatus(Status status);
+
+	virtual QNetworkReply::NetworkError error() const;
+	virtual QString errorString() const;
+
+	virtual QVariant header(QNetworkRequest::KnownHeaders header) const;
+	virtual bool hasRawHeader(const QByteArray &header) const;
+	virtual QByteArray rawHeader(const QByteArray &header) const;
+
+	virtual QByteArray data();
+
+	virtual void trigger();
+
+	virtual void abort();
+
+	virtual QString requestContentType() const;
+	virtual QList<QNetworkReply::RawHeaderPair> requestRawHeaders() const;
+	virtual QList<QNetworkReply::RawHeaderPair> replyRawHeaders() const;
+
+signals:
+	void downloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+	void readyRead();
+	void finished();
+
+protected:
 	NetworkAccessManagerPtr m_manager;
 	pls::QObjectPtr<QNetworkReply> m_reply;
+	std::optional<Status> m_status = Status::InProgress;
 };
 class LIBHTTPCLIENT_API Worker : public QThread {
 	Q_OBJECT
@@ -178,12 +220,15 @@ struct LIBHTTPCLIENT_API Request {
 	mutable RequestImplPtr m_impl;
 
 	explicit Request(Exclude exclude = Exclude::NoExclude);
-	Request(const RequestImplPtr &m_impl);
+	Request(const RequestImplPtr &impl);
 	Request &operator=(const RequestImplPtr &impl);
 
 	RequestImpl *operator->() const;
 
 	const QNetworkRequest &request() const;
+
+	QString id() const;
+	const Request &id(const QString &id) const;
 
 	QByteArray method() const;
 	const Request &method(Method method) const;
@@ -295,8 +340,12 @@ struct LIBHTTPCLIENT_API Request {
 	void abort(bool allowAbortCheck = false) const;
 	bool hasErrors() const;
 	QString errors() const;
-};
 
+	QDateTime startTime() const;
+	void start() const;
+	QDateTime endTime() const;
+	void end() const;
+};
 struct LIBHTTPCLIENT_API Reply {
 	mutable ReplyImplPtr m_impl;
 
@@ -307,7 +356,6 @@ struct LIBHTTPCLIENT_API Reply {
 
 	NetworkAccessManager *manager() const;
 	Request request() const;
-	QNetworkReply *reply() const;
 
 	bool isOk() const;
 	bool isFailed() const;
@@ -315,6 +363,7 @@ struct LIBHTTPCLIENT_API Reply {
 	bool isAborted() const;
 	bool isRenameFailed() const;
 
+	QUrl url() const;
 	int statusCode() const;
 	QNetworkReply::NetworkError error() const;
 	int percent() const; // 0~100
@@ -341,6 +390,10 @@ struct LIBHTTPCLIENT_API Reply {
 	qint64 downloadedBytes() const;
 	qint64 downloadTotalBytes() const;
 	QString downloadFilePath() const;
+
+	QString requestContentType() const;
+	QList<QNetworkReply::RawHeaderPair> requestRawHeaders() const;
+	QList<QNetworkReply::RawHeaderPair> replyRawHeaders() const;
 };
 
 struct LIBHTTPCLIENT_API Requests {
@@ -372,12 +425,13 @@ struct LIBHTTPCLIENT_API Requests {
 	const Requests &progress(const Progresses &progress) const;
 
 	void abort(bool allowAbortCheck = false) const;
-};
 
+	void start() const;
+};
 struct LIBHTTPCLIENT_API Replies {
 	mutable RepliesImplPtr m_impl;
 
-	Replies(const RepliesImplPtr &m_impl);
+	Replies(const RepliesImplPtr &impl);
 
 	NetworkAccessManager *manager() const;
 	Requests requests() const;
@@ -398,6 +452,36 @@ struct LIBHTTPCLIENT_API Replies {
 	void abort(bool allowAbortCheck = false) const;
 };
 
+struct LIBHTTPCLIENT_API IReplyHook {
+	Request m_request;
+
+	IReplyHook(const Request &request);
+	virtual ~IReplyHook() = default;
+
+	Request request() const;
+
+	virtual int triggerDelay() const; // milliseconds
+
+	virtual QUrl url() const;
+	virtual int statusCode() const;
+
+	virtual Status status() const;
+
+	virtual QNetworkReply::NetworkError error() const;
+	virtual QString errorString() const;
+
+	virtual QVariant header(QNetworkRequest::KnownHeaders header) const;
+	virtual bool hasRawHeader(const QByteArray &header) const;
+	virtual QByteArray rawHeader(const QByteArray &header) const;
+	virtual QList<QNetworkReply::RawHeaderPair> replyRawHeaders() const;
+
+	virtual std::optional<QByteArray> data() const;
+	virtual std::optional<QJsonDocument> json() const;
+	virtual std::optional<QJsonArray> array() const;
+	virtual std::optional<QJsonObject> object() const;
+	virtual std::optional<QString> filePath() const;
+};
+
 LIBHTTPCLIENT_API bool checkResult(const Reply &reply);
 
 LIBHTTPCLIENT_API QUrl buildHmacUrl(const QUrl &url, const QByteArray &hmacKey);
@@ -411,6 +495,17 @@ LIBHTTPCLIENT_API void setWorkerGroupShareCount(const QString &group, int shareC
 LIBHTTPCLIENT_API void request(const Request &request);
 LIBHTTPCLIENT_API void requests(const Requests &requests);
 LIBHTTPCLIENT_API void abortAll(bool allowAbortCheck = false);
+
+using IReplyHookPtr = std::shared_ptr<IReplyHook>;
+using ReplyHook = std::function<IReplyHookPtr(const Request &request)>;
+LIBHTTPCLIENT_API void hook(const QString &id, const ReplyHook &hook);
+LIBHTTPCLIENT_API void unhook(const QString &id);
+
+using ReplyMonitor = std::function<void(const Request &request, const Reply &reply)>;
+LIBHTTPCLIENT_API void monitor(const QString &id, const ReplyMonitor &monitor);
+LIBHTTPCLIENT_API void unmonitor(const QString &id);
+
+LIBHTTPCLIENT_API QStringList requestIds();
 }
 }
 

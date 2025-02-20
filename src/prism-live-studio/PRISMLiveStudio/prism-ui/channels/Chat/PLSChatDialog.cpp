@@ -15,12 +15,12 @@
 #include "PLSMainView.hpp"
 #include "log/log.h"
 
-#include "pls-common-define.hpp"
-
 #include <PLSBrowserPanel.h>
 #include <qjsonarray.h>
 #include <qjsondocument.h>
-#include "PLSResourceManager.h"
+#include "PLSSyncServerManager.hpp"
+#include "pls-common-define.hpp"
+
 #include "PLSWatchers.h"
 #include "libbrowser.h"
 #include "prism/PLSPlatformPrism.h"
@@ -51,7 +51,10 @@ public:
 	void updateTextWidth(int moreWidth)
 	{
 		QFontMetrics fontWidth(m_text->font());
-		QString elidedText = fontWidth.elidedText(m_showStr, Qt::ElideRight, m_text->size().width() + moreWidth);
+		QString elidedText = fontWidth.elidedText(m_showStr, Qt::ElideRight, qMax(m_text->size().width() + moreWidth - 10, 0));
+		if (elidedText == "…") {
+			elidedText = "";
+		}
 		m_text->setText(elidedText);
 	}
 	ChatSourceButton(const QString &buttonText, QWidget *parent, std::function<void()> clicked_) : QFrame(parent), clicked(std::move(clicked_)), m_showStr(buttonText)
@@ -137,6 +140,7 @@ PLSChatDialog::PLSChatDialog(QWidget *parent) : QWidget(parent)
 	connect(
 		PLSCHANNELS_API, &PLSChannelDataAPI::sigOperationChannelDone, this,
 		[this]() {
+			pls_check_app_exiting();
 			refreshUI();
 			updateTabBtnCss();
 		},
@@ -145,6 +149,7 @@ PLSChatDialog::PLSChatDialog(QWidget *parent) : QWidget(parent)
 	connect(
 		PLS_PLATFORM_API, &PLSPlatformApi::liveStarted, this,
 		[this](bool isSucceed) {
+			pls_check_app_exiting();
 			updateRtmpPlaceText();
 			if (isSucceed) {
 				showToastIfNeeded();
@@ -162,13 +167,25 @@ PLSChatDialog::PLSChatDialog(QWidget *parent) : QWidget(parent)
 		},
 		Qt::QueuedConnection);
 
-	connect(PLSRESOURCEMGR_INSTANCE, &PLSResourceManager::libraryNeedUpdate, this, [this](bool isSucceed) {
+	connect(PLS_SYNC_SERVER_MANAGE, &PLSSyncServerManager::libraryNeedUpdate, this, [this](bool isSucceed) {
+		pls_check_app_exiting();
 		if (!isSucceed) {
 			PLS_INFO(s_chatModuleName, "chat all page download failed, maybe the chat page is loaded older.");
 			return;
 		}
 		PLS_INFO(s_chatModuleName, "chat all page download succeed, to force update chat all page url");
-		updateNewUrlByIndex(ChatPlatformIndex::All, {}, true);
+		auto size = m_vecChatDatas.size();
+		for (int index = 0; index < size; ++index) {
+			QVariantMap info;
+			PLS_CHAT_HELPER->getSelectInfoFromIndex(index, info);
+			std::string newUrl = PLS_CHAT_HELPER->getChatUrlWithIndex(index, info);
+			m_vecChatDatas[index].url = newUrl;
+			if (m_vecChatDatas[index].isWebLoaded) {
+				setupNewUrl(index, newUrl, true);
+				PLS_INFO(s_chatModuleName, "chat page is webloaded");
+			}
+			PLS_INFO(s_chatModuleName, "force update chat %s page, chat index = %d", PLS_CHAT_HELPER->getPlatformNameFromIndex(index).toUtf8().constData(), index);
+		}
 	});
 
 	this->installEventFilter(this);
@@ -621,11 +638,9 @@ void PLSChatDialog::closeEvent(QCloseEvent *event)
 
 void PLSChatDialog::updateRtmpPlaceText()
 {
-	m_rtmpPlaceTextLabel->setText(PLS_CHAT_HELPER->getRtmpPlaceholderString());
-//PRISM/Zhangdewen/20200921/#/add chat source button
-#if 0
-	m_chatSourceButtonNoPlatform->setVisible(PLSCHANNELS_API->getCurrentSelectedChannels().isEmpty());
-#endif
+	if (m_rtmpPlaceTextLabel) {
+		m_rtmpPlaceTextLabel->setText(PLS_CHAT_HELPER->getRtmpPlaceholderString());
+	}
 }
 
 void PLSChatDialog::updateNewUrlByIndex(int index, const QVariantMap &info, bool forceSet)
@@ -863,6 +878,7 @@ void PLSChatDialog::switchStackWidget(int index)
 
 void PLSChatDialog::facebookPrivateChatChanged(bool oldPrivate, bool newPrivate)
 {
+	pls_check_app_exiting();
 	if (oldPrivate == false && newPrivate == true) {
 		createToasWidget();
 		m_pLabelToast->setText(tr("facebook.living.chat.Private"));
@@ -884,6 +900,8 @@ void PLSChatDialog::fontZoomButtonClicked()
 {
 	auto showDialog = [this]() {
 		PLS_INFO(s_chatModuleName, "PLSChat Dialog fontZoomButtonClicked singleShot");
+		if (!m_fontChangeBtn)
+			return;
 		auto *dialog = pls_new<PLSChatFontZoomFrame>(m_fontChangeBtn, ui->stackedWidget);
 		dialog->setAttribute(Qt::WA_DeleteOnClose, true);
 		dialog->setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
@@ -895,6 +913,8 @@ void PLSChatDialog::fontZoomButtonClicked()
 
 void PLSChatDialog::updateFontBtnStatus()
 {
+	if (!m_fontChangeBtn)
+		return;
 	bool isRemote = PLS_CHAT_HELPER->isRemoteHtmlPage(m_selectIndex);
 	if (getShownBtnCount() == 1 && isRemote) {
 		m_fontChangeBtn->setHidden(true);
@@ -934,6 +954,7 @@ void PLSChatDialog::titleChanged(const QString &title)
 }
 void PLSChatDialog::youtubePrivateChange()
 {
+	pls_check_app_exiting();
 	m_bRefeshYoutubeChat = true;
 	PLS_INFO(MODULE_PlatformService, "youtube signal privateChangedToOther emited");
 	updateYoutubeUrlIfNeeded(true);

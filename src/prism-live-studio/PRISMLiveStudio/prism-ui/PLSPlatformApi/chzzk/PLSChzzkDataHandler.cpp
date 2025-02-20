@@ -4,7 +4,6 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-#include "json-data-handler.hpp"
 #include "pls-net-url.hpp"
 #include "pls-common-define.hpp"
 #include "../PLSPlatformApi.h"

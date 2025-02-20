@@ -54,7 +54,7 @@ OBSAdvAudioCtrl::OBSAdvAudioCtrl(QGridLayout *, obs_source_t *source_)
 	volume = new PLSDoubleSpinBox();
 	percent = new PLSSpinBox();
 	forceMono = new PLSCheckBox();
-	balance = new BalanceSlider();
+	balance = new AbsoluteSlider();
 	if (obs_audio_monitoring_available()) {
 		monitoringType = new PLSComboBox();
 		monitoringType->setMinimumSize(184, 34);
@@ -70,6 +70,10 @@ OBSAdvAudioCtrl::OBSAdvAudioCtrl(QGridLayout *, obs_source_t *source_)
 	activateSignal.Connect(handler, "activate", OBSSourceActivated, this);
 	deactivateSignal.Connect(handler, "deactivate", OBSSourceDeactivated,
 				 this);
+	audioActivateSignal.Connect(handler, "audio_activate",
+				    OBSSourceActivated, this);
+	audioDeactivateSignal.Connect(handler, "audio_deactivate",
+				      OBSSourceDeactivated, this);
 	volChangedSignal.Connect(handler, "volume", OBSSourceVolumeChanged,
 				 this);
 	syncOffsetSignal.Connect(handler, "audio_sync", OBSSourceSyncChanged,
@@ -109,7 +113,8 @@ OBSAdvAudioCtrl::OBSAdvAudioCtrl(QGridLayout *, obs_source_t *source_)
 
 	nameLabel->setAlignment(Qt::AlignVCenter);
 
-	bool isActive = obs_source_active(source);
+	bool isActive = obs_source_active(source) &&
+			obs_source_audio_active(source);
 	active->setText(isActive ? QTStr("Basic.Stats.Status.Active")
 				 : QTStr("Basic.Stats.Status.Inactive"));
 	if (isActive)
@@ -256,9 +261,9 @@ OBSAdvAudioCtrl::OBSAdvAudioCtrl(QGridLayout *, obs_source_t *source_)
 		&OBSAdvAudioCtrl::percentChanged);
 	connect(forceMono, &PLSCheckBox::clicked, this,
 		&OBSAdvAudioCtrl::downmixMonoChanged);
-	connect(balance, &BalanceSlider::valueChanged, this,
+	connect(balance, &AbsoluteSlider::valueChanged, this,
 		&OBSAdvAudioCtrl::balanceChanged);
-	connect(balance, &BalanceSlider::doubleClicked, this,
+	connect(balance, &AbsoluteSlider::doubleClicked, this,
 		&OBSAdvAudioCtrl::ResetBalance);
 	connect(syncOffset, &QSpinBox::valueChanged, this,
 		&OBSAdvAudioCtrl::syncOffsetChanged);
@@ -419,7 +424,7 @@ static inline void setCheckboxState(PLSCheckBox *checkbox, bool checked)
 
 void OBSAdvAudioCtrl::SourceActiveChanged(bool isActive)
 {
-	if (isActive) {
+	if (isActive && obs_source_audio_active(source)) {
 		active->setText(QTStr("Basic.Stats.Status.Active"));
 		setThemeID(active, "error");
 	} else {

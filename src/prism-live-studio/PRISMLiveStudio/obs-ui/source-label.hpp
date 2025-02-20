@@ -20,8 +20,33 @@
 #include <QLabel>
 #include <obs.hpp>
 
-class OBSSourceLabel : public QLabel {
-	Q_OBJECT;
+class SourceLabel : public QLabel {
+	Q_OBJECT
+
+public:
+	explicit SourceLabel(QWidget *p) : QLabel(p) {}
+	explicit SourceLabel(const QString &text, QWidget *parent = nullptr,
+			     Qt::WindowFlags f = Qt::WindowFlags());
+
+	~SourceLabel() override = default;
+
+	void setText(const QString &text); // overwrite the func of QLabel
+	void setText(const char *text);    // overwrite the func of QLabel
+	QString GetText() const;           // overwrite the func of QLabel
+	void appendDeviceName(const char *name, const char *appendDeviceName);
+
+protected:
+	void resizeEvent(QResizeEvent *event) override;
+	void paintEvent(QPaintEvent *event) override;
+
+	QString SnapSourceName();
+
+private:
+	QString currentText = "";
+};
+
+class OBSSourceLabel : public SourceLabel {
+	Q_OBJECT
 
 public:
 	OBSSignal renamedSignal;
@@ -30,7 +55,7 @@ public:
 
 	OBSSourceLabel(const obs_source_t *source, QWidget *parent = nullptr,
 		       Qt::WindowFlags f = Qt::WindowFlags())
-		: QLabel(obs_source_get_name(source), parent, f),
+		: SourceLabel(nullptr, parent, f),
 		  renamedSignal(obs_source_get_signal_handler(source), "rename",
 				&OBSSourceLabel::SourceRenamed, this),
 		  removedSignal(obs_source_get_signal_handler(source), "remove",
@@ -39,7 +64,10 @@ public:
 				  "destroy", &OBSSourceLabel::SourceDestroyed,
 				  this)
 	{
+		setText(obs_source_get_name(source));
 	}
+
+	void clearSignals();
 
 protected:
 	static void SourceRenamed(void *data, calldata_t *params);

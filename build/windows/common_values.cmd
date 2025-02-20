@@ -1,5 +1,6 @@
 @echo off
 
+
 set _PROJECT_DIR=%~dp0..\..
 set PROJECT_DIR=%_PROJECT_DIR:\=/%
 set BIN_DIR=%PROJECT_DIR%/bin
@@ -28,7 +29,7 @@ set COMPILER=v143
 set ARCH=x64
 
 if "%CI_VERSION%"=="" (
-	set VERSION=4.2.0.0
+	set /p VERSION=<%~dp0version_win.txt
 ) else (
 	set VERSION=%CI_VERSION%
 )
@@ -53,10 +54,10 @@ if "%BUILD_TYPE_ARG%"=="Debug" (
 	set CMAKE_BUILD_TYPE=RelWithDebInfo
 )
 
-set OBS_VERSION=30.1.2.0
+set OBS_VERSION=30.2.3.0
 set DEV_OUTPUT_DIR=%BIN_DIR%/prism/windows
 set OUTPUT_DIR=%DEV_OUTPUT_DIR%/%BUILD_TYPE%
-set VERSION=%VERSION: =%
+set VERSION=4.3.0.0
 
 echo PROJECT_DIR=%PROJECT_DIR%
 echo BIN_DIR=%BIN_DIR%

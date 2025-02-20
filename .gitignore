@@ -20,6 +20,8 @@ deploy_temp
 /src/prism-live-studio/others/stream-deck/package/com.naver.prism.sdPlugin
 /src/prism-live-studio/others/stream-deck/src/cpp/com.naver.prism.sdPlugin/build
 
-
 xcuserdata/
 *.xcuserstate
+
+.cache
+**/compile_commands.json

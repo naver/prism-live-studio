@@ -2,31 +2,29 @@
 #define PLSSCENEINSTALLBUTTON_H
 
 #include <QPushButton>
-#include "loading-event.hpp"
+#include "PLSLoadingView.h"
 
 namespace Ui {
 class PLSSceneInstallButton;
 }
 
-class PLSSceneInstallButton : public QPushButton
-{
-    Q_OBJECT
+class PLSSceneInstallButton : public QPushButton {
+	Q_OBJECT
 
 public:
-    explicit PLSSceneInstallButton(QWidget *parent = nullptr);
-    ~PLSSceneInstallButton();
-    void startInstall();
-    void endInstall();
+	explicit PLSSceneInstallButton(QWidget *parent = nullptr);
+	~PLSSceneInstallButton();
+	void startInstall();
+	void endInstall();
 
- private:
-    void showLoading();
-    void hideLoading();
-    
+private:
+	void showLoading();
+	void hideLoading();
 
- private:
-    Ui::PLSSceneInstallButton *ui;
+private:
+	Ui::PLSSceneInstallButton *ui;
 	bool m_installing{false};
-    PLSLoadingEvent m_loadingEvent;
+	PLSLoadingView *m_pLoadingView = nullptr;
 };
 
 #endif // PLSSCENEINSTALLBUTTON_H

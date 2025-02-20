@@ -201,7 +201,7 @@ QList<PLSLiveInfoNaverShoppingLIVEProductList::Product> PLSLiveInfoNaverShopping
 
 bool PLSLiveInfoNaverShoppingLIVEProductList::hasUnattachableProduct()
 {
-	for (const auto& value : allProducts.values()) {		
+	for (const auto &value : allProducts.values()) {
 		for (const auto &product : value) {
 			if (!product.attachable) {
 				return true;
@@ -412,6 +412,8 @@ void PLSLiveInfoNaverShoppingLIVEProductList::setProducts(PLSProductType product
 
 		showPage(true);
 		updateProductsInfo(fixedProducts_, unfixedProducts_);
+		// spec-out 2024/07/31
+#if 0
 		if (checkAgeLimitProducts(fixedProducts_, unfixedProducts_)) {
 			if (!fixedProducts_.isEmpty() || !unfixedProducts_.isEmpty()) {
 				updateProductsInfo(fixedProducts_, unfixedProducts_);
@@ -419,6 +421,7 @@ void PLSLiveInfoNaverShoppingLIVEProductList::setProducts(PLSProductType product
 				clearAll();
 			}
 		}
+#endif
 	} else {
 		PLSLiveInfoNaverShoppingLIVEProductItemView::dealloc(itemViews, ui->productsLayout);
 		showPage(false);
@@ -490,7 +493,6 @@ void PLSLiveInfoNaverShoppingLIVEProductList::updateWhenDpiChanged() const
 void PLSLiveInfoNaverShoppingLIVEProductList::cancelSearchRequest()
 {
 	for (auto key : cancelRequestMap.keys()) {
-		qDebug() << "cancelSearchRequest abort key :" << key;
 		pls::http::Request request = cancelRequestMap.value(key).first;
 		cancelRequestMap[key].second = true;
 		request.abort();
@@ -503,17 +505,14 @@ void PLSLiveInfoNaverShoppingLIVEProductList::searchProduct(int currentPage, PLS
 	QString key = createSearchProductKey(fixedProductNos, unfixedProductNos);
 	if (auto iter = cancelRequestMap.find(key); iter != cancelRequestMap.end()) {
 		if (!iter.value().second) {
-			qDebug() << "searchProduct return key :" << key;
 			return;
 		}
 	}
-	qDebug() << "searchProduct -- add key :" << key;
 	cancelRequestMap.insert(key, QPair<pls::http::Request, bool>(pls::http::Request(), false));
 	for (auto key_ : cancelRequestMap.keys()) {
 		if (key_ == key) {
 			continue;
 		}
-		qDebug() << "searchProduct abort key :" << key_;
 		pls::http::Request request = cancelRequestMap.value(key_).first;
 		cancelRequestMap[key_].second = true;
 		request.abort();
@@ -526,14 +525,12 @@ void PLSLiveInfoNaverShoppingLIVEProductList::searchProduct(int currentPage, PLS
 			auto iter = cancelRequestMap.find(searchKey);
 			if (iter != cancelRequestMap.end()) {
 				if (iter.value().second) {
-					qDebug() << "searchProduct -- remove abort key :" << searchKey;
 					cancelRequestMap.remove(searchKey);
 					if (cancelRequestMap.isEmpty()) {
 						PLSLoadingView::deleteLoadingView(productLoadingView);
 					}
 					return;
 				}
-				qDebug() << "searchProduct -- remove key :" << searchKey;
 				cancelRequestMap.remove(searchKey);
 			}
 
@@ -665,6 +662,8 @@ void PLSLiveInfoNaverShoppingLIVEProductList::updateAllProductsInfo_lambda_ok(in
 		} else {
 			addProduct(fixedProducts_, unfixedProducts_);
 		}
+		// spec-out 2024/07/31
+#if 0
 		if (checkAgeLimitProducts(fixedProducts_, unfixedProducts_)) {
 			if (!fixedProducts_.isEmpty() || !unfixedProducts_.isEmpty()) {
 				updateProductsInfo(fixedProducts_, unfixedProducts_);
@@ -672,6 +671,7 @@ void PLSLiveInfoNaverShoppingLIVEProductList::updateAllProductsInfo_lambda_ok(in
 				clearAll();
 			}
 		}
+#endif
 	} else {
 		showPage(false);
 	}

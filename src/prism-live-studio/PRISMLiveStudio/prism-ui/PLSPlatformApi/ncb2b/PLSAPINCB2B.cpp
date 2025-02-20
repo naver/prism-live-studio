@@ -16,6 +16,7 @@
 #include "common/PLSDateFormate.h"
 #include "login-user-info.hpp"
 #include "pls-common-define.hpp"
+#include "PLSCommonConst.h"
 
 using namespace std;
 
@@ -33,7 +34,7 @@ void configDefaultRequest(const pls::http::Request &_request, const QObject *rec
 			  const PLSAPICommon::errorCallback &onFailed, const QByteArray &logName, bool isNeedCookie)
 {
 	if (isNeedCookie) {
-		addCommenCookieAndUserKey(_request);
+		addCommonCookieAndUserKey(_request);
 	}
 	_request.contentType(common::HTTP_CONTENT_TYPE_VALUE);
 
@@ -56,7 +57,7 @@ void configDefaultRequest(const pls::http::Request &_request, const QObject *rec
 		});
 }
 
-void addCommenCookieAndUserKey(const pls::http::Request &_request)
+void addCommonCookieAndUserKey(const pls::http::Request &_request)
 {
 	_request.cookie(PLSLoginUserInfo::getInstance()->getPrismCookie());
 	_request.rawHeader("X-prism-access-token", PLSLoginUserInfo::getInstance()->getNCPPlatformToken());
@@ -229,12 +230,6 @@ void showFailedLog(const QString &logName, const pls::http::Reply &reply, PLSPla
 		} else {
 			PLS_ERROR(MODULE_PLATFORM_NCB2B, "%s failed. with not object data.", logName.toUtf8().constData());
 		}
-	}
-
-	QString failedErr = QString("%1-statusCode:%2-ncb2bCode:%3-reason:%4").arg(logName).arg(_code).arg(subCode).arg(errMsg);
-	if (platform) {
-		platform->setFailedErr(failedErr);
-		platform->setlastRequestAPI(logName);
 	}
 }
 

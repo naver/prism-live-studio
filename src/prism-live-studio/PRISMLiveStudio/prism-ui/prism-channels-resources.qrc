@@ -317,5 +317,29 @@
         <file>resource/images/ChannelsSource/btn-addch-default-on.svg</file>
         <file>resource/images/ChannelsSource/stremsetting-tagIcon.png</file>
         <file>resource/images/DefaultChannels/btn-mych-addch-default.svg</file>
+        <file>resource/images/ChannelsSource/btn_cd_layeropen_click.svg</file>
+        <file>resource/images/ChannelsSource/btn_cd_layeropen_disable.svg</file>
+        <file>resource/images/ChannelsSource/btn_cd_layeropen_normal.svg</file>
+        <file>resource/images/ChannelsSource/btn_cd_layeropen_over.svg</file>
+        <file>resource/images/ChannelsSource/btn_dualoutput_horizontal_off.svg</file>
+        <file>resource/images/ChannelsSource/btn_dualoutput_horizontal_on.svg</file>
+        <file>resource/images/ChannelsSource/btn_dualoutput_none_off.svg</file>
+        <file>resource/images/ChannelsSource/btn_dualoutput_none_on.svg</file>
+        <file>resource/images/ChannelsSource/btn_dualoutput_vertical_off.svg</file>
+        <file>resource/images/ChannelsSource/btn_dualoutput_vertical_on.svg</file>
+        <file>resource/images/ChannelsSource/ic_badge_horizontal.svg</file>
+        <file>resource/images/ChannelsSource/ic_badge_vertical.svg</file>
+        <file>resource/images/ChannelsSource/ic_cd_divider.svg</file>
+        <file>resource/images/ChannelsSource/ic-dropbox-down-click.svg</file>
+        <file>resource/images/ChannelsSource/ic-dropbox-down-disable.svg</file>
+        <file>resource/images/ChannelsSource/ic-dropbox-down-normal.svg</file>
+        <file>resource/images/ChannelsSource/ic-dropbox-down-over.svg</file>
+        <file>resource/images/ChannelsSource/ic-dropbox-up-click.svg</file>
+        <file>resource/images/ChannelsSource/ic-dropbox-up-disable.svg</file>
+        <file>resource/images/ChannelsSource/ic-dropbox-up-normal.svg</file>
+        <file>resource/images/ChannelsSource/ic-dropbox-up-over.svg</file>
+        <file>resource/images/ChannelsSource/img-mychannel-listbg-click.svg</file>
+        <file>resource/images/ChannelsSource/img-mychannel-listbg-normal.svg</file>
+        <file>resource/images/ChannelsSource/img-mychannel-listbg-over.svg</file>
     </qresource>
 </RCC>

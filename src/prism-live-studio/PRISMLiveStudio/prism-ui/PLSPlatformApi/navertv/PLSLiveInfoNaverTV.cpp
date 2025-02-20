@@ -26,6 +26,8 @@ PLSLiveInfoNaverTV::PLSLiveInfoNaverTV(PLSPlatformBase *pPlatformBase, const QVa
 	hl->setContentsMargins(0, 35, 24, 0);
 	hl->setSpacing(0);
 
+	ui->dualWidget->setText(tr("NAVER TV"))->setUUID(platform->getChannelUUID());
+
 	QWidget *resolutionButton = createResolutionButtonsFrame();
 	hl->addStretch(1);
 	hl->addWidget(resolutionButton);
@@ -131,24 +133,23 @@ void PLSLiveInfoNaverTV::onOk(bool isRehearsal)
 		PLS_INFO(liveInfoMoudule, "Naver TV liveinfo Save %s", (ok ? "success" : "failed"));
 		if (ok) {
 			accept();
-		} else if (!platform->isKnownError(code)) {
-			if (isRehearsal) {
-				pls_alert_error_message(this, tr("Alert.Title"), tr("LiveInfo.NaverTV.SaveLiveInfo.Fail.Rehearsal.Alert"));
-			} else if (PLS_PLATFORM_API->isPrepareLive()) {
-				pls_alert_error_message(this, tr("Alert.Title"), tr("LiveInfo.live.error.start.other").arg("NAVER TV"));
-			} else {
-				pls_alert_error_message(this, tr("Alert.Title"), tr("LiveInfo.live.error.update.failed"));
-			}
 		}
 	};
 
 	showLoading(content());
 
+	QString customErrName("UpdateLiveInfoFailedNoService");
+	if (isRehearsal) {
+		customErrName = "StartRehearsalFailed";
+	} else if (PLS_PLATFORM_API->isPrepareLive()) {
+		customErrName = "FailedBecauseConnection";
+	}
+
 	auto liveInfo = platform->isLiveInfoModified(selectedId) ? getScheLiveInfo(selectedId) : platform->getScheLiveInfo(selectedId);
 	if (!liveInfo) {
-		platform->updateLiveInfo(scheLiveList, selectedId, isRehearsal, ui->lineEditTitle->text(), ui->thumbnailButton->getImagePath(), _onNext);
+		platform->updateLiveInfo(scheLiveList, selectedId, isRehearsal, ui->lineEditTitle->text(), ui->thumbnailButton->getImagePath(), _onNext, customErrName);
 	} else {
-		platform->checkScheLive(liveInfo->oliveId, [this, isRehearsal, _onNext](bool ok, bool valid) {
+		platform->checkScheLive(liveInfo->oliveId, [this, isRehearsal, _onNext, customErrName](bool ok, bool valid) {
 			if (!pls_object_is_valid(this)) {
 				return;
 			}
@@ -157,7 +158,7 @@ void PLSLiveInfoNaverTV::onOk(bool isRehearsal)
 				hideLoading();
 				pls_alert_error_message(this, tr("Alert.Title"), tr("broadcast.invalid.schedule"));
 			} else {
-				platform->updateLiveInfo(scheLiveList, selectedId, isRehearsal, ui->lineEditTitle->text(), ui->thumbnailButton->getImagePath(), _onNext);
+				platform->updateLiveInfo(scheLiveList, selectedId, isRehearsal, ui->lineEditTitle->text(), ui->thumbnailButton->getImagePath(), _onNext, customErrName);
 			}
 		});
 	}
@@ -339,10 +340,6 @@ void PLSLiveInfoNaverTV::processGetScheLives(bool ok, int code, const QList<PLSP
 			ui->lineEditTitle->setEnabled(true);
 		}
 	} else {
-		if (!platform->isKnownError(code)) {
-			pls_alert_error_message(this, tr("Alert.Title"), tr("common.message.error"));
-		}
-
 		hideLoading();
 		reject();
 	}
@@ -372,21 +369,21 @@ void PLSLiveInfoNaverTV::processRefreshScheLives(bool ok, const QList<PLSPlatfor
 	}
 
 	if (selectedId > 0) {
-		PLSScheComboxItemData nomarlData;
-		nomarlData._id = "-1";
-		nomarlData.title = tr("New");
-		nomarlData.time = "";
-		nomarlData.type = PLSScheComboxItemType::Ty_NormalLive;
-		scheLiveItems.insert(scheLiveItems.begin(), nomarlData);
+		PLSScheComboxItemData normalData;
+		normalData._id = "-1";
+		normalData.title = tr("New");
+		normalData.time = "";
+		normalData.type = PLSScheComboxItemType::Ty_NormalLive;
+		scheLiveItems.insert(scheLiveItems.begin(), normalData);
 	}
 
 	if (scheLiveItems.empty()) {
-		PLSScheComboxItemData nomarlData;
-		nomarlData._id = QString::number(platform->getImmediateLiveInfo()->oliveId);
-		nomarlData.title = tr("New");
-		nomarlData.time = tr("LiveInfo.Youtube.no.scheduled");
-		nomarlData.type = PLSScheComboxItemType::Ty_Placehoder;
-		scheLiveItems.insert(scheLiveItems.begin(), nomarlData);
+		PLSScheComboxItemData normalData;
+		normalData._id = QString::number(platform->getImmediateLiveInfo()->oliveId);
+		normalData.title = tr("New");
+		normalData.time = tr("LiveInfo.Youtube.no.scheduled");
+		normalData.type = PLSScheComboxItemType::Ty_Placeholder;
+		scheLiveItems.insert(scheLiveItems.begin(), normalData);
 	}
 
 	ui->scheCombox->showScheduleMenu(scheLiveItems);

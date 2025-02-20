@@ -175,7 +175,7 @@ void PLSImporter::importCollections()
 				importData.filePath = save.c_str();
 				importFiles.push_back(importData);
 			}
-			PLS_INFO("Import Scene Collection: %s (%s) - %s", name.c_str(), file.c_str(), success ? "SUCCESS" : "FAILURE");
+			PLS_INFO("PLSImporter", "Import Scene Collection: %s (%s) - %s", name.c_str(), file.c_str(), success ? "SUCCESS" : "FAILURE");
 		}
 	}
 

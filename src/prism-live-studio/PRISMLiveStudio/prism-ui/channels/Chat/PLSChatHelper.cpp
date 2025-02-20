@@ -92,6 +92,7 @@ static QString getChatTabImagePath(const QString &objectName, const QString &pla
 	}
 	auto img = getChatIcon(platNameNoLower, type, QString(":/resource/images/chat/btn-tab-%1-%2-%3.svg").arg(platName).arg(isOnOrOff).arg(typeString));
 	img = !img.isEmpty() ? img : QString(":/resource/images/chat/btn-tab-default-%1-%2.svg").arg(isOnOrOff).arg(typeString);
+	img = QDir::fromNativeSeparators(img);
 	return img;
 }
 
@@ -454,8 +455,8 @@ std::string PLSChatHelper::getChatUrlWithIndex(int index, const QVariantMap &inf
 		break;
 	}
 	if (QString::fromStdString(showUrl).contains(".html")) {
-		return "https://prismlive.com";
-	}
+			return "https://prismlive.com";
+		}
 	return showUrl;
 }
 

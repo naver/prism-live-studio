@@ -120,6 +120,7 @@ void PLSSceneCollectionItem::Update(const PLSSceneCollectionData &data)
 
 	SetDeleteButtonDisable(data.delButtonDisable);
 	SetCurrentStyles(data.current);
+	SetEnterStyles(data.enter);
 	UpdateModifiedTimeStamp();
 }
 
@@ -157,7 +158,6 @@ void PLSSceneCollectionItem::mouseDoubleClickEvent(QMouseEvent *event)
 void PLSSceneCollectionItem::mouseMoveEvent(QMouseEvent *event)
 {
 	QRect rect(leftMargin, 0, nameRealWidth, height());
-	pls_used(rect);
 	if (rect.contains(event->pos())) {
 		QToolTip::showText(QCursor::pos(), fileName, this);
 	}
@@ -170,19 +170,16 @@ void PLSSceneCollectionItem::enterEvent(QEnterEvent *event)
 void PLSSceneCollectionItem::enterEvent(QEvent *event)
 #endif
 {
-	SetMouseStatus(PROPERTY_VALUE_MOUSE_STATUS_HOVER);
-	SetButtonVisible(true);
+	SetEnterStyles(true);
+
+	emit triggerEnterEvent(fileName, filePath);
 	QFrame::enterEvent(event);
 }
 
 void PLSSceneCollectionItem::leaveEvent(QEvent *event)
 {
 	QToolTip::hideText();
-
-	if (!advMenuShow) {
-		SetMouseStatus(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
-		SetButtonVisible(false);
-	}
+	SetEnterStyles(false);
 	QFrame::leaveEvent(event);
 }
 
@@ -315,6 +312,25 @@ void PLSSceneCollectionItem::SetCurrentStyles(bool current_)
 {
 	current = current_;
 	pls_flush_style(ui->nameLabel, "current", current);
+}
+
+void PLSSceneCollectionItem::SetEnterStyles(bool enter)
+{
+	if (this->enter == enter) {
+		return;
+	}
+
+	this->enter = enter;
+	if (enter) {
+		SetMouseStatus(PROPERTY_VALUE_MOUSE_STATUS_HOVER);
+		SetButtonVisible(true);
+		return;
+	}
+	// leave
+	if (!advMenuShow) {
+		SetMouseStatus(PROPERTY_VALUE_MOUSE_STATUS_NORMAL);
+		SetButtonVisible(false);
+	}
 }
 
 int PLSSceneCollectionItem::GetButtonWidth()

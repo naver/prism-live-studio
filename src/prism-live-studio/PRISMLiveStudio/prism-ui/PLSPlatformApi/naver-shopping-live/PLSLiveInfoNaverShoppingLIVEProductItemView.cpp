@@ -119,7 +119,6 @@ void PLSLiveInfoNaverShoppingLIVEProductItemView::setInfo(const PLSPlatformNaver
 	ui->introducingLabel->setVisible(product.introducing);
 	ui->fixButton->setVisible(product.productType == PLSProductType::MainProduct);
 	this->setVisible(true);
-	updateAttachableUI();
 
 	PLSNaverShoppingLIVEDataManager::instance()->downloadImage(
 		platform, product.imageUrl,
@@ -136,11 +135,10 @@ void PLSLiveInfoNaverShoppingLIVEProductItemView::setInfo(const PLSPlatformNaver
 			}
 
 			PLSLoadingView::deleteLoadingView(imageLoadingView);
-			double opacity = product.attachable ? 1.0 : 0.3;
 			if (ok) {
-				ui->iconLabel->setImage(this->product.linkUrl, this->product.imageUrl, imagePath, specialPriceIsValid, true, opacity);
+				ui->iconLabel->setImage(this->product.linkUrl, this->product.imageUrl, imagePath, specialPriceIsValid, true);
 			} else {
-				ui->iconLabel->setImage(this->product.linkUrl, QPixmap(), QPixmap(), specialPriceIsValid, true, opacity);
+				ui->iconLabel->setImage(this->product.linkUrl, QPixmap(), QPixmap(), specialPriceIsValid, true);
 			}
 		},
 		this, [](const QObject *obj) { return pls_object_is_valid(obj); }, -1);

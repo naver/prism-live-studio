@@ -157,3 +157,22 @@ public:
 signals:
 	void clickFontBtn(QAbstractButton *button);
 };
+
+class FontButton : public QPushButton {
+public:
+	explicit FontButton(const QString &resourceName, int width, int height = 35);
+	~FontButton() = default;
+
+protected:
+	bool event(QEvent *event);
+	void checkStateSet() override;
+
+private:
+	void updateFontButtonBgm(const QString &bgmRes);
+
+private:
+	QLabel *m_picLabel = nullptr;
+	QString m_normalResPath;
+	QString m_hoveredResPath;
+	QString m_selectedResPath;
+};

@@ -8,7 +8,6 @@
 #include <QDir>
 #include <QCoreApplication>
 #include "PLSLaboratoryManage.h"
-#include <PLSResCommonFuns.h>
 
 PLSLabDownloadFile::PLSLabDownloadFile(const QString &labId, QObject *parent) : m_labId(labId)
 {
@@ -48,7 +47,7 @@ bool PLSLabDownloadFile::onUncompress(const QString &path) const
 {
 	QFileInfo fi(path);
 	QDir dstDir = fi.dir();
-	return PLSResCommonFuns::unZip(dstDir.absolutePath(), path, fi.fileName(), false);
+	return pls::rsm::unzip(path, dstDir.absolutePath());
 }
 
 bool PLSLabDownloadFile::writeDownloadCache()

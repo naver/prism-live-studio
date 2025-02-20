@@ -2,7 +2,6 @@
 #include "media-io/media-remux.h"
 #include "pls-common-define.hpp"
 #include "frontend-api/frontend-api.h"
-#include "json-data-handler.hpp"
 #include "liblog.h"
 #include "utils-api.h"
 #include "util/platform.h"
@@ -11,8 +10,8 @@
 #include "PLSFileDownloader.h"
 #include <pls/media-info.h>
 #include <pls/pls-source.h>
-#include <PLSResCommonFuns.h>
 #include "PLSSyncServerManager.hpp"
+#include "PrismStickerResourceMgr.h"
 #include <QFile>
 #include <QDir>
 #include <QtConcurrent/QtConcurrent>
@@ -31,33 +30,12 @@ bool PLSStickerDataHandler::clearData = false;
 // PRISM Sticker handler
 PLSStickerDataHandler::PLSStickerDataHandler(QObject *parent) : QObject(parent) {}
 
-bool PLSStickerDataHandler::HandleDownloadedFile(const QString &fileName) const
-{
-	QFile file(fileName);
-	if (file.exists()) {
-		auto targetPath = pls_get_user_path(PRISM_STICKER_USER_PATH);
-		QString error;
-		if (UnCompress(fileName, targetPath, error)) {
-			// Delete zip files.
-			if (!file.remove())
-				PLS_INFO(MAIN_PRISM_STICKER, "Remove: %s failed", qUtf8Printable(fileName));
-			return true;
-		}
-		PLS_WARN(MAIN_PRISM_STICKER, "HandleDownloadedFile: %s", qUtf8Printable(error));
-	}
-	return false;
-}
-
-struct DownloadTask {
-	uint64_t source_ptr = 0ULL;
-	StickerData data;
-};
+using DownloadTasks = std::map<QString, std::vector<obs_weak_source_t *>>;
 
 static bool checkCallback(void *data, obs_source_t *source)
 {
 	const char *id = obs_source_get_id(source);
-	auto ref = (std::vector<DownloadTask> *)(data);
-	std::vector<DownloadTask> &tasks = *ref;
+	auto tasks = (DownloadTasks *)(data);
 	if (id && *id) {
 		if (0 != strcmp(id, PRISM_STICKER_SOURCE_ID))
 			return true;
@@ -82,54 +60,26 @@ static bool checkCallback(void *data, obs_source_t *source)
 			st_data.resourceUrl = url;
 			st_data.version = version;
 
-			DownloadTask task;
-			task.data = st_data;
-			task.source_ptr = (uint64_t)(source);
-			tasks.emplace_back(task);
+			if (auto iter = tasks->find(resourceId);iter != tasks->end()) {
+				iter->second.push_back(obs_source_get_weak_source(source));
+			}else{
+				std::vector<obs_weak_source_t *> data;
+				data.emplace_back(obs_source_get_weak_source(source));
+				tasks->emplace(resourceId, data);
+			}
 		}
 	}
 	return true;
 }
 
-void downloadCallback(const DownloadTask &task, const TaskResponData &)
+void updateSourceSettings(const pls::rsm::Item &item, obs_source_t *source) 
 {
-	auto zipFile = PLSStickerDataHandler::GetStickerResourceFile(task.data);
-	QString error;
-	QString targetPath = PLSStickerDataHandler::GetStickerResourceParentDir(task.data);
-	if (!PLSStickerDataHandler::UnCompress(zipFile, targetPath, error))
-		return;
-	QFile file(zipFile);
-	file.remove();
-	auto path = PLSStickerDataHandler::GetStickerResourcePath(task.data);
-	auto configFile = path + PLSStickerDataHandler::GetStickerConfigJsonFileName(task.data);
-	StickerParamWrapper *wrapper = PLSStickerDataHandler::CreateStickerParamWrapper(task.data.category);
-	if (!wrapper->Serialize(configFile)) {
-		pls_delete(wrapper, nullptr);
+	auto result = PLSStickerDataHandler::RemuxItemResource(item);
+	if (!result.success) {
+		PLS_WARN(MAIN_PRISM_STICKER, "%s: Failed to remux file: %s", __FUNCTION__, qUtf8Printable(item.itemId()));
 		return;
 	}
-
-	StickerHandleResult result;
-	for (const auto &config : wrapper->m_config) {
-		auto remuxedFile = path + config.resourceDirectory + ".mp4";
-		auto resourcePath = path + config.resourceDirectory;
-		if (!PLSStickerDataHandler::MediaRemux(resourcePath, remuxedFile, config.fps)) {
-			PLS_WARN(MAIN_PRISM_STICKER, "Failed to remux sticker [%s]", task.data.id.toUtf8().constData());
-			continue;
-		}
-
-		QString imageFile = PLSStickerDataHandler::getTargetImagePath(resourcePath, task.data.category, task.data.id, Orientation::landscape == config.orientation);
-		if (Orientation::landscape == config.orientation) {
-			result.landscapeVideoFile = remuxedFile;
-			result.landscapeImage = imageFile; // TODO
-		} else {
-			result.portraitVideo = remuxedFile;
-			result.portraitImage = imageFile; // TODO
-		}
-	}
-
-	result.AdjustParam();
-	PLS_INFO(MAIN_PRISM_STICKER, "re-download and uncompress sticker resource:'%s' successfully!", qUtf8Printable(task.data.id));
-	OBSSource source = pls_get_source_by_pointer_address((void *)task.source_ptr);
+	PLS_INFO(MAIN_PRISM_STICKER, "re-download and uncompress sticker resource:'%s' successfully!", qUtf8Printable(item.itemId()));
 	if (source) {
 		OBSData settings = pls_get_source_private_setting(source);
 		obs_data_set_string(settings, "landscapeVideo", qUtf8Printable(result.landscapeVideoFile));
@@ -138,8 +88,20 @@ void downloadCallback(const DownloadTask &task, const TaskResponData &)
 		obs_data_set_string(settings, "portraitImage", qUtf8Printable(result.portraitImage));
 		pls_source_set_private_data(source, settings);
 	}
+}
 
-	pls_delete(wrapper, nullptr);
+void onDownloadedItem(const pls::rsm::Item &item, DownloadTasks &tasks) 
+{
+	auto id = item.itemId();
+	if (auto iter = tasks.find(id); iter != tasks.end()) {
+		for (auto source_weak: iter->second) {
+			auto source = OBSGetStrongRef(source_weak);
+			if (source) {
+				updateSourceSettings(item, source);
+			}
+		}
+		tasks.erase(iter);
+	}
 }
 
 bool PLSStickerDataHandler::CheckStickerSource()
@@ -152,13 +114,13 @@ bool PLSStickerDataHandler::MediaRemux(const QString &filePath, const QString &o
 	return mi_remux_do(qUtf8Printable(filePath), qUtf8Printable(outputFileName), fps);
 }
 
-bool PLSStickerDataHandler::UnCompress(const QString &srcFile, const QString &dstPath, QString &)
+bool PLSStickerDataHandler::UnCompress(const QString &srcFile, const QString &dstPath, QString &error)
 {
 	auto fileName = srcFile.mid(srcFile.lastIndexOf('/') + 1);
 	auto prefix = fileName.left(fileName.indexOf("."));
 	QDir dir(dstPath);
 	bool ret = dir.rename(prefix, prefix + "_temp");
-	if (PLSResCommonFuns::unZip(dstPath, srcFile, fileName)) {
+	if (pls::rsm::unzip(srcFile, dstPath, true, &error)) {
 		if (ret && dir.cd(prefix + "_temp")) {
 			dir.removeRecursively();
 		}
@@ -172,19 +134,19 @@ bool PLSStickerDataHandler::UnCompress(const QString &srcFile, const QString &ds
 bool PLSStickerDataHandler::ParseStickerParamJson(const QString &fileName, QJsonObject &obj)
 {
 	QByteArray data;
-	if (!PLSJsonDataHandler::getJsonArrayFromFile(data, fileName))
+	if (!pls_read_data(data, fileName))
 		return false;
 	obj = QJsonDocument::fromJson(data).object();
 	return true;
 }
 
-StickerParamWrapper *PLSStickerDataHandler::CreateStickerParamWrapper(const QString &categoryId)
+std::shared_ptr<StickerParamWrapper> PLSStickerDataHandler::CreateStickerParamWrapper(const QString &categoryId)
 {
-	StickerParamWrapper *wrapper = nullptr;
+	std::shared_ptr<StickerParamWrapper> wrapper;
 	if (categoryId == "RandomTouch")
-		wrapper = pls_new<RandowTouch3DParamWrapper>();
+		wrapper = std::make_shared<RandowTouch3DParamWrapper>();
 	else
-		wrapper = pls_new<Touch2DStickerParamWrapper>();
+		wrapper = std::make_shared<Touch2DStickerParamWrapper>();
 	return wrapper;
 }
 
@@ -223,7 +185,7 @@ bool PLSStickerDataHandler::ReadDownloadCacheLocal(QJsonObject &cache)
 	auto cacheFile = pls_get_user_path(PRISM_STICKER_DOWNLOAD_CACHE_FILE);
 	// Get cache version.
 	QByteArray data;
-	if (PLSJsonDataHandler::getJsonArrayFromFile(data, cacheFile)) {
+	if (pls_read_data(data, cacheFile)) {
 		cache = QJsonDocument::fromJson(data).object();
 		return true;
 	}
@@ -242,14 +204,14 @@ bool PLSStickerDataHandler::WriteDownloadCache(const QString &key, qint64 versio
 bool PLSStickerDataHandler::WriteDownloadCacheToLocal(const QJsonObject &cacheObj)
 {
 	QString file(pls_get_user_path(PRISM_STICKER_DOWNLOAD_CACHE_FILE));
-	auto doc = QJsonDocument(cacheObj);
-	return PLSJsonDataHandler::saveJsonFile(doc.toJson(), file);
+	return pls_write_json(file, cacheObj);
 }
 
 bool PLSStickerDataHandler::ClearPrismStickerData()
 {
 	SetClearDataFlag(true);
-	return QFile::remove(pls_get_user_path(QString(PRISM_STICKER_RECENT_JSON_FILE)));
+	CategoryPrismSticker::instance()->removeAllUsedItems(RECENT_USED_GROUP_ID, false);
+	return true;
 }
 
 void PLSStickerDataHandler::SetClearDataFlag(bool flag)
@@ -297,4 +259,62 @@ QString PLSStickerDataHandler::getTargetImagePath(QString resourcePath, QString 
 			imageFile = resourcePath + "/" + list.at(index);
 	}
 	return imageFile;
+}
+
+StickerHandleResult PLSStickerDataHandler::RemuxItemResource(const pls::rsm::Item &item)
+{
+	StickerHandleResult result;
+	result.data = StickerData(item);
+	auto rules = item.urlAndHowSaves();
+	if (rules.empty()) {
+		assert(false);
+		result.breakFlow = true;
+		return result;
+	}
+		
+	auto urlAndHowSave = rules.front();
+	QFileInfo fileInfo(urlAndHowSave.savedFilePath());
+	QDir dstDir = fileInfo.dir();
+
+	QString baseName = QFileInfo(urlAndHowSave.url().fileName()).baseName();
+	auto path = dstDir.absolutePath() + "/" + baseName + "/";
+	auto configFile = path + baseName + ".json";
+
+	auto groups = item.groups();
+	if (groups.empty()) {
+		assert(false);
+		result.breakFlow = true;
+		return result;
+	}
+
+	auto groupId = groups.front().groupId();
+	auto wrapper = PLSStickerDataHandler::CreateStickerParamWrapper(groupId);
+	if (!wrapper->Serialize(configFile)) {
+		result.breakFlow = true;
+		return result;
+	}
+
+	bool ok = true;
+	for (const auto &config : wrapper->m_config) {
+		auto remuxedFile = path + config.resourceDirectory + ".mp4";
+		auto resourcePath = path + config.resourceDirectory;
+		if (!QFile::exists(remuxedFile) && !PLSStickerDataHandler::MediaRemux(resourcePath, remuxedFile, config.fps)) {
+			ok = false;
+			PLS_WARN(MAIN_PRISM_STICKER, "Failed to remux file:%s.", qUtf8Printable(downloader::getFileName(remuxedFile)));
+			continue;
+		}
+
+		QString imageFile = PLSStickerDataHandler::getTargetImagePath(resourcePath, groupId, item.itemId(), Orientation::landscape == config.orientation);
+
+		if (Orientation::landscape == config.orientation) {
+			result.landscapeVideoFile = remuxedFile;
+			result.landscapeImage = imageFile; // TODO
+		} else {
+			result.portraitVideo = remuxedFile;
+			result.portraitImage = imageFile; // TODO
+		}
+	}
+	result.success = ok;
+	result.AdjustParam();
+	return result;
 }

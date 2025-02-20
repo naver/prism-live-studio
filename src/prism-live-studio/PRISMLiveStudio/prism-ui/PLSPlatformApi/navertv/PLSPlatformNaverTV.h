@@ -102,9 +102,9 @@ public:
 	};
 	enum class ApiId { LiveOpen, Other };
 
-	using CodeCallback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QString &code, int ecode)>;
-	using TokenCallback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QString &loginFailed, int code)>;
-	using Auth2Callback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QByteArray &body, int code)>;
+	using CodeCallback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QString &code, int ecode, const PLSErrorHandler::RetData &data)>;
+	using TokenCallback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QString &loginFailed, int code, const PLSErrorHandler::RetData &data)>;
+	using Auth2Callback = std::function<void(bool ok, QNetworkReply::NetworkError error, const QByteArray &body, int code, const PLSErrorHandler::RetData &data)>;
 	using UserInfoCallback = std::function<void(bool ok)>;
 	using LiveInfosCallback = std::function<void(bool ok, const QList<LiveInfo> &scheLiveInfos)>;
 	using LiveInfosCallbackEx = std::function<void(bool ok, int code, const QList<LiveInfo> &scheLiveInfos)>;
@@ -122,16 +122,7 @@ public:
 	using ChannelEmblemCallback = std::function<void(const QList<QPair<bool, QString>> &images)>;
 
 	// error code
-	static constexpr int ERROR_AUTHEXCEPTION = 10001;
-	static constexpr int ERROR_LIVENOTFOUND = 10002;
-	static constexpr int ERROR_PERMITEXCEPTION = 10003;
-	static constexpr int ERROR_LIVESTATUSEXCEPTION = 10006;
-	static constexpr int ERROR_START30MINEXCEPTION = 10007;
-	static constexpr int ERROR_ALREADYONAIR = 10008;
-	static constexpr int ERROR_PAIDSPONSORSHIPINFO = 10010;
-	static constexpr int ERROR_NETWORK_ERROR = -10001;
 	static constexpr int ERROR_OTHERS = -10000;
-	static constexpr int ERROR_HMACTIMEERROR = 25;
 
 	// request api
 	void getChannelEmblem(const QList<QString> &urls, const QObject *receiver, const ChannelEmblemCallback &callback) const;
@@ -142,9 +133,8 @@ public:
 	void getCode(const CodeCallback &callback, const QString &url, bool redirectUrl);
 	void getToken(const TokenCallback &callback);
 	void getToken(const QString &code, const TokenCallback &callback);
-	void processGetTokenOk(bool ok, QNetworkReply::NetworkError error, const QByteArray &body, const TokenCallback &callback, int ecode);
+	void processGetTokenOk(bool ok, QNetworkReply::NetworkError error, const QByteArray &body, const TokenCallback &callback, int ecode, const PLSErrorHandler::RetData &data);
 	void getAuth2(const QString &url, const char *log, const Auth2Callback &callback, const QVariantMap &urlQueries = QVariantMap()) const;
-	void processGetAuth2Fail(const QNetworkReply *reply, const QByteArray &data, QNetworkReply::NetworkError error, const char *log, const Auth2Callback &callback) const;
 	void getUserInfo(const UserInfoCallback &callback);
 
 	void getScheLives(const LiveInfosCallback &callback, const QObject *receiver, bool popupNeedShow = true, bool popupGenericError = true, bool expiredNotify = true);
@@ -155,14 +145,14 @@ public:
 			  bool expiredNotify = true);
 	void checkScheLive(int oliveId, const CheckScheLiveCallback &callback);
 
-	void getStreamInfo(const StreamInfoCallback &callback, const char *log = "Naver TV get stream key", bool popupGenericError = true);
+	void getStreamInfo(const StreamInfoCallback &callback, const char *log = "Naver TV get stream key", bool popupGenericError = true, const QString &customErrName = QString());
 	void checkStreamPublishing(const CheckStreamPublishingCallback &callback);
 
-	void immediateStart(const QuickStartCallback &callback, bool isShareOnFacebook = false, bool isShareOnTwitter = false, bool popupGenericError = true);
+	void immediateStart(const QuickStartCallback &callback, bool isShareOnFacebook = false, bool isShareOnTwitter = false, bool popupGenericError = true, const QString &customErrName = QString());
 	void scheduleStart(const LiveOpenCallback &callback, bool isShareOnFacebook = false, bool isShareOnTwitter = false);
 	void scheduleStartWithCheck(const LiveOpenCallback &callback, bool isShareOnFacebook, bool isShareOnTwitter);
 
-	void quickStart(const QuickStartCallback &callback, bool isShareOnFacebook = false, bool isShareOnTwitter = false, bool popupGenericError = true);
+	void quickStart(const QuickStartCallback &callback, bool isShareOnFacebook = false, bool isShareOnTwitter = false, bool popupGenericError = true, const QString &customErrName = QString());
 
 	void liveOpen(const LiveOpenCallback &callback, bool isShareOnFacebook = false, bool isShareOnTwitter = false);
 	void liveClose(const LiveCloseCallback &callback);
@@ -178,7 +168,6 @@ public:
 	QString getSubChannelName() const;
 	int getLiveId() const;
 	bool isRehearsal() const;
-	bool isKnownError(int code) const;
 
 	const Token *getToken() const;
 
@@ -196,7 +185,8 @@ public:
 	const QList<LiveInfo> &getScheLiveInfoList() const;
 	bool isLiveInfoModified(int oliveId);
 	bool isLiveInfoModified(int oliveId, const QString &title, const QString &thumbnailImagePath);
-	void updateLiveInfo(const QList<LiveInfo> &scheLiveInfos, int oliveId, bool isRehearsal, const QString &title, const QString &thumbnailImagePath, const UpdateLiveInfoCallback &callback);
+	void updateLiveInfo(const QList<LiveInfo> &scheLiveInfos, int oliveId, bool isRehearsal, const QString &title, const QString &thumbnailImagePath, const UpdateLiveInfoCallback &callback,
+			    const QString &customErrName);
 	void initImmediateLiveInfoTitle() const;
 
 	void showScheLiveNotice(const LiveInfo &liveInfo);
@@ -216,22 +206,21 @@ private slots:
 
 private:
 	QString getChannelInfo(const QString &key, const QString &defaultValue = QString()) const;
-	void getJson(const Url &url, const char *log, const std::function<void(const QJsonDocument &)> &ok, const std::function<void(bool expired, int code)> &fail, const QObject *receiver = nullptr,
-		     ApiId apiId = ApiId::Other, const QVariantMap &headers = QVariantMap(), bool expiredNotify = true, bool popupNeedShow = true, bool popupGenericError = true,
-		     bool onlyFailLog = false);
-	void getJson(const Url &url, const QJsonObject &json, const char *log, const std::function<void(const QJsonDocument &)> &ok, const std::function<void(bool expired, int code)> &fail,
-		     const QObject *receiver = nullptr, ApiId apiId = ApiId::Other, const QVariantMap &headers = QVariantMap(), bool expiredNotify = true, bool popupNeedShow = true,
-		     bool popupGenericError = true);
-	void postJson(const Url &url, const QJsonObject &json, const char *log, const std::function<void(const QJsonDocument &)> &ok, const std::function<void(bool expired, int code)> &fail,
-		      const QObject *receiver = nullptr, ApiId apiId = ApiId::Other, const QVariantMap &headers = QVariantMap(), bool expiredNotify = true, bool popupNeedShow = true,
-		      bool popupGenericError = true);
+	void getJson(const Url &url, const char *log, const std::function<void(const QJsonDocument &)> &ok,
+		     const std::function<void(bool expired, int code, const PLSErrorHandler::RetData &data)> &fail, const QObject *receiver = nullptr, ApiId apiId = ApiId::Other,
+		     const QVariantMap &headers = QVariantMap(), bool expiredNotify = true, bool popupNeedShow = true, bool popupGenericError = true, bool onlyFailLog = false,
+		     const QString &customErrName = QString());
+	void getJson(const Url &url, const QJsonObject &json, const char *log, const std::function<void(const QJsonDocument &)> &ok,
+		     const std::function<void(bool expired, int code, const PLSErrorHandler::RetData &data)> &fail, const QObject *receiver = nullptr, ApiId apiId = ApiId::Other,
+		     const QVariantMap &headers = QVariantMap(), bool expiredNotify = true, bool popupNeedShow = true, bool popupGenericError = true, const QString &customErrName = QString());
+	void postJson(const Url &url, const QJsonObject &json, const char *log, const std::function<void(const QJsonDocument &)> &ok,
+		      const std::function<void(bool expired, int code, const PLSErrorHandler::RetData &data)> &fail, const QObject *receiver = nullptr, ApiId apiId = ApiId::Other,
+		      const QVariantMap &headers = QVariantMap(), bool expiredNotify = true, bool popupNeedShow = true, bool popupGenericError = true, const QString &customErrName = QString());
 	void getOrPostJson(pls::http::Method method, const Url &url, const QJsonObject &json, const char *log, const std::function<void(const QJsonDocument &)> &ok,
-			   const std::function<void(bool expired, int code)> &fail, const QObject *receiver = nullptr, ApiId apiId = ApiId::Other, const QVariantMap &headers = QVariantMap(),
-			   bool expiredNotify = true, bool popupNeedShow = true, bool popupGenericError = true);
-	void processFailed(const char *log, const QJsonDocument &respJson, const std::function<void(bool expired, int code)> &fail, const QObject *receiver, QNetworkReply::NetworkError networkError,
-			   int statusCode, bool expiredNotify, bool popupNeedShow, bool popupGenericError, ApiId apiId);
-	int processError(bool &expired, const QObject *receiver, QNetworkReply::NetworkError networkError, int statusCode, int code, bool expiredNotify, bool popupNeedShow, bool popupGenericError,
-			 ApiId apiId);
+			   const std::function<void(bool expired, int code, const PLSErrorHandler::RetData &data)> &fail, const QObject *receiver = nullptr, ApiId apiId = ApiId::Other,
+			   const QVariantMap &headers = QVariantMap(), bool expiredNotify = true, bool popupNeedShow = true, bool popupGenericError = true, const QString &customErrName = QString());
+	void processFailed(const char *log, const QByteArray &respJson, QString customErrName, const std::function<void(bool expired, int code, const PLSErrorHandler::RetData &data)> &fail,
+			   const QObject *receiver, QNetworkReply::NetworkError networkError, int statusCode, bool expiredNotify, bool popupNeedShow, bool popupGenericError, ApiId apiId);
 	void tokenExpired(bool expiredNotify, bool popupNeedShow);
 
 	bool primary = false;

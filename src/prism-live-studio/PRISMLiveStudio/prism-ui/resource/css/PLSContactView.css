@@ -16,34 +16,28 @@ PLSContactView[type="Win"] {
 }
 
 PLSContactView #contactTitleLabel {
-    color: #f1fd56;
-	font-size:/*hdpi*/ 20px;
+    color: #EFFC35;
+	font-size: 18px;
     font-weight: bold;
-	min-height:/*hdpi*/ 20px;
-	max-height:/*hdpi*/ 20px;
 }
 
 PLSContactView #emailLabel {
     color: white;
-	font-size:/*hdpi*/ 13px;
-	min-height:/*hdpi*/ 17px;
-	max-height:/*hdpi*/ 17px;
+	font-size: 14px;
     font-weight: bold;
 }
 
 PLSContactView #identificationLabel {
     color: white;
-	font-size:/*hdpi*/ 12px;
-	min-height:/*hdpi*/ 17px;
-	max-height:/*hdpi*/ 17px;
+	font-size: 12px;
 }
 
 PLSContactView #emailLineEdit{
     background-color: #1E1E1E;
     color: white;
 	font-size:/*hdpi*/ 12px;
-	min-height:/*hdpi*/ 32px;
-	max-height:/*hdpi*/ 32px;
+	min-height: 40px;
+	max-height: 40px;
 	padding-left:/*hdpi*/ 12px;
 	padding-right:/*hdpi*/ 12px;
 	border:/*hdpi*/none;
@@ -57,18 +51,19 @@ PLSContactView #emailLineEdit:focus {
 PLSContactView #emailTipLabel {
     color:#d32f2f;
 	font-size:/*hdpi*/11px;
-	min-height:/*hdpi*/ 13px;
-	max-height:/*hdpi*/ 13px;
     background-color:transparent;
 }
 
-PLSContactView #inquiryLabel {
-    background-color:transparent;
-    color:white;
-	min-height:/*hdpi*/ 20px;
-	max-height:/*hdpi*/ 20px;
-	font-size:/*hdpi*/13px;
-    font-weight:bold;
+PLSContactView #labelType, PLSContactView #inquiryLabel {
+	background-color: transparent;
+	color: white;
+	font-size: 14px;
+	font-weight: bold;
+}
+
+QRadioButton {
+	color: white;
+	font-size: 14px;
 }
 
 PLSContactView #fileButton {
@@ -135,8 +130,6 @@ PLSContactView #textBackWidget {
 
 PLSContactView #textEdit {
     background-color:#1e1e1e;
-	min-height:/*hdpi*/ 84px;
-	max-height:/*hdpi*/ 84px;
     color:white;
 	font-size:/*hdpi*/12px;
 	border:/*hdpi*/none;
@@ -164,8 +157,8 @@ PLSContactView #tagListWidget {
 	border-radius:/*hdpi*/ 3px;
     border-color:transparent;
     background-color: #1e1e1e;
-	min-height:/*hdpi*/ 73px;
-	max-height:/*hdpi*/ 73px;
+	min-height: 70px;
+	max-height: 70px;
 	padding: 0px;
 	margin: 0px;	
 	border:/*hdpi*/none;
@@ -180,8 +173,8 @@ PLSContactView #tagTextEdit {
     background-color:#1e1e1e;
 	font-size:/*hdpi*/12px;
 	border:/*hdpi*/none;
-	min-height:/*hdpi*/ 69px;
-	max-height:/*hdpi*/ 69px;
+	min-height: 70px;
+	max-height: 70px;
 	padding-left: 10px;
 	padding-top: 4px;
 	padding-bottom: 0px;
@@ -193,22 +186,6 @@ PLSContactView #inquryTipLabel {
 	font-size:/*hdpi*/11px;
 	min-height:/*hdpi*/ 13px;
 	max-height:/*hdpi*/ 13px;
-}
-
-PLSContactView #sendButton {
-    padding:/*hdpi*/0px;
-    color:white;
-	border-radius:/*hdpi*/1px;
-    background-color:#444444;
-	font-size:/*hdpi*/14px;
-	min-height:/*hdpi*/ 40px;
-	max-height:/*hdpi*/ 40px;
-	min-width:/*hdpi*/128px;
-	max-width:/*hdpi*/128px;
-}
-
-PLSContactView #sendButton[type="MacOS"] {
-	border-radius:/*hdpi*/3px;
 }
 
 PLSContactView #sendButton:disabled {
@@ -224,20 +201,14 @@ PLSContactView #sendButton:pressed {
     background-color:#111111;
 }
 
-PLSContactView #cancelButton {
-    padding:/*hdpi*/0px;
-    color:white;
-	border-radius:/*hdpi*/1px;
-    background-color:#444444;
-	font-size:/*hdpi*/14px;
-	min-height:/*hdpi*/ 40px;
-	max-height:/*hdpi*/ 40px;
-	min-width:/*hdpi*/128px;
-	max-width:/*hdpi*/128px;
-}
-
-PLSContactView #cancelButton[type="MacOS"] {
-	border-radius:/*hdpi*/3px;
+PLSContactView #sendButton, PLSContactView #cancelButton {
+	padding: 0;
+	color: white;
+	border-radius: 3px;
+	background-color: #444444;
+	font-size: 14px;
+	min-width: 140px;
+	min-height: 40px;
 }
 
 PLSContactView #cancelButton:hover {

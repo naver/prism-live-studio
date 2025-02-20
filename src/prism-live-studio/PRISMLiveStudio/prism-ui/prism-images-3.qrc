@@ -262,5 +262,54 @@
         <file>resource/images/toolbar/ic-toolbar-shuffle-select-disable.svg</file>
         <file>resource/images/toolbar/ic-toolbar-shuffle-select-normal.svg</file>
         <file>resource/images/toolbar/ic-toolbar-shuffle-select-over.svg</file>
+        <file>resource/images/scene-template/ic_scene_badge_ai.svg</file>
+        <file>resource/images/scene-template/ic_scene_badge_ai_en.svg</file>
+        <file>resource/images/scene-template/ic_scene_badge_ai_es.svg</file>
+        <file>resource/images/scene-template/ic_scene_badge_ai_id.svg</file>
+        <file>resource/images/scene-template/ic_scene_badge_ai_ja.svg</file>
+        <file>resource/images/scene-template/ic_scene_badge_ai_ko.svg</file>
+        <file>resource/images/scene-template/ic_scene_badge_ai_pt.svg</file>
+        <file>resource/images/scene-template/ic_scene_badge_ai_vi.svg</file>
+        <file>resource/images/dual-output/ic_dualoutput_liveinfo_horizontal.svg</file>
+        <file>resource/images/dual-output/ic_dualoutput_liveinfo_vertical.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_delete_click.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_delete_disable.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_delete_normal.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_delete_over.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_horizontal_off_click.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_horizontal_off_disable.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_horizontal_off_normal.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_horizontal_off_over.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_horizontal_on_click.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_horizontal_on_disable.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_horizontal_on_normal.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_horizontal_on_over.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_vertical_off_click.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_vertical_off_disable.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_vertical_off_normal.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_vertical_off_over.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_vertical_on_click.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_vertical_on_disable.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_vertical_on_normal.svg</file>
+        <file>resource/images/dualOutput/sources/ic_source_vertical_on_over.svg</file>
+        <file>resource/images/dual-output/ic_dualoutput_off_click.svg</file>
+        <file>resource/images/dual-output/ic_dualoutput_off_disable.svg</file>
+        <file>resource/images/dual-output/ic_dualoutput_off_normal.svg</file>
+        <file>resource/images/dual-output/ic_dualoutput_off_over.svg</file>
+        <file>resource/images/dual-output/ic_dualoutput_on_click.svg</file>
+        <file>resource/images/dual-output/ic_dualoutput_on_disable.svg</file>
+        <file>resource/images/dual-output/ic_dualoutput_on_normal.svg</file>
+        <file>resource/images/dual-output/ic_dualoutput_on_over.svg</file>
+        <file>resource/images/dual-output/ic_dock_setting_click.png</file>
+        <file>resource/images/dual-output/ic_dock_setting_disable.png</file>
+        <file>resource/images/dual-output/ic_dock_setting_hover.png</file>
+        <file>resource/images/dual-output/ic_dock_setting_normal.png</file>
+        <file>resource/images/dual-output/ic_preview_h_unchecked.svg</file>
+        <file>resource/images/dual-output/ic_preview_v_unchecked.svg</file>
+        <file>resource/images/dual-output/ic_setting_tip.png</file>
+        <file>resource/images/dual-output/ic_preview_h.svg</file>
+        <file>resource/images/dual-output/ic_preview_h_disabled.svg</file>
+        <file>resource/images/dual-output/ic_preview_v.svg</file>
+        <file>resource/images/dual-output/ic_preview_v_disabled.svg</file>
     </qresource>
 </RCC>

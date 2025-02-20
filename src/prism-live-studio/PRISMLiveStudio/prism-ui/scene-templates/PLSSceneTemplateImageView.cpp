@@ -22,7 +22,8 @@ void PLSSceneTemplateImageView::updateImagePath(const QString &path)
 		return;
 	}
 	m_path = path;
-	loadPixmap(imagePix, path, QSize());
+
+	loadPixmap(imagePix, m_path, QSize());
 	loadImagePixel();
 }
 
@@ -53,5 +54,12 @@ bool PLSSceneTemplateImageView::eventFilter(QObject *watched, QEvent *event)
 
 void PLSSceneTemplateImageView::loadImagePixel()
 {
-	ui->imageLabel->setPixmap(imagePix.scaled(ui->imageLabel->width(), ui->imageLabel->height(), Qt::KeepAspectRatioByExpanding));
+	if (!imagePix.isNull()) {
+		ui->imageLabel->setPixmap(imagePix.scaled(ui->imageLabel->width(), ui->imageLabel->height(), Qt::KeepAspectRatio));
+	}
+}
+
+void PLSSceneTemplateImageView::showAIBadge(const QPixmap &pixmap, bool bLongAIBadge)
+{
+	ui->imageLabel->showAIBadge(pixmap, bLongAIBadge);
 }

@@ -5,6 +5,8 @@
 #include "frontend-api.h"
 #include "window-basic-main.hpp"
 #include "PLSSceneDataMgr.h"
+#include "PLSSceneitemMapManager.h"
+#include "pls/pls-dual-output.h"
 
 #include "pls-common-define.hpp"
 using namespace common;
@@ -13,17 +15,53 @@ static const char *overlayNodeParserModuleName = "PLSOverlayNode";
 
 PLSBaseNode::PLSBaseNode(const QString &sourceId_) : sourceId(sourceId_) {}
 
-bool PLSBaseNode::load(const QJsonObject &content)
+NodeErrorType PLSBaseNode::load(const QJsonObject &content)
 {
+	outputObject["width"] = content["width"];
+	outputObject["height"] = content["height"];
 	outputObject["settings"] = content["settings"];
 	outputObject["private_settings"] = content["private_settings"];
-	return true;
+	return NodeErrorType::Ok;
+}
+
+bool PLSBaseNode::checkSourceRegistered()
+{
+	if (sourceId.isEmpty()) {
+		return true; // do not need check
+	}
+	return (nullptr != obs_source_get_display_name(sourceId.toStdString().c_str()));
+}
+
+bool PLSBaseNode::checkHasUpdate()
+{
+	if (sourceId.isEmpty()) {
+		return false;
+	}
+	return PLSNodeManagerPtr->checkSourceHasUpgrade(sourceId);
+}
+
+void PLSBaseNode::setForceUpdateSource(bool update)
+{
+	forceUpdateSource = update;
 }
 
 void PLSBaseNode::save(QJsonObject &output)
 {
-	outputObject["id"] = sourceId;
+	if (forceUpdateSource && checkHasUpdate()) {
+		outputObject["id"] = PLSNodeManagerPtr->getSourceUpgradeId(sourceId);
+		outputObject["updated"] = true;
+		outputObject["oldId"] = sourceId;
+	} else {
+		outputObject["id"] = sourceId;
+	}
+
 	output = outputObject;
+}
+
+void PLSBaseNode::clear()
+{
+	forceUpdateSource = false;
+	outputObject = QJsonObject();
 }
 
 bool PLSBaseNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param)
@@ -48,7 +86,7 @@ QString PLSBaseNode::getSourceId()
 	return sourceId;
 }
 
-bool PLSGameCaptureNode::load(const QJsonObject &content)
+NodeErrorType PLSGameCaptureNode::load(const QJsonObject &content)
 {
 	PLSBaseNode::load(content);
 
@@ -59,7 +97,7 @@ bool PLSGameCaptureNode::load(const QJsonObject &content)
 	width = content["width"].toInt();
 	height = content["height"].toInt();
 
-	return true;
+	return NodeErrorType::Ok;
 }
 
 void PLSGameCaptureNode::save(QJsonObject &output)
@@ -84,7 +122,7 @@ bool PLSGameCaptureNode::doExport(obs_data_t *settings, obs_data_t *priSettings,
 	return true;
 }
 
-bool PLSMediaNode::load(const QJsonObject &content)
+NodeErrorType PLSMediaNode::load(const QJsonObject &content)
 {
 	outputObject = content["settings"].toObject();
 	outputObject["private_settings"] = content["private_settings"];
@@ -92,17 +130,21 @@ bool PLSMediaNode::load(const QJsonObject &content)
 	QString filename = content["filename"].toString();
 	if (!filename.isEmpty()) {
 		localFile = PLSNodeManagerPtr->getTemplatesPath().append(filename);
+	} else {
+		localFile.clear();
 	}
 
-	return true;
+	return NodeErrorType::Ok;
 }
 
 void PLSMediaNode::save(QJsonObject &output)
 {
+	PLSBaseNode::save(output);
+
 	QJsonObject outObject;
 	outputObject["local_file"] = localFile;
 	outObject["settings"] = outputObject;
-	outObject["id"] = MEDIA_SOURCE_ID;
+	outObject["id"] = outputObject["id"];
 	outObject["loop"] = true;
 	output = outObject;
 }
@@ -123,7 +165,7 @@ bool PLSMediaNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJson
 	return true;
 }
 
-bool PLSScenesNode::load(const QJsonObject &scenesObject)
+NodeErrorType PLSScenesNode::load(const QJsonObject &scenesObject)
 {
 	schemaVersion = scenesObject["schemaVersion"].toString();
 
@@ -141,12 +183,15 @@ bool PLSScenesNode::load(const QJsonObject &scenesObject)
 		QString nodeType = slotObject["nodeType"].toString();
 
 		QJsonObject outputObject;
-		PLSNodeManagerPtr->loadNodeInfo(nodeType, slotObject, outputObject);
+		if (auto res = PLSNodeManagerPtr->loadNodeInfo(nodeType, slotObject, outputObject); res != NodeErrorType::Ok) {
+			clear();
+			return res;
+		}
 
 		sceneInfo.scenesInfo = outputObject;
 		sceneInfoVec.push_back(sceneInfo);
 	}
-	return true;
+	return NodeErrorType::Ok;
 }
 
 void PLSScenesNode::save(QJsonObject &output)
@@ -205,10 +250,8 @@ void PLSScenesNode::save(QJsonObject &output)
 				continue;
 			}
 			QString name = sourceObject["name"].toString();
-			qDebug() << "PLSScenesNode source name : " << name;
 			auto iter = sourceNames.find(name);
 			if (iter != sourceNames.end()) {
-				qDebug() << "PLSScenesNode source name repeat: " << name;
 				continue;
 			}
 
@@ -239,11 +282,9 @@ void PLSScenesNode::save(QJsonObject &output)
 				}
 				auto iter = pushedObjs.find(sceneItemId);
 				if (iter != pushedObjs.end()) {
-					qDebug() << "PLSScenesNode sceneItemId repeat: " << sceneItemId;
 					continue;
 				}
 				items.push_front(object);
-				qDebug() << "PLSScenesNode sceneItemId added: " << sceneItemId;
 				pushedObjs.insert(sceneItemId, sceneItemId);
 			}
 			QJsonObject settings;
@@ -301,6 +342,10 @@ static bool writeSceneItemInGroup(obs_scene_t *scene, obs_sceneitem_t *item, voi
 
 static bool writeSceneItem(obs_scene_t *scene, obs_sceneitem_t *item, void *param)
 {
+	if (pls_is_vertical_sceneitem(item)) {
+		return true;
+	}
+
 	QJsonArray &itemArray = *static_cast<QJsonArray *>(param);
 
 	QJsonObject itemObject;
@@ -348,6 +393,10 @@ static bool writeSceneItem(obs_scene_t *scene, obs_sceneitem_t *item, void *para
 	}
 
 	PLSNodeManagerPtr->exportLoadInfo(settings, priSettings, nodeType, contentObject);
+	auto width = obs_source_get_width(source);
+	auto height = obs_source_get_height(source);
+	contentObject["width"] = QJsonValue::fromVariant(width);
+	contentObject["height"] = QJsonValue::fromVariant(height);
 
 	QJsonArray filterArray;
 	obs_source_enum_filters(source, writeFilter, &filterArray);
@@ -389,17 +438,28 @@ bool PLSScenesNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJso
 	return true;
 }
 
-bool PLSRootNode::load(const QJsonObject &rootObject)
+void PLSScenesNode::clear()
+{
+	PLSBaseNode::clear();
+	sceneInfoVec.clear();
+}
+
+NodeErrorType PLSRootNode::load(const QJsonObject &rootObject)
 {
 	schemaVersion = rootObject["schemaVersion"].toString();
 	nodeType = rootObject["nodeType"].toString();
 
-	loadScenes(rootObject["scenes"].toObject());
-	loadTransitions(rootObject["transition"].toObject());
-
+	auto res = loadScenes(rootObject["scenes"].toObject());
+	if (res != NodeErrorType::Ok) {
+		return res;
+	}
+	res = loadTransitions(rootObject["transition"].toObject());
+	if (res != NodeErrorType::Ok) {
+		return res;
+	}
 	chatTemplateOutputObject = rootObject["chatTemplate"].toObject();
 
-	return true;
+	return NodeErrorType::Ok;
 }
 
 void PLSRootNode::save(QJsonObject &output)
@@ -416,6 +476,8 @@ void PLSRootNode::save(QJsonObject &output)
 	outputOjbect["transition_duration"] = transitionsOutputObject["transition_duration"];
 	outputOjbect["current_transition"] = transitionsOutputObject["current_transition"];
 	outputOjbect["chatTemplate"] = chatTemplateOutputObject;
+	outputOjbect[FROM_SCENE_TEMPLATE] = true;
+
 	output = outputOjbect;
 }
 
@@ -449,35 +511,41 @@ bool PLSRootNode::doExport(obs_data_t *rootSettings, obs_data_t *priSettings, QJ
 	chatTemplateObj.insert("chatTemplate", pls_get_chat_template_helper_instance()->getSaveTemplate());
 	rootObject["chatTemplate"] = chatTemplateObj;
 
-	QByteArray array = QJsonDocument(rootObject).toJson();
-	PLSJsonDataHandler::saveJsonFile(array, PLSNodeManagerPtr->getExportPath() + "/config.json");
-	return true;
+	return pls_write_json(PLSNodeManagerPtr->getExportPath() + "/config.json", rootObject);
 }
 
-bool PLSRootNode::loadScenes(const QJsonObject &scenesObject)
+void PLSRootNode::clear()
+{
+	PLSBaseNode::clear();
+	scenesOutputObject = QJsonObject();
+	transitionsOutputObject = QJsonObject();
+	chatTemplateOutputObject = QJsonObject();
+}
+
+NodeErrorType PLSRootNode::loadScenes(const QJsonObject &scenesObject)
 {
 	QString scenesNode = scenesObject["nodeType"].toString();
 
 	auto node = PLSNodeManagerPtr->nodeTypeKeyToValue(scenesNode);
 	if (node != SNodeType::ScenesNode) {
 		PLS_WARN(overlayNodeParserModuleName, "get overlay scenes node config failed.");
-		return false;
+		return NodeErrorType::NodeNotMatch;
 	}
 	return PLSNodeManagerPtr->loadNodeInfo(scenesNode, scenesObject, scenesOutputObject);
 }
 
-bool PLSRootNode::loadTransitions(const QJsonObject &transitionsObject)
+NodeErrorType PLSRootNode::loadTransitions(const QJsonObject &transitionsObject)
 {
 	QString transitionsNode = transitionsObject["nodeType"].toString();
 	auto node = PLSNodeManagerPtr->nodeTypeKeyToValue(transitionsNode);
 	if (node != SNodeType::TransitionNode) {
 		PLS_WARN(overlayNodeParserModuleName, "get overlay transitions node config failed.");
-		return false;
+		return NodeErrorType::NodeNotMatch;
 	}
 	return PLSNodeManagerPtr->loadNodeInfo(transitionsNode, transitionsObject, transitionsOutputObject);
 }
 
-bool PLSSlotsNode::load(const QJsonObject &slotsObject)
+NodeErrorType PLSSlotsNode::load(const QJsonObject &slotsObject)
 {
 	schemaVersion = slotsObject["schemaVersion"].toString();
 	nodeType = slotsObject["nodeType"].toString();
@@ -490,15 +558,21 @@ bool PLSSlotsNode::load(const QJsonObject &slotsObject)
 		QString sceneNodeType = itemInfo["sceneNodeType"].toString();
 		QJsonObject outputObject;
 		if (sceneNodeType == PLSNodeManagerPtr->sceneNodeTypeValueToKey(PLSNodeManager::SceneNodeType::Folder).toLower()) {
-			PLSNodeManagerPtr->loadNodeInfo("GroupNode", itemInfo, outputObject);
+			if (auto res = PLSNodeManagerPtr->loadNodeInfo("GroupNode", itemInfo, outputObject); res != NodeErrorType::Ok) {
+				clear();
+				return res;
+			}
 		} else if (sceneNodeType == PLSNodeManagerPtr->sceneNodeTypeValueToKey(PLSNodeManager::SceneNodeType::Item).toLower()) {
-			PLSNodeManagerPtr->loadNodeInfo("SceneItemNode", itemInfo, outputObject);
+			if (auto res = PLSNodeManagerPtr->loadNodeInfo("SceneItemNode", itemInfo, outputObject); res != NodeErrorType::Ok) {
+				clear();
+				return res;
+			}
 		}
 		PLSNodeManagerPtr->addSceneItemsInfo(outputObject["sceneItemId"].toString(), outputObject);
 		outputObj.push_back(outputObject);
 	}
 	outputObjects = outputObj;
-	return true;
+	return NodeErrorType::Ok;
 }
 
 void PLSSlotsNode::save(QJsonObject &output)
@@ -544,7 +618,13 @@ bool PLSSlotsNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJson
 	return true;
 }
 
-bool PLSSceneItemNode::load(const QJsonObject &itemInfo)
+void PLSSlotsNode::clear()
+{
+	PLSBaseNode::clear();
+	outputObjects.clear();
+}
+
+NodeErrorType PLSSceneItemNode::load(const QJsonObject &itemInfo)
 {
 	id = itemInfo["id"].toString();
 	sceneNodeType = itemInfo["sceneNodeType"].toString();
@@ -599,6 +679,24 @@ bool PLSSceneItemNode::load(const QJsonObject &itemInfo)
 
 void PLSSceneItemNode::save(QJsonObject &outObject)
 {
+	// check source update
+	bool hasUpdated = outputSettings["updated"].toBool();
+	if (hasUpdated) {
+		auto width = outputSettings["width"].toInt();
+		auto height = outputSettings["height"].toInt();
+		auto oldId = outputSettings["oldId"].toString();
+		if (0 == width || 0 == height) {
+			auto info = PLSNodeManagerPtr->getSourceUpgradeDefaultInfo(oldId);
+			width = info.width;
+			height = info.height;
+		}
+		auto newId = PLSNodeManagerPtr->getSourceUpgradeId(oldId);
+		auto info = PLSNodeManagerPtr->getSourceUpgradeDefaultInfo(newId);
+		float scale = (float)width / (float)info.width;
+		scaleX = (float)scaleX * scale;
+		scaleY = (float)scaleY * scale;
+	}
+
 	QJsonObject outputItemObjects;
 
 	outputItemObjects["name"] = name;
@@ -635,6 +733,9 @@ void PLSSceneItemNode::save(QJsonObject &outObject)
 	bounds["y"] = boundsY;
 	outputItemObjects["bounds"] = bounds;
 
+	outputItemObjects["private_settings"] = privateSettings;
+
+	outObject[FROM_SCENE_TEMPLATE] = true;
 	outObject = outputItemObjects;
 
 	QJsonArray outputFilters;
@@ -656,6 +757,14 @@ bool PLSSceneItemNode::doExport(obs_data_t *settings, obs_data_t *priSettings, Q
 	auto item = static_cast<obs_sceneitem_t *>(param);
 	if (!item) {
 		return false;
+	}
+
+	OBSDataAutoRelease sceneitemSettings = obs_sceneitem_get_private_settings(item);
+	auto sceneitemSettingsContent = obs_data_get_json(sceneitemSettings);
+	if (!pls_is_empty(sceneitemSettingsContent)) {
+		QByteArray array(sceneitemSettingsContent);
+		QJsonDocument doc = QJsonDocument::fromJson(array);
+		itemObject["private_settings"] = doc.object();
 	}
 
 	obs_source_t *source = obs_sceneitem_get_source(item);
@@ -700,10 +809,19 @@ bool PLSSceneItemNode::doExport(obs_data_t *settings, obs_data_t *priSettings, Q
 	bounds["x"] = vec.x;
 	bounds["y"] = vec.y;
 	itemObject["bounds"] = bounds;
+
+	itemObject[FROM_SCENE_TEMPLATE] = true;
 	return true;
 }
 
-bool PLSTransitionNode::load(const QJsonObject &object)
+void PLSSceneItemNode::clear()
+{
+	outputSettings = QJsonObject();
+	content = ContentInfo();
+	filters = QJsonArray();
+}
+
+NodeErrorType PLSTransitionNode::load(const QJsonObject &object)
 {
 	QJsonObject settingsObject = object["settings"].toObject();
 	QString path = settingsObject["path"].toString();
@@ -725,7 +843,7 @@ bool PLSTransitionNode::load(const QJsonObject &object)
 	outputObject["settings"] = settingsObject;
 	outputObject["id"] = object["type"].toString();
 	outputObject["transition_duration"] = object["duration"];
-	return true;
+	return NodeErrorType::Ok;
 }
 
 void PLSTransitionNode::save(QJsonObject &output)
@@ -750,22 +868,25 @@ bool PLSTransitionNode::doExport(obs_data_t *settings, obs_data_t *priSettings, 
 	return true;
 }
 
-bool PLSImageNode::load(const QJsonObject &content)
+NodeErrorType PLSImageNode::load(const QJsonObject &content)
 {
 	QString path = content["filename"].toString();
 	if (!path.isEmpty()) {
 		fileName = PLSNodeManagerPtr->getTemplatesPath().append(path);
+	} else {
+		fileName.clear();
 	}
-	return true;
+	return NodeErrorType::Ok;
 }
 
 void PLSImageNode::save(QJsonObject &output)
 {
+	PLSBaseNode::save(output);
 	outputObject["file"] = fileName;
 
 	QJsonObject settings;
 	settings["settings"] = outputObject;
-	settings["id"] = IMAGE_SOURCE_ID;
+	settings["id"] = outputObject["id"];
 
 	output = settings;
 }
@@ -783,7 +904,7 @@ bool PLSImageNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJson
 	return true;
 }
 
-bool PLSGroupNode::load(const QJsonObject &slotsObject)
+NodeErrorType PLSGroupNode::load(const QJsonObject &slotsObject)
 {
 	outputObjects = slotsObject;
 	outputObjects["sceneItemId"] = slotsObject["id"];
@@ -795,7 +916,7 @@ bool PLSGroupNode::load(const QJsonObject &slotsObject)
 		PLS_DEBUG("PLSGroupNode", "PLSGroupNode childrenIds : %s", sceneItemId.toStdString().c_str());
 	}
 
-	return true;
+	return NodeErrorType::Ok;
 }
 
 void PLSGroupNode::save(QJsonObject &output)
@@ -870,7 +991,13 @@ void PLSGroupNode::save(QJsonObject &output)
 	output = outputObj;
 }
 
-bool PLSCameraNode::load(const QJsonObject &content)
+void PLSGroupNode::clear()
+{
+	PLSBaseNode::clear();
+	outputObjects = QJsonObject();
+}
+
+NodeErrorType PLSCameraNode::load(const QJsonObject &content)
 {
 	QJsonObject object;
 	object["width"] = content["width"];
@@ -878,22 +1005,22 @@ bool PLSCameraNode::load(const QJsonObject &content)
 	object["settings"] = content["settings"];
 
 	outputObject = object;
-	return true;
+	return NodeErrorType::Ok;
 }
 
-bool PLSBrowserNode::load(const QJsonObject &slotsObject)
+NodeErrorType PLSBrowserNode::load(const QJsonObject &slotsObject)
 {
 	outputObject["settings"] = slotsObject["settings"];
 	outputObject["private_settings"] = slotsObject["private_settings"];
 	outputObject["type"] = slotsObject["type"];
-	return true;
+	return NodeErrorType::Ok;
 }
 
 void PLSTextNode::save(QJsonObject &output)
 {
-	outputObject["id"] = GDIP_TEXT_SOURCE_ID;
-	outputObject["versioned_id"] = GDIP_TEXT_SOURCE_ID_V2;
+	PLSBaseNode::save(output);
 
+	outputObject["versioned_id"] = GDIP_TEXT_SOURCE_ID_V2;
 	QJsonObject settings = outputObject["settings"].toObject();
 	settings["custom_font"] = true;
 	outputObject["settings"] = settings;
@@ -912,15 +1039,15 @@ bool PLSTextNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonO
 	return true;
 }
 
-bool PLSSceneSourceNode::load(const QJsonObject &scenesObject)
+NodeErrorType PLSSceneSourceNode::load(const QJsonObject &scenesObject)
 {
 	outputObject["sceneId"] = scenesObject["sceneId"];
 	outputObject["width"] = scenesObject["width"];
 	outputObject["height"] = scenesObject["height"];
-	return true;
+	return NodeErrorType::Ok;
 }
 
-bool PLSMusicPlaylistNode::load(const QJsonObject &content)
+NodeErrorType PLSMusicPlaylistNode::load(const QJsonObject &content)
 {
 	QJsonObject privateSettings = content["private_settings"].toObject();
 	QJsonArray playList = privateSettings["play list"].toArray();
@@ -935,7 +1062,8 @@ bool PLSMusicPlaylistNode::load(const QJsonObject &content)
 		}
 		QString url = data["music"].toString();
 		if (!url.isEmpty()) {
-			data["music"] = PLSNodeManagerPtr->getTemplatesPath().append(url);
+			auto name = pls_get_path_file_name(url);
+			data["music"] = PLSNodeManagerPtr->getTemplatesPath().append(name);
 			newPlayList.push_back(data);
 		}
 	}
@@ -944,7 +1072,7 @@ bool PLSMusicPlaylistNode::load(const QJsonObject &content)
 	outputObject["private_settings"] = privateSettings;
 	outputObject["settings"] = content["settings"];
 
-	return true;
+	return NodeErrorType::Ok;
 }
 
 bool PLSMusicPlaylistNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param)
@@ -969,7 +1097,6 @@ bool PLSMusicPlaylistNode::doExport(obs_data_t *settings, obs_data_t *priSetting
 			QString copyToPath = PLSNodeManagerPtr->getExportPath();
 			auto name = pls_get_path_file_name(url);
 			PLSNodeManagerPtr->doCopy(url, copyToPath.append(name));
-			obs_data_set_string(data, "music", name.toStdString().c_str());
 			copy = true;
 		}
 	}
@@ -982,7 +1109,7 @@ bool PLSMusicPlaylistNode::doExport(obs_data_t *settings, obs_data_t *priSetting
 	return true;
 }
 
-bool PLSPrismStickerNode::load(const QJsonObject &content)
+NodeErrorType PLSPrismStickerNode::load(const QJsonObject &content)
 {
 	PLSBaseNode::load(content);
 
@@ -1008,7 +1135,7 @@ bool PLSPrismStickerNode::load(const QJsonObject &content)
 		privateSettings["portraitImage"] = portraitImage;
 	}
 	outputObject["private_settings"] = privateSettings;
-	return true;
+	return NodeErrorType::Ok;
 }
 
 bool PLSPrismStickerNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param)
@@ -1055,7 +1182,7 @@ bool PLSPrismStickerNode::doExport(obs_data_t *settings, obs_data_t *priSettings
 	return true;
 }
 
-bool PLSPrismGiphyNode::load(const QJsonObject &content)
+NodeErrorType PLSPrismGiphyNode::load(const QJsonObject &content)
 {
 	PLSBaseNode::load(content);
 
@@ -1066,7 +1193,7 @@ bool PLSPrismGiphyNode::load(const QJsonObject &content)
 		settings["file"] = file;
 	}
 	outputObject["settings"] = settings;
-	return true;
+	return NodeErrorType::Ok;
 }
 
 bool PLSPrismGiphyNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param)
@@ -1088,7 +1215,7 @@ bool PLSPrismGiphyNode::doExport(obs_data_t *settings, obs_data_t *priSettings, 
 	return true;
 }
 
-bool PLSImageSlideShowNode::load(const QJsonObject &content)
+NodeErrorType PLSImageSlideShowNode::load(const QJsonObject &content)
 {
 	PLSBaseNode::load(content);
 	QJsonObject settings = outputObject["settings"].toObject();
@@ -1104,7 +1231,7 @@ bool PLSImageSlideShowNode::load(const QJsonObject &content)
 	}
 	settings["files"] = newFiles;
 	outputObject["settings"] = settings;
-	return true;
+	return NodeErrorType::Ok;
 }
 
 bool PLSImageSlideShowNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param)
@@ -1138,7 +1265,7 @@ bool PLSImageSlideShowNode::doExport(obs_data_t *settings, obs_data_t *priSettin
 	return true;
 }
 
-bool PLSVlcVideoNode::load(const QJsonObject &content)
+NodeErrorType PLSVlcVideoNode::load(const QJsonObject &content)
 {
 	PLSBaseNode::load(content);
 	QJsonObject settings = outputObject["settings"].toObject();
@@ -1159,7 +1286,7 @@ bool PLSVlcVideoNode::load(const QJsonObject &content)
 	}
 	settings["playlist"] = newFiles;
 	outputObject["settings"] = settings;
-	return true;
+	return NodeErrorType::Ok;
 }
 
 bool PLSVlcVideoNode::doExport(obs_data_t *settings, obs_data_t *priSettings, QJsonObject &output, void *param)

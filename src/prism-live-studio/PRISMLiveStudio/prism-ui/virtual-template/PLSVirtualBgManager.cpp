@@ -323,12 +323,6 @@ void PLSVirtualBgManager::sourceIsDeleted(const QString &itemId, const QStringLi
 		return;
 	}
 
-	//auto dialog = main->getVirtualBgDialog();
-	//if (dialog != nullptr) {
-	//	dialog->onCurrentResourceFileIsInvaild(_strList);
-	//	return;
-	//}
-
 	PLSVirtualBgManager::checkResourceInvalid(_strList, "");
 }
 

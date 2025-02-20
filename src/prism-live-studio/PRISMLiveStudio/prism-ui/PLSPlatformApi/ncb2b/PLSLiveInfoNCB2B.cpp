@@ -37,7 +37,7 @@ PLSLiveInfoNCB2B::PLSLiveInfoNCB2B(PLSPlatformBase *pPlatformBase, QWidget *pare
 	content()->setFocusPolicy(Qt::StrongFocus);
 	ui->textEditDescribe->setAcceptRichText(false);
 
-	m_platform->liveInfoisShowing();
+	m_platform->liveInfoIsShowing();
 	m_enteredID = m_platform->getSelectData()._id;
 
 	setupFirstUI();
@@ -67,8 +67,8 @@ PLSLiveInfoNCB2B::~PLSLiveInfoNCB2B()
 
 void PLSLiveInfoNCB2B::setupFirstUI()
 {
-	auto chanelName = m_platform->getChannelName();
-	ui->titleLabel->setText(channelNameConvertMultiLang(chanelName));
+	auto channelName = m_platform->getChannelName();
+	ui->dualWidget->setText(channelNameConvertMultiLang(channelName))->setUUID(m_platform->getChannelUUID());
 	ui->titleLabel_2->setText(QString(LIVEINFO_STAR_HTML_TEMPLATE).arg(tr("LiveInfo.base.Title")));
 
 	ui->titleWidget->layout()->addWidget(createResolutionButtonsFrame(true));
@@ -79,7 +79,7 @@ void PLSLiveInfoNCB2B::setupFirstUI()
 
 	ui->comboBoxPrivacy->clear();
 
-	for (const auto &t : PLSPlatformNCB2B::getPrivayList()) {
+	for (const auto &t : PLSPlatformNCB2B::getPrivacyList()) {
 		ui->comboBoxPrivacy->addItem(t.second);
 	}
 
@@ -113,13 +113,7 @@ void PLSLiveInfoNCB2B::showEvent(QShowEvent *event)
 {
 	Q_UNUSED(event)
 	showLoading(content());
-	m_platform->setIsShownAlert(false);
 	auto _onNextVideo = [this](bool value) {
-		if (!value && !m_platform->isShownAlert()) {
-			m_platform->setIsShownAlert(false);
-			m_platform->setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED, {});
-		}
-
 		refreshUI();
 		hideLoading();
 
@@ -143,7 +137,7 @@ void PLSLiveInfoNCB2B::refreshUI()
 	refreshSchedulePopButton();
 
 	const auto &data = m_platform->getTempSelectData();
-	ui->comboBoxPrivacy->setCurrentText(PLSAPICommon::getPairdString(PLSPlatformNCB2B::getPrivayList(), data.scope, true));
+	ui->comboBoxPrivacy->setCurrentText(PLSAPICommon::getPairedString(PLSPlatformNCB2B::getPrivacyList(), data.scope, true));
 }
 
 void PLSLiveInfoNCB2B::refreshTitleDescri()
@@ -170,7 +164,7 @@ void PLSLiveInfoNCB2B::saveTempNormalDataWhenSwitch() const
 	PLSNCB2BLiveinfoData &tempData = m_platform->getTempNormalData();
 	tempData.title = ui->lineEditTitle->text();
 	tempData.description = ui->textEditDescribe->toPlainText();
-	tempData.scope = PLSPlatformNCB2B::getPrivayList()[ui->comboBoxPrivacy->currentIndex()].first;
+	tempData.scope = PLSPlatformNCB2B::getPrivacyList()[ui->comboBoxPrivacy->currentIndex()].first;
 }
 
 void PLSLiveInfoNCB2B::okButtonClicked()
@@ -219,9 +213,8 @@ void PLSLiveInfoNCB2B::saveDateWhenClickButton()
 	PLSNCB2BLiveinfoData uiData = m_platform->getTempSelectData();
 	uiData.title = ui->lineEditTitle->text();
 	uiData.description = ui->textEditDescribe->toPlainText();
-	uiData.scope = PLSPlatformNCB2B::getPrivayList()[ui->comboBoxPrivacy->currentIndex()].first;
+	uiData.scope = PLSPlatformNCB2B::getPrivacyList()[ui->comboBoxPrivacy->currentIndex()].first;
 	m_platform->setFailedErr("");
-	m_platform->setlastRequestAPI("");
 	m_platform->saveSettings(_onNext, uiData, this);
 }
 
@@ -294,21 +287,21 @@ void PLSLiveInfoNCB2B::reloadScheduleList()
 	}
 
 	if (!m_platform->getTempSelectData().isNormalLive) {
-		PLSScheComboxItemData nomarlData;
-		nomarlData._id = "";
-		nomarlData.title = tr("New");
-		nomarlData.time = tr("New");
-		nomarlData.type = PLSScheComboxItemType::Ty_NormalLive;
-		m_vecItemDatas.insert(m_vecItemDatas.begin(), nomarlData);
+		PLSScheComboxItemData normalData;
+		normalData._id = "";
+		normalData.title = tr("New");
+		normalData.time = tr("New");
+		normalData.type = PLSScheComboxItemType::Ty_NormalLive;
+		m_vecItemDatas.insert(m_vecItemDatas.begin(), normalData);
 	}
 
 	if (m_vecItemDatas.empty()) {
-		PLSScheComboxItemData nomarlData;
-		nomarlData._id = "";
-		nomarlData.title = tr("New");
-		nomarlData.time = tr("LiveInfo.Youtube.no.scheduled");
-		nomarlData.type = PLSScheComboxItemType::Ty_Placehoder;
-		m_vecItemDatas.insert(m_vecItemDatas.begin(), nomarlData);
+		PLSScheComboxItemData normalData;
+		normalData._id = "";
+		normalData.title = tr("New");
+		normalData.time = tr("LiveInfo.Youtube.no.scheduled");
+		normalData.type = PLSScheComboxItemType::Ty_Placeholder;
+		m_vecItemDatas.insert(m_vecItemDatas.begin(), normalData);
 	}
 
 	ui->sPushButton->showScheduleMenu(m_vecItemDatas);

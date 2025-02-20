@@ -119,14 +119,6 @@ PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneIte
 	padding: 0px;
 }
 
-PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #iconLabel[type="New"] {
-	image: url(":/resource/images/ic-badge-new.svg");
-}
-
-PLSSceneTemplateContainer PLSSceneTemplateMainScene PLSSceneTemplateMainSceneItemIntroView #iconLabel[type="Popular"] {
-	image: url(":/resource/images/scene-template/ic-badge-hot.svg");
-}
-
 PLSSceneTemplateContainer PLSSceneTemplateMainScene #installButton {
 	min-height: /*hdpi-u*/ 40px;
 	max-height: /*hdpi-u*/ 40px;
@@ -169,40 +161,7 @@ PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate {
 	background-color: transparent;
 	padding: 0px;
 	margin: 0px;
-	image: url(":/resource/images/loading/black-loading-1.svg");
 }
-
-PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="1"] {
-	image: url(":/resource/images/loading/black-loading-1.svg");
-}
-
-	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="2"] {
-		image: url(":/resource/images/loading/black-loading-2.svg");
-	}
-
-	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="3"] {
-		image: url(":/resource/images/loading/black-loading-3.svg");
-	}
-
-	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="4"] {
-		image: url(":/resource/images/loading/black-loading-4.svg");
-	}
-
-	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="5"] {
-		image: url(":/resource/images/loading/black-loading-5.svg");
-	}
-
-	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="6"] {
-		image: url(":/resource/images/loading/black-loading-6.svg");
-	}
-
-	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="7"] {
-		image: url(":/resource/images/loading/black-loading-7.svg");
-	}
-
-	PLSSceneTemplateContainer #installButton #loadingBtn_SceneTemplate[status="8"] {
-		image: url(":/resource/images/loading/black-loading-8.svg");
-	}
 
 PLSSceneTemplateContainer #installButton:hover {
 	background-color: #f1fa75;
@@ -315,13 +274,13 @@ PLSSceneTemplateContainer PLSSceneTemplateDetailScene #returnButton[status="disa
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame {
-	min-height: /*hdpi*/ 126px;
-	max-height: /*hdpi*/ 126px;
+	min-height: /*hdpi*/ 125px;
+	max-height: /*hdpi*/ 125px;
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #rightFrame {
-	min-height: /*hdpi*/ 126px;
-	max-height: /*hdpi*/ 126px;
+	min-height: /*hdpi*/ 125px;
+	max-height: /*hdpi*/ 125px;
 	min-width: /*hdpi*/ 240px;
 	max-width: /*hdpi*/ 240px;
 }
@@ -346,14 +305,6 @@ PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneIco
 	max-height: /*hdpi*/ 16px;
 	background-color: transparent;
 	padding: 0px;
-}
-
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneIconLabel[type="New"] {
-	image: url(":/resource/images/ic-badge-new.svg");
-}
-
-PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailSceneIconLabel[type="Popular"] {
-	image: url(":/resource/images/scene-template/ic-badge-hot.svg");
 }
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #leftFrame #detailResolutionLabel {

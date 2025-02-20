@@ -18,29 +18,25 @@
 #include "PLSDateFormate.h"
 #include "PLSScheLiveNotice.h"
 #include "PLSAlertView.h"
-
 #include "frontend-api.h"
 #include "log/log.h"
 #include "PLSMainView.hpp"
-
 #include "pls-net-url.hpp"
 #include "window-basic-main.hpp"
-#include "PLSResCommonFuns.h"
 #include "login-user-info.hpp"
-#include "PLSNCB2BError.h"
 
 const QString s_default_scope_value("PUBLIC");
 
 using namespace std;
 
-const PLSAPICommon::privacyVec &PLSPlatformNCB2B::getPrivayList()
+const PLSAPICommon::privacyVec &PLSPlatformNCB2B::getPrivacyList()
 {
-	static PLSAPICommon::privacyVec s_privayList = {
+	static PLSAPICommon::privacyVec s_privacyList = {
 		{s_default_scope_value, QObject::tr("youtube.privacy.public")}, //
 		{QString("LIMITED"), QObject::tr("b2b.privacy.unlisted")},      //
 		{QString("PRIVATE"), QObject::tr("youtube.privacy.private")}    //
 	};
-	return s_privayList;
+	return s_privacyList;
 }
 
 PLSPlatformNCB2B::PLSPlatformNCB2B()
@@ -140,21 +136,21 @@ QString PLSPlatformNCB2B::getChannelToken() const
 	return PLSLoginUserInfo::getInstance()->getNCPPlatformToken();
 }
 
-void PLSPlatformNCB2B::liveInfoisShowing()
+void PLSPlatformNCB2B::liveInfoIsShowing()
 {
 	if (getSelectData().isNormalLive && getSelectData().title.isEmpty()) {
-		m_noramlData = PLSNCB2BLiveinfoData(getChannelUUID());
+		m_normalData = PLSNCB2BLiveinfoData(getChannelUUID());
 	}
 	setTempSelectID(getSelectData()._id);
-	m_tempNoramlData = m_noramlData;
+	m_tempNormalData = m_normalData;
 }
 
 void PLSPlatformNCB2B::reInitLiveInfo()
 {
 	m_bTempSelectID = "";
-	m_noramlData = PLSNCB2BLiveinfoData(getChannelUUID());
-	setSelectData(m_noramlData);
-	m_tempNoramlData = m_noramlData;
+	m_normalData = PLSNCB2BLiveinfoData(getChannelUUID());
+	setSelectData(m_normalData);
+	m_tempNormalData = m_normalData;
 }
 
 void PLSPlatformNCB2B::onPrepareLive(bool value)
@@ -174,7 +170,7 @@ void PLSPlatformNCB2B::onPrepareLive(bool value)
 	prepareLiveCallback(value);
 }
 
-void PLSPlatformNCB2B::requestChannelInfo(const QVariantMap &srcInfo, const UpdateCallback &finishedCall) const
+void PLSPlatformNCB2B::requestChannelInfo(const QVariantMap &srcInfo, const UpdateCallback &finishedCall)
 {
 	auto _onSucceed = [this, srcInfo, finishedCall](QByteArray data) {
 		PLS_INFO(MODULE_PLATFORM_NCB2B, "requestChannelInfo succeed");
@@ -182,31 +178,19 @@ void PLSPlatformNCB2B::requestChannelInfo(const QVariantMap &srcInfo, const Upda
 	};
 
 	auto _onFail = [this, srcInfo, finishedCall](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		PLSPlatformApiResult result = getApiResult(code, error, data);
-		QVariantMap info = srcInfo;
-		info[ChannelData::g_channelSreLoginFailed] = QString("Get Channel List Failed, code:%1").arg(code);
-		info[ChannelData::g_channelStatus] = result == PLSPlatformApiResult::PAR_TOKEN_EXPIRED ? ChannelData::ChannelStatus::Expired : ChannelData::ChannelStatus::Error;
+		auto extraData = getErrorExtraData("requestChannelInfo");
+		extraData.errPhase = PLSErrPhaseDashBoard;
+		auto retData = PLSErrorHandler::getAlertString({code, error, data}, getPlatFormName(), "", extraData);
 
-		if (result == PLSPlatformApiResult::PAR_NETWORK_ERROR) {
-			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::NetWorkNoStable;
-		} else if (result == PLSPlatformApiResult::PAR_TOKEN_EXPIRED) {
-			info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::PlatformExpired;
-		} else {
-			int subCode = 0;
-			QString errMsg;
-			QString errException;
-			PLSAPINCB2B::getErrCode(data, subCode, errMsg, errException);
-			QString specialStr = PLSNCB2BError::getAlertString(subCode, PLSNCB2BError::ErrorModule::dashBord);
-
-			if (specialStr.isEmpty()) {
-				info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::UnknownError;
-			} else {
-				info[ChannelData::g_errorString] = specialStr;
-				info[ChannelData::g_errorType] = ChannelData::NetWorkErrorType::NCB2BError;
-			}
+		auto chStatus = ChannelData::ChannelStatus::Error;
+		if (retData.errorType == PLSErrorHandler::ErrorType::TokenExpired) {
+			chStatus = ChannelData::ChannelStatus::Expired;
 		}
-		PLS_ERROR(MODULE_PLATFORM_NCB2B, "requestChannelInfo failed with b2b2 callback: g_channelStatus:%i, g_errorType:%i, g_errorString:%s", info[ChannelData::g_channelStatus].toInt(),
-			  info[ChannelData::g_errorType].toInt(), info[ChannelData::g_errorString].toString().toUtf8().constData());
+		QVariantMap info = srcInfo;
+		info[ChannelData::g_channelSreLoginFailed] = QString("Get Channel List Failed, result:%1").arg((int)retData.prismCode);
+		info[ChannelData::g_channelStatus] = chStatus;
+		info[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
+		info[ChannelData::g_errorString] = retData.alertMsg;
 		finishedCall(QList<QVariantMap>{info});
 	};
 	PLSAPINCB2B::requestChannelList(this, const_cast<PLSPlatformNCB2B *>(this), _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
@@ -274,23 +258,21 @@ void PLSPlatformNCB2B::dealRequestChannelInfoSucceed(const QVariantMap &srcInfo,
 		return;
 	}
 	finishedCall(infos);
-	pls_async_call_mt(this, [this]() { PLSAPICommon::downloadChannelImageAsync(NCB2B); });
+	pls_async_call_mt([]() { PLSAPICommon::downloadChannelImageAsync(NCB2B); });
 }
 
-void PLSPlatformNCB2B::updateLiveinfo(const QObject *reciever, const PLSNCB2BLiveinfoData &uiData, const function<void(bool)> &onNext)
+void PLSPlatformNCB2B::updateLiveinfo(const QObject *receiver, const PLSNCB2BLiveinfoData &uiData, const function<void(bool)> &onNext)
 {
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		setupApiFailedWithCode(getApiResult(code, error, data, PLSAPICommon::PLSApiType::Update), data);
-		if (nullptr != onNext) {
-			onNext(false);
-		}
+		showAlert({code, error, data}, PLSErrCustomKey_UpdateLiveInfoFailed, "updateLiveinfo");
+		pls_invoke_safe(onNext, false);
 	};
 	PLSAPINCB2B::requestUpdateLive(
-		reciever, uiData, this,
+		receiver, uiData, this,
 		[this, onNext](QByteArray data) {
 			bool isOk = dealCurrentLiveSucceed(data, "updateLiveinfo");
 			if (!isOk) {
-				setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_ERROR_UPDATE, {});
+				showAlertByCustName(PLSErrCustomKey_UpdateLiveInfoFailed, "updateLiveinfo");
 			}
 			if (onNext) {
 				onNext(isOk);
@@ -313,7 +295,7 @@ void PLSPlatformNCB2B::requestScheduleList(const std::function<void(bool)> &onNe
 		if (tmpContext != m_iContext) {
 			return;
 		}
-		setupApiFailedWithCode(getApiResult(code, error, data), data);
+		showAlertByCustName(PLSErrCustomKey_LoadLiveInfoFailed, "requestScheduleList");
 
 		if (nullptr != onNext) {
 			onNext(false);
@@ -343,10 +325,10 @@ void PLSPlatformNCB2B::dealScheduleListSucceed(const QByteArray &data, const std
 
 	for (int i = 0; i < items.size(); i++) {
 		auto dataItem = items[i].toObject();
-		auto scheduleDta = PLSNCB2BLiveinfoData(dataItem);
-		m_vecSchedules.push_back(scheduleDta);
+		auto scheduleData = PLSNCB2BLiveinfoData(dataItem);
+		m_vecSchedules.push_back(scheduleData);
 
-		if (scheduleDta._id == selectData._id) {
+		if (scheduleData._id == selectData._id) {
 			isContainSelectData = true;
 		}
 	}
@@ -366,7 +348,7 @@ void PLSPlatformNCB2B::requestCreateLive(const QObject *receiver, const PLSNCB2B
 	auto _onSucceed = [this, onNext](QByteArray data) {
 		bool isOk = dealCurrentLiveSucceed(data, "requestCreateLive");
 		if (!isOk) {
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other, {});
+			showAlertByCustName(PLSErrCustomKey_StartLiveFailed_Single, "requestCreateLive");
 		}
 		if (onNext) {
 			onNext(isOk);
@@ -374,11 +356,8 @@ void PLSPlatformNCB2B::requestCreateLive(const QObject *receiver, const PLSNCB2B
 	};
 
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		setupApiFailedWithCode(getApiResult(code, error, data, PLSAPICommon::PLSApiType::StartLive), data);
-
-		if (nullptr != onNext) {
-			onNext(false);
-		}
+		showAlert({code, error, data}, PLSErrCustomKey_StartLiveFailed_Single, "requestCreateLive");
+		pls_invoke_safe(onNext, false);
 	};
 	PLSAPINCB2B::requestCreateLive(receiver, data, this, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
@@ -392,9 +371,9 @@ bool PLSPlatformNCB2B::dealCurrentLiveSucceed(const QByteArray &data, const QStr
 		return false;
 	}
 	PLSNCB2BLiveinfoData &liveData = getTempSelectDataRef();
-	auto scheduleDta = PLSNCB2BLiveinfoData(item);
-	scheduleDta.isNormalLive = liveData.isNormalLive;
-	liveData = scheduleDta;
+	auto scheduleData = PLSNCB2BLiveinfoData(item);
+	scheduleData.isNormalLive = liveData.isNormalLive;
+	liveData = scheduleData;
 	return true;
 }
 
@@ -403,101 +382,16 @@ void PLSPlatformNCB2B::requestCurrentSelectData(const function<void(bool)> &onNe
 	auto _onSucceed = [this, onNext](QByteArray data) {
 		bool isOk = dealCurrentLiveSucceed(data, "requestCurrentSelectData");
 		if (!isOk) {
-			setupApiFailedWithCode(PLSPlatformApiResult::PAR_API_FAILED, {});
+			showAlertByCustName(PLSErrCustomKey_LoadLiveInfoFailed, "requestCurrentSelectData");
 		}
-		if (onNext) {
-			onNext(isOk);
-		}
+		pls_invoke_safe(onNext, isOk);
 	};
 
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
-		setupApiFailedWithCode(getApiResult(code, error, data), data);
-
-		if (nullptr != onNext) {
-			onNext(false);
-		}
+		showAlert({code, error, data}, PLSErrCustomKey_LoadLiveInfoFailed, "requestCurrentSelectData");
+		pls_invoke_safe(onNext, false);
 	};
 	PLSAPINCB2B::requestGetLiveInfo(widget, getTempSelectID(), this, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
-}
-
-PLSPlatformApiResult PLSPlatformNCB2B::getApiResult(int code, QNetworkReply::NetworkError error, QByteArray data, PLSAPICommon::PLSApiType apiType) const
-{
-	auto result = PLSPlatformApiResult::PAR_SUCCEED;
-
-	if (QNetworkReply::NoError == error) {
-		return result;
-	}
-	result = PLSPlatformApiResult::PAR_API_FAILED;
-	if (QNetworkReply::UnknownNetworkError >= error) {
-		result = PLSPlatformApiResult::PAR_NETWORK_ERROR;
-	} else {
-		if (code == 401) {
-			result = PLSPlatformApiResult::PAR_TOKEN_EXPIRED;
-		}
-	}
-
-	if (result == PLSPlatformApiResult::PAR_API_FAILED) {
-		switch (apiType) {
-		case PLSAPICommon::PLSApiType::Normal:
-			break;
-		case PLSAPICommon::PLSApiType::StartLive:
-			result = PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other;
-			break;
-		case PLSAPICommon::PLSApiType::Update:
-			result = PLSPlatformApiResult::PAR_API_ERROR_UPDATE;
-			break;
-		default:
-			break;
-		}
-	}
-
-	return result;
-}
-
-void PLSPlatformNCB2B::setupApiFailedWithCode(PLSPlatformApiResult result, const QByteArray &errData)
-{
-	setIsShownAlert(true);
-	auto alertParent = getAlertParent();
-	PLSAlertView::Button button;
-
-	if (m_startFailedStr.isEmpty() && !m_lastRequestAPI.isEmpty()) {
-		m_startFailedStr = QString("%1-common-code:%2").arg(m_lastRequestAPI).arg((int)result);
-	}
-
-	if (!errData.isEmpty()) {
-		int subCode = 0;
-		QString errMsg;
-		QString errException;
-		PLSAPINCB2B::getErrCode(errData, subCode, errMsg, errException);
-		if (PLSNCB2BError::ncb2bErrorHandler(subCode, PLSNCB2BError::Living)) {
-			return;
-		}
-	}
-
-	switch (result) {
-	case PLSPlatformApiResult::PAR_NETWORK_ERROR:
-		PLSAlertView::warning(alertParent, QTStr("Alert.Title"), QTStr("login.check.note.network"));
-		break;
-	case PLSPlatformApiResult::PAR_TOKEN_EXPIRED: {
-		emit toShowLoading(true);
-		auto expiredStr = PLS_PLATFORM_API->isPrepareLive() ? QTStr("Ncb2b.Token.Expired") : QTStr("Live.Check.LiveInfo.Refresh.Expired"); //#5053 ux
-		button = pls_alert_error_message(alertParent, QTStr("Alert.Title"), expiredStr.arg(getChannelName()));
-		emit closeDialogByExpired();
-		if (button == PLSAlertView::Button::Ok) {
-			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
-		}
-		emit toShowLoading(false);
-	} break;
-	case PLSPlatformApiResult::PAR_API_ERROR_UPDATE:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Update.Error.Failed").arg(getChannelName()));
-		break;
-	case PLSPlatformApiResult::PAR_API_ERROR_StartLive_Other:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Create.Failed.SingleChannel").arg(getChannelName()));
-		break;
-	default:
-		pls_alert_error_message(alertParent, QTStr("Alert.Title"), QTStr("Live.Check.LiveInfo.Refresh.Failed"));
-		break;
-	}
 }
 
 void PLSPlatformNCB2B::onLiveEnded()
@@ -575,8 +469,8 @@ void PLSPlatformNCB2B::setSelectData(const PLSNCB2BLiveinfoData &data)
 			}
 		}
 	} else {
-		m_noramlData = data;
-		m_tempNoramlData = data;
+		m_normalData = data;
+		m_tempNormalData = data;
 	}
 
 	const QString &uuid = getChannelUUID();
@@ -632,21 +526,10 @@ void PLSPlatformNCB2B::requestScheduleListByGuidePage(const std::function<void(b
 	auto _onFail = [this, onNext](int code, QByteArray data, QNetworkReply::NetworkError error) {
 		std::lock_guard<std::mutex> locker(m_channelScheduleMutex);
 		m_vecGuideSchedules.clear();
-		QString errorType;
-		auto errorRet = getApiResult(code, error, data);
-		if (errorRet == PLSPlatformApiResult::PAR_TOKEN_EXPIRED) {
-			errorType = "PlatformExpired";
-			mySharedData().m_lastError = createScheduleGetError(getChannelName(), channel_data::NetWorkErrorType::PlatformExpired);
-		} else if (errorRet == PLSPlatformApiResult::PAR_NETWORK_ERROR) {
-			errorType = "NetWorkNoStable";
-			mySharedData().m_lastError = createScheduleGetError(getChannelName(), channel_data::NetWorkErrorType::NetWorkNoStable);
-		}
 
-		PLS_ERROR(MODULE_PlatformService, "PLSPlatformNCB2B::requestScheduleListByGuidePage failed. with type:%s", errorType.toUtf8().constData());
-
-		if (nullptr != onNext) {
-			onNext(false);
-		}
+		auto retData = PLSErrorHandler::getAlertString({code, error, data}, getPlatFormName(), PLSErrCustomKey_LoadLiveInfoFailed, getErrorExtraData("requestScheduleListByGuidePage"));
+		mySharedData().m_lastError = createScheduleGetError(getChannelName(), retData);
+		pls_invoke_safe(onNext, false);
 	};
 	PLSAPINCB2B::requestScheduleList(widget, subChannelID(), this, _onSucceed, _onFail, PLSAPICommon::RefreshType::CheckRefresh);
 }
@@ -664,8 +547,8 @@ void PLSPlatformNCB2B::dealScheduleListGuidePageSucceed(const QByteArray &data, 
 	PLS_INFO(MODULE_PLATFORM_NCB2B, "dealScheduleListGuidePageSucceed succeed with itemCount:%i", items.count());
 	for (int i = 0; i < items.size(); i++) {
 		auto dataItem = items[i].toObject();
-		auto scheduleDta = PLSNCB2BLiveinfoData(dataItem);
-		m_vecGuideSchedules.push_back(scheduleDta);
+		auto scheduleData = PLSNCB2BLiveinfoData(dataItem);
+		m_vecGuideSchedules.push_back(scheduleData);
 	}
 	if (nullptr != onNext) {
 		onNext(true);
@@ -677,9 +560,9 @@ const vector<PLSNCB2BLiveinfoData> &PLSPlatformNCB2B::getScheduleDatas() const
 	return m_vecSchedules;
 }
 
-const PLSNCB2BLiveinfoData &PLSPlatformNCB2B::getNomalLiveData() const
+const PLSNCB2BLiveinfoData &PLSPlatformNCB2B::getNormalLiveData() const
 {
-	return m_noramlData;
+	return m_normalData;
 }
 const PLSNCB2BLiveinfoData &PLSPlatformNCB2B::getTempSelectData()
 {
@@ -689,12 +572,12 @@ const PLSNCB2BLiveinfoData &PLSPlatformNCB2B::getTempSelectData()
 
 PLSNCB2BLiveinfoData &PLSPlatformNCB2B::getTempSelectDataRef()
 {
-	for (auto &scheuleData : m_vecSchedules) {
-		if (getTempSelectID() == scheuleData._id) {
-			return scheuleData;
+	for (auto &scheduleData : m_vecSchedules) {
+		if (getTempSelectID() == scheduleData._id) {
+			return scheduleData;
 		}
 	}
-	return m_tempNoramlData;
+	return m_tempNormalData;
 }
 
 void PLSPlatformNCB2B::updateScheduleListAndSort()
@@ -720,6 +603,43 @@ QString PLSPlatformNCB2B::subChannelID() const
 		return "";
 	}
 	return info.value(ChannelData::g_subChannelId, "").toString();
+}
+PLSErrorHandler::ExtraData PLSPlatformNCB2B::getErrorExtraData(const QString &urlEn, const QString &urlKr)
+{
+	PLSErrorHandler::ExtraData extraData;
+	extraData.urlEn = urlEn;
+	extraData.pathValueMap = {{"b2bLiveId", m_selectData._id}};
+	if (PLS_PLATFORM_API->isPrepareLive()) {
+		extraData.pathValueMap["str_isPrepareLive"] = "1";
+	}
+	extraData.defaultArg = QStringList(getChannelName());
+	return extraData;
+}
+
+void PLSPlatformNCB2B::showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom)
+{
+	PLSErrorHandler::RetData retData = PLSErrorHandler::showAlert(netData, getPlatFormName(), customErrName, getErrorExtraData(logFrom));
+	showAlertPostAction(retData);
+}
+void PLSPlatformNCB2B::showAlertByCustName(const QString &customErrName, const QString &logFrom)
+{
+	PLSErrorHandler::RetData retData = PLSErrorHandler::showAlertByCustomErrName(customErrName, getPlatFormName(), getErrorExtraData(logFrom));
+	showAlertPostAction(retData);
+}
+void PLSPlatformNCB2B::showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom)
+{
+	PLSErrorHandler::RetData retData = PLSErrorHandler::showAlertByPrismCode(prismCode, getPlatFormName(), customErrName, getErrorExtraData(logFrom));
+	showAlertPostAction(retData);
+}
+void PLSPlatformNCB2B::showAlertPostAction(const PLSErrorHandler::RetData &retData)
+{
+	setFailedErr(retData.extraData.urlEn + " " + retData.failedLogString);
+	if (retData.errorType == PLSErrorHandler::ErrorType::TokenExpired) {
+		emit closeDialogByExpired();
+		if (retData.clickedBtn == PLSAlertView::Button::Ok) {
+			PLSCHANNELS_API->channelExpired(getChannelUUID(), false);
+		}
+	}
 }
 
 PLSNCB2BLiveinfoData::PLSNCB2BLiveinfoData(const QString &channelUUID) : isNormalLive(true)

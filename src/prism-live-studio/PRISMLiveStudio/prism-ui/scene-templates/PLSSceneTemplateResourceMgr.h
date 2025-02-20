@@ -1,66 +1,35 @@
 #pragma once
 
-#include <atomic>
-
 #include <QObject>
-#include <QList>
-#include <QMap>
-#include <QSet>
-#include <mutex>
 
 #include "PLSSceneTemplateModel.h"
+#include "libresource.h"
 
-class PLSSceneTemplateResourceMgr : public QObject {
+class CategorySceneTemplate : public QObject, public pls::rsm::ICategory {
 	Q_OBJECT
-
 public:
-	static PLSSceneTemplateResourceMgr &instance();
+	PLS_RSM_CATEGORY(CategorySceneTemplate)
 
-	const SceneTemplateList &getSceneTemplateList() const;
-	const QList<SceneTemplateItem> &getSceneTemplateGroup(const QString &groupId) const;
-	QList<SceneTemplateItem> getSceneTemplateValidGroup(const QString &groupId) const;
-	const SceneTemplateItem &getSceneTemplateItem(const QString &itemId) const;
-	QStringList getGroupIdList();
-	bool isListFinished() const;
-	bool isItemsFinished() const;
-	bool isListValid() const;
-	bool isItemValid(const SceneTemplateItem &item) const;
-	bool isItemsValid(const QString &groupId) const;
-	bool isDownloadingFinished() const;
+	QString categoryId(pls::rsm::IResourceManager *mgr) const override { return QStringLiteral("scene_templates"); }
 
+	void jsonLoaded(pls::rsm::IResourceManager *mgr, pls::rsm::Category category) override;
+
+	void getItemDownloadUrlAndHowSaves(pls::rsm::IResourceManager *mgr, std::list<pls::rsm::UrlAndHowSave> &urlAndHowSaves, pls::rsm::Item item) const override;
+	void itemDownloaded(pls::rsm::IResourceManager *mgr, pls::rsm::Item item, bool ok, const std::list<pls::rsm::DownloadResult> &results) const override;
+	void groupDownloaded(pls::rsm::IResourceManager *mgr, pls::rsm::Group group, bool ok, const std::list<pls::rsm::DownloadResult> &results) const override;
+
+	bool checkItem(pls::rsm::IResourceManager *mgr, pls::rsm::Item item) const override;
+
+	void allDownload(pls::rsm::IResourceManager *mgr, bool ok) override;
+
+	bool checkItem(const SceneTemplateItem& item) const;
 public slots:
-	void downloadList(const QString &categoryPath);
-	void downloadList();
-	void downloadItems();
-	void downloadItem(SceneTemplateItem &item);
-	void onItemDownloaded(SceneTemplateItem &item, bool bSuccess);
+	void findResource(SceneTemplateItem &item) const;
 
 signals:
-	void onListFinished(const SceneTemplateList &);
-	void onItemFinished(const SceneTemplateItem &);
-	void onItemsFinished();
-
-protected:
-	bool parseJson();
-	void findResource(SceneTemplateItem &item);
-	void loadFileVersion(const QString &path);
-
-private:
-	PLSSceneTemplateResourceMgr(QObject * = nullptr);
-	~PLSSceneTemplateResourceMgr();
-
-	QString m_strResourceUrl;
-	QString m_strJsonPath;
-
-	bool m_bListFinished = false;
-	bool m_bItemsFinished = false;
-	SceneTemplateList m_listSceneTemplate;
-	int m_iListVersion = -1;
-	QMap<QString, int> m_mapItemVersion;
-
-	QMap<QString, QList<SceneTemplateItem*>> m_setDownloadingItem;
-
-	std::atomic_int m_iDownloadingCount = 0;
+	void onJsonDownloaded() const;
+	void onItemDownloaded(const SceneTemplateItem &item) const;
+	void onGroupDownloadFailed(const QString &groupId) const;
 };
 
-#define PLS_SCENE_TEMPLATE_RESOURCE PLSSceneTemplateResourceMgr::instance()
+#define PLS_SCENE_TEMPLATE_RESOURCE CategorySceneTemplate::instance()

@@ -91,7 +91,9 @@ private:
 	std::vector<obs_sceneitem_t *> selectedItems;
 	std::mutex selectMutex;
 
-	static vec2 GetMouseEventPos(QMouseEvent *event);
+	bool m_bVerticalDisplay = false;
+
+	vec2 GetMouseEventPos(QMouseEvent *event, bool horizontal);
 	static bool FindSelected(obs_scene_t *scene, obs_sceneitem_t *item,
 				 void *param);
 	static bool DrawSelectedOverflow(obs_scene_t *scene,
@@ -101,13 +103,14 @@ private:
 	static bool DrawSelectionBox(float x1, float y1, float x2, float y2,
 				     gs_vertbuffer_t *box);
 
-	static OBSSceneItem GetItemAtPos(const vec2 &pos, bool selectBelow);
-	static bool SelectedAtPos(const vec2 &pos);
+	static OBSSceneItem GetItemAtPos(OBSBasicPreview *preview,
+					 const vec2 &pos, bool selectBelow);
+	static bool SelectedAtPos(OBSBasicPreview *preview, const vec2 &pos);
 
-	static void DoSelect(const vec2 &pos);
-	static void DoCtrlSelect(const vec2 &pos);
+	static void DoSelect(OBSBasicPreview *preview, const vec2 &pos);
+	static void DoCtrlSelect(OBSBasicPreview *preview, const vec2 &pos);
 
-	static vec3 GetSnapOffset(const vec3 &tl, const vec3 &br);
+	vec3 GetSnapOffset(const vec3 &tl, const vec3 &br);
 
 	void GetStretchHandleData(const vec2 &pos, bool ignoreGroup);
 
@@ -120,7 +123,7 @@ private:
 	void StretchItem(const vec2 &pos);
 	void RotateItem(const vec2 &pos);
 
-	static void SnapItemMovement(vec2 &offset);
+	void SnapItemMovement(vec2 &offset);
 	void MoveItems(const vec2 &pos);
 	void BoxItems(const vec2 &startPos, const vec2 &pos);
 
@@ -150,7 +153,7 @@ public:
 	virtual void leaveEvent(QEvent *event) override;
 	virtual void tabletEvent(QTabletEvent *event) override;
 	virtual void focusOutEvent(QFocusEvent *event) override;
-	
+
 	void DrawOverflow();
 	void DrawSceneEditing();
 
@@ -201,6 +204,10 @@ public:
 	{
 		return overflowAlwaysVisible;
 	}
+
+	void setVerticalDisplay(bool bValue) { m_bVerticalDisplay = bValue; }
+
+	bool isVerticalDisplay() const { return m_bVerticalDisplay; }
 
 	/* use libobs allocator for alignment because the matrices itemToScreen
 	 * and screenToItem may contain SSE data, which will cause SSE

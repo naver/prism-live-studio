@@ -66,7 +66,7 @@ static void update_image_source(sticker_reaction *sticker)
 	obs_data_release(settings);
 }
 
-static void update_video_source(sticker_reaction *sticker, bool lastLoop)
+static void update_video_source(sticker_reaction *sticker, bool lastLoop, bool reload = false)
 {
 	obs_data_t *media_settings = nullptr;
 	if (!sticker->media) {
@@ -74,6 +74,7 @@ static void update_video_source(sticker_reaction *sticker, bool lastLoop)
 		obs_data_set_bool(media_settings, "looping", sticker->loop);
 		obs_data_set_string(media_settings, "local_file", sticker->video_input.c_str());
 		obs_data_set_bool(media_settings, "restart_on_activate", false);
+		obs_data_set_bool(media_settings, "close_when_inactive", true);
 		sticker->media = obs_source_create_private("ffmpeg_source", "ffmpeg_sticker", media_settings);
 		obs_source_inc_active(sticker->media);
 
@@ -87,8 +88,10 @@ static void update_video_source(sticker_reaction *sticker, bool lastLoop)
 
 		if (lastLoop && !sticker->loop && !sticker->video_input.empty()) {
 			obs_source_media_play_pause(sticker->media, true);
-		} else if (!lastLoop && sticker->loop && !sticker->video_input.empty() || file_changed) {
+		} else if (!lastLoop && sticker->loop && !sticker->video_input.empty() || file_changed || reload) {
+			obs_source_dec_active(sticker->media);
 			obs_source_media_restart(sticker->media);
+			obs_source_inc_active(sticker->media);
 		}
 	}
 	obs_data_release(media_settings);
@@ -117,6 +120,7 @@ static void sticker_source_update(void *data, obs_data_t *settings)
 	sticker->image_input = sticker->landscape ? sticker->landscape_image : sticker->portrait_image;
 
 	bool videoChanged = sticker->last_video_input != sticker->video_input;
+	bool reload = false;
 	if (videoChanged || !sticker->cx || !sticker->cy) {
 		media_info_t mi;
 		if (!mi_open(&mi, sticker->video_input.c_str(), MI_OPEN_DIRECTLY)) {
@@ -128,11 +132,12 @@ static void sticker_source_update(void *data, obs_data_t *settings)
 			sticker->cy = (uint32_t)mi_get_int(&mi, "height");
 			sticker->duration = mi_get_int(&mi, "duration");
 			mi_free(&mi);
+			reload = true;
 		}
 	}
 
 	update_image_source(sticker);
-	update_video_source(sticker, lastLoop);
+	update_video_source(sticker, lastLoop, reload);
 }
 
 static void sticker_source_defaults(obs_data_t *settings)

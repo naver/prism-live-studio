@@ -12,6 +12,8 @@
 #include <QWriteLocker>
 #include "ChannelDefines.h"
 #include "PLSChannelPublicAPI.h"
+#include "PLSDualOutputConst.h"
+#include "PLSErrorHandler.h"
 #include "pls-channel-const.h"
 
 class QNetworkAccessManager;
@@ -33,8 +35,6 @@ void updatePlatformViewerCount();
 
 class PLSChannelDataAPI final : public QObject, public PLSChannelPublicAPI {
 	Q_OBJECT
-	//Q_PLUGIN_METADATA(IID "PLSChannelPublicAPI.plugin")
-	//Q_INTERFACES(PLSChannelPublicAPI)
 public:
 	explicit PLSChannelDataAPI(QObject *parent = nullptr);
 	~PLSChannelDataAPI() override = default;
@@ -262,6 +262,12 @@ public:
 
 	void addRISTandSRT2RtmpServer();
 
+	void getChannelCountOfOutputDirection(QStringList &horOutputList, QStringList &verOutputList);
+	void setChannelDefaultOutputDirection();
+	void setOutputDirectionWhenAddChannel(const QString &uuid);
+	bool isCanSetDualOutput(const QString &uuid) const;
+	void clearDualOutput();
+
 public slots:
 
 	void stopAll();
@@ -287,7 +293,7 @@ signals:
 	void addChannelForDashBord(const QString &uuid) const;
 	void channelRemovedForCheckVideo(bool bLeader);
 	void channelRemovedForChzzk();
-	void channelRefreshEnd(const QString& platformName);
+	void channelRefreshEnd(const QString &platformName);
 	/*recording sigs*/
 	void toStartRecord();
 	void toStopRecord();
@@ -305,7 +311,7 @@ signals:
 
 	/*broadcast sigs*/
 	void toStartBroadcast();
-	void toStopBroadcast();
+	void toStopBroadcast(DualOutputType outputType = DualOutputType::All);
 	void toStartBroadcastInInfoView();
 	void toStartRehearsal();
 	void toStopRehearsal();
@@ -343,7 +349,7 @@ signals:
 
 	void networkInvalidOcurred();
 
-	void prismTokenExpired();
+	void prismTokenExpired(const PLSErrorHandler::RetData &data);
 
 	void sigSendRequest(const QString &uuid);
 
@@ -366,6 +372,8 @@ signals:
 	void startFailed();
 
 	void sigB2BChannelEndLivingCheckExpired(const QString &channelName);
+
+	void sigSetChannelDualOutput(const QString &uuid, ChannelData::ChannelDualOutput outputType);
 
 private:
 	void registerEnumsForStream() const;

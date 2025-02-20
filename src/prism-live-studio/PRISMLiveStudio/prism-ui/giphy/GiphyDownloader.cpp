@@ -17,7 +17,12 @@ static void GiphyDownloaderThread()
 
 GiphyDownloader::GiphyDownloader(QObject *parent) : QObject(parent)
 {
-	pls_network_state_monitor([this](bool accessible) {
+	pls_network_state_monitor([this, this_guard = QPointer<GiphyDownloader>(this)](bool accessible) {
+		if (pls_is_app_exiting())
+			return;
+		if (!this_guard)
+			return;
+
 		std::lock_guard<std::recursive_mutex> locker(m_mutex);
 		if (accessible) {
 			if (tasksRetry.isEmpty())
@@ -76,8 +81,9 @@ bool GiphyDownloader::IsRunning() const
 	return running;
 }
 
-bool GiphyDownloader::IsDownloadFileExsit(const DownloadTaskData &taskData, QString &outputFileName)
+void GiphyDownloader::excuteTask(const DownloadTaskData &taskData)
 {
+	std::lock_guard<std::recursive_mutex> locker(m_mutex);
 	QUrl url = QUrl::fromEncoded(taskData.url.toLocal8Bit());
 	QString tail;
 	switch (taskData.type) {
@@ -90,124 +96,55 @@ bool GiphyDownloader::IsDownloadFileExsit(const DownloadTaskData &taskData, QStr
 	default:
 		break;
 	}
-	QString fileName = saveFileName(url, taskData.uniqueId, tail);
-	outputFileName = pls_get_user_path(GIPHY_STICKERS_CACHE_PATH) + fileName;
-	return QFile::exists(outputFileName);
-}
-
-void GiphyDownloader::excuteTask(const DownloadTaskData &taskData)
-{
-	std::lock_guard<std::recursive_mutex> locker(m_mutex);
-	QUrl url = QUrl::fromEncoded(taskData.url.toLocal8Bit());
-	QString userFileName;
-	if (IsDownloadFileExsit(taskData, userFileName)) {
-		TaskResponData responData;
-		responData.taskData = taskData;
-		responData.fileName = userFileName;
-		emit downloadResult(responData);
-		return;
-	}
-
-	if (!pls_get_network_state()) {
-		if (taskData.needRetry) {
-			qDebug("Network is not accessible,add task to retry list, current retry task size is:%llu", tasksRetry.size());
-			tasksRetry.enqueue(taskData);
-		}
-		QString errorString("Network is not accessible");
-		TaskResponData responData;
-		responData.taskData = taskData;
-		responData.errorString = errorString;
-		responData.resultType = ResultStatus::ERROR_OCCUR;
-		emit downloadResult(responData);
-		return;
-	}
-
-	pls::http::request(pls::http::Request()
-				   .method(pls::http::Method::Get) //
-				   .hmacUrl(url, "")               //
-				   .forDownload(false)             //
-				   .saveFilePath("")               //
-				   .withLog()                      //
-				   .receiver(qApp)                 //
-				   .progress([this, taskData, userFileName](const pls::http::Reply &reply) {
-					   if (pls_get_app_exiting())
-						   return;
-
-					   TaskResponData responData;
-					   responData.taskData = taskData;
-					   responData.fileName = userFileName;
-					   emit downloadProgress(responData, reply.downloadedBytes(), reply.downloadTotalBytes());
-				   })
-				   .result([this](const pls::http::Reply &reply) {
-					   if (pls_get_app_exiting())
-						   return;
-
-					   if (reply.isTimeout()) {
-						   downloadTimeout(reply);
-					   } else {
-						   downloadFinished(reply);
-					   }
-				   }));
-
+	QString filename = saveFileName(url, taskData.uniqueId, tail);
 	taskDownloads.insert(url, taskData);
+	pls::rsm::getDownloader()->download(pls::rsm::UrlAndHowSave()                                      //
+						    .keyPrefix(QStringLiteral("giphy-") + filename)
+						    .fileName(filename)                                    //
+						    .saveDir(pls_get_user_path(GIPHY_STICKERS_CACHE_PATH)) //
+						    .url(url)                                              //
+						    .done([](const pls::rsm::UrlAndHowSave &urlAndHowSave, bool ok, const QString &, pls::rsm::PathFrom pathFrom, bool) {
+							    // handle done callback
+							    PLS_INFO(MAIN_GIPHY_STICKER_MODULE, "Download '%s' done. result: %s", qUtf8Printable(urlAndHowSave.fileName()),
+								     ok ? "Succeeded" : "Failed");
+						    }),
+					    [this](const pls::rsm::DownloadResult &result) {
+						    // handle download result
+						    if (pls_get_app_exiting())
+							    return;
+
+						    if (result.timeout()) {
+							    downloadTimeout(result);
+						    } else {
+							    downloadFinished(result);
+						    }
+					    });
 }
 
-void GiphyDownloader::sslErrors(QList<QSslError>) const
-{
-	qDebug("ssl error occured");
-}
-
-void GiphyDownloader::downloadFinished(const pls::http::Reply &reply)
+void GiphyDownloader::downloadFinished(const pls::rsm::DownloadResult &result)
 {
 	std::lock_guard<std::recursive_mutex> locker(m_mutex);
-	QUrl url = reply.reply()->url();
+	auto url = result.m_urlAndHowSave.url();
 	TaskResponData responData;
 	responData.taskData = taskDownloads[url];
-	if (QNetworkReply::NoError != reply.error()) {
+	if (!result.isOk()) {
 		if (responData.taskData.needRetry)
 			tasksRetry.enqueue(responData.taskData);
-		PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Download of %s failed: %s\n", url.toEncoded().constData(), qUtf8Printable(reply.errors()));
-		responData.errorString = QString::asprintf("Download of %s failed: %s", url.toEncoded().constData(), qUtf8Printable(reply.errors()));
+		PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Failed to download '%s'.", url.toEncoded().constData());
+		responData.errorString = QString::asprintf("Failed to download '%s'.", url.toEncoded().constData());
 		responData.resultType = ResultStatus::ERROR_OCCUR;
 		emit downloadResult(responData);
 	} else {
-		if (GiphyWebHandler::isHttpRedirect(reply.reply())) {
-			PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Request was redirected.url=%s", url.toEncoded().constData());
-			responData.errorString = QString("Request was redirected.");
-			responData.resultType = ResultStatus::ERROR_OCCUR;
-			emit downloadResult(responData);
-		} else {
-			QString tail;
-			switch (responData.taskData.type) {
-			case StickerDownloadType::THUMBNAIL:
-				tail = "thumbnail";
-				break;
-			case StickerDownloadType::ORIGINAL:
-				tail = "original";
-				break;
-			default:
-				break;
-			}
-			QString filename = saveFileName(url, responData.taskData.uniqueId, tail);
-			if (saveToDisk(filename, reply)) {
-				responData.fileName = filename;
-				emit downloadResult(responData);
-
-			} else {
-				PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Save file to disk failed.File name=%s", filename.toUtf8().constData());
-				responData.errorString = QString("Save file to disk failed");
-				responData.resultType = ResultStatus::ERROR_OCCUR;
-				emit downloadResult(responData);
-			}
-		}
+		responData.fileName = result.m_urlAndHowSave.savedFilePath();
+		emit downloadResult(responData);
 	}
 	taskDownloads.remove(url);
 }
 
-void GiphyDownloader::downloadTimeout(const pls::http::Reply &reply)
+void GiphyDownloader::downloadTimeout(const pls::rsm::DownloadResult &result)
 {
 	std::lock_guard<std::recursive_mutex> locker(m_mutex);
-	QUrl url = reply.reply()->url();
+	auto url = result.m_urlAndHowSave.url();
 	TaskResponData responData;
 	responData.taskData = taskDownloads[url];
 	responData.errorString = QString("Request was timeout.");
@@ -216,38 +153,13 @@ void GiphyDownloader::downloadTimeout(const pls::http::Reply &reply)
 	emit downloadResult(responData);
 }
 
-bool GiphyDownloader::saveToDisk(QString &filename, const pls::http::Reply &reply) const
-{
-	QString contentType = reply.header(QNetworkRequest::ContentTypeHeader).toString();
-	if (0 == contentType.compare(CONTENT_TYPE, Qt::CaseInsensitive)) {
-		QString path(pls_get_user_path(GIPHY_STICKERS_CACHE_PATH));
-		QDir dir(path);
-		if (!dir.exists()) {
-			dir.mkpath(path);
-		}
-		QString fileNameTmp = filename;
-		filename = path + "/" + filename;
-		QFile file(filename);
-		if (!file.open(QIODevice::WriteOnly)) {
-			PLS_ERROR(MAIN_GIPHY_STICKER_MODULE, "Could not open file:%s for writing: %s\n", qUtf8Printable(fileNameTmp), qUtf8Printable(file.errorString()));
-			return false;
-		}
-
-		file.write(reply.data());
-		file.close();
-		return true;
-	}
-
-	return false;
-}
-
 QString GiphyDownloader::saveFileName(const QUrl &url, const QString &id, const QString &tail)
 {
 	QString path = url.path();
 	QString basename = QFileInfo(path).fileName();
 
 	if (!id.isEmpty())
-		basename = id + "_" + tail + "." + QFileInfo(path).suffix();
+		basename = id + "_" + tail;
 	return basename;
 }
 

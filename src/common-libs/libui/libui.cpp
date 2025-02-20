@@ -28,6 +28,8 @@
 #if defined(Q_OS_WIN)
 #include <Windows.h>
 #include <shellscalingapi.h>
+#else
+#include "PLSCustomMacWindow.h"
 #endif
 
 #include "PLSAlertView.h"
@@ -66,6 +68,9 @@ public:
 
 	static void signalBeginCallback(QObject *caller, int signal_or_method_index, void **argv)
 	{
+		if (pls_is_app_exiting() || !pls_object_is_valid(caller))
+			return;
+
 		pls_unused(argv);
 		QMetaMethod method;
 		QString action;
@@ -574,6 +579,14 @@ LIBUI_API void pls_flush_style_recursive(QWidget *widget, const char *propertyNa
 {
 	widget->setProperty(propertyName, propertyValue);
 	pls_flush_style_recursive(widget, recursiveDeep);
+}
+
+LIBUI_API void pls_scroll_area_clips_to_bounds(QWidget *widget, bool isClips)
+{
+#ifdef __APPLE__
+	PLSCustomMacWindow::clipsToBounds(widget, isClips);
+#endif
+	//windows ignore this properties.
 }
 
 LIBUI_API QColor pls_qint64_to_qcolor(qint64 icolor)

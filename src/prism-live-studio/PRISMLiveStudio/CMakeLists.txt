@@ -75,6 +75,10 @@ find_package(Qt6 COMPONENTS Widgets Network Svg Xml Gui NetworkAuth WebSockets M
 find_package(nlohmann_json REQUIRED)
 target_link_libraries(PRISMLiveStudio PRIVATE Qt6::Widgets Qt6::Svg Qt6::Xml Qt6::Network Qt6::WebSockets nlohmann_json::nlohmann_json Qt6::Multimedia Qt6::OpenGLWidgets)
 
+if(ENABLE_TEST)
+find_package(Qt6 COMPONENTS Test)
+target_link_libraries(PRISMLiveStudio PRIVATE Qt6::Test Qt6::TestPrivate)
+endif()
 set_target_properties(
   PRISMLiveStudio
   PROPERTIES AUTOMOC ON
@@ -127,6 +131,7 @@ target_include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/watermark
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/outro
   ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/scene-templates
+  ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/dual-output
 )
 
 target_sources(PRISMLiveStudio PRIVATE obs-ui/forms/obs.qrc
@@ -158,6 +163,7 @@ target_sources(
   obs-ui/forms/OBSAbout.ui
   obs-ui/forms/OBSAdvAudio.ui
   obs-ui/forms/OBSBasic.ui
+  obs-ui/forms/OBSBasicControls.ui
   obs-ui/forms/OBSBasicFilters.ui
   obs-ui/forms/OBSBasicInteraction.ui
   obs-ui/forms/OBSBasicSettings.ui
@@ -217,11 +223,15 @@ target_sources(
 
 target_sources(
   PRISMLiveStudio
-  PRIVATE obs-ui/adv-audio-control.cpp
+  PRIVATE obs-ui/absolute-slider.cpp
+  obs-ui/absolute-slider.hpp
+  obs-ui/adv-audio-control.cpp
   obs-ui/adv-audio-control.hpp
   obs-ui/audio-encoders.cpp
   obs-ui/audio-encoders.hpp
   obs-ui/balance-slider.hpp
+  obs-ui/basic-controls.cpp
+  obs-ui/basic-controls.hpp
   obs-ui/clickable-label.hpp
   obs-ui/double-slider.cpp
   obs-ui/double-slider.hpp
@@ -242,8 +252,6 @@ target_sources(
   obs-ui/log-viewer.hpp
   obs-ui/media-controls.cpp
   obs-ui/media-controls.hpp
-  obs-ui/media-slider.cpp
-  obs-ui/media-slider.hpp
   obs-ui/menu-button.cpp
   obs-ui/menu-button.hpp
   obs-ui/mute-checkbox.hpp
@@ -251,15 +259,12 @@ target_sources(
   obs-ui/plain-text-edit.hpp
   obs-ui/properties-view.hpp
   obs-ui/properties-view.moc.hpp
-  obs-ui/record-button.cpp
-  obs-ui/record-button.hpp
+  obs-ui/noncheckable-button.hpp
   obs-ui/remote-text.cpp
   obs-ui/remote-text.hpp
   obs-ui/scene-tree.cpp
   obs-ui/scene-tree.hpp
   obs-ui/screenshot-obj.hpp
-  obs-ui/slider-absoluteset-style.cpp
-  obs-ui/slider-absoluteset-style.hpp
   obs-ui/slider-ignorewheel.cpp
   obs-ui/slider-ignorewheel.hpp
   obs-ui/source-label.cpp
@@ -342,6 +347,21 @@ target_sources(
 
 target_sources(
   PRISMLiveStudio
+  PRIVATE # cmake-format: sortable
+          obs-ui/goliveapi-censoredjson.cpp
+          obs-ui/goliveapi-censoredjson.hpp
+          obs-ui/goliveapi-network.cpp
+          obs-ui/goliveapi-network.hpp
+          obs-ui/goliveapi-postdata.cpp
+          obs-ui/goliveapi-postdata.hpp
+          obs-ui/multitrack-video-error.cpp
+          obs-ui/multitrack-video-error.hpp
+          obs-ui/multitrack-video-output.cpp
+          obs-ui/multitrack-video-output.hpp
+          obs-ui/system-info.hpp)
+
+target_sources(
+  PRISMLiveStudio
   PRIVATE obs-ui/importers/importers.cpp
   obs-ui/importers/importers.hpp
   obs-ui/importers/classic.cpp
@@ -368,7 +388,6 @@ target_sources(
   PRISMLiveStudio
   PRIVATE prism-ui/forms/PLSGiphyStickerView.ui
   PRIVATE prism-ui/forms/PLSSearchPopupMenu.ui
-  PRIVATE prism-ui/forms/PLSPrismSticker.ui
   PRIVATE prism-ui/forms/PLSVstFilterView.ui)
 
 target_sources(
@@ -379,6 +398,7 @@ target_sources(
   prism-ui/main/PLSLogo.cpp
   prism-ui/main/PLSLogo.h
   prism-ui/main/PLSLogo.ui
+  prism-ui/main/PLSBasicStatusBarAnalog.mm
   prism-ui/main/PLSBasicStatusBar.cpp
   prism-ui/main/PLSBasicStatusBar.hpp
   prism-ui/main/PLSBasicStatusPanel.cpp
@@ -421,6 +441,8 @@ target_sources(
   prism-ui/main/PLSFiltersItemView.h
   prism-ui/main/PLSFiltersItemView.cpp
   prism-ui/main/PLSCompleter.hpp
+  prism-ui/main/PLSOutputHandler.cpp
+  prism-ui/main/PLSOutputHandler.hpp
 )
 target_sources(
   PRISMLiveStudio
@@ -468,8 +490,6 @@ target_sources(
   prism-ui/main/pls-gpop-data-struct.hpp
   prism-ui/main/pls-notice-handler.hpp
   prism-ui/main/pls-notice-handler.cpp
-  prism-ui/main/json-data-handler.cpp
-  prism-ui/main/json-data-handler.hpp
   prism-ui/main/login-common-struct.hpp
   prism-ui/main/audio-meter-wrapper.h
   prism-ui/main/audio-meter-wrapper.cpp
@@ -507,6 +527,8 @@ target_sources(
   prism-ui/scene-collection/PLSImporterItem.ui
   prism-ui/scene-collection/PLSPrismShareMemory.h
   prism-ui/scene-collection/PLSPrismShareMemory.cpp
+  prism-ui/scene-collection/PLSSceneitemMapManager.h
+  prism-ui/scene-collection/PLSSceneitemMapManager.cpp
   prism-ui/giphy/GiphyDefine.h
   prism-ui/giphy/GiphyDownloader.h
   prism-ui/giphy/GiphyWebHandler.h
@@ -516,13 +538,6 @@ target_sources(
   prism-ui/giphy/GiphyDownloader.cpp
   prism-ui/giphy/PLSSearchPopupMenu.h
   prism-ui/giphy/PLSSearchPopupMenu.cpp
-  prism-ui/prism-sticker/PLSPrismSticker.h
-  prism-ui/prism-sticker/PLSPrismSticker.cpp
-  prism-ui/prism-sticker/PLSStickerDataHandler.h
-  prism-ui/prism-sticker/PLSStickerDataHandler.cpp
-  prism-ui/prism-sticker/PLSThumbnailLabel.hpp
-  prism-ui/prism-sticker/PLSFileDownloader.h
-  prism-ui/prism-sticker/PLSFileDownloader.cpp
   prism-ui/main/PLSBasicProperties.hpp
   prism-ui/main/PLSBasicProperties.cpp
   prism-ui/main/PLSPropertiesView.hpp
@@ -554,8 +569,6 @@ target_sources(
   prism-ui/music/PLSBgmControlsView.cpp
   prism-ui/music/PLSBgmControlsBase.h
   prism-ui/music/PLSBgmControlsBase.cpp
-  prism-ui/music/PLSMediaSlider.h
-  prism-ui/music/PLSMediaSlider.cpp
   prism-ui/music/window-basic-main-bgm.cpp
   prism-ui/source-toolbar/PLSSourceToolbar.hpp
   prism-ui/source-toolbar/PLSSourceToolbar.cpp
@@ -570,6 +583,7 @@ target_sources(
   prism-ui/virtual-template/PLSMotionImageListView.cpp
   prism-ui/virtual-template/PLSMotionImageListView.ui
   prism-ui/virtual-template/PLSMotionDefine.h
+  prism-ui/virtual-template/PLSMotionDefine.cpp
   prism-ui/virtual-template/PLSMyMotionListView.h
   prism-ui/virtual-template/PLSMyMotionListView.cpp
   prism-ui/virtual-template/PLSMyMotionListView.ui
@@ -587,8 +601,8 @@ target_sources(
   prism-ui/virtual-template/PLSPrismListView.h
   prism-ui/virtual-template/PLSPrismListView.cpp
   prism-ui/virtual-template/PLSPrismListView.ui
-  prism-ui/virtual-template/PLSMotionNetwork.h
-  prism-ui/virtual-template/PLSMotionNetwork.cpp
+  prism-ui/virtual-template/CategoryVirtualTemplate.h
+  prism-ui/virtual-template/CategoryVirtualTemplate.cpp
   prism-ui/virtual-template/PLSVirtualBgManager.h
   prism-ui/virtual-template/PLSVirtualBgManager.cpp
   prism-ui/virtual-template/PLSMotionErrorLayer.h
@@ -604,15 +618,9 @@ target_sources(
   prism-ui/main/PLSBrowserView.hpp
   prism-ui/main/PLSBrowserView.cpp
   prism-ui/main/PLSBrowserView.ui
-  prism-ui/main/pls-setting-general-view.hpp
-  prism-ui/main/pls-setting-general-view.cpp
-  prism-ui/main/PLSSettingGeneralView.ui
   prism-ui/main/pls-complex-header-icon.hpp
   prism-ui/main/pls-complex-header-icon.cpp
   prism-ui/main/PLSComplexHeaderIcon.ui
-  prism-ui/main/PLSChangePasswordView.ui
-  prism-ui/main/change-password-view.hpp
-  prism-ui/main/change-password-view.cpp
   prism-ui/main/TextMotionTemplateButton.h
   prism-ui/main/TextMotionTemplateButton.cpp
   prism-ui/main/PLSTemplateButton.ui
@@ -641,6 +649,14 @@ target_sources(
   prism-ui/main/MutiLanguageTestView.cpp
   prism-ui/main/MutiLanguageTestView.ui
 )
+
+set(dualOutputSource prism-ui/dual-output/PLSDualOutputConst.h prism-ui/dual-output/PLSDualOutputTitle.h prism-ui/dual-output/PLSDualOutputTitle.cpp)
+target_sources(
+    PRISMLiveStudio
+    PRIVATE ${dualOutputSource}  
+)
+source_group(dual-output FILES ${dualOutputSource})
+
 #scene template
 add_subdirectory(prism-ui/scene-templates)
 target_sources(PRISMLiveStudio PRIVATE ${SCENE-TEMPLATE_HDR_FILES})
@@ -649,6 +665,11 @@ target_sources(PRISMLiveStudio PRIVATE ${SCENE-TEMPLATE_UI_FILES})
 
 # group platformapi group all files
 set(SceneTemplateALllFiles ${SCENE-TEMPLATE_HDR_FILES} ${SCENE-TEMPLATE_SRC_FILES} ${SCENE-TEMPLATE_UI_FILES})
+
+# test tools
+add_subdirectory(prism-ui/test-tools)
+target_include_directories(PRISMLiveStudio PRIVATE prism-ui/test-tools)
+target_sources(PRISMLiveStudio PRIVATE ${test-tools-SRC_FILES} ${test-tools-HDR_FILES} ${test-tools-UI_FILES})
 
 foreach(FILE ${SceneTemplateALllFiles})
 
@@ -743,6 +764,11 @@ file(GLOB PLSAudioMixer_FILES prism-ui/audio-mixer/*)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/audio-mixer/ PREFIX audio-mixer FILES ${PLSAudioMixer_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PLSAudioMixer_FILES})
 
+#prism sticker
+file(GLOB PRISMSticker_FILES prism-ui/prism-sticker/*)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/prism-sticker/ PREFIX prism-sticker FILES ${PRISMSticker_FILES})
+target_sources(PRISMLiveStudio PRIVATE ${PRISMSticker_FILES})
+
 # platform api
 target_sources(PRISMLiveStudio PRIVATE ${PLSPlatformApi-HDR_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PLSPlatformApi-SRC_FILES})
@@ -782,6 +808,7 @@ target_sources(PRISMLiveStudio PRIVATE ${PRISMLogin-SRC1_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PRISMLogin-SRC2_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PRISMLogin-HDR_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PRISMLogin-UI_FILES})
+
 
 if(OS_WINDOWS)
   target_sources(PRISMLiveStudio PRIVATE prism-ui/main/unzip.h)
@@ -907,6 +934,7 @@ if(OS_WINDOWS)
     PRISMLiveStudio
     PRIVATE obs-ui/obs.manifest
     obs-ui/platform-windows.cpp
+    obs-ui/system-info-windows.cpp
     #obs-ui/win-update/update-window.cpp
     #obs-ui/win-update/update-window.hpp
     #obs-ui/win-update/win-update.cpp
@@ -1010,7 +1038,8 @@ elseif(OS_MACOS)
     target_link_libraries(PRISMLiveStudio PRIVATE ${SPARKLE})
   endif()
 
-  target_sources(PRISMLiveStudio PRIVATE obs-ui/platform-osx.mm)
+  target_sources(PRISMLiveStudio PRIVATE obs-ui/platform-osx.mm
+    obs-ui/system-info-macos.mm)
   target_sources(PRISMLiveStudio PRIVATE obs-ui/forms/OBSPermissions.ui
     obs-ui/window-permissions.cpp
     obs-ui/window-permissions.hpp)
@@ -1136,6 +1165,7 @@ target_compile_definitions(PRISMLiveStudio PRIVATE "SAFE_MODULES=\"${SAFE_MODULE
 # setup_target_resources(PRISMLiveStudio obs-studio)
 # add_target_resource(PRISMLiveStudio $ENV{OBS_SRC_DIR}/AUTHORS
 # obs-studio/authors)
+# copy_common_libs_data(PRISMLiveStudio ../../../build/common/errorExcel2Json.py data/prism-studio/resources)
 if(OS_MACOS)
   copy_common_libs_data(PRISMLiveStudio data data/prism-studio)
   copy_common_libs_data(PRISMLiveStudio prism-ui/main/PLSDrawPen/data data/libobs)

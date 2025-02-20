@@ -389,3 +389,8 @@ void InstallNSApplicationSubclass()
 {
     [OBSApplication sharedApplication];
 }
+
+bool HighContrastEnabled()
+{
+    return [[NSWorkspace sharedWorkspace] accessibilityDisplayShouldIncreaseContrast];
+}

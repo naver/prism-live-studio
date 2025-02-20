@@ -144,7 +144,7 @@ static void def_obs_crash_handler(const char *fmt, va_list args, void *param)
 	vsnprintf(desc.data(), desc.size(), fmt, args);
 
 	auto reason = parse_bcrash_reason(desc.data());
-	PLS_LOGEX(PLS_LOG_ERROR, NOTICE_MODULE, {{"EngineCrash", reason.c_str()}}, "bcrash is called from libobs, reason: %s", desc.data());
+	PLS_LOGEX(PLS_LOG_ERROR, NOTICE_MODULE, {{PTS_LOG_TYPE, PTS_TYPE_EVENT}, {"EngineCrash", reason.c_str()}}, "bcrash is called from libobs, reason: %s", desc.data());
 
 	auto title = QTStr("obs.engine.error.title");
 	auto content = QTStr("obs.engine.error.content").arg(desc.data());
