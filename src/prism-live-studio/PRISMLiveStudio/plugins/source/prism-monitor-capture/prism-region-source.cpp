@@ -34,6 +34,8 @@ const auto REGION_KEY_TOP = "top";
 const auto REGION_KEY_WIDTH = "width";
 const auto REGION_KEY_HEIGHT = "height";
 
+extern bool graphics_uses_d3d11;
+
 typedef BOOL (*PFN_winrt_capture_supported)();
 typedef BOOL (*PFN_winrt_capture_cursor_toggle_supported)();
 typedef struct winrt_capture *(*PFN_winrt_capture_init_window)(BOOL cursor, HWND window, BOOL client_area, BOOL force_sdr);
@@ -92,7 +94,7 @@ struct prism_region_source {
 	bool bRectangleValid = false;
 	bool previously_failed = false;
 	void *winrt_module = nullptr;
-	struct winrt_exports exports;
+	struct winrt_exports exports = {0};
 	struct winrt_capture *capture_winrt = nullptr;
 
 	PLSGdiCapture gdi_capture;
@@ -150,16 +152,16 @@ bool prism_region_settings::region_empty() const
 	}
 }
 
-#define WINRT_IMPORT(func)                                           \
-	do {                                                         \
+#define WINRT_IMPORT(func)                                             \
+	do {                                                           \
 		exports->func = (PFN_##func)os_dlsym(szModule, #func); \
-		if (!exports->func) {                                \
-			success = false;                             \
-			blog(LOG_ERROR,                              \
-			     "Could not load function '%s' from "    \
-			     "module '%s'",                          \
-			     #func, module_name);                    \
-		}                                                    \
+		if (!exports->func) {                                  \
+			success = false;                               \
+			blog(LOG_ERROR,                                \
+			     "Could not load function '%s' from "      \
+			     "module '%s'",                            \
+			     #func, module_name);                      \
+		}                                                      \
 	} while (false)
 
 static bool load_winrt_imports(struct winrt_exports *exports, void *szModule, const char *module_name)
@@ -183,18 +185,23 @@ static bool load_winrt_imports(struct winrt_exports *exports, void *szModule, co
 
 prism_region_source::prism_region_source(obs_data_t *settings, obs_source_t *source_) : source(source_)
 {
-	static const char *const szModule = "libobs-winrt";
-	winrt_module = os_dlopen(szModule);
-	if (nullptr != winrt_module) {
-		load_winrt_imports(&exports, winrt_module, szModule);
-	}
-	else
-	{
+	if (graphics_uses_d3d11) {
+		static const char *const szModule = "libobs-winrt";
+		winrt_module = os_dlopen(szModule);
+		if (nullptr != winrt_module) {
+			load_winrt_imports(&exports, winrt_module, szModule);
+		} else {
+			static auto bLog = true;
+			if (bLog) {
+				bLog = false;
+				warn("load %s failed", szModule);
+			}
+		}
+	} else {
 		static auto bLog = true;
-		if (bLog)
-		{
+		if (bLog) {
 			bLog = false;
-			warn("load %s failed", szModule);
+			info("d3d11 renderer is not being used, fallback to gdi capture.");
 		}
 	}
 
@@ -219,11 +226,8 @@ tuple<bool, HMONITOR, int, int> prism_region_source::check_region()
 
 	std::vector<monitor_info> monitors = PLSMonitorManager::get_instance()->get_monitor();
 	for (const auto &item : monitors) {
-		if (region_settings.left <= item.offset_x + item.width
-			&& region_settings.top <= item.offset_y + item.height 
-			&& region_settings.left + region_settings.width >= item.offset_x
-			&& region_settings.top + region_settings.height >= item.offset_y)
-		{
+		if (region_settings.left <= item.offset_x + item.width && region_settings.top <= item.offset_y + item.height && region_settings.left + region_settings.width >= item.offset_x &&
+		    region_settings.top + region_settings.height >= item.offset_y) {
 			++iMonitors;
 			hMonitor = item.handle;
 			iLeft = item.offset_x;
@@ -248,17 +252,15 @@ void prism_region_source::tick()
 
 	auto checkResult = check_region();
 	auto [bValid, hMonitor, iLeft, iTop] = checkResult;
-	
+
 	bRectangleValid = bValid;
-	if (!bRectangleValid)
-	{
+	if (!bRectangleValid) {
 		return;
 	}
 
 	PLSAutoLockRender alr;
 
-	if (lastCheck != checkResult)
-	{
+	if (lastCheck != checkResult) {
 		lastCheck = checkResult;
 		if (nullptr != capture_winrt) {
 			exports.winrt_capture_free(capture_winrt);
@@ -267,7 +269,7 @@ void prism_region_source::tick()
 	}
 
 	if (nullptr == capture_winrt && !previously_failed && nullptr != exports.winrt_capture_init_desktop) {
-		
+
 		RECT rect = {region_settings.left - iLeft, region_settings.top - iTop, region_settings.left - iLeft + region_settings.width, region_settings.top - iTop + region_settings.height};
 		if (rect.left < 0)
 			rect.left = 0;
@@ -283,8 +285,7 @@ void prism_region_source::tick()
 		}
 	}
 
-	if (nullptr != capture_winrt)
-	{
+	if (nullptr != capture_winrt) {
 		return;
 	}
 
@@ -351,9 +352,8 @@ void prism_region_source::update(obs_data_t *settings)
 	temp.capture_cursor = obs_data_get_bool(settings, REGION_KEY_CAPTURE_CURSOR);
 	obs_data_release(region_obj);
 
-	bool bChanged = temp.capture_cursor != region_settings.capture_cursor
-		|| temp.left != region_settings.left || temp.top != region_settings.top 
-		|| temp.width != region_settings.width || temp.height != region_settings.height;
+	bool bChanged = temp.capture_cursor != region_settings.capture_cursor || temp.left != region_settings.left || temp.top != region_settings.top || temp.width != region_settings.width ||
+			temp.height != region_settings.height;
 
 	temp.keep_valid();
 	region_settings = temp;
@@ -408,7 +408,7 @@ void register_prism_region_source()
 	info.create = [](obs_data_t *settings, obs_source_t *source) -> void * {
 		PLSMonitorManager::get_instance()->reload_monitor(false);
 		return pls_new<prism_region_source>(settings, source);
-		};
+	};
 
 	info.destroy = [](void *data) {
 		obs_queue_task(

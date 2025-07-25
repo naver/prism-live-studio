@@ -1222,10 +1222,8 @@ void PLSNaverShoppingLIVEProductDialogView::onLineEditSetFocus()
 
 void PLSNaverShoppingLIVEProductDialogView::onFlushLineEditStyle()
 {
-	QMetaObject::invokeMethod(
-		this, [this]() { pls_flush_style(ui->storeSearchBarLineEdit); }, Qt::QueuedConnection);
-	QMetaObject::invokeMethod(
-		this, [this]() { pls_flush_style(ui->searchSearchBarLineEdit); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(this, [this]() { pls_flush_style(ui->storeSearchBarLineEdit); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(this, [this]() { pls_flush_style(ui->searchSearchBarLineEdit); }, Qt::QueuedConnection);
 }
 
 void PLSNaverShoppingLIVEProductDialogView::doSearchTabSearch()

@@ -5,6 +5,7 @@
 #include "pls/pls-obs-api.h"
 #include "window-basic-main.hpp"
 #include "libresource.h"
+#include "pls/pls-source.h"
 
 #include <QMetaEnum>
 #include <QDir>
@@ -96,7 +97,7 @@ QList<QString> PLSNodeManager::getScenesNames(const SceneTemplateItem &data)
 	return scenesNames;
 }
 
-NodeErrorType PLSNodeManager::loadConfig(const QString &templateName, const QString &path, QString &outputPath)
+NodeErrorType PLSNodeManager::loadConfig(const QString &templateName, const QString &path, bool isPaidSceneTemplate, QString &outputPath)
 {
 	auto file = QDir(path).filePath("config.json");
 	if (!QFile::exists(file)) {
@@ -119,7 +120,8 @@ NodeErrorType PLSNodeManager::loadConfig(const QString &templateName, const QStr
 
 	addFont(path);
 
-	PLSNodeManagerPtr->setTemplatesPath(path);
+	PLSNodeManagerPtr->updateSourcePath(isPaidSceneTemplate, path);
+
 	QJsonObject outputObject;
 	auto errType = PLSNodeManagerPtr->loadNodeInfo(nodeType, rootObject, outputObject);
 	if (errType != NodeErrorType::Ok) {
@@ -127,6 +129,7 @@ NodeErrorType PLSNodeManager::loadConfig(const QString &templateName, const QStr
 		return errType;
 	}
 	outputObject["name"] = templateName;
+	outputObject[SCENE_PAID_KEY_NAME] = isPaidSceneTemplate;
 	outputPath = QDir(path).filePath("output.json");
 	QString error;
 	if (pls_write_json(outputPath, outputObject, &error)) {
@@ -155,8 +158,7 @@ void PLSNodeManager::createCopyFileThread()
 			}
 		},
 		Qt::QueuedConnection);
-	connect(
-		copyFileWorker, &CopyFileWorker::zipFinished, this, [this](bool res) { emit zipFinished(res); }, Qt::QueuedConnection);
+	connect(copyFileWorker, &CopyFileWorker::zipFinished, this, [this](bool res) { emit zipFinished(res); }, Qt::QueuedConnection);
 	copyFileWorker->moveToThread(copyFileThread);
 	copyFileThread->start();
 }
@@ -186,6 +188,13 @@ void PLSNodeManager::initSourceUpgradeInfo()
 
 	// source update to
 	sourceUpdateMap.insert(PRISM_CHAT_SOURCE_ID, PRISM_CHATV2_SOURCE_ID);
+}
+
+void PLSNodeManager::updateSourcePath(bool isPaidSceneTemplate, const QString &originalPath)
+{
+	auto trialPath = originalPath;
+	trialPath.replace("\\", "/");
+	PLSNodeManagerPtr->setTemplatesPath(trialPath);
 }
 
 NodeErrorType PLSNodeManager::loadNodeInfo(const QString &nodeType, const QJsonObject &content, QJsonObject &output)
@@ -363,7 +372,7 @@ void PLSNodeManager::setTemplatesPath(const QString &templatesPath_)
 
 QString PLSNodeManager::getTemplatesPath()
 {
-	return templatesPath + QDir::separator();
+	return templatesPath + "/";
 }
 
 void PLSNodeManager::doCopy(const QString &src, const QString &dest)
@@ -406,7 +415,7 @@ void PLSNodeManager::doZip(const QString &zipName)
 
 QString PLSNodeManager::getExportPath()
 {
-	return QDir(exportDir).filePath(exportZipName) + QDir::separator();
+	return QDir(exportDir).filePath(exportZipName) + "/";
 }
 
 void PLSNodeManager::addFont(const QString &fontPath)
@@ -581,6 +590,10 @@ void PLSNodeManager::registerObsDefaultSource()
 
 	PLSTextNode *text = pls_new<PLSTextNode>(GDIP_TEXT_SOURCE_ID_V2);
 	addNode(NodeType::TextNode, text);
+
+#if defined(Q_OS_WINDOWS)
+	addNode(NodeType::TextNode, pls_new<PLSTextNode>("text_gdiplus_v3"));
+#endif // Q_OS_WINDOWS
 
 	PLSScenesNode *scenes = pls_new<PLSScenesNode>(SCENE_SOURCE_ID);
 	addNode(NodeType::ScenesNode, scenes);

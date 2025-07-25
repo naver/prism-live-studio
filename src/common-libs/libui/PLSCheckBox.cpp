@@ -82,6 +82,15 @@ void PLSCheckBox::setCheckState(Qt::CheckState state)
 	setChecked(state == Qt::Checked);
 }
 
+void PLSCheckBox::setWordWrap(bool on)
+{
+	m_text->setWordWrap(on);
+}
+bool PLSCheckBox::wordWrap() const
+{
+	return m_text->wordWrap();
+}
+
 int PLSCheckBox::getSpac() const
 {
 	return m_spac;

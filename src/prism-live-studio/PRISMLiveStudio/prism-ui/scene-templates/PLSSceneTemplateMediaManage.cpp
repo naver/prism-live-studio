@@ -4,9 +4,7 @@
 #include <pls/media-info.h>
 #include <QDir>
 
-PLSSceneTemplateMediaManage::PLSSceneTemplateMediaManage(QObject *parent) : QObject(parent) {
-	
-}
+PLSSceneTemplateMediaManage::PLSSceneTemplateMediaManage(QObject *parent) : QObject(parent) {}
 
 PLSSceneTemplateMediaManage *PLSSceneTemplateMediaManage::instance()
 {
@@ -80,7 +78,7 @@ PLSSceneTemplateContainer *PLSSceneTemplateMediaManage::getSceneTemplateContaine
 	return m_sceneContainer;
 }
 
-void PLSSceneTemplateMediaManage::setSceneTemplateContainer(PLSSceneTemplateContainer *container) 
+void PLSSceneTemplateMediaManage::setSceneTemplateContainer(PLSSceneTemplateContainer *container)
 {
 	m_sceneContainer = container;
 }
@@ -93,7 +91,7 @@ void PLSSceneTemplateMediaManage::enterDetailScenePage(const SceneTemplateItem &
 	m_sceneContainer->showDetailSceneTemplatePage(mode);
 }
 
-void PLSSceneTemplateMediaManage::enterMainScenePage() 
+void PLSSceneTemplateMediaManage::enterMainScenePage()
 {
 	if (!pls_object_is_valid(m_sceneContainer)) {
 		return;
@@ -101,7 +99,7 @@ void PLSSceneTemplateMediaManage::enterMainScenePage()
 	m_sceneContainer->showMainSceneTemplatePage();
 }
 
-bool PLSSceneTemplateMediaManage::isVideoType(const QString &path) 
+bool PLSSceneTemplateMediaManage::isVideoType(const QString &path)
 {
 	QFileInfo fileInfo(path);
 	bool valid = true;
@@ -109,7 +107,7 @@ bool PLSSceneTemplateMediaManage::isVideoType(const QString &path)
 		valid = false;
 	} else {
 		QStringList allFilterExtensionList;
-		allFilterExtensionList << "mp4";
+		allFilterExtensionList << "mp4" << "webm";
 		if (!allFilterExtensionList.contains(fileInfo.suffix().toLower())) {
 			valid = false;
 		}

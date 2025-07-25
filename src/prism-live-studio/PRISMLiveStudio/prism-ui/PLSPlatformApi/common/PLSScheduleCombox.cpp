@@ -104,8 +104,7 @@ void PLSScheduleCombox::resizeEvent(QResizeEvent *event)
 
 	QPushButton::resizeEvent(event);
 
-	QMetaObject::invokeMethod(
-		this, [this]() { updateTitle(m_titleString); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(this, [this]() { updateTitle(m_titleString); }, Qt::QueuedConnection);
 }
 
 void PLSScheduleCombox::showScheduleMenu(const vector<PLSScheComboxItemData> &datas)

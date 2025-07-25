@@ -185,7 +185,7 @@ void PLSSceneTransitionsView::AddTransition()
 		ui->transitions->setCurrentIndex(ui->transitions->count() - 1);
 		main = PLSBasic::instance();
 		if (main) {
-			main->CreatePropertiesWindow(source, OPERATION_NONE /*, this*/); //TODO
+			main->CreatePropertiesWindow(source, OPERATION_NONE);
 			main->OnTransitionAdded();
 		}
 		obs_source_release(source);

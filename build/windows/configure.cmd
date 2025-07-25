@@ -29,7 +29,6 @@ if "%PACK_TYPE_ARG%"=="test" (
 if "%ENABLE_TEST%"=="ON" echo unit test enabled.
 
 call common_values.cmd
-
 if ERRORLEVEL 1 exit /b 1
 rem cd %_PROJECT_DIR%
 rem git submodule update --init --recursive

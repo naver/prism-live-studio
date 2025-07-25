@@ -15,7 +15,7 @@ public:
 signals:
 	void SearchTrigger(const QString &key);
 	void SearchMenuRequested(bool show);
-    void SearchIconClicked(const QString &key);
+	void SearchIconClicked(const QString &key);
 
 protected:
 	void focusInEvent(QFocusEvent *e) override;
@@ -24,8 +24,8 @@ protected:
 	void mousePressEvent(QMouseEvent *event) override;
 
 private:
-    void updatePlaceHolderColor();
-    
+	void updatePlaceHolderColor();
+
 	QToolButton *toolBtnSearch;
 	QPushButton *deleteBtn;
 };

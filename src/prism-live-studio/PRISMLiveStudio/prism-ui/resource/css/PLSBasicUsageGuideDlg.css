@@ -1,0 +1,44 @@
+PLSBasicUsageGuideDlg{
+	min-width:/*hdpi*/ 650px;
+	max-width: /*hdpi*/ 650px;	
+	min-height: /*hdpi*/ 530px;
+	max-height: /*hdpi*/ 530px;
+	border:/*hdpi*/1px solid #111111;
+	background-color: #282828;
+}
+
+PLSBasicUsageGuideDlg #content{
+    background-color: #282828;
+}
+
+PLSBasicUsageGuideDlg #basicTitleLabel{
+	font-size:/*hdpi*/ 20px;
+	font-weight: bold;
+	color: #f1fd56;
+	background: transparent;
+}
+
+PLSBasicUsageGuideDlg #basicTitleDescLabel, PLSBasicUsageGuideDlg #basicChannelDescLabel, 
+PLSBasicUsageGuideDlg #basicSceneDescLabel, PLSBasicUsageGuideDlg #basicTemplateDescLabel, 
+PLSBasicUsageGuideDlg #basicChatDescLabel{
+	font-size:/*hdpi*/ 14px;
+	color: #bababa;	
+	font-weight: bold;
+	background: transparent;
+}
+
+PLSBasicUsageGuideDlg #seperatorLabel{	
+	min-height: /*hdpi*/ 1px;
+	max-height: /*hdpi*/ 1px;	
+	background-color: #111111;
+}
+
+PLSBasicUsageGuideDlg #gotoPlusBtn, PLSBasicUsageGuideDlg #closeBtn{
+	min-width:/*hdpi*/ 128px;
+	max-width: /*hdpi*/ 128px;	
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;	
+	background-color: #454545;
+	padding: 0;
+	margin: 0;
+}

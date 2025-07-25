@@ -29,7 +29,6 @@ public:
 	bool isSendChatToMqtt() const override;
 	QJsonObject getLiveStartParams() override;
 	void onInitDataChanged() override;
-	bool onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject) override;
 
 	bool isMqttChatCanShow(const QJsonObject &) override;
 	QMap<QString, QString> getDirectEndParams() override;
@@ -220,8 +219,9 @@ private:
 			   const std::function<void(bool expired, int code, const PLSErrorHandler::RetData &data)> &fail, const QObject *receiver = nullptr, ApiId apiId = ApiId::Other,
 			   const QVariantMap &headers = QVariantMap(), bool expiredNotify = true, bool popupNeedShow = true, bool popupGenericError = true, const QString &customErrName = QString());
 	void processFailed(const char *log, const QByteArray &respJson, QString customErrName, const std::function<void(bool expired, int code, const PLSErrorHandler::RetData &data)> &fail,
-			   const QObject *receiver, QNetworkReply::NetworkError networkError, int statusCode, bool expiredNotify, bool popupNeedShow, bool popupGenericError, ApiId apiId);
-	void tokenExpired(bool expiredNotify, bool popupNeedShow);
+			   const QObject *receiver, QNetworkReply::NetworkError networkError, int statusCode, bool expiredNotify, bool popupNeedShow, bool popupGenericError, ApiId apiId,
+			   const QString &urlEn);
+	void tokenExpired(bool expiredNotify, bool popupNeedShow, PLSErrorHandler::RetData &data);
 
 	bool primary = false;
 

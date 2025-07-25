@@ -14,21 +14,16 @@
 #include "../win-spout-config.h"
 #include "../win-spout.h"
 
-
 //PRISM/fanzirong/20240401/4932/Modify the UI style and unify it with PRISM
-win_spout_output_settings::win_spout_output_settings(QWidget* parent)
-	: PLSDialogView(parent),
-	ui(new Ui::win_spout_output_settings)
+win_spout_output_settings::win_spout_output_settings(QWidget *parent) : PLSDialogView(parent), ui(new Ui::win_spout_output_settings)
 {
 	setupUi(ui);
 	setFixedSize(QSize(410, 269));
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
-	connect(ui->pushButton_start, SIGNAL(clicked(bool)), this,
-		SLOT(on_start()));
-	connect(ui->pushButton_stop, SIGNAL(clicked(bool)), this,
-		SLOT(on_stop()));
+	connect(ui->pushButton_start, SIGNAL(clicked(bool)), this, SLOT(on_start()));
+	connect(ui->pushButton_stop, SIGNAL(clicked(bool)), this, SLOT(on_stop()));
 
-	win_spout_config* config = win_spout_config::get();
+	win_spout_config *config = win_spout_config::get();
 
 	setWindowTitle(obs_module_text("spoutoutputsettings"));
 	ui->label_spoutname->setText(obs_module_text("spoutoutputname"));
@@ -39,12 +34,13 @@ win_spout_output_settings::win_spout_output_settings(QWidget* parent)
 	ui->lineEdit_spoutname->setText(config->spout_output_name);
 
 	set_started_button_state(true);
-	if (config->auto_start) on_start();
+	if (config->auto_start)
+		on_start();
 }
 
 void win_spout_output_settings::save_settings()
 {
-	win_spout_config* config = win_spout_config::get();
+	win_spout_config *config = win_spout_config::get();
 	config->auto_start = ui->checkBox_auto->isChecked();
 	config->spout_output_name = ui->lineEdit_spoutname->text();
 	win_spout_config::get()->save();
@@ -56,7 +52,7 @@ win_spout_output_settings::~win_spout_output_settings()
 	delete ui;
 }
 
-void win_spout_output_settings::close_event(QCloseEvent* event)
+void win_spout_output_settings::close_event(QCloseEvent *event)
 {
 	UNUSED_PARAMETER(event);
 	save_settings();
@@ -64,8 +60,10 @@ void win_spout_output_settings::close_event(QCloseEvent* event)
 
 void win_spout_output_settings::toggle_show_hide()
 {
-	if (!isVisible()) setVisible(true);
-	else setVisible(false);
+	if (!isVisible())
+		setVisible(true);
+	else
+		setVisible(false);
 }
 
 void win_spout_output_settings::on_start()

@@ -15,8 +15,7 @@ class B2BResolutionGuideItem : public QFrame {
 public:
 	explicit B2BResolutionGuideItem(QWidget *parent = nullptr);
 	~B2BResolutionGuideItem() override;
-	void initialize(const B2BResolutionPara &data, ResolutionGuidePage * page);
-
+	void initialize(const B2BResolutionPara &data, ResolutionGuidePage *page);
 
 signals:
 	void sigResolutionSelected(const QString &solution);

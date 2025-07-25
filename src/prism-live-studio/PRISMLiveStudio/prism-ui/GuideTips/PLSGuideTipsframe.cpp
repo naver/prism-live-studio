@@ -20,6 +20,14 @@
 
 using namespace guide_tip_space;
 
+#if defined(Q_OS_MACOS)
+void removeParentWidgetOnMac(QWidget *widget)
+{
+	pls_check_app_exiting();
+	PLSCustomMacWindow::removeCurrentWindowFromParentWindow(widget);
+}
+#endif
+
 PLSGuideTipsFrame::PLSGuideTipsFrame(QWidget *parent) : BaseClass(parent), ui(new Ui::PLSGuideTipsFrame)
 {
 	ui->setupUi(this);
@@ -36,6 +44,9 @@ PLSGuideTipsFrame::PLSGuideTipsFrame(QWidget *parent) : BaseClass(parent), ui(ne
 PLSGuideTipsFrame::~PLSGuideTipsFrame()
 {
 	delete ui;
+#if defined(Q_OS_MACOS)
+	removeParentWidgetOnMac(this);
+#endif
 }
 
 void PLSGuideTipsFrame::setText(const QString &text)
@@ -133,10 +144,8 @@ void PLSGuideTipsFrame::locate()
 
 bool PLSGuideTipsFrame::eventFilter(QObject *watched, QEvent *event)
 {
-
 	//listened widget event
 	if (watched != this) {
-
 		switch (event->type()) {
 		case QEvent::Resize:
 		case QEvent::Show:
@@ -166,7 +175,7 @@ bool PLSGuideTipsFrame::eventFilter(QObject *watched, QEvent *event)
 			GuideRegisterManager::instance()->closeAll();
 			break;
 		case QEvent::NonClientAreaMouseButtonPress:
-			qDebug() << "  non ";
+			this->close();
 			break;
 		default:
 			break;
@@ -184,6 +193,9 @@ bool PLSGuideTipsFrame::eventFilter(QObject *watched, QEvent *event)
 			break;
 		}
 		emit needToUpdate();
+#if defined(Q_OS_MACOS)
+		PLSCustomMacWindow::addCurrentWindowToParentWindow(this);
+#endif
 		break;
 	case QEvent::WindowActivate:
 
@@ -562,6 +574,9 @@ void GuideRegisterManager::closeAll()
 		if (mCover) {
 			mCover->close();
 			mCover->deleteLater();
+#if defined(Q_OS_MACOS)
+			removeParentWidgetOnMac(mCover);
+#endif
 		}
 		return;
 	}
@@ -589,6 +604,9 @@ void GuideRegisterManager::closeAll()
 	mRegisters.clear();
 	mCover->close();
 	mCover->deleteLater();
+#if defined(Q_OS_MACOS)
+	removeParentWidgetOnMac(mCover);
+#endif
 }
 
 bool GuideRegisterManager::eventFilter(QObject *, QEvent *event)
@@ -685,7 +703,7 @@ GuideRegisterManager *GuideRegisterManager::instance()
 
 void GuideRegisterManager::load()
 {
-	auto displayVer = config_get_string(App()->GlobalConfig(), common::NEWFUNCTIONTIP_CONFIG, common::CONFIG_DISPLAYVERISON);
+	auto displayVer = config_get_string(App()->GetUserConfig(), common::NEWFUNCTIONTIP_CONFIG, common::CONFIG_DISPLAYVERISON);
 	if (pls_is_equal(displayVer, PLS_VERSION)) {
 		return;
 	}
@@ -712,18 +730,18 @@ void GuideRegisterManager::load()
 		registerGuide(reg);
 	}
 
-	config_set_string(App()->GlobalConfig(), common::NEWFUNCTIONTIP_CONFIG, common::CONFIG_DISPLAYVERISON, PLS_VERSION);
-	config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
+	config_set_string(App()->GetUserConfig(), common::NEWFUNCTIONTIP_CONFIG, common::CONFIG_DISPLAYVERISON, PLS_VERSION);
+	config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
 }
 
 void GuideRegisterManager::createCover()
 {
 	pls_check_app_exiting();
-#if defined(Q_OS_MACOS)
-	auto cover = new QLabel(nullptr, Qt::Dialog | Qt::FramelessWindowHint);
-	cover->setStyleSheet("background-color:transparent;");
-#else
 	auto cover = new QLabel(pls_get_main_view(), Qt::Dialog | Qt::FramelessWindowHint);
+#if defined(Q_OS_MACOS)
+	cover->setStyleSheet("background-color:rgba(0,0,0,0.01);");
+	PLSCustomMacWindow::addCurrentWindowToParentWindow(cover);
+#else
 	cover->setWindowOpacity(0.01);
 #endif
 	cover->installEventFilter(this);
@@ -811,8 +829,7 @@ void GuideRegisterManager::beginShow()
 		if (!mRegisters.isEmpty()) {
 			QTimer::singleShot(100, this, &GuideRegisterManager::createCover);
 		}
-		bool isDontShow = config_get_bool(App()->GlobalConfig(), common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW);
-		if (!isDontShow) {
+		if (PLSLaunchWizardView::instance()->isNeedShow()) {
 			PLS_INFO(MAINFRAME_MODULE, "bringLauncherToFront the prism is shown");
 			PLSLaunchWizardView::instance()->firstShow();
 		}

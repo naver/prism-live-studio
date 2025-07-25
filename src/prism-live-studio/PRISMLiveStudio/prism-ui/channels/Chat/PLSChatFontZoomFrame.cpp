@@ -13,7 +13,7 @@ PLSChatFontZoomFrame::PLSChatFontZoomFrame(QWidget *parent, QWidget *ignoreWidge
 	ui->setupUi(this);
 
 	pls_add_css(this, {"PLSChatFontZoomFrame"});
-	updateUIWithScale(PLSChatHelper::getFontSacleSize());
+	updateUIWithScale(PLSChatHelper::getFontScaleSize());
 	auto centerShow = [this, parent]() {
 		QPoint parentTB = parent->mapToGlobal(QPoint(parent->width(), parent->height()));
 		QPoint popLeftTop = {parentTB.x() - 174, parentTB.y() + 6};
@@ -58,8 +58,7 @@ bool PLSChatFontZoomFrame::eventFilter(QObject *i_Object, QEvent *i_Event)
 {
 	if (i_Object == this && (i_Event->type() == QEvent::MouseButtonPress)) {
 		if (isClickInWidget(i_Event, parentWidget()) || isClickInWidget(i_Event, m_ignoreWidget)) {
-			QMetaObject::invokeMethod(
-				this, [this]() { this->close(); }, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(this, [this]() { this->close(); }, Qt::QueuedConnection);
 			return true;
 		}
 	}
@@ -69,7 +68,7 @@ bool PLSChatFontZoomFrame::eventFilter(QObject *i_Object, QEvent *i_Event)
 
 void PLSChatFontZoomFrame::fontChangeBtnClick(bool isPlus)
 {
-	auto newScale = PLS_CHAT_HELPER->getNextSacelSize(isPlus);
+	auto newScale = PLS_CHAT_HELPER->getNextScaleSize(isPlus);
 	PLSChatHelper::sendWebChatFontSizeChanged(newScale);
 	updateUIWithScale(newScale);
 }
@@ -81,9 +80,9 @@ void PLSChatFontZoomFrame::updateUIWithScale(int scale)
 	ui->pushButton_minus->setEnabled(true);
 	ui->pushButton_plus->setEnabled(true);
 
-	if (PLSChatHelper::ChatFontSacle::PlusDisable == scaleStatus) {
+	if (PLSChatHelper::ChatFontScale::PlusDisable == scaleStatus) {
 		ui->pushButton_plus->setEnabled(false);
-	} else if (PLSChatHelper::ChatFontSacle::MinusDisable == scaleStatus) {
+	} else if (PLSChatHelper::ChatFontScale::MinusDisable == scaleStatus) {
 		ui->pushButton_minus->setEnabled(false);
 	}
 	ui->sizeLabel->setText(QString("%1%").arg(scale));

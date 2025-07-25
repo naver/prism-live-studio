@@ -98,7 +98,7 @@ void GiphyDownloader::excuteTask(const DownloadTaskData &taskData)
 	}
 	QString filename = saveFileName(url, taskData.uniqueId, tail);
 	taskDownloads.insert(url, taskData);
-	pls::rsm::getDownloader()->download(pls::rsm::UrlAndHowSave()                                      //
+	pls::rsm::getDownloader()->download(pls::rsm::UrlAndHowSave() //
 						    .keyPrefix(QStringLiteral("giphy-") + filename)
 						    .fileName(filename)                                    //
 						    .saveDir(pls_get_user_path(GIPHY_STICKERS_CACHE_PATH)) //

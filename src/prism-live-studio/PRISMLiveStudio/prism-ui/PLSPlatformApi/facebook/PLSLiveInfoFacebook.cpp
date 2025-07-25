@@ -518,9 +518,11 @@ void PLSLiveInfoFacebook::doUpdateOkState()
 	QString newPrivacy = ui->shareSecondObject->getComboBoxTitle();
 	if (newPrivacy == GROUP_COMBOX_DEFAULT_TEXT || newPrivacy == PAGE_COMBOX_DEFAULT_TEXT) {
 		ui->okButton->setEnabled(false);
+		ui->okButton->parentWidget()->repaint();
 		return;
 	}
 	ui->okButton->setEnabled(true);
+	ui->okButton->parentWidget()->repaint();
 }
 
 void PLSLiveInfoFacebook::getTimelineOrGroupOrPageInfoRequest()
@@ -555,6 +557,7 @@ void PLSLiveInfoFacebook::startLivingRequest()
 		hideLoading();
 
 		if (retData.prismCode == PLSErrorHandler::SUCCESS) {
+			PLS_LOGEX(PLS_LOG_INFO, liveInfoMoudule, {{"platformName", "facebook"}, {"startLiveStatus", "Success"}}, "facebook start live success");
 			accept();
 			return;
 		}

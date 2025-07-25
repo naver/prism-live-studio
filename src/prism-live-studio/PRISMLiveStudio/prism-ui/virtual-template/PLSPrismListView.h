@@ -16,7 +16,7 @@ class PLSPrismListView : public QFrame {
 	Q_OBJECT
 
 public:
-	explicit PLSPrismListView(const QString& groupId, QWidget *parent = nullptr);
+	explicit PLSPrismListView(const QString &groupId, QWidget *parent = nullptr);
 	~PLSPrismListView() override;
 	bool setSelectedItem(const QString &itemId);
 	void setItemSelectedEnabled(bool enabled);

@@ -77,6 +77,7 @@ public:
 	explicit PLSBasicStatusPanel(QWidget *parent = nullptr);
 
 	static void InitializeValues();
+	void Reset();
 
 	enum class StreamingNoticeType {
 		NoticeTransmissionBitrateWarning = 0,
@@ -99,10 +100,9 @@ public slots:
 	void onDualOutputChanged(bool bDualOutput);
 
 protected:
-    void showEvent(QShowEvent *event) override;
-    
-private:
+	void showEvent(QShowEvent *event) override;
 
+private:
 	Ui::PLSBasicStatusPanel *ui;
 
 	bool lastActive = false;

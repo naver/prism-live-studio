@@ -16,6 +16,9 @@ namespace Ui {
 class PLSAlertView;
 }
 
+LIBUI_API extern const QString AlertKeyDisableEsc;
+LIBUI_API extern const QString AlertKeyDisableAltF4;
+
 /**
  * @class PLSAlertView
  * @brief common popup alert
@@ -45,11 +48,11 @@ public:
 	* @param[in]  sugsize          : the window sugsize
 	*/
 	explicit PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const Buttons &buttons, Button defaultButton = Button::NoButton,
-			      const QMap<QString, QVariant> &otherConfig = QMap<QString, QVariant>());
+			      const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 	explicit PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons,
-			      Button defaultButton = Button::NoButton, const QMap<QString, QVariant> &otherConfig = QMap<QString, QVariant>());
+			      Button defaultButton = Button::NoButton, const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 	explicit PLSAlertView(Icon icon, const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, PLSAlertView::Buttons buttons,
-			      Button defaultButton = Button::NoButton, const QMap<QString, QVariant> &otherConfig = QMap<QString, QVariant>());
+			      Button defaultButton = Button::NoButton, const QMap<QString, QVariant> &properties = QMap<QString, QVariant>());
 	~PLSAlertView() override;
 
 	/**
@@ -277,6 +280,7 @@ private slots:
 protected:
 	void showEvent(QShowEvent *event) override;
 	void nativeResizeEvent(const QSize &size, const QSize &nativeSize) override;
+	void closeEvent(QCloseEvent *event);
 
 private:
 	Ui::PLSAlertView *ui = nullptr;
@@ -284,7 +288,7 @@ private:
 	PLSCheckBox *m_checkBox = nullptr;
 	QTimer *m_delayAutoClickTimer = nullptr;
 	int m_btnCount = 0;
-	QMap<QString, QVariant> m_otherConfig{};
+	QMap<QString, QVariant> m_savedProperties{};
 	bool m_needCorrectedHeight = false;
 	bool m_needUpdatePosWhenCorrectedHeight = false;
 };

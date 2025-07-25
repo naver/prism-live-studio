@@ -25,8 +25,7 @@ class SourceLabel : public QLabel {
 
 public:
 	explicit SourceLabel(QWidget *p) : QLabel(p) {}
-	explicit SourceLabel(const QString &text, QWidget *parent = nullptr,
-			     Qt::WindowFlags f = Qt::WindowFlags());
+	explicit SourceLabel(const QString &text, QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags());
 
 	~SourceLabel() override = default;
 
@@ -34,6 +33,7 @@ public:
 	void setText(const char *text);    // overwrite the func of QLabel
 	QString GetText() const;           // overwrite the func of QLabel
 	void appendDeviceName(const char *name, const char *appendDeviceName);
+	void setPadding(int value) { m_iPadding = value; }
 
 protected:
 	void resizeEvent(QResizeEvent *event) override;
@@ -43,6 +43,7 @@ protected:
 
 private:
 	QString currentText = "";
+	int m_iPadding = 5;
 };
 
 class OBSSourceLabel : public SourceLabel {
@@ -53,15 +54,11 @@ public:
 	OBSSignal removedSignal;
 	OBSSignal destroyedSignal;
 
-	OBSSourceLabel(const obs_source_t *source, QWidget *parent = nullptr,
-		       Qt::WindowFlags f = Qt::WindowFlags())
+	OBSSourceLabel(const obs_source_t *source, QWidget *parent = nullptr, Qt::WindowFlags f = Qt::WindowFlags())
 		: SourceLabel(nullptr, parent, f),
-		  renamedSignal(obs_source_get_signal_handler(source), "rename",
-				&OBSSourceLabel::SourceRenamed, this),
-		  removedSignal(obs_source_get_signal_handler(source), "remove",
-				&OBSSourceLabel::SourceRemoved, this),
-		  destroyedSignal(obs_source_get_signal_handler(source),
-				  "destroy", &OBSSourceLabel::SourceDestroyed,
+		  renamedSignal(obs_source_get_signal_handler(source), "rename", &OBSSourceLabel::SourceRenamed, this),
+		  removedSignal(obs_source_get_signal_handler(source), "remove", &OBSSourceLabel::SourceRemoved, this),
+		  destroyedSignal(obs_source_get_signal_handler(source), "destroy", &OBSSourceLabel::SourceDestroyed,
 				  this)
 	{
 		setText(obs_source_get_name(source));

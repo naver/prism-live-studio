@@ -29,9 +29,7 @@ void PLSModuleMonitor::StartMonitor()
 	updateTimer = pls_new<QTimer>();
 	updateTimer->setInterval(5000);
 
-	auto func = [this]() {
-		QtConcurrent::run([this]() { updateModuleList();});
-	};
+	auto func = [this]() { QtConcurrent::run([this]() { updateModuleList(); }); };
 
 	connect(updateTimer, &QTimer::timeout, func);
 	updateTimer->start();
@@ -84,7 +82,7 @@ void PLSModuleMonitor::updateModuleList()
 
 	QJsonArray modulelist{};
 	do {
-		char *moduleName = nullptr;
+		BPtr<char> moduleName = nullptr;
 		os_wcs_to_utf8_ptr(me32.szExePath, 0, &moduleName);
 
 		std::array<char, 128> modBaseAddr{};
@@ -96,7 +94,7 @@ void PLSModuleMonitor::updateModuleList()
 		moduleInfo.insert("modBaseAddr", modBaseAddr.data());
 		moduleInfo.insert("modEndAddr", modEndAddr.data());
 		moduleInfo.insert("SizeOfImage", (int)me32.modBaseSize);
-		moduleInfo.insert("ModuleName", moduleName);
+		moduleInfo.insert("ModuleName", moduleName.Get());
 		modulelist.append(moduleInfo);
 
 	} while (Module32Next(modules, &me32));

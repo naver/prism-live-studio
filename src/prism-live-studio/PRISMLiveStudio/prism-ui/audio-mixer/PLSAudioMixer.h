@@ -13,7 +13,7 @@ struct SourceObject {
 	std::string uuid;
 };
 
-using MixerList = std::vector<SourceObject>;                 // source uuid
+using MixerList = std::vector<SourceObject>;              // source uuid
 using SceneMixerOrder = std::map<std::string, MixerList>; // key: scene uuid
 
 class PLSMixerOrderHelper {

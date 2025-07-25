@@ -37,6 +37,8 @@ private:
 	void initSupportedPlatforms(const QJsonObject &policyPublishJsonObject);
 	void initWaterMark(const QJsonObject &waterMarkDefaultValueObject);
 	void initOutroPolicy(const QJsonObject &outroDefaultValueObject);
+	void initDiscordInfo(const QJsonObject &policyPublishJsonObject);
+	void initPlusUrl(const QJsonObject &policyPublishJsonObject);
 
 public:
 	const QVariantList &getResolutionsList();
@@ -67,6 +69,8 @@ public:
 	const QJsonObject &getLoginObject();
 	const QJsonObject &getWaterMarkConfigObject();
 	const QJsonObject &getOutroPolicyConfigObject();
+	const QString getDiscordUrl();
+	const QString getPlusUrl();
 
 	const QString &getWaterMarkResLocalPath(const QString &platformName);
 	const QVariantMap &getOutroResLocalPathAndText(const QString &platformName);
@@ -111,6 +115,8 @@ private:
 	QJsonObject m_outroObject;
 	QString m_watermarkLocalPath;
 	QVariantMap m_outroPathAndText;
+	QString m_strDiscordUrl;
+	QString m_plusUrl;
 };
 
 #define PLS_SYNC_SERVER_MANAGE PLSSyncServerManager::instance()

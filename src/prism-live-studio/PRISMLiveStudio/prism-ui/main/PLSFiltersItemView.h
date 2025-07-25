@@ -60,7 +60,7 @@ signals:
 	void FilterRemoveTriggered(PLSFiltersItemView *item);
 	void FinishingEditName(QWidget *editor, PLSFiltersItemView *item);
 	void CurrentItemChanged(PLSFiltersItemView *item);
-	void OnCreateCustomContextMenu(const QPoint& pos, bool async);
+	void OnCreateCustomContextMenu(const QPoint &pos, bool async);
 
 private:
 	Ui::PLSFiltersItemView *ui;
@@ -80,18 +80,19 @@ public:
 	explicit PLSFiltersItemDelegate(QObject *parent = nullptr);
 
 	void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
-	QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
+	QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const override;
+
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
-	void initStyleOption(QStyleOptionViewItem* option, const QModelIndex& index) const override;
+	void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override;
 };
 
 class PLSFiltersProxyStyle : public QProxyStyle {
 	Q_OBJECT
-		using QProxyStyle::QProxyStyle;
+	using QProxyStyle::QProxyStyle;
 
 public:
-	void drawPrimitive(PrimitiveElement element, const QStyleOption* option, QPainter* painter, const QWidget* widget) const override
+	void drawPrimitive(PrimitiveElement element, const QStyleOption *option, QPainter *painter, const QWidget *widget) const override
 	{
 		// customize the drop indicator style
 		if (element == QStyle::PE_IndicatorItemViewItemDrop) {
@@ -101,8 +102,7 @@ public:
 			painter->setPen(pen);
 			QProxyStyle::drawPrimitive(element, option, painter, widget);
 			painter->restore();
-		}
-		else {
+		} else {
 			QProxyStyle::drawPrimitive(element, option, painter, widget);
 		}
 	}

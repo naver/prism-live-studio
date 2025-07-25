@@ -304,9 +304,27 @@
         <file>resource/images/dual-output/ic_dock_setting_disable.png</file>
         <file>resource/images/dual-output/ic_dock_setting_hover.png</file>
         <file>resource/images/dual-output/ic_dock_setting_normal.png</file>
-        <file>resource/images/dual-output/ic_preview_h_unchecked.svg</file>
-        <file>resource/images/dual-output/ic_preview_v_unchecked.svg</file>
-        <file>resource/images/dual-output/ic_setting_tip.png</file>
+        <file>resource/images/dual-output/btn_source_horizontal_off_click.svg</file>
+        <file>resource/images/dual-output/btn_source_horizontal_off_disable.svg</file>
+        <file>resource/images/dual-output/btn_source_horizontal_off_normal.svg</file>
+        <file>resource/images/dual-output/btn_source_horizontal_off_over.svg</file>
+        <file>resource/images/dual-output/btn_source_horizontal_on_click.svg</file>
+        <file>resource/images/dual-output/btn_source_horizontal_on_disable.svg</file>
+        <file>resource/images/dual-output/btn_source_horizontal_on_normal.svg</file>
+        <file>resource/images/dual-output/btn_source_horizontal_on_over.svg</file>
+        <file>resource/images/dual-output/btn_source_vertical_off_click.svg</file>
+        <file>resource/images/dual-output/btn_source_vertical_off_disable.svg</file>
+        <file>resource/images/dual-output/btn_source_vertical_off_normal.svg</file>
+        <file>resource/images/dual-output/btn_source_vertical_off_over.svg</file>
+        <file>resource/images/dual-output/btn_source_vertical_on_click.svg</file>
+        <file>resource/images/dual-output/btn_source_vertical_on_disable.svg</file>
+        <file>resource/images/dual-output/btn_source_vertical_on_normal.svg</file>
+        <file>resource/images/dual-output/btn_source_vertical_on_over.svg</file>
+        <file>resource/images/dual-output/ic_source_horizontal_off_normal.svg</file>
+        <file>resource/images/dual-output/ic_source_vertical_on_normal.svg</file>
+        <file>resource/images/dual-output/ic_dock-dot.svg</file>
+        <file>resource/images/dual-output/ic_help_s_normal.svg</file>
+        <file>resource/images/dual-output/ic_help_s_hover.svg</file>
         <file>resource/images/dual-output/ic_preview_h.svg</file>
         <file>resource/images/dual-output/ic_preview_h_disabled.svg</file>
         <file>resource/images/dual-output/ic_preview_v.svg</file>

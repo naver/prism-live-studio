@@ -26,6 +26,7 @@ bool PLSAfreecaTVDataHandler::tryToUpdate(const QVariantMap &srcInfo, const Upda
 		PLS_ERROR(MODULE_PLATFORM_AFREECATV, "%s %s afreecatv refresh failed, platform not exists", PrepareInfoPrefix, __FUNCTION__);
 		PLSErrorHandler::ExtraData otherData;
 		otherData.errPhase = PLSErrPhaseLogin;
+		otherData.urlEn = "tryToUpdate SOOP";
 		auto retData = PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::CHANNEL_AFREECATV_LOGIN_ERROR, AFREECATV, "", otherData);
 		QVariantMap info = srcInfo;
 		info[ChannelData::g_channelStatus] = ChannelData::ChannelStatus::Error;

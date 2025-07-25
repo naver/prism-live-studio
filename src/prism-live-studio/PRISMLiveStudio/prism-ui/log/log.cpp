@@ -173,12 +173,17 @@ static void def_pls_log_handler(bool kr, pls_log_level_t log_level, const char *
 	call_obs_handler(kr, log_level, module_name, tid, "%s", message);
 }
 
+static void def_pls_add_global_field_cn(const char *key, const char *value)
+{
+	pls_add_global_field(key, value, PLS_SET_TAG_CN);
+}
+
 bool log_init(const char *session_id, const std::chrono::steady_clock::time_point &startTime, const char *sub_session_id)
 {
 	log_session_id = session_id;
 	base_set_log_handler(def_obs_log_handler, nullptr);
 	base_set_log_handler_ex(def_obs_log_handler, nullptr);
-
+	base_set_log_global_field_handler_cn(def_pls_add_global_field_cn);
 	base_set_crash_handler(def_obs_crash_handler, nullptr);
 
 	pls_prism_log_init(PLS_VERSION, "prism-log", log_session_id.c_str());
@@ -212,8 +217,6 @@ void set_log_handler(log_handler_t handler, void *param)
 
 void runtime_stats(pls_runtime_stats_type_t runtime_stats_type, const std::chrono::steady_clock::time_point &time)
 {
-	auto request = PLS_PLATFORM_PRSIM->getUploadStatusRequest("/prismpc/runtime");
-	runtime_stats(runtime_stats_type, time, request.request());
 }
 
 static QString toString(const QJsonArray &array)

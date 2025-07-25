@@ -1,4 +1,4 @@
-#include "focus-list.hpp"
+#include "moc_focus-list.cpp"
 #include <QDragMoveEvent>
 #include <QPainter>
 static const int FIX_ITEM_HEIGHT = 40;
@@ -12,13 +12,13 @@ void FocusList::focusInEvent(QFocusEvent *event)
 	emit GotFocus();
 }
 
-void FocusList::dragLeaveEvent(QDragLeaveEvent* event)
+void FocusList::dragLeaveEvent(QDragLeaveEvent *event)
 {
 	isDraging = false;
 	QListWidget::dragLeaveEvent(event);
 }
 
-void FocusList::dragEnterEvent(QDragEnterEvent* event)
+void FocusList::dragEnterEvent(QDragEnterEvent *event)
 {
 	isDraging = true;
 	QListWidget::dragEnterEvent(event);
@@ -35,18 +35,19 @@ void FocusList::dragMoveEvent(QDragMoveEvent *event)
 	}
 	currentRect = visualRect(model()->index(rowCount, 0));
 
-	if (QPoint topleft = currentRect.topLeft(); event->position().toPoint().y() - topleft.y() > FIX_ITEM_HEIGHT / 2) {
-		SetPaintLinePos(currentRect.bottomLeft().x(), currentRect.bottomLeft().y(), currentRect.bottomRight().x(), currentRect.bottomRight().y());
-	}
-	else {
-		SetPaintLinePos(currentRect.topLeft().x(), currentRect.topLeft().y(), currentRect.topRight().x(), currentRect.topRight().y());
+	if (QPoint topleft = currentRect.topLeft();
+	    event->position().toPoint().y() - topleft.y() > FIX_ITEM_HEIGHT / 2) {
+		SetPaintLinePos(currentRect.bottomLeft().x(), currentRect.bottomLeft().y(),
+				currentRect.bottomRight().x(), currentRect.bottomRight().y());
+	} else {
+		SetPaintLinePos(currentRect.topLeft().x(), currentRect.topLeft().y(), currentRect.topRight().x(),
+				currentRect.topRight().y());
 	}
 
 	this->viewport()->update();
 	event->setDropAction(Qt::MoveAction);
 	QListWidget::dragMoveEvent(event);
 	event->accept();
-
 
 	//// -----obs code-------
 	////if ((itemRow == currentRow() + 1) ||
@@ -56,13 +57,12 @@ void FocusList::dragMoveEvent(QDragMoveEvent *event)
 	//QListWidget::dragMoveEvent(event);
 }
 
-void FocusList::paintEvent(QPaintEvent* event)
+void FocusList::paintEvent(QPaintEvent *event)
 {
 	QPainter painter(this->viewport());
 	if (isDraging) {
 		painter.setPen(QPen(QColor("#effc35"), 1));
-	}
-	else {
+	} else {
 		painter.setPen(QPen(QColor("#272727"), 1));
 	}
 
@@ -73,13 +73,13 @@ void FocusList::paintEvent(QPaintEvent* event)
 	QListWidget::paintEvent(event);
 }
 
-void FocusList::dropEvent(QDropEvent* event)
+void FocusList::dropEvent(QDropEvent *event)
 {
 	isDraging = false;
 	QListWidget::dropEvent(event);
 }
 
-void FocusList ::SetPaintLinePos(const int& startPosX, const int& startPosY, const int& endPosX, const int& endPosY)
+void FocusList ::SetPaintLinePos(const int &startPosX, const int &startPosY, const int &endPosX, const int &endPosY)
 {
 	lineStart.setX(startPosX);
 	lineStart.setY(startPosY);

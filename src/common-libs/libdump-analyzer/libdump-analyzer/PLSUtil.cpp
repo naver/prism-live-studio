@@ -14,10 +14,12 @@
 #endif
 
 #if __APPLE__
-    #include "mac/PLSUtilInterface.h"
+#include "mac/PLSUtilInterface.h"
 #endif
 
 static std::vector<std::string> g_third_party_plugins;
+static const std::string third_party_plugin_list_path = "PRISMLiveStudio\\crashDump\\third_party_plugins.json";
+
 namespace pls {
 
 #if _WIN32
@@ -103,72 +105,84 @@ static std::string get_windows_version()
 
 #endif
 
-    QString get_app_run_dir(QString name)
-    {
+QString get_app_run_dir(QString name)
+{
 #if _WIN32
-        return get_app_run_dir_internal(name);
+	return get_app_run_dir_internal(name);
 #else
-        return QString::fromStdString(mac_get_app_run_dir(name.toStdString()));
+	return QString::fromStdString(mac_get_app_run_dir(name.toStdString()));
 #endif
-    }
-
-    QString get_app_data_dir(QString name)
-    {
-#if _WIN32
-        return get_app_data_dir_internal(name);
-#else
-        return QString::fromStdString(mac_get_app_data_dir(name.toStdString()));
-#endif
-    }
-
-    std::string get_os_version()
-    {
-#if _WIN32
-        return get_windows_version();
-#else
-        return mac_get_os_version();
-#endif
-    }
-
-#if __APPLE__
-    std::string get_device_model() {
-        return mac_get_device_model();
-    }
-    
-    std::string get_device_name() {
-        return mac_get_device_name();
-    }
-	
-	std::string generate_dump_file(std::string info, std::string message) {
-		return mac_generate_dump_file(info, message);
-	}
-
-#endif
-	
-	bool is_third_party_plugin(std::string& module_path) {
-#if __APPLE__
-		return mac_is_third_party_plugin(module_path);
-#else
-		std::filesystem::path pathObj(std::filesystem::u8path(module_path));
-		std::string dllName = pathObj.stem().u8string();
-		return std::find(g_third_party_plugins.begin(), g_third_party_plugins.end(),
-			 std::string(dllName)) != g_third_party_plugins.end();
-#endif
-	}
-	
-	std::string get_plugin_version(std::string& path) {
-#if __APPLE__
-		return mac_get_plugin_version(path);
-#else
-		struct pls_win_ver_t version_info;
-		pls_get_win_dll_ver(version_info, QString::fromStdString(path));
-		std::stringstream version;
-		version << version_info.major << "." << version_info.minor << "." << version_info.build << "." << version_info.revis;
-		return version.str();
-#endif
-	}
 }
 
-LIBDUMPANALUZER_API void record_third_party_plugin(const char *dllName) {
-	g_third_party_plugins.push_back(dllName);
+QString get_app_data_dir(QString name)
+{
+#if _WIN32
+	return get_app_data_dir_internal(name);
+#else
+	return QString::fromStdString(mac_get_app_data_dir(name.toStdString()));
+#endif
+}
+
+std::string get_os_version()
+{
+#if _WIN32
+	return get_windows_version();
+#else
+	return mac_get_os_version();
+#endif
+}
+
+#if __APPLE__
+std::string get_device_model()
+{
+	return mac_get_device_model();
+}
+
+std::string get_device_name()
+{
+	return mac_get_device_name();
+}
+
+std::string generate_dump_file(std::string info, std::string message)
+{
+	return mac_generate_dump_file(info, message);
+}
+
+#endif
+
+bool is_third_party_plugin(std::string &module_path)
+{
+#if __APPLE__
+	return mac_is_third_party_plugin(module_path);
+#else
+	auto path = pls_get_app_data_dir(QString::fromStdString(third_party_plugin_list_path));
+	auto data = pls_read_data(path);
+	QJsonObject obj = QJsonDocument::fromJson(data).object();
+	QJsonArray plugin_list = obj["plugins"].toArray();
+
+	std::filesystem::path pathObj(std::filesystem::u8path(module_path));
+	std::string dllName = pathObj.stem().u8string();
+
+	for (auto plugin : plugin_list) {
+		if (plugin.toObject()["name"].toString().toStdString() == dllName) {
+			return true;
+		}
+	}
+
+	return false;
+#endif
+}
+
+std::string get_plugin_version(std::string &path)
+{
+#if __APPLE__
+	return mac_get_plugin_version(path);
+#else
+	struct pls_win_ver_t version_info;
+	pls_get_win_dll_ver(version_info, QString::fromStdString(path));
+	std::stringstream version;
+	version << version_info.major << "." << version_info.minor << "." << version_info.build << "." << version_info.revis;
+	return version.str();
+#endif
+}
 }

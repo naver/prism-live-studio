@@ -576,8 +576,8 @@ static void background_template_source_video_render(void *data, gs_effect_t *eff
 	gs_blend_state_push();
 	gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
-	gs_eparam_t* const param = gs_effect_get_param_by_name(effect, "image");
-	if(srgb)
+	gs_eparam_t *const param = gs_effect_get_param_by_name(effect, "image");
+	if (srgb)
 		gs_effect_set_texture(param, context->source_texture);
 	else
 		gs_effect_set_texture_srgb(param, context->source_texture);

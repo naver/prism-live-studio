@@ -126,6 +126,8 @@ void PLSSyncServerManager::updatePolicyPublishByteArray()
 	initNaverShoppingInfo(policyPlatformObject);
 	initTwitchWhipServer(policyPlatformObject);
 	initSupportedPlatforms(policyPublishObject);
+	initDiscordInfo(policyPublishObject);
+	initPlusUrl(policyPublishObject);
 
 	QJsonObject waterMarkObject;
 	getSyncServerJsonObject(WATER_MARK_JSON_NAME, waterMarkObject);
@@ -327,85 +329,7 @@ void PLSSyncServerManager::initRemoteControlInfo(const QJsonObject &policyPublis
 
 void PLSSyncServerManager::initNaverShoppingInfo(const QJsonObject &policyPlatformJsonObject)
 {
-	PLS_INFO("SyncServer", "sync server status: start init navershopping info");
-	QJsonValue value = policyPlatformJsonObject.value(name2str(navershopping));
-	if (!value.isObject()) {
-		PLS_INFO("SyncServer", "sync server status: init navershopping info failed , because the navershopping value is not json object");
-		return;
-	}
-	QJsonObject platformObject = value.toObject();
-
-	m_navershoppingTermofUse = platformObject.value(name2str(serviceTermsOfUse)).toString();
-	QString log = QString("sync server status: init navershopping serviceTermsOfUse info , m_navershoppingTermofUse is %1").arg(m_navershoppingTermofUse);
-	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-
-	m_navershoppingOperationPolicy = platformObject.value(name2str(operationPolicy)).toString();
-	log = QString("sync server status: init navershopping operationPolicy info , m_navershoppingOperationPolicy is %1").arg(m_navershoppingOperationPolicy);
-	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-
-	m_navershoppingNotes = platformObject.value(name2str(serviceNotes)).toString();
-	log = QString("sync server status: init navershopping serviceNotes info , m_navershoppingNotes is %1").arg(m_navershoppingNotes);
-	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-
-	auto lang = pls_get_current_country_short_str().toUpper();
-	QJsonValue noticeOnAutomaticExtractionOfProductSectionsValue = platformObject.value(name2str(noticeOnAutomaticExtractionOfProductSections));
-	if (!noticeOnAutomaticExtractionOfProductSectionsValue.isObject()) {
-		PLS_INFO("SyncServer", "sync server status: init navershopping info failed , because the noticeOnAutomaticExtractionOfProductSections is not json object");
-		return;
-	}
-
-	QVariantMap noticeOnAutomaticExtractionOfProductSectionsMap = noticeOnAutomaticExtractionOfProductSectionsValue.toObject().toVariantMap();
-	if (noticeOnAutomaticExtractionOfProductSectionsMap.find(lang) != noticeOnAutomaticExtractionOfProductSectionsMap.end()) {
-		m_noticeOnAutomaticExtractionOfProductSections = noticeOnAutomaticExtractionOfProductSectionsMap.value(lang).toString();
-		log = QString("sync server status: init navershopping automatic extraction info , m_noticeOnAutomaticExtractionOfProductSections is %1 , lang is %2")
-			      .arg(m_noticeOnAutomaticExtractionOfProductSections)
-			      .arg(lang);
-		PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-	}
-
-	if (m_noticeOnAutomaticExtractionOfProductSections.isEmpty()) {
-		lang = "US";
-		if (noticeOnAutomaticExtractionOfProductSectionsMap.find(lang) != noticeOnAutomaticExtractionOfProductSectionsMap.end()) {
-			m_noticeOnAutomaticExtractionOfProductSections = noticeOnAutomaticExtractionOfProductSectionsMap.value(lang).toString();
-			log = QString("sync server status: init navershopping automatic extraction default value info , m_noticeOnAutomaticExtractionOfProductSections is %1 , lang is %2")
-				      .arg(m_noticeOnAutomaticExtractionOfProductSections)
-				      .arg(lang);
-			PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-		}
-	}
-
-	QJsonValue voluntaryReviewProductsValue = platformObject.value(name2str(voluntaryReviewProducts));
-	if (!voluntaryReviewProductsValue.isObject()) {
-		PLS_INFO("SyncServer", "sync server status: init navershopping info failed , because the voluntaryReviewProductsValue is not json object");
-		return;
-	}
-	QVariantMap voluntaryReviewProductsMap = voluntaryReviewProductsValue.toObject().toVariantMap();
-	if (voluntaryReviewProductsMap.find(lang) != voluntaryReviewProductsMap.end()) {
-		m_voluntaryReviewProducts = voluntaryReviewProductsMap.value(lang).toString();
-		log = QString("sync server status: init navershopping voluntary review products info , m_voluntaryReviewProducts is %1 , lang is %2").arg(m_voluntaryReviewProducts).arg(lang);
-		PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-	}
-
-	if (m_voluntaryReviewProducts.isEmpty()) {
-		lang = "US";
-		if (voluntaryReviewProductsMap.find(lang) != voluntaryReviewProductsMap.end()) {
-			m_voluntaryReviewProducts = voluntaryReviewProductsMap.value(lang).toString();
-			log = QString("sync server status: init navershopping voluntary review products default value info , m_voluntaryReviewProducts is %1 , lang is %2")
-				      .arg(m_voluntaryReviewProducts)
-				      .arg(lang);
-			PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
-		}
-	}
-
-	QJsonValue categoryValue = platformObject.value(name2str(category));
-	if (!categoryValue.isArray()) {
-		PLS_INFO("SyncServer", "sync server status: init navershopping info failed , because the categoryValue is not json object");
-		return;
-	}
-	m_productCategoryJsonArray = categoryValue.toArray();
-
-	log = QString("sync server status: init navershopping info success , m_productCategoryJsonArray count() is %1").arg(m_productCategoryJsonArray.count());
-	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+	return;
 }
 
 void PLSSyncServerManager::initOpenSourceInfo()
@@ -1131,4 +1055,55 @@ void PLSSyncServerManager::onReceiveLibraryNeedUpdate(bool isSucceed)
 	}
 	PLS_INFO("SyncServer", "sync server status: library request finished, start update json object data");
 	updatePolicyPublishByteArray();
+}
+
+void PLSSyncServerManager::initDiscordInfo(const QJsonObject &policyPublishJsonObject)
+{
+	PLS_INFO("SyncServer", "sync server status: start init Discord info");
+	QJsonValue value = policyPublishJsonObject.value("discord");
+	if (!value.isObject()) {
+		PLS_INFO("SyncServer", "sync server status: init Discord info failed , because the Discord info value is not json object");
+		return;
+	}
+	QJsonObject discordObject = value.toObject();
+	m_strDiscordUrl = discordObject.value("url").toString();
+	QString log = QString("sync server status: init Discord info, m_strDiscordUrl is %1").arg(m_strDiscordUrl);
+	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+}
+
+const QString PLSSyncServerManager::getDiscordUrl()
+{
+	if (m_strDiscordUrl.isEmpty()) {
+		PLS_INFO("SyncServer", "sync server status: get m_strDiscordUrl from AppData or App Bundle , the m_strDiscordUrl is empty");
+		updatePolicyPublishByteArray();
+		if (m_strDiscordUrl.isEmpty()) {
+			PLS_INFO("SyncServer", "sync server status: m_strDiscordUrl from app default value json file , the m_strDiscordUrl is empty");
+			initDiscordInfo(m_policyPublishDefaultValueObject);
+			if (m_strDiscordUrl.isEmpty()) {
+				m_strDiscordUrl = QStringLiteral("https://discord.com/invite/e2HsWnf48R");
+			}
+		}
+	}
+	QString log = QString("sync server status: get m_strDiscordUrl finished , m_strDiscordUrl = %1").arg(m_strDiscordUrl);
+	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
+	return m_strDiscordUrl;
+}
+
+const QString PLSSyncServerManager::getPlusUrl()
+{
+	return m_plusUrl;
+}
+
+void PLSSyncServerManager::initPlusUrl(const QJsonObject &policyPublishJsonObject)
+{
+	auto obj = policyPublishJsonObject.value("plusUrl").toObject();
+	auto plusUrl = pls_get_current_language_short_str().toUpper();
+	m_plusUrl = obj[plusUrl].toString();
+	if (m_plusUrl.isEmpty()) {
+		m_plusUrl = obj["EN"].toString();
+		PLS_INFO("SyncServer", "sync server status: get current language plus url is empty from sync server, use en plus url.");
+	}
+
+	QString log = QString("sync server status: init plus url info, m_plusUrl is %1").arg(m_plusUrl);
+	PLS_INFO("SyncServer", "%s", log.toUtf8().constData());
 }

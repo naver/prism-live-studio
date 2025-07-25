@@ -31,8 +31,8 @@ PLSSceneTemplateContainer PLSSceneTemplateMainScene #mainSceneTitle {
 	font-size:/*hdpi*/12px;
 }
 
-PLSSceneTemplateContainer PLSSceneTemplateMainScene #mainSceneComboBox {
-    min-height: /*hdpi-u*/ 30px;
+PLSSceneTemplateContainer PLSSceneTemplateMainScene #mainSceneComboBox, #comboBoxPlus {
+	min-height: /*hdpi-u*/ 30px;
 	max-height: /*hdpi-u*/ 30px;
 	min-width: /*hdpi-u*/ 120px;
 	max-width: /*hdpi-u*/ 120px;
@@ -355,10 +355,10 @@ PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame {
 
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame  PLSMediaRender,
 PLSSceneTemplateContainer PLSSceneTemplateDetailScene #chooseListFrame  PLSSceneTemplateImageView {
-    min-height: /*hdpi-u*/ 80px;
-	max-height: /*hdpi-u*/ 80px;
-	min-width: /*hdpi-u*/ 150px;
-	max-width: /*hdpi-u*/ 150px;
+    min-height: 84px;
+	max-height: 84px;
+	min-width: 150px;
+	max-width: 150px;
 	border-radius: 3px;
 	border: none;
 }
@@ -419,3 +419,7 @@ PLSSceneTemplateContainer PLSSceneTemplateMainScene #buttonRetry {
 		color: #444444;
 		border-color: #444444;
 	}
+
+PLSSceneTemplateContainer #labelAIBadge, PLSSceneTemplateContainer #labelPlusBadge {
+	background-color: transparent;
+}

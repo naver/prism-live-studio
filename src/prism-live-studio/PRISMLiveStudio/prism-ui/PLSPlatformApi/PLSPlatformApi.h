@@ -109,8 +109,9 @@ public:
 	int getTotalSteps() const { return m_iTotalSteps; };
 
 	//Use prism server to live, or use each platform directly
-	bool isPrismLive() const { return m_bPrismLive; };
-	void setPrismLive(bool prismLive) { m_bPrismLive = prismLive; };
+	bool isPrismLive() const;
+	bool isPrismLive(const PLSPlatformBase *pPlatform) const;
+	bool isPrismLive(DualOutputType dualOutputType) const;
 
 	//Get the current live broadcast status
 	LiveStatus getLiveStatus() const { return m_liveStatus; }
@@ -139,7 +140,7 @@ public:
 	bool isStopForExit() const { return m_bStopForExit; };
 
 	//Whether MQTT is currently connected
-	bool isConnectedMQTT() const { return m_isConnectedMQTT; };
+	bool isConnectedMQTT() const { return false; };
 
 	//Whether platfrom prepared api is successful after GoLive
 	PLSPlatformLiveStartedStatus isApiPrepared() const { return m_bApiPrepared; };
@@ -447,18 +448,19 @@ public slots:
 	void onInactive(const QString &which);
 	void onClearChannel();
 	void onAddChannel(const QString &channelUUID);
-	void onRemoveChannel(const QString &channelUUID);
+	void onRemoveChannel(const QString &channelUUID, const QVariantMap &unDeletedChannelData);
 	void onUpdateChannel(const QString &which);
 	void onAllChannelRefreshDone();
 	void onPrepareLive();
-	void onMqttMessage(const QString&, const QString&, DualOutputType outputType); //From different thread
+	void onMqttMessage(const QString &, const QString &, DualOutputType outputType); //From different thread
 	void doWebRequest(const QString &data);
 	void doChannelInitialized(); //All channels are refreshed and the GoLive button becomes Ready
 	void onPrepareFinish();
 
 	void onUpdateScheduleListFinished();
 
-	void addFailedPlatform(const std::list<PLSPlatformBase *>&);
+	void addFailedPlatform(const std::list<PLSPlatformBase *> &);
+
 private:
 	//The function called during the preparation phase of the onPrepare method
 	//Display Multi-Platform Disable Live Alert with Resolutions greater than 1080p
@@ -553,7 +555,7 @@ private:
 
 	//Live State Variables
 	int m_iTotalSteps = 0;
-	bool m_bPrismLive = false;
+	std::array<bool, DualOutputType::All> m_bPrismLive{false};
 	LiveStatus m_liveStatus = LiveStatus::Normal;
 	PLSPlatformLiveStartedStatus m_bApiPrepared = PLSPlatformLiveStartedStatus::PLS_NONE;
 	PLSPlatformLiveStartedStatus m_bApiStarted = PLSPlatformLiveStartedStatus::PLS_NONE;
@@ -565,17 +567,9 @@ private:
 	bool m_bStopForExit = false;
 	bool m_bVirtualCamera = false;
 
-	//Used for mqtt
-	std::array<QPointer<PLSMosquitto>, DualOutputType::All> m_pMQTT{};
-	QTimer m_timerMQTT;
-	QString m_strLastMqttChat;
-	QString m_strLastMqttStatus;
-	QString m_strLastMqttStat;
-
 	//when live and record stop same time, will ignore record end page show and toast.
 	bool m_isIgnoreNextRecordShow = false;
 	bool m_ignoreRequestBroadcastEnd = false;
-	bool m_isConnectedMQTT = false;
 	QMap<QString, int> m_taskWaiting;
 	PLSPlatformBase *m_generalPlatform{nullptr};
 	QMap<QString, QString> m_platFormUrlMap;

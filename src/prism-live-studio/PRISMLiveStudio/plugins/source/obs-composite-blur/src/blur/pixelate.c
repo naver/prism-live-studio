@@ -56,7 +56,8 @@ static void pixelate_square_blur(composite_blur_filter_data_t *data)
 	data->pixelate_texrender = data->output_texrender;
 	data->output_texrender = tmp;
 
-	gs_texture_t *texture = gs_texrender_get_texture(data->pixelate_texrender);
+	gs_texture_t *texture =
+		gs_texrender_get_texture(data->pixelate_texrender);
 
 	if (!effect || !texture) {
 		return;

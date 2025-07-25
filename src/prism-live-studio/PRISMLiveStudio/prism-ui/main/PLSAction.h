@@ -118,7 +118,7 @@ struct ActionInfo {
 	QString target;
 	QString resourceID;
 	QString time;
-	bool setUserId;
+	bool setUserId{false};
 
 	ActionInfo() = default;
 	ActionInfo(QString e1, QString e2, QString e3, QString tgt);

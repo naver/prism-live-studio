@@ -3,6 +3,7 @@
 
 #include <QVBoxLayout>
 #include "PLSDialogView.h"
+
 namespace Ui {
 class PLSLiveEndDialog;
 }

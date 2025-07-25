@@ -30,13 +30,11 @@ class OBSPermissions : public PLSDialogView {
 
 private:
 	std::unique_ptr<Ui::OBSPermissions> ui;
-	void SetStatus(QPushButton *btn, MacPermissionStatus status,
-		       const QString &preference);
+	void SetStatus(QPushButton *btn, MacPermissionStatus status, const QString &preference);
 
 public:
-	OBSPermissions(QWidget *parent, MacPermissionStatus capture,
-		       MacPermissionStatus video, MacPermissionStatus audio,
-		       MacPermissionStatus accessibility);
+	OBSPermissions(QWidget *parent, MacPermissionStatus capture, MacPermissionStatus video,
+		       MacPermissionStatus audio, MacPermissionStatus accessibility);
 
 private slots:
 	void on_capturePermissionButton_clicked();

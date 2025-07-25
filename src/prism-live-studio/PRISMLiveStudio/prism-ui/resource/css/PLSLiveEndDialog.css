@@ -48,9 +48,10 @@ PLSLiveEndDialog #Rehearsalwidget #rehearsalLabel {
 
 PLSLiveEndDialog #channelScroll {
 	border-radius:/*hdpi*/ 3px;
-	margin:/*hdpi*/0px/*hdpi*/0px/*hdpi*/0px/*hdpi*/0px;
+	margin:0px;
 	padding-right:/*hdpi*/ 15px;
 	background-color: transparent;
+	border: none;
 }
 
 PLSLiveEndDialog #bottomViewWidget {
@@ -139,7 +140,7 @@ PLSLiveEndItem {
 	max-height:/*hdpi*/70px;
 	min-width:/*hdpi*/660px;
 	max-width:/*hdpi*/660px;
-	margin:/*hdpi*/0px/*hdpi*/15px/*hdpi*/0px/*hdpi*/29px;
+	margin:0px;
 }
 
 PLSLiveEndItem #channelIcon {

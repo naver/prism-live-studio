@@ -1,7 +1,7 @@
 PLSLaunchWizardView {
     qproperty-hasHLine: /*hdpi*/ false;
     qproperty-isMoveInContent: /*hdpi*/ true;
-    qproperty-captionHeight: /*hdpi*/ 30;
+    qproperty-captionHeight: /*hdpi*/ 29;
     qproperty-closeButtonMarginRight: /*hdpi*/ 10;
     qproperty-captionButtonMargin: /*hdpi*/ 10;
     margin: /*hdpi*/ 0px;
@@ -71,7 +71,7 @@ PLSLaunchWizardView #nickNameLabel {
     font-weight: bold;
     font-style: normal;
     color: white;
-    margin-bottom: 27px;
+    margin-bottom: 26px;
     border: none;
 }
 
@@ -86,12 +86,12 @@ PLSLaunchWizardView #wizardScrollArea {
 
     PLSLaunchWizardView #wizardScrollArea QScrollBar:vertical {
         background-color: #1e1e1f;
-        max-height: /*hdpi*/ 294px;
+        max-height: /*hdpi*/ 458px;
         min-width: /*hdpi*/ 10px;
         max-width: /*hdpi*/ 10px;
     }
 
-PLSLaunchWizardView #scrollAreaWidgetContents, PLSLaunchWizardView #contentScrollWidgetContents {
+PLSLaunchWizardView #scrollAreaWidgetContents, PLSLaunchWizardView #contentScrollWidgetContents, PLSLaunchWizardView #rightMarginWidget {
     border: none;
     background-color: transparent;
 }
@@ -219,8 +219,7 @@ PLSLaunchWizardView #overlay {
 
 PLSLaunchWizardView #InfosFrame {
     background-color: transparent;
-    padding-top: /*hdpi*/ 17px;
-    margin: /*hdpi*/ 0px /*hdpi*/ 39px /*hdpi*/ 0px /*hdpi*/ 39px;
+    padding-top: /*hdpi*/ 10px;
 }
 
 PLSLaunchWizardView #PLSWizardInfoView {
@@ -242,6 +241,18 @@ PLSLaunchWizardView #alertView {
     border-radius: /*hdpi*/ 14px;
     min-height: /*hdpi*/ 82px;
     max-height: /*hdpi*/ 500px;
+    min-width: /*hdpi*/ 568px;
+    max-width: /*hdpi*/ 568px;
+    margin: 0px;
+    padding: 0px;
+}
+
+PLSLaunchWizardView #browserWidget {
+    border: 1px solid #272727;
+    background-color: #272727;
+    border-radius: /*hdpi*/ 14px;
+    min-height: /*hdpi*/ 68px;
+    max-height: /*hdpi*/ 68px;
     min-width: /*hdpi*/ 568px;
     max-width: /*hdpi*/ 568px;
     margin: 0px;
@@ -411,11 +422,12 @@ PLSLaunchWizardView #wizardFrame {
     border-left: none;
     border-right: none;
     background-color: transparent;
-    padding: /*hdpi*/ 19px /*hdpi*/ 29px /*hdpi*/ 20px /*hdpi*/ 26px;
+    padding: /*hdpi*/ 17px /*hdpi*/ 29px /*hdpi*/ 17px /*hdpi*/ 30px;
+    margin: 0px;
 }
 
 PLSLaunchWizardView #checkBox #plsCheckBox_text {
-    color: #e5e5e5;
+    color: #ffffff;
     font-size: 14px;
     background-color: transparent;
     font-weight: bold;

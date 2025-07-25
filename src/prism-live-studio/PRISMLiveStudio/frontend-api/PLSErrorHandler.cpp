@@ -282,10 +282,10 @@ PLSErrorHandler::RetData PLSErrorHandler::getDataWithInheritList(const QJsonObje
 	QStringList inheritList = getInheritList(rootObj, platformName);
 
 	QJsonObject apiJson;
-	auto doc = QJsonDocument::fromJson(netData.erorData);
+	auto doc = QJsonDocument::fromJson(netData.errData);
 	if (doc.isObject()) {
 		apiJson = doc.object();
-	} else if (!netData.erorData.isEmpty()) {
+	} else if (!netData.errData.isEmpty()) {
 		PLS_WARN(s_log_moudule, "%s %s Failed to parse net body json data!", qUtf8Printable(platformName), s_moudule_prefix);
 	}
 
@@ -302,13 +302,13 @@ PLSErrorHandler::RetData PLSErrorHandler::getDataWithInheritList(const QJsonObje
 		if (jsonArray.isEmpty()) {
 			QString log = QString("%1 %2 config failed, not found this sheet key!").arg(s_moudule_prefix).arg(superItem);
 			PLS_WARN(s_log_moudule, qUtf8Printable(log));
-			Q_ASSERT_X(false, "PLSErrorHandler", qUtf8Printable(log));
+			assert(false && "not found this sheet key");
 		}
 		auto matchedObj = getErrObj(jsonArray, superItem, customErrName, extraData);
 		if (matchedObj.isEmpty()) {
 			continue;
 		}
-		retData = fillRetDataWithMactchObj(matchedObj, superItem, extraData, searchType);
+		retData = fillRetDataWithMatchObj(matchedObj, superItem, extraData, searchType);
 		break;
 	}
 	return retData;
@@ -391,7 +391,7 @@ void PLSErrorHandler::fillUnknownDataIfEmpty(RetData &retData, ErrCode prismCode
 		if (matchedObj.isEmpty()) {
 			continue;
 		}
-		retData = fillRetDataWithMactchObj(matchedObj, superItem, extraData, searchType);
+		retData = fillRetDataWithMatchObj(matchedObj, superItem, extraData, searchType);
 		break;
 	}
 	if (retData.isMatched || retData.isNotError) {
@@ -488,7 +488,7 @@ QJsonObject PLSErrorHandler::getErrObj(const QJsonArray &jsonArray, const QStrin
 				break;
 			}
 		} else {
-			//all macthed ,so succeed
+			//all matched ,so succeed
 			auto keys = apiData.keys();
 			bool isMatched = keys.empty() ? false : true;
 			for (auto subKey : keys) {
@@ -560,7 +560,7 @@ bool PLSErrorHandler::isDefaultKeyMatch(const QJsonObject &apiData, const QStrin
 QJsonObject PLSErrorHandler::getPathValue(const QJsonObject &obj, const QString &platformName, const QJsonObject &apiJson)
 {
 
-	QJsonObject valuseObj;
+	QJsonObject valuesObj;
 
 	auto pathObj = getValue<QJsonObject>(obj, QStringList({platformName, s_path_extra, "path"}));
 	auto keys = pathObj.keys();
@@ -576,14 +576,14 @@ QJsonObject PLSErrorHandler::getPathValue(const QJsonObject &obj, const QString 
 			}
 			auto jsonString = forceJsonValue2String(jsonValue.value());
 			if (jsonString.has_value()) {
-				valuseObj[key] = jsonString.value(); //{reason: channelNotFound}
+				valuesObj[key] = jsonString.value(); //{reason: channelNotFound}
 				continue;
 			}
 		}
 	}
-	return valuseObj;
+	return valuesObj;
 }
-PLSErrorHandler::RetData PLSErrorHandler::fillRetDataWithMactchObj(const QJsonObject &matchedObj, const QString &platformName, ExtraData &extraData, SearchType searchType)
+PLSErrorHandler::RetData PLSErrorHandler::fillRetDataWithMatchObj(const QJsonObject &matchedObj, const QString &platformName, ExtraData &extraData, SearchType searchType)
 {
 	if (matchedObj.isEmpty()) {
 		return {};
@@ -631,8 +631,12 @@ PLSErrorHandler::RetData PLSErrorHandler::fillRetDataWithMactchObj(const QJsonOb
 		data.isExactMatch = false;
 	}
 	QStringList appendList;
-	for (QString append : extraData.logAppend) {
-		appendList.append(replaceValString(append, extraData.pathValueMap, true));
+	if (data.prismCode == PLSErrorHandler::COMMON_NETWORK_ERROR) {
+		appendList.append("network error");
+	} else {
+		for (QString append : extraData.logAppend) {
+			appendList.append(replaceValString(append, extraData.pathValueMap, true));
+		}
 	}
 	if (!appendList.isEmpty()) {
 		data.failedLogString = appendList.join("\n");
@@ -656,7 +660,7 @@ std::pair<QString /*trans*/, QString /*ini key*/> PLSErrorHandler::getOriginalAl
 
 QString PLSErrorHandler::dealOriginalAlertString(const QString &originalStr, const QJsonObject &errorObj, ExtraData &extraData)
 {
-	const static QString getValulRegStr("\\{\\{(.+?)\\}\\}");
+	const static QString getValueRegStr("\\{\\{(.+?)\\}\\}");
 	auto getStrIfFound = [](const QString &dealStr, const QMap<QString, QString> &searchObj) -> std::optional<QString> {
 		QString tmp(dealStr);
 		QRegularExpression regExp(s_valueRegStr);
@@ -680,17 +684,17 @@ QString PLSErrorHandler::dealOriginalAlertString(const QString &originalStr, con
 	}
 	QString dealStr = originalStr;
 	extraData.appendList.removeDuplicates();
-	QStringList transedList;
+	QStringList translatedList;
 	for (const auto &item : extraData.appendList) {
 		auto appendStrOpt = getStrIfFound(item, extraData.pathValueMap);
 		if (appendStrOpt.has_value()) {
-			transedList.append(appendStrOpt.value());
+			translatedList.append(appendStrOpt.value());
 		}
 	}
 
-	if (!transedList.empty()) {
+	if (!translatedList.empty()) {
 		QString joinStr = extraData.appendJoin;
-		dealStr.append("\n").append(transedList.join(joinStr));
+		dealStr.append("\n").append(translatedList.join(joinStr));
 	}
 
 	return transAndDealValStr(dealStr, errorObj, extraData);
@@ -714,12 +718,12 @@ QJsonArray PLSErrorHandler::getButtonsObj(const QJsonObject &errorObj)
 
 QString PLSErrorHandler::getButtonOpenUrl(const QString &str, const QMap<QString, QString> &pathValueMap)
 {
-	const static QString actoin_open = QStringLiteral("open.");
+	const static QString action_open = QStringLiteral("open.");
 	if (str.isEmpty()) {
 		return {};
 	}
-	if (str.startsWith(actoin_open)) {
-		auto temp = str.mid(actoin_open.size(), str.size() - actoin_open.size());
+	if (str.startsWith(action_open)) {
+		auto temp = str.mid(action_open.size(), str.size() - action_open.size());
 		if (temp.isEmpty()) {
 			return {};
 		}
@@ -783,7 +787,7 @@ QString getInheritValueString(const QString &alertKey, const QJsonObject &rootOb
 				      .arg(getValue<int>(data.matchedObj, "err.prismCode"))
 				      .arg(alertKey);
 		PLS_WARN(s_log_moudule, qUtf8Printable(log));
-		Q_ASSERT_X(false, "PLSErrorHandler", qUtf8Printable(log));
+		assert(false && "not found");
 		return "";
 	}
 	return transTrString(replaceValString(valueStr, data.extraData.pathValueMap), true);
@@ -998,6 +1002,15 @@ void PLSErrorHandler::printLog(const RetData &retData, bool forcePrint)
 		fields_ByteArray.push_back({iter.key().toUtf8(), iter.value().toString().toUtf8()});
 	}
 	std::vector<std::pair<const char *, const char *>> fileds = pls_to_fields(fields_ByteArray);
+
+	for (auto &item : fileds) {
+		if (pls_is_empty(item.second)) {
+			item.second = "empty";
+			QString log = QString("%1 fields value is empty, which key is: %2").arg(s_moudule_prefix).arg(item.first);
+			PLS_WARN(s_log_moudule, qUtf8Printable(log));
+//			assert(false && "value is empty");
+		}
+	}
 
 	PLS_LOGEX(PLS_LOG_INFO, s_log_moudule, fileds, qUtf8Printable(logEn));
 	if (!extraData.urlKr.isEmpty() && extraData.urlKr != extraData.urlEn) {

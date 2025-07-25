@@ -210,6 +210,8 @@ const QString g_yoububeStudioManagePage = "";
 const QString g_youtubeDashbordPage = "";
 const QString g_plsYoutubeChannelSwithcerUrl = "";
 
+const QString g_userGuide = "";
+
 FRONTEND_API extern const QString g_exclusiveRtmpUrl;
 
 //AfreecaTV

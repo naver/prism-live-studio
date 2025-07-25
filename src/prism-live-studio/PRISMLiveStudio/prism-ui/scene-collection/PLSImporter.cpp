@@ -122,7 +122,7 @@ bool GetUnusedName(QVector<PLSSceneCollectionData> importFiles, std::string &nam
 void PLSImporter::importCollections()
 {
 	pls::chars<512> dst;
-	GetConfigPath(dst, 512, "PRISMLiveStudio/basic/scenes/");
+	GetAppConfigPath(dst, 512, "PRISMLiveStudio/basic/scenes/");
 
 	bool importError = false;
 	bool importNotExisted = false;

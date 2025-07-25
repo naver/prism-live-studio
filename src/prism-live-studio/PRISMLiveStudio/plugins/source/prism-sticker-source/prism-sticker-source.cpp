@@ -293,21 +293,21 @@ static void sticker_private_update(void *data, obs_data_t *settings)
 	obs_data_release(setting);
 }
 
-static void sticker_source_activate(void* data)
+static void sticker_source_activate(void *data)
 {
 	if (!data)
 		return;
-	auto sticker = static_cast<sticker_reaction*>(data);
-	if(sticker->media)
+	auto sticker = static_cast<sticker_reaction *>(data);
+	if (sticker->media)
 		obs_source_inc_active(sticker->media);
 }
 
-static void sticker_source_deactivate(void* data)
+static void sticker_source_deactivate(void *data)
 {
 	if (!data)
 		return;
-	auto sticker = static_cast<sticker_reaction*>(data);
-	if(sticker->media)
+	auto sticker = static_cast<sticker_reaction *>(data);
+	if (sticker->media)
 		obs_source_dec_active(sticker->media);
 }
 

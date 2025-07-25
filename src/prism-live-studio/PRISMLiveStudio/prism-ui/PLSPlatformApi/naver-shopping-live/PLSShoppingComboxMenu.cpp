@@ -10,7 +10,7 @@ const int listItemMaxCount = 7;
 PLSShoppingComboxMenu::PLSShoppingComboxMenu(QWidget *parent) : QDialog(parent)
 {
 	pls_add_css(this, {"PLSShoppingComboxMenu"});
-    
+
 	m_listWidget = pls_new<QListWidget>(this);
 	m_listWidget->setAutoScroll(false);
 	m_listWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);

@@ -22,15 +22,13 @@
 #include <qscopeguard.h>
 #include "network-state.h"
 #include <qscroller.h>
+#include "PLSCommonConst.h"
 #include "window-basic-main.hpp"
 #include "pls-common-define.hpp"
-#include "PLSCommonConst.h"
+#include "PLSSyncServerManager.hpp"
+#include <QUrlQuery>
 
 constexpr auto urlProperty = "url";
-constexpr auto discordUrl = "https://discord.gg/vxzDZ9V6f9";
-constexpr auto discordUrlKR = "https://discord.gg/9j7mFY5g9a";
-constexpr auto blogUrl = "https://medium.com/prismlivestudio";
-constexpr auto blogUrlKR = "https://blog.naver.com/prismlivestudio";
 constexpr auto defaultBannenImage = ":/resource/images/wizard/img-banner-default.svg";
 
 #define NoScheduleStr tr("WizardView.NoSchedule")
@@ -38,7 +36,7 @@ constexpr auto defaultBannenImage = ":/resource/images/wizard/img-banner-default
 #define TipText tr("WizardView.Restart.OnError")
 #define QueText tr("WizardView.Quetion")
 #define DiscordText tr("WizardView.Discord")
-#define BlogText tr("WizardView.Blog")
+#define UserGuideText tr("WizardView.UserGuide")
 constexpr auto ModuleName = "WizardView";
 constexpr int MAXUPDATACOUNT = 3;
 
@@ -48,7 +46,7 @@ PLSLaunchWizardView *PLSLaunchWizardView::instance()
 	if (g_wizardView == nullptr) {
 		g_wizardView = new PLSLaunchWizardView();
 		connect(g_wizardView, &PLSLaunchWizardView::sigTryGetScheduleList, PLSCHANNELS_API, &PLSChannelDataAPI::startUpdateScheduleList, Qt::QueuedConnection);
-		connect(PLSBasic::Get(), &PLSBasic::mainClosing, g_wizardView, &PLSLaunchWizardView::close, Qt::DirectConnection);
+		connect(PLSBasic::Get(), &PLSBasic::mainClosing, g_wizardView, &PLSLaunchWizardView::hideView, Qt::DirectConnection);
 	}
 	return g_wizardView;
 }
@@ -60,22 +58,31 @@ PLSLaunchWizardView::PLSLaunchWizardView(QWidget *parent) : PLSWindow(parent)
 	setupUi(ui);
 	ui->banerPointLayout->setAlignment(Qt::AlignCenter);
 	this->setHasMinButton(true);
-
 	pls_add_css(this, {"PLSLaunchWizardView"});
 
 	createBannerScrollView();
 	createAlertInfoView();
 	createLiveInfoView();
-	createBlogView();
+	createUserGuideView();
 	createQueView();
-
+	createAdView();
 	connect(ui->leftButton, &QPushButton::clicked, this, &PLSLaunchWizardView::changeBannerView);
 	connect(ui->rightButton, &QPushButton::clicked, this, &PLSLaunchWizardView::changeBannerView);
 	ui->wizardScrollArea->verticalScrollBar()->setObjectName("wizardVetialBar");
 	connect(ui->hideButton, &QPushButton::clicked, this, &PLSLaunchWizardView::hideView);
 	connect(this, &PLSLaunchWizardView::mouseClicked, this, &PLSLaunchWizardView::onWidgetClicked, Qt::QueuedConnection);
-
-	updatebannerView();
+	connect(ui->wizardScrollArea->verticalScrollBar(), &QScrollBar::rangeChanged, this, [this](int min, int max) {
+		if (max > min) {
+			ui->verticalLayout_5->setContentsMargins(0, 0, 3, 0);
+			ui->infoLayout->setContentsMargins(39, 0, 26, 0);
+			ui->horizontalLayout_2->setContentsMargins(11, 0, 1, 0);
+		} else {
+			ui->verticalLayout_5->setContentsMargins(0, 0, 0, 0);
+			ui->infoLayout->setContentsMargins(39, 0, 39, 0);
+			ui->horizontalLayout_2->setContentsMargins(1, 0, 1, 0);
+		}
+	});
+	updateBannerView();
 
 	connect(this, &PLSLaunchWizardView::bannerJsonDownloaded, this, &PLSLaunchWizardView::loadBannerSources, Qt::QueuedConnection);
 	connect(this, &PLSLaunchWizardView::bannerImageLoadFinished, this, &PLSLaunchWizardView::finishedDownloadBanner, Qt::QueuedConnection);
@@ -97,11 +104,18 @@ PLSLaunchWizardView::PLSLaunchWizardView(QWidget *parent) : PLSWindow(parent)
 
 #if defined(Q_OS_MACOS)
 	this->setWindowTitle(QTStr("Basic.Main.Wizard"));
+	pls_scroll_area_clips_to_bounds(ui->wizardScrollArea);
 #endif
 
-	bool isDontShow = config_get_bool(App()->GlobalConfig(), common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW);
-	PLS_INFO(ModuleName, "get dont show config is %d", isDontShow);
-	ui->checkBox->setChecked(isDontShow);
+	auto globalConfig = App()->GetUserConfig();
+	auto lastHideDate = config_get_string(globalConfig, common::LAUNCHER_CONFIG, common::CONFIG_LASTHIDEDATE);
+	QString currentDate = QDate::currentDate().toString("yyyy-MM-dd");
+	if (lastHideDate == currentDate) {
+		PLS_INFO(ModuleName, "get dont show config is true");
+		ui->checkBox->setChecked(true);
+	} else {
+		ui->checkBox->setChecked(false);
+	}
 }
 
 PLSLaunchWizardView::~PLSLaunchWizardView()
@@ -167,15 +181,62 @@ void PLSLaunchWizardView::getBannerJson()
 		if (result.isOk()) {
 			PLS_INFO(ModuleName, " request new banner json OK");
 		} else {
-			PLS_ERROR(ModuleName, " request new banner json falied");
+			PLS_ERROR(ModuleName, " request new banner json failed");
 		}
 		if (result.hasFilePath())
-			m_josnPath = result.filePath();
+			m_jsonPath = result.filePath();
 		emit bannerJsonDownloaded();
 	};
 	pls::rsm::getDownloader()->download(downJsonUrl, this, cb);
 }
-void PLSLaunchWizardView::updatebannerView()
+void PLSLaunchWizardView::createAdView()
+{
+	if (m_browser) {
+		return;
+	}
+	QString fullName = pls_get_user_path(QStringLiteral("PRISMLiveStudio/resources/library/library_Policy_PC/AD/index.html"));
+	if (!QFile::exists(fullName)) {
+#if defined(Q_OS_WIN)
+		fullName = QCoreApplication::applicationDirPath() + QStringLiteral("/../../data/prism-studio/AD/index.html");
+#elif defined(Q_OS_MACOS)
+		fullName = QCoreApplication::applicationDirPath() + QStringLiteral("/../Resources/data/prism-studio/AD/index.html");
+#endif
+	}
+	QUrl URL = QUrl::fromLocalFile(fullName);
+	QUrlQuery query;
+	query.addQueryItem(QStringLiteral("country"), QUrl::toPercentEncoding(pls_get_gcc_data()));
+	URL.setQuery(query);
+	m_browser = pls::browser::newBrowserWidget(pls::browser::Params() //
+							   .url(URL.toString())
+							   .initBkgColor(QColor(39, 39, 39))
+							   .css("html, body { background-color: #272727; }")
+							   .allowPopups(false)
+							   .showAtLoadEnded(true)
+							   .parent(this));
+	m_browserContainer = new QWidget(this);
+	m_browserContainer->setStyleSheet("background-color: #1e1e1f;");
+	QVBoxLayout *containerLayout = new QVBoxLayout(m_browserContainer);
+	containerLayout->setContentsMargins(0, 10, 0, 10);
+	containerLayout->addWidget(m_browser);
+
+	ui->infoLayout->addWidget(m_browserContainer, 0, 0, 1, 2);
+	m_browser->setObjectName("browserWidget");
+	m_browser->show();
+}
+void PLSLaunchWizardView::releaseAdView()
+{
+	if (m_browser) {
+		m_browser->closeBrowser();
+		m_browser->deleteLater();
+		m_browser = nullptr;
+	}
+	if (m_browserContainer) {
+		ui->infoLayout->removeWidget(m_browserContainer);
+		m_browserContainer->deleteLater();
+		m_browserContainer = nullptr;
+	}
+}
+void PLSLaunchWizardView::updateBannerView()
 {
 	QStringList images = mBannerUrls.values();
 	if (images.isEmpty()) {
@@ -265,11 +326,11 @@ void PLSLaunchWizardView::loadBannerSources()
 		return;
 	});
 
-	if (!QFile::exists(m_josnPath)) {
-		PLS_INFO(ModuleName, "bannar json not exists!");
+	if (!QFile::exists(m_jsonPath)) {
+		PLS_INFO(ModuleName, "banner json not exists!");
 		return;
 	}
-	auto data = pls_read_data(m_josnPath);
+	auto data = pls_read_data(m_jsonPath);
 	if (data.isEmpty()) {
 		return;
 	}
@@ -331,7 +392,7 @@ void PLSLaunchWizardView::finishedDownloadBanner(const std::list<pls::rsm::Downl
 
 	isLoadBannerSuccess = errorCount <= 0;
 	isLoadingBanner = false;
-	updatebannerView();
+	updateBannerView();
 	setCurrentIndex(0, false);
 	scrollArea->horizontalScrollBar()->setValue(0);
 }
@@ -340,7 +401,7 @@ void PLSLaunchWizardView::createLiveInfoView()
 {
 	if (!m_liveInfoView) {
 		m_liveInfoView = pls_new<PLSWizardInfoView>(PLSWizardInfoView::ViewType::LiveInfo, this);
-		ui->infoLayout->addWidget(m_liveInfoView, 1, 0, 1, 2);
+		ui->infoLayout->addWidget(m_liveInfoView, 2, 0, 1, 2);
 
 		m_liveInfoView->installEventFilter(this);
 
@@ -361,7 +422,7 @@ void PLSLaunchWizardView::createAlertInfoView()
 	if (!m_alertInfoView) {
 		m_alertInfoView = pls_new<PLSWizardInfoView>(PLSWizardInfoView::ViewType::Alert, this);
 		m_alertInfoView->setObjectName("alertView");
-		ui->infoLayout->addWidget(m_alertInfoView, 0, 0, 1, 2);
+		ui->infoLayout->addWidget(m_alertInfoView, 1, 0, 1, 2);
 		m_alertInfoView->hide();
 	}
 
@@ -403,7 +464,7 @@ void PLSLaunchWizardView::onDumpCreated()
 		}
 	}
 
-	handleErrorMessgage(json.toVariantMap());
+	handleErrorMessage(json.toVariantMap());
 }
 void PLSLaunchWizardView::wheelChangeBannerView(bool bPre)
 {
@@ -474,15 +535,14 @@ void PLSLaunchWizardView::checkStackOrder() const
 	pls_get_main_view()->activateWindow();
 }
 
-void PLSLaunchWizardView::createBlogView()
+void PLSLaunchWizardView::createUserGuideView()
 {
 	auto blogView = pls_new<PLSWizardInfoView>(PLSWizardInfoView::ViewType::Blog, this);
 	blogView->setObjectName("buttonInfoView");
-	ui->infoLayout->addWidget(blogView, 2, 0, 1, 1);
-	blogView->setInfoText(BlogText);
+	ui->infoLayout->addWidget(blogView, 3, 0, 1, 1);
+	blogView->setInfoText(UserGuideText);
 
-	auto url = IS_KR() ? blogUrlKR : blogUrl;
-	blogView->setProperty(urlProperty, url);
+	blogView->setProperty(urlProperty, g_userGuide);
 	connect(blogView, &QPushButton::clicked, this, &PLSLaunchWizardView::onUrlButtonClicked);
 }
 
@@ -490,9 +550,9 @@ void PLSLaunchWizardView::createQueView()
 {
 	auto queView = pls_new<PLSWizardInfoView>(PLSWizardInfoView::ViewType::Que, this);
 	queView->setObjectName("buttonInfoView");
-	ui->infoLayout->addWidget(queView, 2, 1, 1, 1);
+	ui->infoLayout->addWidget(queView, 3, 1, 1, 1);
 	queView->setInfoText(DiscordText);
-	auto url = IS_KR() ? discordUrlKR : discordUrl;
+	auto url = PLSSyncServerManager::instance()->getDiscordUrl();
 	queView->setProperty(urlProperty, url);
 	connect(queView, &QPushButton::clicked, this, &PLSLaunchWizardView::onUrlButtonClicked);
 }
@@ -616,17 +676,45 @@ void PLSLaunchWizardView::onPrismMessageCome(const QVariantHash &params)
 		handlePrismState(msgBody);
 		break;
 	case MessageType::ErrorInfomation:
-		handleErrorMessgage(msgBody);
+		handleErrorMessage(msgBody);
 		break;
 	default:
 		break;
 	}
 }
 
-void PLSLaunchWizardView::handlePrismState(const QVariantMap &body) const
+bool PLSLaunchWizardView::isNeedShow()
 {
+	if (m_bShowFlag) {
+		return false;
+	}
+	auto lastHideDate = config_get_string(App()->GetUserConfig(), common::LAUNCHER_CONFIG, common::CONFIG_LASTHIDEDATE);
+	QString currentDate = QDate::currentDate().toString("yyyy-MM-dd");
+	if (lastHideDate == currentDate) {
+		PLS_INFO(ModuleName, "get dont show config is true");
+		return false;
+	}
+
+	return true;
+}
+
+void PLSLaunchWizardView::handlePrismState(const QVariantMap &body)
+{
+	if (m_stopLoadingTimer == nullptr) {
+		m_stopLoadingTimer = QSharedPointer<QTimer>::create(this);
+		m_stopLoadingTimer->setInterval(15000);
+		m_stopLoadingTimer->setSingleShot(true);
+		connect(m_stopLoadingTimer.data(), &QTimer::timeout, this, [this]() { m_liveInfoView->loading(false); }, Qt::QueuedConnection);
+	}
+
 	auto state = body.value(ChannelData::g_prismState).toInt();
-	m_liveInfoView->loading(state == int(ChannelData::PrismState::Bussy));
+	if (state == int(ChannelData::PrismState::Bussy)) {
+		m_liveInfoView->loading(true);
+		m_stopLoadingTimer->start();
+	} else {
+		m_liveInfoView->loading(false);
+		m_stopLoadingTimer->stop();
+	}
 }
 
 #ifdef _DEBUG
@@ -635,7 +723,7 @@ const int disapearTime = 5 * 1000;
 const int disapearTime = 60 * 1000;
 #endif // DEBUG
 
-void PLSLaunchWizardView::handleErrorMessgage(const QVariantMap &body)
+void PLSLaunchWizardView::handleErrorMessage(const QVariantMap &body)
 {
 	auto location = body.value(shared_values::errorTitle).toString();
 	auto content = body.value(shared_values::errorContent).toString();
@@ -822,6 +910,7 @@ void PLSLaunchWizardView::updateGuideButtonState(bool on)
 void PLSLaunchWizardView::singletonWakeup()
 {
 	if (m_bShowFlag) {
+		createAdView();
 		PLS_INFO(ModuleName, "launch singletonWakeup");
 		this->show();
 		if (this->isMinimized()) {
@@ -830,6 +919,7 @@ void PLSLaunchWizardView::singletonWakeup()
 		raise();
 		activateWindow();
 #if defined(Q_OS_MACOS)
+		pls_scroll_area_clips_to_bounds(ui->wizardScrollArea);
 		this->setWindowState(windowState() & ~Qt::WindowFullScreen);
 #endif
 	} else {
@@ -840,6 +930,7 @@ void PLSLaunchWizardView::singletonWakeup()
 void PLSLaunchWizardView::hideView()
 {
 	this->hide();
+	releaseAdView();
 	pls_check_app_exiting();
 	if (!isLoadBannerSuccess) {
 		m_UpdateCount = 0;
@@ -847,11 +938,17 @@ void PLSLaunchWizardView::hideView()
 	}
 	bool state = ui->checkBox->isChecked();
 	PLS_INFO(ModuleName, "set dont show config is %d", state);
-	config_set_bool(App()->GlobalConfig(), common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW, state);
-}
-void PLSLaunchWizardView::updateLangcherTips()
-{
-	ui->tipsLabel->setText(TipText);
+	auto globalConfig = App()->GetUserConfig();
+	if (state) {
+		auto byteArray = QDate::currentDate().toString("yyyy-MM-dd").toUtf8();
+		auto currentDate = byteArray.constData();
+		config_set_string(globalConfig, common::LAUNCHER_CONFIG, common::CONFIG_LASTHIDEDATE, currentDate);
+		PLS_INFO(ModuleName, "set last show date is %s", currentDate);
+	} else {
+		config_set_string(globalConfig, common::LAUNCHER_CONFIG, common::CONFIG_LASTHIDEDATE, "");
+		PLS_INFO(ModuleName, "set last show date is empty");
+	}
+	config_save_safe(globalConfig, "tmp", nullptr);
 }
 
 void PLSLaunchWizardView::firstShow(QWidget *parent)

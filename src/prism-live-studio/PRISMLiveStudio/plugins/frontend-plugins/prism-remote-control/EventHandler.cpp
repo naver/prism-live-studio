@@ -63,7 +63,7 @@ void EventHandler::UnLoad()
 {
 	if (!m_isLoaded)
 		return;
-	
+
 	obs_frontend_remove_event_callback(EventHandler::obs_frontend_event_received, this);
 	pls_frontend_remove_event_callback(EventHandler::pls_frontend_event_received, this);
 
@@ -197,7 +197,7 @@ bool EventHandler::Receive(const DataPackage &pkg, SocketSession *session) const
 {
 	if (!m_isLoaded)
 		return false;
-	
+
 	auto ret = true;
 
 	try {
@@ -295,6 +295,10 @@ bool EventHandler::Receive(const DataPackage &pkg, SocketSession *session) const
 			this->sendSuccess(pkg.header, session, QJsonObject());
 			break;
 
+		case CommandType::Ping:
+			session->SendReply(pkg.header, QByteArray());
+			break;
+
 		default:
 			assert(false);
 			Utils::rc_log_warning("X-RC-WARN-LOG", "Unhandle command type", QString("Unhandle command type %1").arg(QString(pkg.body)));
@@ -339,8 +343,7 @@ void EventHandler::StartBroadcast(const QJsonObject &commandJson, const CommandH
 			sendFailure(requestHeader, session, RCError::requestFailed, "No selected channel");
 			return;
 		} else {
-			QMetaObject::invokeMethod(
-				qApp, []() { pls_start_broadcast(true, ControlSrcType::RemoteControl); }, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(qApp, []() { pls_start_broadcast(true, ControlSrcType::RemoteControl); }, Qt::QueuedConnection);
 		}
 		break;
 	case BroadcastType::Rehearsal:
@@ -348,8 +351,7 @@ void EventHandler::StartBroadcast(const QJsonObject &commandJson, const CommandH
 			break;
 
 		if (pls_is_rehearsal_info_display()) {
-			QMetaObject::invokeMethod(
-				qApp, []() { pls_start_rehearsal(true); }, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(qApp, []() { pls_start_rehearsal(true); }, Qt::QueuedConnection);
 		} else if (QApplication::activeModalWidget()) {
 			sendFailure(requestHeader, session, RCError::appCannotRespond, "PC is in modal.");
 			return;
@@ -362,8 +364,7 @@ void EventHandler::StartBroadcast(const QJsonObject &commandJson, const CommandH
 			sendFailure(requestHeader, session, RCError::appCannotRespond, "PC is in modal.");
 			return;
 		} else {
-			QMetaObject::invokeMethod(
-				qApp, []() { pls_start_record(true); }, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(qApp, []() { pls_start_record(true); }, Qt::QueuedConnection);
 		}
 		break;
 	default:
@@ -397,12 +398,10 @@ void EventHandler::StopBroadcast(const CommandHeader &requestHeader, SocketSessi
 	switch (broadcastType) {
 	case BroadcastType::Live:
 	case BroadcastType::Rehearsal:
-		QMetaObject::invokeMethod(
-			qApp, []() { pls_start_broadcast(false, ControlSrcType::RemoteControl); }, Qt::QueuedConnection);
+		QMetaObject::invokeMethod(qApp, []() { pls_start_broadcast(false, ControlSrcType::RemoteControl); }, Qt::QueuedConnection);
 		break;
 	case BroadcastType::Recording:
-		QMetaObject::invokeMethod(
-			qApp, []() { pls_start_record(false, ControlSrcType::RemoteControl); }, Qt::QueuedConnection);
+		QMetaObject::invokeMethod(qApp, []() { pls_start_record(false, ControlSrcType::RemoteControl); }, Qt::QueuedConnection);
 		break;
 	default:
 		break;
@@ -524,8 +523,7 @@ void EventHandler::SetAllSourceMute(bool isOn, const CommandHeader &requestHeade
 		return;
 	}
 
-	if (!QMetaObject::invokeMethod(
-		    qApp, [isOn]() { pls_mixer_mute_all(!isOn); }, Qt::QueuedConnection)) {
+	if (!QMetaObject::invokeMethod(qApp, [isOn]() { pls_mixer_mute_all(!isOn); }, Qt::QueuedConnection)) {
 		errorInfo = "obs pls_mixer_mute_all error";
 		e = RCError::obsReturnsError;
 		sendFailure(requestHeader, session, e, errorInfo);
@@ -655,8 +653,6 @@ void EventHandler::SetStudioModeActive(bool active, const CommandHeader &request
 	LogHelper::getInstance()->writeMessage(session->GetName(), "Set studio mode");
 	RCError e = RCError::success;
 	std::string errorInfo;
-	QJsonObject successCmdJson;
-	Action a{};
 
 	if (common_check(e, session, errorInfo) != RCError::success) {
 		sendFailure(requestHeader, session, e, errorInfo);
@@ -665,27 +661,42 @@ void EventHandler::SetStudioModeActive(bool active, const CommandHeader &request
 
 	if (active == obs_frontend_preview_program_mode_active()) {
 		RC_LOG_INFO("No need set studio mode");
-		a = get_studio_mode_switch_action();
+
+		QJsonObject successCmdJson;
+		Action a = get_studio_mode_switch_action();
+
 		if (a.source.has_value())
 			get_result_json_by_source(successCmdJson, a.source.value());
 		sendSuccess(requestHeader, session, successCmdJson);
 		return;
 	}
 
-	if (!QMetaObject::invokeMethod(
-		    qApp, [active]() { obs_frontend_set_preview_program_mode(active); }, Qt::QueuedConnection)) {
-		errorInfo = "obs_frontend_set_preview_program_mode returns false";
-		e = RCError::obsReturnsError;
-		sendFailure(requestHeader, session, e, errorInfo);
-		return;
-	}
+	std::weak_ptr<SocketSession> weakSession = session->getWeakPointer();
+	auto callback = [active, requestHeader, weakSession]() {
+		bool successed = pls_frontend_set_preview_program_mode(active);
 
-	a = get_studio_mode_switch_action();
-	if (a.source.has_value()) {
-		a.source.value().isOn = active;
-		get_result_json_by_source(successCmdJson, a.source.value());
+		auto session = weakSession.lock();
+		if (!session)
+			return; // session has been destroyed, never need to response
+
+		if (successed) {
+			QJsonObject successCmdJson;
+			Action a = get_studio_mode_switch_action();
+			if (a.source.has_value()) {
+				a.source.value().isOn = obs_frontend_preview_program_mode_active();
+				get_result_json_by_source(successCmdJson, a.source.value());
+			}
+			EventHandler::getInstance()->sendSuccess(requestHeader, session.get(), successCmdJson);
+		} else {
+			std::string errorInfo = "pls_frontend_set_preview_program_mode returns false";
+			EventHandler::getInstance()->sendFailure(requestHeader, session.get(), RCError::obsReturnsError, errorInfo);
+		}
+	};
+
+	if (!QMetaObject::invokeMethod(qApp, callback, Qt::QueuedConnection)) {
+		errorInfo = "pls_frontend_set_preview_program_mode returns false";
+		sendFailure(requestHeader, session, RCError::obsReturnsError, errorInfo);
 	}
-	sendSuccess(requestHeader, session, successCmdJson);
 }
 
 void EventHandler::ApplyDraftToLive(const CommandHeader &requestHeader, SocketSession *session) const
@@ -738,8 +749,7 @@ void EventHandler::SetAlertMessageVisible(bool visible, const CommandHeader &req
 		return;
 	}
 
-	if (!QMetaObject::invokeMethod(
-		    qApp, []() { pls_click_alert_message(); }, Qt::QueuedConnection)) {
+	if (!QMetaObject::invokeMethod(qApp, []() { pls_click_alert_message(); }, Qt::QueuedConnection)) {
 		errorInfo = "pls_click_alert_message executes error";
 		e = RCError::obsReturnsError;
 		sendFailure(requestHeader, session, e, errorInfo);
@@ -1176,16 +1186,16 @@ void EventHandler::_handleRecordingState(const QString &strState)
 void EventHandler::obs_frontend_event_received(obs_frontend_event event, void *context)
 {
 	auto h = (EventHandler *)context;
-	
+
 	switch (event) {
-		case OBS_FRONTEND_EVENT_RECORDING_PAUSED:
-			h->_handleRecordingState(pls_get_record_state());
-			break;
-		case OBS_FRONTEND_EVENT_RECORDING_UNPAUSED:
-			h->_handleRecordingState(pls_get_record_state());
-			break;
-		default:
-			break;
+	case OBS_FRONTEND_EVENT_RECORDING_PAUSED:
+		h->_handleRecordingState(pls_get_record_state());
+		break;
+	case OBS_FRONTEND_EVENT_RECORDING_UNPAUSED:
+		h->_handleRecordingState(pls_get_record_state());
+		break;
+	default:
+		break;
 	}
 }
 void EventHandler::pls_frontend_event_received(pls_frontend_event event, const QVariantList &params, void *context)

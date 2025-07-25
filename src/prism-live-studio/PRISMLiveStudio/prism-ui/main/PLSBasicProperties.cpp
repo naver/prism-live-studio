@@ -7,6 +7,7 @@
 #include "liblog.h"
 #include "log/module_names.h"
 #include "TextMotionTemplateDataHelper.h"
+#include "PLSChatTemplateDataHelper.h"
 #include "qtimer.h"
 #include "loading-event.hpp"
 #include "obs-app.hpp"
@@ -107,7 +108,10 @@ PLSBasicProperties::PLSBasicProperties(QWidget *parent, OBSSource source_, unsig
 
 	if (pls_is_equal(id, PRISM_TEXT_TEMPLATE_ID)) {
 		QTimer::singleShot(0, this, [this]() { AsyncLoadTextmotionProperties(); });
+	} else if (pls_is_equal(id, PRISM_CHATV2_SOURCE_ID)) {
+		pls_async_call(this, [this]() { asyncLoadChatWidgetproperties(); });
 	}
+
 	if (pls_is_equal(id, common::PRISM_MOBILE_SOURCE_ID)) {
 		_customPreview();
 	} else {
@@ -171,10 +175,12 @@ static QString getLoadingString(const char *source_id)
 void PLSBasicProperties::ShowLoading()
 {
 	//"main.camera.loading.devicelist"
+	if (isClosed)
+		return;
 	HideLoading();
 	m_pWidgetLoadingBG = pls_new<QWidget>(content());
 	m_pWidgetLoadingBG->setObjectName("loadingBG");
-	m_pWidgetLoadingBG->setGeometry(content()->geometry());
+	m_pWidgetLoadingBG->resize(content()->frameSize());
 #if defined(Q_OS_MACOS)
 	m_pWidgetLoadingBG->setAttribute(Qt::WA_DontCreateNativeAncestors);
 	m_pWidgetLoadingBG->setAttribute(Qt::WA_NativeWindow);
@@ -239,6 +245,36 @@ void PLSBasicProperties::AsyncLoadTextmotionProperties()
 	});
 }
 
+void PLSBasicProperties::asyncLoadChatWidgetproperties()
+{
+	QPointer<PLSChatTemplateDataHelper> ChatTemplateInstance = static_cast<PLSChatTemplateDataHelper *>(PLSChatTemplateDataHelper::instance());
+	pls_connect(
+		ChatTemplateInstance.data(), &PLSChatTemplateDataHelper::loadechatWidgetBKRes, this,
+		[this](bool isSuccess, bool isUpdate) {
+			HideLoading();
+			auto propertiesView = dynamic_cast<PLSPropertiesView *>(view);
+			if (propertiesView && isSuccess && isUpdate) {
+				pls_async_call(propertiesView, [propertiesView, this]() {
+					if (propertiesView) {
+						static_cast<PLSChatTemplateDataHelper *>(PLSChatTemplateDataHelper::instance())->initchatBKTemplateButtons();
+						propertiesView->RefreshProperties();
+					}
+					if (ui->preview)
+						ui->preview->show();
+				});
+			}
+		},
+		Qt::QueuedConnection);
+
+	if (ChatTemplateInstance) {
+		ChatTemplateInstance->checkChatBkRes([this](bool isOk) {
+			if (!isOk) {
+				ShowLoading();
+			}
+		});
+	}
+}
+
 void PLSBasicProperties::ShowMobileNotice()
 {
 	const char *id = obs_source_get_id(source);
@@ -246,7 +282,7 @@ void PLSBasicProperties::ShowMobileNotice()
 		return;
 	}
 
-	bool checked = config_get_bool(App()->GlobalConfig(), "General", "NotRemindScanQRcode");
+	bool checked = config_get_bool(App()->GetUserConfig(), "General", "NotRemindScanQRcode");
 	if (checked) {
 		return;
 	}
@@ -265,16 +301,15 @@ void PLSBasicProperties::ShowMobileNotice()
 
 		QPointer guard(this);
 		std::optional<int> timeout = std::optional<int>();
-		PLSAlertView::Result res = PLSAlertView::information(App()->getMainView(), QTStr("Confirm"), QTStr("main.property.mobile.scan.QRcode.tips"),
-								     QTStr("main.property.prism.dont.show.again"),
+		PLSAlertView::Result res = PLSAlertView::information(this, QTStr("Confirm"), QTStr("main.property.mobile.scan.QRcode.tips"), QTStr("main.property.prism.dont.show.again"),
 								     {{PLSAlertView::Button::Open, QTStr("main.property.prism.mobile.open")}, {PLSAlertView::Button::No, QTStr("Close")}},
 								     PLSAlertView::Button::No, timeout, QMap<QString, QVariant>());
 		if (!guard)
 			return;
 
 		if (res.isChecked) {
-			config_set_bool(App()->GlobalConfig(), "General", "NotRemindScanQRcode", true);
-			config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
+			config_set_bool(App()->GetUserConfig(), "General", "NotRemindScanQRcode", true);
+			config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
 		}
 		if (res.button == PLSAlertView::Button::Open) {
 			QStringList arguments{"--display_control=top", "--active_tab=mobile", "--tip_key=mobile_connect_tip", "--select_mobile_cam=2"};
@@ -298,8 +333,8 @@ void PLSBasicProperties::ShowPrismLensNaverRunNotice(bool isMobileSource)
 		content = QTStr("main.property.mobile.launch");
 	}
 
-	PLSAlertView::Button button = PLSAlertView::information(App()->getMainView(), QTStr("Confirm"), content,
-								{{PLSAlertView::Button::Open, QTStr("main.property.prism.mobile.open")}, {PLSAlertView::Button::No, QTStr("Close")}});
+	PLSAlertView::Button button =
+		PLSAlertView::information(this, QTStr("Confirm"), content, {{PLSAlertView::Button::Open, QTStr("main.property.prism.mobile.open")}, {PLSAlertView::Button::No, QTStr("Close")}});
 	if (button == PLSAlertView::Button::Open) {
 		QStringList arguments{"--display_control=top"};
 		int outputCam = isMobileSource ? 2 : 0;
@@ -383,6 +418,11 @@ void PLSBasicProperties::dialogClosedToSendNoti()
 	done(0);
 }
 
+void PLSBasicProperties::cancelSavePropertyData()
+{
+	ui->buttonBox->button(QDialogButtonBox::Cancel)->clicked();
+}
+
 // MARK: - preview
 
 void PLSBasicProperties::_customPreview()
@@ -450,8 +490,7 @@ void PLSBasicProperties::showToast(const QString &message)
 #ifdef __APPLE__
 	PLSCustomMacWindow::addCurrentWindowToParentWindow(toast);
 #endif
-	QMetaObject::invokeMethod(
-		this, [this]() { updateToastGeometry(); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(this, [this]() { updateToastGeometry(); }, Qt::QueuedConnection);
 }
 
 void PLSBasicProperties::setToastMessage(const QString &message)

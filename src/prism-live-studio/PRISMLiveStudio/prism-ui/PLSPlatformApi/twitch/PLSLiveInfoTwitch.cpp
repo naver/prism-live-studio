@@ -44,7 +44,9 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 			PLS_INFO(MODULE_PLATFORM_TWITCH, "show twitch update timeout alert.");
 			pls_async_call_mt(this, [this]() {
 				hideLoading();
-				PLSErrorHandler::showAlertByCustomErrName(PLSErrCustomKey_LoadLiveInfoFailed, TWITCH, {});
+				PLSErrorHandler::ExtraData exData;
+				exData.urlEn = QStringLiteral("twitch load liveinfo failed");
+				PLSErrorHandler::showAlertByCustomErrName(PLSErrCustomKey_LoadLiveInfoFailed, TWITCH, exData);
 			});
 		}
 	});
@@ -73,24 +75,35 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 			}
 		} else if (0 == status.compare("clickEnd", Qt::CaseInsensitive)) {
 			PLS_INFO(MODULE_PLATFORM_TWITCH, "clickEnd--end update live info");
-			m_updateTimer.stop();
-			m_isUpdateFinished = true;
 		} else if (!m_updateSuccess && 0 == status.compare("saveSuccess", Qt::CaseInsensitive)) {
+			m_updateTimer.stop();
 			m_updateSuccess = true;
+			m_isUpdateFinished = true;
 			PLS_INFO(MODULE_PLATFORM_TWITCH, "saveSuccess--update live info success");
 			if (!PLS_PLATFORM_API->isPrepareLive()) {
-				accept();
-				PLS_PLATFORM_TWITCH->getChannelInfo();
+				PLS_PLATFORM_TWITCH->getChannelInfo([this](bool isSuccess) {
+					PLS_INFO(MODULE_PLATFORM_TWITCH, "get channel info is %s", BOOL2STR(isSuccess));
+					hideLoading();
+					accept();
+				});
 			} else {
 				PLS_INFO(MODULE_PLATFORM_TWITCH, "start prepare live.");
 				PLS_PLATFORM_TWITCH->requestStreamKey(true, [this](bool isSuccess) {
 					if (pls_object_is_valid(this)) {
+						hideLoading();
 						if (isSuccess) {
+							PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_TWITCH,
+								  {
+									  {"platformName", "twitch"},
+									  {"startLiveStatus", "Success"},
+								  },
+								  "twitch start live success");
 							accept();
-							PLS_PLATFORM_TWITCH->getChannelInfo();
 						} else {
+							PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_TWITCH,
+								  {{"platformName", "twitch"}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "Twitch Start Failed, twitch stream key api failed"}},
+								  "twitch start live failed");
 							PLS_ERROR(MODULE_PLATFORM_TWITCH, "twitch stream key api failed");
-							hideLoading();
 						}
 					}
 				});
@@ -111,6 +124,7 @@ PLSLiveInfoTwitch::PLSLiveInfoTwitch(PLSPlatformBase *pPlatformBase, QWidget *pa
 	});
 	showLoading(content());
 	auto closeEvent = [this](QCloseEvent *) -> bool {
+		hide();
 		if (m_browserWidget) {
 			m_browserWidget->closeBrowser();
 		}

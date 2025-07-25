@@ -25,6 +25,28 @@ using namespace common;
 
 const static int k_refreshDiff = 60 * 3;
 
+// the log name of api failed
+const QString YT_Name_Pre = QString(YOUTUBE) + " ";
+const QString YT_API_RequestTestLive = YT_Name_Pre + "Post /liveBroadcasts/transition?broadcastStatus=testing";
+const QString YT_API_GetLiveBroadcastLoop = YT_Name_Pre + "Get /liveBroadcasts in loop"; //in loop, not print error
+const QString YT_API_RequestScheduleList = YT_Name_Pre + "Get /liveBroadcasts?broadcastStatus=upcoming";
+const QString YT_API_RequestCurrentSelectData = YT_Name_Pre + "Get /liveBroadcasts?id=x";
+const QString YT_API_PostLiveBroadcasts = YT_Name_Pre + "Post /liveBroadcasts";
+const QString YT_API_PutLiveBroadcasts = YT_Name_Pre + "Put /liveBroadcasts";
+const QString YT_API_GetLiveStream = YT_Name_Pre + "Get /liveStreams";
+const QString YT_API_PostLiveStreams = YT_Name_Pre + "Post /liveStreams";
+const QString YT_API_DeleteLiveStreams = YT_Name_Pre + "Delete /liveStreams";
+const QString YT_API_PostLiveBroadcastsBind = YT_Name_Pre + "Post /liveBroadcasts/bind";
+const QString YT_API_GetVideo = YT_Name_Pre + "Get /videos";
+const QString YT_API_PutVideo = YT_Name_Pre + "Put /videos";
+const QString YT_API_GetCategoryList = YT_Name_Pre + "Get /videoCategories";
+const QString YT_API_RefreshYoutubeToken = YT_Name_Pre + "Post /token?grant_type=refresh_token";
+const QString YT_API_PostToken = YT_Name_Pre + "Post /token?grant_type=authorization_code";
+const QString YT_API_UploadImage = YT_Name_Pre + "Post /upload/youtube/v3/thumbnails/set";
+const QString YT_API_GetChannels = YT_Name_Pre + "Get /channels";
+const QString YT_API_liveStreamingDetails = YT_Name_Pre + "Get /videos in loop";
+const QString YT_API_RequestStopLive = YT_Name_Pre + "Post /liveBroadcasts/transition?broadcastStatus=complete";
+
 PLSAPIYoutube::PLSAPIYoutube(QObject *parent) : QObject(parent) {}
 
 void PLSAPIYoutube::requestTestLive(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType)
@@ -33,9 +55,8 @@ void PLSAPIYoutube::requestTestLive(const QObject *receiver, const PLSAPICommon:
 	auto _getNetworkReply = [receiver, onSucceed, onFailed] {
 		auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
 		QMap<QString, QString> map = {{"broadcastStatus", "testing"}, {"id", _id}, {"part", "status,snippet,contentDetails"}};
-
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestTestLive");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_RequestTestLive.toUtf8());
 		_request.method(pls::http::Method::Post).url(QString("%1/liveBroadcasts/transition").arg(g_plsYoutubeAPIHost)).urlParams(map);
 		PLSAPICommon::maskingUrlKeys(_request, {_id});
 		pls::http::request(_request);
@@ -75,7 +96,7 @@ void PLSAPIYoutube::requestLiveBroadcastStatus(const QObject *receiver, const PL
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed] {
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestLiveBroadcastStatus");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_GetLiveBroadcastLoop.toUtf8());
 		auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
 		QMap<QString, QString> map = {{"id", _id}, {"part", "id,status,contentDetails,snippet"}};
 		_request.method(pls::http::Method::Get) //
@@ -91,7 +112,7 @@ void PLSAPIYoutube::requestVideoStatus(const QObject *receiver, const PLSAPIComm
 {
 	auto _getNetworkReply = [receiver, onSucceed, onFailed] {
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestVideoStatus");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_liveStreamingDetails.toUtf8());
 
 		auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
 		QMap<QString, QString> map = {{"part", "statistics, liveStreamingDetails"}, {"id", _id}};
@@ -120,7 +141,7 @@ void PLSAPIYoutube::requestStopLive(const QObject *receiver, const std::function
 	auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 	const auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
 
-	PLSAPIYoutube::configDefaultRequest(_request, receiver, _onSucceed, _onFail, "requestStopLive", true);
+	PLSAPIYoutube::configDefaultRequest(_request, receiver, _onSucceed, _onFail, YT_API_RequestStopLive.toUtf8(), true);
 	QMap<QString, QString> map = {{"broadcastStatus", "complete"}, {"id", _id}, {"part", "status"}};
 	_request.method(pls::http::Method::Post).url(QString("%1/liveBroadcasts/transition").arg(g_plsYoutubeAPIHost)).urlParams(map).allowAbort(false);
 	PLSAPICommon::maskingUrlKeys(_request, {_id});
@@ -135,7 +156,7 @@ void PLSAPIYoutube::requestLiveBroadcastsInsert(const QObject *receiver, const P
 	object["status"] = QJsonObject({{"privacyStatus", tryData.privacyStatus.toLower()}, {"selfDeclaredMadeForKids", PLS_PLATFORM_YOUTUBE->getTrySaveDataData().isForKids}});
 
 	auto nowTime = PLSDateFormate::youtubeTimeStampToString(PLSDateFormate::getNowTimeStamp() + 20);
-	object["snippet"] = QJsonObject({{"title", tryData.title}, {"scheduledStartTime", nowTime}});
+	object["snippet"] = QJsonObject({{"title", tryData.title}, {"scheduledStartTime", nowTime}, {"description", tryData.description}});
 
 	auto cdnObject = QJsonObject();
 	cdnObject["enableAutoStart"] = tryData.startData.enableAutoStart;
@@ -151,7 +172,7 @@ void PLSAPIYoutube::requestLiveBroadcastsInsert(const QObject *receiver, const P
 		auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
 
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestLiveBroadcastsInsert");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_PostLiveBroadcasts.toUtf8());
 
 		_request.method(pls::http::Method::Post) //
 			.url(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost))
@@ -206,7 +227,7 @@ void PLSAPIYoutube::requestLiveStreamsInsert(const QObject *receiver, const PLSA
 	auto _getNetworkReply = [receiver, onSucceed, onFailed, object] {
 		auto &_id = PLS_PLATFORM_YOUTUBE->getSelectData()._id;
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestLiveStreamsInsert");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_PostLiveStreams.toUtf8());
 		_request.method(pls::http::Method::Post) //
 			.url(QString("%1/liveStreams").arg(g_plsYoutubeAPIHost))
 			.urlParam("part", "snippet,cdn,contentDetails,status")
@@ -229,7 +250,7 @@ void PLSAPIYoutube::requestLiveBroadcastsBindOrUnbind(const QObject *receiver, c
 			map.insert("streamId", _bsID);
 		}
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestLiveBroadcastsBindOrUnbind");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_PostLiveBroadcastsBind.toUtf8());
 
 		_request.method(pls::http::Method::Post).url(QString("%1/liveBroadcasts/bind").arg(g_plsYoutubeAPIHost)).urlParams(map);
 
@@ -255,7 +276,7 @@ void PLSAPIYoutube::requestDeleteStream(const QObject *receiver, const QString &
 		QMap<QString, QString> map = {{"id", deleteID}};
 
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestDeleteStream");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_DeleteLiveStreams.toUtf8());
 
 		_request.method(pls::http::Method::Delete) //
 			.url(QString("%1/liveStreams").arg(g_plsYoutubeAPIHost))
@@ -272,7 +293,7 @@ void PLSAPIYoutube::requestLiveBroadcastsUpdate(const QObject *receiver, const P
 						PLSAPICommon::RefreshType refreshType)
 {
 	const auto &data = PLS_PLATFORM_YOUTUBE->getTrySaveDataData();
-	QJsonObject details = data.contentDetails;
+	QJsonObject details = data.livebroadcastAPIData["contentDetails"].toObject();
 	setLatency(details, data.latency);
 
 	details["enableAutoStart"] = startData.enableAutoStart;
@@ -290,14 +311,20 @@ void PLSAPIYoutube::requestLiveBroadcastsUpdate(const QObject *receiver, const P
 	object["contentDetails"] = details;
 	object["status"] = QJsonObject({{"privacyStatus", data.privacyStatus.toLower()}});
 
-	//when kids is true, then this api will call failed.
+	auto snippet = data.livebroadcastAPIData["snippet"].toObject();
+
+	snippet["title"] = data.title;
+	snippet["description"] = data.description;
+	object["snippet"] = snippet;
+
+	//when kids is true, then this api will call failed.  Put api can't change kids value.
 	auto _getNetworkReply = [receiver, onSucceed, onFailed, object] {
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestLiveBroadcastsUpdate");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_PutLiveBroadcasts.toUtf8());
 
 		_request.method(pls::http::Method::Put) //
 			.url(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost))
-			.urlParam("part", "contentDetails,status")
+			.urlParam("part", "contentDetails,status,snippet")
 			.body(object);
 		pls::http::request(_request);
 	};
@@ -326,7 +353,7 @@ void PLSAPIYoutube::requestCategoryID(const QObject *receiver, const PLSAPICommo
 	auto _getNetworkReply = [liveID, receiver, onSucceed, onFailed, ids] {
 		QMap<QString, QString> map = {{"id", liveID}, {"part", "snippet,status"}};
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestCategoryID");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_GetVideo.toUtf8());
 
 		_request.method(pls::http::Method::Get) //
 			.url(QString("%1/videos").arg(g_plsYoutubeAPIHost))
@@ -344,7 +371,7 @@ void PLSAPIYoutube::requestCategoryList(const QObject *receiver, const PLSAPICom
 		QMap<QString, QString> map = {{"hl", pls_get_current_language()}, {"regionCode", "US"}, {"part", "snippet"}};
 
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestCategoryList");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_GetCategoryList.toUtf8());
 
 		_request.method(pls::http::Method::Get) //
 			.url(QString("%1/videoCategories").arg(g_plsYoutubeAPIHost))
@@ -362,7 +389,7 @@ void PLSAPIYoutube::requestScheduleList(const QObject *receiver, const PLSAPICom
 		QMap<QString, QString> map = {{"part", "contentDetails,snippet,status"}, {"broadcastStatus", "upcoming"}, {"maxResults", "51"}};
 
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestScheduleList");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_RequestScheduleList.toUtf8());
 		_request.method(pls::http::Method::Get) //
 			.url(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost))
 			.urlParams(map);
@@ -378,7 +405,7 @@ void PLSAPIYoutube::requestCurrentSelectData(const QObject *receiver, const PLSA
 		QMap<QString, QString> map = {{"part", "contentDetails,snippet,status"}, {"id", PLS_PLATFORM_YOUTUBE->getSelectData()._id}};
 
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestCurrentSelectData");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_RequestCurrentSelectData.toUtf8());
 
 		_request.method(pls::http::Method::Get) //
 			.url(QString("%1/liveBroadcasts").arg(g_plsYoutubeAPIHost))
@@ -430,7 +457,7 @@ void PLSAPIYoutube::requestUpdateVideoData(const QObject *receiver, const PLSAPI
 
 	auto _getNetworkReply = [object, receiver, onSucceed, onFailed] {
 		const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, "requestUpdateVideoData");
+		PLSAPIYoutube::configDefaultRequest(_request, receiver, onSucceed, onFailed, YT_API_PutVideo.toUtf8());
 
 		_request.method(pls::http::Method::Put) //
 			.url(QString("%1/videos").arg(g_plsYoutubeAPIHost))
@@ -511,7 +538,7 @@ void PLSAPIYoutube::refreshYoutubeTokenBeforeRequest(PLSAPICommon::RefreshType r
 	QByteArray bodyByte = bodyStr.toUtf8();
 
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-	PLSAPIYoutube::configDefaultRequest(_request, originReceiver, _onSucceed, _onFail, "refreshYoutubeTokenBeforeRequest");
+	PLSAPIYoutube::configDefaultRequest(_request, originReceiver, _onSucceed, _onFail, YT_API_RefreshYoutubeToken.toUtf8());
 	_request.contentType(HTTP_CONTENT_TYPE_URL_ENCODED_VALUE);
 
 	_request.method(pls::http::Method::Post).url(g_plsYoutubeAPIToken).urlParam("part", "snippet,status").body(bodyByte);
@@ -555,7 +582,7 @@ void PLSAPIYoutube::uploadImage(const QObject *receiver, const QString &imageFil
 		callback(dealUploadImageSucceed(data, imgUrl), imgUrl);
 	};
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
-	PLSAPIYoutube::configDefaultRequest(_request, receiver, okCallback, onFailed, "uploadImage", false);
+	PLSAPIYoutube::configDefaultRequest(_request, receiver, okCallback, onFailed, YT_API_UploadImage.toUtf8(), false);
 
 	_request.urlParam("videoId", PLS_PLATFORM_YOUTUBE->getTrySaveDataData()._id)
 		.timeout(PRISM_NET_DOWNLOAD_TIMEOUT)
@@ -637,7 +664,6 @@ void PLSAPIYoutube::showFailedLog(const QString &logName, const pls::http::Reply
 			}
 		} else {
 			auto errorMsg = _data.left(200);
-			;
 			PLS_ERROR(MODULE_PlatformService, "%s failed. with not object data. data:%s", logName.toUtf8().constData(), errorMsg.constData());
 		}
 	}

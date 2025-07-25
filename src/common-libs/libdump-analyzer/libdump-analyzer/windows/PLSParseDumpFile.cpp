@@ -193,7 +193,7 @@ ULONG64 GetThreadId(const char *pszDumpPath)
 	return threadId;
 }
 
-bool FindModule(const std::vector<ModuleInfo> &modules,  ULONG64 addr, ULONG64 &offset, ModuleInfo &moduleInfo)
+bool FindModule(const std::vector<ModuleInfo> &modules, ULONG64 addr, ULONG64 &offset, ModuleInfo &moduleInfo)
 {
 	bool find = false;
 	for (const auto &item : modules) {

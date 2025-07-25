@@ -33,6 +33,8 @@ class undo_stack : public QObject {
 	bool enabled = true;
 	bool last_is_repeatable = false;
 
+	bool ignoreOneTime = false;
+
 	QTimer repeat_reset_timer;
 
 	inline bool is_enabled() const { return !disable_refs && enabled; }
@@ -52,10 +54,11 @@ public:
 	void push_disabled();
 	void pop_disabled();
 
+	void setIgnoreOneTime(bool ignore);
+
 	void clear();
-	void add_action(const QString &name, const undo_redo_cb &undo,
-			const undo_redo_cb &redo, const std::string &undo_data,
-			const std::string &redo_data, bool repeatable = false);
+	void add_action(const QString &name, const undo_redo_cb &undo, const undo_redo_cb &redo,
+			const std::string &undo_data, const std::string &redo_data, bool repeatable = false);
 	void undo();
 	void redo();
 };

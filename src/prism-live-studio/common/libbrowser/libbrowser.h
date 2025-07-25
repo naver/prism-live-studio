@@ -169,6 +169,7 @@ signals:
 };
 
 LIBBROWSER_API bool init(const QString &locale);
+LIBBROWSER_API void cleanup();
 
 LIBBROWSER_API QJsonArray toJsonArray(const QList<Cookie> &cookies);
 LIBBROWSER_API QList<Cookie> fromJsonArray(const QJsonArray &jsonArray);

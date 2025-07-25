@@ -67,9 +67,6 @@
      <property name="flat">
       <bool>true</bool>
      </property>
-     <property name="themeID2" stdset="0">
-      <string notr="true">contextBarButton</string>
-     </property>
     </widget>
    </item>
    <item>
@@ -103,9 +100,6 @@
      </property>
      <property name="flat">
       <bool>true</bool>
-     </property>
-     <property name="themeID2" stdset="0">
-      <string notr="true">contextBarButton</string>
      </property>
     </widget>
    </item>
@@ -141,9 +135,6 @@
      <property name="flat">
       <bool>true</bool>
      </property>
-     <property name="themeID2" stdset="0">
-      <string notr="true">contextBarButton</string>
-     </property>
     </widget>
    </item>
    <item>
@@ -177,9 +168,6 @@
      </property>
      <property name="flat">
       <bool>true</bool>
-     </property>
-     <property name="themeID2" stdset="0">
-      <string notr="true">contextBarButton</string>
      </property>
     </widget>
    </item>

@@ -29,7 +29,7 @@ public:
 	const QString &getChannelID() const { return mChannelID; }
 
 	void updateUI();
-	bool GetMeunShow() { return m_bMenuShow; }
+	bool getMenuShow() { return m_bMenuShow || m_bDualoutputMenuShow; }
 
 	void setDualOutput(bool bOpen);
 	void updateUISpacing(bool isDualOutput);
@@ -58,7 +58,7 @@ private:
 
 	void toChannelTypeState(int dataState, const QVariantMap &info);
 
-	void doChildrenExclusive(bool &retflag) const;
+	void doChildrenExclusive(bool &retflag);
 
 	void checkExclusiveChannel(bool &retflag);
 
@@ -70,6 +70,9 @@ private:
 	void onClickHorizontalOutput();
 	void onClickNoSetOutput();
 	void resetActionsState();
+
+	void showOpenPlusAlert(const QString &message);
+	bool showSelectedLimitedAlert(const QString &objectName);
 
 	//private:
 	Ui::ChannelConfigPannel *ui;

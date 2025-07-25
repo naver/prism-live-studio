@@ -156,7 +156,10 @@ LIBUI_API extern const QStringList g_rehearsalingConfigEnabledList;
 LIBUI_API extern const QStringList gDefaultPlatform;
 LIBUI_API extern const QStringList g_allPlatforms;
 
-LIBUI_API extern const int g_maxActiveChannels;
+LIBUI_API extern const int g_maxActiveChannelsForPlusDualOutput;
+LIBUI_API extern const int g_maxActiveChannelsForPlusNormal;
+LIBUI_API extern const int g_maxActiveChannelsForFreeNormal;
+LIBUI_API extern const int g_maxActiveChannelsForFreeDualOutput;
 
 LIBUI_API extern const QString g_facebookUrl;
 LIBUI_API extern const QString g_twitterUrl;

@@ -5,33 +5,27 @@
 #include "PLSChannelDataHandler.h"
 
 struct PLSAfreecaTVLiveinfoData {
-	QString work;
-	QString frmCategoryID;
-	QString frmCategoryStr;
-	QString is_wait;
-	QString frmWait;
-	bool b_showFrmWait = false;
-	QString waiting_time;
-	QString frmTitle;
-	QString frmWaitTime;
-	QString frmViewer;
-	QString frmWaterMark;
-	QString frmHashTags;
-	QString frmByeBye;
-	QString encode_type = "normal"; //normal || vr
-	QString frmStreamKey;
-	QString frmServerUrl;
-	QString _id;
-	bool b_frmAdult = false;
-	QString frmAdult;
-	bool b_frmHidden = false;
-	QString frmHidden;
-	bool b_frmTuneOut = false;
-	QString frmTuneOut;
-	bool b_containFrmAccess = false; //which is only showen in ko
-	QString frmAccess;
-	QString frmAccessCode;
+
+	QString user_id;
+
+	bool broad_pwd_chk{false}; //is contain password (from  requestMainHtml)
+	QString access_code;       //password  (from  requestMainHtml)
+
+	QString categoryID; //from "category": "00360030",
+	QString categoryStr;
+	QString title;
+
+	QString rtmp_server;
+	QString stremKey; //jixxx17-161xxx061   (from  requestMainHtml)
+
+	//not change
+	QString hashtags;
+	QString broad_grade;
+	QString broad_hidden;
+	QString broad_tune_out;
+	QString paid_promotion;
 };
+
 struct PLSAfreecaTVCategory {
 	QString cate_name;
 	QString cate_no;
@@ -50,12 +44,11 @@ public:
 	const PLSAfreecaTVLiveinfoData &getSelectData() const;
 	void requestChannelInfo(const QVariantMap &srcInfo, const UpdateCallback &finishedCall) const;
 	void dealRequestChannelInfoSucceed(const QVariantMap &srcInfo, const QByteArray &data, const UpdateCallback &finishedCall) const;
-	void requestDashborad(const std::function<void(bool)> &onNext, const QObject *receiver);
-	void dealRequestDashborad(const QByteArray &data, const std::function<void(bool)> &onNext, const QObject *receiver);
+	void requestDashborad(const std::function<void(bool)> &onNext, const QObject *receiver, bool isForUpdate);
+	void dealRequestDashborad(const QByteArray &data, const std::function<void(bool)> &onNext, const QObject *receiver, bool isForUpdate);
 	void requestUserNickName(const QVariantMap &srcInfo, const UpdateCallback &finishedCall) const;
 	void dealUserNickNameSucceed(const QVariantMap &srcInfo, const QByteArray &data, QList<QVariantMap> &dstInfos) const;
 	void saveSettings(const std::function<void(bool)> &onNext, const QString &title);
-	bool onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject) override;
 
 	bool isSendChatToMqtt() const override { return true; }
 	const std::vector<PLSAfreecaTVCategory> &getCategories() const { return m_vecCategories; }
@@ -84,12 +77,14 @@ private:
 
 	QString getShareUrl(const QString &id, bool isLiveUrl = false, bool isEnc = false) const;
 	void onPrepareLive(bool value) override;
-	void showApiUpdateError(const QString &customErrName, int code = 0, QByteArray data = {}, QNetworkReply::NetworkError error = QNetworkReply::NoError);
+	void showApiError(const QString &url, const QString &apiName, const QString &customErrName, int code = 0, QByteArray data = {}, QNetworkReply::NetworkError error = QNetworkReply::NoError,
+			  bool isShowExpired = false);
 
 	void requestCategories(const std::function<void(bool)> &onNext, const QObject *receiver);
 	void updateLiveinfo(const std::function<void(bool)> &onNext, const QObject *receiver, const QString &title);
 
 	void dealUpdateLiveinfoSucceed(const QByteArray &data, const std::function<void(bool)> &onNext);
+	void requestStreamKeyAndPassword(const std::function<void(bool)> &onNext, const QObject *receiver);
 
 	void onLiveEnded() override;
 	void onAlLiveStarted(bool) override;

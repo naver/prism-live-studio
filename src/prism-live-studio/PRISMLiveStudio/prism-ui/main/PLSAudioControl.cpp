@@ -360,7 +360,7 @@ void PLSAudioControl::OnSourceItemVisibleChanged(OBSSceneItem item, bool visible
 			}
 		} else {
 			bool allMute = ConfigAllMuted();
-			
+
 			if (allMute) {
 				obs_source_set_muted(source, allMute);
 				SetSourcePreviousMuted(source, allMute);

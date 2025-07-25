@@ -329,6 +329,11 @@ PLSLiveInfoNaverShoppingLIVE #shareSecondObject:disabled{
 	color: white;
 }
 
+#PLSLiveInfoNaverShoppingLIVE #lineEditTitle:disabled,
+#PLSLiveInfoNaverShoppingLIVE #summaryLineEdit:disabled {
+	color: rgba(102, 102, 102, 1);
+}
+
 #PLSLiveInfoNaverShoppingLIVE #bottomFrame {
 	border:/*hdpi*/ none;
 	border-top:/*hdpi*/ 1px solid #151515;
@@ -728,7 +733,9 @@ PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProd
 }
 
 PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget #gotoNaverShoppingToolTipLabel1,
-PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget #gotoNaverShoppingToolTipLabel2 {
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget #gotoNaverShoppingToolTipLabel2,
+PLSLiveInfoNaverShoppingLIVE PLSLiveInfoNaverShoppingLIVEProductList #scheNoProductWidget #productMaxCountLabel
+{
 	background-color: transparent;
 	font-size: /*hdpi*/ 14px;
 	font-weight: bold;
@@ -882,4 +889,13 @@ PLSLiveInfoNaverShoppingLIVE #notifyWidget #notifyRadioButtonWidget {
 PLSLiveInfoNaverShoppingLIVE #notifyRadioButtonWidget #sendRadioButton,
 PLSLiveInfoNaverShoppingLIVE #notifyRadioButtonWidget #notSendRadioButton {
 	margin-right: /*hdpi*/ 10px;
+}
+
+PLSLiveInfoNaverShoppingLIVE #scheduleGuideLabel {
+	margin-left: /*hdpi*/ 114px;
+	font-size: /*hdpi*/ 14px;
+	min-width: /*hdpi*/ 554px;
+	max-width: /*hdpi*/ 554px;
+	color: #666666;
+	background-color: transparent;
 }

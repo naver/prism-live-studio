@@ -15,8 +15,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include "source-label.hpp"
+#include "moc_source-label.cpp"
 #include "pls/pls-dual-output.h"
+#include "libutils-api.h"
 #include <QPainter>
 #include <QStylePainter>
 #include <QStyleOptionFocusRect>
@@ -30,7 +31,7 @@ void SourceLabel::resizeEvent(QResizeEvent *event)
 void SourceLabel::paintEvent(QPaintEvent *event)
 {
 	QPainter dc(this);
-	int padding = pls_is_dual_output_on() ? 0 : 5;
+	int padding = m_iPadding;
 	dc.setFont(font());
 
 	QStyleOption opt;
@@ -41,8 +42,7 @@ void SourceLabel::paintEvent(QPaintEvent *event)
 	option.setWrapMode(QTextOption::NoWrap);
 
 	dc.setPen(textColor);
-	dc.drawText(QRect(padding, 0, width() - padding, height()),
-		    SnapSourceName(), option);
+	dc.drawText(QRect(padding, 0, width() - padding, height()), SnapSourceName(), option);
 	QLabel::paintEvent(event);
 }
 
@@ -53,15 +53,12 @@ QString SourceLabel::SnapSourceName()
 
 	QFontMetrics fontWidth(font());
 	if (fontWidth.horizontalAdvance(currentText) > width() - 5)
-		return fontWidth.elidedText(currentText, Qt::ElideRight,
-					    width() - 5);
+		return fontWidth.elidedText(currentText, Qt::ElideRight, width() - 5);
 	else
 		return currentText;
 }
 
-SourceLabel::SourceLabel(const QString &text, QWidget *parent,
-			 Qt::WindowFlags f)
-	: QLabel(text, parent, f)
+SourceLabel::SourceLabel(const QString &text, QWidget *parent, Qt::WindowFlags f) : QLabel(text, parent, f)
 {
 	this->setText(text);
 }
@@ -83,9 +80,11 @@ QString SourceLabel::GetText() const
 	return currentText;
 }
 
-void SourceLabel::appendDeviceName(const char *name,
-				   const char *appendDeviceName)
+void SourceLabel::appendDeviceName(const char *name, const char *appendDeviceName)
 {
+	if (pls_is_empty(name) || pls_is_empty(appendDeviceName)) {
+		return;
+	}
 	this->setText(QString::fromStdString(name) + appendDeviceName);
 	this->setToolTip(QString::fromStdString(name) + appendDeviceName);
 }

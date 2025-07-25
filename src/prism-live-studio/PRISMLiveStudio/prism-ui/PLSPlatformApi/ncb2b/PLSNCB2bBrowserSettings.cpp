@@ -282,6 +282,7 @@ void PLSNCB2bBrowserSettings::onRefreshButtonClicked()
 	}
 
 	auto okCallback = [this](const QJsonObject &data) {
+		pls_check_app_exiting();
 		QJsonObject supportUrl = data.value("serviceSupportUrlPc").toObject();
 		if (supportUrl.isEmpty()) {
 			PLS_INFO(ncb2bBrowserSettingsModuleName, "There was no serviceSupportUrlPc field value was retrieved from the api.");
@@ -294,6 +295,7 @@ void PLSNCB2bBrowserSettings::onRefreshButtonClicked()
 	};
 
 	auto failCallback = [this](const QJsonObject &, const PLSErrorHandler::RetData &retData) {
+		pls_check_app_exiting();
 		PLS_INFO(ncb2bBrowserSettingsModuleName, "There was some errors was retrieved from the api.");
 		if (retData.prismCode == PLSErrorHandler::CHANNEL_NCP_B2B_1101_SERVICE_DISABLED) {
 			ui->noNetworkLabel->setText(QTStr("Ncb2b.Service.Disable.Status"));

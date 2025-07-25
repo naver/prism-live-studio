@@ -70,8 +70,7 @@ PLSAddSourceItem::PLSAddSourceItem(const QString &id, const QString &displayName
 	ui->label_icon->setPixmap(pix);
 	ui->label_icon->setAttribute(Qt::WA_TransparentForMouseEvents);
 	ui->label_text->setAttribute(Qt::WA_TransparentForMouseEvents);
-	QMetaObject::invokeMethod(
-		this, [isNew, this]() { calculateLabelWidth(isNew, false); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(this, [isNew, this]() { calculateLabelWidth(isNew, false); }, Qt::QueuedConnection);
 }
 
 PLSAddSourceItem::~PLSAddSourceItem()
@@ -179,8 +178,8 @@ PLSAddSourceView::PLSAddSourceView(QWidget *parent) : PLSDialogView(parent)
 	connect(ui->buttonTip, &QPushButton::clicked, this, &PLSAddSourceView::openSourceLink);
 
 	m_openLink = pls_is_equal(pls_prism_get_locale().toUtf8().constData(), "ko-KR")
-			     ? "https://blog.naver.com/prismlivestudio/223402286811"
-			     : "https://medium.com/prismlivestudio/windows-guide-guide-for-using-spout2-capture-source-in-prism-live-studio-54b0a72241eb";
+			     ? ""
+			     : "";
 
 	ui->buttonTip->setVisible(false);
 }

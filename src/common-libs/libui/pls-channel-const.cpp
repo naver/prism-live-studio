@@ -136,7 +136,10 @@ LIBUI_API const QStringList g_exclusivePlatform{NAVER_SHOPPING_LIVE, NCB2B, CUST
 LIBUI_API const QStringList g_rehearsalingConfigEnabledList{NAVER_SHOPPING_LIVE, YOUTUBE};
 LIBUI_API const QStringList gDefaultPlatform{TWITCH, YOUTUBE, FACEBOOK, NAVER_SHOPPING_LIVE, CHZZK, NAVER_TV, BAND, AFREECATV, CUSTOM_RTMP};
 LIBUI_API const QStringList g_allPlatforms = gDefaultPlatform + QStringList{WHALE_SPACE, NOW};
-LIBUI_API const int g_maxActiveChannels = 6;
+LIBUI_API const int g_maxActiveChannelsForPlusDualOutput = 6;
+LIBUI_API const int g_maxActiveChannelsForPlusNormal = 6;
+LIBUI_API const int g_maxActiveChannelsForFreeNormal = 1;
+LIBUI_API const int g_maxActiveChannelsForFreeDualOutput = 2;
 
 LIBUI_API const QString g_facebookUrl = "facebook_url";
 LIBUI_API const QString g_twitterUrl = "twitter_url";

@@ -20,11 +20,13 @@ public:
 	static void requestUsersNickName(const QString &userID, const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed);
 	static void requestCategoryList(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed);
 	static void updateLiveInfo(const QObject *receiver, const QString &title, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed);
-	static void readDataByRegu(PLSAfreecaTVLiveinfoData &data, const QString &originStr = "");
+	static void requestMainHtml(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed);
 	static void parseCategory(const QString &originStr);
 	static QString getSelectCategoryString(const QString &selectID);
 	static void requestCheckIsOnline(const QString &userID, const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed);
 	static bool getIsRemoteOnline(const QString &originStr, int &oId);
+
+	static void getStreamKeyAndPassword(const QString &htmlStr, QString &streamKey, QString &password);
 
 private:
 	static void addCommonData(const pls::http::Request &builder, bool forceKo = false);

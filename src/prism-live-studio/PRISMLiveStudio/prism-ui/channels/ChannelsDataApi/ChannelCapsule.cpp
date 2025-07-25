@@ -463,7 +463,7 @@ bool ChannelCapsule::eventFilter(QObject *watched, QEvent *event)
 			if (auto hLeav = dynamic_cast<QHoverEvent *>(event); hLeav) {
 				auto pos = hLeav->position().toPoint();
 				auto contentRec = this->rect();
-				if (!contentRec.contains(pos) && !mConfigPannel->GetMeunShow()) {
+				if (!contentRec.contains(pos) && !mConfigPannel->getMenuShow()) {
 					hideConfigPannel();
 					return true;
 				}

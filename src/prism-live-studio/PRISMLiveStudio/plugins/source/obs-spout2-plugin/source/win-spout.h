@@ -14,14 +14,12 @@
 #define WINSPOUT_H
 
 //PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
-#define blogex(kr, log_level, fields, field_count, message, ...) \
-	blogex(kr, log_level, fields, field_count, "[win_spout] " message, ##__VA_ARGS__)
+#define blogex(kr, log_level, fields, field_count, message, ...) blogex(kr, log_level, fields, field_count, "[win_spout] " message, ##__VA_ARGS__)
 //PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
 
-#define blog(log_level, message, ...) \
-	blog(log_level, "[win_spout] " message, ##__VA_ARGS__)
+#define blog(log_level, message, ...) blog(log_level, "[win_spout] " message, ##__VA_ARGS__)
 
-void spout_output_start(const char* SpoutName);
+void spout_output_start(const char *SpoutName);
 void spout_output_stop();
 
 #endif // WINSPOUT_H

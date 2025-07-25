@@ -23,7 +23,7 @@ public:
 	static TextMotionRemoteDataHandler *instance();
 	void getTMRemoteDataRequest(const QString &url);
 	const inline QMap<int, QString> &getTemplateNames() const { return m_templateTabs; }
-	bool initTMData(const std::function<void(bool)>& callback);
+	bool initTMData(const std::function<void(bool)> &callback);
 	void parseTMData();
 
 signals:

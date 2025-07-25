@@ -15,3 +15,5 @@ set_target_properties(liblog PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_C
 
 common_libs_module(liblog "common libs log module")
 copy_common_libs_binary(liblog)
+
+

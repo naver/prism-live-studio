@@ -8,6 +8,5 @@
 #define FRONTEND_API Q_DECL_IMPORT
 #endif
 
-
 constexpr auto MODULE_FRONTEND_API = "frontend-api";
 constexpr auto MODULE_FRONTEND_APIW = L"frontend-api";

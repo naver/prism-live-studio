@@ -37,7 +37,7 @@ public:
 	static QString getMd5ImagePath(const QString &url);
 
 	static QString getPairedString(const PLSAPICommon::privacyVec &pairs, const QString cmpStr, bool isCmpFirst, bool isCaseInsensitive = true);
-	static void downloadChannelImageAsync(const QString &platormName);
+	static void downloadChannelImageAsync(const QString &platformName);
 
 	template<typename T> static void sortScheduleListsByCustom(std::vector<T> &datas)
 	{

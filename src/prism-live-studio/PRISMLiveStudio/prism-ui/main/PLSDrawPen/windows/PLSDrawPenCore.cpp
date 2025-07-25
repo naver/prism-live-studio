@@ -172,7 +172,7 @@ void PLSDrawPenCore::UpdateCanvasByVisible(bool visible)
 	auto main = OBSBasic::Get();
 	if (!main)
 		return;
-	if(visible)
+	if (visible)
 		pls_scene_update_canvas(main->GetCurrentScene(), renderTexture, false);
 	else
 		pls_scene_update_canvas(main->GetCurrentScene(), nullptr, false);

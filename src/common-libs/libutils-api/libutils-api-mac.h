@@ -89,6 +89,8 @@ bool install_mac_package(const QString &sourceBundlePath, const QString &destBun
 
 bool pls_restart_mac_app(const QStringList &arguments);
 
+void pls_activate_prism_as_active_app();
+
 QString pls_get_existed_downloaded_mac_app(const QString &downloadedBundleDir, const QString &downloadedVersion, bool deleteBundleExceptUpdatedBundle);
 
 bool isLargeVersion(const QString &v1, const QString &v2);

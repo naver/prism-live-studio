@@ -46,7 +46,7 @@ class PLSBgmItemData {
 	pls::rsm::Item _item;
 
 public:
-	PLSBgmItemData(const QString& group, const pls::rsm::Item& item);
+	PLSBgmItemData(const QString &group, const pls::rsm::Item &item);
 	PLSBgmItemData() = default;
 	~PLSBgmItemData() = default;
 

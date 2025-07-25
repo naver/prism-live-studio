@@ -30,6 +30,8 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
 	pls_add_css(this, {"PLSChannelsArea"});
 	auto defaultAddWid = new DefaultPlatformsAddList;
 	ui->AddFrame->layout()->addWidget(defaultAddWid);
+	ui->AddFrame->setVisible(false);
+	ui->FoldDisPlay->setVisible(false);
 	createFoldButton();
 	initScollButtons();
 
@@ -37,8 +39,7 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
 	ui->MidFrame->installEventFilter(this);
 	ui->MidFrame->setProperty("showRightBorder", "false");
 	ui->AddFrameInvisible->setVisible(false);
-	connect(
-		ui->GotoAddWinButton, &QAbstractButton::clicked, this, []() { showChannelsSetting(); }, Qt::QueuedConnection);
+	connect(ui->GotoAddWinButton, &QAbstractButton::clicked, this, []() { showChannelsSetting(); }, Qt::QueuedConnection);
 
 	mbusyFrame = new PLSAddingFrame(ui->MidFrame);
 	mbusyFrame->setObjectName("LoadingFrame");
@@ -62,6 +63,8 @@ PLSChannelsArea::PLSChannelsArea(QWidget *parent) : QFrame(parent)
 			if (isToShow) {
 				addChannel(uuid);
 			} else {
+				//remove dualoutput flag PRISM_PC-1833
+				PLSCHANNELS_API->sigSetChannelDualOutput(uuid, channel_data::NoSet);
 				removeChannelWithoutYoutubeDock(uuid);
 			}
 		},
@@ -186,21 +189,23 @@ void PLSChannelsArea::holdOnChannelArea(bool holdOn)
 	if (holdOn && mbusyFrame->isVisible()) {
 		return;
 	}
-	if (holdOn) {
+	if (holdOn && !m_bShowLoading) {
 		auto posParentC = ui->MidFrame->contentsRect().center();
 		auto posMC = mbusyFrame->contentsRect().center();
 		auto posDiffer = posParentC - posMC;
 		mbusyFrame->move(posDiffer);
 		mbusyFrame->start(200);
 		mbusyFrame->setVisible(true);
-
+		PLSBasic::instance()->changeOutputCount(1);
+		PLS_INFO("PLSChannelsArea", "loding frame show");
 		updateUi();
-
+		m_bShowLoading = true;
 		return;
 	}
 
 	// unhold
 	if (PLSCHANNELS_API->isEmptyToAcquire()) {
+		PLS_INFO("PLSChannelsArea", "loding frame delay hide");
 		delayUpdateUi();
 		delayTask(&PLSChannelsArea::hideLoading, 300);
 	}
@@ -438,11 +443,7 @@ ChannelCapsulePtr PLSChannelsArea::addChannel(const QVariantMap &channelInfo, bo
 			basic->NewYouTubeAppDock();
 		}
 		basic->GetYouTubeAppDock()->AccountConnected();
-		if (bInit) {
-			const char *dockStateStr = config_get_string(App()->GlobalConfig(), "BasicWindow", "DockState");
-			QByteArray dockState = QByteArray::fromBase64(QByteArray(dockStateStr));
-			basic->restoreState(dockState);
-		} else {
+		if (!bInit) {
 			basic->GetYouTubeAppDock()->SettingsUpdated(false);
 		}
 	}
@@ -585,14 +586,26 @@ void PLSChannelsArea::delayUpdateAllChannelsUi()
 
 void PLSChannelsArea::hideLoading()
 {
-	mbusyFrame->setVisible(false);
-	mbusyFrame->stop();
+	if (m_bShowLoading) {
+		mbusyFrame->setVisible(false);
+		mbusyFrame->stop();
+		PLS_INFO("PLSChannelsArea", "loding frame already hidden");
+		PLSBasic::instance()->changeOutputCount(-1);
+		m_bShowLoading = false;
+	}
 }
 
 void PLSChannelsArea::updateAllChannelsByDualOutput(bool bOpen)
 {
-	if (bOpen)
+	if (bOpen) {
+		if (isNeedClearDualOutput()) {
+			PLSCHANNELS_API->clearDualOutput();
+		}
 		PLSCHANNELS_API->setChannelDefaultOutputDirection();
+	} else {
+		PLSCHANNELS_API->disableChannelWhenDualOutputClose();
+		mDualoutputInfos = PLSCHANNELS_API->getAllChannelInfo();
+	}
 	auto check = [bOpen](ChannelCapsulePtr wid) { wid->updateUi(true); };
 	std::for_each(mChannelsWidget.begin(), mChannelsWidget.end(), check);
 }
@@ -892,8 +905,7 @@ void PLSChannelsArea::createFoldButton()
 	m_FoldUpButton->setObjectName("FoldUpButton");
 	ui->TailLayout->insertWidget(0, m_FoldUpButton);
 	connect(m_FoldUpButton, &QPushButton::clicked, this, &PLSChannelsArea::onFoldUpButtonClick);
-	connect(
-		m_FoldUpButton, &QPushButton::clicked, PLSMainView::instance(), []() { PLSMainView::instance()->setChannelsAreaHeight(30); }, Qt::QueuedConnection);
+	connect(m_FoldUpButton, &QPushButton::clicked, PLSMainView::instance(), []() { PLSMainView::instance()->setChannelsAreaHeight(30); }, Qt::QueuedConnection);
 	m_FoldUpButton->setEnabled(true);
 	m_FoldUpButton->setVisible(true);
 	m_FoldUpButton->setToolTip(tr("Channels.dashbrod.tooltip"));
@@ -931,4 +943,23 @@ void PLSChannelsArea::removeChannelWithoutYoutubeDock(const QString &channelUUID
 		wid->hide();
 		m_FoldChannelsWidget.erase(it);
 	}
+}
+
+bool PLSChannelsArea::isNeedClearDualOutput()
+{
+	if (mDualoutputInfos.isEmpty())
+		return false;
+	auto currentChannels = PLSCHANNELS_API->getAllChannelInfo();
+	for (auto iter = mDualoutputInfos.begin(); iter != mDualoutputInfos.end(); ++iter) {
+		if (currentChannels.find(iter.key()) != currentChannels.end()) {
+			auto channelInfo = currentChannels.value(iter.key());
+			auto currentStatus = PLSCHANNELS_API->getChannelUserStatus(iter.key());
+			auto lastDualoutputStatus = getInfo(iter.value(), g_channelUserStatus, NotExist);
+			if (currentStatus != lastDualoutputStatus)
+				return true;
+		} else {
+			return true;
+		}
+	}
+	return false;
 }

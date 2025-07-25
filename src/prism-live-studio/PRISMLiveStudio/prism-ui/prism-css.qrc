@@ -124,5 +124,8 @@
         <file>resource/css/PLSSearchCombobox.css</file>
         <file>resource/css/VisibilityCheckBox.css</file>
         <file>resource/css/PLSDualOutputTitle.css</file>
+        <file>resource/css/PLSBubbleTips.css</file>
+        <file>resource/css/PLSBasicUsageGuideDlg.css</file>
+        <file>resource/css/PLSPaidToastPopup.css</file>
     </qresource>
 </RCC>

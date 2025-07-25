@@ -50,7 +50,7 @@ using namespace downloader;
 
 using namespace pls::rsm;
 
-#define CATEGORY_INSTANCE CategoryPrismSticker::instance() 
+#define CATEGORY_INSTANCE CategoryPrismSticker::instance()
 #define GET_RECENT_USED_ITEMS CATEGORY_INSTANCE->getUsedItems(RECENT_USED_GROUP_ID)
 
 static void loadItems(const pls::rsm::Group &group, std::list<Item> &itemsOut)
@@ -152,7 +152,7 @@ PLSPrismSticker::PLSPrismSticker(QWidget *parent) : PLSSideBarDialogView({298, 8
 	connect(CATEGORY_INSTANCE, &CategoryPrismSticker::finishDownloadJson, this, [this](bool ok, bool timeout) {
 		pls_async_call_mt(this, [ok, timeout, this] {
 			// handle json downloaded
-			if (!ok){
+			if (!ok) {
 				OnDownloadJsonFailed(timeout);
 			}
 		});
@@ -282,7 +282,7 @@ void PLSPrismSticker::CleanPage(const QString &categoryId)
 	}
 }
 
-bool PLSPrismSticker::LoadStickers(QLayout *layout, ScrollAreaWithNoDataTip *targetSa, QWidget *parent, const std::list<pls::rsm::Item> &stickerList) 
+bool PLSPrismSticker::LoadStickers(QLayout *layout, ScrollAreaWithNoDataTip *targetSa, QWidget *parent, const std::list<pls::rsm::Item> &stickerList)
 {
 	if (targetSa == nullptr)
 		return false;
@@ -294,7 +294,7 @@ bool PLSPrismSticker::LoadStickers(QLayout *layout, ScrollAreaWithNoDataTip *tar
 	}
 	targetSa->SetNoDataPageVisible(false);
 	auto future = QtConcurrent::run([this, stickerList, parent, layout]() {
-		for (const auto &item: stickerList) {
+		for (const auto &item : stickerList) {
 			if (pls_get_app_exiting())
 				break;
 
@@ -466,7 +466,6 @@ bool PLSPrismSticker::UpdateRecentList(const pls::rsm::Item &item)
 	return true;
 }
 
-
 void PLSPrismSticker::ShowNoNetworkPage(const QString &tips, RetryType type)
 {
 	HideNoNetworkPage();
@@ -508,7 +507,7 @@ void PLSPrismSticker::UpdateNodataPageGeometry()
 	}
 }
 
-void PLSPrismSticker::ApplySticker(const pls::rsm::Item &item, StickerPointer label) 
+void PLSPrismSticker::ApplySticker(const pls::rsm::Item &item, StickerPointer label)
 {
 	auto dateTime = QDateTime::currentMSecsSinceEpoch();
 	StickerHandleResult result = PLSStickerDataHandler::RemuxItemResource(item);
@@ -676,9 +675,9 @@ void PLSPrismSticker::OnHandleStickerDataFinished()
 			pls_async_call(this, [this]() {
 				AdjustCategoryTab();
 				SwitchToCategory(GET_RECENT_USED_ITEMS.empty() ? CATEGORY_ID_ALL : CATEGORY_ID_RECENT);
-                if (!NetworkAccessible()) {
-                    ShowNoNetworkPage(tr("main.giphy.network.toast.error"), NoNetwork);
-                }
+				if (!NetworkAccessible()) {
+					ShowNoNetworkPage(tr("main.giphy.network.toast.error"), NoNetwork);
+				}
 			});
 		});
 	}
@@ -720,7 +719,7 @@ void PLSPrismSticker::OnRetryOnNoNetwork()
 	}
 }
 
-void PLSPrismSticker::OnDownloadItemResult(const pls::rsm::Item &item, bool ok, bool timeout) 
+void PLSPrismSticker::OnDownloadItemResult(const pls::rsm::Item &item, bool ok, bool timeout)
 {
 	StickerPointer requestlabel;
 	if (auto find = requestDownloadLabels.find(item.itemId()); find != requestDownloadLabels.end()) {

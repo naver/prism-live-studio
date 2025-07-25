@@ -350,8 +350,7 @@ PLSDock::PLSDock(QWidget *parent) : PLSWidgetCloseHookQt<QDockWidget>(parent)
 		}
 
 		if (toplevel) {
-			QMetaObject::invokeMethod(
-				this, [this] { geometryOfNormal = geometry(); }, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(this, [this] { geometryOfNormal = geometry(); }, Qt::QueuedConnection);
 		}
 	});
 	connect(&mouseReleaseChecker, &QTimer::timeout, this, [this]() {

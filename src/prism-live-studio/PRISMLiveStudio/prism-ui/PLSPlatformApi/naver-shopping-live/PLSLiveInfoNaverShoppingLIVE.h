@@ -63,9 +63,9 @@ private:
 	void createToastWidget();
 	void adjustToastSize();
 	bool isScheduleLive(const PLSScheComboxItemData &itemData) const;
-	void prepareLiving(const std::function<void(bool)> &callback);
+	void prepareLiving(const std::function<void(bool, const QByteArray &)> &callback);
 	void saveLiveInfo();
-	void startLiving(const std::function<void(bool)> &callback);
+	void startLiving(const std::function<void(bool, const QByteArray &)> &callback);
 	bool isProductListChanged(const QList<PLSNaverShoppingLIVEAPI::ProductInfo> &oldProductList) const;
 	void getPrepareInfoFromScheduleInfo(PLSNaverShoppingLIVEAPI::NaverShoppingPrepareLiveInfo &prepareInfo, const PLSNaverShoppingLIVEAPI::ScheduleInfo &scheduleInfo) const;
 	void updateContentMargins(double dpi);
@@ -73,17 +73,19 @@ private:
 	void updateLiveTitleUI();
 	void updateLivePhotoUI();
 	void updateLiveSummaryUI();
+	void updateScheduleGuideUI();
 	void updateLiveDateUI();
 	void updateSearchUI();
 	void updateNotifyUI();
 	void switchNewScheduleItem(PLSScheComboxItemType type, QString id);
-	void updateScheduleLiveInfoRequest(const std::function<void(bool)> &callback);
-	void createLivingRequest(const std::function<void(bool)> &callback);
+	void updateScheduleLiveInfoRequest(const std::function<void(bool, const QByteArray &)> &callback);
+	void createLivingRequest(const std::function<void(bool, const QByteArray &)> &callback);
 	int apIndexForString(const QString &apString) const;
 	void showToast(const QString &str);
 	void scheduleListLoadingFinished(PLSAPINaverShoppingType apiType, const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList, const QByteArray &data);
 	void checkSwitchNewScheduleItem(const PLSScheComboxItemData &selelctData);
 	void updateSelectedScheduleItenInfo(const QList<PLSNaverShoppingLIVEAPI::ScheduleInfo> &scheduleList);
+	void printStartLiveFailedLog(const QByteArray &data, const QString &error);
 
 protected:
 	bool eventFilter(QObject *i_Object, QEvent *i_Event) override;

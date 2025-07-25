@@ -130,6 +130,6 @@ void PLSLoadingComboxMenu::showTitleItemsView(QWidget *parent, int showIndex, PL
 	m_listWidget->setFixedSize(parent->width(), gameItemHeight * count + paddingHeight * 2);
 	this->setFixedSize(parent->width(), gameItemHeight * count + paddingHeight * 2);
 #if defined(Q_OS_WIN)
-    setupCornerRadius();
+	setupCornerRadius();
 #endif
 }

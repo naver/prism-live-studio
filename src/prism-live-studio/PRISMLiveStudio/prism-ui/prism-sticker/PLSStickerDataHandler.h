@@ -29,7 +29,8 @@ struct StickerData {
 
 	StickerData() {};
 
-	StickerData(const pls::rsm::Item &item) {
+	StickerData(const pls::rsm::Item &item)
+	{
 		id = item.itemId();
 		version = item.attr("version").toLongLong();
 		title = item.attr("title").toString();

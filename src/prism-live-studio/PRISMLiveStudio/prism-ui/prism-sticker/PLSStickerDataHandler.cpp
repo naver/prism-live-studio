@@ -60,9 +60,9 @@ static bool checkCallback(void *data, obs_source_t *source)
 			st_data.resourceUrl = url;
 			st_data.version = version;
 
-			if (auto iter = tasks->find(resourceId);iter != tasks->end()) {
+			if (auto iter = tasks->find(resourceId); iter != tasks->end()) {
 				iter->second.push_back(obs_source_get_weak_source(source));
-			}else{
+			} else {
 				std::vector<obs_weak_source_t *> data;
 				data.emplace_back(obs_source_get_weak_source(source));
 				tasks->emplace(resourceId, data);
@@ -72,7 +72,7 @@ static bool checkCallback(void *data, obs_source_t *source)
 	return true;
 }
 
-void updateSourceSettings(const pls::rsm::Item &item, obs_source_t *source) 
+void updateSourceSettings(const pls::rsm::Item &item, obs_source_t *source)
 {
 	auto result = PLSStickerDataHandler::RemuxItemResource(item);
 	if (!result.success) {
@@ -90,11 +90,11 @@ void updateSourceSettings(const pls::rsm::Item &item, obs_source_t *source)
 	}
 }
 
-void onDownloadedItem(const pls::rsm::Item &item, DownloadTasks &tasks) 
+void onDownloadedItem(const pls::rsm::Item &item, DownloadTasks &tasks)
 {
 	auto id = item.itemId();
 	if (auto iter = tasks.find(id); iter != tasks.end()) {
-		for (auto source_weak: iter->second) {
+		for (auto source_weak : iter->second) {
 			auto source = OBSGetStrongRef(source_weak);
 			if (source) {
 				updateSourceSettings(item, source);
@@ -271,7 +271,7 @@ StickerHandleResult PLSStickerDataHandler::RemuxItemResource(const pls::rsm::Ite
 		result.breakFlow = true;
 		return result;
 	}
-		
+
 	auto urlAndHowSave = rules.front();
 	QFileInfo fileInfo(urlAndHowSave.savedFilePath());
 	QDir dstDir = fileInfo.dir();

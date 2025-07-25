@@ -37,7 +37,7 @@ using namespace common;
 #define SUB_CHANNEL_NAME getSubChannelName().toUtf8().constData()
 #define SUB_CHANNEL_NAME_MASK pls_masking_person_info(getSubChannelName()).toUtf8().constData()
 
-constexpr const char *CSTR_OBJECT_URL = "";
+constexpr const char *CSTR_OBJECT_URL = "http://tv.naver.com";
 
 constexpr const char *CSTR_CODE = "code";
 constexpr const char *CSTR_MESSAGE = "message";
@@ -97,9 +97,9 @@ constexpr const char *CSTR_USERID = "userId";
 constexpr const char *CSTR_USERNAME = "username";
 constexpr const char *CSTR_REFERER = "Referer";
 constexpr const char *CSTR_CLIENT_ID = "client_id";
-constexpr const char *CSTR_CLIENT_ID_VALUE = "";
+constexpr const char *CSTR_CLIENT_ID_VALUE = "jZNIoee3IBi6sujuw4w0";
 constexpr const char *CSTR_CLIENT_SECRET = "client_secret";
-constexpr const char *CSTR_CLIENT_SECRET_VALUE = "";
+constexpr const char *CSTR_CLIENT_SECRET_VALUE = "8nJdGLYNMb";
 constexpr const char *CSTR_GRANT_TYPE = "grant_type";
 constexpr const char *CSTR_GRANT_TYPE_AUTHORIZATION_CODE = "authorization_code";
 constexpr const char *CSTR_RESPONSE_TYPE = "response_type";
@@ -468,11 +468,6 @@ void PLSPlatformNaverTV::onInitDataChanged()
 	}
 }
 
-bool PLSPlatformNaverTV::onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject)
-{
-	return true;
-}
-
 bool PLSPlatformNaverTV::isMqttChatCanShow(const QJsonObject &)
 {
 	return getLiveId() > 0;
@@ -731,6 +726,7 @@ void PLSPlatformNaverTV::getAuth2(const QString &url, const char *log, const Aut
 				   .result([this, log, callback](const pls::http::Reply &reply) {
 					   PLSErrorHandler::ExtraData exData;
 					   exData.pathValueMap = {{"type", "auth"}};
+					   exData.urlEn = "NaverTV auth";
 
 					   auto statusCode = reply.statusCode();
 					   auto error = reply.error();
@@ -783,7 +779,7 @@ void PLSPlatformNaverTV::getUserInfo(const UserInfoCallback &callback)
 						headImageUrl = CHANNEL_NAVERTV_DEFAULT_HEAD_IMAGE_URL;
 						pls_sync_call_mt(this, [callback]() { pls_invoke_safe(callback, false); });
 					},
-					this, reply.error(), reply.statusCode(), false, false, false, ApiId::Other);
+					this, reply.error(), reply.statusCode(), false, false, false, ApiId::Other, reply.request().originalUrl().path());
 			}));
 }
 
@@ -803,8 +799,7 @@ void PLSPlatformNaverTV::getScheLives(const LiveInfosCallbackEx &callback, const
 }
 void PLSPlatformNaverTV::getScheLives(int before, int after, const LiveInfosCallback &callback, const QObject *receiver, bool popupNeedShow, bool popupGenericError, bool expiredNotify)
 {
-	getScheLives(
-		before, after, [callback](bool ok, int, const QList<LiveInfo> &scheLiveInfos) { callback(ok, scheLiveInfos); }, receiver, popupNeedShow, popupGenericError, expiredNotify);
+	getScheLives(before, after, [callback](bool ok, int, const QList<LiveInfo> &scheLiveInfos) { callback(ok, scheLiveInfos); }, receiver, popupNeedShow, popupGenericError, expiredNotify);
 }
 void PLSPlatformNaverTV::getScheLives(int before, int after, const LiveInfosCallbackEx &callback, const QObject *receiver, bool popupNeedShow, bool popupGenericError, bool expiredNotify)
 {
@@ -932,8 +927,6 @@ void PLSPlatformNaverTV::immediateStart(const QuickStartCallback &callback, bool
 	auto quickStartCallback = [callback](bool ok, int code) {
 		if (!ok) {
 			pls_invoke_safe(callback, false, code);
-		} else if (!PLS_PLATFORM_API->isPrismLive()) {
-			pls_invoke_safe(callback, true, 0);
 		} else {
 			pls_invoke_safe(callback, true, 0);
 		}
@@ -970,11 +963,7 @@ void PLSPlatformNaverTV::scheduleStartWithCheck(const LiveOpenCallback &callback
 	auto getCommentOptionsProcess = [this, callback]() {
 		getCommentOptions([this, callback](bool ok, int code) {
 			if (ok) {
-				if (!PLS_PLATFORM_API->isPrismLive()) {
-					pls_invoke_safe(callback, true, 0);
-				} else {
-					pls_invoke_safe(callback, true, 0);
-				}
+				pls_invoke_safe(callback, true, 0);
 			} else {
 				PLSCHANNELS_API->setValueOfChannel(getChannelUUID(), ChannelData::g_shareUrl, QString());
 				liveClose([callback, code](bool) { pls_invoke_safe(callback, false, code); });
@@ -996,7 +985,7 @@ void PLSPlatformNaverTV::scheduleStartWithCheck(const LiveOpenCallback &callback
 
 	this->checkStreamPublishing([this, callback, isShareOnFacebook, isShareOnTwitter, liveOpenCallback](bool ok, bool publishing, int code) {
 		if (!ok) {
-			PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_NAVERTV,
+			PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_NAVERTV,
 				  {{"platformName", NAVER_TV}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "Schedule Start Failed, Check Stream Publishing Failed"}},
 				  "Naver TV start live failed");
 			pls_invoke_safe(callback, false, code);
@@ -1009,7 +998,7 @@ void PLSPlatformNaverTV::scheduleStartWithCheck(const LiveOpenCallback &callback
 				     [this, callback, isShareOnFacebook, isShareOnTwitter]() { scheduleStartWithCheck(callback, isShareOnFacebook, isShareOnTwitter); });
 			++checkStreamPublishingRetryTimes;
 		} else {
-			PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_NAVERTV,
+			PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_NAVERTV,
 				  {{"platformName", NAVER_TV}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "Schedule Start Failed, Check Stream Publishing Timeout"}},
 				  "Naver TV start live failed");
 			pls_invoke_safe(callback, false, ERROR_OTHERS);
@@ -1087,7 +1076,7 @@ void PLSPlatformNaverTV::liveOpen(const LiveOpenCallback &callback, bool isShare
 	if (getLiveId() < 0) {
 		PLS_ERROR_KR(MODULE_PLATFORM_NAVERTV, "Naver TV open live failed, live id invalid, channel: %s", SUB_CHANNEL_NAME);
 		PLS_ERROR(MODULE_PLATFORM_NAVERTV, "Naver TV open live failed, live id invalid, channel: %s", SUB_CHANNEL_NAME_MASK);
-		PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_NAVERTV, {{"platformName", NAVER_TV}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "Schedule Start Failed, Invalid Schedule"}},
+		PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_NAVERTV, {{"platformName", NAVER_TV}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "Schedule Start Failed, Invalid Schedule"}},
 			  "Naver TV start live failed");
 		pls_invoke_safe(callback, false, 0);
 		return;
@@ -1130,7 +1119,7 @@ void PLSPlatformNaverTV::liveOpen(const LiveOpenCallback &callback, bool isShare
 			pls_invoke_safe(callback, true, 0);
 		},
 		[callback](bool, int code, const PLSErrorHandler::RetData &) {
-			PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_NAVERTV, {{"platformName", NAVER_TV}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "Schedule Start Failed, Live Open Lailed"}},
+			PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_NAVERTV, {{"platformName", NAVER_TV}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "Schedule Start Failed, Live Open Failed"}},
 				  "Naver TV start live failed");
 			pls_invoke_safe(callback, false, code); //
 		},
@@ -1395,7 +1384,7 @@ void PLSPlatformNaverTV::updateLiveInfo(const QList<LiveInfo> &scheLiveInfos, in
 			[this, callback, customErrName, cliveInfo](bool ok, bool, int code) {
 				if (!ok) {
 					pls_invoke_safe(callback, false, code);
-					PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_NAVERTV, {{"platformName", NAVER_TV}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "Get Stream Info Failed"}},
+					PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_NAVERTV, {{"platformName", NAVER_TV}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "Get Stream Info Failed"}},
 						  "Naver TV start live failed");
 				} else if (!cliveInfo->isScheLive) {
 					// immediate live
@@ -1403,7 +1392,7 @@ void PLSPlatformNaverTV::updateLiveInfo(const QList<LiveInfo> &scheLiveInfos, in
 						[this, callback](bool ok_, int code_) {
 							if (!ok_) {
 								clearLive();
-								PLS_LOGEX(PLS_LOG_INFO, MODULE_PLATFORM_NAVERTV,
+								PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_NAVERTV,
 									  {{"platformName", NAVER_TV}, {"startLiveStatus", "Failed"}, {"startLiveFailed", "Immediate Start Failed"}},
 									  "Naver TV start live failed");
 							} else {
@@ -1587,14 +1576,14 @@ void PLSPlatformNaverTV::getJson(const Url &url, const char *log, const std::fun
 						   PLS_ERROR_KR(MODULE_PLATFORM_NAVERTV, "%s failed, channel: %s, reason: %s", log, SUB_CHANNEL_NAME, error.errorString().toUtf8().constData());
 						   PLS_ERROR(MODULE_PLATFORM_NAVERTV, "%s failed, channel: %s, reason: %s", log, SUB_CHANNEL_NAME_MASK, error.errorString().toUtf8().constData());
 						   pls_async_call_mt(receivers, [log, customErrName, fail, receiver, error = reply.error(), statusCode = reply.statusCode(), data = reply.data(),
-										 expiredNotify, popupNeedShow, popupGenericError, apiId, this]() {
-							   processFailed(log, data, customErrName, fail, receiver, error, statusCode, expiredNotify, popupNeedShow, popupGenericError, apiId);
+										 expiredNotify, popupNeedShow, popupGenericError, apiId, urlEn = reply.request().originalUrl().path(), this]() {
+							   processFailed(log, data, customErrName, fail, receiver, error, statusCode, expiredNotify, popupNeedShow, popupGenericError, apiId, urlEn);
 						   });
 					   })
 				   .failResult([this, log, customErrName, fail, receivers, receiver, expiredNotify, popupNeedShow, popupGenericError, apiId](const pls::http::Reply &reply) {
 					   pls_async_call_mt(receivers, [log, customErrName, fail, receiver, error = reply.error(), statusCode = reply.statusCode(), data = reply.data(), expiredNotify,
-									 popupNeedShow, popupGenericError, apiId, this]() {
-						   processFailed(log, data, customErrName, fail, receiver, error, statusCode, expiredNotify, popupNeedShow, popupGenericError, apiId);
+									 popupNeedShow, popupGenericError, apiId, urlEn = reply.request().originalUrl().path(), this]() {
+						   processFailed(log, data, customErrName, fail, receiver, error, statusCode, expiredNotify, popupNeedShow, popupGenericError, apiId, urlEn);
 					   });
 				   }));
 }
@@ -1637,15 +1626,16 @@ void PLSPlatformNaverTV::getOrPostJson(pls::http::Method method, const Url &url,
 				   })
 				   .failResult([this, fail, customErrName, log, receivers, receiver, expiredNotify, popupNeedShow, popupGenericError, apiId](const pls::http::Reply &reply) {
 					   pls_async_call_mt(receivers, [log, fail, customErrName, receiver, error = reply.error(), statusCode = reply.statusCode(), data = reply.data(), expiredNotify,
-									 popupNeedShow, popupGenericError, apiId, this]() {
-						   processFailed(log, data, customErrName, fail, receiver, error, statusCode, expiredNotify, popupNeedShow, popupGenericError, apiId);
+									 popupNeedShow, popupGenericError, apiId, reply, this]() {
+						   processFailed(log, data, customErrName, fail, receiver, error, statusCode, expiredNotify, popupNeedShow, popupGenericError, apiId,
+								 reply.request().originalUrl().path());
 					   });
 				   }));
 }
 
 void PLSPlatformNaverTV::processFailed(const char *log, const QByteArray &respJson, QString customErrName,
 				       const std::function<void(bool expired, int code, const PLSErrorHandler::RetData &data)> &fail, const QObject *receiver, QNetworkReply::NetworkError networkError,
-				       int statusCode, bool expiredNotify, bool popupNeedShow, bool popupGenericError, ApiId apiId)
+				       int statusCode, bool expiredNotify, bool popupNeedShow, bool popupGenericError, ApiId apiId, const QString &urlEn)
 {
 	if (customErrName.isEmpty() && popupGenericError) {
 		customErrName = ApiId::LiveOpen == apiId ? "NaverTVUnknown" : "TempErrorTryAgain";
@@ -1653,7 +1643,8 @@ void PLSPlatformNaverTV::processFailed(const char *log, const QByteArray &respJs
 
 	PLSErrorHandler::ExtraData exData;
 	exData.defaultArg = QStringList(getNameForChannelType());
-	auto data = PLSErrorHandler::getAlertString({statusCode, networkError, respJson}, NAVER_TV, customErrName);
+	exData.urlEn = urlEn;
+	auto data = PLSErrorHandler::getAlertString({statusCode, networkError, respJson}, NAVER_TV, customErrName, exData);
 
 	switch (data.prismCode) {
 	case PLSErrorHandler::COMMON_NETWORK_ERROR:
@@ -1663,7 +1654,7 @@ void PLSPlatformNaverTV::processFailed(const char *log, const QByteArray &respJs
 
 	case PLSErrorHandler::COMMON_TOKEN_EXPIRED_ERROR:
 		mySharedData().m_lastError = createScheduleGetError(getChannelName(), data);
-		tokenExpired(expiredNotify, popupNeedShow);
+		tokenExpired(expiredNotify, popupNeedShow, data);
 		break;
 
 	case PLSErrorHandler::COMMON_UNKNOWN_ERROR:
@@ -1680,14 +1671,14 @@ void PLSPlatformNaverTV::processFailed(const char *log, const QByteArray &respJs
 	pls_invoke_safe(fail, PLSErrorHandler::ErrorType::TokenExpired == data.errorType, data.prismCode, data);
 }
 
-void PLSPlatformNaverTV::tokenExpired(bool expiredNotify, bool popupNeedShow)
+void PLSPlatformNaverTV::tokenExpired(bool expiredNotify, bool popupNeedShow, PLSErrorHandler::RetData &data)
 {
 	auto navertv = pls_qobject_ptr<PLSPlatformNaverTV>(this);
 
 	PLS_INFO_KR(MODULE_PLATFORM_NAVERTV, "Naver TV platform token expired, channel: %s, UUID = %s.", SUB_CHANNEL_NAME, getChannelUUID().toUtf8().constData());
 	PLS_INFO(MODULE_PLATFORM_NAVERTV, "Naver TV platform token expired, channel: %s, UUID = %s.", SUB_CHANNEL_NAME_MASK, getChannelUUID().toUtf8().constData());
 
-	if (popupNeedShow && (pls_alert_error_message(nullptr, tr("Alert.Title"), tr("Live.Check.LiveInfo.Refresh.NaverTV.Expired")) == PLSAlertView::Button::NoButton)) {
+	if (popupNeedShow && PLSErrorHandler::directShowAlert(data) == PLSAlertView::Button::NoButton) {
 		expiredNotify = false;
 	}
 

@@ -80,8 +80,7 @@ LIBUI_API bool transparentForMouseEvents_moveInContentExcludeChild(QWidget *pare
 	    || mo->inherits(&QLineEdit::staticMetaObject)        //
 	    || mo->inherits(&QComboBox::staticMetaObject)        //
 	    || mo->inherits(&QAbstractSpinBox::staticMetaObject) //
-	    || mo->inherits(&QAbstractSlider::staticMetaObject) 
-		|| mo->inherits(&QTextEdit::staticMetaObject)) {
+	    || mo->inherits(&QAbstractSlider::staticMetaObject) || mo->inherits(&QTextEdit::staticMetaObject)) {
 		return true;
 	}
 	return false;

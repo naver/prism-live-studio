@@ -113,6 +113,7 @@ private:
 	void updateProductsInfo(const QList<Product> &fixedProducts, const QList<Product> &unfixedProducts);
 	void updateVisibleProductsInfo(PLSProductType productType, QList<Product> &fixedProducts, QList<Product> &unfixedProducts);
 	void updateFixProductTip(bool ok = true);
+	void updateUIWhenSwitchScheduleList();
 	void updateProductCountBadge(bool ok = true);
 	void updateProductBtnNumber();
 	void setAddButtonEnabled(bool enabled);
@@ -136,6 +137,7 @@ private:
 	void OnBtnGroupClicked(PLSProductType productType);
 	bool isProductItemViewExisted(qint64 productNo);
 
+	void setNoProductPageShowOrHide(bool show);
 signals:
 	void productChangedOrUpdated(bool changed);
 

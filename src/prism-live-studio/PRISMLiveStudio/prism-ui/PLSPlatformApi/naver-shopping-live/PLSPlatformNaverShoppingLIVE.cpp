@@ -47,7 +47,7 @@
 #include "pls/pls-dual-output.h"
 
 constexpr auto liveInfoMoudule = "";
-static const QString IMAGE_FILE_NAME_PREFIX = "-";
+static const QString IMAGE_FILE_NAME_PREFIX = "";
 static const int CHECK_STATUS_TIMESPAN = 5000;
 
 constexpr auto USE_TERM_MESSAGE_INFO = "";
@@ -318,6 +318,13 @@ QVariantMap PLSPlatformNaverShoppingLIVE::getUserInfoFinished(const QVariantMap 
 		}
 		info[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
 		info[ChannelData::g_errorString] = retData.alertMsg;
+		QString errorCode, errorMsg;
+		PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMsg);
+		if (errorMsg.isEmpty()) {
+			info[ChannelData::g_channelSreLoginFailed] = QString("Refresh token failed, prism code: %1").arg(retData.prismName);
+		} else {
+			info[ChannelData::g_channelSreLoginFailed] = QString("Refresh token failed, server error msg: %1 error code: %2").arg(errorMsg).arg(errorCode.isEmpty() ? "null" : errorCode);
+		}
 	}
 
 	return info;
@@ -446,6 +453,18 @@ PLSNaverShoppingLIVEAPI::ScheduleInfo PLSPlatformNaverShoppingLIVE::getSelectedS
 	return PLSNaverShoppingLIVEAPI::ScheduleInfo();
 }
 
+void PLSPlatformNaverShoppingLIVE::setScheduleInfoExpectedStartDate(const QString &scheduleId, const QString &expectedStartDate)
+{
+	for (auto &info : m_scheduleList) {
+		if (info.id != scheduleId) {
+			continue;
+		}
+		info.expectedStartDate = expectedStartDate;
+		info.setExpectedStartDate(expectedStartDate);
+		return;
+	}
+}
+
 bool PLSPlatformNaverShoppingLIVE::isHighResolutionSLV(const QString &scheduleId) const
 {
 	PLSNaverShoppingLIVEAPI::ScheduleInfo scheduleInfo = getSelectedScheduleInfo(scheduleId);
@@ -570,6 +589,8 @@ void PLSPlatformNaverShoppingLIVE::getLivingInfo(bool livePolling,
 				m_prepareLiveInfo.allowSearch = livingInfo.searchable;
 				m_prepareLiveInfo.shoppingProducts = livingInfo.shoppingProducts;
 				m_prepareLiveInfo.externalExposeAgreementStatus = livingInfo.externalExposeAgreementStatus;
+				m_prepareLiveInfo.sendNotification = livingInfo.sendNotification;
+				setScheduleInfoExpectedStartDate(m_prepareLiveInfo.scheduleId, livingInfo.expectedStartDate);
 				callback(PLSAPINaverShoppingType::PLSNaverShoppingSuccess, livingInfo);
 			};
 			PLSNaverShoppingLIVEDataManager::instance()->downloadImage(this, livingInfo.standByImage, imageCallback, receiver, receiverIsValid);
@@ -705,7 +726,7 @@ void PLSPlatformNaverShoppingLIVE::getSchduleListRequestSuccess(const uint64_t &
 	}
 
 	m_duplicateListMap[type].append(scheduleList);
-	if (bool reachMaxtTotalCount = (page < currentPage) || (page == currentPage && totalCount < SCHEDULE_PER_PAGE_MAX_NUM); reachMaxtTotalCount) {
+	if ((page < currentPage) || (page == currentPage && totalCount <= SCHEDULE_PER_PAGE_MAX_NUM * currentPage)) {
 		if (type == LIVEINFO_GET_SCHEDULE_LIST) {
 			m_scheduleList = m_duplicateListMap[type];
 			downloadScheduleListImage(callback, page, totalCount, receiver, receiverIsValid);
@@ -1065,6 +1086,8 @@ void PLSPlatformNaverShoppingLIVE::onCheckStatus()
 			m_prepareLiveInfo.allowSearch = livingInfo.searchable;
 			m_prepareLiveInfo.shoppingProducts = livingInfo.shoppingProducts;
 			m_prepareLiveInfo.externalExposeAgreementStatus = livingInfo.externalExposeAgreementStatus;
+			m_prepareLiveInfo.sendNotification = livingInfo.sendNotification;
+			setScheduleInfoExpectedStartDate(m_prepareLiveInfo.scheduleId, livingInfo.expectedStartDate);
 		} else {
 			PLS_LIVE_ERROR(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "Naver Shopping Live call living polling failed, apiType: %d", apiType);
 		}
@@ -1191,6 +1214,9 @@ void PLSPlatformNaverShoppingLIVE::requestNotifyApi(const std::function<void()> 
 
 bool PLSPlatformNaverShoppingLIVE::isModified(const PLSNaverShoppingLIVEAPI::NaverShoppingPrepareLiveInfo &srcInfo, const PLSNaverShoppingLIVEAPI::NaverShoppingPrepareLiveInfo &destInfo) const
 {
+	if (!srcInfo.isNowLiving) {
+		return false;
+	}
 
 	if (srcInfo.standByImageURL != destInfo.standByImageURL) {
 		return true;

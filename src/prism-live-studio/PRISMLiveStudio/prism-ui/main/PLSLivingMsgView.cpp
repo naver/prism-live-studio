@@ -73,7 +73,7 @@ void PLSLivingMsgView::setShow(bool isVisable)
 {
 	setVisible(isVisable);
 
-	if (config_get_bool(App()->GlobalConfig(), "LivingMsgView", "MaximizedState")) {
+	if (config_get_bool(App()->GetUserConfig(), "LivingMsgView", "MaximizedState")) {
 		showMaximized();
 	}
 }

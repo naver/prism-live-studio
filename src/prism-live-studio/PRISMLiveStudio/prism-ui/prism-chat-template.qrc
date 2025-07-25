@@ -15,5 +15,7 @@
         <file>resource/images/chat-template-source/ic_chat_mytheme_3.svg</file>
         <file>resource/images/chat-template-source/ic_chat_mytheme_4.svg</file>
         <file>resource/images/chat-template-source/ic_chat_mytheme_5.svg</file>
+        <file>resource/images/chat-template-source/ic_plus_thumbnail_badge.svg</file>
+        <file>resource/images/chat-template-source/ic_badge_new.svg</file>
     </qresource>
 </RCC>

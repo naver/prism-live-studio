@@ -52,8 +52,8 @@
 #include "window-basic-main-outputs.hpp"
 #include "PLSContactView.hpp"
 #include "PLSOpenSourceView.h"
-#include "PLSLoginDataHandler.h"
 
+#include "PLSLoginDataHandler.h"
 #include "window-dock-browser.hpp"
 #include "PLSPreviewTitle.h"
 #include "pls-frontend-api.h"
@@ -66,13 +66,10 @@
 #include "GoLivePannel.h"
 #include "PLSChannelSupportVideEncoder.h"
 #include "PLSSceneDataMgr.h"
-#include "bubbletips.h"
 #include "PLSNCB2bBrowserSettings.h"
 #include "MutiLanguageTestView.h"
 #include "PLSSceneitemMapManager.h"
 
-//TODO
-//#include "PLSBeautyHelper.h"
 #if defined(Q_OS_WIN)
 #include <Windows.h>
 #endif
@@ -552,6 +549,7 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : OBSBasic(mainView)
 	connect(ui->sources, &SourceTree::SelectItemChanged, this, &OBSBasic::OnSelectItemChanged, Qt::QueuedConnection);
 	connect(ui->sources, &SourceTree::VisibleItemChanged, this, &OBSBasic::OnVisibleItemChanged, Qt::QueuedConnection);
 	connect(ui->sources, &SourceTree::itemsRemove, this, &OBSBasic::OnSourceItemsRemove, Qt::QueuedConnection);
+
 	connect(
 		PLSBasic::instance(), &PLSBasic::outputStateChanged, mainView,
 		[this]() {
@@ -566,7 +564,21 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : OBSBasic(mainView)
 #endif
 			if (m_checkUpdateWidget) {
 				m_checkUpdateWidget->setItemDisabled(pls_is_output_actived());
-				getMainView()->updateTipsEnableChanged();
+			}
+			if (!pls_is_without_third_output_actived()) {
+				pls_async_call(this, [this]() {
+					checkNoticeAndForceUpdate();
+					if (m_noticeTimer.isActive()) {
+						m_noticeTimer.stop();
+					}
+					m_noticeTimer.start();
+					PLS_INFO(MAINFRAME_MODULE, "restart notice timer");
+				});
+			} else {
+				if (m_noticeTimer.isActive()) {
+					PLS_INFO(MAINFRAME_MODULE, "stop notice timer");
+					m_noticeTimer.stop();
+				}
 			}
 		},
 		Qt::QueuedConnection);
@@ -604,41 +616,17 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : OBSBasic(mainView)
 			}
 		},
 		Qt::QueuedConnection);
-	connect(
-		PLSCHANNELS_API, &PLSChannelDataAPI::broadcastGo, this,
-		[this]() {
-			PLS_INFO(MAINFRAME_MODULE, "stop notice timer");
-			m_noticeTimer.stop();
-		},
-		Qt::QueuedConnection);
-	connect(
-		PLSCHANNELS_API, &PLSChannelDataAPI::broadCastEnded, this,
-		[this]() {
-			PLS_INFO(MAINFRAME_MODULE, "restart notice timer");
-			if (m_noticeTimer.isActive()) {
-				m_noticeTimer.stop();
-			}
-			m_noticeTimer.start();
-		},
-		Qt::QueuedConnection);
-	m_noticeTimer.setInterval(60 * 60 * 1000);
-	m_noticeTimer.start();
+
+	auto interval = pls_prism_get_qsetting_value("FUTI", 60 * 60).toInt();
+	m_noticeTimer.setInterval((interval > 0 ? interval : 600) * 1000);
 
 	connect(&m_noticeTimer, &QTimer::timeout, [this]() {
-		PLS_INIT_INFO(MAINFRAME_MODULE, "start request prism notice info.");
-		pls_get_new_notice_Info([this](const QVariantMap &noticeInfo) {
-			if (noticeInfo.size() && !pls_is_main_window_closing()) {
-				PLS_INFO(MAINFRAME_MODULE, "show notice");
-				PLSNoticeView view(noticeInfo.value(NOTICE_CONTENE).toString(), noticeInfo.value(NOTICE_TITLE).toString(), noticeInfo.value(NOTICE_DETAIL_LINK).toString(),
-						   getMainView());
-#if defined(Q_OS_MACOS)
-				view.setWindowTitle(tr("Mac.Title.Notice"));
-#endif
-				PLS_INFO(MAINFRAME_MODULE, "notice view instace create success");
-				view.exec();
-				PLS_INFO(MAINFRAME_MODULE, "notice view instace delete");
-			}
-		});
+		PLS_INFO(MAINFRAME_MODULE, "polling time, request update and notice api");
+		if (pls_is_without_third_output_actived()) {
+			PLS_INFO(MAINFRAME_MODULE, "polling time, output actived, can not request notice and update api");
+			return;
+		}
+		checkNoticeAndForceUpdate();
 	});
 	obs_frontend_add_event_callback(&frontendEventHandler, this);
 	pls_frontend_add_event_callback(&frontendEventHandler, this);
@@ -685,6 +673,7 @@ PLSBasic::PLSBasic(PLSMainView *mainView) : OBSBasic(mainView)
 	connect(m_checkUpdateWidgetAction, SIGNAL(triggered()), this, SLOT(on_checkUpdate_triggered()));
 	m_checkUpdateWidgetAction->setDefaultWidget(m_checkUpdateWidget);
 	replaceMenuActionWithWidgetAction(ui->menubar, ui->actionCheckForUpdates, m_checkUpdateWidgetAction);
+
 #endif
 }
 PLSBasic::~PLSBasic()
@@ -738,9 +727,9 @@ void OBSBasic::UpdateStudioModeUI(bool studioMode)
 	QMargins newMargins = margins;
 
 	if (studioMode) {
-		newMargins.setTop(newMargins.left() - 10);
+		newMargins.setTop(newMargins.top() - 10);
 	} else {
-		newMargins.setTop(newMargins.left() + 10);
+		newMargins.setTop(newMargins.top() + 10);
 	}
 	ui->horizontalLayout_2->setContentsMargins(newMargins);
 
@@ -771,7 +760,7 @@ pls_frontend_callbacks *PLSBasic::getApi()
 void PLSBasic::removeConfig(const char *config)
 {
 	std::array<char, 512> cpath;
-	if (GetConfigPath(cpath.data(), sizeof(cpath), config) <= 0) {
+	if (GetAppConfigPath(cpath.data(), sizeof(cpath), config) <= 0) {
 		PLS_INFO(MAINFRAME_MODULE, "remove config[%s] failed, because get config path failed.", config);
 		return;
 	}
@@ -1029,8 +1018,8 @@ void PLSBasic::PLSInit()
 
 	initConnect();
 
-	QString udpateUrl(config_get_string(App()->GlobalConfig(), "AppUpdate", "updateUrl"));
-	QString updateGcc(config_get_string(App()->GlobalConfig(), "AppUpdate", "updateGcc"));
+	QString udpateUrl(config_get_string(App()->GetUserConfig(), "AppUpdate", "updateUrl"));
+	QString updateGcc(config_get_string(App()->GetUserConfig(), "AppUpdate", "updateGcc"));
 	//start resource download
 	if (udpateUrl.isEmpty()) {
 		m_isStartCategoryRequest = true;
@@ -1072,14 +1061,14 @@ void PLSBasic::PLSInit()
 	connect(actionSperateMixer, &QAction::triggered, this, &PLSBasic::OnMixerDockSeperateBtnClicked);
 	connect(ui->mixerDock, &QDockWidget::topLevelChanged, this, &PLSBasic::OnMixerDockLocationChanged);
 
-	bool vertical = config_get_bool(GetGlobalConfig(), "BasicWindow", "VerticalVolControl");
+	bool vertical = config_get_bool(App()->GetUserConfig(), "BasicWindow", "VerticalVolControl");
 	actionMixerLayout = pls_new<QAction>(vertical ? QTStr("Basic.MainMenu.Mixer.Horizontal") : QTStr("Basic.MainMenu.Mixer.Vertical"), ui->hMixerScrollArea);
 	connect(actionMixerLayout, &QAction::triggered, this, &PLSBasic::OnMixerLayoutTriggerd);
 
 	ui->mixerDock->titleWidget()->setAdvButtonActions({actionSperateMixer, actionMixerLayout});
 	ui->mixerDock->titleWidget()->setButtonActions(listActions);
 
-	bool docksLocked = config_get_bool(App()->GlobalConfig(), "BasicWindow", "DocksLocked");
+	bool docksLocked = config_get_bool(App()->GetUserConfig(), "BasicWindow", "DocksLocked");
 	setDockDetachEnabled(docksLocked);
 
 	setUserIcon();
@@ -1100,7 +1089,6 @@ void PLSBasic::PLSInit()
 	connect(ui->actionWebsite, &QAction::triggered, this, &PLSBasic::on_actionWebsite_triggered);
 	connect(ui->actionShowAbout, &QAction::triggered, this, &PLSBasic::on_actionShowAbout_triggered);
 	connect(ui->actionContactUs, &QAction::triggered, this, [this]() { on_actionContactUs_triggered(); });
-	connect(ui->actionBlog, &QAction::triggered, this, &PLSBasic::on_actionBlog_triggered);
 	connect(ui->actionRepair, &QAction::triggered, this, &PLSBasic::on_actionRepair_triggered);
 	connect(ui->actionStudioMode, &QAction::triggered, this, &PLSBasic::on_actionStudioMode_triggered);
 	connect(ui->stats, &QAction::triggered, this, &PLSBasic::on_stats_triggered);
@@ -1251,6 +1239,9 @@ void PLSBasic::onShowMainMenu()
 		mainMenu.setObjectName("mainMenu");
 		mainMenu.setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
 		mainMenu.addActions(adjustedMenu());
+		auto bOutputActived = pls_is_output_actived();
+		logOut->setEnabled(!bOutputActived);
+		ui->profileMenu->setEnabled(!bOutputActived);
 		mainMenu.exec(pos);
 		pls_pop_modal_view(&mainMenu);
 	} else {
@@ -1292,7 +1283,7 @@ void PLSBasic::OnScenesCurrentItemChanged()
 		api->on_event(OBS_FRONTEND_EVENT_SCENE_LIST_CHANGED);
 		//api->on_event(OBS_FRONTEND_EVENT_SCENE_LIST_CURRENT_CHANGED);
 	}
-	UpdateContextBar();
+	UpdateContextBarDeferred();
 }
 
 void PLSBasic::OnStickerClicked()
@@ -1721,11 +1712,16 @@ void PLSBasic::CreatePreviewTitle()
 		return;
 	}
 
-	bool studioPortraitLayout = config_get_bool(GetGlobalConfig(), "BasicWindow", "StudioPortraitLayout");
+	bool studioPortraitLayout = config_get_bool(App()->GetUserConfig(), "BasicWindow", "StudioPortraitLayout");
 	previewProgramTitle = pls_new<PLSPreviewProgramTitle>(studioPortraitLayout, ui->previewContainer);
 	previewProgramTitle->toggleShowHide(false);
 	connect(previewProgramTitle->horApplyBtn, &QPushButton::clicked, this, &PLSBasic::TransitionClicked);
 	connect(previewProgramTitle->porApplyBtn, &QPushButton::clicked, this, &PLSBasic::TransitionClicked);
+}
+
+void PLSBasic::checkNoticeAndForceUpdate()
+{
+	
 }
 
 void PLSBasic::OnPRISMStickerApplied(const StickerHandleResult &stickerData)
@@ -1861,7 +1857,7 @@ void PLSBasic::OnStickerDownloadCallback(const TaskResponData &responData)
 
 void PLSBasic::InitGiphyStickerViewVisible()
 {
-	bool showSticker = pls_config_get_bool(App()->GlobalConfig(), ConfigId::GiphyStickersConfig, CONFIG_SHOW_MODE);
+	bool showSticker = pls_config_get_bool(App()->GetUserConfig(), ConfigId::GiphyStickersConfig, CONFIG_SHOW_MODE);
 	if (showSticker) {
 		CreateGiphyStickerView();
 		giphyStickerView->show();
@@ -1870,7 +1866,7 @@ void PLSBasic::InitGiphyStickerViewVisible()
 
 void PLSBasic::InitPrismStickerViewVisible()
 {
-	bool showSticker = pls_config_get_bool(App()->GlobalConfig(), ConfigId::PrismStickerConfig, CONFIG_SHOW_MODE);
+	bool showSticker = pls_config_get_bool(App()->GetUserConfig(), ConfigId::PrismStickerConfig, CONFIG_SHOW_MODE);
 	if (showSticker) {
 		CreatePrismStickerView();
 		prismStickerView->show();
@@ -1880,15 +1876,23 @@ void PLSBasic::InitPrismStickerViewVisible()
 
 void PLSBasic::InitDualOutputEnabled()
 {
-	bool bEnabled = pls_config_get_bool(App()->GlobalConfig(), ConfigId::DualOutputConfig, CONFIG_SHOW_MODE);
+	bool bEnabled = pls_config_get_bool(App()->GetUserConfig(), ConfigId::DualOutputConfig, CONFIG_SHOW_MODE);
 	if (bEnabled) {
-		setDualOutputEnabled(bEnabled, false);
+		if (!setDualOutputEnabled(bEnabled, false)) {
+			const char *objName = QMetaEnum::fromType<ConfigId>().valueToKey(ConfigId::DualOutputConfig);
+			config_set_bool(App()->GetUserConfig(), objName, "showMode", false);
+			getMainView()->updateSideBarButtonStyle(ConfigId::DualOutputConfig, false);
+		}
+
 		connect(PLSCHANNELS_API, &PLSChannelDataAPI::toDoinitialize, dualOutputTitle.data(), &PLSDualOutputTitle::initPlatformIcon,
 			Qt::ConnectionType(Qt::QueuedConnection | Qt::SingleShotConnection));
 	}
 
 	connect(PLS_PLATFORM_API, &PLSPlatformApi::liveEnded, this, std::bind(&PLSBasic::changeOutputCount, this, -1));
-	connect(this, &PLSBasic::sigOutputActiveChanged, this, [this](bool bValue) { getMainView()->setSidebarButtonEnabled(ConfigId::DualOutputConfig, !bValue); });
+	connect(this, &PLSBasic::sigOutputActiveChanged, this, [this](bool bValue) {
+		getMainView()->setSidebarButtonEnabled(ConfigId::DualOutputConfig, !bValue);
+		getMainView()->updateTipsEnableChanged(!bValue);
+	});
 }
 
 void PLSBasic::OnMixerOrderChanged()
@@ -1936,7 +1940,7 @@ void PLSBasic::initNcb2bBrowserSettingsVisible()
 
 	createNcb2bBrowserSettings();
 
-	bool show = pls_config_get_bool(App()->GlobalConfig(), ConfigId::Ncb2bBrowserSettings, CONFIG_SHOW_MODE);
+	bool show = pls_config_get_bool(App()->GetUserConfig(), ConfigId::Ncb2bBrowserSettings, CONFIG_SHOW_MODE);
 	if (show) {
 		ncb2bBrowserSettings->show();
 		ncb2bBrowserSettings->raise();
@@ -1947,8 +1951,7 @@ void PLSBasic::on_actionShowAbout_triggered()
 {
 	PLSAboutView aboutView(this);
 	if (aboutView.exec() == PLSAboutView::Accepted) {
-		QMetaObject::invokeMethod(
-			this, [this]() { on_checkUpdate_triggered(); }, Qt::QueuedConnection);
+		QMetaObject::invokeMethod(this, [this]() { on_checkUpdate_triggered(); }, Qt::QueuedConnection);
 	}
 }
 
@@ -1966,19 +1969,15 @@ void PLSBasic::on_actionHelpOpenSource_triggered()
 
 void PLSBasic::on_actionDiscord_triggered() const
 {
-	if (IS_KR()) {
-		QDesktopServices::openUrl(QUrl(QString("https://discord.gg/9j7mFY5g9a"), QUrl::TolerantMode));
-	} else {
-		QDesktopServices::openUrl(QUrl(QString("https://discord.gg/vxzDZ9V6f9"), QUrl::TolerantMode));
-	}
+	QDesktopServices::openUrl(QUrl(PLSSyncServerManager::instance()->getDiscordUrl(), QUrl::TolerantMode));
 }
 
 void PLSBasic::on_actionWebsite_triggered() const
 {
 	if (IS_KR()) {
-		QDesktopServices::openUrl(QUrl(QString("https://prismlive.com/ko_kr/"), QUrl::TolerantMode));
+		QDesktopServices::openUrl(QUrl(QString(""), QUrl::TolerantMode));
 	} else {
-		QDesktopServices::openUrl(QUrl(QString("https://prismlive.com/en_us/"), QUrl::TolerantMode));
+		QDesktopServices::openUrl(QUrl(QString(""), QUrl::TolerantMode));
 	}
 }
 
@@ -1990,18 +1989,12 @@ void PLSBasic::on_actionContactUs_triggered(const QString &message, const QStrin
 
 void PLSBasic::on_actionRepair_triggered() const
 {
-	QUrl url = QUrl("https://obsproject.com/help", QUrl::TolerantMode);
+	QUrl url = QUrl("", QUrl::TolerantMode);
 	QDesktopServices::openUrl(url);
 }
 
-void PLSBasic::on_actionBlog_triggered() const
-{
-	if (!strcmp(App()->GetLocale(), "ko-KR")) {
-		QDesktopServices::openUrl(QUrl("https://blog.naver.com/prismlivestudio", QUrl::TolerantMode));
-	} else {
-		QDesktopServices::openUrl(QUrl("https://medium.com/prismlivestudio", QUrl::TolerantMode));
-	}
-}
+void PLSBasic::on_actionUserGuide_triggered() const {}
+
 
 void PLSBasic::on_stats_triggered()
 {
@@ -2025,25 +2018,24 @@ void PLSBasic::on_actionStudioMode_triggered()
 
 void PLSBasic::on_actionShowVideosFolder_triggered() const
 {
-	const char *mode = config_get_string(basicConfig, "Output", "Mode");
-	const char *type = config_get_string(basicConfig, "AdvOut", "RecType");
-	const char *adv_path = strcmp(type, "Standard") ? config_get_string(basicConfig, "AdvOut", "FFFilePath") : config_get_string(basicConfig, "AdvOut", "RecFilePath");
-	const char *path = strcmp(mode, "Advanced") ? config_get_string(basicConfig, "SimpleOutput", "FilePath") : adv_path;
+	const char *mode = config_get_string(activeConfiguration, "Output", "Mode");
+	const char *type = config_get_string(activeConfiguration, "AdvOut", "RecType");
+	const char *adv_path = strcmp(type, "Standard") ? config_get_string(activeConfiguration, "AdvOut", "FFFilePath") : config_get_string(activeConfiguration, "AdvOut", "RecFilePath");
+	const char *path = strcmp(mode, "Advanced") ? config_get_string(activeConfiguration, "SimpleOutput", "FilePath") : adv_path;
 	QDesktopServices::openUrl(QUrl::fromLocalFile(path));
 }
 
 void PLSBasic::on_actionPrismPolicy_triggered() const
 {
 	if (!strcmp(App()->GetLocale(), "ko-KR")) {
-		QDesktopServices::openUrl(QUrl("https://prismlive.com/ko_kr/policy/privacy_content.html", QUrl::TolerantMode));
+		QDesktopServices::openUrl(QUrl("", QUrl::TolerantMode));
 	} else {
-		QDesktopServices::openUrl(QUrl("https://prismlive.com/en_us/policy/privacy_content.html", QUrl::TolerantMode));
+		QDesktopServices::openUrl(QUrl("", QUrl::TolerantMode));
 	}
 }
 
 void PLSBasic::on_checkUpdate_triggered()
 {
-	
 }
 
 void PLSBasic::actionLaboratory_triggered()
@@ -2123,27 +2115,23 @@ void PLSBasic::OnSideBarButtonClicked(int buttonId)
 
 void PLSBasic::OnTransitionAdded()
 {
-	if (api)
-		api->on_event(OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED);
+	OnEvent(OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED);
 }
 
 void PLSBasic::onTransitionRemoved(OBSSource source)
 {
-	if (api)
-		api->on_event(OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED);
+	OnEvent(OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED);
 	this->DeletePropertiesWindow(source);
 }
 
 void PLSBasic::OnTransitionRenamed()
 {
-	if (api)
-		api->on_event(OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED);
+	OnEvent(OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED);
 }
 
 void PLSBasic::OnTransitionSet()
 {
-	if (api)
-		api->on_event(OBS_FRONTEND_EVENT_TRANSITION_CHANGED);
+	OnEvent(OBS_FRONTEND_EVENT_TRANSITION_CHANGED);
 }
 
 void PLSBasic::OnTransitionDurationValueChanged(int value)
@@ -2249,8 +2237,8 @@ void PLSBasic::initConnect()
 
 void PLSBasic::OnExportSceneCollectionClicked()
 {
-	const char *name = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
-	const char *fileName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
+	const char *name = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
+	const char *fileName = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile");
 
 	on_actionExportSceneCollection_triggered_with_path(name, fileName, this);
 }
@@ -2317,7 +2305,7 @@ void PLSBasic::SetSceneDisplayMethod(int method)
 {
 	ui->scenesFrame->SetSceneDisplayMethod(method);
 
-	auto config = GetGlobalConfig();
+	auto config = App()->GetUserConfig();
 	config_set_int(config, "BasicWindow", "SceneDisplayMethod", method);
 	config_save(config);
 
@@ -2327,11 +2315,11 @@ void PLSBasic::SetSceneDisplayMethod(int method)
 
 int PLSBasic::GetSceneDisplayMethod() const
 {
-	if (!config_has_user_value(App()->GlobalConfig(), "BasicWindow", "SceneDisplayMethod")) {
-		config_set_int(App()->GlobalConfig(), "BasicWindow", "SceneDisplayMethod", 0);
+	if (!config_has_user_value(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod")) {
+		config_set_int(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod", 0);
 		return 0;
 	}
-	int displayMethod = (int)config_get_int(App()->GlobalConfig(), "BasicWindow", "SceneDisplayMethod");
+	int displayMethod = (int)config_get_int(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod");
 	if (displayMethod < 0 || displayMethod > static_cast<int>(DisplayMethod::TextView)) {
 		return 0;
 	}
@@ -2431,7 +2419,7 @@ static inline bool IncludeHidenAudio()
 
 static inline void includeHidenAudioToast(bool live)
 {
-	if (live && config_get_bool(GetGlobalConfig(), "BasicWindow", "RecordWhenStreaming")) {
+	if (live && config_get_bool(App()->GetUserConfig(), "BasicWindow", "RecordWhenStreaming")) {
 		return;
 	}
 	if (IncludeHidenAudio()) {
@@ -2539,7 +2527,9 @@ void PLSBasic::frontendEventHandler(obs_frontend_event event, void *private_data
 		main->CheckStickerSource();
 		updatePlatformViewerCount();
 		std::thread([]() { PLSInfoCollector::logMsg("Scene Collection Changed"); }).detach();
-		config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
+		config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
+		PLSSceneitemMapMgrInstance->switchToDualOutputModeForAllScenes();
+		PLSSceneitemMapMgrInstance->bindMappedVerticalItemHotkeys();
 		main->showChangeSceneDisplayAlert();
 		break;
 	case OBS_FRONTEND_EVENT_STREAMING_STARTED:
@@ -2618,14 +2608,11 @@ void PLSBasic::rehearsalSwitchedToLive()
 void PLSBasic::showMainViewAfter(QWidget *parentWidget)
 {
 	pls_check_app_exiting();
-	bool updateNow = false;
-
-	// if update view never shown
-	PLS_INFO(UPDATE_MODULE, "enter showMainViewAfter");
-	if (!updateNow) {
-		//notice view
-		PLS_INFO(MAINFRAME_MODULE, "start request prism notice info.");
-		pls_get_new_notice_Info([this](const QVariantMap &noticeInfo) {
+	//notice view
+	PLS_INFO(MAINFRAME_MODULE, "start request prism notice info.");
+	pls_get_new_notice_Info([this, parentWidget](const QVariantMap &noticeInfo) {
+		bool updateNow = false;
+		pls_async_call(this, [this, noticeInfo]() {
 			if (noticeInfo.size()) {
 				PLS_INFO(MAINFRAME_MODULE, "show notice");
 				PLSNoticeView view(noticeInfo.value(NOTICE_CONTENE).toString(), noticeInfo.value(NOTICE_TITLE).toString(), noticeInfo.value(NOTICE_DETAIL_LINK).toString(), mainView);
@@ -2636,10 +2623,15 @@ void PLSBasic::showMainViewAfter(QWidget *parentWidget)
 			}
 		});
 
-		if (PLSLoginDataHandler::instance()->isNeedShowB2BServiceAlert()) {
-			pls_async_call_mt([]() { PLSAlertView::warning(nullptr, QObject::tr("Alert.Title"), QObject::tr("Ncb2b.Living.Service.Disable")); });
+		// if update view never shown
+
+		if (!updateNow) {
+
+			if (PLSLoginDataHandler::instance()->isNeedShowB2BServiceAlert()) {
+				pls_async_call_mt([]() { PLSAlertView::warning(nullptr, QObject::tr("Alert.Title"), QObject::tr("Ncb2b.Living.Service.Disable")); });
+			}
 		}
-	}
+	});
 }
 
 void PLSBasic::LogoutCallback(pls_frontend_event event, const QVariantList &l, void *v)
@@ -2649,14 +2641,14 @@ void PLSBasic::LogoutCallback(pls_frontend_event event, const QVariantList &l, v
 
 	pls_unused(l, v);
 	bool defaultPreviewMode = true;
-	config_set_bool(App()->GlobalConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_PREVIEW_MODE_MODULE, defaultPreviewMode);
+	config_set_bool(App()->GetUserConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_PREVIEW_MODE_MODULE, defaultPreviewMode);
 	dynamic_cast<PLSBasic *>(App()->GetMainWindow())->SetPreviewProgramMode(defaultPreviewMode);
 }
 
 bool enum_adapter_callback(void *, const char *name, uint32_t id)
 {
 
-	if (name && config_get_uint(App()->GlobalConfig(), "Video", "AdapterIdx") == id) {
+	if (name && config_get_uint(App()->GetUserConfig(), "Video", "AdapterIdx") == id) {
 		GlobalVars::videoAdapter = name;
 		return false;
 	}
@@ -2690,7 +2682,7 @@ void PLSBasic::graphicsCardNotice() const
 
 void PLSBasic::UpdateAudioMixerMenuTxt()
 {
-	bool vertical = config_get_bool(GetGlobalConfig(), "BasicWindow", "VerticalVolControl");
+	bool vertical = config_get_bool(App()->GetUserConfig(), "BasicWindow", "VerticalVolControl");
 	if (actionMixerLayout) {
 		actionMixerLayout->setText(vertical ? QTStr("Basic.MainMenu.Mixer.Horizontal") : QTStr("Basic.MainMenu.Mixer.Vertical"));
 	}
@@ -3180,7 +3172,7 @@ bool PLSBasic::AddPRISMStickerSource(const StickerHandleResult &data, OBSSource 
 	stickerUploadVariantMap.insert(ANALOG_TOUCH_STICKER_CATEGORY_ID_KEY, data.data.category);
 	stickerUploadVariantMap.insert(ANALOG_TOUCH_STICKER_ID_KEY, data.data.id);
 	action::SendActionLog(action::ActionInfo(action::EVENT_MAIN_ADD, action::EVENT_SUB_SOURCE_ADDED, action::EVENT_TYPE_CONFIRMED, action::GetActionSourceID(id)));
-	pls_send_analog(AnalogType::ANALOG_ADD_SOURCE, {{ANALOG_SOURCE_TYPE_KEY, action::GetActionSourceID(id)}, {ANALOG_ITEM_KEY, ""}, {ANALOG_DETAIL_KEY, stickerUploadVariantMap}});
+	pls_send_analog(AnalogType::ANALOG_ADD_SOURCE, {{ANALOG_SOURCE_TYPE_KEY, action::GetActionSourceID(id)}, {ANALOG_DETAIL_KEY, stickerUploadVariantMap}});
 
 	OnSourceCreated(id);
 	action::SendPropsToNelo(id, {{"stickerId", qUtf8Printable(data.data.id)}, {"category", qUtf8Printable(data.data.category)}});
@@ -3261,10 +3253,16 @@ static void updateChatExternParams(const OBSSource &source, int code)
 	if (seqHorizontal > 0) {
 		data.insert("videoSeq", QString::number(seqHorizontal));
 	}
+
+	QJsonArray videoSeqs;
+	if (seqHorizontal > 0) {
+		videoSeqs.append(seqHorizontal);
+	}
 	if (seqVertical > 0) {
-		data.insert("videoSeqs", QJsonArray({seqHorizontal, seqVertical}));
-	} else {
-		data.insert("videoSeqs", QJsonArray({seqHorizontal}));
+		videoSeqs.append(seqVertical);
+	}
+	if (!videoSeqs.isEmpty()) {
+		data.insert("videoSeqs", videoSeqs);
 	}
 
 	const char *id = obs_source_get_id(source);
@@ -3355,11 +3353,8 @@ void PLSBasic::OnSourceNotifyAsync(QString name, int msg, int code)
 			/*	if (m_virtualBgView) {
 				m_virtualBgView->setBgFileError(name);
 			}*/
-			QMetaObject::invokeMethod(
-				this, [name]() { PLSVirtualBgManager::checkResourceInvalid({}, name); }, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(this, [name]() { PLSVirtualBgManager::checkResourceInvalid({}, name); }, Qt::QueuedConnection);
 		}
-	} else if (msg == OBS_SOURCE_SENSEAR_ACTION) {
-		PLS_INFO(SOURCE_MODULE, "Send sensear action log");
 	} else if (msg == OBS_SOURCE_PROPERTY_ERROR_STATUS) {
 		if (properties) {
 			if (code == 1) {
@@ -3379,31 +3374,15 @@ void PLSBasic::OnSourceNotifyAsync(QString name, int msg, int code)
 
 void PLSBasic::OnMainViewShow(bool isShow)
 {
-	//todo
-	/*if (isShow && !mainView->property(IS_ALWAYS_ON_TOP_FIRST_SETTED).toBool()) {
-		mainView->setProperty(IS_ALWAYS_ON_TOP_FIRST_SETTED, true);
 
-		bool alwaysOnTop = config_get_bool(App()->GlobalConfig(), "BasicWindow", "AlwaysOnTop");
-		if (alwaysOnTop || GlobalVars::opt_always_on_top) {
-			SetAlwaysOnTop(mainView, MAIN_FRAME, true);
-			ui->actionAlwaysOnTop->setChecked(true);
-		}
+	if (isFirstShow) {
+		PLS_INFO(MAINFRAME_MODULE, "start notice timer");
+		m_noticeTimer.start();
 	}
-
-	if (properties) {
-		properties->setVisible(isShow);
-	}
-
 	if (isShow && isFirstShow) {
-		isFirstShow = false;
-		for (const auto &iter : SourceNotifyCacheList) {
-			FilterAlertMsg(iter.title, iter.msg);
-		}
-		SourceNotifyCacheList.clear();
-		*/
 
-	if (isShow && isFirstShow) {
 		PLS_INFO(UPDATE_MODULE, "enter OnMainViewShow(%d)", isShow);
+
 		getLocalUpdateResult();
 		isFirstShow = false;
 		PLS_INFO(UPDATE_MODULE, "enter ShowLoadSceneCollectionError");
@@ -3419,11 +3398,11 @@ void PLSBasic::OnMainViewShow(bool isShow)
 		if (ncb2bBrowserSettings) {
 			ncb2bBrowserSettings->refreshUI();
 		}
+		PLSSceneitemMapMgrInstance->bindMappedVerticalItemHotkeys();
 		PLSSceneitemMapMgrInstance->switchToDualOutputMode();
 
 		PLSLaunchWizardView *banner = dynamic_cast<PLSLaunchWizardView *>(pls_get_banner_widget());
-		bool isDontShow = config_get_bool(App()->GlobalConfig(), common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW);
-		if (banner && !banner->getIsShowFlag() && !isDontShow) {
+		if (banner && banner->isNeedShow()) {
 			PLS_INFO(UPDATE_MODULE, "pls_get_banner_widget object is existed");
 			PLSShowWatcher *watcher = new PLSShowWatcher(banner);
 			QObject::connect(
@@ -3635,7 +3614,7 @@ void OBSBasic::UpdateSceneSelection(OBSSource source)
 		if (item) {
 			OBSScene curScene = ui->scenesFrame->GetCurrentItem()->GetData();
 			if (api && scene != curScene)
-				api->on_event(OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED);
+				OnEvent(OBS_FRONTEND_EVENT_PREVIEW_SCENE_CHANGED);
 		}
 	}
 }
@@ -3684,12 +3663,12 @@ void PLSBasic::replaceMenuActionWithWidgetAction(QMenuBar *menuBar, QAction *ori
 	}
 }
 
-void PLSBasic::CheckAppUpdate()
-{
+void PLSBasic::CheckAppUpdate(bool isShowAlert) {
+	
 }
 
-void PLSBasic::CheckAppUpdateFinished(const PLSErrorHandler::RetData &retData)
-{
+void PLSBasic::CheckAppUpdateFinished(bool isShowAlert, const PLSErrorHandler::RetData &retData ) {
+	
 }
 
 int PLSBasic::compareVersion(const QString &v1, const QString &v2) const
@@ -3706,6 +3685,7 @@ bool PLSBasic::ShowUpdateView(QWidget *parent)
 {
 	return false;
 }
+
 QStringList PLSBasic::getRestartParams(bool isUpdate)
 {
 	QStringList params;
@@ -3776,8 +3756,8 @@ void PLSBasic::ClearStickerCache() const
 
 void PLSBasic::InitInteractData() const
 {
-	auto cx = (int)config_get_int(App()->GlobalConfig(), "InteractionWindow", "cx");
-	auto cy = (int)config_get_int(App()->GlobalConfig(), "InteractionWindow", "cy");
+	auto cx = (int)config_get_int(App()->GetUserConfig(), "InteractionWindow", "cx");
+	auto cy = (int)config_get_int(App()->GetUserConfig(), "InteractionWindow", "cy");
 
 	obs_data_t *browserData = obs_data_create();
 	obs_data_set_int(browserData, "interaction_cx", cx);
@@ -3796,8 +3776,8 @@ void PLSBasic::SaveInteractData() const
 	long long interaction_cy = obs_data_get_int(browserData, "interaction_cy");
 	obs_data_release(browserData);
 
-	config_set_int(App()->GlobalConfig(), "InteractionWindow", "cx", interaction_cx);
-	config_set_int(App()->GlobalConfig(), "InteractionWindow", "cy", interaction_cy);
+	config_set_int(App()->GetUserConfig(), "InteractionWindow", "cx", interaction_cx);
+	config_set_int(App()->GetUserConfig(), "InteractionWindow", "cy", interaction_cy);
 }
 
 bool PLSBasic::hasSourceMonitor() const
@@ -3880,7 +3860,7 @@ void PLSBasic::restartApp(const RestartAppType &restartType, const QStringList &
 	});
 }
 
-void PLSBasic::startDownloading()
+void PLSBasic::startDownloading(bool forceDownload)
 {
 	
 }
@@ -3995,7 +3975,7 @@ void PLSBasic::restartPrismApp(bool isUpdated)
 
 bool PLSBasic::checkMainViewClose(QCloseEvent *event)
 {
-	bool confirmOnExit = config_get_bool(GetGlobalConfig(), "General", "ConfirmOnExit");
+	bool confirmOnExit = config_get_bool(App()->GetUserConfig(), "General", "ConfirmOnExit");
 
 	if (confirmOnExit && (pls_is_living_or_recording() || VirtualCamActive())) {
 
@@ -4023,7 +4003,7 @@ void PLSBasic::closeMainBegin()
 {
 	pls::http::abortAll(true);
 	if (!isFirstShow) {
-		config_set_string(App()->GlobalConfig(), "BasicWindow", "DockState", saveState().toBase64().constData());
+		config_set_string(App()->GetUserConfig(), "BasicWindow", "DockState", saveState().toBase64().constData());
 	}
 
 	HideAllInteraction(nullptr);
@@ -4066,7 +4046,7 @@ void PLSBasic::closeMainFinished()
 void PLSBasic::initSideBarWindowVisible()
 {
 	// beauty
-	bool beautyVisible = pls_config_get_bool(App()->GlobalConfig(), ConfigId::BeautyConfig, CONFIG_SHOW_MODE);
+	bool beautyVisible = pls_config_get_bool(App()->GetUserConfig(), ConfigId::BeautyConfig, CONFIG_SHOW_MODE);
 	//OnSetBeautyVisible(beautyVisible);
 
 	//giphy
@@ -4079,17 +4059,17 @@ void PLSBasic::initSideBarWindowVisible()
 	initNcb2bBrowserSettingsVisible();
 
 	//background music
-	bool bgmVisible = pls_config_get_bool(App()->GlobalConfig(), ConfigId::BgmConfig, CONFIG_SHOW_MODE);
+	bool bgmVisible = pls_config_get_bool(App()->GetUserConfig(), ConfigId::BgmConfig, CONFIG_SHOW_MODE);
 	OnSetBgmViewVisible(bgmVisible);
 
 	//toast
-	bool toastVisible = pls_config_get_bool(App()->GlobalConfig(), ConfigId::LivingMsgView, CONFIG_SHOW_MODE);
+	bool toastVisible = pls_config_get_bool(App()->GetUserConfig(), ConfigId::LivingMsgView, CONFIG_SHOW_MODE);
 	mainView->setToastMsgViewVisible(toastVisible);
 	//chat view
 	mainView->showChatView(false, true);
 
 	//virtual background
-	//bool virtualVisible = pls_config_get_bool(App()->GlobalConfig(), ConfigId::VirtualbackgroundConfig, CONFIG_SHOW_MODE);
+	//bool virtualVisible = pls_config_get_bool(App()->GetUserConfig(), ConfigId::VirtualbackgroundConfig, CONFIG_SHOW_MODE);
 	//if (virtualVisible)
 	//OnVirtualBgClicked(true);
 
@@ -4119,7 +4099,7 @@ void PLSBasic::OnToolAreaVisible()
 		ui->contextContainer->setVisible(false);
 	} else {
 		ui->contextContainer->setVisible(true);
-		UpdateContextBar(true);
+		UpdateContextBarDeferred(true);
 	}
 }
 
@@ -4172,23 +4152,47 @@ void PLSBasic::OnSourceCreated(const char *id)
 {
 	if (!id)
 		return;
-	pls_async_call(this, []() { PLSSceneitemMapMgrInstance->switchToDualOutputMode(); });
+	pls_async_call(this, [this]() {
+		PLSSceneitemMapMgrInstance->switchToDualOutputMode();
+		updateSourceIcon();
+	});
 	PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE, {{"addSource", id}}, "User add source: %s", id);
 }
 
-bool PLSBasic::ShouldShowMixerTip() const
+void PLSBasic::ShowAudioMixerAudioTrackTips(bool bEnabled)
 {
-	// PRISM_PC-1359: DO NOT show guide in the version 4.3.0 or later
-	return false;
-}
 
-void PLSBasic::ShowAudioMixerTips()
-{
+	if (!bEnabled) {
+		if (m_bubbleTips)
+			m_bubbleTips->close();
+		return;
+	}
+
+	if (m_showMixerAudioTrackTip) {
+		return;
+	}
+
+	bool hasTipsCount = config_has_user_value(App()->GetUserConfig(), AUDIO_MIXER_CONFIG, AUDIO_MIXER_SHOW_TIPS_COUNT);
+	int showTipsCount = 0;
+	if (hasTipsCount) {
+		showTipsCount = config_get_int(App()->GetUserConfig(), AUDIO_MIXER_CONFIG, AUDIO_MIXER_SHOW_TIPS_COUNT);
+	}
+	if (showTipsCount >= 3) {
+		return;
+	}
+
 	auto buddy = ui->mixerDock->titleWidget();
-	bool result = pls_show_bubble_tips(buddy, BubbleTips::Bottom, QPoint(50, 5), tr("Basic.Main.audiomixer.dock.order.tip"), 20, 5 * 1000);
-	if (result) {
-		config_set_bool(App()->GlobalConfig(), AUDIO_MIXER_CONFIG, "NotShowTips", true);
-		config_save(App()->GlobalConfig());
+	bubbletips *tips = pls_show_bubble_tips(ui->mixerDock, QPoint(0, 5), tr("Basic.Main.audiomixer.dualOutput.audioTrack.tip"), 17, bubbleInfiniteLoopDuration, BubbleTips::DualOutputAudioTrack);
+	if (tips) {
+		connect(tips, &bubbletips::clickTextLink, this, [=](const QString &) {
+			QMetaObject::invokeMethod(PLSBasic::Get(), "onPopupSettingView", Q_ARG(QString, "Output"), Q_ARG(QString, common::AUDIO_MIXER_DUAL_OUTPUT_ADVANCE_PAGE));
+		});
+		tips->addListenDockTitleWidget(buddy);
+		showTipsCount++;
+		m_showMixerAudioTrackTip = true;
+		config_set_int(App()->GetUserConfig(), AUDIO_MIXER_CONFIG, AUDIO_MIXER_SHOW_TIPS_COUNT, showTipsCount);
+		config_save(App()->GetUserConfig());
+		m_bubbleTips = tips;
 	}
 }
 
@@ -4207,11 +4211,12 @@ QString PLSBasic::getOutputStreamErrorAlert(int code, const QString &last_error)
 	} else if (!last_error.isEmpty() && use_last_error && isVisible()) {
 		extra_data.pathValueMap.insert("lastError", last_error);
 	}
+	extra_data.urlEn = "Output error no url";
 
 	return PLSErrorHandler::getAlertStringByErrCode(QString::number(code), PLSErrApiKey_OutputStream, {}, extra_data).alertMsg;
 }
 
-void PLSBasic::ShowOutputStreamErrorAlert(int code, QString last_error, QWidget *parent)
+void PLSBasic::ShowOutputStreamErrorAlert(int code, QString last_error, bool vertical, QWidget *parent)
 {
 	if (code == OBS_OUTPUT_SUCCESS)
 		return;
@@ -4226,6 +4231,16 @@ void PLSBasic::ShowOutputStreamErrorAlert(int code, QString last_error, QWidget 
 		// the lastError is used to appended to the alert msg str.
 		extra_data.pathValueMap.insert("lastError", last_error);
 	}
+
+	// Set output plugin id as the urlEn
+	if (outputHandler) {
+		if (vertical && outputHandler.voutput && outputHandler.voutput->streamOutput) {
+			extra_data.urlEn = obs_output_get_id(outputHandler.voutput->streamOutput);
+		} else if (!vertical && outputHandler->streamOutput) {
+			extra_data.urlEn = obs_output_get_id(outputHandler->streamOutput);
+		}
+	}
+	extra_data.urlEn = extra_data.urlEn.isEmpty() ? "stream output" : extra_data.urlEn;
 
 	if (encoder_error || (!encoder_error && isVisible())) {
 		PLSErrorHandler::showAlertByErrCode(QString::number(code), PLSErrApiKey_OutputStream, {}, extra_data, parent);
@@ -4250,6 +4265,12 @@ void PLSBasic::ShowOutputRecordErrorAlert(int code, QString last_error, QWidget 
 		extra_data.pathValueMap.insert("lastError", last_error);
 	}
 
+	// Set output plugin id as the urlEn
+	if (outputHandler && outputHandler->fileOutput && !pls_is_empty(obs_output_get_id(outputHandler->fileOutput)))
+		extra_data.urlEn = obs_output_get_id(outputHandler->fileOutput);
+	else
+		extra_data.urlEn = "record output";
+
 	if (isVisible()) {
 		PLSErrorHandler::showAlertByErrCode(QString::number(code), PLSErrApiKey_OutputRecord, //
 						    PLSErrCustomKey_OutputRecordFailed, extra_data, parent);
@@ -4266,12 +4287,19 @@ void PLSBasic::ShowReplayBufferErrorAlert(int code, QString last_error, QWidget 
 	if (code == OBS_OUTPUT_SUCCESS)
 		return;
 
+	// Set output plugin id as the urlEn
+	PLSErrorHandler::ExtraData extra_data{};
+	if (outputHandler && outputHandler->replayBuffer && !pls_is_empty(obs_output_get_id(outputHandler->replayBuffer)))
+		extra_data.urlEn = obs_output_get_id(outputHandler->replayBuffer);
+	else
+		extra_data.urlEn = "replay buffer";
+
 	if (isVisible()) {
 		PLSErrorHandler::showAlertByErrCode(QString::number(code), PLSErrApiKey_OutputRecord, //
-						    PLSErrCustomKey_OutputRecordFailed, {}, parent);
+						    PLSErrCustomKey_OutputRecordFailed, extra_data, parent);
 	} else {
 		auto result = PLSErrorHandler::getAlertStringByErrCode(QString::number(code), PLSErrApiKey_OutputRecord, //
-								       PLSErrCustomKey_OutputRecordFailed, {});
+								       PLSErrCustomKey_OutputRecordFailed, extra_data);
 		SysTrayNotify(result.alertMsg, QSystemTrayIcon::Warning);
 	}
 }
@@ -4282,7 +4310,7 @@ void PLSBasic::ReorderAudioMixer()
 	if (sceneUuid) {
 		PLSBasic::instance()->mixerOrder.Reorder(sceneUuid, volumes);
 
-		bool vertical = config_get_bool(GetGlobalConfig(), "BasicWindow", "VerticalVolControl");
+		bool vertical = config_get_bool(App()->GetUserConfig(), "BasicWindow", "VerticalVolControl");
 		for (auto volume : volumes) {
 			if (vertical)
 				ui->vVolumeWidgets->AddWidget(volume);
@@ -4523,8 +4551,7 @@ int PLSBasic::showSettingView(const QString &tab, const QString &group)
 void PLSBasic::setAlertParentWithBanner(setAlertParent cb)
 {
 	PLSLaunchWizardView *banner = dynamic_cast<PLSLaunchWizardView *>(pls_get_banner_widget());
-	bool isDontShow = config_get_bool(App()->GlobalConfig(), common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW);
-	if (banner && !banner->getIsShowFlag() && !isDontShow) {
+	if (banner && banner->isNeedShow()) {
 		PLS_INFO(UPDATE_MODULE, "pls_get_banner_widget object is existed");
 		PLSShowWatcher *watcher = new PLSShowWatcher(banner);
 		QObject::connect(
@@ -4597,36 +4624,36 @@ void PLSBasic::updateMainViewAlwayTop()
 
 void PLSBasic::checkTwitchAudio()
 {
-	const char *mode = config_get_string(basicConfig, "Output", "Mode");
+	const char *mode = config_get_string(activeConfiguration, "Output", "Mode");
 	if (!mode)
 		return;
 	const char *aencoderid = "";
 	bool advOut = astrcmpi(mode, "Advanced") == 0;
 	if (!advOut) {
 		// simple streaming
-		aencoderid = config_get_string(basicConfig, "SimpleOutput", "StreamAudioEncoder");
+		aencoderid = config_get_string(activeConfiguration, "SimpleOutput", "StreamAudioEncoder");
 	} else {
-		aencoderid = config_get_string(basicConfig, "AdvOut", "AudioEncoder");
+		aencoderid = config_get_string(activeConfiguration, "AdvOut", "AudioEncoder");
 	}
 	PLS_INFO(MAINFRAME_MODULE, "get audioEncoder %s", aencoderid);
 	QString strAencoder = aencoderid;
 	bool bWHIP = PLSPlatformApi::instance()->isTwitchWHIP();
 	if (bWHIP) {
 		if (!strAencoder.contains("opus", Qt::CaseInsensitive)) {
-			config_set_string(basicConfig, "SimpleOutput", "StreamAudioEncoder", "opus");
-			config_set_string(basicConfig, "AdvOut", "AudioEncoder", "ffmpeg_opus");
+			config_set_string(activeConfiguration, "SimpleOutput", "StreamAudioEncoder", "opus");
+			config_set_string(activeConfiguration, "AdvOut", "AudioEncoder", "ffmpeg_opus");
 			PLS_INFO(MAINFRAME_MODULE, "need modify audioEncoder to opus");
 		}
 	} else {
 		if (!strAencoder.contains("aac", Qt::CaseInsensitive)) {
-			config_set_string(basicConfig, "SimpleOutput", "StreamAudioEncoder", "aac");
-			config_set_string(basicConfig, "AdvOut", "AudioEncoder", "ffmpeg_aac");
+			config_set_string(activeConfiguration, "SimpleOutput", "StreamAudioEncoder", "aac");
+			config_set_string(activeConfiguration, "AdvOut", "AudioEncoder", "ffmpeg_aac");
 			PLS_INFO(MAINFRAME_MODULE, "need modify audioEncoder to aac");
 		}
 	}
 	if (!PLS_PLATFORM_API->isGoLive()) {
 		ResetOutputs();
-		config_save_safe(basicConfig, "tmp", nullptr);
+		config_save_safe(activeConfiguration, "tmp", nullptr);
 	}
 }
 
@@ -4652,21 +4679,21 @@ void PLSBasic::checkTwitchAudioWithLeader(bool bLeader)
 
 bool PLSBasic::checkRecEncoder()
 {
-	const char *mode = config_get_string(basicConfig, "Output", "Mode");
+	const char *mode = config_get_string(activeConfiguration, "Output", "Mode");
 	bool adv = astrcmpi(mode, "Advanced") == 0;
 	bool shared = false;
 
 	if (adv) {
-		const char *recType = config_get_string(basicConfig, "AdvOut", "RecType");
+		const char *recType = config_get_string(activeConfiguration, "AdvOut", "RecType");
 
 		if (astrcmpi(recType, "FFmpeg") == 0) {
-			shared = config_get_bool(basicConfig, "AdvOut", "FFOutputToFile");
+			shared = config_get_bool(activeConfiguration, "AdvOut", "FFOutputToFile");
 		} else {
-			const char *recordEncoder = config_get_string(basicConfig, "AdvOut", "RecEncoder");
+			const char *recordEncoder = config_get_string(activeConfiguration, "AdvOut", "RecEncoder");
 			shared = astrcmpi(recordEncoder, "none") == 0;
 		}
 	} else {
-		const char *quality = config_get_string(basicConfig, "SimpleOutput", "RecQuality");
+		const char *quality = config_get_string(activeConfiguration, "SimpleOutput", "RecQuality");
 		shared = strcmp(quality, "Stream") == 0;
 	}
 	return shared;
@@ -4854,6 +4881,11 @@ void PLSBasic::singletonWakeup()
 
 		RunPrismByPscPath();
 
+		if (pls_is_main_window_closing()) {
+			PLS_INFO(MAINFRAME_MODULE, "application is closing, don't wakeup");
+			return;
+		}
+
 		PLS_INFO(MAINFRAME_MODULE, "wakeup main window");
 		SetShowing(true);
 
@@ -4866,7 +4898,7 @@ void PLSBasic::singletonWakeup()
 
 void PLSBasic::showEncodingInStatusBar() const
 {
-	mainView->statusBar()->setEncoding((int)config_get_int(basicConfig, "Video", "OutputCX"), (int)config_get_int(basicConfig, "Video", "OutputCY"));
+	mainView->statusBar()->setEncoding((int)config_get_int(activeConfiguration, "Video", "OutputCX"), (int)config_get_int(activeConfiguration, "Video", "OutputCY"));
 
 	uint32_t fpsNum = 0;
 	uint32_t fpsDen = 0;
@@ -4878,7 +4910,6 @@ bool PLSBasic::toggleStatusPanel(int iSwitch)
 {
 	if (!m_dialogStatusPanel) {
 		m_dialogStatusPanel = pls_new<PLSBasicStatusPanel>(getMainView());
-		m_dialogStatusPanel->resize({1150, 180});
 	}
 
 	switch (iSwitch) {
@@ -4925,6 +4956,8 @@ void PLSBasic::updateStatusPanel(PLSBasicStatusData &dataStatus) const
 		m_dialogStatusPanel->updateStatusPanel(dataStatus);
 	}
 }
+
+void PLSBasic::OnUseVideoException(void *data, calldata_t *calldata) {}
 
 void PLSBasic::showEvent(QShowEvent *event)
 {
@@ -5122,6 +5155,8 @@ void PLSBasic::OnSourceMessage(void *data, calldata_t *calldata)
 	obs_data_release(msg_data);
 }
 
+void PLSBasic::RenderVerticalProgram(void *data, uint32_t cx, uint32_t cy) {}
+
 bool PLSBasic::IsSupportEncoder(const QString &encoderId)
 {
 	bool res = false;
@@ -5184,7 +5219,7 @@ bool PLSBasic::IsSupportEncoder(const QString &encoderId)
 
 bool PLSBasic::CheckAndModifyAAC()
 {
-	const char *mode = config_get_string(basicConfig, "Output", "Mode");
+	const char *mode = config_get_string(activeConfiguration, "Output", "Mode");
 	if (!mode) {
 		PLS_ERROR(MAINFRAME_MODULE, "get mode is null");
 		return false;
@@ -5193,9 +5228,9 @@ bool PLSBasic::CheckAndModifyAAC()
 	bool advOut = astrcmpi(mode, "Advanced") == 0;
 	if (!advOut) {
 		// simple streaming
-		aencoderid = config_get_string(basicConfig, "SimpleOutput", "StreamAudioEncoder");
+		aencoderid = config_get_string(activeConfiguration, "SimpleOutput", "StreamAudioEncoder");
 	} else {
-		aencoderid = config_get_string(basicConfig, "AdvOut", "AudioEncoder");
+		aencoderid = config_get_string(activeConfiguration, "AdvOut", "AudioEncoder");
 	}
 
 	PLS_INFO(MAINFRAME_MODULE, "get audioEncoder %s", aencoderid);
@@ -5232,14 +5267,14 @@ bool PLSBasic::CheckAndModifyAAC()
 			alertResult = PLSAlertView::question(getMainWindow(), tr("Confirm"), msg, PLSAlertView::Button::Yes | PLSAlertView::Button::No);
 			if (alertResult == PLSAlertView::Button::Yes) {
 				if (bModifyAAC) {
-					config_set_string(basicConfig, "SimpleOutput", "StreamAudioEncoder", "aac");
-					config_set_string(basicConfig, "AdvOut", "AudioEncoder", "ffmpeg_aac");
+					config_set_string(activeConfiguration, "SimpleOutput", "StreamAudioEncoder", "aac");
+					config_set_string(activeConfiguration, "AdvOut", "AudioEncoder", "ffmpeg_aac");
 				} else if (bModifyOpus) {
-					config_set_string(basicConfig, "SimpleOutput", "StreamAudioEncoder", "opus");
-					config_set_string(basicConfig, "AdvOut", "AudioEncoder", "ffmpeg_opus");
+					config_set_string(activeConfiguration, "SimpleOutput", "StreamAudioEncoder", "opus");
+					config_set_string(activeConfiguration, "AdvOut", "AudioEncoder", "ffmpeg_opus");
 				}
 				ResetOutputs();
-				config_save_safe(basicConfig, "tmp", nullptr);
+				config_save_safe(activeConfiguration, "tmp", nullptr);
 			}
 		};
 		pls_async_call_mt(getMainWindow(), showWarning);
@@ -5251,20 +5286,20 @@ bool PLSBasic::CheckAndModifyAAC()
 
 bool PLSBasic::CheckSupportEncoder(QString &encoderId)
 {
-	const char *mode = config_get_string(basicConfig, "Output", "Mode");
+	const char *mode = config_get_string(activeConfiguration, "Output", "Mode");
 	if (!mode)
 		return false;
 	const char *vencoderid = "";
 	bool advOut = astrcmpi(mode, "Advanced") == 0;
 	if (!advOut) {
 		// simple streaming
-		const char *vencoder = config_get_string(basicConfig, "SimpleOutput", "StreamEncoder");
+		const char *vencoder = config_get_string(activeConfiguration, "SimpleOutput", "StreamEncoder");
 		if (pls_is_empty(vencoder))
 			return false;
 
 		vencoderid = get_simple_output_encoder(vencoder);
 	} else {
-		vencoderid = config_get_string(basicConfig, "AdvOut", "Encoder");
+		vencoderid = config_get_string(activeConfiguration, "AdvOut", "Encoder");
 	}
 
 	if (pls_is_empty(vencoderid))
@@ -5449,7 +5484,8 @@ bool OBSBasic::queryRemoveSourceItem(OBSSceneItem item)
 
 void PLSBasic::onDualOutputClicked()
 {
-	setDualOutputEnabled(!pls_is_dual_output_on(), true);
+	bool onOff = !pls_is_dual_output_on();
+	setDualOutputEnabled(onOff, true);
 }
 
 bool PLSBasic::checkStudioMode()
@@ -5465,28 +5501,65 @@ bool PLSBasic::checkStudioMode()
 	return true;
 }
 
-bool PLSBasic::setDualOutputEnabled(bool bEnabled, bool bShowSetting)
+bool PLSBasic::setDualOutputEnabled(bool bEnabled, bool bInvokeCore)
 {
-	if (obs_video_active()) {
+	//bInvokeCore means whether invoke core function like pls_add_vertical_view
+	//It's false means core function have been invoked before load 3rd plugins, and it's only once
+	//It's always true if user clicked side bar button
+
+	//if not invoke core function, don't need check video is active or not
+	if (bInvokeCore && obs_video_active()) {
+		PLSAlertView::warning(this, QTStr("DualOutput.Title"), QTStr("DualOutput.3rd.Plugin.In.Using").arg(pls_get_active_output_name(0)));
 		return false;
 	}
 
-	if (pls_is_dual_output_on() == bEnabled) {
+	if (bInvokeCore && pls_is_dual_output_on() == bEnabled) {
 		return true;
 	}
 
 	if (bEnabled && !checkStudioMode()) {
+		if (!bInvokeCore) {
+			pls_set_dual_output_on(false);
+		}
 		return false;
 	}
 
-	pls_set_dual_output_on(bEnabled);		
+	if (bInvokeCore) {
+		pls_set_dual_output_on(bEnabled);
+	}
+
+	sigOpenDualOutput(bEnabled);
+	if (api) {
+		api->on_event(bEnabled ? pls_frontend_event::PLS_FRONTEND_EVENT_DUAL_OUTPUT_ON : pls_frontend_event::PLS_FRONTEND_EVENT_DUAL_OUTPUT_OFF);
+	}
+
+	const char *objName = QMetaEnum::fromType<ConfigId>().valueToKey(ConfigId::DualOutputConfig);
+	config_set_bool(App()->GetUserConfig(), objName, "showMode", bEnabled);
+	config_save(App()->GetUserConfig());
+	getMainView()->updateSideBarButtonStyle(ConfigId::DualOutputConfig, bEnabled);
+
+	getMainView()->setStudioModeDimmed(bEnabled);
+	ui->actionStudioMode->setEnabled(!bEnabled);
+
+	if (bInvokeCore) {
+		ResetVideo();
+	}
+	ResetOutputs();
+
+	showDualOutputTitle(bEnabled);
 
 	if (bEnabled) {
-		ResetVerticalVideo();
-
 		if (ui->preview->isHidden()) {
 			ui->preview->show();
 		}
+
+		if (ui->previewDisabledWidget->isVisible()) {
+			setHorizontalPreviewEnabled(true);
+			EnablePreviewDisplay(true);
+		}
+
+		showHorizontalDisplay(true);
+		showVerticalDisplay(true);
 
 		config_set_bool(Config(), "Stream1", "EnableMultitrackVideo", false);
 	} else {
@@ -5495,25 +5568,11 @@ bool PLSBasic::setDualOutputEnabled(bool bEnabled, bool bShowSetting)
 		if (ui->preview->isHidden()) {
 			ui->preview->show();
 		}
-	}
-	showDualOutputTitle(bEnabled);
-	showVerticalDisplay(bEnabled);
-	ResetOutputs();
 
-	const char *objName = QMetaEnum::fromType<ConfigId>().valueToKey(ConfigId::DualOutputConfig);
-	config_set_bool(App()->GlobalConfig(), objName, "showMode", bEnabled);
-	getMainView()->updateSideBarButtonStyle(ConfigId::DualOutputConfig, bEnabled);
-
-	getMainView()->setStudioModeDimmed(bEnabled);
-	
-	sigOpenDualOutput(bEnabled);
-	if (api) {
-		api->on_event(bEnabled ? pls_frontend_event::PLS_FRONTEND_EVENT_DUAL_OUTPUT_ON : pls_frontend_event::PLS_FRONTEND_EVENT_DUAL_OUTPUT_OFF);
+		showVerticalDisplay(false);
 	}
 
-	if (bEnabled && bShowSetting) {
-		pls_async_call(this, [this] { showSettingView(QString("Video"), QString()); });
-	}
+	ShowAudioMixerAudioTrackTips(bEnabled);
 
 	return true;
 }
@@ -5521,24 +5580,25 @@ bool PLSBasic::setDualOutputEnabled(bool bEnabled, bool bShowSetting)
 void PLSBasic::showDualOutputTitle(bool bVisible)
 {
 	QMargins margins = ui->horizontalLayout_2->contentsMargins();
-	QMargins newMargins = margins;
 
 	if (bVisible) {
-		newMargins.setTop(newMargins.left() - 10);
+		margins.setTop(margins.top() - 10);
 	} else {
-		newMargins.setTop(newMargins.left() + 10);
+		margins.setTop(margins.top() + 10);
 	}
+	ui->horizontalLayout_2->setContentsMargins(margins);
 
 	if (bVisible) {
-		dualOutputTitle = new PLSDualOutputTitle();
+		dualOutputTitle = new PLSDualOutputTitle(ui->previewContainer);
 
 		ui->verticalLayout_3->insertWidget(0, dualOutputTitle, 0, Qt::AlignTop);
 		dualOutputTitle->setVisible(bVisible);
 	} else {
+		dualOutputTitle->hide();
 		dualOutputTitle->deleteLater();
 	}
 
-	ui->horizontalLayout_2->setContentsMargins(newMargins);
+	ui->previewContainer->repaint();
 }
 
 void PLSBasic::showVerticalDisplay(bool bVisible)
@@ -5593,6 +5653,16 @@ void OBSBasic::ToggleVerticalPreview(bool enable)
 	PLSBasic::instance()->showVerticalDisplay(enable);
 }
 
+void OBSBasic::setHorizontalPreviewEnabled(bool bEnabled)
+{
+	previewEnabled = bEnabled;
+}
+
+bool OBSBasic::getHorizontalPreviewEnabled()
+{
+	return previewEnabled;
+}
+
 bool OBSBasic::getVerticalPreviewEnabled()
 {
 	return verticalPreviewEnabled;
@@ -5633,7 +5703,8 @@ void OBSBasic::addNudgeFunc(OBSBasicPreview *preview)
 	addNudge(Qt::SHIFT | Qt::Key_Right, MoveDir::Right, 10, preview);
 }
 
-void PLSBasic::changeOutputCount(int iValue) {
+void PLSBasic::changeOutputCount(int iValue)
+{
 	m_iOutputCount += iValue;
 
 	if (m_iOutputCount > 0) {
@@ -5650,4 +5721,45 @@ void PLSBasic::changeOutputCount(int iValue) {
 		m_iOutputCount = 0;
 		assert(false && "iOutputCount is error");
 	}
+}
+
+void PLSBasic::ResetStatsHotkey() {}
+
+void OBSBasic::selectGroupItem(OBSSceneItem item, bool select)
+{
+	ui->sources->SelectGroupItem(item, select);
+}
+
+static bool reset_group_select(obs_scene_t * /* scene */, obs_sceneitem_t *item, void *param)
+{
+	if (!obs_sceneitem_is_group(item))
+		return true;
+
+	OBSBasic::Get()->selectGroupItem(item, obs_sceneitem_selected(item));
+	return true;
+}
+
+void OBSBasic::resetAllGroupSelectStatus()
+{
+	auto callback = [](void *data_ptr, obs_source_t *scene) {
+		if (!scene) {
+			return true;
+		}
+		auto source = obs_scene_from_source(scene);
+		if (!source) {
+			return true;
+		}
+		pls_scene_enum_items_all(source, reset_group_select, nullptr);
+		return true;
+	};
+	pls_enum_all_scenes(callback, nullptr);
+}
+
+void OBSBasic::showsPrismPlusIntroWindow()
+{
+
+}
+
+void OBSBasic::showsTipAndPrismPlusIntroWindow(const QString &strContent, const QString &strFeature, QWidget *parent) {
+
 }

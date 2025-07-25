@@ -63,6 +63,9 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 	virtual void pls_toast_message(pls_toast_info_type type, const QString &message, int auto_close) = 0;
 	virtual void pls_toast_message(pls_toast_info_type type, const QString &message, const QString &url, const QString &replaceStr, int auto_close) = 0;
 	virtual void pls_toast_clear() = 0;
+	virtual void pls_paid_toast_message(pls_toast_info_type type, const QString &title, const QString &message, const QString &button, const std::function<void()> &btnCallback,
+					    bool containCloseBtn, int auto_close) = 0;
+	virtual void pls_paid_toast_clear() = 0;
 
 	virtual void pls_set_main_view_side_bar_user_button_icon(const QIcon &icon) = 0;
 
@@ -84,7 +87,7 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 	virtual bool pls_is_living_or_recording() = 0;
 
 	virtual bool pls_is_output_actived() = 0;
-
+	virtual bool pls_is_without_third_output_actived() = 0;
 	// add tools menu seperator
 	virtual void pls_add_tools_menu_seperator() = 0;
 
@@ -109,7 +112,7 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 
 	virtual void pls_show_virtual_background() = 0;
 	virtual QWidget *pls_create_virtual_background_resource_widget(QWidget *parent, const std::function<void(QWidget *)> &init, bool forProperty, const QString &itemId, bool checkBoxState,
-								       bool switchToPrismFirst) = 0;
+								       bool checkBoxEnable, bool switchToPrismFirst) = 0;
 
 	virtual QPixmap pls_load_svg(const QString &path, const QSize &size) = 0;
 
@@ -135,8 +138,6 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 	virtual void pls_navershopping_get_store_login_url(QWidget *widget, const std::function<void(const QString &storeLoginUrl)> &ok, const std::function<void(const QByteArray &)> &fail) = 0;
 	virtual void pls_navershopping_get_error_code_message(const QByteArray &data, QString &errorCode, QString &errorMessage) = 0;
 
-	virtual void pls_send_analog(AnalogType logType, const QVariantMap &info) = 0;
-
 	virtual void pls_get_scene_source_count(int &sceneCount, int &sourceCount) = 0;
 
 	virtual void pls_laboratory_click_open_button(const QString &laboratoryId, bool targetStatus) = 0;
@@ -151,6 +152,7 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 	virtual QList<std::tuple<QString, QString>> pls_get_user_active_channles_info() = 0;
 	virtual bool pls_is_rehearsal_info_display() = 0;
 	virtual QString pls_get_remote_control_mobile_name(const QString &platformName) = 0;
+	virtual bool pls_frontend_set_preview_program_mode(bool enable) = 0;
 
 	virtual bool pls_is_rehearsaling() = 0;
 
@@ -188,3 +190,11 @@ struct pls_frontend_callbacks : public obs_frontend_callbacks {
 };
 
 FRONTEND_API void pls_frontend_set_callbacks_internal(pls_frontend_callbacks *callbacks);
+
+struct pls_frontend_general_callbacks {
+	virtual ~pls_frontend_general_callbacks() = default;
+
+	virtual void pls_send_analog(AnalogType logType, const QVariantMap &info) = 0;
+};
+
+FRONTEND_API void pls_frontend_set_general_callbacks_internal(pls_frontend_general_callbacks *callbacks);

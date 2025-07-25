@@ -25,12 +25,14 @@ class ChatTemplate : public QPushButton {
 	Q_OBJECT
 public:
 	ChatTemplate(QButtonGroup *buttonGroup, int id, bool checked);
-	ChatTemplate(QButtonGroup *buttonGroup, int id, const QString text, const QString iconPath, bool isEditUi = false, const QString &backgroundColor = QString());
+	ChatTemplate(QButtonGroup *buttonGroup, int id, const QString text, const QString iconPath, bool isEditUi = false, const QString &backgroundColor = QString(), bool isPaid = false);
 	~ChatTemplate() override = default;
+	void updateTemplateRes(const QString &iconPath);
 
 protected:
 	bool event(QEvent *event) override;
 	void createFrame(bool isEdit);
+	void createPaidLabel(bool isPaid);
 	bool isChatTemplateNameExist(const QString &editName);
 	void showEvent(QShowEvent *event) override;
 	bool eventFilter(QObject *watch, QEvent *event) override;
@@ -42,11 +44,15 @@ private:
 	void setEditBtnVisible(bool isVisible);
 
 private:
+	QPointer<QLabel> m_enableLabel;
 	QPointer<QFrame> m_frame;
+	QPointer<QLabel> m_paidIcon;
 	QLabel *m_textLabel = nullptr;
 	std::string m_editName;
-	int id = 0;
 	QPixmap m_borderPixMap;
+	bool m_isPaid = false;
+	QPointer<QLabel> m_icon;
+	QString m_iconPath;
 };
 
 class TMTextAlignBtn : public QPushButton {
@@ -64,7 +70,7 @@ private:
 class TMCheckBox : public PLSCheckBox {
 
 public:
-	explicit TMCheckBox([[maybe_unused]] const QWidget *parent = nullptr){};
+	explicit TMCheckBox([[maybe_unused]] const QWidget *parent = nullptr) {};
 	~TMCheckBox() final = default;
 
 protected:
@@ -111,13 +117,7 @@ private:
 
 class ImageAPNGButton : public QPushButton {
 public:
-	explicit ImageAPNGButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString url, int id, bool checked, const char * /*subName*/, double dpi, QSize scaleSize);
-	void setMovieSize(double dpi, QSize _size);
-	const QSize &getOriginSize() const { return m_originalSize; };
-
-private:
-	QSize m_originalSize;
-	QMovie *m_movie{};
+	explicit ImageAPNGButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString url, int id, bool checked, QSize scaleSize);
 };
 
 class CameraVirtualBackgroundStateButton : public QFrame {
@@ -175,4 +175,17 @@ private:
 	QString m_normalResPath;
 	QString m_hoveredResPath;
 	QString m_selectedResPath;
+};
+class NewFlagButton : public QPushButton {
+public:
+	explicit NewFlagButton(bool isNew = false, QWidget *parent = nullptr);
+	~NewFlagButton() = default;
+
+protected:
+	void showEvent(QShowEvent *event) override;
+
+private:
+	QPointer<QLabel> m_newLabel;
+	bool m_isNewFlag = false;
+	bool m_newLabelShowed = false;
 };

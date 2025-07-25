@@ -9,6 +9,8 @@ namespace Ui {
 class PLSSceneTemplateMainScene;
 }
 
+class PLSSceneTemplateMainSceneItem;
+
 class PLSSceneTemplateMainScene : public QWidget {
 	Q_OBJECT
 
@@ -41,6 +43,8 @@ private:
 	QWidget *m_pWidgetRetryContainer = nullptr;
 
 	bool m_bRefreshing = false;
+
+	QMap<QString, PLSSceneTemplateMainSceneItem *> m_mapItems;
 };
 
 #endif // PLSSCENETEMPLATEMAINSCENE_H

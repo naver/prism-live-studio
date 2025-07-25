@@ -24,7 +24,6 @@
 #include <liblog.h>
 #include <memory>
 
-
 #include <libutils-api.h>
 
 #include "libui.h"

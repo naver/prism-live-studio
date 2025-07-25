@@ -29,9 +29,9 @@
 constexpr auto TAB_INDEX = "tabIndex";
 constexpr auto API_KEY = "";
 constexpr auto API = "";
-constexpr auto PAGE_TYPE = "pageType";
-constexpr auto SEARCH_API = "search";
-constexpr auto TRENDING_API = "trending";
+constexpr auto PAGE_TYPE = "";
+constexpr auto SEARCH_API = "";
+constexpr auto TRENDING_API = "";
 
 namespace {
 struct LocalGlobalVars {
@@ -303,7 +303,6 @@ void PLSGiphyStickerView::StartWebHandler()
 	connect(webHandler, &GiphyWebHandler::LoadingVisible, this, &PLSGiphyStickerView::OnLoadingVisible, Qt::QueuedConnection);
 
 	auto network_monitor = [this_guard = QPointer<PLSGiphyStickerView>(this)](bool accessible) {
-
 		if (pls_is_app_exiting())
 			return;
 
@@ -512,8 +511,8 @@ bool PLSGiphyStickerView::WriteSearchHistoryToFile(const QString &keyword, bool 
 
 void PLSGiphyStickerView::WriteTabIndexToConfig(int index) const
 {
-	config_set_int(App()->GlobalConfig(), GIPHY_STICKERS_CONFIG, TAB_INDEX, index);
-	config_save(App()->GlobalConfig());
+	config_set_int(App()->GetUserConfig(), GIPHY_STICKERS_CONFIG, TAB_INDEX, index);
+	config_save(App()->GetUserConfig());
 }
 
 bool PLSGiphyStickerView::LoadArrayData(const QString &key, QJsonArray &array) const

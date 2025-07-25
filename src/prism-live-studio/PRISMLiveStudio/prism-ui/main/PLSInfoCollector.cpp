@@ -181,7 +181,7 @@ static void logEncoder(OBSOutput output, QJsonObject &encoders)
 			const char *id = obs_encoder_get_id(aEncoder);
 
 			std::array<char, 64> encoderPtr;
-			sprintf(encoderPtr.data(),"%p", aEncoder);
+			sprintf(encoderPtr.data(), "%p", aEncoder);
 
 			QString key = QString(name) + " ( " + QString(id) + " : " + encoderPtr.data() + " )";
 			encoders.insert(key, props);
@@ -216,7 +216,7 @@ bool enum_scenes_callback(void *param, obs_source_t *src)
 		sceneInfo.insert("editScene", editScene);
 
 		std::array<char, 64> scenePtr;
-		sprintf(scenePtr.data(),"%p", source);
+		sprintf(scenePtr.data(), "%p", source);
 
 		QString key = QString(name) + " ( scene : " + scenePtr.data() + " )[" + QString::number(sceneData.size()) + "]";
 		sceneData.insert("info", sceneInfo);

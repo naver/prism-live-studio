@@ -199,7 +199,6 @@ static void gaussian_directional_blur(composite_blur_filter_data_t *data)
 	//	gs_effect_set_texture(background_img, background_texture);
 	//}
 
-
 	// 1. Single pass- blur only in one direction
 	gs_eparam_t *image = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture(image, texture);

@@ -56,7 +56,6 @@ private:
 	int m_iMultiplePlatformMaxBitrate = 0;
 
 	int camera_auto_restart_times = 3;
-	int uiBlockingTimeS = 10;
 };
 
 #endif // PLSGPOPDATA_H

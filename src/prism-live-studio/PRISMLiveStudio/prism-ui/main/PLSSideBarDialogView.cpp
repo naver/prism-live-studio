@@ -14,8 +14,8 @@ PLSSideBarDialogView::~PLSSideBarDialogView()
 {
 	if (!PLSMainView::instance()->isFirstShow()) {
 
-		config_set_string(App()->GlobalConfig(), getConfigId(), "geometry", saveGeometry().toBase64().constData());
-		config_save(App()->GlobalConfig());
+		config_set_string(App()->GetUserConfig(), getConfigId(), "geometry", saveGeometry().toBase64().constData());
+		config_save(App()->GetUserConfig());
 	}
 }
 
@@ -27,7 +27,7 @@ const char *PLSSideBarDialogView::getConfigId() const
 void PLSSideBarDialogView::onRestoreGeometry()
 {
 	auto configId = getConfigId();
-	const char *geometry = config_get_string(App()->GlobalConfig(), configId, "geometry");
+	const char *geometry = config_get_string(App()->GetUserConfig(), configId, "geometry");
 	if (pls_is_empty(geometry)) {
 		auto mainView = PLSBasic::instance()->getMainView();
 		if (!mainView)
@@ -46,7 +46,7 @@ void PLSSideBarDialogView::onRestoreGeometry()
 		});
 	} else {
 		this->restoreGeometry(QByteArray::fromBase64(QByteArray(geometry)));
-		if (config_get_bool(App()->GlobalConfig(), configId, "isMaxState")) {
+		if (config_get_bool(App()->GetUserConfig(), configId, "isMaxState")) {
 			this->showMaximized();
 		}
 	}
@@ -55,8 +55,8 @@ void PLSSideBarDialogView::onRestoreGeometry()
 void PLSSideBarDialogView::showEvent(QShowEvent *event)
 {
 	disableWinSystemBorder();
-	config_set_bool(App()->GlobalConfig(), getConfigId(), "showMode", isVisible());
-	config_save(App()->GlobalConfig());
+	config_set_bool(App()->GetUserConfig(), getConfigId(), "showMode", isVisible());
+	config_save(App()->GetUserConfig());
 	pls_async_call_mt(this, [this]() { pls_window_right_margin_fit(this); });
 	PLSDialogView::showEvent(event);
 }
@@ -65,6 +65,6 @@ void PLSSideBarDialogView::hideEvent(QHideEvent *event)
 	PLSDialogView::hideEvent(event);
 
 	pls_check_app_exiting();
-	config_set_bool(App()->GlobalConfig(), getConfigId(), "showMode", isVisible());
-	config_save(App()->GlobalConfig());
+	config_set_bool(App()->GetUserConfig(), getConfigId(), "showMode", isVisible());
+	config_save(App()->GetUserConfig());
 }

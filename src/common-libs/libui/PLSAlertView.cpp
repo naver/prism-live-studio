@@ -43,6 +43,8 @@ const QString InitCss = "PLSAlertView #widget > #buttonBox QPushButton[useFor=\"
 			"	margin: 0;"
 			"	padding: 0;"
 			"}";
+const QString AlertKeyDisableEsc = "disableEsc";
+const QString AlertKeyDisableAltF4 = "disableAltF4";
 
 static PLSAlertView::Buttons getButtons(const QMap<PLSAlertView::Button, QString> &buttonMap)
 {
@@ -122,14 +124,13 @@ static QString checkQuoteComplete(QString before, QString after)
 
 // class PLSAlertView Implements
 PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const Buttons &buttons, Button defaultButton,
-			   const QMap<QString, QVariant> &otherConfig)
-	: PLSDialogView(parent), m_otherConfig(otherConfig)
+			   const QMap<QString, QVariant> &properties)
+	: PLSDialogView(parent), m_savedProperties(properties)
 {
 	ui = pls_new<Ui::PLSAlertView>();
 
 	setFixedWidth(410);
-
-	setEscapeCloseEnabled(true);
+	setEscapeCloseEnabled(!m_savedProperties.value(AlertKeyDisableEsc, QVariant(false)).toBool());
 	setResizeEnabled(false);
 
 	setupUi(ui);
@@ -194,8 +195,8 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, con
 #undef TranslateButtonText
 
 	int width = calcButtonWidth(ui->buttonBox);
-	if (m_otherConfig.contains("minBtnWidth")) {
-		int configMinWidth = m_otherConfig["minBtnWidth"].toUInt();
+	if (m_savedProperties.contains("minBtnWidth")) {
+		int configMinWidth = m_savedProperties["minBtnWidth"].toUInt();
 		width = qMax(width, configMinWidth);
 	}
 	ui->buttonBox->setStyleSheet(InitCss.arg(width));
@@ -207,8 +208,8 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, con
 }
 
 PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton,
-			   const QMap<QString, QVariant> &otherConfig)
-	: PLSAlertView(parent, icon, title, message, checkbox, getButtons(buttons), defaultButton, otherConfig)
+			   const QMap<QString, QVariant> &properties)
+	: PLSAlertView(parent, icon, title, message, checkbox, getButtons(buttons), defaultButton, properties)
 {
 	for (auto iter = buttons.begin(); iter != buttons.end(); ++iter) {
 		if (auto button = ui->buttonBox->button(iter.key())) {
@@ -218,8 +219,8 @@ PLSAlertView::PLSAlertView(QWidget *parent, Icon icon, const QString &title, con
 }
 
 PLSAlertView::PLSAlertView(Icon icon, const QString &title, const QString &messageTitle, const QString &messageContent, QWidget *parent, PLSAlertView::Buttons buttons, Button defaultButton,
-			   const QMap<QString, QVariant> &otherConfig)
-	: PLSAlertView(parent, icon, title, !messageTitle.isEmpty() ? messageTitle.left(1) : QString(), QString(), buttons, defaultButton, otherConfig)
+			   const QMap<QString, QVariant> &properties)
+	: PLSAlertView(parent, icon, title, !messageTitle.isEmpty() ? messageTitle.left(1) : QString(), QString(), buttons, defaultButton, properties)
 {
 	ui->message->setFixedWidth(MESSAGE_LABEL_FIX_WIDTH);
 	ui->message->setText(checkQuoteComplete(messageTitle, GetNameElideString(messageTitle, ui->message)));
@@ -272,7 +273,7 @@ PLSAlertView::Button PLSAlertView::open(QWidget *parent, const QString &title, c
 PLSAlertView::Button PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const QString &message, const Buttons &buttons, Button defaultButton, const std::optional<int> &timeout,
 					const QMap<QString, QVariant> &properties)
 {
-	PLSAlertView alertView(parent, icon, title, message, QString(), buttons, defaultButton);
+	PLSAlertView alertView(parent, icon, title, message, QString(), buttons, defaultButton, properties);
 	alertView.delayAutoClick(timeout, defaultButton);
 	pls_for_each(properties, [&alertView](const QString &key, const QVariant &value) { alertView.setProperty(key.toUtf8().constData(), value); });
 	return static_cast<Button>(alertView.exec());
@@ -281,7 +282,7 @@ PLSAlertView::Button PLSAlertView::open(QWidget *parent, Icon icon, const QStrin
 PLSAlertView::Button PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const QString &message, const QMap<Button, QString> &buttons, Button defaultButton,
 					const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
-	PLSAlertView alertView(parent, icon, title, message, QString(), buttons, defaultButton);
+	PLSAlertView alertView(parent, icon, title, message, QString(), buttons, defaultButton, properties);
 	alertView.delayAutoClick(timeout, defaultButton);
 	pls_for_each(properties, [&alertView](const QString &key, const QVariant &value) { alertView.setProperty(key.toUtf8().constData(), value); });
 	return static_cast<Button>(alertView.exec());
@@ -290,7 +291,7 @@ PLSAlertView::Button PLSAlertView::open(QWidget *parent, Icon icon, const QStrin
 PLSAlertView::Result PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const Buttons &buttons, Button defaultButton,
 					const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
-	PLSAlertView alertView(parent, icon, title, message, checkbox, buttons, defaultButton);
+	PLSAlertView alertView(parent, icon, title, message, checkbox, buttons, defaultButton, properties);
 	alertView.delayAutoClick(timeout, defaultButton);
 	pls_for_each(properties, [&alertView](const QString &key, const QVariant &value) { alertView.setProperty(key.toUtf8().constData(), value); });
 	return {static_cast<Button>(alertView.exec()), alertView.isChecked()};
@@ -299,7 +300,7 @@ PLSAlertView::Result PLSAlertView::open(QWidget *parent, Icon icon, const QStrin
 PLSAlertView::Result PLSAlertView::open(QWidget *parent, Icon icon, const QString &title, const QString &message, const QString &checkbox, const QMap<Button, QString> &buttons, Button defaultButton,
 					const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
-	PLSAlertView alertView(parent, icon, title, message, checkbox, buttons, defaultButton);
+	PLSAlertView alertView(parent, icon, title, message, checkbox, buttons, defaultButton, properties);
 	alertView.delayAutoClick(timeout, defaultButton);
 	pls_for_each(properties, [&alertView](const QString &key, const QVariant &value) { alertView.setProperty(key.toUtf8().constData(), value); });
 	return {static_cast<Button>(alertView.exec()), alertView.isChecked()};
@@ -567,7 +568,7 @@ PLSAlertView::errorMessage(QWidget *parent, const QString &title, const QString 
 			   const std::function<void(const QString &title, const QString &message, const QString &errorCode, const QString &userId, const QString &time)> &contactUsCb, Buttons buttons,
 			   Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
-	PLSAlertView alertView(parent, Icon::Warning, title, message, QString(), buttons, defaultButton);
+	PLSAlertView alertView(parent, Icon::Warning, title, message, QString(), buttons, defaultButton, properties);
 	initErrorMessage(&alertView, alertView.ui->horizontalLayout_2, alertView.ui->contentLayout, title, message, errorCode, userId, contactUsCb, alertView.m_btnCount);
 	alertView.delayAutoClick(timeout, defaultButton);
 	pls_for_each(properties, [&alertView](const QString &key, const QVariant &value) { alertView.setProperty(key.toUtf8().constData(), value); });
@@ -578,7 +579,7 @@ PLSAlertView::errorMessage(QWidget *parent, const QString &title, const QString 
 			   const std::function<void(const QString &title, const QString &message, const QString &errorCode, const QString &userId, const QString &time)> &contactUsCb,
 			   const QMap<Button, QString> &buttons, Button defaultButton, const std::optional<int> &timeout, const QMap<QString, QVariant> &properties)
 {
-	PLSAlertView alertView(parent, Icon::Warning, title, message, QString(), buttons, defaultButton);
+	PLSAlertView alertView(parent, Icon::Warning, title, message, QString(), buttons, defaultButton, properties);
 	initErrorMessage(&alertView, alertView.ui->horizontalLayout_2, alertView.ui->contentLayout, title, message, errorCode, userId, contactUsCb, alertView.m_btnCount);
 	alertView.delayAutoClick(timeout, defaultButton);
 	pls_for_each(properties, [&alertView](const QString &key, const QVariant &value) { alertView.setProperty(key.toUtf8().constData(), value); });
@@ -681,6 +682,19 @@ void PLSAlertView::showEvent(QShowEvent *event)
 	PLS_LOGEX(PLS_LOG_INFO, "alert-view", {{"alert-msg", ui->message->text().toUtf8().constData()}}, "UI: [ALERT] %s%s", ui->message->text().toUtf8().constData(),
 		  ui->nameLabel->text().toUtf8().constData());
 	PLSDialogView::showEvent(event);
+}
+void PLSAlertView::closeEvent(QCloseEvent *event)
+{
+	// ALT+F4
+#if defined(Q_OS_WINDOWS)
+	if ((GetAsyncKeyState(VK_MENU) < 0) && (GetAsyncKeyState(VK_F4) < 0)) {
+		if (m_savedProperties.value(AlertKeyDisableAltF4, QVariant(false)).toBool()) {
+			event->ignore();
+			return;
+		}
+	}
+#endif
+	PLSDialogView::closeEvent(event);
 }
 
 void PLSAlertView::nativeResizeEvent(const QSize &size, const QSize &nativeSize)

@@ -14,6 +14,7 @@
 #include <set>
 #include "PLSSceneTemplateContainer.h"
 #include "obs.h"
+#include "bubbletips.h"
 
 class HookNativeEvent;
 class PLSBackgroundMusicView;
@@ -144,8 +145,9 @@ public:
 	QString getSupportLanguage() const;
 	void replaceMenuActionWithWidgetAction(QMenuBar *menuBar, QAction *originAction, QWidgetAction *replaceAction);
 	void replaceMenuActionWithWidgetAction(QMenu *menu, QAction *originAction, QWidgetAction *replaceAction);
-	void CheckAppUpdate();
-	void CheckAppUpdateFinished(const PLSErrorHandler::RetData &retData);
+	void CheckAppUpdate(bool isShowAlert = true);
+	bool isForceUpdateApp() const { return m_updateForceUpdate; }
+	void CheckAppUpdateFinished(bool isShowAlert = true, const PLSErrorHandler::RetData &retData = PLSErrorHandler::RetData());
 	int compareVersion(const QString &v1, const QString &v2) const;
 	int getUpdateResult() const;
 	bool ShowUpdateView(QWidget *parent);
@@ -175,9 +177,8 @@ public:
 	void ResizeDrawPenCursorPixmap() const;
 	bool ShowStickerView(const char *id);
 	void OnSourceCreated(const char *id);
-	bool ShouldShowMixerTip() const;
-	void ShowAudioMixerTips();
-	void ShowOutputStreamErrorAlert(int code, QString last_error, QWidget *parent);
+	void ShowAudioMixerAudioTrackTips(bool);
+	void ShowOutputStreamErrorAlert(int code, QString last_error, bool vertical, QWidget *parent);
 	void ShowOutputRecordErrorAlert(int code, QString last_error, QWidget *parent);
 	void ShowReplayBufferErrorAlert(int code, QString last_error, QWidget *parent);
 	QString getOutputStreamErrorAlert(int code, const QString &last_error);
@@ -287,7 +288,7 @@ public slots:
 	void on_actionWebsite_triggered() const;
 	void on_actionContactUs_triggered(const QString &message = QString(), const QString &additionalMessage = QString());
 	void on_actionRepair_triggered() const;
-	void on_actionBlog_triggered() const;
+	void on_actionUserGuide_triggered() const;
 	void on_stats_triggered();
 	void on_actionStudioMode_triggered();
 	void on_actionShowVideosFolder_triggered() const;
@@ -339,7 +340,7 @@ public slots:
 	void initLabMenu();
 	void rehearsalSwitchedToLive();
 	void showMainViewAfter(QWidget *parentWidget);
-	void startDownloading();
+	void startDownloading(bool forceDownload = false);
 	void OpenRegionCapture();
 	void AddSelectRegionSource(const char *id, const QRect &rectSelected);
 
@@ -370,11 +371,13 @@ public slots:
 
 	void onDualOutputClicked();
 	bool checkStudioMode();
-	bool setDualOutputEnabled(bool bEnabled, bool bShowSetting);
+	bool setDualOutputEnabled(bool bEnabled, bool bInvokeCore);
 	void showDualOutputTitle(bool bVisible);
 	void showVerticalDisplay(bool bVisible);
 	void showHorizontalDisplay(bool bVisible);
 	void changeOutputCount(int);
+
+	void ResetStatsHotkey() override;
 
 public:
 	static void MediaStateChanged(void *data, calldata_t *calldata);
@@ -385,6 +388,9 @@ public:
 	static void OnSourceMessage(void *data, calldata_t *calldata);
 
 	static void RenderVerticalProgram(void *data, uint32_t cx, uint32_t cy);
+
+	//PRISM/wangshaohui/20250409/PRISM_PC-2599/checking video_t
+	static void OnUseVideoException(void *data, calldata_t *calldata);
 
 protected:
 	void showEvent(QShowEvent *event) override;
@@ -422,6 +428,7 @@ private:
 	void CreateCheckCamProcessThread(const QString &processName);
 
 	void CreatePreviewTitle();
+	void checkNoticeAndForceUpdate();
 
 private slots:
 	void OnUpdateSceneCollectionTimeTimerTriggered();
@@ -448,6 +455,7 @@ signals:
 	void goLiveCheckTooltip();
 	void sigOpenDualOutput(bool bOpen);
 	void sigOutputActiveChanged(bool);
+	void sigUpdateUrlChanged(const QString &url);
 
 private:
 #if defined(Q_OS_WIN)
@@ -470,6 +478,7 @@ private:
 	QString m_updateFileUrl;
 	QString m_updateInfoUrl;
 	bool m_updateForceUpdate;
+	bool m_isShowedUpdateView = false;
 	int m_checkUpdateResult = 0;
 	bool m_requestUpdate = false;
 	bool m_isLogout = false;
@@ -523,4 +532,6 @@ private:
 	int m_iOutputCount = 0;
 
 	QPointer<PLSDualOutputTitle> dualOutputTitle;
+	bool m_showMixerAudioTrackTip{false};
+	QPointer<bubbletips> m_bubbleTips;
 };

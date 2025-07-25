@@ -93,7 +93,7 @@ private:
 	void updateAllChannelsUi();
 	void delayUpdateAllChannelsUi();
 	void hideLoading();
-	
+
 	void initScollButtons();
 	void checkScrollButtonsState(ScrollDirection direction = ScrollDirection::ForwardScroll);
 	bool isScrollButtonsNeeded() const;
@@ -117,6 +117,8 @@ private:
 
 	void removeChannelWithoutYoutubeDock(const QString &channelUUID);
 
+	bool isNeedClearDualOutput();
+
 	//private:
 	std::unique_ptr<Ui::ChannelsArea> ui = std::make_unique<Ui::ChannelsArea>();
 
@@ -139,6 +141,8 @@ private:
 	QPushButton *m_FoldUpButton;
 	QPushButton *m_FoldDownButton;
 	bool m_bFold = false;
+	ChannelsMap mDualoutputInfos;
+	bool m_bShowLoading = false;
 };
 
 #endif // CHANNELSAREA_H

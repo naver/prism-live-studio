@@ -561,10 +561,7 @@ struct inflate_blocks_state {
 	{                     \
 		s->write = q; \
 	}
-#define UPDATE                       \
-	{                            \
-		UPDBITS UPDIN UPDOUT \
-	}
+#define UPDATE {UPDBITS UPDIN UPDOUT}
 #define LEAVE                                         \
 	{                                             \
 		UPDATE return inflate_flush(s, z, r); \
@@ -634,10 +631,7 @@ struct inflate_blocks_state {
 		m--;              \
 	}
 //   load local pointers
-#define LOAD                   \
-	{                      \
-		LOADIN LOADOUT \
-	}
+#define LOAD {LOADIN LOADOUT}
 
 // masks for lower bits (size given to avoid silly warnings with Visual C++)
 // And'ing with mask[n] masks the lower n bits
@@ -1761,7 +1755,7 @@ int inflate_fast(uInt bl, uInt bd, const inflate_huft *tl,
 						{
 							do {
 								r += s->end - s->window; // force pointer in window
-							} while (r < s->window);         // covers invalid distances
+							} while (r < s->window); // covers invalid distances
 							e = (uInt)(s->end - r);
 							if (c > e) {
 								c -= e; // wrapped copy
@@ -2746,7 +2740,7 @@ void unzlocal_DosDateToTmuDate(uLong ulDosDate, tm_unz *ptm)
 	uLong uDate;
 	uDate = (uLong)(ulDosDate >> 16);
 	ptm->tm_mday = (uInt)(uDate & 0x1f);
-	ptm->tm_mon = (uInt)((((uDate)&0x1E0) / 0x20) - 1);
+	ptm->tm_mon = (uInt)((((uDate) & 0x1E0) / 0x20) - 1);
 	ptm->tm_year = (uInt)(((uDate & 0x0FE00) / 0x0200) + 1980);
 
 	ptm->tm_hour = (uInt)((ulDosDate & 0xF800) / 0x800);

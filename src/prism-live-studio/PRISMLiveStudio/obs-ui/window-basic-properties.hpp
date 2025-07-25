@@ -41,6 +41,7 @@ protected:
 
 	std::unique_ptr<Ui::OBSBasicProperties> ui;
 	bool acceptClicked;
+	bool isClosed = false;
 
 	OBSSource source;
 	OBSSignal removedSignal;
@@ -68,6 +69,8 @@ protected:
 	void UpdateOldSettings();
 	void Cleanup();
 	void dialogClosedToSendNoti();
+	bool isPaidSource();
+
 private slots:
 	void on_buttonBox_clicked(QAbstractButton *button);
 	void AddPreviewButton();
@@ -85,8 +88,7 @@ public:
 
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
-	virtual bool nativeEvent(const QByteArray &eventType, void *message,
-				 qintptr *result) override;
+	virtual bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 	virtual void reject() override;
 	virtual void paintEvent(QPaintEvent *event) override;
 };

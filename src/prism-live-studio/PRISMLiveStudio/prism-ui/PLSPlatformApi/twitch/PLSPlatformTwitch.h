@@ -43,9 +43,8 @@ public:
 	QString getShareUrl() override;
 	QString getShareUrlEnc() override;
 	QString getServiceLiveLinkEnc() override;
-	bool onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject) override;
 	void requestStreamKey(bool showAlert, const streamKeyCallback &callback);
-	void getChannelInfo();
+	void getChannelInfo(const std::function<void(bool)> &channelInfoCallback);
 
 signals:
 	void onGetChannel(PLSPlatformApiResult);

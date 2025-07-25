@@ -31,6 +31,7 @@ class PLSRemoteControlConfigView;
 class PLSLivingMsgView;
 class PLSChatDialog;
 class PLSAlertView;
+class PLSPaidToastPopup;
 
 class PLSMainView : public PLSToplevelView<QFrame> {
 	Q_OBJECT
@@ -145,6 +146,10 @@ public:
 	int getToastMessageCount() const;
 	Q_INVOKABLE void toastClear();
 
+	void showPaidToast(pls_toast_info_type type, const QString &title, const QString &message, const QString &bottomButton, const std::function<void()> &btnCallback, bool containCloseBtn,
+			   int auto_close);
+	void clearPaidToast();
+
 	void setUserButtonIcon(const QIcon &icon);
 	void initToastMsgView(bool isInitShow = true);
 	void setToastMsgViewVisible(bool isShow);
@@ -159,7 +164,7 @@ public:
 	bool isSettingEnabled() const;
 public slots:
 	void onSideBarButtonClicked(int buttonId);
-	void updateTipsEnableChanged();
+	void updateTipsEnableChanged(bool isEnable);
 	void updateAppView();
 	void on_alert_clicked();
 	bool alert_message_visible() const;
@@ -180,6 +185,8 @@ public slots:
 	void setStudioModeChecked(bool);
 	void closeMobileDialog() const;
 	void on_discordBtn_clicked();
+	void on_plusBtn_clicked();
+	void on_paid_status_changed();
 
 protected:
 	ResolutionTipFrame *createSidebarTipFrame(const QString &txt, QWidget *aliginWidget, bool isAutoColose, const QString &objectName = "ResolutionTipsLabel");
@@ -247,7 +254,9 @@ private:
 	bool m_isFirstShow = true;
 	friend class PLSBasic;
 	friend class ResolutionGuidePage;
+	QPointer<QWidget> m_userPlusImage;
 
+	QPointer<PLSPaidToastPopup> m_paidToastView;
 #if defined(_WIN32)
 	QPointer<PLSWinRTNotify> winrt_notify;
 #endif

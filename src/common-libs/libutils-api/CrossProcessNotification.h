@@ -13,7 +13,7 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-typedef void(^ObserveCallback)(uint64_t state);
+typedef void (^ObserveCallback)(uint64_t state);
 
 @interface CrossProcessNotification : NSObject
 

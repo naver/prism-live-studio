@@ -30,7 +30,7 @@ PLSMixerContent::PLSMixerContent(Qt::Orientation _orientation, QWidget *parent) 
 		main_layout->setObjectName("vVolControlLayout");
 		main_layout->setContentsMargins(16, 0, 20, 20);
 	}
-	
+
 	assert(main_layout);
 }
 
@@ -131,7 +131,7 @@ void PLSMixerContent::mouseMoveEvent(QMouseEvent *event)
 			VolControl *child = qobject_cast<VolControl *>(childAt(startDragPoint));
 			if (!child)
 				return;
-			
+
 			QByteArray itemData;
 			QDataStream dataStream(&itemData, QIODevice::WriteOnly);
 			dataStream << main_layout->indexOf(child);
@@ -226,17 +226,17 @@ void PLSMixerContent::SetLinePos(const int &startX, const int &startY, const int
 void PLSMixerContent::DisplayItemBorder(VolControl *current, const char *borderType)
 {
 	if (!current || !borderType)
-			return;
+		return;
 
 	ClearItemBorder();
 	current->displayBorder(true, borderType);
 	lastDisplayedVol = current;
 }
 
-void PLSMixerContent::ClearItemBorder() 
+void PLSMixerContent::ClearItemBorder()
 {
 	if (lastDisplayedVol) {
-			lastDisplayedVol->displayBorder(false);
+		lastDisplayedVol->displayBorder(false);
 	}
 }
 

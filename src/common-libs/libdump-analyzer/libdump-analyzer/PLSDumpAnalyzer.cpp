@@ -15,14 +15,14 @@
 
 #if defined(Q_OS_WIN)
 
-static bool find_dump_file(std::string& dump_file_path, uint64_t& file_size, const std::string& dump_folder, const std::string& process_name, std::string process_pid)
+static bool find_dump_file(std::string &dump_file_path, uint64_t &file_size, const std::string &dump_folder, const std::string &process_name, std::string process_pid)
 {
 	auto prefix = pls_utf8_to_unicode(process_name.c_str()) + L"." + pls_utf8_to_unicode(process_pid.c_str());
 	std::filesystem::path dump_folder_path(std::filesystem::u8path(dump_folder));
 	std::error_code ec;
 	if (std::filesystem::exists(dump_folder_path, ec) && std::filesystem::is_directory(dump_folder_path, ec)) {
 		std::filesystem::directory_iterator it(dump_folder_path);
-		for (const auto& entry : it) {
+		for (const auto &entry : it) {
 			if (entry.is_regular_file() && entry.path().wstring().find(L".dmp") != std::wstring::npos && entry.path().wstring().find(prefix) != std::wstring::npos) {
 				dump_file_path = entry.path().u8string();
 				file_size = std::filesystem::file_size(entry.path(), ec);
@@ -34,7 +34,7 @@ static bool find_dump_file(std::string& dump_file_path, uint64_t& file_size, con
 	return false;
 }
 
-static bool wait_for_dump_file_generated(std::string& dump_file_path, uint64_t& file_size, const std::string& dump_folder, const std::string& process_name, std::string process_pid)
+static bool wait_for_dump_file_generated(std::string &dump_file_path, uint64_t &file_size, const std::string &dump_folder, const std::string &process_name, std::string process_pid)
 {
 	using namespace std::chrono;
 	for (auto start = steady_clock::now(); duration_cast<seconds>(steady_clock::now() - start) < 60s;) { // wait 60s
@@ -47,7 +47,8 @@ static bool wait_for_dump_file_generated(std::string& dump_file_path, uint64_t& 
 	return false;
 }
 
-static bool check_disappear_dump(std::string& dump_file_path, uint64_t& file_size, const std::string& process_name, const std::string& process_pid) {
+static bool check_disappear_dump(std::string &dump_file_path, uint64_t &file_size, const std::string &process_name, const std::string &process_pid)
+{
 	HKEY key;
 	std::wstring subkey = L"SOFTWARE\\Microsoft\\Windows\\Windows Error Reporting\\LocalDumps\\" + pls_utf8_to_unicode(process_name.c_str());
 
@@ -70,12 +71,11 @@ static bool check_disappear_dump(std::string& dump_file_path, uint64_t& file_siz
 	return true;
 }
 
-static bool check_crash_dump(std::string& dump_file_path, uint64_t& file_size, const std::string& process_name, std::string process_pid)
+static bool check_crash_dump(std::string &dump_file_path, uint64_t &file_size, const std::string &process_name, std::string process_pid)
 {
 	std::array<wchar_t, MAX_PATH> dir{};
 	SHGetFolderPathW(nullptr, CSIDL_APPDATA, nullptr, SHGFP_TYPE_CURRENT, dir.data());
 	std::string dump_folder = pls_unicode_to_utf8(dir.data()) + "\\PRISMLiveStudio\\crashDump";
-
 
 	if (find_dump_file(dump_file_path, file_size, dump_folder, process_name, process_pid)) {
 		return true;
@@ -115,7 +115,6 @@ static bool check_dump_file_win(ProcessInfo &info)
 
 #endif
 
-
 LIBDUMPANALUZER_API void pls_catch_unhandled_exceptions(const std::string &process_name, const std::string &dump_path)
 {
 	pls::catch_unhandled_exceptions(process_name, dump_path);
@@ -151,10 +150,10 @@ LIBDUMPANALUZER_API void pls_set_prism_sub_session(const std::string &session)
 	pls::set_prism_sub_session(session);
 }
 
-LIBDUMPANALUZER_API void pls_set_prism_pid(const std::string &pid) {
+LIBDUMPANALUZER_API void pls_set_prism_pid(const std::string &pid)
+{
 	pls::set_prism_pid(pid);
 }
-
 
 LIBDUMPANALUZER_API bool pls_wait_send_dump(ProcessInfo info)
 {

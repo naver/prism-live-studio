@@ -55,7 +55,7 @@ void DNSSDRegisterManager::registerService(const std::string &uuid, unsigned sho
 	txtRecords["name"] = std::string(record.name);
 	txtRecords["deviceType"] = std::string(record.deviceType);
 	txtRecords["version"] = std::to_string(record.version);
-    txtRecords["connectType"] = std::string(record.connectType);
+	txtRecords["connectType"] = std::string(record.connectType);
 	DNSSDRegistrationCPPClass *dnssd = new DNSSDRegistrationCPPClass();
 
 	dnssd->init("local", "_prismconnect._tcp.", uuid, txtRecords, wPort);

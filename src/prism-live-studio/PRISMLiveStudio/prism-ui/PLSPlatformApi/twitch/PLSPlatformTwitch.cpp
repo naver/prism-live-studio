@@ -42,14 +42,17 @@ void PLSPlatformTwitch::onAlLiveStarted(bool value) {}
 
 void PLSPlatformTwitch::onLiveEnded()
 {
-	if (PLS_PLATFORM_API->isPrismLive()) {
+	if (PLS_PLATFORM_API->isPrismLive(this)) {
 		liveEndedCallback();
 	} else {
 		requestVideos();
 	}
 }
 
-void PLSPlatformTwitch::serverHandler() {}
+void PLSPlatformTwitch::serverHandler()
+{
+	
+}
 
 QString maskUrl(const QString &url, const QVariantMap &queryInfo)
 {
@@ -104,7 +107,7 @@ void PLSPlatformTwitch::requestStreamKey(bool showAlert, const streamKeyCallback
 
 							   m_strOriginalTitle = getTitle();
 							   serverHandler();
-							   callback(true);
+							   getChannelInfo(callback);
 						   } else {
 							   PLS_ERROR(MODULE_PLATFORM_TWITCH, "requestStreamKey.error: %d", code);
 							   PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_TWITCH, {{"channel start error", "twitch"}}, "request streamKey api error, code = %d error = %s.",
@@ -134,7 +137,7 @@ void PLSPlatformTwitch::requestStreamKey(bool showAlert, const streamKeyCallback
 					   }
 				   }));
 }
-void PLSPlatformTwitch::getChannelInfo()
+void PLSPlatformTwitch::getChannelInfo(const std::function<void(bool)> &channelInfoCallback)
 {
 	PLS_INFO("twitchPlatform", "start get channel infos");
 	auto broadcastId = PLSCHANNELS_API->getChannelInfo(getChannelUUID()).value("broadcast_id").toString();
@@ -148,7 +151,7 @@ void PLSPlatformTwitch::getChannelInfo()
 				   .receiver(PLSCHANNELS_API)
 				   .id(TWITCH)
 				   .timeout(PRISM_NET_REQUEST_TIMEOUT)
-				   .okResult([this](const pls::http::Reply &reply) {
+				   .okResult([this, channelInfoCallback](const pls::http::Reply &reply) {
 					   auto jsonDoc = QJsonDocument::fromJson(reply.data()).object().value("data").toArray();
 					   auto jsonMap = jsonDoc.first().toObject().toVariantMap();
 					   auto category = jsonMap.value("game_name");
@@ -156,11 +159,13 @@ void PLSPlatformTwitch::getChannelInfo()
 					   lastInfo.insert(ChannelData::g_catogry, category);
 					   lastInfo.insert(ChannelData::g_displayLine2, category);
 					   PLSCHANNELS_API->setChannelInfos(lastInfo, true);
+					   pls_async_call_mt(getAlertParent(), [channelInfoCallback]() { channelInfoCallback(true); });
 				   })
-				   .failResult([this](const pls::http::Reply &reply) {
+				   .failResult([this, channelInfoCallback](const pls::http::Reply &reply) {
 					   auto statusCode = reply.statusCode();
 					   QString errorStr = "channel error status code " + QString::number(statusCode);
 					   PLS_ERROR(MODULE_PLATFORM_TWITCH, errorStr.toStdString().c_str());
+					   pls_async_call_mt(getAlertParent(), [channelInfoCallback]() { channelInfoCallback(false); });
 				   }));
 }
 
@@ -193,16 +198,14 @@ void PLSPlatformTwitch::requestVideos()
 						   PLS_ERROR(MODULE_PLATFORM_TWITCH, "requestVideos.error: %d", code);
 					   }
 
-					   QMetaObject::invokeMethod(
-						   this, [this]() { liveEndedCallback(); }, Qt::QueuedConnection);
+					   QMetaObject::invokeMethod(this, [this]() { liveEndedCallback(); }, Qt::QueuedConnection);
 				   })
 				   .failResult([this](const pls::http::Reply &reply) {
 					   auto code = reply.statusCode();
 					   auto error = reply.error();
 					   PLS_ERROR(MODULE_PLATFORM_TWITCH, "requestVideos.error: %d-%d", code, error);
 
-					   QMetaObject::invokeMethod(
-						   this, [this]() { liveEndedCallback(); }, Qt::QueuedConnection);
+					   QMetaObject::invokeMethod(this, [this]() { liveEndedCallback(); }, Qt::QueuedConnection);
 				   }));
 }
 
@@ -242,9 +245,4 @@ QString PLSPlatformTwitch::getShareUrlEnc()
 QString PLSPlatformTwitch::getServiceLiveLinkEnc()
 {
 	return pls_masking_person_info(m_strEndUrl);
-}
-
-bool PLSPlatformTwitch::onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject)
-{
-	return true;
 }

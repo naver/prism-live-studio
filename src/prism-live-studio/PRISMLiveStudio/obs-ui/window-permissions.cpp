@@ -16,38 +16,31 @@
 ******************************************************************************/
 
 #include <QLabel>
-#include "window-permissions.hpp"
+#include "moc_window-permissions.cpp"
 #include "obs-app.hpp"
 
-OBSPermissions::OBSPermissions(QWidget *parent, MacPermissionStatus capture,
-			       MacPermissionStatus video,
-			       MacPermissionStatus audio,
-			       MacPermissionStatus accessibility)
-	: PLSDialogView(parent), ui(new Ui::OBSPermissions)
+OBSPermissions::OBSPermissions(QWidget *parent, MacPermissionStatus capture, MacPermissionStatus video,
+			       MacPermissionStatus audio, MacPermissionStatus accessibility)
+	: PLSDialogView(parent),
+	  ui(new Ui::OBSPermissions)
 {
 	pls_add_css(this, {"OBSPermissions"});
 	setupUi(ui);
 	initSize(620, 582);
-	SetStatus(ui->capturePermissionButton, capture,
-		  QTStr("MacPermissions.Item.ScreenRecording"));
-	SetStatus(ui->videoPermissionButton, video,
-		  QTStr("MacPermissions.Item.Camera"));
-	SetStatus(ui->audioPermissionButton, audio,
-		  QTStr("MacPermissions.Item.Microphone"));
-	SetStatus(ui->accessibilityPermissionButton, accessibility,
-		  QTStr("MacPermissions.Item.Accessibility"));
+	SetStatus(ui->capturePermissionButton, capture, QTStr("MacPermissions.Item.ScreenRecording"));
+	SetStatus(ui->videoPermissionButton, video, QTStr("MacPermissions.Item.Camera"));
+	SetStatus(ui->audioPermissionButton, audio, QTStr("MacPermissions.Item.Microphone"));
+	SetStatus(ui->accessibilityPermissionButton, accessibility, QTStr("MacPermissions.Item.Accessibility"));
 }
 
-void OBSPermissions::SetStatus(QPushButton *btn, MacPermissionStatus status,
-			       const QString &preference)
+void OBSPermissions::SetStatus(QPushButton *btn, MacPermissionStatus status, const QString &preference)
 {
 	if (status == kPermissionAuthorized) {
 		btn->setText(QTStr("MacPermissions.AccessGranted"));
 	} else if (status == kPermissionNotDetermined) {
 		btn->setText(QTStr("MacPermissions.RequestAccess"));
 	} else {
-		btn->setText(
-			QTStr("MacPermissions.OpenPreferences").arg(preference));
+		btn->setText(QTStr("MacPermissions.OpenPreferences").arg(preference));
 	}
 	btn->setEnabled(status != kPermissionAuthorized);
 	btn->setProperty("status", status);
@@ -61,14 +54,10 @@ void OBSPermissions::on_capturePermissionButton_clicked()
 
 void OBSPermissions::on_videoPermissionButton_clicked()
 {
-	MacPermissionStatus status =
-		(MacPermissionStatus)ui->videoPermissionButton
-			->property("status")
-			.toInt();
+	MacPermissionStatus status = (MacPermissionStatus)ui->videoPermissionButton->property("status").toInt();
 	if (status == kPermissionNotDetermined) {
 		status = RequestPermission(kVideoDeviceAccess);
-		SetStatus(ui->videoPermissionButton, status,
-			  QTStr("MacPermissions.Item.Camera"));
+		SetStatus(ui->videoPermissionButton, status, QTStr("MacPermissions.Item.Camera"));
 	} else {
 		OpenMacOSPrivacyPreferences("Camera");
 	}
@@ -76,14 +65,10 @@ void OBSPermissions::on_videoPermissionButton_clicked()
 
 void OBSPermissions::on_audioPermissionButton_clicked()
 {
-	MacPermissionStatus status =
-		(MacPermissionStatus)ui->audioPermissionButton
-			->property("status")
-			.toInt();
+	MacPermissionStatus status = (MacPermissionStatus)ui->audioPermissionButton->property("status").toInt();
 	if (status == kPermissionNotDetermined) {
 		status = RequestPermission(kAudioDeviceAccess);
-		SetStatus(ui->audioPermissionButton, status,
-			  QTStr("MacPermissions.Item.Microphone"));
+		SetStatus(ui->audioPermissionButton, status, QTStr("MacPermissions.Item.Microphone"));
 	} else {
 		OpenMacOSPrivacyPreferences("Microphone");
 	}
@@ -97,8 +82,7 @@ void OBSPermissions::on_accessibilityPermissionButton_clicked()
 
 void OBSPermissions::on_continueButton_clicked()
 {
-	config_set_int(GetGlobalConfig(), "General",
-		       "MacOSPermissionsDialogLastShown",
+	config_set_int(App()->GetAppConfig(), "General", "MacOSPermissionsDialogLastShown",
 		       MACOS_PERMISSIONS_DIALOG_VERSION);
 	close();
 }

@@ -23,6 +23,9 @@ switch_single_branch() {
 
   cd "${PROJECT_DIR}$1"
 
+  if [ "$1" == "/src/obs-studio" ]; then
+    git submodule update --init --recursive
+  fi
   git fetch origin $2
   git checkout $2
   git pull origin $2 -r

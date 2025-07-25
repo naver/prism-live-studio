@@ -141,6 +141,10 @@ public:
 	//Set whether the current channel is selected or unselected
 	PLSPlatformBase &setActive(bool value)
 	{
+		if (isExclusiveChannel(getChannelUUID())) {
+			PLSBasic::instance()->changeOutputCount(value ? 1 : -1);
+		}
+
 		mySharedData().m_bActive = value;
 		return *this;
 	}
@@ -416,6 +420,10 @@ public:
 	{
 		return ChannelData::ChannelDualOutput::VerticalOutput == PLSCHANNELS_API->getValueOfChannel(getChannelUUID(), ChannelData::g_channelDualOutput, ChannelData::NoSet);
 	}
+
+	bool getVerticalOutput() const { return m_bVerticalOutput; }
+	void setVerticalOutput() { m_bVerticalOutput = isVerticalOutput(); }
+
 signals:
 	void scheduleListUpdateFinished();
 
@@ -510,4 +518,6 @@ private:
 	QTimer *m_maxTimeLenthTimer{nullptr};
 	bool m_bIsAllowPushStream = true;
 	bool m_bSubChannelStartApiCall = false;
+
+	bool m_bVerticalOutput = false;
 };

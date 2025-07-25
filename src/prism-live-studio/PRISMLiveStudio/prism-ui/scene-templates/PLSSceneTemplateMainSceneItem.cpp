@@ -50,12 +50,14 @@ void PLSSceneTemplateMainSceneItem::updateUI(const SceneTemplateItem &model)
 	ui->mainSceneInstallView->updateUI(model);
 
 	auto pDialog = qobject_cast<PLSSceneTemplateContainer *>(pls_get_toplevel_view(this));
-	if (nullptr != pDialog && model.isAI()) {
-		ui->mainSceneTopImageView->showAIBadge(pDialog->getAIBadge(), false);
-		ui->mainSceneTopVideoView->showAIBadge(pDialog->getAIBadge(), false);
-	} else {
-		ui->mainSceneTopImageView->showAIBadge(QPixmap(), false);
-		ui->mainSceneTopVideoView->showAIBadge(QPixmap(), false);
+	if (nullptr != pDialog) {
+		if (model.isAI()) {
+			ui->mainSceneTopImageView->showAIBadge(pDialog->getAIBadge(), false);
+			ui->mainSceneTopVideoView->showAIBadge(pDialog->getAIBadge(), false);
+		} else {
+			ui->mainSceneTopImageView->showAIBadge(QPixmap(), false);
+			ui->mainSceneTopVideoView->showAIBadge(QPixmap(), false);
+		}
 	}
 
 	if (m_hoverEnter) {

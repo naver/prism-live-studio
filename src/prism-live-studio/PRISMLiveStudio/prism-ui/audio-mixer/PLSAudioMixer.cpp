@@ -305,7 +305,7 @@ void PLSMixerOrderHelper::Reorder(const std::string &scene_uuid, std::vector<Vol
 	}
 }
 
-void PLSMixerOrderHelper::RemoveFromSourceSet(const std::string &source_uuid) 
+void PLSMixerOrderHelper::RemoveFromSourceSet(const std::string &source_uuid)
 {
 	auto iter = source_uuids.find(source_uuid);
 	if (iter != source_uuids.end()) {

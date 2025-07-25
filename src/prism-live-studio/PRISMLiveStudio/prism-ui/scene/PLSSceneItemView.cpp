@@ -93,7 +93,7 @@ static void RefreshUi(QWidget *widget)
 PLSSceneDisplay::PLSSceneDisplay(QWidget *parent_) : OBSQTDisplay(parent_, Qt::Window)
 {
 	sceneDisplayCount++;
-	displayMethod = static_cast<DisplayMethod>(config_get_int(App()->GlobalConfig(), "BasicWindow", "SceneDisplayMethod"));
+	displayMethod = static_cast<DisplayMethod>(config_get_int(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod"));
 	this->setAcceptDrops(true);
 	this->setWindowFlags(Qt::FramelessWindowHint | Qt::X11BypassWindowManagerHint);
 
@@ -707,7 +707,7 @@ void PLSSceneDisplay::DrawThumbnail()
 
 	gs_effect_set_texture(gs_effect_get_param_by_name(effect, "image"), item_texture);
 	// Only render scene region
-	gs_draw_sprite_subregion(item_texture, 0, 0, 0 /*rt.y todo*/, rt.cx, rt.cy);
+	gs_draw_sprite_subregion(item_texture, 0, 0, 0, rt.cx, rt.cy);
 
 	gs_technique_end_pass(tech);
 	gs_technique_end(tech);

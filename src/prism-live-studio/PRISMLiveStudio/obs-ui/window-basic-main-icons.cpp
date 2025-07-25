@@ -2,14 +2,9 @@
 #include <pls/pls-source.h>
 
 extern QString GetIconKey(obs_icon_type type);
-extern void loadPixmap(QPixmap &pix, const QString &pixmapPath,
-		       const QSize &pixSize);
-#define NORMALICONPATH  \
-	QStringLiteral( \
-		":/resource/images/add-source-view/icon-source-%1-normal.svg")
-#define SELECTICONPATH  \
-	QStringLiteral( \
-		":/resource/images/add-source-view/icon-source-%1-select.svg")
+extern void loadPixmap(QPixmap &pix, const QString &pixmapPath, const QSize &pixSize);
+#define NORMALICONPATH QStringLiteral(":/resource/images/add-source-view/icon-source-%1-normal.svg")
+#define SELECTICONPATH QStringLiteral(":/resource/images/add-source-view/icon-source-%1-select.svg")
 
 QIcon OBSBasic::GetSourceIcon(const char *id) const
 {
@@ -41,7 +36,6 @@ QIcon OBSBasic::GetSourceIcon(const char *id) const
 	case OBS_ICON_TYPE_BROWSER:
 		return GetBrowserIcon();
 	case OBS_ICON_TYPE_CUSTOM:
-		//TODO: Add ability for sources to define custom icons
 		return GetDefaultIcon();
 	case OBS_ICON_TYPE_PROCESS_AUDIO_OUTPUT:
 		return GetAudioProcessOutputIcon();
@@ -217,9 +211,7 @@ QPixmap OBSBasic::GetSourcePixmap(const QString &id, bool selected, QSize size)
 	} else if (id == "group") {
 		iconKey = "group";
 	} else {
-		iconKey = GetIconKey(obs_source_get_icon_type(
-					     id.toStdString().c_str()))
-				  .toLower();
+		iconKey = GetIconKey(obs_source_get_icon_type(id.toStdString().c_str())).toLower();
 	}
 
 	QPixmap pix;

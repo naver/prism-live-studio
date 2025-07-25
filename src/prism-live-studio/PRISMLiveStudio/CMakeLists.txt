@@ -1,10 +1,16 @@
 project(PRISMLiveStudio)
 
+
+include(${CMAKE_SOURCE_DIR}/prism-live-studio/cmake/disable_api.cmake)
+InsertDisabledWinAPI()
+
 add_subdirectory(frontend-api)
+add_subdirectory(obs-ui/shared)
 add_subdirectory(plugins)
 add_subdirectory(vst-check)
+
 if(OS_WINDOWS)
-add_subdirectory(region-capture)
+  add_subdirectory(region-capture)
 endif()
 
 if(OS_MACOS)
@@ -76,9 +82,10 @@ find_package(nlohmann_json REQUIRED)
 target_link_libraries(PRISMLiveStudio PRIVATE Qt6::Widgets Qt6::Svg Qt6::Xml Qt6::Network Qt6::WebSockets nlohmann_json::nlohmann_json Qt6::Multimedia Qt6::OpenGLWidgets)
 
 if(ENABLE_TEST)
-find_package(Qt6 COMPONENTS Test)
-target_link_libraries(PRISMLiveStudio PRIVATE Qt6::Test Qt6::TestPrivate)
+  find_package(Qt6 COMPONENTS Test)
+  target_link_libraries(PRISMLiveStudio PRIVATE Qt6::Test Qt6::TestPrivate)
 endif()
+
 set_target_properties(
   PRISMLiveStudio
   PROPERTIES AUTOMOC ON
@@ -209,16 +216,15 @@ target_sources(
   obs-ui/platform.hpp
   obs-ui/qt-display.cpp
   obs-ui/qt-display.hpp
-  obs-ui/qt-wrappers.cpp
-  obs-ui/qt-wrappers.hpp
   obs-ui/ui-validation.cpp
   obs-ui/ui-validation.hpp
   obs-ui/multiview.cpp
   obs-ui/multiview.hpp
   $ENV{OBS_SRC_DIR}/deps/json11/json11.cpp
   $ENV{OBS_SRC_DIR}/deps/json11/json11.hpp
-  #$ENV{OBS_SRC_DIR}/deps/libff/libff/ff-util.c
-  #$ENV{OBS_SRC_DIR}/deps/libff/libff/ff-util.h
+
+  # $ENV{OBS_SRC_DIR}/deps/libff/libff/ff-util.c
+  # $ENV{OBS_SRC_DIR}/deps/libff/libff/ff-util.h
   ${CMAKE_CURRENT_BINARY_DIR}/ui-config.h)
 
 target_sources(
@@ -233,8 +239,6 @@ target_sources(
   obs-ui/basic-controls.cpp
   obs-ui/basic-controls.hpp
   obs-ui/clickable-label.hpp
-  obs-ui/double-slider.cpp
-  obs-ui/double-slider.hpp
   obs-ui/horizontal-scroll-area.cpp
   obs-ui/horizontal-scroll-area.hpp
   obs-ui/item-widget-helpers.cpp
@@ -246,8 +250,6 @@ target_sources(
   obs-ui/focus-list.hpp
   obs-ui/hotkey-edit.cpp
   obs-ui/hotkey-edit.hpp
-  obs-ui/lineedit-autoresize.cpp
-  obs-ui/lineedit-autoresize.hpp
   obs-ui/log-viewer.cpp
   obs-ui/log-viewer.hpp
   obs-ui/media-controls.cpp
@@ -255,22 +257,14 @@ target_sources(
   obs-ui/menu-button.cpp
   obs-ui/menu-button.hpp
   obs-ui/mute-checkbox.hpp
-  obs-ui/plain-text-edit.cpp
-  obs-ui/plain-text-edit.hpp
-  obs-ui/properties-view.hpp
-  obs-ui/properties-view.moc.hpp
   obs-ui/noncheckable-button.hpp
   obs-ui/remote-text.cpp
   obs-ui/remote-text.hpp
   obs-ui/scene-tree.cpp
   obs-ui/scene-tree.hpp
   obs-ui/screenshot-obj.hpp
-  obs-ui/slider-ignorewheel.cpp
-  obs-ui/slider-ignorewheel.hpp
   obs-ui/source-label.cpp
   obs-ui/source-label.hpp
-  obs-ui/spinbox-ignorewheel.cpp
-  obs-ui/spinbox-ignorewheel.hpp
   obs-ui/source-tree.cpp
   obs-ui/source-tree.hpp
   obs-ui/url-push-button.cpp
@@ -279,10 +273,12 @@ target_sources(
   obs-ui/undo-stack-obs.hpp
   obs-ui/volume-control.cpp
   obs-ui/volume-control.hpp
-  obs-ui/vertical-scroll-area.cpp
-  obs-ui/vertical-scroll-area.hpp
   obs-ui/visibility-item-widget.cpp
-  obs-ui/visibility-item-widget.hpp)
+  obs-ui/visibility-item-widget.hpp
+  obs-ui/preview-controls.cpp
+  obs-ui/preview-controls.hpp
+  obs-ui/window-whats-new.cpp
+  obs-ui/window-whats-new.hpp)
 
 target_sources(
   PRISMLiveStudio
@@ -348,17 +344,17 @@ target_sources(
 target_sources(
   PRISMLiveStudio
   PRIVATE # cmake-format: sortable
-          obs-ui/goliveapi-censoredjson.cpp
-          obs-ui/goliveapi-censoredjson.hpp
-          obs-ui/goliveapi-network.cpp
-          obs-ui/goliveapi-network.hpp
-          obs-ui/goliveapi-postdata.cpp
-          obs-ui/goliveapi-postdata.hpp
-          obs-ui/multitrack-video-error.cpp
-          obs-ui/multitrack-video-error.hpp
-          obs-ui/multitrack-video-output.cpp
-          obs-ui/multitrack-video-output.hpp
-          obs-ui/system-info.hpp)
+  obs-ui/goliveapi-censoredjson.cpp
+  obs-ui/goliveapi-censoredjson.hpp
+  obs-ui/goliveapi-network.cpp
+  obs-ui/goliveapi-network.hpp
+  obs-ui/goliveapi-postdata.cpp
+  obs-ui/goliveapi-postdata.hpp
+  obs-ui/multitrack-video-error.cpp
+  obs-ui/multitrack-video-error.hpp
+  obs-ui/multitrack-video-output.cpp
+  obs-ui/multitrack-video-output.hpp
+  obs-ui/system-info.hpp)
 
 target_sources(
   PRISMLiveStudio
@@ -652,12 +648,12 @@ target_sources(
 
 set(dualOutputSource prism-ui/dual-output/PLSDualOutputConst.h prism-ui/dual-output/PLSDualOutputTitle.h prism-ui/dual-output/PLSDualOutputTitle.cpp)
 target_sources(
-    PRISMLiveStudio
-    PRIVATE ${dualOutputSource}  
+  PRISMLiveStudio
+  PRIVATE ${dualOutputSource}
 )
 source_group(dual-output FILES ${dualOutputSource})
 
-#scene template
+# scene template
 add_subdirectory(prism-ui/scene-templates)
 target_sources(PRISMLiveStudio PRIVATE ${SCENE-TEMPLATE_HDR_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${SCENE-TEMPLATE_SRC_FILES})
@@ -672,10 +668,9 @@ target_include_directories(PRISMLiveStudio PRIVATE prism-ui/test-tools)
 target_sources(PRISMLiveStudio PRIVATE ${test-tools-SRC_FILES} ${test-tools-HDR_FILES} ${test-tools-UI_FILES})
 
 foreach(FILE ${SceneTemplateALllFiles})
-
   # Get the directory of the source file
   get_filename_component(PARENT_DIR "${FILE}" DIRECTORY)
-  
+
   # Remove common directory prefix to make the group
   string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/prism-ui" "" RELATIVE_GROUP "${PARENT_DIR}")
 
@@ -724,9 +719,9 @@ if(OS_WINDOWS)
     prism-ui/main/windows/PLSBlockDump.cpp
     prism-ui/main/windows/PLSBlockDump.h
     prism-ui/main/windows/PLSModuleMonitor.cpp
-		prism-ui/main/windows/PLSModuleMonitor.h
-		prism-ui/main/windows/PLSWinrtNotify.h
-		prism-ui/main/windows/PLSWinrtNotify.cpp
+    prism-ui/main/windows/PLSModuleMonitor.h
+    prism-ui/main/windows/PLSWinrtNotify.h
+    prism-ui/main/windows/PLSWinrtNotify.cpp
     obs-ui/win-dll-blocklist.c)
 elseif(OS_MACOS)
   target_sources(
@@ -764,7 +759,7 @@ file(GLOB PLSAudioMixer_FILES prism-ui/audio-mixer/*)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/audio-mixer/ PREFIX audio-mixer FILES ${PLSAudioMixer_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PLSAudioMixer_FILES})
 
-#prism sticker
+# prism sticker
 file(GLOB PRISMSticker_FILES prism-ui/prism-sticker/*)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/prism-ui/prism-sticker/ PREFIX prism-sticker FILES ${PRISMSticker_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PRISMSticker_FILES})
@@ -808,7 +803,6 @@ target_sources(PRISMLiveStudio PRIVATE ${PRISMLogin-SRC1_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PRISMLogin-SRC2_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PRISMLogin-HDR_FILES})
 target_sources(PRISMLiveStudio PRIVATE ${PRISMLogin-UI_FILES})
-
 
 if(OS_WINDOWS)
   target_sources(PRISMLiveStudio PRIVATE prism-ui/main/unzip.h)
@@ -855,7 +849,10 @@ if(OS_WINDOWS)
     common-libs::third-party::mqtt
     Qt6::NetworkAuth
     common::log
-    Qt6::NetworkAuth)
+    Qt6::NetworkAuth
+    OBS::properties-view
+    OBS::bpm
+    OBS::caption)
 elseif(OS_MACOS)
   target_link_libraries(
     PRISMLiveStudio
@@ -875,7 +872,9 @@ elseif(OS_MACOS)
     common-libs::third-party::mqtt
     common-libs::third-party::openssl
     Qt6::NetworkAuth
-  )
+    OBS::properties-view
+    OBS::bpm
+    OBS::caption)
 endif()
 
 set_target_properties(PRISMLiveStudio PROPERTIES FOLDER "prism/frontend")
@@ -935,12 +934,13 @@ if(OS_WINDOWS)
     PRIVATE obs-ui/obs.manifest
     obs-ui/platform-windows.cpp
     obs-ui/system-info-windows.cpp
-    #obs-ui/win-update/update-window.cpp
-    #obs-ui/win-update/update-window.hpp
-    #obs-ui/win-update/win-update.cpp
-    #obs-ui/win-update/win-update.hpp
-    #obs-ui/win-update/win-update-helpers.cpp
-    #obs-ui/win-update/win-update-helpers.hpp
+
+    # obs-ui/win-update/update-window.cpp
+    # obs-ui/win-update/update-window.hpp
+    # obs-ui/win-update/win-update.cpp
+    # obs-ui/win-update/win-update.hpp
+    # obs-ui/win-update/win-update-helpers.cpp
+    # obs-ui/win-update/win-update-helpers.hpp
     prism-ui/main/unzip.h
     prism-ui/main/unzip.cpp)
 
@@ -968,7 +968,7 @@ if(OS_WINDOWS)
     target_link_options(PRISMLiveStudio PRIVATE /LARGEADDRESSAWARE)
   endif()
 
-  #add_subdirectory(obs-ui/win-update/updater)
+# add_subdirectory(obs-ui/win-update/updater)
 elseif(OS_MACOS)
   set_target_properties(
     PRISMLiveStudio
@@ -1023,7 +1023,7 @@ elseif(OS_MACOS)
       PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
   endif()
 
-  target_link_libraries(PRISMLiveStudio PRIVATE 
+  target_link_libraries(PRISMLiveStudio PRIVATE
     "$<LINK_LIBRARY:FRAMEWORK,Appkit.framework>"
     "$<LINK_LIBRARY:FRAMEWORK,AVFoundation.framework>"
     "$<LINK_LIBRARY:FRAMEWORK,ApplicationServices.framework>")
@@ -1048,19 +1048,18 @@ elseif(OS_MACOS)
     find_library(SECURITY Security)
     mark_as_advanced(SECURITY)
     target_link_libraries(PRISMLiveStudio PRIVATE ${SECURITY} OBS::blake2)
-
-    target_sources(
-      PRISMLiveStudio
-      PRIVATE obs-ui/nix-update/crypto-helpers.hpp
-      obs-ui/nix-update/crypto-helpers-mac.mm
-      obs-ui/nix-update/nix-update.cpp
-      obs-ui/nix-update/nix-update.hpp
-      obs-ui/nix-update/nix-update-helpers.cpp
-      obs-ui/nix-update/nix-update-helpers.hpp)
   endif()
 
-  set_source_files_properties(obs-ui/platform-osx.mm prism-ui/main/PLSDrawPen/mac/PLSStrokable.mm prism-ui/main/PLSDrawPen/mac/PLSStrokeManager.mm prism-ui/main/PLSDrawPen/mac/PLSStrokeStruct.mm PROPERTIES COMPILE_FLAGS
+  set_source_files_properties(obs-ui/platform-osx.mm prism-ui/main/PLSDrawPen/mac/PLSStrokable.mm prism-ui/main/PLSDrawPen/mac/PLSStrokeManager.mm prism-ui/main/PLSDrawPen/mac/PLSStrokeStruct.mm prism-ui/main/PLSBasicStatusBarAnalog.mm PROPERTIES COMPILE_FLAGS
     -fobjc-arc)
+
+  if(DEFINED ENV{PRISM_ADDRESS_SANITIZER})
+    #enable ADDRESS SANITIZER
+    set_target_properties(
+      PRISMLiveStudio
+      PROPERTIES 
+      XCODE_SCHEME_ADDRESS_SANITIZER YES)
+  endif()
 
 elseif(OS_POSIX)
   target_sources(PRISMLiveStudio PRIVATE platform-x11.cpp)
@@ -1089,14 +1088,6 @@ elseif(OS_POSIX)
         "mbedTLS not found, but required for WhatsNew support on Linux")
     endif()
 
-    target_sources(
-      PRISMLiveStudio
-      PRIVATE obs-ui/nix-update/crypto-helpers.hpp
-      obs-ui/nix-update/crypto-helpers-mbedtls.cpp
-      obs-ui/nix-update/nix-update.cpp
-      obs-ui/nix-update/nix-update.hpp
-      obs-ui/nix-update/nix-update-helpers.cpp
-      obs-ui/nix-update/nix-update-helpers.hpp)
     target_link_libraries(PRISMLiveStudio PRIVATE Mbedtls::Mbedtls OBS::blake2)
   endif()
 endif()
@@ -1155,7 +1146,6 @@ elseif(OS_MACOS)
     DL_D3D9="")
 endif()
 
-
 get_property(obs_module_list GLOBAL PROPERTY OBS_MODULES_ENABLED)
 list(JOIN obs_module_list "|" SAFE_MODULES)
 target_compile_definitions(PRISMLiveStudio PRIVATE "SAFE_MODULES=\"${SAFE_MODULES}\"")
@@ -1165,7 +1155,8 @@ target_compile_definitions(PRISMLiveStudio PRIVATE "SAFE_MODULES=\"${SAFE_MODULE
 # setup_target_resources(PRISMLiveStudio obs-studio)
 # add_target_resource(PRISMLiveStudio $ENV{OBS_SRC_DIR}/AUTHORS
 # obs-studio/authors)
-# copy_common_libs_data(PRISMLiveStudio ../../../build/common/errorExcel2Json.py data/prism-studio/resources)
+copy_common_libs_data(PRISMLiveStudio ../../../build/common/errorExcel2Json.py data/prism-studio/resources)
+
 if(OS_MACOS)
   copy_common_libs_data(PRISMLiveStudio data data/prism-studio)
   copy_common_libs_data(PRISMLiveStudio prism-ui/main/PLSDrawPen/data data/libobs)

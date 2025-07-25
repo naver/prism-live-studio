@@ -1,0 +1,10 @@
+common-libs\libresource\WindowsUnzip\
+common-libs\third-party\
+obs-studio\
+prism-live-studio\build\
+prism-live-studio\cmake\
+prism-live-studio\PRISMLiveStudio\data\
+prism-live-studio\PRISMLiveStudio\web-src\
+prism-live-studio\others\
+prism-live-studio\PRISMLiveStudio\plugins\source\obs-spout2-plugin\deps\
+prism-live-studio\PRISMLiveStudio\plugins\source\prism-stream-deck\Vendor\

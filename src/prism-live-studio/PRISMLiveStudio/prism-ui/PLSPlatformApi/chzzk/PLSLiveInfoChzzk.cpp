@@ -206,7 +206,7 @@ void PLSLiveInfoChzzk::refreshThumButton()
 				ui->thumbnailButton->setImagePath(imagePath);
 			}
 		} else {
-			PLS_INFO(MODULE_PLATFORM_NCB2B, "download user icon failed");
+			PLS_INFO(MODULE_PLATFORM_CHZZK, "download user icon failed");
 		}
 	};
 	PLSAPICommon::downloadImageAsync(this, url, _callBack, false, localPath);
@@ -262,7 +262,7 @@ void PLSLiveInfoChzzk::okButtonClicked()
 					  {{"platformName", CHZZK}, //
 					   {"startLiveStatus", "Success"},
 					   {"channelID", m_platform->subChannelID().toUtf8().constData()}},
-					  "NCB2B start live success");
+					  "Chzzk start live success");
 			} else {
 				PLS_LOGEX(PLS_LOG_ERROR, MODULE_PLATFORM_CHZZK,
 					  {{"platformName", CHZZK},

@@ -19,7 +19,7 @@ LIBUTILSAPI_API bool pls_is_repull_exit_code(int exitCode)
 	if (exitCode == 0) {
 		return false;
 	}
-	
+
 #if __APPLE__
 	// if main process is killed by force (but not crashed), don't restart it.
 	if (exitCode == SIGKILL) {

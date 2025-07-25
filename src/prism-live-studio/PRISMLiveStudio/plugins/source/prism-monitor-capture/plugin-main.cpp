@@ -17,8 +17,14 @@ MODULE_EXPORT const char *obs_module_description(void)
 extern void register_prism_region_source();
 LRESULT CALLBACK pls_sizechange_hook_pro(int nCode, WPARAM wParam, LPARAM lParam);
 
+bool graphics_uses_d3d11 = false;
+
 bool obs_module_load(void)
 {
+	obs_enter_graphics();
+	graphics_uses_d3d11 = gs_get_device_type() == GS_DEVICE_DIRECT3D_11;
+	obs_leave_graphics();
+
 	size_change_hook = ::SetWindowsHookEx(WH_CALLWNDPROC, pls_sizechange_hook_pro, nullptr, ::GetCurrentThreadId());
 	if (!size_change_hook) {
 		PLS_ERROR("monitor capture", "Failed to hook display size change. error:%u", GetLastError());
@@ -28,9 +34,7 @@ bool obs_module_load(void)
 	return true;
 }
 
-void obs_module_unload(void)
-{
-}
+void obs_module_unload(void) {}
 
 const char *obs_module_name(void)
 {

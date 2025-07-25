@@ -33,6 +33,7 @@ class QNetworkCookie;
 #define PRISM_SSL pls_get_gpop_connection().ssl
 
 enum class PLSResultCheckingResult { Ok, Continue, Close };
+enum class PLSPaidState { Free = 0, Trial, Plus };
 
 /**
   * browser result check
@@ -261,6 +262,8 @@ FRONTEND_API bool pls_is_rehearsal_info_display();
 
 FRONTEND_API QString pls_get_remote_control_mobile_name(const QString &platformName);
 
+FRONTEND_API bool pls_frontend_set_preview_program_mode(bool enable);
+
 enum class pls_frontend_event {
 	PLS_FRONTEND_EVENT_TRANSITION_DURATION_CHANGED, // transition duration changed
 							// params:
@@ -306,7 +309,10 @@ enum class pls_frontend_event {
 
 	//PRISM/WuLongyue/20241111/for dual output
 	PLS_FRONTEND_EVENT_DUAL_OUTPUT_ON,
-	PLS_FRONTEND_EVENT_DUAL_OUTPUT_OFF
+	PLS_FRONTEND_EVENT_DUAL_OUTPUT_OFF,
+
+	//PRISM/jimboRen/20250403/for paid, parameter--> (current, previous)
+	PLS_FRONTEND_EVENT_PAID_STATE_CHANGED
 };
 /**
   * frontend event callback
@@ -366,6 +372,25 @@ FRONTEND_API void pls_toast_message(pls_toast_info_type type, const QString &mes
   */
 FRONTEND_API void pls_toast_clear();
 
+/**
+  * show paid message
+  * param:
+  *     [in] type: message type
+  *     [in] title: title name
+  *     [in] message: message content
+  *     [in] bottomButton: bottom button, default is empty
+  *     [in] btnCallback: when button click, the callback will call
+  *     [in] containCloseBtn: top right close btn
+  *     [in] auto_close: auto close timeout(millisecond), if not any button, the time will be set 5000
+  */
+FRONTEND_API void pls_paid_toast_message(pls_toast_info_type type, const QString &title, const QString &message, const QString &bottomButton = QString(),
+					 const std::function<void()> &btnCallback = nullptr, bool containCloseBtn = true, int auto_close = -1);
+//only have top right close image button
+FRONTEND_API void pls_paid_toast_message_close_btn(pls_toast_info_type type, const QString &title, const QString &message);
+//not have any button
+FRONTEND_API void pls_paid_toast_message_no_btn(pls_toast_info_type type, const QString &title, const QString &message, int auto_close = 5000);
+// hide current toast and clear the queue list.
+FRONTEND_API void pls_paid_toast_clear();
 /**
   * set main view side bar user button icon
   * param:
@@ -432,7 +457,7 @@ FRONTEND_API pls_check_update_result_t pls_check_app_update(bool &is_force, QStr
   *     check result
   */
 
-enum class PLS_CONTACTUS_QUESTION_TYPE { Error, Advice, Consult, Other };
+enum class PLS_CONTACTUS_QUESTION_TYPE { Error, Advice, Consult, Plus, Other };
 FRONTEND_API pls_upload_file_result_t pls_upload_contactus_files(PLS_CONTACTUS_QUESTION_TYPE iType, const QString &email, const QString &question, const QList<QFileInfo> files);
 
 /**
@@ -473,6 +498,12 @@ FRONTEND_API bool pls_is_living_or_recording();
 * return if output actived
 */
 FRONTEND_API bool pls_is_output_actived();
+
+/*
+* pls_is_without_third_output_actived
+* return if output actived
+*/
+FRONTEND_API bool pls_is_without_third_output_actived();
 
 /**
   * add tools menu seperator
@@ -582,6 +613,7 @@ struct ITextMotionTemplateHelper {
 	virtual void removeCustomTemplate(const int id) {}
 	virtual QList<PLSChatDefaultFamily> getChatCustomDefaultFamily() { return {}; }
 	virtual void clearChatTemplateButton() {}
+	virtual QButtonGroup *getBKTemplateButtons() { return nullptr; }
 };
 
 FRONTEND_API ITextMotionTemplateHelper *pls_get_text_motion_template_helper_instance();
@@ -659,7 +691,7 @@ FRONTEND_API void pls_show_virtual_background();
   * create virtual background resource list widget
   */
 FRONTEND_API QWidget *pls_create_virtual_background_resource_widget(QWidget *parent, const std::function<void(QWidget *)> &init, bool forProperty = false, const QString &itemId = QString(),
-								    bool checkBoxState = false, bool switchToPrismFirst = false);
+								    bool checkBoxState = false, bool checkBoxEnable = false, bool switchToPrismFirst = false);
 
 /**
   * get media size
@@ -894,7 +926,8 @@ enum class AnalogType {
 	ANALOG_VIRTUAL_CAM,
 	ANALOG_PLATFORM_OUTPUTGUIDE,
 	ANALOG_NCB2B_LOGIN,
-	ANALOG_ERROR_CODE
+	ANALOG_ERROR_CODE,
+	ANALOG_PAID_STATE
 };
 
 FRONTEND_API void pls_send_analog(AnalogType logType, const QVariantMap &info);
@@ -1030,3 +1063,7 @@ FRONTEND_API bool pls_get_random_bool();
 FRONTEND_API bool pls_is_chzzk_checked(bool forHorizontal = true);
 
 FRONTEND_API obs_output_t *pls_frontend_get_streaming_output_v(void);
+/**
+  * call obs_source_check_settings_ex to check if the source is paid or not.
+  */
+FRONTEND_API bool pls_source_check_paid(obs_source_t *source);

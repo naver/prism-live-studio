@@ -32,6 +32,7 @@ PLSSceneTemplateMainScene::PLSSceneTemplateMainScene(QWidget *parent) : QWidget(
 			pls_alert_error_message(pls_get_toplevel_view(this), tr("Alert.Title"), tr("SceneTemplate.Alert.Download.Failed"));
 		}
 	});
+	connect(ui->comboBoxPlus, &QComboBox::currentIndexChanged, this, &PLSSceneTemplateMainScene::updateSceneList);
 
 	connect(PLS_SCENE_TEMPLATE_RESOURCE, &CategorySceneTemplate::onItemDownloaded, this, [this](const SceneTemplateItem &item) {
 		PLS_INFO(SCENE_TEMPLATE, "CategorySceneTemplate::onItemDownloaded: %s", qUtf8Printable(item.itemId()));
@@ -178,9 +179,9 @@ bool PLSSceneTemplateMainScene::eventFilter(QObject *watcher, QEvent *event)
 
 void PLSSceneTemplateMainScene::updateSceneList()
 {
-	for (auto i = 0; i < m_FlowLayout->count(); ++i) {
-		auto item = qobject_cast<PLSSceneTemplateMainSceneItem *>(m_FlowLayout->itemAt(i)->widget());
-		item->hide();
+	QLayoutItem *item = nullptr;
+	while (nullptr != (item = m_FlowLayout->takeAt(0))) {
+		item->widget()->hide();
 	}
 
 	auto groupId = ui->mainSceneComboBox->currentData().toString();
@@ -191,6 +192,9 @@ void PLSSceneTemplateMainScene::updateSceneList()
 
 void PLSSceneTemplateMainScene::refreshItems(const QString &groupId)
 {
+	const int INDEX_PLUS = 1;
+	const int INDEX_FREE = 2;
+
 	PLS_INFO(SCENE_TEMPLATE, "%p-%s: group=%s", this, __FUNCTION__, qUtf8Printable(groupId));
 
 	PLS_SCENE_TEMPLATE_RESOURCE->getGroup(groupId, [this, groupId](pls::rsm::Group group) {
@@ -200,29 +204,52 @@ void PLSSceneTemplateMainScene::refreshItems(const QString &groupId)
 		if (!m_bRefreshing) {
 			m_bRefreshing = true;
 			pls_async_call(this, [this, groupId, group]() {
+				auto iPlusFilter = ui->comboBoxPlus->currentIndex();
+				auto bExists = false;
 				auto iIndex = 0;
-				for (auto item : group.items()) {
+
+				auto items = group.items();
+				items.sort([groupId](const pls::rsm::Item &itemLeft, const pls::rsm::Item &itemRight) {
+					return PLS_SCENE_TEMPLATE_RESOURCE->getOrder(groupId, itemLeft.itemId()) < PLS_SCENE_TEMPLATE_RESOURCE->getOrder(groupId, itemRight.itemId());
+				});
+
+				for (auto item : items) {
 					if (item.state() != pls::rsm::State::Ok || !PLS_SCENE_TEMPLATE_RESOURCE->checkItem(item))
 						continue;
+
+					if (INDEX_PLUS == iPlusFilter) {
+						if (!SceneTemplateItem(item).isPaid()) {
+							continue;
+						}
+					} else if (INDEX_FREE == iPlusFilter) {
+						if (SceneTemplateItem(item).isPaid()) {
+							continue;
+						}
+					}
+
+					if (!bExists) {
+						bExists = true;
+					}
 
 					PLS_INFO(SCENE_TEMPLATE, "%p-%s: index:%d, group:%s, item:%s is valid", this, __FUNCTION__, iIndex, qUtf8Printable(groupId), qUtf8Printable(item.itemId()));
 
 					PLSSceneTemplateMainSceneItem *itemWidget = nullptr;
-					if (iIndex < m_FlowLayout->count()) {
-						itemWidget = qobject_cast<PLSSceneTemplateMainSceneItem *>(m_FlowLayout->itemAt(iIndex)->widget());
+					if (auto iter = m_mapItems.find(item.itemId()); m_mapItems.end() != iter) {
+						itemWidget = *iter;
 					} else {
 						itemWidget = pls_new<PLSSceneTemplateMainSceneItem>();
+						m_mapItems.insert(item.itemId(), itemWidget);
 						itemWidget->setObjectName("PLSSceneTemplateMainSceneItem");
-						m_FlowLayout->addWidget(itemWidget);
 					}
 
-					itemWidget->updateUI(item);
+					m_FlowLayout->addWidget(itemWidget);
 					itemWidget->show();
+					itemWidget->updateUI(item);
 
 					++iIndex;
 				}
 
-				if (0 == iIndex) {
+				if (!bExists) {
 					if (PLS_SCENE_TEMPLATE_RESOURCE->getGroupState(groupId) == pls::rsm::State::Failed) {
 						hideLoading();
 						showRetry();

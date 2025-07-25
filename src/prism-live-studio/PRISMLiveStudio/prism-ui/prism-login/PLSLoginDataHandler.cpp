@@ -119,7 +119,7 @@ QString PLSLoginDataHandler::getLoginName() const
 
 const QJsonObject &PLSLoginDataHandler::getNCB2BServiceConnfigRes() const
 {
-	// TODO: ÔÚ´Ë´¦²åÈë return Óï¾ä
+	// TODO: ï¿½Ú´Ë´ï¿½ï¿½ï¿½ï¿½ï¿½ return ï¿½ï¿½ï¿½
 	return QJsonObject();
 }
 

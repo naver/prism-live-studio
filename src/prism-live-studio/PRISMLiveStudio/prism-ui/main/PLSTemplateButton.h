@@ -65,7 +65,8 @@ public:
 	QString getGroupName() const;
 
 	void setTemplateText(const QString &text);
-
+	void setPaid(bool isPaid);
+	bool isPaid() const { return m_isPaid; }
 	void setCheckedState(bool checkedState);
 
 	bool fullGif() const;
@@ -75,6 +76,7 @@ public:
 	pls::ITemplateListPropertyModel::IButtonGroup *buttonGroup() override { return dynamic_cast<pls::ITemplateListPropertyModel::IButtonGroup *>(parentWidget()); }
 	QPushButton *button() override { return this; }
 	int value() const override { return m_value; }
+	bool isMovieValid() { return m_movie.isValid(); }
 
 private:
 	void init();
@@ -91,6 +93,7 @@ private:
 	int m_value;
 	QString m_groupName;
 	QLabel *m_borderLabel;
+	bool m_isPaid = false;
 
 	friend class PLSTemplateButtonGroup;
 };

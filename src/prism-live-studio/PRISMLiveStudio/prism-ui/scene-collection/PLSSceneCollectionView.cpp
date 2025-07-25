@@ -285,8 +285,7 @@ void PLSSceneCollectionListView::OnApplyBtnClicked(const QString &name, const QS
 	if (auto basic = OBSBasic::Get(); basic) {
 		basic->on_actionChangeSceneCollection_triggered(name, path, textMode);
 	}
-
-	RepaintWidgets();
+	pls_async_call(this, [this]() { RepaintWidgets(); });
 }
 
 void PLSSceneCollectionListView::OnExportBtnClicked(const QString &name, const QString &path) const
@@ -725,7 +724,7 @@ void PLSSceneCollectionModel::SetCurrentData(const QString &name, const QString 
 {
 	Q_UNUSED(path)
 	for (int i = 0; i < itemDatas.count(); i++) {
-		if (0 == name.compare(itemDatas[i].fileName)) {
+		if (pls_is_equal(name, itemDatas[i].fileName) && pls_is_equal(path, itemDatas[i].filePath)) {
 			setData(createIndex(i, 0, nullptr), true, (int)SceneCollectionCustomRole::CurrentRole);
 		} else {
 			setData(createIndex(i, 0, nullptr), false, (int)SceneCollectionCustomRole::CurrentRole);

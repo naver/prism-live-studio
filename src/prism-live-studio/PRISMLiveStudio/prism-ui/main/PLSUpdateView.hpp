@@ -27,6 +27,7 @@ private slots:
 	void on_nextUpdateBtn_clicked();
 	void on_nowUpdateBtn_clicked();
 	void isShowMainView(bool isShow);
+	void updateBrowserUrl(const QString &url) const;
 
 protected:
 	void showEvent(QShowEvent *event) override;

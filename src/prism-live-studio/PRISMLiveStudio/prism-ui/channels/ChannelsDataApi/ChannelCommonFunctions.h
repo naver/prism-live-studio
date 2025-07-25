@@ -330,5 +330,5 @@ void downloadUserImage(const QString &url, const QString &Prefix = QString(), pl
 QString toPlatformCodeID(const QString &srcName, bool toKeepSRC = false);
 
 QList<QPair<QString, QString>> initTwitchServer();
-QList<QPair<QString, QString>> getObsTwitchServer();
+QList<QPair<QString, QString>> getObsServer(QString serviceName);
 #endif //CHANELCOMMONFUNCTION_H

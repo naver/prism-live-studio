@@ -43,6 +43,9 @@
         <file>resource/images/DefaultChannels/btn-mych-addch-youtube.svg</file>
         <file>resource/images/DefaultChannels/btn-mych-custom-rtmp-normal.svg</file>
         <file>resource/images/DefaultChannels/btn-mych-twitter.svg</file>
+        <file>resource/images/DefaultChannels/btn-mych-addch-instagram.svg</file>
+        <file>resource/images/DefaultChannels/btn-mych-addch-kick.svg</file>
+        <file>resource/images/DefaultChannels/btn-mych-addch-trovo.svg</file>
         <file>resource/images/navershopping/badge_nshoppinglive.svg</file>
         <file>resource/images/navershopping/btn-addproduct-done-click.svg</file>
         <file>resource/images/navershopping/btn-addproduct-done-disable.svg</file>
@@ -341,5 +344,14 @@
         <file>resource/images/ChannelsSource/img-mychannel-listbg-click.svg</file>
         <file>resource/images/ChannelsSource/img-mychannel-listbg-normal.svg</file>
         <file>resource/images/ChannelsSource/img-mychannel-listbg-over.svg</file>
+        <file>resource/images/ChannelsSource/btn-addch-instagram.svg</file>
+        <file>resource/images/ChannelsSource/btn-addch-kick.svg</file>
+        <file>resource/images/ChannelsSource/btn-addch-trovo.svg</file>
+        <file>resource/images/ChannelsSource/img-instagram-profile.png</file>
+        <file>resource/images/ChannelsSource/img-kick-profile.png</file>
+        <file>resource/images/ChannelsSource/img-trovo-profile.png</file>
+        <file>resource/images/ChannelsSource/stremsetting-instagram-s.png</file>
+        <file>resource/images/ChannelsSource/stremsetting-kick-s.png</file>
+        <file>resource/images/ChannelsSource/stremsetting-trovo-s.png</file>
     </qresource>
 </RCC>

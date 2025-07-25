@@ -16,7 +16,6 @@
 #include "QUrl"
 #include "log/log.h"
 #include "platform.hpp"
-
 #include "pls-channel-const.h"
 #include "qfile.h"
 #include "ui_PLSLiveEndDialog.h"
@@ -52,7 +51,7 @@ PLSLiveEndDialog::~PLSLiveEndDialog()
 void PLSLiveEndDialog::setupFirstUI()
 {
 	const static QString placeholderString = "       ";
-	bool recordWhenStreaming = config_get_bool(GetGlobalConfig(), "BasicWindow", "RecordWhenStreaming");
+	bool recordWhenStreaming = config_get_bool(App()->GetUserConfig(), "BasicWindow", "RecordWhenStreaming");
 	bool saveWidgetHidden = true;
 	if (recordWhenStreaming) {
 		saveWidgetHidden = false;
@@ -118,7 +117,7 @@ void PLSLiveEndDialog::setupScrollData()
 
 	if (m_pageType == PLSEndPageType::PLSRehearsalPage) {
 		ui->channelScroll->setHidden(true);
-		bool recordWhenStreaming = config_get_bool(GetGlobalConfig(), "BasicWindow", "RecordWhenStreaming");
+		bool recordWhenStreaming = config_get_bool(App()->GetUserConfig(), "BasicWindow", "RecordWhenStreaming");
 		int rehearsalHeight = 235;
 		if (recordWhenStreaming) {
 			rehearsalHeight = 261;

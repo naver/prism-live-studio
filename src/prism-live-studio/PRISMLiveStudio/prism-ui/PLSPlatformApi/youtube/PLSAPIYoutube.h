@@ -4,6 +4,24 @@
 #include "PLSPlatformYoutube.h"
 #include "PLSAPICommon.h"
 
+const extern QString YT_API_RequestTestLive;
+const extern QString YT_API_GetLiveBroadcastLoop;
+const extern QString YT_API_RequestScheduleList;
+const extern QString YT_API_RequestCurrentSelectData;
+const extern QString YT_API_PostLiveBroadcasts;
+const extern QString YT_API_PutLiveBroadcasts;
+const extern QString YT_API_GetLiveStream;
+const extern QString YT_API_PostLiveStreams;
+const extern QString YT_API_DeleteLiveStreams;
+const extern QString YT_API_PostLiveBroadcastsBind;
+const extern QString YT_API_GetVideo;
+const extern QString YT_API_PutVideo;
+const extern QString YT_API_GetCategoryList;
+const extern QString YT_API_RefreshYoutubeToken;
+const extern QString YT_API_PostToken;
+const extern QString YT_API_UploadImage;
+const extern QString YT_API_GetChannels;
+
 class PLSAPIYoutube : public QObject {
 	Q_OBJECT
 public:

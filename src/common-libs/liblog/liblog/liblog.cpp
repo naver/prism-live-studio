@@ -225,7 +225,16 @@ static log_msg_t *new_log_msg(bool kr, pls_log_level_t log_level, const char *mo
 	int file_name_length = 0;
 	int fields_length = 0;
 	std::array<std::array<int, 2>, 100> filed_lengths;
-	int message_length = 0;
+
+	va_list _args;
+	va_copy(_args, args);
+	auto message_length = vsnprintf(nullptr, 0, format, _args);
+	va_end(_args);
+
+	if (message_length < 0) {
+		assert(false && "format args has error");
+		return nullptr;
+	}
 
 	module_name_length = int(strlen(module_name) + 1);
 	body_length += module_name_length;
@@ -251,11 +260,8 @@ static log_msg_t *new_log_msg(bool kr, pls_log_level_t log_level, const char *mo
 		}
 	}
 
-	va_list _args;
-	va_copy(_args, args);
-	message_length = vsnprintf(nullptr, 0, format, _args) + 1;
+	++message_length;
 	body_length += message_length;
-	va_end(_args);
 
 	log_info_t *log_info = nullptr;
 	auto log_msg = new_log_msg(log_info, log_msg_t::MT_GENERIC_LOG, kr, body_length);
@@ -308,7 +314,14 @@ static log_msg_t *new_log_msg(bool kr, pls_log_level_t log_level, const char *mo
 	vsnprintf(buffer, message_length, format, args);
 	return log_msg;
 }
-
+static bool check_log_field(const char *key, const char *value)
+{
+	if (pls_is_empty(key) || pls_is_empty(value)) {
+		assert(false && "nelo log fields invalid.");
+		return false;
+	}
+	return true;
+}
 static void generic_logva(bool kr, pls_log_level_t log_level, const char *module_name, const pls_datetime_t &time, uint32_t tid, const char *file_name, int file_line,
 			  const std::vector<std::pair<const char *, const char *>> &fields, const char *format, va_list args)
 {
@@ -316,13 +329,18 @@ static void generic_logva(bool kr, pls_log_level_t log_level, const char *module
 		return;
 	}
 
-	if (!LocalGlobalVars::log_gcc.empty()) {
-		std::vector<std::pair<const char *, const char *>> tmp_fields = fields;
-		tmp_fields.push_back({"gcc", LocalGlobalVars::log_gcc.c_str()});
-		if (log_msg_t *log_msg = new_log_msg(kr, log_level, module_name, time, tid, file_name, file_line, tmp_fields, format, args); log_msg) {
-			pls_thread_queue_push(LocalGlobalVars::log_proc_thread, &log_msg->list_item);
+	std::vector<std::pair<const char *, const char *>> tmp_fields;
+	for (const auto &field : fields) {
+		if (check_log_field(field.first, field.second)) {
+			tmp_fields.push_back(field);
 		}
-	} else if (log_msg_t *log_msg = new_log_msg(kr, log_level, module_name, time, tid, file_name, file_line, fields, format, args); log_msg) {
+	}
+
+	if (!LocalGlobalVars::log_gcc.empty()) {
+		tmp_fields.push_back({"gcc", LocalGlobalVars::log_gcc.c_str()});
+	}
+
+	if (log_msg_t *log_msg = new_log_msg(kr, log_level, module_name, time, tid, file_name, file_line, tmp_fields, format, args); log_msg) {
 		pls_thread_queue_push(LocalGlobalVars::log_proc_thread, &log_msg->list_item);
 	}
 }
@@ -384,7 +402,8 @@ static void process_log(log_msg_t *log_msg, log_info_t *log_info)
 		LocalGlobalVars::log_file->flush();
 	}
 
-	if (pls_is_debugger_present()) {
+	static bool isDebugger = pls_is_debugger_present();
+	if (isDebugger) {
 #if defined(Q_OS_WIN)
 		pls_printf(pls_datetime_to_string(log_info->log_time));
 		pls_printf(L" ");
@@ -507,7 +526,10 @@ static void nelo_log_proc_thread_entry(pls_thread_t *thread)
 			[thread, &log_msg, &exited](pls_shm_msg_t *msg, int remaining, int max_data_size) {
 				if (!log_msg) {
 					log_msg = (log_msg_t *)pls_thread_queue_top(thread);
-					if (!log_msg || log_msg->total_length > remaining) {
+					if (!log_msg) {
+						return false;
+					} else if (log_msg->total_length > remaining) {
+						log_msg = nullptr;
 						return false;
 					}
 
@@ -546,7 +568,10 @@ static void nelo_log_proc_thread_entry(pls_thread_t *thread)
 					log_msg = (log_msg_t *)pls_thread_queue_top(thread);
 				}
 
-				if (!log_msg || log_msg->total_length > remaining) {
+				if (!log_msg) {
+					return false;
+				} else if (log_msg->total_length > remaining) {
+					log_msg = nullptr;
 					return false;
 				}
 
@@ -557,10 +582,11 @@ static void nelo_log_proc_thread_entry(pls_thread_t *thread)
 				log_msg = nullptr;
 				return true;
 			},
-			[log_msg, thread](int count) {
+			[&log_msg, thread](int count) {
 				if (count <= 0 && log_msg) {
 					pls_thread_queue_pop(thread);
 					pls_free(log_msg);
+					log_msg = nullptr;
 				}
 			});
 	}
@@ -614,14 +640,14 @@ static void log_cleanup()
 
 	if (LocalGlobalVars::log_proc_thread) {
 		pls_thread_quit(LocalGlobalVars::log_proc_thread);
-		while (!pls_thread_queue_empty(LocalGlobalVars::log_proc_thread))
+		while (!pls_thread_queue_empty(LocalGlobalVars::log_proc_thread) && pls_thread_joinable(LocalGlobalVars::log_proc_thread))
 			pls_sleep_ms(10);
 		pls_delete(LocalGlobalVars::log_proc_thread, pls_thread_destroy, nullptr);
 	}
 
 	if (LocalGlobalVars::nelo_log_proc_thread) {
 		pls_thread_quit(LocalGlobalVars::nelo_log_proc_thread);
-		while (!pls_thread_queue_empty(LocalGlobalVars::nelo_log_proc_thread))
+		while (!pls_thread_queue_empty(LocalGlobalVars::nelo_log_proc_thread) && pls_thread_joinable(LocalGlobalVars::nelo_log_proc_thread))
 			pls_sleep_ms(10);
 		if (LocalGlobalVars::shm)
 			pls_shm_close(LocalGlobalVars::shm);
@@ -691,7 +717,7 @@ LIBLOG_API bool pls_log_init(const char *project_name, const char *project_token
 	waitThread.waitFinished(10000);
 
 	QString shmName = QStringLiteral("PRISMLoggerShm_%1_%2").arg(pid).arg(uuid);
-	if (LocalGlobalVars::shm = pls_shm_create(shmName, 1024 * 1024, true); !LocalGlobalVars::shm) {
+	if (LocalGlobalVars::shm = pls_shm_create(shmName, 10 * 1024 * 1024, true); !LocalGlobalVars::shm) {
 		pls_thread_start(LocalGlobalVars::log_proc_thread);
 		return false;
 	}
@@ -709,10 +735,10 @@ LIBLOG_API bool pls_log_init(const char *project_name, const char *project_token
 }
 LIBLOG_API bool pls_prism_log_init(const char *project_version, const char *log_source, const char *local_log_session)
 {
-	constexpr const char *PLS_PROJECT_NAME = "P8e4826_PRISMLiveStudio-ZT";
-	constexpr const char *PLS_PROJECT_NAME_KR = "P8e4826_PRISMLiveStudio-KR";
-	constexpr const char *PLS_PROJECT_TOKEN = "1056c5a3501e4af2ac6728176b55e66f";
-	constexpr const char *PLS_PROJECT_TOKEN_KR = "7a1cf4783b0946d797154a4baa443a6e";
+	constexpr const char *PLS_PROJECT_NAME = "";
+	constexpr const char *PLS_PROJECT_NAME_KR = "";
+	constexpr const char *PLS_PROJECT_TOKEN = "";
+	constexpr const char *PLS_PROJECT_TOKEN_KR = "";
 	return pls_log_init(PLS_PROJECT_NAME, PLS_PROJECT_TOKEN, PLS_PROJECT_NAME_KR, PLS_PROJECT_TOKEN_KR, project_version, log_source, local_log_session);
 }
 LIBLOG_API void pls_log_cleanup()

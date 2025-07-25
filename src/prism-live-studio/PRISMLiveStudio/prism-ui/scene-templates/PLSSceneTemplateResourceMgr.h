@@ -22,7 +22,9 @@ public:
 
 	void allDownload(pls::rsm::IResourceManager *mgr, bool ok) override;
 
-	bool checkItem(const SceneTemplateItem& item) const;
+	bool checkItem(const SceneTemplateItem &item) const;
+
+	int getOrder(const QString &groupId, const QString &itemId) const;
 public slots:
 	void findResource(SceneTemplateItem &item) const;
 
@@ -30,6 +32,9 @@ signals:
 	void onJsonDownloaded() const;
 	void onItemDownloaded(const SceneTemplateItem &item) const;
 	void onGroupDownloadFailed(const QString &groupId) const;
+
+private:
+	QMap<QPair<QString, QString>, int> m_mapOrder;
 };
 
 #define PLS_SCENE_TEMPLATE_RESOURCE CategorySceneTemplate::instance()

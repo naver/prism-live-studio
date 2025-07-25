@@ -1,7 +1,7 @@
 #pragma once
 
 #include <QMouseEvent>
-#include "slider-ignorewheel.hpp"
+#include <slider-ignorewheel.hpp>
 
 class AbsoluteSlider : public SliderIgnoreScroll {
 	Q_OBJECT
@@ -27,7 +27,6 @@ protected:
 		emit doubleClicked();
 		event->accept();
 	}
-
 
 private:
 	bool dragging = false;

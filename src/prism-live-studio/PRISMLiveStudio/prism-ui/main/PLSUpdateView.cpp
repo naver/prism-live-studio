@@ -6,6 +6,7 @@
 #ifdef Q_OS_WIN
 #include <Windows.h>
 #endif
+#include "PLSBasic.h"
 
 PLSUpdateView::PLSUpdateView(bool manualUpdate, bool isForceUpdate, const QString &version, const QString &fileUrl, const QString &updateInfoUrl, QWidget *parent)
 	: PLSDialogView(parent), m_manualUpdate(manualUpdate), m_isForceUpdate(isForceUpdate), m_version(version), m_fileUrl(fileUrl), m_updateInfoUrl(updateInfoUrl)
@@ -17,6 +18,11 @@ PLSUpdateView::PLSUpdateView(bool manualUpdate, bool isForceUpdate, const QStrin
 PLSUpdateView::~PLSUpdateView()
 {
 	pls_delete(ui);
+}
+
+void PLSUpdateView::updateBrowserUrl(const QString &url) const
+{
+	m_browserWidget->url(url);
 }
 
 void PLSUpdateView::initUI()
@@ -65,6 +71,7 @@ void PLSUpdateView::initUI()
 #elif defined(Q_OS_WIN)
 	setProperty("type", "Win");
 #endif
+	connect(PLSBasic::instance(), &PLSBasic::sigUpdateUrlChanged, this, &PLSUpdateView::updateBrowserUrl);
 }
 
 void PLSUpdateView::initConnect() const

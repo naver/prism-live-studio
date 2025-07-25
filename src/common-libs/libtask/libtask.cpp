@@ -604,7 +604,7 @@ void Task::wait(int timeout) const
 // return task count, -1 failed
 LIBTASK_API int load(const QString &tasksDir, const QString &locale)
 {
-    return load(tasksDir, tasksDir, locale);
+	return load(tasksDir, tasksDir, locale);
 }
 LIBTASK_API int load(const QString &tasksJsonDir, const QString &taskExeDir, const QString &locale)
 {

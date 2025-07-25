@@ -133,8 +133,7 @@ void PLSFiltersItemView::leaveEvent(QEvent *event)
 bool PLSFiltersItemView::eventFilter(QObject *object, QEvent *event)
 {
 	if (object == ui->nameLabel && event->type() == QEvent::Resize) {
-		QMetaObject::invokeMethod(
-			this, [this]() { ui->nameLabel->setText(GetNameElideString()); }, Qt::QueuedConnection);
+		QMetaObject::invokeMethod(this, [this]() { ui->nameLabel->setText(GetNameElideString()); }, Qt::QueuedConnection);
 		return true;
 	}
 	if ((object == ui->visibleButton || object == ui->advButton) && event->type() == QEvent::MouseMove) {

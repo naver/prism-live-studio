@@ -20,8 +20,8 @@ PLSErrorCodeTransformTool::PLSErrorCodeTransformTool(QWidget *parent) : PLSToolV
 			.arg(m_defaultOutputPath);
 	ui->textEdit->setPlaceholderText(placeholderText);
 
-	ui->plainTextEdit->setPlainText(config_get_string(App()->GlobalConfig(), "ErrorCodeTransform", "InputFile"));
-	ui->plainTextEdit_2->setPlainText(config_get_string(App()->GlobalConfig(), "ErrorCodeTransform", "OutputFile"));
+	ui->plainTextEdit->setPlainText(config_get_string(App()->GetUserConfig(), "ErrorCodeTransform", "InputFile"));
+	ui->plainTextEdit_2->setPlainText(config_get_string(App()->GetUserConfig(), "ErrorCodeTransform", "OutputFile"));
 	if (ui->plainTextEdit_2->toPlainText().trimmed().isEmpty()) {
 		ui->plainTextEdit_2->setPlainText(m_defaultOutputPath);
 	}
@@ -29,7 +29,7 @@ PLSErrorCodeTransformTool::PLSErrorCodeTransformTool(QWidget *parent) : PLSToolV
 	connect(ui->pushButton, &QPushButton::clicked, this, [this]() {
 		auto tmp = ui->plainTextEdit->toPlainText().trimmed();
 		if (tmp.isEmpty()) {
-			tmp = QString(config_get_string(App()->GlobalConfig(), "ErrorCodeTransform", "InputFile")).trimmed();
+			tmp = QString(config_get_string(App()->GetUserConfig(), "ErrorCodeTransform", "InputFile")).trimmed();
 		}
 
 		QString imageFilePath = QFileDialog::getOpenFileName(this, tr("Browse"), QFileInfo(tmp).absolutePath(), "Excel Files (*.xlsx)");
@@ -44,7 +44,7 @@ PLSErrorCodeTransformTool::PLSErrorCodeTransformTool(QWidget *parent) : PLSToolV
 	connect(ui->pushButton_file, &QPushButton::clicked, this, [this]() {
 		auto tmp = ui->plainTextEdit_2->toPlainText().trimmed();
 		if (tmp.isEmpty()) {
-			tmp = QString(config_get_string(App()->GlobalConfig(), "ErrorCodeTransform", "OutputFile")).trimmed();
+			tmp = QString(config_get_string(App()->GetUserConfig(), "ErrorCodeTransform", "OutputFile")).trimmed();
 		}
 		QString imageFilePath = QFileDialog::getOpenFileName(this, tr("Browse"), QFileInfo(tmp).absolutePath(), "Excel Files (*.json)");
 		if (!imageFilePath.isEmpty()) {
@@ -99,8 +99,8 @@ void PLSErrorCodeTransformTool::startTransform()
 	if (process.exitCode() != 0) {
 		return;
 	}
-	config_set_string(App()->GlobalConfig(), "ErrorCodeTransform", "InputFile", inputFile.toUtf8().constData());
-	config_set_string(App()->GlobalConfig(), "ErrorCodeTransform", "OutputFile", outputFile.toUtf8().constData());
+	config_set_string(App()->GetUserConfig(), "ErrorCodeTransform", "InputFile", inputFile.toUtf8().constData());
+	config_set_string(App()->GetUserConfig(), "ErrorCodeTransform", "OutputFile", outputFile.toUtf8().constData());
 
 	if (outputFile == m_defaultOutputPath) {
 		PLSErrorHandler::instance()->loadJson();

@@ -5,7 +5,7 @@
 #include "libui.h"
 #include "PLSSceneTemplateMediaManage.h"
 #include "PLSSceneTemplateImageView.h"
-#include "PLSNodeManager.h"
+#include "PLSBasic.h"
 
 PLSSceneTemplateDetailScene::PLSSceneTemplateDetailScene(QWidget *parent) : QWidget(parent), ui(new Ui::PLSSceneTemplateDetailScene)
 {
@@ -19,6 +19,12 @@ PLSSceneTemplateDetailScene::PLSSceneTemplateDetailScene(QWidget *parent) : QWid
 	ui->mainSceneVideoView->setVisible(false);
 	ui->mainSceneImageView->setVisible(false);
 	ui->detailSceneTipButton->setHidden(true);
+
+#ifdef _WIN32
+	ui->verticalLayout_5->setContentsMargins(29, 24, 0, 29);
+#else
+	ui->verticalLayout_5->setContentsMargins(30, 25, 0, 30);
+#endif
 }
 
 PLSSceneTemplateDetailScene::~PLSSceneTemplateDetailScene()
@@ -76,7 +82,6 @@ void PLSSceneTemplateDetailScene::updateUI(const SceneTemplateItem &model)
 	removeImageAndVideoView();
 
 	m_item = model;
-	m_sceneNames = PLSNodeManager::instance()->getScenesNames(m_item);
 
 	ui->detailSceneNameLabel->setText(model.title());
 	QString resolution = QString("%1 x %2").arg(model.width()).arg(model.height());
@@ -117,12 +122,14 @@ void PLSSceneTemplateDetailScene::updateUI(const SceneTemplateItem &model)
 	pls_flush_style_recursive(this);
 
 	auto pDialog = qobject_cast<PLSSceneTemplateContainer *>(pls_get_toplevel_view(this));
-	if (nullptr != pDialog && model.isAI()) {
-		ui->mainSceneImageView->showAIBadge(pDialog->getAILongBadge(), true);
-		ui->mainSceneVideoView->showAIBadge(pDialog->getAILongBadge(), true);
-	} else {
-		ui->mainSceneImageView->showAIBadge(QPixmap(), true);
-		ui->mainSceneVideoView->showAIBadge(QPixmap(), true);
+	if (nullptr != pDialog) {
+		if (model.isAI()) {
+			ui->mainSceneImageView->showAIBadge(pDialog->getAILongBadge(), true);
+			ui->mainSceneVideoView->showAIBadge(pDialog->getAILongBadge(), true);
+		} else {
+			ui->mainSceneImageView->showAIBadge(QPixmap(), true);
+			ui->mainSceneVideoView->showAIBadge(QPixmap(), true);
+		}
 	}
 }
 

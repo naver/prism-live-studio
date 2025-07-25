@@ -4,6 +4,8 @@
 #include "PLSApp.h"
 #include "pls/pls-source.h"
 #include "log/log.h"
+#include "libresource.h"
+
 #define SOURCEANALOG "SourceAnalog"
 
 extern QString getMotionStyleString(int style);
@@ -90,7 +92,7 @@ static QMap<QString, QList<SourceAnalogData>> sourceKeyAndAnalogDatas = {
 	 {SourceAnalogData(SourceAnalogData::DataType::Int, "Chat.Template.List", "templateName", chatV2Convert),
 	  SourceAnalogData(SourceAnalogData::DataType::String, "Chat.Font/chatFontFamily", "fontFamily")}}, //
 	{common::PRISM_TEXT_TEMPLATE_ID,
-	 {SourceAnalogData(SourceAnalogData::DataType::String, "templateName"), //
+	 {SourceAnalogData(SourceAnalogData::DataType::String, "templateName"),                                //
 	  SourceAnalogData(SourceAnalogData::DataType::String, "TextMotion.Text/font-family", "fontFamily")}}, //
 	{common::PRISM_TIMER_SOURCE_ID,
 	 {SourceAnalogData(SourceAnalogData::DataType::Int, "template_list", "templateName", timerClockTemplateConvert), //
@@ -175,6 +177,53 @@ QPair<bool, QJsonObject> specialDataMatch(const char *sourceId, OBSData oldJsonD
 	return {false, {}};
 };
 
+void sendSRELog(const char *sourceId, const QJsonObject &obj)
+{
+	switch (obs_source_get_icon_type(sourceId)) {
+	case PLS_ICON_TYPE_TEXT_TEMPLATE:
+		PLS_LOGEX(PLS_LOG_INFO, sourceId, {{"textTemplateId", obj.value("templateName").toString().toUtf8().constData()}}, "sre:%s", sourceId);
+		break;
+	case PLS_ICON_TYPE_CHAT_TEMPLATE: {
+		PLS_LOGEX(PLS_LOG_INFO, sourceId,
+			  {{"chatTemplateId", obj.value("templateName").toString().toUtf8().constData()}, {"chatBackgroundName", obj.value("bgTemplate").toString().toUtf8().constData()}}, "sre:%s",
+			  sourceId);
+	} break;
+	default:
+		break;
+	}
+};
+
+void chatv2SourceDataConvert(QJsonObject &jsonData, OBSData newSettings)
+{
+	auto items = pls::rsm::getResourceManager()->getItems(PLS_RSM_CID_CHAT_BG);
+	auto id = obs_data_get_int(newSettings, "Chat.Bk.Template.List");
+	if (id < 0 || id >= items.size()) {
+		return;
+	}
+	bool isBgControl = obs_data_get_int(newSettings, "Chat.Bk.Control") == 0;
+	jsonData.insert("bgControl", isBgControl);
+	if (!isBgControl) {
+		return;
+	}
+
+	QString templateName;
+	QStringList defaultColorList;
+	for (const auto &item : items) {
+		if (item.attr({"properties", "itemNo"}).toInt() == id && isBgControl) {
+			templateName = item.attr({"properties", "item_name", "en"}).toString();
+			defaultColorList = item.attr({"properties", "color", "default_color"}).toStringList();
+			jsonData["bgTemplate"] = templateName;
+			break;
+		}
+	}
+	bool isDefaultColorMode = obs_data_get_int(newSettings, "Chat.Bk.Color.Mode") == 0;
+	if (isDefaultColorMode) {
+		auto index = obs_data_get_int(newSettings, templateName.toLower().toStdString().c_str());
+		jsonData["bgDefaultColor"] = defaultColorList.value(index);
+	} else {
+		jsonData["bgCustomColor"] = obs_data_get_string(newSettings, "Chat.Bk.Color.Mode.Custom");
+	}
+}
 void sendPrismSourceAnalog(const char *sourceId, OBSData oldSettings, OBSData newSettings)
 {
 	auto SourceAnalogDatas = sourceKeyAndAnalogDatas.find(sourceId);
@@ -201,6 +250,10 @@ void sendPrismSourceAnalog(const char *sourceId, OBSData oldSettings, OBSData ne
 		}
 	}
 	if (isSendAnalog) {
+		if (pls_is_equal(sourceId, common::PRISM_CHATV2_SOURCE_ID)) {
+			chatv2SourceDataConvert(sendAnalogJson, newSettings);
+		}
+		sendSRELog(sourceId, sendAnalogJson);
 		pls_send_analog(AnalogType::ANALOG_ADD_SOURCE, {{"sourceType", action::GetActionSourceID(sourceId)}, {"detail", sendAnalogJson}});
 	}
 }

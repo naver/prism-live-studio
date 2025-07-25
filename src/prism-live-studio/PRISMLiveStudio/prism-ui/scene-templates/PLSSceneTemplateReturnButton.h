@@ -8,23 +8,23 @@ class PLSSceneTemplateReturnButton;
 }
 
 class PLSSceneTemplateReturnButton : public QFrame {
-    Q_OBJECT
+	Q_OBJECT
 
 public:
-    explicit PLSSceneTemplateReturnButton(QWidget *parent = nullptr);
-    ~PLSSceneTemplateReturnButton();
+	explicit PLSSceneTemplateReturnButton(QWidget *parent = nullptr);
+	~PLSSceneTemplateReturnButton();
 
- protected:
-    void enterEvent(QEnterEvent *event) override;
-    void leaveEvent(QEvent *event) override;
-    void mousePressEvent(QMouseEvent *event) override;
-    void mouseReleaseEvent(QMouseEvent *event) override;
+protected:
+	void enterEvent(QEnterEvent *event) override;
+	void leaveEvent(QEvent *event) override;
+	void mousePressEvent(QMouseEvent *event) override;
+	void mouseReleaseEvent(QMouseEvent *event) override;
 
 signals:
-    void clicked();
+	void clicked();
 
- private:
-    Ui::PLSSceneTemplateReturnButton *ui;
+private:
+	Ui::PLSSceneTemplateReturnButton *ui;
 };
 
 #endif // PLSSCENETEMPLATERETURNBUTTON_H

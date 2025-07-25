@@ -20,7 +20,7 @@ PLSLiveInfoAfreecaTV::PLSLiveInfoAfreecaTV(PLSPlatformBase *pPlatformBase, QWidg
 	setHasCloseButton(false);
 	//setHasBorder(true);
 	this->setWindowTitle(tr("LiveInfo.liveinformation"));
-	ui->dualWidget->setText(tr("afreecaTV"))->setUUID(PLS_PLATFORM_AFREECATV->getChannelUUID());
+	ui->dualWidget->setText(tr("Channels.afreeca_tv"))->setUUID(PLS_PLATFORM_AFREECATV->getChannelUUID());
 
 	content()->setFocusPolicy(Qt::StrongFocus);
 
@@ -49,8 +49,8 @@ PLSLiveInfoAfreecaTV::~PLSLiveInfoAfreecaTV()
 void PLSLiveInfoAfreecaTV::refreshUI()
 {
 	const auto &data = PLS_PLATFORM_AFREECATV->getSelectData();
-	ui->lineEditTitle->setText(data.frmTitle);
-	ui->lineEditCategory->setText(data.frmCategoryStr);
+	ui->lineEditTitle->setText(data.title);
+	ui->lineEditCategory->setText(data.categoryStr);
 }
 
 void PLSLiveInfoAfreecaTV::showEvent(QShowEvent *event)
@@ -67,7 +67,7 @@ void PLSLiveInfoAfreecaTV::showEvent(QShowEvent *event)
 		}
 	};
 
-	PLS_PLATFORM_AFREECATV->requestDashborad(_onNext, this);
+	PLS_PLATFORM_AFREECATV->requestDashborad(_onNext, this, false);
 	PLSLiveInfoBase::showEvent(event);
 }
 

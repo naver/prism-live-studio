@@ -18,6 +18,7 @@ public:
 
 public:
 	void updateUI(const SceneTemplateItem &model);
+	const SceneTemplateItem &getItem() const { return m_item; }
 
 protected:
 	void enterEvent(QEnterEvent *event) override;

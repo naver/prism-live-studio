@@ -54,4 +54,11 @@ public:
 	static long iso8601ToStamp(QString time);
 
 	static long getNowTimeStamp();
+
+	/**
+ *  @param 1605356544
+ */
+	static bool isToday(qint64 timestamp);
+
+	static int daysDifferenceFromNow(qint64 timestamp);
 };

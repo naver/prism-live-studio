@@ -30,15 +30,13 @@ Q_DECLARE_METATYPE(MissingFilesState);
 
 class OBSMissingFiles : public PLSDialogView {
 	Q_OBJECT
-	Q_PROPERTY(QIcon warningIcon READ GetWarningIcon WRITE SetWarningIcon
-			   DESIGNABLE true)
+	Q_PROPERTY(QIcon warningIcon READ GetWarningIcon WRITE SetWarningIcon DESIGNABLE true)
 
 	QPointer<MissingFilesModel> filesModel;
 	std::unique_ptr<Ui::OBSMissingFiles> ui;
 
 public:
-	explicit OBSMissingFiles(obs_missing_files_t *files,
-				 QWidget *parent = nullptr);
+	explicit OBSMissingFiles(obs_missing_files_t *files, QWidget *parent = nullptr);
 	virtual ~OBSMissingFiles() override;
 
 	void addMissingFile(const char *originalPath, const char *sourceName);
@@ -68,8 +66,7 @@ public:
 	int columnCount(const QModelIndex &parent = QModelIndex()) const;
 	int found() const;
 	QVariant data(const QModelIndex &index, int role) const;
-	QVariant headerData(int section, Qt::Orientation orientation,
-			    int role = Qt::DisplayRole) const;
+	QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
 	Qt::ItemFlags flags(const QModelIndex &index) const;
 	bool setData(const QModelIndex &index, const QVariant &value, int role);
 
@@ -89,8 +86,7 @@ private:
 
 	QList<MissingFileEntry> files;
 
-	void fileCheckLoop(QList<MissingFileEntry> files, QString path,
-			   bool skipPrompt);
+	void fileCheckLoop(QList<MissingFileEntry> files, QString path, bool skipPrompt);
 };
 
 class MissingFilesPathItemDelegate : public QStyledItemDelegate {
@@ -99,16 +95,12 @@ class MissingFilesPathItemDelegate : public QStyledItemDelegate {
 public:
 	MissingFilesPathItemDelegate(bool isOutput, const QString &defaultPath);
 
-	virtual QWidget *createEditor(QWidget *parent,
-				      const QStyleOptionViewItem & /* option */,
+	virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem & /* option */,
 				      const QModelIndex &index) const override;
 
-	virtual void setEditorData(QWidget *editor,
-				   const QModelIndex &index) const override;
-	virtual void setModelData(QWidget *editor, QAbstractItemModel *model,
-				  const QModelIndex &index) const override;
-	virtual void paint(QPainter *painter,
-			   const QStyleOptionViewItem &option,
+	virtual void setEditorData(QWidget *editor, const QModelIndex &index) const override;
+	virtual void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const override;
+	virtual void paint(QPainter *painter, const QStyleOptionViewItem &option,
 			   const QModelIndex &index) const override;
 
 private:

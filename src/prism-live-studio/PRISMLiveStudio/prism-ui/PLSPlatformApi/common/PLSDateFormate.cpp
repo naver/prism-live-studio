@@ -127,3 +127,21 @@ long PLSDateFormate::getNowTimeStamp()
 {
 	return QDateTime::currentDateTime().toSecsSinceEpoch();
 }
+
+bool PLSDateFormate::isToday(qint64 timestamp)
+{
+	QDateTime inputDateTime = QDateTime::fromSecsSinceEpoch(timestamp);
+	QDateTime currentDateTime = QDateTime::currentDateTime();
+	return inputDateTime.date() == currentDateTime.date();
+}
+
+int PLSDateFormate::daysDifferenceFromNow(qint64 timestamp)
+{
+	if (timestamp <= 0) {
+		return 0;
+	}
+
+	QDateTime inputDateTime = QDateTime::fromSecsSinceEpoch(timestamp);
+	QDateTime currentDateTime = QDateTime::currentDateTime();
+	return currentDateTime.date().daysTo(inputDateTime.date());
+}

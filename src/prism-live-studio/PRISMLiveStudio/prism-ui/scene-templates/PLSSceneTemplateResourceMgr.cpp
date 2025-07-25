@@ -1,4 +1,5 @@
 #include "PLSSceneTemplateResourceMgr.h"
+#include "PLSNaverShoppingLIVEAPI.h"
 
 #include <QDir>
 
@@ -16,6 +17,20 @@ using namespace std;
 void CategorySceneTemplate::jsonLoaded(pls::rsm::IResourceManager *mgr, pls::rsm::Category category)
 {
 	emit onJsonDownloaded();
+
+	auto groups = category.json()["group"].toArray();
+	for (auto iterGroup = groups.constBegin(); iterGroup != groups.constEnd(); ++iterGroup) {
+		auto group = (*iterGroup).toObject();
+		auto groupId = group["groupId"].toString();
+
+		auto items = group["items"].toArray();
+		for (auto iterItem = items.constBegin(); iterItem != items.constEnd(); ++iterItem) {
+			auto itemId = (*iterItem)[QString("itemId")].toString();
+			auto order = JSON_getInt((*iterItem)[QString("properties")].toObject(), itemNo);
+
+			m_mapOrder.insert(make_pair(groupId, itemId), order);
+		}
+	}
 }
 
 void CategorySceneTemplate::getItemDownloadUrlAndHowSaves(pls::rsm::IResourceManager *mgr, std::list<pls::rsm::UrlAndHowSave> &urlAndHowSaves, pls::rsm::Item item) const
@@ -111,4 +126,9 @@ void CategorySceneTemplate::findResource(SceneTemplateItem &item) const
 		}
 		item.resource.detailSceneThumbnailPathList(thumbnailList);
 	}
+}
+
+int CategorySceneTemplate::getOrder(const QString &groupId, const QString &itemId) const
+{
+	return m_mapOrder[make_pair(groupId, itemId)];
 }

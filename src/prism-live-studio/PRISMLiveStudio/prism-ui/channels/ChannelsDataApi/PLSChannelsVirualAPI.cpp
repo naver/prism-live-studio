@@ -357,20 +357,21 @@ bool updateChannelTypeFromNet(const QString &uuid, bool bRefresh)
 			handleUpdateRet(tmpList);
 			if (!bRefresh) {
 				for (auto &src : tmpList) {
-					auto platformName = getInfo(src, g_channelName);
 					int status = getInfo(src, g_channelStatus, Error);
+					auto utf8Data = getInfo(src, g_channelName).toUtf8();
+					auto platformName = utf8Data.constData();
 					if (status == ChannelData::ChannelStatus::Valid) {
-						PLS_LOGEX(PLS_LOG_INFO, "Channels", {{"platformName", platformName.toUtf8().constData()}, {"loginStatus", "Success"}}, "%s channel login success",
-							  platformName.toUtf8().constData());
+						PLS_LOGEX(PLS_LOG_INFO, "Channels", {{"platformName", platformName}, {"loginStatus", "Success"}}, "%s channel login success", platformName);
+						break;
 					} else if (status == ChannelData::ChannelStatus::Expired) {
-						PLS_LOGEX(PLS_LOG_INFO, "Channels",
-							  {{"platformName", platformName.toUtf8().constData()}, {"loginStatus", "Failed"}, {"loginFailed", "channel token expired."}},
-							  "%s channel login failed", platformName.toUtf8().constData());
+						PLS_LOGEX(PLS_LOG_INFO, "Channels", {{"platformName", platformName}, {"loginStatus", "Failed"}, {"loginFailed", "channel token expired."}},
+							  "%s channel login failed", platformName);
+						break;
 					} else if (status == ChannelData::ChannelStatus::Error) {
 						auto errStr = getInfo(src, g_channelSreLoginFailed);
-						PLS_LOGEX(PLS_LOG_INFO, "Channels",
-							  {{"platformName", platformName.toUtf8().constData()}, {"loginStatus", "Failed"}, {"loginFailed", errStr.toUtf8().constData()}},
-							  "%s channel login failed", platformName.toUtf8().constData());
+						PLS_LOGEX(PLS_LOG_INFO, "Channels", {{"platformName", platformName}, {"loginStatus", "Failed"}, {"loginFailed", errStr.toUtf8().constData()}},
+							  "%s channel login failed", platformName);
+						break;
 					}
 				}
 			} else {
@@ -737,7 +738,7 @@ template<typename Container> bool isCurrentVersionCanDoNextImp(const Container &
 DOUPDATE:
 	auto basic = PLSBasic::instance();
 	basic->CheckAppUpdate();
-	basic->startDownloading();
+	basic->startDownloading(basic->isForceUpdateApp());
 	return false;
 }
 
@@ -921,6 +922,12 @@ void childExclusive(const QString &channelID)
 			int userStatus = getInfo(child, g_channelUserStatus, Disabled);
 			if (userStatus == Enabled && uuid != channelID) {
 				PLSCHANNELS_API->setChannelUserStatus(uuid, Disabled);
+				//PRISM_PC-1947
+				if (pls_is_dual_output_on()) {
+					auto dualOutput = PLSCHANNELS_API->getValueOfChannel(uuid, g_channelDualOutput, NoSet);
+					PLSCHANNELS_API->setValueOfChannel(channelID, g_channelDualOutput, dualOutput);
+					PLSCHANNELS_API->sigSetChannelDualOutput(channelID, dualOutput);
+				}
 			}
 		}
 	}
@@ -962,21 +969,21 @@ QString findExistEnabledExclusiveChannel()
 void exclusiveChannelCheckAndVerify(const QVariantMap &Newinfo)
 {
 	if (isExclusiveChannel(Newinfo)) {
-		disableAll();
+		disableAll(true);
 	} else {
 		auto exclusiveID = findExistEnabledExclusiveChannel();
 		if (!exclusiveID.isEmpty()) {
-			PLSCHANNELS_API->setChannelUserStatus(exclusiveID, Disabled);
+			PLSCHANNELS_API->setChannelUserStatus(exclusiveID, Disabled, true, true);
 		}
 	}
 }
 
-void disableAll()
+void disableAll(bool bSync)
 {
 	const auto &channels = PLSCHANNELS_API->getAllChannelInfoReference();
 	auto ite = channels.cbegin();
 	while (ite != channels.cend()) {
-		PLSCHANNELS_API->setChannelUserStatus(ite.key(), Disabled);
+		PLSCHANNELS_API->setChannelUserStatus(ite.key(), Disabled, true, bSync);
 		++ite;
 	}
 }

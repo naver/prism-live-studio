@@ -25,7 +25,6 @@
 #import <AppKit/AppKit.h>
 #include "libutils-api.h"
 #include "PLSMacFunction.h"
-//#include "NMacManager.h"
 #include "libutils-api-log.h"
 #include "CrossProcessNotification.h"
 #include <assert.h>
@@ -837,30 +836,69 @@ QUrl build_mac_hmac_url(const QUrl &url, const QByteArray &hmacKey)
 {
 	return url;
 }
+static NSDate *getLaunchDateByCommandline(pid_t pid)
+{
+	NSTask *psTask = [[NSTask alloc] init];
+	[psTask setLaunchPath:@"/usr/bin/env"];
+	[psTask setArguments:@[@"LANG=en_US.UTF-8", @"ps", @"-p", [NSString stringWithFormat:@"%d", pid], @"-o", @"lstart="]];
+
+	NSPipe *pipe = [NSPipe pipe];
+	[psTask setStandardOutput:pipe];
+	[psTask launch];
+	[psTask waitUntilExit];
+
+	NSData *data = [[pipe fileHandleForReading] readDataToEndOfFile];
+	NSString *dateString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+	dateString = [dateString stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+	NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+	formatter.locale = [[NSLocale alloc] initWithLocaleIdentifier:@"en_US_POSIX"];
+	formatter.dateFormat = @"EEE MMM d HH:mm:ss yyyy";
+
+	return [formatter dateFromString:dateString];
+}
 
 bool pls_check_mac_app_is_existed(const wchar_t *executableName)
 {
+
 	NSMutableArray *processList = [[NSMutableArray alloc] init];
+	pid_t earlyPID = 0;
+	NSTimeInterval earlyTime = 0;
+	bool isContainNullData = false;
 	NSString *sourceExecutableName = getNSStringFromWChar_t(executableName);
-	for (int i = 0; i < [NSRunningApplication runningApplicationsWithBundleIdentifier:[NSBundle mainBundle].bundleIdentifier].count; i++) {
-		NSRunningApplication *runningApp = [NSRunningApplication runningApplicationsWithBundleIdentifier:[NSBundle mainBundle].bundleIdentifier][i];
+	NSArray<NSRunningApplication *> *apps = [[NSRunningApplication runningApplicationsWithBundleIdentifier:[NSBundle mainBundle].bundleIdentifier] copy];
+
+	for (NSRunningApplication *runningApp in apps) {
 		NSString *fileName = [runningApp.executableURL lastPathComponent];
 		if ([fileName isEqualToString:sourceExecutableName]) {
 			[processList addObject:[NSString stringWithFormat:@"%d", runningApp.processIdentifier]];
+			if (isContainNullData) {
+				continue;
+			}
+			pid_t pid = runningApp.processIdentifier;
+			NSTimeInterval timeStamp = runningApp.launchDate.timeIntervalSince1970;
+			if (timeStamp == 0) {
+				timeStamp = getLaunchDateByCommandline(pid).timeIntervalSince1970;
+			}
+			PLS_INFO("Process", "%s running app pid:%d timestamp:%.f", sourceExecutableName.UTF8String, pid, timeStamp);
+			if (timeStamp == 0) {
+				isContainNullData = true;
+				continue;
+			}
+			if (earlyTime == 0 || timeStamp <= earlyTime) {
+				earlyPID = pid;
+				earlyTime = timeStamp;
+			}
 		}
-		NSLog(@"mac launcher status : existed running app fileName is %@", fileName);
-		NSLog(@"mac launcher status : existed running app localizedName is %@", runningApp.localizedName);
-		NSLog(@"mac launcher status : existed running app executableURL is %@", runningApp.executableURL);
-		NSLog(@"mac launcher status : existed running app processIdentifier is %d", runningApp.processIdentifier);
-		NSLog(@"mac launcher status : existed running app bundleURL is %@", runningApp.bundleURL);
-		NSLog(@"mac launcher status : existed running app isHidden is %d", runningApp.isHidden);
-		NSLog(@"mac launcher status : existed running app isActive is %d", runningApp.isActive);
-		NSLog(@"mac launcher status : existed running app isFinishedLaunching is %d", runningApp.isFinishedLaunching);
 	}
-	if (processList.count > 1) {
-		return true;
+	if (isContainNullData) {
+		return processList.count > 1;
 	}
-	return false;
+
+	if (getpid() == earlyPID) {
+		return false;
+	}
+
+	return true;
 }
 
 bool pls_activiate_app()
@@ -893,6 +931,11 @@ bool pls_activiate_app_bundle_id(const char *identifier)
 		return [runningApp activateWithOptions:NSApplicationActivateIgnoringOtherApps];
 	}
 	return false;
+}
+
+void pls_activate_prism_as_active_app()
+{
+	[[NSApplication sharedApplication] activate];
 }
 
 bool pls_activiate_app_pid(int pid)

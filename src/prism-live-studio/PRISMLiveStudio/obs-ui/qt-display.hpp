@@ -8,9 +8,8 @@
 
 class OBSQTDisplay : public QWidget {
 	Q_OBJECT
-	Q_PROPERTY(QColor displayBackgroundColor MEMBER backgroundColor READ
-			   GetDisplayBackgroundColor WRITE
-				   SetDisplayBackgroundColor)
+	Q_PROPERTY(QColor displayBackgroundColor MEMBER backgroundColor READ GetDisplayBackgroundColor WRITE
+			   SetDisplayBackgroundColor)
 
 	OBSDisplay display;
 	bool destroying = false;
@@ -20,8 +19,7 @@ class OBSQTDisplay : public QWidget {
 	virtual void paintEvent(QPaintEvent *event) override;
 	virtual void moveEvent(QMoveEvent *event) override;
 	virtual void resizeEvent(QResizeEvent *event) override;
-	virtual bool nativeEvent(const QByteArray &eventType, void *message,
-				 qintptr *result) override;
+	virtual bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 
 signals:
 	void DisplayCreated(OBSQTDisplay *window);
@@ -29,8 +27,7 @@ signals:
 	void AdjustResizeView(QLabel *screen, QLabel *view, bool &handled);
 
 public:
-	OBSQTDisplay(QWidget *parent = nullptr,
-		     Qt::WindowFlags flags = Qt::WindowFlags());
+	OBSQTDisplay(QWidget *parent = nullptr, Qt::WindowFlags flags = Qt::WindowFlags());
 	~OBSQTDisplay() { display = nullptr; }
 	virtual QSize GetWidgetSize();
 	virtual QPaintEngine *paintEngine() const override;

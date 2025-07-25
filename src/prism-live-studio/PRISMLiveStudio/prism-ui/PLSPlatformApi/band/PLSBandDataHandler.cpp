@@ -27,6 +27,7 @@ bool PLSBandDataHandler::tryToUpdate(const QVariantMap &srcInfo, const UpdateCal
 		PLS_ERROR(MODULE_PLATFORM_BAND, "%s %s Band refresh failed, platform not exists", PrepareInfoPrefix, __FUNCTION__);
 
 		PLSErrorHandler::ExtraData otherData;
+		otherData.urlEn = QStringLiteral("band platform not exit");
 		otherData.errPhase = PLSErrPhaseLogin;
 		auto retData = PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_CHANNEL_LOGIN_FAIL, BAND, "", otherData);
 		QVariantMap info = srcInfo;

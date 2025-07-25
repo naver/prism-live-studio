@@ -44,4 +44,5 @@ private:
 	QSemaphore m_connected;
 
 	DualOutputType m_outputType = DualOutputType::All;
+	std::string m_strVideoSequence;
 };

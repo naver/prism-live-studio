@@ -15,9 +15,11 @@ struct PLSChatTemplateData {
 	QString resourcePath;
 	QString resourceBackupPath;
 	QString backgroundColor;
+	bool isPaid = false;
 };
 
-class PLSChatTemplateDataHelper : public ITextMotionTemplateHelper {
+class PLSChatTemplateDataHelper : public QObject, public ITextMotionTemplateHelper {
+	Q_OBJECT
 
 public:
 	void getChatTemplateFromsceneCollection(const QJsonArray &array);
@@ -38,12 +40,19 @@ public:
 	void removeCustomTemplate(const int id) override;
 	QList<ITextMotionTemplateHelper::PLSChatDefaultFamily> getChatCustomDefaultFamily() override;
 	void clearChatTemplateButton() override;
+	QButtonGroup *getBKTemplateButtons() override;
+	void checkChatBkRes(const std::function<void(bool)> &callback);
+	void initchatBKTemplateButtons();
+	void allDownloadedChatBKRes(pls::rsm::Category category, bool isOk);
+	static void raisePropertyView();
 
 	static ITextMotionTemplateHelper *instance()
 	{
 		static PLSChatTemplateDataHelper dataHelper;
 		return &dataHelper;
 	}
+signals:
+	void loadechatWidgetBKRes(bool isSuccess, bool isUPdate);
 
 private:
 	explicit PLSChatTemplateDataHelper();
@@ -52,6 +61,7 @@ private:
 	void initChatDefaultFamilyData(const QJsonArray &fontArray, const QString &langShort);
 	void initTemplateGroup();
 	QString getDefaultTitle();
+	bool isPaidBkTemplate(int id);
 
 private:
 	uint m_defaultId = 0;
@@ -63,6 +73,7 @@ private:
 	QSet<QString> m_chatTemplateNames;
 	std::string m_currentTemplateTitle;
 	QList<PLSChatDefaultFamily> m_chatDefaultfamilies;
+	QPointer<QButtonGroup> m_chatBKTemplateGroup;
 };
 
 #endif // CHATTEMPLATEDATAHELPER_H

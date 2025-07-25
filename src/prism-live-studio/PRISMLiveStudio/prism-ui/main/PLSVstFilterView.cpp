@@ -285,7 +285,7 @@ void PLSVstFilterView::updateVstState(const QString &vst_plugin_in, int state)
 		tipsString = QTStr("Basic.Filter.vstfilter.state.dllloadfaild");
 		break;
 	default:
-        tipsString = QTStr("Basic.Filter.vstfilter.state.unknownerror");
+		tipsString = QTStr("Basic.Filter.vstfilter.state.unknownerror");
 		assert(false && "unknown vst state");
 		break;
 	}

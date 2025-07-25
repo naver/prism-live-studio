@@ -59,6 +59,7 @@ public:
 	const PLSNaverShoppingLIVEAPI::NaverShoppingPrepareLiveInfo &getPrepareLiveInfo() const;
 	const PLSNaverShoppingLIVEAPI::NaverShoppingPrepareLiveInfo &getScheduleRehearsaPrepareLiveInfo() const;
 	PLSNaverShoppingLIVEAPI::ScheduleInfo getSelectedScheduleInfo(const QString &item_id) const;
+	void setScheduleInfoExpectedStartDate(const QString &scheduleId, const QString &expectedStartDate);
 
 	void setUserInfo(const PLSNaverShoppingLIVEAPI::NaverShoppingUserInfo &userInfo);
 	void setLivingInfo(const PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo &livingInfo);

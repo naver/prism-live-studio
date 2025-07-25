@@ -45,10 +45,7 @@ enum class PrepareInfoType { NonePrepareInfoType, GoLivePrepareInfo, RehearsalPr
 #define JSON_hasKey(object, key) PLSNaverShoppingLIVEAPI::json_hasKey(object, #key)
 #define JSON_hasPriceOrRateKey(object, key) PLSNaverShoppingLIVEAPI::json_hasPriceOrRateKey(object, #key)
 
-#define JSON_mkObject(key, value) \
-	{                         \
-#key, value       \
-	}
+#define JSON_mkObject(key, value) {#key, value}
 
 const int SCHEDULE_FIRST_PAGE_NUM = 1;
 const int SCHEDULE_PER_PAGE_MAX_NUM = 20;
@@ -177,7 +174,9 @@ public:
 		LiveCategory displayCategory;
 		QString description;
 		QString externalExposeAgreementStatus = CHANNEL_CONNECTION_NONE;
-		bool searchable;
+		QString expectedStartDate;
+		bool searchable = true;
+		bool sendNotification = true;
 		NaverShoppingLivingInfo() = default;
 		explicit NaverShoppingLivingInfo(const QJsonObject &object);
 	};
@@ -243,6 +242,7 @@ public:
 		explicit ScheduleInfo(const QJsonObject &object);
 
 		bool checkStartTime(int beforeSeconds, int afterSeconds) const;
+		void setExpectedStartDate(const QString &expectedStartDate);
 	};
 
 	struct Url {

@@ -24,32 +24,20 @@ target_sources(
           output-timer.hpp
           tool-helpers.hpp
           output-timer.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/double-slider.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/double-slider.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/horizontal-scroll-area.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/horizontal-scroll-area.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/properties-view.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/properties-view.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/properties-view.moc.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/qt-wrappers.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/qt-wrappers.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/spinbox-ignorewheel.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/spinbox-ignorewheel.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/slider-ignorewheel.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/slider-ignorewheel.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/vertical-scroll-area.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/vertical-scroll-area.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/plain-text-edit.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/plain-text-edit.hpp
           ${PRISMLiveStudio_SOURCE_DIR}/prism-ui/common/PLSMessageBox.cpp
           ${PRISMLiveStudio_SOURCE_DIR}/prism-ui/common/PLSMessageBox.h)
 
 target_compile_features(frontend-tools PRIVATE cxx_std_17)
 
+#add_subdirectory("$ENV{OBS_SRC_DIR}/shared/obs-scripting" "$ENV{OBS_BUILD_DIR}/shared/obs-scripting")
+
 target_link_libraries(frontend-tools PRIVATE OBS::frontend-api OBS::libobs
                                              Qt6::Widgets
                                              common-libs::ui
-                                             prism::frontend-api)
+                                             prism::frontend-api
+                                             OBS::properties-view
+                                             OBS::qt-plain-text-edit
+                                             OBS::qt-wrappers)
 if(OS_WINDOWS)
   set_property(
     TARGET frontend-tools

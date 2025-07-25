@@ -59,7 +59,7 @@ void PLSScheduleComboxMenu::setupDatas(const vector<PLSScheComboxItemData> &data
 
 	int topBorderHeight = 1;
 	int bottomBorderHeight = 1;
-	int widgetHeigth = topBorderHeight + bottomBorderHeight;
+	int widgetHeight = topBorderHeight + bottomBorderHeight;
 	for (auto &itemData : datas) {
 		bool isItemIgnore = false;
 		QString showStr = PLSScheduleComboxMenu::getDetailTime(itemData, isItemIgnore);
@@ -71,7 +71,7 @@ void PLSScheduleComboxMenu::setupDatas(const vector<PLSScheComboxItemData> &data
 		}
 		int itemHeight = itemData.itemHeight;
 		if (realShowCount < maxShowCount) {
-			widgetHeigth += itemHeight;
+			widgetHeight += itemHeight;
 		}
 		realShowCount++;
 		addAItem(showStr, itemData, itemHeight);
@@ -83,15 +83,15 @@ void PLSScheduleComboxMenu::setupDatas(const vector<PLSScheComboxItemData> &data
 				continue;
 			}
 			int itemHeight = itemData.itemHeight;
-			widgetHeigth += itemHeight;
+			widgetHeight += itemHeight;
 			addAItem(itemData.time, itemData, itemHeight);
 			realShowCount++;
 			break;
 		}
 	}
 
-	m_listWidget->setFixedSize(btnWidth, widgetHeigth);
-	this->setFixedSize(btnWidth, widgetHeigth);
+	m_listWidget->setFixedSize(btnWidth, widgetHeight);
+	this->setFixedSize(btnWidth, widgetHeight);
 	if (realShowCount > maxShowCount) {
 		m_listWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 		m_listWidget->verticalScrollBar()->setEnabled(true);
@@ -182,10 +182,7 @@ bool PLSScheduleComboxMenu::eventFilter(QObject *i_Object, QEvent *i_Event)
 		QPoint superPoint = parentWidget()->mapToGlobal(QPoint(0, 0));
 		QRect superRect(superPoint.x(), superPoint.y(), parentWidget()->width(), parentWidget()->height());
 		if (superRect.contains(mouseEvent->globalPosition().toPoint())) {
-			QTimer::singleShot(1, [this] {
-				PLS_INFO("PLSScheduleComboxMenu", "eventFilter singleShot to hide menu");
-				this->setHidden(true);
-			});
+			pls_async_call(this, [this] { this->setHidden(true); });
 			return true;
 		} else {
 			return QWidget::eventFilter(i_Object, i_Event);
@@ -275,8 +272,6 @@ PLSScheduleComboxItem::PLSScheduleComboxItem(const PLSScheComboxItemData &data, 
 	}
 
 	if (data.type == PLSScheComboxItemType::Ty_Loading || !data.imgUrl.isEmpty()) {
-		int imageWidth = data.type == PLSScheComboxItemType::Ty_Loading ? 24 : 34;
-		int dpi_widthe = imageWidth;
 		ui->imgLabel->setProperty("loading", data.type == PLSScheComboxItemType::Ty_Loading);
 		pls_flush_style(ui->imgLabel);
 
@@ -314,10 +309,10 @@ PLSScheduleComboxItem::PLSScheduleComboxItem(const PLSScheComboxItemData &data, 
 	}
 }
 
-void PLSScheduleComboxItem::downloadThumImage(const QLabel *reciver, const QString &url)
+void PLSScheduleComboxItem::downloadThumImage(const QLabel *receiver, const QString &url)
 {
-	auto _callBack = [this, reciver, url](bool ok, const QString &imagePath) {
-		if (reciver == nullptr || !pls_object_is_valid(reciver)) {
+	auto _callBack = [this, receiver, url](bool ok, const QString &imagePath) {
+		if (receiver == nullptr || !pls_object_is_valid(receiver)) {
 			return;
 		}
 		if (!ok) {
@@ -335,7 +330,7 @@ void PLSScheduleComboxItem::downloadThumImage(const QLabel *reciver, const QStri
 		_callBack(true, PLSImageStatic::instance()->profileUrlMap[url]);
 		return;
 	}
-	PLSAPICommon::downloadImageAsync(reciver, url, _callBack);
+	PLSAPICommon::downloadImageAsync(receiver, url, _callBack);
 }
 
 PLSScheduleComboxItem::~PLSScheduleComboxItem()

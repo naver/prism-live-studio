@@ -86,6 +86,8 @@ private:
 	void CTOptionsChanged(const char *setting);
 	void CTMotionChanged(const char *setting);
 	void ChzzkSponsorTypeChanged(const char *setting);
+	void CTBKColorTemplateChanged(const char *setting);
+	void colorToolButtonChanged(const char *setting);
 };
 
 class PLSPropertiesView : public OBSPropertiesView {
@@ -110,7 +112,8 @@ public:
 	PLSPropertiesView(OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize = 0, int maxSize = -1, bool showFiltersBtn = false, bool showColorFilterPath = true,
 			  bool colorFilterOriginalPressed = false, bool refreshProperties = true, bool reloadPropertyOnInit = true);
 	PLSPropertiesView(OBSBasicSettings *basicSettings, OBSData settings, const char *type, PropertiesReloadCallback reloadCallback, int minSize = 0, int maxSize = -1, bool showFiltersBtn = false,
-			  bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true, bool reloadPropertyOnInit = true, bool bChzzkKeyframeTip = false, bool bFromSetting = false);
+			  bool showColorFilterPath = true, bool colorFilterOriginalPressed = false, bool refreshProperties = true, bool reloadPropertyOnInit = true, bool bChzzkKeyframeTip = false,
+			  bool bFromSetting = false);
 	~PLSPropertiesView() override;
 
 #define obj_constructor(type)                                                                                                                                                               \
@@ -268,6 +271,8 @@ private:
 	void ShowLoading();
 	void HideLoading();
 	void AddChzzkSponsor(obs_property_t *prop, QFormLayout *layout);
+	void addCTBKTemplate(obs_property_t *prop, QFormLayout *layout);
+	void addCTBKCustomColor(obs_property_t *prop, QFormLayout *layout);
 	static QStringList getFilteredFontFamilies();
 
 private slots:

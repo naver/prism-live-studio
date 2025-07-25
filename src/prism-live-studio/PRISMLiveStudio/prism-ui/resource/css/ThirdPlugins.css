@@ -3,6 +3,7 @@ ConnectInfo#ConnectInfo,
 #CaptionsDialog,
 #Output,
 #OutputSettings,
+#OutputSettings > QProgressDialog,
 #Adv-ss-dock,
 SceneNotesDock > QWidget,
 NameDialog,
@@ -82,7 +83,18 @@ SourceDock #sourceFiltersButton[flat="true"] {
     max-height: 22px;
     background-color: transparent;
 }
-
+#AdvSceneSwitcher QToolButton#actionDown,
+#AdvSceneSwitcher QToolButton#macroDown,
+#AdvSceneSwitcher QToolButton#elseActionDown,
+#AdvSceneSwitcher QToolButton#conditionDown {
+    margin: 0;
+    padding: 0;
+    min-width: 12px;
+    min-height: 12px;
+    max-width: 12px;
+    max-height: 12px;
+    background-color: transparent;
+}
 #Adv-ss-dock QToolButton {
     margin: 0;
     padding: 0;
@@ -146,7 +158,8 @@ AudioOutputControl, AudioOutputControl VolumeMeter, AudioControl, AudioControl V
             color: white;
         }
 
-#AdvSceneSwitcher #macroConditions QScrollArea #qt_scrollarea_viewport > QWidget {
+#AdvSceneSwitcher #macroConditions QScrollArea #qt_scrollarea_viewport > QWidget,
+#AdvSceneSwitcher  QScrollArea #qt_scrollarea_viewport > QWidget{
     background-color: #1E1E1F;
 }
 
@@ -496,9 +509,15 @@ DownstreamKeyer #scenesToolbar [themeID="clearIconSmall"] {
     qproperty-icon: url(:/obs/Dark/resource/images/Dark/entry-clear.svg);
 }
 
-DownstreamKeyer #scenesToolbar [themeID="propertiesIconSmall"] {
+DownstreamKeyer #scenesToolbar [themeID="propertiesIconSmall"],
+#AdvSceneSwitcher #macroSettings {
     qproperty-icon: url(:/obs/Dark/resource/images/Dark/settings/general.svg);
 }
+#AdvSceneSwitcher QToolButton#toggleElseActions, #AdvSceneSwitcher QToolButton#macroSettings {
+    border: none;
+    background-color: transparent;
+}
+
 
 DownstreamKeyer #scenesToolbar [themeID="configIconSmall"] {
     qproperty-icon: url(:/obs/Dark/resource/images/Dark/settings/general.svg);
@@ -604,4 +623,12 @@ SourceDock #contextContainer #sourcePropertiesButton {
     max-height: 25px;
     min-width:60px;
     max-width: 150px;
+}
+
+#win_spout_output_settings #pushButton_start,
+#win_spout_output_settings #pushButton_stop {
+    min-width: 140px;
+    max-width: 140px;
+    margin: 0;
+    padding: 0;
 }

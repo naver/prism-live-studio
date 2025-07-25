@@ -11,13 +11,11 @@ class YouTubeAppDock : public BrowserDock {
 
 public:
 	YouTubeAppDock(const QString &title);
-	~YouTubeAppDock();
 
 	enum streaming_mode_t { YTSM_ACCOUNT, YTSM_STREAM_KEY };
 
 	void AccountConnected();
 	void AccountDisconnected();
-	void SettingsUpdated(bool cleanup = false);
 	void Update();
 
 	void BroadcastCreated(const char *stream_id);
@@ -32,6 +30,9 @@ public:
 	static bool IsYouTubeService();
 	bool IsUserSignedIntoYT();
 
+public slots:
+	void SettingsUpdated(bool cleanup = false);
+
 protected:
 	void IngestionStarted(const char *stream_id, streaming_mode_t mode);
 	void IngestionStopped(const char *stream_id, streaming_mode_t mode);
@@ -43,16 +44,16 @@ private:
 	void CreateBrowserWidget(const std::string &url);
 	virtual void showEvent(QShowEvent *event) override;
 	virtual void closeEvent(QCloseEvent *event) override;
-	void DispatchYTEvent(const char *event, const char *video_id,
-			     streaming_mode_t mode);
+	void DispatchYTEvent(const char *event, const char *video_id, streaming_mode_t mode);
 	void UpdateChannelId();
 	void UpdateVideoId();
-	void SetInitEvent(streaming_mode_t mode, const char *event = nullptr,
-			  const char *video_id = nullptr,
+	void ReloadChatDock();
+	void SetInitEvent(streaming_mode_t mode, const char *event = nullptr, const char *video_id = nullptr,
 			  const char *channelId = nullptr);
+
+	void setVideoId(bool bNewCreate, QString sVideoId);
 
 	QString channelId;
 	QString videoId;
 	QPointer<QCefWidget> dockBrowser;
-	QCefCookieManager *cookieManager; // is not a Qt object
 };

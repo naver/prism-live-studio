@@ -132,11 +132,9 @@ PLSChatDialog::PLSChatDialog(QWidget *parent) : QWidget(parent)
 	pls_add_css(this, {"PLSChatDialog"});
 	setupFirstUI();
 
-	connect(
-		PLS_PLATFORM_API, &PLSPlatformApi::channelRemoved, this, [this]() { refreshUI(); }, Qt::QueuedConnection);
+	connect(PLS_PLATFORM_API, &PLSPlatformApi::channelRemoved, this, [this]() { refreshUI(); }, Qt::QueuedConnection);
 
-	connect(
-		PLS_PLATFORM_API, &PLSPlatformApi::platformActiveDone, this, [this]() { refreshUI(); }, Qt::QueuedConnection);
+	connect(PLS_PLATFORM_API, &PLSPlatformApi::platformActiveDone, this, [this]() { refreshUI(); }, Qt::QueuedConnection);
 	connect(
 		PLSCHANNELS_API, &PLSChannelDataAPI::sigOperationChannelDone, this,
 		[this]() {
@@ -190,7 +188,7 @@ PLSChatDialog::PLSChatDialog(QWidget *parent) : QWidget(parent)
 
 	this->installEventFilter(this);
 
-	PLSChatHelper::sendWebChatFontSizeChanged(PLSChatHelper::getFontSacleSize());
+	PLSChatHelper::sendWebChatFontSizeChanged(PLSChatHelper::getFontScaleSize());
 }
 
 PLSChatDialog::~PLSChatDialog()
@@ -270,8 +268,7 @@ void PLSChatDialog::setupFirstUI()
 
 	setSelectIndex(ChatPlatformIndex::UnDefine);
 
-	QMetaObject::invokeMethod(
-		this, [this]() { refreshUI(); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(this, [this]() { refreshUI(); }, Qt::QueuedConnection);
 }
 
 void PLSChatDialog::refreshUI()
@@ -336,7 +333,7 @@ void PLSChatDialog::refreshTabButtonCount()
 void PLSChatDialog::hideOrShowTabButton()
 {
 
-	int plaltformCount = 0;
+	int platformCount = 0;
 	bool isContainVlive = false;
 	for (const auto &info : PLSCHANNELS_API->getCurrentSelectedChannels()) {
 		if (info.empty()) {
@@ -351,17 +348,17 @@ void PLSChatDialog::hideOrShowTabButton()
 			continue;
 		}
 
-		plaltformCount++;
+		platformCount++;
 	}
 
 	//PRISM/Zhangdewen/20200921/#/add chat source button && VLIVE not show
-	m_chatSourceButtonOnePlatform->setVisible(plaltformCount == 1 && !isContainVlive);
+	m_chatSourceButtonOnePlatform->setVisible(platformCount == 1 && !isContainVlive);
 
-	bool isOnlyRtmp = plaltformCount <= 0;
+	bool isOnlyRtmp = platformCount <= 0;
 	//PRISM/Zhangdewen/20201021/#5310/switch delay
 	//move code
 
-	bool allWillShow = plaltformCount > 1;
+	bool allWillShow = platformCount > 1;
 	m_vecChatDatas[ChatPlatformIndex::All].button->setHidden(!allWillShow);
 
 	if (isOnlyRtmp) {
@@ -550,7 +547,7 @@ PLSQCefWidget *PLSChatDialog::createANewCefWidget(const string &url, int index)
 		name = ALL_CHAT;
 	}
 	chat_panel_cookies = PLSBasic::getBrowserPannelCookieMgr(name);
-	cefWidget = static_cast<PLSQCefWidget *>(plsCef->create_widget(nullptr, url, PLSChatHelper::getDispatchJS(index).toStdString(), chat_panel_cookies, {}, false, QColor(30, 30, 31), {}, true));
+	cefWidget = static_cast<PLSQCefWidget *>(plsCef->create_widget(nullptr, url, PLSChatHelper::getDispatchJS(index, QString::fromStdString(url)).toStdString(), chat_panel_cookies, {}, false, QColor(30, 30, 31), {}, true));
 
 	if (PLS_CHAT_HELPER->isLocalHtmlPage(index)) {
 		cefWidget->installEventFilter(this);
@@ -559,6 +556,7 @@ PLSQCefWidget *PLSChatDialog::createANewCefWidget(const string &url, int index)
 	if (index == ChatPlatformIndex::Youtube) {
 		QObject::connect(cefWidget, SIGNAL(urlChanged(const QString &)), this, SLOT(urlDidChanged(const QString &)));
 		QObject::connect(cefWidget, SIGNAL(titleChanged(const QString &)), this, SLOT(titleChanged(const QString &)));
+		QObject::connect(cefWidget, SIGNAL(loadEnded()), this, SLOT(loadEnded()));
 	}
 	if (index == ChatPlatformIndex::NCB2B || index == ChatPlatformIndex::All) {
 		QObject::connect(cefWidget, SIGNAL(msgRecevied(const QString &, const QString &)), this, SLOT(recvLocalChatWebMsg(const QString &, const QString &)));
@@ -669,9 +667,9 @@ bool PLSChatDialog::eventFilter(QObject *watched, QEvent *event)
 void PLSChatDialog::wheelEvent(QWheelEvent *event)
 {
 	QPoint numDegrees = event->angleDelta() / 8;
-	bool forwartStep = numDegrees.y() > 0;
+	bool forwardStep = numDegrees.y() > 0;
 	auto bar = ui->scrollArea->horizontalScrollBar();
-	bar->setValue(bar->value() + (forwartStep ? -1 : 1) * 50);
+	bar->setValue(bar->value() + (forwardStep ? -1 : 1) * 50);
 	event->accept();
 }
 
@@ -696,8 +694,8 @@ void PLSChatDialog::adjustToastSize(int dialogWidth)
 	int closeTop = 5;
 	int closeLeft = 21;
 
-	int framWidth = dialogWidth - 2 * spaceWidth;
-	int textWidth = framWidth - 40;
+	int frameWidth = dialogWidth - 2 * spaceWidth;
+	int textWidth = frameWidth - 40;
 
 	int topoffeet = ui->titleWidget->isVisible() ? ui->titleWidget->height() : 0;
 	m_pTestFrame->move(QPoint{spaceWidth, spaceWidth + topoffeet});
@@ -706,11 +704,11 @@ void PLSChatDialog::adjustToastSize(int dialogWidth)
 	QFontMetrics fontMetricsRight(m_pLabelToast->font());
 	int textHeight = fontMetricsRight.boundingRect(QRect(0, 0, textWidth, 1000), Qt::AlignBottom | Qt::AlignLeft | Qt::TextWordWrap, m_pLabelToast->text()).height();
 	textHeight = qMax(30, textHeight);
-	auto framSize = QSize(framWidth, textHeight + 20);
-	m_pTestFrame->resize(framSize);
+	auto frameSize = QSize(frameWidth, textHeight + 20);
+	m_pTestFrame->resize(frameSize);
 }
 
-void PLSChatDialog::createToasWidget()
+void PLSChatDialog::createToastWidget()
 {
 	if (m_pTestFrame.isNull()) {
 		auto frame = pls_new<QFrame>(this);
@@ -772,7 +770,7 @@ void PLSChatDialog::showToastIfNeeded()
 		return;
 	}
 
-	createToasWidget();
+	createToastWidget();
 	m_pLabelToast->setText(showStr);
 	adjustToastSize();
 }
@@ -880,7 +878,7 @@ void PLSChatDialog::facebookPrivateChatChanged(bool oldPrivate, bool newPrivate)
 {
 	pls_check_app_exiting();
 	if (oldPrivate == false && newPrivate == true) {
-		createToasWidget();
+		createToastWidget();
 		m_pLabelToast->setText(tr("facebook.living.chat.Private"));
 		adjustToastSize();
 	} else {
@@ -936,7 +934,7 @@ void PLSChatDialog::urlDidChanged(const QString &url)
 {
 	QString redirectUrl = QString("https://www.youtube.com/watch?v=%1").arg(PLS_PLATFORM_YOUTUBE ? PLS_PLATFORM_YOUTUBE->getSelectID() : "");
 	if (url.startsWith(redirectUrl)) {
-		PLS_INFO(s_chatModuleName, "chat youtube login succed, redirect to chat pop up url");
+		PLS_INFO(s_chatModuleName, "chat youtube login succeed, redirect to chat pop up url");
 		updateYoutubeUrlIfNeeded(true);
 	}
 }
@@ -952,11 +950,20 @@ void PLSChatDialog::titleChanged(const QString &title)
 		});
 	}
 }
+void PLSChatDialog::loadEnded()
+{
+	PLSQCefWidget *cefWidget = static_cast<PLSQCefWidget *>(sender());
+	QString js = PLSChatHelper::getDispatchJS(ChatPlatformIndex::Youtube, QString::fromStdString(m_vecChatDatas[ChatPlatformIndex::Youtube].url));
+	if (!js.isEmpty()) {
+		cefWidget->executeJavaScript(js.toStdString());
+	}
+}
+
 void PLSChatDialog::youtubePrivateChange()
 {
 	pls_check_app_exiting();
 	m_bRefeshYoutubeChat = true;
-	PLS_INFO(MODULE_PlatformService, "youtube signal privateChangedToOther emited");
+	PLS_INFO(MODULE_PlatformService, "youtube signal privateChangedToOther emitteded");
 	updateYoutubeUrlIfNeeded(true);
 }
 

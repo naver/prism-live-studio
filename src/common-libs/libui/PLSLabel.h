@@ -101,4 +101,17 @@ private:
 	bool handleTooltip;
 };
 
+class LIBUI_API PLSFormLabel : public QLabel {
+	Q_OBJECT
+
+public:
+	PLSFormLabel(QWidget *parent = nullptr);
+
+public Q_SLOTS:
+	void setText(const QString &);
+
+protected:
+	void resizeEvent(QResizeEvent *event) override;
+};
+
 #endif // _PRISM_COMMON_LIBHDPI_LABEL_H

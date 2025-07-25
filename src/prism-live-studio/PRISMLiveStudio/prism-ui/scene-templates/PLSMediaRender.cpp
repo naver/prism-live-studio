@@ -5,6 +5,7 @@
 #include <QThread>
 #include <QPainter>
 #include <QPainterPath>
+#include <QHBoxLayout>
 
 #include "libui.h"
 #include "log/log.h"
@@ -16,6 +17,13 @@ PLSMediaRender::PLSMediaRender(QWidget *parent) : QOpenGLWidget{parent}
 
 	connect(m_videoSink.data(), &QVideoSink::videoFrameChanged, this, &PLSMediaRender::onVideoFrame, Qt::DirectConnection);
 	connect(m_videoSink.data(), &QVideoSink::videoFrameChanged, this, qOverload<>(&PLSMediaRender::update));
+
+	imageLabel = new PLSSceneTemplateBorderLabel(this);
+	imageLabel->setObjectName("imageLabel");
+
+	auto boxLayout = new QHBoxLayout(this);
+	boxLayout->setContentsMargins(QMargins());
+	boxLayout->addWidget(imageLabel);
 }
 
 PLSMediaRender::~PLSMediaRender()
@@ -72,12 +80,12 @@ void PLSMediaRender::setMediaPlayer(QMediaPlayer *mediaPlayer)
 
 void PLSMediaRender::setHasBorder(bool bBorder)
 {
-	m_bBorder = bBorder;
+	imageLabel->setHasBorder(bBorder);
 }
 
 void PLSMediaRender::setSceneName(const QString &name)
 {
-	m_strName = name;
+	imageLabel->setSceneNameLabel(name);
 }
 
 void PLSMediaRender::onVideoFrame(const QVideoFrame &frame)
@@ -174,7 +182,7 @@ bool PLSMediaRender::uploadFrame()
 	return true;
 }
 
-void PLSMediaRender::renderFrame()
+void PLSMediaRender::paintGL()
 {
 	if (!isValid()) {
 		if (!m_bOpenGLFailed) {
@@ -331,48 +339,6 @@ void PLSMediaRender::renderFrame()
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
-void PLSMediaRender::paintEvent(QPaintEvent *event)
-{
-	QPainter painter(this);
-	painter.setRenderHint(QPainter::Antialiasing);
-	painter.setRenderHint(QPainter::SmoothPixmapTransform);
-
-	painter.beginNativePainting();
-	renderFrame();
-	painter.endNativePainting();
-
-	if (m_bBorder) {
-		auto rc = rect().adjusted(1, 1, -1, -1);
-
-		painter.setPen(QPen(QColor(39, 39, 39), 2));
-		painter.drawRect(rc);
-
-		painter.setPen(QPen(QColor(0xEF, 0xFC, 0x35), 2));
-		painter.drawRoundedRect(rc, 3, 3);
-	}
-
-	if (!m_strName.isEmpty()) {
-		auto fontSceneName = font();
-		fontSceneName.setBold(true);
-		fontSceneName.setPixelSize(14);
-
-		auto metrics = QFontMetrics(fontSceneName);
-		auto rectName = metrics.boundingRect(m_strName);
-
-		auto rectText = QRect(width() - rectName.width() - 52, height() - 50, rectName.width() + 32, 30);
-		painter.setPen(QPen(Qt::white, 1));
-		painter.drawRoundedRect(rectText, 16, 16);
-		painter.setFont(fontSceneName);
-		painter.drawText(rectText, Qt::AlignCenter, m_strName);
-	}
-
-	if (nullptr != m_pPixmapAIBadge) {
-		auto x = m_bLongAIBadge ? 20 : 6;
-		auto y = m_bLongAIBadge ? 23 : 6;
-		painter.drawPixmap(x, y, m_pPixmapAIBadge->width() / 4, m_pPixmapAIBadge->height() / 4, *m_pPixmapAIBadge);
-	}
-}
-
 void PLSMediaRender::mouseReleaseEvent(QMouseEvent *event)
 {
 	if (event->button() == Qt::LeftButton) {
@@ -382,10 +348,5 @@ void PLSMediaRender::mouseReleaseEvent(QMouseEvent *event)
 
 void PLSMediaRender::showAIBadge(const QPixmap &pixmap, bool bLongAIBadge)
 {
-	m_bLongAIBadge = bLongAIBadge;
-	if (pixmap.isNull()) {
-		m_pPixmapAIBadge = nullptr;
-	} else {
-		m_pPixmapAIBadge = &pixmap;
-	}
+	imageLabel->showAIBadge(pixmap, bLongAIBadge);
 }

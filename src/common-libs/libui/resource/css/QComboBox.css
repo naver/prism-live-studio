@@ -96,10 +96,11 @@ PLSComboBoxListView QLabel#itemLabel {
 	padding-left: /*hdpi*/ 12px;
 	border-radius: 0;
 }
-PLSComboBoxListView QLabel#itemLabel[enable="false"] {
+PLSComboBoxListView QLabel#itemLabel[enable="false"],
+PLSComboBoxListView QLabel#itemLabel[enable="false"][isCurrent="true"] {
 	color: #666666;
 }
-PLSComboBoxListView QLabel#itemLabel[isHover="true"][enable="false"] {
+PLSComboBoxListView QLabel#itemLabel[enable="false"][isHover="true"] {
     	background-color: #2d2d2d;
 }
 PLSComboBoxListView QLabel#itemLabel[isCurrent="true"] {

@@ -351,7 +351,6 @@ static inline QPoint operator+(const QPoint &pt, const QSize &sz)
 	return QPoint(pt.x() + sz.width(), pt.y() + sz.height());
 }
 
-
 int PLSWindow::titleBarHeight() const
 {
 	return hasCaption ? ui->titleBar->height() : 0;
@@ -419,6 +418,7 @@ void PLSWindow::closeEvent(QCloseEvent *event)
 void PLSWindow::showEvent(QShowEvent *event)
 {
 	PLSToplevelView<QWidget>::showEvent(event);
+	disableWinSystemBorder();
 	emit shown();
 }
 

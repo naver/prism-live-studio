@@ -64,7 +64,7 @@ std::wstring S2WS(const std::string &str)
 	if (!str.empty()) {
 		size_t outLen = UTF8ToWChar(str.data(), str.size(), nullptr, 0);
 		outStr.resize(outLen);
-		UTF8ToWChar(str.data(), str.size(), outStr.data(), outLen);			
+		UTF8ToWChar(str.data(), str.size(), outStr.data(), outLen);
 	}
 
 	return outStr;
@@ -76,7 +76,7 @@ std::string WS2S(const std::wstring &wstr)
 	if (!wstr.empty()) {
 		size_t outLen = WCharToUTF8(wstr.data(), wstr.size(), nullptr, 0);
 		outStr.resize(outLen);
-		WCharToUTF8(wstr.data(), wstr.size(), outStr.data(), outLen);			
+		WCharToUTF8(wstr.data(), wstr.size(), outStr.data(), outLen);
 	}
 
 	return outStr;
@@ -154,7 +154,7 @@ int EnumPhysicalDisk(std::vector<PhysicalDisk> &disks)
 			break;
 		}
 		DISK_GEOMETRY pdg = {0};
-		bResult = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, nullptr, 0, &pdg, sizeof(pdg), &junk, (LPOVERLAPPED)nullptr);
+		bResult = DeviceIoControl(hDevice, IOCTL_DISK_GET_DRIVE_GEOMETRY, nullptr, 0, &pdg, sizeof(pdg), &junk, (LPOVERLAPPED) nullptr);
 
 		CloseHandle(hDevice);
 		if (bResult) {

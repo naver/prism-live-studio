@@ -472,10 +472,17 @@ QString guessPlatformFromRTMP(const QString &rtmpUrl)
 		}
 	}
 
-	auto obsTwitchServers = getObsTwitchServer();
+	auto obsTwitchServers = getObsServer(TWITCH_SERVICE);
 	for (auto pair : obsTwitchServers) {
 		if (rtmpUrl.contains(pair.second)) {
 			return TWITCH;
+		}
+	}
+
+	auto obsYoutubeServers = getObsServer(YOUTUBE_RTMP);
+	for (auto pair : obsYoutubeServers) {
+		if (rtmpUrl.contains(pair.second)) {
+			return YOUTUBE;
 		}
 	}
 
@@ -605,17 +612,19 @@ QList<QPair<QString, QString>> initTwitchServer()
 	}
 
 	GlobalVars::g_bUseAPIServer = false;
-	auto obsTwitchServerList = getObsTwitchServer();
+	auto obsTwitchServerList = getObsServer(TWITCH_SERVICE);
 	if (obsTwitchServerList.size() > 0) {
+		if (obsTwitchServerList.at(0).second == "auto") {
+			obsTwitchServerList.replace(0, QPair<QString, QString>(QTStr("setting.output.server.auto"), PLSCHANNELS_API->getRTMPInfos().value(TWITCH)));
+		}
 		return obsTwitchServerList;
 	}
 	return QList<QPair<QString, QString>>{};
 }
 
-QList<QPair<QString, QString>> getObsTwitchServer()
+QList<QPair<QString, QString>> getObsServer(QString serviceName)
 {
-	QList<QPair<QString, QString>> obsTwitchServer;
-	QString serviceName = TWITCH_SERVICE;
+	QList<QPair<QString, QString>> obsServer;
 	obs_properties_t *props = obs_get_service_properties("rtmp_common");
 	obs_property_t *services = obs_properties_get(props, "service");
 
@@ -631,11 +640,11 @@ QList<QPair<QString, QString>> getObsTwitchServer()
 		const char *name = obs_property_list_item_name(servers, i);
 		const char *server = obs_property_list_item_string(servers, i);
 		if (!pls_is_empty(name) && !pls_is_empty(server)) {
-			obsTwitchServer.append(QPair<QString, QString>(name, server));
+			obsServer.append(QPair<QString, QString>(name, server));
 		}
 	}
 	obs_properties_destroy(props);
-	return obsTwitchServer;
+	return obsServer;
 }
 
 void ChannelsNetWorkPretestWithAlerts(const pls::http::Reply &reply, bool notify)

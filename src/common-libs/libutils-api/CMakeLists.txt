@@ -29,7 +29,7 @@ add_library(libutils-api SHARED ${ALL_FILES})
 add_library(common-libs::utils-api ALIAS libutils-api)
 
 if(OS_MACOS)
-target_link_libraries(libutils-api Qt6::Core Qt6::Gui Qt6::Network ${MacNetwork} ${MacSecurity} ${APPKIT})
+target_link_libraries(libutils-api Qt6::Core Qt6::Gui Qt6::Network ${MacNetwork} ${MacSecurity} ${APPKIT} )
 target_compile_options(libutils-api PRIVATE -fobjc-arc)
 elseif(OS_WINDOWS)
 target_link_libraries(libutils-api Qt6::Core Qt6::Gui Qt6::Network)

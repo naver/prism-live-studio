@@ -1,5 +1,5 @@
 PLSPropertiesView QLabel {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: bold;
 }
 
@@ -18,7 +18,7 @@ PLSPropertiesView {
 
 
     PLSPropertiesView #noPropertiesLabel {
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
         font-weight: bold;
         color: #bababa;
     }
@@ -42,92 +42,92 @@ PLSPropertiesView {
     }
 
     PLSPropertiesView #lineedit {
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
+        min-height: 40px;
+        max-height: 40px;
         background-color: #1e1e1e;
-        border-radius: /*hdpi*/ 3px;
-        padding-left: /*hdpi*/ 9px;
-        font-size: /*hdpi*/ 14px;
+        border-radius: 3px;
+        padding-left: 9px;
+        font-size: 14px;
     }
 
     PLSPropertiesView #checkbox {
-        min-height: /*hdpi*/ 20px;
-        max-height: /*hdpi*/ 20px;
-        font-size: /*hdpi*/ 14px;
+        min-height: 20px;
+        max-height: 20px;
+        font-size: 14px;
         color: #e1e1e1;
         background-color: #272727;
     }
 
         PLSPropertiesView #checkbox QLabel {
-            font-size: /*hdpi*/ 14px;
+            font-size: 14px;
             color: #e1e1e1;
             font-weight: normal;
         }
 
     PLSPropertiesView #formCheckBox {
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
         font-weight: bold;
         color: #bababa;
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
-        spacing: /*hdpi*/ 6px;
+        min-height: 40px;
+        max-height: 40px;
+        spacing: 6px;
     }
 
         PLSPropertiesView #formCheckBox QLabel {
-            font-size: /*hdpi*/ 14px;
+            font-size: 14px;
             font-weight: bold;
             color: #bababa;
-            min-height: /*hdpi*/ 40px;
-            max-height: /*hdpi*/ 40px;
+            min-height: 40px;
+            max-height: 40px;
         }
 
     PLSPropertiesView #browse {
-        padding: /*hdpi*/ 0px;
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
-        min-width: /*hdpi*/ 136px;
-        max-width: /*hdpi*/ 136px;
+        padding: 0px;
+        min-height: 40px;
+        max-height: 40px;
+        min-width: 136px;
+        max-width: 136px;
     }
 
     PLSPropertiesView #editableList {
-        border-radius: /*hdpi*/ 3px;
-        min-height: /*hdpi*/ 138px;
-        max-height: /*hdpi*/ 138px;
+        border-radius: 3px;
+        min-height: 138px;
+        max-height: 138px;
         background-color: #1e1e1e;
     }
 
     PLSPropertiesView #propertyFileListContrl {
-        min-width: /*hdpi*/ 40px;
-        max-width: /*hdpi*/ 40px;
-        min-height: /*hdpi*/ 138px;
-        max-height: /*hdpi*/ 138px;
+        min-width: 40px;
+        max-width: 40px;
+        min-height: 138px;
+        max-height: 138px;
         background-color: #1e1e1e;
     }
 
     PLSPropertiesView #editableList QPushButton {
         background-color: #222222;
-        min-width: /*hdpi*/ 22px;
-        max-width: /*hdpi*/ 22px;
-        min-height: /*hdpi*/ 22px;
-        max-height: /*hdpi*/ 22px;
+        min-width: 22px;
+        max-width: 22px;
+        min-height: 22px;
+        max-height: 22px;
     }
 
     PLSPropertiesView #fontLabel {
-        min-height: /*hdpi*/ 38px;
-        max-height: /*hdpi*/ 38px;
-        font-size: /*hdpi*/ 14px;
-        border-radius: /*hdpi*/ 3px;
+        min-height: 38px;
+        max-height: 38px;
+        font-size: 14px;
+        border-radius: 3px;
     }
 
     PLSPropertiesView #fontButton {
-        font-weight: /*hdpi*/ bold;
-        padding-left: /*hdpi*/ 10px;
-        padding-right: /*hdpi*/ 10px;
-        min-width: /*hdpi*/ 130px;
+        font-weight: bold;
+        padding-left: 10px;
+        padding-right: 10px;
+        min-width: 130px;
     }
 
     PLSPropertiesView #baseColorLabel {
-        border-radius: /*hdpi*/ 3px;
+        border-radius: 3px;
         font-weight: normal;
     }
 
@@ -136,10 +136,10 @@ PLSPropertiesView {
     }
 
     PLSPropertiesView #button {
-        padding-left: /*hdpi*/ 50px;
-        padding-right: /*hdpi*/ 50px;
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
+        padding-left: 50px;
+        padding-right: 50px;
+        min-height: 40px;
+        max-height: 40px;
     }
 
     PLSPropertiesView QPushButton {
@@ -152,12 +152,12 @@ PLSPropertiesView {
 
     PLSPropertiesView #plainTextEdit {
         background-color: #1e1e1e;
-        min-height: /*hdpi*/ 79px;
-        max-height: /*hdpi*/ 79px;
+        min-height: 79px;
+        max-height: 79px;
     }
 
     PLSPropertiesView #spinBox {
-        min-width: /*hdpi*/ 49px;
+        min-width: 49px;
     }
 
         PLSPropertiesView #spinBox[subLabel="true"] {
@@ -166,42 +166,42 @@ PLSPropertiesView {
         }
 
     PLSPropertiesView #button1 {
-        padding: /*hdpi*/ 0px;
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
-        max-width: /*hdpi*/ 150px;
+        padding: 0px;
+        min-height: 40px;
+        max-height: 40px;
+        max-width: 150px;
         color: #ffffff;
         font-weight: normal;
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
     }
 
     PLSPropertiesView #button2 {
-        padding: /*hdpi*/ 0px;
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
-        max-width: /*hdpi*/ 169px;
+        padding: 0px;
+        min-height: 40px;
+        max-height: 40px;
+        max-width: 169px;
         color: #ffffff;
         font-weight: normal;
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
     }
 
     PLSPropertiesView #button3 {
-        padding: /*hdpi*/ 0px;
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
-        max-width: /*hdpi*/ 183px;
+        padding: 0px;
+        min-height: 40px;
+        max-height: 40px;
+        max-width: 183px;
         color: #ffffff;
         font-weight: normal;
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
     }
 
     PLSPropertiesView #FixedButton {
         padding: 0px;
         margin: 0px;
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
-        max-width: /*hdpi*/ 120px;
-        min-width: /*hdpi*/ 120px;
+        min-height: 40px;
+        max-height: 40px;
+        max-width: 120px;
+        min-width: 120px;
         font-weight: bold;
     }
 
@@ -215,22 +215,22 @@ PLSPropertiesView {
     }
 
     PLSPropertiesView #formLabel {
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
         font-weight: bold;
         color: #bababa;
         background-color: #272727;
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
+        min-height: 40px;
+        max-height: 40px;
     }
 
         PLSPropertiesView #formLabel[lensSource=true] {
-            min-width: /*hdpi*/ 109px;
-            max-width: /*hdpi*/ 9999px;
+            min-width: 109px;
+            max-width: 9999px;
         }
 
 PLSBasicProperties[sourceId="prism_timer_source"] PLSPropertiesView #formLabel {
-    min-width: /*hdpi*/ 144px;
-    max-width: /*hdpi*/ 144px;
+    min-width: 144px;
+    max-width: 144px;
     background-color: transparent;
 }
 
@@ -241,8 +241,8 @@ PLSBasicProperties[sourceId="av_capture_input_v2"] PLSPropertiesView #formLabel 
 }
 
 PLSBasicProperties[sourceId="prism_timer_source"] PLSPropertiesView #formCheckBox {
-    min-width: /*hdpi*/ 40px;
-    max-width: /*hdpi*/ 144px;
+    min-width: 40px;
+    max-width: 144px;
     background-color: transparent;
     color: #bababa;
 }
@@ -252,8 +252,8 @@ PLSBasicProperties[sourceId="prism_timer_source"] PLSPropertiesView #formCheckBo
     }
 
 PLSBasicProperties[sourceId="prism_audio_visualizer_source"] PLSPropertiesView #formCheckBox {
-    min-width: /*hdpi*/ 40px;
-    max-width: /*hdpi*/ 144px;
+    min-width: 40px;
+    max-width: 144px;
     background-color: transparent;
     color: #bababa;
 }
@@ -263,26 +263,26 @@ PLSBasicProperties[sourceId="prism_audio_visualizer_source"] PLSPropertiesView #
         font-weight: bold;
         color: #ffffff;
         background-color: transparent;
-        min-height: /*hdpi*/ 17px;
+        min-height: 17px;
     }
 
 
 PLSPropertiesView QListWidget {
     background-color: #1e1e1e;
-    border: /*hdpi*/ none;
+    border: none;
     outline: none;
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
 }
 
     PLSPropertiesView QListWidget::item {
         border: none;
-        height: /*hdpi*/ 40px;
-        margin-top: /*hdpi*/ 1px;
-        margin-bottom: /*hdpi*/ 1px;
+        height: 40px;
+        margin-top: 1px;
+        margin-bottom: 1px;
         font-weight: normal;
         color: #ffffff;
-        padding-right: /*hdpi*/ 12px;
-        padding-left: /*hdpi*/ 12px;
+        padding-right: 12px;
+        padding-left: 12px;
     }
 
         PLSPropertiesView QListWidget::item:selected {
@@ -300,8 +300,8 @@ PLSPropertiesView QListWidget {
         }
 
 PLSPropertiesView QPushButton#propertyButtonAdd {
-    qproperty-minimumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
-    qproperty-maximumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
     background-color: transparent;
     image: url(":/resource/images/icon-addsource-default.svg");
 }
@@ -319,8 +319,8 @@ PLSPropertiesView QPushButton#propertyButtonAdd {
     }
 
 PLSPropertiesView QPushButton#propertyButtonRemove {
-    qproperty-minimumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
-    qproperty-maximumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
     background-color: transparent;
     image: url(":/resource/images/ic-delete-default.svg");
 }
@@ -338,8 +338,8 @@ PLSPropertiesView QPushButton#propertyButtonRemove {
     }
 
 PLSPropertiesView QPushButton#propertyButtonConfige {
-    qproperty-minimumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
-    qproperty-maximumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
     background-color: transparent;
     image: url(":/resource/images/ic-setting-s-normal.svg");
 }
@@ -357,8 +357,8 @@ PLSPropertiesView QPushButton#propertyButtonConfige {
     }
 
 PLSPropertiesView QPushButton#propertyButtonMoveUp {
-    qproperty-minimumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
-    qproperty-maximumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
     background-color: transparent;
     image: url(":/resource/images/ic-top-normal.svg");
 }
@@ -376,8 +376,8 @@ QPushButton#propertyButtonMoveUp:disabled {
 }
 
 PLSPropertiesView QPushButton#propertyButtonMoveDown {
-    qproperty-minimumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
-    qproperty-maximumSize: /*hdpi*/ 22px /*hdpi*/ 22px;
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
     background-color: transparent;
     image: url(":/resource/images/ic-down-normal.svg");
 }
@@ -395,35 +395,35 @@ PLSPropertiesView QPushButton#propertyButtonMoveDown {
     }
 
 PLSPropertiesView #songCountLabel {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     color: #bababa;
     font-weight: bold;
-    min-height: /*hdpi*/ 18px;
-    max-height: /*hdpi*/ 18px;
+    min-height: 18px;
+    max-height: 18px;
 }
 
 PLSPropertiesView #songTipsLabel {
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     color: #666666;
 }
 
 PLSPropertiesView PLSPropertyMusicItem {
     background-color: #1e1e1e;
-    min-height: /*hdpi*/ 40px;
-    max-height: /*hdpi*/ 40px;
+    min-height: 40px;
+    max-height: 40px;
 }
 
     PLSPropertiesView PLSPropertyMusicItem #additionalLabel {
         background: transparent;
         color: #ffffff;
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
         font-weight: normal;
     }
 
     PLSPropertiesView PLSPropertyMusicItem #producerLabel {
         background: transparent;
         color: #ffffff;
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
         font-weight: normal;
     }
 
@@ -431,7 +431,7 @@ PLSPropertiesView PLSPropertyMusicItem {
     PLSPropertiesView PLSPropertyMusicItem #orderLabel {
         background: transparent;
         color: #ffffff;
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
         font-weight: normal;
     }
 
@@ -456,27 +456,27 @@ PLSPropertiesView PLSPropertyMusicItem {
         }
 
 PLSPropertiesView #frameContianer {
-    border-radius: /*hdpi*/ 3px;
-    min-height: /*hdpi*/ 120px;
-    max-height: /*hdpi*/ 120px;
+    border-radius: 3px;
+    min-height: 120px;
+    max-height: 120px;
     background-color: #1e1e1e;
-    border: /*hdpi*/ none;
+    border: none;
 }
 
 PLSPropertiesView #propertyMusicList {
     background-color: #1e1e1e;
-    border: /*hdpi*/ none;
+    border: none;
 }
 
     PLSPropertiesView #propertyMusicList::item {
         background-color: #1e1e1e;
         color: #ffffff;
-        padding-right: /*hdpi*/ 0px;
-        padding-left: /*hdpi*/ 0px;
-        margin-top: /*hdpi*/ 0px;
-        margin-bottom: /*hdpi*/ 0px;
+        padding-right: 0px;
+        padding-left: 0px;
+        margin-top: 0px;
+        margin-bottom: 0px;
         border: 0px;
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
     }
 
         PLSPropertiesView #propertyMusicList::item:selected {
@@ -489,10 +489,10 @@ PLSPropertiesView #propertyMusicList {
         }
 
 PLSPropertyMusicItem #playBtn {
-    min-height: /*hdpi*/ 16px;
-    max-height: /*hdpi*/ 16px;
-    min-width: /*hdpi*/ 16px;
-    max-width: /*hdpi*/ 16px;
+    min-height: 16px;
+    max-height: 16px;
+    min-width: 16px;
+    max-width: 16px;
     border-radius: none;
     background: transparent;
 }
@@ -514,10 +514,10 @@ PLSPropertyMusicItem[status=normal] {
 }
 
 PLSPropertyMusicItem #selectedBtn {
-    min-height: /*hdpi*/ 22px;
-    max-height: /*hdpi*/ 22px;
-    min-width: /*hdpi*/ 22px;
-    max-width: /*hdpi*/ 22x;
+    min-height: 22px;
+    max-height: 22px;
+    min-width: 22px;
+    max-width: 22x;
     background: transparent;
     border-radius: none;
     image: url(":/resource/images/bgm/btn-add-playlist-done-normal.svg");
@@ -540,28 +540,28 @@ PLSPropertiesView PLSComboBox QLabel#itemLabel {
 }
 
 PLSPropertiesView #chatTemplateList {
-    min-height: /*hdpi*/ 204px;
-    max-height: /*hdpi*/ 204px;
+    min-height: 204px;
+    max-height: 204px;
 }
 
     PLSPropertiesView #chatTemplateList > #chatTemplateList_nameLabel {
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
         font-weight: bold;
         color: #bababa;
     }
 
     PLSPropertiesView #chatTemplateList > #chatTemplateList_descLabel {
-        font-size: /*hdpi*/ 12px;
+        font-size: 12px;
         font-weight: normal;
         color: #666666;
     }
 
     PLSPropertiesView #chatTemplateList > #chatTemplateList_template {
-        min-width: /*hdpi*/ 158px;
-        max-width: /*hdpi*/ 158px;
-        min-height: /*hdpi*/ 158px;
-        max-height: /*hdpi*/ 158px;
-        border-radius: /*hdpi*/ 3px;
+        min-width: 158px;
+        max-width: 158px;
+        min-height: 158px;
+        max-height: 158px;
+        border-radius: 3px;
         background: transparent;
         border: none;
         padding: 0;
@@ -569,12 +569,12 @@ PLSPropertiesView #chatTemplateList {
     }
 
         PLSPropertiesView #chatTemplateList > #chatTemplateList_template > #icon {
-            border-top-left-radius: /*hdpi*/ 3px;
-            border-top-right-radius: /*hdpi*/ 3px;
-            min-width: /*hdpi*/ 158px;
-            max-width: /*hdpi*/ 158px;
-            min-height: /*hdpi*/ 118px;
-            max-height: /*hdpi*/ 118px;
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+            min-width: 158px;
+            max-width: 158px;
+            min-height: 118px;
+            max-height: 118px;
             border: none;
         }
 
@@ -707,111 +707,115 @@ PLSPropertiesView #chatTemplateList {
         }
 
         PLSPropertiesView #chatTemplateList > #chatTemplateList_template > #text {
-            border-bottom-left-radius: /*hdpi*/ 3px;
-            border-bottom-right-radius: /*hdpi*/ 3px;
-            border: /*hdpi*/ 1px solid #353535;
-            font-size: /*hdpi*/ 14px;
+            border-bottom-left-radius: 3px;
+            border-bottom-right-radius: 3px;
+            border: 1px solid #353535;
+            font-size: 14px;
             font-weight: bold;
             color: #bababa;
-            padding-left: /*hdpi*/ 12px;
+            padding-left: 12px;
             background: #2e2e2e;
         }
 
         PLSPropertiesView #chatTemplateList > #chatTemplateList_template[hovered="true"] > #text {
-            border: /*hdpi*/ 1px solid #353535;
+            border: 1px solid #353535;
             background: #444444;
             color: white;
         }
 
         PLSPropertiesView #chatTemplateList > #chatTemplateList_template[pressed="true"] > #text {
-            border: /*hdpi*/ 1px solid #353535;
+            border: 1px solid #353535;
             background: #1e1e1e;
             color: white;
         }
 
         PLSPropertiesView #chatTemplateList > #chatTemplateList_template[checked="true"] > #text {
-            border: /*hdpi*/ 1px solid #effc35;
+            border: 1px solid #effc35;
             background: #effc35;
             color: black;
         }
 
 PLSPropertiesView #chatFontSize > #label {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: bold;
     color: #bababa;
     background: transparent;
 }
 
 PLSPropertiesView #chatFontSize > #spinBox {
-    min-width: /*hdpi*/ 84px;
-    max-width: /*hdpi*/ 84px;
+    min-width: 84px;
+    max-width: 84px;
 }
 
 /*****text motion properties ****/
 
 PLSPropertiesView QWidget > #horiLine {
     background-color: #12ffffff;
-    min-height: /*hdpi*/ 1px;
-    max-height: /*hdpi*/ 1px;
+    min-height: 1px;
+    max-height: 1px;
 }
 
 PLSPropertiesView #TMTabFrame {
-    border-bottom: /*hdpi*/ 1px solid #12ffffff;
+    border-bottom: 1px solid #12ffffff;
 }
 
 PLSPropertiesView #TMTabButton {
     margin: 0px;
     padding: 0px;
-    border-radius: /*hdpi*/ 0px;
-    border-bottom: /*hdpi*/ 2px solid transparent;
+    border-radius: 0px;
+    border-bottom: 2px solid transparent;
     background-color: transparent;
     color: #bababa;
     font-weight: normal;
-    font-size: /*hdpi*/ 14px;
-    qproperty-maximumSize: /*hdpi*/ 1570px /*hdpi*/ 48px;
-    qproperty-minimumSize: /*hdpi*/ 157px /*hdpi*/ 48px;
+    font-size: 14px;
+    qproperty-maximumSize: 1570px 48px;
+    qproperty-minimumSize: 157px 48px;
     padding: 0;
     margin: 0;
 }
-PLSPropertiesView[sourceId="prism_chatv2_source"] #TMTabButton {
-    qproperty-maximumSize: /*hdpi*/ 1000px /*hdpi*/ 38px;
-    qproperty-minimumSize: /*hdpi*/ 190px /*hdpi*/ 38px;
-    padding: 0;
+PLSPropertiesView #ChatTabButton {
     margin: 0;
+    padding: 0;
+    border-radius: 0px;
+    border-bottom: 2px solid transparent;
+    background-color: transparent;
+    color: #bababa;
+    font-weight: normal;
+    font-size: 14px;
 }
 PLSPropertiesView #TMTabFrame[height_timer="true"] #TMTabButton,
 PLSPropertiesView[sourceId="prism_viewer_count_source"] #TMTabButton {
-    qproperty-maximumSize: /*hdpi*/ 157px /*hdpi*/ 34px;
-    qproperty-minimumSize: /*hdpi*/ 157px /*hdpi*/ 34px;
+    qproperty-maximumSize: 157px 34px;
+    qproperty-minimumSize: 157px 34px;
     text-align: top;
     padding: 0;
     margin: 0;
 }
 
-PLSPropertiesView #TMTabButton:checked {
+PLSPropertiesView #TMTabButton:checked, PLSPropertiesView #ChatTabButton:checked {
     color: #effc35;
     font-weight: bold;
-    border-bottom: /*hdpi*/ 2px solid #effc35;
+    border-bottom: 2px solid #effc35;
 }
 
 PLSPropertiesView #propertyMusicList QScrollBar:vertical {
     background-color: #1e1e1e;
-    min-width: /*hdpi*/ 10px;
-    max-width: /*hdpi*/ 10px;
+    min-width: 10px;
+    max-width: 10px;
     margin: 0px;
 }
 
 PLSPropertiesView #propertyMusicList::item {
     background-color: #1e1e1e;
     color: #ffffff;
-    height: /*hdpi*/ 28px;
-    padding-right: /*hdpi*/ 0px;
-    padding-left: /*hdpi*/ 10px;
-    margin-top: /*hdpi*/ 0px;
-    margin-bottom: /*hdpi*/ 0px;
+    height: 28px;
+    padding-right: 0px;
+    padding-left: 10px;
+    margin-top: 0px;
+    margin-bottom: 0px;
     border: 0px;
     font-weight: bold;
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
 }
 
     PLSPropertiesView #propertyMusicList::item:hover {
@@ -839,37 +843,37 @@ PLSPropertiesView OBSFrameRatePropertyWidget #modeSelect {
 
 PLSPropertiesView #TMTabTemplistFrame {
     border: none;
-    min-height: /*hdpi*/ 35px;
-    max-height: /*hdpi*/ 35px;
+    min-height: 35px;
+    max-height: 35px;
 }
 
 PLSPropertiesView #TMTabTemplistBtn {
     border: none;
     background-color: transparent;
     font-weight: bold;
-    border-radius: /*hdpi*/ 17px;
-    qproperty-maximumSize: /*hdpi*/ 95px /*hdpi*/ 35px;
-    qproperty-minimumSize: /*hdpi*/ 95px /*hdpi*/ 35px;
+    border-radius: 17px;
+    qproperty-maximumSize: 95px 35px;
+    qproperty-minimumSize: 95px 35px;
 }
 
     PLSPropertiesView #TMTabTemplistBtn[customName="screen saver"] {
-        qproperty-maximumSize: /*hdpi*/ 156px /*hdpi*/ 35px;
-        qproperty-minimumSize: /*hdpi*/ 156px /*hdpi*/ 35px;
+        qproperty-maximumSize: 156px 35px;
+        qproperty-minimumSize: 156px 35px;
     }
 
     PLSPropertiesView #TMTabTemplistBtn[customName="social"] {
-        qproperty-maximumSize: /*hdpi*/ 109px /*hdpi*/ 35px;
-        qproperty-minimumSize: /*hdpi*/ 109px /*hdpi*/ 35px;
+        qproperty-maximumSize: 109px 35px;
+        qproperty-minimumSize: 109px 35px;
     }
 
     PLSPropertiesView #TMTabTemplistBtn[customName="caption"] {
-        qproperty-maximumSize: /*hdpi*/ 119px /*hdpi*/ 35px;
-        qproperty-minimumSize: /*hdpi*/ 119px /*hdpi*/ 35px;
+        qproperty-maximumSize: 119px 35px;
+        qproperty-minimumSize: 119px 35px;
     }
 
     PLSPropertiesView #TMTabTemplistBtn[customName="sticker"] {
-        qproperty-maximumSize: /*hdpi*/ 114px /*hdpi*/ 35px;
-        qproperty-minimumSize: /*hdpi*/ 114px /*hdpi*/ 35px;
+        qproperty-maximumSize: 114px 35px;
+        qproperty-minimumSize: 114px 35px;
     }
 
     PLSPropertiesView #TMTabTemplistBtn:hover {
@@ -886,84 +890,84 @@ PLSPropertiesView #TMTabTemplistBtn {
     }
 
 PLSPropertiesView #tmLabel {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: bold;
     color: #ffffff;
-    height: /*hdpi*/ 18px;
+    height: 18px;
 }
 
 PLSPropertiesView #subLabel {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: normal;
     color: #bababa;
-    min-width: /*hdpi*/ 135px;
+    min-width: 135px;
     background-color:transparent;
 }
 
 PLSPropertiesView[sourceId="prism_chatv2_source"] #subLabel {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: normal;
     color: #bababa;
-    min-width: /*hdpi*/ 135px;
-    max-width: /*hdpi*/ 135px;
+    min-width: 135px;
+    max-width: 135px;
     background-color: transparent;
 } 
 PLSPropertiesView #ct_empty_tip_label {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: normal;
     color: #a3a3a3;
     background-color: transparent;
 }
 PLSPropertiesView #subLabelWithTips {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: normal;
     color: #bababa;
 }
 
     PLSPropertiesView #subLabel[moveDown="3"] {
-        padding-top: /*hdpi*/ 3px;
+        padding-top: 3px;
     }
 
     PLSPropertiesView #subLabel:disabled {
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
         font-weight: normal;
         color: #666666;
     }
 
 PLSPropertiesView #spinSubLabel {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: normal;
     color: #bababa;
-    margin-right: /*hdpi*/ 11px;
+    margin-right: 11px;
 }
 
 PLSPropertiesView #sliderLabel, PLSPropertiesView #bk_outlineLabel {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: normal;
     color: #bababa;
 }
 
     PLSPropertiesView #sliderLabel:disabled {
-        font-size: /*hdpi*/ 14px;
+        font-size: 14px;
         font-weight: normal;
         color: #666666;
     }
 
 PLSPropertiesView #colorFrame, PLSPropertiesView #outLineFrame {
-    min-width: /*hdpi*/ 128px;
+    min-width: 128px;
 }
 PLSPropertiesView[sourceId="prism_chatv2_source"] #ctColorFrame {
-    min-width: /*hdpi*/ 135px;
-    max-width: /*hdpi*/ 135px;
+    min-width: 135px;
+    max-width: 135px;
 }
 PLSPropertiesView #ctColorFrame {
-    min-width: /*hdpi*/ 135px;
+    min-width: 135px;
 }
 
 PLSPropertiesView #Label_TMHLButton, PLSPropertiesView #Label_TMHCButton, PLSPropertiesView #Label_TMHRButton {
     background-color: transparent;
-    qproperty-maximumSize: /*hdpi*/ 13px /*hdpi*/ 13px;
-    qproperty-minimumSize: /*hdpi*/ 13px /*hdpi*/ 13px;
+    qproperty-maximumSize: 13px 13px;
+    qproperty-minimumSize: 13px 13px;
     padding: 0;
     margin: 0;
 }
@@ -1058,7 +1062,7 @@ PLSPropertiesView #Label_TMHLButton, PLSPropertiesView #Label_TMHCButton, PLSPro
 PLSPropertiesView #AA, PLSPropertiesView #aa, PLSPropertiesView #TMHLButton, PLSPropertiesView #TMHRButton, PLSPropertiesView #TMHCButton {
     border: none;
     border-radius: 0px;
-    font-size: /*hdpi*/ 16px;
+    font-size: 16px;
     font-weight: 600;
     color: #bababa;
     background-color: #444444;
@@ -1067,19 +1071,19 @@ PLSPropertiesView #AA, PLSPropertiesView #aa, PLSPropertiesView #TMHLButton, PLS
 }
 
 PLSPropertiesView #AA, PLSPropertiesView #aa {
-    min-width: /*hdpi*/ 146px;
+    min-width: 146px;
     padding: 0;
     margin: 0;
 }
 
 PLSPropertiesView #AA, PLSPropertiesView #TMHLButton {
-    border-bottom-left-radius: /*hdpi*/ 3px;
-    border-top-left-radius: /*hdpi*/ 3px;
+    border-bottom-left-radius: 3px;
+    border-top-left-radius: 3px;
 }
 
 PLSPropertiesView #aa, PLSPropertiesView #TMHRButton {
-    border-bottom-right-radius: /*hdpi*/ 3px;
-    border-top-right-radius: /*hdpi*/ 3px;
+    border-bottom-right-radius: 3px;
+    border-top-right-radius: 3px;
 }
 
 PLSPropertiesView #TMHCButton {
@@ -1088,18 +1092,18 @@ PLSPropertiesView #TMHCButton {
 
 PLSPropertiesView #Label_AA {
     background-color: transparent;
-    qproperty-maximumSize: /*hdpi*/ 22px /*hdpi*/ 12px;
-    qproperty-minimumSize: /*hdpi*/ 22px /*hdpi*/ 12px;
+    qproperty-maximumSize: 22px 12px;
+    qproperty-minimumSize: 22px 12px;
 }
 
 PLSPropertiesView #listenBtn {
     /*background-color: white;*/
     margin: 0px;
     padding: 0px;
-    min-height: /*hdpi*/ 40px;
-    max-height: /*hdpi*/ 40px;
-    min-width: /*hdpi*/ 44px;
-    max-width: /*hdpi*/ 44px;
+    min-height: 40px;
+    max-height: 40px;
+    min-width: 44px;
+    max-width: 44px;
 }
 
     PLSPropertiesView #listenBtn[selected="true"] {
@@ -1164,8 +1168,8 @@ PLSPropertiesView #Label_AA[enable="false"] {
 
 PLSPropertiesView #Label_aa {
     background-color: transparent;
-    qproperty-maximumSize: /*hdpi*/ 19px /*hdpi*/ 12px;
-    qproperty-minimumSize: /*hdpi*/ 19px /*hdpi*/ 12px;
+    qproperty-maximumSize: 19px 12px;
+    qproperty-minimumSize: 19px 12px;
 }
 
     PLSPropertiesView #Label_aa[checked="true"] {
@@ -1197,49 +1201,49 @@ PLSPropertiesView #Label_aa {
     }
 
 PLSPropertiesView #leftSliderIcon {
-    qproperty-maximumSize: /*hdpi*/ 25px /*hdpi*/ 15px;
-    qproperty-minimumSize: /*hdpi*/ 25px /*hdpi*/ 15px;
+    qproperty-maximumSize: 25px 15px;
+    qproperty-minimumSize: 25px 15px;
     image: url(":/resource/images/text-template/speed-low.svg");
 }
 
 PLSPropertiesView #rightSliderIcon {
-    qproperty-maximumSize: /*hdpi*/ 25px /*hdpi*/ 15px;
-    qproperty-minimumSize: /*hdpi*/ 25px /*hdpi*/ 15px;
+    qproperty-maximumSize: 25px 15px;
+    qproperty-minimumSize: 25px 15px;
     image: url(":/resource/images/text-template/speed-hign.svg");
 }
 
 PLSPropertiesView #colorCardBtn {
-    qproperty-maximumSize: /*hdpi*/ 32px /*hdpi*/ 32px;
-    qproperty-minimumSize: /*hdpi*/ 32px /*hdpi*/ 32px;
-    padding: /*hdpi*/ 1px;
-    border: /*hdpi*/ 1px solid white;
-    border-radius: /*hdpi*/ 16px;
+    qproperty-maximumSize: 32px 32px;
+    qproperty-minimumSize: 32px 32px;
+    padding: 1px;
+    border: 1px solid white;
+    border-radius: 16px;
 }
 
     PLSPropertiesView #colorCardBtn:checked {
-        border: /*hdpi*/ 2px solid #effc35;
+        border: 2px solid #effc35;
     }
 
 PLSPropertiesView #colorLabel {
-    min-width: /*hdpi*/ 85px;
-    max-width: /*hdpi*/ 85px;
-    border-bottom-left-radius: /*hdpi*/ 3px;
-    border-top-left-radius: /*hdpi*/ 3px;
+    min-width: 85px;
+    max-width: 85px;
+    border-bottom-left-radius: 3px;
+    border-top-left-radius: 3px;
 }
 PLSPropertiesView #colorLabel:disabled {
     background-color:#363636;
 }
 
 PLSPropertiesView #textColorBtn {
-    border-bottom-left-radius: /*hdpi*/ 0px;
-    border-top-left-radius: /*hdpi*/ 0px;
-    border-bottom-right-radius: /*hdpi*/ 3px;
-    border-top-right-radius: /*hdpi*/ 3px;
-    min-height: /*hdpi*/ 22px;
-    min-width: /*hdpi*/ 22px;
-    max-height: /*hdpi*/ 22px;
-    max-width: /*hdpi*/ 22px;
-    padding: /*hdpi*/ 9px;
+    border-bottom-left-radius: 0px;
+    border-top-left-radius: 0px;
+    border-bottom-right-radius: 3px;
+    border-top-right-radius: 3px;
+    min-height: 22px;
+    min-width: 22px;
+    max-height: 22px;
+    max-width: 22px;
+    padding: 9px;
     image: url(":/resource/images/text-template/ic-setting-s-normal.svg");
 }
 
@@ -1258,8 +1262,8 @@ PLSPropertiesView #textColorBtn {
 PLSTemplateButton#PLSTemplateButton {
     background-color: transparent;
     border: none;
-    qproperty-maximumSize: /*hdpi*/ 157px /*hdpi*/ 157px;
-    qproperty-minimumSize: /*hdpi*/ 157px /*hdpi*/ 157px;
+    qproperty-maximumSize: 157px 157px;
+    qproperty-minimumSize: 157px 157px;
 }
 
 PLSTemplateButton #container, PLSTemplateButton #templateGifLabel {
@@ -1268,22 +1272,22 @@ PLSTemplateButton #container, PLSTemplateButton #templateGifLabel {
 }
 
 PLSTemplateButton #templateBorderlabel[checked="true"] {
-    qproperty-maximumSize: /*hdpi*/ 157px /*hdpi*/ 157px;
-    qproperty-minimumSize: /*hdpi*/ 157px /*hdpi*/ 157px;
+    qproperty-maximumSize: 157px 157px;
+    qproperty-minimumSize: 157px 157px;
     image: url(":/resource/images/text-template/select.svg");
     background-color: transparent;
 }
 
 PLSTemplateButton #templateBorderlabel[checked="false"] {
-    qproperty-maximumSize: /*hdpi*/ 157px /*hdpi*/ 157px;
-    qproperty-minimumSize: /*hdpi*/ 157px /*hdpi*/ 157px;
+    qproperty-maximumSize: 157px 157px;
+    qproperty-minimumSize: 157px 157px;
     image: url(":/resource/images/text-template/normal.svg");
     background-color: transparent;
 }
 
 PLSPropertiesView #plainTextEdit_1, PLSPropertiesView #plainTextEdit_2 {
-    min-height: /*hdpi*/ 50px;
-    max-height: /*hdpi*/ 50px;
+    min-height: 50px;
+    max-height: 50px;
     background-color: #1e1e1f;
 }
 
@@ -1337,11 +1341,11 @@ PLSPropertiesView PLSRegionCapture #frameMenu > #confirmBtn {
 PLSPropertiesView #selectCaptureRegionTip {
     background-color: transparent;
     color: #666666;
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
 }
 
 PLSPropertiesView #selectRegionBtn {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: bold;
     color: white;
 }
@@ -1359,12 +1363,12 @@ PLSPropertiesView #slider::add-page:horizontal:disabled {
 }
 
 PLSPropertiesView #slider {
-    margin-left: /*hdpi*/ 0px;
+    margin-left: 0px;
 }
 
     PLSPropertiesView #slider::handle:disabled {
-        width: /*hdpi*/ 0px;
-        height: /*hdpi*/ 0px;
+        width: 0px;
+        height: 0px;
     }
 
 PLSPropertiesView #imageGroupBtn {
@@ -1376,17 +1380,17 @@ PLSPropertiesView #imageGroupBtn {
 }
 
     PLSPropertiesView #imageGroupBtn[type="0"] {
-        min-width: /*hdpi*/ 157px;
-        max-width: /*hdpi*/ 157px;
-        min-height: /*hdpi*/ 88px;
-        max-height: /*hdpi*/ 88px;
+        min-width: 157px;
+        max-width: 157px;
+        min-height: 88px;
+        max-height: 88px;
     }
 
     PLSPropertiesView #imageGroupBtn[type="4"] {
-        min-width: /*hdpi*/ 157px;
-        max-width: /*hdpi*/ 157px;
-        min-height: /*hdpi*/ 88px;
-        max-height: /*hdpi*/ 88px;
+        min-width: 157px;
+        max-width: 157px;
+        min-height: 88px;
+        max-height: 88px;
     }
 
         PLSPropertiesView #imageGroupBtn[type="4"][checked="true"] #movieBorderLabel {
@@ -1401,12 +1405,12 @@ PLSPropertiesView #imageGroupBtn {
 
 
     PLSPropertiesView #imageGroupBtn[type="0"]:checked {
-        border: /*hdpi*/ 2px solid #effc35;
-        border-radius: /*hdpi*/ 3px;
+        border: 2px solid #effc35;
+        border-radius: 3px;
     }
 
     PLSPropertiesView #imageGroupBtn[type="0"]:unchecked {
-        border: /*hdpi*/ 2px solid #1E1E1F;
+        border: 2px solid #1E1E1F;
     }
 
     PLSPropertiesView #imageGroupBtn[type="0"][id="0"][checked="false"]:hover {
@@ -1426,12 +1430,12 @@ PLSPropertiesView #imageGroupBtn {
     }
 
     PLSPropertiesView #imageGroupBtn[type="1"] {
-        min-width: /*hdpi*/ 30px;
-        max-width: /*hdpi*/ 30px;
-        min-height: /*hdpi*/ 30px;
-        max-height: /*hdpi*/ 30px;
+        min-width: 30px;
+        max-width: 30px;
+        min-height: 30px;
+        max-height: 30px;
         background: transparent;
-        border: /*hdpi*/ 1px solid transparent;
+        border: 1px solid transparent;
     }
 
         PLSPropertiesView #imageGroupBtn[type="1"]:checked {
@@ -1440,32 +1444,32 @@ PLSPropertiesView #imageGroupBtn {
         }
 
         PLSPropertiesView #imageGroupBtn[type="1"]:unchecked {
-            border: /*hdpi*/ 2px solid #1E1E1F;
+            border: 2px solid #1E1E1F;
         }
 
     PLSPropertiesView #imageGroupBtn[type="2"] {
-        min-width: /*hdpi*/ 95px;
-        max-width: /*hdpi*/ 95px;
-        min-height: /*hdpi*/ 40px;
-        max-height: /*hdpi*/ 40px;
+        min-width: 95px;
+        max-width: 95px;
+        min-height: 40px;
+        max-height: 40px;
     }
 
         PLSPropertiesView #imageGroupBtn[type="2"]:checked {
-            border: /*hdpi*/ 2px solid #effc35;
-            border-radius: /*hdpi*/ 3px;
+            border: 2px solid #effc35;
+            border-radius: 3px;
         }
 
         PLSPropertiesView #imageGroupBtn[type="2"]:unchecked {
-            border: /*hdpi*/ 2px solid #1E1E1F;
+            border: 2px solid #1E1E1F;
         }
 
     PLSPropertiesView #imageGroupBtn[type="3"] {
-        min-width: /*hdpi*/ 32px;
-        max-width: /*hdpi*/ 32px;
-        min-height: /*hdpi*/ 32px;
-        max-height: /*hdpi*/ 32px;
+        min-width: 32px;
+        max-width: 32px;
+        min-height: 32px;
+        max-height: 32px;
         background-color: transparent;
-        border: /*hdpi*/ 1px solid transparent;
+        border: 1px solid transparent;
     }
 
         PLSPropertiesView #imageGroupBtn[type="3"][checked="false"] #boderLabel {
@@ -1474,25 +1478,25 @@ PLSPropertiesView #imageGroupBtn {
         }
 
         PLSPropertiesView #imageGroupBtn[type="3"][checked="true"] #boderLabel {
-            min-width: /*hdpi*/ 32px;
-            max-width: /*hdpi*/ 32px;
-            min-height: /*hdpi*/ 32px;
-            max-height: /*hdpi*/ 32px;
+            min-width: 32px;
+            max-width: 32px;
+            min-height: 32px;
+            max-height: 32px;
             border-image: url(":/timer-source/resource/images/img-audiov-color-select.png");
             background-color: transparent;
         }
 
 PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundState {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: normal;
     color: #666666;
 }
 
 PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton > #icon {
-    min-width: /*hdpi*/ 22px;
-    max-width: /*hdpi*/ 22px;
-    min-height: /*hdpi*/ 22px;
-    max-height: /*hdpi*/ 22px;
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
     background: transparent;
     image: url(":/resource/images/camera-virtual-background-normal.svg");
 }
@@ -1511,7 +1515,7 @@ PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[enab
 }
 
 PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton > #text {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: normal;
     color: #bababa;
     background: transparent;
@@ -1531,13 +1535,13 @@ PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[enab
 }
 
 PLSPropertiesView #switch {
-    qproperty-minimumSize: /*hdpi*/ 28px /*hdpi*/ 17px;
-    qproperty-maximumSize: /*hdpi*/ 28px /*hdpi*/ 17px;
+    qproperty-minimumSize: 28px 17px;
+    qproperty-maximumSize: 28px 17px;
 }
 
     PLSPropertiesView #switch::indicator {
-        width: /*hdpi*/ 28px;
-        height: /*hdpi*/ 17px;
+        width: 28px;
+        height: 17px;
     }
 
         PLSPropertiesView #switch::indicator:disabled {
@@ -1577,10 +1581,10 @@ PLSPropertiesView #switch {
             }
 
 PLSPropertiesView #prismMobileButtonHelp {
-    min-height: /*hdpi*/ 22px;
-    max-height: /*hdpi*/ 22px;
-    min-width: /*hdpi*/ 22px;
-    max-width: /*hdpi*/ 22x;
+    min-height: 22px;
+    max-height: 22px;
+    min-width: 22px;
+    max-width: 22x;
     background: transparent;
     border-radius: none;
     image: url(":/resource/images/prism-mobile/ic-help-normal.svg");
@@ -1605,32 +1609,32 @@ PLSPropertiesView #prismMobileLabelHelp {
 
 PLSPropertiesView #prismMobileLabelGuide {
     font-weight: normal;
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     color: #666666;
 }
 
 PLSPropertiesView #prismLensLabelGuide {
     font-weight: normal;
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     color: #666666;
-    min-height: /*hdpi*/ 40px;
-    max-height: /*hdpi*/ 40px;
+    min-height: 40px;
+    max-height: 40px;
 }
 
 PLSPropertiesView #prismLensAudioLabel {
     font-weight: normal;
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     color: #bababa;
-    min-height: /*hdpi*/ 40px;
-    max-height: /*hdpi*/ 40px;
+    min-height: 40px;
+    max-height: 40px;
 }
 
 PLSPropertiesView #tipLabel {
     font-weight: normal;
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     color: #666666;
-    min-height: /*hdpi*/ 16px;
-    padding-top: /*hdpi*/ 0px;
+    min-height: 16px;
+    padding-top: 0px;
 }
 
 PLSPropertiesView #prismMobileLabelStatus {
@@ -1638,22 +1642,22 @@ PLSPropertiesView #prismMobileLabelStatus {
 }
 
 PLSPropertiesView #titleLabel {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: bold;
     color: #ffffff;
-    min-height: /*hdpi*/ 40px;
-    max-height: /*hdpi*/ 40px;
+    min-height: 40px;
+    max-height: 40px;
     background-color: transparent;
 }
 
 PLSPropertiesView #templateListDescription {
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     font-weight: normal;
     color: #666666;
 }
 
 PLSPropertiesView[sourceId="prism_viewer_count_source"] #formLabel {
-    min-width: /*hdpi*/ 134px;
+    min-width: 134px;
 }
 
     PLSPropertiesView #formLabel[autoWidth="true"],
@@ -1665,32 +1669,32 @@ PLSPropertiesView[sourceId="prism_viewer_count_source"] #formLabel {
 
 PLSPropertiesView[sourceId="prism_viewer_count_source"] #FontCheckedFamilyBox,
 PLSPropertiesView[sourceId="prism_viewer_count_source"] #baseColorLabel {
-    qproperty-minimumSize: /*hdpi*/ 294px /*hdpi*/ 40px;
-    qproperty-maximumSize: /*hdpi*/ 294px /*hdpi*/ 40px;
+    qproperty-minimumSize: 294px 40px;
+    qproperty-maximumSize: 294px 40px;
 }
 
 PLSPropertiesView #colorAlphaCheckbox_colorLabel {
-    qproperty-minimumSize: /*hdpi*/ 85px /*hdpi*/ 40px;
-    qproperty-maximumSize: /*hdpi*/ 85px /*hdpi*/ 40px;
-    font-size: /*hdpi*/ 14px;
+    qproperty-minimumSize: 85px 40px;
+    qproperty-maximumSize: 85px 40px;
+    font-size: 14px;
     font-weight: normal;
     color: white;
-    border-top: /*hdpi*/ 1px solid #373737;
-    border-left: /*hdpi*/ 1px solid #373737;
-    border-bottom: /*hdpi*/ 1px solid #373737;
-    border-top-left-radius: /*hdpi*/ 3px;
-    border-bottom-left-radius: /*hdpi*/ 3px;
+    border-top: 1px solid #373737;
+    border-left: 1px solid #373737;
+    border-bottom: 1px solid #373737;
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
 }
 
 PLSPropertiesView #colorAlphaCheckbox_colorButton {
-    border-bottom-left-radius: /*hdpi*/ 0px;
-    border-top-left-radius: /*hdpi*/ 0px;
-    border-bottom-right-radius: /*hdpi*/ 3px;
-    border-top-right-radius: /*hdpi*/ 3px;
+    border-bottom-left-radius: 0px;
+    border-top-left-radius: 0px;
+    border-bottom-right-radius: 3px;
+    border-top-right-radius: 3px;
     padding: /*hdpi-d*/ 9px;
     image: url(":/resource/images/text-template/ic-setting-s-normal.svg");
-    qproperty-minimumSize: /*hdpi*/ 40px /*hdpi*/ 40px;
-    qproperty-maximumSize: /*hdpi*/ 40px /*hdpi*/ 40px;
+    qproperty-minimumSize: 40px 40px;
+    qproperty-maximumSize: 40px 40px;
 }
 
     PLSPropertiesView #colorAlphaCheckbox_colorButton:hover {
@@ -1706,7 +1710,7 @@ PLSPropertiesView #colorAlphaCheckbox_colorButton {
     }
 
 PLSPropertiesView #colorAlphaCheckbox_alphaLabel {
-    font-size: /*hdpi*/ 14px;
+    font-size: 14px;
     font-weight: normal;
     color: #bababa;
 }
@@ -1716,11 +1720,11 @@ PLSPropertiesView #colorAlphaCheckbox_alphaLabel {
     }
 
 PLSPropertiesView #colorAlphaCheckbox_alphaSpinBox {
-    min-width: /*hdpi*/ 84px;
-    max-width: /*hdpi*/ 84px;
-    min-height: /*hdpi*/ 40px;
-    max-height: /*hdpi*/ 40px;
-    font-size: /*hdpi*/ 14px;
+    min-width: 84px;
+    max-width: 84px;
+    min-height: 40px;
+    max-height: 40px;
+    font-size: 14px;
     font-weight: normal;
     color: white;
 }
@@ -1730,10 +1734,10 @@ PLSPropertiesView #colorAlphaCheckbox_alphaSpinBox {
     }
 
 PLSPropertiesView #formLabelFrame #formLabelHelpButton {
-    min-width: /*hdpi*/ 19px;
-    max-width: /*hdpi*/ 19px;
-    min-height: /*hdpi*/ 19px;
-    max-height: /*hdpi*/ 19px;
+    min-width: 19px;
+    max-width: 19px;
+    min-height: 19px;
+    max-height: 19px;
     margin: 0;
     padding: 0;
     image: url(":/viewer-count/resource/images/ic-help-s-normal.svg");
@@ -1753,12 +1757,12 @@ PLSPropertiesView #formLabelFrame #formLabelHelpButton {
     }
 
 PLSPropertiesView QPushButton[toolButton=true][themeID="downArrowIconSmall"] {
-    min-width: /*hdpi*/ 11px;
-    min-height: /*hdpi*/ 6px;
-    max-width: /*hdpi*/ 11px;
-    max-height: /*hdpi*/ 6px;
+    min-width: 11px;
+    min-height: 6px;
+    max-width: 11px;
+    max-height: 6px;
     padding: 0;
-    margin: /*hdpi*/ 8px /*hdpi*/ 5.5px /*hdpi*/ 8px /*hdpi*/ 5.5px;
+    margin: 8px 5.5px 8px 5.5px;
     border: none;
     image: url(":/libui/resource/images/txt-dropbox-hor-open-normal.svg");
     background-color: transparent;
@@ -1790,39 +1794,39 @@ PLSPropertiesView #infoLabel {
 #chat_template_btn {
     padding: 0;
     margin: 0;
-    qproperty-minimumSize: /*hdpi*/ 158px /*hdpi*/ 158px;
-    qproperty-maximumSize: /*hdpi*/ 158px /*hdpi*/ 158px;
-    border-radius: /*hdpi*/ 3px;
+    qproperty-minimumSize: 158px 158px;
+    qproperty-maximumSize: 158px 158px;
+    border-radius: 3px;
     border: 1px solid #353535;
     background-color: #2e2e2e;
 }
 
     #chat_template_btn:hover, #chat_template_btn[hovered="true"] {
-        border: /*hdpi*/ 1px solid #353535;
+        border: 1px solid #353535;
         background: #444444;
     }
     #chat_template_btn:pressed, #chat_template_btn[pressed="true"] {
-        border: /*hdpi*/ 1px solid #353535;
+        border: 1px solid #353535;
         background: #1e1e1e;
     }
     #chat_template_btn:checked {
-        border: /*hdpi*/ 2px solid #effc35;
+        border: 2px solid #effc35;
     }
 
     #chat_template_btn > #chat_text {
         border:none;
-        qproperty-minimumSize: /*hdpi*/ 158px /*hdpi*/ 40px;
-        qproperty-maximumSize: /*hdpi*/ 158px /*hdpi*/ 40px;
+        qproperty-minimumSize: 158px 40px;
+        qproperty-maximumSize: 158px 40px;
         border-bottom-left-radius: 3px;
         border-bottom-right-radius: 3px;
         font-size: 14px;
         background-color: transparent;
-        border-top: /*hdpi*/ 1px solid #353535;
+        border-top: 1px solid #353535;
     }
 
     #chat_template_btn > #icon {
-        qproperty-minimumSize: /*hdpi*/ 158px /*hdpi*/ 118px;
-        qproperty-maximumSize: /*hdpi*/ 158px /*hdpi*/ 118px;
+        qproperty-minimumSize: 158px 118px;
+        qproperty-maximumSize: 158px 118px;
         background-color: transparent;
         background-position: center;
         border: none;
@@ -1832,13 +1836,13 @@ PLSPropertiesView #infoLabel {
         padding-bottom:10px;
     }
     #chat_template_btn > #icon1 {
-        qproperty-minimumSize: /*hdpi*/ 158px /*hdpi*/ 118px;
-        qproperty-maximumSize: /*hdpi*/ 158px /*hdpi*/ 118px;
+        qproperty-minimumSize: 158px 118px;
+        qproperty-maximumSize: 158px 118px;
         background-color: transparent;
         background-position: center;
-        border-top: /*hdpi*/ 1px solid transparent;
-        border-left: /*hdpi*/ 1px solid transparent;
-        border-right: /*hdpi*/ 1px solid transparent;
+        border-top: 1px solid transparent;
+        border-left: 1px solid transparent;
+        border-right: 1px solid transparent;
         padding-left: 8px;
         padding-right: 8px;
         padding-top: 10px;
@@ -1847,8 +1851,8 @@ PLSPropertiesView #infoLabel {
         border-top-right-radius: 3px;
     }
     #chat_template_btn #icon_custom {
-        qproperty-minimumSize: /*hdpi*/ 98px /*hdpi*/ 44px;
-        qproperty-maximumSize: /*hdpi*/ 98px /*hdpi*/ 44px;
+        qproperty-minimumSize: 98px 44px;
+        qproperty-maximumSize: 98px 44px;
         background-color: transparent;
         background-position: center;
         border: none;
@@ -1859,25 +1863,25 @@ PLSPropertiesView #infoLabel {
     }
     #chat_template_btn[hovered="true"] > #chat_text {
         border: none;
-        border-top: /*hdpi*/ 1px solid #353535;
+        border-top: 1px solid #353535;
         color: #bababa;
     }
 
     #chat_template_btn[pressed="true"] > #chat_text {
         border: none;
-        border-top: /*hdpi*/ 1px solid #353535;
+        border-top: 1px solid #353535;
         color: #bababa;
     }
 
     #chat_template_btn[checked="true"] > #chat_text {
         border: none;
-        border-top: /*hdpi*/ 1px solid #effc35;
+        border-top: 1px solid #effc35;
         background: #effc35;
         color: black;
     }
     #chat_template_btn[checked="false"] > #chat_text {
         border: none;
-        border-top: /*hdpi*/ 1px solid #353535;
+        border-top: 1px solid #353535;
         background-color: transparent;
         color: #bababa;
     }
@@ -1891,10 +1895,21 @@ PLSPropertiesView #infoLabel {
         border: none;
         background-color: transparent;
     }
-
-PLSPropertiesView #CTMotionCheckboxFrame {
-    min-width: 135px;
-}
+    #chat_template_btn #PAID, #PLSTemplateButton #PAID {
+        background-color: transparent;
+        image: url(":/resource/images/chat-template-source/ic_plus_thumbnail_badge.svg");
+        min-width: 50px;
+        max-width: 50px;
+        min-height: 27px;
+        max-height: 27px;
+        color: #effc35;
+    }
+    #chat_template_btn #enableLabel {
+        background-color: #4d2a2a2a;
+    }
+    PLSPropertiesView #CTMotionCheckboxFrame {
+        min-width: 135px;
+    }
 
     PLSPropertiesView #CTMotionCheckboxFrame > QLabel {
         font-weight: normal;
@@ -1980,8 +1995,8 @@ PLSPropertiesView #chatTemplateRemoveBtn {
     background-color: #333939;
     border-radius:2px;
     image: url(":/resource/images/btn-close-normal.svg");
-    qproperty-maximumSize: /*hdpi*/ 16px /*hdpi*/ 16px;
-    qproperty-minimumSize: /*hdpi*/ 16px /*hdpi*/ 16px;
+    qproperty-maximumSize: 16px 16px;
+    qproperty-minimumSize: 16px 16px;
 }
 PLSPropertiesView #chatTemplateRemoveBtn:hover {
     image: url(":/resource/images/btn-close-over.svg");
@@ -1993,10 +2008,10 @@ PLSPropertiesView #chatTemplateRemoveBtn:pressed {
 
 PLSPropertiesView #chatTemplateEditBtn {
     background: transparent;
-    min-width: /*hdpi*/ 20px;
-    max-width: /*hdpi*/ 20px;
-    min-height: /*hdpi*/ 20px;
-    max-height: /*hdpi*/ 20px;
+    min-width: 20px;
+    max-width: 20px;
+    min-height: 20px;
+    max-height: 20px;
     border-style: none;
     margin: 0;
     padding: 0;
@@ -2046,15 +2061,15 @@ PLSPropertiesView #CHZZKSponsorNotification {
 
 PLSPropertiesView #gotoBtn {
 	background-color: transparent;
-	min-height: /*hdpi*/ 17px;
-	max-height: /*hdpi*/ 17px;
-	margin: /*hdpi*/ 0px;
-	padding: /*hdpi*/ 0px;
-	font-size: /*hdpi*/ 14px;
+	min-height: 17px;
+	max-height: 17px;
+	margin: 0px;
+	padding: 0px;
+	font-size: 14px;
 	font-weight: bold;
 	font-style: normal;
 	color: #bababa;
-	spacing: /*hdpi*/ 0px;
+	spacing: 0px;
 }
 
 	PLSPropertiesView #gotoBtn:hover {
@@ -2084,4 +2099,13 @@ PLSPropertiesView #PLSChatTemplateTabTips {
     font-size: 12px;
     font-weight: normal;
     min-width: 300px;
+}
+
+PLSPropertiesView #newLabel {
+    min-width: /*hdpi-u*/ 34px;
+    max-width: /*hdpi-u*/ 34px;
+    min-height: /*hdpi-u*/ 16px;
+    max-height: /*hdpi-u*/ 16px;
+    background-color: transparent;
+    image: url(:/resource/images/chat-template-source/ic_badge_new.svg);
 }

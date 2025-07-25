@@ -103,7 +103,9 @@ PLSNaverShoppingLIVEAPI::NaverShoppingLivingInfo::NaverShoppingLivingInfo(const 
 	  displayType(JSON_getString(object, displayType)),
 	  description(JSON_getString(object, description)),
 	  externalExposeAgreementStatus(JSON_getString(object, externalExposeAgreementStatus)),
-	  searchable(JSON_getBool(object, searchable))
+	  expectedStartDate(JSON_getString(object, expectedStartDate)),
+	  searchable(JSON_getBool(object, searchable)),
+	  sendNotification(JSON_getBool(object, sendNotification))
 {
 	for (auto it : object["shoppingProducts"].toArray()) {
 		shoppingProducts.append(ProductInfo(it.toObject()));
@@ -252,8 +254,10 @@ void PLSNaverShoppingLIVEAPI::refreshChannelToken(const PLSPlatformNaverShopping
 						   PLS_ERROR(MODULE_PLATFORM_NAVER_SHOPPING_LIVE, "Naver Shopping Live refresh token and get user info failed, reason: %s",
 							     error.errorString().toUtf8().constData());
 						   pls_async_call_mt(receiver, receiverIsValid, [callback, data = reply.data(), statusCode = reply.statusCode(), error = reply.error()]() {
+							   PLSErrorHandler::ExtraData exData;
+							   exData.urlEn = CHANNEL_NAVER_SHOPPING_LIVE_REFRESH_TOKEN;
 							   PLSErrorHandler::showAlertByPrismCode(PLSErrorHandler::ErrCode::CHANNEL_NAVER_SHOPPING_LIVE_REFRESH_UNKNOWN_ERROR, NAVER_SHOPPING_LIVE,
-												 "TempErrorTryAgain");
+												 "TempErrorTryAgain", exData);
 						   });
 					   })
 				   .failResult([callback, receiver, receiverIsValid](const pls::http::Reply &reply) {
@@ -1303,9 +1307,7 @@ PLSNaverShoppingLIVEAPI::ScheduleInfo::ScheduleInfo(const QJsonObject &object)
 	for (auto it : object["shoppingProducts"].toArray()) {
 		shoppingProducts.append(ProductInfo(it.toObject()));
 	}
-	QString tempTime = expectedStartDate;
-	timeStamp = PLSDateFormate::koreanTimeStampToLocalTimeStamp(tempTime);
-	startTimeUTC = PLSDateFormate::timeStampToUTCString(timeStamp);
+	setExpectedStartDate(expectedStartDate);
 	displayCategory = LiveCategory(object["displayCategory"].toObject());
 }
 
@@ -1318,6 +1320,12 @@ bool PLSNaverShoppingLIVEAPI::ScheduleInfo::checkStartTime(int beforeSeconds, in
 		return true;
 	}
 	return false;
+}
+
+void PLSNaverShoppingLIVEAPI::ScheduleInfo::setExpectedStartDate(const QString &expectedStartDate)
+{
+	timeStamp = PLSDateFormate::koreanTimeStampToLocalTimeStamp(expectedStartDate);
+	startTimeUTC = PLSDateFormate::timeStampToUTCString(timeStamp);
 }
 
 PLSNaverShoppingLIVEAPI::LiveCategory::LiveCategory(const QJsonObject &object)

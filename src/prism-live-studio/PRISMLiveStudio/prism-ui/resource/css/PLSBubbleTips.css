@@ -1,0 +1,48 @@
+
+#bubbletips {
+	margin: 0px;
+	border: none;
+}
+
+#bubbletips #bubbleBg{
+	background-color: rgba(102, 102, 102, 0.95);
+	border-radius: 3px;
+}
+
+#bubbletips #label{
+	font-size: 14px;
+	color: white;
+	background: transparent;
+	border: 0;
+	margin: 0px;
+	padding-left: 15px;
+	padding-top: 10px;
+	padding-bottom: 14px;
+	padding-right: 0px;
+}
+
+#bubbletips #bubbleCloseButton{
+	min-width: /*hdpi*/ 22px;
+	max-width: /*hdpi*/ 22px;
+	min-height: /*hdpi*/ 22px;
+	max-height: /*hdpi*/ 22px;
+	border: none;
+	background:transparent;
+	padding: 0;
+	margin: 0;
+	image:url(":/resource/images/btn-close-normal.svg");
+	margin-top: 5px;
+	margin-right: 5px;
+}
+
+#bubbletips #bubbleCloseButton:hover{
+	image:url(":/resource/images/btn-close-over.svg");
+}
+
+#bubbletips #bubbleCloseButton:pressed{
+	image:url(":/resource/images/btn-close-click.svg");
+}
+
+#bubbletips #bubbleCloseButton:!enabled{
+	image:url(":/resource/images/btn-close-disable.svg");
+}

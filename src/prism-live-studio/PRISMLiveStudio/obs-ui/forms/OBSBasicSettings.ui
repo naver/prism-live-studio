@@ -70,6 +70,9 @@
          <height>16777215</height>
         </size>
        </property>
+       <property name="horizontalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOff</enum>
+       </property>
        <property name="iconSize">
         <size>
          <width>16</width>
@@ -164,7 +167,7 @@
       </widget>
      </item>
      <item>
-      <layout class="QVBoxLayout" stretch="1,0">
+      <layout class="QVBoxLayout" name="vBoxLayout_1" stretch="0,0">
        <property name="spacing">
         <number>0</number>
        </property>
@@ -212,8 +215,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>769</width>
-                <height>1501</height>
+                <width>766</width>
+                <height>1386</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_19">
@@ -392,7 +395,7 @@
                       </spacer>
                      </item>
                      <item row="1" column="1">
-                      <layout class="QVBoxLayout">
+                      <layout class="QVBoxLayout" name="vBoxLayout_2">
                        <property name="spacing">
                         <number>0</number>
                        </property>
@@ -425,7 +428,7 @@
                     <property name="title">
                      <string>setting.static.text.watermark</string>
                     </property>
-                    <layout class="QFormLayout">
+                    <layout class="QFormLayout" name="formLayout_38">
                      <property name="horizontalSpacing">
                       <number>6</number>
                      </property>
@@ -594,7 +597,7 @@
                       </widget>
                      </item>
                      <item row="1" column="1">
-                      <layout class="QVBoxLayout">
+                      <layout class="QVBoxLayout" name="vBoxLayout_3">
                        <property name="spacing">
                         <number>0</number>
                        </property>
@@ -883,6 +886,13 @@
                       <widget class="PLSCheckBox" name="overflowHide">
                        <property name="text">
                         <string>Basic.Settings.General.OverflowHidden</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item row="5" column="1">
+                      <widget class="PLSCheckBox" name="previewZoomEnabled">
+                       <property name="text">
+                        <string>Basic.Settings.General.EnablePreviewZoom</string>
                        </property>
                       </widget>
                      </item>
@@ -1435,8 +1445,8 @@
                 <rect>
                  <x>0</x>
                  <y>0</y>
-                 <width>1058</width>
-                 <height>430</height>
+                 <width>1054</width>
+                 <height>567</height>
                 </rect>
                </property>
                <layout class="QVBoxLayout" name="streamkeyPageLayout">
@@ -1636,7 +1646,7 @@
                       </widget>
                      </item>
                      <item>
-                      <spacer>
+                      <spacer name="spacer_2">
                        <property name="orientation">
                         <enum>Qt::Horizontal</enum>
                        </property>
@@ -1898,8 +1908,8 @@
               </property>
               <item>
                <widget class="QFrame" name="multitrackVideoNoticeBox">
-                <property name="noticeFrame" stdset="0">
-                 <bool>true</bool>
+                <property name="class" stdset="0">
+                 <string notr="true">frame-notice</string>
                 </property>
                 <layout class="QVBoxLayout" name="multitrackVideoNoticeBoxLayout">
                  <property name="leftMargin">
@@ -2149,8 +2159,8 @@
                       <rect>
                        <x>0</x>
                        <y>0</y>
-                       <width>943</width>
-                       <height>1023</height>
+                       <width>931</width>
+                       <height>933</height>
                       </rect>
                      </property>
                      <property name="sizePolicy">
@@ -2500,7 +2510,22 @@
                           </widget>
                          </item>
                          <item row="2" column="1">
-                          <layout class="QHBoxLayout" stretch="0,0">
+                          <layout class="QHBoxLayout" name="hBoxLayout_3" stretch="0,0">
+                           <property name="spacing">
+                            <number>6</number>
+                           </property>
+                           <property name="leftMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="topMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="rightMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="bottomMargin">
+                            <number>0</number>
+                           </property>
                            <item>
                             <widget class="PLSCheckBox" name="multitrackVideoMaximumAggregateBitrateAuto">
                              <property name="text">
@@ -2546,7 +2571,22 @@
                           </widget>
                          </item>
                          <item row="3" column="1">
-                          <layout class="QHBoxLayout" stretch="0,0">
+                          <layout class="QHBoxLayout" name="hBoxLayout_4" stretch="0,0">
+                           <property name="spacing">
+                            <number>6</number>
+                           </property>
+                           <property name="leftMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="topMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="rightMargin">
+                            <number>0</number>
+                           </property>
+                           <property name="bottomMargin">
+                            <number>0</number>
+                           </property>
                            <item>
                             <widget class="PLSCheckBox" name="multitrackVideoMaximumVideoTracksAuto">
                              <property name="sizePolicy">
@@ -3327,8 +3367,8 @@
                           <rect>
                            <x>0</x>
                            <y>0</y>
-                           <width>468</width>
-                           <height>173</height>
+                           <width>721</width>
+                           <height>199</height>
                           </rect>
                          </property>
                          <layout class="QVBoxLayout" name="verticalLayout_14">
@@ -3389,7 +3429,7 @@
                                 <string>Basic.Settings.Output.Adv.AudioTrack</string>
                                </property>
                                <property name="alignment">
-                                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                                <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
                                </property>
                                <property name="useFor" stdset="0">
                                 <string notr="true">FormLabelRole</string>
@@ -3397,154 +3437,280 @@
                               </widget>
                              </item>
                              <item row="0" column="1">
-                              <widget class="QStackedWidget" name="advStreamTrackWidget">
-                               <property name="sizePolicy">
-                                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-                                 <horstretch>0</horstretch>
-                                 <verstretch>0</verstretch>
-                                </sizepolicy>
+                              <layout class="QVBoxLayout" name="verticalLayout_33">
+                               <property name="spacing">
+                                <number>10</number>
                                </property>
-                               <property name="currentIndex">
-                                <number>0</number>
-                               </property>
-                               <widget class="QWidget" name="streamSingleTracks">
-                                <property name="sizePolicy">
-                                 <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
-                                  <horstretch>0</horstretch>
-                                  <verstretch>0</verstretch>
-                                 </sizepolicy>
-                                </property>
-                                <layout class="QHBoxLayout" name="horizontalLayout_39">
-                                 <property name="spacing">
+                               <item>
+                                <widget class="QLabel" name="label_23">
+                                 <property name="text">
+                                  <string>DualOutput.Settings.AudioTrack.Tip</string>
+                                 </property>
+                                 <property name="wordWrap">
+                                  <bool>true</bool>
+                                 </property>
+                                </widget>
+                               </item>
+                               <item>
+                                <layout class="QGridLayout" name="gridLayout">
+                                 <property name="horizontalSpacing">
+                                  <number>30</number>
+                                 </property>
+                                 <property name="verticalSpacing">
                                   <number>10</number>
                                  </property>
-                                 <property name="leftMargin">
-                                  <number>0</number>
-                                 </property>
-                                 <property name="topMargin">
-                                  <number>0</number>
-                                 </property>
-                                 <property name="rightMargin">
-                                  <number>0</number>
-                                 </property>
-                                 <property name="bottomMargin">
-                                  <number>0</number>
-                                 </property>
-                                 <item>
-                                  <widget class="PLSRadioButton" name="advOutTrack1">
-                                   <property name="text">
-                                    <string notr="true">1</string>
+                                 <item row="0" column="0">
+                                  <widget class="QLabel" name="label_25">
+                                   <property name="styleSheet">
+                                    <string notr="true">min-height: 0px;</string>
                                    </property>
-                                   <property name="checked">
-                                    <bool>true</bool>
+                                   <property name="text">
+                                    <string>DualOutput.Preview.Title.Horizontal</string>
+                                   </property>
+                                   <property name="useFor" stdset="0">
+                                    <string notr="true">FormLabelRole</string>
                                    </property>
                                   </widget>
                                  </item>
-                                 <item>
-                                  <widget class="PLSRadioButton" name="advOutTrack2">
+                                 <item row="0" column="1">
+                                  <widget class="QStackedWidget" name="advStreamTrackWidget">
+                                   <property name="sizePolicy">
+                                    <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                                     <horstretch>0</horstretch>
+                                     <verstretch>0</verstretch>
+                                    </sizepolicy>
+                                   </property>
+                                   <property name="currentIndex">
+                                    <number>0</number>
+                                   </property>
+                                   <widget class="QWidget" name="streamSingleTracks">
+                                    <property name="sizePolicy">
+                                     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                                      <horstretch>0</horstretch>
+                                      <verstretch>0</verstretch>
+                                     </sizepolicy>
+                                    </property>
+                                    <layout class="QHBoxLayout" name="horizontalLayout_39">
+                                     <property name="spacing">
+                                      <number>10</number>
+                                     </property>
+                                     <property name="leftMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <property name="topMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <property name="rightMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <property name="bottomMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <item>
+                                      <widget class="PLSRadioButton" name="advOutTrack1">
+                                       <property name="text">
+                                        <string notr="true">1</string>
+                                       </property>
+                                       <property name="checked">
+                                        <bool>true</bool>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="PLSRadioButton" name="advOutTrack2">
+                                       <property name="text">
+                                        <string notr="true">2</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="PLSRadioButton" name="advOutTrack3">
+                                       <property name="text">
+                                        <string notr="true">3</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="PLSRadioButton" name="advOutTrack4">
+                                       <property name="text">
+                                        <string notr="true">4</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="PLSRadioButton" name="advOutTrack5">
+                                       <property name="text">
+                                        <string notr="true">5</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="PLSRadioButton" name="advOutTrack6">
+                                       <property name="text">
+                                        <string notr="true">6</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                    </layout>
+                                   </widget>
+                                   <widget class="QWidget" name="streamMultiTracks">
+                                    <layout class="QHBoxLayout" name="horizontalLayout_38">
+                                     <property name="spacing">
+                                      <number>10</number>
+                                     </property>
+                                     <property name="leftMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <property name="topMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <property name="rightMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <property name="bottomMargin">
+                                      <number>0</number>
+                                     </property>
+                                     <item>
+                                      <widget class="PLSCheckBox" name="advOutMultiTrack1">
+                                       <property name="text">
+                                        <string>1</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="PLSCheckBox" name="advOutMultiTrack2">
+                                       <property name="text">
+                                        <string>2</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="PLSCheckBox" name="advOutMultiTrack3">
+                                       <property name="text">
+                                        <string>3</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="PLSCheckBox" name="advOutMultiTrack4">
+                                       <property name="text">
+                                        <string>4</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="PLSCheckBox" name="advOutMultiTrack5">
+                                       <property name="text">
+                                        <string>5</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                     <item>
+                                      <widget class="PLSCheckBox" name="advOutMultiTrack6">
+                                       <property name="text">
+                                        <string>6</string>
+                                       </property>
+                                      </widget>
+                                     </item>
+                                    </layout>
+                                   </widget>
+                                  </widget>
+                                 </item>
+                                 <item row="0" column="2">
+                                  <spacer name="horizontalSpacer_9">
+                                   <property name="orientation">
+                                    <enum>Qt::Horizontal</enum>
+                                   </property>
+                                   <property name="sizeHint" stdset="0">
+                                    <size>
+                                     <width>40</width>
+                                     <height>1</height>
+                                    </size>
+                                   </property>
+                                  </spacer>
+                                 </item>
+                                 <item row="1" column="0">
+                                  <widget class="QLabel" name="label_27">
+                                   <property name="styleSheet">
+                                    <string notr="true">min-height: 0px;</string>
+                                   </property>
                                    <property name="text">
-                                    <string notr="true">2</string>
+                                    <string>DualOutput.Preview.Title.Vertical</string>
+                                   </property>
+                                   <property name="useFor" stdset="0">
+                                    <string notr="true">FormLabelRole</string>
                                    </property>
                                   </widget>
                                  </item>
-                                 <item>
-                                  <widget class="PLSRadioButton" name="advOutTrack3">
-                                   <property name="text">
-                                    <string notr="true">3</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item>
-                                  <widget class="PLSRadioButton" name="advOutTrack4">
-                                   <property name="text">
-                                    <string notr="true">4</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item>
-                                  <widget class="PLSRadioButton" name="advOutTrack5">
-                                   <property name="text">
-                                    <string notr="true">5</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item>
-                                  <widget class="PLSRadioButton" name="advOutTrack6">
-                                   <property name="text">
-                                    <string notr="true">6</string>
-                                   </property>
+                                 <item row="1" column="1">
+                                  <widget class="QWidget" name="advStreamTrackWidgetV" native="true">
+                                   <layout class="QHBoxLayout" name="horizontalLayout_23">
+                                    <property name="spacing">
+                                     <number>10</number>
+                                    </property>
+                                    <property name="leftMargin">
+                                     <number>0</number>
+                                    </property>
+                                    <property name="topMargin">
+                                     <number>0</number>
+                                    </property>
+                                    <property name="rightMargin">
+                                     <number>0</number>
+                                    </property>
+                                    <property name="bottomMargin">
+                                     <number>0</number>
+                                    </property>
+                                    <item>
+                                     <widget class="PLSRadioButton" name="advOutTrack1_2">
+                                      <property name="text">
+                                       <string notr="true">1</string>
+                                      </property>
+                                      <property name="checked">
+                                       <bool>true</bool>
+                                      </property>
+                                     </widget>
+                                    </item>
+                                    <item>
+                                     <widget class="PLSRadioButton" name="advOutTrack2_2">
+                                      <property name="text">
+                                       <string notr="true">2</string>
+                                      </property>
+                                     </widget>
+                                    </item>
+                                    <item>
+                                     <widget class="PLSRadioButton" name="advOutTrack3_2">
+                                      <property name="text">
+                                       <string notr="true">3</string>
+                                      </property>
+                                     </widget>
+                                    </item>
+                                    <item>
+                                     <widget class="PLSRadioButton" name="advOutTrack4_2">
+                                      <property name="text">
+                                       <string notr="true">4</string>
+                                      </property>
+                                     </widget>
+                                    </item>
+                                    <item>
+                                     <widget class="PLSRadioButton" name="advOutTrack5_2">
+                                      <property name="text">
+                                       <string notr="true">5</string>
+                                      </property>
+                                     </widget>
+                                    </item>
+                                    <item>
+                                     <widget class="PLSRadioButton" name="advOutTrack6_2">
+                                      <property name="text">
+                                       <string notr="true">6</string>
+                                      </property>
+                                     </widget>
+                                    </item>
+                                   </layout>
                                   </widget>
                                  </item>
                                 </layout>
-                               </widget>
-                               <widget class="QWidget" name="streamMultiTracks">
-                                <property name="sizePolicy">
-                                 <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                                  <horstretch>0</horstretch>
-                                  <verstretch>0</verstretch>
-                                 </sizepolicy>
-                                </property>
-                                <layout class="QHBoxLayout" name="horizontalLayout_38">
-                                 <property name="spacing">
-                                  <number>10</number>
-                                 </property>
-                                 <property name="leftMargin">
-                                  <number>0</number>
-                                 </property>
-                                 <property name="topMargin">
-                                  <number>0</number>
-                                 </property>
-                                 <property name="rightMargin">
-                                  <number>0</number>
-                                 </property>
-                                 <property name="bottomMargin">
-                                  <number>0</number>
-                                 </property>
-                                 <item>
-                                  <widget class="PLSCheckBox" name="advOutMultiTrack1">
-                                   <property name="text">
-                                    <string>1</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item>
-                                  <widget class="PLSCheckBox" name="advOutMultiTrack2">
-                                   <property name="text">
-                                    <string>2</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item>
-                                  <widget class="PLSCheckBox" name="advOutMultiTrack3">
-                                   <property name="text">
-                                    <string>3</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item>
-                                  <widget class="PLSCheckBox" name="advOutMultiTrack4">
-                                   <property name="text">
-                                    <string>4</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item>
-                                  <widget class="PLSCheckBox" name="advOutMultiTrack5">
-                                   <property name="text">
-                                    <string>5</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                 <item>
-                                  <widget class="PLSCheckBox" name="advOutMultiTrack6">
-                                   <property name="text">
-                                    <string>6</string>
-                                   </property>
-                                  </widget>
-                                 </item>
-                                </layout>
-                               </widget>
-                              </widget>
+                               </item>
+                              </layout>
                              </item>
                              <item row="1" column="0">
                               <widget class="QLabel" name="advOutAEncLabel">
@@ -3800,8 +3966,8 @@
                               <rect>
                                <x>0</x>
                                <y>0</y>
-                               <width>557</width>
-                               <height>401</height>
+                               <width>547</width>
+                               <height>348</height>
                               </rect>
                              </property>
                              <property name="sizePolicy">
@@ -4289,7 +4455,7 @@
                                   </layout>
                                  </item>
                                  <item row="9" column="0">
-                                  <layout class="QHBoxLayout">
+                                  <layout class="QHBoxLayout" name="hBoxLayout_2">
                                    <property name="spacing">
                                     <number>10</number>
                                    </property>
@@ -4557,8 +4723,8 @@
                               <rect>
                                <x>0</x>
                                <y>0</y>
-                               <width>674</width>
-                               <height>540</height>
+                               <width>668</width>
+                               <height>483</height>
                               </rect>
                              </property>
                              <layout class="QVBoxLayout" name="verticalLayout_27">
@@ -4601,7 +4767,20 @@
                                  <property name="bottomMargin">
                                   <number>9</number>
                                  </property>
-                                 <item row="0" column="0">
+                                 <item row="0" column="0" colspan="2">
+                                  <widget class="QLabel" name="label_28">
+                                   <property name="text">
+                                    <string>Basic.Settings.Output.Adv.FFmpeg.CustomModeWarning</string>
+                                   </property>
+                                   <property name="wordWrap">
+                                    <bool>true</bool>
+                                   </property>
+                                   <property name="class" stdset="0">
+                                    <string notr="true">text-warning</string>
+                                   </property>
+                                  </widget>
+                                 </item>
+                                 <item row="1" column="0">
                                   <widget class="QLabel" name="label_48">
                                    <property name="sizePolicy">
                                     <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
@@ -4626,7 +4805,7 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="0" column="1">
+                                 <item row="1" column="1">
                                   <widget class="PLSComboBox" name="advOutFFType">
                                    <item>
                                     <property name="text">
@@ -4640,7 +4819,7 @@
                                    </item>
                                   </widget>
                                  </item>
-                                 <item row="1" column="0">
+                                 <item row="2" column="0">
                                   <widget class="QLabel" name="label_36">
                                    <property name="sizePolicy">
                                     <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
@@ -4665,7 +4844,7 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="1" column="1">
+                                 <item row="2" column="1">
                                   <widget class="QStackedWidget" name="stackedWidget_2">
                                    <property name="sizePolicy">
                                     <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
@@ -4859,7 +5038,7 @@
                                   </widget>
                                  </item>
                                  <item row="9" column="0">
-                                  <layout class="QHBoxLayout">
+                                  <layout class="QHBoxLayout" name="hBoxLayout_1">
                                    <property name="spacing">
                                     <number>10</number>
                                    </property>
@@ -4929,14 +5108,14 @@
                                    </item>
                                   </layout>
                                  </item>
-                                 <item row="11" column="1">
+                                 <item row="10" column="1">
                                   <widget class="PLSCheckBox" name="advOutFFIgnoreCompat">
                                    <property name="text">
                                     <string>Basic.Settings.Output.Adv.FFmpeg.IgnoreCodecCompat</string>
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="12" column="0">
+                                 <item row="11" column="0">
                                   <widget class="QLabel" name="label_37">
                                    <property name="text">
                                     <string>Basic.Settings.Output.Adv.FFmpeg.VEncoder</string>
@@ -4946,7 +5125,7 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="12" column="1">
+                                 <item row="11" column="1">
                                   <layout class="QVBoxLayout" name="verticalLayout_59">
                                    <property name="spacing">
                                     <number>0</number>
@@ -4962,7 +5141,7 @@
                                    </item>
                                   </layout>
                                  </item>
-                                 <item row="14" column="0">
+                                 <item row="12" column="0">
                                   <widget class="QLabel" name="label_38">
                                    <property name="text">
                                     <string>Basic.Settings.Output.Adv.FFmpeg.VEncoderSettings</string>
@@ -4972,10 +5151,10 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="14" column="1">
+                                 <item row="12" column="1">
                                   <widget class="PLSLineEdit" name="advOutFFVCfg"/>
                                  </item>
-                                 <item row="15" column="0">
+                                 <item row="13" column="0">
                                   <widget class="QLabel" name="label_41">
                                    <property name="text">
                                     <string>Basic.Settings.Output.AudioBitrate</string>
@@ -4985,7 +5164,7 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="15" column="1">
+                                 <item row="13" column="1">
                                   <layout class="QVBoxLayout" name="verticalLayout_60">
                                    <property name="spacing">
                                     <number>0</number>
@@ -5014,7 +5193,7 @@
                                    </item>
                                   </layout>
                                  </item>
-                                 <item row="17" column="0">
+                                 <item row="14" column="0">
                                   <widget class="QLabel" name="label_47">
                                    <property name="text">
                                     <string>Basic.Settings.Output.Adv.AudioTrack</string>
@@ -5024,7 +5203,7 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="17" column="1">
+                                 <item row="14" column="1">
                                   <widget class="QFrame" name="widget_10">
                                    <property name="sizePolicy">
                                     <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
@@ -5096,7 +5275,7 @@
                                    </layout>
                                   </widget>
                                  </item>
-                                 <item row="18" column="0">
+                                 <item row="15" column="0">
                                   <widget class="QLabel" name="label_39">
                                    <property name="text">
                                     <string>Basic.Settings.Output.Adv.FFmpeg.AEncoder</string>
@@ -5106,7 +5285,7 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="18" column="1">
+                                 <item row="15" column="1">
                                   <layout class="QVBoxLayout" name="verticalLayout_61">
                                    <property name="spacing">
                                     <number>0</number>
@@ -5122,7 +5301,7 @@
                                    </item>
                                   </layout>
                                  </item>
-                                 <item row="20" column="0">
+                                 <item row="16" column="0">
                                   <widget class="QLabel" name="label_46">
                                    <property name="text">
                                     <string>Basic.Settings.Output.Adv.FFmpeg.AEncoderSettings</string>
@@ -5132,7 +5311,7 @@
                                    </property>
                                   </widget>
                                  </item>
-                                 <item row="20" column="1">
+                                 <item row="16" column="1">
                                   <widget class="PLSLineEdit" name="advOutFFACfg"/>
                                  </item>
                                 </layout>
@@ -5229,8 +5408,8 @@
                              <rect>
                               <x>0</x>
                               <y>0</y>
-                              <width>253</width>
-                              <height>540</height>
+                              <width>243</width>
+                              <height>462</height>
                              </rect>
                             </property>
                             <layout class="QVBoxLayout" name="verticalLayout_28">
@@ -6352,8 +6531,8 @@
                            <property name="text">
                             <string>Basic.Settings.Output.ReplayBuffer.UnavailableCustomFFmpeg</string>
                            </property>
-                           <property name="themeID" stdset="0">
-                            <string>warning</string>
+                           <property name="class" stdset="0">
+                            <string>text-warning</string>
                            </property>
                           </widget>
                          </item>
@@ -6518,8 +6697,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>640</width>
-                <height>539</height>
+                <width>634</width>
+                <height>467</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_50">
@@ -7026,8 +7205,8 @@
              <property name="wordWrap">
               <bool>true</bool>
              </property>
-             <property name="themeID" stdset="0">
-              <string>error</string>
+             <property name="class" stdset="0">
+              <string>text-danger</string>
              </property>
             </widget>
            </item>
@@ -7045,8 +7224,8 @@
              <property name="wordWrap">
               <bool>true</bool>
              </property>
-             <property name="themeID" stdset="0">
-              <string notr="true">warning</string>
+             <property name="class" stdset="0">
+              <string notr="true">text-warning</string>
              </property>
             </widget>
            </item>
@@ -7708,8 +7887,8 @@
              <property name="wordWrap">
               <bool>true</bool>
              </property>
-             <property name="themeID" stdset="0">
-              <string>error</string>
+             <property name="class" stdset="0">
+              <string>text-danger</string>
              </property>
             </widget>
            </item>
@@ -7953,8 +8132,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>728</width>
-                <height>291</height>
+                <width>718</width>
+                <height>279</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_42">
@@ -7996,6 +8175,12 @@
                    <property name="enabled">
                     <bool>true</bool>
                    </property>
+                   <property name="styleSheet">
+                    <string notr="true">QLabel[useFor=&quot;FormLabelRole&quot;] {
+	margin: 0px;
+	padding: 0px;
+}</string>
+                   </property>
                    <property name="title">
                     <string/>
                    </property>
@@ -8031,7 +8216,7 @@
                      <number>0</number>
                     </property>
                     <item row="0" column="0">
-                     <widget class="QLabel" name="colorPresetLabel">
+                     <widget class="PLSFormLabel" name="colorPresetLabel">
                       <property name="enabled">
                        <bool>true</bool>
                       </property>
@@ -8072,7 +8257,7 @@
                      </widget>
                     </item>
                     <item row="1" column="0">
-                     <widget class="QLabel" name="colorSelectLabel_1">
+                     <widget class="PLSFormLabel" name="colorSelectLabel_1">
                       <property name="enabled">
                        <bool>true</bool>
                       </property>
@@ -8166,7 +8351,7 @@
                      </layout>
                     </item>
                     <item row="2" column="0">
-                     <widget class="QLabel" name="colorSelectLabel_2">
+                     <widget class="PLSFormLabel" name="colorSelectLabel_2">
                       <property name="enabled">
                        <bool>true</bool>
                       </property>
@@ -8263,7 +8448,7 @@
                      </layout>
                     </item>
                     <item row="3" column="0">
-                     <widget class="QLabel" name="colorSelectLabel_3">
+                     <widget class="PLSFormLabel" name="colorSelectLabel_3">
                       <property name="enabled">
                        <bool>true</bool>
                       </property>
@@ -8360,7 +8545,7 @@
                      </layout>
                     </item>
                     <item row="4" column="0">
-                     <widget class="QLabel" name="colorSelectLabel_4">
+                     <widget class="PLSFormLabel" name="colorSelectLabel_4">
                       <property name="enabled">
                        <bool>true</bool>
                       </property>
@@ -8454,7 +8639,7 @@
                      </layout>
                     </item>
                     <item row="5" column="0">
-                     <widget class="QLabel" name="colorSelectLabel_5">
+                     <widget class="PLSFormLabel" name="colorSelectLabel_5">
                       <property name="enabled">
                        <bool>true</bool>
                       </property>
@@ -8548,7 +8733,7 @@
                      </layout>
                     </item>
                     <item row="6" column="0">
-                     <widget class="QLabel" name="colorSelectLabel_6">
+                     <widget class="PLSFormLabel" name="colorSelectLabel_6">
                       <property name="enabled">
                        <bool>true</bool>
                       </property>
@@ -8642,7 +8827,7 @@
                      </layout>
                     </item>
                     <item row="7" column="0">
-                     <widget class="QLabel" name="colorSelectLabel_7">
+                     <widget class="PLSFormLabel" name="colorSelectLabel_7">
                       <property name="enabled">
                        <bool>true</bool>
                       </property>
@@ -8736,7 +8921,7 @@
                      </layout>
                     </item>
                     <item row="8" column="0">
-                     <widget class="QLabel" name="colorSelectLabel_8">
+                     <widget class="PLSFormLabel" name="colorSelectLabel_8">
                       <property name="enabled">
                        <bool>true</bool>
                       </property>
@@ -8830,7 +9015,7 @@
                      </layout>
                     </item>
                     <item row="9" column="0">
-                     <widget class="QLabel" name="colorSelectLabel_9">
+                     <widget class="PLSFormLabel" name="colorSelectLabel_9">
                       <property name="enabled">
                        <bool>true</bool>
                       </property>
@@ -8983,8 +9168,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>778</width>
-                <height>1000</height>
+                <width>762</width>
+                <height>880</height>
                </rect>
               </property>
               <layout class="QVBoxLayout" name="verticalLayout_23">
@@ -9943,7 +10128,7 @@
                       <widget class="PLSComboBox" name="hotkeyFocusType"/>
                      </item>
                      <item row="1" column="0">
-                      <spacer>
+                      <spacer name="spacer_1">
                        <property name="orientation">
                         <enum>Qt::Horizontal</enum>
                        </property>
@@ -10019,8 +10204,8 @@
                 <property name="wordWrap">
                  <bool>true</bool>
                 </property>
-                <property name="themeID" stdset="0">
-                 <string>error</string>
+                <property name="class" stdset="0">
+                 <string>text-danger</string>
                 </property>
                </widget>
               </item>
@@ -10044,8 +10229,8 @@
                 <property name="wordWrap">
                  <bool>true</bool>
                 </property>
-                <property name="themeID" stdset="0">
-                 <string>error</string>
+                <property name="class" stdset="0">
+                 <string>text-danger</string>
                 </property>
                </widget>
               </item>
@@ -10108,7 +10293,7 @@
               <x>0</x>
               <y>0</y>
               <width>741</width>
-              <height>68</height>
+              <height>69</height>
              </rect>
             </property>
             <property name="sizePolicy">
@@ -10198,7 +10383,7 @@
        </widget>
       </item>
       <item>
-       <spacer>
+       <spacer name="horizontalSpacer_1">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
@@ -10272,6 +10457,11 @@
    <class>PLSEditableComboBox</class>
    <extends>QComboBox</extends>
    <header>PLSComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PLSFormLabel</class>
+   <extends>QLabel</extends>
+   <header>PLSLabel.h</header>
   </customwidget>
  </customwidgets>
  <tabstops>
@@ -10403,6 +10593,118 @@
  </resources>
  <connections>
   <connection>
+   <sender>snappingEnabled</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>centerSnapping</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>933</x>
+     <y>340</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>933</x>
+     <y>435</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>streamDelayEnable</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>label_56</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>250</x>
+     <y>39</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>250</x>
+     <y>39</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>snappingEnabled</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>sourceSnapping</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>933</x>
+     <y>340</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>933</x>
+     <y>412</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>outputMode</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>outputModePages</receiver>
+   <slot>setCurrentIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>241</x>
+     <y>16</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>401</x>
+     <y>64</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>advOutFFType</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>stackedWidget_2</receiver>
+   <slot>setCurrentIndex(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>685</x>
+     <y>163</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>685</x>
+     <y>191</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>systemTrayEnabled</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>systemTrayAlways</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>933</x>
+     <y>579</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>933</x>
+     <y>625</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>streamDelayEnable</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>streamDelaySec</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>250</x>
+     <y>39</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>250</x>
+     <y>39</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
    <sender>advOutRecType</sender>
    <signal>currentIndexChanged(int)</signal>
    <receiver>stackedWidget</receiver>
@@ -10419,9 +10721,25 @@
    </hints>
   </connection>
   <connection>
+   <sender>advOutSplitFile</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>advOutSplitFileType</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>327</x>
+     <y>355</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>701</x>
+     <y>355</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
    <sender>streamDelayEnable</sender>
    <signal>toggled(bool)</signal>
-   <receiver>streamDelaySec</receiver>
+   <receiver>streamDelayInfo</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -10451,38 +10769,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>connectAccount2</sender>
-   <signal>clicked()</signal>
-   <receiver>connectAccount</receiver>
-   <slot>click()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>484</x>
-     <y>142</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>454</x>
-     <y>87</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>simpleOutAdvanced</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>simpleOutCustomLabel</receiver>
-   <slot>setVisible(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>251</x>
-     <y>64</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>251</x>
-     <y>64</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>snappingEnabled</sender>
    <signal>toggled(bool)</signal>
    <receiver>label_9</receiver>
@@ -10495,86 +10781,6 @@
     <hint type="destinationlabel">
      <x>347</x>
      <y>366</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>systemTrayEnabled</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>systemTrayWhenStarted</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>933</x>
-     <y>579</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>933</x>
-     <y>602</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>outputMode</sender>
-   <signal>currentIndexChanged(int)</signal>
-   <receiver>outputModePages</receiver>
-   <slot>setCurrentIndex(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>241</x>
-     <y>16</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>401</x>
-     <y>64</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>streamDelayEnable</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>streamDelayInfo</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>250</x>
-     <y>39</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>250</x>
-     <y>39</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>advOutSplitFile</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>advOutSplitFileType</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>327</x>
-     <y>355</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>701</x>
-     <y>355</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>advOutFFType</sender>
-   <signal>currentIndexChanged(int)</signal>
-   <receiver>stackedWidget_2</receiver>
-   <slot>setCurrentIndex(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>685</x>
-     <y>163</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>685</x>
-     <y>191</y>
     </hint>
    </hints>
   </connection>
@@ -10595,25 +10801,9 @@
    </hints>
   </connection>
   <connection>
-   <sender>replayWhileStreaming</sender>
+   <sender>streamDelayEnable</sender>
    <signal>toggled(bool)</signal>
-   <receiver>keepReplayStreamStops</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>933</x>
-     <y>268</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>933</x>
-     <y>291</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>enableNewSocketLoop</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>enableLowLatencyMode</receiver>
+   <receiver>streamDelayPreserve</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -10643,41 +10833,9 @@
    </hints>
   </connection>
   <connection>
-   <sender>streamDelayEnable</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>streamDelayPreserve</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>250</x>
-     <y>39</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>250</x>
-     <y>39</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>systemTrayEnabled</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>systemTrayAlways</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>933</x>
-     <y>579</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>933</x>
-     <y>625</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>snappingEnabled</sender>
    <signal>toggled(bool)</signal>
-   <receiver>sourceSnapping</receiver>
+   <receiver>screenSnapping</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -10686,30 +10844,14 @@
     </hint>
     <hint type="destinationlabel">
      <x>933</x>
-     <y>412</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>streamDelayEnable</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>label_56</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>250</x>
-     <y>39</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>250</x>
-     <y>39</y>
+     <y>389</y>
     </hint>
    </hints>
   </connection>
   <connection>
    <sender>simpleOutAdvanced</sender>
    <signal>toggled(bool)</signal>
-   <receiver>simpleOutCustom</receiver>
+   <receiver>simpleOutCustomLabel</receiver>
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -10723,18 +10865,18 @@
    </hints>
   </connection>
   <connection>
-   <sender>snappingEnabled</sender>
+   <sender>replayWhileStreaming</sender>
    <signal>toggled(bool)</signal>
-   <receiver>centerSnapping</receiver>
+   <receiver>keepReplayStreamStops</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
      <x>933</x>
-     <y>340</y>
+     <y>268</y>
     </hint>
     <hint type="destinationlabel">
      <x>933</x>
-     <y>435</y>
+     <y>291</y>
     </hint>
    </hints>
   </connection>
@@ -10755,18 +10897,50 @@
    </hints>
   </connection>
   <connection>
-   <sender>snappingEnabled</sender>
+   <sender>enableNewSocketLoop</sender>
    <signal>toggled(bool)</signal>
-   <receiver>screenSnapping</receiver>
+   <receiver>enableLowLatencyMode</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>250</x>
+     <y>39</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>250</x>
+     <y>39</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>systemTrayEnabled</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>systemTrayWhenStarted</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
      <x>933</x>
-     <y>340</y>
+     <y>579</y>
     </hint>
     <hint type="destinationlabel">
      <x>933</x>
-     <y>389</y>
+     <y>602</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>connectAccount2</sender>
+   <signal>clicked()</signal>
+   <receiver>connectAccount</receiver>
+   <slot>click()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>484</x>
+     <y>142</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>454</x>
+     <y>87</y>
     </hint>
    </hints>
   </connection>
@@ -10783,6 +10957,22 @@
     <hint type="destinationlabel">
      <x>241</x>
      <y>30</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>simpleOutAdvanced</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>simpleOutCustom</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>251</x>
+     <y>64</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>251</x>
+     <y>64</y>
     </hint>
    </hints>
   </connection>

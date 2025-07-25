@@ -21,7 +21,7 @@ public:
 	void setHasBorder(bool hasBorder);
 	const QString &imagePath() const;
 	void setSceneName(const QString &sceneName);
-	
+
 	void showAIBadge(const QPixmap &pixmap, bool bLongAIBadge);
 
 protected:

@@ -28,14 +28,14 @@
 
 static QString setImageDir(const QString &imageDir)
 {
-	config_set_string(App()->GlobalConfig(), "SelectImageButton", "ImageDir", imageDir.toUtf8().constData());
-	config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
+	config_set_string(App()->GetUserConfig(), "SelectImageButton", "ImageDir", imageDir.toUtf8().constData());
+	config_save_safe(App()->GetUserConfig(), "tmp", nullptr);
 	return imageDir;
 }
 
 static QString getImageDir()
 {
-	const char *dir = config_get_string(App()->GlobalConfig(), "SelectImageButton", "ImageDir");
+	const char *dir = config_get_string(App()->GetUserConfig(), "SelectImageButton", "ImageDir");
 	if (!dir || !dir[0]) {
 		return setImageDir(QStandardPaths::standardLocations(QStandardPaths::PicturesLocation).first());
 	}
@@ -163,6 +163,7 @@ void PLSSelectImageButton::setPixmap(const QPixmap &pixmap, const QSize &size)
 	QPainter painter(&image);
 	painter.setRenderHint(QPainter::Antialiasing);
 	painter.setRenderHint(QPainter::SmoothPixmapTransform);
+	painter.setOpacity(property("ignoreHover").toBool() ? 0.5 : 1);
 
 	QPainterPath path;
 	path.addRoundedRect(image.rect(), 4, 4);
@@ -193,6 +194,9 @@ void PLSSelectImageButton::setImageChecker(const ImageChecker &imageChecker_)
 
 void PLSSelectImageButton::mouseEnter()
 {
+	if (property("ignoreHover").toBool()) {
+		return;
+	}
 	if (!mouseHover) {
 		mouseHover = true;
 		setMaskBgWidgetVisible(icon->isEnabled());

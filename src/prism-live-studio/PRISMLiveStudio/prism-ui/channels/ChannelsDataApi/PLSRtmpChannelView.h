@@ -62,9 +62,9 @@ private:
 	void ValidateNameEdit();
 	void IsHideSomeFrame(bool bShow);
 
-	void UpdateTwitchServerList();
+	void UpdateServerList(const QString &channelName);
 
-	void setTwitchUI(const QString &channelName);
+	void setServerUI(const QString &channelName);
 
 	//private:
 	Ui::RtmpChannelView *ui;
@@ -73,6 +73,8 @@ private:
 	QMap<QString, QString> mRtmps;
 	QStringList mPlatforms;
 	CustomChannelType m_type = RTMP;
+	QList<QPair<QString, QString>> mYoutubeRtmpServer;
+	QList<QPair<QString, QString>> mTwitchServer;
 };
 
 #endif // RTMPCHANNELVIEW_HPP

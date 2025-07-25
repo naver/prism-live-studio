@@ -21,8 +21,8 @@
 #include <QDialogButtonBox>
 #include <memory>
 #include <obs.hpp>
+#include <properties-view.hpp>
 
-#include "properties-view.hpp"
 #include "PLSDialogView.h"
 
 class OBSBasic;
@@ -42,8 +42,8 @@ private:
 	QWidget *view = nullptr;
 
 	//PRISM/FanZirong/20240326/4824/Create copy and past Action in advance
-	QAction* copyAction;
-	QAction* pasteAction;
+	QAction *copyAction;
+	QAction *pasteAction;
 
 	OBSSignal addSignal;
 	OBSSignal removeSignal;
@@ -71,18 +71,17 @@ private:
 	QMenu *CreateAddFilterPopupMenu(bool async);
 
 	void AddNewFilter(const char *id);
-	void ReorderFilter(QListWidget* list, obs_source_t* filter, size_t idx);
+	void ReorderFilter(QListWidget *list, obs_source_t *filter, size_t idx);
 
 	void CustomContextMenu(const QPoint &pos, bool async);
 	void EditItem(QListWidgetItem *item, bool async);
 	void DuplicateItem(QListWidgetItem *item);
 
-	void FilterNameEdited(QWidget * editor, QListWidget * list);
+	void FilterNameEdited(QWidget *editor, QListWidget *list);
 
 	void delete_filter(OBSSource filter);
 
-	void PLSSetupVisibilityItem(QListWidget* list, QListWidgetItem* item,
-		obs_source_t* source);
+	void PLSSetupVisibilityItem(QListWidget *list, QListWidgetItem *item, obs_source_t *source);
 
 	bool isAsync = false;
 
@@ -123,8 +122,7 @@ private slots:
 	void CopyFilter();
 	void PasteFilter();
 
-	void FiltersMoved(const QModelIndex &srcParent, int srcIdxStart,
-			  int srcIdxEnd, const QModelIndex &dstParent,
+	void FiltersMoved(const QModelIndex &srcParent, int srcIdxStart, int srcIdxEnd, const QModelIndex &dstParent,
 			  int dstIdx);
 
 public:
@@ -142,6 +140,5 @@ public:
 
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
-	virtual bool nativeEvent(const QByteArray &eventType, void *message,
-				 qintptr *result) override;
+	virtual bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 };

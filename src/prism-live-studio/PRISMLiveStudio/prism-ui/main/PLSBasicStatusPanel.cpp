@@ -39,8 +39,7 @@ static QString MakeMissedFramesText(uint32_t total_lagged, uint32_t total_render
 	return QString("%1 / %2 (%3%)").arg(QString::number(total_lagged), QString::number(total_rendered), QString::number(num, 'f', 1));
 }
 
-PLSBasicStatusPanel::PLSBasicStatusPanel(QWidget *parent)
-	: QDialog(parent, Qt::FramelessWindowHint)
+PLSBasicStatusPanel::PLSBasicStatusPanel(QWidget *parent) : QDialog(parent, Qt::FramelessWindowHint)
 {
 	ui = pls_new<Ui::PLSBasicStatusPanel>();
 	ui->setupUi(this);
@@ -48,15 +47,15 @@ PLSBasicStatusPanel::PLSBasicStatusPanel(QWidget *parent)
 	setAttribute(Qt::WA_NativeWindow);
 
 #ifndef _WIN32
-	ui->gridLayout_5->removeWidget(ui->gpuUsageLabel);
-	ui->gridLayout_5->removeWidget(ui->gpuUsage);
-	ui->gridLayout_5->removeWidget(ui->memoryUsageLabel);
-	ui->gridLayout_5->removeWidget(ui->memoryUsage);
+	ui->gridLayout->removeWidget(ui->gpuUsageLabel);
+	ui->gridLayout->removeWidget(ui->gpuUsage);
+	ui->gridLayout->removeWidget(ui->memoryUsageLabel);
+	ui->gridLayout->removeWidget(ui->memoryUsage);
 
-	ui->gridLayout_5->addWidget(ui->memoryUsageLabel, 2, 0);
-	ui->gridLayout_5->addWidget(ui->memoryUsage, 2, 1);
-	ui->gridLayout_5->addWidget(ui->gpuUsageLabel, 3, 0);
-	ui->gridLayout_5->addWidget(ui->gpuUsage, 3, 1);
+	ui->gridLayout->addWidget(ui->memoryUsageLabel, 2, 0);
+	ui->gridLayout->addWidget(ui->memoryUsage, 2, 2);
+	ui->gridLayout->addWidget(ui->gpuUsageLabel, 3, 0);
+	ui->gridLayout->addWidget(ui->gpuUsage, 3, 2);
 	ui->gpuUsageLabel->setText(QString());
 	ui->gpuUsage->setText(QString());
 #endif
@@ -116,6 +115,23 @@ void PLSBasicStatusPanel::InitializeValues()
 	}
 }
 
+void PLSBasicStatusPanel::Reset()
+{
+	first_encoded = 0xFFFFFFFF;
+	first_skipped = 0xFFFFFFFF;
+	first_rendered = 0xFFFFFFFF;
+	first_lagged = 0xFFFFFFFF;
+
+	first_encoded_v = 0xFFFFFFFF;
+	first_skipped_v = 0xFFFFFFFF;
+
+	OBSOutputAutoRelease strOutput = obs_frontend_get_streaming_output();
+	OBSOutputAutoRelease recOutput = obs_frontend_get_recording_output();
+
+	outputLabels[0].Reset(strOutput);
+	outputLabels[1].Reset(recOutput);
+}
+
 void PLSBasicStatusPanel::setTextAndAlignment(QLabel *widget, const QString &text)
 {
 	widget->setText(text);
@@ -124,9 +140,9 @@ void PLSBasicStatusPanel::setTextAndAlignment(QLabel *widget, const QString &tex
 void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 {
 	if (isVisible()) {
-		setTextAndAlignment(ui->cpuUsage, QString::number(get<0>(dataStatus.cpu), 'g', 2) + QStringLiteral("%"));
+		setTextAndAlignment(ui->cpuUsage, QString::number(get<0>(dataStatus.cpu), 'f', 1) + QStringLiteral("%"));
 #if _WIN32
-		setTextAndAlignment(ui->gpuUsage, QString::number(get<0>(dataStatus.gpu), 'g', 2) + QStringLiteral("%"));
+		setTextAndAlignment(ui->gpuUsage, QString::number(get<0>(dataStatus.gpu), 'f', 1) + QStringLiteral("%"));
 #endif
 	}
 	auto num = (double)os_get_proc_resident_size() / (1024.0 * 1024.0);
@@ -166,6 +182,8 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 	dataStatus.streamOutputFPS = OBSBasic::Get()->GetStreamingOutputFPS();
 	dataStatus.recordOutputFPS = OBSBasic::Get()->GetRecordingOutputFPS();
 	dataStatus.streamOutputFPS_v = pls_is_dual_output_on() ? OBSBasic::Get()->GetStreamingOutputFPS(true) : 0.0;
+	dataStatus.streamNetworkMilliTime = OBSBasic::Get()->GetStreamingNetworkMilliTime();
+	dataStatus.streamNetworkMilliTime_v = pls_is_dual_output_on() ? OBSBasic::Get()->GetStreamingNetworkMilliTime(true) : 0.0;
 
 	if (isVisible()) {
 		setTextAndAlignment(ui->realtimeFramerate, QString("%1 / %2 fps").arg(QString::number(curFPS, 'f', 2), QString::number(plsFPS, 'f', 2)));
@@ -374,7 +392,7 @@ void PLSBasicStatusPanel::updateStatusPanel(PLSBasicStatusData &dataStatus)
 	} while (false);
 
 	// for dual output
-	do{
+	do {
 		if (!pls_is_dual_output_on()) {
 			dataStatus.dropedEncoding_v = {0, 0, 0.0};
 			dataStatus.dropedNetwork_v = {0, 0, 0.0};
@@ -610,7 +628,7 @@ void PLSBasicStatusPanel::OutputLabels::Reset(const obs_output_t *output)
 	first_dropped = obs_output_get_frames_dropped(output);
 }
 
-void PLSBasicStatusPanel::OutputLabels::Update_v(const obs_output_t *output_v, PLSBasicStatusData &dataStatus) 
+void PLSBasicStatusPanel::OutputLabels::Update_v(const obs_output_t *output_v, PLSBasicStatusData &dataStatus)
 {
 	auto active = output_v ? obs_output_active(output_v) : false;
 	auto totalBytes = active ? obs_output_get_total_bytes(output_v) : 0;
@@ -687,19 +705,19 @@ void PLSBasicStatusPanel::OutputLabels::Update_v(const obs_output_t *output_v, P
 		setTextAndAlignment(droppedFramesV, str);
 
 		if (num > 5.0) {
-			if (State::Error != lastState) {
+			if (State::Error != lastStateV) {
 				pls_flush_style(droppedFramesStateV, "state", "error");
-				lastState = State::Error;
+				lastStateV = State::Error;
 			}
 		} else if (num > 1.0) {
-			if (State::Warning != lastState) {
+			if (State::Warning != lastStateV) {
 				pls_flush_style(droppedFramesStateV, "state", "warning");
-				lastState = State::Warning;
+				lastStateV = State::Warning;
 			}
 		} else {
-			if (State::Normal != lastState) {
+			if (State::Normal != lastStateV) {
 				pls_flush_style(droppedFramesStateV, "state", "");
-				lastState = State::Normal;
+				lastStateV = State::Normal;
 			}
 		}
 	}
@@ -719,18 +737,20 @@ void PLSBasicStatusPanel::OutputLabels::Reset_v(const obs_output_t *output_v)
 void PLSBasicStatusPanel::showEvent(QShowEvent *event)
 {
 #if defined(Q_OS_MACOS)
-    PLSCustomMacWindow::addCurrentWindowToParentWindow(this);
+	PLSCustomMacWindow::addCurrentWindowToParentWindow(this);
 #endif
-    QDialog::showEvent(event);
+	QDialog::showEvent(event);
 }
 
-void PLSBasicStatusPanel::onDualOutputChanged(bool bDualOutput) {
-	setFixedHeight(bDualOutput ? 240 : 180);
-
+void PLSBasicStatusPanel::onDualOutputChanged(bool bDualOutput)
+{
 	ui->encodingFramedropImage->setVisible(bDualOutput);
+
 	ui->encodingFramedropStateV->setVisible(bDualOutput);
+	ui->widget_2->setVisible(bDualOutput);
 	ui->encodingFramedropImageV->setVisible(bDualOutput);
 	ui->encodingFramedropLabelV->setVisible(bDualOutput);
+
 	ui->encodingFramedropV->setVisible(bDualOutput);
 
 	ui->networkStateImage->setVisible(bDualOutput);
@@ -748,14 +768,15 @@ void PLSBasicStatusPanel::onDualOutputChanged(bool bDualOutput) {
 	ui->streamMegabytesV->setVisible(bDualOutput);
 
 	if (bDualOutput) {
-		ui->verticalSpacer_3->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
-		ui->verticalSpacer_4->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
-		ui->verticalSpacer_5->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Expanding);
+		setMinimumWidth(1172);
+		setFixedHeight(270);
 	} else {
-		ui->verticalSpacer_3->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Minimum);
-		ui->verticalSpacer_4->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Minimum);
-		ui->verticalSpacer_5->changeSize(0, 0, QSizePolicy::Policy::Minimum, QSizePolicy::Policy::Minimum);
+		setMinimumWidth(1110);
+		setFixedHeight(180);
 	}
 
-	PLSBasic::instance()->moveStatusPanel();
+	pls_async_call(this, [this] {
+		adjustSize();
+		PLSBasic::instance()->moveStatusPanel();
+	});
 }

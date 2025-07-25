@@ -88,8 +88,8 @@ ResolutionGuidePage *ResolutionGuidePage::createInstance(QWidget *parent)
 void ResolutionGuidePage::saveSettings() const
 {
 	QByteArray setting = this->saveGeometry();
-	config_set_string(App()->GlobalConfig(), ResolutionGroup, ResolutionGeo, setting.toBase64().constData());
-	config_save(App()->GlobalConfig());
+	config_set_string(App()->GetUserConfig(), ResolutionGroup, ResolutionGeo, setting.toBase64().constData());
+	config_save(App()->GetUserConfig());
 }
 
 void ResolutionGuidePage::adjustLayout()
@@ -269,7 +269,7 @@ Resolution ResolutionGuidePage::parserStringOfResolution(const QString &resoluti
 
 void ResolutionGuidePage::loadSettings()
 {
-	QByteArray setting = QByteArray::fromBase64(config_get_string(App()->GlobalConfig(), ResolutionGroup, ResolutionGeo));
+	QByteArray setting = QByteArray::fromBase64(config_get_string(App()->GetUserConfig(), ResolutionGroup, ResolutionGeo));
 	this->restoreGeometry(setting);
 }
 
@@ -873,7 +873,7 @@ bool ResolutionGuidePage::setVideoBitrateAndKeyFrameInterval(int bitrate, int ke
 	}
 	std::string fullPath(512, '\0');
 
-	if (GetProfilePath(fullPath.data(), fullPath.size(), "streamEncoder.json") <= 0) {
+	if (mainView->GetProfilePath(fullPath.data(), fullPath.size(), "streamEncoder.json") <= 0) {
 		return false;
 	}
 	obs_data_save_json_safe(streamEncSettings, fullPath.c_str(), "tmp", "bak");
@@ -885,6 +885,5 @@ void ResolutionGuidePage::showAlertOnSetResolutionFailed()
 {
 	CannotTipObject obj;
 	obj.updateText();
-	QMetaObject::invokeMethod(
-		pls_get_main_view(), [obj]() { pls_alert_error_message(pls_get_main_view(), tr("Notice"), obj.mText); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(pls_get_main_view(), [obj]() { pls_alert_error_message(pls_get_main_view(), tr("Notice"), obj.mText); }, Qt::QueuedConnection);
 }

@@ -60,7 +60,7 @@ using FnDone = std::function<void(const UrlAndHowSave &urlAndHowSave, bool ok, c
 #define PLS_RSM_CID_SCENE_TEMPLATES QStringLiteral("scene_templates")
 #define PLS_RSM_CID_TEXT_TEMPLATE	QStringLiteral("textTemplatePC")
 #define PLS_RSM_CID_VIRTUAL_BG		QStringLiteral("virtual_bg")
-
+#define PLS_RSM_CID_CHAT_BG			QStringLiteral("chatBackground")
 #define PLS_RSM_UID_LIBRARY_POLICY_PC pls::rsm::UniqueId(QStringLiteral("library_Policy_PC"))
 
 #define PLS_RSM_getLibraryPolicyPC_Path(subpath) pls::rsm::getItemPath(PLS_RSM_CID_LIBRARY, PLS_RSM_UID_LIBRARY_POLICY_PC, subpath)
@@ -112,7 +112,10 @@ struct LIRESOURCE_API UrlAndHowSave {
 	UrlAndHowSave &filePath(const QString &filePath);
 
 	QString defaultFilePath() const;
-	UrlAndHowSave &defaultFilePath(const QString &defaultFilePath);
+	UrlAndHowSave &defaultFilePath(const QString &defaultFilePath, bool encrypted = false);
+
+	bool encryptJson() const;
+	UrlAndHowSave &encryptJson(bool encryptJson);
 
 	QString savedFilePath() const;
 
@@ -142,8 +145,8 @@ struct LIRESOURCE_API UrlAndHowSave {
 struct LIRESOURCE_API Category {
 	CategoryImplPtr m_impl;
 
-	Category() {}
-	Category(std::nullptr_t) {}
+	Category();
+	Category(std::nullptr_t);
 	Category(CategoryImplPtr categoryImpl);
 
 	explicit operator bool() const;
@@ -152,6 +155,7 @@ struct LIRESOURCE_API Category {
 	Category &operator=(Category category);
 	CategoryImpl *operator->() const;
 
+	const QJsonObject &json() const;
 	int version() const;
 	QString categoryId() const;
 	std::list<Group> groups() const;
@@ -165,8 +169,8 @@ struct LIRESOURCE_API Category {
 struct LIRESOURCE_API Group {
 	GroupImplPtr m_impl;
 
-	Group() {}
-	Group(std::nullptr_t) {}
+	Group();
+	Group(std::nullptr_t);
 	Group(GroupImplPtr groupImpl);
 
 	explicit operator bool() const;
@@ -208,8 +212,8 @@ struct LIRESOURCE_API Group {
 struct LIRESOURCE_API Item {
 	ItemImplPtr m_impl;
 
-	Item() {}
-	Item(std::nullptr_t) {}
+	Item();
+	Item(std::nullptr_t);
 	Item(ItemImplPtr itemImpl);
 
 	explicit operator bool() const;
@@ -267,6 +271,13 @@ struct LIRESOURCE_API DownloadResult {
 	bool timeout() const { return m_timeout; }
 	int statusCode() const { return m_statusCode; }
 	QString filePath() const { return m_urlAndHowSave.savedFilePath(); }
+
+	bool json(QJsonDocument &doc, QString *error = nullptr) const;
+	bool json(QJsonArray &array, QString *error = nullptr) const;
+	bool json(QVariantList &list, QString *error = nullptr) const;
+	bool json(QJsonObject &object, QString *error = nullptr) const;
+	bool json(QVariantMap &map, QString *error = nullptr) const;
+	bool json(QVariantHash &hash, QString *error = nullptr) const;
 };
 struct LIRESOURCE_API IDownloader {
 	using ResultCb = std::function<void(const DownloadResult &result)>;
@@ -507,6 +518,7 @@ struct LIRESOURCE_API IResourceManager {
 
 LIRESOURCE_API IDownloader *getDownloader();
 LIRESOURCE_API IResourceManager *getResourceManager();
+LIRESOURCE_API void downloadAll(const std::function<void()> &complete = nullptr);
 // base dir data/prism-studio/resources/
 LIRESOURCE_API QString getDataPath(const QString &subpath = QString());
 // base dir PRISMLiveStudio/resources/

@@ -483,7 +483,7 @@ void PLSRootNode::save(QJsonObject &output)
 
 bool PLSRootNode::doExport(obs_data_t *rootSettings, obs_data_t *priSettings, QJsonObject &output, void *param)
 {
-	const char *curName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
+	const char *curName = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
 
 	QJsonObject rootObject;
 	rootObject["nodeType"] = PLSNodeManagerPtr->nodeTypeValueToKey(SNodeType::RootNode);

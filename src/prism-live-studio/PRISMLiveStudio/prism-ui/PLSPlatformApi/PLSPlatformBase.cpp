@@ -110,12 +110,14 @@ void PLSPlatformBase::prepareLiveCallback(bool value)
 
 	list<PLSPlatformBase *> platforms = pls_is_dual_output_on() && isVerticalOutput() ? PLS_PLATFORM_API->getVerticalPlatforms() : PLS_PLATFORM_API->getHorizontalPlatforms();
 
-	if (getServiceType() == PLSServiceType::ST_CUSTOM) {
-		QString rtmpId = mySharedData().m_mapInitData[ChannelData::g_rtmpUserID].toString();
-		QString rtmpPassword = mySharedData().m_mapInitData[ChannelData::g_password].toString();
-		PLS_PLATFORM_API->saveStreamSettings(getNameForSettingId(), getStreamServer(), getStreamKey(), isVerticalOutput(), rtmpId, rtmpPassword);
-	} else {
-		PLS_PLATFORM_API->saveStreamSettings(getNameForSettingId(), getStreamServer(), getStreamKey(), isVerticalOutput());
+	if (1 == platforms.size()) {
+		if (getServiceType() == PLSServiceType::ST_CUSTOM) {
+			QString rtmpId = mySharedData().m_mapInitData[ChannelData::g_rtmpUserID].toString();
+			QString rtmpPassword = mySharedData().m_mapInitData[ChannelData::g_password].toString();
+			PLS_PLATFORM_API->saveStreamSettings(getNameForSettingId(), getStreamServer(), getStreamKey(), isVerticalOutput(), rtmpId, rtmpPassword);
+		} else {
+			PLS_PLATFORM_API->saveStreamSettings(getNameForSettingId(), getStreamServer(), getStreamKey(), isVerticalOutput());
+		}
 	}
 
 	auto iter = find(platforms.begin(), platforms.end(), this);
@@ -126,9 +128,11 @@ void PLSPlatformBase::prepareLiveCallback(bool value)
 		if (pls_is_dual_output_on() && isHorizontalOutput()) {
 			PLS_PLATFORM_API->getVerticalPlatforms().front()->onPrepareLive(true);
 		} else {
-			PLS_PLATFORM_API->prepareLiveCallback(value);
+			PLS_PLATFORM_PRSIM->onPrepareLive(value);
 		}
 	}
+
+	setVerticalOutput();
 }
 
 void PLSPlatformBase::liveStartedCallback(bool value)
@@ -175,7 +179,7 @@ void PLSPlatformBase::liveStoppedCallback()
 void PLSPlatformBase::liveEndedCallback()
 {
 	stopMaxLiveTimer();
-	if (LiveStatus::LiveEnded != PLS_PLATFORM_API->getLiveStatus()) {
+	if (auto liveStatus = PLS_PLATFORM_API->getLiveStatus(); LiveStatus::LiveEnded != liveStatus && LiveStatus::Normal != liveStatus) {
 		return;
 	}
 	auto platforms = PLS_PLATFORM_API->getActivePlatforms();
@@ -253,10 +257,7 @@ PLSPlatformMqttStatus PLSPlatformBase::getMqttStatus(const QString &szStatus)
 
 bool PLSPlatformBase::onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject)
 {
-	if (PLS_PLATFORM_API->isPrismLive()) {
-		return true;
-	}
-	return false;
+	return true;
 }
 
 QJsonObject PLSPlatformBase::getWebChatParams()

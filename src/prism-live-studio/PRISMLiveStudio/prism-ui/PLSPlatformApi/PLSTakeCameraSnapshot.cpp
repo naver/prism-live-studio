@@ -178,7 +178,7 @@ void PLSTakeCameraSnapshotTakeTimerMask::start(int count)
 		PLS_INFO("PLSTakeCameraSnapshotTakeTimerMask", "single shot timer triggered for PLSTakeCameraSnapshotTakeTimerMask start");
 		if (qThis == nullptr || qThis.isNull())
 			return;
-		
+
 		if (count > 1) {
 			qThis->start(count - 1);
 		} else {
@@ -210,7 +210,7 @@ void PLSTakeCameraSnapshotTakeTimerMask::draw(void *data, uint32_t baseWidth, ui
 		return;
 
 	OBSSource source = self->sources[self->count - 1];
-	
+
 	uint32_t newCX = baseWidth * 106 / 900;
 	uint32_t newCY = baseHeight * 182 / 588;
 	uint32_t sourceWidth = std::max(obs_source_get_width(source), 1u);
@@ -265,7 +265,7 @@ PLSTakeCameraSnapshot::PLSTakeCameraSnapshot(QString &camera_, QWidget *parent) 
 	cameraUninitMaskText->setWordWrap(true);
 	cameraUninitMaskLayout->addStretch(1);
 	cameraUninitMaskLayout->addWidget(cameraUninitMaskIcon, 0, Qt::AlignHCenter);
-	cameraUninitMaskLayout->addWidget(cameraUninitMaskText, 0/*, Qt::AlignHCenter*/);
+	cameraUninitMaskLayout->addWidget(cameraUninitMaskText, 0 /*, Qt::AlignHCenter*/);
 	cameraUninitMaskLayout->addStretch(1);
 
 	QLabel *cameraSettingButtonIcon = pls_new<QLabel>(ui->cameraSettingButton);
@@ -378,11 +378,8 @@ void PLSTakeCameraSnapshot::init(const QString &camera_)
 		hasError = true;
 		return;
 	}
-	
-	updatePropertiesSignal.Connect(obs_source_get_signal_handler(source),
-								   "update_properties",
-								   PLSTakeCameraSnapshot::updateProperties,
-								   this);
+
+	updatePropertiesSignal.Connect(obs_source_get_signal_handler(source), "update_properties", PLSTakeCameraSnapshot::updateProperties, this);
 
 	sourceValid = true;
 	QPointer<PLSTakeCameraSnapshot> guard(this);
@@ -398,7 +395,7 @@ void PLSTakeCameraSnapshot::init(const QString &camera_)
 	ui->cameraList->setEnabled(true);
 	bool failed = !check.getResult();
 
-	obs_data_t* settings = obs_source_get_settings(source);
+	obs_data_t *settings = obs_source_get_settings(source);
 	bool not_support_hdr = obs_data_get_bool(settings, "not_support_hdr");
 	obs_data_release(settings);
 
@@ -407,9 +404,9 @@ void PLSTakeCameraSnapshot::init(const QString &camera_)
 		sourceValid = false;
 		obs_source_release(source);
 
-		if(failed)
+		if (failed)
 			cameraUninitMaskText->setText(tr("TakeCameraSnapshot.DeviceError"));
-		else if(not_support_hdr)
+		else if (not_support_hdr)
 			cameraUninitMaskText->setText(tr("source.camera.snapshot.notsupport.hdr"));
 
 		cameraUninitMask->show();
@@ -504,17 +501,18 @@ static void macPermissionCallback(void *inUserData, bool isUserClickOK)
 }
 #endif
 
-void PLSTakeCameraSnapshot::updateProperties(void *data, calldata_t *calldata) {
+void PLSTakeCameraSnapshot::updateProperties(void *data, calldata_t *calldata)
+{
 	auto self = static_cast<PLSTakeCameraSnapshot *>(data);
-	
+
 	bool cameraRemoved = true;
-	
+
 	if (obs_properties_t *properties = obs_get_source_properties(OBS_DSHOW_SOURCE_ID); properties) {
 		if (obs_property_t *property = obs_properties_get(properties, takephoto::CSTR_VIDEO_DEVICE_ID); property) {
 			for (size_t i = 0, count = obs_property_list_item_count(property); i < count; ++i) {
 				QString name = QString::fromUtf8(obs_property_list_item_name(property, i));
 				QString value = QString::fromUtf8(obs_property_list_item_string(property, i));
-				
+
 				if (value == self->camera) {
 					cameraRemoved = false;
 					break;
@@ -523,7 +521,7 @@ void PLSTakeCameraSnapshot::updateProperties(void *data, calldata_t *calldata) {
 		}
 		obs_properties_destroy(properties);
 	}
-	
+
 	if (cameraRemoved) {
 		int index = self->ui->cameraList->findData(self->camera);
 		if (index >= 0) {
@@ -570,8 +568,7 @@ void PLSTakeCameraSnapshot::InitCameraList()
 
 #if defined(Q_OS_MACOS)
 	auto permissionStatus = PLSPermissionHelper::getVideoPermissonStatus(this, macPermissionCallback);
-	QMetaObject::invokeMethod(
-		this, [permissionStatus, this]() { PLSPermissionHelper::showPermissionAlertIfNeeded(PLSPermissionHelper::AVType::Video, permissionStatus); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(this, [permissionStatus, this]() { PLSPermissionHelper::showPermissionAlertIfNeeded(PLSPermissionHelper::AVType::Video, permissionStatus); }, Qt::QueuedConnection);
 #endif
 }
 
@@ -752,7 +749,7 @@ void PLSTakeCameraSnapshot::CheckEnumTimeout()
 		pls_async_call(this, [this, deviceName]() {
 			std::array<char, 512> deviceUtf8 = {0};
 			os_wcs_to_utf8(deviceName.c_str(), 0, deviceUtf8.data(), deviceUtf8.size());
-			PLSUIFunc::showEnumTimeoutAlertView(QString::fromUtf8(deviceUtf8.data()));
+			PLSUIFunc::showEnumTimeoutAlertView(QString::fromUtf8(deviceUtf8.data()), this);
 		});
 	}
 }

@@ -16,6 +16,8 @@ using Common = struct Common {
 	QString stage;
 	QString regionCode;
 	QString deviceType;
+	int uiBlockingTimeS;
+	int duplicateCrashLimit;
 };
 using channelAttr = struct channelAttr {
 	QString id;

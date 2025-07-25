@@ -2,7 +2,7 @@
 
 #include "window-basic-main.hpp"
 #include "youtube-api-wrappers.hpp"
-#include "window-dock-youtube-app.hpp"
+#include "moc_window-dock-youtube-app.cpp"
 
 #include "ui-config.h"
 #include "qt-wrappers.hpp"
@@ -17,19 +17,16 @@
 using json = nlohmann::json;
 
 #ifdef YOUTUBE_WEBAPP_PLACEHOLDER
-static constexpr const char *YOUTUBE_WEBAPP_PLACEHOLDER_URL =
-	YOUTUBE_WEBAPP_PLACEHOLDER;
+static constexpr const char *YOUTUBE_WEBAPP_PLACEHOLDER_URL = YOUTUBE_WEBAPP_PLACEHOLDER;
 #else
 static constexpr const char *YOUTUBE_WEBAPP_PLACEHOLDER_URL =
 	"https://studio.youtube.com/live/channel/UC/console?kc=OBS";
 #endif
 
 #ifdef YOUTUBE_WEBAPP_ADDRESS
-static constexpr const char *YOUTUBE_WEBAPP_ADDRESS_URL =
-	YOUTUBE_WEBAPP_ADDRESS;
+static constexpr const char *YOUTUBE_WEBAPP_ADDRESS_URL = YOUTUBE_WEBAPP_ADDRESS;
 #else
-static constexpr const char *YOUTUBE_WEBAPP_ADDRESS_URL =
-	"https://studio.youtube.com/live/channel/%1/console?kc=OBS";
+static constexpr const char *YOUTUBE_WEBAPP_ADDRESS_URL = "https://studio.youtube.com/live/channel/%1/console?kc=OBS";
 #endif
 
 static constexpr const char *BROADCAST_CREATED = "BROADCAST_CREATED";
@@ -37,36 +34,11 @@ static constexpr const char *BROADCAST_SELECTED = "BROADCAST_SELECTED";
 static constexpr const char *INGESTION_STARTED = "INGESTION_STARTED";
 static constexpr const char *INGESTION_STOPPED = "INGESTION_STOPPED";
 
-YouTubeAppDock::YouTubeAppDock(const QString &title)
-	: BrowserDock(title), dockBrowser(nullptr), cookieManager(nullptr)
+YouTubeAppDock::YouTubeAppDock(const QString &title) : BrowserDock(title), dockBrowser(nullptr)
 {
 	cef->init_browser();
 	OBSBasic::InitBrowserPanelSafeBlock();
 	AddYouTubeAppDock();
-	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
-	connect(
-		pPlatformYoutube, &PLSPlatformYoutube::receiveVideoId, this,
-		[this](bool bNewCreate, QString sVideoId) {
-			if (!sVideoId.isEmpty()) {
-				videoId = sVideoId;
-				if (bNewCreate) {
-					BroadcastCreated(
-						sVideoId.toStdString().c_str());
-				} else {
-					BroadcastSelected(
-						sVideoId.toStdString().c_str());
-				}
-			}
-		},
-		Qt::QueuedConnection);
-}
-
-YouTubeAppDock::~YouTubeAppDock()
-{
-	if (cookieManager) {
-		cookieManager->FlushStore();
-		delete cookieManager;
-	}
 }
 
 bool YouTubeAppDock::IsYTServiceSelected()
@@ -80,6 +52,9 @@ void YouTubeAppDock::AccountConnected()
 {
 	channelId.clear(); // renew channel id
 	UpdateChannelId();
+	auto pPlatformYoutube = PLS_PLATFORM_YOUTUBE;
+	connect(pPlatformYoutube, &PLSPlatformYoutube::receiveVideoId, this, &YouTubeAppDock::setVideoId,
+		    Qt::ConnectionType(Qt::QueuedConnection | Qt::UniqueConnection));
 }
 
 void YouTubeAppDock::AccountDisconnected()
@@ -94,8 +69,10 @@ void YouTubeAppDock::SettingsUpdated(bool cleanup)
 
 	// definitely cleanup if YT switched off
 	if (!ytservice || cleanup) {
-		if (cookieManager)
-			cookieManager->DeleteCookies("", "");
+		if (panel_cookies) {
+			panel_cookies->DeleteCookies("youtube.com", "");
+			panel_cookies->DeleteCookies("google.com", "");
+		}
 	}
 	if (ytservice)
 		Update();
@@ -106,10 +83,8 @@ std::string YouTubeAppDock::InitYTUserUrl()
 	std::string user_url(YOUTUBE_WEBAPP_PLACEHOLDER_URL);
 
 	if (IsUserSignedIntoYT()) {
-		//todo get g_subChannelId
 		UpdateChannelId();
-		QString url =
-			QString(YOUTUBE_WEBAPP_ADDRESS_URL).arg(channelId);
+		QString url = QString(YOUTUBE_WEBAPP_ADDRESS_URL).arg(channelId);
 		user_url = url.toStdString();
 	} else {
 		blog(LOG_ERROR, "YT: InitYTUserUrl() User is not signed");
@@ -124,43 +99,30 @@ void YouTubeAppDock::AddYouTubeAppDock()
 	QString bId(QUuid::createUuid().toString());
 	bId.replace(QRegularExpression("[{}-]"), "");
 	this->setProperty("uuid", bId);
-	PLSBasic::instance()->CreateAdvancedButtonForBrowserDock(this, bId,
-								 true);
+	PLSBasic::instance()->CreateAdvancedButtonForBrowserDock(this, bId, true);
 	this->resize(580, 500);
 	this->setMinimumSize(182, 132);
 	this->setObjectName("youtubeLiveControlPanel");
 	this->setAllowedAreas(Qt::AllDockWidgetAreas);
 	OBSBasic::Get()->AddDockWidget(this, Qt::RightDockWidgetArea, true);
 
-	if (IsYTServiceSelected()) {
-		const std::string url = InitYTUserUrl();
-		CreateBrowserWidget(url);
-		setWindowTitle(CHANNELS_TR(config.gotoyoutube.dashbord));
-	} else {
-		this->setVisible(false);
-		this->toggleViewAction()->setVisible(false);
-	}
-	PLSBasic::instance()->getMainView()->addCloseListener(
-		[dock = QPointer<YouTubeAppDock>(this)]() {
-			if (dock) {
-				dock->closeBrowser();
-			}
-		});
+	const std::string url = InitYTUserUrl();
+	CreateBrowserWidget(url);
+	setWindowTitle(CHANNELS_TR(config.gotoyoutube.dashbord));
+
+	PLSBasic::instance()->getMainView()->addCloseListener([dock = QPointer<YouTubeAppDock>(this)]() {
+		if (dock) {
+			dock->closeBrowser();
+		}
+	});
 }
 
 void YouTubeAppDock::CreateBrowserWidget(const std::string &url)
 {
-	std::string dir_name =
-		std::string("obs_profile_cookies_youtube/") +
-		config_get_string(PLSApp::plsApp()->GlobalConfig(), "Panels",
-				  "CookieId");
-	if (cookieManager)
-		delete cookieManager;
-	cookieManager = cef->create_cookie_manager(dir_name, true);
 
 	if (dockBrowser)
 		delete dockBrowser;
-	dockBrowser = cef->create_widget(this, url, cookieManager);
+	dockBrowser = cef->create_widget(this, url, panel_cookies);
 	if (!dockBrowser)
 		return;
 
@@ -168,6 +130,7 @@ void YouTubeAppDock::CreateBrowserWidget(const std::string &url)
 		dockBrowser->allowAllPopups(true);
 
 	this->SetWidget(dockBrowser);
+	QWidget::connect(dockBrowser.get(), SIGNAL(urlChanged(QString)), this, SLOT(ReloadChatDock(QString)));
 	Update();
 }
 
@@ -200,11 +163,9 @@ void YouTubeAppDock::IngestionStarted()
 			videoId.clear();
 			UpdateVideoId();
 			if (videoId.isEmpty()) {
-				PLS_ERROR("YouTubeAppDock",
-					  "get video id is empty");
+				PLS_ERROR("YouTubeAppDock", "get video id is empty");
 			}
-			this->IngestionStarted(videoId.toStdString().c_str(),
-					       YouTubeAppDock::YTSM_ACCOUNT);
+			this->IngestionStarted(videoId.toStdString().c_str(), YouTubeAppDock::YTSM_ACCOUNT);
 		} else {
 			//prism don't need this
 			/*const char *stream_key =
@@ -215,8 +176,7 @@ void YouTubeAppDock::IngestionStarted()
 	}
 }
 
-void YouTubeAppDock::IngestionStarted(const char *stream_id,
-				      streaming_mode_t mode)
+void YouTubeAppDock::IngestionStarted(const char *stream_id, streaming_mode_t mode)
 {
 	DispatchYTEvent(INGESTION_STARTED, stream_id, mode);
 }
@@ -226,8 +186,7 @@ void YouTubeAppDock::IngestionStopped()
 {
 	if (IsYouTubeService()) {
 		if (IsUserSignedIntoYT()) {
-			this->IngestionStopped(videoId.toStdString().c_str(),
-					       YouTubeAppDock::YTSM_ACCOUNT);
+			this->IngestionStopped(videoId.toStdString().c_str(), YouTubeAppDock::YTSM_ACCOUNT);
 			videoId.clear();
 		} else {
 			//prism don't need this
@@ -239,8 +198,7 @@ void YouTubeAppDock::IngestionStopped()
 	}
 }
 
-void YouTubeAppDock::IngestionStopped(const char *stream_id,
-				      streaming_mode_t mode)
+void YouTubeAppDock::IngestionStopped(const char *stream_id, streaming_mode_t mode)
 {
 	DispatchYTEvent(INGESTION_STOPPED, stream_id, mode);
 }
@@ -256,8 +214,7 @@ void YouTubeAppDock::closeEvent(QCloseEvent *event)
 	BrowserDock::closeEvent(event);
 }
 
-void YouTubeAppDock::DispatchYTEvent(const char *event, const char *video_id,
-				     streaming_mode_t mode)
+void YouTubeAppDock::DispatchYTEvent(const char *event, const char *video_id, streaming_mode_t mode)
 {
 	if (!dockBrowser)
 		return;
@@ -320,25 +277,18 @@ void YouTubeAppDock::Update()
 	// if streaming already run, let's notify YT about past event
 	if (OBSBasic::Get()->StreamingActive()) {
 		obs_service_t *service_obj = OBSBasic::Get()->GetService();
-		OBSDataAutoRelease settings =
-			obs_service_get_settings(service_obj);
+		OBSDataAutoRelease settings = obs_service_get_settings(service_obj);
 		if (IsUserSignedIntoYT()) {
 			channelId.clear(); // renew channelId
 			UpdateChannelId();
-			const char *broadcast_id =
-				obs_data_get_string(settings, "broadcast_id");
-			SetInitEvent(YTSM_ACCOUNT, INGESTION_STARTED,
-				     broadcast_id,
-				     channelId.toStdString().c_str());
+			const char *broadcast_id = obs_data_get_string(settings, "broadcast_id");
+			SetInitEvent(YTSM_ACCOUNT, INGESTION_STARTED, broadcast_id, channelId.toStdString().c_str());
 		} else {
-			const char *stream_key =
-				obs_data_get_string(settings, "key");
-			SetInitEvent(YTSM_STREAM_KEY, INGESTION_STARTED,
-				     stream_key);
+			const char *stream_key = obs_data_get_string(settings, "key");
+			SetInitEvent(YTSM_STREAM_KEY, INGESTION_STARTED, stream_key);
 		}
 	} else {
-		SetInitEvent(IsUserSignedIntoYT() ? YTSM_ACCOUNT
-						  : YTSM_STREAM_KEY);
+		SetInitEvent(IsUserSignedIntoYT() ? YTSM_ACCOUNT : YTSM_STREAM_KEY);
 	}
 
 	dockBrowser->reloadPage();
@@ -349,18 +299,30 @@ void YouTubeAppDock::UpdateChannelId()
 	if (channelId.isEmpty()) {
 		auto matchedPlaftorms = PLSCHANNELS_API->getAllChannelInfo();
 		for (const QVariantMap info : matchedPlaftorms) {
-			auto platform =
-				getInfo(info, ChannelData::g_channelName);
-			auto type = getInfo(info, ChannelData::g_data_type,
-					    ChannelData::NoType);
-			if (platform.contains(YOUTUBE, Qt::CaseInsensitive) &&
-			    type == ChannelData::ChannelType) {
-				channelId = getInfo(
-					info, ChannelData::g_subChannelId);
+			auto platform = getInfo(info, ChannelData::g_channelName);
+			auto type = getInfo(info, ChannelData::g_data_type, ChannelData::NoType);
+			if (platform.contains(YOUTUBE, Qt::CaseInsensitive) && type == ChannelData::ChannelType) {
+				channelId = getInfo(info, ChannelData::g_subChannelId);
 				break;
 			}
 		}
 	}
+	if (channelId.isEmpty()) {
+		channelId = PLSBasic::instance()->getLastYouTubeChannelId();
+	}
+}
+
+void YouTubeAppDock::ReloadChatDock()
+{
+	//jimbo.ren/2025-04-23/youutbe not needed it.
+	/*
+	if (IsUserSignedIntoYT()) {
+		YoutubeApiWrappers *apiYouTube = GetYTApi();
+		if (apiYouTube) {
+			apiYouTube->ReloadChat();
+		}
+	}
+	 */
 }
 
 void YouTubeAppDock::UpdateVideoId()
@@ -368,22 +330,17 @@ void YouTubeAppDock::UpdateVideoId()
 	if (videoId.isEmpty()) {
 		auto matchedPlaftorms = PLSCHANNELS_API->getAllChannelInfo();
 		for (const QVariantMap info : matchedPlaftorms) {
-			auto platform =
-				getInfo(info, ChannelData::g_channelName);
-			auto type = getInfo(info, ChannelData::g_data_type,
-					    ChannelData::NoType);
-			if (platform.contains(YOUTUBE, Qt::CaseInsensitive) &&
-			    type == ChannelData::ChannelType) {
-				videoId = getInfo(info,
-						  ChannelData::g_broadcastID);
+			auto platform = getInfo(info, ChannelData::g_channelName);
+			auto type = getInfo(info, ChannelData::g_data_type, ChannelData::NoType);
+			if (platform.contains(YOUTUBE, Qt::CaseInsensitive) && type == ChannelData::ChannelType) {
+				videoId = getInfo(info, ChannelData::g_broadcastID);
 				break;
 			}
 		}
 	}
 }
 
-void YouTubeAppDock::SetInitEvent(streaming_mode_t mode, const char *event,
-				  const char *video_id, const char *channelId)
+void YouTubeAppDock::SetInitEvent(streaming_mode_t mode, const char *event, const char *video_id, const char *channelId)
 {
 	const std::string version = App()->GetVersionString();
 
@@ -430,11 +387,22 @@ void YouTubeAppDock::SetInitEvent(streaming_mode_t mode, const char *event,
 	)""")
 				     .arg("OBS")
 				     .arg(version.c_str())
-				     .arg(mode == YTSM_ACCOUNT ? "'ACCOUNT'"
-							       : "'STREAM_KEY'")
+				     .arg(mode == YTSM_ACCOUNT ? "'ACCOUNT'" : "'STREAM_KEY'")
 				     .arg(api_event)
 				     .toStdString();
 	dockBrowser->setStartupScript(script);
+}
+
+void YouTubeAppDock::setVideoId(bool bNewCreate, QString sVideoId)
+{
+	if (!sVideoId.isEmpty()) {
+		videoId = sVideoId;
+		if (bNewCreate) {
+			BroadcastCreated(sVideoId.toStdString().c_str());
+		} else {
+			BroadcastSelected(sVideoId.toStdString().c_str());
+		}
+	}
 }
 
 YoutubeApiWrappers *YouTubeAppDock::GetYTApi()
@@ -461,21 +429,17 @@ void YouTubeAppDock::CleanupYouTubeUrls()
 	if (!cef_js_avail)
 		return;
 
-	static constexpr const char *YOUTUBE_VIDEO_URL =
-		"://studio.youtube.com/video/";
+	static constexpr const char *YOUTUBE_VIDEO_URL = "://studio.youtube.com/video/";
 	// remove legacy YouTube Browser Docks (once)
 
-	bool youtube_cleanup_done = config_get_bool(
-		App()->GlobalConfig(), "General", "YtDockCleanupDone");
+	bool youtube_cleanup_done = config_get_bool(App()->GetUserConfig(), "General", "YtDockCleanupDone");
 
 	if (youtube_cleanup_done)
 		return;
 
-	config_set_bool(App()->GlobalConfig(), "General", "YtDockCleanupDone",
-			true);
+	config_set_bool(App()->GetUserConfig(), "General", "YtDockCleanupDone", true);
 
-	const char *jsonStr = config_get_string(
-		App()->GlobalConfig(), "BasicWindow", "ExtraBrowserDocks");
+	const char *jsonStr = config_get_string(App()->GetUserConfig(), "BasicWindow", "ExtraBrowserDocks");
 	if (!jsonStr)
 		return;
 
@@ -490,8 +454,7 @@ void YouTubeAppDock::CleanupYouTubeUrls()
 		auto url = item["url"].get<std::string>();
 
 		if (url.find(YOUTUBE_VIDEO_URL) != std::string::npos) {
-			blog(LOG_DEBUG, "YT: found legacy url: %s",
-			     url.c_str());
+			blog(LOG_DEBUG, "YT: found legacy url: %s", url.c_str());
 			removedYTUrl += url;
 			removedYTUrl += ";\n";
 		} else {
@@ -501,14 +464,11 @@ void YouTubeAppDock::CleanupYouTubeUrls()
 
 	if (!removedYTUrl.empty()) {
 		const QString msg_title = QTStr("YouTube.DocksRemoval.Title");
-		const QString msg_text =
-			QTStr("YouTube.DocksRemoval.Text")
-				.arg(QT_UTF8(removedYTUrl.c_str()));
+		const QString msg_text = QTStr("YouTube.DocksRemoval.Text").arg(QT_UTF8(removedYTUrl.c_str()));
 		OBSMessageBox::warning(OBSBasic::Get(), msg_title, msg_text);
 
 		std::string output = save_array.dump();
-		config_set_string(App()->GlobalConfig(), "BasicWindow",
-				  "ExtraBrowserDocks", output.c_str());
+		config_set_string(App()->GetUserConfig(), "BasicWindow", "ExtraBrowserDocks", output.c_str());
 	}
 }
 
@@ -518,12 +478,10 @@ bool YouTubeAppDock::IsYouTubeService()
 	auto isMatched = [&](const QVariantMap &info) {
 		auto platform = getInfo(info, ChannelData::g_channelName);
 		return platform.contains(YOUTUBE, Qt::CaseInsensitive) &&
-		       getInfo(info, ChannelData::g_data_type,
-			       ChannelData::NoType) == ChannelData::ChannelType;
+		       getInfo(info, ChannelData::g_data_type, ChannelData::NoType) == ChannelData::ChannelType;
 	};
-	if (std::find_if(matchedPlaftorms.constBegin(),
-			 matchedPlaftorms.constEnd(),
-			 isMatched) != matchedPlaftorms.constEnd()) {
+	if (std::find_if(matchedPlaftorms.constBegin(), matchedPlaftorms.constEnd(), isMatched) !=
+	    matchedPlaftorms.constEnd()) {
 		return true;
 	}
 	return false;

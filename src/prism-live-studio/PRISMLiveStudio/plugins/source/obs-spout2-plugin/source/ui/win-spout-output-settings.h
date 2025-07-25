@@ -20,10 +20,10 @@ class win_spout_output_settings : public PLSDialogView {
 	Q_OBJECT
 
 public:
-	explicit win_spout_output_settings(QWidget* parent = 0);
+	explicit win_spout_output_settings(QWidget *parent = 0);
 	~win_spout_output_settings();
 	void set_started_button_state(bool started);
-	void close_event(QCloseEvent* event);
+	void close_event(QCloseEvent *event);
 	void toggle_show_hide();
 
 	//PRISM/FanZirong/20240802/PRISM_PC-755/save setting in shutdown
@@ -34,7 +34,7 @@ private Q_SLOTS:
 	void on_stop();
 
 private:
-	Ui::win_spout_output_settings* ui;
+	Ui::win_spout_output_settings *ui;
 	//PRISM/FanZirong/20240802/PRISM_PC-755/save setting in shutdown
 	//void save_settings();
 };

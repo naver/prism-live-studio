@@ -11,6 +11,7 @@
 #include <QHBoxLayout>
 #include <qjsonobject.h>
 #include "libresource.h"
+#include "libbrowser.h"
 namespace Ui {
 class PLSLaunchWizardView;
 }
@@ -20,6 +21,7 @@ class PLSLaunchWizardView : public PLSWindow {
 
 public:
 	static PLSLaunchWizardView *instance();
+	static QPointer<PLSLaunchWizardView> getWizardViewPointer() { return g_wizardView; }
 
 	explicit PLSLaunchWizardView(QWidget *parent = nullptr);
 	~PLSLaunchWizardView() override;
@@ -28,7 +30,7 @@ public:
 	void updateUserInfo();
 	void onPrismMessageCome(const QVariantHash &params);
 
-	bool getIsShowFlag() { return m_bShowFlag; }
+	bool isNeedShow();
 
 signals:
 	void mouseClicked(QObject *obj);
@@ -47,11 +49,11 @@ private:
 	void maskWidget(QWidget *wid);
 	void createLiveInfoView();
 	void createAlertInfoView();
-	void createBlogView();
+	void createUserGuideView();
 	void createQueView();
 
 	void loadBannerSources();
-	void updatebannerView();
+	void updateBannerView();
 
 	void initBannerView(const QStringList &paths);
 	void createBanner(const QString &path, int index = -1);
@@ -67,11 +69,11 @@ private:
 
 	void moveWidget(int index, bool pre = true);
 
-	void handlePrismState(const QVariantMap &body) const;
+	void handlePrismState(const QVariantMap &body);
 	void handleChannelMessage(const QVariantMap &body);
 	void checkShowErrorAlert(const QVariantMap &body);
 
-	void handleErrorMessgage(const QVariantMap &body);
+	void handleErrorMessage(const QVariantMap &body);
 	void setErrorViewVisible(bool visible = true);
 
 	void clearDumpInfos() const;
@@ -82,10 +84,12 @@ private:
 	void checkStackOrder() const;
 	void getBannerJson();
 
+	void createAdView();
+	void releaseAdView();
+
 public slots:
 	void singletonWakeup();
 	void hideView();
-	void updateLangcherTips();
 	void firstShow(QWidget *parent = nullptr);
 
 private slots:
@@ -129,7 +133,10 @@ private:
 
 	int m_UpdateCount = 0;
 	bool m_bShowFlag = false;
-	QString m_josnPath;
+	QString m_jsonPath;
+	pls::browser::BrowserWidget *m_browser = nullptr;
+	QWidget *m_browserContainer = nullptr;
+	QSharedPointer<QTimer> m_stopLoadingTimer;
 };
 
 QString formatTimeStr(const QDateTime &time);

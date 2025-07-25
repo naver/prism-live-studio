@@ -23,7 +23,7 @@ bool ::LoginCommonHelpers::isValidNickNameByRegExp(const QString &nickName)
 	return rep.match(nickName).hasMatch();
 }
 
-QWidget* LoginCommonHelpers::setCurrentStackWidget(QStackedWidget *stackWidget, const QString &ojbName)
+QWidget *LoginCommonHelpers::setCurrentStackWidget(QStackedWidget *stackWidget, const QString &ojbName)
 {
 	if (stackWidget) {
 		QWidget *widget = stackWidget->findChild<QWidget *>(ojbName);

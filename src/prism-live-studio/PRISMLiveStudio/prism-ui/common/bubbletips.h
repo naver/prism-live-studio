@@ -6,59 +6,62 @@
 #include <QPointer>
 #include <QBasicTimer>
 #include <QDockWidget>
+#include "PLSDock.h"
 
 namespace Ui {
 class bubbletips;
 }
 
 namespace BubbleTips {
-enum ArrowPosition { Top, Right, Bottom, Left };
+enum TipsType { None, DualOutputAudioTrack };
 }
+
+static int bubbleInfiniteLoopDuration = -1;
 
 class bubbletips : public QFrame {
 	Q_OBJECT
 
 public:
-	explicit bubbletips(QWidget *buddy, BubbleTips::ArrowPosition arrowPos, const QString &txt, int pos_offset = 50, int duration = 5000);
+	explicit bubbletips(QWidget *buddy, const QString &txt, int pos_offset = 50, int duration = 5000, BubbleTips::TipsType tipsType = BubbleTips::None);
 	~bubbletips();
 
-	/* pos_offfset: the poition offset(0:left ~ 50:center ~ 100:right) from left/top to right/bottom */
-	void setArrowPosition(BubbleTips::ArrowPosition pos, int pos_offset = 50);
 	/* the anchor point is at the arrow*/
 	void moveTo(const QPoint &pos);
+	void addListenDockTitleWidget(PLSDockTitle *dockTitleWidget);
 
 public slots:
+	void onLinkActivated(const QString &link);
+	void on_bubbleCloseButton_clicked();
 	void onTopLevelChanged(bool topLevel);
+
+signals:
+	void clickTextLink(const QString &link);
 
 protected:
 	void paintEvent(QPaintEvent *event) override;
-	void resizeEvent(QResizeEvent *event) override;
 	void timerEvent(QTimerEvent *event) override;
-	void moveEvent(QMoveEvent *event) override;
 	void showEvent(QShowEvent *event) override;
 	bool eventFilter(QObject *watcher, QEvent *e) override;
 
 private:
-	void generateArrow(BubbleTips::ArrowPosition pos);
+	void generateArrow();
 	void doMove(const QPoint &pos);
 	void initEventFilter();
 	void uninitEventFilter();
+	void updateSize();
 
 	Ui::bubbletips *ui;
-	QImage mArrow;
+	QPixmap m_arrow;
 	QPointer<QWidget> buddy;
-	BubbleTips::ArrowPosition mPos = BubbleTips::Right;
-	int dpi = 100;
 	int duration = 5000;
-	int offset = 50;
+	int m_arrowOffset = 50;
 	QBasicTimer timer;
 	QPoint displayPos;
-	QPointer<QWidget> toplevelWidget;
-	QPointer<QDockWidget> dockWidget;
 	QSet<QObject *> ancestors;
+	QPointer<PLSDockTitle> m_titleWidget;
 };
 
 /* You can show a bubble tip in the position of the buddy widget.*/
-bool pls_show_bubble_tips(QWidget *buddy, BubbleTips::ArrowPosition arrowPos, const QPoint &local_pos, const QString &txt, int offset = 50, int durationMs = 5000);
+bubbletips *pls_show_bubble_tips(QWidget *buddy, const QPoint &local_pos, const QString &txt, int offset = 50, int durationMs = 5000, BubbleTips::TipsType tipsType = BubbleTips::None);
 
 #endif // BUBBLETIPS_H

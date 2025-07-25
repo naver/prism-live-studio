@@ -41,7 +41,6 @@ public:
 	void getItemInfo(const QString &itemType, const int &index, QString &name, QString &id) const;
 	QString getItemName(const QString &itemId, const QString &itemType) const;
 	PLSServiceType getServiceType() const override;
-	bool onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject) override;
 
 	void onPrepareLive(bool value) override;
 	void onAlLiveStarted(bool) override;

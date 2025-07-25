@@ -71,8 +71,6 @@ public:
 
 	PLSChzzkLiveinfoData getSelectData() { return m_selectData; }
 	PLSChzzkLiveinfoData &getSelectDataRef() { return m_selectData; }
-	/*common*/
-	bool onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject) override;
 
 	bool isSendChatToMqtt() const override { return true; }
 	QJsonObject getLiveStartParams() override;
@@ -98,10 +96,10 @@ public:
 
 	//error handle
 	PLSErrorHandler::ExtraData getErrorExtraData(const QString &urlEn, const QString &urlKr = {});
-	void showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom);
-	void showAlertByCustName(const QString &customErrName, const QString &logFrom);
-	void showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom);
-	void showAlertPostAction(const PLSErrorHandler::RetData &retData);
+	void showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom, const QString &errorReason = {});
+	void showAlertByCustName(const QString &customErrName, const QString &logFrom, const QString &errorReason = {});
+	void showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom, const QString &errorReason = {});
+	void showAlertPostAction(const PLSErrorHandler::RetData &retData, const QString &errorReason = {});
 
 signals:
 	void closeDialogByExpired();

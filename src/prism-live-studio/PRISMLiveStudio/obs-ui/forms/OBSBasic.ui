@@ -34,7 +34,7 @@
    <string notr="true"/>
   </property>
   <property name="dockOptions">
-   <set>QMainWindow::AllowNestedDocks|QMainWindow::AllowTabbedDocks|QMainWindow::AnimatedDocks</set>
+   <set>QMainWindow::DockOption::AllowNestedDocks|QMainWindow::DockOption::AllowTabbedDocks|QMainWindow::DockOption::AnimatedDocks</set>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -103,7 +103,7 @@
            <item>
             <spacer name="verticalSpacer_2">
              <property name="orientation">
-              <enum>Qt::Vertical</enum>
+              <enum>Qt::Orientation::Vertical</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
@@ -125,17 +125,17 @@
               <string>Basic.Main.PreviewDisabled</string>
              </property>
              <property name="alignment">
-              <set>Qt::AlignCenter</set>
+              <set>Qt::AlignmentFlag::AlignCenter</set>
              </property>
             </widget>
            </item>
            <item>
             <spacer name="verticalSpacer">
              <property name="orientation">
-              <enum>Qt::Vertical</enum>
+              <enum>Qt::Orientation::Vertical</enum>
              </property>
              <property name="sizeType">
-              <enum>QSizePolicy::Fixed</enum>
+              <enum>QSizePolicy::Policy::Fixed</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
@@ -153,7 +153,7 @@
              <item>
               <spacer name="horizontalSpacer_2">
                <property name="orientation">
-                <enum>Qt::Horizontal</enum>
+                <enum>Qt::Orientation::Horizontal</enum>
                </property>
                <property name="sizeHint" stdset="0">
                 <size>
@@ -173,7 +173,7 @@
              <item>
               <spacer name="horizontalSpacer_3">
                <property name="orientation">
-                <enum>Qt::Horizontal</enum>
+                <enum>Qt::Orientation::Horizontal</enum>
                </property>
                <property name="sizeHint" stdset="0">
                 <size>
@@ -188,7 +188,7 @@
            <item>
             <spacer name="verticalSpacer_3">
              <property name="orientation">
-              <enum>Qt::Vertical</enum>
+              <enum>Qt::Orientation::Vertical</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
@@ -206,67 +206,206 @@
           <property name="spacing">
            <number>0</number>
           </property>
-          <item>
-           <widget class="QWidget" name="previewContainer" native="true">
-            <property name="minimumSize">
-             <size>
-              <width>0</width>
-              <height>300</height>
-             </size>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_3">
+         </layout>
+        </item>
+        <item>
+         <widget class="QWidget" name="previewContainer" native="true">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>300</height>
+           </size>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_3">
+           <property name="spacing">
+            <number>5</number>
+           </property>
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QWidget" name="previewTitle" native="true"/>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="perviewLayoutHrz">
              <property name="spacing">
-              <number>5</number>
-             </property>
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
               <number>0</number>
              </property>
              <item>
-              <widget class="QWidget" name="previewTitle" native="true"/>
-             </item>
-             <item>
-              <layout class="QHBoxLayout" name="perviewLayoutHrz">
-               <property name="spacing">
-                <number>0</number>
-               </property>
-               <item>
-                <widget class="OBSBasicPreview" name="preview" native="true">
-                 <property name="sizePolicy">
-                  <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-                   <horstretch>0</horstretch>
-                   <verstretch>0</verstretch>
-                  </sizepolicy>
-                 </property>
-                 <property name="minimumSize">
-                  <size>
-                   <width>32</width>
-                   <height>32</height>
-                  </size>
-                 </property>
-                 <property name="focusPolicy">
-                  <enum>Qt::ClickFocus</enum>
-                 </property>
-                 <property name="contextMenuPolicy">
-                  <enum>Qt::CustomContextMenu</enum>
-                 </property>
-                 <addaction name="actionRemoveSource"/>
-                </widget>
-               </item>
-              </layout>
+              <widget class="QWidget" name="widgetPreviewContainer" native="true">
+               <layout class="QGridLayout" name="gridLayout">
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <property name="spacing">
+                 <number>0</number>
+                </property>
+                <item row="0" column="1">
+                 <widget class="QScrollBar" name="previewYScrollBar">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Vertical</enum>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="0">
+                 <widget class="QWidget" name="previewXContainer" native="true">
+                  <layout class="QVBoxLayout" name="verticalLayout_8">
+                   <property name="spacing">
+                    <number>0</number>
+                   </property>
+                   <property name="leftMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="topMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>0</number>
+                   </property>
+                   <property name="bottomMargin">
+                    <number>0</number>
+                   </property>
+                   <item>
+                    <widget class="QScrollBar" name="previewXScrollBar">
+                     <property name="sizePolicy">
+                      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                       <horstretch>0</horstretch>
+                       <verstretch>0</verstretch>
+                      </sizepolicy>
+                     </property>
+                     <property name="minimum">
+                      <number>-200</number>
+                     </property>
+                     <property name="maximum">
+                      <number>200</number>
+                     </property>
+                     <property name="singleStep">
+                      <number>10</number>
+                     </property>
+                     <property name="pageStep">
+                      <number>100</number>
+                     </property>
+                     <property name="orientation">
+                      <enum>Qt::Orientation::Horizontal</enum>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="0,0,0">
+                     <property name="spacing">
+                      <number>10</number>
+                     </property>
+                     <property name="leftMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="topMargin">
+                      <number>6</number>
+                     </property>
+                     <property name="rightMargin">
+                      <number>0</number>
+                     </property>
+                     <property name="bottomMargin">
+                      <number>0</number>
+                     </property>
+                     <item>
+                      <widget class="OBSPreviewScalingLabel" name="previewScalePercent">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
+                       </property>
+                       <property name="text">
+                        <string>100%</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item alignment="Qt::AlignmentFlag::AlignVCenter">
+                      <widget class="OBSPreviewScalingComboBox" name="previewScalingMode">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
+                       </property>
+                       <item>
+                        <property name="text">
+                         <string>Basic.MainMenu.Edit.Scale.Window</string>
+                        </property>
+                       </item>
+                       <item>
+                        <property name="text">
+                         <string>Basic.MainMenu.Edit.Scale.Canvas</string>
+                        </property>
+                       </item>
+                      </widget>
+                     </item>
+                     <item>
+                      <spacer name="horizontalSpacer_4">
+                       <property name="orientation">
+                        <enum>Qt::Orientation::Horizontal</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
+                        <size>
+                         <width>0</width>
+                         <height>20</height>
+                        </size>
+                       </property>
+                      </spacer>
+                     </item>
+                    </layout>
+                   </item>
+                  </layout>
+                 </widget>
+                </item>
+                <item row="0" column="0">
+                 <widget class="OBSBasicPreview" name="preview" native="true">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>32</width>
+                    <height>32</height>
+                   </size>
+                  </property>
+                  <property name="focusPolicy">
+                   <enum>Qt::FocusPolicy::ClickFocus</enum>
+                  </property>
+                  <property name="contextMenuPolicy">
+                   <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+                  </property>
+                  <addaction name="actionRemoveSource"/>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
              </item>
             </layout>
-           </widget>
-          </item>
-         </layout>
+           </item>
+          </layout>
+         </widget>
         </item>
        </layout>
       </item>
@@ -282,10 +421,10 @@
     <item>
      <spacer name="verticalSpacer_4">
       <property name="orientation">
-       <enum>Qt::Vertical</enum>
+       <enum>Qt::Orientation::Vertical</enum>
       </property>
       <property name="sizeType">
-       <enum>QSizePolicy::Fixed</enum>
+       <enum>QSizePolicy::Policy::Fixed</enum>
       </property>
       <property name="sizeHint" stdset="0">
        <size>
@@ -317,7 +456,7 @@
         <number>20</number>
        </property>
        <property name="sizeConstraint">
-        <enum>QLayout::SetDefaultConstraint</enum>
+        <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
        </property>
        <property name="leftMargin">
         <number>0</number>
@@ -454,10 +593,10 @@
           <item>
            <spacer name="horizontalSpacer">
             <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+             <enum>Qt::Orientation::Horizontal</enum>
             </property>
             <property name="sizeType">
-             <enum>QSizePolicy::Fixed</enum>
+             <enum>QSizePolicy::Policy::Fixed</enum>
             </property>
             <property name="sizeHint" stdset="0">
              <size>
@@ -583,7 +722,7 @@
      <x>0</x>
      <y>0</y>
      <width>1204</width>
-     <height>26</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -623,10 +762,10 @@
     <addaction name="actionShowAbout"/>
     <addaction name="actionHelpOpenSource"/>
     <addaction name="separator"/>
-    <addaction name="actionWebsite"/>
+    <addaction name="actionUserGuide"/>
     <addaction name="actionHelpPortal"/>
+    <addaction name="actionWebsite"/>
     <addaction name="actionPrismPolicy"/>
-    <addaction name="actionBlog"/>
     <addaction name="actionPrismDiscord"/>
     <addaction name="actionContactUs"/>
     <addaction name="menuLogFiles"/>
@@ -758,6 +897,7 @@
     <addaction name="actionImportSceneCollection"/>
     <addaction name="separator"/>
     <addaction name="actionShowMissingFiles"/>
+    <addaction name="actionRemigrateSceneCollection"/>
     <addaction name="separator"/>
     <addaction name="actionSceneCollectionManagement"/>
    </widget>
@@ -863,10 +1003,10 @@
         </size>
        </property>
        <property name="frameShape">
-        <enum>QFrame::StyledPanel</enum>
+        <enum>QFrame::Shape::StyledPanel</enum>
        </property>
        <property name="frameShadow">
-        <enum>QFrame::Sunken</enum>
+        <enum>QFrame::Shadow::Sunken</enum>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_12">
         <property name="spacing">
@@ -929,10 +1069,10 @@
         </size>
        </property>
        <property name="frameShape">
-        <enum>QFrame::StyledPanel</enum>
+        <enum>QFrame::Shape::StyledPanel</enum>
        </property>
        <property name="frameShadow">
-        <enum>QFrame::Sunken</enum>
+        <enum>QFrame::Shadow::Sunken</enum>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_17">
         <property name="spacing">
@@ -959,10 +1099,10 @@
            </sizepolicy>
           </property>
           <property name="contextMenuPolicy">
-           <enum>Qt::CustomContextMenu</enum>
+           <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
           </property>
           <property name="frameShape">
-           <enum>QFrame::NoFrame</enum>
+           <enum>QFrame::Shape::NoFrame</enum>
           </property>
           <property name="showDropIndicator" stdset="0">
            <bool>true</bool>
@@ -971,13 +1111,13 @@
            <bool>true</bool>
           </property>
           <property name="dragDropMode">
-           <enum>QAbstractItemView::InternalMove</enum>
+           <enum>QAbstractItemView::DragDropMode::InternalMove</enum>
           </property>
           <property name="defaultDropAction">
-           <enum>Qt::TargetMoveAction</enum>
+           <enum>Qt::DropAction::TargetMoveAction</enum>
           </property>
           <property name="selectionMode">
-           <enum>QAbstractItemView::ExtendedSelection</enum>
+           <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
           </property>
           <property name="spacing">
            <number>0</number>
@@ -988,10 +1128,10 @@
         <item>
          <spacer name="sourcesFixedSizeHSpacer">
           <property name="orientation">
-           <enum>Qt::Horizontal</enum>
+           <enum>Qt::Orientation::Horizontal</enum>
           </property>
           <property name="sizeType">
-           <enum>QSizePolicy::Fixed</enum>
+           <enum>QSizePolicy::Policy::Fixed</enum>
           </property>
           <property name="sizeHint" stdset="0">
            <size>
@@ -1034,10 +1174,10 @@
      <item>
       <widget class="QFrame" name="mixerFrame">
        <property name="frameShape">
-        <enum>QFrame::StyledPanel</enum>
+        <enum>QFrame::Shape::StyledPanel</enum>
        </property>
        <property name="frameShadow">
-        <enum>QFrame::Sunken</enum>
+        <enum>QFrame::Shadow::Sunken</enum>
        </property>
        <layout class="QVBoxLayout" name="verticalLayout_2">
         <property name="spacing">
@@ -1059,19 +1199,19 @@
          <widget class="QStackedWidget" name="stackedMixerArea">
           <widget class="VScrollArea" name="hMixerScrollArea">
            <property name="contextMenuPolicy">
-            <enum>Qt::CustomContextMenu</enum>
+            <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
            </property>
            <property name="frameShape">
-            <enum>QFrame::StyledPanel</enum>
+            <enum>QFrame::Shape::StyledPanel</enum>
            </property>
            <property name="frameShadow">
-            <enum>QFrame::Sunken</enum>
+            <enum>QFrame::Shadow::Sunken</enum>
            </property>
            <property name="verticalScrollBarPolicy">
-            <enum>Qt::ScrollBarAsNeeded</enum>
+            <enum>Qt::ScrollBarPolicy::ScrollBarAsNeeded</enum>
            </property>
            <property name="horizontalScrollBarPolicy">
-            <enum>Qt::ScrollBarAlwaysOff</enum>
+            <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
            </property>
            <property name="widgetResizable">
             <bool>true</bool>
@@ -1081,7 +1221,7 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>128</width>
+              <width>194</width>
               <height>16</height>
              </rect>
             </property>
@@ -1095,19 +1235,19 @@
           </widget>
           <widget class="HScrollArea" name="vMixerScrollArea">
            <property name="contextMenuPolicy">
-            <enum>Qt::CustomContextMenu</enum>
+            <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
            </property>
            <property name="frameShape">
-            <enum>QFrame::StyledPanel</enum>
+            <enum>QFrame::Shape::StyledPanel</enum>
            </property>
            <property name="frameShadow">
-            <enum>QFrame::Sunken</enum>
+            <enum>QFrame::Shadow::Sunken</enum>
            </property>
            <property name="verticalScrollBarPolicy">
-            <enum>Qt::ScrollBarAsNeeded</enum>
+            <enum>Qt::ScrollBarPolicy::ScrollBarAsNeeded</enum>
            </property>
            <property name="horizontalScrollBarPolicy">
-            <enum>Qt::ScrollBarAsNeeded</enum>
+            <enum>Qt::ScrollBarPolicy::ScrollBarAsNeeded</enum>
            </property>
            <property name="widgetResizable">
             <bool>true</bool>
@@ -1117,7 +1257,7 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>36</width>
+              <width>16</width>
               <height>28</height>
              </rect>
             </property>
@@ -1212,7 +1352,7 @@
     <string>Del</string>
    </property>
    <property name="shortcutContext">
-    <enum>Qt::WidgetWithChildrenShortcut</enum>
+    <enum>Qt::ShortcutContext::WidgetWithChildrenShortcut</enum>
    </property>
    <property name="themeID" stdset="0">
     <string notr="true">removeIconSmall</string>
@@ -1233,7 +1373,7 @@
     <string>Del</string>
    </property>
    <property name="shortcutContext">
-    <enum>Qt::WidgetWithChildrenShortcut</enum>
+    <enum>Qt::ShortcutContext::WidgetWithChildrenShortcut</enum>
    </property>
    <property name="themeID" stdset="0">
     <string notr="true">removeIconSmall</string>
@@ -1911,9 +2051,9 @@
     <string>Basic.MainMenu.View.StudioModeOn</string>
    </property>
   </action>
-  <action name="actionBlog">
+  <action name="actionUserGuide">
    <property name="text">
-    <string>Basic.MainMenu.Help.Blog</string>
+    <string>WizardView.UserGuide</string>
    </property>
   </action>
   <action name="actionContactUs">
@@ -1924,7 +2064,7 @@
     <string>Shift+Q</string>
    </property>
    <property name="shortcutContext">
-    <enum>Qt::ApplicationShortcut</enum>
+    <enum>Qt::ShortcutContext::ApplicationShortcut</enum>
    </property>
    <property name="autoRepeat">
     <bool>true</bool>
@@ -1983,6 +2123,11 @@
    </property>
    <property name="text">
     <string>Basic.MainMenu.Docks.SideDocks</string>
+   </property>
+  </action>
+  <action name="actionRemigrateSceneCollection">
+   <property name="text">
+    <string>Basic.MainMenu.SceneCollection.Remigrate</string>
    </property>
   </action>
  </widget>
@@ -2050,8 +2195,19 @@
    <header>audio-mixer/PLSMixerContent.h</header>
    <container>1</container>
   </customwidget>
+  <customwidget>
+   <class>OBSPreviewScalingLabel</class>
+   <extends>QLabel</extends>
+   <header>preview-controls.hpp</header>
+  </customwidget>
+  <customwidget>
+   <class>OBSPreviewScalingComboBox</class>
+   <extends>QComboBox</extends>
+   <header>preview-controls.hpp</header>
+  </customwidget>
  </customwidgets>
  <resources>
   <include location="obs.qrc"/>
  </resources>
+ <connections/>
 </ui>

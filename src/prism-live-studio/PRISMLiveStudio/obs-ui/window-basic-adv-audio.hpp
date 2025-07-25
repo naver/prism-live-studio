@@ -14,10 +14,7 @@ class OBSBasicAdvAudio : public PLSDialogView {
 	Q_OBJECT
 
 private:
-	OBSSignal sourceAddedSignal;
-	OBSSignal sourceRemovedSignal;
-	OBSSignal sourceActivatedSignal;
-	OBSSignal sourceDeactivatedSignal;
+	std::vector<OBSSignal> sigs;
 	bool showInactive;
 	bool showVisible;
 

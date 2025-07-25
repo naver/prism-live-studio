@@ -27,7 +27,7 @@ class PLSChatHelper : public QObject {
 	Q_OBJECT
 
 public:
-	enum class ChatFontSacle {
+	enum class ChatFontScale {
 		Normal = 0,
 		PlusDisable,
 		MinusDisable,
@@ -55,12 +55,12 @@ public:
 	QString getTabButtonCss(const QString &objectName, const QString &platName, const QString &platNameNoLower) const;
 	void sendWebShownEventIfNeeded(int index) const;
 
-	PLSChatHelper::ChatFontSacle getFontBtnStatus(int scaleSize);
-	int getNextSacelSize(bool isToPlus);
-	static int getFontSacleSize();
+	PLSChatHelper::ChatFontScale getFontBtnStatus(int scaleSize);
+	int getNextScaleSize(bool isToPlus);
+	static int getFontScaleSize();
 	static void sendWebChatFontSizeChanged(int scaleSize);
 
-	static QString getDispatchJS(int index);
+	static QString getDispatchJS(int index, const QString &url);
 	static QString getYoutubeDisableBackupJS();
 
 private:

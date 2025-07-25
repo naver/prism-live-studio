@@ -24,11 +24,12 @@ LIBUI_API bool transparentForMouseEvents_moveInContentExcludeChild(QWidget *pare
 
 template<typename QtType> class PLSTransparentForMouseEvents : public QtType {
 public:
-	template<typename... Args> explicit PLSTransparentForMouseEvents(Args &&...args) : QtType(std::forward<Args>(args)...) {
+	template<typename... Args> explicit PLSTransparentForMouseEvents(Args &&...args) : QtType(std::forward<Args>(args)...)
+	{
 #if defined(Q_OS_WIN)
-            QtType::setAttribute(Qt::WA_NativeWindow, true);
+		QtType::setAttribute(Qt::WA_NativeWindow, true);
 #endif
-        }
+	}
 	~PLSTransparentForMouseEvents() = default;
 
 public:

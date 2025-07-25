@@ -63,17 +63,50 @@ if(OS_WINDOWS)
     add_library(OBS::scripting SHARED IMPORTED GLOBAL)
     set_target_properties(
         OBS::scripting PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OBS_SRC_DIR}/deps/obs-scripting")
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OBS_SRC_DIR}/shared/obs-scripting")
     set_target_properties(
         OBS::scripting PROPERTIES
-        IMPORTED_IMPLIB_DEBUG "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/Debug/obs-scripting.lib"
-        IMPORTED_IMPLIB_RELEASE "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/Release/obs-scripting.lib"
-        IMPORTED_IMPLIB_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/RelWithDebInfo/obs-scripting.lib"
-        IMPORTED_IMPLIB_MINSIZEREL "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/RelWithDebInfo/obs-scripting.lib"
-        IMPORTED_LOCATION_DEBUG "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/Debug/obs-scripting.dll"
-        IMPORTED_LOCATION_RELEASE "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/Release/obs-scripting.dll"
-        IMPORTED_LOCATION_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/RelWithDebInfo/obs-scripting.dll"
-        IMPORTED_LOCATION_MINSIZEREL "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/RelWithDebInfo/obs-scripting.dll")
+        IMPORTED_IMPLIB_DEBUG "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/Debug/obs-scripting.lib"
+        IMPORTED_IMPLIB_RELEASE "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/Release/obs-scripting.lib"
+        IMPORTED_IMPLIB_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/RelWithDebInfo/obs-scripting.lib"
+        IMPORTED_IMPLIB_MINSIZEREL "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/RelWithDebInfo/obs-scripting.lib"
+        IMPORTED_LOCATION_DEBUG "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/Debug/obs-scripting.dll"
+        IMPORTED_LOCATION_RELEASE "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/Release/obs-scripting.dll"
+        IMPORTED_LOCATION_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/RelWithDebInfo/obs-scripting.dll"
+        IMPORTED_LOCATION_MINSIZEREL "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/RelWithDebInfo/obs-scripting.dll")
+
+    add_library(OBS::caption STATIC IMPORTED GLOBAL)
+    set_target_properties(
+        OBS::caption PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OBS_SRC_DIR}/deps/libcaption")
+    set_target_properties(
+        OBS::caption PROPERTIES
+        IMPORTED_LOCATION_DEBUG "$ENV{OBS_BUILD_DIR}/deps/libcaption/Debug/caption.lib"
+        IMPORTED_LOCATION_RELEASE "$ENV{OBS_BUILD_DIR}/deps/libcaption/Release/caption.lib"
+        IMPORTED_LOCATION_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/deps/libcaption/RelWithDebInfo/caption.lib"
+        IMPORTED_LOCATION_MINSIZEREL "$ENV{OBS_BUILD_DIR}/deps/libcaption/RelWithDebInfo/caption.lib")
+
+    add_library(OBS::bpm STATIC IMPORTED GLOBAL)
+    set_target_properties(
+        OBS::bpm PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OBS_SRC_DIR}/shared/bpm")
+    set_target_properties(
+        OBS::bpm PROPERTIES
+        IMPORTED_LOCATION_DEBUG "$ENV{OBS_BUILD_DIR}/shared/bpm/bpm.dir/Debug/bpm.lib"
+        IMPORTED_LOCATION_RELEASE "$ENV{OBS_BUILD_DIR}/shared/bpm/bpm.dir/Release/bpm.lib"
+        IMPORTED_LOCATION_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/shared/bpm/bpm.dir/RelWithDebInfo/bpm.lib"
+        IMPORTED_LOCATION_MINSIZEREL "$ENV{OBS_BUILD_DIR}/shared/bpm/bpm.dir/RelWithDebInfo/bpm.lib")
+
+    add_library(OBS::aja-support STATIC IMPORTED GLOBAL)
+    set_target_properties(
+        OBS::aja-support PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OBS_SRC_DIR}/plugins/aja")
+    set_target_properties(
+        OBS::aja-support PROPERTIES
+        IMPORTED_LOCATION_DEBUG "$ENV{OBS_BUILD_DIR}/plugins/aja/aja-support.dir/Debug/aja-support.lib"
+        IMPORTED_LOCATION_RELEASE "$ENV{OBS_BUILD_DIR}/plugins/aja/aja-support.dir/Release/aja-support.lib"
+        IMPORTED_LOCATION_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/plugins/aja/aja-support.dir/RelWithDebInfo/aja-support.lib"
+        IMPORTED_LOCATION_MINSIZEREL "$ENV{OBS_BUILD_DIR}/plugins/aja/aja-support.dir/RelWithDebInfo/aja-support.lib")
 elseif(OS_MACOS)
     add_library(OBS::libobs SHARED IMPORTED GLOBAL)
     set_target_properties(
@@ -126,16 +159,50 @@ elseif(OS_MACOS)
     add_library(OBS::scripting SHARED IMPORTED GLOBAL)
     set_target_properties(
         OBS::scripting PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OBS_SRC_DIR}/deps/obs-scripting")
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OBS_SRC_DIR}/shared/obs-scripting")
     set_target_properties(
         OBS::scripting PROPERTIES
         IMPORTED_CONFIGURATIONS "Debug;Release;RelWithDebInfo"
-        IMPORTED_LOCATION_DEBUG "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/Debug/obs-scripting.dylib"
-        IMPORTED_LOCATION_RELEASE "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/Release/obs-scripting.dylib"
-        IMPORTED_LOCATION_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/RelWithDebInfo/obs-scripting.dylib"
-        IMPORTED_LOCATION_MINSIZEREL "$ENV{OBS_BUILD_DIR}/deps/obs-scripting/RelWithDebInfo/obs-scripting.dylib"
+        IMPORTED_LOCATION_DEBUG "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/Debug/obs-scripting.dylib"
+        IMPORTED_LOCATION_RELEASE "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/Release/obs-scripting.dylib"
+        IMPORTED_LOCATION_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/RelWithDebInfo/obs-scripting.dylib"
+        IMPORTED_LOCATION_MINSIZEREL "$ENV{OBS_BUILD_DIR}/shared/obs-scripting/RelWithDebInfo/obs-scripting.dylib"
         IMPORTED_SONAME "@rpath/obs-scripting.dylib"
     )
 
-endif()
+    add_library(OBS::caption SHARED IMPORTED GLOBAL)
+    set_target_properties(
+        OBS::caption PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OBS_SRC_DIR}/deps/libcaption"
+    )
+    set_target_properties(
+        OBS::caption PROPERTIES
+        IMPORTED_CONFIGURATIONS "Debug;Release;RelWithDebInfo"
+        IMPORTED_LOCATION_DEBUG "$ENV{OBS_BUILD_DIR}/deps/libcaption/Debug/libcaption.a"
+        IMPORTED_LOCATION_RELEASE "$ENV{OBS_BUILD_DIR}/deps/libcaption/Release/libcaption.a"
+        IMPORTED_LOCATION_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/deps/libcaption/RelWithDebInfo/libcaption.a"
+        IMPORTED_LOCATION_MINSIZEREL "$ENV{OBS_BUILD_DIR}/deps/libcaption/RelWithDebInfo/libcaption.a"
+    )
 
+    add_library(OBS::bpm STATIC IMPORTED GLOBAL)
+    set_target_properties(
+        OBS::bpm PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OBS_SRC_DIR}/shared/bpm")
+    set_target_properties(
+        OBS::bpm PROPERTIES
+        IMPORTED_LOCATION_DEBUG "$ENV{OBS_BUILD_DIR}/build/bpm.build/Debug/libbpm.a"
+        IMPORTED_LOCATION_RELEASE "$ENV{OBS_BUILD_DIR}/build/bpm.build/Release/libbpm.a"
+        IMPORTED_LOCATION_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/build/bpm.build/RelWithDebInfo/libbpm.a"
+        IMPORTED_LOCATION_MINSIZEREL "$ENV{OBS_BUILD_DIR}/build/bpm.build/RelWithDebInfo/libbpm.a")
+
+    add_library(OBS::aja-support STATIC IMPORTED GLOBAL)
+    set_target_properties(
+        OBS::aja-support PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "$ENV{OBS_SRC_DIR}/plugins/aja")
+    set_target_properties(
+        OBS::aja-support PROPERTIES
+        IMPORTED_LOCATION_DEBUG "$ENV{OBS_BUILD_DIR}/build/aja-support.build/Debug/libaja-support.a"
+        IMPORTED_LOCATION_RELEASE "$ENV{OBS_BUILD_DIR}/build/aja-support.build/Release/libaja-support.a"
+        IMPORTED_LOCATION_RELWITHDEBINFO "$ENV{OBS_BUILD_DIR}/build/aja-support.build/RelWithDebInfo/libaja-support.a"
+        IMPORTED_LOCATION_MINSIZEREL "$ENV{OBS_BUILD_DIR}/build/aja-support.build/RelWithDebInfo/libaja-support.a")
+endif()

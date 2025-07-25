@@ -5,6 +5,15 @@
 #include "../common/PLSAPICommon.h"
 #include "PLSPlatformChzzk.h"
 
+const extern QString CZ_API_GetChannelList;
+const extern QString CZ_API_GetLiveInfo;
+const extern QString CZ_API_GetChannelInfo;
+const extern QString CZ_API_PutLiveInfo;
+const extern QString CZ_API_GetCategories;
+const extern QString CZ_API_PostLiveInfo;
+const extern QString CZ_API_PostThumbnail;
+const extern QString CZ_API_DeleteThumbnail;
+
 namespace PLSAPIChzzk {
 
 void configDefaultRequest(const pls::http::Request &_request, const QObject *receiver, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed,
@@ -14,10 +23,10 @@ void addCommonCookieAndUserKey(const pls::http::Request &_request);
 void requestChannelList(const QObject *receiver, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
 			PLSAPICommon::RefreshType refreshType);
 
-void requestChannelOrLiveInfo(const QObject *receiver, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
+void requestChannelOrLiveInfo(const QObject *receiver, bool isChannel, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
 			      PLSAPICommon::RefreshType refreshType);
-void requestUpdateChannelOrLiveInfo(const QObject *receiver, const PLSChzzkLiveinfoData &data, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed,
-				    const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType);
+void requestUpdateLiveInfo(const QObject *receiver, const PLSChzzkLiveinfoData &data, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed,
+			   const PLSAPICommon::errorCallback &onFailed, PLSAPICommon::RefreshType refreshType);
 
 void requestSearchCategory(const QObject *receiver, const QString &keyword, PLSPlatformChzzk *platform, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed,
 			   PLSAPICommon::RefreshType refreshType);

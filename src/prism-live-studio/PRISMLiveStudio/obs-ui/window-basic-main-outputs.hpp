@@ -15,8 +15,7 @@ class PLSOutputHandler;
 using SetupStreamingContinuation_t = std::function<void(bool)>;
 
 extern void obs_output_release2(obs_output_t *output);
-using OBSOutputAutoRelease2 =
-	OBSRefAutoRelease<obs_output_t *, obs_output_release2>;
+using OBSOutputAutoRelease2 = OBSRefAutoRelease<obs_output_t *, obs_output_release2>;
 
 struct BasicOutputHandler {
 	OBSOutputAutoRelease2 fileOutput;
@@ -40,8 +39,7 @@ struct BasicOutputHandler {
 	{
 		return (multitrackVideo && multitrackVideoActive)
 			       ? multitrackVideo->StreamingOutput()
-			       : OBSOutputAutoRelease{
-					 obs_output_get_ref(streamOutput)};
+			       : OBSOutputAutoRelease{obs_output_get_ref(streamOutput)};
 	}
 
 	QTimer delayTimer;
@@ -80,14 +78,12 @@ struct BasicOutputHandler {
 	uint64_t recordLastTotalFrame = 0;
 	std::chrono::steady_clock::time_point recordFpsLastRequestTime;
 
-	inline BasicOutputHandler(OBSBasic *main_, PLSOutputHandler *manager_,
-				  size_t outputIndex);
+	inline BasicOutputHandler(OBSBasic *main_, PLSOutputHandler *manager_, size_t outputIndex);
 
-	virtual ~BasicOutputHandler(){};
+	virtual ~BasicOutputHandler() {};
 
-	virtual std::shared_future<void>
-	SetupStreaming(obs_service_t *service,
-		       SetupStreamingContinuation_t continuation) = 0;
+	virtual std::shared_future<void> SetupStreaming(obs_service_t *service,
+							SetupStreamingContinuation_t continuation) = 0;
 	virtual bool StartStreaming(obs_service_t *service) = 0;
 	virtual bool StartRecording() = 0;
 	virtual bool StartReplayBuffer() { return false; }
@@ -112,34 +108,25 @@ struct BasicOutputHandler {
 
 	inline bool Active() const
 	{
-		return streamingActive || recordingActive || delayActive ||
-		       replayBufferActive || virtualCamActive ||
+		return streamingActive || recordingActive || delayActive || replayBufferActive || virtualCamActive ||
 		       multitrackVideoActive;
 	}
 
 	void CheckStreamingSettings(bool useStreamEncoder);
-	void OptimizeStreamingVideoSettings(obs_encoder_t *encoder,
-					    obs_data_t *settings);
+	void OptimizeStreamingVideoSettings(obs_encoder_t *encoder, obs_data_t *settings);
 	bool IsWhip();
 	const char *GetEncoderBFrameSettingName(obs_encoder_t *encoder);
 
 protected:
 	void SetupAutoRemux(const char *&container);
-	std::string GetRecordingFilename(const char *path,
-					 const char *container, bool noSpace,
-					 bool overwrite, const char *format,
-					 bool ffmpeg);
+	std::string GetRecordingFilename(const char *path, const char *container, bool noSpace, bool overwrite,
+					 const char *format, bool ffmpeg);
 
-	std::shared_future<void> SetupMultitrackVideo(
-		obs_service_t *service, std::string audio_encoder_id,
-		size_t main_audio_mixer, std::optional<size_t> vod_track_mixer,
-		std::function<void(std::optional<bool>)> continuation);
+	std::shared_future<void> SetupMultitrackVideo(obs_service_t *service, std::string audio_encoder_id,
+						      size_t main_audio_mixer, std::optional<size_t> vod_track_mixer,
+						      std::function<void(std::optional<bool>)> continuation);
 	OBSDataAutoRelease GenerateMultitrackVideoStreamDumpConfig();
 };
 
-BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main,
-					      PLSOutputHandler *manager,
-					      bool vertical);
-BasicOutputHandler *CreateAdvancedOutputHandler(OBSBasic *main,
-						PLSOutputHandler *manager,
-						bool vertical);
+BasicOutputHandler *CreateSimpleOutputHandler(OBSBasic *main, PLSOutputHandler *manager, bool vertical);
+BasicOutputHandler *CreateAdvancedOutputHandler(OBSBasic *main, PLSOutputHandler *manager, bool vertical);

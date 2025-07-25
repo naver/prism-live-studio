@@ -296,8 +296,14 @@
         <property name="text">
          <string>NaverShoppingLive.LiveInfo.Product.NoProductTip</string>
         </property>
+        <property name="textFormat">
+         <enum>Qt::RichText</enum>
+        </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -433,6 +439,9 @@
             <widget class="QLabel" name="fixGuideText">
              <property name="text">
               <string/>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
              </property>
             </widget>
            </item>

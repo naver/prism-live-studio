@@ -54,33 +54,6 @@ struct Main {
 	static QMap<QString, QCefCookieManager *> s_cookieManagers;
 };
 
-class Initializer {
-public:
-	Initializer()
-	{
-		pls_qapp_construct_add_cb([this]() { this->init(); });
-		pls_qapp_deconstruct_add_cb([this]() { this->cleanup(); });
-	}
-
-	static Initializer *initializer() { return &pls::Initializer<Initializer>::s_initializer; }
-
-	void init() const {}
-	void cleanup() const
-	{
-		if (g_obs_startup) {
-			g_obs_startup = false;
-
-			pls_delete(g_cef, nullptr);
-			for (auto manager : g_cookieManagers) {
-				pls_delete(manager);
-			}
-			PLS_INFO(LIBBROWSER_MODULE, "Start invoking obs_shutdown");
-			obs_shutdown();
-			PLS_INFO(LIBBROWSER_MODULE, "End invoking obs_shutdown");
-		}
-	}
-};
-
 bool Main::s_obs_startup = false;
 PLSQCef *Main::s_cef = nullptr;
 QMap<QString, QCefCookieManager *> Main::s_cookieManagers;
@@ -760,6 +733,23 @@ LIBBROWSER_API bool init(const QString &locale)
 		return false;
 	}
 	return true;
+}
+
+LIBBROWSER_API void cleanup()
+{
+	for (auto manager : g_cookieManagers) {
+		manager->FlushStore();
+		pls_delete(manager);
+	}
+	g_cookieManagers.clear();
+	pls_delete(g_cef, nullptr);
+
+	if (g_obs_startup) {
+		g_obs_startup = false;
+		PLS_INFO(LIBBROWSER_MODULE, "Start invoking obs_shutdown");
+		obs_shutdown();
+		PLS_INFO(LIBBROWSER_MODULE, "End invoking obs_shutdown");
+	}
 }
 
 LIBBROWSER_API QJsonArray toJsonArray(const QList<Cookie> &cookies)

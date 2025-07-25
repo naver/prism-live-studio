@@ -103,11 +103,6 @@ void PLSPlatformNCB2B::saveSettings(const function<void(bool)> &onNext, const PL
 	_onUpdateNext(true);
 }
 
-bool PLSPlatformNCB2B::onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject)
-{
-	return true;
-}
-
 QString PLSPlatformNCB2B::getShareUrl(bool isEnc) const
 {
 	QString url = m_selectData.liveLink;
@@ -272,7 +267,7 @@ void PLSPlatformNCB2B::updateLiveinfo(const QObject *receiver, const PLSNCB2BLiv
 		[this, onNext](QByteArray data) {
 			bool isOk = dealCurrentLiveSucceed(data, "updateLiveinfo");
 			if (!isOk) {
-				showAlertByCustName(PLSErrCustomKey_UpdateLiveInfoFailed, "updateLiveinfo");
+				showAlertByCustName(PLSErrCustomKey_UpdateLiveInfoFailed, "updateLiveinfo", "body not valid");
 			}
 			if (onNext) {
 				onNext(isOk);
@@ -348,7 +343,7 @@ void PLSPlatformNCB2B::requestCreateLive(const QObject *receiver, const PLSNCB2B
 	auto _onSucceed = [this, onNext](QByteArray data) {
 		bool isOk = dealCurrentLiveSucceed(data, "requestCreateLive");
 		if (!isOk) {
-			showAlertByCustName(PLSErrCustomKey_StartLiveFailed_Single, "requestCreateLive");
+			showAlertByCustName(PLSErrCustomKey_StartLiveFailed_Single, "requestCreateLive", "body not valid");
 		}
 		if (onNext) {
 			onNext(isOk);
@@ -382,7 +377,7 @@ void PLSPlatformNCB2B::requestCurrentSelectData(const function<void(bool)> &onNe
 	auto _onSucceed = [this, onNext](QByteArray data) {
 		bool isOk = dealCurrentLiveSucceed(data, "requestCurrentSelectData");
 		if (!isOk) {
-			showAlertByCustName(PLSErrCustomKey_LoadLiveInfoFailed, "requestCurrentSelectData");
+			showAlertByCustName(PLSErrCustomKey_LoadLiveInfoFailed, "requestCurrentSelectData", "body not valid");
 		}
 		pls_invoke_safe(onNext, isOk);
 	};
@@ -616,24 +611,24 @@ PLSErrorHandler::ExtraData PLSPlatformNCB2B::getErrorExtraData(const QString &ur
 	return extraData;
 }
 
-void PLSPlatformNCB2B::showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom)
+void PLSPlatformNCB2B::showAlert(const PLSErrorHandler::NetworkData &netData, const QString &customErrName, const QString &logFrom, const QString &errorReason)
 {
 	PLSErrorHandler::RetData retData = PLSErrorHandler::showAlert(netData, getPlatFormName(), customErrName, getErrorExtraData(logFrom));
-	showAlertPostAction(retData);
+	showAlertPostAction(retData, errorReason);
 }
-void PLSPlatformNCB2B::showAlertByCustName(const QString &customErrName, const QString &logFrom)
+void PLSPlatformNCB2B::showAlertByCustName(const QString &customErrName, const QString &logFrom, const QString &errorReason)
 {
 	PLSErrorHandler::RetData retData = PLSErrorHandler::showAlertByCustomErrName(customErrName, getPlatFormName(), getErrorExtraData(logFrom));
-	showAlertPostAction(retData);
+	showAlertPostAction(retData, errorReason);
 }
-void PLSPlatformNCB2B::showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom)
+void PLSPlatformNCB2B::showAlertByPrismCode(PLSErrorHandler::ErrCode prismCode, const QString &customErrName, const QString &logFrom, const QString &errorReason)
 {
 	PLSErrorHandler::RetData retData = PLSErrorHandler::showAlertByPrismCode(prismCode, getPlatFormName(), customErrName, getErrorExtraData(logFrom));
-	showAlertPostAction(retData);
+	showAlertPostAction(retData, errorReason);
 }
-void PLSPlatformNCB2B::showAlertPostAction(const PLSErrorHandler::RetData &retData)
+void PLSPlatformNCB2B::showAlertPostAction(const PLSErrorHandler::RetData &retData, const QString &errorReason)
 {
-	setFailedErr(retData.extraData.urlEn + " " + retData.failedLogString);
+	setFailedErr(getPlatFormName() + "-" + retData.extraData.urlEn + " " + (errorReason.isEmpty() ? retData.failedLogString : errorReason));
 	if (retData.errorType == PLSErrorHandler::ErrorType::TokenExpired) {
 		emit closeDialogByExpired();
 		if (retData.clickedBtn == PLSAlertView::Button::Ok) {

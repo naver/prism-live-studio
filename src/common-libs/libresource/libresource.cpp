@@ -59,7 +59,7 @@ const QString PRISM_SYNC_GATEWAY_REAL = "";
 #define PRISM_PC_HMAC_KEY (pls_prism_is_dev() ? PRISM_PC_HMAC_KEY_DEV : PRISM_PC_HMAC_KEY_REAL)
 #define PRISM_HOST (pls_prism_is_dev() ? PRISM_HOST_DEV : PRISM_HOST_REAL)
 #define PRISM_SYNC_GATEWAY (pls_prism_is_dev() ? PRISM_SYNC_GATEWAY_DEV : PRISM_SYNC_GATEWAY_REAL)
-#define CATEGORY_URL (PRISM_HOST + PRISM_SYNC_GATEWAY + QStringLiteral("/resource/v3/latest/categories"))
+#define CATEGORY_URL (PRISM_HOST + PRISM_SYNC_GATEWAY + QStringLiteral(""))
 
 State loadState(State state)
 {
@@ -85,6 +85,8 @@ struct UrlAndHowSaveImpl {
 	bool m_noCache = false;
 	bool m_forceDownload = false;
 	bool m_needDecompress = false;
+	bool m_defaultFileIsEncrypted = false;
+	bool m_encryptJson = false;
 	int m_timeout = 30000; // 30s
 	State m_emptyUrlState = State::Failed;
 	QString m_keyPrefix;
@@ -282,9 +284,18 @@ QString UrlAndHowSave::defaultFilePath() const
 {
 	optionalGetValueChkRet(m_impl->m_defaultFilePath, {});
 }
-UrlAndHowSave &UrlAndHowSave::defaultFilePath(const QString &defaultFilePath)
+UrlAndHowSave &UrlAndHowSave::defaultFilePath(const QString &defaultFilePath, bool encrypted)
 {
-	optionalSetValueRet(m_impl->m_defaultFilePath, defaultFilePath);
+	optionalSetValueRet2(m_impl->m_defaultFilePath, defaultFilePath, m_impl->m_defaultFileIsEncrypted, encrypted);
+}
+
+bool UrlAndHowSave::encryptJson() const
+{
+	return m_impl->m_encryptJson;
+}
+UrlAndHowSave &UrlAndHowSave::encryptJson(bool encryptJson)
+{
+	optionalSetValueRet(m_impl->m_encryptJson, encryptJson);
 }
 
 QString UrlAndHowSave::savedFilePath() const
@@ -360,11 +371,12 @@ struct CategoryImpl {
 	QStringList m_groups;
 	QStringList m_items;
 	QByteArray m_categoryIdUtf8;
+	QJsonObject m_json;
 
 	std::map<QString, GroupImplPtr> m_allGroups;
 	std::map<QString, ItemImplPtr> m_allItems;
 
-	explicit CategoryImpl(int version, const QString &categoryId) : m_version(version), m_categoryId(categoryId), m_categoryIdUtf8(categoryId.toUtf8()) {}
+	explicit CategoryImpl(int version, const QString &categoryId, const QJsonObject &json) : m_version(version), m_categoryId(categoryId), m_categoryIdUtf8(categoryId.toUtf8()), m_json(json) {}
 
 	std::list<Group> groups() const { return groups(m_groups); }
 	std::list<Group> groups(const QStringList &groupIds) const
@@ -404,6 +416,10 @@ struct CategoryImpl {
 	}
 };
 
+Category::Category() : Category(std::make_shared<CategoryImpl>(0, QString(), QJsonObject())) {}
+
+Category::Category(std::nullptr_t) : Category(std::make_shared<CategoryImpl>(0, QString(), QJsonObject())) {}
+
 ////////////////////////////////////////////////////////////////////////////////
 // struct Category
 Category::Category(CategoryImplPtr categoryImpl) : m_impl(categoryImpl) {}
@@ -429,6 +445,10 @@ CategoryImpl *Category::operator->() const
 	return m_impl.operator->();
 }
 
+const QJsonObject& Category::json() const
+{
+	return m_impl->m_json;
+}
 int Category::version() const
 {
 	return m_impl->m_version;
@@ -500,6 +520,10 @@ struct GroupImpl {
 			m_items.append(itemId);
 	}
 };
+
+Group::Group() : Group(std::make_shared<GroupImpl>(QString(), QVariantHash())) {}
+
+Group::Group(std::nullptr_t) : Group(std::make_shared<GroupImpl>(QString(), QVariantHash())) {}
 
 Group::Group(GroupImplPtr groupImpl) : m_impl(groupImpl) {}
 
@@ -655,6 +679,10 @@ struct ItemImpl {
 	QVariant attr(const QString &name, const QVariant &defval) const { return m_attrs.value(name, defval); }
 	QVariant attr(const QStringList &names, const QVariant &defval) const { return pls_get_attr(m_attrs, names).value_or(defval); }
 };
+
+Item::Item() : Item(std::make_shared<ItemImpl>(0, QString(), QVariantHash())) {}
+
+Item::Item(std::nullptr_t) : Item(std::make_shared<ItemImpl>(0, QString(), QVariantHash())) {}
 
 Item::Item(ItemImplPtr itemImpl) : m_impl(itemImpl) {}
 
@@ -1161,6 +1189,85 @@ DownloadResult::DownloadResult(const UrlAndHowSave &urlAndHowSave, State state, 
 {
 }
 
+static bool readJson(QJsonDocument &doc, bool encrypted, const QString &filePath, QString *error = nullptr)
+{
+	return encrypted ? pls_decrypt_json(doc, filePath, error) : pls_read_json(doc, filePath, error);
+}
+static bool readJson(QJsonObject &object, bool encrypted, const QString &filePath, QString *error = nullptr)
+{
+	if (QJsonDocument doc; !readJson(doc, encrypted, filePath, error)) {
+		return false;
+	} else if (doc.isObject()) {
+		object = doc.object();
+		return true;
+	}
+	return false;
+}
+
+bool DownloadResult::json(QJsonDocument &doc, QString *error) const
+{
+	switch (m_pathFrom) {
+	case PathFrom::Downloaded:
+		return readJson(doc, m_urlAndHowSave->m_encryptJson, filePath(), error);
+	case PathFrom::UseCache:
+		if (readJson(doc, m_urlAndHowSave->m_encryptJson, filePath(), error))
+			return true;
+		else if (m_urlAndHowSave->m_defaultFilePath)
+			return readJson(doc, m_urlAndHowSave->m_defaultFileIsEncrypted, m_urlAndHowSave->m_defaultFilePath.value(), error);
+		return false;
+	case PathFrom::UseDefault:
+		return readJson(doc, m_urlAndHowSave->m_defaultFileIsEncrypted, filePath(), error);
+	case PathFrom::Invalid:
+	default:
+		pls_set_value(error, QStringLiteral("invalid path"));
+		return false;
+	}
+}
+bool DownloadResult::json(QJsonArray &array, QString *error) const
+{
+	if (QJsonDocument doc; !json(doc, error)) {
+		return false;
+	} else if (doc.isArray()) {
+		array = doc.array();
+		return true;
+	}
+	return false;
+}
+bool DownloadResult::json(QVariantList &list, QString *error) const
+{
+	if (QJsonArray array; json(array, error)) {
+		list = array.toVariantList();
+		return true;
+	}
+	return false;
+}
+bool DownloadResult::json(QJsonObject &object, QString *error) const
+{
+	if (QJsonDocument doc; !json(doc, error)) {
+		return false;
+	} else if (doc.isObject()) {
+		object = doc.object();
+		return true;
+	}
+	return false;
+}
+bool DownloadResult::json(QVariantMap &map, QString *error) const
+{
+	if (QJsonObject object; json(object, error)) {
+		map = object.toVariantMap();
+		return true;
+	}
+	return false;
+}
+bool DownloadResult::json(QVariantHash &hash, QString *error) const
+{
+	if (QJsonObject object; json(object, error)) {
+		hash = object.toVariantHash();
+		return true;
+	}
+	return false;
+}
+
 class Downloader : public IDownloader {
 public:
 	struct _FileState {
@@ -1407,6 +1514,24 @@ public:
 		results->emplace_back(urlAndHowSave, state, pathFrom, decompressOk);
 		urlAndHowSave->done(urlAndHowSave, state == State::Ok, filePath, pathFrom, decompressOk);
 	}
+	void encryptJson(const QString &contentType, UrlAndHowSave urlAndHowSave, const QString &filePath) const
+	{
+		if (!urlAndHowSave->m_encryptJson)
+			return;
+		else if (!contentType.contains(QStringLiteral("application/json"))) {
+			PLS_ERROR(LIBRESOURCE_MODULE, "Encrypt JSON failed, invalid content type: %s", contentType.toUtf8().constData());
+			return;
+		}
+
+		QJsonDocument doc;
+		if (QString error; !pls_read_json(doc, filePath, &error)) {
+			PLS_ERROR(LIBRESOURCE_MODULE, "Encrypt JSON failed, parse JSON failed, error: %s", error.toUtf8().constData());
+		} else if (!pls_remove_file(filePath, &error)) {
+			PLS_ERROR(LIBRESOURCE_MODULE, "Encrypt JSON failed, can't remove oringal file, error: %s", error.toUtf8().constData());
+		} else if (!pls_encrypt_json(filePath, doc, &error)) {
+			PLS_ERROR(LIBRESOURCE_MODULE, "Encrypt JSON failed, error: %s", error.toUtf8().constData());
+		}
+	}
 
 	QString userAgent() const
 	{
@@ -1480,16 +1605,17 @@ public:
 			else
 				request.url(urlAndHowSave->m_url.value());
 
-			requests.add(request                                                                                               //
-					     .method(pls::http::Method::Get)                                                               //
-					     .rawHeaders(headers())                                                                        //
-					     .forDownload(true)                                                                            //
-					     .saveDir(urlAndHowSave->saveDir())                                                            //
-					     .withLog()                                                                                    //
-					     .timeout(urlAndHowSave->m_timeout)                                                            //
-					     .okResult([this, receiver, results, urlAndHowSave, key, url](const pls::http::Reply &reply) { //
+			requests.add(request                                                                                     //
+					     .method(pls::http::Method::Get)                                                     //
+					     .rawHeaders(headers())                                                              //
+					     .forDownload(true)                                                                  //
+					     .saveDir(urlAndHowSave->saveDir())                                                  //
+					     .withLog()                                                                          //
+					     .timeout(urlAndHowSave->m_timeout)                                                  //
+					     .okResult([this, results, urlAndHowSave, key, url](const pls::http::Reply &reply) { //
 						     auto filePath = reply.downloadFilePath();
 						     endDownload(urlAndHowSave, key, url, true, filePath);
+						     encryptJson(reply.contentType(), urlAndHowSave, filePath);
 						     done(results, urlAndHowSave, filePath, State::Ok, PathFrom::Downloaded);
 					     })
 					     .failResult([this, results, urlAndHowSave, key, url, cacheFilePath](const pls::http::Reply &reply) {
@@ -1614,6 +1740,30 @@ class ResourceManager : public IResourceManager {
 				  m_ok ? "ok" : "failed");
 			m_invoked = true;
 			pls_invoke_safe(m_finishedCb, m_ok, m_results);
+		}
+	};
+	class DownloadAllContext {
+		using FinishedCb = std::function<void()>;
+
+		QStringList m_categories;
+
+		bool m_invoked = false;
+		FinishedCb m_finishedCb;
+
+	public:
+		DownloadAllContext(const QStringList &categories, FinishedCb &&finishedCb) //
+			: m_categories(categories), m_finishedCb(std::move(finishedCb))
+		{
+		}
+
+		void remove(const QString &categoryId)
+		{
+			m_categories.removeOne(categoryId);
+			if (m_invoked || !m_categories.isEmpty())
+				return;
+
+			m_invoked = true;
+			pls_invoke_safe(m_finishedCb);
 		}
 	};
 	struct CategoryItem {
@@ -2291,11 +2441,7 @@ public:
 	void registerCategory(ICategory *icategory) override { m_icategories[icategory->categoryId(this)] = icategory; }
 	void unregisterCategory(ICategory *icategory) override { m_icategories.erase(icategory->categoryId(this)); }
 
-	void initialize()
-	{
-		m_worker = pls_new<pls::http::ExclusiveWorker>();
-		downloadAll();
-	}
+	void initialize() { m_worker = pls_new<pls::http::ExclusiveWorker>(); }
 	void cleanup()
 	{
 		if (m_worker) {
@@ -2316,31 +2462,39 @@ public:
 		m_states.clear();
 	}
 
-	void downloadAll() // download all resource
+	void downloadAll(const std::function<void()> &complete) // download all resource
 	{
-		asyncCall([this]() {
+		asyncCall([this, complete]() {
 			PLS_INFO(LIBRESOURCE_MODULE, "download all");
 
 			if (!startDownload(DOWNLOAD_ALL)) {
 				PLS_WARN(LIBRESOURCE_MODULE, "download all is in progress");
+				pls_invoke_safe(complete);
 				return;
 			}
 
-			downloadCategoryDotJson([this](bool ok) {
+			downloadCategoryDotJson([this, complete](bool ok) {
 				if (ok) {
 					auto dc = DownloadingContext::create(pls_get_keys<QList>(m_categoryItems), [this](bool ok1, const std::list<DownloadResult> &) {
 						PLS_LOGEX(ok1 ? PLS_LOG_INFO : PLS_LOG_ERROR, LIBRESOURCE_MODULE, neloFields({}), "download all finished %s", ok1 ? "ok" : "failed");
 						setState(DOWNLOAD_ALL, ok1 ? State::Ok : State::Failed);
 					});
+					auto dac = std::make_shared<DownloadAllContext>(pls_get_keys<QList>(m_categoryItems), [complete]() {
+						PLS_LOGEX(PLS_LOG_INFO, LIBRESOURCE_MODULE, neloFields({}), "download all json download finished");
+						pls_invoke_safe(complete);
+					});
 					for (const auto &[_, categoryItem] : m_categoryItems) {
 						if (auto icategory = getICategory(categoryItem->m_categoryId); icategory) {
-							downloadCategoryItem(categoryItem, icategory, false, [categoryItem, dc](bool ok2) { dc->removeCategory(categoryItem->m_categoryId, ok2); });
+							downloadCategoryItem(
+								categoryItem, icategory, false, [categoryItem, dc](bool ok2) { dc->removeCategory(categoryItem->m_categoryId, ok2); }, dac);
 						} else {
 							dc->removeCategory(categoryItem->m_categoryId, true);
+							dac->remove(categoryItem->m_categoryId);
 						}
 					}
 				} else {
 					setState(DOWNLOAD_ALL, State::Failed);
+					pls_invoke_safe(complete);
 				}
 			});
 		});
@@ -3045,7 +3199,8 @@ private:
 							  .forceDownload(true)                                                                  //
 							  .defaultFilePath(QStringLiteral(":/Configs/resource/DefaultResources/category.json")) //
 							  .saveDir(rsm::getAppDataPath())                                                       //
-							  .fileName(CATEGORY_DOT_JSON),
+							  .fileName(CATEGORY_DOT_JSON)
+							  .encryptJson(true),
 						  [this, resultCb](const DownloadResult &result) {
 							  auto ok = result.isOk();
 							  PLS_LOGEX(ok ? PLS_LOG_INFO : PLS_LOG_ERROR, LIBRESOURCE_MODULE, neloFields({}), "download category.json %s", ok ? "ok" : "failed");
@@ -3056,8 +3211,9 @@ private:
 							  }
 
 							  PLS_INFO(LIBRESOURCE_MODULE, "load category.json");
-							  if (QJsonArray categories; pls_read_json(categories, result.filePath())) {
+							  if (QJsonArray categories; result.json(categories)) {
 								  PLS_INFO(LIBRESOURCE_MODULE, "load category.json ok");
+								  dynamicAddCategoryItem(categories); // use for add local category item
 								  for (auto cv : categories)
 									  addCategoryItem(std::make_shared<CategoryItem>(cv.toObject()));
 								  asyncCall(resultCb, true);
@@ -3087,7 +3243,8 @@ private:
 							  .forceDownload(true)
 							  .saveDir(rsm::getAppDataPath(categoryItem->m_categoryId))
 							  .neloField("categoryId", categoryItem->m_categoryIdUtf8)
-							  .fileName(fileName),
+							  .fileName(fileName)
+							  .encryptJson(true),
 						  [this, icategory, categoryItem, fileName, resultCb, urlAndHowSave](const DownloadResult &result) {
 							  auto ok = result.isOk();
 							  auto nfields = urlAndHowSave->nfields();
@@ -3125,10 +3282,15 @@ private:
 			resultCb(false);
 		}
 	}
-	template<typename ResultCb> void downloadCategoryItem(CategoryItemPtr categoryItem, ICategory *icategory, bool manualDownload, ResultCb resultCb)
+	template<typename ResultCb>
+	void downloadCategoryItem(CategoryItemPtr categoryItem, ICategory *icategory, bool manualDownload, ResultCb resultCb, std::shared_ptr<DownloadAllContext> dac = nullptr)
 	{
 		if (startDownload(categoryItem->m_categoryId, resultCb, false)) {
-			downloadCategoryItemDotJson(categoryItem, icategory, [this, icategory, categoryItem, manualDownload, resultCb](bool ok) { //
+			downloadCategoryItemDotJson(categoryItem, icategory, [this, icategory, categoryItem, manualDownload, resultCb, dac](bool ok) { //
+				if (dac) {
+					dac->remove(categoryItem->m_categoryId);
+				}
+
 				if (!ok) {
 					setState(categoryItem->m_categoryId, State::Failed, resultCb, false);
 					return;
@@ -3150,6 +3312,8 @@ private:
 					downloadCategoryItemItem(categoryItem, icategory, itemId, manualDownload, [context, itemId](bool ok3) { context->removeItem(itemId, ok3); });
 				});
 			});
+		} else if (dac) {
+			dac->remove(categoryItem->m_categoryId);
 		}
 	}
 	template<typename ResultCb> void downloadCategoryItemGroup(CategoryItemPtr categoryItem, ICategory *icategory, const QString &groupId, bool manualDownload, ResultCb resultCb)
@@ -3265,7 +3429,7 @@ private:
 
 	CategoryImplPtr from(ICategory *icategory, const QJsonObject &obj, const QString &categoryId) const
 	{
-		auto category = std::make_shared<CategoryImpl>(obj[QStringLiteral("version")].toInt(), categoryId);
+		auto category = std::make_shared<CategoryImpl>(obj[QStringLiteral("version")].toInt(), categoryId, obj);
 		parseGroups(icategory, category, obj[QStringLiteral("group")].toArray());
 		parseItems(icategory, category, obj[QStringLiteral("items")].toArray());
 		return category;
@@ -3356,19 +3520,43 @@ private:
 	}
 	bool loadCategoryItemDotJson(QJsonObject &obj, const DownloadResult &result, const QString &fileName) const
 	{
-		if (auto filePath = result.filePath(); result.m_pathFrom == PathFrom::UseDefault) {
-			return pls_read_json(obj, filePath);
+		if (result.m_pathFrom == PathFrom::UseDefault) {
+			return result.json(obj);
 		} else if (auto defaultFilePath = result.m_urlAndHowSave.defaultFilePath(); defaultFilePath.isEmpty()) {
-			return pls_read_json(obj, filePath);
-		} else if (QJsonObject dobj; !pls_read_json(dobj, defaultFilePath)) {
-			return pls_read_json(obj, filePath);
-		} else if (pls_read_json(obj, filePath) && (obj[QStringLiteral("version")].toInt() >= dobj[QStringLiteral("version")].toInt())) {
+			return result.json(obj);
+		} else if (QJsonObject defobj; !readJson(defobj, result.m_urlAndHowSave->m_defaultFileIsEncrypted, defaultFilePath)) {
+			return result.json(obj);
+		} else if (QJsonObject dlobj; result.json(dlobj) && (dlobj[QStringLiteral("version")].toInt() >= defobj[QStringLiteral("version")].toInt())) {
+			obj = dlobj;
 			return true;
 		} else {
 			PLS_WARN(LIBRESOURCE_MODULE, "%s json version less default version, use default json, file name: %s", (result.m_pathFrom == PathFrom::Downloaded) ? "downloaded" : "cached",
 				 fileName.toUtf8().constData());
-			obj = dobj;
+			obj = defobj;
 			return true;
+		}
+	}
+	bool isValidCategoryItem(const QJsonObject &obj) const
+	{
+		return (obj.contains(QStringLiteral("categoryId")) && obj.contains(QStringLiteral("categoryUniqueKey")) && obj.contains(QStringLiteral("fallbackUrl")) &&
+			obj.contains(QStringLiteral("resourceUrl")) && obj.contains(QStringLiteral("version")));
+	}
+	void dynamicAddCategoryItem(QJsonArray &categories) const
+	{
+		if (auto json = pls_prism_get_qsetting_value(QStringLiteral("ExtraCategorieItems")).toString(); json.isEmpty()) {
+			return;
+		} else if (QJsonDocument doc; !pls_parse_json(doc, json.toUtf8())) {
+			return;
+		} else if (doc.isArray()) {
+			for (auto i : doc.array()) {
+				if (auto obj = i.toObject(); isValidCategoryItem(obj)) {
+					categories.append(obj);
+				}
+			}
+		} else if (doc.isObject()) {
+			if (auto obj = doc.object(); isValidCategoryItem(obj)) {
+				categories.append(obj);
+			}
 		}
 	}
 };
@@ -3397,6 +3585,10 @@ LIRESOURCE_API IDownloader *getDownloader()
 LIRESOURCE_API IResourceManager *getResourceManager()
 {
 	return ResourceManager::instance();
+}
+LIRESOURCE_API void downloadAll(const std::function<void()> &complete)
+{
+	ResourceManager::instance()->downloadAll(complete);
 }
 LIRESOURCE_API QString getDataPath(const QString &subpath)
 {

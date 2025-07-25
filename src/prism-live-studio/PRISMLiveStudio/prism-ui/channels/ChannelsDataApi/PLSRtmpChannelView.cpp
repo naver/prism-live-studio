@@ -28,6 +28,8 @@ PLSRtmpChannelView::PLSRtmpChannelView(const QVariantMap &oldData, QWidget *pare
 
 	pls_add_css(this, {"PLSRTMPChannelView", "PLSLiveInfoBase"});
 	initUi();
+	mTwitchServer = initTwitchServer();
+	mYoutubeRtmpServer = getObsServer(YOUTUBE_RTMP);
 	loadFromData(oldData);
 	auto flushEdit = [this](bool firstShow) {
 		if (firstShow) {
@@ -41,8 +43,8 @@ PLSRtmpChannelView::PLSRtmpChannelView(const QVariantMap &oldData, QWidget *pare
 		}
 	};
 	flushEdit(true);
-	UpdateTwitchServerList();
-	setTwitchUI(ui->PlatformCombbox->currentData().toString());
+	UpdateServerList(ui->PlatformCombbox->currentData().toString());
+	setServerUI(ui->PlatformCombbox->currentData().toString());
 	updateSaveBtnAvailable();
 }
 
@@ -132,7 +134,7 @@ QVariantMap PLSRtmpChannelView::SaveResult() const
 void PLSRtmpChannelView::updatePlatform(const QVariantMap &oldData)
 {
 	QString platform = getInfo(oldData, g_channelName);
-	int index = ui->PlatformCombbox->findData(platform, Qt::DisplayRole, Qt::MatchContains);
+	int index = ui->PlatformCombbox->findData(platform, Qt::UserRole, Qt::MatchContains);
 	ui->PlatformCombbox->setDisabled(true);
 	if (index != -1) {
 		QSignalBlocker blocker(ui->PlatformCombbox);
@@ -174,8 +176,8 @@ void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
 	} else {
 		IsHideSomeFrame(false);
 	}
-
-	UpdateTwitchServerList();
+	auto platform = ui->PlatformCombbox->currentData().toString();
+	UpdateServerList(platform);
 	QString displayName = getInfo(oldData, g_nickName);
 	ui->TitleLabel->setText(CHANNELS_TR(RTMPEdit));
 	ui->NameEdit->setText(displayName);
@@ -185,7 +187,7 @@ void PLSRtmpChannelView::loadFromData(const QVariantMap &oldData)
 	ui->RTMPUrlEdit->setEnabled(false);
 	QString rtmpUrl = getInfo(oldData, g_channelRtmpUrl);
 	ui->RTMPUrlEdit->setText(rtmpUrl);
-	if (ui->PlatformCombbox->currentData().toString() == TWITCH) {
+	if (platform == TWITCH) {
 		bool bServerAuto = getInfo(oldData, g_isTwitchRtmpServerAuto, false);
 		if (bServerAuto) {
 			ui->RTMPUrlEdit->setText(ui->ServerComboBox->currentData().toString());
@@ -279,9 +281,10 @@ void PLSRtmpChannelView::on_RTMPUrlEdit_textChanged(const QString &rtmpUrl)
 		}
 		QSignalBlocker bloker(ui->PlatformCombbox);
 		ui->PlatformCombbox->setCurrentText(platformStr);
+		UpdateServerList(platformStr);
 		m_type = OTHER;
 		IsHideSomeFrame(false);
-		setTwitchUI(platformStr);
+		setServerUI(platformStr);
 	} else if (platformStr == CUSTOM_RTMP) {
 		QSignalBlocker bloker(ui->PlatformCombbox);
 		int index = 0;
@@ -318,6 +321,7 @@ void PLSRtmpChannelView::on_RTMPUrlEdit_textChanged(const QString &rtmpUrl)
 void PLSRtmpChannelView::on_PlatformCombbox_currentTextChanged(const QString &showText)
 {
 	QString platForm = ui->PlatformCombbox->currentData().toString();
+	UpdateServerList(platForm);
 	PRE_LOG_UI_MSG(QString("PlatformCombbox clicked to:" + platForm).toUtf8().constData(), PLSRtmpChannelView)
 	ResolutionGuidePage::checkResolutionForPlatform(this, platForm, channel_data::ChannelDataType::RTMPType);
 	if (platForm == CHANNELS_TR(UserInputRTMP) || platForm == CHANNELS_TR(UserInputSRT) || ui->PlatformCombbox->currentIndex() == 0 || platForm == CHANNELS_TR(UserInputRIST)) {
@@ -372,10 +376,12 @@ void PLSRtmpChannelView::on_PlatformCombbox_currentTextChanged(const QString &sh
 		ui->RTMPUrlEdit->setText(retIte.value());
 		ui->RTMPUrlEdit->setModified(false);
 	}
-	if (platForm == TWITCH) {
+	auto bTwitchChannel = platForm == TWITCH;
+	auto bYoutubeChannel = platForm == YOUTUBE;
+	if (bTwitchChannel || bYoutubeChannel) {
 		ui->ServerFrame->show();
 		ui->ServerComboBox->show();
-		if (GlobalVars::g_bUseAPIServer) {
+		if ((bTwitchChannel && GlobalVars::g_bUseAPIServer) || bYoutubeChannel) {
 			QSignalBlocker block(ui->RTMPUrlEdit);
 			ui->RTMPUrlEdit->setText(ui->ServerComboBox->currentData().toString());
 			ui->RTMPUrlEdit->setModified(false);
@@ -390,7 +396,8 @@ void PLSRtmpChannelView::on_PlatformCombbox_currentTextChanged(const QString &sh
 void PLSRtmpChannelView::on_ServerComboBox_currentTextChanged(const QString &text)
 {
 	auto platform = ui->PlatformCombbox->currentData().toString();
-	if (platform != TWITCH) {
+	auto bTwitchChannel = platform == TWITCH;
+	if (!bTwitchChannel && platform != YOUTUBE) {
 		PLS_INFO("PLSRtmpChannelView", "current platform is %s", platform.toUtf8().constData());
 		return;
 	}
@@ -398,10 +405,10 @@ void PLSRtmpChannelView::on_ServerComboBox_currentTextChanged(const QString &tex
 	auto url = ui->ServerComboBox->currentData().toString();
 	if (!url.isEmpty()) {
 		QSignalBlocker block(ui->RTMPUrlEdit);
-		if (url == "auto" && !GlobalVars::g_bUseAPIServer) {
+		if (bTwitchChannel && url == "auto" && !GlobalVars::g_bUseAPIServer) {
 			url = mRtmps.value(platform);
 		}
-		PLS_INFO("PLSRtmpChannelView", "current twitch server is %s", url.toUtf8().constData());
+		PLS_INFO("PLSRtmpChannelView", "current server is %s", url.toUtf8().constData());
 		ui->RTMPUrlEdit->setText(url);
 		ui->RTMPUrlEdit->setModified(false);
 	}
@@ -545,38 +552,44 @@ bool PLSRtmpChannelView::isUrlRight(const QString &regular, const QString &url) 
 	return matchRe.hasMatch();
 }
 
-void PLSRtmpChannelView::UpdateTwitchServerList()
+void PLSRtmpChannelView::UpdateServerList(const QString &channelName)
 {
-	if (ui->ServerComboBox->count() != 0) {
+	auto bTwitchChannel = channelName == TWITCH;
+	auto bYouTubeChannel = channelName == YOUTUBE;
+	if (!bTwitchChannel && !bYouTubeChannel) {
 		return;
 	}
-	auto serverList = initTwitchServer();
+	QList<QPair<QString, QString>> tmpServer;
 	QSignalBlocker block(ui->ServerComboBox);
-	if (serverList.isEmpty()) {
-		ui->ServerComboBox->addItem(QTStr("setting.output.server.auto"), mRtmps.value(TWITCH));
-	} else {
-
-		if (!GlobalVars::g_bUseAPIServer && serverList.at(0).second == "auto") {
-			serverList.replace(0, QPair<QString, QString>(QTStr("setting.output.server.auto"), mRtmps.value(TWITCH)));
+	ui->ServerComboBox->clear();
+	if (bTwitchChannel) {
+		if (mTwitchServer.isEmpty()) {
+			ui->ServerComboBox->addItem(QTStr("setting.output.server.auto"), mRtmps.value(TWITCH));
 		}
-		for (auto pair : serverList) {
-			ui->ServerComboBox->addItem(pair.first, pair.second);
-		}
+		tmpServer = mTwitchServer;
+	} else if (bYouTubeChannel) {
+		tmpServer = mYoutubeRtmpServer;
+	}
+	for (auto pair : tmpServer) {
+		ui->ServerComboBox->addItem(pair.first, pair.second);
 	}
 }
 
-void PLSRtmpChannelView::setTwitchUI(const QString &channelName)
+void PLSRtmpChannelView::setServerUI(const QString &channelName)
 {
-	if (channelName == TWITCH) {
+	auto bTwitchChannel = channelName == TWITCH;
+	if (bTwitchChannel || channelName == YOUTUBE) {
 		auto text = ui->RTMPUrlEdit->text();
 		int index = ui->ServerComboBox->findData(text);
-		bool bServerAuto = getInfo(mOldData, g_isTwitchRtmpServerAuto, false);
-		if (index == 0 && !bServerAuto) {
-			index = 1;
+		if (bTwitchChannel) {
+			bool bServerAuto = getInfo(mOldData, g_isTwitchRtmpServerAuto, false);
+			if (index == 0 && !bServerAuto) {
+				index = 1;
+			} else if (index == -1) {
+				index = 0;
+			}
 		}
-		if (index == -1) {
-			index = 0;
-		}
+		QSignalBlocker block(ui->ServerComboBox);
 		ui->ServerComboBox->setCurrentIndex(index);
 		ui->ServerFrame->show();
 		ui->ServerComboBox->show();

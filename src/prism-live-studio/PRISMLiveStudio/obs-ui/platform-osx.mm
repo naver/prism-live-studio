@@ -42,15 +42,13 @@ bool GetDataFilePath(const char *data, string &output)
 {
     NSRunningApplication *app = [NSRunningApplication currentApplication];
     NSURL *bundleURL = [app bundleURL];
-    NSString *path = [NSString
-        stringWithFormat:@"Contents/Resources/data/prism-studio/%@",
-                 [NSString stringWithUTF8String:data]];
+    NSString *path =
+        [NSString stringWithFormat:@"Contents/Resources/data/prism-studio/%@", [NSString stringWithUTF8String:data]];
     NSURL *dataURL = [bundleURL URLByAppendingPathComponent:path];
     output = [[dataURL path] UTF8String];
 
     return !access(output.c_str(), R_OK);
 }
-
 
 void CheckIfAlreadyRunning(bool &already_running)
 {
@@ -123,8 +121,7 @@ void disableColorSpaceConversion(QWidget *window)
 void SetAlwaysOnTop(QWidget *window, bool enable)
 {
     Qt::WindowFlags flags = window->windowFlags();
-    NSView *nsv = (__bridge NSView *)reinterpret_cast<void *>(
-            window->winId());
+    NSView *nsv = (__bridge NSView *) reinterpret_cast<void *>(window->winId());
     NSWindow *nsw = nsv.window;
     if (enable) {
         NSView *view = (__bridge NSView *) reinterpret_cast<void *>(window->winId());
@@ -215,13 +212,13 @@ void EnableOSXDockIcon(bool enable)
 - (void)drawRect:(NSRect)dirtyRect
 {
     CGSize size = dirtyRect.size;
-    
+
     if (_isFullIcon) {
-            CGImageRef image = _icon.pixmap(size.width, size.height).toImage().toCGImage();
-            CGContextRef context = [[NSGraphicsContext currentContext] CGContext];
-            CGContextDrawImage(context, CGRectMake(0, 0, size.width, size.height), image);
-            CGImageRelease(image);
-            return;
+        CGImageRef image = _icon.pixmap(size.width, size.height).toImage().toCGImage();
+        CGContextRef context = [[NSGraphicsContext currentContext] CGContext];
+        CGContextDrawImage(context, CGRectMake(0, 0, size.width, size.height), image);
+        CGImageRelease(image);
+        return;
     }
 
     /* Draw regular app icon */
@@ -343,7 +340,7 @@ void TaskbarOverlaySetStatus(TaskbarOverlayStatus status)
     NSString *imagePath;
     if (status == TaskbarOverlayStatusActive) {
         imagePath = [[NSBundle mainBundle] pathForResource:@"data/prism-studio/images/PrismActive_Mac" ofType:@"png"];
-    }else {
+    } else {
         imagePath = [[NSBundle mainBundle] pathForResource:@"data/prism-studio/images/PrismDeactive_Mac" ofType:@"png"];
     }
     NSImage *image = [[NSImage alloc] initWithContentsOfFile:imagePath];

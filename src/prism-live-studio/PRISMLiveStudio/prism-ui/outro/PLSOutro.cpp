@@ -472,10 +472,11 @@ private:
 
 		painter.setFont(font);
 		painter.setPen(pen);
-		
+
 		painter.drawText(pixmap.rect(), flags, text);
 
-		auto savedFileName = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/")) + (!use_for_vertical ? QStringLiteral("outro_text.png") : QStringLiteral("outro_text_v.png"));
+		auto savedFileName =
+			PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/")) + (!use_for_vertical ? QStringLiteral("outro_text.png") : QStringLiteral("outro_text_v.png"));
 		bool resut = pixmap.save(savedFileName);
 		return resut ? savedFileName : QString();
 	}

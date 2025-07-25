@@ -97,6 +97,9 @@ LIBHTTPCLIENT_API const QString RS_DOWNLOAD_WORKER_GROUP = "rs-download-worker-g
 	if (!variable)                 \
 		variable = getter;     \
 	return variable.value()
+#define checkCompleted(replyImpl, ...) \
+	if (replyImpl->isCompleted()) \
+		return __VA_ARGS__
 // clang-format on
 
 #define g_clientStatus Client ::s_clientStatus
@@ -104,6 +107,7 @@ LIBHTTPCLIENT_API const QString RS_DOWNLOAD_WORKER_GROUP = "rs-download-worker-g
 #define g_proxy Client::s_client->m_proxy
 #define g_workers Client::s_client->m_workers
 #define g_cleanupWaitTimeout Client::s_client->s_cleanupWaitTimeout
+
 
 
 enum class ClientStatus { Uninitialized, Initialized, Initializing, Destroying };
@@ -148,8 +152,11 @@ struct RequestImpl {
 	mutable std::optional<QStringList> m_errors;
 	mutable std::optional<ReplyHook> m_hook;
 	mutable std::optional<ReplyMonitor> m_monitor;
+	mutable std::optional<HeaderLog> m_requestHeaderBodyLog;
+	mutable std::optional<HeaderLog> m_replyHeaderLog;
 	mutable QDateTime m_startTime;
 	mutable QDateTime m_endTime;
+	mutable QByteArray m_textBody;
 
 	RequestImpl() : m_requestId(genRequestId()) {}
 
@@ -221,15 +228,24 @@ struct RequestImpl {
 			return nullptr;
 		}
 
+		m_textBody = "form body: \n";
 		QHttpMultiPart *multiPart = pls_new<QHttpMultiPart>(QHttpMultiPart::FormDataType);
 		pls_for_each(m_form.value(), [multiPart, this](const QString &name, const QPair<QStringList, bool> &value) {
 			if (!value.second) { // not file
 				for (const QString &text : value.first) {
 					addFieldPart(multiPart, name, text);
+					m_textBody.append(name.toUtf8());
+					m_textBody.append('=');
+					m_textBody.append(text.toUtf8());
+					m_textBody.append('\n');
 				}
 			} else { // file
 				for (const QString &filePath : value.first) {
 					addFilePart(multiPart, name, filePath);
+					m_textBody.append(name.toUtf8());
+					m_textBody.append('=');
+					m_textBody.append(pls_get_path_file_name(filePath).toUtf8());
+					m_textBody.append('\n');
 				}
 			}
 		});
@@ -275,7 +291,8 @@ struct RequestImpl {
 			}
 		});
 
-		return urlQuery.toString(QUrl::FullyEncoded).toUtf8();
+		m_textBody = urlQuery.toString(QUrl::FullyEncoded).toUtf8();
+		return m_textBody;
 	}
 
 	QThread *worker() const { return m_worker.value_or(nullptr); }
@@ -301,6 +318,7 @@ struct RequestImpl {
 		pls_invoke_safe(m_beforeLog, manager.get(), requestImpl);
 		pls_invoke_safe(m_before, manager.get(), requestImpl);
 	}
+	void requestHeaderBodyLog(const ReplyImplPtr &replyImpl) const { pls_invoke_safe(m_requestHeaderBodyLog, replyImpl); }
 
 	void addError(const QString &error) const
 	{
@@ -327,6 +345,11 @@ struct RequestImpl {
 
 	const Request &beforeLog(const Request &request, const Before &beforeLog) const { optionalSetValueChkRetv(m_beforeLog, beforeLog, beforeLog, request); }
 	const Request &afterLog(const Request &request, const After &afterLog) const { optionalSetValueChkRetv(m_afterLog, afterLog, afterLog, request); }
+	const Request &requestHeaderBodyLog(const Request &request, const HeaderLog &requestHeaderBodyLog) const
+	{
+		optionalSetValueChkRetv(m_requestHeaderBodyLog, requestHeaderBodyLog, requestHeaderBodyLog, request);
+	}
+	const Request &replyHeaderLog(const Request &request, const HeaderLog &replyHeaderLog) const { optionalSetValueChkRetv(m_replyHeaderLog, replyHeaderLog, replyHeaderLog, request); }
 
 	QString buildSaveFilePath(const QString &suffix) const
 	{
@@ -649,6 +672,7 @@ struct ReplyImpl {
 	void after(const ReplyImplPtr &replyImpl) const
 	{
 		pls_invoke_safe(m_requestImpl->m_afterLog, replyImpl);
+		pls_invoke_safe(m_requestImpl->m_replyHeaderLog, replyImpl);
 		pls_invoke_safe(m_requestImpl->m_after, replyImpl);
 	}
 	void completed() const { m_completed = true; }
@@ -775,10 +799,7 @@ struct RepliesImpl {
 
 		pls_invoke_safe(m_requestsImpl->m_progress, repliesImpl);
 	}
-	void completed(const ReplyImplPtr &replyImpl) const
-	{
-		replyImpl->completed();
-	}
+	void completed(const ReplyImplPtr &replyImpl) const { replyImpl->completed(); }
 	void completed(const RepliesImplPtr &repliesImpl) const
 	{
 		if (isCompleted()) {
@@ -1142,6 +1163,7 @@ public:
 	{
 		requestImpl->before(manager, requestImpl);
 		auto replyImpl = makeShared<ReplyImpl>(manager, requestImpl, newNetworkReply(manager, requestImpl));
+		requestImpl->requestHeaderBodyLog(replyImpl);
 		ReplyImplWeakPtr replyImplWeakPtr = replyImpl;
 		replyImpl->m_abortConn = QObject::connect(g_proxy, &Proxy::abort, manager.get(), [replyImplWeakPtr](bool allowAbortCheck, const QString &error, qint64 requestId) {
 			if (auto replyImplTmp = replyImplWeakPtr.lock(); !replyImplTmp) {
@@ -1176,6 +1198,7 @@ public:
 	{
 		if (!requestImpl->isForDownload()) {
 			QObject::connect(replyImpl->m_reply.get(), &NetworkReply::finished, replyImpl->manager(), [replyImpl]() {
+				checkCompleted(replyImpl);
 				replyImpl->stopCheckTimer();
 				replyImpl->progress(replyImpl, 100);
 				replyImpl->setStatus(replyImpl->checkResult(replyImpl));
@@ -1190,13 +1213,17 @@ public:
 
 			replyImpl->checkTimeout(replyImpl);
 		} else {
-			QObject::connect(replyImpl->m_reply.get(), &NetworkReply::downloadProgress, replyImpl->manager(),
-					 [replyImpl](qint64 downloadedBytes, qint64 downloadTotalBytes) { replyImpl->progress(replyImpl, downloadedBytes, downloadTotalBytes); });
+			QObject::connect(replyImpl->m_reply.get(), &NetworkReply::downloadProgress, replyImpl->manager(), [replyImpl](qint64 downloadedBytes, qint64 downloadTotalBytes) {
+				checkCompleted(replyImpl);
+				replyImpl->progress(replyImpl, downloadedBytes, downloadTotalBytes);
+			});
 			QObject::connect(replyImpl->m_reply.get(), &NetworkReply::readyRead, replyImpl->manager(), [replyImpl]() {
+				checkCompleted(replyImpl);
 				replyImpl->recheckTimeout();
 				replyImpl->saveDownloadData(replyImpl);
 			});
 			QObject::connect(replyImpl->m_reply.get(), &NetworkReply::finished, replyImpl->manager(), [replyImpl]() {
+				checkCompleted(replyImpl);
 				replyImpl->stopCheckTimer();
 				replyImpl->saveDownloadData(replyImpl, true);
 				replyImpl->setStatus(replyImpl->isDownloadOk(replyImpl));
@@ -1236,6 +1263,7 @@ public:
 		for (const ReplyImplPtr &replyImpl : repliesImpl->m_replyImpls) {
 			if (!replyImpl->m_requestImpl->isForDownload()) {
 				QObject::connect(replyImpl->m_reply.get(), &NetworkReply::finished, replyImpl->manager(), [repliesImpl, replyImpl]() {
+					checkCompleted(replyImpl);
 					replyImpl->stopCheckTimer();
 					replyImpl->progress(replyImpl, 100);
 					replyImpl->setStatus(repliesImpl->checkResult(replyImpl));
@@ -1253,13 +1281,16 @@ public:
 			} else {
 				QObject::connect(replyImpl->m_reply.get(), &NetworkReply::downloadProgress, replyImpl->manager(),
 						 [repliesImpl, replyImpl](qint64 downloadedBytes, qint64 downloadTotalBytes) {
+							 checkCompleted(replyImpl);
 							 repliesImpl->progress(replyImpl, downloadedBytes, downloadTotalBytes);
 						 });
 				QObject::connect(replyImpl->m_reply.get(), &NetworkReply::readyRead, replyImpl->manager(), [replyImpl]() {
+					checkCompleted(replyImpl);
 					replyImpl->recheckTimeout();
 					replyImpl->saveDownloadData(replyImpl);
 				});
 				QObject::connect(replyImpl->m_reply.get(), &NetworkReply::finished, replyImpl->manager(), [repliesImpl, replyImpl]() {
+					checkCompleted(replyImpl);
 					replyImpl->stopCheckTimer();
 					replyImpl->saveDownloadData(replyImpl, true);
 					replyImpl->setStatus(repliesImpl->isDownloadOk(replyImpl));
@@ -1406,7 +1437,7 @@ qint64 genRequestId()
 bool isTextContent(const QString &contentType)
 {
 	if (contentType.contains(QStringLiteral("application/json")) || contentType.contains(QStringLiteral("text/html")) || contentType.contains(QStringLiteral("text/plain")) ||
-	    contentType.contains(QStringLiteral("application/javascript"))) {
+	    contentType.contains(QStringLiteral("application/javascript")) || contentType.contains(QStringLiteral("text/javascript"))) {
 		return true;
 	}
 	return false;
@@ -1810,11 +1841,11 @@ const Request &Request::body(const QByteArray &body) const
 }
 const Request &Request::body(const QJsonObject &body) const
 {
-	return this->body(QJsonDocument(body).toJson());
+	return this->body(m_impl->m_textBody = QJsonDocument(body).toJson());
 }
 const Request &Request::body(const QJsonArray &body) const
 {
-	return this->body(QJsonDocument(body).toJson());
+	return this->body(m_impl->m_textBody = QJsonDocument(body).toJson());
 }
 
 QHash<QString, QPair<QStringList, bool>> Request::form() const
@@ -2000,12 +2031,16 @@ const Request &Request::progress(const Progress &progress) const
 const Request &Request::withLog(const QString &urlMasking) const
 {
 	return withBeforeLog(urlMasking) //
-		.withAfterLog(urlMasking);
+		.withRequestHeaderBodyLog()
+		.withAfterLog(urlMasking)
+		.withReplyHeaderLog();
 }
 const Request &Request::withLog(const UrlMasking &urlMasking) const
 {
 	return withBeforeLog(urlMasking) //
-		.withAfterLog(urlMasking);
+		.withRequestHeaderBodyLog()
+		.withAfterLog(urlMasking)
+		.withReplyHeaderLog();
 }
 std::pair<QString, bool> getMaskingUrl(const UrlMasking &urlMasking, const QString &url)
 {
@@ -2121,6 +2156,31 @@ const Request &Request::withAfterLog(const UrlMasking &urlMasking, LogInclude lo
 		if (isLogIncludeFail(ok, logInclude)) {
 			processFailLog(originalUrl, maskingUrl, reply);
 		}
+	});
+}
+
+const Request &Request::withRequestHeaderBodyLog() const
+{
+	return m_impl->requestHeaderBodyLog(*this, [](const Reply &reply) {
+		auto request = reply.request();
+		auto url = request->m_url.toString().toUtf8();
+
+		QByteArrayList headers;
+		pls_for_each(reply.requestRawHeaders(), [&headers](const auto &header) { headers.append(header.first + "=" + header.second); });
+		PLS_INFO_KR(LIBHTTP_CLIENT_MODULE, "http request headers, url = %s\n%s", url.constData(), headers.join('\n').constData());
+		if (!request->m_textBody.isEmpty())
+			PLS_INFO_KR(LIBHTTP_CLIENT_MODULE, "http request text body, url = %s\n%s", url.constData(), request->m_textBody.constData());
+	});
+}
+const Request &Request::withReplyHeaderLog() const
+{
+	return m_impl->replyHeaderLog(*this, [](const Reply &reply) {
+		auto request = reply.request();
+		auto url = request->m_url.toString().toUtf8();
+
+		QByteArrayList headers;
+		pls_for_each(reply.replyRawHeaders(), [&headers](const auto &header) { headers.append(header.first + "=" + header.second); });
+		PLS_INFO_KR(LIBHTTP_CLIENT_MODULE, "http reply headers, url = %s\n%s", url.constData(), headers.join('\n').constData());
 	});
 }
 

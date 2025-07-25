@@ -4,8 +4,6 @@
 #include <optional>
 #include <libipc.h>
 
-
-
 #ifdef Q_OS_WIN
 
 #ifdef LIBTASK_LIB
@@ -18,7 +16,6 @@
 #define LIBTASK_API
 
 #endif
-
 
 namespace pls {
 namespace task {

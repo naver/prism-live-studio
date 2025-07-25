@@ -7,11 +7,7 @@ class OBSDock : public PLSDock {
 
 public:
 	inline OBSDock(QWidget *parent = nullptr) : PLSDock(parent) {}
-	inline OBSDock(const QString &title, QWidget *parent = nullptr)
-		: PLSDock(parent)
-	{
-		setWindowTitle(title);
-	}
+	inline OBSDock(const QString &title, QWidget *parent = nullptr) : PLSDock(parent) { setWindowTitle(title); }
 
 	virtual void closeEvent(QCloseEvent *event);
 	virtual void showEvent(QShowEvent *event);
@@ -22,10 +18,7 @@ class OBSDockOri : public QDockWidget {
 
 public:
 	inline OBSDockOri(QWidget *parent = nullptr) : QDockWidget(parent) {}
-	inline OBSDockOri(const QString &title, QWidget *parent = nullptr)
-		: QDockWidget(title, parent)
-	{
-	}
+	inline OBSDockOri(const QString &title, QWidget *parent = nullptr) : QDockWidget(title, parent) {}
 
 	virtual void closeEvent(QCloseEvent *event);
 	virtual void showEvent(QShowEvent *event);

@@ -8,7 +8,7 @@
 #include <QObject>
 #include "obs.hpp"
 
-using SceneitemIdMap = QMap<int64_t, int64_t>;      // horizontal sceneitem id : vertical sceneitem id
+using SceneitemIdMap = QMap<QString, int64_t>;      // horizontal sceneitem id - uuid : vertical sceneitem id
 using SceneitemMap = QMap<QString, SceneitemIdMap>; // key:scene uuid
 
 static int64_t SCENE_ITEM_NOT_FOUND = -1;
@@ -19,7 +19,6 @@ static const char *SCENE_ITEM_MAPS_KEY = "maps";
 static const char *SCENE_ITEM_MAP_SAVE_SCENE_NAME_KEY = "sceneName";
 static const char *SCENE_ITEM_REFERENCE_SCENE_NAME = "referenceSceneName";
 static const char *SCENE_ITEM_REFERENCE_GROUP_NAME = "referenceGroupName";
-static const char *SCENE_ITEM_REFERENCE_SCENE_SOURCE = "referenceSceneSource";
 
 enum SceneItemDisplayMode { SCENE_ITEM_DISPLAY_HORIZONTAL = 0, SCENE_ITEM_DISPLAY_VERTICAL };
 
@@ -29,6 +28,7 @@ struct DisplayId {
 	OBSSceneItem horizontalItem;
 	OBSSceneItem verticalItem;
 	const char *sceneName{nullptr};
+	OBSScene scene{nullptr};
 };
 
 class PLSSceneitemMapManager : public QObject {
@@ -37,9 +37,15 @@ public:
 	static PLSSceneitemMapManager *Instance();
 	~PLSSceneitemMapManager();
 
+	OBSDataArray saveVerticalSceneitemInfo();
+	void loadVerticalSceneitemInfo(obs_data_array_t *arrays);
+
 	void switchToDualOutputMode();
+	void switchToDualOutputModeForAllScenes();
 	OBSDataArray saveConfig();
 	void loadConfig(OBSData data);
+	void renameConfig(OBSSource source, const char *srcName, const char *destName);
+	void clearConfig();
 
 	void removeConfig(const char *sceneName);
 	void removeItem(OBSSceneItem horItem, bool unGroup = false);
@@ -48,9 +54,11 @@ public:
 	OBSSceneItem getVerticalSceneitem(OBSSceneItem horItem);
 	OBSSceneItem getVerticalSelectedSceneitem(OBSSceneItem horItem);
 	OBSSceneItem getHorizontalSceneitem(OBSSceneItem verItem);
+	OBSSceneItem getCurVerticalSceneitem(OBSSceneItem horItem);
 
 	bool isMappedVerticalSceneItem(OBSSceneItem verItem);
 	const char *getMappedVerticalSceneName(OBSSceneItem verItem);
+	const char *getMappedOriginalSceneName(OBSSceneItem verItem);
 
 	void deleteSelectedScene(OBSScene scene);
 	void clearSource();
@@ -59,28 +67,43 @@ public:
 	void setDualOutputOpened(bool open);
 
 	void removeReferenceSceneSource(const char *sceneName);
-	void addReferenceScene(const char *sceneName);
+	void addReferenceScene(const char *sceneName, OBSScene scene);
+	void clearSceneitemReferenceSceneName(OBSScene scene);
+
+	void bindMappedVerticalItemHotkeys();
+	void bindMappedVerticalItemHotkeys(OBSScene scene);
+
+	void saveHotkey(OBSData sceneitemInfo, OBSSceneItem verSceneItem);
 
 private:
 	explicit PLSSceneitemMapManager();
-	void switchToDualOutputMode(OBSScene scene, QMap<QString, DisplayId> &items);
+	void switchToDualOutputMode(OBSScene scene, QMap<QString, DisplayId> &ItemInfoRequestFunction);
 
-	void addConfig(SceneitemMap &itemIdMap, const char *sceneName, int64_t horizontalId, int64_t verticalId);
-	void addConfig(const char *sceneName, int64_t horizontalId, int64_t verticalId);
+	QString generateKey(int64_t horizontalId, const char *uuid);
+	std::pair<int64_t, QString> getIdAndUuid(const QString &key);
+
+	void recoverHotkey(OBSData sceneitemInfo, OBSSceneItem verSceneItem);
+
+	void addConfig(SceneitemMap &itemIdMap, const char *sceneName, const char *uuid, int64_t horizontalId, int64_t verticalId);
+	void addConfig(const char *sceneName, const char *uuid, int64_t horizontalId, int64_t verticalId);
 	void addConfig(const SceneitemMap &idMap);
-	void removeConfig(const char *sceneName, int64_t id);
+	void removeConfig(const char *sceneName, int64_t id, const char *uuid);
 
-	std::pair<int64_t, OBSSceneItem> findItemByHorizontalId(const char *sceneName, int64_t horId);
+	std::pair<int64_t, OBSSceneItem> findItemByHorizontalId(const char *sceneName, OBSSource sceneSource, int64_t horId, const char *uuid);
 	int64_t getItemDisplayId(OBSSceneItem item);
 	const char *getItemDisplayUuid(OBSSceneItem item);
-	const char *getItemSourceName(OBSSceneItem item);
-	int64_t findVerticalItem(const char *sceneName, int64_t id);
-
+	std::pair<const char *, OBSSource> getItemSourceName(OBSSceneItem item);
+	int64_t findVerticalItem(const char *sceneName, int64_t id, const char *uuid);
+	void createRefrenceScene(OBSSceneItem item, QString &groupName, QString &referenceSceneName, OBSScene &scene);
+	void createRefrenceSceneGroup(OBSSceneItem groupItem, OBSScene scene);
+	OBSSceneItem createRefrenceGroupItem(const QString &groupName, const QString &referenceSceneName, const QString &oriSceneName, OBSScene oriScene, OBSScene createdScene,
+					     OBSSceneItem horSceneitem, OBSSceneItem verSceneitem);
 	std::pair<int64_t, OBSSceneItem> duplicateSceneItem(OBSScene scene, OBSSceneItem item);
 	void removeGroupSelectedStatus();
-	void addUuid(QMap<QString, DisplayId> &newSceneData, const char *sceneName, const char *uuid, int display, int64_t id, OBSSceneItem horItem, OBSSceneItem verItem);
-	void setDisplayId(DisplayId &displayId, const char *sceneName, int display, int64_t id, OBSSceneItem horItem, OBSSceneItem verItem);
+	void addUuid(QMap<QString, DisplayId> &newSceneData, const char *sceneName, OBSScene scene, const char *uuid, int display, int64_t id, OBSSceneItem horItem, OBSSceneItem verItem);
+	void setDisplayId(DisplayId &displayId, const char *sceneName, OBSScene scene, int display, int64_t id, OBSSceneItem horItem, OBSSceneItem verItem);
 	void addUuidConfig(const QMap<QString, DisplayId> &ungroupItems);
+
 signals:
 	void duplicateItemSuccess(OBSSceneItem horItem, OBSSceneItem verItem);
 
@@ -88,7 +111,8 @@ private:
 	SceneitemMap sceneitemMap;
 	bool dualOutputOpened = false;
 
-	QSet<QString> referenceSceneSourcesSet;
+	QMap<QString, OBSScene> referenceSceneSourcesSet;
+	QMap<QString, OBSData> verticalSceneitemInfos;
 };
 #define PLSSceneitemMapMgrInstance PLSSceneitemMapManager::Instance()
 

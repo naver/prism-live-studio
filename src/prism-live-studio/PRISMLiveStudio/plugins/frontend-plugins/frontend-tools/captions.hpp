@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "ui_captions.h"
-#include"PLSDialogView.h"
+#include "PLSDialogView.h"
 
 class CaptionsDialog : public PLSDialogView {
 	Q_OBJECT

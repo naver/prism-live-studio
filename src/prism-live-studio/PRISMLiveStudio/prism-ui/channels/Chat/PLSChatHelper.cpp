@@ -37,10 +37,10 @@ static void onPrismUserLogout(pls_frontend_event event, const QVariantList &, vo
 		return;
 
 	pls_unused(ctx);
-	config_set_string(App()->GlobalConfig(), "BasicWindow", "geometryChat", nullptr);
-	config_set_bool(App()->GlobalConfig(), "Basic", "chatIsHidden", false);
-	config_set_uint(App()->GlobalConfig(), KeyConfigLiveInfo, KeyTwitchServer, 0);
-	config_save(App()->GlobalConfig());
+	config_set_string(App()->GetUserConfig(), "BasicWindow", "geometryChat", nullptr);
+	config_set_bool(App()->GetUserConfig(), "Basic", "chatIsHidden", false);
+	config_set_uint(App()->GetUserConfig(), KeyConfigLiveInfo, KeyTwitchServer, 0);
+	config_save(App()->GetUserConfig());
 }
 
 PLSChatHelper::~PLSChatHelper()
@@ -544,21 +544,21 @@ QString PLSChatHelper::getToastString() const
 	return showStr;
 }
 
-PLSChatHelper::ChatFontSacle PLSChatHelper::getFontBtnStatus(int scaleSize)
+PLSChatHelper::ChatFontScale PLSChatHelper::getFontBtnStatus(int scaleSize)
 {
 	if (m_fontScales.back() == scaleSize) {
-		return PLSChatHelper::ChatFontSacle::PlusDisable;
+		return PLSChatHelper::ChatFontScale::PlusDisable;
 	}
 	if (m_fontScales.front() == scaleSize) {
-		return PLSChatHelper::ChatFontSacle::MinusDisable;
+		return PLSChatHelper::ChatFontScale::MinusDisable;
 	}
 
-	return PLSChatHelper::ChatFontSacle::Normal;
+	return PLSChatHelper::ChatFontScale::Normal;
 }
 
-int PLSChatHelper::getNextSacelSize(bool isToPlus)
+int PLSChatHelper::getNextScaleSize(bool isToPlus)
 {
-	int oldSize = PLSChatHelper::getFontSacleSize();
+	int oldSize = PLSChatHelper::getFontScaleSize();
 	int oldIndex = 0;
 
 	auto len = m_fontScales.size();
@@ -577,11 +577,11 @@ int PLSChatHelper::getNextSacelSize(bool isToPlus)
 	return m_fontScales[isToPlus ? ++oldIndex : --oldIndex];
 }
 
-int PLSChatHelper::getFontSacleSize()
+int PLSChatHelper::getFontScaleSize()
 {
 	int scaleSize = 100;
-	if (config_has_user_value(App()->GlobalConfig(), s_fontSessionName, s_fontSessionKey)) {
-		scaleSize = static_cast<int>(config_get_int(App()->GlobalConfig(), s_fontSessionName, s_fontSessionKey));
+	if (config_has_user_value(App()->GetUserConfig(), s_fontSessionName, s_fontSessionKey)) {
+		scaleSize = static_cast<int>(config_get_int(App()->GetUserConfig(), s_fontSessionName, s_fontSessionKey));
 	}
 	return scaleSize;
 }
@@ -596,34 +596,47 @@ void PLSChatHelper::sendWebChatFontSizeChanged(int scaleSize)
 	root.insert("type", "scale");
 	root.insert("data", data);
 
-	config_set_int(App()->GlobalConfig(), s_fontSessionName, s_fontSessionKey, scaleSize);
-	config_save(App()->GlobalConfig());
+	config_set_int(App()->GetUserConfig(), s_fontSessionName, s_fontSessionKey, scaleSize);
+	config_save(App()->GetUserConfig());
 
 	pls_frontend_call_dispatch_js_event_cb("prism_events", QJsonDocument(root).toJson().constData());
 
 	PLS_INFO("PLSChat", QString("PLSChat send font scale size: %1").arg(scaleSize).toUtf8().constData());
 }
 
-QString PLSChatHelper::getDispatchJS(int index)
+QString PLSChatHelper::getDispatchJS(int index, const QString &url)
 {
 	if (PLS_CHAT_HELPER->isLocalHtmlPage(index)) {
 		return "sendToPrism('{\"type\":\"onReady\", \"data\": {}}')";
 	}
 	if (index == ChatPlatformIndex::Youtube) {
-		return getYoutubeDisableBackupJS();
+		if (!url.startsWith("http")) {
+			return "";
+		}
+		auto youtubeJS = getYoutubeDisableBackupJS();
+		youtubeJS.replace("%%LOGIN_BTN%%", tr("login.login_cap"));
+		QString encoded = QUrl::toPercentEncoding(url);
+		encoded = QUrl::toPercentEncoding(encoded);
+		youtubeJS.replace("<-redirect-url->", encoded);
+		return youtubeJS;
 	}
 	return "";
 }
 
 QString PLSChatHelper::getYoutubeDisableBackupJS()
 {
+	QString downloadPath = PLS_RSM_getLibraryPolicyPC_Path(QStringLiteral("Library_Policy_PC/youtube_add_login_btn.js"));
 
+	QByteArray jsData =	pls_read_data(downloadPath);
+	if (!jsData.isEmpty()) {
+		return jsData;
+	}
 	QDir appDir(QCoreApplication::applicationDirPath());
-	QString path = appDir.absoluteFilePath(QString("data/prism-studio/webpage/youtube_backup_disable.js"));
-	QFile file(path);
-	file.open(QIODevice::ReadOnly | QIODevice::Text);
-	QByteArray byteArray = file.readAll();
-	file.close();
-
-	return byteArray;
+	QString path;
+#if defined(Q_OS_WIN)
+	path = QString("../../data/prism-studio/webpage/youtube_add_login_btn.js");
+#elif defined(Q_OS_MACOS)
+	path = QString("../Resources/data/prism-studio/webpage/youtube_add_login_btn.js");
+#endif
+	return pls_read_data(path);;
 }

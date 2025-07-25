@@ -23,7 +23,6 @@ public:
 	void getBandTokenInfo(const QVariantMap &srcInfo, const UpdateCallback &finishedCall);
 	void getBandCategoryInfo(const QVariantMap &srcInfo, const UpdateCallback &finishedCall);
 	static void getChannelEmblemAsync();
-	bool onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject) override;
 
 	PLSServiceType getServiceType() const override;
 	void onPrepareLive(bool value) override;

@@ -108,7 +108,7 @@ private:
 	void setupTimer();
 	QString GetNameElideString();
 
-	void downloadThumImage(const QLabel *reciver, const QString &url);
+	void downloadThumImage(const QLabel *receiver, const QString &url);
 
 private slots:
 	void updateProgress();

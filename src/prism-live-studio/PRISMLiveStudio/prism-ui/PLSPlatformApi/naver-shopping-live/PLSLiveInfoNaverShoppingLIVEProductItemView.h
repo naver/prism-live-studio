@@ -25,7 +25,7 @@ public:
 
 	using Product = PLSNaverShoppingLIVEAPI::ProductInfo;
 
-	void setInfo(const PLSPlatformNaverShoppingLIVE *platform, const Product &product, bool fixed = false);
+	void setInfo(const PLSPlatformNaverShoppingLIVE *platform, const Product &product, bool fixed = false, bool readOnly = false);
 	void setProductReadonly(bool readonly);
 
 	bool isFixed() const;

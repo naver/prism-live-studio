@@ -33,6 +33,9 @@ public:
 	Qt::CheckState checkState() const;
 	void setCheckState(Qt::CheckState state);
 
+	void setWordWrap(bool on);
+	bool wordWrap() const;
+
 	int getSpac() const;
 	void setSpac(int spac);
 

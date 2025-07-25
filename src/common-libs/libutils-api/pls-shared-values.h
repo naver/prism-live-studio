@@ -63,6 +63,7 @@ public:
 		// running state exit code
 		timeout_by_encoder,
 		timeout_by_source,
+		timeout_by_shutdown,
 	//add more value here
 
 #if defined(_WIN32)

@@ -1,9 +1,9 @@
 #pragma once
 
 #include <QDialog>
+#include <properties-view.hpp>
 
 #include "ui_output.h"
-#include "properties-view.hpp"
 
 class DecklinkOutputUI : public QDialog {
 	Q_OBJECT

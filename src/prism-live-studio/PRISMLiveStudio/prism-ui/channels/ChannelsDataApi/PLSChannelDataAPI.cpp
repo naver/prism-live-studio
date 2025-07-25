@@ -20,7 +20,6 @@
 #include "pls/pls-dual-output.h"
 #include "prism-version.h"
 #include "ui-config.h"
-
 using namespace ChannelData;
 
 PLSChannelDataAPI *PLSChannelDataAPI::mInstance = nullptr;
@@ -135,8 +134,7 @@ void PLSChannelDataAPI::endTransactions()
 			context = this;
 		}
 		auto connectType = (context == this ? Qt::DirectConnection : Qt::QueuedConnection);
-		QMetaObject::invokeMethod(
-			context, [func, parameters]() { func(parameters); }, connectType);
+		QMetaObject::invokeMethod(context, [func, parameters]() { func(parameters); }, connectType);
 	}
 }
 
@@ -230,18 +228,15 @@ void PLSChannelDataAPI::connectSignals()
 		},
 		Qt::DirectConnection);
 	//refresh ui
-	connect(
-		PLS_PLATFORM_API, &PLSPlatformApi::liveEndedForUi, this, [this]() { this->setBroadcastState(StreamEnd); }, Qt::DirectConnection);
+	connect(PLS_PLATFORM_API, &PLSPlatformApi::liveEndedForUi, this, [this]() { this->setBroadcastState(StreamEnd); }, Qt::DirectConnection);
 
 	//stop living act
-	connect(
-		PLS_PLATFORM_API, &PLSPlatformApi::liveToStop, this, [this]() { this->setBroadcastState(CanBroadcastStop); }, Qt::QueuedConnection);
+	connect(PLS_PLATFORM_API, &PLSPlatformApi::liveToStop, this, [this]() { this->setBroadcastState(CanBroadcastStop); }, Qt::QueuedConnection);
 
 	auto gotoAsk = [](const QString &uuid) { handleEmptyChannel(uuid); };
 	connect(this, &PLSChannelDataAPI::channelGoToInitialize, qApp, gotoAsk, Qt::QueuedConnection);
 
-	connect(
-		this, &PLSChannelDataAPI::rehearsalBegin, this, [this]() { this->setRehearsal(true); }, Qt::QueuedConnection);
+	connect(this, &PLSChannelDataAPI::rehearsalBegin, this, [this]() { this->setRehearsal(true); }, Qt::QueuedConnection);
 
 	pls_connect(this, &PLSChannelDataAPI::sigSetChannelDualOutput, this, &PLSChannelDataAPI::delaySave, Qt::QueuedConnection);
 }
@@ -477,8 +472,7 @@ void PLSChannelDataAPI::reCheckExpiredChannels()
 		auto platformName = getInfo(info, g_channelName);
 		auto retData = getInfo<PLSErrorHandler::RetData>(info, g_errorRetdata);
 		this->removeChannelsByPlatformName(platformName, ChannelDataType::ChannelType, false, false);
-		QMetaObject::invokeMethod(
-			getMainWindow(), [platformName, retData]() { reloginChannel(platformName, true, retData); }, Qt::QueuedConnection);
+		QMetaObject::invokeMethod(getMainWindow(), [platformName, retData]() { reloginChannel(platformName, true, retData); }, Qt::QueuedConnection);
 		++ite;
 	}
 	mExpiredChannels.clear();
@@ -527,8 +521,9 @@ void PLSChannelDataAPI::finishAdding(const QString &channelUUID)
 		}
 
 		if (childrenSelected == 0) {
-			int currentSeleted = this->currentSelectedCount();
-			if (currentSeleted < g_maxActiveChannels) {
+			int currentSelected = this->currentSelectedCount();
+			int allowCount = getUserAllowedEnabledChannelsCount();
+			if (currentSelected < allowCount) {
 				if (pls_is_dual_output_on()) {
 					pls_async_call(this, [this, channelUUID]() { setOutputDirectionWhenAddChannel(channelUUID); });
 				} else {
@@ -779,7 +774,7 @@ bool PLSChannelDataAPI::updateChannelState(const QString &channelUuid, int state
 	return true;
 }
 
-void PLSChannelDataAPI::setChannelUserStatus(const QString &channelUuid, int isActive, bool notify)
+void PLSChannelDataAPI::setChannelUserStatus(const QString &channelUuid, int isActive, bool notify, bool bSync)
 {
 	auto fun = [this, channelUuid, isActive, notify]() {
 		if (!updateChannelUserState(channelUuid, isActive)) {
@@ -799,8 +794,11 @@ void PLSChannelDataAPI::setChannelUserStatus(const QString &channelUuid, int isA
 			emit channelModified(channelUuid);
 		}
 	};
-
-	QMetaObject::invokeMethod(this, fun, Qt::QueuedConnection);
+	if (bSync) {
+		fun();
+	} else {
+		QMetaObject::invokeMethod(this, fun, Qt::QueuedConnection);
+	}
 }
 
 bool PLSChannelDataAPI::updateChannelUserState(const QString &channelUuid, int isActive)
@@ -1081,7 +1079,7 @@ void PLSChannelDataAPI::removeChannelInfo(const QString &channelUUID, bool notif
 	if (count > 0 && notify) {
 		auto platformName = getInfo(tmpInfo, g_fixPlatformName);
 		PLSBasic::instance()->ClearService(platformName);
-		emit channelRemoved(channelUUID);
+		emit channelRemoved(channelUUID, tmpInfo);
 		channelRemovedForCheckVideo(bLeader);
 		if (platformName == CHZZK) {
 			channelRemovedForChzzk();
@@ -1607,6 +1605,7 @@ void PLSChannelDataAPI::setChannelDefaultOutputDirection()
 				// the setChannelUserStatus function is an asynchronous modification
 				//This requires synchronous modification
 				setValueOfChannel(uuid, g_channelUserStatus, Disabled);
+				channelActiveChanged(uuid, false);
 				continue;
 			}
 			if (horOutputCount == 0) {
@@ -1624,7 +1623,8 @@ void PLSChannelDataAPI::setChannelDefaultOutputDirection()
 			//dont use setChannelUserStatus
 			// the setChannelUserStatus function is an asynchronous modification
 			//This requires synchronous modification
-			setValueOfChannel(uuid, g_channelUserStatus, Disabled);
+			setValueOfChannel(uuid, g_channelDualOutput, HorizontalOutput);
+			sigSetChannelDualOutput(uuid, HorizontalOutput);
 		}
 	}
 }
@@ -1635,18 +1635,19 @@ void PLSChannelDataAPI::setOutputDirectionWhenAddChannel(const QString &uuid)
 	getChannelCountOfOutputDirection(horOutputList, verOutputList);
 	int horOutputCount = horOutputList.count();
 	int verOutputCount = verOutputList.count();
-	if ((horOutputCount >= 1 && verOutputCount >= 1) || isExclusiveChannel(uuid)) {
+
+	if ((horOutputCount == 1 && verOutputCount == 1) || isExclusiveChannel(uuid)) {
 		setChannelUserStatus(uuid, Disabled);
 		return;
 	}
 	setChannelUserStatus(uuid, Enabled);
+
 	if (horOutputCount == 0) {
 		setValueOfChannel(uuid, ChannelData::g_channelDualOutput, HorizontalOutput);
-		return;
-	}
-	if (verOutputCount == 0) {
+		sigSetChannelDualOutput(uuid, HorizontalOutput);
+	} else if (verOutputCount == 0) {
 		setValueOfChannel(uuid, ChannelData::g_channelDualOutput, VerticalOutput);
-		return;
+		sigSetChannelDualOutput(uuid, VerticalOutput);
 	}
 }
 
@@ -1665,8 +1666,45 @@ void PLSChannelDataAPI::clearDualOutput()
 		auto outputDirection = getInfo(info, g_channelDualOutput, NoSet);
 		if (outputDirection != NoSet) {
 			info.remove(g_channelDualOutput);
+			//PRISM_PC-1825 notify prismAPI to update status
+			sigSetChannelDualOutput(getInfo(info, g_channelUUID, QString()), NoSet);
 		}
 	}
+}
+
+int PLSChannelDataAPI::getUserAllowedEnabledChannelsCount() const
+{
+
+	if (pls_is_dual_output_on()) {
+		return g_maxActiveChannelsForPlusDualOutput;
+	} else {
+		return g_maxActiveChannelsForPlusNormal;
+	}
+}
+
+void PLSChannelDataAPI::disableChannelWhenDualOutputClose()
+{
+	return;
+}
+
+bool PLSChannelDataAPI::isExistYoutubeWhenRunApp(QString &channelId) const
+{
+	QString cachePath = getChannelCacheFilePath();
+	if (QFile::exists(cachePath)) {
+		ChannelsMap tmp;
+		loadDataFromFile(tmp, cachePath);
+		auto isSameName = [&](const QVariantMap &info) {
+			QString platFormName = getInfo(info, g_channelName);
+			int channelT = getInfo(info, g_data_type, NoType);
+			return (platFormName == YOUTUBE && (channelT == ChannelType));
+		};
+
+		if (auto ret = std::find_if(tmp.begin(), tmp.end(), isSameName); ret != tmp.end()) {
+			channelId = getInfo(ret.value(), ChannelData::g_subChannelId);
+			return true;
+		}
+	}
+	return false;
 }
 
 size_t qHash(const QSize &keySize, uint seed)

@@ -3,10 +3,11 @@
 #include <QMouseEvent>
 #include <QMenu>
 #include <QScreen>
+#include <qt-wrappers.hpp>
+#include "moc_window-projector.cpp"
 #include "obs-app.hpp"
 #include "window-basic-main.hpp"
 #include "display-helpers.hpp"
-#include "qt-wrappers.hpp"
 #include "platform.hpp"
 #include "multiview.hpp"
 #include "pls/pls-dual-output.h"
@@ -15,8 +16,7 @@ QList<OBSProjector *> OBSProjector::multiviewProjectors = {};
 
 static bool updatingMultiview = false, mouseSwitching, transitionOnDoubleClick;
 
-OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
-			   ProjectorType type_)
+OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor, ProjectorType type_)
 	: OBSQTDisplay(widget, Qt::Window),
 	  weakSource(OBSGetWeakRef(source_)),
 	  isWindow(savedMonitor < 0)
@@ -24,14 +24,11 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
 {
 	OBSSource source = GetSource();
 	if (source) {
-		sigs.emplace_back(obs_source_get_signal_handler(source),
-				  "rename", OBSSourceRenamed, this);
-		sigs.emplace_back(obs_source_get_signal_handler(source),
-				  "destroy", OBSSourceDestroyed, this);
+		sigs.emplace_back(obs_source_get_signal_handler(source), "rename", OBSSourceRenamed, this);
+		sigs.emplace_back(obs_source_get_signal_handler(source), "destroy", OBSSourceDestroyed, this);
 	}
 
-	isAlwaysOnTop = config_get_bool(GetGlobalConfig(), "BasicWindow",
-					"ProjectorAlwaysOnTop");
+	isAlwaysOnTop = config_get_bool(App()->GetUserConfig(), "BasicWindow", "ProjectorAlwaysOnTop");
 
 	if (isAlwaysOnTop)
 		setWindowFlags(Qt::WindowStaysOnTopHint);
@@ -47,8 +44,7 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
 
 	type = type_;
 #ifdef __APPLE__
-	setWindowIcon(
-		QIcon::fromTheme("obs", QIcon(":/res/images/obs_256x256.png")));
+	setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/obs_256x256.png")));
 #else
 	setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/obs.png")));
 #endif
@@ -66,8 +62,7 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
 	QAction *action = new QAction(this);
 	action->setShortcut(Qt::Key_Escape);
 	addAction(action);
-	connect(action, &QAction::triggered, this,
-		&OBSProjector::EscapeTriggered);
+	connect(action, &QAction::triggered, this, &OBSProjector::EscapeTriggered);
 
 	setAttribute(Qt::WA_DeleteOnClose, true);
 
@@ -78,15 +73,12 @@ OBSProjector::OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
 
 	auto addDrawCallback = [this]() {
 		bool isMultiview = type == ProjectorType::Multiview;
-		obs_display_add_draw_callback(
-			GetDisplay(),
-			isMultiview ? OBSRenderMultiview : OBSRender, this);
+		obs_display_add_draw_callback(GetDisplay(), isMultiview ? OBSRenderMultiview : OBSRender, this);
 		obs_display_set_background_color(GetDisplay(), 0x000000);
 	};
 
 	connect(this, &OBSQTDisplay::DisplayCreated, addDrawCallback);
-	connect(App(), &QGuiApplication::screenRemoved, this,
-		&OBSProjector::ScreenRemoved, Qt::QueuedConnection);
+	connect(App(), &QGuiApplication::screenRemoved, this, &OBSProjector::ScreenRemoved, Qt::QueuedConnection);
 
 	if (type == ProjectorType::Multiview) {
 		multiview = new Multiview();
@@ -111,9 +103,7 @@ OBSProjector::~OBSProjector()
 {
 	sigs.clear();
 	bool isMultiview = type == ProjectorType::Multiview;
-	obs_display_remove_draw_callback(
-		GetDisplay(), isMultiview ? OBSRenderMultiview : OBSRender,
-		this);
+	obs_display_remove_draw_callback(GetDisplay(), isMultiview ? OBSRenderMultiview : OBSRender, this);
 
 	OBSSource source = GetSource();
 	if (source)
@@ -137,8 +127,7 @@ void OBSProjector::SetMonitor(int monitor)
 	SetHideCursor();
 	screen = QGuiApplication::screens()[monitor];
 
-	auto dialogView =
-		dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
+	auto dialogView = dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
 	if (!dialogView)
 		return;
 #ifdef __APPLE__
@@ -155,8 +144,7 @@ void OBSProjector::SetHideCursor()
 	if (savedMonitor == -1)
 		return;
 
-	bool hideCursor = config_get_bool(GetGlobalConfig(), "BasicWindow",
-					  "HideProjectorCursor");
+	bool hideCursor = config_get_bool(App()->GetUserConfig(), "BasicWindow", "HideProjectorCursor");
 
 	if (hideCursor && type != ProjectorType::Multiview)
 		setCursor(Qt::BlankCursor);
@@ -193,8 +181,7 @@ void OBSProjector::OBSRender(void *data, uint32_t cx, uint32_t cy)
 	if (source) {
 
 		if (window->type == ProjectorType::ChatBrowser) {
-			proc_handler_t *ph =
-				obs_source_get_proc_handler(source);
+			proc_handler_t *ph = obs_source_get_proc_handler(source);
 
 			calldata_t cd = {0};
 			proc_handler_call(ph, "get_browser_size", &cd);
@@ -223,11 +210,9 @@ void OBSProjector::OBSRender(void *data, uint32_t cx, uint32_t cy)
 	newCX = int(scale * float(targetCX));
 	newCY = int(scale * float(targetCY));
 
-	startRegion(x, y, newCX, newCY, 0.0f, float(targetCX), 0.0f,
-		    float(targetCY));
+	startRegion(x, y, newCX, newCY, 0.0f, float(targetCX), 0.0f, float(targetCY));
 
-	if (window->type == ProjectorType::Preview &&
-	    main->IsPreviewProgramMode()) {
+	if (window->type == ProjectorType::Preview && main->IsPreviewProgramMode()) {
 		OBSSource curSource = main->GetCurrentSceneSource();
 
 		if (source != curSource) {
@@ -236,27 +221,23 @@ void OBSProjector::OBSRender(void *data, uint32_t cx, uint32_t cy)
 			source = curSource;
 			window->weakSource = OBSGetWeakRef(source);
 		}
-	} else if (window->type == ProjectorType::Preview &&
-		   !main->IsPreviewProgramMode()) {
+	} else if (window->type == ProjectorType::Preview && !main->IsPreviewProgramMode()) {
 		window->weakSource = nullptr;
 	}
 
 	if (source) {
 		if (window->type == ProjectorType::ChatBrowser) {
-			proc_handler_t *ph =
-				obs_source_get_proc_handler(source);
+			proc_handler_t *ph = obs_source_get_proc_handler(source);
 
 			calldata_t cd = {0};
 			proc_handler_call(ph, "chat_browser_render", &cd);
 			calldata_free(&cd);
 		} else {
-			window->isVerticalPreview
-				? obs_source_video_render(source)
-				: pls_source_video_render_vertical(source);
+			window->isVerticalPreview ? obs_source_video_render(source)
+						  : pls_source_video_render_vertical(source);
 		}
 	} else {
-		window->isVerticalPreview ? pls_render_vertical_main_texture()
-					  : obs_render_main_texture();
+		window->isVerticalPreview ? pls_render_vertical_main_texture() : obs_render_main_texture();
 	}
 
 	endRegion();
@@ -268,9 +249,7 @@ void OBSProjector::OBSSourceRenamed(void *data, calldata_t *params)
 	QString oldName = calldata_string(params, "prev_name");
 	QString newName = calldata_string(params, "new_name");
 
-	QMetaObject::invokeMethod(window, "RenameProjector",
-				  Q_ARG(QString, oldName),
-				  Q_ARG(QString, newName));
+	QMetaObject::invokeMethod(window, "RenameProjector", Q_ARG(QString, oldName), Q_ARG(QString, newName));
 }
 
 void OBSProjector::OBSSourceDestroyed(void *data, calldata_t *)
@@ -301,8 +280,7 @@ void OBSProjector::mouseDoubleClickEvent(QMouseEvent *event)
 		QPoint pos = event->pos();
 		if (!multiview)
 			return;
-		OBSSource src =
-			multiview->GetSourceByPosition(pos.x(), pos.y());
+		OBSSource src = multiview->GetSourceByPosition(pos.x(), pos.y());
 		if (!src)
 			return;
 
@@ -317,8 +295,7 @@ static bool validMinus(int first, int second)
 	return (first != second);
 }
 
-static bool horizontal24Scenes(int cx, int cy, int x, int y, float ratio,
-			       int &minX, int &minY, int &maxX, int &maxY,
+static bool horizontal24Scenes(int cx, int cy, int x, int y, float ratio, int &minX, int &minY, int &maxX, int &maxY,
 			       int &pos)
 {
 	if (float(cx) / float(cy) > ratio) {
@@ -344,9 +321,8 @@ static bool horizontal24Scenes(int cx, int cy, int x, int y, float ratio,
 
 	return true;
 }
-static bool horizontalBottom8Scenes(int cx, int cy, int x, int y, float ratio,
-				    int &minX, int &minY, int &maxX, int &maxY,
-				    int &pos)
+static bool horizontalBottom8Scenes(int cx, int cy, int x, int y, float ratio, int &minX, int &minY, int &maxX,
+				    int &maxY, int &pos)
 {
 	if (float(cx) / float(cy) > ratio) {
 		auto validX = int(float(cy) * ratio);
@@ -373,8 +349,7 @@ static bool horizontalBottom8Scenes(int cx, int cy, int x, int y, float ratio,
 	return true;
 }
 
-static bool verticalLeft8Scenes(int cx, int cy, int x, int y, float ratio,
-				int &minX, int &minY, int &maxX, int &maxY,
+static bool verticalLeft8Scenes(int cx, int cy, int x, int y, float ratio, int &minX, int &minY, int &maxX, int &maxY,
 				int &pos)
 {
 	if (float(cx) / float(cy) > ratio) {
@@ -402,8 +377,7 @@ static bool verticalLeft8Scenes(int cx, int cy, int x, int y, float ratio,
 	return true;
 }
 
-static bool verticalRight8Scenes(int cx, int cy, int x, int y, float ratio,
-				 int &minX, int &minY, int &maxX, int &maxY,
+static bool verticalRight8Scenes(int cx, int cy, int x, int y, float ratio, int &minX, int &minY, int &maxX, int &maxY,
 				 int &pos)
 {
 	if (float(cx) / float(cy) > ratio) {
@@ -431,8 +405,7 @@ static bool verticalRight8Scenes(int cx, int cy, int x, int y, float ratio,
 	return true;
 }
 
-static bool horizontalTop8Scenes(int cx, int cy, int x, int y, float ratio,
-				 int &minX, int &minY, int &maxX, int &maxY,
+static bool horizontalTop8Scenes(int cx, int cy, int x, int y, float ratio, int &minX, int &minY, int &maxX, int &maxY,
 				 int &pos)
 {
 	if (float(cx) / float(cy) > ratio) {
@@ -458,8 +431,7 @@ static bool horizontalTop8Scenes(int cx, int cy, int x, int y, float ratio,
 
 	return true;
 }
-static int getSourceByPosition(MultiviewLayout multiviewLayout, int x, int y,
-			       float ratio)
+static int getSourceByPosition(MultiviewLayout multiviewLayout, int x, int y, float ratio)
 {
 	int pos = -1;
 	QWidget *rec = QApplication::activeWindow();
@@ -478,24 +450,19 @@ static int getSourceByPosition(MultiviewLayout multiviewLayout, int x, int y,
 
 	switch (multiviewLayout) {
 	case MultiviewLayout::HORIZONTAL_TOP_24_SCENES:
-		horizontal24Scenes(cx, cy, x, y, ratio, minX, minY, maxX, maxY,
-				   pos);
+		horizontal24Scenes(cx, cy, x, y, ratio, minX, minY, maxX, maxY, pos);
 		break;
 	case MultiviewLayout::VERTICAL_LEFT_8_SCENES:
-		verticalLeft8Scenes(cx, cy, x, y, ratio, minX, minY, maxX, maxY,
-				    pos);
+		verticalLeft8Scenes(cx, cy, x, y, ratio, minX, minY, maxX, maxY, pos);
 		break;
 	case MultiviewLayout::VERTICAL_RIGHT_8_SCENES:
-		verticalRight8Scenes(cx, cy, x, y, ratio, minX, minY, maxX,
-				     maxY, pos);
+		verticalRight8Scenes(cx, cy, x, y, ratio, minX, minY, maxX, maxY, pos);
 		break;
 	case MultiviewLayout::HORIZONTAL_BOTTOM_8_SCENES:
-		horizontalBottom8Scenes(cx, cy, x, y, ratio, minX, minY, maxX,
-					maxY, pos);
+		horizontalBottom8Scenes(cx, cy, x, y, ratio, minX, minY, maxX, maxY, pos);
 		break;
 	default: // MultiviewLayout::HORIZONTAL_TOP_8_SCENES
-		horizontalTop8Scenes(cx, cy, x, y, ratio, minX, minY, maxX,
-				     maxY, pos);
+		horizontalTop8Scenes(cx, cy, x, y, ratio, minX, minY, maxX, maxY, pos);
 	}
 
 	return pos;
@@ -507,47 +474,38 @@ void OBSProjector::mousePressEvent(QMouseEvent *event)
 
 	if (event->button() == Qt::RightButton) {
 		QMenu *projectorMenu = new QMenu(QTStr("Fullscreen"));
-		OBSBasic::AddProjectorMenuMonitors(
-			projectorMenu, this,
-			&OBSProjector::OpenFullScreenProjector);
+		OBSBasic::AddProjectorMenuMonitors(projectorMenu, this, &OBSProjector::OpenFullScreenProjector);
 
 		QMenu popup(this);
 		popup.addMenu(projectorMenu);
 
-		QString style(
-			"border: 1px  solid #111111;  background-color: #2d2d2d;");
+		QString style("border: 1px  solid #111111;  background-color: #2d2d2d;");
 		popup.setStyleSheet(style);
 		projectorMenu->setStyleSheet(style);
 
 		if (GetMonitor() > -1) {
-			popup.addAction(QTStr("Windowed"), this,
-					&OBSProjector::OpenWindowedProjector);
+			popup.addAction(QTStr("Windowed"), this, &OBSProjector::OpenWindowedProjector);
 
 		} else if (!this->isMaximized()) {
-			popup.addAction(QTStr("ResizeProjectorWindowToContent"),
-					this, &OBSProjector::ResizeToContent);
+			popup.addAction(QTStr("ResizeProjectorWindowToContent"), this, &OBSProjector::ResizeToContent);
 		}
 
-		QAction *alwaysOnTopButton = new QAction(
-			QTStr("Basic.MainMenu.View.AlwaysOnTop"), this);
+		QAction *alwaysOnTopButton = new QAction(QTStr("Basic.MainMenu.View.AlwaysOnTop"), this);
 		alwaysOnTopButton->setCheckable(true);
 		alwaysOnTopButton->setChecked(isAlwaysOnTop);
 
-		connect(alwaysOnTopButton, &QAction::toggled, this,
-			&OBSProjector::AlwaysOnTopToggled);
+		connect(alwaysOnTopButton, &QAction::toggled, this, &OBSProjector::AlwaysOnTopToggled);
 
 		popup.addAction(alwaysOnTopButton);
 
-		popup.addAction(QTStr("Close"), this,
-				&OBSProjector::EscapeTriggered);
+		popup.addAction(QTStr("Close"), this, &OBSProjector::EscapeTriggered);
 
-		connect(this, &OBSProjector::notifyClose, &popup,
-			[pointerPop = QPointer<QMenu>(&popup)]() {
-				if (pointerPop) {
-					//#4786, remove parent will super closed.
-					pointerPop->setParent(nullptr);
-				}
-			});
+		connect(this, &OBSProjector::notifyClose, &popup, [pointerPop = QPointer<QMenu>(&popup)]() {
+			if (pointerPop) {
+				//#4786, remove parent will super closed.
+				pointerPop->setParent(nullptr);
+			}
+		});
 
 		popup.exec(QCursor::pos());
 	} else if (event->button() == Qt::LeftButton) {
@@ -560,8 +518,7 @@ void OBSProjector::mousePressEvent(QMouseEvent *event)
 		if (!multiview)
 			return;
 		QPoint pos = event->pos();
-		OBSSource src =
-			multiview->GetSourceByPosition(pos.x(), pos.y());
+		OBSSource src = multiview->GetSourceByPosition(pos.x(), pos.y());
 		if (!src)
 			return;
 
@@ -573,28 +530,22 @@ void OBSProjector::mousePressEvent(QMouseEvent *event)
 
 void OBSProjector::EscapeTriggered()
 {
-	auto dialogView =
-		dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
+	auto dialogView = dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
 	dialogView->close();
 }
 
 void OBSProjector::UpdateMultiview()
 {
-	MultiviewLayout multiviewLayout = static_cast<MultiviewLayout>(
-		config_get_int(GetGlobalConfig(), "BasicWindow",
-			       "MultiviewLayout"));
+	MultiviewLayout multiviewLayout =
+		static_cast<MultiviewLayout>(config_get_int(App()->GetUserConfig(), "BasicWindow", "MultiviewLayout"));
 
-	bool drawLabel = config_get_bool(GetGlobalConfig(), "BasicWindow",
-					 "MultiviewDrawNames");
+	bool drawLabel = config_get_bool(App()->GetUserConfig(), "BasicWindow", "MultiviewDrawNames");
 
-	bool drawSafeArea = config_get_bool(GetGlobalConfig(), "BasicWindow",
-					    "MultiviewDrawAreas");
+	bool drawSafeArea = config_get_bool(App()->GetUserConfig(), "BasicWindow", "MultiviewDrawAreas");
 
-	mouseSwitching = config_get_bool(GetGlobalConfig(), "BasicWindow",
-					 "MultiviewMouseSwitch");
+	mouseSwitching = config_get_bool(App()->GetUserConfig(), "BasicWindow", "MultiviewMouseSwitch");
 
-	transitionOnDoubleClick = config_get_bool(
-		GetGlobalConfig(), "BasicWindow", "TransitionOnDoubleClick");
+	transitionOnDoubleClick = config_get_bool(App()->GetUserConfig(), "BasicWindow", "TransitionOnDoubleClick");
 
 	multiview->Update(multiviewLayout, drawLabel, drawSafeArea);
 }
@@ -640,8 +591,7 @@ void OBSProjector::UpdateProjectorTitle(QString name)
 		break;
 	}
 
-	auto dialogView =
-		dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
+	auto dialogView = dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
 	if (dialogView) {
 		dialogView->setWindowTitle(title);
 	} else {
@@ -687,8 +637,7 @@ void OBSProjector::RenameProjector(QString oldName, QString newName)
 
 void OBSProjector::OpenFullScreenProjector()
 {
-	auto dialogView =
-		dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
+	auto dialogView = dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
 	if (!dialogView)
 		return;
 	if (!dialogView->isFullScreen()) {
@@ -706,8 +655,7 @@ void OBSProjector::OpenFullScreenProjector()
 
 void OBSProjector::OpenWindowedProjector()
 {
-	auto dialogView =
-		dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
+	auto dialogView = dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
 	if (!dialogView)
 		return;
 
@@ -752,8 +700,7 @@ void OBSProjector::ResizeToContent()
 	}
 
 	QSize size = this->size();
-	GetScaleAndCenterPos(targetCX, targetCY, size.width(), size.height(), x,
-			     y, scale);
+	GetScaleAndCenterPos(targetCX, targetCY, size.width(), size.height(), x, y, scale);
 
 	newX = size.width() - (x * 2);
 	newY = size.height() - (y * 2);
@@ -786,8 +733,7 @@ void OBSProjector::SetIsAlwaysOnTop(bool isAlwaysOnTop, bool isOverridden)
 	this->isAlwaysOnTop = isAlwaysOnTop;
 	this->isAlwaysOnTopOverridden = isOverridden;
 
-	auto dialogView =
-		dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
+	auto dialogView = dynamic_cast<PLSDialogView *>(pls_get_toplevel_view(this));
 	if (!dialogView)
 		return;
 
@@ -803,16 +749,14 @@ void OBSProjector::ScreenRemoved(QScreen *screen_)
 		EscapeTriggered();
 }
 
-void OBSProjector::setParentDialogTitleBarButtons(PLSDialogView *parentDialg,
-						  bool isFullScreen)
+void OBSProjector::setParentDialogTitleBarButtons(PLSDialogView *parentDialg, bool isFullScreen)
 {
 #if defined(Q_OS_WIN)
 	if (isFullScreen) {
 		parentDialg->setEscapeCloseEnabled(true);
 		parentDialg->setHasCaption(false);
 	} else {
-		parentDialg->setWindowIcon(QIcon::fromTheme(
-			"obs", QIcon(":/res/images/PRISMLiveStudio.ico")));
+		parentDialg->setWindowIcon(QIcon::fromTheme("obs", QIcon(":/res/images/PRISMLiveStudio.ico")));
 		parentDialg->setHasMinButton(true);
 		parentDialg->setHasMaxResButton(true);
 		parentDialg->setHasCaption(true);

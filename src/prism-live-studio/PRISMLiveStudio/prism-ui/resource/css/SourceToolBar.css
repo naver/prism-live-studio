@@ -1,113 +1,117 @@
 PLSMainView #centralwidget #contextContainer {
-    min-height: /*hdpi*/ 44px;
-    max-height: /*hdpi*/ 44px;
-    min-width: /*hdpi*/ 420px;
+    min-height: 44px;
+    max-height: 44px;
+    min-width: 420px;
     background-color: #272727;
-    border-radius: /*hdpi*/ 3px;
+    border-radius: 3px;
 }
 
-PLSMainView #contextContainer #contextSourceIcon{
-    min-width: /*hdpi*/ 30px;
-    max-width: /*hdpi*/ 30px;
-    min-height: /*hdpi*/ 30px;
-    max-height: /*hdpi*/ 30px;
+PLSMainView #contextContainer #contextSourceIcon {
+    min-width: 30px;
+    max-width: 30px;
+    min-height: 30px;
+    max-height: 30px;
 }
 
 PLSMainView #contextContainer #contextSourceWidget {
-    min-width: /*hdpi*/ 250px;
-    max-width: /*hdpi*/ 250px;
+    min-width: 250px;
+    max-width: 250px;
 }
 
 PLSMainView #contextContainer #contextSourceLabel {
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     color: #ffffff;
 }
 
 PLSMainView #contextContainer PLSComboBoxListView QLabel#itemLabel,
-PLSMainView #contextContainer QComboBox{
-    font-size: /*hdpi*/ 12px;
+PLSMainView #contextContainer QComboBox {
+    font-size: 12px;
 }
 
 PLSMainView #contextContainer #deviceLabel {
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     color: #bababa;
 }
 
-PLSMainView #contextContainer #sourcePropertiesButton,PLSMainView #contextContainer #sourceFiltersButton{
-    min-width: /*hdpi*/ 40px;
-    min-height: /*hdpi*/ 30px;
-    max-height: /*hdpi*/ 30px;
+PLSMainView #contextContainer #sourcePropertiesButton,
+PLSMainView #contextContainer #sourceFiltersButton {
+    min-width: 40px;
+    min-height: 30px;
+    max-height: 30px;
     padding: 0 10px;
     margin: 0;
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     color: #ffffff;
     font-weight: normal;
 }
 
-PLSMainView #contextContainer #sourceInteractButton{
-    min-width: /*hdpi*/ 84px;
-    max-width: /*hdpi*/ 84px;
-    min-height: /*hdpi*/ 30px;
-    max-height: /*hdpi*/ 30px;
+PLSMainView #contextContainer #sourceInteractButton {
+    min-width: 84px;
+    max-width: 84px;
+    min-height: 30px;
+    max-height: 30px;
     padding: 0;
     margin: 0;
-    margin-left: /*hdpi*/ 20px;
-    font-size: /*hdpi*/ 12px;
+    margin-left: 20px;
+    font-size: 12px;
     color: #ffffff;
     font-weight: normal;
 }
 
-PLSMainView #contextContainer #sourcePropertiesButton:disabled,PLSMainView #contextContainer #sourceFiltersButton:disabled {
+PLSMainView #contextContainer #sourcePropertiesButton:disabled,
+PLSMainView #contextContainer #sourceFiltersButton:disabled {
     background-color: #444444;
     color: #666666;
 }
 
-PLSMainView #contextContainer #sourcePropertiesButton:hover,PLSMainView #contextContainer #sourceFiltersButton:hover {
+PLSMainView #contextContainer #sourcePropertiesButton:hover,
+PLSMainView #contextContainer #sourceFiltersButton:hover {
     background-color: #555555;
     color: #ffffff;
 }
 
-PLSMainView #contextContainer #sourcePropertiesButton:pressed,PLSMainView #contextContainer #sourceFiltersButton:pressed {
+PLSMainView #contextContainer #sourcePropertiesButton:pressed,
+PLSMainView #contextContainer #sourceFiltersButton:pressed {
     background-color: #2d2d2d;
     color: #ffffff;
 }
 
 PLSMainView #contextContainer #DeviceSelectToolbar PLSComboBox,
-PLSMainView #contextContainer #GameCaptureToolbar PLSComboBox
-{
-    min-width: /*hdpi*/ 88px;
-    max-width: /*hdpi*/ 488px;
-    min-height: /*hdpi*/ 30px;
-	max-height: /*hdpi*/ 30px;
+PLSMainView #contextContainer #GameCaptureToolbar PLSComboBox {
+    min-width: 88px;
+    max-width: 488px;
+    min-height: 30px;
+    max-height: 30px;
 }
 
 PLSMainView #contextContainer #DeviceSelectToolbar PLSComboBox PLSComboBoxListView::item,
 PLSMainView #contextContainer #GameCaptureToolbar PLSComboBox PLSComboBoxListView::item {
-    height: /*hdpi*/ 40px;
+    height: 40px;
 }
 
-PLSMainView #contextContainer #modeLabel, PLSMainView #contextContainer #windowLabel{
+PLSMainView #contextContainer #modeLabel,
+PLSMainView #contextContainer #windowLabel {
     font-size: 12px;
     color: #bababa;
 }
 
 PLSMainView #contextContainer #DeviceSelectToolbar #activateButton {
-    min-width: /*hdpi*/ 84px;
-    max-width: /*hdpi*/ 84px;
-    min-height: /*hdpi*/ 30px;
-    max-height: /*hdpi*/ 30px;
+    min-width: 84px;
+    max-width: 84px;
+    min-height: 30px;
+    max-height: 30px;
     padding: 0;
     margin: 0;
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     font-weight: normal;
 }
 
 PLSMainView #contextContainer #BrowserSourceToolbar #refresh {
     border: none;
-    min-width: /*hdpi*/ 18px;
-    max-width: /*hdpi*/ 18px;
-    min-height: /*hdpi*/ 18px;
-    max-height: /*hdpi*/ 18px;
+    min-width: 18px;
+    max-width: 18px;
+    min-height: 18px;
+    max-height: 18px;
     background-color: #444444;
     padding: 6px 5px 6px 7px;
     margin: 0;
@@ -132,98 +136,98 @@ PLSMainView #contextContainer #BrowserSourceToolbar #refresh:disabled {
     image: url(":/resource/images/wizard/ic-reroad-disable.svg");
 }
 
-PLSMainView #contextContainer #ImageSourceToolbar QLineEdit{
-    min-height: /*hdpi*/ 28px;
-	max-height: /*hdpi*/ 28px;
+PLSMainView #contextContainer #ImageSourceToolbar QLineEdit {
+    min-height: 28px;
+    max-height: 28px;
     background-color: #1e1e1e;
-    border: /*hdpi*/ 1px solid #1e1e1e;
+    border: 1px solid #1e1e1e;
     font-size: 12px;
 }
 
 PLSMainView #contextContainer #ImageSourceToolbar QLineEdit:focus {
-    border: /*hdpi*/ 1px solid #effc35;
+    border: 1px solid #effc35;
 }
 
-PLSMainView #contextContainer #ImageSourceToolbar #browse{
-    min-width: /*hdpi*/ 84px;
-    max-width: /*hdpi*/ 84px;
-    min-height: /*hdpi*/ 30px;
-	max-height: /*hdpi*/ 30px;
+PLSMainView #contextContainer #ImageSourceToolbar #browse {
+    min-width: 84px;
+    max-width: 84px;
+    min-height: 30px;
+    max-height: 30px;
     padding: 0;
     margin: 0;
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     color: #ffffff;
     font-weight: normal;
 }
 
-PLSMainView #contextContainer #ImageSourceToolbar #pathLabel{
+PLSMainView #contextContainer #ImageSourceToolbar #pathLabel {
     font-size: 12px;
     color: #bababa;
 }
 
 PLSMainView #contextContainer #ColorSourceToolbar #color,
-PLSMainView #contextContainer #ColorSourceToolbar #color[style=default]{
-    min-width: /*hdpi*/ 86px;
-    max-width: /*hdpi*/ 86px;
-    min-height: /*hdpi*/ 30px;
-    max-height: /*hdpi*/ 30px;
-    border-radius: /*hdpi*/ 3px;
+PLSMainView #contextContainer #ColorSourceToolbar #color[style=default] {
+    min-width: 86px;
+    max-width: 86px;
+    min-height: 30px;
+    max-height: 30px;
+    border-radius: 3px;
     font-size: 11px;
 }
 
 PLSMainView #contextContainer #ColorSourceToolbar #choose {
-    min-width: /*hdpi*/ 89px;
-    max-width: /*hdpi*/ 89px;
-    min-height: /*hdpi*/ 30px;
-	max-height: /*hdpi*/ 30px;
+    min-width: 89px;
+    max-width: 89px;
+    min-height: 30px;
+    max-height: 30px;
     padding: 0;
     margin: 0;
-    font-size:12px;
+    font-size: 12px;
     font-weight: normal;
 }
 
 PLSMainView #contextContainer #TextSourceToolbar #selectFont,
 PLSMainView #contextContainer #TextSourceToolbar #selectColor {
-    min-height: /*hdpi*/ 30px;
-	max-height: /*hdpi*/ 30px;
+    min-height: 30px;
+    max-height: 30px;
     margin: 0;
     padding-left: 10px;
     padding-right: 10px;
-    font-size: /*hdpi*/ 12px;
+    font-size: 12px;
     font-weight: normal;
 }
 
-PLSMainView #contextContainer #TextSourceToolbar #text{
-    min-height: /*hdpi*/ 30px;
-	max-height: /*hdpi*/ 30px;
+PLSMainView #contextContainer #TextSourceToolbar #text {
+    min-height: 30px;
+    max-height: 30px;
     background-color: #1e1e1e;
     font-size: 12px;
 }
 
 PLSMainView #contextContainer #MediaControls QSlider[enter="false"]:handle:horizontal {
-    height: /*hdpi*/ 0px;
-    width: /*hdpi*/ 0px;
+    height: 0px;
+    width: 0px;
     image: none;
-    margin-top: /*hdpi*/ 0px;
+    margin-top: 0px;
     margin-left: -1px;
-    margin-bottom: /*hdpi*/ 0px;
+    margin-bottom: 0px;
     margin-right: 1px;
 }
 
 PLSMainView #contextContainer #MediaControls QSlider::handle:horizontal[enter="true"] {
     border-image: url(":/resource/images/img-handle-over.svg");
-    width: /*hdpi*/ 12px;
-    margin: /*hdpi*/ -4px /*hdpi*/ 0px /*hdpi*/ -4px /*hdpi*/ 0px;
+    width: 12px;
+    margin: -4px 0px -4px 0px;
 }
 
 PLSMainView #contextContainer #MediaControls QSlider:sub-page:horizontal {
-    border-radius: /*hdpi*/ 2px;
+    border-radius: 2px;
     background-color: #effc35;
 }
 
 PLSMainView #contextContainer #MediaControls QSlider:groove:horizontal {
-    border-radius: /*hdpi*/ 2px;
-    height: /*hdpi*/ 4px;
+    border-radius: 2px;
+    height: 4px;
     background-color: #555555;
 }
 
@@ -238,9 +242,7 @@ PLSMainView #contextContainer #MediaControls #timerLabel[playing=true] {
 }
 
 PLSMainView #contextContainer #MediaControls #durationLabel,
-PLSMainView #contextContainer #MediaControls #label{
+PLSMainView #contextContainer #MediaControls #label {
     font-size: 12px;
     color: #bababa;
 }
-
-

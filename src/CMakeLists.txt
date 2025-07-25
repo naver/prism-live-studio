@@ -203,9 +203,9 @@ if(OS_WINDOWS)
   add_compile_options(/MP)
 endif()
 
-# if(ENABLE_TEST)
-#     add_compile_definitions(ENABLE_TEST)
-# endif()
+if(ENABLE_TEST)
+    add_compile_definitions(ENABLE_TEST)
+endif()
 
 add_subdirectory(common-libs)
 add_subdirectory(prism-live-studio)

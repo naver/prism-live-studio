@@ -206,7 +206,8 @@ void endRefresh()
 {
 
 	PLSCHANNELS_API->acquire();
-	if (PLSCHANNELS_API->isEmptyToAcquire() && !PLSCHANNELS_API->isInitilized()) {
+	bool isEmpty = PLSCHANNELS_API->isEmptyToAcquire();
+	if (isEmpty && !PLSCHANNELS_API->isInitilized()) {
 		PLSCHANNELS_API->resetInitializeState(true);
 	}
 	PLSCHANNELS_API->holdOnChannelArea(false);
@@ -214,7 +215,7 @@ void endRefresh()
 		PLSCHANNELS_API->networkInvalidOcurred();
 	}
 
-	if (PLSCHANNELS_API->isEmptyToAcquire()) {
+	if (isEmpty) {
 		PLSCHANNELS_API->endTransactions();
 	}
 }

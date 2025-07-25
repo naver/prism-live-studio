@@ -46,7 +46,7 @@ private:
 using PLSLoadingPage = QWidget;
 struct PLSUIFunc {
 	static PLSLoadingPage *showLoadingView(QWidget *parent = nullptr, const QString &tipStr = QString());
-	static void showEnumTimeoutAlertView(const QString &deviceName);
+	static void showEnumTimeoutAlertView(const QString &deviceName, QWidget *parent);
 };
 
 #endif // PLSCOMMONFUNC_H

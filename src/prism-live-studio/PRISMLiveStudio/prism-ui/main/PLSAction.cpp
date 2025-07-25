@@ -81,9 +81,6 @@ void SendActionCache()
 	assert(LocalGlobalVars::actionLogReady);
 	if (!pls_get_gpop_connection().url.isEmpty()) {
 		std::lock_guard<std::recursive_mutex> auto_lock(LocalGlobalVars::actionLock);
-		for (auto item : LocalGlobalVars::actionList) {
-			PLSPlatformPrism::instance()->sendAction(item);
-		}
 		LocalGlobalVars::actionList.clear();
 	}
 }
@@ -92,23 +89,6 @@ void SendActionWithUserIdCache()
 {
 	assert(LocalGlobalVars::actionLogUserIdReady);
 	std::lock_guard<std::recursive_mutex> auto_lock(LocalGlobalVars::actionLock);
-	for (const auto &act : LocalGlobalVars::actionListWithUserId) {
-		QJsonObject obj;
-		obj["eventAt"] = act.time;
-		obj["event1"] = act.event1;
-		obj["event2"] = act.event2;
-		obj["event3"] = act.event3;
-		obj["targetId"] = act.target;
-		obj["resourceId"] = PLSLoginUserInfo::getInstance()->getUserCodeWithEncode();
-		QJsonArray array;
-		array.push_back(obj);
-
-		QJsonDocument doc;
-		doc.setArray(array);
-
-		QString text(doc.toJson());
-		PLSPlatformPrism::instance()->sendAction(text);
-	}
 	LocalGlobalVars::actionListWithUserId.clear();
 }
 
@@ -832,7 +812,8 @@ void CheckCamera(OBSSource source, const char *pluginID, OBSData previous, OBSDa
 	CHECK_SOURCE_ID(common::OBS_DSHOW_SOURCE_ID);
 #else
 	// It contains the SRE of legacy video capture source, the new video capture source and the capture card source.
-	if (pluginID && strcmp(pluginID, common::OBS_DSHOW_SOURCE_ID) != 0 && strcmp(pluginID, common::OBS_MACOS_VIDEO_CAPTURE_SOURCE_ID) != 0 && strcmp(pluginID, common::OBS_MACOS_CAPTURE_CARD_SOURCE_ID) != 0) {
+	if (pluginID && strcmp(pluginID, common::OBS_DSHOW_SOURCE_ID) != 0 && strcmp(pluginID, common::OBS_MACOS_VIDEO_CAPTURE_SOURCE_ID) != 0 &&
+	    strcmp(pluginID, common::OBS_MACOS_CAPTURE_CARD_SOURCE_ID) != 0) {
 		return;
 	}
 #endif

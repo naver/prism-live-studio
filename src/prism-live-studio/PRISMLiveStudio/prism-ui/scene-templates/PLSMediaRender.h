@@ -17,6 +17,8 @@
 #include <QVideoSink>
 #include <QVideoFrame>
 
+#include "PLSSceneTemplateBorderLabel.h"
+
 class PLSMediaRender : public QOpenGLWidget, protected QOpenGLFunctions {
 	Q_OBJECT
 public:
@@ -40,12 +42,11 @@ protected slots:
 protected:
 	void initializeGL() override;
 	void resizeGL(int w, int h) override;
+	void paintGL() override;
 
 	bool uploadFrame();
-	void renderFrame();
 
 	void mouseReleaseEvent(QMouseEvent *event) override;
-	void paintEvent(QPaintEvent *event) override;
 
 private:
 	QScopedPointer<QOpenGLShaderProgram> m_shaderProgram;
@@ -60,11 +61,7 @@ private:
 	QVideoFrame m_frameVideo;
 	QVideoFrameFormat::PixelFormat m_framePixelFormat = QVideoFrameFormat::Format_Invalid;
 
-	bool m_bBorder = false;
-	QString m_strName;
-
 	bool m_bOpenGLFailed = false;
 
-	const QPixmap *m_pPixmapAIBadge = nullptr;
-	bool m_bLongAIBadge = false;
+	PLSSceneTemplateBorderLabel *imageLabel;
 };

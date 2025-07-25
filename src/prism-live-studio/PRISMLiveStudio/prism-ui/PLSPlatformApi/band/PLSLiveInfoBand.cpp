@@ -38,7 +38,7 @@ PLSLiveInfoBand::PLSLiveInfoBand(PLSPlatformBase *pPlatformBase, QWidget *parent
 	if (auto description = QString::fromUtf8(platform->getTitle().c_str()); !description.isEmpty()) {
 		ui->plainTextEdit->setPlainText(description);
 	}
-	connect(ui->plainTextEdit, &QPlainTextEdit::textChanged, this, &PLSLiveInfoBand::textChangeHandler, Qt::QueuedConnection);
+	connect(ui->plainTextEdit, &QTextEdit::textChanged, this, &PLSLiveInfoBand::textChangeHandler, Qt::QueuedConnection);
 	connect(ui->okButton, &QPushButton::clicked, this, &PLSLiveInfoBand::okButtonClicked);
 	connect(ui->cancelButton, &QPushButton::clicked, this, &PLSLiveInfoBand::cancelButtonClicked);
 
@@ -111,7 +111,7 @@ void PLSLiveInfoBand::textChangeHandler()
 	QString text = ui->plainTextEdit->toPlainText();
 	if (text.length() > MAXINPUTCONTENT) {
 		QSignalBlocker signalBlocker(ui->plainTextEdit);
-		ui->plainTextEdit->setPlainText(text.left(MAXINPUTCONTENT));
+		ui->plainTextEdit->setText(text.left(MAXINPUTCONTENT));
 		PLSAlertView::warning(this, QTStr("Alert.Title"), QTStr("Live.Check.Band.Description.Max.Limit"));
 		ui->plainTextEdit->moveCursor(QTextCursor::End);
 	}

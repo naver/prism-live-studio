@@ -281,13 +281,16 @@ void PLSDrawPenView::on_pushButton_ShapeOpen_clicked()
 			/// fix: on mac, after selected the shape button. the selected button status is
 			/// still highlight when open next time.
 			QPointer<PLSDrawPenView> thisPointer = this;
-			QMetaObject::invokeMethod(thisPointer, [thisPointer]() {
-				if (!thisPointer || !thisPointer->shapePopup)
-					return;
-				
-				pls_delete(thisPointer->shapePopup);
-				thisPointer->shapePopup = NULL;
-			}, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(
+				thisPointer,
+				[thisPointer]() {
+					if (!thisPointer || !thisPointer->shapePopup)
+						return;
+
+					pls_delete(thisPointer->shapePopup);
+					thisPointer->shapePopup = NULL;
+				},
+				Qt::QueuedConnection);
 #endif
 		});
 		shapePopup->setLayout(shapeLayout);
@@ -325,13 +328,16 @@ void PLSDrawPenView::on_pushButton_Width_clicked()
 			/// fix: on mac, after selected the width button. the selected button status is
 			/// still highlight when open next time.
 			QPointer<PLSDrawPenView> thisPointer = this;
-			QMetaObject::invokeMethod(thisPointer, [thisPointer]() {
-				if (!thisPointer || !thisPointer->widthPopup)
-				return;
+			QMetaObject::invokeMethod(
+				thisPointer,
+				[thisPointer]() {
+					if (!thisPointer || !thisPointer->widthPopup)
+						return;
 
-			pls_delete(thisPointer->widthPopup);
-			thisPointer->widthPopup = NULL;
-				}, Qt::QueuedConnection);
+					pls_delete(thisPointer->widthPopup);
+					thisPointer->widthPopup = NULL;
+				},
+				Qt::QueuedConnection);
 #endif
 		});
 		widthPopup->setLayout(widthLayout);
@@ -367,13 +373,16 @@ void PLSDrawPenView::on_pushButton_Color_clicked()
 			/// fix: on mac, after selected the color button. the selected button status is
 			/// still highlight when open next time.
 			QPointer<PLSDrawPenView> thisPointer = this;
-			QMetaObject::invokeMethod(thisPointer, [thisPointer]() {
-				if (!thisPointer || !thisPointer->colorPopup)
-				return;
+			QMetaObject::invokeMethod(
+				thisPointer,
+				[thisPointer]() {
+					if (!thisPointer || !thisPointer->colorPopup)
+						return;
 
-			pls_delete(thisPointer->colorPopup);
-			thisPointer->colorPopup = NULL;
-				}, Qt::QueuedConnection);
+					pls_delete(thisPointer->colorPopup);
+					thisPointer->colorPopup = NULL;
+				},
+				Qt::QueuedConnection);
 #endif
 		});
 		colorPopup->setLayout(colorLayout);

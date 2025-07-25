@@ -18,17 +18,14 @@ MultitrackVideoError MultitrackVideoError::cancel()
 	return {Type::Cancel, {}};
 }
 
-bool MultitrackVideoError::ShowDialog(
-	QWidget *parent, const QString &multitrack_video_name) const
+bool MultitrackVideoError::ShowDialog(QWidget *parent, const QString &multitrack_video_name) const
 {
 	if (type == Type::Warning) {
-		return PLSAlertView::question(
-			       parent, QTStr("Output.StartStreamFailed"),
-			       error + QTStr("FailedToStartStream.WarningRetryNonMultitrackVideo")) ==
-		       PLSAlertView::Button::Yes;
+		return PLSAlertView::question(parent, QTStr("Output.StartStreamFailed"),
+					      error + QTStr("FailedToStartStream.WarningRetryNonMultitrackVideo")
+							      .arg(multitrack_video_name)) == PLSAlertView::Button::Yes;
 	} else if (type == Type::Critical) {
-		pls_alert_error_message(
-			parent, QTStr("Output.StartStreamFailed"), error);
+		pls_alert_error_message(parent, QTStr("Output.StartStreamFailed"), error);
 	}
 
 	return false;

@@ -142,6 +142,10 @@ void PLSTemplateButton::setTemplateText(const QString &text)
 {
 	ui->templateGifLabel->setText(text);
 }
+void PLSTemplateButton::setPaid(bool isPaid)
+{
+	m_isPaid = isPaid;
+}
 
 void PLSTemplateButton::setCheckedState(bool checkedState)
 {

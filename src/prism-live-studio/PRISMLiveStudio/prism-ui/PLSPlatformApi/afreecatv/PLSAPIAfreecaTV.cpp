@@ -88,6 +88,16 @@ void PLSAPIAfreecaTV::requestCategoryList(const QObject *receiver, const PLSAPIC
 	pls::http::request(_request);
 }
 
+void PLSAPIAfreecaTV::requestMainHtml(const QObject *receiver, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed)
+{
+	PLS_INFO(MODULE_PLATFORM_AFREECATV, "requestMainHtml start");
+
+	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
+	PLSAPIAfreecaTV::configDefaultRequest(_request, receiver, onSucceed, onFailed);
+	_request.method(pls::http::Method::Get).url(QUrl());
+	pls::http::request(_request);
+}
+
 void PLSAPIAfreecaTV::updateLiveInfo(const QObject *receiver, const QString &title, const PLSAPICommon::dataCallback &onSucceed, const PLSAPICommon::errorCallback &onFailed)
 {
 	/*
@@ -102,42 +112,34 @@ frmHashTags	ahahaha,popopopo
 frmByeBye	878984998
 encode_type	normal
 frmStreamKey	abby0816-2146523166
+	 
+----- new data
+ work			setDashboardInfo
+ broad_pwd_chk			0
+ access_code
+ category			00360030
+ title			testing123789aaa
+ hashtags
+ broad_grade			19
+ broad_hidden			0
+ broad_tune_out			0
+ paid_promotion			0
 */
+
 	PLS_INFO(MODULE_PLATFORM_AFREECATV, "updateLiveInfo start");
 	const auto &data = PLS_PLATFORM_AFREECATV->getSelectData();
-
 	QHash<QString, QString> object;
-	object["work"] = data.work;
-	object["frmCategory"] = data.frmCategoryID;
-	object["is_wait"] = data.is_wait;
-	if (data.b_showFrmWait) {
-		object["waiting_time"] = data.frmWaitTime;
-		if (PLS_PLATFORM_API->isLiving()) {
-			object["frmWait"] = data.frmWait;
-			object["frmWaitTime"] = data.frmWaitTime; //not call living
-		}
-	}
-	object["frmTitle"] = title;
-	object["frmViewer"] = data.frmViewer;
-	object["frmWaterMark"] = data.frmWaterMark;
-	object["frmHashTags"] = data.frmHashTags;
-	object["frmByeBye"] = data.frmByeBye;
-	object["encode_type"] = data.encode_type;
-	object["frmStreamKey"] = data.frmStreamKey;
-	if (data.b_frmAdult) {
-		object["frmAdult"] = data.frmAdult;
-	}
-	if (data.b_frmHidden) {
-		object["frmHidden"] = data.frmHidden;
-	}
+	object["work"] = "setDashboardInfo";
+	object["broad_pwd_chk"] = data.broad_pwd_chk ? "1" : "0";
+	object["access_code"] = data.access_code;
+	object["category"] = data.categoryID;
+	object["title"] = title;
+	object["hashtags"] = data.hashtags;
+	object["broad_grade"] = data.broad_grade;
+	object["broad_hidden"] = data.broad_hidden;
+	object["broad_tune_out"] = data.broad_tune_out;
+	object["paid_promotion"] = data.paid_promotion;
 
-	if (data.b_frmTuneOut) {
-		object["frmTuneOut"] = data.frmTuneOut;
-	}
-	if (data.b_containFrmAccess) {
-		object["frmAccess"] = data.frmAccess;
-		object["frmAccessCode"] = data.frmAccessCode;
-	}
 	const auto _request = pls::http::Request(pls::http::NoDefaultRequestHeaders);
 	PLSAPIAfreecaTV::configDefaultRequest(_request, receiver, onSucceed, onFailed);
 
@@ -157,77 +159,42 @@ void PLSAPIAfreecaTV::addCommonData(const pls::http::Request &builder, bool forc
 	builder.rawHeader("Accept-Language", acceptLanguage);
 }
 
-void PLSAPIAfreecaTV::readDataByRegu(PLSAfreecaTVLiveinfoData &data, const QString &originStr)
+void PLSAPIAfreecaTV::getStreamKeyAndPassword(const QString &htmlStr, QString &streamKey, QString &password)
 {
-	QString htmlStr = originStr;
-	QString compareS = "";
-	QString regTemp("name=\"%1\"([\\s\\S]*)>");
-	QString frmWaitTimeReg("<select[ ]*name=\"frmWaitTime\"([\\s\\S]*)</select>");
-	QString frmByeByeReg("name=\"frmByeBye\"([\\s\\S]*)</textarea>");
-	QString tagsReg("var[ ]*szTags[ ]*=([\\s\\S]*);");
-	QString serverUrlReg("((id=\"ServerUrl\"))([\\s\\S]*)(</p>)");
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("work"));
-	data.work = getValue(compareS);
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("frmCategory"));
-	data.frmCategoryID = getValue(compareS);
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("is_wait"));
-	data.is_wait = getValue(compareS);
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("frmWait"));
-	data.frmWait = getValue(compareS);
-	data.b_showFrmWait = data.frmWait == "Y";
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("waiting_time"));
-	data.waiting_time = getValue(compareS);
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("frmTitle"));
-	data.frmTitle = decodeHtmlContent(getValue(compareS));
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("frmTuneOut"));
-	data.b_frmTuneOut = getIsCheck(htmlStr, compareS);
-	data.frmTuneOut = getValue(compareS);
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("frmAdult"));
-	data.b_frmAdult = getIsCheck(htmlStr, compareS);
-	data.frmAdult = getValue(compareS);
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("frmHidden"));
-	data.b_frmHidden = getIsCheck(htmlStr, compareS);
-	data.frmHidden = getValue(compareS);
-
-	compareS = getFirstReg(htmlStr, frmWaitTimeReg);
-	data.frmWaitTime = getValueOfList(compareS);
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("frmViewer"));
-	data.frmViewer = getValue(compareS);
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("frmWaterMark"));
-	data.frmWaterMark = getValue(compareS);
-
-	compareS = getFirstReg(htmlStr, tagsReg);
-	data.frmHashTags = getValueOfTags(compareS);
-
-	compareS = getFirstReg(htmlStr, frmByeByeReg);
-	data.frmByeBye = getValueOfFrmByeBye(compareS);
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("frmStreamKey"));
-	data.frmStreamKey = decodeHtmlContent(getValue(compareS));
-
-	compareS = getFirstReg(htmlStr, serverUrlReg);
-	data.frmServerUrl = getValueOfFrmByeBye(compareS);
-
-	compareS = getFirstReg(htmlStr, regTemp.arg("frmAccess"));
-	data.b_containFrmAccess = compareS.contains("checked");
-	if (data.b_containFrmAccess) {
-		data.frmAccess = getValue(compareS);
-		compareS = getFirstReg(htmlStr, regTemp.arg("frmAccessCode"));
-		data.frmAccessCode = decodeHtmlContent(getValue(compareS));
+	//<script type='text/javascript'>var STREAMKEY = '161xxx49061';var BROADPW = 'xxx';</script><!DOCTYPE html...
+	if (htmlStr.isEmpty()) {
+		return;
 	}
-}
+	QString streamKeyReg("var[ ]*STREAMKEY[ ]*=[ ]*'([\\s\\S]*)';");
+	QString compareS = getFirstReg(htmlStr, streamKeyReg);
+	streamKey = getValueOfTags(compareS);
 
+	//get twice, maybe password contain ';   eg: var BROADPW = '';437#%A67';</script>
+	QString passwordReg("var[ ]*BROADPW[ ]*='[\\s\\S]*';");
+	compareS = getFirstReg(htmlStr, passwordReg);
+	auto pw1 = getValueOfTags(compareS);
+
+	auto getPw2 = [](const QString &input) {
+		auto startIndex = input.indexOf("'");
+		if (startIndex == -1) {
+			return QString();
+		}
+		startIndex += 1;
+		auto endIndex = input.lastIndexOf("'");
+		if (endIndex == -1 || endIndex <= startIndex) {
+			return QString();
+		}
+		return input.mid(startIndex, endIndex - startIndex);
+	};
+
+	QString lastStr("");
+	passwordReg = "var[ ]*BROADPW[ ]*=[ ]*'([\\s\\S]*)';</script>";
+	QString fullSelectStr = getFirstReg(htmlStr, passwordReg);
+	QString pw2 = getPw2(fullSelectStr);
+
+	password = !pw2.isEmpty() ? pw2 : pw1;
+	qDebug() << "PLSAPIAfreecaTV streamKey:" << streamKey << " password:" << password;
+}
 void PLSAPIAfreecaTV::parseCategory(const QString &originStr)
 {
 	QString convertStr = "";

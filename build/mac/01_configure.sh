@@ -35,7 +35,7 @@ export PRISM_SRC_DIR=${SRC_DIR}/prism-live-studio
 export OBS_BUILD_DIR=${OBS_SRC_DIR}/build_macos
 export PRISM_BUILD_DIR=${PRISM_SRC_DIR}/build
 export PRISM_VERSION_FILE_DIR=${PROJECT_DIR}/build/mac/version_mac.txt
-export OBS_VERSION=30.1.2.0
+export OBS_VERSION=31.0.3.0
 
 export GENERATOR=Xcode
 
@@ -106,6 +106,11 @@ configure-prism() {
 	cd ${PROJECT_DIR}/build/mac
 
 	update_mac_version
+
+	# apply patches
+    chmod +x apply_patches.sh apply_patches_sub.sh
+	./apply_patches.sh
+
 	# generator xcode project
 	echo \
 	cmake -S "${SRC_DIR}" \

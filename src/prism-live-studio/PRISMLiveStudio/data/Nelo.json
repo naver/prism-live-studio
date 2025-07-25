@@ -1,0 +1,129 @@
+{
+	"version": 10,
+	"url": "kr-col-ext.nelo.navercorp.com",
+	"cn": {
+		"name": "P8e4826_PRISMLiveStudio-ZT",
+		"token": "1056c5a3501e4af2ac6728176b55e66f",
+		"filters": [
+			"(.*)Error running the FX(.*)The effect has not been properly initialized",
+			"(.*)No JPEG data found in image",
+			"(.*)before any SOF(.*)",
+			"(.*)audio retrieval failed(.*)",
+			"connect signal to callback(.*)",
+			".*platformName: YouTube\nerrorUrl: requestLiveStreamStatus([\\s\\S]*)",
+			"(.*)Could not update timestamps for discarded samples(.*)",
+			".*Analog msg content([\\s\\S]*)\"platformName\": \"YouTube\"([\\s\\S]*)\"url\": \"requestLiveStreamStatus\"([\\s\\S]*)"
+		],
+		"duplicateLogFilters": [
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)YouTube start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)YouTube start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)Chzzk start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)Chzzk start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)navershopping start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)navershopping start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)afreecaTV start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)afreecaTV start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)facebook start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)facebook start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)Naver TV start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)Naver TV start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)twitch start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)twitch start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"startLiveStatus": "Failed",
+					"body": "(.*)band start live failed"
+				},
+				"clearTimeFilter": {
+					"startLiveStatus": "Success",
+					"body": "(.*)band start live success"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"liveAbort": "^live abort because obs error code:-3$"
+				}
+			},
+			{
+				"timeInterval": 1800,
+				"duplicateFilter": {
+					"liveAbort": "^live abort because obs error code:-2$"
+				}
+			}
+		]
+	},
+	"kr": {
+		"name": "P8e4826_PRISMLiveStudio-KR",
+		"token": "7a1cf4783b0946d797154a4baa443a6e",
+		"filters": [
+			"(.*)No JPEG data found in image",
+			"(.*)Could not update timestamps for discarded samples(.*)",
+			"(.*)before any SOF(.*)"
+		]
+	}
+}

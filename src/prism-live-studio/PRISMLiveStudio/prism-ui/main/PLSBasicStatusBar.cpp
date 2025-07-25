@@ -408,7 +408,173 @@ int PLSBasicStatusBar::getRecordDuration() const
 
 void PLSBasicStatusBar::UploadStatus() const
 {
+	if (pls_get_app_exiting()) {
+		PLS_WARN(MAINMENU_MODULE, "Invalid invoking in %s", __FUNCTION__);
+		return;
+	}
 
+	std::string userID = PLSLoginUserInfo::getInstance()->getUserCodeWithEncode().toStdString();
+	std::string neloSession = GlobalVars::prismSession;
+
+	auto unixTime = QDateTime::currentMSecsSinceEpoch();
+	auto cpuUsagePrism = (int)get<0>(m_dataStatus.cpu);
+	auto cpuUsageTotal = (int)get<1>(m_dataStatus.cpu);
+	auto memoryUsing = int64_t(m_dataStatus.memory);
+	auto availableStorage = int64_t(m_dataStatus.disk);
+	auto renderFPS = (int)get<1>(m_dataStatus.renderFPS);
+	auto realRenderFPS = (int)get<0>(m_dataStatus.renderFPS);
+	int dropRenderFrame = get<0>(m_dataStatus.dropedRendering);
+	int dropEncodeFrame = get<0>(m_dataStatus.dropedEncoding);
+	int dropNetworkFrame = get<0>(m_dataStatus.dropedNetwork);
+	int dbrStreamBitrate = get<0>(m_dataStatus.streaming);
+	int realStreamBitrate = get<0>(m_dataStatus.streaming);
+	int realRecordBitrate = get<0>(m_dataStatus.recording);
+	int64_t recordedMegabytes = get<1>(m_dataStatus.recording);
+
+	//-----------------------------------------------------------------
+	QJsonObject obj;
+	obj["userID"] = userID.c_str();
+	obj["neloSession"] = neloSession.c_str();
+	obj["renderFPS"] = renderFPS;
+	obj["streamBitrate"] = dbrStreamBitrate;
+	obj["recordBitrate"] = realRecordBitrate;
+	obj["unixTime"] = unixTime;
+	obj["cpuUsagePrism"] = cpuUsagePrism;
+	obj["cpuUsageTotal"] = cpuUsageTotal;
+	obj["memoryUsing"] = memoryUsing;
+	obj["availableStorage"] = availableStorage;
+	obj["realRenderFPS"] = realRenderFPS;
+	obj["dropRenderFrame"] = dropRenderFrame;
+	obj["dropEncodeFrame"] = dropEncodeFrame;
+	obj["dropNetworkFrame"] = dropNetworkFrame;
+	obj["dbrStreamBitrate"] = dbrStreamBitrate;
+	obj["realStreamBitrate"] = realStreamBitrate;
+	obj["realRecordBitrate"] = realRecordBitrate;
+	obj["bufferedVideoDurationMS"] = 0;
+	obj["recordedDataSizeMB"] = recordedMegabytes;
+	obj["gpuUsagePrism"] = (int)get<0>(m_dataStatus.gpu);
+	obj["gpuUsageTotal"] = (int)get<1>(m_dataStatus.gpu);
+	obj["streamOutputFPS"] = (int)m_dataStatus.streamOutputFPS;
+	obj["recordOutputFPS"] = (int)m_dataStatus.recordOutputFPS;
+	// rtmp latency fields
+	obj["encoderAvgTsMs"] = nsec_to_ms(m_dataStatus.latencyInfo.encoder_avg_ts);
+	obj["interleaveAvgTsMs"] = nsec_to_ms(m_dataStatus.latencyInfo.interleave_avg_ts);
+	obj["encodingEndTsMs"] = nsec_to_ms(m_dataStatus.latencyInfo.rtmp_queue_avg_ts);
+	obj["rtmpSendAvgTsMs"] = nsec_to_ms(m_dataStatus.latencyInfo.rtmp_send_avg_ts);
+	obj["totalAvgTsMs"] = nsec_to_ms(m_dataStatus.latencyInfo.total_avg_ts);
+	obj["streamNetworkMilliTime"] = m_dataStatus.streamNetworkMilliTime;
+
+	// for dual output
+	{
+		dropEncodeFrame = get<0>(m_dataStatus.dropedEncoding_v);
+		dropNetworkFrame = get<0>(m_dataStatus.dropedNetwork_v);
+		realStreamBitrate = get<0>(m_dataStatus.streaming_v);
+
+		obj["streamOutputFPS_v"] = (int)m_dataStatus.streamOutputFPS_v;
+		obj["dropEncodeFrame_v"] = dropEncodeFrame;
+		obj["dropNetworkFrame_v"] = dropNetworkFrame;
+		obj["realStreamBitrate_v"] = realStreamBitrate;
+		// rtmp latency fields
+		obj["encoderAvgTsMs_v"] = nsec_to_ms(m_dataStatus.latencyInfo_v.encoder_avg_ts);
+		obj["interleaveAvgTsMs_v"] = nsec_to_ms(m_dataStatus.latencyInfo_v.interleave_avg_ts);
+		obj["encodingEndTsMs_v"] = nsec_to_ms(m_dataStatus.latencyInfo_v.rtmp_queue_avg_ts);
+		obj["rtmpSendAvgTsMs_v"] = nsec_to_ms(m_dataStatus.latencyInfo_v.rtmp_send_avg_ts);
+		obj["totalAvgTsMs_v"] = nsec_to_ms(m_dataStatus.latencyInfo_v.total_avg_ts);
+		obj["streamNetworkMilliTime_v"] = m_dataStatus.streamNetworkMilliTime_v;
+	}
+
+	// log streaming latency info every 30 seconds
+	bool log_latency = false;
+	if (10 == ++trigger_count) {
+		trigger_count = 0;
+		log_latency = true;
+	}
+
+	do {
+		if (!log_latency)
+			break;
+
+		OBSOutputAutoRelease strOutput = obs_frontend_get_streaming_output();
+		if (!strOutput || !obs_output_active(strOutput))
+			break;
+
+		auto encoderAvgTsMs = nsec_to_ms_s(m_dataStatus.latencyInfo.encoder_avg_ts);
+		auto interleaveAvgTsMs = nsec_to_ms_s(m_dataStatus.latencyInfo.interleave_avg_ts);
+		auto rtmpQueueAvgTsMs = nsec_to_ms_s(m_dataStatus.latencyInfo.rtmp_queue_avg_ts);
+		auto rtmpSendAvgTsMs = nsec_to_ms_s(m_dataStatus.latencyInfo.rtmp_send_avg_ts);
+		auto totalAvgTsMs = nsec_to_ms_s(m_dataStatus.latencyInfo.total_avg_ts);
+
+		std::vector<std::pair<const char *, const char *>> fields = //
+			{{"encoderAvgTsMs", encoderAvgTsMs.c_str()},
+			 {"interleaveAvgTsMs", interleaveAvgTsMs.c_str()},
+			 {"rtmpQueueAvgTsMs", rtmpQueueAvgTsMs.c_str()},
+			 {"rtmpSendAvgTsMs", rtmpSendAvgTsMs.c_str()},
+			 {"totalAvgTsMs", totalAvgTsMs.c_str()}};
+
+		PLS_LOGEX(
+			PLS_LOG_INFO, MAIN_OUTPUT, fields,
+			"%p-statistics_send_log -> rtmp_total_latency_ms: %s\nrtmp_encoder_latency: %sms\nrtmp_interleave_latency: %sms\nrtmp_queue_latency: %sms\nrtmp_send_latency: %sms\nstreamNetworkMilliTime: %lfms",
+			strOutput.Get(), totalAvgTsMs.c_str(), encoderAvgTsMs.c_str(), interleaveAvgTsMs.c_str(), rtmpQueueAvgTsMs.c_str(), rtmpSendAvgTsMs.c_str(),
+			m_dataStatus.streamNetworkMilliTime);
+
+	} while (false);
+
+	do {
+		if (!log_latency)
+			break;
+
+		OBSOutputAutoRelease strOutput = pls_frontend_get_streaming_output_v();
+		if (!strOutput || !obs_output_active(strOutput))
+			break;
+
+		auto encoderAvgTsMs = nsec_to_ms_s(m_dataStatus.latencyInfo_v.encoder_avg_ts);
+		auto interleaveAvgTsMs = nsec_to_ms_s(m_dataStatus.latencyInfo_v.interleave_avg_ts);
+		auto rtmpQueueAvgTsMs = nsec_to_ms_s(m_dataStatus.latencyInfo_v.rtmp_queue_avg_ts);
+		auto rtmpSendAvgTsMs = nsec_to_ms_s(m_dataStatus.latencyInfo_v.rtmp_send_avg_ts);
+		auto totalAvgTsMs = nsec_to_ms_s(m_dataStatus.latencyInfo_v.total_avg_ts);
+
+		std::vector<std::pair<const char *, const char *>> fields = //
+			{{"encoderAvgTsMs", encoderAvgTsMs.c_str()},
+			 {"interleaveAvgTsMs", interleaveAvgTsMs.c_str()},
+			 {"rtmpQueueAvgTsMs", rtmpQueueAvgTsMs.c_str()},
+			 {"rtmpSendAvgTsMs", rtmpSendAvgTsMs.c_str()},
+			 {"totalAvgTsMs", totalAvgTsMs.c_str()}};
+
+		PLS_LOGEX(
+			PLS_LOG_INFO, MAIN_OUTPUT, fields,
+			"%p-statistics_send_log_vertical -> rtmp_total_latency_ms: %s\nrtmp_encoder_latency: %sms\nrtmp_interleave_latency: %sms\nrtmp_queue_latency: %sms\nrtmp_send_latency: %sms\nstreamNetworkMilliTime_v: %lfms",
+			strOutput.Get(), totalAvgTsMs.c_str(), encoderAvgTsMs.c_str(), interleaveAvgTsMs.c_str(), rtmpQueueAvgTsMs.c_str(), rtmpSendAvgTsMs.c_str(),
+			m_dataStatus.streamNetworkMilliTime_v);
+	} while (false);
+
+	QJsonDocument doc;
+	doc.setObject(obj);
+
+	/* upload virtual camera host process names. */
+#if defined(_WIN32)
+	QDir path(pls_get_app_data_dir_pn(VIRTUAL_CAM_HOST_PROC_FOLDER_NAME));
+	QFileInfoList fileInfoList = path.entryInfoList(QDir::NoDotAndDotDot | QDir::Files);
+	for (const auto &fileInfo : fileInfoList) {
+		if (fileInfo.isFile()) {
+			auto fileName = fileInfo.fileName();
+			if (!fileName.contains(".exe"))
+				continue;
+
+			fileName = fileName.first(fileName.lastIndexOf("."));
+			if (QFile::remove(fileInfo.absoluteFilePath())) {
+				pls_send_analog(AnalogType::ANALOG_VIRTUAL_CAM, {{"targetProcessName", fileName}});
+			}
+		}
+	}
+#else
+	RequestExtensionClientInfo([](int pid, const std::string &signingId, const std::string &clientId, const std::string &date) {
+		if (!signingId.empty()) {
+			PLS_LOG(PLS_LOG_INFO, "vcam", "pid %d, signingId %s, clientId %s, date %s using prism vcam", pid, signingId.c_str(), clientId.c_str(), date.c_str());
+			pls_send_analog(AnalogType::ANALOG_VIRTUAL_CAM, {{"targetProcessName", signingId.c_str()}});
+		}
+	});
+
+#endif
 }
 
 void PLSBasicStatusBar::UpdateDroppedFrames()

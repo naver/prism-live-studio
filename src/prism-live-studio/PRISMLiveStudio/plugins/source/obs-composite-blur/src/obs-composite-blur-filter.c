@@ -1723,20 +1723,30 @@ static void composite_blur_video_tick(void *data, float seconds)
 	}
 	const uint32_t width = (uint32_t)obs_source_get_base_width(target);
 	const uint32_t height = (uint32_t)obs_source_get_base_height(target);
-	if(filter->width != width || filter->height != height) {
+	if (filter->width != width || filter->height != height) {
 		filter->width = (uint32_t)obs_source_get_base_width(target);
 		filter->height = (uint32_t)obs_source_get_base_height(target);
 		filter->uv_size.x = (float)filter->width;
 		filter->uv_size.y = (float)filter->height;
 		obs_data_t *settings = obs_source_get_settings(filter->context);
 		if (filter->width > 0 &&
-			(float)obs_data_get_double(settings, "pixelate_origin_x") < -1.e8) {
-				obs_data_set_double(settings, "pixelate_origin_x", (double)width / 2.0);
-				obs_data_set_double(settings, "pixelate_origin_y",
-						(double)height / 2.0);
-				filter->pixelate_tessel_center.x = (float)width / 2.0f;
-				filter->pixelate_tessel_center.y = (float)height / 2.0f;
+		    (float)obs_data_get_double(settings, "pixelate_origin_x") <
+			    -1.e8) {
+			obs_data_set_double(settings, "pixelate_origin_x",
+					    (double)width / 2.0);
+			obs_data_set_double(settings, "pixelate_origin_y",
+					    (double)height / 2.0);
+			filter->pixelate_tessel_center.x = (float)width / 2.0f;
+			filter->pixelate_tessel_center.y = (float)height / 2.0f;
 		}
+		
+		//PRISM/Zhongling/20250521/#PRISM_PC-3019, PRISM_PC-3164/Start
+		float defaultPOX = (float)obs_data_get_default_double(settings, "pixelate_origin_x");
+		if (filter->width > 0 && defaultPOX < -1.e8) {
+			obs_data_set_default_double(settings, "pixelate_origin_x", (double)width / 2.0);
+			obs_data_set_default_double(settings, "pixelate_origin_y", (double)height / 2.0);
+		}
+		//PRISM/Zhongling/20250521/#PRISM_PC-3019, PRISM_PC-3164/End
 		obs_data_release(settings);
 	}
 

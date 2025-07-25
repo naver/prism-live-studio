@@ -6,6 +6,7 @@
 #else
 #include <signal.h>
 #include <pthread.h>
+#include <unistd.h>
 #endif // _WIN32
 #include "PLSApp.h"
 #include <qdir.h>
@@ -410,7 +411,7 @@ static void do_log(int log_level, const char *format, va_list args, void *param)
 static bool openConfig(ConfigFile &config, const char *fileName)
 {
 	std::array<char, 512> path;
-	if (GetConfigPath(path.data(), sizeof(path), fileName) <= 0) {
+	if (GetAppConfigPath(path.data(), sizeof(path), fileName) <= 0) {
 		return false;
 	} else if (int errorcode = config.Open(path.data(), CONFIG_OPEN_ALWAYS); errorcode != CONFIG_SUCCESS) {
 		PLS_ERROR(MAINFRAME_MODULE, "Failed to open %s, errorcode = %d", fileName, errorcode);
@@ -421,7 +422,7 @@ static bool openConfig(ConfigFile &config, const char *fileName)
 static void removeConfig(const char *config)
 {
 	std::array<char, 512> cpath;
-	if (GetConfigPath(cpath.data(), sizeof(cpath), config) <= 0) {
+	if (GetAppConfigPath(cpath.data(), sizeof(cpath), config) <= 0) {
 		PLS_INFO(MAINFRAME_MODULE, "remove config[%s] failed, because get config path failed.", config);
 		return;
 	}
@@ -507,6 +508,24 @@ PLSApp::~PLSApp()
 #ifdef _WIN32
 	CoUninitialize();
 #endif
+
+	auto threadExit = std::thread([] {
+		this_thread::sleep_for(10s);
+
+		PLS_LOGEX(PLS_LOG_ERROR, MAINFRAME_MODULE, {{"exitTimeout", to_string(static_cast<int>(init_exception_code::timeout_by_shutdown)).data()}}, "PRISM exit timeout");
+
+		pls_log_cleanup();
+
+#if defined(Q_OS_MACOS)
+		pid_t pid = getpid();
+		kill(pid, SIGKILL);
+#endif
+
+#if defined(Q_OS_WINDOWS)
+		TerminateProcess(GetCurrentProcess(), 0);
+#endif
+	});
+	threadExit.detach();
 }
 
 void PLSApp::AppInit()
@@ -582,7 +601,7 @@ void PLSApp::clearNaverShoppingConfig()
 	removeConfig("PRISMLiveStudio/naver_shopping/naver_shopping.ini");
 	//create the navershopping global init
 	pls::chars<512> path;
-	int len = GetConfigPath(path, sizeof(path), "PRISMLiveStudio/naver_shopping/naver_shopping.ini");
+	int len = GetAppConfigPath(path, sizeof(path), "PRISMLiveStudio/naver_shopping/naver_shopping.ini");
 	if (len <= 0) {
 		return;
 	}
@@ -641,22 +660,11 @@ void PLSApp::initSideBarWindowVisible() const
 }
 void PLSApp::setAnalogBaseInfo(QJsonObject &obj, bool isUploadHardwareInfo)
 {
-
-	obj.insert("hashMac", QString("%1").arg(hash<string>()(pls_get_local_mac().toStdString()), 16, 16, QChar('0')));
-	obj.insert("hashUserID", PLSLoginUserInfo::getInstance()->getUserCodeWithEncode());
-	obj.insert("gcc", GlobalVars::gcc.c_str());
-	obj.insert("ver", PLS_VERSION);
-	obj.insert("unixTime", QDateTime::currentMSecsSinceEpoch());
-	obj.insert("envOsVer", getOsVersion());
-
-	if (isUploadHardwareInfo) {
-		obj.insert("envCpu", pls_get_cpu_name().c_str());
-		obj.insert("envGpu", GlobalVars::videoAdapter.c_str());
-		obj.insert("envMem", QString("%1MB").arg(os_get_sys_total_size() / 1024 / 1024));
-	}
 }
 
-void PLSApp::uploadAnalogInfo(const QString &apiPath, const QVariantMap &paramInfos, bool isUploadHardwareInfo) {}
+void PLSApp::uploadAnalogInfo(const QString &apiPath, const QVariantMap &paramInfos, bool isUploadHardwareInfo)
+{
+}
 
 void PLSApp::backupGolbalConfig() const
 {
@@ -666,14 +674,17 @@ void PLSApp::backupGolbalConfig() const
 		return;
 	}
 
-	const char *sceneCollectionName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
-	const char *sceneCollectionFile = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
+	const char *sceneCollectionName = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
+	const char *sceneCollectionFile = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile");
 
-	bool isDontShow = config_get_bool(App()->GlobalConfig(), common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW);
-	config_set_bool(backupGlobalConfig, common::LAUNCHER_CONFIG, common::CONFIG_DONTSHOW, isDontShow);
+	auto lastHideDate = config_get_string(App()->GetUserConfig(), common::LAUNCHER_CONFIG, common::CONFIG_LASTHIDEDATE);
+	config_set_string(backupGlobalConfig, common::LAUNCHER_CONFIG, common::CONFIG_LASTHIDEDATE, lastHideDate);
 
-	auto displayVer = config_get_bool(App()->GlobalConfig(), common::NEWFUNCTIONTIP_CONFIG, common::CONFIG_DISPLAYVERISON);
-	config_set_bool(backupGlobalConfig, common::NEWFUNCTIONTIP_CONFIG, common::CONFIG_DISPLAYVERISON, displayVer);
+	auto displayVer = config_get_string(App()->GetUserConfig(), common::NEWFUNCTIONTIP_CONFIG, common::CONFIG_DISPLAYVERISON);
+	config_set_string(backupGlobalConfig, common::NEWFUNCTIONTIP_CONFIG, common::CONFIG_DISPLAYVERISON, displayVer);
+
+	auto chatNewBadge = config_get_bool(App()->GlobalConfig(), common::CHAT_WIDGET_CONFIG, common::CHAT_WIDGET_NEW_BADGE);
+	config_set_bool(backupGlobalConfig, common::CHAT_WIDGET_CONFIG, common::CHAT_WIDGET_NEW_BADGE, chatNewBadge);
 
 	config_set_string(backupGlobalConfig, "Basic", "SceneCollection", sceneCollectionName);
 	config_set_string(backupGlobalConfig, "Basic", "SceneCollectionFile", sceneCollectionFile);
@@ -812,6 +823,7 @@ int PLSApp::runProgram(PLSApp &program, int argc, char *argv[], ScopeProfiler &p
 
 		PLS_INIT_INFO(MAINFRAME_MODULE, "app configuration information initialization completed.");
 
+		pls::rsm::downloadAll();
 		GuideRegisterManager::instance()->load();
 
 		PLS_INIT_INFO(MAINFRAME_MODULE, "init program");
@@ -821,8 +833,7 @@ int PLSApp::runProgram(PLSApp &program, int argc, char *argv[], ScopeProfiler &p
 			CloseHandle(hEvent);
 #endif
 
-			QMetaObject::invokeMethod(
-				&program, []() { App()->getMainView()->close(); }, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(&program, []() { App()->getMainView()->close(); }, Qt::QueuedConnection);
 			return PLSApp::exec();
 		}
 		if (GlobalVars::isLogined) {
@@ -855,6 +866,7 @@ int PLSApp::runProgram(PLSApp &program, int argc, char *argv[], ScopeProfiler &p
 #endif
 		program.setAppRunning(true);
 
+		PLSApp::uploadAnalogInfo(RUNAPP_API_PATH, {{SUCCESSFAIL, true}}, true);
 
 		GuideRegisterManager::instance()->beginShow();
 
@@ -884,6 +896,7 @@ int PLSApp::runProgram(PLSApp &program, int argc, char *argv[], ScopeProfiler &p
 		QString codeStr = getExceptionAlertString(code);
 		PLS_LOGEX(PLS_LOG_ERROR, MAINFRAME_MODULE, {{"launchFailed", QString("0x%1%2").arg(static_cast<int>(code), 0, 16).arg(pls_get_init_exit_code_str(code)).toUtf8().constData()}},
 			  "failed to initialize, %s", codeStr.toUtf8().constData());
+		PLSApp::uploadAnalogInfo(RUNAPP_API_PATH, {{SUCCESSFAIL, false}, {FAILREASON, codeStr}}, true);
 		pls_set_app_exiting(true);
 		pls_set_obs_exiting(true);
 
@@ -893,6 +906,7 @@ int PLSApp::runProgram(PLSApp &program, int argc, char *argv[], ScopeProfiler &p
 		QString codeStr = getExceptionAlertString(code);
 		PLS_LOGEX(PLS_LOG_ERROR, MAINFRAME_MODULE, {{"launchFailed", QString("0x%1%2").arg(static_cast<int>(code), 0, 16).arg(pls_get_init_exit_code_str(code)).toUtf8().constData()}},
 			  "failed to initialize, unknown exception catched");
+		PLSApp::uploadAnalogInfo(RUNAPP_API_PATH, {{SUCCESSFAIL, false}, {FAILREASON, "unknown exception"}}, true);
 		pls_set_app_exiting(true);
 		pls_set_obs_exiting(true);
 

@@ -137,12 +137,15 @@ void TextMotionTemplateDataHelper::initTemplateButtons()
 					continue;
 				}
 			}
-
+			QFileInfo info(item.file(0));
+			if (!info.exists())
+				continue;
 			TextMotionTemplateButton *button = pls_new<TextMotionTemplateButton>();
 			auto id = item.itemId();
 			button->setTemplateText(id);
 			int idInt = id.split('_').last().toInt();
 			button->setProperty("ID", idInt);
+			button->setPaid(item.attr("paidFlag").toBool());
 			connect(button, &TextMotionTemplateButton::clicked, this, &TextMotionTemplateDataHelper::updateButtonsStyle);
 			button->setGroupName(group.groupId().toLower());
 			button->attachGifResource(item.file(0));

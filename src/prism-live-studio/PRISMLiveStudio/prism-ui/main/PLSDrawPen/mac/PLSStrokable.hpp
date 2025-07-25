@@ -27,10 +27,9 @@ typedef std::vector<PointF>* PointFsPointer;
 
 - (id)initWithBaseStrokes:(NSArray<NSObject *> *)strokes actionType:(ActionType)actionType;
 
-@property (copy, readonly) NSArray<NSObject*> *baseStrokes;
+@property (copy, readonly) NSArray<NSObject *> *baseStrokes;
 @property (assign, readonly) ActionType actionType;
 @end
-
 
 // MARK: - PLSStrokeDraw
 
@@ -65,8 +64,7 @@ typedef std::vector<PointF>* PointFsPointer;
 - (void)decreaseEraseCount;
 - (BOOL)getErased;
 
-- (void)drawInContext:(CGContextRef)context
-                 size:(CGSize)size;
+- (void)drawInContext:(CGContextRef)context size:(CGSize)size;
 
 - (BOOL)containsPoint:(NSPoint)point;
 @end
@@ -76,12 +74,12 @@ typedef std::vector<PointF>* PointFsPointer;
 @interface PLSStrokeBase : PLSStrokeActionDraw <PLSStrokable>
 
 - (id)initWithStrokeColor:(NSColor *)strokeColor
-                brushMode:(BrushMode)brushMode
-                colorMode:(ColorMode)colorMode
-              strokeWidth:(CGFloat)strokeWidth
-            thicknessMode:(ThicknessMode)thicknessMode
-            useCtrlPoints:(BOOL)useCtrlPoints
-                 strokeID:(NSInteger)strokeID;
+		brushMode:(BrushMode)brushMode
+		colorMode:(ColorMode)colorMode
+	      strokeWidth:(CGFloat)strokeWidth
+	    thicknessMode:(ThicknessMode)thicknessMode
+	    useCtrlPoints:(BOOL)useCtrlPoints
+		 strokeID:(NSInteger)strokeID;
 
 - (void)recalculatePointsWithYOffset:(CGFloat)yOffset;
 
@@ -126,7 +124,6 @@ typedef std::vector<PointF>* PointFsPointer;
 
 @end
 
-
 // MARK: - PLSStrokeTriangle
 
 @interface PLSStrokeTriangle : PLSStrokeBase
@@ -150,13 +147,13 @@ typedef std::vector<PointF>* PointFsPointer;
 @interface PLSStrokeArrowLine : PLSStrokeBase
 
 - (id)initWithStrokeColor:(NSColor *)strokeColor
-                colorMode:(ColorMode)colorMode
-              strokeWidth:(CGFloat)strokeWidth
-            thicknessMode:(ThicknessMode)thicknessMode
-            useCtrlPoints:(BOOL)useCtrlPoints
-                headWidth:(CGFloat)headWidth
-               headLength:(CGFloat)headLength
-                 strokeID:(NSInteger)strokeID;
+		colorMode:(ColorMode)colorMode
+	      strokeWidth:(CGFloat)strokeWidth
+	    thicknessMode:(ThicknessMode)thicknessMode
+	    useCtrlPoints:(BOOL)useCtrlPoints
+		headWidth:(CGFloat)headWidth
+	       headLength:(CGFloat)headLength
+		 strokeID:(NSInteger)strokeID;
 
 @property (assign, readonly) CGFloat headWidth;
 @property (assign, readonly) CGFloat headLength;

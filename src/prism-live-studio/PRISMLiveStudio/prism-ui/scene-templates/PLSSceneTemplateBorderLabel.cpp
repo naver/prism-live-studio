@@ -37,7 +37,8 @@ void PLSSceneTemplateBorderLabel::showAIBadge(const QPixmap &pixmap, bool bLongA
 	} else {
 		if (ui->labelAIBadge->pixmap().isNull()) {
 			ui->labelAIBadge->setPixmap(pixmap);
-			ui->labelAIBadge->setStyleSheet(QString("background:transparent; min-width:%1;max-width:%1; min-height:%2;max-height:%2").arg(pixmap.width() / 4).arg(pixmap.height() / 4));
+			ui->labelAIBadge->setStyleSheet(
+				QString("background:transparent; min-width:%1px;max-width:%1px; min-height:%2px;max-height:%2px").arg(pixmap.width() / 4).arg(pixmap.height() / 4));
 		}
 		ui->labelAIBadge->show();
 	}

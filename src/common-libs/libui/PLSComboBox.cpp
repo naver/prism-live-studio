@@ -172,18 +172,6 @@ void PLSComboBoxListView::selectionChanged(const QItemSelection &selected, const
 	}
 }
 
-void PLSComboBoxListView::rowsInserted(const QModelIndex &parent, int start, int end)
-{
-	QListView::rowsInserted(parent, start, end);
-
-	for (int index = start; index <= end; ++index) {
-		QModelIndex child = model()->index(index, 0, rootIndex());
-		if (!indexWidget(child)) {
-			setIndexWidget(child, new PLSComboBoxListViewLabel(this, child.data().toString()));
-		}
-	}
-}
-
 void PLSComboBoxListView::dataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight, const QVector<int> &roles)
 {
 	QListView::dataChanged(topLeft, bottomRight, roles);
@@ -240,8 +228,17 @@ void PLSComboBox::showPopup()
 {
 	auto model = this->model();
 	for (int row = 0, rowCount = model->rowCount(); row < rowCount; ++row) {
-		QWidget *widget = view()->indexWidget(model->index(row, 0));
-		if (widget && widget->property("isHover").toBool()) {
+		auto index = model->index(row, 0);
+		QWidget *widget = view()->indexWidget(index);
+		if (nullptr == widget) {
+			widget = new PLSComboBoxListViewLabel(qobject_cast<PLSComboBoxListView *>(view()), index.data().toString());
+			view()->setIndexWidget(index, widget);
+
+			if (index == view()->currentIndex()) {
+				widget->setProperty("isCurrent", true);
+			}
+		}
+		if (widget->property("isHover").toBool()) {
 			widget->setProperty("isHover", false);
 			pls_flush_style(widget);
 		}

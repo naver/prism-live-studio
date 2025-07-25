@@ -137,7 +137,7 @@
         </layout>
        </item>
        <item>
-        <widget class="PLSPlainTextEdit" name="plainTextEdit">
+        <widget class="PLSTextEdit" name="plainTextEdit">
          <property name="placeholderText">
           <string>Live.info.Description</string>
          </property>
@@ -242,9 +242,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>PLSPlainTextEdit</class>
-   <extends>QPlainTextEdit</extends>
-   <header>PLSEdit.h</header>
+   <class>PLSTextEdit</class>
+   <extends>QTextEdit</extends>
+   <header location="global">PLSEdit.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

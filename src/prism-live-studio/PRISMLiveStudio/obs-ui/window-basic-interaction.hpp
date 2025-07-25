@@ -1,5 +1,5 @@
 /******************************************************************************
-    Copyright (C) 2014 by Hugh Bailey <obs.jim@gmail.com>
+    Copyright (C) 2023 by Lain Bailey <lain@obsproject.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,8 +22,7 @@
 #include <functional>
 
 #include <obs.hpp>
-
-#include "properties-view.hpp"
+#include <properties-view.hpp>
 
 class OBSBasic;
 
@@ -65,8 +64,7 @@ public:
 
 protected:
 	virtual void closeEvent(QCloseEvent *event) override;
-	virtual bool nativeEvent(const QByteArray &eventType, void *message,
-				 qintptr *result) override;
+	virtual bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
 };
 
 typedef std::function<bool(QObject *, QEvent *)> EventFilterFunc;
@@ -74,16 +72,10 @@ typedef std::function<bool(QObject *, QEvent *)> EventFilterFunc;
 class OBSEventFilter : public QObject {
 	Q_OBJECT
 public:
-	OBSEventFilter(QObject *parent, EventFilterFunc filter_)
-		: QObject(parent), filter(filter_)
-	{
-	}
+	OBSEventFilter(QObject *parent, EventFilterFunc filter_) : QObject(parent), filter(filter_) {}
 
 protected:
-	bool eventFilter(QObject *obj, QEvent *event)
-	{
-		return filter(obj, event);
-	}
+	bool eventFilter(QObject *obj, QEvent *event) { return filter(obj, event); }
 
 public:
 	EventFilterFunc filter;

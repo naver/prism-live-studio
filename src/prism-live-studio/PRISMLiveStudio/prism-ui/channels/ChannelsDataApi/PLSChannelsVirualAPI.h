@@ -89,7 +89,7 @@ QString findExistEnabledExclusiveChannel();
 
 void exclusiveChannelCheckAndVerify(const QVariantMap &Newinfo);
 
-void disableAll();
+void disableAll(bool bSync = false);
 
 /* API for create and  show Busy view */
 LoadingFrame *createBusyFrame(QWidget *parent = nullptr);

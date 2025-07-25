@@ -203,7 +203,7 @@ void bar_visualizer::draw_stereo_rectangle_bars()
 
 void bar_visualizer::draw_rounded_bars()
 {
-	size_t i = 0 ;
+	size_t i = 0;
 	size_t pos_x = 0;
 	uint32_t height;
 	visual_params params = m_cfg->vm_params[m_cfg->visual];

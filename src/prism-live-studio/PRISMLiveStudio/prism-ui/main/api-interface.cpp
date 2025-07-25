@@ -1,6 +1,6 @@
 #include <obs-frontend-internal.hpp>
+#include <qt-wrappers.hpp>
 #include "PLSApp.h"
-#include "qt-wrappers.hpp"
 #include "window-basic-main.hpp"
 #include "window-basic-main-outputs.hpp"
 #include "PLSSceneDataMgr.h"
@@ -34,6 +34,7 @@
 #include "PLSChannelDataAPI.h"
 #include "PLSPlatformApi.h"
 #include "PLSPlatformPrism.h"
+#include "PLSLoginDataHandler.h"
 #include "ChannelCommonFunctions.h"
 #include "ResolutionGuidePage.h"
 #include "PLSPropertyModel.hpp"
@@ -49,7 +50,6 @@
 #include "PLSSyncServerManager.hpp"
 #include "PLSLiveInfoChzzk.h"
 #include <pls/pls-dual-output.h>
-#include "PLSLoginDataHandler.h"
 
 using namespace std;
 using namespace common;
@@ -76,6 +76,7 @@ constexpr auto VERSION_COMPARE_COUNT = 3;
 
 extern PLSLaboratory *g_laboratoryDialog;
 extern PLSRemoteChatView *g_remoteChatDialog;
+
 extern QString getOsVersion();
 extern void httpRequestHead(QVariantMap &headMap, bool hasGacc);
 extern OBSOutputSet obsOutputSet;
@@ -92,6 +93,7 @@ void EnumSceneCollections(const std::function<bool(const char *, const char *)> 
 int getActivedChatChannelCount();
 
 extern volatile bool streaming_active;
+extern volatile bool streaming_active_v;
 extern volatile bool recording_active;
 extern volatile bool recording_paused;
 extern volatile bool replaybuf_active;
@@ -173,7 +175,11 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 	void *obs_frontend_get_main_window_handle(void) override { return (void *)main->winId(); }
 
-	void *obs_frontend_get_system_tray(void) override { return (void *)main->trayIcon.data(); }
+	void *obs_frontend_get_system_tray(void) override
+	{
+		PLS_INFO(MAINMENU_MODULE, "obs frontend get system tray method have been called");
+		return (void *)main->trayIcon.data();
+	}
 
 	void obs_frontend_get_scenes(struct obs_frontend_source_list *sources) override
 	{
@@ -210,7 +216,11 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 	void obs_frontend_get_transitions(struct obs_frontend_source_list *sources) override
 	{
+		pls_check_app_exiting();
 		const QComboBox *box = main->GetTransitionCombobox();
+		if (!box) {
+			return;
+		}
 		for (int i = 0; i < box->count(); i++) {
 			if (auto source = obs_source_get_ref(box->itemData(i).value<OBSSource>()); source) {
 				da_push_back(sources->sources, &source);
@@ -332,7 +342,11 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		pls_start_broadcast(false);
 	}
 
-	bool obs_frontend_streaming_active(void) override { return os_atomic_load_bool(&streaming_active); }
+	bool obs_frontend_streaming_active(void) override
+	{
+		bool ret = os_atomic_load_bool(&streaming_active) || os_atomic_load_bool(&streaming_active_v);
+		return ret;
+	}
 
 	void obs_frontend_recording_start(void) override { QMetaObject::invokeMethod(main, "StartRecording"); }
 
@@ -515,9 +529,13 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		return NULL;
 	}
 
-	config_t *obs_frontend_get_profile_config(void) override { return main->basicConfig; }
+	config_t *obs_frontend_get_profile_config(void) override { return main->activeConfiguration; }
 
 	config_t *obs_frontend_get_global_config(void) override { return App()->GlobalConfig(); }
+
+	config_t *obs_frontend_get_app_config(void) override { return App()->GetAppConfig(); }
+
+	config_t *obs_frontend_get_user_config(void) override { return App()->GetUserConfig(); }
 
 	void obs_frontend_open_projector(const char *type, int monitor, const char *geometry, const char *name) override
 	{
@@ -591,6 +609,8 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	bool obs_frontend_preview_program_mode_active(void) override { return main->IsPreviewProgramMode(); }
 
 	void obs_frontend_set_preview_program_mode(bool enable) override { main->SetPreviewProgramMode(enable); }
+
+	bool pls_frontend_set_preview_program_mode(bool enable) override { return main->SetPreviewProgramMode(enable); }
 
 	void obs_frontend_preview_program_trigger_transition(void) override { QMetaObject::invokeMethod(main, "TransitionClicked"); }
 
@@ -677,8 +697,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 
 	void obs_frontend_add_undo_redo_action(const char *name, const undo_redo_cb undo, const undo_redo_cb redo, const char *undo_data, const char *redo_data, bool repeatable) override
 	{
-		main->undo_s.add_action(
-			name, [undo](const std::string &data) { undo(data.c_str()); }, [redo](const std::string &data) { redo(data.c_str()); }, undo_data, redo_data, repeatable);
+		main->undo_s.add_action(name, [undo](const std::string &data) { undo(data.c_str()); }, [redo](const std::string &data) { redo(data.c_str()); }, undo_data, redo_data, repeatable);
 	}
 
 	void on_load(obs_data_t *settings) override
@@ -832,6 +851,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 			pls_prism_change_over_login_view();
 			return;
 		}
+
 		QEventLoop loop;
 		pls::http::request(pls::http::Request()
 					   .method(pls::http::Method::Post)           //
@@ -900,6 +920,13 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	}
 	void pls_toast_clear() override { QMetaObject::invokeMethod(main->mainView, "toastClear"); }
 
+	void pls_paid_toast_message(pls_toast_info_type type, const QString &title, const QString &message, const QString &bottomButton, const std::function<void()> &btnCallback, bool containCloseBtn,
+				    int auto_close) override
+	{
+		main->mainView->showPaidToast(type, title, message, bottomButton, btnCallback, containCloseBtn, auto_close);
+	}
+	void pls_paid_toast_clear() override { main->mainView->clearPaidToast(); }
+
 	void pls_set_main_view_side_bar_user_button_icon(const QIcon &icon) override { PLSBasic::instance()->getMainView()->setUserButtonIcon(icon); }
 
 	void pls_unload_chat_dock(const QString &objectName) override
@@ -929,8 +956,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	void checkUpdateAppHandle(const QByteArray &data, const QString &verstr, bool &isForceUpdate, QString &version, QString &fileUrl, QString &updateInfoUrl,
 				  pls_check_update_result_t &check_update_result)
 	{
-		return;
-	}
+			}
 
 	pls_check_update_result_t pls_check_app_update(bool &isForceUpdate, QString &version, QString &fileUrl, QString &updateInfoUrl, PLSErrorHandler::RetData &retData) override
 	{
@@ -938,6 +964,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		PLS_INFO(UPDATE_MODULE, "UPDATE STATUS: check update appversion api request start");
 
 		pls_check_update_result_t check_update_result = pls_check_update_result_t::Failed;
+		
 		return check_update_result;
 	}
 
@@ -965,6 +992,9 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 			break;
 		case PLS_CONTACTUS_QUESTION_TYPE::Consult:
 			request.form(PARAM_QUESTION_TYPE, "UI");
+			break;
+		case PLS_CONTACTUS_QUESTION_TYPE::Plus:
+			request.form(PARAM_QUESTION_TYPE, "SB");
 			break;
 		default:
 			request.form(PARAM_QUESTION_TYPE, "ET");
@@ -1059,6 +1089,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		return (state != ResolutionGuidePage::OutputState::OuputIsOff) && (state != ResolutionGuidePage::OutputState::NoState);
 	};
 
+	bool pls_is_without_third_output_actived() override { return (PLSCHANNELS_API->isLiving() || PLSCHANNELS_API->isRecording() || main->VirtualCamActive()); };
 	// add tools menu seperator
 	void pls_add_tools_menu_seperator() override
 	{
@@ -1124,13 +1155,15 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	bool pls_get_network_state() override { return pls::NetworkState::instance()->isAvailable(); }
 
 	void pls_show_virtual_background() override {}
-	QWidget *pls_create_virtual_background_resource_widget(QWidget *parent, const std::function<void(QWidget *)> &init, bool forProperty, const QString &itemId, bool checkBoxState, bool) override
+	QWidget *pls_create_virtual_background_resource_widget(QWidget *parent, const std::function<void(QWidget *)> &init, bool forProperty, const QString &itemId, bool checkBoxState,
+							       bool checkBoxEnable, bool) override
 	{
 		auto view = pls_new<PLSMotionImageListView>(parent, forProperty ? PLSMotionViewType::PLSMotionPropertyView : PLSMotionViewType::PLSMotionDetailView, init);
 		if (!itemId.isEmpty()) {
 			view->switchToSelectItem(itemId);
 		}
 		view->setCheckState(checkBoxState);
+		view->setCheckBoxEnabled(checkBoxEnable);
 		view->setFilterButtonVisible(forProperty);
 		return view;
 	}
@@ -1165,8 +1198,6 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 	{
 		PLSNaverShoppingLIVEAPI::getErrorCodeOrErrorMessage(data, errorCode, errorMessage);
 	}
-
-	void pls_send_analog(AnalogType logType, const QVariantMap &info) override { PLS_PLATFORM_API->sendAnalog(logType, info); }
 
 	void pls_get_scene_source_count(int &sceneCount, int &sourceCount) override
 	{
@@ -1420,7 +1451,7 @@ struct OBSStudioAPI : pls_frontend_callbacks {
 		if (!main) {
 			return false;
 		}
-		return main->importSceneTemplate(make_tuple(item.itemId(), item.title(), item.resourcePath(), item.versionLimit(), item.width(), item.height()));
+		return main->importSceneTemplate(make_tuple(item.itemId(), item.title(), item.resourcePath(), item.versionLimit(), item.width(), item.height(), item.isPaid()));
 	}
 
 	bool pls_get_output_stream_dealy_active() override
@@ -1479,4 +1510,16 @@ pls_frontend_callbacks *InitializeAPIInterface(OBSBasic *main)
 	pls_frontend_callbacks *api = new OBSStudioAPI(main);
 	pls_frontend_set_callbacks_internal(api);
 	return api;
+}
+
+struct PLSGeneralFrontendAPI : pls_frontend_general_callbacks {
+	~PLSGeneralFrontendAPI() = default;
+
+	void pls_send_analog(AnalogType logType, const QVariantMap &info) override { PLS_PLATFORM_API->sendAnalog(logType, info); }
+};
+
+void InitializeGeneralAPIInterface()
+{
+	pls_frontend_general_callbacks *api = new PLSGeneralFrontendAPI();
+	pls_frontend_set_general_callbacks_internal(api);
 }

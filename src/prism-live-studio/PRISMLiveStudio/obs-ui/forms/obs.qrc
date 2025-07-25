@@ -70,6 +70,8 @@
     <file>images/network-bad.svg</file>
     <file>images/network-disconnected.svg</file>
     <file>images/network-inactive.svg</file>
+    <file>images/trash.svg</file>
+    <file>images/unassigned.svg</file>
   </qresource>
   <qresource prefix="/settings">
     <file>images/settings/output.svg</file>
@@ -81,6 +83,7 @@
     <file>images/settings/hotkeys.svg</file>
     <file>images/settings/accessibility.svg</file>
     <file>images/settings/appearance.svg</file>
+    <file>images/settings/general.svg</file>
   </qresource>
   <qresource prefix="">
     <file>fonts/OpenSans-Regular.ttf</file>

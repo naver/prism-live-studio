@@ -34,6 +34,7 @@ PLSContactView #identificationLabel {
 
 PLSContactView #emailLineEdit{
     background-color: #1E1E1E;
+	placeholder-text-color: #686868;
     color: white;
 	font-size:/*hdpi*/ 12px;
 	min-height: 40px;
@@ -130,6 +131,7 @@ PLSContactView #textBackWidget {
 
 PLSContactView #textEdit {
     background-color:#1e1e1e;
+	placeholder-text-color: #686868;
     color:white;
 	font-size:/*hdpi*/12px;
 	border:/*hdpi*/none;
@@ -266,5 +268,3 @@ PLSContactView #loadingBG{
 PLSContactView #loadingBtn{
     background-color: transparent;
 }
-
-

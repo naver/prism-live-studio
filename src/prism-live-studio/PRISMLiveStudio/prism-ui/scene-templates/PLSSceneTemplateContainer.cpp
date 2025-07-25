@@ -11,12 +11,12 @@ PLSSceneTemplateContainer::PLSSceneTemplateContainer(DialogInfo info, QWidget *p
 
 #ifdef _WIN32
 	setMinimumSize(902, 602);
-	setMaximumSize(1147, 764);
+	setMaximumSize(1145, 762);
 	initSize(1145, 762);
 #else
 	setMinimumSize(902, 574);
-	setMaximumSize(1147, 736);
-	initSize(1145, 734);
+	setMaximumSize(1145, 728);
+	initSize(1145, 728);
 #endif
 
 	PLS_SCENE_TEMPLATE_MEDIA_MANAGE->setSceneTemplateContainer(this);
@@ -85,4 +85,22 @@ QPixmap &PLSSceneTemplateContainer::getAILongBadge()
 	}
 
 	return m_pixmapAILongBadge;
+}
+
+QPixmap &PLSSceneTemplateContainer::getPlusBadge()
+{
+	if (m_pixmapPlusBadge.isNull()) {
+		m_pixmapPlusBadge = pls_load_pixmap("://resource/images/scene-template/plus.svg", QSize(50 * 4, 27 * 4));
+	}
+
+	return m_pixmapPlusBadge;
+}
+
+QPixmap &PLSSceneTemplateContainer::getPlusDetailBadge()
+{
+	if (m_pixmapPlusDetailBadge.isNull()) {
+		m_pixmapPlusDetailBadge = pls_load_pixmap("://resource/images/scene-template/plus_detail.svg", QSize(60 * 4, 32 * 4));
+	}
+
+	return m_pixmapPlusDetailBadge;
 }

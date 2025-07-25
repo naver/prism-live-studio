@@ -18,7 +18,7 @@ struct FinishTaskReleaser {
 private:
 	Q_DISABLE_COPY(FinishTaskReleaser)
 public:
-	explicit FinishTaskReleaser(const QString &srcUUID) : mSrcUUID(srcUUID){};
+	explicit FinishTaskReleaser(const QString &srcUUID) : mSrcUUID(srcUUID) {};
 	~FinishTaskReleaser();
 
 private:
@@ -50,7 +50,7 @@ public:
 	//login
 	virtual void loginWithWebPage(const QString &cmdStr);
 
-	virtual void showLiveInfo(const QString & /*uuid*/){};
+	virtual void showLiveInfo(const QString & /*uuid*/) {};
 
 	virtual bool hasCountsForLiveEnd() { return false; };
 

@@ -124,7 +124,7 @@ private:
 	void ClickTrendingTab();
 
 	bool GetOtherNetworkErrorString(QNetworkReply::NetworkError networkError, QString &errorString);
-    bool SearchResultListShowing() const;
+	bool SearchResultListShowing() const;
 
 private slots:
 	void OnTabClicked(int index);
@@ -184,7 +184,7 @@ private:
 	int pageLimit{0};
 	int lastSearchResponOffset{-1};
 	bool stopProcess{false};
-    bool showDefaultKeyWord = true;
+	bool showDefaultKeyWord = true;
 
 	QJsonObject jsonObjSticker;
 	QString searchKeyword;

@@ -2,7 +2,7 @@
 #include <QObject.h>
 #include <libresource.h>
 
-class CategoryPrismSticker: public QObject, public pls::rsm::ICategory {
+class CategoryPrismSticker : public QObject, public pls::rsm::ICategory {
 	Q_OBJECT
 public:
 	PLS_RSM_CATEGORY(CategoryPrismSticker)

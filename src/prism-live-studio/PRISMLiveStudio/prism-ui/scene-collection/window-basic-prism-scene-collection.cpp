@@ -27,7 +27,7 @@ static constexpr const char *SCENE_COLLECTION_COMBOBOX_MANAGEMENT = "Scene Colle
 void EnumSceneCollections(const std::function<bool(const char *, const char *)> &cb)
 {
 	pls::chars<512> path;
-	if (int ret = GetConfigPath(path, sizeof(path), "PRISMLiveStudio/basic/scenes/"); ret <= 0) {
+	if (int ret = GetAppConfigPath(path, sizeof(path), "PRISMLiveStudio/basic/scenes/"); ret <= 0) {
 		PLS_WARN(MAINMENU_MODULE, "Failed to get config path for scene "
 					  "collections");
 		return;
@@ -97,12 +97,12 @@ void OBSBasic::on_actionRenameSceneCollection_triggered(const QString &name, con
 	if (bool success = GetSceneCollectionName(sceneCollectionView, newName, file, SceneSetOperatorType::RenameSceneSet, oldName.toStdString().c_str()); !success)
 		return;
 
-	const char *curName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
-	const char *curFile = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
+	const char *curName = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
+	const char *curFile = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile");
 	pls_used(curFile);
 	if (0 == fileName.compare(curFile) && 0 == oldName.compare(curName)) {
-		config_set_string(App()->GlobalConfig(), "Basic", "SceneCollection", newName.c_str());
-		config_set_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile", file.c_str());
+		config_set_string(App()->GetUserConfig(), "Basic", "SceneCollection", newName.c_str());
+		config_set_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile", file.c_str());
 	}
 	PLSSceneDataMgr::Instance()->MoveSrcToDest(QString::fromStdString(fileName.toStdString().c_str()), QString::fromStdString(file));
 
@@ -123,7 +123,7 @@ void OBSBasic::on_actionRenameSceneCollection_triggered(const QString &name, con
 
 	sceneCollectionManageView->RenameSceneCollection(name, path, newName.c_str(), newPath);
 	sceneCollectionView->RenameCollectionItem(name, path, newName.c_str(), newPath);
-	sceneCollectionManageTitle->SetText(config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection"));
+	sceneCollectionManageTitle->SetText(config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection"));
 
 	PLS_INFO(MAINMENU_MODULE, "------------------------------------------------");
 	PLS_INFO(MAINMENU_MODULE, "Renamed scene collection to '%s' (%s.json)", newName.c_str(), pls_get_path_file_name(file.c_str()));
@@ -131,10 +131,11 @@ void OBSBasic::on_actionRenameSceneCollection_triggered(const QString &name, con
 
 	UpdateTitleBar();
 
-	if (api) {
-		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);
-		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
-	}
+	ui->actionPasteFilters->setEnabled(false);
+	ui->actionPasteRef->setEnabled(false);
+	ui->actionPasteDup->setEnabled(false);
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
 }
 
 void OBSBasic::on_actionRemoveSceneCollection_triggered(const QString &name, const QString &path)
@@ -160,17 +161,16 @@ void OBSBasic::on_actionRemoveSceneCollection_triggered(const QString &name, con
 	if (PLSAlertView::Button::Ok != button) {
 		return;
 	}
-	if (api)
-		api->on_event(obs_frontend_event::OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING);
 
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING);
 	sceneCollectionView->RemoveCollectionItem(name, path);
 	sceneCollectionManageView->RemoveSceneCollection(name, path);
 
 	os_unlink(oldFile.toStdString().c_str());
 	os_unlink((oldFile + ".bak").toStdString().c_str());
 
-	const char *curName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
-	const char *curFile = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
+	const char *curName = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
+	const char *curFile = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile");
 	std::string newName;
 	std::string newPath;
 	if (0 == fileName.compare(curFile) || 0 == oldName.compare(curName)) {
@@ -194,8 +194,8 @@ void OBSBasic::on_actionRemoveSceneCollection_triggered(const QString &name, con
 		obs_display_add_draw_callback(ui->preview->GetDisplay(), PLSBasic::RenderMain, this);
 	}
 
-	const char *newFile = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
-	newName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
+	const char *newFile = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile");
+	newName = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
 
 	sceneCollectionManageTitle->SetText(newName.c_str());
 	sceneCollectionManageView->SetCurrentText(newName.c_str(), pls_get_user_path("PRISMLiveStudio/basic/scenes/").append(newFile).append(".json"));
@@ -209,10 +209,11 @@ void OBSBasic::on_actionRemoveSceneCollection_triggered(const QString &name, con
 
 	UpdateTitleBar();
 
-	if (api) {
-		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);
-		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
-	}
+	ui->actionPasteFilters->setEnabled(false);
+	ui->actionPasteRef->setEnabled(false);
+	ui->actionPasteDup->setEnabled(false);
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
 }
 
 void OBSBasic::ReorderSceneCollectionManageView() const
@@ -255,8 +256,8 @@ void OBSBasic::on_actionChangeSceneCollection_triggered(const QString &name, con
 		sceneCollectionManageTitle->GetPopupMenu()->setVisible(false);
 	}
 
-	config_set_string(App()->GlobalConfig(), "Basic", "SceneCollection", name.toUtf8().constData());
-	config_set_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile", ExtractFileName(path.toStdString()).c_str());
+	config_set_string(App()->GetUserConfig(), "Basic", "SceneCollection", name.toUtf8().constData());
+	config_set_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile", ExtractFileName(path.toStdString()).c_str());
 
 	if (ui && ui->scenesFrame) {
 		EnableTransitionWidgets(true);
@@ -279,8 +280,8 @@ QVector<QString> OBSBasic::GetSceneCollections() const
 
 void OBSBasic::InitSceneCollections()
 {
-	const char *cur_name = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
-	const char *cur_file = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
+	const char *cur_name = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
+	const char *cur_file = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile");
 
 	QDir sourceDir(pls_get_user_path("PRISMLiveStudio/basic/scenes/"));
 	QStringList supportList;
@@ -429,40 +430,43 @@ bool OBSBasic::CheckPscFileInPrismUserPath(QString &pscPath)
 	return false;
 }
 
-void OBSBasic::LoadSceneCollection(QString name, QString filePath)
+void OBSBasic::LoadSceneCollection(QString name, QString filePath, bool loadWithoutDualOutput)
 {
 	if (filePath.isEmpty() || name.isEmpty())
 		return;
-
 	if (api) {
 		api->on_event(pls_frontend_event::PLS_FRONTEND_EVENT_SCENE_COLLECTION_ABOUT_TO_CHANGED);
-		api->on_event(obs_frontend_event::OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING);
 	}
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING);
 
-	const char *oldName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
-	const char *oldFile = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
+	const char *oldName = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
+	const char *oldFile = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile");
 
-	if (QString file = ExtractFileName(filePath.toStdString()).c_str(); name.compare(QT_UTF8(oldName)) == 0 && file.compare(QT_UTF8(oldFile)) == 0 && GetCurrentScene()) {
-		PLS_INFO(MAIN_SCENE_COLLECTION, "The scene set to be switched is the same and does not need to be switched.");
-		return;
+	if (!loadWithoutDualOutput) {
+		if (QString file = ExtractFileName(filePath.toStdString()).c_str(); name.compare(QT_UTF8(oldName)) == 0 && file.compare(QT_UTF8(oldFile)) == 0 && GetCurrentScene()) {
+			PLS_INFO(MAIN_SCENE_COLLECTION, "The scene set to be switched is the same and does not need to be switched.");
+			return;
+		}
 	}
 
 	SaveProjectNow();
-	Load(filePath.toUtf8().constData());
+	Load(filePath.toUtf8().constData(), loadWithoutDualOutput);
 
 	ui->scenesFrame->StartRefreshThumbnailTimer();
 	obs_display_add_draw_callback(ui->preview->GetDisplay(), PLSBasic::RenderMain, this);
 
-	const char *newName = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
-	const char *newFile = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
+	const char *newName = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
+	const char *newFile = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile");
 
 	PLS_INFO(MAINMENU_MODULE, "Switched to scene collection '%s' (%s.json)", newName, newFile);
 	PLS_INFO(MAINMENU_MODULE, "------------------------------------------------");
 
 	UpdateTitleBar();
 
-	if (api)
-		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
+	ui->actionPasteFilters->setEnabled(false);
+	ui->actionPasteRef->setEnabled(false);
+	ui->actionPasteDup->setEnabled(false);
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED);
 }
 
 bool OBSBasic::CheckSceneCollectionNameAndPath(QString path, std::string &destName, std::string &destPath) const
@@ -664,7 +668,7 @@ void OBSBasic::on_actionImportSceneCollection_triggered_with_parent(QWidget *par
 QString OBSBasic::ImportSceneCollection(QWidget *parent, const QString &importFile, LoadSceneCollectionWay way, bool fromExport)
 {
 	pls::chars<512> path;
-	if (int ret = GetConfigPath(path, 512, "PRISMLiveStudio/basic/scenes/"); ret <= 0) {
+	if (int ret = GetAppConfigPath(path, 512, "PRISMLiveStudio/basic/scenes/"); ret <= 0) {
 		PLS_WARN(MAINFRAME_MODULE, "Failed to get scene collection config path");
 		return QString();
 	}
@@ -738,10 +742,7 @@ QString OBSBasic::ImportSceneCollection(QWidget *parent, const QString &importFi
 		on_actionChangeSceneCollection_triggered(importedName.c_str(), destPath.c_str(), false);
 
 	// add scene collection list changed event
-	if (api) {
-		api->on_event(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);
-	}
-
+	OnEvent(OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED);
 	return destPath.c_str();
 }
 
@@ -765,10 +766,10 @@ bool OBSBasic::importLocalSceneTemplate(const QString &overlayFile)
 		configPath = path.value();
 	}
 
-	return importSceneTemplate(std::make_tuple(QString(), templateName, configPath, QString(), 0, 0), false);
+	return importSceneTemplate(std::make_tuple(QString(), templateName, configPath, QString(), 0, 0, false), false);
 }
 
-bool OBSBasic::importSceneTemplate(const std::tuple<QString, QString, QString, QString, int, int> &model, bool checkResolution)
+bool OBSBasic::importSceneTemplate(const std::tuple<QString, QString, QString, QString, int, int, bool> &model, bool checkResolution)
 {
 	if (get<1>(model).isEmpty() || get<2>(model).isEmpty()) {
 		PLSAlertView::information(this, QTStr("Alert.Title"), QTStr("SceneTemplate.Install.Common.Error"));
@@ -803,7 +804,7 @@ bool OBSBasic::importSceneTemplate(const std::tuple<QString, QString, QString, Q
 	}
 
 	QString collectionPath;
-	auto res = PLSNodeManagerPtr->loadConfig(get<1>(model), get<2>(model), collectionPath);
+	auto res = PLSNodeManagerPtr->loadConfig(get<1>(model), get<2>(model), get<6>(model), collectionPath);
 	if (res == NodeErrorType::Ok) {
 		collectionPath = ImportSceneCollection(this, collectionPath, LoadSceneCollectionWay::ImportSceneTemplates);
 		if (collectionPath.isEmpty()) {
@@ -830,7 +831,7 @@ bool OBSBasic::importSceneTemplate(const std::tuple<QString, QString, QString, Q
 	return false;
 }
 
-bool OBSBasic::checkSceneTemplateResolution(const std::tuple<QString, QString, QString, QString, int, int> &model)
+bool OBSBasic::checkSceneTemplateResolution(const std::tuple<QString, QString, QString, QString, int, int, bool> &model)
 {
 	uint64_t cx = config_get_uint(Config(), "Video", "BaseCX");
 	uint64_t cy = config_get_uint(Config(), "Video", "BaseCY");
@@ -894,7 +895,8 @@ void OBSBasic::showSceneTemplateVersionLowerAlert(QString versionLimit)
 							     PLSAlertView::Button::Cancel);
 	if (PLSAlertView::Button::Ok == button) {
 		// app need update
-		PLSBasic::instance()->startDownloading();
+		PLSBasic::instance()->CheckAppUpdate();
+		PLSBasic::instance()->startDownloading(PLSBasic::instance()->isForceUpdateApp());
 	}
 }
 
@@ -1020,7 +1022,7 @@ void OBSBasic::ExportSceneCollection(const QString &name, const QString &fileNam
 	SaveProjectNow();
 
 	pls::chars<512> scenePath;
-	if (int ret = GetConfigPath(scenePath.data(), scenePath.size(), "PRISMLiveStudio/basic/scenes/"); ret <= 0) {
+	if (int ret = GetAppConfigPath(scenePath.data(), scenePath.size(), "PRISMLiveStudio/basic/scenes/"); ret <= 0) {
 		PLS_WARN(MAINMENU_MODULE, "Failed to get scene collection config path");
 		return;
 	}
@@ -1116,8 +1118,10 @@ void OBSBasic::RunPrismByPscPath()
 
 	pscStr.replace("\\", "/");
 	App()->setAppRunningPath(pscStr);
-	const char *cur_name = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollection");
-	const char *cur_file = config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile");
+	PLSPrismShareMemory::sendFilePathToSharedMemeory("");
+
+	const char *cur_name = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollection");
+	const char *cur_file = config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile");
 	loadProfile(pls_get_user_path("PRISMLiveStudio/basic/scenes/").append(cur_file).toUtf8().constData(), cur_file, LoadSceneCollectionWay::RunPscWhenPrismExisted);
 
 	if (bool fromUserPath = CheckPscFileInPrismUserPath(pscStr); fromUserPath) {

@@ -154,6 +154,7 @@ public:
 		PRISM_API_NO_LONGER_VALID,
 		PRISM_API_INVALID_PLATFORM,
 		PRISM_API_TERM_OF_AGREE,
+		PRISM_API_NO_APP_UPDATE,
 
 		//RTMP
 		CHANNEL_CUSTOM_RTMP_TOKEN_EXPIRED = PRISM_API_TOKEN_EXPIRED,
@@ -271,7 +272,7 @@ public:
 		QString prismCodePrefix{};             //prism code value name prefix
 
 		QJsonObject matchedObj{};  //json obj found
-		QString failedLogString{}; //extra->logAppend formated
+		QString failedLogString{}; //extra->logAppend formatted
 		bool isNotError{false};
 		ExtraData extraData{};   //extra data, with temp data
 		bool isExactMatch{true}; //Find the exact error instead of default or unknown.
@@ -279,7 +280,7 @@ public:
 	struct NetworkData {
 		int statusCode{0};
 		QNetworkReply::NetworkError netError{QNetworkReply::NetworkError::NoError};
-		QByteArray erorData{};
+		QByteArray errData{};
 	};
 
 	static PLSErrorHandler *instance();
@@ -354,7 +355,7 @@ private:
 	static bool dealAlertAction(const QString &str, const QMap<QString, QString> &pathMap);
 	static void showAlertInMain(RetData &data, QWidget *showParent);
 
-	static RetData fillRetDataWithMactchObj(const QJsonObject &matchedObj, const QString &platformName, ExtraData &extraData, SearchType searchType);
+	static RetData fillRetDataWithMatchObj(const QJsonObject &matchedObj, const QString &platformName, ExtraData &extraData, SearchType searchType);
 	static QStringList getInheritList(const QJsonObject &obj, const QString &platformName);
 	static bool isValidErrPhase(const QString &jsonPhase, const QString &userPhase);
 	static ExtraData generateNewOtherData(const ExtraData &extraData, const QString &platformName);

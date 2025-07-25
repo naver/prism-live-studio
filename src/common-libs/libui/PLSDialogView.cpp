@@ -476,6 +476,7 @@ void PLSDialogView::closeEvent(QCloseEvent *event)
 void PLSDialogView::showEvent(QShowEvent *event)
 {
 	PLSToplevelView<QDialog>::showEvent(event);
+	disableWinSystemBorder();
 	emit shown();
 }
 

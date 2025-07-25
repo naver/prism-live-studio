@@ -9,4 +9,3 @@ if(POLICY CMP0011)
 endif()
 
 message(STATUS "bundleutils: PRISM: copy obs app bundle to prism app bundle")
-

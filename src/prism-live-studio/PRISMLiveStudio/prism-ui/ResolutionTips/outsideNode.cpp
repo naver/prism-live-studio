@@ -34,7 +34,7 @@ public:
 		return ins;
 	}
 
-	~OutsideNode(){};
+	~OutsideNode() {};
 
 private:
 	void initialize()
@@ -182,7 +182,9 @@ void OBSBasicSettings::alignLabels(QWidget *rootWidget)
 	}
 
 	for (const auto lb : labels) {
-		lb->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+		if (lb != ui->advStreamTrackWidgetLabel) {
+			lb->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+		}
 		lb->setWordWrap(true);
 		lb->setStyleSheet(QString("min-width:%1px;").arg(maxLenth));
 	}
@@ -245,7 +247,7 @@ void OBSBasicSettings::LoadSceneDisplayMethodSettings()
 		ui->sceneDisplayComboBox->setItemData(static_cast<int>(DisplayMethod::DynamicRealtimeView), QVariant::fromValue(false), Qt::UserRole - 1);
 	}
 
-	auto currentIndex = (int)config_get_int(GetGlobalConfig(), "BasicWindow", "SceneDisplayMethod");
+	auto currentIndex = (int)config_get_int(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod");
 	if (currentIndex >= list.size() || currentIndex < 0) {
 		if (PLSSceneDataMgr::Instance()->GetSceneSize() > common::SCENE_RENDER_NUMBER) {
 			ui->sceneDisplayComboBox->setCurrentIndex(1);
@@ -266,7 +268,7 @@ void OBSBasicSettings::LoadSceneDisplayMethodSettings()
 void OBSBasicSettings::ResetSceneDisplayMethodSettings()
 {
 	ui->sceneDisplayComboBox->clear();
-	config_remove_value(GetGlobalConfig(), "BasicWindow", "SceneDisplayMethod");
+	config_remove_value(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod");
 
 	if (PLSSceneDataMgr::Instance()->GetSceneSize() > common::SCENE_RENDER_NUMBER) {
 		PLSBasic::instance()->SetSceneDisplayMethod(1); // 5s
@@ -277,7 +279,7 @@ void OBSBasicSettings::ResetSceneDisplayMethodSettings()
 
 void OBSBasicSettings::SaveSceneDisplayMethodSettings() const
 {
-	config_set_int(GetGlobalConfig(), "BasicWindow", "SceneDisplayMethod", ui->sceneDisplayComboBox->currentIndex());
+	config_set_int(App()->GetUserConfig(), "BasicWindow", "SceneDisplayMethod", ui->sceneDisplayComboBox->currentIndex());
 	PLSBasic::instance()->SetSceneDisplayMethod(ui->sceneDisplayComboBox->currentIndex());
 }
 
@@ -344,18 +346,19 @@ void OBSBasicSettings::updateButtonsState()
 {
 	bool isOutputActived = pls_is_output_actived();
 	ui->resetButton->setEnabled(!isOutputActived);
-	EnableApplyButton(Changed());
+	if (isOutputActived) {
+		EnableApplyButton(false);
+	}
 }
 
 void OBSBasicSettings::checkOutputTipsVisible()
 {
 	switch (ui->listWidget->currentRow()) {
-		//only general virtual  output page
-	case GeneralPage:
-	case OutputPage:
-	case AudioPage:
-	case VideoPage:
-	case AdvancedPage:
+	case Pages::GENERAL:
+	case Pages::OUTPUT:
+	case Pages::AUDIO:
+	case Pages::VIDEO:
+	case Pages::ADVANCED:
 		updateOutputTipsUI();
 		break;
 	default:

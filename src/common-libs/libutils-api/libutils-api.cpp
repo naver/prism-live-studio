@@ -39,7 +39,7 @@
 #include <qhostinfo.h>
 #include <qhostaddress.h>
 #include <regex>
-#include <QSharedMemory>
+#include <qcryptographichash.h>
 #include <QBuffer>
 #include <QStack>
 
@@ -722,6 +722,83 @@ LIBUTILSAPI_API bool pls_parse_json(QVariantHash &hash, const QByteArray &json, 
 	}
 }
 
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QJsonDocument &decrypt_doc, QString *error)
+{
+	return pls_write_json(encrypt_file_path, decrypt_doc, error);
+}
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QJsonArray &array, QString *error)
+{
+	return pls_encrypt_json(encrypt_file_path, QJsonDocument(array), error);
+}
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QVariantList &list, QString *error)
+{
+	return pls_encrypt_json(encrypt_file_path, QJsonArray::fromVariantList(list), error);
+}
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QJsonObject &object, QString *error)
+{
+	return pls_encrypt_json(encrypt_file_path, QJsonDocument(object), error);
+}
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QVariantMap &map, QString *error)
+{
+	return pls_encrypt_json(encrypt_file_path, QJsonObject::fromVariantMap(map), error);
+}
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QVariantHash &hash, QString *error)
+{
+	return pls_encrypt_json(encrypt_file_path, QJsonObject::fromVariantHash(hash), error);
+}
+LIBUTILSAPI_API bool pls_decrypt_json(QJsonDocument &doc, const QString &encrypt_file_path, QString *error)
+{
+	return pls_read_json(doc, encrypt_file_path, error);
+}
+LIBUTILSAPI_API bool pls_decrypt_json(QJsonArray &array, const QString &encrypt_file_path, QString *error)
+{
+	if (QJsonDocument doc; !pls_decrypt_json(doc, encrypt_file_path, error)) {
+		return false;
+	} else if (doc.isArray()) {
+		array = doc.array();
+		return true;
+	} else {
+		pls_set_value(error, QStringLiteral("error format"));
+		return false;
+	}
+}
+LIBUTILSAPI_API bool pls_decrypt_json(QVariantList &list, const QString &encrypt_file_path, QString *error)
+{
+	if (QJsonArray array; pls_decrypt_json(array, encrypt_file_path, error)) {
+		list = array.toVariantList();
+		return true;
+	}
+	return false;
+}
+LIBUTILSAPI_API bool pls_decrypt_json(QJsonObject &object, const QString &encrypt_file_path, QString *error)
+{
+	if (QJsonDocument doc; !pls_decrypt_json(doc, encrypt_file_path, error)) {
+		return false;
+	} else if (doc.isObject()) {
+		object = doc.object();
+		return true;
+	} else {
+		pls_set_value(error, QStringLiteral("error format"));
+		return false;
+	}
+}
+LIBUTILSAPI_API bool pls_decrypt_json(QVariantMap &map, const QString &encrypt_file_path, QString *error)
+{
+	if (QJsonObject object; pls_decrypt_json(object, encrypt_file_path, error)) {
+		map = object.toVariantMap();
+		return true;
+	}
+	return false;
+}
+LIBUTILSAPI_API bool pls_decrypt_json(QVariantHash &hash, const QString &encrypt_file_path, QString *error)
+{
+	if (QJsonObject object; pls_decrypt_json(object, encrypt_file_path, error)) {
+		hash = object.toVariantHash();
+		return true;
+	}
+	return false;
+}
+
 LIBUTILSAPI_API QStringList pls_to_string_list(const QJsonArray &array)
 {
 	QStringList string_list;
@@ -893,8 +970,8 @@ LIBUTILSAPI_API QList<QJsonValue> pls_get_attrs(const QJsonValue &json, const QL
 }
 
 template<typename Container>
-static auto get_attr(const Container &attrs, const QStringList &names, qsizetype from, qsizetype to)
-	-> std::enable_if_t<std::is_same_v<Container, QVariantMap> || std::is_same_v<Container, QVariantHash>, std::optional<QVariant>>
+static auto get_attr(const Container &attrs, const QStringList &names, qsizetype from,
+		     qsizetype to) -> std::enable_if_t<std::is_same_v<Container, QVariantMap> || std::is_same_v<Container, QVariantHash>, std::optional<QVariant>>
 {
 	if (auto next = from + 1; next == to)
 		return pls_get_attr(attrs, names[from]);
@@ -1894,6 +1971,19 @@ LIBUTILSAPI_API QString pls_datetime_to_string(const pls_datetime_t &datetime) /
 	return QString::fromUtf8(buf.data());
 }
 
+LIBUTILSAPI_API time_t pls_datetime_to_time_t(const pls_datetime_t &datetime)
+{
+	struct tm tm = {0};
+	tm.tm_year = datetime.year - 1900;
+	tm.tm_mon = datetime.month - 1;
+	tm.tm_mday = datetime.day;
+	tm.tm_hour = datetime.hour;
+	tm.tm_min = datetime.minute;
+	tm.tm_sec = datetime.second;
+	tm.tm_isdst = -1;
+	return mktime(&tm);
+}
+
 LIBUTILSAPI_API QMap<QString, QString> pls_parse(const QString &str, const QRegularExpression &delimiter)
 {
 	QMap<QString, QString> map;
@@ -1946,9 +2036,10 @@ LIBUTILSAPI_API QString pls_gen_uuid()
 #if defined(Q_OS_MACOS)
 static bool projectIsDebugged(int pid)
 {
-	static QMap<int, bool> isGotMap;
-	if (isGotMap.contains(pid)) {
-		return isGotMap[pid];
+	static std::unordered_map<int, bool> isGotMap;
+	auto it = isGotMap.find(pid);
+	if (it != isGotMap.end()) {
+		return it->second;
 	}
 
 	int junk;
@@ -2096,6 +2187,16 @@ LIBUTILSAPI_API QVariant pls_prism_get_qsetting_value(QString key, QVariant defa
 	QSettings setting = QSettings("prismlive", "prismlivestudio");
 #endif
 	return setting.value(key, defaultVal);
+}
+
+LIBUTILSAPI_API void pls_prism_set_qsetting_value(QString key, QVariant val)
+{
+#if defined(Q_OS_WIN)
+	QSettings setting = QSettings("NAVER Corporation", "Prism Live Studio");
+#elif defined(Q_OS_MACOS)
+	QSettings setting = QSettings("prismlive", "prismlivestudio");
+#endif
+	setting.setValue(key, val);
 }
 
 static QMap<int, QPair<QString, QString>> getLocaleName()
@@ -3046,10 +3147,27 @@ LIBUTILSAPI_API bool pls_lens_needs_reboot()
 #endif
 }
 
+QString pls_get_local_hostname()
+{
+	try {
+		return QHostInfo::localHostName();
+	} catch (const std::exception &e) {
+		PLS_WARN(UTILS_API_MODULE, "Failed to get local hostname: %s", e.what());
+		return QString();
+	} catch (...) {
+		PLS_WARN(UTILS_API_MODULE, "Unknown error when getting local hostname %s", "");
+		return QString();
+	}
+}
+
 LIBUTILSAPI_API bool pls_check_local_host()
 {
+	QString hostname = pls_get_local_hostname();
+	if (hostname.isEmpty()) {
+		return false;
+	}
 	std::string ipAddress;
-	QHostInfo info = QHostInfo::fromName(QHostInfo::localHostName());
+	QHostInfo info = QHostInfo::fromName(hostname);
 	foreach(QHostAddress address, info.addresses())
 	{
 		if (address.protocol() == QAbstractSocket::IPv4Protocol) {

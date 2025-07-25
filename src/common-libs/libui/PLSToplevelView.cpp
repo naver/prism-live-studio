@@ -521,8 +521,18 @@ void PLSToplevelWidget::nativeResizeEvent(const QSize &size, const QSize &native
 QSize PLSToplevelWidget::calcSize(const QSize &size) const
 {
 #ifdef Q_OS_WIN
+	auto newSize = size;
 	if (pls_is_after_win10())
-		return QSize(size.width() - 2, size.height() - 2);
-#endif
+		newSize = QSize(size.width() - 2, size.height() - 2);
+	auto dpi = self()->devicePixelRatioF();
+	auto width = pls::ui::getDpiScaleOriginal(newSize.width(), dpi);
+	auto height = pls::ui::getDpiScaleOriginal(newSize.height(), dpi);
+	if ((width % 2) != 0)
+		newSize.setWidth(newSize.width() + 1);
+	if ((height % 2) != 0)
+		newSize.setHeight(newSize.height() + 1);
+	return newSize;
+#else
 	return size;
+#endif
 }

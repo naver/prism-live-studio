@@ -7,7 +7,6 @@
 
 #import <Foundation/Foundation.h>
 
-
 NS_ASSUME_NONNULL_BEGIN
 
 @interface PLSMacProcessHandle : NSObject
@@ -18,24 +17,21 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface PLSMacFunction : NSObject
 
-+(NSString *)get_app_executable_dir;
++ (NSString *)get_app_executable_dir;
 
-+(NSString *)get_app_process_name;
++ (NSString *)get_app_process_name;
 
-+(NSTask *)create_process:(NSString *)app
-                arguments:(NSArray *)arugments
-                  workDir:(NSString *)workDir
-                    error:(NSError **)error;
++ (NSTask *)create_process:(NSString *)app arguments:(NSArray *)arugments workDir:(NSString *)workDir error:(NSError **)error;
 
-+(void)destroy_process:(PLSMacProcessHandle *)handle;
++ (void)destroy_process:(PLSMacProcessHandle *)handle;
 
-+(void)wait_process:(PLSMacProcessHandle *)handle;
++ (void)wait_process:(PLSMacProcessHandle *)handle;
 
-+(uint32_t)get_process_id:(PLSMacProcessHandle *)handle;
++ (uint32_t)get_process_id:(PLSMacProcessHandle *)handle;
 
-+(bool)process_is_running:(PLSMacProcessHandle *)handle;
++ (bool)process_is_running:(PLSMacProcessHandle *)handle;
 
-+(NSTaskTerminationReason)process_terminite_status:(PLSMacProcessHandle *)handle;
++ (NSTaskTerminationReason)process_terminite_status:(PLSMacProcessHandle *)handle;
 
 @end
 

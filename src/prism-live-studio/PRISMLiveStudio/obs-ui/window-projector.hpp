@@ -62,8 +62,7 @@ private slots:
 	void RenameProjector(QString oldName, QString newName);
 
 public:
-	OBSProjector(QWidget *widget, obs_source_t *source_, int monitor,
-		     ProjectorType type_);
+	OBSProjector(QWidget *widget, obs_source_t *source_, int monitor, ProjectorType type_);
 	~OBSProjector();
 
 	OBSSource GetSource();
@@ -76,7 +75,6 @@ public:
 	bool IsAlwaysOnTopOverridden() const;
 	void SetIsAlwaysOnTop(bool isAlwaysOnTop, bool isOverridden);
 
-	static void setParentDialogTitleBarButtons(PLSDialogView *parentDialg,
-						   bool isFullScreen);
+	static void setParentDialogTitleBarButtons(PLSDialogView *parentDialg, bool isFullScreen);
 	bool isVerticalPreview = false;
 };

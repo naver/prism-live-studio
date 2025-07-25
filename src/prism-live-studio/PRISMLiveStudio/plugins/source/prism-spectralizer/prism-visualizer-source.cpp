@@ -351,7 +351,7 @@ void visualizer_source::render(gs_effect_t *effect_)
 		gs_blend_state_push();
 		gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
 
-		gs_eparam_t* const param = gs_effect_get_param_by_name(effect_, "image");
+		gs_eparam_t *const param = gs_effect_get_param_by_name(effect_, "image");
 		if (srgb)
 			gs_effect_set_texture(param, config.render_texture);
 		else

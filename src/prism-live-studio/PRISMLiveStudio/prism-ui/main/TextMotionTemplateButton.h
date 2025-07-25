@@ -17,8 +17,12 @@ public:
 
 	void setTemplateData(const TextMotionTemplateData &data);
 
+protected:
+	void showEvent(QShowEvent *event) override;
+
 private:
 	TextMotionTemplateData m_templateData;
+	QPointer<QLabel> m_paidIcon;
 };
 
 #endif // TEXTMOTIONTEMPLATEBUTTON_H

@@ -11,7 +11,6 @@
 #include "win-spout.h"
 #include "pls/pls-source.h"
 
-
 #include "SpoutLibrary.h"
 #pragma comment(lib, "SpoutLibrary.lib")
 //PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
@@ -20,15 +19,9 @@
 #define warnex(kr, fields, fields_count, message, ...) blogex(kr, LOG_WARNING, fields, fields_count, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
 //PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
 
-#define debug(message, ...)                                                    \
-	blog(LOG_DEBUG, "[%s] " message, obs_source_get_name(context->source), \
-	     ##__VA_ARGS__)
-#define info(message, ...)                                                    \
-	blog(LOG_INFO, "[%s] " message, obs_source_get_name(context->source), \
-	     ##__VA_ARGS__)
-#define warn(message, ...)                 \
-	blog(LOG_WARNING, "[%s] " message, \
-	     obs_source_get_name(context->source), ##__VA_ARGS__)
+#define debug(message, ...) blog(LOG_DEBUG, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
+#define info(message, ...) blog(LOG_INFO, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
+#define warn(message, ...) blog(LOG_WARNING, "[%s] " message, obs_source_get_name(context->source), ##__VA_ARGS__)
 
 #define SPOUT_SENDER_LIST "spoutsenders"
 #define USE_FIRST_AVAILABLE_SENDER "usefirstavailablesender"
@@ -67,9 +60,7 @@ static bool win_spout_source_store_sender_info(spout_source *context)
 {
 	unsigned int width, height;
 	// get info about this active sender:
-	if (!context->spout_receiver_ptr->GetSenderInfo(context->senderName, width,
-					height, context->dxHandle,
-					context->dxFormat)) {
+	if (!context->spout_receiver_ptr->GetSenderInfo(context->senderName, width, height, context->dxHandle, context->dxFormat)) {
 		return false;
 	}
 
@@ -97,7 +88,7 @@ static void win_spout_source_init(void *data, bool forced = false)
 		if (context->spout_status != -1) {
 			//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
 			const char *fields[][2] = {{PTS_LOG_TYPE, PTS_TYPE_EVENT}};
-			warnex(false, fields , 1, "Spout pointer didn't exist");
+			warnex(false, fields, 1, "Spout pointer didn't exist");
 			context->spout_status = -1;
 		}
 		return;
@@ -117,8 +108,7 @@ static void win_spout_source_init(void *data, bool forced = false)
 
 	if (context->useFirstSender) {
 		if (context->spout_receiver_ptr->GetSender(0, context->senderName)) {
-			if (!context->spout_receiver_ptr->SetActiveSender(
-				    context->senderName)) {
+			if (!context->spout_receiver_ptr->SetActiveSender(context->senderName)) {
 				if (context->spout_status != -4) {
 					//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
 					const char *fields[][2] = {{PTS_LOG_TYPE, PTS_TYPE_EVENT}};
@@ -165,11 +155,9 @@ static void win_spout_source_init(void *data, bool forced = false)
 	if (!win_spout_source_store_sender_info(context)) {
 		//PRISM/FanZirong/20241203/PRISM_PC-1675/add log fields
 		const char *fields[][2] = {{PTS_LOG_TYPE, PTS_TYPE_EVENT}};
-		warnex(false, fields, 1,"Named %s sender not found", context->senderName);
+		warnex(false, fields, 1, "Named %s sender not found", context->senderName);
 	} else {
-		info("Sender %s is of dimensions %d x %d",
-		     context->senderName,
-		     context->width, context->height);
+		info("Sender %s is of dimensions %d x %d", context->senderName, context->width, context->height);
 	};
 
 	obs_enter_graphics();
@@ -263,8 +251,7 @@ static void win_spout_source_destroy(void *data)
 
 static void win_spout_source_defaults(obs_data_t *settings)
 {
-	obs_data_set_default_string(settings, SPOUT_SENDER_LIST,
-				    USE_FIRST_AVAILABLE_SENDER);
+	obs_data_set_default_string(settings, SPOUT_SENDER_LIST, USE_FIRST_AVAILABLE_SENDER);
 	obs_data_set_default_int(settings, "tickspeedlimit", 100);
 }
 
@@ -364,8 +351,7 @@ static bool win_spout_sender_has_changed(spout_source *context)
 		// ie sender no longer exists
 		return true;
 	}
-	if (context->width != oldWidth || context->height != oldHeight ||
-	    oldFormat != context->dxFormat) {
+	if (context->width != oldWidth || context->height != oldHeight || oldFormat != context->dxFormat) {
 		return true;
 	}
 	return false;
@@ -379,8 +365,7 @@ static void win_spout_source_tick(void *data, float seconds)
 
 	if (win_spout_sender_has_changed(context)) {
 		if (context->tick_status != -1) {
-			info("Sender %s has changed / gone away. Resetting ",
-			     context->senderName);
+			info("Sender %s has changed / gone away. Resetting ", context->senderName);
 			context->tick_status = -1;
 		}
 		context->initialized = false;
@@ -405,9 +390,7 @@ static void fill_senders(SPOUTHANDLE spoutptr, obs_property_t *list)
 	obs_property_list_clear(list);
 
 	// first option in the list should be "Take whatever is available"
-	obs_property_list_add_string(list,
-				     obs_module_text("usefirstavailablesender"),
-				     USE_FIRST_AVAILABLE_SENDER);
+	obs_property_list_add_string(list, obs_module_text("usefirstavailablesender"), USE_FIRST_AVAILABLE_SENDER);
 	int totalSenders = spoutptr->GetSenderCount();
 	if (totalSenders == 0) {
 		return;
@@ -428,43 +411,24 @@ static obs_properties_t *win_spout_properties(void *data)
 
 	obs_properties_t *props = obs_properties_create();
 
-	obs_property_t *sender_list = obs_properties_add_list(
-		props, SPOUT_SENDER_LIST, obs_module_text("SpoutSenders"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	obs_property_t *sender_list = obs_properties_add_list(props, SPOUT_SENDER_LIST, obs_module_text("SpoutSenders"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 
 	fill_senders(context->spout_receiver_ptr, sender_list);
 
-	obs_property_t *composite_mode_list = obs_properties_add_list(
-		props, SPOUT_COMPOSITE_MODE, obs_module_text("compositemode"),
-		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_t *composite_mode_list = obs_properties_add_list(props, SPOUT_COMPOSITE_MODE, obs_module_text("compositemode"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 
 	//PRISM/fanzirong/20240326/composite mode default selection is COMPOSITE_MODE_DEFAULT
-	obs_property_list_add_int(composite_mode_list,
-				  obs_module_text("compositemodedefault"),
-				  COMPOSITE_MODE_DEFAULT);
-	obs_property_list_add_int(composite_mode_list,
-				  obs_module_text("compositemodeopaque"),
-				  COMPOSITE_MODE_OPAQUE);
-	obs_property_list_add_int(composite_mode_list,
-				  obs_module_text("compositemodealpha"),
-				  COMPOSITE_MODE_ALPHA);
-	
-	obs_property_list_add_int(composite_mode_list,
-				  obs_module_text("compositemodepremultiplied"),
-				  COMPOSITE_MODE_PREMULTIPLIED);
+	obs_property_list_add_int(composite_mode_list, obs_module_text("compositemodedefault"), COMPOSITE_MODE_DEFAULT);
+	obs_property_list_add_int(composite_mode_list, obs_module_text("compositemodeopaque"), COMPOSITE_MODE_OPAQUE);
+	obs_property_list_add_int(composite_mode_list, obs_module_text("compositemodealpha"), COMPOSITE_MODE_ALPHA);
 
-	obs_property_t *tick_speed_limit_list = obs_properties_add_list(
-		props, SPOUT_TICK_SPEED_LIMIT,
-		obs_module_text("tickspeedlimit"), OBS_COMBO_TYPE_LIST,
-		OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(tick_speed_limit_list,
-				  obs_module_text("tickspeedcrazy"), 1);
-	obs_property_list_add_int(tick_speed_limit_list,
-				  obs_module_text("tickspeedfast"), 100);
-	obs_property_list_add_int(tick_speed_limit_list,
-				  obs_module_text("tickspeednormal"), 500);
-	obs_property_list_add_int(tick_speed_limit_list,
-				  obs_module_text("tickspeedslow"), 1000);
+	obs_property_list_add_int(composite_mode_list, obs_module_text("compositemodepremultiplied"), COMPOSITE_MODE_PREMULTIPLIED);
+
+	obs_property_t *tick_speed_limit_list = obs_properties_add_list(props, SPOUT_TICK_SPEED_LIMIT, obs_module_text("tickspeedlimit"), OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(tick_speed_limit_list, obs_module_text("tickspeedcrazy"), 1);
+	obs_property_list_add_int(tick_speed_limit_list, obs_module_text("tickspeedfast"), 100);
+	obs_property_list_add_int(tick_speed_limit_list, obs_module_text("tickspeednormal"), 500);
+	obs_property_list_add_int(tick_speed_limit_list, obs_module_text("tickspeedslow"), 1000);
 
 	return props;
 }
@@ -474,8 +438,7 @@ struct obs_source_info create_spout_source_info()
 	struct obs_source_info spout_source_info = {};
 	spout_source_info.id = "spout_capture";
 	spout_source_info.type = OBS_SOURCE_TYPE_INPUT;
-	spout_source_info.output_flags = OBS_SOURCE_VIDEO |
-					 OBS_SOURCE_CUSTOM_DRAW;
+	spout_source_info.output_flags = OBS_SOURCE_VIDEO | OBS_SOURCE_CUSTOM_DRAW;
 	spout_source_info.get_name = win_spout_source_get_name;
 	spout_source_info.create = win_spout_source_create;
 	spout_source_info.destroy = win_spout_source_destroy;

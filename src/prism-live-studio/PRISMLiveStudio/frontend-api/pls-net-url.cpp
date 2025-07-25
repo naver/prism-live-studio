@@ -1,11 +1,5 @@
 #include "pls-net-url.hpp"
 #define PRISM_PC "prism_pc"
-// Dev
-// API host please refer :https://oss.navercorp.com/cd-live-platform/PRISMLiveStudio/issues/1372#issuecomment-4180007
-// check all host Window V4.1.6 2024-04-29
-// check all host MAC V1.1.1 2024-04-29
-// check all host Window V4.1.8 2024-06-18
-// check all host MAC V1.1.3 2024-06-18
 
 const QString PLS_TERM_OF_USE_URL_DEV = "";
 const QString PLS_PRIVACY_URL_DEV = "";
@@ -25,7 +19,6 @@ const QString MQTT_SERVER_PW_DEV = "";
 const QString MQTT_SERVER_WEB_DEV = "";
 
 // Prism auth api
-// http://dev-auth.prism.navercorp.com/
 const QString PRISM_AUTH_API_BASE_DEV = "";
 
 const QString PLS_FACEBOOK_LOGIN_URL_DEV = PRISM_AUTH_API_BASE_DEV;

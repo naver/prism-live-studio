@@ -174,9 +174,9 @@ QString PLSAPICommon::getPairedString(const PLSAPICommon::privacyVec &pairs, con
 	return QString();
 }
 
-void PLSAPICommon::downloadChannelImageAsync(const QString &platormName)
+void PLSAPICommon::downloadChannelImageAsync(const QString &platformName)
 {
-	auto infos = PLSCHANNELS_API->getChanelInfosByPlatformName(platormName, ChannelData::ChannelType);
+	auto infos = PLSCHANNELS_API->getChanelInfosByPlatformName(platformName, ChannelData::ChannelType);
 	for (const auto &item : infos) {
 		auto url = item.value(ChannelData::g_userProfileImg).toString();
 		if (url.isEmpty())

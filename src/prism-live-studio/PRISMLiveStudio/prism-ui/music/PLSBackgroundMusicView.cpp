@@ -651,11 +651,11 @@ void PLSBackgroundMusicView::UpdateStatuPlayling(const QString &name)
 int PLSBackgroundMusicView::GetDelayResponseIntervalMs()
 {
 	// for test
-	if (!config_has_user_value(App()->GlobalConfig(), "General", "DelayIntervalMs")) {
+	if (!config_has_user_value(App()->GetUserConfig(), "General", "DelayIntervalMs")) {
 		return PUSHBUTTON_DELAY_RESPONSE_MS;
 	}
 
-	return config_get_int(App()->GlobalConfig(), "General", "DelayIntervalMs");
+	return config_get_int(App()->GetUserConfig(), "General", "DelayIntervalMs");
 }
 
 void PLSBackgroundMusicView::UpdateLoadUIState(const QString &name, bool load, bool)

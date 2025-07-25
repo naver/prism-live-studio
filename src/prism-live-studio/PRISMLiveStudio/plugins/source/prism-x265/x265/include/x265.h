@@ -474,15 +474,15 @@ typedef enum { X265_DIA_SEARCH, X265_HEX_SEARCH, X265_UMH_SEARCH, X265_STAR_SEAR
 #define X265_CPU_LZCNT (1 << 4)
 #define X265_CPU_SSE3 (1 << 5)
 #define X265_CPU_SSSE3 (1 << 6)
-#define X265_CPU_SSE4 (1 << 7) /* SSE4.1 */
-#define X265_CPU_SSE42 (1 << 8) /* SSE4.2 */
-#define X265_CPU_AVX (1 << 9) /* Requires OS support even if YMM registers aren't used. */
-#define X265_CPU_XOP (1 << 10) /* AMD XOP */
-#define X265_CPU_FMA4 (1 << 11) /* AMD FMA4 */
-#define X265_CPU_FMA3 (1 << 12) /* Intel FMA3 */
-#define X265_CPU_BMI1 (1 << 13) /* BMI1 */
-#define X265_CPU_BMI2 (1 << 14) /* BMI2 */
-#define X265_CPU_AVX2 (1 << 15) /* AVX2 */
+#define X265_CPU_SSE4 (1 << 7)    /* SSE4.1 */
+#define X265_CPU_SSE42 (1 << 8)   /* SSE4.2 */
+#define X265_CPU_AVX (1 << 9)     /* Requires OS support even if YMM registers aren't used. */
+#define X265_CPU_XOP (1 << 10)    /* AMD XOP */
+#define X265_CPU_FMA4 (1 << 11)   /* AMD FMA4 */
+#define X265_CPU_FMA3 (1 << 12)   /* Intel FMA3 */
+#define X265_CPU_BMI1 (1 << 13)   /* BMI1 */
+#define X265_CPU_BMI2 (1 << 14)   /* BMI2 */
+#define X265_CPU_AVX2 (1 << 15)   /* AVX2 */
 #define X265_CPU_AVX512 (1 << 16) /* AVX-512 {F, CD, BW, DQ, VL}, requires OS support */
 /* x86 modifiers */
 #define X265_CPU_CACHELINE_32 (1 << 17) /* avoid memory loads that span the border between two cachelines */
@@ -490,19 +490,19 @@ typedef enum { X265_DIA_SEARCH, X265_HEX_SEARCH, X265_UMH_SEARCH, X265_STAR_SEAR
 #define X265_CPU_SSE2_IS_SLOW (1 << 19) /* avoid most SSE2 functions on Athlon64 */
 #define X265_CPU_SSE2_IS_FAST (1 << 20) /* a few functions are only faster on Core2 and Phenom */
 #define X265_CPU_SLOW_SHUFFLE (1 << 21) /* The Conroe has a slow shuffle unit (relative to overall SSE performance) */
-#define X265_CPU_STACK_MOD4 (1 << 22) /* if stack is only mod4 and not mod16 */
+#define X265_CPU_STACK_MOD4 (1 << 22)   /* if stack is only mod4 and not mod16 */
 #define X265_CPU_SLOW_ATOM \
-	(1 << 23) /* The Atom is terrible: slow SSE unaligned loads, slow
+	(1 << 23)                       /* The Atom is terrible: slow SSE unaligned loads, slow
                                              * SIMD multiplies, slow SIMD variable shifts, slow pshufb,
                                              * cacheline split penalties -- gather everything here that
                                              * isn't shared by other CPUs to avoid making half a dozen
                                              * new SLOW flags. */
-#define X265_CPU_SLOW_PSHUFB (1 << 24) /* such as on the Intel Atom */
+#define X265_CPU_SLOW_PSHUFB (1 << 24)  /* such as on the Intel Atom */
 #define X265_CPU_SLOW_PALIGNR (1 << 25) /* such as on the AMD Bobcat */
 
 /* ARM */
 #define X265_CPU_ARMV6 0x0000001
-#define X265_CPU_NEON 0x0000002 /* ARM NEON */
+#define X265_CPU_NEON 0x0000002          /* ARM NEON */
 #define X265_CPU_FAST_NEON_MRC 0x0000004 /* Transfer from NEON to ARM register is fast (Cortex-A9) */
 
 /* IBM Power8 */
@@ -552,10 +552,10 @@ typedef enum { X265_DIA_SEARCH, X265_HEX_SEARCH, X265_UMH_SEARCH, X265_STAR_SEAR
 #define X265_REFINE_INTER_LEVELS 3
 /* NOTE! For this release only X265_CSP_I420 and X265_CSP_I444 are supported */
 /* Supported internal color space types (according to semantics of chroma_format_idc) */
-#define X265_CSP_I400 0 /* yuv 4:0:0 planar */
-#define X265_CSP_I420 1 /* yuv 4:2:0 planar */
-#define X265_CSP_I422 2 /* yuv 4:2:2 planar */
-#define X265_CSP_I444 3 /* yuv 4:4:4 planar */
+#define X265_CSP_I400 0  /* yuv 4:0:0 planar */
+#define X265_CSP_I420 1  /* yuv 4:2:0 planar */
+#define X265_CSP_I422 2  /* yuv 4:2:2 planar */
+#define X265_CSP_I444 3  /* yuv 4:4:4 planar */
 #define X265_CSP_COUNT 4 /* Number of supported internal color spaces */
 
 /* These color spaces will eventually be supported as input pictures. The pictures will
@@ -564,10 +564,10 @@ typedef enum { X265_DIA_SEARCH, X265_HEX_SEARCH, X265_UMH_SEARCH, X265_STAR_SEAR
 #define X265_CSP_NV16 5 /* yuv 4:2:2, with one y plane and one packed u+v */
 
 /* Interleaved color-spaces may eventually be supported as input pictures */
-#define X265_CSP_BGR 6 /* packed bgr 24bits   */
-#define X265_CSP_BGRA 7 /* packed bgr 32bits   */
-#define X265_CSP_RGB 8 /* packed rgb 24bits   */
-#define X265_CSP_MAX 9 /* end of list */
+#define X265_CSP_BGR 6        /* packed bgr 24bits   */
+#define X265_CSP_BGRA 7       /* packed bgr 32bits   */
+#define X265_CSP_RGB 8        /* packed rgb 24bits   */
+#define X265_CSP_MAX 9        /* end of list */
 #define X265_EXTENDED_SAR 255 /* aspect ratio explicitly specified as width:height */
 /* Analysis options */
 #define X265_ANALYSIS_OFF 0
@@ -2237,9 +2237,9 @@ const x265_api *x265_api_get(int bitDepth);
  *   compiled with. */
 const x265_api *x265_api_query(int bitDepth, int apiVersion, int *err);
 
-#define X265_API_QUERY_ERR_NONE 0 /* returned API pointer is non-NULL */
-#define X265_API_QUERY_ERR_VER_REFUSED 1 /* incompatible version skew        */
-#define X265_API_QUERY_ERR_LIB_NOT_FOUND 2 /* libx265_main10 not found, for ex */
+#define X265_API_QUERY_ERR_NONE 0           /* returned API pointer is non-NULL */
+#define X265_API_QUERY_ERR_VER_REFUSED 1    /* incompatible version skew        */
+#define X265_API_QUERY_ERR_LIB_NOT_FOUND 2  /* libx265_main10 not found, for ex */
 #define X265_API_QUERY_ERR_FUNC_NOT_FOUND 3 /* unable to bind x265_api_query    */
 #define X265_API_QUERY_ERR_WRONG_BITDEPTH 4 /* libx265_main10 not 10bit, for ex */
 

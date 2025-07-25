@@ -270,8 +270,7 @@ void GoLivePannel::toggleBroadcast(bool toStart)
 
 		ui->GoLiveShift->setDisabled(false);
 		QSignalBlocker blocker(ui->GoLiveShift);
-		auto bCheck = ui->GoLiveShift->isChecked();
-		ui->GoLiveShift->setChecked(!bCheck);
+		ui->GoLiveShift->setChecked(!toStart);
 		holdOnAll(false);
 		return;
 	}
@@ -346,7 +345,7 @@ void GoLivePannel::updateGoliveButton(int state)
 		}
 		ui->GoLiveShift->setText(PLSCHANNELS_API->isRehearsaling() ? finisheRehearsalText : finishLiveText);
 		ui->GoLiveShift->setDisabled(false);
-		emit PLSMainView::instance()->onGolivePending(false);
+		emit PLSMainView::instance() -> onGolivePending(false);
 		break;
 	case ReadyState:
 		if (ui->GoLiveShift->isChecked()) {
@@ -355,7 +354,7 @@ void GoLivePannel::updateGoliveButton(int state)
 		}
 		ui->GoLiveShift->setText(goliveText);
 		ui->GoLiveShift->setDisabled(false);
-		emit PLSMainView::instance()->onGolivePending(false);
+		emit PLSMainView::instance() -> onGolivePending(false);
 		break;
 	case BroadcastGo:
 	case CanBroadcastState:
@@ -363,11 +362,11 @@ void GoLivePannel::updateGoliveButton(int state)
 	case StopBroadcastGo:
 	case CanBroadcastStop:
 		ui->GoLiveShift->setDisabled(true);
-		emit PLSMainView::instance()->onGolivePending(true);
+		emit PLSMainView::instance() -> onGolivePending(true);
 		break;
 	case StreamStopping:
 		ui->GoLiveShift->setDisabled(false);
-		emit PLSMainView::instance()->onGolivePending(true);
+		emit PLSMainView::instance() -> onGolivePending(true);
 		break;
 	default:
 		break;

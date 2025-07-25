@@ -57,7 +57,10 @@ void PLSAPIFacebook::getLongLiveUserAccessToken(const GetLongAccessTokenCallback
 			onFinished(makeRetData(PLSErrorHandler::SUCCESS), accessToken);
 			return;
 		}
-		onFinished(PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE, FACEBOOK, QString()), QString());
+
+		PLSErrorHandler::ExtraData extraData = {};
+		extraData.urlEn = "access_token";
+		onFinished(PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE, FACEBOOK, QString(), extraData), QString());
 	};
 	auto failCallBack = [onFinished](const PLSErrorHandler::RetData &retData) { onFinished(retData, QString()); };
 	printRequestStartLog(requestType, url);
@@ -141,7 +144,10 @@ PLSErrorHandler::RetData PLSAPIFacebook::checkPermissionSuccess(const QJsonObjec
 		return makeRetData(PLSErrorHandler::SUCCESS);
 	}
 	PLS_INFO(facebookMoudule, "PLSAPIFacebook %s Go to Facebook window to re-authorize failed", getApiName(requestType));
-	return PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::CHANNEL_FACEBOOK_DECLINED, FACEBOOK, QString());
+
+	PLSErrorHandler::ExtraData extraData = {};
+	extraData.urlEn = "checkPermission";
+	return PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::CHANNEL_FACEBOOK_DECLINED, FACEBOOK, QString(), extraData);
 }
 
 void PLSAPIFacebook::getMyGroupListRequestAndCheckPermission(const GetMyGroupListCallback &onFinished, QWidget *parent)
@@ -514,19 +520,21 @@ void PLSAPIFacebook::startRequestApi(PLSAPI requestType, const pls::http::Reques
 	}
 	request.id(QStringLiteral("Facebook"))
 		.okResult([requestType, successFunction, failedFunction, this](const pls::http::Reply &reply) {
-		       if (pls_get_app_exiting()) {
-			       return;
-		       }
-		       auto doc = QJsonDocument::fromJson(reply.data());
-		       if (!doc.isObject()) {
-			       PLS_ERROR(facebookMoudule, "PLSAPIFacebook %s is not object", getApiName(requestType));
-			       failedFunction(PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE, FACEBOOK, QString()));
-			       return;
-		       }
-		       m_reply.take(requestType);
-		       auto root = doc.object();
-		       successFunction(root);
-	       })
+			if (pls_get_app_exiting()) {
+				return;
+			}
+			auto doc = QJsonDocument::fromJson(reply.data());
+			if (!doc.isObject()) {
+				PLS_ERROR(facebookMoudule, "PLSAPIFacebook %s is not object", getApiName(requestType));
+				PLSErrorHandler::ExtraData extraData = {};
+				extraData.urlEn = reply.request().originalUrl().path();
+				failedFunction(PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE, FACEBOOK, QString(), extraData));
+				return;
+			}
+			m_reply.take(requestType);
+			auto root = doc.object();
+			successFunction(root);
+		})
 		.failResult([failedFunction, this, requestType](const pls::http::Reply &reply) {
 			if (pls_get_app_exiting()) {
 				return;
@@ -572,8 +580,7 @@ PLSErrorHandler::RetData PLSAPIFacebook::handleApiErrorCode(PLSAPI requestType, 
 	PLSErrorHandler::ExtraData extraData;
 
 	QString strRequestType;
-	switch (requestType)
-	{
+	switch (requestType) {
 	case PLSAPIStartTimelineLiving:
 	case PLSAPIStartGroupLiving:
 	case PLSAPIStartPageLiving:
@@ -585,6 +592,7 @@ PLSErrorHandler::RetData PLSAPIFacebook::handleApiErrorCode(PLSAPI requestType, 
 	default:
 		break;
 	}
+	extraData.urlEn = QMetaEnum::fromType<PLSAPI>().valueToKey(requestType);
 	extraData.pathValueMap = {{"requestType", strRequestType}};
 
 	return PLSErrorHandler::getAlertString({statusCode, error, data}, FACEBOOK, customErrorUpdateLiveinfoFailed(), extraData);

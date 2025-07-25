@@ -93,6 +93,24 @@ bool PLSOutputHandler::StartStreaming(obs_service_t *service, obs_service_t *vse
 	} else {
 		startStreaming[Vertical] = voutput->StartStreaming(vservice);
 		startStreaming[Horizontal] = houtput->StartStreaming(service);
+
+		if (startStreaming[Horizontal] != startStreaming[Vertical]) {
+			auto getMessage = [](BasicOutputHandler *outputHandler) {
+				return !outputHandler->lastError.empty() ? QTStr(outputHandler->lastError.c_str())
+#ifdef _WIN32
+									 : QTStr("Output.StartFailedGeneric");
+#else
+									 : QTStr("Output.StartFailedGeneric.Mac");
+#endif
+			};
+			if (!startStreaming[Horizontal]) {
+				PLS_PLATFORM_API->addFailedPlatform(PLS_PLATFORM_HORIZONTAL);
+				pls_toast_message(pls_toast_info_type::PLS_TOAST_ERROR, QString("%1: %2").arg(PLSPlatformApi::joinPlatformNames(PLS_PLATFORM_HORIZONTAL), getMessage(houtput.get())));
+			} else if (!startStreaming[Vertical]) {
+				PLS_PLATFORM_API->addFailedPlatform(PLS_PLATFORM_VERTICAL);
+				pls_toast_message(pls_toast_info_type::PLS_TOAST_ERROR, QString("%1: %2").arg(PLSPlatformApi::joinPlatformNames(PLS_PLATFORM_VERTICAL), getMessage(voutput.get())));
+			}
+		}
 	}
 
 	return startStreaming[Horizontal] || startStreaming[Vertical];
@@ -188,7 +206,7 @@ bool PLSOutputHandler::streamingActive(StreamingType streamType) const
 	case StreamingType::Vertical:
 		return voutput && voutput->streamingActive;
 	default:
-		assert(false || "It's unexpected");
+		assert(false && "It's unexpected");
 		return false;
 	}
 }

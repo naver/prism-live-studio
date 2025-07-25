@@ -118,6 +118,7 @@ prism-build-main() {
             --test ) export ENABLE_TEST=ON; shift ;;
              -v | --version ) export VERSION="${2}"; shift 2 ;;
             --qt-dir ) export QTDIR="${2}"; shift 2 ;;
+            --ads_san ) export PRISM_ADDRESS_SANITIZER=ON; shift ;; #enable address sanitizer
             -- ) shift; break ;;
             * ) break ;;
         esac

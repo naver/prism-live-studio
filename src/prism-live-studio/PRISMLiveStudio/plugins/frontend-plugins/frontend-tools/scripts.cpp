@@ -1,8 +1,5 @@
 #include "obs-module.h"
 #include "scripts.hpp"
-#include "properties-view.hpp"
-#include "qt-wrappers.hpp"
-#include "plain-text-edit.hpp"
 
 #include <QFileDialog>
 #include <QHBoxLayout>
@@ -18,6 +15,9 @@
 #include <QMenu>
 #include <QUrl>
 #include <QDesktopServices>
+#include <qt-wrappers.hpp>
+#include <plain-text-edit.hpp>
+#include <properties-view.hpp>
 
 #include <obs.hpp>
 #include <obs-module.h>
@@ -113,7 +113,7 @@ ScriptLogWindow::ScriptLogWindow() : PLSDialogView(nullptr)
 
 	resize(600, 400);
 
-	config_t *global_config = obs_frontend_get_global_config();
+	config_t *global_config = obs_frontend_get_user_config();
 	const char *geom = config_get_string(global_config, "ScriptLogWindow", "geometry");
 	if (geom != nullptr) {
 		QByteArray ba = QByteArray::fromBase64(QByteArray(geom));
@@ -127,7 +127,7 @@ ScriptLogWindow::ScriptLogWindow() : PLSDialogView(nullptr)
 
 ScriptLogWindow::~ScriptLogWindow()
 {
-	config_t *global_config = obs_frontend_get_global_config();
+	config_t *global_config = obs_frontend_get_user_config();
 	config_set_string(global_config, "ScriptLogWindow", "geometry", saveGeometry().toBase64().constData());
 }
 
@@ -188,7 +188,7 @@ ScriptsTool::ScriptsTool(QWidget *parent) : PLSDialogView(parent), ui(new Ui_Scr
 	RefreshLists();
 
 #if PYTHON_UI
-	config_t *config = obs_frontend_get_global_config();
+	config_t *config = obs_frontend_get_user_config();
 	const char *path = config_get_string(config, "Python", "Path" ARCH_NAME);
 	ui->pythonPath->setText(path);
 	ui->pythonPathLabel->setText(obs_module_text(PYTHONPATH_LABEL_TEXT));
@@ -204,8 +204,8 @@ ScriptsTool::ScriptsTool(QWidget *parent) : PLSDialogView(parent), ui(new Ui_Scr
 	propertiesView->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 	ui->propertiesLayout->addWidget(propertiesView);
 
-	config_t *global_config = obs_frontend_get_global_config();
-	int row = config_get_int(global_config, "scripts-tool", "prevScriptRow");
+	config_t *user_config = obs_frontend_get_user_config();
+	int row = config_get_int(user_config, "scripts-tool", "prevScriptRow");
 	ui->scripts->setCurrentRow(row);
 
 	connect(ui->closebtn, &QPushButton::clicked, this, &ScriptsTool::close);
@@ -219,8 +219,8 @@ void ScriptsTool::showEvent(QShowEvent *event)
 
 ScriptsTool::~ScriptsTool()
 {
-	config_t *global_config = obs_frontend_get_global_config();
-	config_set_int(global_config, "scripts-tool", "prevScriptRow", ui->scripts->currentRow());
+	config_t *user_config = obs_frontend_get_user_config();
+	config_set_int(user_config, "scripts-tool", "prevScriptRow", ui->scripts->currentRow());
 }
 
 void ScriptsTool::updatePythonVersionLabel()
@@ -256,7 +256,7 @@ void ScriptsTool::ReloadScript(const char *path)
 		if (strcmp(script_path, path) == 0) {
 			obs_script_reload(script);
 
-			OBSDataAutoRelease settings = obs_data_create();
+			OBSDataAutoRelease settings = obs_script_get_settings(script);
 
 			obs_properties_t *prop = obs_script_get_properties(script);
 			obs_properties_apply_settings(prop, settings);
@@ -362,7 +362,7 @@ void ScriptsTool::on_addScripts_clicked()
 			item->setData(Qt::UserRole, QString(file));
 			ui->scripts->addItem(item);
 
-			OBSDataAutoRelease settings = obs_data_create();
+			OBSDataAutoRelease settings = obs_script_get_settings(script);
 
 			obs_properties_t *prop = obs_script_get_properties(script);
 			obs_properties_apply_settings(prop, settings);
@@ -450,7 +450,7 @@ void ScriptsTool::on_pythonPathBrowse_clicked()
 	QByteArray array = newPath.toUtf8();
 	const char *path = array.constData();
 
-	config_t *config = obs_frontend_get_global_config();
+	config_t *config = obs_frontend_get_user_config();
 	config_set_string(config, "Python", "Path" ARCH_NAME, path);
 
 	ui->pythonPath->setText(newPath);
@@ -633,7 +633,7 @@ extern "C" void InitScripts()
 	QAction *action = (QAction *)obs_frontend_add_tools_menu_qaction(obs_module_text("Scripts"));
 
 #if PYTHON_UI
-	config_t *config = obs_frontend_get_global_config();
+	config_t *config = obs_frontend_get_user_config();
 	const char *python_path = config_get_string(config, "Python", "Path" ARCH_NAME);
 
 #ifdef __APPLE__

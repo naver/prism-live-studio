@@ -11,10 +11,8 @@ PLSSearchLineEdit::PLSSearchLineEdit(QWidget *parent) : QLineEdit(parent)
 {
 	pls_add_css(this, {"PLSSearchLineEdit"});
 
-    connect(this, &QLineEdit::textChanged, this, [this]() {
-        updatePlaceHolderColor();
-    });
-    
+	connect(this, &QLineEdit::textChanged, this, [this]() { updatePlaceHolderColor(); });
+
 	QHBoxLayout *searchLayout = pls_new<QHBoxLayout>(this);
 	searchLayout->setContentsMargins(0, 8, 9, 10);
 	searchLayout->setSpacing(0);
@@ -31,7 +29,7 @@ PLSSearchLineEdit::PLSSearchLineEdit(QWidget *parent) : QLineEdit(parent)
 	});
 
 	toolBtnSearch = pls_new<QToolButton>(this);
-    connect(toolBtnSearch, &QToolButton::clicked, this, [this](){emit SearchIconClicked(text());});
+	connect(toolBtnSearch, &QToolButton::clicked, this, [this]() { emit SearchIconClicked(text()); });
 	toolBtnSearch->setObjectName("toolBtnSearch");
 	toolBtnSearch->setProperty("searchOn", false);
 	pls_flush_style(toolBtnSearch);
@@ -39,8 +37,8 @@ PLSSearchLineEdit::PLSSearchLineEdit(QWidget *parent) : QLineEdit(parent)
 	searchLayout->addWidget(deleteBtn);
 	searchLayout->addSpacing(7);
 	searchLayout->addWidget(toolBtnSearch);
-    
-    updatePlaceHolderColor();
+
+	updatePlaceHolderColor();
 }
 
 void PLSSearchLineEdit::SetDeleteBtnVisible(bool visible)
@@ -50,15 +48,15 @@ void PLSSearchLineEdit::SetDeleteBtnVisible(bool visible)
 
 void PLSSearchLineEdit::updatePlaceHolderColor()
 {
-    setProperty("showPlaceholder", text().isEmpty());
-    pls_flush_style(this);
+	setProperty("showPlaceholder", text().isEmpty());
+	pls_flush_style(this);
 }
 
 void PLSSearchLineEdit::focusInEvent(QFocusEvent *e)
 {
 	toolBtnSearch->setProperty("searchOn", true);
 	pls_flush_style(toolBtnSearch);
-    QLineEdit::focusInEvent(e);
+	QLineEdit::focusInEvent(e);
 }
 
 void PLSSearchLineEdit::focusOutEvent(QFocusEvent *e)
@@ -66,7 +64,7 @@ void PLSSearchLineEdit::focusOutEvent(QFocusEvent *e)
 	emit SearchMenuRequested(false);
 	toolBtnSearch->setProperty("searchOn", false);
 	pls_flush_style(toolBtnSearch);
-    QLineEdit::focusOutEvent(e);
+	QLineEdit::focusOutEvent(e);
 }
 
 void PLSSearchLineEdit::keyReleaseEvent(QKeyEvent *event)
@@ -81,7 +79,7 @@ void PLSSearchLineEdit::keyReleaseEvent(QKeyEvent *event)
 			break;
 		}
 	}
-    QLineEdit::keyReleaseEvent(event);
+	QLineEdit::keyReleaseEvent(event);
 }
 
 void PLSSearchLineEdit::mousePressEvent(QMouseEvent *event)
@@ -89,5 +87,5 @@ void PLSSearchLineEdit::mousePressEvent(QMouseEvent *event)
 	if (event->button() == Qt::LeftButton) {
 		emit SearchMenuRequested(true);
 	}
-    QLineEdit::mousePressEvent(event);
+	QLineEdit::mousePressEvent(event);
 }

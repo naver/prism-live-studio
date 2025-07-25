@@ -36,7 +36,7 @@ private:
 private slots:
 	void showError(QMediaPlayer::Error error, const QString &errorString);
 
-private: 
+private:
 	QMap<QString, PLSMediaRender *> videoViewCache;
 	QMap<QString, PLSSceneTemplateImageView *> imageViewCache;
 	PLSSceneTemplateContainer *m_sceneContainer{nullptr};

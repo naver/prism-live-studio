@@ -364,13 +364,13 @@ bool YoutubeHandler::refreshToken()
 
 	auto handleFail = [this](const pls::http::Reply &reply) {
 		auto jsonDoc = QJsonDocument::fromJson(reply.data());
-		PLSAPIYoutube::showFailedLog("refreshToken", reply);
-		QString errReason = "refreshToken Failed";
+		PLSAPIYoutube::showFailedLog(YT_API_RefreshYoutubeToken, reply);
+		QString errReason = YT_API_RefreshYoutubeToken + " Failed";
 		if (PLS_PLATFORM_YOUTUBE) {
 			errReason = PLS_PLATFORM_YOUTUBE->getFailedErr();
 		}
 		myLastInfo()[g_channelSreLoginFailed] = errReason;
-		handleError(reply.statusCode(), reply.data(), reply.error(), "refreshChannelToken");
+		handleError(reply.statusCode(), reply.data(), reply.error(), YT_API_RefreshYoutubeToken);
 
 		runTasks();
 	};
@@ -425,13 +425,13 @@ bool YoutubeHandler::getRealToken()
 	};
 
 	auto handleFail = [this](const pls::http::Reply &reply) {
-		PLSAPIYoutube::showFailedLog("getRealToken", reply);
-		QString errReason = "getRealToken Failed";
+		PLSAPIYoutube::showFailedLog(YT_API_PostToken, reply);
+		QString errReason = YT_API_PostToken + " Failed";
 		if (PLS_PLATFORM_YOUTUBE) {
 			errReason = PLS_PLATFORM_YOUTUBE->getFailedErr();
 		}
 		myLastInfo()[g_channelSreLoginFailed] = errReason;
-		handleError(reply.statusCode(), reply.data(), reply.error(), "getRealToken");
+		handleError(reply.statusCode(), reply.data(), reply.error(), YT_API_PostToken);
 		runTasks();
 	};
 
@@ -484,15 +484,15 @@ bool YoutubeHandler::getBasicInfo()
 	};
 
 	auto handleFail = [this](const pls::http::Reply &reply) {
-		PLSAPIYoutube::showFailedLog("refreshChannelList", reply);
+		PLSAPIYoutube::showFailedLog(YT_API_GetChannels, reply);
 
-		QString errReason = "refreshChannelList Failed";
+		QString errReason = YT_API_GetChannels + " Failed";
 		if (PLS_PLATFORM_YOUTUBE) {
 			errReason = PLS_PLATFORM_YOUTUBE->getFailedErr();
 		}
 
 		myLastInfo()[g_channelSreLoginFailed] = errReason;
-		handleError(reply.statusCode(), reply.data(), reply.error(), "refreshChannelList");
+		handleError(reply.statusCode(), reply.data(), reply.error(), YT_API_GetChannels);
 
 		runTasks();
 	};

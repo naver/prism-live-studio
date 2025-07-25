@@ -8,6 +8,7 @@
 #include <vector>
 #include "qt-display.hpp"
 #include "obs-app.hpp"
+#include "preview-controls.hpp"
 
 class OBSBasic;
 class QMouseEvent;
@@ -18,8 +19,8 @@ class QMouseEvent;
 #define ITEM_BOTTOM (1 << 3)
 #define ITEM_ROT (1 << 4)
 
-#define MAX_SCALING_LEVEL 20
-#define MAX_SCALING_AMOUNT 10.0f
+#define MAX_SCALING_LEVEL 32
+#define MAX_SCALING_AMOUNT 8.0f
 #define ZOOM_SENSITIVITY pow(MAX_SCALING_AMOUNT, 1.0f / MAX_SCALING_LEVEL)
 
 #define SPACER_LABEL_MARGIN 10.0f
@@ -83,6 +84,8 @@ private:
 	int32_t scalingLevel = 0;
 	float scalingAmount = 1.0f;
 	float groupRot = 0.0f;
+	bool updatingXScrollBar = false;
+	bool updatingYScrollBar = false;
 
 	bool tableDown = false;
 	bool tabletDeviceActive = false;
@@ -94,17 +97,12 @@ private:
 	bool m_bVerticalDisplay = false;
 
 	vec2 GetMouseEventPos(QMouseEvent *event, bool horizontal);
-	static bool FindSelected(obs_scene_t *scene, obs_sceneitem_t *item,
-				 void *param);
-	static bool DrawSelectedOverflow(obs_scene_t *scene,
-					 obs_sceneitem_t *item, void *param);
-	static bool DrawSelectedItem(obs_scene_t *scene, obs_sceneitem_t *item,
-				     void *param);
-	static bool DrawSelectionBox(float x1, float y1, float x2, float y2,
-				     gs_vertbuffer_t *box);
+	static bool FindSelected(obs_scene_t *scene, obs_sceneitem_t *item, void *param);
+	static bool DrawSelectedOverflow(obs_scene_t *scene, obs_sceneitem_t *item, void *param);
+	static bool DrawSelectedItem(obs_scene_t *scene, obs_sceneitem_t *item, void *param);
+	static bool DrawSelectionBox(float x1, float y1, float x2, float y2, gs_vertbuffer_t *box);
 
-	static OBSSceneItem GetItemAtPos(OBSBasicPreview *preview,
-					 const vec2 &pos, bool selectBelow);
+	static OBSSceneItem GetItemAtPos(OBSBasicPreview *preview, const vec2 &pos, bool selectBelow);
 	static bool SelectedAtPos(OBSBasicPreview *preview, const vec2 &pos);
 
 	static void DoSelect(OBSBasicPreview *preview, const vec2 &pos);
@@ -135,10 +133,15 @@ private:
 	OBSDataAutoRelease wrapper = nullptr;
 	bool changed;
 
+public slots:
+	void XScrollBarMoved(int value);
+	void YScrollBarMoved(int value);
+
 public:
-	OBSBasicPreview(QWidget *parent,
-			Qt::WindowFlags flags = Qt::WindowFlags());
+	OBSBasicPreview(QWidget *parent, Qt::WindowFlags flags = Qt::WindowFlags());
 	~OBSBasicPreview();
+
+	void Init();
 
 	static OBSBasicPreview *Get();
 
@@ -161,49 +164,36 @@ public:
 	inline void ToggleLocked() { locked = !locked; }
 	inline bool Locked() const { return locked; }
 
-	inline void SetCacheLocked(bool newLockedVal)
-	{
-		cacheLocked = newLockedVal;
-	}
+	inline void SetCacheLocked(bool newLockedVal) { cacheLocked = newLockedVal; }
 	inline bool CacheLocked() const { return cacheLocked; }
 
 	inline void SetFixedScaling(bool newFixedScalingVal)
 	{
+		if (fixedScaling == newFixedScalingVal)
+			return;
+
 		fixedScaling = newFixedScalingVal;
+		emit fixedScalingChanged(fixedScaling);
 	}
 	inline bool IsFixedScaling() const { return fixedScaling; }
 
 	void SetScalingLevel(int32_t newScalingLevelVal);
 	void SetScalingAmount(float newScalingAmountVal);
+	void SetScalingLevelAndAmount(int32_t newScalingLevelVal, float newScalingAmountVal);
 	inline int32_t GetScalingLevel() const { return scalingLevel; }
 	inline float GetScalingAmount() const { return scalingAmount; }
 
 	void ResetScrollingOffset();
-	inline void SetScrollingOffset(float x, float y)
-	{
-		vec2_set(&scrollingOffset, x, y);
-	}
+	inline void SetScrollingOffset(float x, float y) { vec2_set(&scrollingOffset, x, y); }
 	inline float GetScrollX() const { return scrollingOffset.x; }
 	inline float GetScrollY() const { return scrollingOffset.y; }
 
 	inline void SetOverflowHidden(bool hidden) { overflowHidden = hidden; }
-	inline void SetOverflowSelectionHidden(bool hidden)
-	{
-		overflowSelectionHidden = hidden;
-	}
-	inline void SetOverflowAlwaysVisible(bool visible)
-	{
-		overflowAlwaysVisible = visible;
-	}
+	inline void SetOverflowSelectionHidden(bool hidden) { overflowSelectionHidden = hidden; }
+	inline void SetOverflowAlwaysVisible(bool visible) { overflowAlwaysVisible = visible; }
 
-	inline bool GetOverflowSelectionHidden() const
-	{
-		return overflowSelectionHidden;
-	}
-	inline bool GetOverflowAlwaysVisible() const
-	{
-		return overflowAlwaysVisible;
-	}
+	inline bool GetOverflowSelectionHidden() const { return overflowSelectionHidden; }
+	inline bool GetOverflowAlwaysVisible() const { return overflowAlwaysVisible; }
 
 	void setVerticalDisplay(bool bValue) { m_bVerticalDisplay = bValue; }
 
@@ -218,7 +208,14 @@ public:
 
 	OBSSourceAutoRelease spacerLabel[4];
 	int spacerPx[4] = {0};
+	bool spacerInited = false;
 
 	void DrawSpacingHelpers();
 	void ClampScrollingOffsets();
+	void UpdateXScrollBar(float cx);
+	void UpdateYScrollBar(float cy);
+
+signals:
+	void scalingChanged(float scalingAmount);
+	void fixedScalingChanged(bool isFixed);
 };

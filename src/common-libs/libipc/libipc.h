@@ -24,8 +24,6 @@
 
 #endif
 
-
-
 namespace pls {
 namespace ipc {
 

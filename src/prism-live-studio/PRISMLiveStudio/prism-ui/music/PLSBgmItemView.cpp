@@ -97,7 +97,7 @@ PLSBgmItemViewModel::~PLSBgmItemViewModel() = default;
 
 int PLSBgmItemViewModel::rowCount(const QModelIndex &parent) const
 {
-	return parent.isValid() ? 0 :  static_cast<int>(datas.count());
+	return parent.isValid() ? 0 : static_cast<int>(datas.count());
 }
 
 QVariant PLSBgmItemViewModel::data(const QModelIndex &index, int role) const

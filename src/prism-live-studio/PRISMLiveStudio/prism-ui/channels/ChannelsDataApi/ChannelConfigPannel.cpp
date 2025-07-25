@@ -42,7 +42,7 @@ ChannelConfigPannel::ChannelConfigPannel(QWidget *parent) : QFrame(parent), ui(n
 	m_dualMenu.setObjectName("dualMenu");
 	m_dualMenu.setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
 	m_dualMenu.setStyle(new CustomStyle);
-	m_dualMenu.setStyleSheet("QMenu::item { padding-left: 10px; font-zise:14px;padding-up:0px;padding-bottom:0px;} QMenu::icon{left:5px;}");
+	m_dualMenu.setStyleSheet("QMenu::item {padding-left: 15px; font-size:14px;padding-top:0px;padding-bottom:0px;padding-right:-24px;} QMenu::icon{left:8px;}");
 	QMetaEnum metaEnum = QMetaEnum::fromType<OUTPUTDIRECTION>();
 	auto menuSize = metaEnum.keyCount();
 	for (int i = 0; i < menuSize; ++i) {
@@ -63,8 +63,8 @@ ChannelConfigPannel::ChannelConfigPannel(QWidget *parent) : QFrame(parent), ui(n
 				break;
 			}
 		};
-		auto action = m_dualMenu.addAction(QIcon(pls_load_svg(QString(resourcePath).arg(name).arg("off"), 4 * QSize(28, 28))), tr(QString("Channels.dualoutput.%1").arg(name).toUtf8().constData()),
-						   lickedSlot);
+		auto action = m_dualMenu.addAction(QIcon(pls_load_svg(QString(resourcePath).arg(name).arg("off"), 4 * QSize(28, 28))),
+						   tr(QString("Channels.dualoutput.%1").arg(name).toUtf8().constData()), lickedSlot);
 		action->setCheckable(true);
 	}
 	connect(ui->dualOutputBtn, &QPushButton::clicked, this, &ChannelConfigPannel::onShowDualoutputMenu);
@@ -217,7 +217,7 @@ void ChannelConfigPannel::on_ConfigBtn_clicked()
 	}
 }
 
-void ChannelConfigPannel::doChildrenExclusive(bool &retflag) const
+void ChannelConfigPannel::doChildrenExclusive(bool &retflag)
 {
 	retflag = true;
 
@@ -230,6 +230,7 @@ void ChannelConfigPannel::doChildrenExclusive(bool &retflag) const
 			QSignalBlocker blocker(ui->EnableSwitch);
 			ui->EnableSwitch->setChecked(false);
 			PLSCHANNELS_API->setChannelUserStatus(mChannelID, Disabled);
+			onClickNoSetOutput();
 			return;
 		}
 
@@ -278,9 +279,9 @@ void ChannelConfigPannel::on_EnableSwitch_toggled(bool checked)
 	int myType = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_data_type, NoType);
 	bool isLiving = PLSCHANNELS_API->isLiving();
 	//to uncheck and isliving
+	QString typeStr = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString(""));
+	typeStr = translatePlatformName(typeStr);
 	if (!checked && isLiving) {
-		QString typeStr = PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelName, QString(""));
-		typeStr = translatePlatformName(typeStr);
 
 		//reject disable
 		if (auto ret = PLSAlertView::question(pls_get_main_view(), CHANNELS_TR(Confirm), CHANNELS_TR(DisableWarnig).arg(typeStr),
@@ -306,7 +307,7 @@ void ChannelConfigPannel::on_EnableSwitch_toggled(bool checked)
 		QString message;
 		auto parent = pls_get_main_view();
 		if (isExclusiveChannel(mChannelID)) {
-			message = CHANNELS_TR(Dont.Use.DualOutput);
+			message = CHANNELS_TR(Dont.Use.DualOutput).arg(typeStr);
 			PLSAlertView::warning(parent, tr("Alert.Title"), message);
 			QSignalBlocker blocker(ui->EnableSwitch);
 			ui->EnableSwitch->setChecked(false);
@@ -337,9 +338,7 @@ void ChannelConfigPannel::on_EnableSwitch_toggled(bool checked)
 		return;
 	}
 
-	// checked now is not exist and to checked and max limitted
-	if (PLSCHANNELS_API->currentSelectedCount() >= 6) {
-		pls_alert_error_message(nullptr, QObject::tr("Alert.Title"), CHANNELS_TR(info.selectedLimited));
+	if (showSelectedLimitedAlert("EnableSwitch")) {
 		QSignalBlocker blocker(ui->EnableSwitch);
 		ui->EnableSwitch->setChecked(false);
 		PLSCHANNELS_API->setChannelUserStatus(mChannelID, Disabled);
@@ -457,6 +456,7 @@ void ChannelConfigPannel::updateUI()
 	auto platform = getInfo(info, g_channelName);
 	bool enabled = !PLSCHANNELS_API->isRehearsaling() || g_rehearsalingConfigEnabledList.contains(platform);
 	this->setEnabled(enabled);
+	ui->dualOutputBtn->setEnabled(ui->EnableSwitch->isEnabled());
 
 	return;
 }
@@ -525,14 +525,7 @@ void ChannelConfigPannel::onClickVerticalOutput()
 	if (dualOutput == VerticalOutput) {
 		return;
 	}
-	QString message;
-	auto parent = pls_get_main_view();
-	QStringList horOutputList, verOutputList;
-	PLSCHANNELS_API->getChannelCountOfOutputDirection(horOutputList, verOutputList);
-	int verOutputCount = verOutputList.count();
-	if (verOutputCount >= 1) {
-		message = CHANNELS_TR(Output.Vertical.Number.limit);
-		PLSAlertView::warning(parent, tr("Alert.Title"), message);
+	if (showSelectedLimitedAlert("Voutput")) {
 		return;
 	}
 	setVerticalOutputUI();
@@ -549,14 +542,7 @@ void ChannelConfigPannel::onClickHorizontalOutput()
 		//ui->Houtput->setChecked(true);
 		return;
 	}
-	QString message;
-	auto parent = pls_get_main_view();
-	QStringList horOutputList, verOutputList;
-	PLSCHANNELS_API->getChannelCountOfOutputDirection(horOutputList, verOutputList);
-	int horOutputCount = horOutputList.count();
-	if (horOutputCount >= 1) {
-		message = CHANNELS_TR(Output.Horizontal.Number.limit);
-		PLSAlertView::warning(parent, tr("Alert.Title"), message);
+	if (showSelectedLimitedAlert("Houtput")) {
 		return;
 	}
 
@@ -617,4 +603,48 @@ void ChannelConfigPannel::updateUISpacing(bool isDualOutput)
 		ui->horizontalSpacer_6->changeSize(20, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
 		ui->horizontalSpacer_7->changeSize(17, 0, QSizePolicy::Fixed, QSizePolicy::Fixed);
 	}
+}
+
+void ChannelConfigPannel::showOpenPlusAlert(const QString &message)
+{
+	PLSBasic::instance()->showsTipAndPrismPlusIntroWindow(message, "Channel Dashboard");
+}
+
+bool ChannelConfigPannel::showSelectedLimitedAlert(const QString &objectName)
+{
+	auto allowCount = PLSCHANNELS_API->getUserAllowedEnabledChannelsCount();
+	bool bShowAlert = false;
+
+	if (objectName == "EnableSwitch" && PLSCHANNELS_API->currentSelectedCount() >= allowCount) {
+		if (allowCount == g_maxActiveChannelsForFreeNormal) {
+			showOpenPlusAlert(CHANNELS_TR(Free.User.Number.limit));
+			bShowAlert = true;
+		} else if (allowCount == g_maxActiveChannelsForPlusNormal || allowCount == g_maxActiveChannelsForPlusDualOutput) {
+			pls_alert_error_message(pls_get_main_view(), QObject::tr("Alert.Title"), CHANNELS_TR(info.selectedLimited));
+			bShowAlert = true;
+		}
+		return bShowAlert;
+	}
+
+	if (objectName == "Houtput" || objectName == "Voutput") {
+		QStringList horOutputList, verOutputList;
+		PLSCHANNELS_API->getChannelCountOfOutputDirection(horOutputList, verOutputList);
+		int horOutputCount = horOutputList.count();
+		int verOutputCount = verOutputList.count();
+
+		if (allowCount == g_maxActiveChannelsForFreeDualOutput) {
+			if (horOutputCount == allowCount / 2 && objectName == "Houtput") {
+				showOpenPlusAlert(CHANNELS_TR(Output.Horizontal.Number.limit));
+				bShowAlert = true;
+			} else if (verOutputCount == allowCount / 2 && objectName == "Voutput") {
+				showOpenPlusAlert(CHANNELS_TR(Output.Vertical.Number.limit));
+				bShowAlert = true;
+			}
+		} else if (horOutputCount + verOutputCount >= allowCount && PLSCHANNELS_API->getValueOfChannel(mChannelID, g_channelDualOutput, NoSet) == NoSet) {
+			pls_alert_error_message(pls_get_main_view(), QObject::tr("Alert.Title"), CHANNELS_TR(info.selectedLimited));
+			bShowAlert = true;
+		}
+	}
+
+	return bShowAlert;
 }

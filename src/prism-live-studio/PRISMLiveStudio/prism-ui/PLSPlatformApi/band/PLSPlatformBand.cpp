@@ -110,6 +110,7 @@ void PLSPlatformBand::getBandTokenInfo(const QVariantMap &srcInfo, const UpdateC
 					   m_bandLoginInfo[ChannelData::g_channelSreLoginFailed] = "band get token failed";
 
 					   PLSErrorHandler::ExtraData otherData;
+					   otherData.urlEn = reply.request().originalUrl().path();
 					   otherData.errPhase = PLSErrPhaseLogin;
 					   auto retData = PLSErrorHandler::getAlertString({statusCode, error, reply.data()}, BAND, "", otherData);
 					   m_bandLoginInfo[ChannelData::g_channelStatus] = retData.errorType == PLSErrorHandler::ErrorType::TokenExpired ? ChannelData::ChannelStatus::Expired
@@ -130,6 +131,8 @@ void PLSPlatformBand::getBandCategoryInfo(const QVariantMap &srcInfo, const Upda
 		m_bandLoginInfo[ChannelData::g_channelSreLoginFailed] = "band get categoryInfo failed";
 		PLSErrorHandler::ExtraData otherData;
 		otherData.errPhase = PLSErrPhaseLogin;
+		otherData.urlEn = reply.request().originalUrl().path();
+
 		auto retData = PLSErrorHandler::getAlertString({reply.statusCode(), reply.error(), reply.data()}, BAND, "", otherData);
 		m_bandLoginInfo[ChannelData::g_channelStatus] = retData.errorType == PLSErrorHandler::ErrorType::TokenExpired ? ChannelData::ChannelStatus::Expired : ChannelData::ChannelStatus::Error;
 		m_bandLoginInfo[ChannelData::g_errorRetdata] = QVariant::fromValue(retData);
@@ -210,11 +213,6 @@ void PLSPlatformBand::onAlLiveStarted(bool value)
 		return;
 	}
 	pls_toast_message(pls_toast_info_type::PLS_TOAST_NOTICE, QTStr("Live.Check.Band.Broardcast.Start.Tip"));
-}
-
-bool PLSPlatformBand::onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject)
-{
-	return true;
 }
 
 void PLSPlatformBand::onAllPrepareLive(bool isOk)

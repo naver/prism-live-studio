@@ -1,4 +1,4 @@
-#include "ui-validation.hpp"
+#include "moc_ui-validation.cpp"
 
 #include <obs.hpp>
 #include <QString>
@@ -43,17 +43,15 @@ bool UIValidation::NoSourcesConfirmation(QWidget *parent)
 	msg += "\n\n";
 	msg += QTStr("NoSources.Text.AddSource");
 
-	PLSAlertView::Button button = PLSAlertView::question(
-		parent, QTStr("Confirm"), msg,
-		PLSAlertView::Button::Yes | PLSAlertView::Button::No);
+	PLSAlertView::Button button = PLSAlertView::question(parent, QTStr("Confirm"), msg,
+							     PLSAlertView::Button::Yes | PLSAlertView::Button::No);
 	if (button != PLSAlertView::Button::Yes) {
 		return false;
 	}
 	return true;
 }
 
-StreamSettingsAction
-UIValidation::StreamSettingsConfirmation(QWidget *parent, OBSService service)
+StreamSettingsAction UIValidation::StreamSettingsConfirmation(QWidget *parent, OBSService service)
 {
 	if (obs_service_can_try_to_connect(service))
 		return StreamSettingsAction::ContinueStream;
@@ -61,10 +59,8 @@ UIValidation::StreamSettingsConfirmation(QWidget *parent, OBSService service)
 	char const *serviceType = obs_service_get_type(service);
 	bool isCustomService = (strcmp(serviceType, "rtmp_custom") == 0);
 
-	char const *streamUrl = obs_service_get_connect_info(
-		service, OBS_SERVICE_CONNECT_INFO_SERVER_URL);
-	char const *streamKey = obs_service_get_connect_info(
-		service, OBS_SERVICE_CONNECT_INFO_STREAM_KEY);
+	char const *streamUrl = obs_service_get_connect_info(service, OBS_SERVICE_CONNECT_INFO_SERVER_URL);
+	char const *streamKey = obs_service_get_connect_info(service, OBS_SERVICE_CONNECT_INFO_STREAM_KEY);
 
 	bool streamUrlMissing = !(streamUrl != NULL && streamUrl[0] != '\0');
 	bool streamKeyMissing = !(streamKey != NULL && streamKey[0] != '\0');
@@ -79,8 +75,7 @@ UIValidation::StreamSettingsConfirmation(QWidget *parent, OBSService service)
 	}
 
 	QMessageBox messageBox(parent);
-	messageBox.setWindowTitle(
-		QTStr("Basic.Settings.Stream.MissingSettingAlert"));
+	messageBox.setWindowTitle(QTStr("Basic.Settings.Stream.MissingSettingAlert"));
 	messageBox.setText(msg);
 
 	QPushButton *cancel;
@@ -93,9 +88,7 @@ UIValidation::StreamSettingsConfirmation(QWidget *parent, OBSService service)
 #define ACCEPT_BUTTON QMessageBox::NoRole
 #define REJECT_BUTTON QMessageBox::NoRole
 #endif
-	settings = messageBox.addButton(
-		QTStr("Basic.Settings.Stream.StreamSettingsWarning"),
-		ACCEPT_BUTTON);
+	settings = messageBox.addButton(QTStr("Basic.Settings.Stream.StreamSettingsWarning"), ACCEPT_BUTTON);
 	cancel = messageBox.addButton(QTStr("Cancel"), REJECT_BUTTON);
 
 	messageBox.setDefaultButton(settings);

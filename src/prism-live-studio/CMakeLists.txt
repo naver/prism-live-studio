@@ -3,9 +3,6 @@ list(APPEND CMAKE_MODULE_PATH "$ENV{PRISM_SRC_DIR}/cmake/Modules")
 
 include(OBSLibs)
 
-include(${CMAKE_SOURCE_DIR}/prism-live-studio/cmake/disable_api.cmake)
-InsertDisabledWinAPI()
-
 # if(OS_MACOS)
 # list(APPEND CMAKE_MODULE_PATH "$ENV{PRISM_SRC_DIR}/cmake/macOS")
 # include(PrismDefaults_macOS)

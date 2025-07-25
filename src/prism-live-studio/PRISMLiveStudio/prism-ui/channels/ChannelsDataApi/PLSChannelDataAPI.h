@@ -151,7 +151,7 @@ public:
 	bool updateChannelState(const QString &channelUuid, int state);
 
 	/*to get channel user state if enabled */
-	void setChannelUserStatus(const QString &channelUuid, int state, bool notify = true);
+	void setChannelUserStatus(const QString &channelUuid, int state, bool notify = true, bool bSync = false);
 	bool updateChannelUserState(const QString &channelUuid, int isActive);
 	int getChannelUserStatus(const QString &channelUUID);
 
@@ -267,7 +267,9 @@ public:
 	void setOutputDirectionWhenAddChannel(const QString &uuid);
 	bool isCanSetDualOutput(const QString &uuid) const;
 	void clearDualOutput();
-
+	int getUserAllowedEnabledChannelsCount() const;
+	void disableChannelWhenDualOutputClose();
+	bool isExistYoutubeWhenRunApp(QString &channelId) const;
 public slots:
 
 	void stopAll();
@@ -285,7 +287,7 @@ public slots:
 signals:
 
 	void channelAdded(const QString &channelUUID);
-	void channelRemoved(const QString &channelUUID);
+	void channelRemoved(const QString &channelUUID, const QVariantMap &unDeletedChannelData);
 	void channelCreateError(const QString &channelUUID);
 	void channelModified(const QString &channelUUID);
 	void channelExpired(const QString &channelUUID, bool toAsk = true);

@@ -8,6 +8,9 @@
 const static QString OVERLAY_FILE = ".overlay";
 static const char *FROM_SCENE_TEMPLATE = "fromSceneTemplate";
 
+// this is for keyname in scene collection. as discuss, its name should not include "paid"
+static const char *SCENE_PAID_KEY_NAME = "flagInnerAttribute";
+
 class PLSNodeManager;
 class CopyFileWorker : public QObject {
 	Q_OBJECT
@@ -92,7 +95,7 @@ public:
 	// read from config.json
 	QList<QString> getScenesNames(const SceneTemplateItem &data);
 
-	NodeErrorType loadConfig(const QString &templateName, const QString &path, QString &outputPath);
+	NodeErrorType loadConfig(const QString &templateName, const QString &path, bool isPaidSceneTemplate, QString &outputPath);
 
 	NodeErrorType loadNodeInfo(const QString &nodeType, const QJsonObject &content, QJsonObject &output);
 	bool exportLoadInfo(obs_data_t *settings, obs_data_t *priSettings, NodeType nodeType, QJsonObject &output, void *param = nullptr);
@@ -146,6 +149,7 @@ private:
 	void deleteNode();
 
 	void initSourceUpgradeInfo();
+	void updateSourcePath(bool isPaidSceneTemplate, const QString &originalPath);
 signals:
 	void zipFinished(bool);
 

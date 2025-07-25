@@ -117,6 +117,19 @@ LIBUTILSAPI_API bool pls_parse_json(QJsonObject &object, const QByteArray &json,
 LIBUTILSAPI_API bool pls_parse_json(QVariantMap &map, const QByteArray &json, QString *error = nullptr);
 LIBUTILSAPI_API bool pls_parse_json(QVariantHash &hash, const QByteArray &json, QString *error = nullptr);
 
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QJsonDocument &doc, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QJsonArray &array, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QVariantList &list, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QJsonObject &object, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QVariantMap &map, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_encrypt_json(const QString &encrypt_file_path, const QVariantHash &hash, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_decrypt_json(QJsonDocument &doc, const QString &encrypt_file_path, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_decrypt_json(QJsonArray &array, const QString &encrypt_file_path, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_decrypt_json(QVariantList &list, const QString &encrypt_file_path, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_decrypt_json(QJsonObject &object, const QString &encrypt_file_path, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_decrypt_json(QVariantMap &map, const QString &encrypt_file_path, QString *error = nullptr);
+LIBUTILSAPI_API bool pls_decrypt_json(QVariantHash &hash, const QString &encrypt_file_path, QString *error = nullptr);
+
 LIBUTILSAPI_API QStringList pls_to_string_list(const QJsonArray &array);
 LIBUTILSAPI_API QVariantList pls_to_variant_list(const QJsonArray &array);
 LIBUTILSAPI_API QJsonArray pls_to_json_array(const QStringList &string_list);
@@ -244,6 +257,7 @@ struct pls_datetime_t {
 };
 LIBUTILSAPI_API void pls_get_current_datetime(pls_datetime_t &datetime);
 LIBUTILSAPI_API QString pls_datetime_to_string(const pls_datetime_t &datetime); // yyyy-mm-dd hh:mm:ss.zzz+00:00
+LIBUTILSAPI_API time_t pls_datetime_to_time_t(const pls_datetime_t &datetime);
 
 //key=value;key=value
 //key=value\nkey=value
@@ -276,6 +290,7 @@ LIBUTILSAPI_API void pls_async_invoke(std::function<void()> &&fn);
 LIBUTILSAPI_API bool pls_prism_is_dev();
 LIBUTILSAPI_API bool pls_prism_save_local_log();
 LIBUTILSAPI_API QVariant pls_prism_get_qsetting_value(QString key, QVariant defaultVal = {});
+LIBUTILSAPI_API void pls_prism_set_qsetting_value(QString key, QVariant val);
 
 LIBUTILSAPI_API void pls_prism_set_locale(const std::string &locale);
 LIBUTILSAPI_API QString pls_prism_get_locale();
@@ -973,6 +988,10 @@ inline bool pls_is_equal(const QVariantList &l1, const QVariantList &l2, Qt::Cas
 {
 	return pls_is_equal(l1, l2, [cs](const QVariant &v1, const QVariant &v2) { return pls_is_equal(v1, v2, cs); });
 }
+inline bool pls_is_equal(const QJsonObject &l1, const QJsonObject &l2)
+{
+	return QJsonDocument(l1).toJson(QJsonDocument::Compact) == QJsonDocument(l2).toJson(QJsonDocument::Compact);
+}
 
 template<typename Fn, typename... Args> inline auto pls_invoke(void *func, Args &&...args) -> std::invoke_result_t<Fn, Args...>
 {
@@ -1627,8 +1646,7 @@ template<typename Sender, typename SignalType, typename... SignalArgs, typename 
 QMetaObject::Connection pls_connect(Sender *sender, void (SignalType::*signalFn)(SignalArgs...), Receiver *receiver, SlotRet (ReceiverType::*slotFn)(SlotArgs...),
 				    const QSet<pls::QObjectPtr<QObject>> &objects, Qt::ConnectionType type = Qt::AutoConnection)
 {
-	return pls_connect(
-		sender, signalFn, receiver, [receiver, slotFn](SlotArgs... args) { (receiver->*slotFn)(args...); }, objects, type);
+	return pls_connect(sender, signalFn, receiver, [receiver, slotFn](SlotArgs... args) { (receiver->*slotFn)(args...); }, objects, type);
 }
 template<typename Sender, typename SignalType, typename... SignalArgs, typename SlotFn>
 QMetaObject::Connection pls_connect(Sender *sender, void (SignalType::*signalFn)(SignalArgs...), const QSet<pls::QObjectPtr<QObject>> &objects, SlotFn slotFn)
@@ -1637,8 +1655,8 @@ QMetaObject::Connection pls_connect(Sender *sender, void (SignalType::*signalFn)
 }
 
 template<typename Sender, typename SignalType, typename... SignalArgs, typename Receiver, typename SlotFn>
-auto pls_connect(Sender *sender, void (SignalType::*signalFn)(SignalArgs...), Receiver *receiver, SlotFn slotFn, Qt::ConnectionType type = Qt::AutoConnection)
-	-> std::enable_if_t<!std::is_member_function_pointer_v<SlotFn>, QMetaObject::Connection>
+auto pls_connect(Sender *sender, void (SignalType::*signalFn)(SignalArgs...), Receiver *receiver, SlotFn slotFn,
+		 Qt::ConnectionType type = Qt::AutoConnection) -> std::enable_if_t<!std::is_member_function_pointer_v<SlotFn>, QMetaObject::Connection>
 {
 	return pls_connect(sender, signalFn, receiver, slotFn, {}, type);
 }
@@ -1901,8 +1919,8 @@ auto pls_get_value(const QList<T> &list, Pred pred, const DefVal &defval = DefVa
 	return defval;
 }
 template<typename Val, typename T, typename Pred, typename ToVal, typename DefVal = Val>
-auto pls_get_value(const std::list<T> &list, Pred pred, ToVal toVal, const DefVal &defval = DefVal())
-	-> std::enable_if_t<std::is_invocable_v<Pred, T> && std::is_invocable_v<ToVal, T> && std::is_convertible_v<DefVal, Val>, Val>
+auto pls_get_value(const std::list<T> &list, Pred pred, ToVal toVal,
+		   const DefVal &defval = DefVal()) -> std::enable_if_t<std::is_invocable_v<Pred, T> && std::is_invocable_v<ToVal, T> && std::is_convertible_v<DefVal, Val>, Val>
 {
 	for (const auto &val : list)
 		if (pred(val))
@@ -1910,8 +1928,8 @@ auto pls_get_value(const std::list<T> &list, Pred pred, ToVal toVal, const DefVa
 	return defval;
 }
 template<typename Val, typename T, typename Pred, typename ToVal, typename DefVal = Val>
-auto pls_get_value(const QList<T> &list, Pred pred, ToVal toVal, const DefVal &defval = DefVal())
-	-> std::enable_if_t<std::is_invocable_v<Pred, T> && std::is_invocable_v<ToVal, T> && std::is_convertible_v<DefVal, Val>, Val>
+auto pls_get_value(const QList<T> &list, Pred pred, ToVal toVal,
+		   const DefVal &defval = DefVal()) -> std::enable_if_t<std::is_invocable_v<Pred, T> && std::is_invocable_v<ToVal, T> && std::is_convertible_v<DefVal, Val>, Val>
 {
 	for (const auto &val : list)
 		if (pred(val))
@@ -2196,5 +2214,11 @@ LIBUTILSAPI_API bool pls_open_url(const QString &url);
 LIBUTILSAPI_API bool pls_lens_needs_reboot();
 
 LIBUTILSAPI_API std::optional<bool> pls_check_version(const QByteArray &expression, const QVersionNumber &version);
+
+template<typename T> QByteArray pls_enum_2_string(T v)
+{
+	static_assert(QtPrivate::IsQEnumHelper<T>::Value, "pls_enum_2_string only works with enums declared as Q_ENUM, Q_ENUM_NS, Q_FLAG or Q_FLAG_NS");
+	return QVariant::fromValue(v).toString().toUtf8();
+}
 
 #endif // _PRISM_COMMON_LIBUTILSAPI_LIBUTILSAPI_H

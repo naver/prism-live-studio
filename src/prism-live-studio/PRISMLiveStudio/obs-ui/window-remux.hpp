@@ -32,15 +32,7 @@
 class RemuxQueueModel;
 class RemuxWorker;
 
-enum RemuxEntryState {
-	Empty,
-	Ready,
-	Pending,
-	InProgress,
-	Complete,
-	InvalidPath,
-	Error
-};
+enum RemuxEntryState { Empty, Ready, Pending, InProgress, Complete, InvalidPath, Error };
 Q_DECLARE_METATYPE(RemuxEntryState);
 
 class OBSRemux : public PLSDialogView {
@@ -61,8 +53,7 @@ class OBSRemux : public PLSDialogView {
 	QString autoRemuxFile;
 
 public:
-	explicit OBSRemux(const char *recPath, QWidget *parent = nullptr,
-			  bool autoRemux = false);
+	explicit OBSRemux(const char *recPath, QWidget *parent = nullptr, bool autoRemux = false);
 	virtual ~OBSRemux() override;
 
 	using job_t = std::shared_ptr<struct media_remux_job>;
@@ -97,17 +88,12 @@ class RemuxQueueModel : public QAbstractTableModel {
 	friend class OBSRemux;
 
 public:
-	RemuxQueueModel(QObject *parent = 0)
-		: QAbstractTableModel(parent),
-		  isProcessing(false)
-	{
-	}
+	RemuxQueueModel(QObject *parent = 0) : QAbstractTableModel(parent), isProcessing(false) {}
 
 	int rowCount(const QModelIndex &parent = QModelIndex()) const;
 	int columnCount(const QModelIndex &parent = QModelIndex()) const;
 	QVariant data(const QModelIndex &index, int role) const;
-	QVariant headerData(int section, Qt::Orientation orientation,
-			    int role = Qt::DisplayRole) const;
+	QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const;
 	Qt::ItemFlags flags(const QModelIndex &index) const;
 	bool setData(const QModelIndex &index, const QVariant &value, int role);
 
@@ -150,7 +136,7 @@ class RemuxWorker : public QObject {
 	void UpdateProgress(float percent);
 
 	explicit RemuxWorker() : isWorking(false) {}
-	virtual ~RemuxWorker(){};
+	virtual ~RemuxWorker() {};
 
 private slots:
 	void remux(const QString &source, const QString &target);
@@ -168,14 +154,11 @@ class RemuxEntryPathItemDelegate : public QStyledItemDelegate {
 public:
 	RemuxEntryPathItemDelegate(bool isOutput, const QString &defaultPath);
 
-	virtual QWidget *createEditor(QWidget *parent,
-				      const QStyleOptionViewItem & /* option */,
+	virtual QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem & /* option */,
 				      const QModelIndex &index) const override;
 
-	virtual void setEditorData(QWidget *editor,
-				   const QModelIndex &index) const override;
-	virtual void setModelData(QWidget *editor, QAbstractItemModel *model,
-				  const QModelIndex &index) const override;
+	virtual void setEditorData(QWidget *editor, const QModelIndex &index) const override;
+	virtual void setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const override;
 	//virtual void paint(QPainter *painter,
 	//		   const QStyleOptionViewItem &option,
 	//		   const QModelIndex &index) const override;

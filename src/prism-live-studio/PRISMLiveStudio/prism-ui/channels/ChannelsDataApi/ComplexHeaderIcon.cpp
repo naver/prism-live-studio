@@ -38,6 +38,9 @@ ComplexHeaderIcon::~ComplexHeaderIcon()
 {
 	m_destroying = true;
 	while (m_using > 0) {
+		if (pls_get_app_exiting()) {
+			break;
+		}
 	}
 	delete mDelayTimer;
 	mDelayTimer = nullptr;
@@ -89,7 +92,7 @@ void ComplexHeaderIcon::delayDraw()
 
 void ComplexHeaderIcon::updateBixPix(PaintObject &painterObj)
 {
-	auto newSize = painterObj.mPixSize * painterObj.dpi;
+	auto newSize = painterObj.mPixSize * 4;
 	painterObj.mBigPix = PLSCHANNELS_API->updateImage(painterObj.mPixPath, newSize);
 	if (painterObj.mBigPix.isNull()) {
 		loadPixmap(painterObj.mBigPix, painterObj.mDefaultIconPath, newSize);

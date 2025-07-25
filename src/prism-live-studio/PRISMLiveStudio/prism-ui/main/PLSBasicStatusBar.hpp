@@ -29,9 +29,11 @@ struct PLSBasicStatusData {
 
 	double renderTime;
 	std::tuple<double, double> renderFPS; //Current/Setting
-	double streamOutputFPS; //output
+	double streamOutputFPS;               //output
 	double recordOutputFPS;
-	double streamOutputFPS_v{0.0}; //vertical output
+	double streamOutputFPS_v{0.0};        //vertical output
+	double streamNetworkMilliTime{0.0};   // in ms
+	double streamNetworkMilliTime_v{0.0}; // in ms
 
 	//Droped frames, Total frames, Droped percent
 	std::tuple<uint32_t, uint32_t, double> dropedRendering;
@@ -137,7 +139,7 @@ private:
 
 	static void OBSOutputReconnect(void *data, calldata_t *params);
 	static void OBSOutputReconnectSuccess(void *data, calldata_t *params);
-	
+
 	// MARK: -- Analog
 #ifdef __APPLE__
 	static void RequestExtensionClientInfo(std::function<void(int pid, const std::string &signingId, const std::string &clientId, const std::string &time)> closure);

@@ -48,11 +48,10 @@ private slots:
 	void SourceRemoved(OBSSource source);
 
 public:
-	OBSBasicSourceSelect(OBSBasic *parent, const char *id,
-			     undo_stack &undo_s);
+	OBSBasicSourceSelect(OBSBasic *parent, const char *id, undo_stack &undo_s);
 
 	OBSSource newSource;
 	QModelIndex previousIndex;
 
-	static void SourcePaste(SourceCopyInfo &info, bool duplicate);
+	static void SourcePaste(std::pair<SourceCopyInfo, SourceCopyInfo> sourceCopyInfo, bool duplicate);
 };

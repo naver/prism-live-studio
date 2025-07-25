@@ -161,8 +161,7 @@ static void source_sub_web_receive(void *data, calldata_t *calldata)
 	if (timerClass) {
 
 		QByteArray tempMsg = name;
-		QMetaObject::invokeMethod(
-			timerClass, [timerClass, tempMsg]() { timerClass->webDidReceiveMessage(tempMsg.constData()); }, Qt::QueuedConnection);
+		QMetaObject::invokeMethod(timerClass, [timerClass, tempMsg]() { timerClass->webDidReceiveMessage(tempMsg.constData()); }, Qt::QueuedConnection);
 	}
 }
 
@@ -310,8 +309,7 @@ static void source_create_finished(void *data, calldata_t *calldata)
 	if (!source || (source != (uint64_t)context->config.source) || !data)
 		return;
 
-	QMetaObject::invokeMethod(
-		context, [context]() { init_web_source(context); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(context, [context]() { init_web_source(context); }, Qt::QueuedConnection);
 }
 
 static void liveStatusChangedToReloadUI(bool isStartLive, void *data)
@@ -325,8 +323,7 @@ static void liveStatusChangedToReloadUI(bool isStartLive, void *data)
 	if (timerType != TimerType::Live) {
 		return;
 	}
-	QMetaObject::invokeMethod(
-		sourceClass, [sourceClass]() { sourceClass->dispatahControlJsToWeb(); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(sourceClass, [sourceClass]() { sourceClass->dispatahControlJsToWeb(); }, Qt::QueuedConnection);
 }
 
 void onLiveStateChanged(enum obs_frontend_event event, void *data)
@@ -1375,8 +1372,7 @@ static bool timeIntGrounpCallback(void *data, obs_properties_t *props, obs_prope
 		bool startEnable = pls_property_button_group_item_enabled(p, 0);
 		auto _count = source->getCountTime();
 		if ((_count == 0 && startEnable) || (_count > 0 && !startEnable)) {
-			QMetaObject::invokeMethod(
-				source, [source]() { source->updateControlButtons(MusicStatus::Normal, nullptr, true); }, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(source, [source]() { source->updateControlButtons(MusicStatus::Normal, nullptr, true); }, Qt::QueuedConnection);
 		}
 		return false;
 	}
@@ -1779,8 +1775,7 @@ void timer_source::propertiesEditStart()
 	auto allSeconds = getCountTime(templateType);
 	obs_data_set_int(config.settings, s_timer_all_seconds, allSeconds);
 
-	QMetaObject::invokeMethod(
-		this, [this]() { updateControlButtons(config.mStaus, nullptr, true); }, Qt::QueuedConnection);
+	QMetaObject::invokeMethod(this, [this]() { updateControlButtons(config.mStaus, nullptr, true); }, Qt::QueuedConnection);
 }
 
 void timer_source::propertiesEditEnd(bool isSaveClick)

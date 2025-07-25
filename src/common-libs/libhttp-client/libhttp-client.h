@@ -84,6 +84,7 @@ using Before = std::function<void(NetworkAccessManager *manager, Request request
 using After = std::function<void(Reply reply)>;
 using Befores = std::function<void(NetworkAccessManager *manager, Requests requests)>;
 using Afters = std::function<void(Replies replies)>;
+using HeaderLog = std::function<void(Reply reply)>;
 template<typename T> using JsonResult = std::function<void(Reply reply, const T &json)>;
 using JsonResultFail = std::function<void(Reply reply, const QJsonParseError &error)>;
 using DefaultRequestHeadersFactory = std::function<QVariantMap()>;
@@ -322,6 +323,8 @@ struct LIBHTTPCLIENT_API Request {
 	const Request &withBeforeLog(const UrlMasking &urlMasking) const;
 	const Request &withAfterLog(const QString &urlMasking = QString(), LogInclude logInclude = LogInclude::All) const;
 	const Request &withAfterLog(const UrlMasking &urlMasking, LogInclude logInclude = LogInclude::All) const;
+	const Request &withRequestHeaderBodyLog() const;
+	const Request &withReplyHeaderLog() const;
 
 	const Request &jsonOkResult(const JsonResult<QJsonDocument> &jsonResult) const;
 	const Request &jsonOkResult(const JsonResult<QJsonDocument> &ok, const JsonResultFail &fail) const;

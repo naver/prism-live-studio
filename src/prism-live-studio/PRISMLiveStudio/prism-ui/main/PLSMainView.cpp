@@ -74,7 +74,7 @@ const QString sideBarStyle = "#%1 {"
 			     "#%1[showMode=\"true\"]:!enable{"
 			     "image:url(\"%9\");}";
 
-enum HelpWidgetItemTag { PrismFAQ = 0, PrismWebsite, ContactUs, CheckForUpdate };
+enum HelpWidgetItemTag { UserGuide = 0, PrismFAQ, PrismWebsite, ContactUs, CheckForUpdate };
 
 PLSMainView::PLSMainView(QWidget *parent) : PLSToplevelView<QFrame>(parent)
 {
@@ -142,6 +142,11 @@ PLSMainView::PLSMainView(QWidget *parent) : PLSToplevelView<QFrame>(parent)
 
 	// set user photo tooltip
 	ui->user->setAttribute(Qt::WA_AlwaysShowToolTips, true);
+
+	m_userPlusImage = new QWidget(ui->user);
+	m_userPlusImage->setObjectName("userPlusImage");
+	m_userPlusImage->move(21, 13);
+	m_userPlusImage->setHidden(true);
 
 	// mobile source
 	DialogInfo mobileInfo;
@@ -360,12 +365,12 @@ bool PLSMainView::getFullScreenState() const
 
 void PLSMainView::onSaveGeometry() const
 {
-	config_set_string(App()->GlobalConfig(), "BasicWindow", "geometry", saveGeometry().toBase64().constData());
-	config_save(App()->GlobalConfig());
+	config_set_string(App()->GetUserConfig(), "BasicWindow", "geometry", saveGeometry().toBase64().constData());
+	config_save(App()->GetUserConfig());
 }
 void PLSMainView::onRestoreGeometry()
 {
-	if (const char *geometry = config_get_string(App()->GlobalConfig(), "BasicWindow", "geometry"); !pls_is_empty(geometry)) {
+	if (const char *geometry = config_get_string(App()->GetUserConfig(), "BasicWindow", "geometry"); !pls_is_empty(geometry)) {
 		restoreGeometry(QByteArray::fromBase64(QByteArray(geometry)));
 	} else {
 		PLSToplevelView<QFrame>::onRestoreGeometry();
@@ -392,18 +397,18 @@ void PLSMainView::showChatView(bool isOnlyShow, bool isOnlyInit) const
 		return;
 	}
 
-	bool initializedGeometry = config_get_bool(App()->GlobalConfig(), "ChatConfig", "initializedGeometry");
-	bool isResetClicked = config_get_bool(App()->GlobalConfig(), "ChatConfig", "isResetDockClicked");
+	bool initializedGeometry = config_get_bool(App()->GetUserConfig(), "ChatConfig", "initializedGeometry");
+	bool isResetClicked = config_get_bool(App()->GetUserConfig(), "ChatConfig", "isResetDockClicked");
 	bool isNeedRestPosAndShow = !isOnlyInit && isResetClicked;
 
 	if (!initializedGeometry || isNeedRestPosAndShow) {
 		chatDock->setFloating(true);
 		basic->InitChatDockGeometry();
 		chatDock->setVisible(true);
-		config_set_bool(App()->GlobalConfig(), "ChatConfig", "initializedGeometry", true);
-		config_set_bool(App()->GlobalConfig(), "ChatConfig", "isResetDockClicked", false);
-		config_set_string(App()->GlobalConfig(), "BasicWindow", "DockState", basic->saveState().toBase64().constData());
-		config_save(App()->GlobalConfig());
+		config_set_bool(App()->GetUserConfig(), "ChatConfig", "initializedGeometry", true);
+		config_set_bool(App()->GetUserConfig(), "ChatConfig", "isResetDockClicked", false);
+		config_set_string(App()->GetUserConfig(), "BasicWindow", "DockState", basic->saveState().toBase64().constData());
+		config_save(App()->GetUserConfig());
 		return;
 	}
 
@@ -458,6 +463,9 @@ void PLSMainView::on_listWidget_itemClicked(const QListWidgetItem *item)
 	} else if (tagInt == CheckForUpdate) {
 		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Help MenuItemList checkFourUpdate Button", ACTION_CLICK);
 		QMetaObject::invokeMethod(PLSBasic::instance(), "on_checkUpdate_triggered");
+	} else if (tagInt == UserGuide) {
+		PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar Help MenuItemList UserGuide Button", ACTION_CLICK);
+		QMetaObject::invokeMethod(PLSBasic::instance(), "on_actionUserGuide_triggered");
 	}
 }
 
@@ -504,7 +512,7 @@ void PLSMainView::showVirtualCameraTips(const QString &tips)
 	}
 }
 
-void PLSMainView::showStudioModeTips(const QString& tips)
+void PLSMainView::showStudioModeTips(const QString &tips)
 {
 	static QPointer<ResolutionTipFrame> last = nullptr;
 	if (last) {
@@ -516,7 +524,8 @@ void PLSMainView::showStudioModeTips(const QString& tips)
 	}
 }
 
-void PLSMainView::setStudioModeChecked(bool bValue) {
+void PLSMainView::setStudioModeChecked(bool bValue)
+{
 	ui->studioMode->setChecked(bValue);
 }
 
@@ -535,6 +544,21 @@ void PLSMainView::on_discordBtn_clicked()
 	PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar discord Button", ACTION_CLICK);
 
 	PLSBasic::instance()->on_actionDiscord_triggered();
+}
+
+void PLSMainView::on_plusBtn_clicked()
+{
+	PLS_UI_STEP(MAINFRAME_MODULE, "PLSMainView SideBar plus Button", ACTION_CLICK);
+	PLSBasic::instance()->showsPrismPlusIntroWindow();
+	PLS_LOGEX(PLS_LOG_INFO, MAINFRAME_MODULE, {{"action", "ViewPlus"}, {"feature", "Plus Button"}}, "feature subscription reminder popup");
+	pls_send_analog(AnalogType::ANALOG_PAID_STATE, {{"fsrPopup", QVariantMap({{"action", "ViewPlus"}, {"feature", "Plus Button"}})}});
+}
+
+void PLSMainView::on_paid_status_changed()
+{
+	if (m_userPlusImage) {
+		m_userPlusImage->setHidden(true);
+	}
 }
 
 #ifdef DEBUG
@@ -637,9 +661,6 @@ void PLSMainView::closeEvent(QCloseEvent *event)
 	}
 	PLS_INFO(MAINSCENE_MODULE, (bCloseByKeyboard ? __FUNCTION__ " by ALT+F4" : __FUNCTION__));
 #endif
-	if (PLSLaunchWizardView::instance()->isVisible()) {
-		PLSLaunchWizardView::instance()->hide();
-	}
 	pls_set_main_window_closing(true);
 	closeEventCallback(event);
 }
@@ -661,9 +682,9 @@ void PLSMainView::setUpdateTipsStatus(bool isShowTips)
 {
 	ui->logo_update->setVisableTips(isShowTips);
 }
-void PLSMainView::updateTipsEnableChanged()
+void PLSMainView::updateTipsEnableChanged(bool isEnable)
 {
-	ui->logo_update->setEnabled(!pls_is_output_actived());
+	ui->logo_update->setEnabled(isEnable);
 	pls_flush_style(ui->logo_update);
 }
 
@@ -736,6 +757,7 @@ bool PLSMainView::nativeEvent(const QByteArray &eventType, void *message, qintpt
 		break;
 
 	case WM_ENDSESSION: {
+		close();
 		PLS_WARN(MAINFRAME_MODULE, "[PC STATE] WM_ENDSESSION arrived, really shutdown: %s", msg.wParam ? "yes" : "no");
 		break;
 	}
@@ -763,12 +785,14 @@ bool PLSMainView::eventFilter(QObject *watcher, QEvent *event)
 			break;
 		}
 	} else if (watcher == ui->content) {
-		if (event->type() == QEvent::Resize && m_toastMsg->isVisible()) {
-			int width = ui->content->width();
-			QPoint pt = ui->content->mapToGlobal(QPoint(width, 0));
-			pt = mapFromGlobal(pt);
-			m_toastMsg->move(pt.x() - m_toastMsg->width() - 10, pt.y() + 10);
-			m_toastMsg->adjustSize();
+		if (event->type() == QEvent::Resize) {
+			if (m_toastMsg->isVisible()) {
+				int width = ui->content->width();
+				QPoint pt = ui->content->mapToGlobal(QPoint(width, 0));
+				pt = mapFromGlobal(pt);
+				m_toastMsg->move(pt.x() - m_toastMsg->width() - 10, pt.y() + 10);
+				m_toastMsg->adjustSize();
+			}
 		}
 	}
 	return PLSToplevelView::eventFilter(watcher, event);
@@ -776,7 +800,6 @@ bool PLSMainView::eventFilter(QObject *watcher, QEvent *event)
 
 void PLSMainView::updateAppView()
 {
-
 }
 
 void PLSMainView::on_settings_clicked()
@@ -890,8 +913,8 @@ void PLSMainView::registerSideBarButton(ConfigId id, const IconData &data, bool 
 	info.windowName = data.tooltip;
 
 	if (objName && *objName) {
-		bool show = config_get_bool(App()->GlobalConfig(), objName, "showMode");
-		show = show && ConfigId::SceneTemplateConfig != id;
+		bool show = config_get_bool(App()->GetUserConfig(), objName, "showMode");
+		show = show && ConfigId::SceneTemplateConfig != id && ConfigId::DualOutputConfig != id;
 		btn->setProperty("showMode", show);
 		pls_flush_style(btn);
 		info.visible = show;
@@ -979,12 +1002,12 @@ void PLSMainView::initHelpMenu()
 	m_helpListWidget->setSelectionMode(QAbstractItemView::NoSelection);
 	m_helpListWidget->setFocusPolicy(Qt::NoFocus);
 	QList<QString> titleList;
-	titleList << QTStr("MainFrame.SideBar.Help.PrismFAQ") << QTStr("MainFrame.SideBar.Help.PrismWebsite") << QTStr("MainFrame.SideBar.Help.ContactUs")
+	titleList << QTStr("WizardView.UserGuide") << QTStr("MainFrame.SideBar.Help.PrismFAQ") << QTStr("MainFrame.SideBar.Help.PrismWebsite") << QTStr("MainFrame.SideBar.Help.ContactUs")
 		  << QTStr("MainFrame.SideBar.Help.checkUpdate");
 	int index = 0;
 	for (const QString &title : titleList) {
 		QListWidgetItem *item = pls_new<QListWidgetItem>();
-		item->setData(Qt::UserRole, PrismFAQ + index);
+		item->setData(Qt::UserRole, UserGuide + index);
 		PLSNewIconActionWidget *widget = pls_new<PLSNewIconActionWidget>(title);
 		m_helpListWidget->addItem(item);
 		m_helpListWidget->setItemWidget(item, widget);
@@ -1190,7 +1213,12 @@ void PLSMainView::toastClear()
 	}
 	QApplication::sendPostedEvents();
 }
-
+void PLSMainView::showPaidToast(pls_toast_info_type type, const QString &title, const QString &message, const QString &bottomButton, const std::function<void()> &btnCallback, bool containCloseBtn,
+				int auto_close)
+{
+	
+}
+void PLSMainView::clearPaidToast() {}
 void PLSMainView::setUserButtonIcon(const QIcon &icon)
 {
 	ui->user->setIcon(icon);
@@ -1271,7 +1299,6 @@ void PLSMainView::runNewDetect()
 	HANDLE job_handle = ::CreateJobObject(nullptr, nullptr);
 	if (!job_handle) {
 		PLS_WARN(MAINFRAME_MODULE, "Failed to create pc dectect job, last error:%u", GetLastError());
-		assert(false);
 		return;
 	}
 
@@ -1281,7 +1308,6 @@ void PLSMainView::runNewDetect()
 	HANDLE state_event = CreateEventW(nullptr, TRUE, FALSE, event_id.toStdWString().c_str());
 	if (!state_event) {
 		PLS_WARN(MAINFRAME_MODULE, "Failed to create pc state event, last error:%u", GetLastError());
-		assert(false);
 	}
 
 	// send its event name to logger process
@@ -1298,7 +1324,6 @@ void PLSMainView::runNewDetect()
 	if (!::CreateProcessW(nullptr, (LPWSTR)cmd.toStdWString().c_str(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &startup_info, &proc_info)) {
 		PLS_WARN(MAINFRAME_MODULE, "Failed to run pc dectect, last error:%u", GetLastError());
 		::CloseHandle(job_handle);
-		assert(false);
 		return;
 	}
 

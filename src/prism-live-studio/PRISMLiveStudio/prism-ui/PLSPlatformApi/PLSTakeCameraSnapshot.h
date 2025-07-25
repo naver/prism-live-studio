@@ -122,7 +122,7 @@ private slots:
 #if defined(Q_OS_WINDOWS)
 	void CheckEnumTimeout();
 #endif
-	
+
 	static void updateProperties(void *data, calldata_t *calldata);
 
 protected:
@@ -148,7 +148,7 @@ private:
 	PLSLoadingEvent *m_pLoadingEvent = nullptr;
 	QWidget *m_pWidgetLoadingBG = nullptr;
 	QPointer<ScreenshotObj> m_pScreenCapture = nullptr;
-	
+
 	OBSSignal updatePropertiesSignal;
 };
 

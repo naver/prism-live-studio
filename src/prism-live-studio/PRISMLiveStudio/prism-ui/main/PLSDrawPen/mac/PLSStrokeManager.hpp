@@ -13,7 +13,7 @@
 #include <graphics/graphics.h>
 #endif
 
-typedef void(^OCDrawPenCallBacak)(void * _Nonnull context, bool isUndoable, bool isRedoable);
+typedef void (^OCDrawPenCallBacak)(void *_Nonnull context, bool isUndoable, bool isRedoable);
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -23,10 +23,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (id)init;
 
-- (void)beginWithBushMode:(BrushMode)mode
-               startPoint:(NSPoint)point
-                colorMode:(ColorMode)colorMode
-            thicknessMode:(ThicknessMode)thicknessMode;
+- (void)beginWithBushMode:(BrushMode)mode startPoint:(NSPoint)point colorMode:(ColorMode)colorMode thicknessMode:(ThicknessMode)thicknessMode;
 
 - (void)moveTo:(NSPoint)point;
 - (void)endTo:(NSPoint)point;
@@ -41,9 +38,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setVisible:(BOOL)visible;
 - (void)drawPensWithRedraw:(BOOL)bForce rightNow:(BOOL)rightNow andDebugInfo:(NSString *)info;
 
-@property (retain, readwrite) NSMutableArray<PLSStrokeAction*>* drawingActions;
-@property (retain, readwrite) NSMutableArray<PLSStrokeAction*>* undidActions;
-@property (retain, readwrite) PLSStrokeBase* currentStroke;
+@property (retain, readwrite) NSMutableArray<PLSStrokeAction *> *drawingActions;
+@property (retain, readwrite) NSMutableArray<PLSStrokeAction *> *undidActions;
+@property (retain, readwrite) PLSStrokeBase *currentStroke;
 @property (assign, readwrite) CGSize size;
 @property (retain, readwrite) dispatch_queue_t renderQueue;
 @property (nonatomic, assign, readwrite) BOOL isVisible;

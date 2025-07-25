@@ -340,13 +340,13 @@ QStringList PLSSceneDataMgr::GetAllSceneName()
 
 QString PLSSceneDataMgr::GetCurrentSceneCollectionName() const
 {
-	return QString(config_get_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile"));
+	return QString(config_get_string(App()->GetUserConfig(), "Basic", "SceneCollectionFile"));
 }
 
 QString PLSSceneDataMgr::GetCurrentSceneCollectionAbsName() const
 {
 	std::array<char, 512> path;
-	if (GetConfigPath(path.data(), path.size(), "PRISMLiveStudio/basic/scenes") <= 0)
+	if (GetAppConfigPath(path.data(), path.size(), "PRISMLiveStudio/basic/scenes") <= 0)
 		return "";
 
 	return QString(path.data()).append("/").append(GetCurrentSceneCollectionName());

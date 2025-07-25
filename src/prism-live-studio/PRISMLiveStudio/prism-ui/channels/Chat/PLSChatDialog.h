@@ -46,7 +46,7 @@ private:
 	void updateRtmpPlaceText();
 	void updateNewUrlByIndex(int index, const QVariantMap &info, bool forceSet = false);
 
-	void createToasWidget();
+	void createToastWidget();
 	void showToastIfNeeded();
 	void switchStackWidget(int index);
 
@@ -81,6 +81,7 @@ private slots:
 
 	void urlDidChanged(const QString &url);
 	void titleChanged(const QString &title);
+	void loadEnded();
 
 	void refreshUI();
 	void youtubePrivateChange();

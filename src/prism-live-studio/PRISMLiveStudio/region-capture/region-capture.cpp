@@ -104,9 +104,7 @@ RegionCapture::RegionCapture(QWidget *parent) : QWidget(parent)
 	btn_cancel->setFocusPolicy(Qt::NoFocus);
 	btn_cancel->setObjectName("cancelBtn");
 	btn_cancel->setCursor(Qt::PointingHandCursor);
-	connect(btn_cancel, &QPushButton::clicked, this, [this]() {
-		this->Init();
-	});
+	connect(btn_cancel, &QPushButton::clicked, this, [this]() { this->Init(); });
 
 	QLabel *label_space = pls_new<QLabel>(menuFrame);
 	label_space->setObjectName("label_space");

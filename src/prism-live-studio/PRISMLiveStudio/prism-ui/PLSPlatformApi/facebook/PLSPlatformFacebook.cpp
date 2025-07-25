@@ -19,8 +19,7 @@ const QString REMOVE_DASHBOARD_KEY = "REMOVE_DASHBOARD_KEY";
 
 PLSPlatformFacebook::PLSPlatformFacebook() : PLSPlatformBase()
 {
-	connect(
-		PLS_PLATFORM_API, &PLSPlatformApi::liveEndedForUi, this, [this]() { resetLiveInfo(); }, Qt::DirectConnection);
+	connect(PLS_PLATFORM_API, &PLSPlatformApi::liveEndedForUi, this, [this]() { resetLiveInfo(); }, Qt::DirectConnection);
 	QList<QString> privacyNames;
 	privacyNames.append(TimelinePublicName);
 	privacyNames.append(TimelineFriendName);
@@ -197,11 +196,6 @@ QString PLSPlatformFacebook::getItemName(const QString &itemId, const QString &i
 PLSServiceType PLSPlatformFacebook::getServiceType() const
 {
 	return PLSServiceType::ST_FACEBOOK;
-}
-
-bool PLSPlatformFacebook::onMQTTMessage(PLSPlatformMqttTopic top, const QJsonObject &jsonObject)
-{
-	return true;
 }
 
 void PLSPlatformFacebook::onPrepareLive(bool value)
@@ -595,7 +589,9 @@ void PLSPlatformFacebook::getTimelinePrivacyRequest(const MyRequestTypeFunction 
 	auto privacyFinished = [onFinished, this](const PLSErrorHandler::RetData &retData, QString privacyId) {
 		QString shareObjectName = m_prepareInfo.firstObjectName;
 		if (shareObjectName != TimelineObjectFlags) {
-			onFinished(PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE, FACEBOOK, QString()));
+			PLSErrorHandler::ExtraData extraData = {};
+			extraData.urlEn = "TimelinePrivacy";
+			onFinished(PLSErrorHandler::getAlertStringByPrismCode(PLSErrorHandler::COMMON_DEFAULT_UPDATELIVEINFOFAILED_NOSERVICE, FACEBOOK, QString(), extraData));
 			return;
 		}
 		if (retData.prismCode == PLSErrorHandler::SUCCESS) {

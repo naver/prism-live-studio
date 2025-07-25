@@ -32,7 +32,6 @@
 #include <sys/malloc.h>
 #endif
 
-
 namespace pls {
 namespace ipc {
 

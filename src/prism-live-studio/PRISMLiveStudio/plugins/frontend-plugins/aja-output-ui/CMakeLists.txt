@@ -22,44 +22,20 @@ target_sources(
           AJAOutputUI.cpp
           aja-ui-main.cpp
           aja-ui-main.h
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-card-manager.cpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-card-manager.hpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-common.cpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-common.hpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-enums.hpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-presets.cpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-presets.hpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-props.cpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-props.hpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-routing.cpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-routing.hpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-ui-props.hpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-vpid-data.cpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-vpid-data.hpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-widget-io.cpp
-          $ENV{OBS_SRC_DIR}/plugins/aja/aja-widget-io.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/double-slider.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/double-slider.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/plain-text-edit.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/plain-text-edit.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/properties-view.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/properties-view.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/properties-view.moc.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/qt-wrappers.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/qt-wrappers.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/spinbox-ignorewheel.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/spinbox-ignorewheel.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/slider-ignorewheel.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/slider-ignorewheel.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/vertical-scroll-area.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/vertical-scroll-area.hpp
           ${PRISMLiveStudio_SOURCE_DIR}/prism-ui/common/PLSMessageBox.cpp
           ${PRISMLiveStudio_SOURCE_DIR}/prism-ui/common/PLSMessageBox.h)
 
-target_link_libraries(aja-output-ui PRIVATE OBS::libobs OBS::frontend-api
-                                            Qt6::Widgets AJA::LibAJANTV2
-                                            common-libs::ui
-                                            prism::frontend-api)
+target_link_libraries(
+  aja-output-ui
+  PRIVATE
+    OBS::libobs 
+    OBS::aja-support
+    OBS::frontend-api
+    OBS::properties-view
+    Qt6::Widgets
+    AJA::LibAJANTV2
+    common-libs::ui
+    prism::frontend-api)
                                             
 if(OS_WINDOWS)
 target_link_libraries(aja-output-ui PRIVATE OBS::w32-pthreads)

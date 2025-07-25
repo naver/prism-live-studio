@@ -1,0 +1,72 @@
+
+PLSPaidToastPopup {
+		max-height: 999999px;
+		background-color: #666666;
+		border-radius:  3px;
+		font-size:  14px;
+		font-weight: normal;
+		color: #ffffff;
+}
+
+PLSPaidToastPopup #titlelabel {
+	background-color: transparent;
+}
+
+
+PLSPaidToastPopup #msgLabel {
+	background-color: transparent;
+}
+
+
+PLSPaidToastPopup #closePushButton {
+	min-width:  22px;
+	min-height:  22px;
+	max-width:  22px;
+	max-height:  22px;
+	margin:  0px;
+	padding: 0px;
+	image: url(":/resource/images/btn-close-normal.svg");
+	background-color: transparent;
+	border: none;
+}
+
+PLSPaidToastPopup #closePushButton:hover {
+	image: url(":/resource/images/btn-close-over.svg");
+}
+
+PLSPaidToastPopup #closePushButton:pressed {
+	image: url(":/resource/images/btn-close-click.svg");
+}
+
+PLSPaidToastPopup #closePushButton:disabled {
+	image: url(":/resource/images/btn-close-disable.svg");
+}
+
+PLSPaidToastPopup #otherPushButton {
+    min-height:  18px;
+    max-height:  18px;
+    margin: 0px;
+    padding:  14px 0px 0px 0px;
+    background-color: transparent;
+    font-size:  14px;
+    font-weight: normal;
+    font-style: normal;
+    text-align: left;
+    color: #effc35;
+}
+
+PLSPaidToastPopup #otherPushButton:hover {
+    color: #F9FFA7;
+}
+
+PLSPaidToastPopup #otherPushButton:pressed {
+    color: #7a7f34;
+}
+
+PLSPaidToastPopup #otherPushButton:disabled {
+    color: #444444;
+}
+
+PLSPaidToastPopup #superWidget {
+	background-color: #transparent;
+}

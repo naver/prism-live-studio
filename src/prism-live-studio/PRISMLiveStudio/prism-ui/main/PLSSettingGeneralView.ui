@@ -79,7 +79,7 @@
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_4">
        <property name="spacing">
-        <number>0</number>
+        <number>6</number>
        </property>
        <property name="topMargin">
         <number>0</number>
@@ -93,9 +93,12 @@
        <item>
         <widget class="QLabel" name="nickName">
          <property name="text">
-          <string></string>
+          <string/>
          </property>
         </widget>
+       </item>
+       <item>
+        <widget class="QWidget" name="userPlusIcon" native="true"/>
        </item>
       </layout>
      </item>

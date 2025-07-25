@@ -12,6 +12,7 @@ class PLSBasicProperties : public OBSBasicProperties {
 public:
 	PLSBasicProperties(QWidget *parent, OBSSource source_, unsigned flag);
 	~PLSBasicProperties();
+	void cancelSavePropertyData();
 
 signals:
 	void OpenMusicButtonClicked();
@@ -36,6 +37,7 @@ private:
 	void ShowLoading();
 	void HideLoading();
 	void AsyncLoadTextmotionProperties();
+	void asyncLoadChatWidgetproperties();
 	void ShowMobileNotice();
 	void ShowPrismLensNaverRunNotice(bool isMobileSource);
 
@@ -45,7 +47,7 @@ public slots:
 	void updatePreview();
 	void showToast(const QString &message);
 	void setToastMessage(const QString &message);
-	void showGuideText(const QString& guideText);
+	void showGuideText(const QString &guideText);
 	void hideGuideText();
 
 private:

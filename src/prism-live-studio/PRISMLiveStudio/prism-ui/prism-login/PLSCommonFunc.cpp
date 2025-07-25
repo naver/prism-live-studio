@@ -265,7 +265,7 @@ PLSLoadingPage *PLSUIFunc::showLoadingView(QWidget *parent, const QString &tipSt
 	return pWidgetLoadingBG;
 }
 
-void PLSUIFunc::showEnumTimeoutAlertView(const QString &deviceName)
+void PLSUIFunc::showEnumTimeoutAlertView(const QString &deviceName, QWidget *parent)
 {
 	PLS_LOGEX(PLS_LOG_ERROR, MAINFRAME_MODULE, {{"enumTimeOut", deviceName.toUtf8().data()}}, "Enumerate device '%s' timeout.", qUtf8Printable(deviceName));
 	PLSAlertView::warning(pls_get_main_view(), pls_translate_qstr("Alert.Title"), pls_translate_qstr("main.property.prism.enume.device.timeout").arg(deviceName));

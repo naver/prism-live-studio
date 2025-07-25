@@ -20,27 +20,13 @@ target_sources(
           DecklinkOutputUI.h
           decklink-ui-main.cpp
           decklink-ui-main.h
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/double-slider.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/double-slider.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/plain-text-edit.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/plain-text-edit.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/properties-view.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/properties-view.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/properties-view.moc.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/qt-wrappers.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/qt-wrappers.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/spinbox-ignorewheel.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/spinbox-ignorewheel.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/slider-ignorewheel.cpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/slider-ignorewheel.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/vertical-scroll-area.hpp
-          ${PRISMLiveStudio_SOURCE_DIR}/obs-ui/vertical-scroll-area.cpp
           ${PRISMLiveStudio_SOURCE_DIR}/prism-ui/common/PLSMessageBox.cpp
           ${PRISMLiveStudio_SOURCE_DIR}/prism-ui/common/PLSMessageBox.h)
 
 target_link_libraries(decklink-output-ui PRIVATE OBS::libobs OBS::frontend-api
                                                  Qt6::Widgets common-libs::ui
-                                                 prism::frontend-api)
+                                                 prism::frontend-api
+                                                 OBS::properties-view)
 if(OS_WINDOWS)
 target_link_libraries(decklink-output-ui PRIVATE OBS::w32-pthreads)
 endif()

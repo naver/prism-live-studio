@@ -237,10 +237,10 @@ void PLSLiveInfoSearchListWidget::showList(const std::vector<PLSSearchData> &dat
 		iconLabel->setPixmap(tmp);
 		layout->addWidget(iconLabel, 0);
 
-		auto textLbael = pls_new<QLabel>(data.name);
-		textLbael->setObjectName("categoryLabel");
-		textLbael->setAttribute(Qt::WA_Hover, false);
-		layout->addWidget(textLbael, 1);
+		auto textLabel = pls_new<QLabel>(data.name);
+		textLabel->setObjectName("categoryLabel");
+		textLabel->setAttribute(Qt::WA_Hover, false);
+		layout->addWidget(textLabel, 1);
 
 		this->addItem(item);
 		this->setItemWidget(item, rootWidget);

@@ -568,6 +568,17 @@ PLSSettingGeneralView #nickName {
     color: white;
 }
 
+PLSSettingGeneralView #userPlusIcon {
+        image:url(":/resource/images/payment/ic_plusbadgesmall.svg");
+        min-width:  17px;
+        max-width:  17px;
+        min-height: 17px;
+        max-height: 17px;
+        padding: 0;
+        margin: 0;
+        border:none;
+}
+
 #OBSBasicSettings #groupBox_20::title {
     left: /*hdpi*/ -3px;
 }
@@ -713,6 +724,13 @@ PLSSettingGeneralView {
         border-bottom-width: 1px;
     }
 
+    #OBSBasicSettings #tabWidgetDualOutputVideo QTabBar::tab:selected {
+        padding-bottom: 7px;
+    }
+
+    #OBSBasicSettings #tabWidgetDualOutputVideo QTabBar::tab:!selected {
+        font-weight:bold;
+    }
 
 #OBSBasicSettings #colorsGroupBox #colorPresetLabel, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_1, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_2, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_3, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_4,
 #OBSBasicSettings #colorsGroupBox #colorSelectLabel_5, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_6, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_7, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_8, #OBSBasicSettings #colorsGroupBox #colorSelectLabel_9 {
@@ -737,7 +755,8 @@ PLSSettingGeneralView {
 }
 
 #OBSBasicSettings #severiceExplainLabel, #OBSBasicSettings #sceneDisplayTipsLabel,
-#OBSBasicSettings #advNetworkDisabled, #OBSBasicSettings #multitrackVideoInfo {
+#OBSBasicSettings #advNetworkDisabled, #OBSBasicSettings #multitrackVideoInfo,
+#OBSBasicSettings #label_23 {
     color: #bababa;
 }
 
@@ -746,5 +765,107 @@ PLSSettingGeneralView {
     max-width: 18px;
     min-height: 18px;
     max-height: 18px;
-    image: url("://resource/images/dual-output/ic_setting_tip.png");
+    image: url("://resource/images/dual-output/ic_help_s_normal.svg");
+}
+
+#OBSBasicSettings #labelDualOutputTooltip:hover {
+    image: url("://resource/images/dual-output/ic_help_s_hover.svg");
+}
+
+#OBSBasicSettings #widgetSubcriberContainer {
+    background: #2D2D2D;
+    border-radius: 3px;
+}
+
+#OBSBasicSettings #labelSubscriberPlus {
+    color: white;
+    background: transparent;
+    
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 22px;
+}
+
+#OBSBasicSettings #labelSubscriberPlus[status="free"] {
+    min-width: 241px;
+    max-width: 241px;
+    min-height: 22px;
+    max-height: 22px;
+
+    image: url("://resource/images/payment/img_setting_prism_plus.svg");
+}
+
+#OBSBasicSettings #labelSubscriberStatus {
+    color: #0D0D0E;
+
+    padding: 3px 4px 2px 4px;
+    border-radius: 4px;
+    min-height: 13px;
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+#OBSBasicSettings #widget_6 {
+    background: transparent;    
+}
+
+#OBSBasicSettings #labelSubscribeTip {
+    color: white;
+    background: transparent;
+
+    margin-top: 6px;
+
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+}
+
+#OBSBasicSettings #labelSubscriberStatus, #OBSBasicSettings #pushButtonSubscribe {
+    background: transparent;
+    border-image: url("://resource/images/payment/btn_plus_normal.svg");
+}
+
+#OBSBasicSettings #pushButtonSubscribe {
+    color: black;
+
+    margin-top: 12px;
+    padding: 0 0 1px 0;
+    border-radius: 3px;
+    min-width: 280px;
+    min-height: 45px;
+
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+}
+
+#OBSBasicSettings #pushButtonSubscribe:hover {
+    border-image: url("://resource/images/payment/btn_plus_hover.svg");
+}
+
+#OBSBasicSettings #pushButtonSubscribe:pressed {
+    border-image: url("://resource/images/payment/btn_plus_clicked.svg");
+}
+
+#OBSBasicSettings #labelSubscriberDate {
+    color: white;
+    background: transparent;
+
+    margin-top: 11px;
+
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;    
+}
+
+#OBSBasicSettings #labelSubscriberMobile {
+    color: #999999;
+    background: transparent;
+
+    margin-top: 1px;
+
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;       
 }

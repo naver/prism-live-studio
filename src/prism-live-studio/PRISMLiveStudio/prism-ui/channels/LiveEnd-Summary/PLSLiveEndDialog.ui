@@ -90,7 +90,7 @@
         <x>0</x>
         <y>0</y>
         <width>873</width>
-        <height>219</height>
+        <height>218</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -98,13 +98,13 @@
         <number>5</number>
        </property>
        <property name="leftMargin">
-        <number>0</number>
+        <number>29</number>
        </property>
        <property name="topMargin">
         <number>0</number>
        </property>
        <property name="rightMargin">
-        <number>11</number>
+        <number>0</number>
        </property>
        <property name="bottomMargin">
         <number>0</number>

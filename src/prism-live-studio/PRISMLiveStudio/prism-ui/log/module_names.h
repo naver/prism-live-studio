@@ -73,3 +73,4 @@
 #define PLS_MODULE_NAME_OUTRO "main/prism-outro"
 #define SCENE_TEMPLATE "main/scene-template"
 #define CHANNELDATAHANDLER "channelDataHander"
+#define PLS_MODULE_NAME_PAID "main/PAID"

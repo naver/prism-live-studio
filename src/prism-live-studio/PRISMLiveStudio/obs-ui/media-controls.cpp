@@ -1,5 +1,5 @@
 #include "window-basic-main.hpp"
-#include "media-controls.hpp"
+#include "moc_media-controls.cpp"
 #include "pls-common-define.hpp"
 #include "obs-app.hpp"
 #include <QToolTip>
@@ -44,8 +44,7 @@ void MediaControls::OBSMediaPrevious(void *data, calldata_t *)
 	QMetaObject::invokeMethod(media, "UpdateSlideCounter");
 }
 
-MediaControls::MediaControls(QWidget *parent)
-	: QWidget(parent), ui(new Ui::MediaControls)
+MediaControls::MediaControls(QWidget *parent) : QWidget(parent), ui(new Ui::MediaControls)
 {
 	ui->setupUi(this);
 	pls_add_css(this, {"MediaControls"});
@@ -55,47 +54,36 @@ MediaControls::MediaControls(QWidget *parent)
 	ui->stopButton->setProperty("themeID", "stopIcon");
 	setFocusPolicy(Qt::StrongFocus);
 
-	connect(&mediaTimer, &QTimer::timeout, this,
-		&MediaControls::SetSliderPosition);
-	connect(&seekTimer, &QTimer::timeout, this,
-		&MediaControls::SeekTimerCallback);
-	connect(ui->slider, &AbsoluteSlider::sliderPressed, this,
-		&MediaControls::AbsoluteSliderClicked);
-	connect(ui->slider, &AbsoluteSlider::absoluteSliderHovered, this,
-		&MediaControls::AbsoluteSliderHovered);
-	connect(ui->slider, &AbsoluteSlider::sliderReleased, this,
-		&MediaControls::AbsoluteSliderReleased);
-	connect(ui->slider, &AbsoluteSlider::sliderMoved, this,
-		&MediaControls::AbsoluteSliderMoved);
+	connect(&mediaTimer, &QTimer::timeout, this, &MediaControls::SetSliderPosition);
+	connect(&seekTimer, &QTimer::timeout, this, &MediaControls::SeekTimerCallback);
+	connect(ui->slider, &AbsoluteSlider::sliderPressed, this, &MediaControls::AbsoluteSliderClicked);
+	connect(ui->slider, &AbsoluteSlider::absoluteSliderHovered, this, &MediaControls::AbsoluteSliderHovered);
+	connect(ui->slider, &AbsoluteSlider::sliderReleased, this, &MediaControls::AbsoluteSliderReleased);
+	connect(ui->slider, &AbsoluteSlider::sliderMoved, this, &MediaControls::AbsoluteSliderMoved);
 
-	countDownTimer = config_get_bool(App()->GlobalConfig(), "BasicWindow",
-					 "MediaControlsCountdownTimer");
+	countDownTimer = config_get_bool(App()->GetUserConfig(), "BasicWindow", "MediaControlsCountdownTimer");
 
 	QAction *restartAction = new QAction(this);
 	restartAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
 	restartAction->setShortcut({Qt::Key_R});
-	connect(restartAction, &QAction::triggered, this,
-		&MediaControls::RestartMedia);
+	connect(restartAction, &QAction::triggered, this, &MediaControls::RestartMedia);
 	addAction(restartAction);
 
 	QAction *sliderFoward = new QAction(this);
 	sliderFoward->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-	connect(sliderFoward, &QAction::triggered, this,
-		&MediaControls::MoveSliderFoward);
+	connect(sliderFoward, &QAction::triggered, this, &MediaControls::MoveSliderFoward);
 	sliderFoward->setShortcut({Qt::Key_Right});
 	addAction(sliderFoward);
 
 	QAction *sliderBack = new QAction(this);
 	sliderBack->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-	connect(sliderBack, &QAction::triggered, this,
-		&MediaControls::MoveSliderBackwards);
+	connect(sliderBack, &QAction::triggered, this, &MediaControls::MoveSliderBackwards);
 	sliderBack->setShortcut({Qt::Key_Left});
 	addAction(sliderBack);
 
 	QAction *playPause = new QAction(this);
 	playPause->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-	connect(playPause, &QAction::triggered, this,
-		&MediaControls::on_playPauseButton_clicked);
+	connect(playPause, &QAction::triggered, this, &MediaControls::on_playPauseButton_clicked);
 	playPause->setShortcut({Qt::Key_Space});
 	addAction(playPause);
 }
@@ -219,8 +207,7 @@ void MediaControls::SetPlayingState()
 	ui->playPauseButton->setProperty("themeID", "pauseIcon");
 	ui->playPauseButton->style()->unpolish(ui->playPauseButton);
 	ui->playPauseButton->style()->polish(ui->playPauseButton);
-	ui->playPauseButton->setToolTip(
-		QTStr("ContextBar.MediaControls.PauseMedia"));
+	ui->playPauseButton->setToolTip(QTStr("ContextBar.MediaControls.PauseMedia"));
 
 	prevPaused = false;
 	pls_flush_style(ui->timerLabel, "playing", true);
@@ -234,8 +221,7 @@ void MediaControls::SetPausedState()
 	ui->playPauseButton->setProperty("themeID", "playIcon");
 	ui->playPauseButton->style()->unpolish(ui->playPauseButton);
 	ui->playPauseButton->style()->polish(ui->playPauseButton);
-	ui->playPauseButton->setToolTip(
-		QTStr("ContextBar.MediaControls.PlayMedia"));
+	ui->playPauseButton->setToolTip(QTStr("ContextBar.MediaControls.PlayMedia"));
 
 	StopMediaTimer();
 }
@@ -245,8 +231,7 @@ void MediaControls::SetRestartState()
 	ui->playPauseButton->setProperty("themeID", "restartIcon");
 	ui->playPauseButton->style()->unpolish(ui->playPauseButton);
 	ui->playPauseButton->style()->polish(ui->playPauseButton);
-	ui->playPauseButton->setToolTip(
-		QTStr("ContextBar.MediaControls.RestartMedia"));
+	ui->playPauseButton->setToolTip(QTStr("ContextBar.MediaControls.RestartMedia"));
 
 	ui->slider->setValue(0);
 	//ui->slider->setMediaSliderEnabled(false);
@@ -299,15 +284,13 @@ void MediaControls::RefreshControls()
 
 	OBSDataAutoRelease settings = obs_source_get_settings(source);
 	const char *localFile = obs_data_get_string(settings, "local_file");
-	if (pls_is_empty(localFile) &&
-	    pls_is_equal(id, common::MEDIA_SOURCE_ID)) {
+	if (pls_is_empty(localFile) && pls_is_equal(id, common::MEDIA_SOURCE_ID)) {
 		SetRestartState();
 	} else {
 		obs_media_state state = obs_source_media_get_state(source);
 
 		if (state == OBS_MEDIA_STATE_OPENING) {
-			blog(LOG_INFO,
-			     "Media state is opening, refresh controls in 100ms");
+			blog(LOG_INFO, "Media state is opening, refresh controls in 100ms");
 			QPointer<MediaControls> weakThis(this);
 			QTimer::singleShot(100, [weakThis]() {
 				if (weakThis) {
@@ -382,8 +365,7 @@ void MediaControls::SetSliderPosition()
 	float sliderPosition;
 
 	if (duration)
-		sliderPosition =
-			(time / duration) * (float)ui->slider->maximum();
+		sliderPosition = (time / duration) * (float)ui->slider->maximum();
 	else
 		sliderPosition = 0.0f;
 
@@ -413,6 +395,8 @@ void MediaControls::on_playPauseButton_clicked()
 	switch (state) {
 	case OBS_MEDIA_STATE_STOPPED:
 	case OBS_MEDIA_STATE_ENDED:
+	//PRISM/chenguoxi/20250122/PRISM_PC-2205/play media when media is not active for studio mode
+	case OBS_MEDIA_STATE_NONE:
 		RestartMedia();
 		break;
 	case OBS_MEDIA_STATE_PLAYING:
@@ -493,8 +477,7 @@ void MediaControls::on_durationLabel_clicked()
 {
 	countDownTimer = !countDownTimer;
 
-	config_set_bool(App()->GlobalConfig(), "BasicWindow",
-			"MediaControlsCountdownTimer", countDownTimer);
+	config_set_bool(App()->GetUserConfig(), "BasicWindow", "MediaControlsCountdownTimer", countDownTimer);
 
 	if (MediaPaused())
 		SetSliderPosition();
@@ -572,10 +555,7 @@ void MediaControls::UpdateLabels(int val)
 	ui->timerLabel->setText(FormatSeconds((int)(time / 1000.0f)));
 
 	if (!countDownTimer)
-		ui->durationLabel->setText(
-			FormatSeconds((int)(duration / 1000.0f)));
+		ui->durationLabel->setText(FormatSeconds((int)(duration / 1000.0f)));
 	else
-		ui->durationLabel->setText(
-			QString("-") +
-			FormatSeconds((int)((duration - time) / 1000.0f)));
+		ui->durationLabel->setText(QString("-") + FormatSeconds((int)((duration - time) / 1000.0f)));
 }

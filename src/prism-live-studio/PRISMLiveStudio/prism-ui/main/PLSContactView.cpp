@@ -69,17 +69,19 @@ PLSContactView::PLSContactView(const QString &message, const QString &additional
 		auto flowLayout = pls_new<FlowLayout>(nullptr, 0, 6, 6);
 		flowLayout->setAlignment(Qt::AlignTop | Qt::AlignLeft);
 		flowLayout->setContentsMargins(0, 0, 0, 0);
-		
+
 		flowLayout->addWidget(ui->radioButtonTypeError);
 		flowLayout->addWidget(ui->radioButtonTypeAdvice);
 		flowLayout->addWidget(ui->radioButtonTypeConsult);
+		flowLayout->addWidget(ui->radioButtonTypePlus);
 		flowLayout->addWidget(ui->radioButtonTypeOther);
 
 		ui->radioButtonTypeError->show();
 		ui->radioButtonTypeAdvice->show();
 		ui->radioButtonTypeConsult->show();
+		ui->radioButtonTypePlus->show();
 		ui->radioButtonTypeOther->show();
-		
+
 		delete ui->horizontalLayout_3;
 		ui->verticalLayout_3->insertLayout(index, flowLayout);
 	}
@@ -88,6 +90,7 @@ PLSContactView::PLSContactView(const QString &message, const QString &additional
 	m_pInquireType->addButton(ui->radioButtonTypeError, static_cast<int>(PLS_CONTACTUS_QUESTION_TYPE::Error));
 	m_pInquireType->addButton(ui->radioButtonTypeAdvice, static_cast<int>(PLS_CONTACTUS_QUESTION_TYPE::Advice));
 	m_pInquireType->addButton(ui->radioButtonTypeConsult, static_cast<int>(PLS_CONTACTUS_QUESTION_TYPE::Consult));
+	m_pInquireType->addButton(ui->radioButtonTypePlus, static_cast<int>(PLS_CONTACTUS_QUESTION_TYPE::Plus));
 	m_pInquireType->addButton(ui->radioButtonTypeOther, static_cast<int>(PLS_CONTACTUS_QUESTION_TYPE::Other));
 
 	chooseFileDir = QStandardPaths::standardLocations(QStandardPaths::DesktopLocation).first();
@@ -258,9 +261,9 @@ void PLSContactView::setupLineEdit()
 	sizePolicy.setRetainSizeWhenHidden(true);
 	ui->emailTipLabel->setSizePolicy(sizePolicy);
 	ui->emailTipLabel->setVisible(false);
-	bool isValue = config_has_user_value(App()->GlobalConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_CONTACT_EMAIL_MODULE);
+	bool isValue = config_has_user_value(App()->GetUserConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_CONTACT_EMAIL_MODULE);
 	if (isValue) {
-		const char *value = config_get_string(App()->GlobalConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_CONTACT_EMAIL_MODULE);
+		const char *value = config_get_string(App()->GetUserConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_CONTACT_EMAIL_MODULE);
 		if (value && value[0]) {
 			ui->emailLineEdit->setText(QString(value));
 		}
@@ -463,7 +466,7 @@ void PLSContactView::writePrismVersionInfo(std::ofstream &file) const
 
 #ifdef _WIN32
 	file << "  Current Date/Time:" << CurrentDateTimeString().c_str() << std::endl;
-	bool browserHWAccel = config_get_bool(App()->GlobalConfig(), "General", "BrowserHWAccel");
+	bool browserHWAccel = config_get_bool(App()->GetUserConfig(), "General", "BrowserHWAccel");
 	std::string browserHWAccelStr = browserHWAccel ? "true" : "false";
 	file << "  Browser Hardware Acceleration: " << browserHWAccelStr << std::endl;
 #endif
@@ -742,7 +745,7 @@ void PLSContactView::on_sendButton_clicked()
 		}
 		return;
 	}
-	config_set_string(App()->GlobalConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_CONTACT_EMAIL_MODULE, ui->emailLineEdit->text().toUtf8().constData());
+	config_set_string(App()->GetUserConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_CONTACT_EMAIL_MODULE, ui->emailLineEdit->text().toUtf8().constData());
 	this->accept();
 }
 
@@ -750,7 +753,7 @@ void PLSContactView::on_cancelButton_clicked()
 {
 	PLS_UI_STEP(CONTACT_US_MODULE, " PLSContactView cancelButton Button", ACTION_CLICK);
 	PLS_LOGEX(PLS_LOG_INFO, CONTACT_US_MODULE, {{"contactus-action", "cancel"}}, "Contact us user click action");
-	config_set_string(App()->GlobalConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_CONTACT_EMAIL_MODULE, ui->emailLineEdit->text().toUtf8().constData());
+	config_set_string(App()->GetUserConfig(), CONFIG_BASIC_WINDOW_MODULE, CONFIG_CONTACT_EMAIL_MODULE, ui->emailLineEdit->text().toUtf8().constData());
 	this->reject();
 }
 

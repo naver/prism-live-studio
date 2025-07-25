@@ -61,7 +61,7 @@ PLSLiveInfoNaverShoppingLIVEProductItemView::~PLSLiveInfoNaverShoppingLIVEProduc
 	pls_delete(ui, nullptr);
 }
 
-void PLSLiveInfoNaverShoppingLIVEProductItemView::setInfo(const PLSPlatformNaverShoppingLIVE *platform, const Product &product_, bool fixed_)
+void PLSLiveInfoNaverShoppingLIVEProductItemView::setInfo(const PLSPlatformNaverShoppingLIVE *platform, const Product &product_, bool fixed_, bool readOnly)
 {
 	product = product_;
 	setFixed(product.represent);
@@ -118,6 +118,7 @@ void PLSLiveInfoNaverShoppingLIVEProductItemView::setInfo(const PLSPlatformNaver
 
 	ui->introducingLabel->setVisible(product.introducing);
 	ui->fixButton->setVisible(product.productType == PLSProductType::MainProduct);
+	setProductReadonly(readOnly);
 	this->setVisible(true);
 
 	PLSNaverShoppingLIVEDataManager::instance()->downloadImage(
@@ -149,7 +150,6 @@ void PLSLiveInfoNaverShoppingLIVEProductItemView::setProductReadonly(bool readon
 	ui->fixButton->setEnabled(!readonly);
 	ui->removeButton->setEnabled(!readonly);
 
-	ui->fixButton->setVisible(!readonly);
 	ui->removeButton->setVisible(!readonly);
 }
 

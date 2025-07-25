@@ -371,9 +371,7 @@ LIBUI_API void pls_push_modal_view(QDialog *dialog)
 
 LIBUI_API void pls_pop_modal_view(QDialog *dialog)
 {
-	if (pls_object_is_valid(dialog)) {
-		LocalGlobalVars::g_dialog_views.removeAll(dialog);
-	}
+	LocalGlobalVars::g_dialog_views.removeAll(dialog);
 }
 
 LIBUI_API void pls_push_modal_view(QMenu *menu)
@@ -385,8 +383,17 @@ LIBUI_API void pls_push_modal_view(QMenu *menu)
 
 LIBUI_API void pls_pop_modal_view(QMenu *menu)
 {
-	if (pls_object_is_valid(menu)) {
-		LocalGlobalVars::g_menu_views.removeAll(menu);
+	LocalGlobalVars::g_menu_views.removeAll(menu);
+}
+
+static void close_dialog(QDialog *dlg, bool close)
+{
+	if (auto closeDialog = dynamic_cast<pls::ICloseDialog *>(dlg); closeDialog) {
+		closeDialog->closeNoButton();
+	} else if (close) {
+		dlg->close();
+	} else {
+		dlg->reject();
 	}
 }
 
@@ -402,22 +409,14 @@ LIBUI_API void pls_notify_close_modal_views()
 	}
 	while (!dlgs.isEmpty()) {
 		auto dlg = dlgs.takeLast();
-		if (auto closeDialog = dynamic_cast<pls::ICloseDialog *>(dlg); closeDialog) {
-			closeDialog->closeNoButton();
-		} else {
-			dlg->close();
-		}
+		close_dialog(dlg, true);
 	}
 
 	while (!LocalGlobalVars::g_dialog_views.isEmpty()) {
 		if (auto dlg = LocalGlobalVars::g_dialog_views.takeLast(); dlg) {
 			PLS_INFO("libui", "close managed Qt modal window, className: %s, objectName: %s", dlg->metaObject()->className(), dlg->objectName().toUtf8().constData());
 			dlg->setParent(nullptr);
-			if (auto closeDialog = dynamic_cast<pls::ICloseDialog *>(dlg.data()); closeDialog) {
-				closeDialog->closeNoButton();
-			} else {
-				dlg->reject();
-			}
+			close_dialog(dlg, false);
 		}
 	}
 
@@ -444,43 +443,31 @@ LIBUI_API void pls_notify_close_modal_views_with_parent(QWidget *parent)
 {
 	QList<QDialog *> dlgs;
 	for (auto w : qApp->topLevelWidgets()) {
-		if (auto dlg = dynamic_cast<QDialog *>(w); dlg && dlg->isModal() && !LocalGlobalVars::g_dialog_views.contains(dlg)) {
-			if (_findParent(dlg->parent(), parent)) {
-				PLS_INFO("libui", "close unmanaged Qt modal window, className: %s, objectName: %s", dlg->metaObject()->className(), dlg->objectName().toUtf8().constData());
-				dlg->setParent(nullptr);
-				dlgs.append(dlg);
-			}
+		if (auto dlg = dynamic_cast<QDialog *>(w); dlg && dlg->isModal() && !LocalGlobalVars::g_dialog_views.contains(dlg) && _findParent(dlg->parent(), parent)) {
+			PLS_INFO("libui", "close unmanaged Qt modal window, className: %s, objectName: %s", dlg->metaObject()->className(), dlg->objectName().toUtf8().constData());
+			dlg->setParent(nullptr);
+			dlgs.append(dlg);
 		}
 	}
 	while (!dlgs.isEmpty()) {
 		auto dlg = dlgs.takeLast();
-		if (auto closeDialog = dynamic_cast<pls::ICloseDialog *>(dlg); closeDialog) {
-			closeDialog->closeNoButton();
-		} else if (dlg != nullptr) {
-			dlg->close();
+		close_dialog(dlg, true);
+	}
+
+	for (auto i = LocalGlobalVars::g_dialog_views.size() - 1; i >= 0; --i) {
+		if (auto dlg = LocalGlobalVars::g_dialog_views.at(i); dlg && _findParent(dlg->parent(), parent)) {
+			PLS_INFO("libui", "close managed Qt modal window, className: %s, objectName: %s", dlg->metaObject()->className(), dlg->objectName().toUtf8().constData());
+			dlg->setParent(nullptr);
+			close_dialog(dlg, false);
+			LocalGlobalVars::g_dialog_views.removeAt(i);
 		}
 	}
 
-	while (!LocalGlobalVars::g_dialog_views.isEmpty()) {
-		if (auto dlg = LocalGlobalVars::g_dialog_views.takeLast(); dlg) {
-			if (_findParent(dlg->parent(), parent)) {
-				PLS_INFO("libui", "close managed Qt modal window, className: %s, objectName: %s", dlg->metaObject()->className(), dlg->objectName().toUtf8().constData());
-				dlg->setParent(nullptr);
-				if (auto closeDialog = dynamic_cast<pls::ICloseDialog *>(dlg.data()); closeDialog) {
-					closeDialog->closeNoButton();
-				} else {
-					dlg->reject();
-				}
-			}
-		}
-	}
-
-	while (!LocalGlobalVars::g_menu_views.isEmpty()) {
-		if (auto menu = LocalGlobalVars::g_menu_views.takeLast(); menu) {
-			if (_findParent(menu->parent(), parent)) {
-				PLS_INFO("libui", "close managed Qt menu, className: %s, objectName: %s", menu->metaObject()->className(), menu->objectName().toUtf8().constData());
-				menu->setParent(nullptr);
-			}
+	for (auto i = LocalGlobalVars::g_menu_views.size() - 1; i >= 0; --i) {
+		if (auto menu = LocalGlobalVars::g_menu_views.at(i); menu && _findParent(menu->parent(), parent)) {
+			PLS_INFO("libui", "close managed Qt menu, className: %s, objectName: %s", menu->metaObject()->className(), menu->objectName().toUtf8().constData());
+			menu->setParent(nullptr);
+			LocalGlobalVars::g_menu_views.removeAt(i);
 		}
 	}
 }

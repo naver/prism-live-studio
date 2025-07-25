@@ -29,7 +29,7 @@ private:
 
 #define RUN_WHEN_SECTION_END(lambda) CAutoRunWhenSecEnd COMBINE1(autoRunVariable, __LINE__)(lambda)
 
-using FoundDumpFunc = void (*)(const std::string &exit_type, const std::string& process_name);
+using FoundDumpFunc = void (*)(const std::string &exit_type, const std::string &process_name);
 using LogFunc = void (*)(const std::map<std::string, std::string, std::less<>> &all);
 using ProcessFunc = void (*)(std::string const &location, std::string const &url);
 
@@ -69,10 +69,12 @@ LIBDUMPANALUZER_API struct ProcessInfo {
 	LogFunc log_func = nullptr;
 	ProcessFunc process_func = nullptr;
 
-	ProcessInfo(){};
+	int duplicate_crash_limit = 2;
+
+	ProcessInfo() {};
 	ProcessInfo(std::string process_name_, std::string pid_, std::string user_id_, std::string version, std::string session, std::string subsession, std::string _log_from, std::string _os_type,
-		    std::string project_name_, std::string cpu_name_, std::string video_adapter_name_, FoundDumpFunc found_dumo_func_ = nullptr, LogFunc log_func_ = nullptr, ProcessFunc process_func_ = nullptr,
-		    bool pc_shutdown = false)
+		    std::string project_name_, std::string cpu_name_, std::string video_adapter_name_, FoundDumpFunc found_dumo_func_ = nullptr, LogFunc log_func_ = nullptr,
+		    ProcessFunc process_func_ = nullptr, bool pc_shutdown = false)
 		: process_name(process_name_),
 		  pid(pid_),
 		  user_id(user_id_),
@@ -87,5 +89,5 @@ LIBDUMPANALUZER_API struct ProcessInfo {
 		  found_dumo_func(found_dumo_func_),
 		  log_func(log_func_),
 		  process_func(process_func_),
-		  pc_shutdown_happen(pc_shutdown){};
+		  pc_shutdown_happen(pc_shutdown) {};
 };

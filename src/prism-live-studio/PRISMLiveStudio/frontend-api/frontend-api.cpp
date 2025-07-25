@@ -12,6 +12,7 @@
 #include <QNetworkInterface>
 #include <QFontDatabase>
 #include "pls/pls-obs-api.h"
+#include "pls/pls-source.h"
 
 #ifdef Q_OS_WIN
 #include <Windows.h>
@@ -89,6 +90,7 @@ struct MDNSInfo {
 namespace {
 struct LocalGlobalVars {
 	static pls_frontend_callbacks *fc;
+	static std::unique_ptr<pls_frontend_general_callbacks> fgc;
 	static pls_translate_callback_t s_translate_cb;
 	static PfnGetConfigPath getConfigPath;
 	static ControlSrcType broadcastControl;
@@ -100,6 +102,7 @@ struct LocalGlobalVars {
 };
 
 pls_frontend_callbacks *LocalGlobalVars::fc = nullptr;
+std::unique_ptr<pls_frontend_general_callbacks> LocalGlobalVars::fgc;
 pls_translate_callback_t LocalGlobalVars::s_translate_cb = nullptr;
 PfnGetConfigPath LocalGlobalVars::getConfigPath = nullptr;
 
@@ -181,9 +184,14 @@ FRONTEND_API void pls_frontend_set_callbacks_internal(pls_frontend_callbacks *ca
 	LocalGlobalVars::fc = callbacks;
 }
 
-static inline bool callbacks_valid_(const char *func_name)
+FRONTEND_API void pls_frontend_set_general_callbacks_internal(pls_frontend_general_callbacks *callbacks)
 {
-	if (!LocalGlobalVars::fc) {
+	LocalGlobalVars::fgc.reset(callbacks);
+}
+
+template<typename Cb> static inline bool callbacks_valid_(const char *func_name, Cb &cb)
+{
+	if (!cb) {
 		PLS_WARN(MAIN_FRONTEND_API, "Tried to call %s with no callbacks!", func_name);
 		return false;
 	}
@@ -191,7 +199,8 @@ static inline bool callbacks_valid_(const char *func_name)
 	return true;
 }
 
-#define callbacks_valid() callbacks_valid_(__FUNCTION__)
+#define callbacks_valid() callbacks_valid_(__FUNCTION__, LocalGlobalVars::fc)
+#define general_callbacks_valid() callbacks_valid_(__FUNCTION__, LocalGlobalVars::fgc)
 
 FRONTEND_API void pls_set_translate_cb(pls_translate_callback_t translate_cb)
 {
@@ -565,6 +574,14 @@ FRONTEND_API QString pls_get_remote_control_mobile_name(const QString &platformN
 	return QString();
 }
 
+FRONTEND_API bool pls_frontend_set_preview_program_mode(bool enable)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_frontend_set_preview_program_mode(enable);
+	}
+	return false;
+}
+
 FRONTEND_API void pls_frontend_add_event_callback(pls_frontend_event_cb callback, void *context)
 {
 	if (callbacks_valid()) {
@@ -621,6 +638,29 @@ FRONTEND_API void pls_toast_clear()
 {
 	if (callbacks_valid()) {
 		return LocalGlobalVars::fc->pls_toast_clear();
+	}
+}
+
+FRONTEND_API void pls_paid_toast_message(pls_toast_info_type type, const QString &title, const QString &message, const QString &bottomButton, const std::function<void()> &btnCallback,
+					 bool containCloseBtn, int auto_close)
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_paid_toast_message(type, title, message, bottomButton, btnCallback, containCloseBtn, auto_close);
+	}
+}
+FRONTEND_API void pls_paid_toast_message_close_btn(pls_toast_info_type type, const QString &title, const QString &message)
+{
+	pls_paid_toast_message(type, title, message, "", nullptr, true, -1);
+}
+FRONTEND_API void pls_paid_toast_message_no_btn(pls_toast_info_type type, const QString &title, const QString &message, int auto_close)
+{
+	assert(auto_close > 0 && "no btn and not set auto close less than zero");
+	pls_paid_toast_message(type, title, message, "", nullptr, false, auto_close);
+}
+FRONTEND_API void pls_paid_toast_clear()
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_paid_toast_clear();
 	}
 }
 FRONTEND_API void pls_set_main_view_side_bar_user_button_icon(const QIcon &icon)
@@ -755,6 +795,13 @@ FRONTEND_API bool pls_is_output_actived()
 	return false;
 }
 
+FRONTEND_API bool pls_is_without_third_output_actived()
+{
+	if (callbacks_valid()) {
+		return LocalGlobalVars::fc->pls_is_without_third_output_actived();
+	}
+	return false;
+}
 // add tools menu seperator
 FRONTEND_API void pls_add_tools_menu_seperator()
 {
@@ -1465,10 +1512,10 @@ FRONTEND_API void pls_show_virtual_background()
 }
 
 FRONTEND_API QWidget *pls_create_virtual_background_resource_widget(QWidget *parent, const std::function<void(QWidget *)> &init, bool forProperty, const QString &itemId, bool checkBoxState,
-								    bool switchToPrismFirst)
+								    bool checkBoxEnable, bool switchToPrismFirst)
 {
 	if (callbacks_valid()) {
-		return LocalGlobalVars::fc->pls_create_virtual_background_resource_widget(parent, init, forProperty, itemId, checkBoxState, switchToPrismFirst);
+		return LocalGlobalVars::fc->pls_create_virtual_background_resource_widget(parent, init, forProperty, itemId, checkBoxState, checkBoxEnable, switchToPrismFirst);
 	}
 	return nullptr;
 }
@@ -1981,8 +2028,8 @@ FRONTEND_API void pls_on_frontend_event(pls_frontend_event event, const QVariant
 
 FRONTEND_API void pls_send_analog(AnalogType logType, const QVariantMap &info)
 {
-	if (callbacks_valid()) {
-		LocalGlobalVars::fc->pls_send_analog(logType, info);
+	if (general_callbacks_valid()) {
+		LocalGlobalVars::fgc->pls_send_analog(logType, info);
 	}
 }
 
@@ -2439,4 +2486,17 @@ FRONTEND_API obs_output_t *pls_frontend_get_streaming_output_v(void)
 		return LocalGlobalVars::fc->pls_frontend_get_streaming_output_v();
 	}
 	return nullptr;
+}
+
+/**
+  * call obs_source_check_settings_ex to check if the source is paid or not.
+  */
+FRONTEND_API bool pls_source_check_paid(obs_source_t *source)
+{
+	auto isPaid = false;
+	obs_data_t *data = obs_data_create();
+	if (obs_source_check_settings_ex(source, data))
+		isPaid = obs_data_get_bool(data, API_PAID_KEY_NAME);
+	obs_data_release(data);
+	return isPaid;
 }

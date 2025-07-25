@@ -99,8 +99,8 @@ constexpr auto LANGUAGE_KOREAN_TRANSLATE_PATH = "ko-kr/strings.xml";
 constexpr auto LANGUAGE_SETTING_ENGLISH = "en-US,en;q=0.9";
 constexpr auto LANGUAGE_SETTING_KOREAN = "ko-KR,ko;q=0.9";
 
-constexpr auto ENCODING_SETTINGS_GUIDE_EN_US_URL = "http://prismlive.com/en_us/faq/faq.html?app=pcapp";
-constexpr auto ENCODING_SETTINGS_GUIDE_KO_KR_URL = "http://prismlive.com/ko_kr/faq/faq.html?app=pcapp";
+constexpr auto ENCODING_SETTINGS_GUIDE_EN_US_URL = "";
+constexpr auto ENCODING_SETTINGS_GUIDE_KO_KR_URL = "";
 
 /*****************resources******************/
 constexpr auto RESOURCES_PATH = "resources/";
@@ -199,11 +199,15 @@ constexpr auto CONFIG_MUSIC_PATH = "data/prism-studio/music/";
 constexpr auto SCENE_TEMPLATE_DIR = "PRISMLiveStudio/scene-templates/";
 constexpr auto SCENE_TEMPLATE_JSON = "PRISMLiveStudio/scene-templates/SceneTemplates.json";
 constexpr auto LAUNCHER_CONFIG = "LauncherConfig";
-constexpr auto CONFIG_DONTSHOW = "DontShow";
+constexpr auto CONFIG_LASTHIDEDATE = "LastHideDate";
 constexpr auto AUDIO_MIXER_CONFIG = "AudioMixerConfig";
+constexpr auto AUDIO_MIXER_SHOW_TIPS_COUNT = "AudioMixerShowTipsCount";
+constexpr auto AUDIO_MIXER_DUAL_OUTPUT_ADVANCE_PAGE = "AudioMixerDualOutputAdvancedPage";
 
 constexpr auto NEWFUNCTIONTIP_CONFIG = "NewFunctionTipConfig";
 constexpr auto CONFIG_DISPLAYVERISON = "DisplayVerison";
+constexpr auto CHAT_WIDGET_CONFIG = "ChatWidgetConfig";
+constexpr auto CHAT_WIDGET_NEW_BADGE = "ChatWidgetNewBadge";
 
 /* **the keys of source settings need to be same with bgm source plugins ** */
 constexpr auto RANDOM_PLAY = "random play";

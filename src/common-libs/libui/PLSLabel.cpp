@@ -9,6 +9,7 @@
 #include <QToolTip>
 #include "libui.h"
 #include "libutils-api.h"
+#include <QResizeEvent>
 
 PLSElideLabel::PLSElideLabel(QWidget *parent) : QLabel(parent) {}
 
@@ -264,4 +265,24 @@ bool PLSHelpIcon::eventFilter(QObject *watched, QEvent *event)
 	}
 #endif
 	return QLabel::eventFilter(watched, event);
+}
+
+PLSFormLabel::PLSFormLabel(QWidget *parent) : QLabel(parent) {}
+
+void PLSFormLabel::setText(const QString &value)
+{
+	QLabel::setText(value);
+	setToolTip(text());
+}
+
+void PLSFormLabel::resizeEvent(QResizeEvent *event)
+{
+	QLabel::resizeEvent(event);
+
+	auto actualSize = event->size();
+	if (heightForWidth(actualSize.width()) > actualSize.height()) {
+		setAlignment(Qt::AlignLeft | Qt::AlignTop);
+	} else {
+		setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+	}
 }

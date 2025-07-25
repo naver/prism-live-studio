@@ -15,7 +15,6 @@ public:
 	{
 		setWindowFlags(Qt::Widget);
 
-		//https://oss.navercorp.com/cd-live-platform/prism-live-studio/issues/246 layout is null
 		if (layout()) {
 			layout()->setSizeConstraint(QLayout::SetDefaultConstraint);
 		}

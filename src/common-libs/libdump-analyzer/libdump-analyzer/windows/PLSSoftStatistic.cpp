@@ -7,7 +7,6 @@
 #include <tchar.h>
 #endif
 
-
 const static std::vector<std::string> blacklist = {"Fasoo"};
 std::vector<SoftInfo> PLSSoftStatistic::balcklistSoftInfos{0};
 

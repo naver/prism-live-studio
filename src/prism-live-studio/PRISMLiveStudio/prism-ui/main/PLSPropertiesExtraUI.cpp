@@ -50,10 +50,16 @@ ChatTemplate::ChatTemplate(QButtonGroup *buttonGroup, int id, bool checked)
 	vlayout->addWidget(text);
 }
 
-ChatTemplate::ChatTemplate(QButtonGroup *buttonGroup, int id, const QString text, const QString iconPath, bool isEditUi, const QString &backgroundColor)
+ChatTemplate::ChatTemplate(QButtonGroup *buttonGroup, int id, const QString text, const QString iconPath, bool isEditUi, const QString &backgroundColor, bool isPaid)
+	: m_isPaid(isPaid), m_iconPath(iconPath)
 {
+	m_enableLabel = pls_new<QLabel>(this);
+	m_enableLabel->setObjectName("enableLabel");
+	m_enableLabel->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+	m_enableLabel->setMouseTracking(true);
 	m_editName = text.toUtf8().constData();
 	createFrame(isEditUi);
+	createPaidLabel(isPaid);
 	setObjectName("chat_template_btn");
 	setProperty("lang", pls_get_current_language());
 	setProperty("style", id);
@@ -67,13 +73,13 @@ ChatTemplate::ChatTemplate(QButtonGroup *buttonGroup, int id, const QString text
 
 	QFileInfo info(QDir::toNativeSeparators(iconPath));
 	QPixmap pixMap;
-	QLabel *icon = pls_new<QLabel>(this);
-	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
-	icon->setObjectName("icon");
-	icon->setScaledContents(true);
+	m_icon = pls_new<QLabel>(this);
+	m_icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+	m_icon->setObjectName("icon");
+	m_icon->setScaledContents(true);
 
 	if (isEditUi) {
-		auto layout = pls_new<QHBoxLayout>(icon);
+		auto layout = pls_new<QHBoxLayout>(m_icon);
 		layout->setContentsMargins(0, 0, 0, 0);
 		auto customIcon = pls_new<QLabel>();
 		customIcon->setObjectName("icon_custom");
@@ -82,13 +88,13 @@ ChatTemplate::ChatTemplate(QButtonGroup *buttonGroup, int id, const QString text
 		customIcon->setScaledContents(true);
 		pixMap = pls_load_svg(info.absoluteFilePath(), QSize(98, 43) * 4);
 		customIcon->setPixmap(pixMap);
-		icon->setStyleSheet(QString("background-color:%1;").arg(backgroundColor));
-		icon->setObjectName("icon1");
+		m_icon->setStyleSheet(QString("background-color:%1;").arg(backgroundColor));
+		m_icon->setObjectName("icon1");
 	} else {
 		pixMap = QPixmap(info.absoluteFilePath());
-		icon->setPixmap(pixMap);
+		m_icon->setPixmap(pixMap);
 	}
-	vlayout->addWidget(icon);
+	vlayout->addWidget(m_icon);
 
 	m_textLabel = pls_new<QLabel>(this);
 	m_textLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -98,8 +104,17 @@ ChatTemplate::ChatTemplate(QButtonGroup *buttonGroup, int id, const QString text
 	m_textLabel->setText(elidedText);
 	vlayout->addWidget(m_textLabel);
 	vlayout->setAlignment(Qt::AlignHCenter);
-	icon->setAlignment(Qt::AlignHCenter);
+	m_icon->setAlignment(Qt::AlignHCenter);
 	this->setLayout(vlayout);
+}
+
+void ChatTemplate::updateTemplateRes(const QString &iconPath)
+{
+	m_iconPath = iconPath;
+	QFileInfo info(QDir::toNativeSeparators(iconPath));
+	QPixmap pixMap;
+	pixMap = QPixmap(info.absoluteFilePath());
+	m_icon->setPixmap(pixMap);
 }
 
 bool ChatTemplate::event(QEvent *event)
@@ -190,6 +205,16 @@ void ChatTemplate::createFrame(bool isEdit)
 	});
 }
 
+void ChatTemplate::createPaidLabel(bool isPaid)
+{
+	if (isPaid) {
+		m_paidIcon = pls_new<QLabel>(this);
+		m_paidIcon->setObjectName("PAID");
+		m_paidIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
+		m_paidIcon->setScaledContents(true);
+	}
+}
+
 bool ChatTemplate::isChatTemplateNameExist(const QString &editName)
 {
 	if (!pls_get_chat_template_helper_instance())
@@ -206,6 +231,23 @@ void ChatTemplate::showEvent(QShowEvent *event)
 		m_frame->resize(this->size());
 		m_frame->show();
 		setEditBtnVisible(false);
+	}
+	if (m_paidIcon) {
+		m_paidIcon->move(6, 6);
+		m_paidIcon->setVisible(!m_iconPath.isEmpty());
+		m_paidIcon->raise();
+	}
+	if (m_enableLabel) {
+		m_enableLabel->resize(this->size());
+		auto isNull = property("isEnable").isNull();
+		if (!isNull && !property("isEnable").toBool()) {
+			m_enableLabel->setVisible(true);
+			m_enableLabel->raise();
+			setAttribute(Qt::WA_TransparentForMouseEvents, true);
+		} else {
+			m_enableLabel->setVisible(false);
+			setAttribute(Qt::WA_TransparentForMouseEvents, false);
+		}
 	}
 }
 
@@ -325,7 +367,6 @@ void ImageButton::paintEvent(QPaintEvent *event)
 
 BorderImageButton::BorderImageButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString extraStr, int id, bool checked, bool isBgImg) : m_isBgImg(isBgImg)
 {
-
 	auto horizontalLayout = pls_new<QHBoxLayout>();
 	horizontalLayout->setContentsMargins(0, 0, 0, 0);
 	horizontalLayout->setSpacing(0);
@@ -371,31 +412,55 @@ void BorderImageButton::paintEvent(QPaintEvent *event)
 
 	QPainter painter(this);
 	painter.save();
-
-	QColor color = color_from_int(property("color").toLongLong());
-	color.setAlpha(255);
 	painter.setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
-	painter.setPen(QPen(Qt::white, 1));
-	painter.setBrush(QBrush(color));
+	painter.setPen(Qt::white);
 	auto rectCircle = this->contentsRect();
 	auto adjustDpi = 2;
 	rectCircle.adjust(adjustDpi, adjustDpi, -adjustDpi, -adjustDpi);
-	painter.drawEllipse(rectCircle);
+	auto colorStr = property("color").toString();
+	if (colorStr.contains('/')) {
+		auto colors = colorStr.split('/');
+		QColor color1 = color_from_int(colors[0].toLongLong());
+		QColor color2 = color_from_int(colors[1].toLongLong());
+		color1.setAlpha(255);
+		color2.setAlpha(255);
+		QLinearGradient gradient(rectCircle.topLeft(), rectCircle.bottomRight());
+		gradient.setColorAt(0, color1);
+		gradient.setColorAt(1, color2);
 
+		painter.setBrush(gradient);
+		painter.drawEllipse(rectCircle);
+
+	} else {
+
+		QColor color = color_from_int(property("color").toLongLong());
+		color.setAlpha(255);
+		painter.setBrush(QBrush(color));
+		painter.drawEllipse(rectCircle);
+	}
+	if (!isEnabled()) {
+		QColor color("#4d2e2e2e");
+		painter.setBrush(QBrush(color));
+		painter.drawEllipse(rectCircle);
+	}
 	painter.restore();
 }
 
-ImageAPNGButton::ImageAPNGButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString url, int id, bool checked, const char *, double dpi, QSize scaleSize)
+ImageAPNGButton::ImageAPNGButton(QButtonGroup *buttonGroup, pls_image_style_type type, QString url, int id, bool checked, QSize scaleSize)
 {
 	auto horizontalLayout = pls_new<QHBoxLayout>();
 	horizontalLayout->setContentsMargins(0, 0, 0, 0);
 	horizontalLayout->setSpacing(0);
-	auto movieLabel = pls_new<QLabel>("");
-	m_movie = pls_new<QMovie>(url, "apng", this);
-	setMovieSize(dpi, scaleSize);
-	movieLabel->setMovie(m_movie);
+
+	auto movieLabel = new PLSApngLabel();
+	movieLabel->setScaledContents(true);
+	auto movie = pls_new<QMovie>(url, "apng", this);
+	movie->setCacheMode(QMovie::CacheAll);
+	movieLabel->setMovie(movie);
 	movieLabel->setObjectName("movieLabel");
-	m_movie->start();
+	movieLabel->setFixedSize(scaleSize);
+	movie->start();
+
 	horizontalLayout->addWidget(movieLabel);
 	this->setLayout(horizontalLayout);
 
@@ -415,16 +480,6 @@ ImageAPNGButton::ImageAPNGButton(QButtonGroup *buttonGroup, pls_image_style_type
 	setAutoExclusive(true);
 	pls_flush_style_recursive(this, "checked", checked);
 	buttonGroup->addButton(this, id);
-}
-
-void ImageAPNGButton::setMovieSize(double dpi, QSize _size)
-{
-	pls_unused(dpi);
-	if (!m_movie) {
-		return;
-	}
-	m_originalSize = _size;
-	m_movie->setScaledSize(m_originalSize);
 }
 
 CameraVirtualBackgroundStateButton::CameraVirtualBackgroundStateButton(const QString &buttonText, QWidget *parent, const std::function<void()> &clicked) : QFrame(parent)
@@ -657,4 +712,32 @@ void FontButton::checkStateSet()
 void FontButton::updateFontButtonBgm(const QString &bgmRes)
 {
 	m_picLabel->setStyleSheet(QString("QLabel#fontBgmLabel{image:url(%1);}").arg(bgmRes));
+}
+
+NewFlagButton::NewFlagButton(bool isNew, QWidget *parent) : m_isNewFlag(isNew)
+{
+	if (isNew) {
+		m_newLabel = pls_new<QLabel>(this);
+		setObjectName("newFlagButton");
+		m_newLabel->setObjectName("newLabel");
+	}
+	connect(this, &QPushButton::clicked, this, [this]() {
+		if (!m_newLabel)
+			return;
+		config_set_bool(App()->GlobalConfig(), common::CHAT_WIDGET_CONFIG, common::CHAT_WIDGET_NEW_BADGE, true);
+		config_save_safe(App()->GlobalConfig(), "tmp", nullptr);
+		m_newLabel->setVisible(!m_newLabelShowed);
+	});
+}
+
+void NewFlagButton::showEvent(QShowEvent *event)
+{
+	QPushButton::showEvent(event);
+	if (m_newLabel) {
+		m_newLabelShowed = true;
+		m_newLabel->setFixedSize(34, 16);
+		m_newLabel->move(width() - m_newLabel->width(), (height() - m_newLabel->height()) / 2);
+		m_newLabel->raise();
+		m_newLabel->show();
+	}
 }
