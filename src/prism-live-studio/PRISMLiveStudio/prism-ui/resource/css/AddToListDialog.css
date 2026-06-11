@@ -1,0 +1,13 @@
+#AddToListDialog PLSPushButton {
+	min-width:/*hdpi*/ 80px;
+	max-width:/*hdpi*/ 80px;
+	min-height:/*hdpi*/ 40px;
+	max-height:/*hdpi*/ 40px;
+}
+
+#AddToListDialog QLabel {
+	background-color: transparent;
+	font-size:/*hdpi*/ 12px;
+	font-weight: bold;
+	color: #bababa;
+}

@@ -1,0 +1,190 @@
+
+PLSLaboratory {
+	background-color:#272727;
+}
+
+	PLSLaboratory > #plsDialogViewBorderFrame > #titleBar > #titleLabel {
+		background-color: transparent;
+		font-weight: normal;
+	} 
+
+PLSLaboratory QScrollBar:vertical {
+    background-color: #272727;
+	width:/*hdpi*/ 12px;
+    margin:/*hdpi*/0px;
+}
+
+PLSLaboratory QScrollBar::handle:vertical {
+    background-color: #444444;
+	border-radius:/*hdpi*/ 3px;
+	border:/*hdpi*/ none;
+    margin:/*hdpi*/0px /*hdpi*/3px;
+	min-height:/*hdpi*/ 20px;
+}
+
+QScrollArea #scrollArea {
+	border: none;
+}
+
+QFrame #frame_labList {
+	background-color:transparent;
+	qproperty-minimumSize: /*hdpi*/ 258px /*hdpi*/ 480px;
+	qproperty-maximumSize: /*hdpi*/ 258px /*hdpi*/ 480px;
+	border-right: 1px solid #151515 ;
+}
+
+PLSLaboratoryItem#PLSLaboratoryItem {
+	min-height: /*hdpi-u*/ 40px;
+	max-height: /*hdpi-u*/ 58px;
+	min-width: /*hdpi-u*/ 234px;
+	max-width: /*hdpi-u*/ 234px;
+	background-color: transparent;
+	padding: 0;
+	margin: 0;
+}
+
+PLSLaboratoryItem#PLSLaboratoryItem:hover {
+	background-color: #444444;
+}
+
+PLSLaboratoryItem#PLSLaboratoryItem[hovered="true"] {
+	background-color: #444444;
+}
+
+PLSLaboratoryItem#PLSLaboratoryItem:pressed {
+	background-color: #2d2d2d;
+}
+
+PLSLaboratoryItem#PLSLaboratoryItem:checked {
+	background-color: #444444;
+}
+
+PLSLaboratoryItem #label_text {
+	background-color: transparent;
+	font-size: /*hdpi-d*/ 14px;
+	font-weight: normal;
+	color: white;
+	background-color: transparent;
+	padding-left: /*hdpi-u*/ 10px;
+	padding-top: /*hdpi-u*/ 10px;
+	padding-right: /*hdpi-u*/ 1px;
+	padding-bottom: /*hdpi-u*/ 11px;
+}
+
+PLSLaboratoryItem #label_text[select="false"] {
+	font-weight: normal;
+	color: white;
+	background-color: transparent;
+}
+
+PLSLaboratoryItem #label_text[select="true"] {
+	font-weight: bold;
+	color: #effc35;
+	background-color: transparent;
+}
+
+PLSLaboratory #stackedWidget QWidget {
+	background-color:#272727;
+}
+
+PLSLaboratory #lineView, 
+PLSLaboratory #lineView1 {
+	background-color:#151515;
+}
+PLSLaboratory #lineView{
+	min-width: 1px;
+	max-width:1px;
+}
+
+PLSLaboratory #labTitleLabel {
+	font-weight:bold;
+	color:white;
+	font-size:/*hdpi*/18px;
+}
+
+PLSLaboratory #defaultDescLabel {
+	color:#bababa;
+	font-size:/*hdpi*/13px;
+	border:none;
+	margin:0px;
+	padding:0px;
+}
+
+PLSLaboratory #openLabel {
+	color:#bababa;
+	font-size:/*hdpi*/11px;
+	background-color:transparent;
+	margin-top:/*hdpi*/3px;
+}
+
+PLSLaboratory #openLabel[selected="false"] {
+	color:#bababa;
+	font-size:/*hdpi*/11px;
+	background-color:transparent;
+}
+
+PLSLaboratory #openLabel[selected="true"] {
+	color:#effc35;
+	font-weight:normal;
+	font-size:/*hdpi*/11px;
+	background-color:transparent;
+}
+
+PLSLaboratory #openButton {
+	margin-top:/*hdpi*/4px;
+	min-height:/*hdpi*/17px;
+	max-height:/*hdpi*/17px;
+	min-width:/*hdpi*/28px;
+	max-width:/*hdpi*/28px;
+	background-color:transparent;
+}
+
+PLSLaboratory #openButton[selected="false"] {
+	image:url(":/resource/images/lab/slider-off-default.svg");
+}
+
+PLSLaboratory #openButton[selected="false"]:pressed {
+	image:url(":/resource/images/lab/slider-off-click.svg");
+}
+
+PLSLaboratory #openButton[selected="false"]:hover {
+	image:url(":/resource/images/lab/slider-off-over.svg");
+}
+
+PLSLaboratory #openButton[selected="false"]:disabled {
+	image:url(":/resource/images/lab/slider-off-disable.svg");
+}
+
+PLSLaboratory #openButton[selected="true"] {
+	image:url(":/resource/images/lab/slider-on.svg");
+}
+
+PLSLaboratory #openButton[selected="true"]:pressed {
+	image:url(":/resource/images/lab/slider-on-click.svg");
+}
+
+PLSLaboratory #openButton[selected="true"]:hover {
+	image:url(":/resource/images/lab/slider-on-over.svg");
+}
+
+PLSLaboratory #openButton[selected="true"]:disabled {
+	image:url(":/resource/images/lab/slider-on-disable.svg");
+}
+
+PLSLaboratory #closeButton {
+	min-height:/*hdpi*/40px;
+    min-width:/*hdpi*/128px;
+	max-height:/*hdpi*/40px;
+	max-width:/*hdpi*/128px;
+}
+
+PLSLaboratory #loadingBG{
+    background-color:rgba(39, 39, 39, 0.8);
+}
+
+PLSLaboratory #loadingBtn{
+    background-color: transparent;
+}
+
+
+

@@ -1,0 +1,368 @@
+ChannelsSettingsWidget {
+	min-width: /*hdpi*/ 775px;
+	min-height: /*hdpi*/ 482px;
+	max-width: /*hdpi*/ 775px;
+	max-height: /*hdpi*/ 1250px;
+	margin: 0px;
+	padding: 0px;
+	qproperty-hasHLine: false;
+}
+
+	ChannelsSettingsWidget #content {
+		background-color: #272727;
+	}
+
+	ChannelsSettingsWidget #TitleFrame {
+		padding-top: /*hdpi*/ 40px;
+	}
+
+	ChannelsSettingsWidget #MainTitle {
+		min-width: /*hdpi*/ 135px;
+		min-height: /*hdpi*/ 27px;
+		font-size: /*hdpi*/ 20px;
+		font-weight: bold;
+		font-style: normal;
+		color: #effc35;
+	}
+
+	ChannelsSettingsWidget #SecondTitle {
+		min-width: /*hdpi*/ 180px;
+		min-height: /*hdpi*/ 16px;
+		font-size: /*hdpi*/ 12px;
+		font-weight: normal;
+		font-style: normal;
+		color: #a3a3a3;
+	}
+
+	ChannelsSettingsWidget #EditAreaFrame {
+		margin: /*hdpi*/ 0px /*hdpi*/ 5px /*hdpi*/ 0px /*hdpi*/ 20px;
+		padding: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+	}
+
+	ChannelsSettingsWidget #boxFrame {
+		margin: /*hdpi*/ 10px /*hdpi*/ 20px /*hdpi*/ 0px /*hdpi*/ 10px;
+		padding: /*hdpi*/ 0px;
+		min-height: /*hdpi*/ 28px;
+		max-height: /*hdpi*/ 28px;
+		border: none;
+		background-color: transparent;
+	}
+
+	ChannelsSettingsWidget #ChannelsListLabel {
+		min-width: /*hdpi*/ 56px;
+		min-height: /*hdpi*/ 18px;
+		max-height: /*hdpi*/ 18px;
+		font-size: /*hdpi*/ 14px;
+		font-weight: bold;
+		font-style: normal;
+		color: #a3a3a3;
+		margin: /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px;
+		background-color: transparent;
+	}
+
+
+	ChannelsSettingsWidget #ChannelsListCombox {
+		background-color: transparent;
+		border: /*hdpi*/ none;
+		padding: /*hdpi*/ 0px /*hdpi*/ 25px /*hdpi*/ 0px /*hdpi*/ 0px;
+		margin: /*hdpi*/ 5px /*hdpi*/ 0px /*hdpi*/ 5px /*hdpi*/ 0px;
+		font-size: /*hdpi*/ 12px;
+		font-weight: bold;
+		font-style: normal;
+		color: transparent;
+		qproperty-minimumSize: /*hdpi*/ 160px /*hdpi*/ 26px;
+		qproperty-maximumSize: /*hdpi*/ 160px /*hdpi*/ 26px;
+	}
+
+
+
+		ChannelsSettingsWidget #ChannelsListCombox::drop-down {
+			subcontrol-origin: padding;
+			subcontrol-position: center right;
+			width: /*hdpi*/ 25px;
+			height: /*hdpi*/ 15px;
+			border: none;
+		}
+
+		ChannelsSettingsWidget #ChannelsListCombox::down-arrow {
+			left: /*hdpi*/ 7px;
+			image: url(":/channels/resource/images/ChannelsSource/btn-sort-open-normal.svg");
+		}
+
+			ChannelsSettingsWidget #ChannelsListCombox::down-arrow:hover {
+				image: url(":/channels/resource/images/ChannelsSource/btn-sort-open-over.svg");
+			}
+
+
+			ChannelsSettingsWidget #ChannelsListCombox::down-arrow:on {
+				image: url(":/channels/resource/images/ChannelsSource/btn-sort-close-select.svg");
+			}
+
+
+		ChannelsSettingsWidget #ChannelsListCombox > QPushButton {
+			background-color: transparent;
+			margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+			padding: /*hdpi*/ 0px /*hdpi*/ 25px /*hdpi*/ 0px /*hdpi*/ 0px;
+			font-size: /*hdpi*/ 12px;
+			font-weight: bold;
+			font-style: normal;
+			color: #a3a3a3;
+			text-align: right;
+			min-width: /*hdpi*/ 90px;
+			max-width: /*hdpi*/ 150px;
+			min-height: /*hdpi*/ 16px;
+			max-height: /*hdpi*/ 16px;
+		}
+
+			ChannelsSettingsWidget #ChannelsListCombox > QPushButton:hover {
+				color: white;
+			}
+
+			ChannelsSettingsWidget #ChannelsListCombox > QPushButton:pressed, ChannelsSettingsWidget #ChannelsListCombox > QPushButton:checked {
+				color: #effc35;
+			}
+
+
+			ChannelsSettingsWidget #ChannelsListCombox > QPushButton:disabled {
+				color: #666666;
+			}
+
+		ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView {
+			border: /*hdpi*/ 1px solid #111111;
+			padding: /*hdpi*/ 7px /*hdpi*/ 0px /*hdpi*/ 7px /*hdpi*/ 0px;
+			margin: /*hdpi*/ 2px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+			background-color: #2d2d2d;
+			min-width: /*hdpi*/ 150px;
+			min-height: /*hdpi*/ 259px;
+		}
+
+			ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView QLabel#itemLabel {
+				padding-left: /*hdpi*/ 12px;
+				font-size: /*hdpi*/ 12px;
+				font-weight: normal;
+				font-style: normal;
+				color: #bababa;
+				background-color: #2d2d2d;
+			}
+
+				ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView QLabel#itemLabel[isHover="true"],
+				ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView QLabel#itemLabel[isCurrent="true"] {
+					background-color: #2d2d2d;
+				}
+
+				ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView QLabel#itemLabel[isHover="true"] {
+					color: white;
+					background-color: #2d2d2d;
+				}
+
+			ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView:focus {
+				outline: none;
+			}
+
+			ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView::item {
+				font-size: /*hdpi*/ 12px;
+				font-weight: normal;
+				font-style: normal;
+				color: #bababa;
+				background-color: transparent;
+				height: /*hdpi*/ 28px;
+			}
+
+				ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView::item:selected {
+					background-color: transparent;
+				}
+
+				ChannelsSettingsWidget #ChannelsListCombox #PLSComboBoxListView::item:hover {
+					color: white;
+					background-color: transparent;
+				}
+
+
+	ChannelsSettingsWidget #ChannelsScrollArea {
+		background-color: transparent;
+		margin: /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px;
+	}
+
+	ChannelsSettingsWidget #channelsListWidget {
+		background-color: transparent;
+		margin: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px /*hdpi*/ 0px;
+		qproperty-gridSize: /*hdpi*/ 245px /*hdpi*/ 80px;
+		qproperty-spacing: /*hdpi*/ 0px;
+		min-height: /*hdpi*/ 240px;
+		max-height: /*hdpi*/ 240px;
+		border: none;
+	}
+
+		ChannelsSettingsWidget #channelsListWidget::item {
+			width: /*hdpi*/ 235px;
+			height: /*hdpi*/ 70px;
+			border: /*hdpi*/ none;
+			margin: /*hdpi*/ 0px /*hdpi*/ 5px /*hdpi*/ 10px /*hdpi*/ 5px;
+		}
+
+			ChannelsSettingsWidget #channelsListWidget::item:selected {
+				background-color: transparent;
+				color: transparent;
+			}
+
+		ChannelsSettingsWidget #channelsListWidget:selected:!active {
+			background-color: transparent;
+			color: transparent;
+		}
+
+		ChannelsSettingsWidget #channelsListWidget::item:hover {
+			background-color: transparent;
+		}
+
+		ChannelsSettingsWidget #channelsListWidget::item:selected:hover {
+			background-color: transparent;
+			color: transparent;
+		}
+
+	ChannelsSettingsWidget #channelsListWidgett:focus {
+		outline: none;
+	}
+
+	ChannelsSettingsWidget ChannelItem {
+		qproperty-minimumSize: /*hdpi*/ 235px /*hdpi*/ 70px;
+		qproperty-maximumSize: /*hdpi*/ 235px /*hdpi*/ 70px;
+		border-radius: /*hdpi*/ 3px;
+		image: url(":/resource/images/ChannelsSource/img-mychannel-listbg-normal.svg");
+		padding: 0;
+		margin: 0;
+	}
+
+		ChannelsSettingsWidget ChannelItem:checked {
+			border: none;
+			image: url(":/resource/images/ChannelsSource/img-mychannel-listbg-over.svg");
+			background-color: #1e1e1e;
+		}
+
+		ChannelsSettingsWidget ChannelItem:hover {
+			image: url(":/resource/images/ChannelsSource/img-mychannel-listbg-click.svg");
+		}
+
+		ChannelsSettingsWidget ChannelItem:pressed {
+			border: none;
+			image: url(":/resource/images/ChannelsSource/img-mychannel-listbg-over.svg");
+		}
+
+		ChannelsSettingsWidget ChannelItem:disabled {
+			image: url(":/resource/images/ChannelsSource/img-mychannel-listbg-normal.svg");
+		}
+
+		ChannelsSettingsWidget ChannelItem ComplexHeaderIcon {
+			margin: /*hdpi*/ 0px;
+			padding: /*hdpi*/ 2px;
+			qproperty-minimumSize: /*hdpi*/ 46px /*hdpi*/ 46px;
+			qproperty-maximumSize: /*hdpi*/ 46px /*hdpi*/ 46px;
+			background-color: transparent;
+			image: none;
+			color: transparent;
+		}
+
+		ChannelsSettingsWidget ChannelItem #NameLabel {
+			min-height: /*hdpi*/ 16px;
+			font-size: /*hdpi*/ 12px;
+			font-weight: bold;
+			font-style: normal;
+			color: #bababa;
+			background-color: transparent;
+		}
+
+		ChannelsSettingsWidget ChannelItem #checkBox {
+			background-color: transparent;
+		}
+
+			ChannelsSettingsWidget ChannelItem #checkBox #plsCheckBox_text {
+				max-width: 0;
+				min-width: 0;
+			}
+
+
+
+	ChannelsSettingsWidget #LogoLabel {
+		min-height: /*hdpi*/ 59px;
+		min-width: /*hdpi*/ 175px;
+		max-height: /*hdpi*/ 59px;
+		max-width: /*hdpi*/ 175px;
+		border: none;
+		background-color: transparent;
+	}
+
+	ChannelsSettingsWidget #GuideLabel {
+		margin: /*hdpi*/ 0px;
+		margin-bottom: /*hdpi*/ 22px;
+		padding: /*hdpi*/ 0px;
+		min-height: /*hdpi*/ 16px;
+		border: none;
+		background-color: transparent;
+		font-size: /*hdpi*/ 12px;
+		font-weight: normal;
+		font-style: normal;
+		color: #a3a3a3;
+	}
+
+
+
+	ChannelsSettingsWidget #GotoLoginBtn {
+		margin: /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px 30px 0px 30px;
+		qproperty-minimumWidth: /*hdpi*/ 110px;
+		min-height: /*hdpi*/ 27px;
+		background-color: transparent;
+		border-radius: /*hdpi*/ 3px;
+		border: /*hdpi*/ 1px solid #3d3d3d;
+		font-size: /*hdpi*/ 12px;
+		font-weight: normal;
+		font-style: normal;
+		color: #bababa;
+	}
+
+		ChannelsSettingsWidget #GotoLoginBtn:hover {
+			border-color: white;
+			color: white;
+		}
+
+		ChannelsSettingsWidget #GotoLoginBtn:pressed {
+			border-color: #1e1e1e;
+			color: #1e1e1e;
+		}
+
+		ChannelsSettingsWidget #GotoLoginBtn:disabled {
+			border-color: #3d3d3d;
+			color: #3d3d3d;
+		}
+
+	ChannelsSettingsWidget #ButtonsFrame {
+		min-height: /*hdpi*/ 80px;
+	}
+
+	ChannelsSettingsWidget #ApplySettingsBtn, ChannelsSettingsWidget #Cancel {
+		min-width: /*hdpi*/ 128px;
+		min-height: /*hdpi*/ 40px;
+		border-radius: /*hdpi*/ 3px;
+		background-color: #444444;
+		font-size: /*hdpi*/ 14px;
+		font-weight: bold;
+		font-style: normal;
+		color: white;
+	}
+
+		ChannelsSettingsWidget #ApplySettingsBtn:hover, ChannelsSettingsWidget #Cancel:hover {
+			background-color: #555555;
+			color: #ffffff;
+		}
+
+		ChannelsSettingsWidget #ApplySettingsBtn:pressed, ChannelsSettingsWidget #Cancel:pressed {
+			background-color: #2d2d2d;
+			color: #ffffff;
+		}
+
+		ChannelsSettingsWidget #ApplySettingsBtn:disabled, ChannelsSettingsWidget #Cancel:disabled {
+			color: #777777;
+			background-color: #444444;
+		}

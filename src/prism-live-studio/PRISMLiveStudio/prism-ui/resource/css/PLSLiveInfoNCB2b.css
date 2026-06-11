@@ -1,0 +1,68 @@
+PLSLiveInfoNCB2B #titleWidget {
+        margin: 0px;
+        padding: 0px;
+        min-height: /*hdpi*/63px;
+        max-height: /*hdpi*/63px;
+        background-color: transparent;
+}
+PLSLiveInfoNCB2B #titleWidget>#titleLabel {
+        margin: 0px;
+        padding: 0px;
+        font-size: /*hdpi*/20px;
+        font-weight: bold;
+        color: #ffffff;
+        background-color: transparent;
+}
+
+PLSLiveInfoNCB2B #lineEditTitle {
+        margin: 0px;
+        padding: 0px 0px 0px 8px;
+}
+PLSLiveInfoNCB2B #midwidget>QLabel {
+        min-width:/*hdpi*/ 105px;
+        max-width:/*hdpi*/ 105px;
+        font-size:/*hdpi*/ 14px;
+        min-height: 40px;
+        font-weight: bold;
+        color: #bababa;
+        background-color: transparent;
+        margin: 0px;
+        padding: 0px;
+}
+PLSLiveInfoNCB2B #midwidget > #describeLabel {
+        max-height: 40px;
+}
+
+
+PLSLiveInfoNCB2B #sPushButton QLabel {
+      background-color: transparent;
+}
+
+PLSLiveInfoNCB2B QTextEdit {
+        border:/*hdpi*/ none;
+    background-color: #1e1e1e;
+}
+
+
+PLSLiveInfoNCB2B #bottomWidget {
+        min-height:/*hdpi*/ 79px;
+        max-height:/*hdpi*/ 79px;
+}
+
+PLSLiveInfoNCB2B  #bottomWidget #lineView {
+        min-height:/*hdpi*/ 1px;
+        max-height:/*hdpi*/ 1px;
+    background-color: #151515;
+        margin-bottom:/*hdpi*/ 0px;
+}
+
+PLSLiveInfoNCB2B #textEditDescribe {
+        min-height:/*hdpi*/ 76px;
+        max-height:/*hdpi*/ 76px;
+}
+
+PLSLiveInfoNCB2B #textEditDescribe,
+PLSLiveInfoNCB2B #lineEditTitle {
+        font-size:/*hdpi*/ 14px;
+        border-radius:/*hdpi*/ 3px;
+}

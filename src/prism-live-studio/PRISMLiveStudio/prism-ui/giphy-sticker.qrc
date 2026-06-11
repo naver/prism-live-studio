@@ -1,0 +1,32 @@
+<RCC>
+    <qresource prefix="/">
+      <file>resource/images/giphy/btn-search-normal.svg</file>
+      <file>resource/images/giphy/btn-search-on-normal.svg</file>
+      <file>resource/images/giphy/erroricon-source-giphy.svg</file>
+      <file>resource/images/giphy/erroricon-source-giphy-disable.svg</file>
+      <file>resource/images/giphy/erroricon-source-giphy-select.svg</file>
+      <file>resource/images/giphy/erroricon-source-giphy-select-disable.svg</file>
+      <file>resource/images/giphy/ic-giphy.svg</file>
+      <file>resource/images/giphy/ic-giphy-off-click.svg</file>
+      <file>resource/images/giphy/ic-giphy-off-disable.svg</file>
+      <file>resource/images/giphy/ic-giphy-off-normal.svg</file>
+      <file>resource/images/giphy/ic-giphy-off-over.svg</file>
+      <file>resource/images/giphy/ic-giphy-on-click.svg</file>
+      <file>resource/images/giphy/ic-giphy-on-disable.svg</file>
+      <file>resource/images/giphy/ic-giphy-on-normal.svg</file>
+      <file>resource/images/giphy/ic-giphy-on-over.svg</file>
+      <file>resource/images/giphy/ic-loading.svg</file>
+      <file>resource/images/giphy/icon-source-giphy.svg</file>
+      <file>resource/images/giphy/icon-source-giphy-disable.svg</file>
+      <file>resource/images/giphy/icon-source-giphy-select-disable.svg</file>
+      <file>resource/images/giphy/icon-source-select-giphy.svg</file>
+      <file>resource/images/giphy/ic-scene-delete-click.svg</file>
+      <file>resource/images/giphy/ic-scene-delete-disable.svg</file>
+      <file>resource/images/giphy/ic-scene-delete-normal.svg</file>
+      <file>resource/images/giphy/ic-scene-delete-over.svg</file>
+      <file>resource/images/giphy/ic-search.svg</file>
+      <file>resource/images/giphy/ic-unconnect.svg</file>
+      <file>resource/images/giphy/img-effect-layer-giphylogo.svg</file>
+      <file>resource/images/giphy/thumb-loading.svg</file>
+    </qresource>
+</RCC>

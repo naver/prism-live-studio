@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="157px" height="157px" viewBox="0 0 157 157" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Group 13</title>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Group-13">
+            <path d="M0,154 C-2.41183085e-16,155.656854 1.34314575,157 3,157 L0,157 Z M157,154 L157,157 L154,157 C155.656854,157 157,155.656854 157,154 Z M157,3 C157,1.34314575 155.656854,-7.48448398e-16 154,0 L157,0 Z M0,0 L3,0 C1.34314575,-1.39730022e-16 -6.46995335e-16,1.34314575 0,3 L0,0 Z" id="Combined-Shape" fill="#272727"></path>
+            <rect id="Select" stroke="#EFFC35" stroke-width="2" x="1" y="1" width="155" height="155" rx="3"></rect>
+        </g>
+    </g>
+</svg>

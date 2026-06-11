@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32px" height="32px" viewBox="0 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>479C0F1C-CB8A-47A8-800A-B11843DD1397</title>
+    <defs>
+        <linearGradient x1="100%" y1="53.6885011%" x2="0%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#4E7CD4" offset="0%"></stop>
+            <stop stop-color="#5677D5" offset="17.6388302%"></stop>
+            <stop stop-color="#5578D5" offset="37.435514%"></stop>
+            <stop stop-color="#4891CD" offset="58.7132366%"></stop>
+            <stop stop-color="#33AFBA" offset="82.5644003%"></stop>
+            <stop stop-color="#2FBFBA" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="GUIDE_ClockWidget_202105" transform="translate(-150.000000, -4371.000000)" fill="url(#linearGradient-1)" stroke="#FFFFFF">
+            <g id="Group-32" transform="translate(70.000000, 4370.000000)">
+                <g id="img_widget_color07" transform="translate(80.000000, 1.000000)">
+                    <circle id="Oval-Copy-4" cx="16" cy="16" r="15.5"></circle>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

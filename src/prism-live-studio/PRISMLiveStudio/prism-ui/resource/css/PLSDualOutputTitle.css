@@ -1,0 +1,140 @@
+PLSDualOutputTitle {
+}
+
+#buttonHPreview, #buttonVPreview {
+    background: transparent;
+    min-width: 28px;
+    max-width: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    padding: 0;
+}
+
+#buttonHPreview {
+    image: url("://resource/images/dual-output/btn_source_horizontal_on_normal.svg");
+}
+#buttonHPreview:checked {
+    image: url("://resource/images/dual-output/btn_source_horizontal_off_normal.svg");
+}
+
+#buttonHPreview:hover {
+    image: url("://resource/images/dual-output/btn_source_horizontal_on_over.svg");
+}
+#buttonHPreview:hover:checked {
+    image: url("://resource/images/dual-output/btn_source_horizontal_off_over.svg");
+}
+
+#buttonHPreview:pressed {
+    image: url("://resource/images/dual-output/btn_source_horizontal_on_click.svg");
+}
+#buttonHPreview:pressed:checked {
+    image: url("://resource/images/dual-output/btn_source_horizontal_off_click.svg");
+}
+
+#buttonHPreview:disabled {
+    image: url("://resource/images/dual-output/btn_source_horizontal_on_disable.svg");
+}
+#buttonHPreview:disabled:checked {
+    image: url("://resource/images/dual-output/btn_source_horizontal_off_disable.svg");
+}
+
+#buttonVPreview {
+    image: url("://resource/images/dual-output/btn_source_vertical_off_normal.svg");
+}
+#buttonVPreview:checked {
+    image: url("://resource/images/dual-output/btn_source_vertical_on_normal.svg");
+}
+
+#buttonVPreview:hover {
+    image: url("://resource/images/dual-output/btn_source_vertical_off_over.svg");
+}
+#buttonVPreview:hover:checked {
+    image: url("://resource/images/dual-output/btn_source_vertical_on_over.svg");
+}
+
+#buttonVPreview:pressed {
+    image: url("://resource/images/dual-output/btn_source_vertical_off_click.svg");
+}
+#buttonVPreview:pressed:checked {
+    image: url("://resource/images/dual-output/btn_source_vertical_on_click.svg");
+}
+
+#buttonVPreview:disabled {
+    image: url("://resource/images/dual-output/btn_source_vertical_off_disable.svg");
+}
+#buttonVPreview:disabled:checked {
+    image: url("://resource/images/dual-output/btn_source_vertical_on_disable.svg");
+}
+
+#buttonSetting {
+    font-size: 12px;
+    font-weight: bold;
+    color: #BABABA;
+}
+
+#buttonSetting:hover {
+    color: #FFFFFF;
+}
+
+#buttonSetting:pressed {
+    color: #444444;
+}
+
+#buttonSetting:disabled {
+    color: #3D3D3D;
+}
+
+#buttonSetting::indicator {
+    background: transparent;
+    image: url(":/resource/images/dual-output/ic_dock_setting_normal.png");
+    width: 22px;
+    height: 22px;
+}
+
+#buttonSetting::indicator:hover {
+    image: url(":/resource/images/dual-output/ic_dock_setting_hover.png");
+}
+
+#buttonSetting::indicator:pressed {
+    image: url(":/resource/images/dual-output/ic_dock_setting_click.png");
+}
+
+#buttonSetting::indicator:disabled {
+    image: url(":/resource/images/dual-output/ic_dock_setting_disable.png");
+}
+
+#iconHPlatform, #iconVPlatform {
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+}
+
+#iconHPlatform {
+    image: url("://resource/images/dual-output/ic_source_horizontal_off_normal.svg");
+}
+
+#iconVPlatform {
+    image: url("://resource/images/dual-output/ic_source_vertical_on_normal.svg");
+}
+
+#hPlatformCircle, #vPlatformCircle {
+    min-width: 3px;
+    max-width: 3px;
+    min-height: 3px;
+    max-height: 3px;
+
+    image: url("://resource/images/dual-output/ic_dock-dot.svg");}
+
+#platformIcon {
+    min-width: 16px;
+    max-width: 16px;
+    min-height: 16px;
+    max-height: 16px;
+}
+
+#platformName {
+    font-size: 11px;
+    color: white;
+}
+

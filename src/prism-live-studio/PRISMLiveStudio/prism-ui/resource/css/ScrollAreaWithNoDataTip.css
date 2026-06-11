@@ -1,0 +1,46 @@
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon{
+	min-width: /*hdpi*/ 24px;
+	max-width: /*hdpi*/ 24px;
+	min-height: /*hdpi*/ 24px;
+	max-height: /*hdpi*/ 24px;
+	background-color: transparent;
+	padding: 0;
+	margin: 0;
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="1"] {
+	image:url(":/resource/images/loading/loading-1.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="2"] {
+	image:url(":/resource/images/loading/loading-2.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="3"] {
+	image:url(":/resource/images/loading/loading-3.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="4"] {
+	image:url(":/resource/images/loading/loading-4.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="5"] {
+	image:url(":/resource/images/loading/loading-5.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="6"] {
+	image:url(":/resource/images/loading/loading-6.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="7"] {
+	image:url(":/resource/images/loading/loading-7.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="8"] {
+	image:url(":/resource/images/loading/loading-8.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingLayer{
+	background-color:rgba(30, 30, 31, 204);
+	border: none;
+}

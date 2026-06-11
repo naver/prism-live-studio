@@ -1,0 +1,67 @@
+
+OBSPermissions {
+	min-width: 620px;
+	max-width: 620px;
+	min-height: 442px;
+}
+
+OBSPermissions #label_desc{
+	color: #BABABA;
+	font-size: 14px;
+	font-style: normal;
+}
+
+
+OBSPermissions #scrollArea_permission{
+	border: none;
+	margin:0px;
+	padding: 0px;
+	background-color: transparent;
+}
+
+
+OBSPermissions #scrollAreaWidgetContents_permission QPushButton {
+	margin-top: 10px;
+}
+
+OBSPermissions #scrollArea_permission #scrollAreaWidgetContents_permission #label_5,
+OBSPermissions #scrollArea_permission #scrollAreaWidgetContents_permission #label_8,
+OBSPermissions #scrollArea_permission #scrollAreaWidgetContents_permission #label_10,
+OBSPermissions #scrollArea_permission #scrollAreaWidgetContents_permission #label_13 {
+	color: #BABABA;
+	font-size: 12px;
+	font-style: normal;
+}
+
+OBSPermissions #scrollArea_permission #scrollAreaWidgetContents_permission #label_title,
+OBSPermissions #scrollArea_permission #scrollAreaWidgetContents_permission #label_title_2,
+OBSPermissions #scrollArea_permission #scrollAreaWidgetContents_permission #label_title_3,
+OBSPermissions #scrollArea_permission #scrollAreaWidgetContents_permission #label_title_4 {
+	color: #FFF;
+	font-size: 14px;
+	font-style: normal;
+}
+
+OBSPermissions #bottomWidget{
+	max-height: 80px;
+	min-height: 80px;
+	background-color: transparent;
+}
+OBSPermissions QLabel{
+	color: #BABABA;
+	font-size: 12px;
+	font-style: normal;
+}
+OBSPermissions #bottomWidget #continueButton{
+	min-width: 128px;
+	max-width: 128px;
+}
+OBSPermissions #bottomWidget #lineWidget{
+	max-height: 1px;
+	min-height: 1px;
+	background-color: #151515;
+}
+
+OBSPermissions #bottomWidget #label{
+	min-height: 40px;
+}

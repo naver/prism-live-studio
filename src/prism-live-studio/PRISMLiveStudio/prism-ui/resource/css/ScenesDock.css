@@ -1,0 +1,46 @@
+
+PLSDock#scenesDock {
+	qproperty-contentMarginLeft: /*hdpi*/ 1;
+	qproperty-contentMarginRight: /*hdpi*/ 1;
+	qproperty-contentMarginBottom: /*hdpi*/ 1;
+	background-color: #272727;
+}
+
+PLSDock#scenesDock QScrollBar::handle:vertical {
+	margin-bottom: /*hdpi*/ 3px;
+}
+
+	PLSDock#scenesDock PLSDockTitle {
+		qproperty-marginLeft: /*hdpi*/ 19;
+		qproperty-marginRight: /*hdpi*/ 9;
+		qproperty-contentSpacing: /*hdpi*/ 0;
+		qproperty-captionHeight: /*hdpi*/ 50;
+	}
+
+	PLSDock#scenesDock PLSPopupMenu PLSPopupMenuItem QLabel {
+		background-color: transparent;
+	}
+
+	PLSDock#scenesDock PLSPopupMenu {
+		min-width: /*hdpi*/ 180px;
+		max-width: /*hdpi*/ 180px;
+	}
+
+	PLSDock#scenesDock #sceneCollectionManageTitle {
+		font-size: /*hdpi*/ 14px;
+		color: #bababa;
+		font-weight: normal;
+		background: transparent;
+		qproperty-rightSpacing: 3;
+		qproperty-leftSpacing: 8;
+		qproperty-spacing: 7;
+	}
+
+	PLSDock#scenesDock #sceneCollectionManageTitle[status=hover],
+	PLSDock#scenesDock #sceneCollectionManageTitle[status=pressed] {
+		color: #ffffff;
+	}
+
+    PLSDock#scenesDock #addBtn {
+		margin-left: /*hdpi*/ 14px;
+	}

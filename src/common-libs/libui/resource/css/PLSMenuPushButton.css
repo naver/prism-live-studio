@@ -1,0 +1,52 @@
+PLSMenuPushButton {
+	padding: 0;
+	margin: 0;
+	min-width: /*hdpi*/ 22px;
+}
+
+PLSMenuPushButton #dockTipsDelegate {
+    background: transparent;
+    border: none;
+}
+
+PLSMenuPushButton::menu-indicator {
+	width: /*hdpi*/ 0px;
+	height: /*hdpi*/ 0px;
+	image: none;
+}
+
+PLSMenuPushButton #menuPushButtonPopupBtn {
+	min-width: /*hdpi*/ 10px;
+	max-width: /*hdpi*/ 10px;
+	min-height: /*hdpi*/ 10px;
+	max-height: /*hdpi*/ 10px;
+	padding: 0;
+	margin: 0;
+	margin-top: /*hdpi*/ 4px;
+	background: transparent;
+	image: url(":/resource/images/collection/ic-dropbox-open-normal.svg");
+}
+
+PLSMenuPushButton #menuPushButtonPopupBtn[menuStatus=on] {
+	image: url(":/resource/images/collection/ic-dropbox-close-normal.svg");
+}
+
+PLSMenuPushButton #menuPushButtonPopupBtn[menuStatus=off]:hover, PLSMenuPushButton #menuPushButtonPopupBtn[menuStatus=off]:pressed,
+PLSMenuPushButton #menuPushButtonPopupBtn[menuStatus=off][status=hover], PLSMenuPushButton #menuPushButtonPopupBtn[menuStatus=off][status=pressed] {
+	image: url(":/resource/images/collection/ic-dropbox-open-over.svg");
+}
+
+PLSMenuPushButton #menuPushButtonPopupBtn[menuStatus=on]:hover, PLSMenuPushButton #menuPushButtonPopupBtn[menuStatus=on]:pressed,
+PLSMenuPushButton #menuPushButtonPopupBtn[menuStatus=on][status=hover], PLSMenuPushButton #menuPushButtonPopupBtn[menuStatus=on][status=pressed] {
+	image: url(":/resource/images/collection/ic-dropbox-close-over.svg");
+}
+
+QMenu {
+	font-size: /*hdpi*/ 14px;
+	border: /*hdpi*/ 0px;
+	background: #2d2d2d;
+	padding-top: /*hdpi*/ 0px;
+	padding-bottom: /*hdpi*/ 0px;
+	padding-left: /*hdpi*/ 0px;
+	padding-right: /*hdpi*/ 0px;
+}

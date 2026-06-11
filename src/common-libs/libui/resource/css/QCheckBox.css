@@ -1,0 +1,51 @@
+QCheckBox {
+	outline: none;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	spacing: /*hdpi*/ 10px;
+}
+QCheckBox::indicator {
+	width: /*hdpi*/15px;
+	height:/*hdpi*/ 15px;
+
+}
+QCheckBox::indicator:checked {
+	image:url(":/libui/resource/images/txt-chekedbox-normal.svg");
+}
+QCheckBox::indicator:checked:hover {
+	image:url(":/libui/resource/images/txt-chekedbox-over.svg");
+}
+QCheckBox::indicator:checked:pressed {
+	image:url(":/libui/resource/images/txt-chekedbox-clicked.svg");
+}
+QCheckBox::indicator:checked:disabled {
+	image:url(":/libui/resource/images/txt-chekedbox-disable.svg");
+}
+
+QCheckBox::indicator:unchecked {
+	image:url(":/libui/resource/images/txt-unchekedbox-normal.svg");
+}
+QCheckBox::indicator:unchecked:hover {
+	image:url(":/libui/resource/images/txt-unchekedbox-over.svg");
+}
+QCheckBox::indicator:unchecked:pressed {
+	image:none;
+}
+
+QCheckBox::indicator:unchecked:disabled {
+	image:url(":/libui/resource/images/txt-unchekedbox-disable.svg");
+}
+
+PLSCheckBox {
+	border: none;
+	background: transparent;
+	min-height: 17px;
+}
+
+PLSCheckBox > #plsCheckBox_text {
+	font-size: 14px;
+	font-weight: normal;
+}
+PLSCheckBox > #plsCheckBox_text:disabled {
+	color:#666666;
+}

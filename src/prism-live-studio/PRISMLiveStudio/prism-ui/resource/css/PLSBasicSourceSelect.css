@@ -1,0 +1,134 @@
+OBSBasicSourceSelect QListWidget,
+OBSBasicSourceSelect QLineEdit,
+OBSBasicSourceSelect QCheckBox {
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+}
+
+OBSBasicSourceSelect QLineEdit:focus {    
+	border:/*hdpi*/ 1px solid #EFFC35;
+}
+
+OBSBasicSourceSelect QLineEdit:!focus {
+	border:/*hdpi*/ 1px solid transparent;
+}
+
+OBSBasicSourceSelect QRadioButton{ 
+	font-size:/*hdpi*/ 14px;
+    font-weight: bold;
+}
+
+OBSBasicSourceSelect{
+	background-color: #272727;
+	border:/*hdpi*/ 1px solid #111111;
+}
+
+OBSBasicSourceSelect #content{
+	background-color: #272727;
+}
+
+OBSBasicSourceSelect #close{
+	background: transparent;
+}
+
+OBSBasicSourceSelect #sourceList{
+	min-width:/*hdpi*/ 370px;
+	max-width:/*hdpi*/ 370px;
+	min-height:/*hdpi*/ 80px;
+	max-height:/*hdpi*/ 80px;
+	background-color: #1e1e1e;
+	border-radius:/*hdpi*/ 3px;
+	border:/*hdpi*/ none;
+}
+
+OBSBasicSourceSelect #sourceName{
+	background-color: #1e1e1e;
+}
+OBSBasicSourceSelect #sourceList:focus {
+    outline: none;
+}
+OBSBasicSourceSelect #sourceList::item{
+	height:/*hdpi*/ 40px;
+	padding-left:/*hdpi*/ 12px;
+	color: #ffffff;
+    background-color: #1e1e1e;
+}
+
+OBSBasicSourceSelect #sourceList::item:hover{
+    background-color: #444444;
+}
+
+OBSBasicSourceSelect #sourceList::item:selected {
+    outline: none;
+	background-color: #545454;
+    font-weight: bold;
+	color : #effc35;
+}
+
+OBSBasicSourceSelect #buttonBox{
+	background-color: #444444;
+	border-radius:/*hdpi*/ 3px;
+}
+
+OBSBasicSourceSelect #buttonBox QPushButton{
+	padding:/*hdpi*/0px;
+	min-width:/*hdpi*/ 140px;
+	max-width:/*hdpi*/ 140px;
+	min-height:/*hdpi*/ 40px;
+	max-height:/*hdpi*/ 40px;
+	margin:/*hdpi*/ 0px;
+}
+
+/*OBSBasicSourceSelect #createNew{
+	min-height:*//*hdpi*/ /*18px;
+	max-height:*//*hdpi*/ /*18px;
+	spacing: 10px;
+	color: #bababa;
+	font-size:*//*hdpi*/ /*14px;
+	font-weight: bold;
+	background: transparent;
+}
+
+OBSBasicSourceSelect #createNew::indicator {
+	padding: 0;
+	width:*/ /*hdpi*/ /*18px;
+	height:*/ /*hdpi*/ /*18px;
+}
+
+OBSBasicSourceSelect #selectExisting::indicator {
+	padding: 0;
+	width:*/ /*hdpi*/ /*18px;
+	height:*/ /*hdpi*/ /*18px;
+}*/
+
+/*OBSBasicSourceSelect #selectExisting{
+	min-height:*//*hdpi*/ /*18px;
+	max-height:*//*hdpi*/ /*18px;
+	spacing: 10px;
+	color: #bababa;
+	font-size:*//*hdpi*/ /*14px;
+	font-weight: bold;
+	background: transparent;
+}*/
+
+OBSBasicSourceSelect #sourceVisible{
+	min-height:/*hdpi*/ 18px;
+	max-height:/*hdpi*/ 18px;
+	spacing: 10px;
+	color: #e1e1e1;
+	font-size:/*hdpi*/ 14px;
+	background: transparent;
+}
+
+OBSBasicSourceSelect #close{
+	qproperty-minimumSize:/*hdpi*/22px;
+	qproperty-maximumSize:/*hdpi*/22px;
+	min-height:/*hdpi*/ 22px;
+	max-height:/*hdpi*/ 22px;
+	min-width:/*hdpi*/ 22px;
+	max-width:/*hdpi*/ 22px;
+}
+OBSBasicSourceSelect #buttonBox {
+	min-height:/*hdpi*/ 0;
+	max-height:/*hdpi*/ 99999px;
+}

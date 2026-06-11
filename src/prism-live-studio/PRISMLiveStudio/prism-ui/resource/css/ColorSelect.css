@@ -1,0 +1,8 @@
+#colorSelectWidget #presetFrame {
+    background-color: #2d2d2d;
+}
+
+#colorSelectWidget #recentColorWidget {
+    background-color: #2d2d2d;
+    border-bottom: /*hdpi*/ 1px solid #000000;
+}

@@ -1,0 +1,6 @@
+if(OS_WINDOWS)
+add_subdirectory(libdump-analyzer)
+add_subdirectory(PrismCommandLine)
+elseif(OS_MACOS)
+add_subdirectory(libdump-analyzer)
+endif()

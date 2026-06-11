@@ -1,0 +1,30 @@
+PLSMotionErrorLayer {
+	border-radius:/*hdpi*/0px;
+	background-color: transparent;
+	border: none;
+}
+
+PLSMotionErrorLayer #contentFrame {
+	border-radius:/*hdpi*/3px;
+	background-color: rgba(30, 30, 31, 95%);
+	border: /*hdpi*/1px solid rgba(255, 255, 255, 10%);
+}
+
+PLSMotionErrorLayer #titleLabel {
+	font-size:/*hdpi*/12px;
+	color: #bababa;
+}
+
+PLSMotionErrorLayer #closeButton {
+	min-width:/*hdpi*/13px;
+	max-width:/*hdpi*/13px;
+    min-height:/*hdpi*/13px;
+	max-height:/*hdpi*/13px;
+	border-style: none;
+	background-color: transparent;
+	image:url(:/images/virtual/close-btn-s-normal.svg);
+}
+
+PLSPropertiesView PLSMotionErrorLayer #titleLabel {
+	background-color: transparent;
+}

@@ -1,0 +1,46 @@
+PLSShoppingHostChannel {
+    qproperty-hasHLine: true;
+    qproperty-hasMinButton: false;
+    qproperty-hasCloseButton: false;
+    qproperty-isMoveInContent: true;
+    qproperty-hasBorder: true;
+	background-color: #272727;
+}
+
+PLSShoppingHostChannel #titleLabel {
+    color:white;
+    font-size:/*hdpi*/14px;
+	min-height:/*hdpi*/ 40px;
+    max-height:/*hdpi*/ 40px;
+}
+
+PLSShoppingHostChannel #contentLabel {
+    color:#bababa;
+    font-size:/*hdpi*/12px;
+	min-height:/*hdpi*/ 54px;
+    max-height:/*hdpi*/ 54px;
+}
+
+PLSShoppingHostChannel #agreeButton,
+PLSShoppingHostChannel #declineButton {
+    font-size:/*hdpi*/14px;
+    font-weight:bold;
+    border-radius:/*hdpi*/3px;
+    padding:0px;
+    color:white;
+    background-color:#444444;
+	min-height:/*hdpi*/ 40px;
+    max-height:/*hdpi*/ 40px;
+	min-width:/*hdpi*/ 140px;
+    max-width:/*hdpi*/ 140px;
+}
+
+PLSShoppingHostChannel #agreeButton:hover,
+PLSShoppingHostChannel #declineButton:hover {
+    background-color:#555555;
+}
+
+PLSShoppingHostChannel #agreeButton:pressed,
+PLSShoppingHostChannel #declineButton:pressed {
+    background-color:#1e1e1f;
+}

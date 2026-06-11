@@ -1,0 +1,499 @@
+/*giphy sticker start*/
+PLSGiphyStickerView {
+	min-width: /*hdpi*/ 300px;
+	max-width: /*hdpi*/ 1472px;
+	min-height: /*hdpi*/ 455px;
+	max-height: /*hdpi*/ 1076px;
+}
+
+#PLSGiphyStickerView > #plsDialogViewBorderFrame > #content {
+	background-color: #1e1e1f;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu {
+	background-color: #272727;
+	border: /*hdpi*/ 1px solid #444444;
+	max-height: /*hdpi*/ 366px;
+	border-radius: /*hdpi*/ 3px;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu #label_space {
+	min-height: /*hdpi*/ 1px;
+	max-height: /*hdpi*/ 1px;
+	background-color: #444444;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu RecommendSearchList #recommendListTitle {
+	color: #effc35;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu RecommendSearchList #recommendWordLabel {
+	margin: 0;
+	padding: 0;
+	min-height: /*hdpi*/ 0px;
+	min-width: /*hdpi*/ 0px;
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #bababa;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu RecommendSearchList #recommendWordLabel:hover {
+	color: #ffffff;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu RecommendSearchList #recommendWordLabel:pressed {
+	color: #1e1e1e;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu RecommendSearchList #recommendWordLabel:disabled {
+	color: #666666;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu HistorySearchList {
+	min-height: /*hdpi*/ 0px;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu HistorySearchList #labelContent {
+	min-height: 0px;
+	min-width: 0px;
+	text-align: left;
+	background-color: transparent;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	color: #bababa;
+	border: none;
+	border-radius: 0px;
+	padding: 0px;
+	margin: 0px;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu HistorySearchList #labelContent:hover {
+	color: #ffffff;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu HistorySearchList #labelContent:pressed {
+	color: #1e1e1e;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu HistorySearchList #labelContent:disabled {
+	color: #666666;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu HistorySearchList HistorySearchItem {
+	background-color: #272727;
+	border: none;
+	min-height: /*hdpi*/ 25px;
+	max-height: /*hdpi*/ 25px;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu #recommendList, PLSGiphyStickerView PLSSearchPopupMenu #historyList {
+	background-color: #272727;
+	border: none;
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu HistorySearchList #buttonDelete {
+	margin: 0;
+	padding: 0;
+	min-width: /*hdpi*/ 16px;
+	max-width: /*hdpi*/ 16px;
+	min-height: /*hdpi*/ 16px;
+	max-height: /*hdpi*/ 16px;
+	background-color: transparent;
+	image: url(":/resource/images/giphy/ic-scene-delete-normal.svg");
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu HistorySearchList #buttonDelete:hover {
+	image: url(":/resource/images/giphy/ic-scene-delete-over.svg");
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu HistorySearchList #buttonDelete:pressed {
+	image: url(":/resource/images/giphy/ic-scene-delete-click.svg");
+}
+
+PLSGiphyStickerView PLSSearchPopupMenu HistorySearchList #buttonDelete:disabled {
+	image: url(":/resource/images/giphy/ic-scene-delete-disable.svg");
+}
+
+PLSGiphyStickerView #frame_head {
+	min-height: /*hdpi*/ 40px;
+	max-height: /*hdpi*/ 40px;
+	border-style: solid;
+	border-color: #343435;
+	border-bottom-width: /*hdpi*/ 1px;
+}
+
+PLSGiphyStickerView #widget_search > #lineEdit_search {
+	padding-right: /*hdpi*/ 35px;
+	padding-top: /*hdpi*/ 0px;
+	padding-bottom: /*hdpi*/ 0px;
+	padding-left: /*hdpi*/ 10px;
+	border: none;
+	border-radius: /*hdpi*/ 3px;
+	min-height: /*hdpi*/ 38px;
+	max-height: /*hdpi*/ 38px;
+	background-color: #1e1e1e;
+	font-size: /*hdpi*/ 14px;
+}
+
+PLSGiphyStickerView #widget_search > #lineEdit_search:focus {
+	border: /*hdpi*/ 1px solid #EFFC35;
+}
+
+PLSGiphyStickerView #widget_search > #lineEdit_search:!focus {
+	border: /*hdpi*/ 1px solid transparent;
+}
+
+PLSGiphyStickerView #widget_search > #btn_cancel {
+	background: transparent;
+	color: #ffffff;
+	font: normal /*hdpi*/ 14px;
+	margin:0;
+	padding:0;
+}
+
+PLSGiphyStickerView #label_giphy_logo {
+	min-width: /*hdpi*/ 76px;
+	max-width: /*hdpi*/ 76px;
+	min-height: /*hdpi*/ 34px;
+	max-height: /*hdpi*/ 34px;
+	image: url(:/resource/images/giphy/img-effect-layer-giphylogo.svg);
+}
+
+PLSGiphyStickerView #frame_head > #btn_recent {
+	border-radius: 0;
+	min-height: /*hdpi*/ 38px;
+	max-height: /*hdpi*/ 38px;
+	background-color: transparent;
+	border: none;
+	border-bottom: /*hdpi*/ 3px solid transparent;
+	color: #bababa;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	padding-top: /*hdpi*/ -2px;
+	padding-bottom: /*hdpi*/ 2px;
+	padding-left: 0px;
+	padding-right: 0px;
+	margin: 0;
+}
+
+PLSGiphyStickerView #frame_head > #btn_trending {
+	border-radius: 0;
+	min-width: /*hdpi*/ 79px;
+	max-width: /*hdpi*/ 79px;
+	min-height: /*hdpi*/ 38px;
+	max-height: /*hdpi*/ 38px;
+	background-color: transparent;
+	border: none;
+	border-bottom: /*hdpi*/ 3px solid transparent;
+	color: #bababa;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	padding-bottom: /*hdpi*/ 2px;
+	padding-top: /*hdpi*/ -2px;
+	padding-left: 0px;
+	padding-right: 0px;
+	margin: 0;
+}
+
+PLSGiphyStickerView #frame_head > #btn_recent:checked, PLSGiphyStickerView #frame_head > #btn_trending:checked {
+	border: none;
+	border-style: solid;
+	border-color: #effc35;
+	border-bottom-width: /*hdpi*/ 3px;
+	color: #effc35;
+	font-weight: bold;
+}
+
+PLSGiphyStickerView #trendingListContainer, PLSGiphyStickerView #recentListContainer, PLSGiphyStickerView #widget_container {
+	background: transparent;
+	border: none;
+}
+
+PLSGiphyStickerView #searchResultList {
+	border-top: /*hdpi*/ 1px solid #343435;
+	border-left: none;
+	border-right: none;
+	border-bottom: none;
+	min-height: /*hdpi*/ 133px;
+	background-color: #1e1e1f;
+}
+
+PLSGiphyStickerView #searchResultContent {
+	background-color: #1e1e1f;
+	border: none;
+}
+
+/*nodata page start*/
+PLSGiphyStickerView #trendingScrollList #noDataPageBottomSpace{
+	min-height: /*hdpi*/ 94px;
+	max-height: /*hdpi*/ 94px;
+	background: transparent;
+}
+
+PLSGiphyStickerView #recentScrollList #noDataPageBottomSpace{
+	min-height: /*hdpi*/ 94px;
+	max-height: /*hdpi*/ 94px;
+	background: transparent;
+}
+
+PLSGiphyStickerView #searchResultList #noDataPageBottomSpace{
+	min-height: /*hdpi*/ 0px;
+	max-height: /*hdpi*/ 0px;
+	background: transparent;
+}
+
+PLSGiphyStickerView NoDataPage{
+	background: #1e1e1f;
+}
+
+PLSGiphyStickerView NoDataPage #iconNoData{
+	min-width: /*hdpi*/ 90px;
+	max-width: /*hdpi*/ 90px;
+	min-height: /*hdpi*/ 90px;
+	max-height: /*hdpi*/ 90px;
+	background: transparent;
+}
+
+PLSGiphyStickerView NoDataPage #textNoData {
+	color: #666666;
+	font-size: /*hdpi*/ 14px;
+	font-weight: normal;
+	background: transparent;
+}
+
+PLSGiphyStickerView NoDataPage #networkErrorRetryBtn {
+	min-width: /*hdpi*/ 110px;
+	max-width: /*hdpi*/ 110px;
+	min-height: /*hdpi*/ 27px;
+	max-height: /*hdpi*/ 27px;
+	background: transparent;
+	border-radius: /*hdpi*/ 3px;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	color: #bababa;
+}
+
+PLSGiphyStickerView NoDataPage #networkErrorRetryBtn:disabled{
+	color:#3d3d3d;
+	border:/*hdpi*/1px solid #3d3d3d;
+}
+
+PLSGiphyStickerView NoDataPage #networkErrorRetryBtn:hover {
+	background-color:transparent;
+	border:/*hdpi*/1px solid #ffffff;
+	color:#ffffff;
+}
+
+PLSGiphyStickerView NoDataPage #networkErrorRetryBtn:pressed {
+	background-color:transparent;
+	border:/*hdpi*/1px solid #272727;
+	color:#272727;
+}
+
+PLSGiphyStickerView #searchResultList > #pageNoData,
+PLSGiphyStickerView #recentScrollList > #pageNoData, 
+PLSGiphyStickerView #trendingScrollList > #pageNoData {
+	background-color: #1e1e1f;
+}
+
+PLSGiphyStickerView #recentScrollList > #pageNoData > #iconNoData {
+	image: url(:/resource/images/giphy/ic-giphy.svg);
+}
+
+PLSGiphyStickerView #recentScrollList > #pageNoData > #iconNoData[pageType="0"] {
+	image: url(:/resource/images/giphy/ic-giphy.svg);
+}
+
+PLSGiphyStickerView #recentScrollList > #pageNoData > #iconNoData[pageType="1"] {
+	image: url(:/resource/images/giphy/ic-unconnect.svg);
+}
+
+PLSGiphyStickerView #trendingScrollList > #pageNoData > #iconNoData {
+	image: url(:/resource/images/giphy/ic-giphy.svg);
+}
+
+PLSGiphyStickerView #trendingScrollList > #pageNoData > #iconNoData[pageType="0"] {
+	image: url(:/resource/images/giphy/ic-giphy.svg);
+}
+
+PLSGiphyStickerView #trendingScrollList > #pageNoData > #iconNoData[pageType="1"] {
+	image: url(:/resource/images/giphy/ic-unconnect.svg);
+}
+
+PLSGiphyStickerView #searchResultList > #pageNoData > #iconNoData {
+	image: url(:/resource/images/giphy/ic-search.svg);
+}
+
+PLSGiphyStickerView #searchResultList > #pageNoData > #iconNoData[pageType="0"] {
+	image: url(:/resource/images/giphy/ic-search.svg);
+}
+
+PLSGiphyStickerView #searchResultList > #pageNoData > #iconNoData[pageType="1"] {
+	image: url(:/resource/images/giphy/ic-unconnect.svg);
+}
+
+/*nodata page end*/
+PLSGiphyStickerView MovieLabel {
+	min-width: /*hdpi*/ 78px;
+	max-width: /*hdpi*/ 78px;
+	min-height: /*hdpi*/ 78px;
+	max-height: /*hdpi*/ 78px;
+	border-radius: /*hdpi*/ 3px;
+	background: transparent;
+	border: /*hdpi*/ 2px solid transparent;
+}
+
+PLSGiphyStickerView MovieLabel[clicked=true] {
+	border: /*hdpi*/ 2px solid #effc35;
+}
+
+PLSGiphyStickerView MovieLabel[clicked=false] {
+	border: /*hdpi*/ 2px solid transparent;
+}
+
+PLSGiphyStickerView MovieLabel[useDefaultIcon=true] {
+	image: url(:/resource/images/giphy/thumb-loading.svg);
+}
+
+PLSGiphyStickerView MovieLabel[useDefaultIcon=false] {
+	border-image: none;
+}
+
+PLSGiphyStickerView MovieLabel #labelIconLoading {
+	min-width: /*hdpi*/ 24px;
+	max-width: /*hdpi*/ 24px;
+	min-height: /*hdpi*/ 24px;
+	max-height: /*hdpi*/ 24px;
+	background: transparent;
+}
+
+PLSGiphyStickerView MovieLabel #labelIconLoading[status="1"] {
+	image:url(":/resource/images/loading/loading-1.svg");
+}
+
+PLSGiphyStickerView MovieLabel #labelIconLoading[status="2"] {
+	image:url(":/resource/images/loading/loading-2.svg");
+}
+
+PLSGiphyStickerView MovieLabel #labelIconLoading[status="3"] {
+	image:url(":/resource/images/loading/loading-3.svg");
+}
+
+PLSGiphyStickerView MovieLabel #labelIconLoading[status="4"] {
+	image:url(":/resource/images/loading/loading-4.svg");
+}
+
+PLSGiphyStickerView MovieLabel #labelIconLoading[status="5"] {
+	image:url(":/resource/images/loading/loading-5.svg");
+}
+
+PLSGiphyStickerView MovieLabel #labelIconLoading[status="6"] {
+	image:url(":/resource/images/loading/loading-6.svg");
+}
+
+PLSGiphyStickerView MovieLabel #labelIconLoading[status="7"] {
+	image:url(":/resource/images/loading/loading-7.svg");
+}
+
+PLSGiphyStickerView MovieLabel #labelIconLoading[status="8"] {
+	image:url(":/resource/images/loading/loading-8.svg");
+}
+
+/*QSlider start*/
+PLSGiphyStickerView #recentScrollList, PLSGiphyStickerView #trendingScrollList {
+	border: none;
+	min-height: /*hdpi*/ 133px;
+	background-color: #1e1e1f;
+}
+
+PLSGiphyStickerView QScrollBar:vertical {
+	background-color: transparent;
+	min-width: /*hdpi*/ 10px;
+	max-width: /*hdpi*/ 10px;
+	margin: 0px;
+}
+
+PLSGiphyStickerView QSlider::groove:horizontal {
+	border-radius: /*hdpi*/ 2px;
+	height: /*hdpi*/ 4px;
+	background-color: #404040;
+	margin: /*hdpi*/ 2px 0;
+}
+
+PLSGiphyStickerView QSlider::sub-page:horizontal {
+	border-radius: /*hdpi*/ 2px;
+	background-color: #effc35;
+	margin: /*hdpi*/ 2px 0;
+}
+
+PLSGiphyStickerView QSlider::sub-page:horizontal:disabled {
+	border-radius: /*hdpi*/ 2px;
+	background-color: #404040;
+	margin: /*hdpi*/ 2px 0;
+}
+
+PLSGiphyStickerView QSlider::handle:horizontal[enter="false"], QSlider::handle:horizontal[enter="false"][handle="true"] {
+	height: 0px;
+	width: /*hdpi*/ 4px;
+	border-image: none;
+	margin: /*hdpi*/ -4px 0px /*hdpi*/ -4px 0px;
+}
+
+PLSGiphyStickerView QSlider::handle:horizontal[enter="true"] {
+	image: url(:/resource/images/slider-handle/img-handle-over.png);
+	width: /*hdpi*/ 12px;
+	margin: /*hdpi*/ -4px 0px /*hdpi*/ -4px 0px;
+}
+
+/*QSlider end*/
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon{
+	min-width: /*hdpi*/ 24px;
+	max-width: /*hdpi*/ 24px;
+	min-height: /*hdpi*/ 24px;
+	max-height: /*hdpi*/ 24px;
+	background-color: transparent;
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="1"] {
+	image:url(":/resource/images/loading/loading-1.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="2"] {
+	image:url(":/resource/images/loading/loading-2.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="3"] {
+	image:url(":/resource/images/loading/loading-3.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="4"] {
+	image:url(":/resource/images/loading/loading-4.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="5"] {
+	image:url(":/resource/images/loading/loading-5.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="6"] {
+	image:url(":/resource/images/loading/loading-6.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="7"] {
+	image:url(":/resource/images/loading/loading-7.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingIcon[status="8"] {
+	image:url(":/resource/images/loading/loading-8.svg");
+}
+
+ScrollAreaWithNoDataTip #scrollAreaLoadingLayer{
+	background-color:rgba(30, 30, 31, 204);
+	border: none;
+}
+
+/*giphy sticker end*/

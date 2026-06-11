@@ -1,0 +1,62 @@
+#chatSourceButton {
+	min-height: /*hdpi*/ 27px;
+	max-height: /*hdpi*/ 27px;
+	background: transparent;
+	border: /*hdpi*/ 1px solid #3d3d3d;
+	border-radius: /*hdpi*/ 3px;
+}
+
+#chatSourceButton[hovered="true"],
+#chatSourceButton[pressed="true"][hovered="false"] {
+	border: /*hdpi*/ 1px solid #a2a2a2;
+}
+
+#chatSourceButton[pressed="true"][hovered="true"] {
+	border: /*hdpi*/ 1px solid #333333;
+}
+
+#chatSourceButton[enabled="false"] {
+	border: /*hdpi*/ 1px solid #3d3d3d;
+}
+
+#chatSourceButton > #chatSourceButtonIcon {
+	min-width: /*hdpi*/ 15px;
+	max-width: /*hdpi*/ 15px;
+	min-height: /*hdpi*/ 15px;
+	max-height: /*hdpi*/ 15px;
+	background: transparent;
+	image: url("://resource/images/chat/ic-prismchat-normal.svg");
+}
+
+#chatSourceButton[hovered="true"] > #chatSourceButtonIcon,
+#chatSourceButton[pressed="true"][hovered="false"] > #chatSourceButtonIcon {
+	image: url("://resource/images/chat/ic-prismchat-over.svg");
+}
+
+#chatSourceButton[pressed="true"][hovered="true"] > #chatSourceButtonIcon {
+	image: url("://resource/images/chat/ic-prismchat-click.svg");
+}
+
+#chatSourceButton[enabled="false"] > #chatSourceButtonIcon {
+	image: url("://resource/images/chat/ic-prismchat-disable.svg");
+}
+
+#chatSourceButton > #chatSourceButtonText {
+	font-size: /*hdpi*/ 12px;
+	font-weight: bold;
+	color: #bababa;
+	background: transparent;
+}
+
+#chatSourceButton[hovered="true"] > #chatSourceButtonText,
+#chatSourceButton[pressed="true"][hovered="false"] > #chatSourceButtonText {
+	color: white;
+}
+
+#chatSourceButton[pressed="true"][hovered="true"] > #chatSourceButtonText {
+	color: #333333;
+}
+
+#chatSourceButton[enabled="false"] > #chatSourceButtonText {
+	color: #666666;
+}

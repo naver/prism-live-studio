@@ -1,0 +1,17 @@
+PLSHelpIcon {
+    image: url(":/libui/resource/images/ic-help-off-normal.svg");
+    min-width: 18px;
+    max-width: 18px;
+    min-height: 18px;
+    max-height: 18px;
+    background-color: transparent;
+    margin-left: 5px;
+}
+
+    PLSHelpIcon[ChatV2_MoveDown= "true"] {
+        margin-top: 2px;
+    }
+
+    PLSHelpIcon:hover {
+        image: url(":/libui/resource/images/ic-help-off-over.svg");
+    }

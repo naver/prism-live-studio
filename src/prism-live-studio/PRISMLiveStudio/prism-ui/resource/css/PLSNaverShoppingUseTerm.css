@@ -1,0 +1,79 @@
+PLSNaverShoppingUseTerm {
+    qproperty-hasMinButton: false;
+    qproperty-hasCloseButton: false;
+    qproperty-hasBorder: true;
+}
+
+PLSNaverShoppingUseTerm, PLSNaverShoppingUseTerm QWidget {
+    background-color: #272727;
+}
+
+PLSNaverShoppingUseTerm #topTitleLabel {
+    color:#effc35;
+    font-size:/*hdpi*/20px;
+    font-weight: bold;
+    min-height:/*hdpi*/30px;
+    max-height:/*hdpi*/30px;
+}
+
+PLSNaverShoppingUseTerm #topSubTitleLabel {
+    color:#bababa;
+	font-size:/*hdpi*/12px;
+	background-color:transparent;
+}
+
+PLSNaverShoppingUseTerm #allSelectedCheckBox,
+PLSNaverShoppingUseTerm #termOfUserCheckBox,
+PLSNaverShoppingUseTerm #operationPolicyCheckBox
+{
+	font-size:/*hdpi*/14px;
+	font-weight:bold;
+}
+
+PLSNaverShoppingUseTerm #topLine
+{
+	background-color:#3d3d3d;
+}
+
+PLSNaverShoppingUseTerm #cefBackView{
+    background-color:#1e1e1e;
+	min-height:/*hdpi*/ 100px;
+    max-height:/*hdpi*/ 100px;
+}
+
+PLSNaverShoppingUseTerm #cefPolicyView{
+    background-color:#1e1e1e;
+	min-height:/*hdpi*/ 100px;
+    max-height:/*hdpi*/ 100px;
+}
+
+PLSNaverShoppingUseTerm #lineView {
+    background-color:#151515;
+}
+
+PLSNaverShoppingUseTerm #confirmButton,
+PLSNaverShoppingUseTerm #closeButton {
+    font-size:/*hdpi*/14px;
+    font-weight:bold;
+    border-radius:/*hdpi*/3px;
+    padding:0px;
+    color:white;
+    background-color:#444444;
+	qproperty-minimumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
+	qproperty-maximumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
+}
+
+PLSNaverShoppingUseTerm #confirmButton:hover,
+PLSNaverShoppingUseTerm #closeButton:hover {
+    background-color:#555555;
+}
+
+PLSNaverShoppingUseTerm #confirmButton:pressed,
+PLSNaverShoppingUseTerm #closeButton:pressed {
+    background-color:#1e1e1f;
+}
+
+PLSNaverShoppingUseTerm #confirmButton:disabled,
+PLSNaverShoppingUseTerm #closeButton:disabled {
+    color:#666666;
+}

@@ -1,0 +1,125 @@
+{
+  "Description": "Control de PRISM Live Studio.",
+  "Name": "PRISM Live Studio",
+  "com.naver.streamdeck.pls.mixeraudio": {
+    "Name": "Fuente de audio",
+    "Tooltip": "Silenciar/activar sonido de la fuente de audio",
+    "States": [
+      {
+        "Name": "Active"
+      },
+      {
+        "Name": "Deactive"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.muteall": {
+    "Name": "Todo el audio",
+    "Tooltip": "Silenciar todo el audio/Activar el sonido de todo el audio",
+    "States": [
+      {
+        "Name": "Active"
+      },
+      {
+        "Name": "Deactive"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.record": {
+    "Name": "Registro",
+    "Tooltip": "Iniciar/finalizar grabación",
+    "States": [
+      {
+        "Name": "Start"
+      },
+      {
+        "Name": "Stop"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.scene": {
+    "Name": "Transición de escena",
+    "Tooltip": "Transición de escena"
+  },
+  "com.naver.streamdeck.pls.source": {
+    "Name": "Fuente",
+    "Tooltip": "Ocultar/Mostrar fuente",
+    "States": [
+      {
+        "Name": "Active"
+      },
+      {
+        "Name": "Deactive"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.stream": {
+    "Name": "Arroyo",
+    "Tooltip": "Iniciar/finalizar transmisión",
+    "States": [
+      {
+        "Name": "Start"
+      },
+      {
+        "Name": "Stop"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.sidewindow": {
+    "Name": "Menú de barra lateral",
+    "Tooltip": "Menú de barra lateral activado/desactivado",
+    "States": [
+      {
+        "Name": "Open"
+      },
+      {
+        "Name": "Close"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.cpuusage": {
+    "Name": "CPU",
+    "Tooltip": "CPU"
+  },
+  "com.naver.streamdeck.pls.studiomode": {
+    "Name": "Modo estudio",
+    "Tooltip": "Modo de estudio activado/desactivado",
+    "States": [
+      {
+        "Name": "Enable"
+      },
+      {
+        "Name": "Disable"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.toastmessage": {
+    "Name": "Alerta",
+    "Tooltip": "Alerta",
+    "States": [
+      {
+        "Name": "Open"
+      }
+    ]
+  },
+  "com.naver.streamdeck.pls.framedrop": {
+    "Name": "Caída de fotogramas",
+    "Tooltip": "Caída de fotogramas"
+  },
+  "com.naver.streamdeck.pls.bitrate": {
+    "Name": "Velocidad de bits",
+    "Tooltip": "Velocidad de bits"
+  },
+  "Localization": {
+    "Please launch Prism Live Studio": "Inicie PRISM Live Studio.",
+    "Source": "Fuente",
+    "collection": "Colección de escenas",
+    "Scene": "Escenas",
+    "Window": "Menú de barra lateral",
+    "CPUUsagePiTip": "El uso de la CPU no se puede mostrar si ingresa el título.",
+    "FramedropPiTip": "La información de caída de fotogramas no se puede mostrar si ingresa el título.",
+    "BitratePiTip": "La información de Velocidad de bits no se puede mostrar si ingresa el título.",
+    "Loading": "Cargando…",
+    "NoneOption": "Ninguno"
+  }
+}

@@ -1,0 +1,140 @@
+PLSLoginMainView {
+	min-width: /*hdpi*/ 730px;
+	min-height: /*hdpi*/ 544px;
+	max-width: /*hdpi*/ 730px;
+	max-height: /*hdpi*/ 544px;
+	qproperty-hasHLine: /*hdpi*/ false;
+	qproperty-isMoveInContent: /*hdpi*/ true;
+	qproperty-captionButtonMargin: /*hdpi*/ 10;
+	qproperty-closeButtonMarginRight: /*hdpi*/ 9;
+	color: #1e1e1f;
+}
+PLSLoginMainView{
+    background-color: #1e1e1f;
+
+}
+
+	PLSLoginMainView > #plsDialogViewBorderFrame > #titleBar,
+	PLSLoginMainView > #plsDialogViewBorderFrame > #titleBar > #titleLabel {
+		color: #1e1e1f;
+		background-color: #1e1e1f;
+	}
+
+		PLSLoginMainView > #label,
+		PLSLoginMainView > #plsDialogViewBorderFrame > #titleBar > #min,
+		PLSLoginMainView > #plsDialogViewBorderFrame > #titleBar > #close {
+			background-color: #1e1e1f;
+		}
+
+
+#PLSLoginMainView PLSProgressView, #PLSLoginMainView PLSUpdateTipView ,#PLSLoginMainView PLSNoticeView{
+	background-color: #1e1e1f;
+}
+
+PLSLoginMainView #stackedWidget {
+	background-color: #1e1e1f;
+    border: none;
+}
+QProgressBar {
+    border: none;
+    border-radius: /*hdpi*/3px;
+    background-color: black;
+    max-height: /*hdpi*/6px;
+    min-height: /*hdpi*/6px;
+    margin: /*hdpi*/10px /*hdpi*/0px /*hdpi*/10px /*hdpi*/0px;
+    color: #effc35;
+    text-align: left top;
+}
+
+QProgressBar::chunk {
+    border-radius: /*hdpi*/3px;
+    background-color: #effc35;
+}
+PLSProgressView #versionLabel{
+    font-size: /*hdpi*/12px;
+  font-weight: normal;
+  color: #bababa;
+  background-color: transparent;
+}
+PLSProgressView #progressNumLabel{
+font-size: /*hdpi*/12px;
+font-weight: bold;
+color: #effc35;
+background-color: transparent;
+}
+PLSProgressView #progressContent{
+    font-size: /*hdpi*/12px;
+    font-weight: normal;
+    color: white;
+    background-color: transparent;
+}
+PLSProgressView #logoLabel{
+    min-width: /*hdpi*/ 255px;
+	min-height: /*hdpi*/ 230px;
+	max-width: /*hdpi*/ 255px;
+	max-height: /*hdpi*/ 230px;
+    background-color: transparent;
+}
+
+
+PLSNoticeView #middleView {
+	background-color: transparent;
+	border: none;
+	min-height: /*hdpi*/ 304px;
+	max-height: /*hdpi*/ 304px;
+}
+
+
+PLSNoticeView #lineView {
+	background-color: #151515;
+	min-height: /*hdpi*/ 1px;
+	max-height: /*hdpi*/ 1px;
+}
+
+PLSNoticeView #topLabel {
+	color:#effc35;
+	font-size:/*hdpi*/20px;
+	font-weight: bold;
+	min-height:/*hdpi*/60px;
+	max-height:/*hdpi*/60px;
+    background-color: transparent;
+}
+
+PLSNoticeView #learnMoreButton {
+	qproperty-minimumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
+	qproperty-maximumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	border-radius: /*hdpi*/ 3px;
+	padding: /*hdpi*/ 0px;
+	color: white;
+	background-color: #444444;
+
+}
+
+PLSNoticeView #learnMoreButton:hover {
+	background-color:#555555;
+}
+
+PLSNoticeView #learnMoreButton:pressed {
+	background-color:#1e1e1f;
+}
+
+PLSNoticeView #confirmButton {
+	qproperty-minimumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
+	qproperty-maximumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	border-radius: /*hdpi*/ 3px;
+	padding: /*hdpi*/ 0px;
+	color: white;
+	background-color: #444444;
+}
+
+PLSNoticeView #confirmButton:hover {
+	background-color:#555555;
+}
+
+PLSNoticeView #confirmButton:pressed {
+	background-color:#1e1e1f;
+}

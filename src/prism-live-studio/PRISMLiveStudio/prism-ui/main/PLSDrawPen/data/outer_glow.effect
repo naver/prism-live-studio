@@ -1,0 +1,73 @@
+uniform float4x4 ViewProj;
+uniform texture2d image;
+
+uniform float2 tex_size;
+uniform int range;
+uniform float4 glow_color;
+
+sampler_state def_sampler {
+	Filter   = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertInOut {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertInOut VSDefault(VertInOut vert_in)
+{
+	VertInOut vert_out;
+	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = vert_in.uv;
+	return vert_out;
+}
+
+float4 OuterGlow(float2 uv)
+{
+        float radiusX = 1 / tex_size.x;
+        float radiusY = 1 / tex_size.y;
+        float inner = 0;
+        float outter = 0;
+        int count = 0;
+        for (int k = -range; k <= range; ++k)
+        {
+                for (int j = -range; j <= range; ++j)
+                {
+			float4 m = image.Sample(def_sampler, float2(uv.x + k * radiusX , uv.y + j * radiusY));
+			outter += 1 - m.a;
+			inner += m.a;
+			count += 1;
+                }
+        }
+        inner /= count;
+        outter /= count;
+
+	float4 v_color =  float4(1.0, 1.0, 1.0, 1.0);
+                
+        float4 col = image.Sample(def_sampler, uv) * v_color;
+        float out_alpha = max(col.a, inner*2);
+	out_alpha = min(1, out_alpha);
+        float in_alpha = min(out_alpha, outter);
+
+	if(col.a < 0.9){
+		col.rgb = col.rgb + (1-col.a) * 1 * glow_color.a * glow_color.rgb;
+		col.a = out_alpha;
+	}
+        return col;
+}
+
+float4 PSOuterFlow(VertInOut vert_in) : TARGET
+{
+	return OuterGlow(vert_in.uv);
+}
+
+technique Draw
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSOuterFlow(vert_in);
+	}
+}

@@ -1,0 +1,108 @@
+#PLSTakePhotoView {
+	min-width:/*hdpi*/ 510px;
+	max-width:/*hdpi*/ 510px;
+	min-height:/*hdpi*/ 521px;
+	max-height:/*hdpi*/ 521px;
+}
+#PLSTakePhotoView #title {
+	background-color: transparent;
+	font-size:/*hdpi*/ 14px;
+	font-weight: bold;
+	color: white;
+}
+#PLSTakePhotoView #cameraUninitMask {
+	background-color: black;
+}
+#PLSTakePhotoView #cameraUninitMask #cameraUninitMaskIcon {
+	background-color: transparent;
+	image: url(":/resource/images/ic-cover-camera-large.svg");
+	min-width:/*hdpi*/ 73px;
+	max-width:/*hdpi*/ 73px;
+	min-height:/*hdpi*/ 64px;
+	max-height:/*hdpi*/ 64px;
+}
+#PLSTakePhotoView #cameraUninitMask #cameraUninitMaskText {
+	background-color: transparent;
+	font-size:/*hdpi*/ 14px;
+	font-weight: normal;
+	color: rgba(255, 255, 255, 0.5);
+}
+#PLSTakePhotoView #settings {
+	min-width:/*hdpi*/ 40px;
+	max-width:/*hdpi*/ 40px;
+	min-height:/*hdpi*/ 40px;
+	max-height:/*hdpi*/ 40px;
+}
+#PLSTakePhotoView #settings #cameraSettingButtonIcon {
+	background-color: transparent;
+	image: url(":/resource/images/ic-setting-s-normal.svg");
+	min-width:/*hdpi*/ 22px;
+	max-width:/*hdpi*/ 22px;
+	min-height:/*hdpi*/ 22px;
+	max-height:/*hdpi*/ 22px;
+}
+#PLSTakePhotoView #ok, #PLSTakePhotoView #cancel {
+	min-width:/*hdpi*/ 140px;
+	max-width:/*hdpi*/ 140px;
+	min-height:/*hdpi*/ 40px;
+	max-height:/*hdpi*/ 40px;
+}
+#PLSTakePhotoView #ok {
+	background-color: #effc35;
+	color: black;
+}
+#PLSTakePhotoView #ok:disabled {
+	background-color: #444444;
+	color: #666666;
+}
+
+#PLSTakePhotoView #line {
+	min-height:/*hdpi*/ 1px;
+	max-height:/*hdpi*/ 1px;
+	background-color: #151515;
+}
+#PLSTakePhotoView #loadingBG {
+	background-color: rgba(39, 39, 39, 0.8);
+}
+
+#PLSTakePhotoView #loadingBtn {
+	background-color: transparent;
+}
+#PLSTakePhotoView #loadingBtn[status="1"] {
+	image: url(":/resource/images/loading/loading-1.svg");
+}
+
+#PLSTakePhotoView #loadingBtn[status="2"] {
+	image: url(":/resource/images/loading/loading-2.svg");
+}
+
+#PLSTakePhotoView #loadingBtn[status="3"] {
+	image: url(":/resource/images/loading/loading-3.svg");
+}
+
+#PLSTakePhotoView #loadingBtn[status="4"] {
+	image: url(":/resource/images/loading/loading-4.svg");
+}
+
+#PLSTakePhotoView #loadingBtn[status="5"] {
+	image: url(":/resource/images/loading/loading-5.svg");
+}
+
+#PLSTakePhotoView #loadingBtn[status="6"] {
+	image: url(":/resource/images/loading/loading-6.svg");
+}
+
+#PLSTakePhotoView #loadingBtn[status="7"] {
+	image: url(":/resource/images/loading/loading-7.svg");
+}
+
+#PLSTakePhotoView #loadingBtn[status="8"] {
+	image: url(":/resource/images/loading/loading-8.svg");
+}
+
+#PLSTakePhotoView #loadingTipsLabel {
+	font-size: /*hdpi*/ 14px;
+	background-color: transparent;
+	padding-left: /*hdpi*/ 20px;
+	padding-right: /*hdpi*/ 20px;
+}

@@ -1,0 +1,163 @@
+PLSSelectImageButton {
+	background-color: transparent;
+	border-radius:/*hdpi*/ 3px;
+}
+
+
+
+PLSLiveInfoBase PLSSelectImageButton[lang="ko-KR"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 65px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="en-US"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 42px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="id-ID"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 42px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="pt-BR"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 42px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="ja-JP"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 63px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="es-ES"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 42px;
+}
+
+PLSLiveInfoBase PLSSelectImageButton[lang="vi-VN"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 61px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="ko-KR"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 21px;
+}
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="en-US"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 3px;
+}
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="id-ID"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 3px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="ja-JP"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 21px;
+}
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="pt-BR"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 3px;
+}
+
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="es-ES"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 3px;
+}
+PLSLiveInfoNaverShoppingLIVE PLSSelectImageButton[lang="vi-VN"] #maskBgWidget > QPushButton > #icon {
+	margin-left: /*hdpi*/ 19px;
+}
+
+PLSSelectImageButton #maskBgWidget > QPushButton > #text {
+	margin-left: /*hdpi*/ 1px;
+}
+
+PLSSelectImageButton #imageLabel {
+	border-radius:/*hdpi*/ 3px;
+	background-color: #444444;
+}
+
+PLSSelectImageButton #imageLabel #icon {
+	background-color: transparent;
+	min-width:/*hdpi*/ 54px;
+	max-width:/*hdpi*/ 54px;
+	min-height:/*hdpi*/ 52px;
+	max-height:/*hdpi*/ 52px;
+}
+
+PLSSelectImageButton #imageLabel #icon[enabled="true"] {
+	image: url(":/resource/images/icon-cover-camera.svg");
+}
+
+PLSSelectImageButton #imageLabel #icon[enabled="false"] {
+	image: url(":/resource/images/icon-cover-camera-disable.svg");
+}
+
+PLSSelectImageButton #takeButton {
+	border-top-left-radius:/*hdpi*/ 3px;
+	border-top-right-radius:/*hdpi*/ 3px;
+	border-bottom-left-radius:/*hdpi*/ 0;
+	border-bottom-right-radius:/*hdpi*/ 0;
+}
+
+PLSSelectImageButton #selectButton[isBottom="true"] {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+}
+PLSSelectImageButton #selectButton[isBottom="false"] {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	border-bottom-left-radius: 0px;
+	border-bottom-right-radius: 0px;
+}
+
+PLSSelectImageButton #deleteButton {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+}
+
+PLSSelectImageButton #maskBgWidget > QPushButton {
+	min-width: /*hdpi*/ 0;
+	max-width: /*hdpi*/ 99999px;
+	min-height: /*hdpi*/ 0;
+	max-height: /*hdpi*/ 99999px;
+	background: #444444;
+}
+PLSSelectImageButton #maskBgWidget > QPushButton:hover {
+	background: #555555;
+}
+PLSSelectImageButton #maskBgWidget > QPushButton > #icon {
+	min-width: /*hdpi*/ 23px;
+	max-width: /*hdpi*/ 23px;
+	min-height: /*hdpi*/ 23px;
+	max-height: /*hdpi*/ 23px;
+	background-color: transparent;
+}
+PLSSelectImageButton #maskBgWidget > #deleteButton > #icon {
+	min-width: /*hdpi*/ 19px;
+	max-width: /*hdpi*/ 19px;
+	min-height: /*hdpi*/ 23px;
+	max-height: /*hdpi*/ 23px;
+	background-color: transparent;
+	padding-left: 3px;
+}
+PLSSelectImageButton #takeButton > #icon {
+	image: url(":/resource/images/icon-cover-camera-small.svg");
+}
+PLSSelectImageButton #selectButton > #icon {
+	image: url(":/resource/images/icon-cover-add.svg");
+}
+PLSSelectImageButton #deleteButton > #icon {
+	image: url(":/resource/images/take_photo_delete.svg");
+	background-color: transparent;
+}
+PLSSelectImageButton #maskBgWidget > QPushButton > #text{
+	background-color: transparent;
+	font-size:/*hdpi*/ 14px;
+	font-weight: bold;
+	color: white;
+}
+
+PLSSelectImageButton  #maskBgWidget {
+	background-color: transparent;
+	border-radius:/*hdpi*/ 3px;
+}
+
+PLSSelectImageButton  #tipLabel {
+	background-color: transparent;
+	color: #999999;
+	font-size: 11px;
+}

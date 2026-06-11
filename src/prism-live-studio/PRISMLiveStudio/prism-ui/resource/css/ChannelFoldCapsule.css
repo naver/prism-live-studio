@@ -1,0 +1,106 @@
+
+ChannelFoldCapsule {
+	background-color: transparent;
+	image: none;
+	margin: /*hdpi*/ 0px;
+	border: /*hdpi*/ none;
+	padding: /*hdpi*/ 0px;
+	border-radius: /*hdpi*/ 3px;
+}
+
+	ChannelFoldCapsule #HeaderPart {
+		margin: /*hdpi*/ 0px;
+		padding: /*hdpi*/ 0px;
+	}
+
+	ChannelFoldCapsule #UserIcon {
+		padding: /*hdpi*/ 0px;
+		margin-bottom:2px;
+		max-width: 14px;
+		max-height: 14px;
+		min-width: 14px;
+		min-height: 14px;
+		background-color: transparent;
+		color: transparent;
+		margin-right: 4px;
+		margin-left: 5px;
+	}
+
+	ChannelFoldCapsule #InfoPart {
+		padding: /*hdpi*/ 0px;
+		margin: /*hdpi*/ 0px;
+		background-color: transparent;
+		image: none;
+	}
+
+	ChannelFoldCapsule #UserName {
+		color: #ffffff;
+		padding: /*hdpi*/ 0px;
+		font-size: /*hdpi*/ 11px;
+		font-style: normal;
+		border: none;
+		max-height: 16px;
+		min-height: 16px;
+		max-width: 86px;
+		margin-bottom: 4px;
+	}
+
+		ChannelFoldCapsule #UserName:disabled {
+			color: #666666;
+		}
+
+
+
+ChannelFoldCapsule #ErrorLabel {
+	max-width: /*hdpi*/ 130px;
+	color: #666666;
+	padding: /*hdpi*/ 0px;
+	font-size: /*hdpi*/ 12px;
+	font-weight: normal;
+	font-style: normal;
+	margin-left:2px;
+}
+
+ChannelFoldCapsule #ChannelInfo {
+	min-height: /*hdpi*/ 30px;
+	max-height: /*hdpi*/ 30px;
+}
+
+	ChannelFoldCapsule #ChannelInfo:disabled {
+		color: #666666;
+	}
+
+	ChannelFoldCapsule #ViewerNumberLabel, ChannelFoldCapsule #LikeNumberLabel {
+		color: #bababa;
+		font-size: /*hdpi*/ 11px;
+		font-weight: normal;
+		font-style: normal;
+		max-height: 14px;
+		min-height: 14px;
+		border: /*hdpi*/ none;
+		margin-bottom: 4px;
+	}
+
+	ChannelFoldCapsule #ViewerNumberLabel:disabled, ChannelFoldCapsule #LikeNumberLabel:disabled {
+		color: #666666;
+	}
+
+	ChannelFoldCapsule #ViewerPicLabel {
+		image: url(":/channels/resource/images/ChannelsSource/statistics/ic-liveend-view.svg");
+		max-height: /*hdpi*/ 12px;
+		min-height: /*hdpi*/ 12px;
+		max-width: /*hdpi*/ 12px;
+		min-width: /*hdpi*/ 12px;
+		color: transparent;
+		margin-bottom: 4px;
+	}
+
+	ChannelFoldCapsule #LikePicLabel {
+		image: url(":/channels/resource/images/ChannelsSource/statistics/ic-liveend-like.svg");
+		max-height: /*hdpi*/ 12px;
+		min-height: /*hdpi*/ 12px;
+		max-width: /*hdpi*/ 12px;
+		min-width: /*hdpi*/ 12px;
+		color: transparent;
+		margin-bottom: 4px;
+	}

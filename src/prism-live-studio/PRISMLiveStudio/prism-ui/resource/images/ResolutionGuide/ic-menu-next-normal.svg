@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="9" height="13" viewBox="0 0 9 13">
+    <g fill="none" fill-rule="evenodd">
+        <g fill="#BABABA" fill-rule="nonzero">
+            <g>
+                <g>
+                    <g>
+                        <g>
+                            <path d="M9.25 3.94c.31-.275.783-.249 1.06.06.275.31.249.783-.06 1.06L5.933 8.915c-.276.247-.691.255-.977.02L.273 5.08c-.32-.263-.365-.736-.102-1.056.263-.32.736-.365 1.056-.102L5.413 7.37 9.25 3.941z" transform="translate(-857 -1552) translate(170 1474) translate(25 70) translate(495 5) translate(167 3) rotate(-90 5.25 6.429)"/>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

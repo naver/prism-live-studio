@@ -1,0 +1,158 @@
+PLSNCB2bBrowserSettings #bottomWidget{
+    min-height: 79px;
+    max-height: 79px;
+    border-top: 1px solid #151515;
+}
+
+PLSNCB2bBrowserSettings #descriptionLabel{
+    font-size: 12px;
+    color: #bababa;
+    min-height: 36px;
+    max-height: 36px;
+}
+
+PLSNCB2bBrowserSettings #logo{
+    min-height: 22px;
+    max-height: 22px;
+}
+
+PLSNCB2bBrowserSettings #nameLabel{
+    min-height:/*hdpi*/40px;
+	max-height:/*hdpi*/40px;
+	min-width:/*hdpi*/330px;
+	max-width:/*hdpi*/330px;	
+    padding-left: 60px;
+    padding-right: 10px;
+    background-color: #363636;
+    font-size: 12px;
+    color: #bababa;
+    border-bottom-left-radius:3px;
+    border-top-left-radius:3px;
+}
+
+PLSNCB2bBrowserSettings #urlLabel{
+    min-height:/*hdpi*/40px;
+	max-height:/*hdpi*/40px;
+	min-width:/*hdpi*/388px;
+	max-width:/*hdpi*/388px;	
+    background-color: #363636;
+    font-size: 12px;
+    color: #bababa;
+    border-bottom-right-radius:3px;
+    border-top-right-radius:3px;
+}
+
+PLSNCB2bBrowserSettings #refreshBtn{
+    min-height:/*hdpi*/30px;
+	max-height:/*hdpi*/30px;
+	min-width:/*hdpi*/30px;
+	max-width:/*hdpi*/30px;	
+	background: transparent;	
+    border: 1px solid #3d3d3d;
+    border-radius: 3px;
+	margin: 0;
+	padding: 0;	
+    image: url(":/resource/images/ncp/ic-refresh-normal.svg");
+}
+
+PLSNCB2bBrowserSettings #refreshBtn:hover {
+    image: url(":/resource/images/ncp/ic-refresh-normal-over.svg");
+}
+
+PLSNCB2bBrowserSettings #listPage, PLSNCB2bBrowserSettings #noContentPage, PLSNCB2bBrowserSettings #noContentLabel,
+PLSNCB2bBrowserSettings #noNetworkPage, PLSNCB2bBrowserSettings #noNetworkLabel{
+    border-radius: 3px;
+}
+
+PLSNCB2bBrowserSettings #listPage QListWidget{
+    background-color: #272727;
+}
+
+PLSNCB2bBrowserSettings #noContentLabel, PLSNCB2bBrowserSettings #noNetworkLabel{
+    background-color: #363636;
+    font-size: 14px;
+    color: #bababa; 
+    border-top: 2px solid #272727;
+}
+
+PLSNCB2bBrowserSettings #selectLabel{
+    font-size: 14px;
+    color: #ffffff; 
+    font-weight: bold;
+}
+
+PLSNCB2bBrowserSettings QListWidget::item {
+    min-height: /*hdpi*/ 50px;
+    max-height: /*hdpi*/ 50px;
+    background-color: #363636;
+    border-radius: 3px;
+    margin-top: 2px;
+}
+
+PLSNCB2bBrowserSettings QListWidget::item:hover {
+    background-color: #444444;
+}
+
+PLSNCB2bBroSettingsItem #selectedBtn, PLSNCB2bBroSettingsItem #selectedBtn[checked=false] {
+    min-height: /*hdpi*/ 22px;
+    max-height: /*hdpi*/ 22px;
+    min-width: /*hdpi*/ 22px;
+    max-width: /*hdpi*/ 22px;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    image: url(":/resource/images/ncp/btn_add_playlist_done_disable.svg");
+}
+
+PLSNCB2bBroSettingsItem #selectedBtn:hover, PLSNCB2bBroSettingsItem #selectedBtn[checked=false]:hover{
+    image:url(":/resource/images/ncp/btn_check_white.svg");
+}
+
+PLSNCB2bBroSettingsItem #selectedBtn[checked=true] {
+    image:url(":/resource/images/ncp/btn_add_playlist_done_normal.svg");
+}
+
+PLSNCB2bBroSettingsItem #selectedBtn[checked=true]:hover {
+    image: url(":/resource/images/ncp/btn_add_playlist_done_over.svg");
+}
+
+
+PLSNCB2bBroSettingsItem #linkBtn {
+    min-height: /*hdpi*/ 12px;
+    max-height: /*hdpi*/ 12px;
+    min-width: /*hdpi*/ 12px;
+    max-width: /*hdpi*/ 12px;
+    padding: 0;
+    margin: 0;
+    image:url(":/resource/images/ncp/ic_outlink_normal.svg");
+}
+
+PLSNCB2bBroSettingsItem #linkBtn:hover {
+    image:url(":/resource/images/ncp/ic_outlink_over.svg");
+}
+
+PLSNCB2bBroSettingsItem #realNameLabel {
+    min-width: /*hdpi*/ 330px;
+    max-width: /*hdpi*/ 330px;
+    background: transparent;
+    font-size: 14px;
+    color: #ffffff;
+    margin: 0;
+    padding: 0;
+    margin-bottom: 4px;
+}
+
+PLSNCB2bBroSettingsItem #realUrlLabel {
+    background: transparent;
+    font-size: 14px;
+    color: #ffffff;
+    margin: 0;
+    padding: 0;
+    margin-bottom: 4px;
+}
+
+PLSNCB2bBroSettingsItem #selectLabel {
+    font-size: 14px;
+    color: #ffffff;
+    font-weight: bold;
+}

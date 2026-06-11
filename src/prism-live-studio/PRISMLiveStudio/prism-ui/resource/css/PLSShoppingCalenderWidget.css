@@ -1,0 +1,103 @@
+
+PLSShoppingCalenderWidget QWidget {
+	background-color:#2d2d2d;
+}
+
+PLSShoppingCalenderWidget #CalendarTopWidget {
+	margin-top:/*hdpi*/ 2px;
+	margin-left:/*hdpi*/ 0px;
+	margin-right:/*hdpi*/ 0px;
+	background-color: transparent;
+}
+
+PLSShoppingCalenderWidget #CalendarDataLabel {
+	font-size: /*hdpi*/ 13px;
+	font-weight: bold;
+	color: white;
+	background-color:transparent;
+	margin-top: /*hdpi*/ 13px;
+	margin-left: /*hdpi*/ 20px;
+}
+
+PLSShoppingCalenderWidget #CalendarLeftMonthBtn,
+PLSShoppingCalenderWidget #CalendarRightMonthBtn
+{
+	min-width: /*hdpi*/ 9px;
+	max-width: /*hdpi*/ 9px;
+	min-height: /*hdpi*/ 11px;
+	max-height: /*hdpi*/ 11px;
+	margin: /*hdpi*/ 0px;
+	padding: 0px;
+	background-color:transparent;
+}
+
+PLSShoppingCalenderWidget #CalendarLeftMonthBtn {
+	image: url(":/channels/resource/images/ChannelsSource/navershopping/ic-calendar-pre-normal.svg");
+	margin-top:/*hdpi*/ 9px;
+}
+
+PLSShoppingCalenderWidget #CalendarLeftMonthBtn:hover {
+	image: url(":/channels/resource/images/ChannelsSource/navershopping/ic-calendar-pre-over.svg");
+}
+
+PLSShoppingCalenderWidget #CalendarLeftMonthBtn:pressed {
+	image: url(":/channels/resource/images/ChannelsSource/navershopping/ic-calendar-pre-click.svg");
+}
+
+PLSShoppingCalenderWidget #CalendarLeftMonthBtn:disabled {
+	image: url(":/channels/resource/images/ChannelsSource/navershopping/ic-calendar-pre-disable.svg");
+}
+
+PLSShoppingCalenderWidget #CalendarRightMonthBtn {
+	image: url(":/channels/resource/images/ChannelsSource/navershopping/ic-calendar-next-normal.svg");
+	margin-top:/*hdpi*/ 9px;
+}
+
+PLSShoppingCalenderWidget #CalendarRightMonthBtn:hover {
+	image: url(":/channels/resource/images/ChannelsSource/navershopping/ic-calendar-next-over.svg");
+}
+
+PLSShoppingCalenderWidget #CalendarRightMonthBtn:pressed {
+	image: url(":/channels/resource/images/ChannelsSource/navershopping/ic-calendar-next-click.svg");
+}
+
+PLSShoppingCalenderWidget #CalendarRightMonthBtn:disabled {
+	image: url(":/channels/resource/images/ChannelsSource/navershopping/ic-calendar-next-disable.svg");
+}
+
+PLSShoppingCalenderWidget {
+	padding:0px;
+	margin:0px;
+	background-color:transparent;
+	border-width: /*hdpi*/1px;
+	border-style:solid;
+	border-color:#111111;
+    padding:0px;
+	border-radius:/*hdpi*/ 3px;
+}
+
+QCalendarWidget QTableView
+{
+	alternate-background-color:#2d2d2d;
+	background-color:#2d2d2d;
+	color: white;
+	padding-left:/*hdpi*/9;
+	padding-right:/*hdpi*/9;
+	padding-bottom:/*hdpi*/10;
+	selection-background-color: #2d2d2d;
+}
+
+QCalendarWidget QTableView:item {
+	border:0px;
+	padding:0px;
+}
+		
+QCalendarWidget QAbstractItemView {
+	font-size:/*hdpi*/11px;
+	color: white;
+	outline:0px;
+}
+
+QCalendarWidget QAbstractItemView:disabled {
+	color:transparent;
+}

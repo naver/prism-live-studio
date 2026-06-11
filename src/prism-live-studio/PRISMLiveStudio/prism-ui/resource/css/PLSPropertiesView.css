@@ -1,0 +1,2111 @@
+PLSPropertiesView QLabel {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+PLSPropertiesView PLSRadioButton,
+PLSPropertiesView PLSRadioButton QLabel {
+    font-weight: normal;
+}
+
+PLSPropertiesView {
+    background-color: #272727;
+}
+
+    PLSPropertiesView #PropertiesContainer {
+        background-color: #272727;
+    }
+
+
+    PLSPropertiesView #noPropertiesLabel {
+        font-size: 14px;
+        font-weight: bold;
+        color: #bababa;
+    }
+
+    PLSPropertiesView #content {
+        background-color: transparent;
+    }
+
+    PLSPropertiesView #innerGroupWidget {
+        background-color: #272727;
+    }
+
+        PLSPropertiesView #innerGroupWidget #formLabel,
+        PLSPropertiesView #innerGroupWidget #checkbox,
+        PLSPropertiesView #innerGroupWidget #checkbox QLabel {
+            background-color: transparent;
+        }
+
+    PLSPropertiesView QLineEdit[text=""] {
+        color: #666666;
+    }
+
+    PLSPropertiesView #lineedit {
+        min-height: 40px;
+        max-height: 40px;
+        background-color: #1e1e1e;
+        border-radius: 3px;
+        padding-left: 9px;
+        font-size: 14px;
+    }
+
+    PLSPropertiesView #checkbox {
+        min-height: 20px;
+        max-height: 20px;
+        font-size: 14px;
+        color: #e1e1e1;
+        background-color: #272727;
+    }
+
+        PLSPropertiesView #checkbox QLabel {
+            font-size: 14px;
+            color: #e1e1e1;
+            font-weight: normal;
+        }
+
+    PLSPropertiesView #formCheckBox {
+        font-size: 14px;
+        font-weight: bold;
+        color: #bababa;
+        min-height: 40px;
+        max-height: 40px;
+        spacing: 6px;
+    }
+
+        PLSPropertiesView #formCheckBox QLabel {
+            font-size: 14px;
+            font-weight: bold;
+            color: #bababa;
+            min-height: 40px;
+            max-height: 40px;
+        }
+
+    PLSPropertiesView #browse {
+        padding: 0px;
+        min-height: 40px;
+        max-height: 40px;
+        min-width: 136px;
+        max-width: 136px;
+    }
+
+    PLSPropertiesView #editableList {
+        border-radius: 3px;
+        min-height: 138px;
+        max-height: 138px;
+        background-color: #1e1e1e;
+    }
+
+    PLSPropertiesView #propertyFileListContrl {
+        min-width: 40px;
+        max-width: 40px;
+        min-height: 138px;
+        max-height: 138px;
+        background-color: #1e1e1e;
+    }
+
+    PLSPropertiesView #editableList QPushButton {
+        background-color: #222222;
+        min-width: 22px;
+        max-width: 22px;
+        min-height: 22px;
+        max-height: 22px;
+    }
+
+    PLSPropertiesView #fontLabel {
+        min-height: 38px;
+        max-height: 38px;
+        font-size: 14px;
+        border-radius: 3px;
+    }
+
+    PLSPropertiesView #fontButton {
+        font-weight: bold;
+        padding-left: 10px;
+        padding-right: 10px;
+        min-width: 130px;
+    }
+
+    PLSPropertiesView #baseColorLabel {
+        border-radius: 3px;
+        font-weight: normal;
+    }
+
+    PLSPropertiesView #spaceLabel {
+        background-color: #272727;
+    }
+
+    PLSPropertiesView #button {
+        padding-left: 50px;
+        padding-right: 50px;
+        min-height: 40px;
+        max-height: 40px;
+    }
+
+    PLSPropertiesView QPushButton {
+        font-weight: normal;
+    }
+
+    PLSPropertiesView #spinBox {
+        background-color: #1e1e1e;
+    }
+
+    PLSPropertiesView #plainTextEdit {
+        background-color: #1e1e1e;
+        min-height: 79px;
+        max-height: 79px;
+    }
+
+    PLSPropertiesView #spinBox {
+        min-width: 49px;
+    }
+
+        PLSPropertiesView #spinBox[subLabel="true"] {
+            color: bababa;
+            font-weight: normal;
+        }
+
+    PLSPropertiesView #button1 {
+        padding: 0px;
+        min-height: 40px;
+        max-height: 40px;
+        max-width: 150px;
+        color: #ffffff;
+        font-weight: normal;
+        font-size: 14px;
+    }
+
+    PLSPropertiesView #button2 {
+        padding: 0px;
+        min-height: 40px;
+        max-height: 40px;
+        max-width: 169px;
+        color: #ffffff;
+        font-weight: normal;
+        font-size: 14px;
+    }
+
+    PLSPropertiesView #button3 {
+        padding: 0px;
+        min-height: 40px;
+        max-height: 40px;
+        max-width: 183px;
+        color: #ffffff;
+        font-weight: normal;
+        font-size: 14px;
+    }
+
+    PLSPropertiesView #FixedButton {
+        padding: 0px;
+        margin: 0px;
+        min-height: 40px;
+        max-height: 40px;
+        max-width: 120px;
+        min-width: 120px;
+        font-weight: bold;
+    }
+
+        PLSPropertiesView #FixedButton[yellowText="true"] {
+            color: #effc35;
+        }
+
+    PLSPropertiesView #button1[yellowText="true"], PLSPropertiesView #button2[yellowText="true"],
+    PLSPropertiesView #button3[yellowText="true"] {
+        color: #effc35;
+    }
+
+    PLSPropertiesView #formLabel {
+        font-size: 14px;
+        font-weight: bold;
+        color: #bababa;
+        background-color: #272727;
+        min-height: 40px;
+        max-height: 40px;
+    }
+
+        PLSPropertiesView #formLabel[lensSource=true] {
+            min-width: 109px;
+            max-width: 9999px;
+        }
+
+PLSBasicProperties[sourceId="prism_timer_source"] PLSPropertiesView #formLabel {
+    min-width: 144px;
+    max-width: 144px;
+    background-color: transparent;
+}
+
+PLSBasicProperties[sourceId="av_capture_input"] PLSPropertiesView #formLabel,
+PLSBasicProperties[sourceId="av_capture_input_v2"] PLSPropertiesView #formLabel {
+    min-width: 110px;
+    background-color: transparent;
+}
+
+PLSBasicProperties[sourceId="prism_timer_source"] PLSPropertiesView #formCheckBox {
+    min-width: 40px;
+    max-width: 144px;
+    background-color: transparent;
+    color: #bababa;
+}
+
+    PLSBasicProperties[sourceId="prism_timer_source"] PLSPropertiesView #formCheckBox QLabel {
+        color: #bababa;
+    }
+
+PLSBasicProperties[sourceId="prism_audio_visualizer_source"] PLSPropertiesView #formCheckBox {
+    min-width: 40px;
+    max-width: 144px;
+    background-color: transparent;
+    color: #bababa;
+}
+
+    PLSBasicProperties[sourceId="prism_audio_visualizer_source"] PLSPropertiesView #formCheckBox QLabel {
+        font-size: 14px;
+        font-weight: bold;
+        color: #ffffff;
+        background-color: transparent;
+        min-height: 17px;
+    }
+
+
+PLSPropertiesView QListWidget {
+    background-color: #1e1e1e;
+    border: none;
+    outline: none;
+    font-size: 14px;
+}
+
+    PLSPropertiesView QListWidget::item {
+        border: none;
+        height: 40px;
+        margin-top: 1px;
+        margin-bottom: 1px;
+        font-weight: normal;
+        color: #ffffff;
+        padding-right: 12px;
+        padding-left: 12px;
+    }
+
+        PLSPropertiesView QListWidget::item:selected {
+            background-color: #545454;
+            font-weight: bold;
+            color: #effc35;
+        }
+
+        PLSPropertiesView QListWidget::item:hover {
+            background-color: #444444;
+        }
+
+        PLSPropertiesView QListWidget::item:selected:hover {
+            background-color: #545454;
+        }
+
+PLSPropertiesView QPushButton#propertyButtonAdd {
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
+    background-color: transparent;
+    image: url(":/resource/images/icon-addsource-default.svg");
+}
+
+    PLSPropertiesView QPushButton#propertyButtonAdd:hover {
+        image: url(":/resource/images/icon-addsource-over.svg");
+    }
+
+    PLSPropertiesView QPushButton#propertyButtonAdd:pressed {
+        image: url(":/resource/images/icon-addsource-click.svg");
+    }
+
+    PLSPropertiesView QPushButton#propertyButtonAdd:disabled {
+        image: url(":/resource/images/icon-addsource-disable.svg");
+    }
+
+PLSPropertiesView QPushButton#propertyButtonRemove {
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
+    background-color: transparent;
+    image: url(":/resource/images/ic-delete-default.svg");
+}
+
+    PLSPropertiesView QPushButton#propertyButtonRemove:hover {
+        image: url(":/resource/images/ic-delete-over.svg");
+    }
+
+    PLSPropertiesView QPushButton#propertyButtonRemove:pressed {
+        image: url(":/resource/images/ic-delete-click.svg");
+    }
+
+    PLSPropertiesView QPushButton#propertyButtonRemove:disabled {
+        image: url(":/resource/images/ic-delete-disable.svg");
+    }
+
+PLSPropertiesView QPushButton#propertyButtonConfige {
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
+    background-color: transparent;
+    image: url(":/resource/images/ic-setting-s-normal.svg");
+}
+
+    PLSPropertiesView QPushButton#propertyButtonConfige:hover {
+        image: url(":/resource/images/ic-setting-s-over.svg");
+    }
+
+    PLSPropertiesView QPushButton#propertyButtonConfige:pressed {
+        image: url(":/resource/images/ic-setting-s-click.svg");
+    }
+
+    PLSPropertiesView QPushButton#propertyButtonConfige:disabled {
+        image: url(":/resource/images/ic-setting-s-disable.svg");
+    }
+
+PLSPropertiesView QPushButton#propertyButtonMoveUp {
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
+    background-color: transparent;
+    image: url(":/resource/images/ic-top-normal.svg");
+}
+
+    PLSPropertiesView QPushButton#propertyButtonMoveUp:hover {
+        image: url(":/resource/images/ic-top-over.svg");
+    }
+
+    PLSPropertiesView QPushButton#propertyButtonMoveUp:pressed {
+        image: url(":/resource/images/ic-top-click.svg");
+    }
+
+QPushButton#propertyButtonMoveUp:disabled {
+    image: url(":/resource/images/ic-top-disable.svg");
+}
+
+PLSPropertiesView QPushButton#propertyButtonMoveDown {
+    qproperty-minimumSize: 22px 22px;
+    qproperty-maximumSize: 22px 22px;
+    background-color: transparent;
+    image: url(":/resource/images/ic-down-normal.svg");
+}
+
+    PLSPropertiesView QPushButton#propertyButtonMoveDown:hover {
+        image: url(":/resource/images/ic-down-over.svg");
+    }
+
+    PLSPropertiesView QPushButton#propertyButtonMoveDown:pressed {
+        image: url(":/resource/images/ic-down-click.svg");
+    }
+
+    PLSPropertiesView QPushButton#propertyButtonMoveDown:disabled {
+        image: url(":/resource/images/ic-down-disable.svg");
+    }
+
+PLSPropertiesView #songCountLabel {
+    font-size: 14px;
+    color: #bababa;
+    font-weight: bold;
+    min-height: 18px;
+    max-height: 18px;
+}
+
+PLSPropertiesView #songTipsLabel {
+    font-size: 12px;
+    color: #666666;
+}
+
+PLSPropertiesView PLSPropertyMusicItem {
+    background-color: #1e1e1e;
+    min-height: 40px;
+    max-height: 40px;
+}
+
+    PLSPropertiesView PLSPropertyMusicItem #additionalLabel {
+        background: transparent;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: normal;
+    }
+
+    PLSPropertiesView PLSPropertyMusicItem #producerLabel {
+        background: transparent;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: normal;
+    }
+
+    PLSPropertiesView PLSPropertyMusicItem #durationLabel,
+    PLSPropertiesView PLSPropertyMusicItem #orderLabel {
+        background: transparent;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: normal;
+    }
+
+        PLSPropertiesView PLSPropertyMusicItem #titleLabel[selected=true], PLSPropertiesView PLSPropertyMusicItem #durationLabel[selected=true],
+        PLSPropertiesView PLSPropertyMusicItem #orderLabel[selected=true] {
+            color: #effc35;
+        }
+
+        PLSPropertiesView PLSPropertyMusicItem #titleLabel[selected=false], PLSPropertiesView PLSPropertyMusicItem #durationLabel[selected=false],
+        PLSPropertiesView PLSPropertyMusicItem #orderLabel[selected=false] {
+            color: #ffffff;
+        }
+
+        PLSPropertiesView PLSPropertyMusicItem #titleLabel[pressed=true], PLSPropertiesView PLSPropertyMusicItem #durationLabel[pressed=true],
+        PLSPropertiesView PLSPropertyMusicItem #orderLabel[pressed=true] {
+            font-weight: bold;
+        }
+
+        PLSPropertiesView PLSPropertyMusicItem #titleLabel[pressed=false], PLSPropertiesView PLSPropertyMusicItem #durationLabel[pressed=false],
+        PLSPropertiesView PLSPropertyMusicItem #orderLabel[pressed=false] {
+            font-weight: normal;
+        }
+
+PLSPropertiesView #frameContianer {
+    border-radius: 3px;
+    min-height: 120px;
+    max-height: 120px;
+    background-color: #1e1e1e;
+    border: none;
+}
+
+PLSPropertiesView #propertyMusicList {
+    background-color: #1e1e1e;
+    border: none;
+}
+
+    PLSPropertiesView #propertyMusicList::item {
+        background-color: #1e1e1e;
+        color: #ffffff;
+        padding-right: 0px;
+        padding-left: 0px;
+        margin-top: 0px;
+        margin-bottom: 0px;
+        border: 0px;
+        font-size: 14px;
+    }
+
+        PLSPropertiesView #propertyMusicList::item:selected {
+            background-color: transparent;
+            font-weight: bold;
+        }
+
+        PLSPropertiesView #propertyMusicList::item:hover {
+            background-color: transparent;
+        }
+
+PLSPropertyMusicItem #playBtn {
+    min-height: 16px;
+    max-height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    border-radius: none;
+    background: transparent;
+}
+
+PLSPropertyMusicItem[status=hover] {
+    background-color: #444444;
+}
+
+PLSPropertyMusicItem[status=pressed] {
+    background-color: #222222;
+}
+
+PLSPropertyMusicItem[status=normal] {
+    background-color: #1e1e1f;
+}
+
+PLSPropertyMusicItem[status=normal] {
+    background-color: #1e1e1f;
+}
+
+PLSPropertyMusicItem #selectedBtn {
+    min-height: 22px;
+    max-height: 22px;
+    min-width: 22px;
+    max-width: 22x;
+    background: transparent;
+    border-radius: none;
+    image: url(":/resource/images/bgm/btn-add-playlist-done-normal.svg");
+}
+
+    PLSPropertyMusicItem #selectedBtn:hover {
+        image: url(":/resource/images/bgm/btn-add-playlist-done-over.svg");
+    }
+
+    PLSPropertyMusicItem #selectedBtn:pressed {
+        image: url(":/resource/images/bgm/btn-add-playlist-done-click.svg");
+    }
+
+    PLSPropertyMusicItem #selectedBtn:!enable {
+        image: url(":/resource/images/bgm/btn-add-playlist-done-disable.svg");
+    }
+
+PLSPropertiesView PLSComboBox QLabel#itemLabel {
+    font-weight: normal;
+}
+
+PLSPropertiesView #chatTemplateList {
+    min-height: 204px;
+    max-height: 204px;
+}
+
+    PLSPropertiesView #chatTemplateList > #chatTemplateList_nameLabel {
+        font-size: 14px;
+        font-weight: bold;
+        color: #bababa;
+    }
+
+    PLSPropertiesView #chatTemplateList > #chatTemplateList_descLabel {
+        font-size: 12px;
+        font-weight: normal;
+        color: #666666;
+    }
+
+    PLSPropertiesView #chatTemplateList > #chatTemplateList_template {
+        min-width: 158px;
+        max-width: 158px;
+        min-height: 158px;
+        max-height: 158px;
+        border-radius: 3px;
+        background: transparent;
+        border: none;
+        padding: 0;
+        margin: 0
+    }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template > #icon {
+            border-top-left-radius: 3px;
+            border-top-right-radius: 3px;
+            min-width: 158px;
+            max-width: 158px;
+            min-height: 118px;
+            max-height: 118px;
+            border: none;
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="1"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-1-en-normal.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="2"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-2-en-normal.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="3"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-3-en-normal.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="4"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-4-en-normal.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="1"][hovered="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-1-en-over.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="2"][hovered="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-2-en-over.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="3"][hovered="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-3-en-over.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="4"][hovered="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-4-en-over.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="1"][pressed="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-1-en-click.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="2"][pressed="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-2-en-click.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="3"][pressed="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-3-en-click.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="4"][pressed="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-4-en-click.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="1"][checked="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-1-en-select.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="2"][checked="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-2-en-select.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="3"][checked="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-3-en-select.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[style="4"][checked="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-4-en-select.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="1"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-1-normal.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="2"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-2-normal.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="3"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-3-normal.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="4"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-4-normal.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="1"][hovered="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-1-over.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="2"][hovered="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-2-over.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="3"][hovered="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-3-over.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="4"][hovered="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-4-over.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="1"][pressed="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-1-click.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="2"][pressed="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-2-click.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="3"][pressed="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-3-click.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="4"][pressed="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-4-click.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="1"][checked="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-1-select.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="2"][checked="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-2-select.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="3"][checked="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-3-select.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[lang="ko-KR"][style="4"][checked="true"] > #icon {
+            border-image: url(":/resource/images/chat-source/img-style-4-select.png");
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template > #text {
+            border-bottom-left-radius: 3px;
+            border-bottom-right-radius: 3px;
+            border: 1px solid #353535;
+            font-size: 14px;
+            font-weight: bold;
+            color: #bababa;
+            padding-left: 12px;
+            background: #2e2e2e;
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[hovered="true"] > #text {
+            border: 1px solid #353535;
+            background: #444444;
+            color: white;
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[pressed="true"] > #text {
+            border: 1px solid #353535;
+            background: #1e1e1e;
+            color: white;
+        }
+
+        PLSPropertiesView #chatTemplateList > #chatTemplateList_template[checked="true"] > #text {
+            border: 1px solid #effc35;
+            background: #effc35;
+            color: black;
+        }
+
+PLSPropertiesView #chatFontSize > #label {
+    font-size: 14px;
+    font-weight: bold;
+    color: #bababa;
+    background: transparent;
+}
+
+PLSPropertiesView #chatFontSize > #spinBox {
+    min-width: 84px;
+    max-width: 84px;
+}
+
+/*****text motion properties ****/
+
+PLSPropertiesView QWidget > #horiLine {
+    background-color: #12ffffff;
+    min-height: 1px;
+    max-height: 1px;
+}
+
+PLSPropertiesView #TMTabFrame {
+    border-bottom: 1px solid #12ffffff;
+}
+
+PLSPropertiesView #TMTabButton {
+    margin: 0px;
+    padding: 0px;
+    border-radius: 0px;
+    border-bottom: 2px solid transparent;
+    background-color: transparent;
+    color: #bababa;
+    font-weight: normal;
+    font-size: 14px;
+    qproperty-maximumSize: 1570px 48px;
+    qproperty-minimumSize: 157px 48px;
+    padding: 0;
+    margin: 0;
+}
+PLSPropertiesView #ChatTabButton {
+    margin: 0;
+    padding: 0;
+    border-radius: 0px;
+    border-bottom: 2px solid transparent;
+    background-color: transparent;
+    color: #bababa;
+    font-weight: normal;
+    font-size: 14px;
+}
+PLSPropertiesView #TMTabFrame[height_timer="true"] #TMTabButton,
+PLSPropertiesView[sourceId="prism_viewer_count_source"] #TMTabButton {
+    qproperty-maximumSize: 157px 34px;
+    qproperty-minimumSize: 157px 34px;
+    text-align: top;
+    padding: 0;
+    margin: 0;
+}
+
+PLSPropertiesView #TMTabButton:checked, PLSPropertiesView #ChatTabButton:checked {
+    color: #effc35;
+    font-weight: bold;
+    border-bottom: 2px solid #effc35;
+}
+
+PLSPropertiesView #propertyMusicList QScrollBar:vertical {
+    background-color: #1e1e1e;
+    min-width: 10px;
+    max-width: 10px;
+    margin: 0px;
+}
+
+PLSPropertiesView #propertyMusicList::item {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    height: 28px;
+    padding-right: 0px;
+    padding-left: 10px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+    border: 0px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+    PLSPropertiesView #propertyMusicList::item:hover {
+        background-color: #1e1e1e;
+    }
+
+PLSPropertiesView PLSComboBox QLabel#itemLabel {
+    font-weight: normal;
+}
+
+PLSPropertiesView OBSFrameRatePropertyWidget QLabel {
+    font-weight: normal;
+}
+
+PLSPropertiesView #modeDisplay QSpinBox,
+PLSPropertiesView #modeDisplay PLSSpinBox,
+PLSPropertiesView #modeDisplay #fpsRange {
+    max-width: 80px;
+    min-width: 80px;
+}
+
+PLSPropertiesView OBSFrameRatePropertyWidget #modeSelect {
+    min-width: 140px;
+}
+
+PLSPropertiesView #TMTabTemplistFrame {
+    border: none;
+    min-height: 35px;
+    max-height: 35px;
+}
+
+PLSPropertiesView #TMTabTemplistBtn {
+    border: none;
+    background-color: transparent;
+    font-weight: bold;
+    border-radius: 17px;
+    qproperty-maximumSize: 95px 35px;
+    qproperty-minimumSize: 95px 35px;
+}
+
+    PLSPropertiesView #TMTabTemplistBtn[customName="screen saver"] {
+        qproperty-maximumSize: 156px 35px;
+        qproperty-minimumSize: 156px 35px;
+    }
+
+    PLSPropertiesView #TMTabTemplistBtn[customName="social"] {
+        qproperty-maximumSize: 109px 35px;
+        qproperty-minimumSize: 109px 35px;
+    }
+
+    PLSPropertiesView #TMTabTemplistBtn[customName="caption"] {
+        qproperty-maximumSize: 119px 35px;
+        qproperty-minimumSize: 119px 35px;
+    }
+
+    PLSPropertiesView #TMTabTemplistBtn[customName="sticker"] {
+        qproperty-maximumSize: 114px 35px;
+        qproperty-minimumSize: 114px 35px;
+    }
+
+    PLSPropertiesView #TMTabTemplistBtn:hover {
+        background-color: #444444;
+    }
+
+    PLSPropertiesView #TMTabTemplistBtn:pressed {
+        background-color: #2d2d2d;
+    }
+
+    PLSPropertiesView #TMTabTemplistBtn:checked {
+        color: #effc35;
+        background-color: #444444;
+    }
+
+PLSPropertiesView #tmLabel {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+    height: 18px;
+}
+
+PLSPropertiesView #subLabel {
+    font-size: 14px;
+    font-weight: normal;
+    color: #bababa;
+    min-width: 135px;
+    background-color:transparent;
+}
+
+PLSPropertiesView[sourceId="prism_chatv2_source"] #subLabel {
+    font-size: 14px;
+    font-weight: normal;
+    color: #bababa;
+    min-width: 135px;
+    max-width: 135px;
+    background-color: transparent;
+} 
+PLSPropertiesView #ct_empty_tip_label {
+    font-size: 14px;
+    font-weight: normal;
+    color: #a3a3a3;
+    background-color: transparent;
+}
+PLSPropertiesView #subLabelWithTips {
+    font-size: 14px;
+    font-weight: normal;
+    color: #bababa;
+}
+
+    PLSPropertiesView #subLabel[moveDown="3"] {
+        padding-top: 3px;
+    }
+
+    PLSPropertiesView #subLabel:disabled {
+        font-size: 14px;
+        font-weight: normal;
+        color: #666666;
+    }
+
+PLSPropertiesView #spinSubLabel {
+    font-size: 14px;
+    font-weight: normal;
+    color: #bababa;
+    margin-right: 11px;
+}
+
+PLSPropertiesView #sliderLabel, PLSPropertiesView #bk_outlineLabel {
+    font-size: 14px;
+    font-weight: normal;
+    color: #bababa;
+}
+
+    PLSPropertiesView #sliderLabel:disabled {
+        font-size: 14px;
+        font-weight: normal;
+        color: #666666;
+    }
+
+PLSPropertiesView #colorFrame, PLSPropertiesView #outLineFrame {
+    min-width: 128px;
+}
+PLSPropertiesView[sourceId="prism_chatv2_source"] #ctColorFrame {
+    min-width: 135px;
+    max-width: 135px;
+}
+PLSPropertiesView #ctColorFrame {
+    min-width: 135px;
+}
+
+PLSPropertiesView #Label_TMHLButton, PLSPropertiesView #Label_TMHCButton, PLSPropertiesView #Label_TMHRButton {
+    background-color: transparent;
+    qproperty-maximumSize: 13px 13px;
+    qproperty-minimumSize: 13px 13px;
+    padding: 0;
+    margin: 0;
+}
+
+    PLSPropertiesView #Label_TMHLButton[checked="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-left-on-default.svg");
+    }
+
+    PLSPropertiesView #Label_TMHLButton[checked="false"] {
+        image: url(":/resource/images/text-template/txt-source-align-left-off-default.svg");
+    }
+
+    PLSPropertiesView #Label_TMHLButton[checked="true"][hovered="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-left-on-over.svg");
+    }
+
+    PLSPropertiesView #Label_TMHLButton[checked="false"][hovered="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-left-off-over.svg");
+    }
+
+    PLSPropertiesView #Label_TMHLButton[checked="true"][pressed="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-on-click.svg");
+    }
+
+    PLSPropertiesView #Label_TMHLButton[checked="false"][pressed="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-left-off-click.svg");
+    }
+
+    PLSPropertiesView #Label_TMHLButton[checked="false"][enabled="false"] {
+        image: url(":/resource/images/text-template/txt-source-align-left-off-disable.svg");
+    }
+
+
+    PLSPropertiesView #Label_TMHCButton[checked="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-center-on-default.svg");
+    }
+
+    PLSPropertiesView #Label_TMHCButton[checked="false"] {
+        image: url(":/resource/images/text-template/txt-source-align-center-off-default.svg");
+    }
+
+    PLSPropertiesView #Label_TMHCButton[checked="true"][hovered="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-center-on-over.svg");
+    }
+
+    PLSPropertiesView #Label_TMHCButton[checked="false"][hovered="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-center-off-over.svg");
+    }
+
+    PLSPropertiesView #Label_TMHCButton[checked="true"][pressed="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-center-on-click.svg");
+    }
+
+    PLSPropertiesView #Label_TMHCButton[checked="false"][pressed="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-center-off-click.svg");
+    }
+
+    PLSPropertiesView #Label_TMHCButton[checked="false"][enabled="false"] {
+        image: url(":/resource/images/text-template/txt-source-align-center-off-disable.svg");
+    }
+
+
+
+    PLSPropertiesView #Label_TMHRButton[checked="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-right-on-default.svg");
+    }
+
+    PLSPropertiesView #Label_TMHRButton[checked="false"] {
+        image: url(":/resource/images/text-template/txt-source-align-right-off-default.svg");
+    }
+
+    PLSPropertiesView #Label_TMHRButton[checked="true"][hovered="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-right-on-over.svg");
+    }
+
+    PLSPropertiesView #Label_TMHRButton[checked="false"][hovered="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-right-off-over.svg");
+    }
+
+    PLSPropertiesView #Label_TMHRButton[checked="true"][pressed="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-right-on-click.svg");
+    }
+
+    PLSPropertiesView #Label_TMHRButton[checked="false"][pressed="true"] {
+        image: url(":/resource/images/text-template/txt-source-align-right-off-click.svg");
+    }
+
+    PLSPropertiesView #Label_TMHRButton[checked="false"][enabled="false"] {
+        image: url(":/resource/images/text-template/txt-source-align-right-off-disable.svg");
+    }
+
+PLSPropertiesView #AA, PLSPropertiesView #aa, PLSPropertiesView #TMHLButton, PLSPropertiesView #TMHRButton, PLSPropertiesView #TMHCButton {
+    border: none;
+    border-radius: 0px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #bababa;
+    background-color: #444444;
+    padding: 0;
+    margin: 0;
+}
+
+PLSPropertiesView #AA, PLSPropertiesView #aa {
+    min-width: 146px;
+    padding: 0;
+    margin: 0;
+}
+
+PLSPropertiesView #AA, PLSPropertiesView #TMHLButton {
+    border-bottom-left-radius: 3px;
+    border-top-left-radius: 3px;
+}
+
+PLSPropertiesView #aa, PLSPropertiesView #TMHRButton {
+    border-bottom-right-radius: 3px;
+    border-top-right-radius: 3px;
+}
+
+PLSPropertiesView #TMHCButton {
+    border-radius: 0px;
+}
+
+PLSPropertiesView #Label_AA {
+    background-color: transparent;
+    qproperty-maximumSize: 22px 12px;
+    qproperty-minimumSize: 22px 12px;
+}
+
+PLSPropertiesView #listenBtn {
+    /*background-color: white;*/
+    margin: 0px;
+    padding: 0px;
+    min-height: 40px;
+    max-height: 40px;
+    min-width: 44px;
+    max-width: 44px;
+}
+
+    PLSPropertiesView #listenBtn[selected="true"] {
+        image: url(":/timer-source/resource/images/icon-listening-on-normal.svg");
+    }
+
+        PLSPropertiesView #listenBtn[selected="true"]:hover {
+            image: url(":/timer-source/resource/images/icon-listening-on-over.svg");
+        }
+
+        PLSPropertiesView #listenBtn[selected="true"]:pressed {
+            image: url(":/timer-source/resource/images/icon-listening-on-click.svg");
+        }
+
+        PLSPropertiesView #listenBtn[selected="true"]:disabled {
+            image: url(":/timer-source/resource/images/icon-listening-on-disable.svg");
+        }
+
+    PLSPropertiesView #listenBtn[selected="false"] {
+        image: url(":/timer-source/resource/images/icon-listening-off-normal.svg");
+    }
+
+        PLSPropertiesView #listenBtn[selected="false"]:hover {
+            image: url(":/timer-source/resource/images/icon-listening-off-over.svg");
+        }
+
+        PLSPropertiesView #listenBtn[selected="false"]:pressed {
+            image: url(":/timer-source/resource/images/icon-listening-off-click.svg");
+        }
+
+        PLSPropertiesView #listenBtn[selected="false"]:disabled {
+            image: url(":/timer-source/resource/images/icon-listening-off-disable.svg");
+        }
+
+PLSPropertiesView #Label_AA[checked="true"] {
+    image: url(":/resource/images/text-template/txt-source-AA-on-normal.svg");
+}
+
+PLSPropertiesView #Label_AA[checked="false"] {
+    image: url(":/resource/images/text-template/txt-source-AA-off-normal.svg");
+}
+
+PLSPropertiesView #Label_AA[checked="true"][hovered="true"] {
+    image: url(":/resource/images/text-template/txt-source-AA-on-over.svg");
+}
+
+PLSPropertiesView #Label_AA[checked="false"][hovered="true"] {
+    image: url(":/resource/images/text-template/txt-source-AA-off-over.svg");
+}
+
+PLSPropertiesView #Label_AA[checked="true"][pressed="true"] {
+    image: url(":/resource/images/text-template/txt-source-AA-on-click.svg");
+}
+
+PLSPropertiesView #Label_AA[checked="false"][pressed="true"] {
+    image: url(":/resource/images/text-template/txt-source-AA-off-click.svg");
+}
+
+PLSPropertiesView #Label_AA[enable="false"] {
+    image: url(":/resource/images/text-template/txt-source-AA-off-disable.svg");
+}
+
+PLSPropertiesView #Label_aa {
+    background-color: transparent;
+    qproperty-maximumSize: 19px 12px;
+    qproperty-minimumSize: 19px 12px;
+}
+
+    PLSPropertiesView #Label_aa[checked="true"] {
+        image: url(":/resource/images/text-template/txt-source-aaa-on-normal.svg");
+    }
+
+    PLSPropertiesView #Label_aa[checked="false"] {
+        image: url(":/resource/images/text-template/txt-source-aaa-off-normal.svg");
+    }
+
+    PLSPropertiesView #Label_aa[checked="true"][hovered="true"] {
+        image: url(":/resource/images/text-template/txt-source-aaa-on-over.svg");
+    }
+
+    PLSPropertiesView #Label_aa[checked="false"][hovered="true"] {
+        image: url(":/resource/images/text-template/txt-source-aaa-off-over.svg");
+    }
+
+    PLSPropertiesView #Label_aa[checked="true"][pressed="true"] {
+        image: url(":/resource/images/text-template/txt-source-aaa-on-click.svg");
+    }
+
+    PLSPropertiesView #Label_aa[checked="false"][pressed="true"] {
+        image: url(":/resource/images/text-template/txt-source-aaa-off-click.svg");
+    }
+
+    PLSPropertiesView #Label_aa[enable="false"] {
+        image: url(":/resource/images/text-template/txt-source-aaa-off-disable.svg");
+    }
+
+PLSPropertiesView #leftSliderIcon {
+    qproperty-maximumSize: 25px 15px;
+    qproperty-minimumSize: 25px 15px;
+    image: url(":/resource/images/text-template/speed-low.svg");
+}
+
+PLSPropertiesView #rightSliderIcon {
+    qproperty-maximumSize: 25px 15px;
+    qproperty-minimumSize: 25px 15px;
+    image: url(":/resource/images/text-template/speed-hign.svg");
+}
+
+PLSPropertiesView #colorCardBtn {
+    qproperty-maximumSize: 32px 32px;
+    qproperty-minimumSize: 32px 32px;
+    padding: 1px;
+    border: 1px solid white;
+    border-radius: 16px;
+}
+
+    PLSPropertiesView #colorCardBtn:checked {
+        border: 2px solid #effc35;
+    }
+
+PLSPropertiesView #colorLabel {
+    min-width: 85px;
+    max-width: 85px;
+    border-bottom-left-radius: 3px;
+    border-top-left-radius: 3px;
+}
+PLSPropertiesView #colorLabel:disabled {
+    background-color:#363636;
+}
+
+PLSPropertiesView #textColorBtn {
+    border-bottom-left-radius: 0px;
+    border-top-left-radius: 0px;
+    border-bottom-right-radius: 3px;
+    border-top-right-radius: 3px;
+    min-height: 22px;
+    min-width: 22px;
+    max-height: 22px;
+    max-width: 22px;
+    padding: 9px;
+    image: url(":/resource/images/text-template/ic-setting-s-normal.svg");
+}
+
+    PLSPropertiesView #textColorBtn:hover {
+        image: url(":/resource/images/text-template/ic-setting-s-over.svg");
+    }
+
+    PLSPropertiesView #textColorBtn:pressed {
+        image: url(":/resource/images/text-template/ic-setting-s-click.svg");
+    }
+
+    PLSPropertiesView #textColorBtn:disabled {
+        image: url(":/resource/images/text-template/ic-setting-s-disable.svg");
+    }
+
+PLSTemplateButton#PLSTemplateButton {
+    background-color: transparent;
+    border: none;
+    qproperty-maximumSize: 157px 157px;
+    qproperty-minimumSize: 157px 157px;
+}
+
+PLSTemplateButton #container, PLSTemplateButton #templateGifLabel {
+    border: none;
+    background-color: transparent;
+}
+
+PLSTemplateButton #templateBorderlabel[checked="true"] {
+    qproperty-maximumSize: 157px 157px;
+    qproperty-minimumSize: 157px 157px;
+    image: url(":/resource/images/text-template/select.svg");
+    background-color: transparent;
+}
+
+PLSTemplateButton #templateBorderlabel[checked="false"] {
+    qproperty-maximumSize: 157px 157px;
+    qproperty-minimumSize: 157px 157px;
+    image: url(":/resource/images/text-template/normal.svg");
+    background-color: transparent;
+}
+
+PLSPropertiesView #plainTextEdit_1, PLSPropertiesView #plainTextEdit_2 {
+    min-height: 50px;
+    max-height: 50px;
+    background-color: #1e1e1f;
+}
+
+    PLSPropertiesView #plainTextEdit_1:disabled, PLSPropertiesView #plainTextEdit_2:disabled {
+        color: #444444;
+    }
+
+PLSPropertiesView QPushButton#open_button {
+    min-width: 0;
+    max-width: 1000000px;
+}
+
+/* ok button */
+PLSPropertiesView PLSRegionCapture #frameMenu > #cancelBtn {
+    border: none;
+    background: transparent;
+    image: url(":/libui/resource/images/btn-close-normal.svg");
+}
+
+    PLSPropertiesView PLSRegionCapture #frameMenu > #cancelBtn:hover {
+        image: url(":/libui/resource/images/btn-close-over.svg");
+    }
+
+    PLSPropertiesView PLSRegionCapture #frameMenu > #cancelBtn:pressed {
+        image: url(":/libui/resource/images/btn-close-click.svg");
+    }
+
+    PLSPropertiesView PLSRegionCapture #frameMenu > #cancelBtn:disabled {
+        image: url(":/libui/resource/images/btn-close-disable.svg");
+    }
+
+/* cancel button */
+PLSPropertiesView PLSRegionCapture #frameMenu > #confirmBtn {
+    border: none;
+    background: transparent;
+    image: url(":/resource/images/bgm/btn-add-playlist-done-normal.svg");
+}
+
+    PLSPropertiesView PLSRegionCapture #frameMenu > #confirmBtn:hover {
+        image: url(":/resource/images/bgm/btn-add-playlist-done-over.svg");
+    }
+
+    PLSPropertiesView PLSRegionCapture #frameMenu > #confirmBtn:pressed {
+        image: url(":/resource/images/bgm/btn-add-playlist-done-click.svg");
+    }
+
+    PLSPropertiesView PLSRegionCapture #frameMenu > #confirmBtn:disabled {
+        image: url(":/resource/images/bgm/btn-add-playlist-done-disable.svg");
+    }
+
+PLSPropertiesView #selectCaptureRegionTip {
+    background-color: transparent;
+    color: #666666;
+    font-size: 12px;
+}
+
+PLSPropertiesView #selectRegionBtn {
+    font-size: 14px;
+    font-weight: bold;
+    color: white;
+}
+
+PLSPropertiesView #slider::sub-page:horizontal {
+    background-color: #effc35;
+}
+
+    PLSPropertiesView #slider::sub-page:horizontal:disabled {
+        background-color: #131314;
+    }
+
+PLSPropertiesView #slider::add-page:horizontal:disabled {
+    background-color: #131314;
+}
+
+PLSPropertiesView #slider {
+    margin-left: 0px;
+}
+
+    PLSPropertiesView #slider::handle:disabled {
+        width: 0px;
+        height: 0px;
+    }
+
+PLSPropertiesView #imageGroupBtn {
+    padding: 0;
+    margin: 0;
+    background-color: transparent;
+    padding: 0px;
+    margin: 0px;
+}
+
+    PLSPropertiesView #imageGroupBtn[type="0"] {
+        min-width: 157px;
+        max-width: 157px;
+        min-height: 88px;
+        max-height: 88px;
+    }
+
+    PLSPropertiesView #imageGroupBtn[type="4"] {
+        min-width: 157px;
+        max-width: 157px;
+        min-height: 88px;
+        max-height: 88px;
+    }
+
+        PLSPropertiesView #imageGroupBtn[type="4"][checked="true"] #movieBorderLabel {
+            background-color: transparent;
+            image: url(":/timer-source/resource/images/select_radius.png");
+        }
+
+        PLSPropertiesView #imageGroupBtn[type="4"][checked="false"] #movieBorderLabel {
+            background-color: transparent;
+            image: url(":/timer-source/resource/images/dis_connect_radius.png");
+        }
+
+
+    PLSPropertiesView #imageGroupBtn[type="0"]:checked {
+        border: 2px solid #effc35;
+        border-radius: 3px;
+    }
+
+    PLSPropertiesView #imageGroupBtn[type="0"]:unchecked {
+        border: 2px solid #1E1E1F;
+    }
+
+    PLSPropertiesView #imageGroupBtn[type="0"][id="0"][checked="false"]:hover {
+        border-image: url(":/resource/images/spectralizer/img-audiov-template-1-over@3x.png");
+    }
+
+    PLSPropertiesView #imageGroupBtn[type="0"][id="1"][checked="false"]:hover {
+        border-image: url(":/resource/images/spectralizer/img-audiov-template-2-over@3x.png");
+    }
+
+    PLSPropertiesView #imageGroupBtn[type="0"][id="2"][checked="false"]:hover {
+        border-image: url(":/resource/images/spectralizer/img-audiov-template-3-over@3x.png");
+    }
+
+    PLSPropertiesView #imageGroupBtn[type="0"][id="3"][checked="false"]:hover {
+        border-image: url(":/resource/images/spectralizer/img-audiov-template-4-over@3x.png");
+    }
+
+    PLSPropertiesView #imageGroupBtn[type="1"] {
+        min-width: 30px;
+        max-width: 30px;
+        min-height: 30px;
+        max-height: 30px;
+        background: transparent;
+        border: 1px solid transparent;
+    }
+
+        PLSPropertiesView #imageGroupBtn[type="1"]:checked {
+            background: transparent;
+            border-image: url(":/prism-spectralizer/images/img-audiov-color-select@3x.png");
+        }
+
+        PLSPropertiesView #imageGroupBtn[type="1"]:unchecked {
+            border: 2px solid #1E1E1F;
+        }
+
+    PLSPropertiesView #imageGroupBtn[type="2"] {
+        min-width: 95px;
+        max-width: 95px;
+        min-height: 40px;
+        max-height: 40px;
+    }
+
+        PLSPropertiesView #imageGroupBtn[type="2"]:checked {
+            border: 2px solid #effc35;
+            border-radius: 3px;
+        }
+
+        PLSPropertiesView #imageGroupBtn[type="2"]:unchecked {
+            border: 2px solid #1E1E1F;
+        }
+
+    PLSPropertiesView #imageGroupBtn[type="3"] {
+        min-width: 32px;
+        max-width: 32px;
+        min-height: 32px;
+        max-height: 32px;
+        background-color: transparent;
+        border: 1px solid transparent;
+    }
+
+        PLSPropertiesView #imageGroupBtn[type="3"][checked="false"] #boderLabel {
+            image: none;
+            background-color: transparent;
+        }
+
+        PLSPropertiesView #imageGroupBtn[type="3"][checked="true"] #boderLabel {
+            min-width: 32px;
+            max-width: 32px;
+            min-height: 32px;
+            max-height: 32px;
+            border-image: url(":/timer-source/resource/images/img-audiov-color-select.png");
+            background-color: transparent;
+        }
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundState {
+    font-size: 14px;
+    font-weight: normal;
+    color: #666666;
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton > #icon {
+    min-width: 22px;
+    max-width: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    background: transparent;
+    image: url(":/resource/images/camera-virtual-background-normal.svg");
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[hovered="true"] > #icon,
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[pressed="true"][hovered="false"] > #icon {
+    image: url(":/resource/images/camera-virtual-background-over.svg");
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[pressed="true"][hovered="true"] > #icon {
+    image: url(":/resource/images/camera-virtual-background-click.svg");
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[enabled="false"] > #icon {
+    image: url(":/resource/images/camera-virtual-background-disable.svg");
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton > #text {
+    font-size: 14px;
+    font-weight: normal;
+    color: #bababa;
+    background: transparent;
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[hovered="true"] > #text,
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[pressed="true"][hovered="false"] > #text {
+    color: #ffffff;
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[pressed="true"][hovered="true"] > #text {
+    color: #444444;
+}
+
+PLSPropertiesView #cameraVirtualBackground > #cameraVirtualBackgroundButton[enabled="false"] > #text {
+    color: #666666;
+}
+
+PLSPropertiesView #switch {
+    qproperty-minimumSize: 28px 17px;
+    qproperty-maximumSize: 28px 17px;
+}
+
+    PLSPropertiesView #switch::indicator {
+        width: 28px;
+        height: 17px;
+    }
+
+        PLSPropertiesView #switch::indicator:disabled {
+            image: url(":/resource/images/slider-off-disable.svg");
+        }
+
+        PLSPropertiesView #switch::indicator:checked {
+            image: url(":/resource/images/slider-on.svg");
+        }
+
+            PLSPropertiesView #switch::indicator:checked:hover {
+                image: url(":/resource/images/slider-on-over.svg");
+            }
+
+            PLSPropertiesView #switch::indicator:checked:disabled {
+                image: url(":/resource/images/slider-on-disable.svg");
+            }
+
+            PLSPropertiesView #switch::indicator:checked:pressed {
+                image: url(":/resource/images/slider-on-click.svg");
+            }
+
+        PLSPropertiesView #switch::indicator:unchecked {
+            image: url(":/resource/images/slider-off-default.svg");
+        }
+
+            PLSPropertiesView #switch::indicator:unchecked:hover {
+                image: url(":/resource/images/slider-off-over.svg");
+            }
+
+            PLSPropertiesView #switch::indicator:unchecked:disabled {
+                image: url(":/resource/images/slider-off-disable.svg");
+            }
+
+            PLSPropertiesView #switch::indicator:unchecked:pressed {
+                image: url(":/resource/images/slider-off-click.svg");
+            }
+
+PLSPropertiesView #prismMobileButtonHelp {
+    min-height: 22px;
+    max-height: 22px;
+    min-width: 22px;
+    max-width: 22x;
+    background: transparent;
+    border-radius: none;
+    image: url(":/resource/images/prism-mobile/ic-help-normal.svg");
+}
+
+    PLSPropertiesView #prismMobileButtonHelp:hover {
+        image: url(":/resource/images/prism-mobile/ic-help-over.svg");
+    }
+
+    PLSPropertiesView #prismMobileButtonHelp:pressed {
+        image: url(":/resource/images/prism-mobile/ic-help-click.svg");
+    }
+
+    PLSPropertiesView #prismMobileButtonHelp:disabled {
+        image: url(":/resource/images/prism-mobile/ic-help-disable.svg");
+    }
+
+PLSPropertiesView #prismMobileLabelHelp {
+    font-weight: normal;
+    color: #bababa;
+}
+
+PLSPropertiesView #prismMobileLabelGuide {
+    font-weight: normal;
+    font-size: 12px;
+    color: #666666;
+}
+
+PLSPropertiesView #prismLensLabelGuide {
+    font-weight: normal;
+    font-size: 14px;
+    color: #666666;
+    min-height: 40px;
+    max-height: 40px;
+}
+
+PLSPropertiesView #prismLensAudioLabel {
+    font-weight: normal;
+    font-size: 14px;
+    color: #bababa;
+    min-height: 40px;
+    max-height: 40px;
+}
+
+PLSPropertiesView #tipLabel {
+    font-weight: normal;
+    font-size: 12px;
+    color: #666666;
+    min-height: 16px;
+    padding-top: 0px;
+}
+
+PLSPropertiesView #prismMobileLabelStatus {
+    font-weight: normal;
+}
+
+PLSPropertiesView #titleLabel {
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+    min-height: 40px;
+    max-height: 40px;
+    background-color: transparent;
+}
+
+PLSPropertiesView #templateListDescription {
+    font-size: 12px;
+    font-weight: normal;
+    color: #666666;
+}
+
+PLSPropertiesView[sourceId="prism_viewer_count_source"] #formLabel {
+    min-width: 134px;
+}
+
+    PLSPropertiesView #formLabel[autoWidth="true"],
+    PLSBasicProperties[sourceId="prism_timer_source"] PLSPropertiesView #formLabel[autoWidth="true"],
+    PLSPropertiesView[sourceId="prism_viewer_count_source"] #formLabel[autoWidth="true"] {
+        min-width: 0px;
+        max-width: 999999px;
+    }
+
+PLSPropertiesView[sourceId="prism_viewer_count_source"] #FontCheckedFamilyBox,
+PLSPropertiesView[sourceId="prism_viewer_count_source"] #baseColorLabel {
+    qproperty-minimumSize: 294px 40px;
+    qproperty-maximumSize: 294px 40px;
+}
+
+PLSPropertiesView #colorAlphaCheckbox_colorLabel {
+    qproperty-minimumSize: 85px 40px;
+    qproperty-maximumSize: 85px 40px;
+    font-size: 14px;
+    font-weight: normal;
+    color: white;
+    border-top: 1px solid #373737;
+    border-left: 1px solid #373737;
+    border-bottom: 1px solid #373737;
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+PLSPropertiesView #colorAlphaCheckbox_colorButton {
+    border-bottom-left-radius: 0px;
+    border-top-left-radius: 0px;
+    border-bottom-right-radius: 3px;
+    border-top-right-radius: 3px;
+    padding: /*hdpi-d*/ 9px;
+    image: url(":/resource/images/text-template/ic-setting-s-normal.svg");
+    qproperty-minimumSize: 40px 40px;
+    qproperty-maximumSize: 40px 40px;
+}
+
+    PLSPropertiesView #colorAlphaCheckbox_colorButton:hover {
+        image: url(":/resource/images/text-template/ic-setting-s-over.svg");
+    }
+
+    PLSPropertiesView #colorAlphaCheckbox_colorButton:pressed {
+        image: url(":/resource/images/text-template/ic-setting-s-click.svg");
+    }
+
+    PLSPropertiesView #colorAlphaCheckbox_colorButton:disabled {
+        image: url(":/resource/images/text-template/ic-setting-s-disable.svg");
+    }
+
+PLSPropertiesView #colorAlphaCheckbox_alphaLabel {
+    font-size: 14px;
+    font-weight: normal;
+    color: #bababa;
+}
+
+    PLSPropertiesView #colorAlphaCheckbox_alphaLabel:disabled {
+        color: #666666;
+    }
+
+PLSPropertiesView #colorAlphaCheckbox_alphaSpinBox {
+    min-width: 84px;
+    max-width: 84px;
+    min-height: 40px;
+    max-height: 40px;
+    font-size: 14px;
+    font-weight: normal;
+    color: white;
+}
+
+    PLSPropertiesView #colorAlphaCheckbox_alphaSpinBox:disabled {
+        color: #666666;
+    }
+
+PLSPropertiesView #formLabelFrame #formLabelHelpButton {
+    min-width: 19px;
+    max-width: 19px;
+    min-height: 19px;
+    max-height: 19px;
+    margin: 0;
+    padding: 0;
+    image: url(":/viewer-count/resource/images/ic-help-s-normal.svg");
+    background: transparent;
+}
+
+    PLSPropertiesView #formLabelFrame #formLabelHelpButton:hover {
+        image: url(":/viewer-count/resource/images/ic-help-s-over.svg");
+    }
+
+    PLSPropertiesView #formLabelFrame #formLabelHelpButton:pressed {
+        image: url(":/viewer-count/resource/images/ic-help-s-click.svg");
+    }
+
+    PLSPropertiesView #formLabelFrame #formLabelHelpButton:disabled {
+        image: url(":/viewer-count/resource/images/ic-help-s-disable.svg");
+    }
+
+PLSPropertiesView QPushButton[toolButton=true][themeID="downArrowIconSmall"] {
+    min-width: 11px;
+    min-height: 6px;
+    max-width: 11px;
+    max-height: 6px;
+    padding: 0;
+    margin: 8px 5.5px 8px 5.5px;
+    border: none;
+    image: url(":/libui/resource/images/txt-dropbox-hor-open-normal.svg");
+    background-color: transparent;
+}
+
+    PLSPropertiesView QPushButton[toolButton=true][themeID="downArrowIconSmall"]:hover {
+        image: url(":/libui/resource/images/txt-dropbox-hor-open-over.svg");
+        background-color: transparent;
+    }
+
+    PLSPropertiesView QPushButton[toolButton=true][themeID="downArrowIconSmall"]:pressed {
+        image: url(":/libui/resource/images/txt-dropbox-hor-open-click.svg");
+        background-color: transparent;
+    }
+
+    PLSPropertiesView QPushButton[toolButton=true][themeID="downArrowIconSmall"]:disabled {
+        image: url(":/libui/resource/images/txt-dropbox-hor-open-disable.svg");
+        background-color: transparent;
+    }
+
+PLSPropertiesView #warningLabel,
+PLSPropertiesView #errorLabel,
+PLSPropertiesView #infoLabel {
+    color: #bababa;
+    font-weight: normal;
+}
+
+
+#chat_template_btn {
+    padding: 0;
+    margin: 0;
+    qproperty-minimumSize: 158px 158px;
+    qproperty-maximumSize: 158px 158px;
+    border-radius: 3px;
+    border: 1px solid #353535;
+    background-color: #2e2e2e;
+}
+
+    #chat_template_btn:hover, #chat_template_btn[hovered="true"] {
+        border: 1px solid #353535;
+        background: #444444;
+    }
+    #chat_template_btn:pressed, #chat_template_btn[pressed="true"] {
+        border: 1px solid #353535;
+        background: #1e1e1e;
+    }
+    #chat_template_btn:checked {
+        border: 2px solid #effc35;
+    }
+
+    #chat_template_btn > #chat_text {
+        border:none;
+        qproperty-minimumSize: 158px 40px;
+        qproperty-maximumSize: 158px 40px;
+        border-bottom-left-radius: 3px;
+        border-bottom-right-radius: 3px;
+        font-size: 14px;
+        background-color: transparent;
+        border-top: 1px solid #353535;
+    }
+
+    #chat_template_btn > #icon {
+        qproperty-minimumSize: 158px 118px;
+        qproperty-maximumSize: 158px 118px;
+        background-color: transparent;
+        background-position: center;
+        border: none;
+        padding-left:8px;
+        padding-right:8px;
+        padding-top:10px;
+        padding-bottom:10px;
+    }
+    #chat_template_btn > #icon1 {
+        qproperty-minimumSize: 158px 118px;
+        qproperty-maximumSize: 158px 118px;
+        background-color: transparent;
+        background-position: center;
+        border-top: 1px solid transparent;
+        border-left: 1px solid transparent;
+        border-right: 1px solid transparent;
+        padding-left: 8px;
+        padding-right: 8px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        border-top-left-radius: 3px;
+        border-top-right-radius: 3px;
+    }
+    #chat_template_btn #icon_custom {
+        qproperty-minimumSize: 98px 44px;
+        qproperty-maximumSize: 98px 44px;
+        background-color: transparent;
+        background-position: center;
+        border: none;
+    }
+
+    #chat_template_btn #chat_text {
+        padding-left: 10px;
+    }
+    #chat_template_btn[hovered="true"] > #chat_text {
+        border: none;
+        border-top: 1px solid #353535;
+        color: #bababa;
+    }
+
+    #chat_template_btn[pressed="true"] > #chat_text {
+        border: none;
+        border-top: 1px solid #353535;
+        color: #bababa;
+    }
+
+    #chat_template_btn[checked="true"] > #chat_text {
+        border: none;
+        border-top: 1px solid #effc35;
+        background: #effc35;
+        color: black;
+    }
+    #chat_template_btn[checked="false"] > #chat_text {
+        border: none;
+        border-top: 1px solid #353535;
+        background-color: transparent;
+        color: #bababa;
+    }
+    #chat_template_btn[checked="true"] > #chatTemplateEditFrame {
+        border: none;
+        border-radius: 3px;
+        background-color:transparent;
+    }
+
+    #chat_template_btn[checked="false"] > #chatTemplateEditFrame {
+        border: none;
+        background-color: transparent;
+    }
+    #chat_template_btn #PAID, #PLSTemplateButton #PAID {
+        background-color: transparent;
+        image: url(":/resource/images/chat-template-source/ic_plus_thumbnail_badge.svg");
+        min-width: 50px;
+        max-width: 50px;
+        min-height: 27px;
+        max-height: 27px;
+        color: #effc35;
+    }
+    #chat_template_btn #enableLabel {
+        background-color: #4d2a2a2a;
+    }
+    PLSPropertiesView #CTMotionCheckboxFrame {
+        min-width: 135px;
+    }
+
+    PLSPropertiesView #CTMotionCheckboxFrame > QLabel {
+        font-weight: normal;
+        color: #bababa;
+    }
+PLSPropertiesView #CTChatHegihtLable, PLSPropertiesView #CTChatWidthLable {
+    font-weight: normal;
+}
+
+PLSPropertiesView #CTMotionGroupFrame > PLSRadioButton, #CTChatAlignFrame > PLSRadioButton, #CTChatDisapperFrame > PLSRadioButton {
+    /*min-width: 120px;
+    max-width: 120px;*/
+}
+
+PLSPropertiesView #CTChatHeightFrame, PLSPropertiesView #CTChatWidthFrame {
+    min-width: 245px;
+    max-width: 245px;
+}
+
+PLSPropertiesView #CTOptionCheckWarp, PLSPropertiesView #platformIconCheck, PLSPropertiesView #levelIconWidget, PLSPropertiesView #idIconCheck {
+    /*min-width: 120px;
+    max-width: 120px;*/
+}
+
+PLSPropertiesView #platformTypehelp {
+    min-width: 135px;
+    /*max-width: 135px;*/
+}
+
+    PLSPropertiesView #platformTypehelp > QLabel {
+        font-weight: normal;
+        color: #bababa;
+    }
+
+PLSPropertiesView #CTChatPlatformTypeFrame {
+    max-width: 513px;
+    padding: 0;
+    margin: 0;
+    border: none;
+    /*min-width: 513px;*/
+}
+
+PLSPropertiesView #CTChatPlatformTypeFrame >PLSCheckBox #showImageLable {
+    max-height: 19px;
+    min-height: 19px;
+    max-width: 20px;
+    min-width: 20px;
+    padding:0;
+    margin:0;
+    border:none;
+}
+PLSPropertiesView #CtChatSaveButton {
+    padding-left: 15px;
+    padding-right:15px;
+    margin: 0;
+    background-color: #effc35;
+    border-radius: 3px;
+    color: black;
+    font-weight: bold;
+    max-width:9999px;
+}
+
+
+PLSPropertiesView #CtChatSaveButton:hover {
+    background: #ffF1FA75;
+}
+
+PLSPropertiesView #CtChatSaveButton:pressed {
+    background: #ff7A7F34;
+}
+    PLSPropertiesView #CtChatSaveButton:disabled {
+        background-color: #ff363636;
+        color: #777777;
+    }
+PLSPropertiesView #chatTemplateEditFrame {
+    background-color:transparent;
+}
+
+PLSPropertiesView #chatTemplateRemoveBtn {
+    padding: 0;
+    margin: 0;
+    border: none;
+    background-color: #333939;
+    border-radius:2px;
+    image: url(":/resource/images/btn-close-normal.svg");
+    qproperty-maximumSize: 16px 16px;
+    qproperty-minimumSize: 16px 16px;
+}
+PLSPropertiesView #chatTemplateRemoveBtn:hover {
+    image: url(":/resource/images/btn-close-over.svg");
+}
+
+PLSPropertiesView #chatTemplateRemoveBtn:pressed {
+    image: url(":/resource/images/btn-close-click.svg");
+}
+
+PLSPropertiesView #chatTemplateEditBtn {
+    background: transparent;
+    min-width: 20px;
+    max-width: 20px;
+    min-height: 20px;
+    max-height: 20px;
+    border-style: none;
+    margin: 0;
+    padding: 0;
+    image: url(":/resource/images/ic-scene-rename-normal.svg");
+}
+
+PLSPropertiesView #chatTemplateEditBtn:hover {
+    image: url(":/resource/images/ic-scene-rename-over.svg");
+}
+
+PLSPropertiesView #chatTemplateEditBtn:pressed {
+    image: url(":/resource/images/ic-scene-rename-click.svg");
+}
+PLSPropertiesView #ct_renameEdit {
+    min-height:20px;
+    max-height:20px;
+    border-radius:3px;
+    color:white;
+    background-color:#2e2e2e;
+}
+PLSPropertiesView #warningLabel,
+PLSPropertiesView #errorLabel,
+PLSPropertiesView #infoLabel {
+    color: #bababa;
+    font-weight: normal;
+}
+
+PLSPropertiesView #CHZZKSponsorDescribe {
+	font-size: 12px;
+	color: #666666;
+	font-weight: normal;
+	background-color: transparent;
+	padding: 0;
+	margin: 0;
+}
+
+PLSPropertiesView #CHZZKSponsorNotification {
+	/*min-width: 178px;
+	max-width: 200px;*/
+	font-size: 14px;
+	color: #BABABA;
+	font-weight: bold;
+	background-color: transparent;
+	padding: 0;
+	margin: 0;
+}
+
+PLSPropertiesView #gotoBtn {
+	background-color: transparent;
+	min-height: 17px;
+	max-height: 17px;
+	margin: 0px;
+	padding: 0px;
+	font-size: 14px;
+	font-weight: bold;
+	font-style: normal;
+	color: #bababa;
+	spacing: 0px;
+}
+
+	PLSPropertiesView #gotoBtn:hover {
+		color: white;
+	}
+	PLSPropertiesView #gotoBtn:pressed {
+		color: #444444;
+	}
+	PLSPropertiesView #gotoBtn::indicator {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-menu-next-normal.svg);
+	min-height: 13px;
+	max-height: 13px;
+	min-width: 9px;
+	max-width: 9px;
+	background-color: transparent;
+}
+
+PLSPropertiesView #gotoBtn::indicator:hover {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-menu-next-over.svg);
+}
+PLSPropertiesView #gotoBtn::indicator:pressed {
+	image: url(:/channels/resource/images/ChannelsSource/navershopping/ic-menu-next-click.svg);
+}
+PLSPropertiesView #PLSChatTemplateTabTips {
+    color: #666666;
+    background-color: transparent;
+    font-size: 12px;
+    font-weight: normal;
+    min-width: 300px;
+}
+
+PLSPropertiesView #newLabel {
+    min-width: /*hdpi-u*/ 34px;
+    max-width: /*hdpi-u*/ 34px;
+    min-height: /*hdpi-u*/ 16px;
+    max-height: /*hdpi-u*/ 16px;
+    background-color: transparent;
+    image: url(:/resource/images/chat-template-source/ic_badge_new.svg);
+}

@@ -1,0 +1,141 @@
+{
+  "projectName": "obs-composite-blur",
+  "projectOwner": "FiniteSingularity",
+  "files": [
+    "README.md"
+  ],
+  "commitType": "docs",
+  "commitConvention": "angular",
+  "contributorsPerLine": 7,
+  "contributors": [
+    {
+      "login": "FiniteSingularity",
+      "name": "FiniteSingularity",
+      "avatar_url": "https://avatars.githubusercontent.com/u/72580859?v=4",
+      "profile": "https://github.com/FiniteSingularity",
+      "contributions": [
+        "code",
+        "doc"
+      ]
+    },
+    {
+      "login": "exeldro",
+      "name": "Exeldro",
+      "avatar_url": "https://avatars.githubusercontent.com/u/5457024?v=4",
+      "profile": "https://github.com/exeldro",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "prgmitchell",
+      "name": "prgmitchell",
+      "avatar_url": "https://avatars.githubusercontent.com/u/86465454?v=4",
+      "profile": "https://github.com/prgmitchell",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "andilippi",
+      "name": "Andi Stone",
+      "avatar_url": "https://avatars.githubusercontent.com/u/64610623?v=4",
+      "profile": "https://www.youtube.com/andilippi",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "dnaka91",
+      "name": "Dominik Nakamura",
+      "avatar_url": "https://avatars.githubusercontent.com/u/36804488?v=4",
+      "profile": "https://home.dnaka91.rocks",
+      "contributions": [
+        "doc",
+        "platform"
+      ]
+    },
+    {
+      "login": "WonderWez",
+      "name": "WonderWez",
+      "avatar_url": "https://avatars.githubusercontent.com/u/144557600?v=4",
+      "profile": "https://github.com/WonderWez",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "ASchneiderBR",
+      "name": "Antonio Schneider",
+      "avatar_url": "https://avatars.githubusercontent.com/u/25224882?v=4",
+      "profile": "https://github.com/ASchneiderBR",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "LividJava",
+      "name": "LividJava",
+      "avatar_url": "https://avatars.githubusercontent.com/u/7604544?v=4",
+      "profile": "https://github.com/LividJava",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "COOLIGUAY",
+      "name": "Monsteer",
+      "avatar_url": "https://avatars.githubusercontent.com/u/55640387?v=4",
+      "profile": "https://github.com/COOLIGUAY",
+      "contributions": [
+        "translation",
+        "bug"
+      ]
+    },
+    {
+      "login": "JDDoesDev",
+      "name": "J.D. Flynn",
+      "avatar_url": "https://avatars.githubusercontent.com/u/9932557?v=4",
+      "profile": "https://www.jamesdflynn.com",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
+      "login": "SketchNI",
+      "name": "Denver F",
+      "avatar_url": "https://avatars.githubusercontent.com/u/11874768?v=4",
+      "profile": "https://sketchni.uk",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "bruchmann",
+      "name": "Steffen Bruchmann",
+      "avatar_url": "https://avatars.githubusercontent.com/u/28243831?v=4",
+      "profile": "https://sbruchmann.dev",
+      "contributions": [
+        "translation"
+      ]
+    },
+    {
+      "login": "sesamiam",
+      "name": "sesamiam",
+      "avatar_url": "https://avatars.githubusercontent.com/u/128088919?v=4",
+      "profile": "http://sekoodi.com",
+      "contributions": [
+        "translation"
+      ]
+    },
+    {
+      "login": "Poodmund",
+      "name": "Poodmund",
+      "avatar_url": "https://avatars.githubusercontent.com/u/10106634?v=4",
+      "profile": "https://github.com/Poodmund",
+      "contributions": [
+        "bug"
+      ]
+    }
+  ]
+}

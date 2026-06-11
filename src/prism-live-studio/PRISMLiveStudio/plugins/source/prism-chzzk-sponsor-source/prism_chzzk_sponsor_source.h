@@ -1,0 +1,6 @@
+#ifndef PRISMCHZZKSPONSORSOURCE_H
+#define PRISMCHZZKSPONSORSOURCE_H
+
+#include <obs-module.h>
+
+#endif // PRISMCHZZKSPONSORSOURCE_H

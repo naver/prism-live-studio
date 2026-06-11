@@ -1,0 +1,81 @@
+
+PLSUpdateTipView {
+	qproperty-hasHLine: /*hdpi*/ false;
+	qproperty-hasMinButton: /*hdpi*/ false;
+	qproperty-hasCloseButton: /*hdpi*/ false;
+	qproperty-isMoveInContent: /*hdpi*/ true;
+	qproperty-hasBorder: /*hdpi*/ false;
+	qproperty-hasCaption: /*hdpi*/ false;
+	min-width: 720px;
+	max-width: 720px;
+	min-height: 544px;
+	max-height: 544px;
+}
+
+PLSUpdateTipView[type="Mac"] {
+	qproperty-hasCaption:/*hdpi*/true;
+}
+
+PLSUpdateTipView[type="Win"] {
+	qproperty-hasCaption:/*hdpi*/false;
+}
+
+PLSUpdateTipView #middleView {
+	min-height: /*hdpi*/ 304px;
+	max-height: /*hdpi*/ 304px;
+	background-color:#1e1e1e;
+}
+
+PLSUpdateTipView #lineView {
+	background-color: #151515;
+	min-height: /*hdpi*/ 1px;
+	max-height: /*hdpi*/ 1px;
+}
+
+PLSUpdateTipView #updateTopDescription {
+	color:#effc35;
+	font-size:/*hdpi*/20px;
+	font-weight: bold;
+	min-height:/*hdpi*/60px;
+	max-height:/*hdpi*/60px;
+    background-color: transparent;
+}
+
+PLSUpdateTipView #nextUpdateBtn {
+	qproperty-minimumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
+	qproperty-maximumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	border-radius: /*hdpi*/ 3px;
+	padding: /*hdpi*/ 0px;
+	color: white;
+	background-color: #444444;
+
+}
+
+PLSUpdateTipView #nextUpdateBtn:hover {
+	background-color:#555555;
+}
+
+PLSUpdateTipView #nextUpdateBtn:pressed {
+	background-color:#1e1e1f;
+}
+
+PLSUpdateTipView #nowUpdateBtn {
+	qproperty-minimumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
+	qproperty-maximumSize: /*hdpi*/ 170px /*hdpi*/ 40px;
+	font-size: /*hdpi*/ 14px;
+	font-weight: bold;
+	border-radius: /*hdpi*/ 3px;
+	padding: /*hdpi*/ 0px;
+	color: white;
+	background-color: #444444;
+}
+
+PLSUpdateTipView #nowUpdateBtn:hover {
+	background-color:#555555;
+}
+
+PLSUpdateTipView #nowUpdateBtn:pressed {
+	background-color:#1e1e1f;
+}
